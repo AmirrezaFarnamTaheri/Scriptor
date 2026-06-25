@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not $env:WINDOWS_CERTIFICATE) {
-  Write-Host "WINDOWS_CERTIFICATE not set — skipping Authenticode signing."
+  Write-Host "WINDOWS_CERTIFICATE not set - skipping Authenticode signing."
   exit 0
 }
 
