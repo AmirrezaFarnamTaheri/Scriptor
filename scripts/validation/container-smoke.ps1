@@ -1,5 +1,5 @@
 param(
-  [string]$Tag = "scriptor-local"
+  [string]$Tag = "scriptor-ci"
 )
 
 $ErrorActionPreference = "Stop"

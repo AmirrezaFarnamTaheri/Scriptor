@@ -21,6 +21,8 @@ COPY apps ./apps
 COPY crates ./crates
 COPY packages ./packages
 COPY src ./src
+COPY public ./public
+COPY index.html ./
 COPY scripts ./scripts
 COPY tsconfig*.json ./
 COPY vite.config.ts ./
