@@ -25,6 +25,8 @@ pub fn render_markdown_lines(markdown: &str, width: usize, max_lines: usize, scr
     let mut current: Vec<Span<'static>> = Vec::new();
     let mut list_depth = 0usize;
     let mut in_code_block = false;
+    let mut emphasis_depth = 0usize;
+    let mut strong_depth = 0usize;
     let mut code_lang = String::new();
 
     let flush_line = |lines: &mut Vec<Line<'static>>, current: &mut Vec<Span<'static>>| {
@@ -95,10 +97,18 @@ pub fn render_markdown_lines(markdown: &str, width: usize, max_lines: usize, scr
                 let style = if in_code_block { CODE } else { CODE };
                 current.push(Span::styled(text.to_string(), style));
             }
-            Event::Start(Tag::Emphasis) => {}
-            Event::End(TagEnd::Emphasis) => {}
-            Event::Start(Tag::Strong) => {}
-            Event::End(TagEnd::Strong) => {}
+            Event::Start(Tag::Emphasis) => {
+                emphasis_depth += 1;
+            }
+            Event::End(TagEnd::Emphasis) => {
+                emphasis_depth = emphasis_depth.saturating_sub(1);
+            }
+            Event::Start(Tag::Strong) => {
+                strong_depth += 1;
+            }
+            Event::End(TagEnd::Strong) => {
+                strong_depth = strong_depth.saturating_sub(1);
+            }
             Event::Start(Tag::Link { .. }) => {
                 current.push(Span::styled("[", LINK));
             }
@@ -108,6 +118,12 @@ pub fn render_markdown_lines(markdown: &str, width: usize, max_lines: usize, scr
             Event::Text(text) => {
                 let style = if in_code_block {
                     CODE
+                } else if strong_depth > 0 && emphasis_depth > 0 {
+                    Style::new().add_modifier(Modifier::BOLD | Modifier::ITALIC)
+                } else if strong_depth > 0 {
+                    STRONG
+                } else if emphasis_depth > 0 {
+                    EMPHASIS
                 } else {
                     Style::default()
                 };

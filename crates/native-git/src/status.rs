@@ -219,6 +219,38 @@ mod tests {
     use std::process::Command;
     use tempfile::tempdir;
 
+    fn configure_git_identity(repo: &Path) -> Result<(), Box<dyn std::error::Error>> {
+        for (key, value) in [("user.name", "Scriptor Test"), ("user.email", "scriptor@test.local")] {
+            let output = Command::new("git")
+                .current_dir(repo)
+                .args(["config", key, value])
+                .output()?;
+            if !output.status.success() {
+                return Err(format!(
+                    "git config {key} failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                )
+                .into());
+            }
+        }
+        Ok(())
+    }
+
+    fn git_commit(repo: &Path, message: &str) -> Result<(), Box<dyn std::error::Error>> {
+        let output = Command::new("git")
+            .current_dir(repo)
+            .args(["commit", "-m", message])
+            .output()?;
+        if !output.status.success() {
+            return Err(format!(
+                "git commit failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            )
+            .into());
+        }
+        Ok(())
+    }
+
     #[test]
     fn detects_conflict_entries_from_porcelain() {
         let files = parse_porcelain("UU notes/conflict.md\n");
@@ -253,10 +285,8 @@ mod tests {
             .current_dir(dir.path())
             .args(["add", "note.md"])
             .output()?;
-        Command::new("git")
-            .current_dir(dir.path())
-            .args(["commit", "-m", "init"])
-            .output()?;
+        configure_git_identity(dir.path())?;
+        git_commit(dir.path(), "init")?;
         fs::write(dir.path().join("note.md"), "# Working\n")?;
 
         let head = git_show_head_file(dir.path(), "note.md")?.unwrap_or_default();
