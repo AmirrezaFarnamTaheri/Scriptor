@@ -36,14 +36,30 @@ fn resolve_daemon_binary(app: &tauri::AppHandle) -> std::path::PathBuf {
     if let Ok(path) = std::env::var("SCRIPTOR_DAEMON_BIN") {
         return std::path::PathBuf::from(path);
     }
-    for candidate in ["binaries/scriptor-daemon", "scriptor-daemon"] {
-        if let Ok(resource) = app.path().resolve(candidate, BaseDirectory::Resource) {
+    let mut candidates = vec![
+        "binaries/scriptor-daemon".to_string(),
+        "scriptor-daemon".to_string(),
+    ];
+    #[cfg(windows)]
+    {
+        candidates.insert(0, "binaries/scriptor-daemon.exe".to_string());
+        candidates.push("scriptor-daemon.exe".to_string());
+    }
+    for candidate in candidates {
+        if let Ok(resource) = app.path().resolve(&candidate, BaseDirectory::Resource) {
             if resource.is_file() {
                 return resource;
             }
         }
     }
-    std::path::PathBuf::from("scriptor-daemon")
+    #[cfg(windows)]
+    {
+        return std::path::PathBuf::from("scriptor-daemon.exe");
+    }
+    #[cfg(not(windows))]
+    {
+        std::path::PathBuf::from("scriptor-daemon")
+    }
 }
 
 #[tauri::command]

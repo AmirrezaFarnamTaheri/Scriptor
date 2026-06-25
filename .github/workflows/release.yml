@@ -11,12 +11,19 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
 defaults:
   run:
     working-directory: .
+
+env:
+  SCRIPTOR_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
 
 jobs:
   build:
@@ -37,6 +44,7 @@ jobs:
             targets: deb,appimage
             artifact: scriptor-linux-installers
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
@@ -52,29 +60,37 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            apps/desktop/src-tauri
+            crates
+
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
+        shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            patchelf
 
       - name: Install dependencies
-        run: pnpm install
-
-      - name: Stage daemon sidecar
-        run: node scripts/release/stage-daemon-sidecar.mjs
-
-      - name: Build frontend
-        run: pnpm build
+        run: pnpm install --frozen-lockfile
 
       - name: Import Apple signing certificate
         if: matrix.platform == 'macos'
+        shell: bash
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
           if [ -z "$APPLE_CERTIFICATE" ]; then
-            echo "No Apple certificate secret; building unsigned macOS bundle."
+            echo "No Apple certificate secret; using ad-hoc signing from tauri.conf.json."
             exit 0
           fi
           KEYCHAIN=build.keychain
@@ -85,25 +101,35 @@ jobs:
           security import certificate.p12 -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
 
-      - name: Tauri bundle (${{ matrix.platform }})
+      - name: Configure macOS signing
+        if: matrix.platform == 'macos'
+        shell: bash
         env:
-          TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
           _APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           _APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           _APPLE_ID: ${{ secrets.APPLE_ID }}
           _APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           _APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          if [ "${{ matrix.platform }}" = "macos" ] && [ -n "$_APPLE_CERTIFICATE" ] && [ -n "$_APPLE_SIGNING_IDENTITY" ]; then
-            export APPLE_SIGNING_IDENTITY="$_APPLE_SIGNING_IDENTITY"
-            [ -n "$_APPLE_ID" ] && export APPLE_ID="$_APPLE_ID"
-            [ -n "$_APPLE_PASSWORD" ] && export APPLE_PASSWORD="$_APPLE_PASSWORD"
-            [ -n "$_APPLE_TEAM_ID" ] && export APPLE_TEAM_ID="$_APPLE_TEAM_ID"
+          if [ -n "$_APPLE_CERTIFICATE" ] && [ -n "$_APPLE_SIGNING_IDENTITY" ]; then
+            echo "APPLE_SIGNING_IDENTITY=$_APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+            [ -n "$_APPLE_ID" ] && echo "APPLE_ID=$_APPLE_ID" >> "$GITHUB_ENV"
+            [ -n "$_APPLE_PASSWORD" ] && echo "APPLE_PASSWORD=$_APPLE_PASSWORD" >> "$GITHUB_ENV"
+            [ -n "$_APPLE_TEAM_ID" ] && echo "APPLE_TEAM_ID=$_APPLE_TEAM_ID" >> "$GITHUB_ENV"
             echo "Using Apple Developer ID signing."
-          elif [ "${{ matrix.platform }}" = "macos" ]; then
-            echo "No Apple certificate; using ad-hoc signing from tauri.conf.json."
+          else
+            echo "No Apple signing identity configured; using ad-hoc signing from tauri.conf.json."
           fi
-          pnpm --dir apps/desktop build
+
+      - name: Tauri bundle (${{ matrix.platform }})
+        env:
+          TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
+        run: pnpm --dir apps/desktop build
+
+      - name: Verify bundle artifacts
+        env:
+          SCRIPTOR_PLATFORM: ${{ matrix.platform }}
+        run: node scripts/release/verify-bundle.mjs ${{ matrix.platform }}
 
       - name: Package Windows (manifest + smoke)
         if: matrix.platform == 'windows'
@@ -112,15 +138,26 @@ jobs:
           powershell -ExecutionPolicy Bypass -File scripts/release/verify-manifest.ps1
           powershell -ExecutionPolicy Bypass -File scripts/release/sign-installers.ps1
         env:
+          SCRIPTOR_RELEASE_VERSION: ${{ env.SCRIPTOR_RELEASE_VERSION }}
           WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
-      - name: Upload installers
+      - name: Upload installers (Windows)
+        if: matrix.platform == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: |
             target/release/bundle/**/*
+            dist/release-manifest.json
+          if-no-files-found: error
+
+      - name: Upload installers
+        if: matrix.platform != 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/release/bundle/**/*
           if-no-files-found: error
 
   publish:
@@ -136,10 +173,14 @@ jobs:
           path: release-artifacts
           merge-multiple: true
 
+      - name: List release artifacts
+        run: find release-artifacts -type f | sort
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: release-artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

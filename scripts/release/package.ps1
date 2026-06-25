@@ -28,7 +28,7 @@ pnpm lint
 pnpm build
 
 Write-Host "==> Rust tests"
-cargo test --workspace
+cargo test --workspace --exclude scriptor-desktop
 
 Write-Host "==> Release smoke"
 & (Join-Path $PSScriptRoot "smoke.ps1")

@@ -1,11 +1,21 @@
 param(
-  [string]$Version = "0.1.0",
+  [string]$Version,
   [string]$BundleDir = "target/release/bundle"
 )
 
 $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "../.."
 Set-Location $root
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = $env:SCRIPTOR_RELEASE_VERSION
+}
+if ([string]::IsNullOrWhiteSpace($Version)) {
+  $Version = "0.1.0"
+}
+if ($Version -match '^v') {
+  $Version = $Version.Substring(1)
+}
 
 function Get-Sha256([string]$Path) {
   $hash = Get-FileHash -Path $Path -Algorithm SHA256

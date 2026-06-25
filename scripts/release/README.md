@@ -8,6 +8,8 @@ Release engineering scripts for Scriptor v0.1.0.
 |---|---|
 | `package.ps1` | Full pre-release pipeline: checks, tests, smoke, optional Tauri bundle. |
 | `sign-installers.ps1` | Optional Authenticode signing for MSI/NSIS artifacts (CI or local). |
+| `verify-bundle.mjs` | Cross-platform post-bundle artifact check (used in Release CI). |
+| `write-manifest.ps1` | Writes `dist/release-manifest.json` with SHA-256 hashes for Windows installers. |
 | `smoke.ps1` | CLI workflow smoke on the minimal fixture vault (open, scan, index, search, export dry-run). |
 | `perf-gate.ps1` | Enforces scan/search performance budgets via `bench-large.ps1`. |
 
@@ -32,7 +34,11 @@ Scriptor does not bundle Pandoc in v0.1. See `docs/release/PANDOC_STRATEGY.md` f
 
 ## Signed releases (GitHub Actions)
 
-The `Release` workflow builds unsigned Windows installers on tag push or manual dispatch.
+The `Release` workflow builds installers on tag push (`v*`) or manual dispatch.
+
+- **Windows:** MSI + NSIS, optional Authenticode signing, `release-manifest.json`
+- **macOS:** DMG with ad-hoc signing (`signingIdentity: "-"`) when no Apple secrets are set
+- **Linux:** `.deb` + AppImage on `ubuntu-22.04`
 
 Optional Authenticode signing uses repository secrets:
 
