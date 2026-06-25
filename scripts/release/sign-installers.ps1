@@ -4,17 +4,17 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-if (-not $env:WINDOWS_CERTIFICATE) {
-  Write-Host "WINDOWS_CERTIFICATE not set - skipping Authenticode signing."
+if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)) {
+  Write-Host 'WINDOWS_CERTIFICATE not set; skipping Authenticode signing.'
   exit 0
 }
 
 $password = $env:WINDOWS_CERTIFICATE_PASSWORD
-if (-not $password) {
-  Write-Error "WINDOWS_CERTIFICATE_PASSWORD is required when WINDOWS_CERTIFICATE is set."
+if ([string]::IsNullOrWhiteSpace($password)) {
+  Write-Error 'WINDOWS_CERTIFICATE_PASSWORD is required when WINDOWS_CERTIFICATE is set.'
 }
 
-$certPath = Join-Path $env:RUNNER_TEMP "scriptor-sign.pfx"
+$certPath = Join-Path $env:RUNNER_TEMP 'scriptor-sign.pfx'
 [System.IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
 
 $signtool = Get-Command signtool.exe -ErrorAction SilentlyContinue
@@ -28,12 +28,12 @@ if (-not $signtool) {
 }
 
 if (-not $signtool) {
-  Write-Error "signtool.exe not found. Install the Windows SDK or add signtool to PATH."
+  Write-Error 'signtool.exe not found. Install the Windows SDK or add signtool to PATH.'
 }
 
 $artifacts = @(
-  Get-ChildItem -Path (Join-Path $BundleRoot "msi\*.msi") -ErrorAction SilentlyContinue
-  Get-ChildItem -Path (Join-Path $BundleRoot "nsis\*.exe") -ErrorAction SilentlyContinue
+  Get-ChildItem -Path (Join-Path $BundleRoot 'msi\*.msi') -ErrorAction SilentlyContinue
+  Get-ChildItem -Path (Join-Path $BundleRoot 'nsis\*.exe') -ErrorAction SilentlyContinue
 ) | Where-Object { $_ -ne $null }
 
 if ($artifacts.Count -eq 0) {
@@ -52,4 +52,4 @@ foreach ($artifact in $artifacts) {
   }
 }
 
-Write-Host "Signed $($artifacts.Count) installer artifact(s)."
+Write-Host ('Signed {0} installer artifacts.' -f $artifacts.Count)

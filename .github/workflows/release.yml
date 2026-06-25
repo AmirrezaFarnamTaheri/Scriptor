@@ -85,28 +85,25 @@ jobs:
           security import certificate.p12 -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
 
-      - name: Set macOS signing identity
-        if: matrix.platform == 'macos'
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_SIGNING_IDENTITY_SECRET: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: |
-          if [ -n "$APPLE_CERTIFICATE" ] && [ -n "$APPLE_SIGNING_IDENTITY_SECRET" ]; then
-            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY_SECRET" >> "$GITHUB_ENV"
-            echo "Using Apple Developer ID signing."
-          else
-            echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
-            echo "No Apple certificate; using ad-hoc signing (-)."
-          fi
-
       - name: Tauri bundle (${{ matrix.platform }})
         env:
           TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
-          APPLE_SIGNING_IDENTITY: ${{ env.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm --dir apps/desktop build
+          _APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          _APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          _APPLE_ID: ${{ secrets.APPLE_ID }}
+          _APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          _APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ "${{ matrix.platform }}" = "macos" ] && [ -n "$_APPLE_CERTIFICATE" ] && [ -n "$_APPLE_SIGNING_IDENTITY" ]; then
+            export APPLE_SIGNING_IDENTITY="$_APPLE_SIGNING_IDENTITY"
+            [ -n "$_APPLE_ID" ] && export APPLE_ID="$_APPLE_ID"
+            [ -n "$_APPLE_PASSWORD" ] && export APPLE_PASSWORD="$_APPLE_PASSWORD"
+            [ -n "$_APPLE_TEAM_ID" ] && export APPLE_TEAM_ID="$_APPLE_TEAM_ID"
+            echo "Using Apple Developer ID signing."
+          elif [ "${{ matrix.platform }}" = "macos" ]; then
+            echo "No Apple certificate; using ad-hoc signing from tauri.conf.json."
+          fi
+          pnpm --dir apps/desktop build
 
       - name: Package Windows (manifest + smoke)
         if: matrix.platform == 'windows'

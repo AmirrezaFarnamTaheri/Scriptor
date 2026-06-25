@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# PowerShell scripts must stay ASCII-safe for Windows PowerShell 5.1 on CI
+*.ps1 text eol=lf
