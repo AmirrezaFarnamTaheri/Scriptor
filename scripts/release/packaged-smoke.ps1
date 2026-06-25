@@ -6,7 +6,7 @@ Set-Location $root
 Write-Host '==> CLI packaged workflow smoke'
 & (Join-Path $PSScriptRoot 'smoke.ps1')
 
-$bundleRoot = Join-Path $root 'apps/desktop/src-tauri/target/release/bundle'
+$bundleRoot = Join-Path $root 'target/release/bundle'
 if (Test-Path $bundleRoot) {
   $installers = Get-ChildItem -Path $bundleRoot -Recurse -Include *.msi, *.exe -ErrorAction SilentlyContinue
   if ($installers.Count -eq 0) {

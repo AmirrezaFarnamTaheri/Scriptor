@@ -18,7 +18,7 @@ pnpm install
 powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1
 ```
 
-Installers land under `apps/desktop/src-tauri/target/release/bundle/` (MSI + NSIS on Windows).
+Installers land under `target/release/bundle/` (MSI + NSIS on Windows).
 
 Skip the Tauri bundle while iterating:
 

@@ -92,7 +92,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm --dir apps/desktop tauri build
+        run: pnpm --dir apps/desktop build
 
       - name: Package Windows (manifest + smoke)
         if: matrix.platform == 'windows'
@@ -109,7 +109,7 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            apps/desktop/src-tauri/target/release/bundle/**/*
+            target/release/bundle/**/*
           if-no-files-found: error
 
   publish:

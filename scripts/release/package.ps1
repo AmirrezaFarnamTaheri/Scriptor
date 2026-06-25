@@ -53,4 +53,4 @@ if (-not $SkipTauri) {
     & (Join-Path $PSScriptRoot "packaged-smoke.ps1")
 }
 
-Write-Host "Package pipeline complete. Installers are under apps/desktop/src-tauri/target/release/bundle/"
+Write-Host "Package pipeline complete. Installers are under target/release/bundle/"

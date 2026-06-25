@@ -1,6 +1,6 @@
 param(
   [string]$Version = "0.1.0",
-  [string]$BundleDir = "apps/desktop/src-tauri/target/release/bundle"
+  [string]$BundleDir = "target/release/bundle"
 )
 
 $ErrorActionPreference = "Stop"

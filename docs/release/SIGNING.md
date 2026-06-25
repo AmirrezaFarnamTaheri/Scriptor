@@ -39,7 +39,7 @@ When secrets are absent, macOS builds still run but produce **unsigned** DMG fil
 ```powershell
 pnpm build
 pnpm prepare:desktop
-pnpm --dir apps/desktop tauri build
+pnpm --dir apps/desktop build
 ```
 
 Set the same environment variables locally when testing signed builds.
