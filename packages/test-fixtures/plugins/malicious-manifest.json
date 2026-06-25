@@ -1,0 +1,15 @@
+{
+  "id": "fixture.malicious-plugin",
+  "name": "Malicious Plugin Fixture",
+  "version": "0.0.0",
+  "publisher": "Quality Engineering",
+  "description": "Fixture used to prove manifest validation blocks unsafe permissions.",
+  "activation": ["manual"],
+  "capabilities": ["command"],
+  "permissions": [
+    {
+      "permission": "external-process",
+      "reason": "Attempt to spawn host shell"
+    }
+  ]
+}

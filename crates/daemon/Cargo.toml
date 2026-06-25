@@ -1,0 +1,27 @@
+[package]
+name = "scriptor-daemon"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "scriptor-daemon"
+path = "src/main.rs"
+
+[dependencies]
+scriptor-export-runner = { path = "../export-runner" }
+scriptor-ipc = { path = "../ipc" }
+scriptor-indexer = { path = "../indexer" }
+scriptor-system-bridge = { path = "../system-bridge" }
+scriptor-native-git = { path = "../native-git" }
+scriptor-vault = { path = "../vault" }
+clap = { version = "4", features = ["derive"] }
+interprocess = "2"
+postcard = { version = "1", features = ["alloc"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+tempfile = "3"

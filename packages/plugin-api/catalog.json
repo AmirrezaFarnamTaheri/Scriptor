@@ -1,0 +1,30 @@
+[
+  {
+    "id": "scriptor-vault-lint",
+    "name": "Vault Lint",
+    "version": "0.1.0",
+    "description": "Broken links, duplicate titles, and Foam-style lint rules.",
+    "package": "@scriptor/plugin-vault-lint"
+  },
+  {
+    "id": "scriptor-canvas-kit",
+    "name": "Canvas Kit",
+    "version": "0.1.0",
+    "description": "Research and planning canvas templates.",
+    "package": "@scriptor/plugin-canvas-kit"
+  },
+  {
+    "id": "scriptor-publish-pack",
+    "name": "Publish Pack",
+    "version": "0.1.0",
+    "description": "Publication export profiles and preview extensions.",
+    "package": "@scriptor/plugin-publish-pack"
+  },
+  {
+    "id": "scriptor-pdf-translate",
+    "name": "PDF Translate",
+    "version": "0.1.0",
+    "description": "Layout-preserving scientific PDF translation via pdf2zh.",
+    "package": "@scriptor/plugin-pdf-translate"
+  }
+]

@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/vault",
+  "crates/indexer",
+  "crates/export-runner",
+  "crates/native-git",
+  "crates/system-bridge",
+  "crates/canvas-engine",
+  "crates/ipc",
+  "crates/daemon",
+  "crates/cli",
+  "apps/desktop/src-tauri",
+]

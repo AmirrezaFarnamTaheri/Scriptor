@@ -1,0 +1,16 @@
+{
+  "name": "@scriptor/plugin-api",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@scriptor/core": "workspace:*",
+    "@scriptor/plugin-canvas-kit": "workspace:*",
+    "@scriptor/plugin-publish-pack": "workspace:*",
+    "@scriptor/plugin-pdf-translate": "workspace:*",
+    "@scriptor/plugin-vault-lint": "workspace:*"
+  }
+}

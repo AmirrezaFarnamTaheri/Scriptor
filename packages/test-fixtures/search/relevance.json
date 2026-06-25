@@ -1,0 +1,19 @@
+{
+  "cases": [
+    {
+      "query": "research",
+      "expect_paths": ["Research Plan.md"],
+      "vault": "packages/test-fixtures/vaults/minimal"
+    },
+    {
+      "query": "Field",
+      "expect_paths": ["Field Notes.md"],
+      "vault": "linked"
+    },
+    {
+      "query": "alias",
+      "expect_paths": ["Alias Target.md"],
+      "vault": "packages/test-fixtures/vaults/knowledge-edge-cases"
+    }
+  ]
+}

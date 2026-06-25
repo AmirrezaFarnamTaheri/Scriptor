@@ -1,0 +1,24 @@
+[package]
+name = "scriptor-indexer"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+scriptor-vault = { path = "../vault" }
+scriptor-export-runner = { path = "../export-runner" }
+chrono = { version = "0.4", features = ["serde"] }
+hex = "0.4"
+regex = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sha2 = "0.10"
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"
+chrono = { version = "0.4", features = ["serde"] }
+serde_json = "1"

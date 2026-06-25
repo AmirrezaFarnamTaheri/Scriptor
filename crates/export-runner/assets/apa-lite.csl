@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0.2" demote-non-dropping-particle="never">
+  <info>
+    <title>Scriptor APA Lite</title>
+    <id>http://scriptor.local/styles/apa-lite</id>
+    <category citation-format="author-date"/>
+    <updated>2026-06-20T00:00:00+00:00</updated>
+  </info>
+  <citation et-al-min="3" et-al-use-first="1" disambiguate-add-year-suffix="true">
+    <layout prefix="(" suffix=")" delimiter="; ">
+      <group delimiter=", ">
+        <names variable="author" form="short">
+          <name and="symbol" delimiter=", " initialize-with=". "/>
+        </names>
+        <date variable="issued" form="text" date-parts="year"/>
+      </group>
+    </layout>
+  </citation>
+  <bibliography hanging-indent="true">
+    <layout>
+      <group delimiter=". ">
+        <names variable="author">
+          <name and="symbol" delimiter=", " initialize-with=". "/>
+        </names>
+        <group delimiter=" ">
+          <date variable="issued" form="text" date-parts="year" prefix="(" suffix=")"/>
+          <text variable="title"/>
+        </group>
+      </group>
+    </layout>
+  </bibliography>
+</style>

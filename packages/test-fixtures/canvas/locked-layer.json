@@ -1,0 +1,40 @@
+{
+  "id": "canvas-locked",
+  "vaultId": "vault-fixture",
+  "title": "Locked layer fixture",
+  "mode": "edgeless",
+  "layers": [
+    {
+      "id": "layer-base",
+      "name": "Base",
+      "visible": true,
+      "locked": false,
+      "order": 0
+    },
+    {
+      "id": "layer-overlay",
+      "name": "Overlay",
+      "visible": true,
+      "locked": true,
+      "order": 1
+    }
+  ],
+  "blocks": [
+    {
+      "id": "block-low",
+      "kind": "shape",
+      "layerId": "layer-base",
+      "bounds": { "x": 0, "y": 0, "width": 200, "height": 200 },
+      "zIndex": 1
+    },
+    {
+      "id": "block-high",
+      "kind": "sticky-note",
+      "layerId": "layer-overlay",
+      "bounds": { "x": 50, "y": 50, "width": 120, "height": 80 },
+      "zIndex": 5,
+      "contentRef": "Locked overlay"
+    }
+  ],
+  "updatedAt": "2026-06-20T00:00:00Z"
+}

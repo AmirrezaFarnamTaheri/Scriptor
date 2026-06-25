@@ -1,0 +1,82 @@
+/* Grace-style publish theme — warm accent, generous spacing (doocs/md inspired) */
+body {
+  font-family: "Georgia", "Times New Roman", "PingFang SC", serif;
+  font-size: 17px;
+  line-height: 1.85;
+  color: #2c2c2c;
+}
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 1.4em 0 0.7em;
+  color: #1a1a1a;
+  letter-spacing: 0.02em;
+}
+
+h2 {
+  font-size: 21px;
+  font-weight: 700;
+  margin: 1.2em 0 0.6em;
+  color: #c17f59;
+}
+
+h3 {
+  font-size: 19px;
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+}
+
+p {
+  margin: 0.85em 0;
+  text-align: justify;
+}
+
+blockquote {
+  margin: 1.2em 0;
+  padding: 0.75em 1.2em;
+  border-left: 4px solid #c17f59;
+  background: #faf6f2;
+  color: #5a4a42;
+  font-style: italic;
+}
+
+code {
+  font-family: "SF Mono", Consolas, monospace;
+  background: #f3ece6;
+  padding: 2px 5px;
+  border-radius: 3px;
+  color: #8b4513;
+}
+
+pre {
+  margin: 1.2em 0;
+  padding: 14px;
+  background: #faf6f2;
+  border-radius: 6px;
+  border: 1px solid #eadfd4;
+}
+
+a {
+  color: #c17f59;
+  border-bottom: 1px solid rgba(193, 127, 89, 0.35);
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+  margin: 0.75em auto;
+  border-radius: 4px;
+}
+
+th {
+  background: #faf6f2;
+  color: #c17f59;
+}
+
+td,
+th {
+  border: 1px solid #eadfd4;
+  padding: 10px;
+}

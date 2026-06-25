@@ -1,0 +1,14 @@
+{
+  "snippets": [
+    {
+      "name": "callout-ai",
+      "description": "AI callout block",
+      "content": "> [!ai] ${1:Summarize the section above.}\n"
+    },
+    {
+      "name": "task",
+      "description": "Checkbox task",
+      "content": "- [ ] ${1:task}\n"
+    }
+  ]
+}

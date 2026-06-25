@@ -1,0 +1,21 @@
+[package]
+name = "scriptor-canvas-engine"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+scriptor-export-runner = { path = "../export-runner" }
+chrono = { version = "0.4", features = ["serde"] }
+resvg = "0.44"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tiny-skia = "0.11"
+usvg = { version = "0.44", features = ["text"] }
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lib]
+path = "src/lib.rs"

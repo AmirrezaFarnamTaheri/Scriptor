@@ -1,0 +1,13 @@
+{
+  "name": "@scriptor/plugin-canvas-kit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@scriptor/canvas": "workspace:*",
+    "@scriptor/core": "workspace:*"
+  }
+}

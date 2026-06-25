@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+target/
+
+# Vite / TypeScript
+*.local
+.vite/
+*.tsbuildinfo
+
+# Test and coverage
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+
+# Caches
+.turbo/
+.cache/
+.eslintcache
+
+# Logs
+*.log
+pnpm-debug.log*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.key
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+._*
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Local tooling
+.impeccable/
+.cursor/
+
+# Tauri: staged daemon sidecar (built locally; .gitkeep tracked)
+apps/desktop/src-tauri/binaries/*
+!apps/desktop/src-tauri/binaries/.gitkeep
+
+# Tauri bundle scratch (local installer builds)
+apps/desktop/src-tauri/WixTools/
+
+# Merge / patch artifacts
+*.orig
+*.rej

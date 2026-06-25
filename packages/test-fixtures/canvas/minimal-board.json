@@ -1,0 +1,26 @@
+{
+  "id": "canvas-minimal",
+  "vaultId": "vault-demo",
+  "title": "Minimal board",
+  "mode": "edgeless",
+  "layers": [
+    {
+      "id": "layer-main",
+      "name": "Main",
+      "visible": true,
+      "locked": false,
+      "order": 0
+    }
+  ],
+  "blocks": [
+    {
+      "id": "note-1",
+      "kind": "markdown",
+      "layerId": "layer-main",
+      "bounds": { "x": 24, "y": 24, "width": 320, "height": 180 },
+      "zIndex": 1,
+      "contentRef": "Start here"
+    }
+  ],
+  "updatedAt": "2026-06-20T00:00:00Z"
+}
