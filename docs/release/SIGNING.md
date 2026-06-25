@@ -7,7 +7,7 @@ Scriptor release artifacts are built by [`.github/workflows/release.yml`](../../
 | Platform | Artifacts | Signing |
 |---|---|---|
 | Windows | MSI, NSIS | Optional Authenticode (`WINDOWS_CERTIFICATE`) |
-| macOS | DMG | Apple Developer ID + notarization (secrets below) |
+| macOS | DMG | Ad-hoc (`-`) by default; optional Developer ID + notarization (secrets below) |
 | Linux | DEB, AppImage | Unsigned by default |
 
 ## macOS notarization secrets
@@ -25,7 +25,7 @@ Configure these GitHub Actions **repository secrets** for signed, notarized macO
 
 When secrets are present, the release workflow imports the certificate into a temporary keychain and passes signing/notarization environment variables to `tauri build`.
 
-When secrets are absent, macOS builds still run but produce **unsigned** DMG files (suitable for local testing only).
+When secrets are absent, macOS builds use **ad-hoc signing** (`signingIdentity: "-"`). No Apple Developer account is required. Users may need to right-click → **Open** the first time, or allow the app under **System Settings → Privacy & Security**. Ad-hoc builds are fine for GitHub Releases and local testing; add Developer ID signing later for smoother public distribution.
 
 ## Windows signing secrets
 
