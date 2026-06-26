@@ -19,9 +19,8 @@ pub struct TaggedNote {
 }
 
 pub fn list_vault_tags(cache: &IndexCache, vault_id: &str) -> Result<Vec<TagSummary>, IndexerError> {
-    let mut statement = cache
-        .connection()
-        .prepare("SELECT tags_json FROM notes WHERE vault_id = ?1")?;
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare("SELECT tags_json FROM notes WHERE vault_id = ?1")?;
 
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
     let rows = statement.query_map(params![vault_id], |row| row.get::<_, String>(0))?;
@@ -45,7 +44,8 @@ pub fn notes_for_tag(
     vault_id: &str,
     tag: &str,
 ) -> Result<Vec<TaggedNote>, IndexerError> {
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT path, title, tags_json FROM notes WHERE vault_id = ?1 ORDER BY title COLLATE NOCASE",
     )?;
 

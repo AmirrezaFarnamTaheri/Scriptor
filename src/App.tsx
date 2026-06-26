@@ -3,9 +3,10 @@ import { countCharacters, countWords, type EditorThemeId, type MarkdownEditorHan
 import { applyRendererExtensions, type MarkdownPreviewHandle } from '@scriptor/renderer'
 
 import { useEditorLintProblems } from './hooks/useEditorLintProblems'
-import { plantumlRender } from './bridge/commands'
+import { plantumlRender, indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { VaultSidebar } from './components/app/VaultSidebar'
+import { OnboardingTour } from './components/OnboardingTour'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
 import { generateTocFromMarkdown } from './lib/tocFromMarkdown'
@@ -37,7 +38,9 @@ import { useAiProvider } from './hooks/useAiProvider'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
 import { useMcpRuntime } from './hooks/useMcpRuntime'
-import { useAppTheme } from './hooks/useAppTheme'
+import { usePlatformShell, parseDeepLink } from './hooks/usePlatformShell'
+import { useOnboarding } from './hooks/useOnboarding'
+import { useWorkspaceSession } from './hooks/useWorkspaceSession'
 import { usePluginRegistry } from './hooks/usePluginRegistry'
 import { useVaultWorkspace } from './hooks/useVaultWorkspace'
 import { useWorkspaceStore } from './hooks/useWorkspaceStore'
@@ -45,6 +48,7 @@ import { usePortalShortcuts } from './hooks/usePortalShortcuts'
 import { useEditorPreviewScrollSync } from './hooks/useEditorPreviewScrollSync'
 import { usePersistedBoolean } from './hooks/usePersistedBoolean'
 import { useAppToast } from './hooks/useAppToast'
+import { useAppTheme } from './hooks/useAppTheme'
 import { useHeadlessEngine } from './hooks/useHeadlessEngine'
 import { usePreviewBridge } from './hooks/usePreviewBridge'
 import { useScreenshotAutoOpen } from './screenshot/useScreenshotAutoOpen'
@@ -77,6 +81,14 @@ import type { BibliographyEntry } from './types/vault'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { readInspectorPreset, writeInspectorPreset, type InspectorPreset } from './lib/inspectorPresets'
+import './styles/tokens/components.css'
+import './styles/layout/workspace.css'
+import './styles/components/modals.css'
+import './styles/components/onboarding.css'
+import './styles/components/note-history.css'
+import './styles/components/vault-skeleton.css'
+import './styles/components/command-palette.css'
+import './styles/components/unified-panel.css'
 import './App.css'
 import './styles/motion.css'
 
@@ -93,6 +105,9 @@ const VaultHealthDashboard = lazy(() =>
   import('./components/VaultHealthDashboard').then((module) => ({ default: module.VaultHealthDashboard })),
 )
 const PortalPanel = lazy(() => import('./components/portal/PortalPanel').then((module) => ({ default: module.PortalPanel })))
+const NoteHistoryPanel = lazy(() =>
+  import('./components/NoteHistoryPanel').then((module) => ({ default: module.NoteHistoryPanel })),
+)
 const QuickCapturePanel = lazy(() =>
   import('./components/portal/QuickCapturePanel').then((module) => ({ default: module.QuickCapturePanel })),
 )
@@ -140,6 +155,7 @@ function App() {
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
   const [supportOpen, setSupportOpen] = useState(false)
   const [portalOpen, setPortalOpen] = useState(false)
+  const [noteHistoryOpen, setNoteHistoryOpen] = useState(false)
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
   const [stickiesVisible, setStickiesVisible] = useState(true)
   const [bibliographyOpen, setBibliographyOpen] = useState(false)
@@ -147,7 +163,8 @@ function App() {
   const [graphDepth, setGraphDepth] = useState(2)
   const [graphFullVault, setGraphFullVault] = useState(false)
   const { mobilePane, setMobilePane } = usePersistedMobilePane('editor')
-  const { theme, toggleTheme } = useAppTheme()
+  const { theme, toggleTheme, setTheme } = useAppTheme()
+  const onboarding = useOnboarding()
   const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
   const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
@@ -213,14 +230,40 @@ function App() {
   const [vaultTags, setVaultTags] = useState<string[]>([])
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const commandPalette = useCommandPalette()
+  const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
   const workspace = useVaultWorkspace({
     onSearchComplete: (hits) => {
       if (hits.length > 0) {
         setStatusDockTab('search')
       }
     },
+    onSessionLayoutRestore: (layout) => {
+      setCollapsedFolders(layout.collapsedFolders)
+      setSidebarViewRef.current(layout.sidebarView)
+    },
+  })
+  useEffect(() => {
+    setSidebarViewRef.current = workspace.setSidebarView
+  }, [workspace.setSidebarView])
+  useWorkspaceSession(workspace.vault?.id, {
+    activePath: workspace.activePath,
+    openTabs: workspace.openTabs,
+    collapsedFolders,
+    sidebarView: workspace.sidebarView,
   })
   useScreenshotAutoOpen(workspace.openVaultAt, workspace.status)
+  usePlatformShell({
+    onQuickCapture: () => setQuickCaptureOpen(true),
+    onDeepLink: (url) => {
+      const target = parseDeepLink(url)
+      if (!target) return
+      if (target.kind === 'vault') {
+        void workspace.openVaultAt(target.path)
+        return
+      }
+      void workspace.openNote(target.path)
+    },
+  })
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
   const recentVaults = useRecentVaults()
   useEffect(() => {
@@ -576,6 +619,7 @@ function App() {
   useEscapeToClose(supportOpen, () => setSupportOpen(false))
   useEscapeToClose(portalOpen, () => setPortalOpen(false))
   useEscapeToClose(quickCaptureOpen, () => setQuickCaptureOpen(false))
+  useEscapeToClose(noteHistoryOpen, () => setNoteHistoryOpen(false))
   useEscapeToClose(bibliographyOpen, () => setBibliographyOpen(false))
   useEscapeToClose(renameOpen, () => setRenameOpen(false))
 
@@ -704,6 +748,7 @@ function App() {
         setSupportOpen,
         setPortalOpen,
         setQuickCaptureOpen,
+        setNoteHistoryOpen,
         setBibliographyOpen,
         setSnippetsOpen,
         insertSnippet: (text) => workspace.insertSnippet(text),
@@ -777,6 +822,20 @@ function App() {
       }
       event.preventDefault()
       document.querySelector<HTMLInputElement>('.vault-search input')?.focus()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== 'h' || !event.ctrlKey || !event.altKey || event.metaKey) return
+      const target = event.target
+      if (target instanceof HTMLElement && target.closest('input, textarea, [contenteditable="true"]')) {
+        return
+      }
+      event.preventDefault()
+      setNoteHistoryOpen(true)
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -921,6 +980,7 @@ function App() {
       >
         <VaultSidebar
           vault={workspace.vault}
+          vaultStatus={workspace.status}
           sections={workspace.sections}
           activePath={workspace.activePath}
           searchQuery={workspace.searchQuery}
@@ -1231,6 +1291,8 @@ function App() {
         open={commandPalette.open}
         onClose={() => commandPalette.setOpen(false)}
         commands={paletteCommands}
+        searchNotes={workspace.vault ? (query) => indexerSearch(query, 12) : undefined}
+        onOpenNote={(path) => void workspace.openNote(path)}
       />
 
       {graphOpen && (
@@ -1470,6 +1532,9 @@ function App() {
           workspaceChrome={chrome}
           onPatchWorkspaceChrome={patchChrome}
           onResetWorkspaceChrome={resetChrome}
+          theme={theme}
+          onThemeChange={setTheme}
+          onReplayOnboarding={onboarding.replayOnboarding}
           onOpenSupport={() => {
             setSettingsOpen(false)
             setSupportOpen(true)
@@ -1522,6 +1587,8 @@ function App() {
         <Suspense fallback={<PanelFallback />}>
           <PublishCenter
             activePath={workspace.activePath}
+            draftMarkdown={workspace.draftMarkdown}
+            previewProps={previewBridge}
             exportProfiles={workspace.exportProfiles}
             exportHistory={workspace.exportHistory}
             exportResult={workspace.exportResult}
@@ -1549,6 +1616,14 @@ function App() {
       )}
 
       {cheatsheetOpen ? <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} /> : null}
+      <OnboardingTour
+        open={onboarding.onboardingOpen}
+        onComplete={onboarding.completeOnboarding}
+        onOpenCheatsheet={() => {
+          onboarding.completeOnboarding()
+          setCheatsheetOpen(true)
+        }}
+      />
 
       {supportOpen ? <SupportPanel onClose={() => setSupportOpen(false)} /> : null}
 
@@ -1693,6 +1768,19 @@ function App() {
             })()
           }}
         />
+        </Suspense>
+      ) : null}
+
+      {noteHistoryOpen ? (
+        <Suspense fallback={<PanelFallback />}>
+          <NoteHistoryPanel
+            path={workspace.activePath}
+            onClose={() => setNoteHistoryOpen(false)}
+            onRestored={() => {
+              void workspace.reloadActiveNoteFromDisk()
+              setNoteHistoryOpen(false)
+            }}
+          />
         </Suspense>
       ) : null}
 

@@ -3,6 +3,7 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::atomic_write;
 use crate::path::VaultRoot;
 
 const RECENT_PATH: &str = ".scriptor/recent.json";
@@ -50,5 +51,5 @@ fn write_recent_file(root: &VaultRoot, entries: &[RecentNoteEntry]) -> Result<()
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
     let payload = serde_json::to_string_pretty(entries).map_err(VaultError::from)?;
-    fs::write(&absolute, payload).map_err(|source| VaultError::io(&absolute, source))
+    atomic_write(&absolute, payload.as_bytes())
 }

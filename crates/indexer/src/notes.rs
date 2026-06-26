@@ -28,7 +28,8 @@ pub fn upsert_note(
     enriched.organized = parsed.organized;
     enriched.archived = parsed.archived;
 
-    cache.connection().execute(
+    let conn = cache.connection()?;
+    conn.execute(
         "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, tags_json, note_type, organized, archived)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
          ON CONFLICT(id) DO UPDATE SET
@@ -56,11 +57,11 @@ pub fn upsert_note(
         ],
     )?;
 
-    cache.connection().execute(
+    conn.execute(
         "DELETE FROM note_fts WHERE note_id = ?1",
         params![metadata.id],
     )?;
-    cache.connection().execute(
+    conn.execute(
         "INSERT INTO note_fts(note_id, title, body) VALUES (?1, ?2, ?3)",
         params![metadata.id, metadata.title, markdown],
     )?;
@@ -69,9 +70,8 @@ pub fn upsert_note(
 }
 
 pub fn note_hash(cache: &IndexCache, note_id: &str) -> Result<Option<String>, IndexerError> {
-    let mut statement = cache
-        .connection()
-        .prepare("SELECT content_hash FROM notes WHERE id = ?1")?;
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare("SELECT content_hash FROM notes WHERE id = ?1")?;
     let mut rows = statement.query(params![note_id])?;
     if let Some(row) = rows.next()? {
         return Ok(Some(row.get(0)?));
@@ -88,7 +88,8 @@ pub fn note_needs_reindex(cache: &IndexCache, metadata: &NoteMetadata, markdown:
 }
 
 pub fn indexed_note_count(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
-    let count: i64 = cache.connection().query_row(
+    let conn = cache.connection()?;
+    let count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM notes WHERE vault_id = ?1",
         params![vault_id],
         |row| row.get(0),
@@ -97,7 +98,8 @@ pub fn indexed_note_count(cache: &IndexCache, vault_id: &str) -> Result<u32, Ind
 }
 
 pub fn total_word_count(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
-    let total: i64 = cache.connection().query_row(
+    let conn = cache.connection()?;
+    let total: i64 = conn.query_row(
         "SELECT COALESCE(SUM(word_count), 0) FROM notes WHERE vault_id = ?1",
         params![vault_id],
         |row| row.get(0),
@@ -110,7 +112,8 @@ pub fn load_note_metadata(
     vault_id: &str,
     path: &str,
 ) -> Result<Option<NoteMetadata>, IndexerError> {
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT id, vault_id, path, title, content_hash, modified_at, word_count, tags_json, note_type, organized, archived
          FROM notes WHERE vault_id = ?1 AND path = ?2",
     )?;
@@ -151,18 +154,11 @@ pub fn remove_note_from_index(
         return Ok(false);
     }
 
-    cache
-        .connection()
-        .execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
-    cache
-        .connection()
-        .execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_key])?;
-    cache
-        .connection()
-        .execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
-    cache
-        .connection()
-        .execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
+    let conn = cache.connection()?;
+    conn.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
     Ok(true)
 }
 
@@ -190,6 +186,7 @@ mod remove_tests {
                 status: scriptor_vault::VaultStatus::Ready,
             },
             root: scriptor_vault::VaultRoot::open(dir.path()).expect("vault root"),
+            pending_reindex_paths: Vec::new(),
         };
 
         upsert_note(

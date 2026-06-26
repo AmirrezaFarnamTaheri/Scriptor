@@ -4,6 +4,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::atomic_write;
 
 pub const DEFAULT_SNIPPETS_PATH: &str = ".scriptor/snippets.json";
 
@@ -32,7 +33,7 @@ pub fn save_vault_snippets(vault_root: &Path, snippets: &[VaultSnippet]) -> Resu
     let raw = serde_json::to_string_pretty(&catalog).map_err(|error| VaultError::InvalidConfig {
         message: format!("failed to encode snippets catalog: {error}"),
     })?;
-    fs::write(&path, raw).map_err(|source| VaultError::io(&path, source))?;
+    atomic_write(&path, raw.as_bytes())?;
     Ok(())
 }
 

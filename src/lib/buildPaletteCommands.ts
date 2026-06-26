@@ -49,6 +49,7 @@ export interface PaletteCommandContext {
   setSupportOpen?: (open: boolean) => void
   setPortalOpen?: (open: boolean) => void
   setQuickCaptureOpen?: (open: boolean) => void
+  setNoteHistoryOpen?: (open: boolean) => void
   setBibliographyOpen: (open: boolean) => void
   setSnippetsOpen?: (open: boolean) => void
   insertSnippet?: (text: string) => void
@@ -93,6 +94,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     setSupportOpen,
     setPortalOpen,
     setQuickCaptureOpen,
+    setNoteHistoryOpen,
     setBibliographyOpen,
     setSnippetsOpen,
     insertSnippet,
@@ -213,6 +215,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     { id: 'open-support', label: 'Support Scriptor', keywords: ['donate', 'github', 'star'], run: () => setSupportOpen?.(true) },
     { id: 'open-portal', label: 'Open portal clipboard', run: () => setPortalOpen?.(true) },
     { id: 'open-quick-capture', label: 'Quick capture (scratchpad & todos)', run: () => setQuickCaptureOpen?.(true) },
+    { id: 'open-note-history', label: 'Note history timeline', shortcut: 'Ctrl+Alt+H', run: () => setNoteHistoryOpen?.(true) },
     { id: 'open-bibliography', label: 'Browse bibliography', run: () => setBibliographyOpen(true) },
     {
       id: 'toggle-split-preview',

@@ -33,6 +33,7 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 
 | Document | Purpose |
 |----------|---------|
+| [`../scriptor_audit_and_roadmap.md`](../scriptor_audit_and_roadmap.md) | Audit, risk register, prioritized backlog (BL-01–BL-86) |
 | [`architecture/PLUGIN_SYSTEM.md`](./architecture/PLUGIN_SYSTEM.md) | Plugin manifest and safe mode |
 | [`architecture/IPC_DAEMON.md`](./architecture/IPC_DAEMON.md) | Headless daemon IPC |
 | [`architecture/TUI_PARITY.md`](./architecture/TUI_PARITY.md) | Terminal UI surface |

@@ -15,30 +15,15 @@ import type {
   UnresolvedLinkTarget,
   WikilinkResolution,
 } from '../../types/vault'
-import { isHeadlessMode } from '../headlessMode.ts'
 import { requireNative } from '../native.ts'
-import {
-  daemonBacklinks,
-  daemonGraph,
-  daemonListNoteSummaries,
-  daemonRebuildIndex,
-  daemonSearch,
-  daemonUpdateNoteIndex,
-} from './daemon.ts'
 
 export async function indexerRebuild(): Promise<RebuildSummary> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonRebuildIndex()
-  }
   return invoke<RebuildSummary>('indexer_rebuild')
 }
 
 export async function indexerUpdateNote(path: string): Promise<boolean> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonUpdateNoteIndex(path)
-  }
   return invoke<boolean>('indexer_update_note', { path })
 }
 
@@ -49,9 +34,6 @@ export async function indexerApplyFilesystemChanges(paths: string[]): Promise<In
 
 export async function indexerSearch(query: string, limit = 25): Promise<SearchHit[]> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonSearch(query, limit)
-  }
   return invoke<SearchHit[]>('indexer_search', { query, limit })
 }
 
@@ -92,17 +74,11 @@ export async function indexerListUnresolvedTargets(): Promise<UnresolvedLinkTarg
 
 export async function indexerBacklinks(path: string): Promise<BacklinkHit[]> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonBacklinks(path)
-  }
   return invoke<BacklinkHit[]>('indexer_backlinks', { path })
 }
 
 export async function indexerGraph(focusPath?: string, depth = 1): Promise<GraphQueryOutput> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonGraph(focusPath ?? null, depth)
-  }
   return invoke<GraphQueryOutput>('indexer_graph', { focusPath: focusPath ?? null, depth })
 }
 
@@ -141,9 +117,6 @@ export async function indexerEvaluateView(filterJson: string, path: string): Pro
 
 export async function indexerListNoteSummaries(): Promise<NoteIndexSummary[]> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonListNoteSummaries()
-  }
   return invoke<NoteIndexSummary[]>('indexer_list_note_summaries')
 }
 

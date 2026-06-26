@@ -152,6 +152,25 @@ export function useWorkspaceEditor({
     [openNote],
   )
 
+  const restoreEditorSession = useCallback(
+    async (tabs: Array<{ path: string; pinned?: boolean }>, active: string | null) => {
+      if (tabs.length === 0) return
+      setOpenTabs(
+        tabs.map((tab) => ({
+          path: tab.path,
+          title: tab.path.split('/').pop()?.replace(/\.md$/i, '') ?? tab.path,
+          contentHash: '',
+          pinned: tab.pinned,
+        })),
+      )
+      const target = active && tabs.some((tab) => tab.path === active) ? active : tabs[0]?.path
+      if (target) {
+        await openNote(target)
+      }
+    },
+    [openNote],
+  )
+
   useEffect(() => {
     activePathRef.current = activePath
   }, [activePath])
@@ -520,5 +539,6 @@ export function useWorkspaceEditor({
     syncActiveNoteContent,
     jumpToOutlineHeading,
     resetNoteNavigation,
+    restoreEditorSession,
   }
 }

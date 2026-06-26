@@ -21,3 +21,7 @@ export {
   renderMermaidDiagramPng,
   type DiagramRenderResult,
 } from './diagram-render'
+export {
+  formatPandocCommand,
+  supportsHtmlSnippetPreview,
+} from './preflight-preview'

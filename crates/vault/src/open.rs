@@ -29,6 +29,7 @@ pub enum VaultStatus {
 pub struct VaultSession {
     pub descriptor: VaultDescriptor,
     pub root: VaultRoot,
+    pub pending_reindex_paths: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -39,7 +40,7 @@ pub struct OpenVaultOutput {
 
 pub fn open_vault(root_path: impl AsRef<Path>) -> Result<VaultSession, VaultError> {
     let root = VaultRoot::open(root_path.as_ref())?;
-    recover_pending_rename_transactions(&root)?;
+    let recovery = recover_pending_rename_transactions(&root)?;
     let name = root_path
         .as_ref()
         .file_name()
@@ -55,7 +56,11 @@ pub fn open_vault(root_path: impl AsRef<Path>) -> Result<VaultSession, VaultErro
         status: VaultStatus::Ready,
     };
 
-    Ok(VaultSession { descriptor, root })
+    Ok(VaultSession {
+        descriptor,
+        root,
+        pending_reindex_paths: recovery.reindex_paths,
+    })
 }
 
 pub fn open_vault_output(session: &VaultSession) -> OpenVaultOutput {

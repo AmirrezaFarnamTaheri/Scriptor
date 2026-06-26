@@ -16,9 +16,8 @@ pub fn replace_note_links(
     let note_key = note_id(&session.descriptor.id, &scriptor_vault::RelativeVaultPath::parse(path)?);
     let parsed = parse_note_markdown(path, markdown);
 
-    cache
-        .connection()
-        .execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
+    let conn = cache.connection()?;
+    conn.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
 
     let mut inserted = 0u32;
     for link in parsed.links {
@@ -31,7 +30,7 @@ pub fn replace_note_links(
         };
 
         let link_id = format!("{note_key}:{}:{}", link.line, link.target);
-        cache.connection().execute(
+        conn.execute(
             "INSERT INTO links(id, vault_id, from_note_id, to_note_id, to_path, kind, label, line)
              VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6, ?7)",
             params![
@@ -51,9 +50,8 @@ pub fn replace_note_links(
 }
 
 pub fn count_links(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
-    let count: i64 = cache
-        .connection()
-        .query_row(
+    let conn = cache.connection()?;
+    let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM links WHERE vault_id = ?1",
             params![vault_id],
             |row| row.get(0),
@@ -78,8 +76,8 @@ pub fn backlinks_for_path(
     let relative = scriptor_vault::RelativeVaultPath::parse(note_path)?;
     let note_key = note_id(&session.descriptor.id, &relative);
 
-    let title: String = cache
-        .connection()
+    let conn = cache.connection()?;
+    let title: String = conn
         .query_row(
             "SELECT title FROM notes WHERE id = ?1",
             params![note_key],
@@ -100,7 +98,7 @@ pub fn backlinks_for_path(
         .next()
         .unwrap_or(note_path);
 
-    let mut statement = cache.connection().prepare(
+    let mut statement = conn.prepare(
         "SELECT n.path, n.title, l.label, l.kind, l.line
          FROM links l
          JOIN notes n ON l.from_note_id = n.id

@@ -20,7 +20,7 @@ fn next_rpc_id() -> u64 {
     RPC_ID.fetch_add(1, Ordering::Relaxed)
 }
 
-fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
+pub(crate) fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
     let response = rpc_call(RpcRequest {
         id: next_rpc_id(),
         method,
@@ -60,6 +60,18 @@ fn resolve_daemon_binary(app: &tauri::AppHandle) -> std::path::PathBuf {
     {
         std::path::PathBuf::from("scriptor-daemon")
     }
+}
+
+#[tauri::command]
+pub fn daemon_reload_config() -> Result<String, String> {
+    match daemon_rpc(RpcMethod::ReloadConfig)? {
+        RpcPayload::ConfigReloaded { json, .. } => Ok(json),
+        _ => Err("unexpected daemon reload config response".into()),
+    }
+}
+
+pub(crate) fn bridge_reload_config() -> Result<String, String> {
+    daemon_reload_config()
 }
 
 #[tauri::command]
@@ -301,4 +313,147 @@ pub fn daemon_export_run_markdown(
         RpcPayload::ExportResult { json } => Ok(json),
         _ => Err("unexpected daemon export markdown response".into()),
     }
+}
+
+#[tauri::command]
+pub fn daemon_export_start_note(
+    note_path: String,
+    format: String,
+    dry_run: Option<bool>,
+    extra_pandoc_args: Option<Vec<String>>,
+    output_subdirectory: Option<String>,
+) -> Result<String, String> {
+    match daemon_rpc(RpcMethod::ExportStartNote {
+        note_path,
+        format,
+        dry_run: dry_run.unwrap_or(false),
+        extra_pandoc_args: extra_pandoc_args.unwrap_or_default(),
+        output_subdirectory,
+    })? {
+        RpcPayload::ExportStarted { job_id } => Ok(job_id),
+        _ => Err("unexpected daemon export start response".into()),
+    }
+}
+
+#[tauri::command]
+pub fn daemon_export_job_status() -> Result<String, String> {
+    match daemon_rpc(RpcMethod::ExportJobStatus)? {
+        RpcPayload::ExportJobStatus { json } => Ok(json),
+        _ => Err("unexpected daemon export status response".into()),
+    }
+}
+
+#[tauri::command]
+pub fn daemon_export_cancel(job_id: Option<String>) -> Result<(), String> {
+    match daemon_rpc(RpcMethod::ExportCancel { job_id })? {
+        RpcPayload::Unit => Ok(()),
+        _ => Err("unexpected daemon export cancel response".into()),
+    }
+}
+
+pub(crate) fn bridge_export_start_note(
+    note_path: String,
+    format: String,
+    dry_run: Option<bool>,
+    extra_pandoc_args: Option<Vec<String>>,
+    output_subdirectory: Option<String>,
+) -> Result<String, String> {
+    daemon_export_start_note(
+        note_path,
+        format,
+        dry_run,
+        extra_pandoc_args,
+        output_subdirectory,
+    )
+}
+
+pub(crate) fn bridge_export_job_status() -> Result<String, String> {
+    daemon_export_job_status()
+}
+
+pub(crate) fn bridge_export_cancel(job_id: Option<String>) -> Result<(), String> {
+    daemon_export_cancel(job_id)
+}
+
+pub(crate) fn bridge_rebuild_index() -> Result<String, String> {
+    daemon_rebuild_index()
+}
+
+pub(crate) fn bridge_update_note_index(path: String) -> Result<bool, String> {
+    daemon_update_note_index(path)
+}
+
+pub(crate) fn bridge_search(query: String, limit: u32) -> Result<String, String> {
+    daemon_search(query, limit)
+}
+
+pub(crate) fn bridge_list_note_summaries() -> Result<String, String> {
+    daemon_list_note_summaries()
+}
+
+pub(crate) fn bridge_backlinks(path: String) -> Result<String, String> {
+    daemon_backlinks(path)
+}
+
+pub(crate) fn bridge_graph(focus_path: Option<String>, depth: u32) -> Result<String, String> {
+    daemon_graph(focus_path, depth)
+}
+
+pub(crate) fn bridge_git_status() -> Result<String, String> {
+    daemon_git_status()
+}
+
+pub(crate) fn bridge_save_note(
+    path: String,
+    markdown: String,
+    expected_content_hash: Option<String>,
+    dry_run: Option<bool>,
+) -> Result<String, String> {
+    daemon_save_note(path, markdown, expected_content_hash, dry_run)
+}
+
+pub(crate) fn bridge_rename_apply(from_path: String, to_path: String, update_links: bool) -> Result<String, String> {
+    daemon_rename_apply(from_path, to_path, update_links)
+}
+
+pub(crate) fn bridge_health_report() -> Result<String, String> {
+    daemon_health_report()
+}
+
+pub(crate) fn bridge_health_diagnostics() -> Result<String, String> {
+    daemon_health_diagnostics()
+}
+
+pub(crate) fn bridge_export_run_note(
+    note_path: String,
+    format: String,
+    dry_run: Option<bool>,
+    extra_pandoc_args: Option<Vec<String>>,
+    output_subdirectory: Option<String>,
+) -> Result<String, String> {
+    daemon_export_run_note(
+        note_path,
+        format,
+        dry_run,
+        extra_pandoc_args,
+        output_subdirectory,
+    )
+}
+
+pub(crate) fn bridge_export_run_markdown(
+    note_path: String,
+    source_markdown: String,
+    format: String,
+    dry_run: Option<bool>,
+    extra_pandoc_args: Option<Vec<String>>,
+    output_subdirectory: Option<String>,
+) -> Result<String, String> {
+    daemon_export_run_markdown(
+        note_path,
+        source_markdown,
+        format,
+        dry_run,
+        extra_pandoc_args,
+        output_subdirectory,
+    )
 }

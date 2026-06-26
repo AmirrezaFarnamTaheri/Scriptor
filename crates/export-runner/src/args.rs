@@ -84,10 +84,8 @@ pub fn build_pandoc_args(
 }
 
 pub fn append_extra_args(args: &mut Vec<String>, extra_args: &[String]) -> Result<(), ExportError> {
+    crate::allowlist::validate_extra_args(extra_args)?;
     for arg in extra_args {
-        if arg.contains('&') || arg.contains('|') || arg.contains(';') || arg.contains('`') {
-            return Err(ExportError::DisallowedArg(arg.clone()));
-        }
         args.push(arg.clone());
     }
     Ok(())
@@ -96,6 +94,7 @@ pub fn append_extra_args(args: &mut Vec<String>, extra_args: &[String]) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::allowlist::validate_extra_args;
     use std::path::PathBuf;
 
     #[test]
@@ -116,6 +115,12 @@ mod tests {
     #[test]
     fn rejects_shell_injection_in_extra_args() {
         let error = append_extra_args(&mut vec![], &["--foo;rm".into()]).unwrap_err();
+        assert!(error.to_string().contains("disallowed"));
+    }
+
+    #[test]
+    fn rejects_disallowed_output_flag() {
+        let error = validate_extra_args(&["--output=/tmp/x".into()]).unwrap_err();
         assert!(error.to_string().contains("disallowed"));
     }
 }

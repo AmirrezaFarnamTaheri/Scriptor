@@ -1,52 +1,4 @@
-.app-shell {
-  min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  background: transparent;
-  color: var(--ink);
-}
-
-.app-chrome {
-  display: grid;
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.vault-badge {
-  margin-left: 10px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.runtime-banner {
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--amber-soft);
-  color: var(--ink-strong);
-  font-size: 13px;
-}
-
-.runtime-banner.error {
-  background: color-mix(in oklch, var(--danger) 12%, white);
-}
-
-.runtime-banner code {
-  font-family: var(--mono);
-}
-
-.empty-state,
-.empty-tab {
-  color: var(--muted);
-  font-size: 13px;
-  padding: 10px 12px;
-}
-
-.search-hint {
-  margin: 0 12px 8px;
-  color: var(--muted);
-  font-size: 12px;
-}
+/* shell + empty-state rules: src/styles/layout/workspace.css (BL-22) */
 
 .compact-list button small {
   margin-left: auto;
@@ -673,41 +625,6 @@ body.is-split-resizing .editor-preview-pane {
 .graph-node.focus text {
   fill: white;
   font-weight: 600;
-}
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  background: var(--overlay);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  animation: fade-rise var(--spring-gentle) both;
-}
-
-.app-toast {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 50;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  max-width: min(420px, calc(100vw - 32px));
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-md);
-  color: var(--ink-strong);
-}
-
-.app-toast p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .rename-dialog {
@@ -2464,66 +2381,6 @@ svg {
   flex: 1;
 }
 
-.command-palette-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 70;
-  display: grid;
-  place-items: start center;
-  padding-top: 12vh;
-  background: var(--overlay);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  animation: fade-rise var(--spring-gentle) both;
-}
-
-.command-palette {
-  position: relative;
-  width: min(560px, calc(100vw - 32px));
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
-  background: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-  animation: spring-in var(--spring-soft) both;
-}
-
-.command-palette input {
-  width: 100%;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  padding: 14px 16px;
-  background: transparent;
-  color: var(--ink);
-  font-size: 15px;
-}
-
-.command-palette ul {
-  list-style: none;
-  margin: 0;
-  padding: 6px;
-  max-height: 320px;
-  overflow: auto;
-}
-
-.command-palette li button {
-  width: 100%;
-  text-align: left;
-  border: 0;
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: transparent;
-  color: var(--ink);
-}
-
-.command-palette li button:hover,
-.command-palette li button:focus-visible,
-.command-palette li button.active {
-  background: var(--primary-soft);
-}
-
 .dock-panel {
   border-top: 1px solid var(--border);
   background: var(--panel);
@@ -2862,17 +2719,6 @@ svg {
 
   .mobile-workspace-nav {
     display: grid;
-  }
-
-  .command-palette-overlay {
-    place-items: end center;
-    padding: 0 12px calc(76px + env(safe-area-inset-bottom, 0));
-  }
-
-  .command-palette {
-    width: 100%;
-    border-bottom-left-radius: var(--radius-xl);
-    border-bottom-right-radius: var(--radius-xl);
   }
 }
 
@@ -3790,72 +3636,6 @@ svg {
   color: var(--accent);
 }
 
-.unified-panel-shell {
-  width: min(720px, 92vw);
-  max-height: min(82vh, 760px);
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-lg);
-}
-
-.unified-panel-wide {
-  width: min(920px, 94vw);
-}
-
-.unified-panel-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--border);
-}
-
-.unified-panel-header h2 {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-}
-
-.unified-panel-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.unified-panel-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-}
-
-.unified-panel-tabs button {
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.unified-panel-tabs button.active {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-
-.unified-panel-body {
-  min-height: 0;
-  overflow: auto;
-  padding: 0 18px 18px;
-}
-
 .knowledge-workbench-embed {
   display: grid;
   gap: 12px;
@@ -3939,6 +3719,51 @@ svg {
 
 .publish-status-error {
   color: var(--danger);
+}
+
+.publish-preflight-meta {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.publish-preflight-meta div {
+  display: grid;
+  gap: 4px;
+}
+
+.publish-preflight-meta dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.publish-preflight-meta dd {
+  margin: 0;
+}
+
+.publish-command-preview {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.publish-html-snippet {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--surface-1, var(--surface-2));
 }
 
 .mcp-recipes {
@@ -4125,37 +3950,6 @@ svg {
   border-radius: 999px;
   background: var(--accent-soft);
   color: var(--accent);
-}
-
-.dock-backdrop {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 40;
-}
-
-.unified-panel-docked {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(480px, 92vw);
-  max-height: none;
-  border-radius: 16px 0 0 16px;
-  pointer-events: auto;
-  z-index: 41;
-  animation: dock-slide-in 180ms ease-out;
-}
-
-@keyframes dock-slide-in {
-  from {
-    transform: translateX(12px);
-    opacity: 0.6;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
 }
 
 .inline-editor-assist {

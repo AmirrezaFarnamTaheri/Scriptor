@@ -66,7 +66,7 @@ impl RightPane {
 
 struct TuiApp {
     path: PathBuf,
-    via_daemon: bool,
+    use_daemon: bool,
     daemon_seq: u64,
     daemon_opened: bool,
     session: Option<VaultSession>,
@@ -85,10 +85,15 @@ struct TuiApp {
 }
 
 impl TuiApp {
-    fn open(path: PathBuf, via_daemon: bool) -> Result<Self, Box<dyn std::error::Error>> {
+    fn open(path: PathBuf, use_daemon: bool) -> Result<Self, Box<dyn std::error::Error>> {
+        if use_daemon {
+            crate::daemon_client::ensure_daemon_running()?;
+        } else {
+            crate::daemon_client::warn_in_process_deprecated();
+        }
         let mut app = Self {
             path,
-            via_daemon,
+            use_daemon,
             daemon_seq: 0,
             daemon_opened: false,
             session: None,
@@ -117,7 +122,7 @@ impl TuiApp {
     }
 
     fn ensure_session(&mut self) -> Result<&VaultSession, Box<dyn std::error::Error>> {
-        if self.via_daemon {
+        if self.use_daemon {
             self.ensure_daemon_vault()?;
             return Err("in-process session unavailable in daemon mode".into());
         }
@@ -130,7 +135,7 @@ impl TuiApp {
     }
 
     fn ensure_daemon_vault(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if !self.via_daemon || self.daemon_opened {
+        if !self.use_daemon || self.daemon_opened {
             return Ok(());
         }
         let response = rpc_call(RpcRequest {
@@ -150,7 +155,7 @@ impl TuiApp {
     }
 
     fn refresh_notes(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.via_daemon {
+        if self.use_daemon {
             self.ensure_daemon_vault()?;
             if self.query.trim().is_empty() {
                 let response = rpc_call(RpcRequest {
@@ -226,7 +231,7 @@ impl TuiApp {
             self.selected = self.selected.min(self.notes.len().saturating_sub(1));
         }
         self.status = if self.query.trim().is_empty() {
-            let transport = if self.via_daemon { "daemon" } else { "in-process" };
+            let transport = if self.use_daemon { "daemon" } else { "in-process" };
             format!("{} notes ({transport})", self.notes.len())
         } else {
             format!("{} results for {}", self.notes.len(), self.query.trim())
@@ -235,7 +240,7 @@ impl TuiApp {
     }
 
     fn refresh_footer_meta(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.via_daemon {
+        if self.use_daemon {
             self.ensure_daemon_vault()?;
             let git = rpc_call(RpcRequest {
                 id: self.next_rpc_id(),
@@ -274,7 +279,7 @@ impl TuiApp {
         if self.preview.path == note.path {
             return Ok(());
         }
-        let body = if self.via_daemon {
+        let body = if self.use_daemon {
             self.ensure_daemon_vault()?;
             let response = rpc_call(RpcRequest {
                 id: self.next_rpc_id(),
@@ -318,7 +323,7 @@ impl TuiApp {
             return Ok(());
         };
 
-        if self.via_daemon {
+        if self.use_daemon {
             let response = rpc_call(RpcRequest {
                 id: self.next_rpc_id(),
                 method: RpcMethod::Backlinks {
@@ -354,7 +359,7 @@ impl TuiApp {
 
     fn refresh_graph_pane(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let focus = self.selected_note().map(|note| note.path.clone());
-        if self.via_daemon {
+        if self.use_daemon {
             let response = rpc_call(RpcRequest {
                 id: self.next_rpc_id(),
                 method: RpcMethod::GraphSummary {
@@ -391,7 +396,7 @@ impl TuiApp {
     }
 
     fn refresh_health_pane(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        if self.via_daemon {
+        if self.use_daemon {
             let response = rpc_call(RpcRequest {
                 id: self.next_rpc_id(),
                 method: RpcMethod::HealthDiagnostics,
@@ -735,9 +740,9 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
     }
 }
 
-pub fn run(path: PathBuf, via_daemon: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(path: PathBuf, use_daemon: bool) -> Result<(), Box<dyn std::error::Error>> {
     let (_guard, mut terminal) = TerminalGuard::enter()?;
-    let mut app = TuiApp::open(path, via_daemon)?;
+    let mut app = TuiApp::open(path, use_daemon)?;
 
     loop {
         terminal.draw(|frame| draw(frame, &app))?;
@@ -799,8 +804,8 @@ pub fn run(path: PathBuf, via_daemon: bool) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub fn smoke_test(path: PathBuf, via_daemon: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let mut app = TuiApp::open(path, via_daemon)?;
+pub fn smoke_test(path: PathBuf, use_daemon: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let mut app = TuiApp::open(path, use_daemon)?;
     app.refresh_notes()?;
     app.refresh_footer_meta()?;
     app.set_right_pane(RightPane::Backlinks)?;
@@ -829,7 +834,7 @@ mod tests {
     fn footer_includes_git_and_health_slots() {
         let app = TuiApp {
             path: std::path::PathBuf::from("vault"),
-            via_daemon: false,
+            use_daemon: false,
             daemon_seq: 0,
             daemon_opened: false,
             session: None,

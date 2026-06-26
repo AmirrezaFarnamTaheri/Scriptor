@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
@@ -169,20 +171,25 @@ pub fn note_target_matches(
         || directory_identifier.is_some_and(|id| trimmed.eq_ignore_ascii_case(id))
 }
 
+static WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex"));
+static MARKDOWN_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)").expect("valid markdown link regex")
+});
+static REFERENCE_DEF_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?m)^\[(?P<label>[^\]]+)\]:\s*(?P<url>[^\s#]+)(?:#[^\s]+)?\s*$")
+        .expect("valid reference definition regex")
+});
+
 pub fn rewrite_note_rename_links(
     markdown: &str,
     from: &RenameLinkTarget,
     to: &RenameLinkTarget,
 ) -> (String, u32) {
     let mut edits = 0u32;
-    let wikilink =
-        Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex");
-    let markdown_link = Regex::new(
-        r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)",
-    )
-    .expect("valid markdown link regex");
-    let reference_def = Regex::new(r"(?m)^\[(?P<label>[^\]]+)\]:\s*(?P<url>[^\s#]+)(?:#[^\s]+)?\s*$")
-        .expect("valid reference definition regex");
+    let wikilink = &*WIKILINK_RE;
+    let markdown_link = &*MARKDOWN_LINK_RE;
+    let reference_def = &*REFERENCE_DEF_RE;
 
     let step_one = wikilink
         .replace_all(markdown, |capture: &regex::Captures| {

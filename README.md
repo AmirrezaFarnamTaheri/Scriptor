@@ -73,6 +73,7 @@ cargo check --workspace
 
 | Document | Purpose |
 |---|---|
+| [`scriptor_audit_and_roadmap.md`](scriptor_audit_and_roadmap.md) | Audit, risk register, backlog BL-01–BL-86 |
 | [`docs/README.md`](docs/README.md) | Documentation index |
 | [`PRODUCT.md`](PRODUCT.md) | Product principles and audience |
 | [`DESIGN.md`](DESIGN.md) | Visual and interaction rules |

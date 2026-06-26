@@ -37,8 +37,9 @@ pub use health::{
 pub use links::{backlinks_for_path, count_links, replace_note_links, BacklinkHit};
 pub use parse::{parse_note_markdown, ParsedCitation, ParsedLink, ParsedLinkKind, ParsedNote};
 pub use rebuild::{
-    incremental_note_index, incremental_notes_index, open_cache_for_session, rebuild_index, IncrementalIndexSummary,
-    RebuildSummary,
+    incremental_note_index, incremental_notes_index, incremental_note_index_with_cache,
+    incremental_notes_index_with_cache, open_cache_for_session, rebuild_index,
+    rebuild_index_with_progress, IncrementalIndexSummary, RebuildProgressReport, RebuildStatus, RebuildSummary,
 };
 pub use dql::{execute_dql_query, DqlResultRow};
 pub use graph::{

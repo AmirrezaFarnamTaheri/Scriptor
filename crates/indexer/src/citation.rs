@@ -20,8 +20,9 @@ impl CitationValidationSummary {
 }
 
 pub fn register_bibliography_keys(cache: &IndexCache, keys: &[&str]) -> Result<(), IndexerError> {
+    let conn = cache.connection()?;
     for key in keys {
-        cache.connection().execute(
+        conn.execute(
             "INSERT OR IGNORE INTO cache_meta(key, value) VALUES (?1, 'bib')",
             params![format!("bib:{key}")],
         )?;
@@ -40,9 +41,8 @@ pub fn validate_citations(
         unresolved: 0,
     };
 
-    cache
-        .connection()
-        .execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_id])?;
+    let conn = cache.connection()?;
+    conn.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_id])?;
 
     for citation in citations {
         let valid = bibliography_contains(cache, &citation.key)?;
@@ -52,7 +52,7 @@ pub fn validate_citations(
             summary.unresolved += 1;
         }
 
-        cache.connection().execute(
+        conn.execute(
             "INSERT INTO citation_refs(id, note_id, key, line, valid)
              VALUES (?1, ?2, ?3, ?4, ?5)",
             params![
@@ -73,7 +73,8 @@ fn bibliography_contains(cache: &IndexCache, key: &str) -> Result<bool, IndexerE
 }
 
 pub(crate) fn bibliography_contains_public(cache: &IndexCache, key: &str) -> Result<bool, IndexerError> {
-    let count: i64 = cache.connection().query_row(
+    let conn = cache.connection()?;
+    let count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM cache_meta WHERE key = ?1",
         params![format!("bib:{key}")],
         |row| row.get(0),

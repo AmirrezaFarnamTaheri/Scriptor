@@ -4,6 +4,7 @@ import { Settings } from 'lucide-react'
 import { exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/commands'
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
+import type { AppTheme } from '../hooks/useAppTheme'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
@@ -64,6 +65,9 @@ interface SettingsPanelProps {
   onPatchWorkspaceChrome?: (patch: Partial<WorkspaceChromePrefs>) => void
   onResetWorkspaceChrome?: () => void
   onOpenSupport?: () => void
+  theme?: AppTheme
+  onThemeChange?: (theme: AppTheme) => void
+  onReplayOnboarding?: () => void
 }
 
 const DEFAULT_CONFIG: VaultConfig = {
@@ -125,6 +129,9 @@ export function SettingsPanel({
   onPatchWorkspaceChrome,
   onResetWorkspaceChrome,
   onOpenSupport,
+  theme = 'light',
+  onThemeChange,
+  onReplayOnboarding,
 }: SettingsPanelProps) {
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_CONFIG)
   const [status, setStatus] = useState('')
@@ -195,6 +202,33 @@ export function SettingsPanel({
     >
         <div className="settings-section">
           <h3>Runtime</h3>
+          <button
+            type="button"
+            className="toolbar-button"
+            onClick={() => {
+              void (async () => {
+                try {
+                  const { check } = await import('@tauri-apps/plugin-updater')
+                  const update = await check()
+                  if (!update) {
+                    setStatus('You are on the latest build.')
+                    return
+                  }
+                  await update.downloadAndInstall()
+                  setStatus(`Updated to ${update.version}. Restart to apply.`)
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : 'Update check failed'
+                  setStatus(
+                    nativeReady
+                      ? `${message} — signed release builds only; configure updater pubkey in tauri.conf.json.`
+                      : 'Update check requires the desktop app.',
+                  )
+                }
+              })()
+            }}
+          >
+            Check for updates
+          </button>
           <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
             {nativeReady ? 'Native Tauri bridge connected' : 'Browser preview — run `pnpm desktop:dev` for vault commands'}
           </p>
@@ -648,6 +682,24 @@ export function SettingsPanel({
         {workspaceChrome && onPatchWorkspaceChrome ? (
           <div className="settings-section">
             <h3>Appearance &amp; layout</h3>
+            {onThemeChange ? (
+              <label className="settings-field">
+                <span>Color theme</span>
+                <select
+                  value={theme}
+                  onChange={(event) => onThemeChange(event.target.value as AppTheme)}
+                >
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                  <option value="high-contrast">High contrast</option>
+                </select>
+              </label>
+            ) : null}
+            {onReplayOnboarding ? (
+              <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
+                Replay product tour
+              </button>
+            ) : null}
             <p className="health-subtitle">Fine-tune sidebars, toolbars, typography, and panel stats.</p>
             <div className="settings-grid settings-toggles">
               {(

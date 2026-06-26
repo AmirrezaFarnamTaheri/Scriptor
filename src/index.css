@@ -93,6 +93,52 @@
   --focus-outline: 2px solid var(--primary);
 }
 
+[data-theme='high-contrast'] {
+  color-scheme: light;
+
+  --bg: #000000;
+  --bg-elevated: #0a0a0a;
+  --bg-mesh-a: transparent;
+  --bg-mesh-b: transparent;
+
+  --surface: #000000;
+  --surface-2: #0a0a0a;
+  --surface-raised: #111111;
+  --surface-elevated: #1a1a1a;
+  --surface-muted: #141414;
+  --panel: #000000;
+  --sidebar: #000000;
+  --selected: #ffff00;
+
+  --border: #ffffff;
+  --border-strong: #ffffff;
+
+  --ink-strong: #ffffff;
+  --ink: #ffffff;
+  --text: #ffffff;
+  --muted: #e8e8e8;
+  --faint: #cccccc;
+
+  --primary: #00ffff;
+  --primary-strong: #00e5e5;
+  --primary-soft: rgba(0, 255, 255, 0.2);
+  --primary-glow: rgba(0, 255, 255, 0.45);
+
+  --amber: #ffff00;
+  --amber-soft: rgba(255, 255, 0, 0.25);
+  --danger: #ff4444;
+  --success: #44ff88;
+
+  --glass-bg: #000000;
+  --glass-border: #ffffff;
+  --glass-highlight: #ffffff;
+  --glass-blur: none;
+
+  --overlay: rgba(0, 0, 0, 0.85);
+  --focus-ring: 0 0 0 3px #ffff00;
+  --focus-outline: 3px solid #ffff00;
+}
+
 :root {
   --radius-sm: 10px;
   --radius-md: 14px;

@@ -7,6 +7,7 @@ pub struct AppState {
     pub session: Mutex<Option<VaultSession>>,
     pub export_cancel: ExportCancelSlot,
     pub vault_watcher: Mutex<Option<VaultWatcher>>,
+    pub headless_engine: Mutex<bool>,
 }
 
 impl AppState {
@@ -15,8 +16,17 @@ impl AppState {
             session: Mutex::new(None),
             export_cancel: new_cancel_slot(),
             vault_watcher: Mutex::new(None),
+            headless_engine: Mutex::new(false),
         }
     }
+}
+
+pub fn use_headless_engine(state: &AppState) -> bool {
+    *state.headless_engine.lock().expect("headless engine lock")
+}
+
+pub fn set_headless_engine(state: &AppState, enabled: bool) {
+    *state.headless_engine.lock().expect("headless engine lock") = enabled;
 }
 
 pub fn active_session(state: &tauri::State<AppState>) -> Result<VaultSession, String> {

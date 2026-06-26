@@ -5,6 +5,7 @@ use chrono::{Datelike, Local, NaiveDate};
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::atomic_write;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DailyNoteConfig {
@@ -283,7 +284,7 @@ pub fn save_vault_config(vault_root: &Path, config: &VaultConfig) -> Result<(), 
     fs::create_dir_all(&dir).map_err(|source| VaultError::io(&dir, source))?;
     let path = config_path(vault_root);
     let payload = serde_json::to_string_pretty(config)?;
-    fs::write(&path, payload).map_err(|source| VaultError::io(&path, source))?;
+    atomic_write(&path, payload.as_bytes())?;
     Ok(())
 }
 

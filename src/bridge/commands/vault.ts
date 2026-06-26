@@ -18,9 +18,7 @@ import type {
   VaultSnippet,
   ViewNoteHit,
 } from '../../types/vault'
-import { isHeadlessMode } from '../headlessMode.ts'
 import { requireNative } from '../native.ts'
-import { daemonHealthDiagnostics, daemonHealthReport, daemonRenameApply, daemonSaveNote } from './daemon.ts'
 
 export async function vaultOpen(rootPath: string): Promise<OpenVaultOutput> {
   requireNative()
@@ -44,9 +42,6 @@ export async function vaultSaveNote(
   dryRun?: boolean,
 ): Promise<SaveNoteOutput> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonSaveNote(path, markdown, expectedContentHash, dryRun)
-  }
   return invoke<SaveNoteOutput>('vault_save_note', {
     path,
     markdown,
@@ -123,9 +118,6 @@ export async function vaultRenameApply(
   updateLinks: boolean,
 ): Promise<RenameNoteApplyOutput> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonRenameApply(fromPath, toPath, updateLinks)
-  }
   return invoke<RenameNoteApplyOutput>('vault_rename_apply', { fromPath, toPath, updateLinks })
 }
 
@@ -201,18 +193,12 @@ export async function vaultRenameBlockApply(
 
 export async function vaultHealth(): Promise<VaultHealthReport> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonHealthReport()
-  }
   const payload = await invoke<string>('vault_health')
   return JSON.parse(payload) as VaultHealthReport
 }
 
 export async function vaultHealthDiagnostics(): Promise<VaultHealthDiagnostics> {
   requireNative()
-  if (isHeadlessMode()) {
-    return daemonHealthDiagnostics()
-  }
   const payload = await invoke<string>('indexer_health_diagnostics')
   return JSON.parse(payload) as VaultHealthDiagnostics
 }
@@ -245,6 +231,71 @@ export async function vaultReadStatsHistory(): Promise<StatsHistoryEntry[]> {
 export async function vaultAppendStatsHistory(date: string, words: number): Promise<StatsHistoryEntry[]> {
   requireNative()
   return invoke<StatsHistoryEntry[]>('vault_append_stats_history', { date, words })
+}
+
+export interface PersistedActivityEntry {
+  id: string
+  ts: number
+  kind: string
+  message: string
+  detail?: string | null
+}
+
+export async function vaultReadActivityLog(limit = 100): Promise<PersistedActivityEntry[]> {
+  requireNative()
+  return invoke<PersistedActivityEntry[]>('vault_read_activity_log', { limit })
+}
+
+export async function vaultAppendActivityLog(entry: PersistedActivityEntry): Promise<void> {
+  requireNative()
+  await invoke('vault_append_activity_log', {
+    id: entry.id,
+    ts: entry.ts,
+    kind: entry.kind,
+    message: entry.message,
+    detail: entry.detail ?? null,
+  })
+}
+
+export interface WorkspaceSessionPayload {
+  version: number
+  active_path: string | null
+  open_tabs: Array<{ path: string; pinned: boolean }>
+  collapsed_folders: Record<string, boolean>
+  sidebar_view?: string | null
+}
+
+export async function vaultReadWorkspaceSession(): Promise<WorkspaceSessionPayload> {
+  requireNative()
+  return invoke<WorkspaceSessionPayload>('vault_read_workspace_session')
+}
+
+export async function vaultSaveWorkspaceSession(session: WorkspaceSessionPayload): Promise<void> {
+  requireNative()
+  await invoke('vault_save_workspace_session', { session })
+}
+
+export interface NoteHistoryRevision {
+  id: string
+  saved_at: string
+  content_hash: string
+  word_count: number
+  preview: string
+}
+
+export async function vaultListNoteHistory(path: string): Promise<NoteHistoryRevision[]> {
+  requireNative()
+  return invoke<NoteHistoryRevision[]>('vault_list_note_history', { path })
+}
+
+export async function vaultReadNoteHistoryRevision(path: string, revisionId: string): Promise<string> {
+  requireNative()
+  return invoke<string>('vault_read_note_history_revision', { path, revisionId })
+}
+
+export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string): Promise<SaveNoteOutput> {
+  requireNative()
+  return invoke<SaveNoteOutput>('vault_restore_note_history_revision', { path, revisionId })
 }
 
 export async function vaultFrontmatterSet(

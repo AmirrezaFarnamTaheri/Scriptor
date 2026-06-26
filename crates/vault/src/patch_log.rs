@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
+use crate::fs::atomic_write;
 use crate::path::VaultRoot;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -43,7 +44,7 @@ pub fn write_rename_patch_log(
     fs::create_dir_all(&dir).map_err(|source| VaultError::io(&dir, source))?;
     let file = dir.join(format!("rename-{patch_id}.json"));
     let payload = serde_json::to_string_pretty(&log).map_err(VaultError::from)?;
-    fs::write(&file, payload).map_err(|source| VaultError::io(&file, source))?;
+    atomic_write(&file, payload.as_bytes())?;
     Ok(log)
 }
 
@@ -57,7 +58,7 @@ pub fn backup_note_content(root: &VaultRoot, absolute: &Path, relative_path: &st
     let backup_dir = root.root().join(".scriptor").join("recovery").join("rename");
     fs::create_dir_all(&backup_dir).map_err(|source| VaultError::io(&backup_dir, source))?;
     let backup_path = backup_dir.join(name);
-    fs::write(&backup_path, &content).map_err(|source| VaultError::io(&backup_path, source))?;
+    atomic_write(&backup_path, content.as_bytes())?;
     Ok(backup_path
         .strip_prefix(root.root())
         .map(|path| path.to_string_lossy().replace('\\', "/"))

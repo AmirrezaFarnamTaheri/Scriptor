@@ -3,11 +3,21 @@ import { FileOutput, Globe, History, Loader2 } from 'lucide-react'
 
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 
+import { ExportPreflightPreview } from './ExportPreflightPreview'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { ExportJobOutput, ExportJobRecord } from '../types/vault'
 
 interface PublishCenterProps {
   activePath: string | null
+  draftMarkdown: string
+  previewProps: {
+    fetchNote?: (target: string) => Promise<string | null>
+    readVaultText?: (path: string) => Promise<string | null>
+    executeDql?: (query: string) => Promise<unknown>
+    runCodeChunk?: (language: string, code: string) => Promise<unknown>
+    postProcessHtml?: (html: string) => string
+    renderPlantUmlLocal?: (source: string) => Promise<string | null>
+  }
   exportProfiles: ExportProfile[]
   exportHistory: ExportJobRecord[]
   exportResult: ExportJobOutput | null
@@ -30,6 +40,8 @@ function formatStatus(entry: ExportJobRecord): string {
 
 export function PublishCenter({
   activePath,
+  draftMarkdown,
+  previewProps,
   exportProfiles,
   exportHistory,
   exportResult,
@@ -45,6 +57,12 @@ export function PublishCenter({
     if (isExporting) return `Exporting ${activePath}…`
     return `Active note: ${activePath}`
   }, [activePath, isExporting])
+
+  const preflightProfileLabel = useMemo(() => {
+    if (!exportResult?.dry_run) return null
+    const match = exportHistory.find((entry) => entry.result?.job_id === exportResult.job_id)
+    return match?.profile_label ?? exportResult.format
+  }, [exportHistory, exportResult])
 
   return (
     <UnifiedPanelShell
@@ -103,6 +121,16 @@ export function PublishCenter({
           </ul>
         </section>
 
+        {exportResult?.dry_run && preflightProfileLabel ? (
+          <ExportPreflightPreview
+            result={exportResult}
+            profileLabel={preflightProfileLabel}
+            activePath={activePath}
+            draftMarkdown={draftMarkdown}
+            previewProps={previewProps}
+          />
+        ) : null}
+
         <section className="publish-center-section">
           <h3>
             <Globe size={16} />
@@ -148,12 +176,11 @@ export function PublishCenter({
           )}
         </section>
 
-        {exportResult ? (
+        {exportResult && !exportResult.dry_run ? (
           <section className="publish-center-section">
-            <h3>Latest result</h3>
-            <pre className="mcp-result" aria-live="polite">
-              {JSON.stringify(exportResult, null, 2)}
-            </pre>
+            <h3>Latest export</h3>
+            <p className="health-subtitle">Artifact written to disk.</p>
+            <code className="publish-artifact">{exportResult.artifact_path}</code>
           </section>
         ) : null}
       </div>

@@ -1,3 +1,4 @@
+use scriptor_daemon::mcp_stdio::{run_mcp_stdio, McpStdioOptions};
 use scriptor_daemon::transport;
 use clap::{Parser, Subcommand};
 
@@ -17,6 +18,16 @@ enum Commands {
     },
     /// Verify the daemon endpoint file is readable.
     Endpoint,
+    /// Serve MCP tools over stdio JSON-RPC (dev/agent integrations).
+    McpStdio {
+        #[arg(long, help = "Vault root directory path")]
+        vault: String,
+        #[arg(
+            long,
+            help = "Apply MCP write tools directly without GUI approval (development only)"
+        )]
+        trust_stdio: bool,
+    },
 }
 
 fn main() {
@@ -35,5 +46,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&endpoint)?);
             Ok(())
         }
+        Commands::McpStdio { vault, trust_stdio } => run_mcp_stdio(McpStdioOptions {
+            vault_path: vault,
+            trust_stdio,
+        })
+        .map_err(Into::into),
     }
 }

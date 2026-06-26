@@ -1,5 +1,6 @@
 //! Export runner: Pandoc discovery, explicit args, and isolated export jobs.
 
+pub mod allowlist;
 pub mod args;
 pub mod cancel;
 pub mod diagram_preprocess;

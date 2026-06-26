@@ -69,7 +69,7 @@ Draft dotted names above map to snake_case `invoke` commands and event channels 
 | `daemon_rename_apply` | command | Headless IPC | Note rename apply + affected-file index refresh. |
 | `daemon_export_run_note`, `daemon_export_run_markdown` | command | Headless IPC | Pandoc export (disk note or preprocessed markdown). |
 
-Frontend wrappers: `src/bridge/commands.ts` (re-exports `src/bridge/commands/*`), `src/bridge/canvas.ts`, `src/bridge/native.ts`, `src/bridge/vaultEvents.ts`, `src/bridge/exportEvents.ts`, `src/bridge/headlessMode.ts`.
+Frontend wrappers: `src/bridge/commands.ts` (re-exports `src/bridge/commands/*`), `src/bridge/canvas.ts`, `src/bridge/native.ts`, `src/bridge/vaultEvents.ts`, `src/bridge/exportEvents.ts`, `src/hooks/useHeadlessEngine.ts`.
 
 Headless routing: when Settings → Headless engine is on, `indexer.ts`, `git.ts`, `vault.ts` (save/rename), and `export.ts` delegate to `daemon_*` instead of in-process commands.
 

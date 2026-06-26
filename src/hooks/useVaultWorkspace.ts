@@ -13,8 +13,12 @@ import {
   vaultLoadSnippets,
   vaultOpen,
   vaultScan,
+  vaultReadActivityLog,
+  vaultAppendActivityLog,
+  vaultReadWorkspaceSession,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { parseVaultConfigFromDaemonJson } from '../bridge/daemonEvents'
 import type {
   NoteDocument,
   NoteIndexSummary,
@@ -34,7 +38,8 @@ import { useWorkspaceEditor } from './useWorkspaceEditor'
 import { useWorkspaceRename } from './useWorkspaceRename'
 import { useWorkspaceNoteFactory } from './useWorkspaceNoteFactory'
 import { useWorkspaceFilesystemSync } from './useWorkspaceFilesystemSync'
-import { buildVaultSections } from './vault/helpers'
+import { useDaemonConfigEvents } from './useDaemonConfigEvents'
+import { buildVaultSections, buildVaultSectionsFromSummaries } from './vault/helpers'
 
 type WorkspaceStatus = 'idle' | 'opening' | 'indexing' | 'ready' | 'error'
 
@@ -62,7 +67,45 @@ const DEFAULT_VAULT_CONFIG: VaultConfig = {
   mcp: { mode: 'read-only', disabled: false },
 }
 
-export function useVaultWorkspace(options?: { onSearchComplete?: (hits: SearchHit[]) => void }) {
+function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
+  return {
+    ...DEFAULT_VAULT_CONFIG,
+    ...loaded,
+    daily_note: { ...DEFAULT_VAULT_CONFIG.daily_note, ...loaded.daily_note },
+    export: { ...DEFAULT_VAULT_CONFIG.export, ...loaded.export },
+    writing_targets: {
+      daily_words: loaded.writing_targets?.daily_words ?? DEFAULT_VAULT_CONFIG.writing_targets!.daily_words,
+      history_path: loaded.writing_targets?.history_path ?? DEFAULT_VAULT_CONFIG.writing_targets!.history_path,
+    },
+    graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
+    extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
+    mcp: {
+      mode: loaded.mcp?.mode ?? DEFAULT_VAULT_CONFIG.mcp!.mode,
+      disabled: loaded.mcp?.disabled ?? DEFAULT_VAULT_CONFIG.mcp!.disabled,
+    },
+    inbox: {
+      enabled: loaded.inbox?.enabled ?? DEFAULT_VAULT_CONFIG.inbox!.enabled,
+      period: loaded.inbox?.period ?? DEFAULT_VAULT_CONFIG.inbox!.period,
+      new_note_directory: loaded.inbox?.new_note_directory ?? null,
+    },
+    workflow: {
+      auto_advance_inbox_after_organize:
+        loaded.workflow?.auto_advance_inbox_after_organize ??
+        DEFAULT_VAULT_CONFIG.workflow!.auto_advance_inbox_after_organize,
+    },
+    note_types: {
+      directory: loaded.note_types?.directory ?? DEFAULT_VAULT_CONFIG.note_types!.directory,
+    },
+  }
+}
+
+export function useVaultWorkspace(options?: {
+  onSearchComplete?: (hits: SearchHit[]) => void
+  onSessionLayoutRestore?: (layout: {
+    collapsedFolders: Record<string, boolean>
+    sidebarView: 'vault' | 'inbox'
+  }) => void
+}) {
   const [status, setStatus] = useState<WorkspaceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [vault, setVault] = useState<VaultDescriptor | null>(null)
@@ -85,8 +128,18 @@ export function useVaultWorkspace(options?: { onSearchComplete?: (hits: SearchHi
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
-    setActivityLog((entries) => [createActivityEntry(kind, message, detail), ...entries].slice(0, 100))
-  }, [])
+    const entry = createActivityEntry(kind, message, detail)
+    setActivityLog((entries) => [entry, ...entries].slice(0, 100))
+    if (vault) {
+      void vaultAppendActivityLog({
+        id: entry.id,
+        ts: entry.ts,
+        kind: entry.kind,
+        message: entry.message,
+        detail: entry.detail ?? null,
+      }).catch(() => {})
+    }
+  }, [vault])
 
   const {
     searchQuery,
@@ -108,39 +161,20 @@ export function useVaultWorkspace(options?: { onSearchComplete?: (hits: SearchHi
     }
     try {
       const loaded = await vaultLoadConfig()
-      setVaultConfig({
-        ...DEFAULT_VAULT_CONFIG,
-        ...loaded,
-        daily_note: { ...DEFAULT_VAULT_CONFIG.daily_note, ...loaded.daily_note },
-        export: { ...DEFAULT_VAULT_CONFIG.export, ...loaded.export },
-        writing_targets: {
-          daily_words: loaded.writing_targets?.daily_words ?? DEFAULT_VAULT_CONFIG.writing_targets!.daily_words,
-          history_path: loaded.writing_targets?.history_path ?? DEFAULT_VAULT_CONFIG.writing_targets!.history_path,
-        },
-        graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
-        extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
-        mcp: {
-          mode: loaded.mcp?.mode ?? DEFAULT_VAULT_CONFIG.mcp!.mode,
-          disabled: loaded.mcp?.disabled ?? DEFAULT_VAULT_CONFIG.mcp!.disabled,
-        },
-        inbox: {
-          enabled: loaded.inbox?.enabled ?? DEFAULT_VAULT_CONFIG.inbox!.enabled,
-          period: loaded.inbox?.period ?? DEFAULT_VAULT_CONFIG.inbox!.period,
-          new_note_directory: loaded.inbox?.new_note_directory ?? null,
-        },
-        workflow: {
-          auto_advance_inbox_after_organize:
-            loaded.workflow?.auto_advance_inbox_after_organize ??
-            DEFAULT_VAULT_CONFIG.workflow!.auto_advance_inbox_after_organize,
-        },
-        note_types: {
-          directory: loaded.note_types?.directory ?? DEFAULT_VAULT_CONFIG.note_types!.directory,
-        },
-      })
+      setVaultConfig(mergeLoadedVaultConfig(loaded))
     } catch {
       setVaultConfig(DEFAULT_VAULT_CONFIG)
     }
   }, [vault])
+
+  useDaemonConfigEvents((event) => {
+    try {
+      const loaded = parseVaultConfigFromDaemonJson(event.json)
+      setVaultConfig(mergeLoadedVaultConfig(loaded))
+    } catch {
+      // ignore malformed daemon push
+    }
+  })
 
   const refreshNoteSummaries = useCallback(async () => {
     if (!vault || !isNativeBridgeAvailable()) {
@@ -280,6 +314,7 @@ export function useVaultWorkspace(options?: { onSearchComplete?: (hits: SearchHi
     openNote,
     reloadActiveNoteFromDisk,
     keepEditingAfterExternalChange,
+    restoreEditorSession,
   } = editor
 
   const fixVaultLint = useCallback(async () => {
@@ -359,25 +394,64 @@ export function useVaultWorkspace(options?: { onSearchComplete?: (hits: SearchHi
         setVault(opened.vault)
         setStatus('indexing')
 
-        const scanned = await vaultScan()
+        void indexerListNoteSummaries()
+          .then((summaries) => {
+            setNoteSummaries(summaries)
+            if (summaries.length > 0) {
+              setSections(buildVaultSectionsFromSummaries(summaries))
+            }
+          })
+          .catch(() => {})
+
+        const [scanned, summary, savedSession] = await Promise.all([
+          vaultScan(),
+          indexerRebuild(),
+          vaultReadWorkspaceSession().catch(() => null),
+        ])
+
         setEntries(scanned)
         setSections(buildVaultSections(scanned))
-
-        const summary = await indexerRebuild()
         setRebuild(summary)
         setHealth(summary.health)
         setHealthDiagnostics(null)
         setStatus('ready')
 
-        const firstNote = scanned.find((entry) => entry.kind === 'note')
-        if (firstNote) {
-          await openNote(firstNote.path)
+        if (savedSession?.open_tabs?.length) {
+          options?.onSessionLayoutRestore?.({
+            collapsedFolders: savedSession.collapsed_folders ?? {},
+            sidebarView: savedSession.sidebar_view === 'inbox' ? 'inbox' : 'vault',
+          })
+          await restoreEditorSession(
+            savedSession.open_tabs.map((tab) => ({ path: tab.path, pinned: tab.pinned })),
+            savedSession.active_path ?? null,
+          )
+        } else {
+          const firstNote = scanned.find((entry) => entry.kind === 'note')
+          if (firstNote) {
+            await openNote(firstNote.path)
+          }
         }
         await refreshHealth(opened.vault)
         await refreshGit()
         await refreshVaultConfig()
         await refreshVaultSnippets()
         await refreshNoteSummaries()
+        try {
+          const persisted = await vaultReadActivityLog(100)
+          if (persisted.length > 0) {
+            setActivityLog(
+              persisted.map((row) => ({
+                id: row.id,
+                ts: row.ts,
+                kind: row.kind as ActivityEntry['kind'],
+                message: row.message,
+                detail: row.detail ?? undefined,
+              })),
+            )
+          }
+        } catch {
+          // activity log is optional until first write
+        }
         logActivity('success', `Opened vault ${opened.vault.name}`, rootPath)
       } catch (caught) {
         setStatus('error')
@@ -386,7 +460,7 @@ export function useVaultWorkspace(options?: { onSearchComplete?: (hits: SearchHi
         logActivity('error', 'Failed to open vault', message)
       }
     },
-    [logActivity, openNote, refreshGit, refreshHealth, refreshVaultConfig, refreshVaultSnippets, refreshNoteSummaries],
+    [logActivity, openNote, options, refreshGit, refreshHealth, refreshVaultConfig, refreshVaultSnippets, refreshNoteSummaries, restoreEditorSession],
   )
 
   const { inboxNotes, noteTypes, templatePaths } = useWorkspaceKnowledge(noteSummaries, entries, vaultConfig)

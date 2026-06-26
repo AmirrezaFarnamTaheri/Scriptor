@@ -227,9 +227,8 @@ fn load_note_tags(
     cache: &IndexCache,
     vault_id: &str,
 ) -> Result<HashMap<String, Vec<String>>, IndexerError> {
-    let mut statement = cache
-        .connection()
-        .prepare("SELECT id, tags_json FROM notes WHERE vault_id = ?1")?;
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare("SELECT id, tags_json FROM notes WHERE vault_id = ?1")?;
     let rows = statement.query_map(params![vault_id], |row| {
         Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
     })?;
@@ -245,7 +244,8 @@ fn load_note_tags(
 }
 
 fn load_note_index(cache: &IndexCache, vault_id: &str) -> Result<HashMap<String, NoteRow>, IndexerError> {
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT id, path, title FROM notes WHERE vault_id = ?1",
     )?;
     let rows = statement.query_map(params![vault_id], |row| {
@@ -265,7 +265,8 @@ fn load_note_index(cache: &IndexCache, vault_id: &str) -> Result<HashMap<String,
 }
 
 fn load_link_rows(cache: &IndexCache, vault_id: &str) -> Result<Vec<LinkRow>, IndexerError> {
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT id, from_note_id, to_path, kind FROM links WHERE vault_id = ?1",
     )?;
     let rows = statement.query_map(params![vault_id], |row| {

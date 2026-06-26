@@ -174,6 +174,10 @@ export function MonacoMarkdownEditor({
     }
     modelRef.current = model
     editor.setModel(model)
+    if (import.meta.env.VITE_E2E_MODE === 'true') {
+      ;(window as Window & { __scriptorE2eEditor?: MonacoEditor.IStandaloneCodeEditor }).__scriptorE2eEditor =
+        editor
+    }
   }
 
   const hostClassName = [

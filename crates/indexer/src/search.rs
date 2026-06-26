@@ -120,7 +120,8 @@ pub fn search_notes(
         return Ok(Vec::new());
     };
 
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT note_fts.note_id, notes.path, notes.title,
                 snippet(note_fts, 1, '[[', ']]', '...', 32) AS snippet
          FROM note_fts

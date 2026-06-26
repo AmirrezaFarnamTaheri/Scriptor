@@ -243,7 +243,8 @@ fn extract_regex_after(input: &str, prefix: &str) -> Option<String> {
 
 fn title_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
     let pattern = format!("%{needle}%");
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT path, title FROM notes WHERE vault_id = ?1 AND title LIKE ?2 ORDER BY path LIMIT 200",
     )?;
     let rows = statement.query_map(params![vault_id, pattern], |row| {
@@ -269,7 +270,8 @@ fn body_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Vec
 
 fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
     let re = regex::Regex::new(pattern).map_err(|error| IndexerError::InvalidQuery(error.to_string()))?;
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path",
     )?;
     let rows = statement.query_map(params![vault_id], |row| {
@@ -287,7 +289,8 @@ fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec
 
 fn links_to(cache: &IndexCache, vault_id: &str, target: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
     let pattern = format!("%{target}%");
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT DISTINCT n.path, n.title
          FROM notes n
          INNER JOIN links l ON l.from_note_id = n.id

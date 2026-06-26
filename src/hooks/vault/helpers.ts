@@ -19,13 +19,17 @@ export const DEFAULT_VAULT_CONFIG_SNIPPET = {
 
 export function buildVaultSections(entries: ScannedEntry[]): VaultSection[] {
   const notes = entries.filter((entry) => entry.kind === 'note')
+  return buildVaultSectionsFromPaths(notes.map((note) => note.path))
+}
+
+export function buildVaultSectionsFromPaths(paths: string[]): VaultSection[] {
   const groups = new Map<string, string[]>()
 
-  for (const note of notes) {
-    const parts = note.path.split('/')
+  for (const path of paths) {
+    const parts = path.split('/')
     const folder = parts.length > 1 ? parts[0] : 'Vault'
     const existing = groups.get(folder) ?? []
-    existing.push(note.path)
+    existing.push(path)
     groups.set(folder, existing)
   }
 
@@ -36,6 +40,12 @@ export function buildVaultSections(entries: ScannedEntry[]): VaultSection[] {
       count: notePaths.length,
       notes: notePaths.sort((left, right) => left.localeCompare(right)),
     }))
+}
+
+export function buildVaultSectionsFromSummaries(
+  summaries: Array<{ path: string }>,
+): VaultSection[] {
+  return buildVaultSectionsFromPaths(summaries.map((summary) => summary.path))
 }
 
 export function extractOutline(markdown: string): OutlineHeading[] {

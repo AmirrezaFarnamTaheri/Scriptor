@@ -8,17 +8,26 @@ function applyInitialTheme() {
   const stored = window.localStorage.getItem('scriptor:app-theme')
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   document.documentElement.dataset.theme =
-    stored === 'dark' || stored === 'light' ? stored : prefersDark ? 'dark' : 'light'
+    stored === 'dark' || stored === 'light' || stored === 'high-contrast'
+      ? stored
+      : prefersDark
+        ? 'dark'
+        : 'light'
 }
 
 async function mountApp() {
   applyInitialTheme()
-  if (import.meta.env.VITE_SCREENSHOT_MODE === 'true') {
+  if (import.meta.env.VITE_E2E_MODE === 'true') {
+    const { installE2eBridge } = await import('./e2e/bootstrap.ts')
+    installE2eBridge()
+  } else if (import.meta.env.VITE_SCREENSHOT_MODE === 'true') {
     const { installScreenshotBridge } = await import('./screenshot/bootstrap.ts')
     installScreenshotBridge()
   }
 
-  const app = import.meta.env.VITE_SCREENSHOT_MODE === 'true' ? <App /> : (
+  const fixtureMode =
+    import.meta.env.VITE_E2E_MODE === 'true' || import.meta.env.VITE_SCREENSHOT_MODE === 'true'
+  const app = fixtureMode ? <App /> : (
     <StrictMode>
       <App />
     </StrictMode>

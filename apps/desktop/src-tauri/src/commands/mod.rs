@@ -1,4 +1,10 @@
 pub mod canvas;
 pub mod code_chunk;
 pub mod daemon;
+pub mod export;
+pub mod git;
+pub mod indexer;
 pub mod media;
+pub mod shared;
+pub mod system;
+pub mod vault;

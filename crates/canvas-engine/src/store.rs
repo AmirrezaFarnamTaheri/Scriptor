@@ -30,9 +30,9 @@ pub fn save_document(vault_root: &Path, document: &CanvasDocument) -> Result<Pat
     let file_name = format!("{}.canvas.json", sanitize_id(&document.id));
     let path = dir.join(file_name);
     let json = document_to_json(document).map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
-    fs::write(&path, json).map_err(|source| CanvasError::IoWrite {
+    scriptor_vault::atomic_write(&path, json.as_bytes()).map_err(|error| CanvasError::IoWrite {
         path: path.clone(),
-        source,
+        source: std::io::Error::other(error.to_string()),
     })?;
     Ok(path)
 }

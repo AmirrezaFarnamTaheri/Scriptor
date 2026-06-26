@@ -1,16 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
 
 import type { GitCommitOutput, GitPullOutput, GitPushOutput, GitStatus } from '../../types/vault'
-import { daemonGitStatusJson } from './daemon.ts'
-import { isHeadlessMode } from '../headlessMode.ts'
 import { requireNative } from '../native.ts'
 
 export async function gitStatus(): Promise<GitStatus> {
   requireNative()
-  if (isHeadlessMode()) {
-    const payload = await daemonGitStatusJson()
-    return JSON.parse(payload) as GitStatus
-  }
   return invoke<GitStatus>('git_status_cmd')
 }
 

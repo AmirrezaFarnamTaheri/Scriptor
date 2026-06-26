@@ -44,6 +44,7 @@ pub fn resolve_extra_args(
     output_dir: &Path,
     extra_args: &[String],
 ) -> Result<Vec<String>, ExportError> {
+    crate::allowlist::validate_extra_args(extra_args)?;
     let mut resolved = Vec::with_capacity(extra_args.len());
     for arg in extra_args {
         if let Some(css_path) = arg.strip_prefix("--css=") {

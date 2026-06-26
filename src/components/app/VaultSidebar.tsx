@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 
 import { InboxPanel } from '../inbox/InboxPanel'
+import { VaultTreeSkeleton } from './VaultTreeSkeleton'
 import { VirtualNoteList } from './VirtualNoteList'
 import { IconButton, PanelHeader } from '../chrome/WorkspaceChrome'
 import type { NoteIndexSummary, VaultDescriptor, VaultSection } from '../../types/vault'
@@ -24,6 +25,7 @@ import type { TemplateDefinition } from '../../lib/knowledge/templates'
 
 interface VaultSidebarProps {
   vault: VaultDescriptor | null
+  vaultStatus?: 'idle' | 'opening' | 'indexing' | 'ready' | 'error'
   sections: VaultSection[]
   activePath: string | null
   searchQuery: string
@@ -58,6 +60,7 @@ interface VaultSidebarProps {
 }
 
 export function VaultSidebar({
+  vaultStatus = 'idle',
   sections,
   activePath,
   searchQuery,
@@ -229,6 +232,8 @@ export function VaultSidebar({
             onOpenNote={onOpenNote}
             onOrganize={onOrganizeNote}
           />
+        ) : vaultStatus === 'opening' || (vaultStatus === 'indexing' && sections.length === 0) ? (
+          <VaultTreeSkeleton />
         ) : sections.length === 0 ? (
           <p className="empty-state">Open a vault to browse notes.</p>
         ) : (

@@ -9,7 +9,7 @@ export function useScreenshotAutoOpen(
   const startedRef = useRef(false)
 
   useEffect(() => {
-    if (import.meta.env.VITE_SCREENSHOT_MODE !== 'true') return
+    if (import.meta.env.VITE_SCREENSHOT_MODE !== 'true' && import.meta.env.VITE_E2E_MODE !== 'true') return
     if (startedRef.current || status !== 'idle') return
     startedRef.current = true
     void openVaultAt(SCREENSHOT_VAULT_ROOT)

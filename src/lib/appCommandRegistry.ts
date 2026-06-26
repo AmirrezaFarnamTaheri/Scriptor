@@ -23,6 +23,7 @@ export type AppCommandId =
   | 'open-cheatsheet'
   | 'open-portal'
   | 'open-quick-capture'
+  | 'open-note-history'
   | 'open-bibliography'
   | 'toggle-split-preview'
   | 'focus-search'

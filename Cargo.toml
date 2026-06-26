@@ -12,3 +12,4 @@ members = [
   "crates/cli",
   "apps/desktop/src-tauri",
 ]
+exclude = ["crates/ipc/fuzz"]

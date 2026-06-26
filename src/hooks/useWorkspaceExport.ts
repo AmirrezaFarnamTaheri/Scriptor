@@ -85,7 +85,9 @@ export function useWorkspaceExport({
       )
       logActivity(
         'success',
-        `Exported ${pending?.profileLabel ?? event.result.format}`,
+        event.result.dry_run
+          ? `Dry run: ${pending?.profileLabel ?? event.result.format}`
+          : `Exported ${pending?.profileLabel ?? event.result.format}`,
         event.result.artifact_path,
       )
       if (!event.result.dry_run) {
@@ -253,7 +255,11 @@ export function useWorkspaceExport({
             },
             ...current,
           ].slice(0, 20))
-          logActivity('success', `Exported ${profile.label}`, result.artifact_path)
+          logActivity(
+        'success',
+        dryRun ? `Dry run: ${profile.label}` : `Exported ${profile.label}`,
+        result.artifact_path,
+      )
           if (!dryRun) {
             await refreshGit()
           }
@@ -280,7 +286,11 @@ export function useWorkspaceExport({
           },
           ...current,
         ].slice(0, 20))
-        logActivity('success', `Exported ${profile.label}`, result.artifact_path)
+        logActivity(
+          'success',
+          dryRun ? `Dry run: ${profile.label}` : `Exported ${profile.label}`,
+          result.artifact_path,
+        )
         if (!dryRun) {
           await refreshGit()
         }

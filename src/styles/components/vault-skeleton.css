@@ -1,0 +1,41 @@
+/* Vault tree loading skeleton (BL-52 / BL-22) */
+
+.vault-skeleton-folder,
+.vault-skeleton-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  pointer-events: none;
+}
+
+.vault-skeleton-folder {
+  height: 28px;
+  margin: 6px 10px;
+}
+
+.vault-skeleton-row {
+  height: 22px;
+  margin: 4px 10px 4px 24px;
+}
+
+.vault-skeleton-folder::after,
+.vault-skeleton-row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--primary) 18%, transparent),
+    transparent
+  );
+  animation: vault-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes vault-skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

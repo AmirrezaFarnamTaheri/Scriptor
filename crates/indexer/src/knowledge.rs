@@ -80,7 +80,8 @@ fn note_link_summaries(
         .collect();
 
     let mut outbound_counts = std::collections::BTreeMap::<String, u32>::new();
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT notes.path, COUNT(links.id)
          FROM notes
          LEFT JOIN links ON links.from_note_id = notes.id
@@ -98,8 +99,7 @@ fn note_link_summaries(
 
     let mut summaries = Vec::with_capacity(note_paths.len());
     for path in note_paths {
-        let title: String = cache
-            .connection()
+        let title: String = conn
             .query_row(
                 "SELECT title FROM notes WHERE vault_id = ?1 AND path = ?2",
                 params![session.descriptor.id, path],

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { appendCitationExportArgs } from './citation-args.ts'
+import { formatPandocCommand, supportsHtmlSnippetPreview } from './preflight-preview.ts'
 import { applyVaultExportToProfiles } from './vault-export.ts'
 import {
   findDiagramBlocks,
@@ -100,6 +101,18 @@ test('replaceDiagramBlocksWithPlaceholders inserts pending png refs', () => {
   const markdown = '```plantuml\n@startuml\n@enduml\n```'
   const next = replaceDiagramBlocksWithPlaceholders(markdown)
   assert.match(next, /diagram-plantuml-pending\.png/)
+})
+
+test('formatPandocCommand quotes unsafe argv segments', () => {
+  const formatted = formatPandocCommand(['pandoc', 'note.md', '-o', 'out file.html', '--metadata', 'title=Hello World'])
+  assert.match(formatted, /^pandoc note\.md -o "out file\.html"/)
+  assert.match(formatted, /"title=Hello World"/)
+})
+
+test('supportsHtmlSnippetPreview gates HTML dry-run pane', () => {
+  assert.equal(supportsHtmlSnippetPreview('html'), true)
+  assert.equal(supportsHtmlSnippetPreview('wechat-html'), true)
+  assert.equal(supportsHtmlSnippetPreview('pdf'), false)
 })
 
 console.log('Export validation passed')

@@ -1,6 +1,8 @@
 use std::fs;
-use std::io::Write;
 use std::path::Path;
+
+use crate::fs::atomic_write;
+use crate::note_history::append_note_history;
 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -100,6 +102,9 @@ pub fn save_note_with_options(
 
     if absolute.exists() {
         backup_for_recovery(root, &absolute, path.as_str())?;
+        if let Ok(existing) = read_note(vault_id, root, path) {
+            let _ = append_note_history(root, path.as_str(), &existing.markdown, &existing.metadata.content_hash);
+        }
     }
 
     atomic_write(&absolute, markdown.as_bytes())?;
@@ -123,39 +128,53 @@ pub fn save_note_with_options(
     })
 }
 
-fn backup_for_recovery(root: &VaultRoot, absolute: &Path, relative_path: &str) -> Result<(), VaultError> {
-    let content = fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
+fn recovery_backup_path(root: &VaultRoot, relative_path: &str) -> std::path::PathBuf {
     let digest = Sha256::digest(relative_path.as_bytes());
     let name = format!("{}.md", hex::encode(&digest[..8]));
-    let backup_dir = root.root().join(".scriptor").join("recovery");
-    fs::create_dir_all(&backup_dir).map_err(|source| VaultError::io(&backup_dir, source))?;
-    let backup_path = backup_dir.join(name);
+    root.root().join(".scriptor").join("recovery").join(name)
+}
+
+fn backup_for_recovery(root: &VaultRoot, absolute: &Path, relative_path: &str) -> Result<(), VaultError> {
+    let content = fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
+    let backup_path = recovery_backup_path(root, relative_path);
+    if let Some(parent) = backup_path.parent() {
+        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
+    }
     fs::write(&backup_path, content).map_err(|source| VaultError::io(&backup_path, source))
 }
 
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| VaultError::InvalidRelativePath(path.display().to_string()))?;
-
-    let temp_name = format!(".scriptor-{}.tmp", uuid::Uuid::new_v4());
-    let temp_path = parent.join(temp_name);
-
-    {
-        let mut file = fs::File::create(&temp_path).map_err(|source| VaultError::io(&temp_path, source))?;
-        file.write_all(bytes)
-            .map_err(|source| VaultError::io(&temp_path, source))?;
-        file.sync_all()
-            .map_err(|source| VaultError::io(&temp_path, source))?;
+/// Restores disk state after a failed post-save index update (daemon BL-81).
+pub fn rollback_save_note(
+    vault_id: &str,
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    previous_content_hash: Option<&str>,
+) -> Result<(), VaultError> {
+    let absolute = root.resolve_relative(path)?;
+    match previous_content_hash {
+        None => {
+            if absolute.exists() {
+                fs::remove_file(&absolute).map_err(|source| VaultError::io(&absolute, source))?;
+            }
+            Ok(())
+        }
+        Some(expected_hash) => {
+            let backup_path = recovery_backup_path(root, path.as_str());
+            let markdown =
+                fs::read_to_string(&backup_path).map_err(|source| VaultError::io(&backup_path, source))?;
+            atomic_write(&absolute, markdown.as_bytes())?;
+            let restored = read_note(vault_id, root, path)?;
+            if restored.metadata.content_hash != expected_hash {
+                return Err(VaultError::InvalidConfig {
+                    message: format!(
+                        "rollback hash mismatch for {}: expected {expected_hash}, found {}",
+                        path, restored.metadata.content_hash
+                    ),
+                });
+            }
+            Ok(())
+        }
     }
-
-    if let Err(source) = fs::rename(&temp_path, path) {
-        let recovery = parent.join(format!(".scriptor-failed-{}.tmp", uuid::Uuid::new_v4()));
-        let _ = fs::rename(&temp_path, &recovery);
-        return Err(VaultError::io(path, source));
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]
@@ -211,5 +230,42 @@ mod tests {
         let recovery_dir = dir.path().join(".scriptor/recovery");
         assert!(recovery_dir.exists());
         assert!(fs::read_dir(recovery_dir).unwrap().count() >= 1);
+    }
+
+    #[test]
+    fn rollback_save_note_restores_overwritten_content() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("note.md").unwrap();
+        let first = save_note(&session.descriptor.id, &session.root, &path, "# One\n\nBody\n", None).unwrap();
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Two\n\nChanged\n",
+            None,
+        )
+        .unwrap();
+        rollback_save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            Some(first.metadata.content_hash.as_str()),
+        )
+        .unwrap();
+        let restored = read_note(&session.descriptor.id, &session.root, &path).unwrap();
+        assert_eq!(restored.metadata.content_hash, first.metadata.content_hash);
+        assert!(restored.markdown.contains("# One"));
+    }
+
+    #[test]
+    fn rollback_save_note_removes_new_file() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("new.md").unwrap();
+        save_note(&session.descriptor.id, &session.root, &path, "# New\n", None).unwrap();
+        assert!(dir.path().join("new.md").exists());
+        rollback_save_note(&session.descriptor.id, &session.root, &path, None).unwrap();
+        assert!(!dir.path().join("new.md").exists());
     }
 }

@@ -1,9 +1,9 @@
 use std::fs;
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::atomic_write;
 use crate::path::VaultRoot;
 
 pub const DEFAULT_STATS_HISTORY_PATH: &str = ".scriptor/stats-history.json";
@@ -53,11 +53,4 @@ fn write_stats_history(
     }
     let payload = serde_json::to_string_pretty(history).map_err(VaultError::from)?;
     atomic_write(&absolute, payload.as_bytes())
-}
-
-fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
-    let parent = path.parent().ok_or_else(|| VaultError::InvalidRelativePath(path.display().to_string()))?;
-    let temp = parent.join(format!(".{}.tmp", uuid::Uuid::new_v4()));
-    fs::write(&temp, bytes).map_err(|source| VaultError::io(&temp, source))?;
-    fs::rename(&temp, path).map_err(|source| VaultError::io(path, source))
 }

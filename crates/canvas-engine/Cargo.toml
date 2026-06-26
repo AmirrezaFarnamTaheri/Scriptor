@@ -4,6 +4,7 @@ version = "0.0.0"
 edition = "2024"
 
 [dependencies]
+scriptor-vault = { path = "../vault" }
 scriptor-export-runner = { path = "../export-runner" }
 chrono = { version = "0.4", features = ["serde"] }
 resvg = "0.44"

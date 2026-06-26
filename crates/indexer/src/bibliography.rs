@@ -50,16 +50,15 @@ pub fn sync_vault_bibliography(
         }
     }
 
-    cache
-        .connection()
-        .execute("DELETE FROM cache_meta WHERE key LIKE 'bib:%'", [])?;
+    let conn = cache.connection()?;
+    conn.execute("DELETE FROM cache_meta WHERE key LIKE 'bib:%'", [])?;
 
     let key_refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     register_bibliography_keys(cache, &key_refs)?;
 
     for entry in &entries {
         let payload = serde_json::to_string(entry)?;
-        cache.connection().execute(
+        conn.execute(
             "INSERT OR REPLACE INTO cache_meta(key, value) VALUES (?1, ?2)",
             params![format!("bibmeta:{}", entry.key), payload],
         )?;
@@ -70,9 +69,8 @@ pub fn sync_vault_bibliography(
 }
 
 pub fn list_bibliography_entries(cache: &IndexCache) -> Result<Vec<BibliographyEntry>, IndexerError> {
-    let mut statement = cache
-        .connection()
-        .prepare("SELECT value FROM cache_meta WHERE key LIKE 'bibmeta:%' ORDER BY key")?;
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare("SELECT value FROM cache_meta WHERE key LIKE 'bibmeta:%' ORDER BY key")?;
     let rows = statement.query_map([], |row| {
         let payload: String = row.get(0)?;
         Ok(payload)

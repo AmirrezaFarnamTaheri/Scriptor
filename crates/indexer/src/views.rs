@@ -26,7 +26,8 @@ pub fn list_view_notes(
     let filter: ViewFilter = serde_json::from_str(filter_json)
         .map_err(|error| IndexerError::InvalidQuery(format!("invalid view filter JSON: {error}")))?;
 
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT path, title, modified_at, tags_json, note_type, organized, archived FROM notes WHERE vault_id = ?1 ORDER BY path",
     )?;
     let rows = statement.query_map(rusqlite::params![session.descriptor.id], |row| {

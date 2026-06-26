@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Lock,
   Heart,
+  Contrast,
   Moon,
   Network,
   Settings,
@@ -184,10 +185,16 @@ export function AppTopBar({
           <ChevronDown />
         </button>
         <IconButton
-          label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          label={
+            theme === 'high-contrast'
+              ? 'Switch to light theme'
+              : theme === 'dark'
+                ? 'Switch to high-contrast theme'
+                : 'Switch to dark theme'
+          }
           onClick={onToggleTheme}
         >
-          {theme === 'dark' ? <Sun /> : <Moon />}
+          {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
         <IconButton label="Support Scriptor" onClick={onOpenSupport}>
           <Heart />

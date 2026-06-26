@@ -1,0 +1,43 @@
+/* First-run onboarding tour (BL-22) */
+
+.onboarding-backdrop {
+  z-index: var(--scriptor-modal-z, 120);
+}
+
+.onboarding-tour {
+  width: min(440px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-strong);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+.onboarding-tour header {
+  margin-bottom: 12px;
+}
+
+.onboarding-step-label {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.onboarding-tour h2 {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.onboarding-tour p {
+  margin: 0 0 20px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.onboarding-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}

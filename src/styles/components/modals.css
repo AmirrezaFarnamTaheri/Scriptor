@@ -1,0 +1,36 @@
+/* Modal and toast overlays (BL-22) */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--scriptor-modal-z, 40);
+  display: grid;
+  place-items: center;
+  background: var(--overlay);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fade-rise var(--spring-gentle) both;
+}
+
+.app-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-md);
+  color: var(--ink-strong);
+}
+
+.app-toast p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}

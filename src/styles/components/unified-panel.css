@@ -1,0 +1,98 @@
+/* Unified panel shell used by settings, history, knowledge panels (BL-22) */
+
+.unified-panel-shell {
+  width: min(720px, 92vw);
+  max-height: min(82vh, 760px);
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-lg);
+}
+
+.unified-panel-wide {
+  width: min(920px, 94vw);
+}
+
+.unified-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.unified-panel-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.unified-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unified-panel-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.unified-panel-tabs button {
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.unified-panel-tabs button.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.unified-panel-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 0 18px 18px;
+}
+
+.dock-backdrop {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.unified-panel-docked {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 92vw);
+  max-height: none;
+  border-radius: 16px 0 0 16px;
+  pointer-events: auto;
+  z-index: 41;
+  animation: dock-slide-in 180ms ease-out;
+}
+
+@keyframes dock-slide-in {
+  from {
+    transform: translateX(12px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}

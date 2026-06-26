@@ -6,7 +6,7 @@ Shipped product surfaces and release validation for **v0.1.0**.
 
 | Category | Features |
 |----------|----------|
-| **Write** | Monaco and CodeMirror editors; source, split, and preview modes; format toolbar; snippets; distraction-free mode |
+| **Write** | CodeMirror (default) and optional Monaco editors; source, split, and preview modes; format toolbar; snippets; distraction-free mode |
 | **Organize** | Vault tree with virtualized list; inbox; daily notes; note types; templates; saved views |
 | **Connect** | Wikilinks, backlinks, knowledge graph, knowledge workbench, unresolved link repair |
 | **Cite** | Bibliography files, CSL styles, inline `[@key]` citations, reference preview |

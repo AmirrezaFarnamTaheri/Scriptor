@@ -40,7 +40,7 @@ try {
   console.log('Pinging daemon')
   run('cargo run -p scriptor-cli -- daemon ping')
   console.log(`Running TUI smoke via daemon against ${vault}`)
-  run(`cargo run -p scriptor-cli -- tui ${vault} --smoke-test --via-daemon`)
+  run(`cargo run -p scriptor-cli -- tui ${vault} --smoke-test`)
 } finally {
   if (!daemon.killed) {
     daemon.kill('SIGTERM')

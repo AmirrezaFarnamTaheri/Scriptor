@@ -83,6 +83,18 @@ pub fn rename_apply(
     to_path: &RelativeVaultPath,
     update_links: bool,
 ) -> Result<RenameNoteApplyOutput, VaultError> {
+    let (output, staged) = rename_apply_staged(vault_id, root, from_path, to_path, update_links)?;
+    staged.commit()?;
+    Ok(output)
+}
+
+pub fn rename_apply_staged(
+    vault_id: &str,
+    root: &VaultRoot,
+    from_path: &RelativeVaultPath,
+    to_path: &RelativeVaultPath,
+    update_links: bool,
+) -> Result<(RenameNoteApplyOutput, StagedRenameTransaction), VaultError> {
     let preview = rename_dry_run(vault_id, root, from_path, to_path, update_links)?;
     let backups = collect_rename_backups(root, &preview.affected_files)?;
     let _patch = write_rename_patch_log(root, from_path.as_str(), to_path.as_str(), backups)?;
@@ -91,7 +103,7 @@ pub fn rename_apply(
     let from = rename_target(vault_id, root, from_path, &note_paths)?;
     let to = rename_target_for_path(vault_id, root, to_path, &note_paths)?;
 
-    let staged = StagedRenameTransaction::begin(
+    let mut staged = StagedRenameTransaction::begin(
         root,
         from_path,
         to_path,
@@ -118,6 +130,10 @@ pub fn rename_apply(
         }
     }
 
+    if update_links && !pending_writes.is_empty() {
+        staged.record_phase(crate::rename_transaction::RenamePhase::LinkWritesDone)?;
+    }
+
     let from_absolute = root.resolve_relative(from_path)?;
     let to_absolute = root.resolve_relative(to_path)?;
     if let Some(parent) = to_absolute.parent() {
@@ -131,14 +147,16 @@ pub fn rename_apply(
         fs::rename(&from_absolute, &to_absolute).map_err(|source| VaultError::io(&from_absolute, source))?;
     }
 
-    staged.commit()?;
+    staged.record_phase(crate::rename_transaction::RenamePhase::FileMoveDone)?;
 
-    Ok(RenameNoteApplyOutput {
+    let output = RenameNoteApplyOutput {
         from_path: from_path.to_string(),
         to_path: to_path.to_string(),
         affected_files: preview.affected_files,
         link_edits: preview.link_edits,
-    })
+    };
+
+    Ok((output, staged))
 }
 
 fn note_paths_for_rewrite(root: &VaultRoot) -> Result<Vec<String>, VaultError> {

@@ -209,7 +209,8 @@ fn append_cache_diagnostics(
         return Ok(());
     }
 
-    if !integrity_check_ok(cache.connection())? {
+    let conn = cache.connection()?;
+    if !integrity_check_ok(&conn)? {
         issues.push(HealthIssue {
             kind: "corrupt_cache".into(),
             path: cache_rel.clone(),
@@ -218,7 +219,7 @@ fn append_cache_diagnostics(
         });
     }
 
-    if let Some(version) = read_schema_version(cache.connection())? {
+    if let Some(version) = read_schema_version(&conn)? {
         if version != SCHEMA_VERSION {
             issues.push(HealthIssue {
                 kind: "stale_cache".into(),

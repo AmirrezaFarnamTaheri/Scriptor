@@ -1,0 +1,13 @@
+/* Scriptor component design tokens (BL-22) — layout, density, and panel chrome */
+
+:root {
+  --scriptor-shell-sticky-z: 20;
+  --scriptor-modal-z: 120;
+  --scriptor-vault-row-height: 32px;
+  --scriptor-tab-height: 36px;
+  --scriptor-inspector-width: min(360px, 34vw);
+  --scriptor-vault-width: min(320px, 30vw);
+  --scriptor-editor-min-height: 240px;
+  --scriptor-footer-height: 40px;
+  --scriptor-topbar-height: 52px;
+}

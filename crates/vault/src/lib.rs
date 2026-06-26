@@ -1,9 +1,14 @@
 //! Vault kernel: path safety, scanning, note IO, atomic writes, and rename transactions.
 
+pub mod note_history;
+pub mod mcp_audit;
+pub mod workspace_session;
+pub mod activity_log;
 pub mod config;
 pub mod delete;
 pub mod diagnostics;
 pub mod error;
+pub mod fs;
 pub mod frontmatter_ops;
 pub mod hash;
 pub mod lint;
@@ -25,12 +30,23 @@ pub mod textbundle;
 pub mod watch;
 pub mod write;
 
+pub use activity_log::{append_activity_log, read_activity_log, ActivityLogEntry, DEFAULT_ACTIVITY_LOG_PATH};
+pub use note_history::{
+    append_note_history, list_note_history, read_note_history_revision, restore_note_history_revision,
+    NoteHistoryEntry, DEFAULT_NOTE_HISTORY_DIR, MAX_REVISIONS_PER_NOTE,
+};
+pub use mcp_audit::{append_mcp_mutation, McpMutationAuditRecord, DEFAULT_MCP_AUDIT_PATH};
+pub use workspace_session::{
+    read_workspace_session, write_workspace_session, WorkspaceSession, WorkspaceSessionTab,
+    DEFAULT_WORKSPACE_SESSION_PATH,
+};
 pub use config::{
     load_vault_config, load_vault_template, plan_daily_note, preview_daily_tokens, save_vault_config,
     build_note_markdown, DailyNotePlan, ExportOnSaveConfig, GraphGroupRule,
     VaultConfig, WritingTargetsConfig,
 };
 pub use error::VaultError;
+pub use fs::atomic_write;
 pub use delete::{delete_note, DeleteNoteOutput};
 pub use hash::{content_hash, reading_time_minutes, word_count};
 pub use note::{metadata_from_markdown, note_id, read_note, NoteDocument, NoteMetadata};
@@ -44,10 +60,12 @@ pub use frontmatter_ops::{
     delete_frontmatter_field, get_frontmatter_field, set_frontmatter_field, FrontmatterFieldOutput,
 };
 pub use rename::{
-    rename_apply, rename_dry_run, unresolved_link_targets, RenameNoteApplyOutput, RenameNoteDryRunOutput,
+    rename_apply, rename_apply_staged, rename_dry_run, unresolved_link_targets, RenameNoteApplyOutput,
+    RenameNoteDryRunOutput,
 };
 pub use rename_transaction::{
-    recover_pending_rename_transactions, RenameTransactionManifest, StagedRenameTransaction,
+    recover_pending_rename_transactions, RenamePhase, RenameRecoveryOutcome, RenameTransactionManifest,
+    StagedRenameTransaction,
 };
 pub use views::{
     evaluate_view_filter, ViewFilter, ViewFilterCondition, ViewFilterNode, ViewFilterOp, ViewNoteMetadata,
@@ -73,4 +91,4 @@ pub use diagnostics::{redact_json_value, redact_sensitive_text};
 pub use stats_history::{
     append_stats_history, read_stats_history, StatsHistoryEntry, DEFAULT_STATS_HISTORY_PATH,
 };
-pub use write::{save_note, save_note_with_options, SaveNoteOptions, SaveNoteOutput};
+pub use write::{rollback_save_note, save_note, save_note_with_options, SaveNoteOptions, SaveNoteOutput};

@@ -1,0 +1,28 @@
+[package]
+name = "scriptor-ipc-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+scriptor-ipc = { path = ".." }
+
+[[bin]]
+name = "read_frame"
+path = "fuzz_targets/read_frame.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "decode_request"
+path = "fuzz_targets/decode_request.rs"
+test = false
+doc = false
+bench = false

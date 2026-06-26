@@ -68,7 +68,9 @@ mod tests {
 pub fn open_cache_migrated(path: impl AsRef<std::path::Path>) -> Result<IndexCache, IndexerError> {
     match IndexCache::open(path.as_ref()) {
         Ok(cache) => {
-            if let Err(IndexerError::SchemaRebuildRequired { .. }) = migrate_cache(cache.connection()) {
+            if let Err(IndexerError::SchemaRebuildRequired { .. }) =
+                migrate_cache(&*cache.connection()?)
+            {
                 drop(cache);
                 let path_buf = path.as_ref().to_path_buf();
                 if path_buf.exists() {
@@ -78,10 +80,10 @@ pub fn open_cache_migrated(path: impl AsRef<std::path::Path>) -> Result<IndexCac
                     })?;
                 }
                 let rebuilt = IndexCache::open(path)?;
-                migrate_cache(rebuilt.connection())?;
+                migrate_cache(&*rebuilt.connection()?)?;
                 return Ok(rebuilt);
             }
-            migrate_cache(cache.connection())?;
+            migrate_cache(&*cache.connection()?)?;
             Ok(cache)
         }
         Err(error) => Err(error),

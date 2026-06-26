@@ -23,11 +23,12 @@ use scriptor_vault::{
     scan_vault_with_roots, RelativeVaultPath, ScannedEntryKind,
 };
 use scriptor_daemon::rpc_call;
-use scriptor_ipc::{RpcMethod, RpcRequest, RpcResponse, RpcResult};
+use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult};
 use scriptor_system_bridge::detect_system_info;
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 
+mod daemon_client;
 mod term_markdown;
 mod tui;
 
@@ -37,6 +38,12 @@ const SEARCH_BUDGET_MS: u128 = 100;
 #[derive(Debug, Parser)]
 #[command(name = "scriptor", about = "Scriptor command-line interface")]
 struct Cli {
+    #[arg(
+        long,
+        global = true,
+        help = "Use deprecated in-process indexer (default routes index/search/health through daemon)"
+    )]
+    in_process: bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -87,8 +94,12 @@ enum Commands {
         path: PathBuf,
         #[arg(long, default_value_t = false)]
         smoke_test: bool,
-        #[arg(long, default_value_t = false, help = "Route vault operations through the headless daemon")]
-        via_daemon: bool,
+        #[arg(
+            long,
+            default_value_t = false,
+            help = "Use deprecated in-process indexer instead of daemon (default)"
+        )]
+        in_process: bool,
     },
     /// Interact with the headless Scriptor daemon over local IPC.
     Daemon {
@@ -450,20 +461,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let document = read_note(&session.descriptor.id, &session.root, &relative)?;
             println!("{}", serde_json::to_string_pretty(&document)?);
         }
-        Commands::Tui { path, smoke_test, via_daemon } => {
+        Commands::Tui { path, smoke_test, in_process } => {
+            let in_process = cli.in_process || in_process;
             if smoke_test {
-                tui::smoke_test(path, via_daemon)?;
+                tui::smoke_test(path, !in_process)?;
             } else {
-                tui::run(path, via_daemon)?;
+                tui::run(path, !in_process)?;
             }
         }
         Commands::Daemon { command } => match command {
             DaemonCommands::Ping => {
-                let response = rpc_call(RpcRequest {
-                    id: 1,
-                    method: RpcMethod::Ping,
-                })?;
-                print_rpc_response(&response)?;
+                daemon_client::ensure_daemon_running()?;
+                let version = daemon_client::daemon_ping()?;
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&serde_json::json!({ "version": version }))?
+                );
             }
             DaemonCommands::Endpoint => {
                 let endpoint = scriptor_daemon::read_endpoint()?;
@@ -471,21 +484,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::RebuildIndex { path } => {
-            let session = open_vault(&path)?;
-            let summary = rebuild_index(&session, &[])?;
-            println!("{}", serde_json::to_string_pretty(&summary)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let session = open_vault(&path)?;
+                let summary = rebuild_index(&session, &[])?;
+                println!("{}", serde_json::to_string_pretty(&summary)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 3,
+                    method: RpcMethod::RebuildIndex,
+                })?;
+                print_rpc_response(&response)?;
+            }
         }
         Commands::Health { path } => {
-            let session = open_vault(&path)?;
-            let _ = rebuild_index(&session, &[])?;
-            let cache = open_cache_for_session(&session)?;
-            println!("{}", health_report_json(&cache, &session)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let session = open_vault(&path)?;
+                let _ = rebuild_index(&session, &[])?;
+                let cache = open_cache_for_session(&session)?;
+                println!("{}", health_report_json(&cache, &session)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 4,
+                    method: RpcMethod::HealthReport,
+                })?;
+                match response.result {
+                    RpcResult::Ok(RpcPayload::HealthReport { json }) => println!("{json}"),
+                    RpcResult::Err(message) => return Err(message.into()),
+                    _ => return Err("unexpected daemon health response".into()),
+                }
+            }
         }
         Commands::HealthDiagnostics { path } => {
-            let session = open_vault(&path)?;
-            let _ = rebuild_index(&session, &[])?;
-            let cache = open_cache_for_session(&session)?;
-            println!("{}", health_diagnostics_json(&cache, &session)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let session = open_vault(&path)?;
+                let _ = rebuild_index(&session, &[])?;
+                let cache = open_cache_for_session(&session)?;
+                println!("{}", health_diagnostics_json(&cache, &session)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 5,
+                    method: RpcMethod::HealthDiagnostics,
+                })?;
+                match response.result {
+                    RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => println!("{json}"),
+                    RpcResult::Err(message) => return Err(message.into()),
+                    _ => return Err("unexpected daemon health diagnostics response".into()),
+                }
+            }
         }
         Commands::Lint { path, fix, rules, format } => {
             let session = open_vault(&path)?;
@@ -519,25 +570,75 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Search { path, query, limit } => {
-            let session = open_vault(&path)?;
-            let _ = rebuild_index(&session, &[])?;
-            let cache = open_cache_for_session(&session)?;
-            let hits = search_notes(&cache, &session.descriptor.id, &query, limit)?;
-            println!("{}", serde_json::to_string_pretty(&hits)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let session = open_vault(&path)?;
+                let _ = rebuild_index(&session, &[])?;
+                let cache = open_cache_for_session(&session)?;
+                let hits = search_notes(&cache, &session.descriptor.id, &query, limit)?;
+                println!("{}", serde_json::to_string_pretty(&hits)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 6,
+                    method: RpcMethod::SearchNotes {
+                        query: query.clone(),
+                        limit,
+                    },
+                })?;
+                match response.result {
+                    RpcResult::Ok(RpcPayload::SearchHits { hits }) => {
+                        println!("{}", serde_json::to_string_pretty(&hits)?);
+                    }
+                    RpcResult::Err(message) => return Err(message.into()),
+                    _ => return Err("unexpected daemon search response".into()),
+                }
+            }
         }
         Commands::Backlinks { path, note } => {
-            let session = open_vault(&path)?;
-            let _ = rebuild_index(&session, &[])?;
-            let cache = open_cache_for_session(&session)?;
-            let hits = backlinks_for_path(&cache, &session, &note)?;
-            println!("{}", serde_json::to_string_pretty(&hits)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let session = open_vault(&path)?;
+                let _ = rebuild_index(&session, &[])?;
+                let cache = open_cache_for_session(&session)?;
+                let hits = backlinks_for_path(&cache, &session, &note)?;
+                println!("{}", serde_json::to_string_pretty(&hits)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 7,
+                    method: RpcMethod::Backlinks { path: note.clone() },
+                })?;
+                match response.result {
+                    RpcResult::Ok(RpcPayload::Backlinks { json, .. }) => println!("{json}"),
+                    RpcResult::Err(message) => return Err(message.into()),
+                    _ => return Err("unexpected daemon backlinks response".into()),
+                }
+            }
         }
         Commands::Graph { path, note, depth } => {
-            let session = open_vault(&path)?;
-            let _ = rebuild_index(&session, &[])?;
-            let cache = open_cache_for_session(&session)?;
-            let graph = query_focused_graph(&cache, &session, note.as_deref(), depth, &[])?;
-            println!("{}", serde_json::to_string_pretty(&graph)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let session = open_vault(&path)?;
+                let _ = rebuild_index(&session, &[])?;
+                let cache = open_cache_for_session(&session)?;
+                let graph = query_focused_graph(&cache, &session, note.as_deref(), depth, &[])?;
+                println!("{}", serde_json::to_string_pretty(&graph)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 8,
+                    method: RpcMethod::GraphSummary {
+                        path: note.clone(),
+                        depth,
+                    },
+                })?;
+                match response.result {
+                    RpcResult::Ok(RpcPayload::GraphSummary { json }) => println!("{json}"),
+                    RpcResult::Err(message) => return Err(message.into()),
+                    _ => return Err("unexpected daemon graph response".into()),
+                }
+            }
         }
         Commands::Grep { path, pattern, limit } => {
             let session = open_vault(&path)?;
@@ -602,6 +703,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&saved)?);
         }
         Commands::TraverseGraph { path, note, depth } => {
+            if !cli.in_process {
+                return Err(
+                    "traverse-graph has no daemon RPC yet; pass --in-process for this command".into(),
+                );
+            }
+            daemon_client::warn_in_process_deprecated();
             let session = open_vault(&path)?;
             let _ = rebuild_index(&session, &[])?;
             let cache = open_cache_for_session(&session)?;
@@ -765,8 +872,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&output)?);
         }
         Commands::GitStatus { path } => {
-            let status = git_status(&path)?;
-            println!("{}", serde_json::to_string_pretty(&status)?);
+            if cli.in_process {
+                daemon_client::warn_in_process_deprecated();
+                let status = git_status(&path)?;
+                println!("{}", serde_json::to_string_pretty(&status)?);
+            } else {
+                daemon_client::ensure_vault_open(&path)?;
+                let response = rpc_call(RpcRequest {
+                    id: 9,
+                    method: RpcMethod::GitStatus,
+                })?;
+                match response.result {
+                    RpcResult::Ok(RpcPayload::GitStatus { json }) => println!("{json}"),
+                    RpcResult::Err(message) => return Err(message.into()),
+                    _ => return Err("unexpected daemon git status response".into()),
+                }
+            }
         }
         Commands::GitCommit { path, message, file } => {
             let output = git_commit_selected(&path, &file, &message)?;
@@ -988,4 +1109,25 @@ fn generate_vault(
         note_count: count,
         prefix: prefix.to_string(),
     })
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    #[test]
+    fn global_in_process_defaults_false() {
+        let cli = Cli::try_parse_from(["scriptor", "search", "/tmp/v", "q"]).expect("parse");
+        assert!(!cli.in_process);
+    }
+
+    #[test]
+    fn tui_defaults_to_daemon_routing() {
+        let cli = Cli::try_parse_from(["scriptor", "tui", "/tmp/vault"]).expect("parse");
+        assert!(!cli.in_process);
+        match cli.command {
+            Commands::Tui { in_process, .. } => assert!(!in_process),
+            _ => panic!("expected tui command"),
+        }
+    }
 }

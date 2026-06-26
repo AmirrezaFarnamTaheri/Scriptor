@@ -12,11 +12,12 @@ pub struct RecentFileHit {
 
 pub fn record_recent_access(cache: &IndexCache, path: &str) -> Result<(), IndexerError> {
     let opened_at = chrono::Utc::now().to_rfc3339();
-    cache.connection().execute(
+    let conn = cache.connection()?;
+    conn.execute(
         "INSERT OR REPLACE INTO recent_access(path, opened_at) VALUES (?1, ?2)",
         params![path, opened_at],
     )?;
-    cache.connection().execute(
+    conn.execute(
         "DELETE FROM recent_access WHERE path NOT IN (
             SELECT path FROM recent_access ORDER BY opened_at DESC LIMIT 50
         )",
@@ -26,7 +27,8 @@ pub fn record_recent_access(cache: &IndexCache, path: &str) -> Result<(), Indexe
 }
 
 pub fn list_recent_files(cache: &IndexCache, limit: u32) -> Result<Vec<RecentFileHit>, IndexerError> {
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT path, opened_at FROM recent_access ORDER BY opened_at DESC LIMIT ?1",
     )?;
     let rows = statement.query_map(params![limit.max(1)], |row| {

@@ -23,7 +23,7 @@ try {
   cargo run -p scriptor-cli -- daemon ping
 
   Write-Host "Running TUI smoke via daemon against $Vault"
-  cargo run -p scriptor-cli -- tui $Vault --smoke-test --via-daemon
+  cargo run -p scriptor-cli -- tui $Vault --smoke-test
 }
 finally {
   if (-not $daemon.HasExited) {

@@ -20,4 +20,6 @@ pub enum IndexerError {
     InvalidQuery(String),
     #[error("cache schema version {found} requires rebuild (expected {expected})")]
     SchemaRebuildRequired { found: i32, expected: i32 },
+    #[error("connection pool error: {0}")]
+    Pool(String),
 }

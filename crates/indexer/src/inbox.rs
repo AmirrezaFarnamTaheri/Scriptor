@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::db::IndexCache;
 use crate::error::IndexerError;
 
-#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct NoteIndexSummary {
     pub path: String,
     pub title: String,
@@ -46,7 +46,8 @@ impl InboxPeriod {
 }
 
 pub fn list_note_summaries(cache: &IndexCache, vault_id: &str) -> Result<Vec<NoteIndexSummary>, IndexerError> {
-    let mut statement = cache.connection().prepare(
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
         "SELECT path, title, modified_at, note_type, organized, archived, tags_json
          FROM notes WHERE vault_id = ?1 ORDER BY modified_at DESC",
     )?;

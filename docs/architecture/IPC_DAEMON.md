@@ -75,4 +75,4 @@ Vault open, scan tree, canvas, and in-process note reads remain in the desktop p
 
 The daemon binary is bundled as a Tauri `externalBin` sidecar (`scripts/release/stage-daemon-sidecar.ps1`).
 
-Bridge routing: `src/bridge/headlessMode.ts`, `src/bridge/commands/indexer.ts`, `src/bridge/commands/vault.ts`, `src/bridge/commands/export.ts`.
+Bridge routing: `src/hooks/useHeadlessEngine.ts` → `set_headless_engine`, `src/bridge/commands/indexer.ts`, `src/bridge/commands/vault.ts`, `src/bridge/commands/export.ts`.

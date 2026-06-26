@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 import { daemonOpenVault, daemonPing, daemonStart, ensureDaemonReady } from '../bridge/commands'
-import { setHeadlessMode } from '../bridge/headlessMode'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { usePersistedBoolean } from './usePersistedBoolean'
 
@@ -17,7 +17,12 @@ export function useHeadlessEngine({ vaultRootPath, settingsOpen }: UseHeadlessEn
   const nativeReady = isNativeBridgeAvailable()
 
   useEffect(() => {
-    setHeadlessMode(headlessEngine && nativeReady)
+    if (!nativeReady) {
+      return
+    }
+    void invoke('set_headless_engine', { enabled: headlessEngine }).catch((error) => {
+      setDaemonError(error instanceof Error ? error.message : String(error))
+    })
   }, [headlessEngine, nativeReady])
 
   const refreshDaemonStatus = useCallback(async () => {
