@@ -34,6 +34,7 @@ export { applyTypographyAction, TYPOGRAPHY_ACTIONS } from './typography-transfor
 export type { TypographyAction } from './typography-transforms.ts'
 export { generateToc, headingToId, tocField, findTocEntryById } from './toc-field.ts'
 export { moveSectionDown, moveSectionUp } from './move-section.ts'
+export { insertFootnoteRef, insertFootnoteIntoMarkdown } from './footnotes.ts'
 export {
   dispatchEditorAutocompleteContext,
   editorAutocompleteExtension,

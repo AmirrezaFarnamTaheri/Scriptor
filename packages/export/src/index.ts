@@ -24,4 +24,5 @@ export {
 export {
   formatPandocCommand,
   supportsHtmlSnippetPreview,
+  supportsPrintPagePreview,
 } from './preflight-preview'

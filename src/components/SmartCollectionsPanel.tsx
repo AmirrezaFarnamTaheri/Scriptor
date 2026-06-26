@@ -3,6 +3,11 @@ import { Database, Play, Plus, Trash2 } from 'lucide-react'
 
 import { indexerExecuteDql } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import {
+  loadVaultPresetJson,
+  saveVaultPresetJson,
+  VAULT_SMART_COLLECTIONS_PATH,
+} from '../lib/vaultPresets'
 import { VirtualKnowledgeNoteList } from './app/VirtualKnowledgeNoteList'
 import type { KnowledgeNoteSummary } from '../types/vault'
 
@@ -53,6 +58,16 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   const [status, setStatus] = useState('Select a collection to run its DQL query.')
   const [draftLabel, setDraftLabel] = useState('')
   const [draftQuery, setDraftQuery] = useState('path has #tag')
+
+  useEffect(() => {
+    if (!vaultOpen) return
+    void loadVaultPresetJson<SmartCollection[]>(VAULT_SMART_COLLECTIONS_PATH).then((stored) => {
+      if (stored && stored.length > 0) {
+        setCollections(stored)
+        setActiveId(stored[0]?.id ?? '')
+      }
+    })
+  }, [vaultOpen])
 
   const activeCollection = useMemo(
     () => collections.find((entry) => entry.id === activeId) ?? collections[0] ?? null,
@@ -118,6 +133,18 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
             Smart collections
           </h3>
           <p className="health-subtitle">Persistent DQL folders that stay in sync with the vault index.</p>
+          {vaultOpen ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => {
+                void saveVaultPresetJson(VAULT_SMART_COLLECTIONS_PATH, collections)
+                saveCollections(collections)
+              }}
+            >
+              Save presets to vault
+            </button>
+          ) : null}
         </header>
       ) : (
         <p className="health-subtitle">{status}</p>

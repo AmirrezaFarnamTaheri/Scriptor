@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { McpMode, McpToolDescriptor } from '@scriptor/core'
 import type { CommandResult } from '@scriptor/core'
 import type { McpToolContribution } from '@scriptor/core/contracts/plugin'
@@ -49,15 +49,9 @@ export function useMcpRuntime(
   pluginMcpTools: McpToolContribution[] = [],
   pluginCommandRuntime?: PluginCommandRuntime,
 ) {
-  const [mode, setModeState] = useState<McpMode>(() =>
-    normalizeMcpMode(vaultConfig.mcp?.mode, vaultConfig.mcp?.disabled),
-  )
+  const mode = normalizeMcpMode(vaultConfig.mcp?.mode, vaultConfig.mcp?.disabled)
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
   const [snapshot, setSnapshot] = useState(0)
-
-  useEffect(() => {
-    setModeState(normalizeMcpMode(vaultConfig.mcp?.mode, vaultConfig.mcp?.disabled))
-  }, [vaultConfig.mcp?.disabled, vaultConfig.mcp?.mode])
 
   const exportProfiles = useMemo(
     () => mergePluginExportProfiles(DEFAULT_EXPORT_PROFILES, pluginExportProfiles),
@@ -85,7 +79,6 @@ export function useMcpRuntime(
 
   const setMode = useCallback(
     (nextMode: McpMode) => {
-      setModeState(nextMode)
       persistMcpConfig(nextMode)
     },
     [persistMcpConfig],

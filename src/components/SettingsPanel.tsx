@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Settings } from 'lucide-react'
 
+import { UPDATER_PUBKEY_PLACEHOLDER } from '../lib/updaterConfig'
+import { useI18n } from '../lib/i18n'
+
 import { exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/commands'
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
@@ -133,6 +136,7 @@ export function SettingsPanel({
   onThemeChange,
   onReplayOnboarding,
 }: SettingsPanelProps) {
+  const { locale, t, changeLocale, supportedLocales } = useI18n()
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_CONFIG)
   const [status, setStatus] = useState('')
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
@@ -220,7 +224,7 @@ export function SettingsPanel({
                   const message = error instanceof Error ? error.message : 'Update check failed'
                   setStatus(
                     nativeReady
-                      ? `${message} — signed release builds only; configure updater pubkey in tauri.conf.json.`
+                      ? `${message} — ${t('settings.updater.placeholder')} (placeholder ${UPDATER_PUBKEY_PLACEHOLDER.slice(0, 8)}…).`
                       : 'Update check requires the desktop app.',
                   )
                 }
@@ -804,6 +808,21 @@ export function SettingsPanel({
             ) : null}
           </div>
         ) : null}
+
+        <div className="settings-section">
+          <h3>{t('settings.language')}</h3>
+          <label className="settings-field">
+            <span>Display language</span>
+            <select value={locale} onChange={(event) => changeLocale(event.target.value as typeof locale)}>
+              {supportedLocales.map((entry) => (
+                <option key={entry} value={entry}>
+                  {entry === 'en' ? 'English' : entry}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="health-subtitle">Additional locales ship in a future release; strings are stored per device.</p>
+        </div>
 
         <div className="settings-section">
           <h3>Support</h3>

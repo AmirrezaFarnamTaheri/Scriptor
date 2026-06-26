@@ -38,6 +38,8 @@ export type AppCommandId =
   | 'toggle-inspector'
   | 'delete-active-note'
   | 'open-support'
+  | 'insert-footnote'
+  | 'toggle-perf-hud'
 
 export interface AppCommandDefinition {
   id: AppCommandId

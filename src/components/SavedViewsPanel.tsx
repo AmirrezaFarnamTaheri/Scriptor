@@ -4,6 +4,7 @@ import { Bookmark, Search, X } from 'lucide-react'
 import { vaultListViewNotes } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { loadVaultPresetJson, saveVaultPresetJson, VAULT_SAVED_VIEWS_PATH } from '../lib/vaultPresets'
 import type { ViewNoteHit } from '../types/vault'
 
 interface SavedViewsPanelProps {
@@ -116,6 +117,13 @@ export function SavedViewsPanel({
   const [status, setStatus] = useState('Build a filter and run search.')
   const [presets, setPresets] = useState<SavedViewPreset[]>(() => loadPresets())
 
+  useEffect(() => {
+    if (!vaultOpen) return
+    void loadVaultPresetJson<SavedViewPreset[]>(VAULT_SAVED_VIEWS_PATH).then((stored) => {
+      if (stored && stored.length > 0) setPresets(stored)
+    })
+  }, [vaultOpen])
+
   useEscapeToClose(!embedded, onClose)
 
   const filterJson = useMemo(
@@ -193,6 +201,18 @@ export function SavedViewsPanel({
           <button type="button" className="toolbar-button" onClick={saveCurrentPreset}>
             Save current…
           </button>
+          {vaultOpen ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => {
+                void saveVaultPresetJson(VAULT_SAVED_VIEWS_PATH, presets)
+                localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets))
+              }}
+            >
+              Save presets to vault
+            </button>
+          ) : null}
         </div>
 
         <form

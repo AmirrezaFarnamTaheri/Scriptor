@@ -10,6 +10,11 @@ export function formatPandocCommand(command: string[]): string {
     .join(' ')
 }
 
+/** Whether PublishCenter should show paginated print preview (PDF). */
+export function supportsPrintPagePreview(format: string): boolean {
+  return format.trim().toLowerCase() === 'pdf'
+}
+
 /** Whether PublishCenter should show an in-app HTML snippet for this export format. */
 export function supportsHtmlSnippetPreview(format: string): boolean {
   const normalized = format.trim().toLowerCase()

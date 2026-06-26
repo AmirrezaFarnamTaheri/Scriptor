@@ -44,6 +44,30 @@ pub fn git_resolve_conflict(
     })
 }
 
+pub fn git_apply_merged_conflict(
+    repo_root: &Path,
+    path: &str,
+    merged_markdown: &str,
+) -> Result<GitConflictResolveOutput, GitError> {
+    let status = git_status(repo_root)?;
+    if !status.is_repo {
+        return Err(GitError::NotARepository(repo_root.display().to_string()));
+    }
+
+    let file_path = repo_root.join(path);
+    if !file_path.exists() {
+        return Err(GitError::Command(format!("conflicted file not found: {path}")));
+    }
+
+    fs::write(&file_path, merged_markdown).map_err(GitError::Io)?;
+    run_git(repo_root, &["add", "--", path])?;
+
+    Ok(GitConflictResolveOutput {
+        path: path.to_string(),
+        strategy: "merged".into(),
+    })
+}
+
 pub fn read_conflict_markers(path: &Path) -> Result<Vec<String>, GitError> {
     let raw = fs::read_to_string(path).map_err(GitError::Io)?;
     let mut blocks = Vec::new();

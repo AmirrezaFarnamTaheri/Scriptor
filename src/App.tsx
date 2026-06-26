@@ -27,6 +27,7 @@ import { AppToast } from './components/AppToast'
 import type { SystemInfoSnapshot } from './components/SettingsPanel'
 import { type StatusDockTab } from './components/StatusDockPanel'
 import { ConflictResolverModal } from './components/ConflictResolverModal'
+import { PerfHudOverlay } from './components/PerfHudOverlay'
 import { FrontmatterInspector } from './components/FrontmatterInspector'
 import { CheatsheetPanel } from './components/CheatsheetPanel'
 import { SupportPanel } from './components/SupportPanel'
@@ -40,6 +41,8 @@ import { useEscapeToClose } from './hooks/useEscapeToClose'
 import { useMcpRuntime } from './hooks/useMcpRuntime'
 import { usePlatformShell, parseDeepLink } from './hooks/usePlatformShell'
 import { useOnboarding } from './hooks/useOnboarding'
+import { usePerfMetrics } from './hooks/usePerfMetrics'
+import { isMarkdownFile } from './lib/importVaultFiles'
 import { useWorkspaceSession } from './hooks/useWorkspaceSession'
 import { usePluginRegistry } from './hooks/usePluginRegistry'
 import { useVaultWorkspace } from './hooks/useVaultWorkspace'
@@ -63,9 +66,11 @@ import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import {
-  gitReadConflictMarkers,
+  gitApplyMergedConflict,
   gitResolveConflict,
   gitShowHeadFile,
+  gitShowMergeBaseFile,
+  indexerApplyFilesystemChanges,
   indexerExecuteDql,
   indexerListBibliography,
   indexerListTags,
@@ -74,6 +79,7 @@ import {
   vaultReadNote,
   vaultSaveNote,
   vaultSaveConfig,
+  vaultSaveAsset,
   codeChunkRun,
   vaultPublishStarlight,
 } from './bridge/commands'
@@ -89,6 +95,13 @@ import './styles/components/note-history.css'
 import './styles/components/vault-skeleton.css'
 import './styles/components/command-palette.css'
 import './styles/components/unified-panel.css'
+import './styles/components/perf-hud.css'
+import './styles/components/conflict-resolver.css'
+import './styles/components/publish-center.css'
+import './styles/components/git-panel.css'
+import './styles/components/smart-collections.css'
+import './styles/components/markdown-preview.css'
+import './styles/components/canvas-graph.css'
 import './App.css'
 import './styles/motion.css'
 
@@ -225,7 +238,12 @@ function App() {
   const [tocOpen, setTocOpen] = useState(false)
   const [writingTargetsOpen, setWritingTargetsOpen] = useState(false)
   const [conflictPath, setConflictPath] = useState<string | null>(null)
-  const [conflictPreview, setConflictPreview] = useState<string[]>([])
+  const [conflictSource, setConflictSource] = useState('')
+  const [conflictBasePreview, setConflictBasePreview] = useState<string | null>(null)
+  const [perfHudOpen, setPerfHudOpen] = useState(
+    () => window.localStorage.getItem('scriptor:perf-hud') === 'true',
+  )
+  const perfMetrics = usePerfMetrics()
   const [frontmatterOpen, setFrontmatterOpen] = useState(false)
   const [vaultTags, setVaultTags] = useState<string[]>([])
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
@@ -237,6 +255,7 @@ function App() {
         setStatusDockTab('search')
       }
     },
+    onSearchTiming: perfMetrics.recordSearchMs,
     onSessionLayoutRestore: (layout) => {
       setCollapsedFolders(layout.collapsedFolders)
       setSidebarViewRef.current(layout.sidebarView)
@@ -583,13 +602,38 @@ function App() {
 
   useEffect(() => {
     if (!conflictPath || !nativeReady) {
-      setConflictPreview([])
+      setConflictSource('')
+      setConflictBasePreview(null)
       return
     }
-    void gitReadConflictMarkers(conflictPath)
-      .then((preview) => setConflictPreview(preview))
-      .catch(() => setConflictPreview([]))
+    void vaultReadNote(conflictPath)
+      .then((note) => setConflictSource(note.markdown))
+      .catch(() => setConflictSource(''))
+    void gitShowMergeBaseFile(conflictPath)
+      .then((base) => setConflictBasePreview(base))
+      .catch(() => setConflictBasePreview(null))
   }, [conflictPath, nativeReady])
+
+  useEffect(() => {
+    window.localStorage.setItem('scriptor:perf-hud', perfHudOpen ? 'true' : 'false')
+  }, [perfHudOpen])
+
+  useEffect(() => {
+    if (workspace.status === 'opening') {
+      perfMetrics.markVaultOpenStart()
+    }
+    if (workspace.status === 'ready') {
+      perfMetrics.markVaultOpenEnd()
+    }
+  }, [workspace.status, perfMetrics])
+
+  useEffect(() => {
+    perfMetrics.setWorkspaceCounts(workspace.openTabs.length, workspace.sections.length)
+  }, [workspace.openTabs.length, workspace.sections.length, perfMetrics])
+
+  useEffect(() => {
+    perfMetrics.setGraphNodeCount(workspace.graph?.nodes.length ?? null)
+  }, [workspace.graph?.nodes.length, perfMetrics])
 
   const draftWordCount = countWords(workspace.draftMarkdown)
   const savedWordCount = workspace.activeNote?.metadata.word_count ?? 0
@@ -767,6 +811,9 @@ function App() {
         toggleInspector: () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
         vaultSidebarCollapsed: chrome.vaultSidebarCollapsed,
         inspectorCollapsed: chrome.inspectorCollapsed,
+        applyEditorTransform: (action) => workspace.applyEditorTransform(action),
+        setPerfHudOpen,
+        perfHudOpen,
       }),
     [
       ai,
@@ -799,6 +846,7 @@ function App() {
       setSupportOpen,
       splitPreview,
       workspace,
+      perfHudOpen,
     ],
   )
 
@@ -1022,6 +1070,18 @@ function App() {
                     void workspace.rebuildIndex()
                     void workspace.refreshVault()
                   })
+                }
+              : undefined
+          }
+          onImportFiles={
+            nativeReady
+              ? async (files) => {
+                  const paths = await workspace.importDroppedFiles(files, { filter: isMarkdownFile })
+                  if (paths.length > 0) {
+                    showToast(`Imported ${paths.length} note${paths.length === 1 ? '' : 's'}`)
+                    void workspace.refreshVault()
+                  }
+                  return paths
                 }
               : undefined
           }
@@ -1301,6 +1361,7 @@ function App() {
           graph={workspace.graph}
           focusPath={workspace.activePath}
           graphGroups={workspace.vaultConfig.graph_groups ?? []}
+          vaultOpen={Boolean(workspace.vault)}
           depth={graphDepth}
           fullVault={graphFullVault}
           onDepthChange={setGraphDepth}
@@ -1432,20 +1493,27 @@ function App() {
         />
       )}
 
-      {conflictPath && (
+      {conflictPath && conflictSource ? (
         <ConflictResolverModal
           path={conflictPath}
-          preview={conflictPreview}
+          source={conflictSource}
+          basePreview={conflictBasePreview}
           isBusy={workspace.isGitBusy}
           onClose={() => setConflictPath(null)}
-          onResolve={(strategy) => {
+          onResolveQuick={(strategy) => {
             void gitResolveConflict(conflictPath, strategy).then(() => {
               setConflictPath(null)
               void workspace.refreshGit()
             })
           }}
+          onResolveMerged={(mergedMarkdown) => {
+            void gitApplyMergedConflict(conflictPath, mergedMarkdown).then(() => {
+              setConflictPath(null)
+              void workspace.refreshGit()
+            })
+          }}
         />
-      )}
+      ) : null}
 
       {healthDashboardOpen && (
         <Suspense fallback={<PanelFallback />}>
@@ -1547,11 +1615,26 @@ function App() {
         <Suspense fallback={<PanelFallback />}>
           <BibliographyPanel
           entries={bibliography}
+          bibliographyPath={workspace.vaultConfig.export.bibliography_path}
           onClose={() => setBibliographyOpen(false)}
           onInsertCitation={(key) => {
             workspace.insertSnippet(`[@${key}] `)
             setBibliographyOpen(false)
           }}
+          onImportBibliography={
+            nativeReady
+              ? async (files) => {
+                  const bibPath = workspace.vaultConfig.export.bibliography_path || 'references.bib'
+                  const file = files[0]
+                  if (!file) return
+                  const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
+                  await vaultSaveAsset(bibPath, bytes)
+                  await indexerApplyFilesystemChanges([bibPath])
+                  showToast(`Bibliography saved to ${bibPath}`)
+                  void indexerListBibliography().then(setBibliographyRaw)
+                }
+              : undefined
+          }
         />
         </Suspense>
       )}
@@ -1909,6 +1992,7 @@ function App() {
         />
       ) : null}
 
+      {perfHudOpen ? <PerfHudOverlay metrics={perfMetrics.metrics} /> : null}
       {toastMessage ? <AppToast message={toastMessage} onDismiss={dismissToast} /> : null}
     </main>
   )

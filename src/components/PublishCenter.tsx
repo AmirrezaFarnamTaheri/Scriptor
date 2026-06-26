@@ -4,7 +4,9 @@ import { FileOutput, Globe, History, Loader2 } from 'lucide-react'
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 
 import { ExportPreflightPreview } from './ExportPreflightPreview'
+import { ExportPrintPreview } from './ExportPrintPreview'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { supportsPrintPagePreview } from '@scriptor/export'
 import type { ExportJobOutput, ExportJobRecord } from '../types/vault'
 
 interface PublishCenterProps {
@@ -63,6 +65,11 @@ export function PublishCenter({
     const match = exportHistory.find((entry) => entry.result?.job_id === exportResult.job_id)
     return match?.profile_label ?? exportResult.format
   }, [exportHistory, exportResult])
+
+  const preflightProfile = useMemo(() => {
+    if (!preflightProfileLabel) return null
+    return exportProfiles.find((profile) => profile.label === preflightProfileLabel) ?? null
+  }, [exportProfiles, preflightProfileLabel])
 
   return (
     <UnifiedPanelShell
@@ -129,6 +136,10 @@ export function PublishCenter({
             draftMarkdown={draftMarkdown}
             previewProps={previewProps}
           />
+        ) : null}
+
+        {exportResult?.dry_run && preflightProfile && supportsPrintPagePreview(preflightProfile.format) ? (
+          <ExportPrintPreview markdown={draftMarkdown} activePath={activePath} previewProps={previewProps} />
         ) : null}
 
         <section className="publish-center-section">

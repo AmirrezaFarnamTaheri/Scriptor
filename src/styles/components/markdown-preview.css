@@ -1,0 +1,142 @@
+﻿.markdown-preview {
+  padding: 12px 14px 20px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink-strong);
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin: 0 0 10px;
+  font-family: var(--mono);
+}
+
+.markdown-preview p,
+.markdown-preview li {
+  margin: 0 0 10px;
+}
+
+.markdown-preview ul {
+  margin: 0 0 12px 18px;
+  padding: 0;
+}
+
+.markdown-preview a {
+  color: var(--primary-strong);
+  text-decoration: none;
+}
+
+.markdown-preview table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 12px;
+}
+
+.markdown-preview th,
+.markdown-preview td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  text-align: left;
+}
+
+.markdown-preview del {
+  opacity: 0.75;
+}
+
+.markdown-preview input[type='checkbox'] {
+  margin-right: 6px;
+}
+
+.markdown-preview section.footnotes,
+.markdown-preview section[data-footnotes] {
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.markdown-preview pre {
+  overflow-x: auto;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--border) 35%, transparent);
+}
+
+.markdown-preview code {
+  font-family: var(--mono);
+  font-size: 0.92em;
+}
+
+.preview-sync-hint {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--primary-soft) 65%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.references-preview-panel {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--surface) 96%, white);
+  overflow: hidden;
+}
+
+.monaco-editor-host.scriptor-focus-editor {
+  max-width: 72ch;
+  margin: 0 auto;
+}
+
+.references-preview-panel header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.references-preview-list {
+  margin: 10px 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.references-preview-list li {
+  margin-bottom: 8px;
+}
+
+.references-preview-list strong {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.references-preview-list small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.editor-status .word-count-delta {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.markdown-preview .katex {
+  font-size: 1.05em;
+}
+
+.markdown-preview .mermaid {
+  margin: 12px 0;
+  overflow-x: auto;
+}
+

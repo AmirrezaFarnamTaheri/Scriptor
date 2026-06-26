@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { appendCitationExportArgs } from './citation-args.ts'
-import { formatPandocCommand, supportsHtmlSnippetPreview } from './preflight-preview.ts'
+import { formatPandocCommand, supportsHtmlSnippetPreview, supportsPrintPagePreview } from './preflight-preview.ts'
 import { applyVaultExportToProfiles } from './vault-export.ts'
 import {
   findDiagramBlocks,
@@ -107,6 +107,11 @@ test('formatPandocCommand quotes unsafe argv segments', () => {
   const formatted = formatPandocCommand(['pandoc', 'note.md', '-o', 'out file.html', '--metadata', 'title=Hello World'])
   assert.match(formatted, /^pandoc note\.md -o "out file\.html"/)
   assert.match(formatted, /"title=Hello World"/)
+})
+
+test('supportsPrintPagePreview gates PDF print layout pane', () => {
+  assert.equal(supportsPrintPagePreview('pdf'), true)
+  assert.equal(supportsPrintPagePreview('html'), false)
 })
 
 test('supportsHtmlSnippetPreview gates HTML dry-run pane', () => {

@@ -1,6 +1,6 @@
 import Editor, { type BeforeMount, type OnMount } from '@monaco-editor/react'
 import type { editor as MonacoEditor } from 'monaco-editor'
-import { setDistractionFreeClass } from '@scriptor/editor'
+import { insertFootnoteIntoMarkdown, setDistractionFreeClass } from '@scriptor/editor'
 import { useEffect, useRef } from 'react'
 
 import {
@@ -21,6 +21,7 @@ interface MonacoMarkdownEditorProps {
   distractionFree?: boolean
   showLineNumbers?: boolean
   insertRequest?: { seq: number; text: string } | null
+  transformRequest?: { seq: number; action: string } | null
   scrollToLine?: number | null
   completionContext?: MonacoCompletionContext
 }
@@ -36,6 +37,7 @@ export function MonacoMarkdownEditor({
   distractionFree = false,
   showLineNumbers = true,
   insertRequest,
+  transformRequest,
   scrollToLine,
   completionContext,
 }: MonacoMarkdownEditorProps) {
@@ -99,6 +101,23 @@ export function MonacoMarkdownEditor({
     editor.executeEdits('scriptor-insert', [{ range, text: insertRequest.text, forceMoveMarkers: true }])
     onChange(model.getValue())
   }, [insertRequest, onChange])
+
+  useEffect(() => {
+    const editor = editorRef.current
+    if (!editor || !transformRequest?.action) return
+    const model = editor.getModel()
+    if (!model) return
+    if (transformRequest.action !== 'footnote') return
+    const selection = editor.getSelection()
+    const start = model.getOffsetAt(selection?.getStartPosition() ?? { lineNumber: 1, column: 1 })
+    const end = model.getOffsetAt(selection?.getEndPosition() ?? { lineNumber: 1, column: 1 })
+    const { markdown, cursor } = insertFootnoteIntoMarkdown(model.getValue(), start, end)
+    model.setValue(markdown)
+    const position = model.getPositionAt(cursor)
+    editor.setPosition(position)
+    editor.revealPositionInCenter(position)
+    onChange(markdown)
+  }, [transformRequest, onChange])
 
   useEffect(() => {
     const editor = editorRef.current

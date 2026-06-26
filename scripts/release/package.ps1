@@ -44,6 +44,9 @@ if (-not $SkipPerfGate) {
 }
 
 if (-not $SkipTauri) {
+    Write-Host "==> Inject updater signing config"
+    node (Join-Path $PSScriptRoot "inject-updater-config.mjs")
+
     Write-Host "==> Tauri desktop bundle"
     pnpm --dir apps/desktop build
     Write-Host "==> Release manifest"

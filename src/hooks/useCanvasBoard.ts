@@ -15,7 +15,9 @@ import {
   canvasSnapshot,
   canvasTemplateDryRun,
 } from '../bridge/commands'
+import { canvasRenderSvg } from '../bridge/canvas'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { svgToDataUrlInWorker } from '../lib/canvasRenderWorker'
 
 export interface CanvasBoardSummary {
   id: string
@@ -331,6 +333,10 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       }
 
       try {
+        if (format === 'svg') {
+          const svg = await canvasRenderSvg(JSON.stringify(document))
+          await svgToDataUrlInWorker(svg)
+        }
         const outputPath = `.scriptor/exports/${document.id}.${format}`
         const result = await canvasSnapshot(JSON.stringify(document), format, outputPath, false)
         setStatus(`Exported ${format.toUpperCase()} to ${result.artifactPath}`)

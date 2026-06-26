@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { buildForceNodes } from '../lib/forceGraph'
+import { loadVaultPresetJson, saveVaultPresetJson, VAULT_GRAPH_PRESETS_PATH } from '../lib/vaultPresets'
 import type { GraphQueryOutput } from '../types/vault'
 
 interface GraphPreset {
@@ -45,6 +46,7 @@ interface GraphPanelProps {
   graph: GraphQueryOutput | null
   focusPath: string | null
   graphGroups?: Array<{ tag_prefix: string; color: string }>
+  vaultOpen?: boolean
   onSelectNode: (path: string) => void
   onClose: () => void
   onDepthChange: (depth: number) => void
@@ -61,6 +63,7 @@ export function GraphPanel({
   graph,
   focusPath,
   graphGroups = [],
+  vaultOpen = false,
   onSelectNode,
   onClose,
   onDepthChange,
@@ -70,7 +73,14 @@ export function GraphPanel({
   fullVault,
 }: GraphPanelProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
-  const [presets] = useState<GraphPreset[]>(() => loadGraphPresets())
+  const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
+
+  useEffect(() => {
+    if (!vaultOpen) return
+    void loadVaultPresetJson<GraphPreset[]>(VAULT_GRAPH_PRESETS_PATH).then((stored) => {
+      if (stored && stored.length > 0) setPresets(stored)
+    })
+  }, [vaultOpen])
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
@@ -125,6 +135,18 @@ export function GraphPanel({
               {preset.label}
             </button>
           ))}
+          {vaultOpen ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => {
+                void saveVaultPresetJson(VAULT_GRAPH_PRESETS_PATH, presets)
+                localStorage.setItem(GRAPH_PRESETS_KEY, JSON.stringify(presets))
+              }}
+            >
+              Save presets
+            </button>
+          ) : null}
           <label>
             Depth
             <input

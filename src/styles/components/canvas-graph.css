@@ -1,0 +1,238 @@
+﻿.graph-overlay {
+  position: fixed;
+  inset: 118px 20px 88px;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+  box-shadow: 0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
+}
+
+.canvas-overlay {
+  position: fixed;
+  inset: 72px 24px 96px;
+  z-index: 31;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: color-mix(in oklch, var(--surface) 92%, white);
+  box-shadow: 0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
+}
+
+.canvas-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.canvas-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.canvas-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.canvas-template-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.canvas-template-row button {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.canvas-header .icon-button {
+  margin-left: auto;
+}
+
+.canvas-stage {
+  overflow: auto;
+  padding: 12px;
+}
+
+.canvas-stage-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 360px;
+}
+
+.canvas-viewport-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.canvas-viewport-controls .toolbar-button {
+  font-size: 12px;
+}
+
+.canvas-zoom-label {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-group-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 8px;
+}
+
+.graph-group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.graph-group-chip i {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.canvas-stage svg {
+  width: 100%;
+  min-height: 360px;
+}
+
+.canvas-svg {
+  display: block;
+}
+
+.canvas-block {
+  cursor: pointer;
+}
+
+.canvas-block:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.canvas-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.canvas-footer code {
+  color: var(--ink);
+}
+
+.graph-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  background: var(--surface);
+}
+
+.graph-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.graph-controls button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.graph-controls button.active {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-weight: 600;
+}
+
+.graph-controls label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.graph-header h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.graph-header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.graph-header .icon-button {
+  margin-left: auto;
+}
+
+.graph-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.graph-edge {
+  stroke: color-mix(in oklch, var(--primary) 45%, var(--border));
+  stroke-width: 1.5;
+}
+
+.graph-edge.wikilink {
+  stroke: var(--primary);
+}
+
+.graph-node circle {
+  fill: var(--primary-soft);
+  stroke: var(--primary);
+  stroke-width: 1.5;
+}
+
+.graph-node.focus circle {
+  fill: var(--primary);
+  stroke: var(--primary-strong);
+}
+
+.graph-node text {
+  fill: var(--ink);
+  font-size: 11px;
+}
+
+.graph-node.focus text {
+  fill: white;
+  font-weight: 600;
+}
+

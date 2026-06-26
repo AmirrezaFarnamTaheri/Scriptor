@@ -204,10 +204,10 @@ pub fn decode_server_message(bytes: &[u8]) -> Result<ServerMessage, IpcError> {
 
 fn decode_value<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, IpcError> {
     let body = decode_body(bytes)?;
-    postcard::from_bytes(&body).map_err(|error| IpcError::Codec(error.to_string()))
+    postcard::from_bytes(body).map_err(|error| IpcError::Codec(error.to_string()))
 }
 
-fn decode_body(bytes: &[u8]) -> Result<Vec<u8>, IpcError> {
+fn decode_body(bytes: &[u8]) -> Result<&[u8], IpcError> {
     if bytes.len() < 8 {
         return Err(IpcError::Codec("frame shorter than header".into()));
     }
@@ -222,7 +222,7 @@ fn decode_body(bytes: &[u8]) -> Result<Vec<u8>, IpcError> {
     if bytes.len() < 8 + len {
         return Err(IpcError::Codec("truncated frame body".into()));
     }
-    Ok(bytes[8..8 + len].to_vec())
+    Ok(&bytes[8..8 + len])
 }
 
 pub fn read_frame<R: std::io::Read>(reader: &mut R) -> Result<Vec<u8>, IpcError> {
@@ -375,6 +375,18 @@ mod tests {
         let mut cursor = std::io::Cursor::new(b"NOPE0000");
         let error = read_frame(&mut cursor).expect_err("invalid magic");
         assert!(matches!(error, IpcError::InvalidMagic));
+    }
+
+    #[test]
+    fn decode_body_returns_borrowed_slice_without_extra_allocation() {
+        let request = RpcRequest {
+            id: 3,
+            method: RpcMethod::Ping,
+        };
+        let frame = encode_frame(&request).expect("encode");
+        let body = decode_body(&frame).expect("decode body");
+        let decoded: RpcRequest = postcard::from_bytes(body).expect("postcard");
+        assert_eq!(decoded.id, 3);
     }
 
     #[test]

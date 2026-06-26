@@ -480,6 +480,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 value={draftMarkdown}
                 onChange={updateDraft}
                 insertRequest={editorInsertRequest}
+                transformRequest={editorTransformRequest}
                 scrollToLine={scrollToEditorLine}
                 editorTheme={editorTheme}
                 typewriter={typewriter}

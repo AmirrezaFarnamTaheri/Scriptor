@@ -18,8 +18,8 @@ use commands::daemon::{
 };
 use commands::export::{export_cancel, export_discover, export_run_markdown, export_run_note, export_start_note, pdf_translate};
 use commands::git::{
-    git_commit_cmd, git_pull_cmd, git_push_cmd, git_read_conflict_markers_cmd, git_resolve_conflict_cmd,
-    git_show_head_file_cmd, git_status_cmd,
+    git_apply_merged_conflict_cmd, git_commit_cmd, git_pull_cmd, git_push_cmd, git_read_conflict_markers_cmd,
+    git_resolve_conflict_cmd, git_show_head_file_cmd, git_show_merge_base_file_cmd, git_status_cmd,
 };
 use commands::indexer::{
     indexer_apply_filesystem_changes, indexer_backlinks, indexer_evaluate_view, indexer_execute_dql,
@@ -131,7 +131,9 @@ pub fn run() {
             git_pull_cmd,
             git_push_cmd,
             git_resolve_conflict_cmd,
+            git_apply_merged_conflict_cmd,
             git_read_conflict_markers_cmd,
+            git_show_merge_base_file_cmd,
             git_show_head_file_cmd,
             vault_frontmatter_set,
             vault_textbundle_export,

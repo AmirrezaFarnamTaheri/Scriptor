@@ -1,0 +1,148 @@
+/* Publish center + export preflight (BL-67, BL-70) */
+
+.publish-center-grid {
+  display: grid;
+  gap: 18px;
+  padding-top: 12px;
+}
+
+.publish-center-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.publish-profile-list,
+.publish-history-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.publish-profile-list li,
+.publish-history-list li {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.publish-profile-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.publish-artifact {
+  font-size: 11px;
+  word-break: break-all;
+}
+
+.publish-status-success,
+.publish-status-dry-run {
+  color: var(--success);
+}
+
+.publish-status-error {
+  color: var(--danger);
+}
+
+.publish-preflight-meta {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.publish-preflight-meta div {
+  display: grid;
+  gap: 4px;
+}
+
+.publish-preflight-meta dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.publish-preflight-meta dd {
+  margin: 0;
+}
+
+.publish-command-preview {
+  margin: 0;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+}
+
+.publish-html-snippet {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--surface-1, var(--surface-2));
+}
+
+.print-preview-meta {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.print-preview-pages {
+  display: grid;
+  gap: 16px;
+}
+
+.print-preview-page {
+  min-height: var(--print-page-height, 960px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #111;
+  padding: 24px 28px;
+  box-shadow: var(--shadow-md);
+  break-after: page;
+  position: relative;
+}
+
+.print-preview-page-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+.print-preview-body {
+  max-height: calc(var(--print-page-height, 960px) - 80px);
+  overflow: hidden;
+}
+
+.print-preview-markdown h1,
+.print-preview-markdown h2,
+.print-preview-markdown h3 {
+  break-after: avoid;
+}
+
+.print-preview-continued {
+  color: #94a3b8;
+  font-style: italic;
+  margin: 0;
+}

@@ -130,4 +130,31 @@ test.describe('workspace flows', () => {
     await expect(publishDialog.locator('.publish-command-preview')).toContainText('Research Plan.md')
     await expect(publishDialog.getByText('Dry run complete')).toBeVisible()
   })
+
+  test('performance HUD toggle shows metrics overlay', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+
+    await page.keyboard.press('Control+KeyK')
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('performance HUD')
+    await palette.getByRole('option', { name: 'Show performance HUD' }).click()
+
+    const hud = page.locator('.perf-hud-overlay')
+    await expect(hud).toBeVisible()
+    await expect(hud).toContainText('Vault open')
+    await expect(hud).toContainText('Tabs')
+  })
+
+  test('insert footnote command adds reference marker', async ({ page }) => {
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+
+    await page.keyboard.press('Control+KeyK')
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('Insert footnote')
+    await palette.getByRole('option', { name: 'Insert footnote reference' }).click()
+
+    await expect(page.locator('.monaco-editor .view-lines')).toContainText('[^', { timeout: 10_000 })
+  })
 })

@@ -19,6 +19,11 @@ use scriptor_native_git::{
     git_commit_selected, git_pull, git_push, git_resolve_conflict, git_show_head_file, git_status,
     read_conflict_markers,
 };
+use scriptor_canvas_engine::{
+    apply_template, apply_template_dry_run, document_to_json, hit_test, list_documents, list_templates,
+    load_document, parse_document_json, query_blocks_in_bounds, render_svg, restore_template_checkpoint,
+    save_document, write_snapshot, CanvasPoint, CanvasRect, SnapshotFormat,
+};
 use scriptor_system_bridge::detect_system_info;
 use scriptor_vault::{
     append_activity_log, append_stats_history, block_rename_apply, block_rename_dry_run,
@@ -115,6 +120,17 @@ const COMMAND_CATALOG: &[&str] = &[
     "git_read_conflict_markers_cmd",
     "git_show_head_file_cmd",
     "plantuml_render",
+    "canvas_hit_test",
+    "canvas_render_svg",
+    "canvas_template_dry_run",
+    "canvas_apply_template",
+    "canvas_restore_template",
+    "canvas_query_blocks",
+    "canvas_list_templates",
+    "canvas_snapshot",
+    "canvas_save_document",
+    "canvas_load_document",
+    "canvas_list_documents",
     "system_info",
 ];
 
@@ -741,6 +757,95 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             to_value(git_show_head_file(session.root.root(), &path).map_err(|e| e.to_string())?)
         }
         "plantuml_render" => to_value(cmd_plantuml_render(payload)?),
+        "canvas_hit_test" => {
+            let scene_json = require_str(payload, "scene_json")?;
+            let x = require_f64(payload, "x")?;
+            let y = require_f64(payload, "y")?;
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            to_value(hit_test(&document, CanvasPoint { x, y }))
+        }
+        "canvas_render_svg" => {
+            let scene_json = require_str(payload, "scene_json")?;
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            Ok(json!(render_svg(&document, None)))
+        }
+        "canvas_template_dry_run" => {
+            let scene_json = require_str(payload, "scene_json")?;
+            let template_id = require_str(payload, "template_id")?;
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            to_value(apply_template_dry_run(&document, &template_id).map_err(|error| error.to_string())?)
+        }
+        "canvas_apply_template" => {
+            let session = state.require_session()?;
+            let scene_json = require_str(payload, "scene_json")?;
+            let template_id = require_str(payload, "template_id")?;
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            to_value(
+                apply_template(session.root.root(), &document, &template_id)
+                    .map_err(|error| error.to_string())?,
+            )
+        }
+        "canvas_restore_template" => {
+            let session = state.require_session()?;
+            let patch_id = require_str(payload, "patch_id")?;
+            let document = restore_template_checkpoint(session.root.root(), &patch_id)
+                .map_err(|error| error.to_string())?;
+            Ok(json!(document_to_json(&document).map_err(|error| error.to_string())?))
+        }
+        "canvas_query_blocks" => {
+            let scene_json = require_str(payload, "scene_json")?;
+            let x = require_f64(payload, "x")?;
+            let y = require_f64(payload, "y")?;
+            let width = require_f64(payload, "width")?;
+            let height = require_f64(payload, "height")?;
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            let bounds = CanvasRect { x, y, width, height };
+            let ids: Vec<String> = query_blocks_in_bounds(&document, bounds, None)
+                .into_iter()
+                .map(|block| block.id)
+                .collect();
+            Ok(json!(ids))
+        }
+        "canvas_list_templates" => to_value(list_templates()),
+        "canvas_snapshot" => {
+            let scene_json = require_str(payload, "scene_json")?;
+            let format = require_str(payload, "format")?;
+            let output_path = require_str(payload, "output_path")?;
+            let dry_run = optional_bool(payload, "dry_run").unwrap_or(false);
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            let snapshot_format = match format.as_str() {
+                "svg" => SnapshotFormat::Svg,
+                "png" => SnapshotFormat::Png,
+                "pdf" => SnapshotFormat::Pdf,
+                other => return Err(format!("unsupported snapshot format: {other}")),
+            };
+            to_value(
+                write_snapshot(
+                    &document,
+                    Path::new(&output_path),
+                    snapshot_format,
+                    dry_run,
+                )
+                .map_err(|error| error.to_string())?,
+            )
+        }
+        "canvas_save_document" => {
+            let session = state.require_session()?;
+            let scene_json = require_str(payload, "scene_json")?;
+            let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+            let path = save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
+            Ok(json!(path.display().to_string()))
+        }
+        "canvas_load_document" => {
+            let session = state.require_session()?;
+            let canvas_id = require_str(payload, "canvas_id")?;
+            let document = load_document(session.root.root(), &canvas_id).map_err(|error| error.to_string())?;
+            Ok(json!(document_to_json(&document).map_err(|error| error.to_string())?))
+        }
+        "canvas_list_documents" => {
+            let session = state.require_session()?;
+            to_value(list_documents(session.root.root()).map_err(|error| error.to_string())?)
+        }
         other => Err(format!("unknown command: {other}")),
     }
 }
@@ -1100,6 +1205,13 @@ fn optional_u32(payload: &Value, key: &str) -> Option<u32> {
         .and_then(|value| u32::try_from(value).ok())
 }
 
+fn require_f64(payload: &Value, key: &str) -> Result<f64, String> {
+    payload
+        .get(key)
+        .and_then(Value::as_f64)
+        .ok_or_else(|| format!("missing or invalid f64 field: {key}"))
+}
+
 fn require_i64(payload: &Value, key: &str) -> Result<i64, String> {
     payload
         .get(key)
@@ -1139,7 +1251,7 @@ mod tests {
 
     #[test]
     fn list_commands_meets_minimum() {
-        assert!(list_commands().len() >= 75);
+        assert!(list_commands().len() >= 85);
     }
 
     #[test]

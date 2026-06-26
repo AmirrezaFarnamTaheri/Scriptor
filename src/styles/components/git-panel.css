@@ -1,0 +1,90 @@
+/* Git panel (BL-22) */
+
+.git-panel {
+  width: min(520px, calc(100vw - 32px));
+  max-height: min(80vh, 640px);
+  overflow: auto;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.git-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.git-branch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.git-active-note {
+  margin: 8px 0 0;
+}
+
+.git-file-active {
+  background: var(--accent-soft);
+  border-radius: 8px;
+}
+
+.git-file-path {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.git-commit-templates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.git-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.git-changes ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.git-changes label {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+
+.git-commit-form {
+  display: grid;
+  gap: 10px;
+}
+
+.git-commit-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.git-commit-form input {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+}

@@ -40,7 +40,9 @@ export async function waitForWorkspace(page: Page) {
   await expect(page.locator('.tab.active', { hasText: 'Research Plan' })).toBeVisible({
     timeout: 30_000,
   })
-  await expect(page.locator('.monaco-editor .view-lines')).toContainText('Research Plan', {
+  const monaco = page.locator('.monaco-editor .view-lines')
+  const codemirror = page.locator('.cm-content')
+  await expect(monaco.or(codemirror)).toContainText('Research Plan', {
     timeout: 45_000,
   })
   await settleLayout(page)

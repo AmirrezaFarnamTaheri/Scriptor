@@ -212,6 +212,38 @@ pub fn git_show_head_file(repo_root: &Path, path: &str) -> Result<Option<String>
     }
 }
 
+/// Common ancestor version of a path during an in-progress merge (`:1:` index stage).
+pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<String>, GitError> {
+    if !is_git_repo(repo_root)? {
+        return Ok(None);
+    }
+
+    let normalized = path.replace('\\', "/");
+    let stage_spec = format!(":1:{normalized}");
+    match run_git(repo_root, &["show", &stage_spec]) {
+        Ok(content) => Ok(Some(content)),
+        Err(GitError::Command(_)) => {
+            let merge_head = run_git(repo_root, &["rev-parse", "-q", "MERGE_HEAD"]).ok();
+            let head = run_git(repo_root, &["rev-parse", "HEAD"]).ok();
+            if let (Some(merge_head), Some(head)) = (merge_head, head) {
+                if let Ok(base) = run_git(
+                    repo_root,
+                    &["merge-base", &head, &merge_head],
+                ) {
+                    let spec = format!("{base}:{normalized}");
+                    return match run_git(repo_root, &["show", &spec]) {
+                        Ok(content) => Ok(Some(content)),
+                        Err(GitError::Command(_)) => Ok(None),
+                        Err(error) => Err(error),
+                    };
+                }
+            }
+            Ok(None)
+        }
+        Err(error) => Err(error),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -291,6 +323,25 @@ mod tests {
 
         let head = git_show_head_file(dir.path(), "note.md")?.unwrap_or_default();
         assert!(head.contains("Committed"));
+        Ok(())
+    }
+
+    #[test]
+    fn show_merge_base_returns_none_without_merge() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", dir.path().to_str().unwrap()])
+            .output()?;
+        fs::write(dir.path().join("note.md"), "# Note\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "note.md"])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        git_commit(dir.path(), "init")?;
+
+        let base = git_show_merge_base_file(dir.path(), "note.md")?;
+        assert!(base.is_none());
         Ok(())
     }
 }

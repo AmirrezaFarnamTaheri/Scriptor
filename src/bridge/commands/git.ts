@@ -31,6 +31,14 @@ export async function gitResolveConflict(
   return invoke('git_resolve_conflict_cmd', { path, strategy })
 }
 
+export async function gitApplyMergedConflict(
+  path: string,
+  mergedMarkdown: string,
+): Promise<{ path: string; strategy: string }> {
+  requireNative()
+  return invoke('git_apply_merged_conflict_cmd', { path, mergedMarkdown })
+}
+
 export async function gitReadConflictMarkers(path: string): Promise<string[]> {
   requireNative()
   return invoke<string[]>('git_read_conflict_markers_cmd', { path })
@@ -39,4 +47,9 @@ export async function gitReadConflictMarkers(path: string): Promise<string[]> {
 export async function gitShowHeadFile(path: string): Promise<string | null> {
   requireNative()
   return invoke<string | null>('git_show_head_file_cmd', { path })
+}
+
+export async function gitShowMergeBaseFile(path: string): Promise<string | null> {
+  requireNative()
+  return invoke<string | null>('git_show_merge_base_file_cmd', { path })
 }

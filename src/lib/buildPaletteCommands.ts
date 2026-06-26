@@ -70,6 +70,9 @@ export interface PaletteCommandContext {
   toggleInspector?: () => void
   vaultSidebarCollapsed?: boolean
   inspectorCollapsed?: boolean
+  applyEditorTransform?: (action: 'footnote') => void
+  setPerfHudOpen?: (open: boolean) => void
+  perfHudOpen?: boolean
 }
 
 export function buildPaletteCommands(context: PaletteCommandContext): PaletteCommand[] {
@@ -110,6 +113,9 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     toggleInspector,
     vaultSidebarCollapsed,
     inspectorCollapsed,
+    applyEditorTransform,
+    setPerfHudOpen,
+    perfHudOpen,
   } = context
 
   const baseCommands: AppCommandDefinition[] = [
@@ -217,6 +223,18 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     { id: 'open-quick-capture', label: 'Quick capture (scratchpad & todos)', run: () => setQuickCaptureOpen?.(true) },
     { id: 'open-note-history', label: 'Note history timeline', shortcut: 'Ctrl+Alt+H', run: () => setNoteHistoryOpen?.(true) },
     { id: 'open-bibliography', label: 'Browse bibliography', run: () => setBibliographyOpen(true) },
+    ...(applyEditorTransform
+      ? [{ id: 'insert-footnote', label: 'Insert footnote reference', run: () => applyEditorTransform('footnote') } satisfies AppCommandDefinition]
+      : []),
+    ...(setPerfHudOpen
+      ? [
+          {
+            id: 'toggle-perf-hud',
+            label: perfHudOpen ? 'Hide performance HUD' : 'Show performance HUD',
+            run: () => setPerfHudOpen(!perfHudOpen),
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
     {
       id: 'toggle-split-preview',
       label: splitPreview ? 'Close split preview' : 'Open split preview',

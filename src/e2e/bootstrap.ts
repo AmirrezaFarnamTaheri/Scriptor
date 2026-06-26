@@ -8,6 +8,7 @@ import {
   screenshotRebuildSummary,
 } from '../screenshot/fixture.ts'
 import { e2eNoteDocument, e2eSaveNote, e2eSearchNotes } from './state.ts'
+import { installE2eMcpHarness } from './mcp.harness.ts'
 
 const DEFAULT_CONFIG = {
   daily_note: {
@@ -281,4 +282,5 @@ export function installE2eBridge(): void {
   } catch {
     // ignore storage failures in e2e mode
   }
+  installE2eMcpHarness()
 }

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObjec
 
 import {
   exportStartNote,
+  indexerApplyFilesystemChanges,
   indexerRecordRecentAccess,
   indexerUpdateNote,
   vaultReadNote,
@@ -14,6 +15,7 @@ import {
   vaultSaveNote,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { importVaultFiles } from '../lib/importVaultFiles'
 import { isContentHashMismatchError } from '../lib/vaultErrors'
 import type {
   ExternalChangeConflict,
@@ -442,6 +444,17 @@ export function useWorkspaceEditor({
     return relativePath
   }, [])
 
+  const importDroppedFiles = useCallback(
+    async (files: FileList | File[], options?: Parameters<typeof importVaultFiles>[1]) => {
+      const paths = await importVaultFiles(files, options)
+      if (paths.length > 0) {
+        await indexerApplyFilesystemChanges(paths)
+      }
+      return paths
+    },
+    [],
+  )
+
   const generateLinkReferences = useCallback(() => {
     const next = generateLinkReferenceDefinitions(draftMarkdown)
     if (next !== draftMarkdown) {
@@ -529,6 +542,7 @@ export function useWorkspaceEditor({
     closedTabs,
     updateDraft,
     saveVaultImage,
+    importDroppedFiles,
     generateLinkReferences,
     insertSnippet,
     applyEditorTransform,

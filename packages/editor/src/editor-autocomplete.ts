@@ -75,6 +75,26 @@ export function editorAutocompleteExtension(): Extension {
           return { from: completionContext.pos - prefix.length - 1, options: buildCompletions(tagCompletions(), prefix) }
         }
 
+        const footnoteMatch = before.match(/\[\^[^\]]*$/)
+        if (footnoteMatch) {
+          const prefix = footnoteMatch[0].slice(2)
+          const doc = completionContext.state.doc.toString()
+          const defined = new Set<string>()
+          for (const match of doc.matchAll(/\[\^([^\]]+)\]:/g)) {
+            defined.add(match[1] ?? '')
+          }
+          const options = Array.from(defined)
+            .filter((id) => id.toLowerCase().includes(prefix.toLowerCase()))
+            .map((id) => ({
+              label: id,
+              type: 'footnote' as const,
+              apply: `${id}]`,
+            }))
+          if (options.length > 0) {
+            return { from: completionContext.pos - prefix.length - 2, options }
+          }
+        }
+
         const wikiMatch = before.match(/\[\[[^\]|]*$/)
         if (wikiMatch) {
           const inner = wikiMatch[0].slice(2)

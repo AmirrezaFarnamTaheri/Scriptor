@@ -5,6 +5,7 @@ import type { SearchHit } from '../types/vault'
 
 interface UseWorkspaceSearchOptions {
   onSearchComplete?: (hits: SearchHit[]) => void
+  onSearchTiming?: (ms: number) => void
 }
 
 export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
@@ -22,8 +23,10 @@ export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
       }
 
       setIsSearching(true)
+      const started = performance.now()
       try {
         const hits = await indexerSearch(trimmed, 25)
+        options?.onSearchTiming?.(Math.round(performance.now() - started))
         setSearchResults(hits)
         options?.onSearchComplete?.(hits)
       } catch {

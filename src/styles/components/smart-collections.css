@@ -1,0 +1,39 @@
+/* Smart collections panel (BL-22) */
+
+.smart-collections-layout {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) minmax(0, 1fr);
+  gap: 16px;
+  padding-top: 12px;
+}
+
+.smart-collections-sidebar {
+  display: grid;
+  gap: 8px;
+}
+
+.smart-collection {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.smart-collection.active button:first-child {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.smart-collections-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.smart-collection-query {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+}

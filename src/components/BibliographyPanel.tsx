@@ -3,16 +3,26 @@ import { BookOpen, X } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useCiteprocPreview } from '../hooks/useCiteprocPreview'
+import { isBibliographyFile } from '../lib/importVaultFiles'
 import type { BibliographyEntry } from '../types/vault'
 
 interface BibliographyPanelProps {
   entries: BibliographyEntry[]
+  bibliographyPath?: string
   onClose: () => void
   onInsertCitation: (key: string) => void
+  onImportBibliography?: (files: FileList) => Promise<void>
 }
 
-export function BibliographyPanel({ entries, onClose, onInsertCitation }: BibliographyPanelProps) {
+export function BibliographyPanel({
+  entries,
+  bibliographyPath = 'references.bib',
+  onClose,
+  onInsertCitation,
+  onImportBibliography,
+}: BibliographyPanelProps) {
   const [query, setQuery] = useState('')
+  const [dropActive, setDropActive] = useState(false)
   useEscapeToClose(true, onClose)
 
   const filtered = useMemo(() => {
@@ -33,10 +43,27 @@ export function BibliographyPanel({ entries, onClose, onInsertCitation }: Biblio
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
-        className="bibliography-panel"
+        className={`bibliography-panel${dropActive ? ' is-drop-target' : ''}`}
         role="dialog"
         aria-label="Bibliography"
         onClick={(event) => event.stopPropagation()}
+        onDragOver={(event) => {
+          if (!onImportBibliography) return
+          event.preventDefault()
+          setDropActive(true)
+        }}
+        onDragLeave={() => setDropActive(false)}
+        onDrop={(event) => {
+          if (!onImportBibliography) return
+          event.preventDefault()
+          setDropActive(false)
+          const files = Array.from(event.dataTransfer.files).filter(isBibliographyFile)
+          if (files.length > 0) {
+            const list = new DataTransfer()
+            files.forEach((file) => list.items.add(file))
+            void onImportBibliography(list.files)
+          }
+        }}
       >
         <header>
           <div>
@@ -46,7 +73,7 @@ export function BibliographyPanel({ entries, onClose, onInsertCitation }: Biblio
             </h2>
             <p className="health-subtitle">
               {entries.length === 0
-                ? 'Add a .bib file to your vault (e.g. references.bib).'
+                ? `Drop a .bib file here or add one at ${bibliographyPath}.`
                 : `${filtered.length} of ${entries.length} entries${usingCiteproc ? ' · CSL preview' : ''}`}
             </p>
           </div>

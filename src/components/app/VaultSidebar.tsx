@@ -14,6 +14,7 @@ import {
   Settings,
   Tags,
 } from 'lucide-react'
+import { useState } from 'react'
 
 import { InboxPanel } from '../inbox/InboxPanel'
 import { VaultTreeSkeleton } from './VaultTreeSkeleton'
@@ -56,6 +57,7 @@ interface VaultSidebarProps {
   onOpenNote: (path: string) => void
   onRenameNote: (path: string) => void
   onDeleteNote?: (path: string) => void
+  onImportFiles?: (files: FileList) => Promise<string[]>
   recentNotes?: Array<{ path: string; title: string }>
 }
 
@@ -91,10 +93,28 @@ export function VaultSidebar({
   onOpenNote,
   onRenameNote,
   onDeleteNote,
+  onImportFiles,
   recentNotes = [],
 }: VaultSidebarProps) {
+  const [dropActive, setDropActive] = useState(false)
+
   return (
-    <aside className="vault-panel" aria-label="Vault">
+    <aside
+      className={`vault-panel${dropActive ? ' is-drop-target' : ''}`}
+      aria-label="Vault"
+      onDragOver={(event) => {
+        if (!onImportFiles) return
+        event.preventDefault()
+        setDropActive(true)
+      }}
+      onDragLeave={() => setDropActive(false)}
+      onDrop={(event) => {
+        if (!onImportFiles || !event.dataTransfer.files.length) return
+        event.preventDefault()
+        setDropActive(false)
+        void onImportFiles(event.dataTransfer.files)
+      }}
+    >
       <PanelHeader
         title="Vault"
         icon={<Folder />}

@@ -101,6 +101,7 @@ function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
 
 export function useVaultWorkspace(options?: {
   onSearchComplete?: (hits: SearchHit[]) => void
+  onSearchTiming?: (ms: number) => void
   onSessionLayoutRestore?: (layout: {
     collapsedFolders: Record<string, boolean>
     sidebarView: 'vault' | 'inbox'

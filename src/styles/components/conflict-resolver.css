@@ -1,0 +1,143 @@
+/* Git 3-way conflict resolver (BL-25) */
+
+.conflict-resolver,
+.conflict-resolver-3way {
+  width: min(920px, 96vw);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.conflict-resolver-3way .conflict-hunks {
+  display: grid;
+  gap: 16px;
+  margin: 12px 0;
+}
+
+.conflict-hunk-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+}
+
+.conflict-hunk-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.conflict-hunk-header h3 {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.conflict-hunk-header small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.conflict-hunk-choices {
+  display: flex;
+  gap: 12px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.conflict-hunk-choices label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.conflict-preview-grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.conflict-hunk-column h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.conflict-merged-preview {
+  margin-top: 12px;
+}
+
+.conflict-merged-body {
+  max-height: 200px;
+}
+
+.conflict-resolver-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.numbered-conflict-pre {
+  margin: 0;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.numbered-conflict-line {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.numbered-conflict-line .line-num {
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+}
+
+.numbered-conflict-line code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.conflict-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.conflict-preview-grid pre {
+  max-height: 200px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--surface-muted);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+.writing-targets-panel,
+.conflict-resolver {
+  width: min(520px, 92vw);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.conflict-resolver-3way {
+  width: min(920px, 96vw);
+}

@@ -3,8 +3,8 @@ use std::io::{self, BufRead, Write};
 use chrono::Utc;
 use scriptor_indexer::{
     backlinks_for_path, list_dead_end_notes, list_orphan_notes, list_unresolved_link_targets,
-    list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown, search_notes,
-    traverse_graph,
+    list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown, query_focused_graph,
+    search_notes, traverse_graph,
 };
 use scriptor_vault::{
     append_mcp_mutation, build_note_markdown, load_vault_config, open_vault, read_note,
@@ -93,6 +93,16 @@ const READ_TOOLS: &[(&str, &str, &str)] = &[
         "mcp.traverseGraph",
         "Breadth-first graph traversal from a focus note.",
         "mcp.traverseGraph",
+    ),
+    (
+        "mcp.exportGraph",
+        "Export a focused link graph (nodes and edges).",
+        "mcp.exportGraph",
+    ),
+    (
+        "mcp.renderMarkdown",
+        "Render markdown to basic HTML (headless preview).",
+        "mcp.renderMarkdown",
     ),
 ];
 
@@ -340,6 +350,21 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(graph).map_err(|error| error.to_string())?)
         }
+        "mcp.exportGraph" => {
+            let focus_path = args.get("focusPath").and_then(Value::as_str);
+            let depth = args.get("depth").and_then(Value::as_u64).unwrap_or(2) as u32;
+            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            let graph = query_focused_graph(&cache, &state.session, focus_path, depth, &[])
+                .map_err(|error| error.to_string())?;
+            Ok(serde_json::to_value(graph).map_err(|error| error.to_string())?)
+        }
+        "mcp.renderMarkdown" => {
+            let markdown = args
+                .get("markdown")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "markdown is required".to_string())?;
+            Ok(json!({ "html": render_markdown_html(markdown) }))
+        }
         "mcp.proposePatch" => {
             if !state.trust_stdio {
                 return Err("mcp.proposePatch requires --trust-stdio".into());
@@ -428,6 +453,15 @@ fn write_note_with_audit(
     Ok(serde_json::to_value(output).map_err(|error| error.to_string())?)
 }
 
+fn render_markdown_html(markdown: &str) -> String {
+    use pulldown_cmark::{html, Options, Parser};
+
+    let mut html_output = String::new();
+    let parser = Parser::new_ext(markdown, Options::all());
+    html::push_html(&mut html_output, parser);
+    html_output
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -445,7 +479,9 @@ mod tests {
             .collect();
         assert!(names.contains(&"mcp.inspectBacklinks"));
         assert!(names.contains(&"mcp.inspectGraphSummary"));
-        assert!(names.len() >= 10);
+        assert!(names.contains(&"mcp.exportGraph"));
+        assert!(names.contains(&"mcp.renderMarkdown"));
+        assert!(names.len() >= 12);
     }
 
     #[test]

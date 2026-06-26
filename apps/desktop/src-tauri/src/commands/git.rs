@@ -1,7 +1,7 @@
 use scriptor_native_git::{
-    git_commit_selected, git_pull, git_push, git_resolve_conflict, git_show_head_file, git_status,
-    read_conflict_markers, GitCommitOutput, GitConflictResolveOutput, GitPullOutput, GitPushOutput,
-    GitStatus,
+    git_apply_merged_conflict, git_commit_selected, git_pull, git_push, git_resolve_conflict,
+    git_show_head_file, git_show_merge_base_file, git_status, read_conflict_markers, GitCommitOutput,
+    GitConflictResolveOutput, GitPullOutput, GitPushOutput, GitStatus,
 };
 
 use crate::AppState;
@@ -50,6 +50,26 @@ pub fn git_resolve_conflict_cmd(
 ) -> Result<GitConflictResolveOutput, String> {
     let session = active_session(&state)?;
     git_resolve_conflict(session.root.root(), &path, &strategy).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn git_apply_merged_conflict_cmd(
+    state: tauri::State<AppState>,
+    path: String,
+    merged_markdown: String,
+) -> Result<GitConflictResolveOutput, String> {
+    let session = active_session(&state)?;
+    git_apply_merged_conflict(session.root.root(), &path, &merged_markdown)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn git_show_merge_base_file_cmd(
+    state: tauri::State<AppState>,
+    path: String,
+) -> Result<Option<String>, String> {
+    let session = active_session(&state)?;
+    git_show_merge_base_file(session.root.root(), &path).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

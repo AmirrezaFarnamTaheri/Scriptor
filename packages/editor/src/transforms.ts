@@ -13,6 +13,7 @@ import {
   applyTableMutation,
 } from './transform-logic.ts'
 import { moveSectionDown, moveSectionUp } from './move-section.ts'
+import { insertFootnoteRef } from './footnotes.ts'
 
 export type EditorTransformAction =
   | 'bold'
@@ -29,6 +30,7 @@ export type EditorTransformAction =
   | 'table-add-col'
   | 'move-section-up'
   | 'move-section-down'
+  | 'footnote'
 
 export function wrapText(editor: EditorView, prefix: string, suffix = prefix): void {
   const selection =
@@ -154,6 +156,10 @@ export function applyEditorTransform(editor: EditorView, action: EditorTransform
       return
     case 'move-section-down':
       moveSectionDown({ state: editor.state, dispatch: (tr) => editor.dispatch(tr) })
+      editor.focus()
+      return
+    case 'footnote':
+      insertFootnoteRef({ state: editor.state, dispatch: (tr) => editor.dispatch(tr) })
       editor.focus()
       return
     default:

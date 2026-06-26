@@ -29,6 +29,12 @@ export { evaluateSandboxCapability, assertSandboxCapability, runSandboxTests } f
 export type { SandboxCapability, SandboxDecision } from './sandbox.ts'
 export { runPluginValidation } from './validate.ts'
 export {
+  WASM_PLUGIN_ABI_VERSION,
+  loadWasmPlugin,
+  validateWasmPluginManifest,
+} from './wasm-host.ts'
+export type { WasmPluginManifest } from './wasm-host.ts'
+export {
   fetchRemoteMarketplaceCatalog,
   listBundledMarketplaceCatalog,
   loadAllBundledManifests,

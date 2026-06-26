@@ -1,0 +1,54 @@
+/* In-app performance HUD (BL-56) */
+
+.perf-hud-overlay {
+  position: fixed;
+  left: 12px;
+  bottom: 56px;
+  z-index: 60;
+  min-width: 160px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  box-shadow: var(--shadow-md);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.perf-hud-overlay strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.perf-hud-overlay dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.perf-hud-overlay dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.perf-hud-overlay dt {
+  margin: 0;
+  color: var(--muted);
+}
+
+.perf-hud-overlay dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.vault-panel.is-drop-target {
+  outline: 2px dashed var(--primary);
+  outline-offset: -4px;
+}
+
+.bibliography-panel.is-drop-target {
+  outline: 2px dashed var(--primary);
+  outline-offset: -4px;
+}

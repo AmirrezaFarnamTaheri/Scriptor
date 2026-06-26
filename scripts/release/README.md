@@ -6,6 +6,7 @@ Release engineering scripts for Scriptor v0.1.0.
 
 | Script | Purpose |
 |---|---|
+| `inject-updater-config.mjs` | Injects Tauri updater pubkey/endpoint from env before bundle (`SCRIPTOR_UPDATER_PUBKEY`). |
 | `package.ps1` | Full pre-release pipeline: checks, tests, smoke, optional Tauri bundle. |
 | `sign-installers.ps1` | Optional Authenticode signing for MSI/NSIS artifacts (CI or local). |
 | `verify-bundle.mjs` | Cross-platform post-bundle artifact check (used in Release CI). |
@@ -27,6 +28,18 @@ Skip the Tauri bundle while iterating:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1 -SkipTauri
 ```
+
+### Updater signing (BL-30)
+
+Signed auto-updates require injecting the Tauri updater public key before the desktop bundle step. `package.ps1` runs `inject-updater-config.mjs` automatically when bundling.
+
+```powershell
+$env:SCRIPTOR_UPDATER_PUBKEY = "<base64-pubkey-from-tauri-signer>"
+$env:SCRIPTOR_UPDATER_ENDPOINT = "https://releases.example.com/latest.json"
+powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1
+```
+
+When `SCRIPTOR_UPDATER_PUBKEY` is unset, the placeholder remains and in-app updates stay disabled.
 
 ## Pandoc
 
