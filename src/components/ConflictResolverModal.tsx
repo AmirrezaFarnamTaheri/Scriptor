@@ -3,11 +3,21 @@ import { X } from 'lucide-react'
 
 import {
   applyConflictChoices,
+  extractBaseHunk,
   parseConflictHunks,
   type ConflictHunkChoice,
 } from '../lib/conflictMerge'
 
-function NumberedConflictBlock({ title, text }: { title: string; text: string }) {
+function NumberedConflictBlock({
+  title,
+  text,
+  startLine = 0,
+}: {
+  title: string
+  text: string
+  /** 0-indexed line offset — add 1 for display. */
+  startLine?: number
+}) {
   return (
     <article className="conflict-hunk-column">
       <h3>{title}</h3>
@@ -15,7 +25,7 @@ function NumberedConflictBlock({ title, text }: { title: string; text: string })
         {text.split('\n').map((line, index) => (
           <div key={`${title}-${index}`} className="numbered-conflict-line">
             <span className="line-num" aria-hidden>
-              {index + 1}
+              {startLine + index + 1}
             </span>
             <code>{line || ' '}</code>
           </div>
@@ -80,36 +90,48 @@ export function ConflictResolverModal({
           <p className="empty-state">No conflict markers found in this file.</p>
         ) : (
           <div className="conflict-hunks">
-            {parsed.hunks.map((hunk) => (
-              <section key={hunk.id} className="conflict-hunk-card">
-                <header className="conflict-hunk-header">
-                  <h3>
-                    Hunk {hunk.id + 1}
-                    {hunk.branchLabel ? <small>{hunk.branchLabel}</small> : null}
-                  </h3>
-                  <fieldset className="conflict-hunk-choices">
-                    <legend className="sr-only">Resolution for hunk {hunk.id + 1}</legend>
-                    {(['base', 'ours', 'theirs'] as const).map((choice) => (
-                      <label key={choice}>
-                        <input
-                          type="radio"
-                          name={`hunk-${hunk.id}`}
-                          checked={(choices[hunk.id] ?? 'ours') === choice}
-                          disabled={choice === 'base' && !basePreview}
-                          onChange={() => setHunkChoice(hunk.id, choice)}
-                        />
-                        {choice === 'base' ? 'Base (ancestor)' : choice === 'ours' ? 'Ours' : 'Theirs'}
-                      </label>
-                    ))}
-                  </fieldset>
-                </header>
-                <div className="conflict-preview-grid conflict-preview-grid-3">
-                  {basePreview ? <NumberedConflictBlock title="Base (ancestor)" text={basePreview} /> : null}
-                  <NumberedConflictBlock title="Ours" text={hunk.ours} />
-                  <NumberedConflictBlock title="Theirs" text={hunk.theirs} />
-                </div>
-              </section>
-            ))}
+            {parsed.hunks.map((hunk) => {
+              const contentStart = hunk.startLine + 1
+              const contentEnd = hunk.endLine - 1
+              const hunkBase = basePreview
+                ? extractBaseHunk(basePreview, hunk.startLine, Math.max(hunk.ours.split('\n').length, hunk.theirs.split('\n').length))
+                : null
+              return (
+                <section key={hunk.id} className="conflict-hunk-card">
+                  <header className="conflict-hunk-header">
+                    <h3>
+                      Hunk {hunk.id + 1}
+                      <small>
+                        lines {contentStart}–{contentEnd}
+                        {hunk.branchLabel ? ` — ${hunk.branchLabel}` : ''}
+                      </small>
+                    </h3>
+                    <fieldset className="conflict-hunk-choices">
+                      <legend className="sr-only">Resolution for hunk {hunk.id + 1}</legend>
+                      {(['base', 'ours', 'theirs'] as const).map((choice) => (
+                        <label key={choice}>
+                          <input
+                            type="radio"
+                            name={`hunk-${hunk.id}`}
+                            checked={(choices[hunk.id] ?? 'ours') === choice}
+                            disabled={choice === 'base' && !basePreview}
+                            onChange={() => setHunkChoice(hunk.id, choice)}
+                          />
+                          {choice === 'base' ? 'Base (ancestor)' : choice === 'ours' ? 'Ours' : 'Theirs'}
+                        </label>
+                      ))}
+                    </fieldset>
+                  </header>
+                  <div className={`conflict-preview-grid${basePreview ? ' conflict-preview-grid-3' : ''}`}>
+                    {hunkBase != null ? (
+                      <NumberedConflictBlock title="Base (ancestor)" text={hunkBase} />
+                    ) : null}
+                    <NumberedConflictBlock title="Ours" text={hunk.ours} startLine={hunk.startLine + 1} />
+                    <NumberedConflictBlock title="Theirs" text={hunk.theirs} startLine={hunk.startLine + 1} />
+                  </div>
+                </section>
+              )
+            })}
           </div>
         )}
 

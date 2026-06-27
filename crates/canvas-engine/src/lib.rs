@@ -18,6 +18,7 @@ pub use scene::{
     CanvasLayer, CanvasMode, CanvasPoint, CanvasRect, CanvasTemplate,
 };
 pub use snapshot::{render_svg, write_snapshot, SnapshotFormat, SnapshotOutput};
+pub use snapshot_raster::{write_png_from_svg, write_png_from_svg_async};
 pub use store::{
     canvas_boards_dir, list_documents, load_document, save_document, CanvasDocumentSummary,
 };

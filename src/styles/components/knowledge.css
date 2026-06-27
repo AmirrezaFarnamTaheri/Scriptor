@@ -1,0 +1,19 @@
+/* Knowledge triage bar, virtual knowledge list (BL-22) */
+
+.knowledge-triage-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.knowledge-triage-next {
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.virtual-knowledge-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -1,6 +1,7 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::thread::JoinHandle;
 
 use scriptor_export_runner::discover_pandoc;
 use resvg::usvg::{self, Transform};
@@ -23,6 +24,28 @@ pub fn write_png_from_svg(svg: &str, output_path: &Path) -> Result<(), CanvasErr
         .save_png(output_path)
         .map_err(|error| CanvasError::ExportFailed(format!("png write failed: {error}")))?;
     Ok(())
+}
+
+pub fn write_png_from_svg_async(
+    svg: String,
+    output_path: PathBuf,
+) -> JoinHandle<Result<(), CanvasError>> {
+    std::thread::spawn(move || {
+        let mut options = usvg::Options::default();
+        options.fontdb_mut().load_system_fonts();
+
+        let tree = usvg::Tree::from_str(&svg, &options)
+            .map_err(|error| CanvasError::ExportFailed(format!("svg parse failed: {error}")))?;
+        let size = tree.size().to_int_size();
+        let mut pixmap = Pixmap::new(size.width(), size.height())
+            .ok_or_else(|| CanvasError::ExportFailed("invalid png dimensions".into()))?;
+
+        resvg::render(&tree, Transform::default(), &mut pixmap.as_mut());
+        pixmap
+            .save_png(&output_path)
+            .map_err(|error| CanvasError::ExportFailed(format!("png write failed: {error}")))?;
+        Ok(())
+    })
 }
 
 pub fn write_pdf_from_svg(svg: &str, output_path: &Path) -> Result<(), CanvasError> {

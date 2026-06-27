@@ -13,7 +13,7 @@ use crate::args::{build_pandoc_args, ExportFormat};
 use crate::cancel::{wait_for_child, ExportCancelSlot};
 use crate::error::ExportError;
 use crate::log::{log_entry_from_output, write_export_log};
-use crate::pandoc::discover_pandoc;
+use crate::pandoc::discover_pandoc_with_trusted_hash;
 use crate::validate::validate_export_artifact;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -32,6 +32,8 @@ pub struct ExportJobInput {
     pub job_id: Option<String>,
     #[serde(default)]
     pub preserve_temp_on_failure: bool,
+    #[serde(default)]
+    pub trusted_pandoc_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -58,11 +60,14 @@ pub fn run_export_job_with_cancel(
     progress: Option<ExportProgressCallback>,
 ) -> Result<ExportJobOutput, ExportError> {
     let format = ExportFormat::parse(&input.format)?;
-    let pandoc = match discover_pandoc() {
+    let pandoc = match discover_pandoc_with_trusted_hash(
+        input.trusted_pandoc_hash.as_deref(),
+    ) {
         Ok(found) => found,
         Err(_) if input.dry_run => crate::pandoc::PandocDiscovery {
             path: "pandoc".into(),
             version: "not-installed".into(),
+            sha256: None,
         },
         Err(error) => return Err(error),
     };
@@ -243,6 +248,7 @@ mod tests {
             vault_root: output_dir.display().to_string(),
             job_id: None,
             preserve_temp_on_failure: false,
+            trusted_pandoc_hash: None,
         });
 
         assert!(result.is_ok(), "expected dry-run ok: {result:?}");

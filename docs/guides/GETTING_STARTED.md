@@ -59,10 +59,13 @@ Use the top bar workspace modes — **Writing**, **Knowledge**, **Publish**, **R
 | Command palette | `Ctrl+K` or top bar search | — |
 | Preview | Editor **Split** or **Preview** mode | `p` |
 | Backlinks | Inspector rail | `b` |
-| Graph | **Graph** toolbar button | `g` |
+| Graph | **Graph** toolbar button (keyboard nav: arrow keys, Enter, Escape) | `g` |
 | Vault health | Inspector **Note Health** or Settings | `h` |
 | Export | Inspector export profiles or **Publish** | `scriptor export` |
 | Git status | Top bar Git indicator | — |
+| Conflict resolve | 3-way conflict UI with base column | — |
+| Keyboard shortcuts | Settings → Keyboard Shortcuts | — |
+| Scheduled backups | Settings → Vault Snapshots | — |
 
 ![Knowledge graph panel](../assets/screenshots/graph.png)
 
@@ -89,6 +92,8 @@ Enable **Settings → Headless engine** to route indexing, search, backlinks, gr
 - [`docs/CAPABILITIES.md`](../CAPABILITIES.md) — full feature map
 - [`docs/contracts/COMMAND_CATALOG.md`](../contracts/COMMAND_CATALOG.md) — Tauri, daemon, and CLI commands
 - [`docs/architecture/PLUGIN_SYSTEM.md`](../architecture/PLUGIN_SYSTEM.md) — plugins and marketplace
+- [`docs/plugins/AUTHOR_GUIDE.md`](../plugins/AUTHOR_GUIDE.md) — plugin author guide and hello-world walkthrough
+- [`docs/architecture/EDITOR_ENGINES.md`](../architecture/EDITOR_ENGINES.md) — CodeMirror and Monaco dual-engine roles
 - [`docs/design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — visual system tokens
 - [`docs/brand/BRAND.md`](../brand/BRAND.md) — logo and wordmark
 - [`docs/assets/screenshots/README.md`](../assets/screenshots/README.md) — regenerate UI screenshots

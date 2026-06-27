@@ -148,11 +148,10 @@ impl ExportJobRunner {
         if active.status != ExportJobState::Running {
             return Ok(false);
         }
-        if let Some(expected) = job_id {
-            if active.job_id != expected {
+        if let Some(expected) = job_id
+            && active.job_id != expected {
                 return Ok(false);
             }
-        }
         drop(active);
 
         let cancelled = cancel_active_export(&self.cancel_slot).is_some();

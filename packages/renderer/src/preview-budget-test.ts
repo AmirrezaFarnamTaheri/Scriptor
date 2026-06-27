@@ -1,0 +1,101 @@
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+
+import { renderMarkdownPreview } from './preview.ts'
+
+function generateSmall(): string {
+  const lines: string[] = ['# Small Document']
+  for (let i = 0; i < 15; i++) {
+    lines.push(`Paragraph ${i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore.`)
+  }
+  return lines.join('\n\n')
+}
+
+function generateMedium(): string {
+  const lines: string[] = ['# Medium Document']
+  for (let i = 0; i < 150; i++) {
+    lines.push(`Paragraph ${i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.`)
+  }
+  return lines.join('\n\n')
+}
+
+function generateLarge(): string {
+  const lines: string[] = ['# Large Document']
+
+  for (let i = 0; i < 400; i++) {
+    lines.push(`Paragraph ${i + 1}: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.`)
+  }
+
+  lines.push('\n## Tables\n')
+  for (let t = 0; t < 10; t++) {
+    lines.push(`| Col A | Col B | Col C | Col D | Col E |`)
+    lines.push(`| ----- | ----- | ----- | ----- | ----- |`)
+    for (let r = 0; r < 20; r++) {
+      lines.push(`| cell-${t}-${r}-a | cell-${t}-${r}-b | cell-${t}-${r}-c | cell-${t}-${r}-d | cell-${t}-${r}-e |`)
+    }
+    lines.push('')
+  }
+
+  lines.push('\n## Code Blocks\n')
+  for (let i = 0; i < 20; i++) {
+    lines.push('```typescript')
+    lines.push(`function compute_${i}(x: number, y: number): number {`)
+    lines.push(`  const result = x * y + ${i}`)
+    lines.push('  for (let j = 0; j < 100; j++) {')
+    lines.push('    result += Math.sqrt(j)')
+    lines.push('  }')
+    lines.push('  return result')
+    lines.push('}')
+    lines.push('```')
+    lines.push('')
+  }
+
+  lines.push('\n## Math\n')
+  for (let i = 0; i < 15; i++) {
+    lines.push('$$')
+    lines.push(`f_${i}(x) = \\int_0^x e^{-t^2} dt + \\sum_{n=1}^{\\infty} \\frac{\\sin(n\\pi x)}{n^2}`)
+    lines.push('$$')
+    lines.push('')
+  }
+
+  return lines.join('\n')
+}
+
+const results: Record<string, { ms: number; budget: number; pass: boolean }> = {}
+
+const small = generateSmall()
+const medium = generateMedium()
+const large = generateLarge()
+
+const SMALL_BUDGET = 100
+const MEDIUM_BUDGET = 250
+
+test('small fixture renders under 100ms', () => {
+  const start = performance.now()
+  const html = renderMarkdownPreview(small)
+  const elapsed = performance.now() - start
+  results.small = { ms: +elapsed.toFixed(2), budget: SMALL_BUDGET, pass: elapsed < SMALL_BUDGET }
+  assert.ok(html.length > 0, 'rendered output must not be empty')
+  assert.ok(elapsed < SMALL_BUDGET, `small render took ${elapsed.toFixed(2)}ms (budget ${SMALL_BUDGET}ms)`)
+})
+
+test('medium fixture renders under 250ms', () => {
+  const start = performance.now()
+  const html = renderMarkdownPreview(medium)
+  const elapsed = performance.now() - start
+  results.medium = { ms: +elapsed.toFixed(2), budget: MEDIUM_BUDGET, pass: elapsed < MEDIUM_BUDGET }
+  assert.ok(html.length > 0, 'rendered output must not be empty')
+  assert.ok(elapsed < MEDIUM_BUDGET, `medium render took ${elapsed.toFixed(2)}ms (budget ${MEDIUM_BUDGET}ms)`)
+})
+
+test('large fixture renders without error', () => {
+  const start = performance.now()
+  const html = renderMarkdownPreview(large)
+  const elapsed = performance.now() - start
+  results.large = { ms: +elapsed.toFixed(2), budget: 0, pass: true }
+  assert.ok(html.length > 0, 'rendered output must not be empty')
+})
+
+process.on('exit', () => {
+  console.log(JSON.stringify(results, null, 2))
+})

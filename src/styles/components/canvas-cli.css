@@ -1,0 +1,7 @@
+/* Canvas CLI hint (BL-22) */
+
+.canvas-cli-hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+}

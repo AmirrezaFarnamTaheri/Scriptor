@@ -27,8 +27,13 @@ pub mod snippets;
 pub mod tag_rename;
 pub mod stats_history;
 pub mod textbundle;
+pub mod importers;
 pub mod watch;
 pub mod write;
+
+pub use importers::obsidian::{
+    detect_obsidian_vault, import_obsidian_vault, ImportObsidianOptions, ImportResult,
+};
 
 pub use activity_log::{append_activity_log, read_activity_log, ActivityLogEntry, DEFAULT_ACTIVITY_LOG_PATH};
 pub use note_history::{
@@ -43,7 +48,7 @@ pub use workspace_session::{
 pub use config::{
     load_vault_config, load_vault_template, plan_daily_note, preview_daily_tokens, save_vault_config,
     build_note_markdown, DailyNotePlan, ExportOnSaveConfig, GraphGroupRule,
-    VaultConfig, WritingTargetsConfig,
+    SavedView, TrustedBinaries, VaultConfig, WritingTargetsConfig,
 };
 pub use error::VaultError;
 pub use fs::atomic_write;

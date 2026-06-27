@@ -323,3 +323,62 @@ export async function pickVaultFolder(): Promise<string | null> {
   if (selection === null) return null
   return Array.isArray(selection) ? selection[0] ?? null : selection
 }
+
+export interface VaultBackupEntry {
+  name: string
+  path: string
+  created_at: string
+  size_bytes: number
+}
+
+export async function vaultCreateBackup(backupPath?: string): Promise<VaultBackupEntry> {
+  requireNative()
+  return invoke<VaultBackupEntry>('vault_create_backup', { backupPath: backupPath ?? null })
+}
+
+export async function vaultListBackups(backupPath?: string): Promise<VaultBackupEntry[]> {
+  requireNative()
+  return invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null })
+}
+
+export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<string> {
+  requireNative()
+  return invoke<string>('vault_restore_backup', { backupName, backupPath: backupPath ?? null })
+}
+
+export async function vaultDeleteBackup(backupName: string, backupPath?: string): Promise<void> {
+  requireNative()
+  await invoke('vault_delete_backup', { backupName, backupPath: backupPath ?? null })
+}
+
+export interface ObsidianImportOptions {
+  convertWikilinks?: boolean
+  importAttachments?: boolean
+  preserveFrontmatter?: boolean
+}
+
+export interface ObsidianImportResult {
+  notesImported: number
+  attachmentsImported: number
+  skippedFiles: number
+  errors: string[]
+  importedPaths: string[]
+}
+
+export async function vaultDetectObsidian(obsidianPath: string): Promise<boolean> {
+  requireNative()
+  return invoke<boolean>('vault_detect_obsidian', { obsidianPath })
+}
+
+export async function vaultImportObsidian(
+  obsidianPath: string,
+  options?: ObsidianImportOptions,
+): Promise<ObsidianImportResult> {
+  requireNative()
+  return invoke<ObsidianImportResult>('vault_import_obsidian', {
+    obsidianPath,
+    convertWikilinks: options?.convertWikilinks ?? true,
+    importAttachments: options?.importAttachments ?? true,
+    preserveFrontmatter: options?.preserveFrontmatter ?? true,
+  })
+}

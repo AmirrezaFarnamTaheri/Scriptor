@@ -11,6 +11,7 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 | [`../README.md`](../README.md) | Everyone | Project overview, install, and support |
 | [`guides/GETTING_STARTED.md`](./guides/GETTING_STARTED.md) | New users | First vault, workflows, and export setup |
 | [`CAPABILITIES.md`](./CAPABILITIES.md) | Users & contributors | Feature map and validation commands |
+| [`ROADMAP.md`](./ROADMAP.md) | Everyone | Development roadmap and planned features |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Everyone | Release history |
 
 ## Product
@@ -38,6 +39,19 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 | [`architecture/IPC_DAEMON.md`](./architecture/IPC_DAEMON.md) | Headless daemon IPC |
 | [`architecture/TUI_PARITY.md`](./architecture/TUI_PARITY.md) | Terminal UI surface |
 | [`architecture/PERFORMANCE_ARCHITECTURE.md`](./architecture/PERFORMANCE_ARCHITECTURE.md) | Performance measurement |
+| [`architecture/EDITOR_ENGINES.md`](./architecture/EDITOR_ENGINES.md) | CodeMirror and Monaco dual-engine roles |
+| [`architecture/CITATION_ENGINE_EVAL.md`](./architecture/CITATION_ENGINE_EVAL.md) | Native Rust citation engine evaluation |
+| [`architecture/WASM_PLUGINS.md`](./architecture/WASM_PLUGINS.md) | WASM plugin runtime architecture |
+| [`architecture/LOCAL_EMBEDDINGS.md`](./architecture/LOCAL_EMBEDDINGS.md) | Local embeddings and vector index |
+| [`architecture/HEADLESS_SSG.md`](./architecture/HEADLESS_SSG.md) | Headless SSG/CI export pipeline |
+| [`architecture/I18N_FRAMEWORK.md`](./architecture/I18N_FRAMEWORK.md) | Internationalization framework |
+| [`architecture/ENCRYPTION_AT_REST.md`](./architecture/ENCRYPTION_AT_REST.md) | Vault encryption at rest |
+
+## Plugins
+
+| Document | Purpose |
+|----------|---------|
+| [`plugins/AUTHOR_GUIDE.md`](./plugins/AUTHOR_GUIDE.md) | Plugin author guide with hello-world walkthrough |
 
 ## Contracts
 
@@ -51,9 +65,10 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 
 | Document | Purpose |
 |----------|---------|
-| [`release/PANDOC_STRATEGY.md`](./release/PANDOC_STRATEGY.md) | Pandoc discovery and bundling |
+| [`release/PANDOC_STRATEGY.md`](./release/PANDOC_STRATEGY.md) | Pandoc discovery, bundling, and GPL/AGPL licensing boundary |
 | [`release/SIGNING.md`](./release/SIGNING.md) | Release signing and notarization |
 | [`validation/ACCESSIBILITY_AUDIT.md`](./validation/ACCESSIBILITY_AUDIT.md) | Accessibility checklist |
+| [`validation/CONTENT_HASH_AUDIT.md`](./validation/CONTENT_HASH_AUDIT.md) | Content-hash skip audit for incremental indexing |
 
 ## Project governance
 

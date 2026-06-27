@@ -59,16 +59,19 @@ See [`docs/validation/ACCESSIBILITY_AUDIT.md`](docs/validation/ACCESSIBILITY_AUD
 ## Capability boundaries
 
 - Markdown remains the canonical authoring surface.
-- Canvas is optional and lazy-loaded for visual thinking, planning, diagrams, and presentation boards.
-- Plugins extend through contracts and permissioned slots, not raw filesystem handles.
-- AI/MCP tools begin read-only and graduate through draft and write-approved modes only after audit and diff review exist.
+- Canvas is optional and lazy-loaded for visual thinking, planning, diagrams, and presentation boards. Canvas `resvg` snapshots are offloaded to a worker thread.
+- Plugins extend through contracts and permissioned slots, not raw filesystem handles. A complete plugin author guide with hello-world reference is provided.
+- AI/MCP tools expose 15 read-only tools with JSONL audit logging and graduate through draft and write-approved modes only after audit and diff review exist.
 - Pandoc is an external dependency for exports — Scriptor discovers it on `PATH` or via `SCRIPTOR_PANDOC_PATH`.
+- Spellcheck supports 11 Hunspell locales with LanguageTool self-hosted by default for grammar and style.
+- Conflict resolution uses a 3-way UI with base column and line metadata.
+- Scheduled vault snapshots provide automated backup with cron-style scheduling.
 
 ## Related documents
 
 | Document | Purpose |
 |----------|---------|
-| [`DESIGN.md`](../DESIGN.md) | Visual and interaction rules |
+| [`DESIGN.md`](DESIGN.md) | Visual and interaction rules |
 | [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) | Shipped surfaces |
 | [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.md) | First-run guide |
-| [`CHANGELOG.md`](../CHANGELOG.md) | Release history |
+| [`CHANGELOG.md`](CHANGELOG.md) | Release history |

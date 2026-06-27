@@ -1,0 +1,114 @@
+.health-plugin-widgets {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.health-checklist ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.health-checklist li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.health-checklist li[data-severity='error'] strong {
+  color: var(--danger, #dc2626);
+}
+
+.health-checklist li[data-severity='warning'] strong {
+  color: var(--warning, #d97706);
+}
+
+.health-plugin-widget {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.health-dot {
+  width: 9px;
+  height: 9px;
+  fill: var(--primary);
+  stroke: var(--primary);
+}
+
+.health-dashboard {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.health-dashboard header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.health-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--faint);
+}
+
+.health-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-issues ul,
+.diagnostics-groups ul {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+
+.health-issues button,
+.diagnostics-groups button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.issue-kind {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--primary-strong);
+}
+
+.health-repair-center {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+
+.health-repair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

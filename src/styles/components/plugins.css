@@ -1,0 +1,15 @@
+/* Plugin detail pane, trust grid, plugin list (BL-22) */
+
+.plugin-detail-pane {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.plugin-trust-grid {
+  margin: 12px 0;
+}
+
+.plugin-list button.selected {
+  outline: 2px solid var(--accent);
+}

@@ -84,9 +84,9 @@ fn rewrite_frontmatter_tags(
                 return format!("{prefix}: {remapped}");
             }
 
-            if trimmed.starts_with("- ") {
+            if let Some(stripped) = trimmed.strip_prefix("- ") {
                 let indent = line.len() - trimmed.len();
-                let value = trimmed[2..].trim();
+                let value = stripped.trim();
                 if tag_should_rewrite(value, old_root) {
                     *edits += 1;
                     return format!("{}- {}", " ".repeat(indent), remap_tag(value, old_root, new_root));

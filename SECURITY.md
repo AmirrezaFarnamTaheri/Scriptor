@@ -33,12 +33,13 @@ We will coordinate disclosure and a fix before public announcement when appropri
 **In scope:**
 
 - Scriptor desktop application and bundled daemon
-- Vault data handling, plugin sandbox boundaries, and MCP permission modes
+- Vault data handling, plugin sandbox boundaries, and MCP permission modes (15 tools)
+- Daemon tracing and structured telemetry spans
 - Release artifacts published from this repository
 
 **Out of scope:**
 
-- Third-party tools (Pandoc, Git, OS keychains) except where Scriptor integrates unsafely
+- Third-party tools (Pandoc, Git, LanguageTool, Hunspell, OS keychains) except where Scriptor integrates unsafely
 - Social engineering or physical access attacks
 - Denial-of-service against local-only services without data impact
 

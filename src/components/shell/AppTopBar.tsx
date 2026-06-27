@@ -19,6 +19,7 @@ import { IconButton } from '../chrome/WorkspaceChrome'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
+import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
 
 interface AppTopBarProps {
@@ -53,6 +54,14 @@ interface AppTopBarProps {
   onToggleTheme: () => void
 }
 
+const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
+  writing: 'workspaceModes.writing',
+  knowledge: 'workspaceModes.knowledge',
+  publish: 'workspaceModes.publish',
+  review: 'workspaceModes.review',
+  automation: 'workspaceModes.automation',
+}
+
 export function AppTopBar({
   vault,
   workspaceMode,
@@ -84,6 +93,7 @@ export function AppTopBar({
   theme,
   onToggleTheme,
 }: AppTopBarProps) {
+  const { t } = useI18n()
   return (
     <header className="topbar surface-glass">
       <div className="brand">
@@ -93,15 +103,15 @@ export function AppTopBar({
       </div>
 
       <div className="history-controls" aria-label="History controls">
-        <IconButton label="Back" disabled={!canNavigateBack} onClick={onNavigateBack}>
+        <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
           <ChevronRight className="flip" />
         </IconButton>
-        <IconButton label="Forward" disabled={!canNavigateForward} onClick={onNavigateForward}>
+        <IconButton label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
           <ChevronRight />
         </IconButton>
         <button type="button" className="action-button" onClick={onChooseVault}>
           <FolderOpen />
-          Open Vault
+          {t('topBar.openVault')}
         </button>
         <WorkspaceSwitcher
           recentVaults={recentVaults}
@@ -120,7 +130,7 @@ export function AppTopBar({
             aria-pressed={workspaceMode === mode}
             onClick={() => onWorkspaceModeChange(mode)}
           >
-            {WORKSPACE_MODE_LABELS[mode]}
+            {t(MODE_LABEL_KEYS[mode])}
           </button>
         ))}
       </div>
@@ -130,8 +140,8 @@ export function AppTopBar({
         <span className="kbd">K</span>
         <input
           type="search"
-          placeholder="Type a command or search..."
-          aria-label="Command or search"
+          placeholder={t('topBar.typeCommandOrSearch')}
+          aria-label={t('topBar.typeCommandOrSearch')}
           readOnly
           onFocus={onOpenCommandPalette}
         />
@@ -143,28 +153,28 @@ export function AppTopBar({
           className={`toolbar-button mode-action${workspaceMode === 'knowledge' ? ' emphasized' : ''}`}
           onClick={onOpenKnowledgeWorkbench}
         >
-          Workbench
+          {t('topBar.workbench')}
         </button>
         <button
           type="button"
           className={`toolbar-button mode-action${workspaceMode === 'publish' ? ' emphasized' : ''}`}
           onClick={onOpenPublishCenter}
         >
-          Publish
+          {t('topBar.publish')}
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenPortal}>
-          Portal
+          {t('topBar.portal')}
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenQuickCapture}>
-          Capture
+          {t('topBar.capture')}
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenGraph}>
           <Network />
-          Graph
+          {t('topBar.graph')}
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenCanvas}>
           <Box />
-          Canvas
+          {t('topBar.canvas')}
         </button>
         <button
           type="button"
@@ -187,19 +197,19 @@ export function AppTopBar({
         <IconButton
           label={
             theme === 'high-contrast'
-              ? 'Switch to light theme'
+              ? t('topBar.switchToLight')
               : theme === 'dark'
-                ? 'Switch to high-contrast theme'
-                : 'Switch to dark theme'
+                ? t('topBar.switchToHighContrast')
+                : t('topBar.switchToDark')
           }
           onClick={onToggleTheme}
         >
           {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
-        <IconButton label="Support Scriptor" onClick={onOpenSupport}>
+        <IconButton label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
           <Heart />
         </IconButton>
-        <IconButton label="Settings" onClick={onOpenSettings}>
+        <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
           <Settings />
         </IconButton>
       </div>

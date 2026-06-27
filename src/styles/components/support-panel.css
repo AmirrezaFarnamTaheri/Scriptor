@@ -1,0 +1,83 @@
+.support-wallets .wallet-list code {
+  word-break: break-all;
+  font-size: 12px;
+}
+
+.support-links a {
+  color: var(--primary-strong);
+}
+
+.support-panel-body {
+  display: grid;
+  gap: 16px;
+}
+
+.support-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.support-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.support-action:hover {
+  border-color: var(--primary);
+  background: var(--surface-raised);
+}
+
+.support-action.primary {
+  border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
+  background: color-mix(in oklch, var(--primary-soft) 60%, var(--surface));
+}
+
+.support-action span {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+}
+
+.support-action strong {
+  font-size: 14px;
+}
+
+.support-action small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.support-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.support-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary-strong);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.support-details {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-muted);
+}
+

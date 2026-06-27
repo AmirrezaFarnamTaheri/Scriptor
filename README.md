@@ -25,10 +25,33 @@
 
 ```powershell
 pnpm install
-pnpm desktop:dev
+cargo build --workspace
+pnpm dev --host 127.0.0.1      # Web shell (browser)
+pnpm desktop:dev               # Desktop shell (Tauri)
 ```
 
 Full walkthrough: [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.md).
+
+## Validation
+
+Run the full release gate or targeted checks before submitting changes:
+
+```powershell
+pnpm check:release             # Full local release gate
+cargo test --workspace         # Rust unit and integration tests
+pnpm test:e2e                  # Playwright end-to-end tests
+```
+
+Targeted checks during development:
+
+```powershell
+pnpm test:rust                 # Rust tests only
+pnpm lint                      # ESLint + prettier
+pnpm check:contracts           # TypeScript contract packages
+pnpm check:plugins             # Plugin manifest validation
+pnpm check:a11y-axe            # axe-core WCAG automated audit
+pnpm test:visual               # Visual regression Playwright tests
+```
 
 ## Downloads
 
@@ -53,7 +76,7 @@ All UI screenshots: [`docs/assets/screenshots/`](docs/assets/screenshots/).
 
 ## Capabilities
 
-v0.1 ships a complete research workspace: desktop shell, vault kernel, SQLite indexer, export runner, Git integration, canvas boards, MCP tools, plugin safe mode, headless daemon IPC, terminal UI, and the glass workspace shell.
+v0.1 ships a complete research workspace: desktop shell, vault kernel, SQLite indexer, export runner, Git integration with 3-way conflict resolver, canvas boards with resvg worker offload, MCP 15 tools with audit JSONL, plugin safe mode with author guide, headless daemon with tracing spans, terminal UI, multi-locale spellcheck, keyboard shortcut editor, scheduled vault snapshots, and the glass workspace shell.
 
 See [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) for the full surface map and validation commands.
 
@@ -69,11 +92,14 @@ pnpm screenshots:capture:web   # Regenerate docs screenshots
 cargo check --workspace
 ```
 
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full development setup, testing, and code style guidelines.
+
 ## Documentation
 
 | Document | Purpose |
 |---|---|
-| [`scriptor_audit_and_roadmap.md`](scriptor_audit_and_roadmap.md) | Audit, risk register, backlog BL-01–BL-86 |
+| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Development roadmap and planned features |
+| [`scriptor_audit_and_roadmap.md`](scriptor_audit_and_roadmap.md) | Audit, risk register, backlog |
 | [`docs/README.md`](docs/README.md) | Documentation index |
 | [`PRODUCT.md`](PRODUCT.md) | Product principles and audience |
 | [`DESIGN.md`](DESIGN.md) | Visual and interaction rules |

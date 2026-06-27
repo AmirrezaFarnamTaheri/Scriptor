@@ -1,0 +1,68 @@
+name: Publish Vault
+
+on:
+  push:
+    branches: [main]
+    paths: ['vault/**']
+
+concurrency:
+  group: publish-vault-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  export-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build daemon
+        run: cargo build -p scriptor-daemon --release
+
+      - name: Export vault to static site
+        run: |
+          node scripts/ci/export-vault.mjs \
+            --vault ./vault \
+            --profile blog \
+            --output ./dist \
+            --ci \
+            --fail-on-warnings \
+            --daemon ./target/release/scriptor-daemon
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+  deploy:
+    needs: export-and-deploy
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,46 @@
+/* Git diff viewer, diff lines, note links (BL-22) */
+
+.git-diff-preview {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.git-diff-preview header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.git-diff-body {
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.git-diff-line {
+  display: grid;
+  grid-template-columns: 3ch 1ch 1fr;
+  gap: 8px;
+  padding: 2px 8px;
+}
+
+.git-diff-add {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.git-diff-remove {
+  background: color-mix(in srgb, #e5534b 12%, transparent);
+}
+
+.git-note-link {
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}

@@ -1,0 +1,8 @@
+{
+  "vault_scan_1k_ms": 500,
+  "search_1k_ms": 100,
+  "editor_frame_ms": 16,
+  "preview_render_ms": 250,
+  "canvas_snapshot_ms": 250,
+  "startup_ms": 2000
+}

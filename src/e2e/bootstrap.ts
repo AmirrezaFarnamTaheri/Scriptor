@@ -47,8 +47,29 @@ export function installE2eBridge(): void {
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
       case 'vault_scan':
         return SCREENSHOT_SCAN
-      case 'vault_read_note':
-        return e2eNoteDocument(String((payload as { path?: string }).path ?? 'Research Plan.md'))
+      case 'vault_read_note': {
+        const readPath = String((payload as { path?: string }).path ?? 'Research Plan.md')
+        if (readPath === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+          return {
+            metadata: {
+              id: 'note-field-notes',
+              vault_id: 'screenshot-vault',
+              path: 'Field Notes.md',
+              title: 'Field Notes',
+              content_hash: 'hash-conflict',
+              modified_at: '2026-06-23T12:00:00.000Z',
+              word_count: 18,
+              reading_time_minutes: 1,
+              tags: [],
+              note_type: null,
+              organized: true,
+              archived: false,
+            },
+            markdown: '# Field Notes\n\n<<<<<<< ours\nObservations from the first literature pass.\n\n- Link back to [[Research Plan]]\n=======\nUpdated field observations after second pass.\n\n- New findings from [[Methodology]] review\n>>>>>>> theirs\n',
+          }
+        }
+        return e2eNoteDocument(readPath)
+      }
       case 'vault_save_note': {
         const body = payload as { path?: string; markdown?: string }
         const path = String(body.path ?? 'Research Plan.md')
@@ -162,18 +183,49 @@ export function installE2eBridge(): void {
       case 'indexer_list_recent_files':
       case 'vault_list_view_notes':
         return []
-      case 'git_status_cmd':
+      case 'git_status_cmd': {
+        const hasConflicts = window.sessionStorage.getItem('e2e:git-conflicts') === '1'
         return {
           is_repo: true,
           branch: 'main',
-          changed_files: [{ path: 'Research Plan.md', status: 'M', conflict: false }],
+          changed_files: hasConflicts
+            ? [
+                { path: 'Research Plan.md', status: 'M', conflict: false },
+                { path: 'Field Notes.md', status: 'U', conflict: true },
+              ]
+            : [{ path: 'Research Plan.md', status: 'M', conflict: false }],
           clean: false,
           ahead: 0,
           behind: 0,
           has_upstream: true,
-          has_conflicts: false,
-          conflicted_files: [],
+          has_conflicts: hasConflicts,
+          conflicted_files: hasConflicts ? ['Field Notes.md'] : [],
         }
+      }
+      case 'git_read_conflict_markers_cmd': {
+        const path = String((payload as { path?: string }).path ?? 'Field Notes.md')
+        if (path === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+          return ['# Conflict markers found', '=======', '>>>>>>> theirs']
+        }
+        return []
+      }
+      case 'git_show_head_file_cmd': {
+        const path = String((payload as { path?: string }).path ?? '')
+        if (path === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+          return '# Field Notes\n\nOurs version of the field notes.\n'
+        }
+        return null
+      }
+      case 'git_show_merge_base_file_cmd': {
+        const path = String((payload as { path?: string }).path ?? '')
+        if (path === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+          return '# Field Notes\n\nBase ancestor version.\n'
+        }
+        return null
+      }
+      case 'git_resolve_conflict_cmd':
+      case 'git_apply_merged_conflict_cmd':
+        return { path: String((payload as { path?: string }).path ?? ''), strategy: 'merged' }
       case 'system_info':
         return {
           os: 'Windows',

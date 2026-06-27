@@ -3,6 +3,7 @@
 pub mod allowlist;
 pub mod args;
 pub mod cancel;
+pub mod diagram;
 pub mod diagram_preprocess;
 pub mod error;
 pub mod job;
@@ -24,4 +25,4 @@ pub use log::{
     ExportJobLogEntry, SLOW_EXPORT_THRESHOLD_MS,
 };
 pub use validate::{validate_export_artifact, ArtifactValidation};
-pub use pandoc::{discover_pandoc, PandocDiscovery};
+pub use pandoc::{discover_pandoc, discover_pandoc_with_trusted_hash, sha256_file, verify_binary_hash, PandocDiscovery};

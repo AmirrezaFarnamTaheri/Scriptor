@@ -133,6 +133,14 @@ impl Default for NoteTypesConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SavedView {
+    pub name: String,
+    pub query: String,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct VaultConfig {
     #[serde(default)]
     pub daily_note: DailyNoteConfig,
@@ -156,6 +164,18 @@ pub struct VaultConfig {
     pub workflow: WorkflowConfig,
     #[serde(default)]
     pub note_types: NoteTypesConfig,
+    #[serde(default)]
+    pub saved_views: Vec<SavedView>,
+    #[serde(default)]
+    pub trusted_binaries: Option<TrustedBinaries>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct TrustedBinaries {
+    #[serde(default)]
+    pub pandoc_hash: Option<String>,
+    #[serde(default)]
+    pub pdf2zh_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -258,6 +278,8 @@ impl Default for VaultConfig {
             inbox: InboxConfig::default(),
             workflow: WorkflowConfig::default(),
             note_types: NoteTypesConfig::default(),
+            saved_views: Vec::new(),
+            trusted_binaries: None,
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿.graph-overlay {
+.graph-overlay {
   position: fixed;
   inset: 118px 20px 88px;
   z-index: 40;
@@ -234,5 +234,11 @@
 .graph-node.focus text {
   fill: white;
   font-weight: 600;
+}
+
+.graph-node-focus-ring {
+  stroke: var(--focus-outline-color, var(--primary-strong));
+  stroke-width: 3;
+  stroke-dasharray: 4 2;
 }
 

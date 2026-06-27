@@ -1,4 +1,12 @@
-﻿/* shell + empty-state rules: src/styles/layout/workspace.css (BL-22) */
+/* shell + empty-state rules: src/styles/layout/workspace.css (BL-22) */
+
+@import './styles/components/editor-workspace.css';
+@import './styles/components/export-jobs.css';
+@import './styles/components/git-diff.css';
+@import './styles/components/knowledge.css';
+@import './styles/components/plugins.css';
+@import './styles/components/benchmarks.css';
+@import './styles/components/canvas-cli.css';
 
 .compact-list button small {
   margin-left: auto;
@@ -6,136 +14,11 @@
   font-size: 11px;
 }
 
-.editor-workspace {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  overflow: hidden;
-}
 
-.editor-workspace.is-split {
-  grid-template-columns: minmax(160px, var(--split-editor-width, 50%)) 5px minmax(160px, 1fr);
-}
 
-.split-pane-handle {
-  position: relative;
-  cursor: col-resize;
-  touch-action: none;
-  background: color-mix(in oklch, var(--border) 35%, transparent);
-  border: 0;
-  padding: 0;
-}
 
-.split-pane-handle:hover,
-.split-pane-handle.is-dragging {
-  background: var(--primary-soft);
-}
 
-.split-pane-handle::after {
-  content: '';
-  position: absolute;
-  inset: 0 -4px;
-}
 
-body.is-split-resizing {
-  cursor: col-resize;
-  user-select: none;
-}
-
-body.is-split-resizing .editor-preview-pane {
-  pointer-events: none;
-}
-
-.editor-pane {
-  min-height: 0;
-  overflow: hidden;
-}
-
-.editor-preview-pane {
-  min-height: 0;
-  overflow: auto;
-  background: var(--bg);
-}
-
-.format-row button.active {
-  background: var(--primary-soft);
-  color: var(--primary-strong);
-}
-
-.jobs-history-header {
-  margin-top: 14px;
-}
-
-.export-history-list .export-job-toggle {
-  width: 100%;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  padding: 0;
-}
-
-.export-job-details {
-  margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: color-mix(in oklch, var(--border) 25%, transparent);
-  font-size: 12px;
-}
-
-.export-job-details pre {
-  margin: 8px 0 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--mono);
-}
-
-.export-live-output {
-  margin: 8px 0 0;
-  max-height: 160px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.export-job-error .export-job-toggle strong {
-  color: var(--danger, #c0392b);
-}
-
-.export-job-cancelled .export-job-toggle strong {
-  color: var(--muted);
-}
-
-.export-job-running .export-job-toggle strong {
-  color: var(--primary-strong);
-}
-
-.export-cancel-button {
-  margin-top: 6px;
-}
-
-.editor-surface.codemirror-host {
-  display: block;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.markdown-editor,
-.markdown-editor .cm-editor {
-  height: 100%;
-}
-
-.editor-empty {
-  display: grid;
-  place-content: center;
-  gap: 14px;
-  height: 100%;
-  padding: 24px;
-  text-align: center;
-  color: var(--muted);
-}
 
 
 
@@ -581,26 +464,7 @@ svg {
   pointer-events: none;
 }
 
-.markdown-editor,
-.editor-surface .cm-editor,
-.editor-surface .monaco-editor {
-  font-family: var(--editor-font-family, var(--mono));
-  font-size: var(--editor-font-size, 14px);
-  line-height: var(--editor-line-height, 1.55);
-}
 
-.editor-surface .cm-content {
-  padding: var(--editor-padding, 12px);
-}
-
-.markdown-preview {
-  max-width: var(--preview-max-ch, 72ch);
-  margin-inline: auto;
-}
-
-.editor-surface[data-line-numbers='false'] .cm-lineNumbers {
-  display: none;
-}
 
 .vault-recent-notes {
   padding: 8px 12px 0;
@@ -1233,160 +1097,7 @@ svg {
   background: var(--surface);
 }
 
-.editor-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  background: var(--bg-elevated);
-  border-right: 1px solid var(--glass-border);
-}
 
-.editor-panel > .editor-workspace {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-.editor-panel > .tabs-row,
-.editor-panel > .format-row,
-.editor-panel > .editor-status {
-  flex: 0 0 auto;
-}
-
-.tabs-row {
-  min-width: 0;
-  min-height: 44px;
-  overflow: auto;
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 6px 8px 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-muted);
-}
-
-.tab {
-  min-width: 140px;
-  max-width: 210px;
-  height: 36px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 8px 8px 0 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.tab.active {
-  position: relative;
-  border-color: var(--border);
-  border-bottom-color: var(--bg);
-  background: var(--bg);
-  color: var(--ink-strong);
-  font-weight: 680;
-}
-
-.tab.active::after,
-.inspector-tabs button.active::after {
-  content: none;
-}
-
-.format-row {
-  gap: 6px;
-  padding: 0 12px;
-  min-height: 42px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-
-.format-row button {
-  min-width: 32px;
-  height: 32px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ink);
-}
-
-.format-row button:hover,
-.format-row button.active {
-  border-color: var(--border);
-  background: var(--surface-muted);
-}
-
-.format-row span {
-  flex: 1;
-}
-
-.editor-surface {
-  min-height: 0;
-  display: grid;
-  grid-template-columns: 50px minmax(0, 1fr);
-  overflow: auto;
-}
-
-.line-numbers {
-  padding-top: 16px;
-  border-right: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--faint);
-  font-family: var(--mono);
-  font-size: 14px;
-  line-height: 1.72;
-  text-align: right;
-}
-
-.line-numbers span {
-  display: block;
-  padding-right: 12px;
-}
-
-.markdown-buffer {
-  padding: 14px 34px 64px 18px;
-  font-family: var(--mono);
-  font-size: 14.5px;
-  line-height: 1.72;
-  color: var(--ink-strong);
-}
-
-.markdown-buffer h1,
-.markdown-buffer h2,
-.markdown-buffer p {
-  min-height: 24.9px;
-  margin: 0;
-}
-
-.markdown-buffer h1,
-.markdown-buffer h2 {
-  color: var(--ink-strong);
-  font-family: var(--mono);
-  font-size: 14.5px;
-  font-weight: 760;
-  line-height: 1.72;
-}
-
-.list-line,
-.number-line {
-  color: var(--ink);
-}
-
-.reference-line {
-  color: var(--primary-strong);
-}
-
-.editor-status {
-  justify-content: flex-end;
-  padding: 0 18px;
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.editor-status svg {
-  color: var(--primary-strong);
-}
 
 .inspector-panel {
   min-height: 0;
@@ -3391,105 +3102,6 @@ svg {
   font-size: 12px;
 }
 
-.git-diff-preview {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.git-diff-preview header {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.git-diff-body {
-  max-height: 320px;
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 12px;
-}
-
-.git-diff-line {
-  display: grid;
-  grid-template-columns: 3ch 1ch 1fr;
-  gap: 8px;
-  padding: 2px 8px;
-}
-
-.git-diff-add {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
-}
-
-.git-diff-remove {
-  background: color-mix(in srgb, #e5534b 12%, transparent);
-}
-
-.git-note-link {
-  border: 0;
-  background: transparent;
-  color: var(--accent);
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.knowledge-triage-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
-.knowledge-triage-next {
-  margin-left: auto;
-  font-size: 11px;
-}
-
-.virtual-knowledge-list li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.plugin-detail-pane {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.plugin-trust-grid {
-  margin: 12px 0;
-}
-
-.plugin-list button.selected {
-  outline: 2px solid var(--accent);
-}
-
-.bench-script-list {
-  list-style: none;
-  padding: 0;
-  margin: 8px 0 0;
-  display: grid;
-  gap: 8px;
-}
-
-.bench-script-list li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.canvas-cli-hint {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-muted);
-}
 
 @media (prefers-reduced-motion: reduce) {
   *,

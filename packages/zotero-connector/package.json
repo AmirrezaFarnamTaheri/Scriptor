@@ -1,0 +1,12 @@
+{
+  "name": "@scriptor/zotero-connector",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check:zotero": "node --experimental-strip-types -e \"import('./src/index.ts').then(m => { if (!m.ZoteroConnector) throw new Error('ZoteroConnector not exported'); console.log('Zotero connector OK'); })\""
+  }
+}

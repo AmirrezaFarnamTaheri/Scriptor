@@ -42,6 +42,13 @@ export {
 } from './editor-autocomplete.ts'
 export type { EditorAutocompleteContext } from './editor-autocomplete.ts'
 export { spellcheckExtension, setSpellcheckDictionary, loadHunspellDictionary } from './spellcheck.ts'
+export {
+  loadHunspellLocale,
+  setActiveHunspellLocale,
+  getActiveHunspellLocale,
+  LOCALE_MAP,
+  SUPPORTED_LOCALES,
+} from './hunspell-dictionary.ts'
 export { wysiwygDecorationExtension } from './wysiwyg-decorations.ts'
 export { findReplaceExtension, openFindPanel } from './find-replace.ts'
 export {

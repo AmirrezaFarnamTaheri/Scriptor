@@ -1,0 +1,181 @@
+use rusqlite::{params, Connection};
+use std::path::Path;
+
+pub mod error;
+pub mod ollama_client;
+
+pub use error::EmbeddingError;
+pub use ollama_client::OllamaClient;
+
+const SCHEMA: &str = "
+CREATE TABLE IF NOT EXISTS embeddings (
+    id TEXT PRIMARY KEY,
+    vector BLOB NOT NULL,
+    dimension INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+);
+";
+
+pub struct EmbeddingStore {
+    conn: Connection,
+    dimension: usize,
+}
+
+impl EmbeddingStore {
+    pub fn open(path: &Path, dimension: usize) -> Result<Self, EmbeddingError> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let conn = Connection::open(path)?;
+        conn.pragma_update(None, "journal_mode", "WAL")?;
+        conn.pragma_update(None, "synchronous", "NORMAL")?;
+        conn.execute_batch(SCHEMA)?;
+        Ok(Self { conn, dimension })
+    }
+
+    pub fn open_in_memory(dimension: usize) -> Result<Self, EmbeddingError> {
+        let conn = Connection::open_in_memory()?;
+        conn.execute_batch(SCHEMA)?;
+        Ok(Self { conn, dimension })
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+
+    pub fn upsert_embedding(&self, id: &str, vector: &[f32]) -> Result<(), EmbeddingError> {
+        if vector.len() != self.dimension {
+            return Err(EmbeddingError::DimensionMismatch {
+                expected: self.dimension,
+                actual: vector.len(),
+            });
+        }
+
+        let bytes = vector_to_bytes(vector);
+        self.conn.execute(
+            "INSERT OR REPLACE INTO embeddings (id, vector, dimension, updated_at)
+             VALUES (?1, ?2, ?3, unixepoch())",
+            params![id, bytes, self.dimension as i64],
+        )?;
+        Ok(())
+    }
+
+    pub fn query_nearest(&self, vector: &[f32], k: usize) -> Result<Vec<(String, f32)>, EmbeddingError> {
+        if vector.len() != self.dimension {
+            return Err(EmbeddingError::DimensionMismatch {
+                expected: self.dimension,
+                actual: vector.len(),
+            });
+        }
+
+        let mut stmt = self.conn.prepare("SELECT id, vector FROM embeddings WHERE dimension = ?1")?;
+        let rows = stmt.query_map(params![self.dimension as i64], |row| {
+            let id: String = row.get(0)?;
+            let blob: Vec<u8> = row.get(1)?;
+            Ok((id, blob))
+        })?;
+
+        let mut scored: Vec<(String, f32)> = Vec::new();
+        for row in rows {
+            let (id, blob) = row?;
+            let stored = bytes_to_vector(&blob);
+            let sim = cosine_similarity(vector, &stored);
+            scored.push((id, sim));
+        }
+
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        scored.truncate(k);
+        Ok(scored)
+    }
+
+    pub fn delete_embedding(&self, id: &str) -> Result<(), EmbeddingError> {
+        self.conn
+            .execute("DELETE FROM embeddings WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn count(&self) -> Result<usize, EmbeddingError> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
+        Ok(count as usize)
+    }
+}
+
+fn vector_to_bytes(v: &[f32]) -> Vec<u8> {
+    let mut bytes = Vec::with_capacity(v.len() * 4);
+    for &f in v {
+        bytes.extend_from_slice(&f.to_le_bytes());
+    }
+    bytes
+}
+
+fn bytes_to_vector(bytes: &[u8]) -> Vec<f32> {
+    bytes
+        .chunks_exact(4)
+        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .collect()
+}
+
+fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    let len = a.len().min(b.len());
+    let mut dot = 0.0f32;
+    let mut norm_a = 0.0f32;
+    let mut norm_b = 0.0f32;
+    for i in 0..len {
+        dot += a[i] * b[i];
+        norm_a += a[i] * a[i];
+        norm_b += b[i] * b[i];
+    }
+    let denom = norm_a.sqrt() * norm_b.sqrt();
+    if denom == 0.0 {
+        0.0
+    } else {
+        dot / denom
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn round_trip_embedding() {
+        let store = EmbeddingStore::open_in_memory(4).unwrap();
+        let vec = vec![1.0, 0.0, 0.0, 0.0];
+        store.upsert_embedding("note/a", &vec).unwrap();
+        assert_eq!(store.count().unwrap(), 1);
+
+        let results = store.query_nearest(&[1.0, 0.0, 0.0, 0.0], 5).unwrap();
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0, "note/a");
+        assert!((results[0].1 - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn delete_removes_embedding() {
+        let store = EmbeddingStore::open_in_memory(3).unwrap();
+        store.upsert_embedding("x", &[1.0, 2.0, 3.0]).unwrap();
+        store.delete_embedding("x").unwrap();
+        assert_eq!(store.count().unwrap(), 0);
+    }
+
+    #[test]
+    fn nearest_neighbors_ranked() {
+        let store = EmbeddingStore::open_in_memory(2).unwrap();
+        store.upsert_embedding("close", &[1.0, 0.0]).unwrap();
+        store.upsert_embedding("far", &[0.0, 1.0]).unwrap();
+        store.upsert_embedding("mid", &[0.7, 0.7]).unwrap();
+
+        let results = store.query_nearest(&[1.0, 0.0], 2).unwrap();
+        assert_eq!(results[0].0, "close");
+        assert_eq!(results.len(), 2);
+    }
+
+    #[test]
+    fn dimension_mismatch_rejected() {
+        let store = EmbeddingStore::open_in_memory(3).unwrap();
+        let err = store.upsert_embedding("x", &[1.0, 2.0]);
+        assert!(matches!(err, Err(EmbeddingError::DimensionMismatch { .. })));
+    }
+}

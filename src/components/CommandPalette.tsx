@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useI18n } from '../lib/i18n'
 
 export interface PaletteCommand {
   id: string
@@ -18,6 +19,7 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
+  const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [noteHits, setNoteHits] = useState<Array<{ path: string; title: string }>>([])
@@ -100,7 +102,7 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
   if (!open) return null
 
   return (
-    <div className="command-palette-overlay" role="dialog" aria-label="Command palette">
+    <div className="command-palette-overlay" role="dialog" aria-label={t('commandPalette.ariaLabel')}>
       <div className="command-palette">
         <input
           type="search"
@@ -118,15 +120,15 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
               runSelected(mergedCommands[selectedIndex])
             }
           }}
-          placeholder="Type a command or note…"
-          aria-label="Command palette search"
+          placeholder={t('commandPalette.placeholder')}
+          aria-label={t('commandPalette.ariaLabel')}
           aria-controls="command-palette-list"
           aria-activedescendant={
             mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined
           }
           autoFocus
         />
-        {isSearchingNotes ? <p className="command-palette-hint">Searching notes…</p> : null}
+        {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => (
             <li key={command.id} role="presentation">
@@ -152,7 +154,7 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
             </li>
           ))}
         </ul>
-        {mergedCommands.length === 0 ? <p className="command-palette-hint">No matching commands or notes.</p> : null}
+        {mergedCommands.length === 0 ? <p className="command-palette-hint">{t('commandPalette.noResults')}</p> : null}
       </div>
     </div>
   )

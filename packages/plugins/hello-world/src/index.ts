@@ -1,0 +1,1 @@
+export { helloWorldManifest } from './manifest'

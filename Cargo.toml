@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+  "crates/citation-engine",
   "crates/vault",
   "crates/indexer",
   "crates/export-runner",
@@ -10,6 +11,9 @@ members = [
   "crates/ipc",
   "crates/daemon",
   "crates/cli",
+  "crates/embeddings",
+  "crates/tantivy-indexer",
+  "crates/wasm-runtime",
   "apps/desktop/src-tauri",
 ]
 exclude = ["crates/ipc/fuzz"]

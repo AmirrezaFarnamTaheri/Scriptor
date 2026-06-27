@@ -203,7 +203,10 @@ pub fn write_snapshot(
                 });
             }
             let svg = render_svg(document, Some(viewport));
-            crate::snapshot_raster::write_png_from_svg(&svg, output_path)?;
+            let handle = crate::snapshot_raster::write_png_from_svg_async(svg, output_path.to_path_buf());
+            handle
+                .join()
+                .map_err(|_| CanvasError::ExportFailed("png worker thread panicked".into()))??;
             Ok(SnapshotOutput {
                 format,
                 artifact_path: output_path.display().to_string(),

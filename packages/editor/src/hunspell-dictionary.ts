@@ -13,29 +13,68 @@ export function parseHunspellDic(text: string): Set<string> {
   return words
 }
 
-let hunspellWords: Set<string> | null = null
-let loadPromise: Promise<Set<string>> | null = null
+export const LOCALE_MAP: Record<string, { dic: string; aff?: string }> = {
+  'en-US': { dic: '/dictionaries/en_US.dic' },
+  'en-GB': { dic: '/dictionaries/en_GB.dic' },
+  de: { dic: '/dictionaries/de_DE.dic' },
+  fr: { dic: '/dictionaries/fr.dic' },
+  es: { dic: '/dictionaries/es_ES.dic' },
+  pt: { dic: '/dictionaries/pt_PT.dic' },
+  it: { dic: '/dictionaries/it_IT.dic' },
+  nl: { dic: '/dictionaries/nl_NL.dic' },
+  ru: { dic: '/dictionaries/ru_RU.dic' },
+  ar: { dic: '/dictionaries/ar.dic' },
+  fa: { dic: '/dictionaries/fa_IR.dic' },
+}
 
-export async function loadHunspellDictionary(url = '/dictionaries/en_US.dic'): Promise<Set<string>> {
-  if (hunspellWords) return hunspellWords
-  if (!loadPromise) {
-    loadPromise = fetch(url)
-      .then((response) => {
-        if (!response.ok) throw new Error(`dictionary fetch failed: ${response.status}`)
-        return response.text()
-      })
-      .then((text) => {
-        hunspellWords = parseHunspellDic(text)
-        return hunspellWords
-      })
-      .catch(() => {
-        hunspellWords = new Set()
-        return hunspellWords
-      })
-  }
-  return loadPromise
+export const SUPPORTED_LOCALES = Object.keys(LOCALE_MAP)
+
+const dictionariesByLocale = new Map<string, Set<string>>()
+const loadPromisesByLocale = new Map<string, Promise<Set<string>>>()
+let activeLocale = 'en-US'
+
+export async function loadHunspellLocale(locale: string): Promise<Set<string>> {
+  const existing = dictionariesByLocale.get(locale)
+  if (existing) return existing
+
+  const pending = loadPromisesByLocale.get(locale)
+  if (pending) return pending
+
+  const entry = LOCALE_MAP[locale]
+  if (!entry) return new Set<string>()
+
+  const promise = fetch(entry.dic)
+    .then((response) => {
+      if (!response.ok) throw new Error(`dictionary fetch failed: ${response.status}`)
+      return response.text()
+    })
+    .then((text) => {
+      const words = parseHunspellDic(text)
+      dictionariesByLocale.set(locale, words)
+      return words
+    })
+    .catch(() => {
+      const empty = new Set<string>()
+      dictionariesByLocale.set(locale, empty)
+      return empty
+    })
+
+  loadPromisesByLocale.set(locale, promise)
+  return promise
+}
+
+export function setActiveHunspellLocale(locale: string): void {
+  activeLocale = locale
+}
+
+export function getActiveHunspellLocale(): string {
+  return activeLocale
+}
+
+export async function loadHunspellDictionary(_url = '/dictionaries/en_US.dic'): Promise<Set<string>> {
+  return loadHunspellLocale(activeLocale)
 }
 
 export function getHunspellDictionary(): Set<string> | null {
-  return hunspellWords
+  return dictionariesByLocale.get(activeLocale) ?? null
 }

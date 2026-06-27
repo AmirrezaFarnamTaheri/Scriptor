@@ -5,17 +5,20 @@ pub mod rate_limit;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ts_rs::TS;
 
 pub const FRAME_MAGIC: u32 = 0x4152434c; // "ARCL"
 pub const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct RpcRequest {
     pub id: u64,
     pub method: RpcMethod,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcMethod {
     Ping,
     OpenVault { path: String },
@@ -84,19 +87,22 @@ pub enum RpcMethod {
     ListCommands,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct RpcResponse {
     pub id: u64,
     pub result: RpcResult,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcResult {
     Ok(RpcPayload),
     Err(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcPayload {
     Pong { version: String },
     VaultOpened { vault_id: String, name: String, root_path: String },
@@ -124,30 +130,35 @@ pub enum RpcPayload {
     Json { json: String },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct RpcEvent {
     pub payload: RpcEventPayload,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcEventPayload {
     ConfigReloaded { json: String, generation: u64 },
 }
 
 /// Server → client frame: either an RPC response or an unsolicited event.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum ServerMessage {
     Response(RpcResponse),
     Event(RpcEvent),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct NoteSummary {
     pub path: String,
     pub title: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct SearchHit {
     pub path: String,
     pub title: String,

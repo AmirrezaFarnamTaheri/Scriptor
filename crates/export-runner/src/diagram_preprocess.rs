@@ -35,8 +35,12 @@ pub fn preprocess_diagrams(
         output.push_str(&markdown[cursor..fence.start]);
         let file_name = format!("diagram-{}-{}.svg", fence.kind, index);
         let image_path = diagram_dir.join(&file_name);
-        let svg = build_diagram_svg(&fence.kind, &fence.source);
-        fs::write(&image_path, svg).map_err(|source| ExportError::Io {
+        let svg = match fence.kind.as_str() {
+            "mermaid" => crate::diagram::render_mermaid_svg(&fence.source)?,
+            "plantuml" => crate::diagram::render_plantuml_svg(&fence.source)?,
+            _ => build_diagram_svg(&fence.kind, &fence.source),
+        };
+        fs::write(&image_path, &svg).map_err(|source| ExportError::Io {
             path: image_path.clone(),
             source,
         })?;

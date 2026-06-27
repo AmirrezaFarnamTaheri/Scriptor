@@ -14,18 +14,29 @@ if (-not $env:CI) {
 }
 Write-Host "==> Browser channel: $env:PLAYWRIGHT_CHANNEL"
 
-Write-Host "==> Build screenshot frontend (mock Tauri bridge)"
-$env:VITE_SCREENSHOT_MODE = "true"
-pnpm build
+Write-Host "==> Build screenshot frontend (E2E mock bridge)"
+$env:VITE_E2E_MODE = "true"
+pnpm build --mode e2e
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Remove-Item Env:VITE_SCREENSHOT_MODE -ErrorAction SilentlyContinue
+Remove-Item Env:VITE_E2E_MODE -ErrorAction SilentlyContinue
 
-Write-Host "==> Capture screenshots into docs/assets/screenshots"
-pnpm exec playwright test --config playwright.config.ts
+Write-Host "==> Capture screenshots via playwright.e2e.config"
+pnpm exec playwright test --config playwright.e2e.config.ts e2e/screenshots.spec.ts
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+$docsDir = "docs/assets/screenshots"
+$snapshotDir = "e2e/screenshots.spec.ts-snapshots"
+if (Test-Path $snapshotDir) {
+    Write-Host "==> Copying visual regression snapshots to $docsDir"
+    New-Item -ItemType Directory -Force -Path $docsDir | Out-Null
+    Get-ChildItem $snapshotDir -Filter *.png | ForEach-Object {
+        Copy-Item $_.FullName "$docsDir/$($_.Name)" -Force
+        Write-Host "  copied: $($_.Name)"
+    }
+}
 
 Write-Host "==> Screenshot capture complete"
-Get-ChildItem "docs/assets/screenshots" -Filter *.png | ForEach-Object { Write-Host "  $($_.Name)" }
+Get-ChildItem $docsDir -Filter *.png | ForEach-Object { Write-Host "  $($_.Name)" }
 
 if (-not $SkipDesktopBuild) {
     Write-Host "==> Build final desktop app"

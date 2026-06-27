@@ -130,11 +130,10 @@ pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
 
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
-    if !cfg!(windows) {
-        if let Some(parent) = Path::new(&resolved).parent() {
+    if !cfg!(windows)
+        && let Some(parent) = Path::new(&resolved).parent() {
             fs::create_dir_all(parent).map_err(IpcError::from)?;
         }
-    }
     let name = resolve_name(&resolved)?;
     let listener = ListenerOptions::new()
         .name(name.borrow())
@@ -235,11 +234,10 @@ fn dispatch_request(
         RpcMethod::RebuildIndex => dispatch_rebuild_sync(state, id),
         RpcMethod::OpenVault { .. } => {
             let response = state.lock().expect("daemon state lock").handle(request);
-            if matches!(response.result, RpcResult::Ok(RpcPayload::VaultOpened { .. })) {
-                if let Err(error) = restart_vault_watcher(state) {
+            if matches!(response.result, RpcResult::Ok(RpcPayload::VaultOpened { .. }))
+                && let Err(error) = restart_vault_watcher(state) {
                     eprintln!("scriptor-daemon watcher start error: {error}");
                 }
-            }
             response
         }
         _ => state.lock().expect("daemon state lock").handle(request),

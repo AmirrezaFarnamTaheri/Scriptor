@@ -1,0 +1,122 @@
+.mcp-panel {
+  width: min(760px, calc(100vw - 32px));
+  max-height: min(85vh, 760px);
+  overflow: auto;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-raised);
+}
+
+.mcp-panel header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mcp-mode-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mcp-mode-row .toolbar-button.active {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.mcp-tool-playground {
+  display: grid;
+  gap: 10px;
+}
+
+.mcp-tool-playground label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.mcp-tool-playground select,
+.mcp-tool-playground textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+  font: inherit;
+}
+
+.mcp-result {
+  margin: 0;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 12px;
+  overflow: auto;
+}
+
+.mcp-drafts ul,
+.mcp-audit ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.mcp-drafts li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.mcp-audit li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 8px;
+  font-size: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.mcp-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.mcp-recipes {
+  margin-bottom: 16px;
+}
+
+.mcp-recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.mcp-recipe-card {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.mcp-recipe-card strong {
+  font-size: 13px;
+}
+
+.mcp-recipe-card span {
+  font-size: 11px;
+  color: var(--muted);
+}

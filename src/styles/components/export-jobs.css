@@ -1,0 +1,55 @@
+/* Export job history, details, live output (BL-22) */
+
+.jobs-history-header {
+  margin-top: 14px;
+}
+
+.export-history-list .export-job-toggle {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.export-job-details {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--border) 25%, transparent);
+  font-size: 12px;
+}
+
+.export-job-details pre {
+  margin: 8px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+}
+
+.export-live-output {
+  margin: 8px 0 0;
+  max-height: 160px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.export-job-error .export-job-toggle strong {
+  color: var(--danger, #c0392b);
+}
+
+.export-job-cancelled .export-job-toggle strong {
+  color: var(--muted);
+}
+
+.export-job-running .export-job-toggle strong {
+  color: var(--primary-strong);
+}
+
+.export-cancel-button {
+  margin-top: 6px;
+}

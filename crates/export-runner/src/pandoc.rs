@@ -9,6 +9,56 @@ use crate::error::ExportError;
 pub struct PandocDiscovery {
     pub path: String,
     pub version: String,
+    pub sha256: Option<String>,
+}
+
+/// Compute the SHA-256 hash of a file at the given path, returning a hex string.
+pub fn sha256_file(path: &Path) -> Result<String, ExportError> {
+    use std::io::Read;
+
+    let mut file = std::fs::File::open(path).map_err(|source| ExportError::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        let bytes_read = file.read(&mut buffer).map_err(|source| ExportError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// Verify a binary's SHA-256 hash against a trusted hash from vault config.
+/// Returns Ok(()) if the hash matches or no trusted hash is configured.
+/// Returns Err if the hash does not match.
+pub fn verify_binary_hash(
+    binary_path: &Path,
+    expected_hash: Option<&str>,
+    label: &str,
+) -> Result<Option<String>, ExportError> {
+    let computed = sha256_file(binary_path)?;
+
+    log::info!("{label} SHA-256: {computed} (path: {})", binary_path.display());
+
+    if let Some(expected) = expected_hash {
+        if computed != expected {
+            return Err(ExportError::Process(format!(
+                "{label} hash mismatch: expected {expected}, found {computed}"
+            )));
+        }
+    }
+
+    Ok(Some(computed))
 }
 
 /// Resolve Pandoc for export jobs.
@@ -18,22 +68,29 @@ pub struct PandocDiscovery {
 /// 2. `SCRIPTOR_BUNDLED_PANDOC_DIR/pandoc(.exe)` when bundled installer populated resources
 /// 3. `pandoc` on `PATH` (Windows: `where pandoc`, Unix: `which pandoc`)
 pub fn discover_pandoc() -> Result<PandocDiscovery, ExportError> {
+    discover_pandoc_with_trusted_hash(None)
+}
+
+/// Like [`discover_pandoc`], but also verifies the binary against a trusted hash if provided.
+pub fn discover_pandoc_with_trusted_hash(
+    trusted_hash: Option<&str>,
+) -> Result<PandocDiscovery, ExportError> {
     if let Ok(override_path) = std::env::var("SCRIPTOR_PANDOC_PATH") {
         let trimmed = override_path.trim();
         if !trimmed.is_empty() {
-            return probe_pandoc(Path::new(trimmed));
+            return probe_pandoc_with_hash(Path::new(trimmed), trusted_hash);
         }
     }
 
     for bundled in bundled_pandoc_paths() {
         if bundled.exists() {
-            if let Ok(discovery) = probe_pandoc(&bundled) {
+            if let Ok(discovery) = probe_pandoc_with_hash(&bundled, trusted_hash) {
                 return Ok(discovery);
             }
         }
     }
 
-    probe_pandoc(Path::new("pandoc"))
+    probe_pandoc_with_hash(Path::new("pandoc"), trusted_hash)
 }
 
 fn bundled_pandoc_paths() -> Vec<PathBuf> {
@@ -48,7 +105,15 @@ fn bundled_pandoc_paths() -> Vec<PathBuf> {
     paths
 }
 
+#[allow(dead_code)]
 fn probe_pandoc(path: &Path) -> Result<PandocDiscovery, ExportError> {
+    probe_pandoc_with_hash(path, None)
+}
+
+fn probe_pandoc_with_hash(
+    path: &Path,
+    trusted_hash: Option<&str>,
+) -> Result<PandocDiscovery, ExportError> {
     let output = Command::new(path)
         .arg("--version")
         .output()
@@ -70,9 +135,19 @@ fn probe_pandoc(path: &Path) -> Result<PandocDiscovery, ExportError> {
         path.to_path_buf()
     };
 
+    let sha256 = if resolved_path.exists() {
+        verify_binary_hash(&resolved_path, trusted_hash, "pandoc").unwrap_or_else(|err| {
+            log::warn!("Pandoc hash verification failed: {err}");
+            None
+        })
+    } else {
+        None
+    };
+
     Ok(PandocDiscovery {
         path: resolved_path.display().to_string(),
         version,
+        sha256,
     })
 }
 

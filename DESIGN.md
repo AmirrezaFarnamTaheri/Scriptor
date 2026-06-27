@@ -1,6 +1,6 @@
 # Design
 
-Visual and interaction rules for the Scriptor shell. Token values live in [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) and `src/index.css`.
+Visual and interaction rules for the Scriptor shell. Token values live in [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md), `src/index.css`, and `src/styles/tokens/components.css`.
 
 ## System
 

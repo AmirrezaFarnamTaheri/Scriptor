@@ -1,6 +1,6 @@
 # Scriptor Design System
 
-Premium glass-forward visual language for desktop and mobile. Tokens are defined in `src/index.css` and applied through semantic classes in `src/App.css` and `src/styles/motion.css`.
+Premium glass-forward visual language for desktop and mobile. Tokens are defined in `src/index.css` and `src/styles/tokens/components.css`, applied through semantic classes in `src/App.css` and `src/styles/motion.css`.
 
 ## Color palette
 

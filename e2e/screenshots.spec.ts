@@ -1,0 +1,326 @@
+import { mkdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+import { expect, test, type Page } from '@playwright/test'
+
+import { settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
+
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const outputDir = path.join(rootDir, 'docs/assets/screenshots')
+
+function shotPath(name: string) {
+  return path.join(outputDir, `${name}.png`)
+}
+
+async function waitForVaultSidebarReady(page: Page) {
+  const vaultList = page.locator('.virtual-note-list')
+  await expect(vaultList.getByRole('button', { name: 'Research Plan.md' })).toBeVisible({
+    timeout: 45_000,
+  })
+  await expect(vaultList.getByRole('button', { name: 'Field Notes.md' })).toBeVisible()
+  await expect(vaultList.getByRole('button', { name: 'Methodology.md' })).toBeVisible()
+}
+
+async function waitForMonacoPainted(page: Page) {
+  const lines = page.locator('.monaco-editor .view-lines')
+  await expect(lines).toBeVisible({ timeout: 45_000 })
+  await expect(lines).toContainText('Research Plan', { timeout: 45_000 })
+  await expect(page.locator('.monaco-editor')).not.toContainText('Loading...', { timeout: 45_000 })
+  await page.waitForFunction(() => {
+    const viewLines = document.querySelector('.monaco-editor .view-lines')
+    if (!viewLines) return false
+    const rect = viewLines.getBoundingClientRect()
+    return rect.width > 80 && rect.height > 20
+  }, { timeout: 20_000 })
+  await settleLayout(page)
+}
+
+async function waitForEditorReady(page: Page) {
+  await expect(page.locator('.tab.active', { hasText: 'Research Plan' })).toBeVisible({
+    timeout: 30_000,
+  })
+  await waitForMonacoPainted(page)
+}
+
+async function waitForInspectorReady(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Note Health' })).toBeVisible({ timeout: 45_000 })
+  await expect(page.locator('.job-progress').getByText('100%')).toBeVisible({ timeout: 45_000 })
+  await expect(page.locator('.widget-action')).toHaveText('Good', { timeout: 45_000 })
+  await expect(page.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
+}
+
+async function waitForFullWorkspace(page: Page) {
+  await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
+  await expect(page.locator('small.vault-badge', { hasText: 'Research Vault' })).toBeVisible({
+    timeout: 45_000,
+  })
+  await waitForVaultSidebarReady(page)
+  await waitForEditorReady(page)
+  await waitForInspectorReady(page)
+  await settleLayout(page)
+}
+
+async function waitForPreviewReady(page: Page) {
+  await expect(page.locator('.markdown-preview h1')).toContainText('Research Plan', {
+    timeout: 30_000,
+  })
+  await expect(page.locator('.preview-error')).toHaveCount(0)
+  await settleLayout(page)
+}
+
+async function waitForGraphReady(page: Page) {
+  await expect(page.locator('.graph-canvas.force circle')).toHaveCount(3, { timeout: 20_000 })
+  await page.waitForTimeout(1200)
+}
+
+async function waitForSettingsReady(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Settings' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.locator('dd').first()).not.toHaveText('Checking...', { timeout: 20_000 })
+  await expect(dialog.getByText('3.1.11')).toBeVisible({ timeout: 20_000 })
+  await page.waitForTimeout(500)
+}
+
+async function ensureCleanStatusDock(page: Page) {
+  const problemsTab = page.getByRole('tab', { name: /Problems/ })
+  if (await problemsTab.getAttribute('aria-selected')) {
+    await page.getByRole('tab', { name: 'Output' }).click()
+  }
+  await expect(page.locator('.diagnostics-panel')).toHaveCount(0)
+}
+
+async function setEditorSurfaceMode(page: Page, mode: 'Source' | 'Split' | 'Preview') {
+  await page.locator('.editor-toolbar').getByRole('button', { name: mode, exact: true }).click()
+}
+
+// ── Setup ────────────────────────────────────────────────────────────────────
+
+test.beforeAll(() => {
+  mkdirSync(outputDir, { recursive: true })
+})
+
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript((chromePrefs) => {
+    window.localStorage.setItem('scriptor:app-theme', 'light')
+    window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+    window.localStorage.setItem('scriptor:editor-mode', 'monaco')
+    window.localStorage.setItem('scriptor:editor-theme', 'light')
+    window.localStorage.setItem('scriptor:headless-engine', 'false')
+    window.localStorage.setItem('scriptor:workspace-mode', 'writing')
+    window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
+    window.localStorage.setItem('scriptor:split-preview', 'false')
+    window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+  }, WORKSPACE_CHROME_PREFS)
+})
+
+// ── Screenshot tests ─────────────────────────────────────────────────────────
+
+test('main workspace — light mode', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await page.screenshot({ path: shotPath('workspace-light'), fullPage: false })
+  await expect(page).toHaveScreenshot('workspace-light.png', { fullPage: false })
+})
+
+test('main workspace — dark mode', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('scriptor:app-theme', 'dark')
+  })
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await page.screenshot({ path: shotPath('workspace-dark'), fullPage: false })
+  await expect(page).toHaveScreenshot('workspace-dark.png', { fullPage: false })
+})
+
+test('editor with split preview', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await setEditorSurfaceMode(page, 'Split')
+  await waitForPreviewReady(page)
+  await page.screenshot({ path: shotPath('editor-preview'), fullPage: false })
+  await expect(page).toHaveScreenshot('editor-preview.png', { fullPage: false })
+})
+
+test('command palette', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.getByLabel('Command or search').click()
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: shotPath('command-palette'), fullPage: false })
+  await expect(page).toHaveScreenshot('command-palette.png', { fullPage: false })
+})
+
+test('graph panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions').getByRole('button', { name: 'Graph', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Knowledge graph' })).toBeVisible()
+  await waitForGraphReady(page)
+  await page.screenshot({ path: shotPath('graph'), fullPage: false })
+  await expect(page).toHaveScreenshot('graph.png', { fullPage: false })
+})
+
+test('canvas panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions').getByRole('button', { name: 'Canvas', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Canvas' })).toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: shotPath('canvas'), fullPage: false })
+  await expect(page).toHaveScreenshot('canvas.png', { fullPage: false })
+})
+
+test('git panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions .status-button').first().click()
+  const gitPanel = page.getByRole('dialog', { name: /Git|version/i })
+  await expect(gitPanel).toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: shotPath('git-panel'), fullPage: false })
+  await expect(page).toHaveScreenshot('git-panel.png', { fullPage: false })
+})
+
+test('mcp panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  const mcpButton = page.locator('.top-actions button').filter({ hasText: /MCP|Read-only|Write/i })
+  await mcpButton.click()
+  const mcpPanel = page.getByRole('dialog', { name: /MCP|automation/i })
+  await expect(mcpPanel).toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: shotPath('mcp-panel'), fullPage: false })
+  await expect(page).toHaveScreenshot('mcp-panel.png', { fullPage: false })
+})
+
+test('settings panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  await waitForSettingsReady(page)
+  await page.screenshot({ path: shotPath('settings'), fullPage: false })
+  await expect(page).toHaveScreenshot('settings.png', { fullPage: false })
+})
+
+test('publish center', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions').getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: shotPath('publish-center'), fullPage: false })
+  await expect(page).toHaveScreenshot('publish-center.png', { fullPage: false })
+})
+
+test('vault health dashboard', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions').getByRole('button', { name: 'Publish', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
+  await page.getByRole('button', { name: 'Close Publish center' }).click()
+  await page.locator('.widget-action').getByText('Good').click()
+  const healthDashboard = page.getByRole('dialog', { name: 'Vault health dashboard' })
+  await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: shotPath('vault-health'), fullPage: false })
+  await expect(page).toHaveScreenshot('vault-health.png', { fullPage: false })
+})
+
+test('knowledge workbench', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions').getByRole('button', { name: 'Workbench', exact: true }).click()
+  await expect(page.getByRole('dialog', { name: 'Knowledge workbench' })).toBeVisible()
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: shotPath('knowledge-workbench'), fullPage: false })
+  await expect(page).toHaveScreenshot('knowledge-workbench.png', { fullPage: false })
+})
+
+test('conflict resolver modal', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem('e2e:git-conflicts', '1')
+  })
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('.top-actions .status-button').first().click()
+  const gitPanel = page.getByRole('dialog', { name: /Git|version/i })
+  await expect(gitPanel).toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(500)
+  const resolveBtn = gitPanel.getByRole('button', { name: /resolve/i }).first()
+  if (await resolveBtn.isVisible()) {
+    await resolveBtn.click()
+  } else {
+    await gitPanel.locator('.conflict-resolve-btn, [title*="conflict"], [title*="Resolve"]').first().click()
+  }
+  const resolver = page.getByRole('dialog', { name: 'Resolve merge conflict' })
+  await expect(resolver).toBeVisible({ timeout: 10_000 })
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: shotPath('conflict-resolver'), fullPage: false })
+  await expect(page).toHaveScreenshot('conflict-resolver.png', { fullPage: false })
+})
+
+test('note history panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.keyboard.press('Control+KeyK')
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('Note history')
+  await palette.getByRole('option', { name: 'Note history timeline' }).click()
+  const historyPanel = page.getByRole('dialog', { name: 'Note history' })
+  await expect(historyPanel).toBeVisible()
+  await expect(historyPanel.getByText(/words/)).toBeVisible()
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: shotPath('note-history'), fullPage: false })
+  await expect(page).toHaveScreenshot('note-history.png', { fullPage: false })
+})
+
+test('keyboard shortcut editor', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  await waitForSettingsReady(page)
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  const shortcutsTab = settings.getByRole('tab', { name: /Keyboard|Shortcuts/i })
+  if (await shortcutsTab.isVisible()) {
+    await shortcutsTab.click()
+    await page.waitForTimeout(500)
+  }
+  await page.screenshot({ path: shotPath('keyboard-shortcuts'), fullPage: false })
+  await expect(page).toHaveScreenshot('keyboard-shortcuts.png', { fullPage: false })
+})
+
+test('mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 820, height: 1024 })
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.screenshot({ path: shotPath('workspace-mobile'), fullPage: false })
+  await expect(page).toHaveScreenshot('workspace-mobile.png', { fullPage: false })
+})
+
+test('onboarding tour', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.removeItem('scriptor:onboarding-complete')
+  })
+  await page.goto('/', { waitUntil: 'networkidle' })
+  const tour = page.getByRole('dialog', { name: 'Product tour' })
+  await expect(tour).toBeVisible({ timeout: 15_000 })
+  await page.waitForTimeout(500)
+  await page.screenshot({ path: shotPath('onboarding-tour'), fullPage: false })
+  await expect(page).toHaveScreenshot('onboarding-tour.png', { fullPage: false })
+})
+
+test('plugins panel', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.getByRole('tab', { name: 'Plugins' }).click()
+  await expect(page.getByRole('heading', { name: 'Plugin marketplace' })).toBeVisible()
+  await page.waitForTimeout(800)
+  await page.screenshot({ path: shotPath('plugins'), fullPage: false })
+  await expect(page).toHaveScreenshot('plugins.png', { fullPage: false })
+})

@@ -14,26 +14,40 @@ Thank you for considering a contribution to Scriptor.
 
 ```powershell
 pnpm install
+cargo build --workspace
 pnpm desktop:dev
 ```
 
+For containerized development, see the devcontainer configuration if available, or use the container smoke image: `pnpm check:container`.
+
 ### Validation before submitting
 
+Run the full release gate:
+
 ```powershell
-pnpm build
-pnpm lint
-pnpm check:release
+pnpm check:release             # Full local release gate (lint + build + all checks)
+cargo test --workspace         # Rust unit and integration tests
+pnpm test:e2e                  # Playwright end-to-end tests
 ```
 
 Targeted checks during development:
 
 ```powershell
-pnpm check:contracts   # TypeScript contract packages
-pnpm check:plugins     # Plugin manifest validation
-pnpm check:daemon      # Headless daemon IPC smoke
-pnpm check:tui         # Terminal UI smoke
-pnpm test:rust         # Rust unit tests
+pnpm test:rust                 # Rust unit tests
+pnpm check:contracts           # TypeScript contract packages
+pnpm check:plugins             # Plugin manifest validation
+pnpm check:daemon              # Headless daemon IPC smoke
+pnpm check:tui                 # Terminal UI smoke
+pnpm lint                      # ESLint + prettier
+pnpm check:a11y-axe            # axe-core WCAG automated audit
+pnpm test:visual               # Visual regression Playwright tests
 ```
+
+## Code style
+
+- **Rust:** `clippy` (warnings as errors) and `rustfmt`. Run `cargo clippy --workspace` and `cargo fmt --check` before submitting.
+- **TypeScript:** ESLint + Prettier. Run `pnpm lint` to check. The project uses `verbatimModuleSyntax` — prefer `import type` for type-only imports.
+- Match existing code conventions in the file you are editing. When creating new files, follow the patterns of neighboring modules.
 
 ## Documentation and screenshots
 
@@ -47,10 +61,14 @@ pnpm screenshots:capture:web
 
 Commit updated PNGs under `docs/assets/screenshots/` with your PR. See [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md).
 
+## Plugin authoring
+
+To build a Scriptor plugin, see the complete guide at [`docs/plugins/AUTHOR_GUIDE.md`](docs/plugins/AUTHOR_GUIDE.md). It covers manifests, capability types, the permission model, safe mode, and a hello-world walkthrough.
+
 ## Pull requests
 
 - Keep diffs focused; match existing code style and naming.
-- Ensure CI checks pass (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)).
+- Ensure CI checks pass.
 - Do not commit build artifacts (`dist/`, `target/`, `test-results/`) or secrets (`.env`).
 - Update [`CHANGELOG.md`](CHANGELOG.md) for user-visible changes.
 

@@ -22,6 +22,12 @@ pub struct McpMutationAuditRecord {
     pub note_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub input_summary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub success: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<u64>,
 }
 
 pub fn append_mcp_mutation(root: &VaultRoot, record: McpMutationAuditRecord) -> Result<(), VaultError> {

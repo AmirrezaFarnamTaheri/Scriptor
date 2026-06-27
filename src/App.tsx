@@ -1,5 +1,14 @@
 import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
-import { countCharacters, countWords, type EditorThemeId, type MarkdownEditorHandle, type TocEntry, loadHunspellDictionary } from '@scriptor/editor'
+import {
+  countCharacters,
+  countWords,
+  type EditorThemeId,
+  type MarkdownEditorHandle,
+  type TocEntry,
+  loadHunspellLocale,
+  setActiveHunspellLocale,
+  configureLanguageTool,
+} from '@scriptor/editor'
 import { applyRendererExtensions, type MarkdownPreviewHandle } from '@scriptor/renderer'
 
 import { useEditorLintProblems } from './hooks/useEditorLintProblems'
@@ -50,6 +59,7 @@ import { useWorkspaceStore } from './hooks/useWorkspaceStore'
 import { usePortalShortcuts } from './hooks/usePortalShortcuts'
 import { useEditorPreviewScrollSync } from './hooks/useEditorPreviewScrollSync'
 import { usePersistedBoolean } from './hooks/usePersistedBoolean'
+import { usePersistedString } from './hooks/usePersistedString'
 import { useAppToast } from './hooks/useAppToast'
 import { useAppTheme } from './hooks/useAppTheme'
 import { useHeadlessEngine } from './hooks/useHeadlessEngine'
@@ -194,6 +204,11 @@ function App() {
   const [splitPreview, setSplitPreview] = usePersistedBoolean('scriptor:split-preview', false)
   const [vimMode, setVimMode] = usePersistedBoolean('scriptor:vim-mode', false)
   const [spellcheck, setSpellcheck] = usePersistedBoolean('scriptor:spellcheck', false)
+  const [spellcheckLocale, setSpellcheckLocale] = usePersistedString('scriptor:spellcheck-locale', 'en-US')
+  const [languageToolEndpoint, setLanguageToolEndpoint] = usePersistedString(
+    'scriptor:languagetool-endpoint',
+    'http://localhost:8010/v2/check',
+  )
   const [wysiwyg, setWysiwyg] = usePersistedBoolean('scriptor:wysiwyg', false)
   const [typewriter, setTypewriter] = usePersistedBoolean('scriptor:typewriter', false)
   const [distractionFree, setDistractionFree] = usePersistedBoolean('scriptor:distraction-free', false)
@@ -294,9 +309,14 @@ function App() {
 
   useEffect(() => {
     if (spellcheck) {
-      void loadHunspellDictionary()
+      setActiveHunspellLocale(spellcheckLocale)
+      void loadHunspellLocale(spellcheckLocale)
     }
-  }, [spellcheck])
+  }, [spellcheck, spellcheckLocale])
+
+  useEffect(() => {
+    configureLanguageTool({ endpoint: languageToolEndpoint })
+  }, [languageToolEndpoint])
 
   const snippetContext = useMemo(() => {
     if (!workspaceActivePath) {
@@ -1603,6 +1623,10 @@ function App() {
           theme={theme}
           onThemeChange={setTheme}
           onReplayOnboarding={onboarding.replayOnboarding}
+          spellcheckLocale={spellcheckLocale}
+          onSpellcheckLocaleChange={setSpellcheckLocale}
+          languageToolEndpoint={languageToolEndpoint}
+          onLanguageToolEndpointChange={setLanguageToolEndpoint}
           onOpenSupport={() => {
             setSettingsOpen(false)
             setSupportOpen(true)

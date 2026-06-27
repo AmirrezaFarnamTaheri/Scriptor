@@ -10,6 +10,7 @@ import type { AiProviderId } from '../hooks/useAiProvider'
 import type { AppTheme } from '../hooks/useAppTheme'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
+import { useVaultBackup } from '../hooks/useVaultBackup'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import {
   DEFAULT_WORKSPACE_LAYOUTS,
@@ -22,6 +23,8 @@ import { AiProviderSettings } from './AiProviderSettings'
 import { DaemonOpsPanel } from './DaemonOpsPanel'
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { VaultBackupSettings } from './VaultBackupSettings'
+import { SUPPORTED_LOCALES } from '@scriptor/editor'
 
 export interface SystemInfoSnapshot {
   os: string
@@ -71,6 +74,10 @@ interface SettingsPanelProps {
   theme?: AppTheme
   onThemeChange?: (theme: AppTheme) => void
   onReplayOnboarding?: () => void
+  spellcheckLocale?: string
+  onSpellcheckLocaleChange?: (locale: string) => void
+  languageToolEndpoint?: string
+  onLanguageToolEndpointChange?: (endpoint: string) => void
 }
 
 const DEFAULT_CONFIG: VaultConfig = {
@@ -135,12 +142,17 @@ export function SettingsPanel({
   theme = 'light',
   onThemeChange,
   onReplayOnboarding,
+  spellcheckLocale = 'en-US',
+  onSpellcheckLocaleChange,
+  languageToolEndpoint = 'http://localhost:8010/v2/check',
+  onLanguageToolEndpointChange,
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales } = useI18n()
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_CONFIG)
   const [status, setStatus] = useState('')
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
   const [pandocError, setPandocError] = useState<string | null>(null)
+  const backup = useVaultBackup(vaultOpen && nativeReady)
 
   const refreshPandoc = useCallback(async () => {
     if (!nativeReady) return
@@ -606,6 +618,8 @@ export function SettingsPanel({
           </div>
         )}
 
+        {vaultOpen && nativeReady && <VaultBackupSettings backup={backup} />}
+
         <AiProviderSettings
           provider={aiProvider}
           endpoint={aiEndpoint}
@@ -808,6 +822,37 @@ export function SettingsPanel({
             ) : null}
           </div>
         ) : null}
+
+        <div className="settings-section">
+          <h3>Spellcheck &amp; grammar</h3>
+          <label className="settings-field">
+            Spellcheck locale
+            <select
+              value={spellcheckLocale}
+              onChange={(event) => onSpellcheckLocaleChange?.(event.target.value)}
+            >
+              {SUPPORTED_LOCALES.map((loc) => (
+                <option key={loc} value={loc}>
+                  {loc}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="health-subtitle">
+            Hunspell dictionary loaded on demand. English (US) is the default; additional locales require the matching `.dic` file in `public/dictionaries/`.
+          </p>
+          <label className="settings-field">
+            LanguageTool endpoint
+            <input
+              value={languageToolEndpoint}
+              placeholder="http://localhost:8010/v2/check"
+              onChange={(event) => onLanguageToolEndpointChange?.(event.target.value)}
+            />
+          </label>
+          <p className="health-subtitle">
+            Defaults to self-hosted (port 8010) for privacy. Change to <code>https://api.languagetool.org/v2/check</code> for the cloud service — note that your text will be sent to a third-party server.
+          </p>
+        </div>
 
         <div className="settings-section">
           <h3>{t('settings.language')}</h3>

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { buildForceNodes } from '../lib/forceGraph'
 import { loadVaultPresetJson, saveVaultPresetJson, VAULT_GRAPH_PRESETS_PATH } from '../lib/vaultPresets'
 import type { GraphQueryOutput } from '../types/vault'
+import { GraphCanvas, type CanvasNode } from './GraphCanvas'
 
 interface GraphPreset {
   id: string
@@ -73,7 +74,13 @@ export function GraphPanel({
   fullVault,
 }: GraphPanelProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
+  const svgRef = useRef<SVGSVGElement>(null)
+  const liveRegionRef = useRef<HTMLDivElement>(null)
+  const [workerLayout, setWorkerLayout] = useState<CanvasNode[] | null>(null)
+  const [workerLoading, setWorkerLoading] = useState(false)
+  const USE_CANVAS_THRESHOLD = 100
 
   useEffect(() => {
     if (!vaultOpen) return
@@ -82,15 +89,120 @@ export function GraphPanel({
     })
   }, [vaultOpen])
 
+  const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
+
+  useEffect(() => {
+    if (!graph || !useCanvas) {
+      setWorkerLayout(null)
+      setWorkerLoading(false)
+      return
+    }
+    setWorkerLoading(true)
+    const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
+    worker.onmessage = (e: MessageEvent) => {
+      if (e.data.type === 'done') {
+        setWorkerLayout(e.data.nodes as CanvasNode[])
+        setWorkerLoading(false)
+      }
+    }
+    worker.postMessage({
+      nodes: graph.nodes,
+      edges: graph.edges,
+      width: VIEW_WIDTH,
+      height: VIEW_HEIGHT,
+    })
+    return () => worker.terminate()
+  }, [graph, useCanvas])
+
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
+    if (useCanvas && workerLayout) return workerLayout
     return buildForceNodes(graph.nodes, graph.edges, {
       width: VIEW_WIDTH,
       height: VIEW_HEIGHT,
     })
-  }, [graph])
+  }, [graph, useCanvas, workerLayout])
 
   const nodeById = useMemo(() => new Map(layout.map((node) => [node.id, node])), [layout])
+
+  const adjacency = useMemo(() => {
+    const map = new Map<string, string[]>()
+    if (!graph) return map
+    for (const node of layout) map.set(node.id, [])
+    for (const edge of graph.edges) {
+      map.get(edge.source)?.push(edge.target)
+      map.get(edge.target)?.push(edge.source)
+    }
+    return map
+  }, [graph, layout])
+
+  const announce = useCallback(
+    (nodeId: string) => {
+      const node = nodeById.get(nodeId)
+      if (!node || !liveRegionRef.current) return
+      const connections = adjacency.get(nodeId)?.length ?? 0
+      liveRegionRef.current.textContent = `${node.label}, ${connections} connection${connections === 1 ? '' : 's'}`
+    },
+    [nodeById, adjacency],
+  )
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (layout.length === 0) return
+
+      const currentId = focusedNodeId ?? layout[0].id
+
+      switch (event.key) {
+        case 'ArrowRight':
+        case 'ArrowDown': {
+          event.preventDefault()
+          const neighbors = adjacency.get(currentId)
+          if (neighbors && neighbors.length > 0) {
+            const nextId = neighbors[0]
+            setFocusedNodeId(nextId)
+            announce(nextId)
+          }
+          break
+        }
+        case 'ArrowLeft':
+        case 'ArrowUp': {
+          event.preventDefault()
+          const neighbors = adjacency.get(currentId)
+          if (neighbors && neighbors.length > 0) {
+            const nextId = neighbors[neighbors.length - 1]
+            setFocusedNodeId(nextId)
+            announce(nextId)
+          }
+          break
+        }
+        case 'Enter': {
+          event.preventDefault()
+          const node = nodeById.get(currentId)
+          if (node?.path) onSelectNode(node.path)
+          break
+        }
+        case 'Escape': {
+          event.preventDefault()
+          setFocusedNodeId(null)
+          onClose()
+          break
+        }
+        case 'Tab': {
+          event.preventDefault()
+          const currentIndex = layout.findIndex((n) => n.id === currentId)
+          const direction = event.shiftKey ? -1 : 1
+          const nextIndex = (currentIndex + direction + layout.length) % layout.length
+          const nextId = layout[nextIndex].id
+          setFocusedNodeId(nextId)
+          announce(nextId)
+          break
+        }
+        default:
+          break
+      }
+    },
+    [focusedNodeId, layout, adjacency, nodeById, announce, onSelectNode, onClose],
+  )
 
   if (!graph) {
     return (
@@ -182,7 +294,33 @@ export function GraphPanel({
         </div>
       ) : null}
 
-      <svg className="graph-canvas force" viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`} role="img">
+      <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
+
+      {useCanvas ? (
+        workerLoading ? (
+          <div className="graph-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: VIEW_HEIGHT }}>
+            <span>Computing layout...</span>
+          </div>
+        ) : (
+          <GraphCanvas
+            nodes={layout as CanvasNode[]}
+            edges={graph.edges}
+            focusPath={focusPath}
+            width={VIEW_WIDTH}
+            height={VIEW_HEIGHT}
+            onSelectNode={onSelectNode}
+          />
+        )
+      ) : (
+      <svg
+        ref={svgRef}
+        className="graph-canvas force"
+        viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+        role="application"
+        tabIndex={0}
+        aria-label="Knowledge graph. Use arrow keys to navigate nodes, Enter to open, Escape to close."
+        onKeyDown={handleKeyDown}
+      >
         <title>
           Force-directed graph with {graph.nodes.length} nodes and {graph.edges.length} edges
         </title>
@@ -206,7 +344,9 @@ export function GraphPanel({
         {layout.map((node) => {
           const isFocus = node.path === focusPath
           const isHovered = hoveredId === node.id
+          const isKeyboardFocused = focusedNodeId === node.id
           const fillColor = node.color ?? folderColor(node.path)
+          const connectionCount = adjacency.get(node.id)?.length ?? 0
           return (
             <g
               key={node.id}
@@ -224,15 +364,21 @@ export function GraphPanel({
                 if (node.path) onSelectNode(node.path)
               }}
               style={{ cursor: node.path ? 'pointer' : 'default' }}
+              role="button"
+              aria-label={`${node.label}, ${connectionCount} connection${connectionCount === 1 ? '' : 's'}${isFocus ? ' (current focus note)' : ''}`}
             >
+              {isKeyboardFocused && (
+                <circle r={22} fill="none" className="graph-node-focus-ring" />
+              )}
               <circle r={isFocus || isHovered ? 18 : 14} fill={fillColor} />
               <text y={28} textAnchor="middle">
-                {node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label}
+                {node.label.length > 18 ? `${node.label.slice(0, 17)}...` : node.label}
               </text>
             </g>
           )
         })}
       </svg>
+      )}
     </div>
   )
 }

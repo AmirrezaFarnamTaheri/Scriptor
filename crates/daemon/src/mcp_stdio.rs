@@ -1,14 +1,16 @@
 use std::io::{self, BufRead, Write};
+use std::time::Instant;
 
 use chrono::Utc;
 use scriptor_indexer::{
-    backlinks_for_path, list_dead_end_notes, list_orphan_notes, list_unresolved_link_targets,
-    list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown, query_focused_graph,
-    search_notes, traverse_graph,
+    backlinks_for_path, execute_dql_query, list_dead_end_notes, list_inbox_notes, list_orphan_notes,
+    list_unresolved_link_targets, list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown,
+    query_focused_graph, search_notes, traverse_graph, InboxPeriod,
 };
 use scriptor_vault::{
     append_mcp_mutation, build_note_markdown, load_vault_config, open_vault, read_note,
-    save_note_with_options, McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions, VaultSession,
+    save_note_with_options, set_frontmatter_field, McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions,
+    VaultSession,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -104,6 +106,21 @@ const READ_TOOLS: &[(&str, &str, &str)] = &[
         "Render markdown to basic HTML (headless preview).",
         "mcp.renderMarkdown",
     ),
+    (
+        "mcp.listSavedViews",
+        "List saved DQL views from vault config.",
+        "mcp.listSavedViews",
+    ),
+    (
+        "mcp.executeDql",
+        "Execute a DQL query against the note index.",
+        "mcp.executeDql",
+    ),
+    (
+        "mcp.listInbox",
+        "List inbox notes (unorganized, not archived).",
+        "mcp.listInbox",
+    ),
 ];
 
 const WRITE_TOOLS: &[(&str, &str, &str)] = &[
@@ -116,6 +133,11 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
         "mcp.createNote",
         "Create a new note (writes when --trust-stdio is set).",
         "note.create",
+    ),
+    (
+        "mcp.updateFrontmatter",
+        "Update a frontmatter field on an existing note (writes when --trust-stdio is set).",
+        "mcp.updateFrontmatter",
     ),
 ];
 
@@ -365,6 +387,41 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .ok_or_else(|| "markdown is required".to_string())?;
             Ok(json!({ "html": render_markdown_html(markdown) }))
         }
+        "mcp.listSavedViews" => {
+            let config =
+                load_vault_config(state.session.root.root()).map_err(|error| error.to_string())?;
+            Ok(serde_json::to_value(&config.saved_views).map_err(|error| error.to_string())?)
+        }
+        "mcp.executeDql" => {
+            let query = args
+                .get("query")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "query is required".to_string())?;
+            let cache =
+                open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            let rows = execute_dql_query(&cache, &state.session, query)
+                .map_err(|error| error.to_string())?;
+            Ok(serde_json::to_value(rows).map_err(|error| error.to_string())?)
+        }
+        "mcp.listInbox" => {
+            let period = args
+                .get("period")
+                .and_then(Value::as_str)
+                .unwrap_or("all");
+            let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(50) as usize;
+            let cache =
+                open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            let mut notes = list_inbox_notes(
+                &cache,
+                &state.session.descriptor.id,
+                InboxPeriod::parse(period),
+            )
+            .map_err(|error| error.to_string())?;
+            if limit > 0 {
+                notes.truncate(limit);
+            }
+            Ok(serde_json::to_value(notes).map_err(|error| error.to_string())?)
+        }
         "mcp.proposePatch" => {
             if !state.trust_stdio {
                 return Err("mcp.proposePatch requires --trust-stdio".into());
@@ -411,6 +468,24 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .unwrap_or_else(|| build_note_markdown(title, note_type, template_body));
             write_note_with_audit(state, "mcp.createNote", "note.create", path, &markdown, None)
         }
+        "mcp.updateFrontmatter" => {
+            if !state.trust_stdio {
+                return Err("mcp.updateFrontmatter requires --trust-stdio".into());
+            }
+            let path = args
+                .get("path")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "path is required".to_string())?;
+            let field = args
+                .get("field")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "field is required".to_string())?;
+            let value = args
+                .get("value")
+                .and_then(Value::as_str)
+                .ok_or_else(|| "value is required".to_string())?;
+            update_frontmatter_with_audit(state, path, field, value)
+        }
         other => Err(format!("Unknown tool: {other}")),
     }
 }
@@ -423,34 +498,102 @@ fn write_note_with_audit(
     markdown: &str,
     expected_content_hash: Option<String>,
 ) -> Result<Value, String> {
+    let start = Instant::now();
     let audit_id = Uuid::new_v4().to_string();
+
+    let result = save_note_with_options(
+        &state.session.descriptor.id,
+        &state.session.root,
+        &RelativeVaultPath::parse(path).map_err(|error| error.to_string())?,
+        markdown,
+        expected_content_hash.as_deref(),
+        SaveNoteOptions { dry_run: false },
+    );
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+    let success = result.is_ok();
+    let detail = result.as_ref().err().map(|error| error.to_string());
+
     append_mcp_mutation(
         &state.session.root,
         McpMutationAuditRecord {
-            id: audit_id.clone(),
+            id: audit_id,
             tool_name: tool_name.into(),
             mode: "write-approved".into(),
             command_id: command_id.into(),
             requested_at: Utc::now().to_rfc3339(),
             approved_at: Some(Utc::now().to_rfc3339()),
-            outcome: "allowed".into(),
+            outcome: if success { "allowed" } else { "denied" }.into(),
             note_path: Some(path.into()),
-            detail: None,
+            detail,
+            input_summary: Some(format!("path={path}")),
+            success: Some(success),
+            duration_ms: Some(duration_ms),
         },
     )
     .map_err(|error| error.to_string())?;
 
+    let output = result.map_err(|error| error.to_string())?;
+    serde_json::to_value(output).map_err(|error| error.to_string())
+}
+
+fn update_frontmatter_with_audit(
+    state: &McpStdioState,
+    path: &str,
+    field: &str,
+    value: &str,
+) -> Result<Value, String> {
+    let start = Instant::now();
+    let audit_id = Uuid::new_v4().to_string();
+
     let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
-    let output = save_note_with_options(
+    let note = read_note(
         &state.session.descriptor.id,
         &state.session.root,
         &relative,
-        markdown,
-        expected_content_hash.as_deref(),
-        SaveNoteOptions { dry_run: false },
+    );
+
+    let result = note
+        .map_err(|error| error.to_string())
+        .and_then(|note_doc| {
+            let updated_markdown =
+                set_frontmatter_field(&note_doc.markdown, field, value).map_err(|error| error.to_string())?;
+            save_note_with_options(
+                &state.session.descriptor.id,
+                &state.session.root,
+                &relative,
+                &updated_markdown,
+                None,
+                SaveNoteOptions { dry_run: false },
+            )
+            .map_err(|error| error.to_string())
+        });
+
+    let duration_ms = start.elapsed().as_millis() as u64;
+    let success = result.is_ok();
+    let detail = result.as_ref().err().map(|error| error.to_string());
+
+    append_mcp_mutation(
+        &state.session.root,
+        McpMutationAuditRecord {
+            id: audit_id,
+            tool_name: "mcp.updateFrontmatter".into(),
+            mode: "write-approved".into(),
+            command_id: "mcp.updateFrontmatter".into(),
+            requested_at: Utc::now().to_rfc3339(),
+            approved_at: Some(Utc::now().to_rfc3339()),
+            outcome: if success { "allowed" } else { "denied" }.into(),
+            note_path: Some(path.into()),
+            detail,
+            input_summary: Some(format!("path={path}, field={field}")),
+            success: Some(success),
+            duration_ms: Some(duration_ms),
+        },
     )
     .map_err(|error| error.to_string())?;
-    Ok(serde_json::to_value(output).map_err(|error| error.to_string())?)
+
+    let output = result.map_err(|error| error.to_string())?;
+    serde_json::to_value(output).map_err(|error| error.to_string())
 }
 
 fn render_markdown_html(markdown: &str) -> String {
@@ -481,7 +624,10 @@ mod tests {
         assert!(names.contains(&"mcp.inspectGraphSummary"));
         assert!(names.contains(&"mcp.exportGraph"));
         assert!(names.contains(&"mcp.renderMarkdown"));
-        assert!(names.len() >= 12);
+        assert!(names.contains(&"mcp.listSavedViews"));
+        assert!(names.contains(&"mcp.executeDql"));
+        assert!(names.contains(&"mcp.listInbox"));
+        assert!(names.len() >= 15);
     }
 
     #[test]
@@ -510,8 +656,40 @@ mod tests {
         let audit = fs::read_to_string(&audit_path).expect("read audit");
         assert!(audit.contains("mcp.proposePatch"));
         assert!(audit.contains("alpha.md"));
+        assert!(audit.contains("\"success\":true"));
+        assert!(audit.contains("\"duration_ms\""));
+        assert!(audit.contains("\"input_summary\""));
 
         let note = fs::read_to_string(dir.path().join("alpha.md")).expect("read note");
         assert!(note.contains("Patched body"));
+    }
+
+    #[test]
+    fn mcp_update_frontmatter_modifies_field() {
+        let dir = tempdir().expect("tempdir");
+        fs::write(
+            dir.path().join("note.md"),
+            "---\nstatus: draft\n---\n\n# Note\n",
+        )
+        .expect("write note");
+
+        let session = open_vault(&dir.path().display().to_string()).expect("open vault");
+        let state = McpStdioState {
+            session,
+            trust_stdio: true,
+        };
+
+        update_frontmatter_with_audit(&state, "note.md", "status", "reviewed")
+            .expect("update frontmatter");
+
+        let note = fs::read_to_string(dir.path().join("note.md")).expect("read note");
+        assert!(note.contains("status: reviewed"));
+        assert!(!note.contains("status: draft"));
+
+        let audit_path = dir.path().join(".scriptor/audit/mcp-mutations.jsonl");
+        let audit = fs::read_to_string(&audit_path).expect("read audit");
+        assert!(audit.contains("mcp.updateFrontmatter"));
+        assert!(audit.contains("\"success\":true"));
+        assert!(audit.contains("field=status"));
     }
 }

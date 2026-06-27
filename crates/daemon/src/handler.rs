@@ -19,6 +19,7 @@ use crate::command_gateway;
 use crate::export_job::ExportJobRunner;
 use crate::index_job::IndexRebuildJob;
 
+#[derive(Default)]
 pub struct DaemonState {
     pub(crate) session: Option<VaultSession>,
     pub(crate) index_cache: Option<IndexCache>,
@@ -26,19 +27,6 @@ pub struct DaemonState {
     pub(crate) index_rebuild: IndexRebuildJob,
     pub(crate) export_job: ExportJobRunner,
     pub(crate) vault_watcher: Option<VaultWatcher>,
-}
-
-impl Default for DaemonState {
-    fn default() -> Self {
-        Self {
-            session: None,
-            index_cache: None,
-            config_generation: 0,
-            index_rebuild: IndexRebuildJob::default(),
-            export_job: ExportJobRunner::default(),
-            vault_watcher: None,
-        }
-    }
 }
 
 impl DaemonState {
@@ -230,7 +218,7 @@ impl DaemonState {
     fn list_notes(&self) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let notes = list_note_summaries(&cache, &session.descriptor.id)
+        let notes = list_note_summaries(cache, &session.descriptor.id)
             .map_err(|error| error.to_string())?
             .into_iter()
             .map(|entry| NoteSummary {
@@ -244,7 +232,7 @@ impl DaemonState {
     fn search_notes(&self, query: String, limit: u32) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let hits = search_notes(&cache, &session.descriptor.id, query.trim(), limit)
+        let hits = search_notes(cache, &session.descriptor.id, query.trim(), limit)
             .map_err(|error| error.to_string())?
             .into_iter()
             .map(|entry| SearchHit {
@@ -282,14 +270,14 @@ impl DaemonState {
     fn health_report(&self) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let json = health_report_json(&cache, session).map_err(|error| error.to_string())?;
+        let json = health_report_json(cache, session).map_err(|error| error.to_string())?;
         Ok(RpcPayload::HealthReport { json })
     }
 
     fn health_diagnostics(&self) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let json = health_diagnostics_json(&cache, session).map_err(|error| error.to_string())?;
+        let json = health_diagnostics_json(cache, session).map_err(|error| error.to_string())?;
         Ok(RpcPayload::HealthDiagnostics { json })
     }
 
@@ -303,7 +291,7 @@ impl DaemonState {
     fn backlinks(&self, path: String) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let hits = backlinks_for_path(&cache, session, &path)
+        let hits = backlinks_for_path(cache, session, &path)
             .map_err(|error| error.to_string())?;
         let json = serde_json::to_string(&hits).map_err(|error| error.to_string())?;
         Ok(RpcPayload::Backlinks { path, json })
@@ -313,7 +301,7 @@ impl DaemonState {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
         let graph = query_focused_graph(
-            &cache,
+            cache,
             session,
             path.as_deref(),
             depth.max(1),
@@ -342,8 +330,8 @@ impl DaemonState {
             SaveNoteOptions { dry_run },
         )
         .map_err(|error| error.to_string())?;
-        if !dry_run {
-            if let Err(error) = incremental_note_index_with_cache(session, self.require_cache()?, &path, &[]) {
+        if !dry_run
+            && let Err(error) = incremental_note_index_with_cache(session, self.require_cache()?, &path, &[]) {
                 if let Err(rollback_error) = rollback_save_note(
                     &session.descriptor.id,
                     &session.root,
@@ -356,7 +344,6 @@ impl DaemonState {
                 }
                 return Err(error.to_string());
             }
-        }
         let json = serde_json::to_string(&output).map_err(|error| error.to_string())?;
         Ok(RpcPayload::NoteSaved { json })
     }
