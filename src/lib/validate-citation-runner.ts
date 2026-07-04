@@ -51,4 +51,3 @@ test('builds CSL JSON items from bibliography rows', () => {
   assert.deepEqual(item.issued, { 'date-parts': [[2024]] })
 })
 
-console.log('Citation validation passed')

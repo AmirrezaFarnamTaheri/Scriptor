@@ -1,10 +1,9 @@
-# BL-39: WASM Plugin Runtime
+# WASM Plugin Runtime
 
 ## Status
 
 - **Phase**: D — Strategic Expansion
 - **Priority**: Medium
-- **Tracking**: BL-39
 
 ## Current State
 

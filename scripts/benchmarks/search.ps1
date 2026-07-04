@@ -7,4 +7,4 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "../..")
 
-cargo run -p scriptor-cli -- bench-search $VaultPath $Query --iterations $Iterations
+cargo run --release -p scriptor-cli -- bench-search $VaultPath $Query --iterations $Iterations

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test, type Page } from '@playwright/test'
 
-import { settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
+import { settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outputDir = path.join(rootDir, 'docs/assets/screenshots')
@@ -101,6 +101,13 @@ test.beforeAll(() => {
 })
 
 test.beforeEach(async ({ page }) => {
+  page.on('console', msg => console.log('BROWSER CONSOLE:', msg.type(), msg.text()))
+  page.on('pageerror', err => console.log('BROWSER ERROR:', err.message))
+  page.on('response', response => {
+    if (response.status() === 404) {
+      console.error(`404 NOT FOUND: ${response.url()}`)
+    }
+  })
   await page.addInitScript((chromePrefs) => {
     window.localStorage.setItem('scriptor:app-theme', 'light')
     window.localStorage.setItem('scriptor:onboarding-complete', 'true')
@@ -268,9 +275,9 @@ test('conflict resolver modal', async ({ page }) => {
 test('note history panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.keyboard.press('Control+KeyK')
+  await page.getByLabel('Command or search').click()
   const palette = page.getByRole('dialog', { name: 'Command palette' })
-  await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('Note history')
+  await palette.getByRole('searchbox').fill('Note history')
   await palette.getByRole('option', { name: 'Note history timeline' }).click()
   const historyPanel = page.getByRole('dialog', { name: 'Note history' })
   await expect(historyPanel).toBeVisible()
@@ -298,7 +305,7 @@ test('keyboard shortcut editor', async ({ page }) => {
 test('mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1024 })
   await page.goto('/', { waitUntil: 'networkidle' })
-  await waitForFullWorkspace(page)
+  await waitForEditorReady(page)
   await page.screenshot({ path: shotPath('workspace-mobile'), fullPage: false })
   await expect(page).toHaveScreenshot('workspace-mobile.png', { fullPage: false })
 })

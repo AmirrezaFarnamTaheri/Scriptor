@@ -138,12 +138,12 @@ impl TuiApp {
         if !self.use_daemon || self.daemon_opened {
             return Ok(());
         }
-        let response = rpc_call(RpcRequest {
-            id: self.next_rpc_id(),
-            method: RpcMethod::OpenVault {
+        let response = rpc_call(RpcRequest::new(
+            self.next_rpc_id(),
+            RpcMethod::OpenVault {
                 path: self.path.display().to_string(),
             },
-        })?;
+        ))?;
         match response.result {
             RpcResult::Ok(RpcPayload::VaultOpened { .. }) => {
                 self.daemon_opened = true;
@@ -158,10 +158,10 @@ impl TuiApp {
         if self.use_daemon {
             self.ensure_daemon_vault()?;
             if self.query.trim().is_empty() {
-                let response = rpc_call(RpcRequest {
-                    id: self.next_rpc_id(),
-                    method: RpcMethod::ListNotes,
-                })?;
+                let response = rpc_call(RpcRequest::new(
+                    self.next_rpc_id(),
+                    RpcMethod::ListNotes,
+                ))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::NoteList { notes }) => {
                         self.notes = notes
@@ -176,13 +176,13 @@ impl TuiApp {
                     _ => return Err("daemon returned unexpected payload for ListNotes".into()),
                 }
             } else {
-                let response = rpc_call(RpcRequest {
-                    id: self.next_rpc_id(),
-                    method: RpcMethod::SearchNotes {
+                let response = rpc_call(RpcRequest::new(
+                    self.next_rpc_id(),
+                    RpcMethod::SearchNotes {
                         query: self.query.trim().to_string(),
                         limit: 200,
                     },
-                })?;
+                ))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::SearchHits { hits }) => {
                         self.notes = hits
@@ -242,20 +242,20 @@ impl TuiApp {
     fn refresh_footer_meta(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.use_daemon {
             self.ensure_daemon_vault()?;
-            let git = rpc_call(RpcRequest {
-                id: self.next_rpc_id(),
-                method: RpcMethod::GitStatus,
-            })?;
+            let git = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::GitStatus,
+            ))?;
             self.git_footer = match git.result {
                 RpcResult::Ok(RpcPayload::GitStatus { json }) => summarize_git_json(&json),
                 RpcResult::Err(message) => format!("git: {message}"),
                 _ => String::from("git: unexpected response"),
             };
 
-            let health = rpc_call(RpcRequest {
-                id: self.next_rpc_id(),
-                method: RpcMethod::HealthDiagnostics,
-            })?;
+            let health = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::HealthDiagnostics,
+            ))?;
             self.health_footer = match health.result {
                 RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => summarize_health_json(&json),
                 RpcResult::Err(message) => format!("health: {message}"),
@@ -281,12 +281,12 @@ impl TuiApp {
         }
         let body = if self.use_daemon {
             self.ensure_daemon_vault()?;
-            let response = rpc_call(RpcRequest {
-                id: self.next_rpc_id(),
-                method: RpcMethod::ReadNote {
+            let response = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::ReadNote {
                     path: note.path.clone(),
                 },
-            })?;
+            ))?;
             match response.result {
                 RpcResult::Ok(RpcPayload::NoteDocument { markdown, .. }) => markdown,
                 RpcResult::Err(message) => return Err(message.into()),
@@ -324,12 +324,12 @@ impl TuiApp {
         };
 
         if self.use_daemon {
-            let response = rpc_call(RpcRequest {
-                id: self.next_rpc_id(),
-                method: RpcMethod::Backlinks {
+            let response = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::Backlinks {
                     path: note.path.clone(),
                 },
-            })?;
+            ))?;
             let json = match response.result {
                 RpcResult::Ok(RpcPayload::Backlinks { json, .. }) => json,
                 RpcResult::Err(message) => {
@@ -360,13 +360,13 @@ impl TuiApp {
     fn refresh_graph_pane(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let focus = self.selected_note().map(|note| note.path.clone());
         if self.use_daemon {
-            let response = rpc_call(RpcRequest {
-                id: self.next_rpc_id(),
-                method: RpcMethod::GraphSummary {
+            let response = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::GraphSummary {
                     path: focus.clone(),
                     depth: 2,
                 },
-            })?;
+            ))?;
             let json = match response.result {
                 RpcResult::Ok(RpcPayload::GraphSummary { json }) => json,
                 RpcResult::Err(message) => {
@@ -397,10 +397,10 @@ impl TuiApp {
 
     fn refresh_health_pane(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.use_daemon {
-            let response = rpc_call(RpcRequest {
-                id: self.next_rpc_id(),
-                method: RpcMethod::HealthDiagnostics,
-            })?;
+            let response = rpc_call(RpcRequest::new(
+                self.next_rpc_id(),
+                RpcMethod::HealthDiagnostics,
+            ))?;
             let json = match response.result {
                 RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => json,
                 RpcResult::Err(message) => {

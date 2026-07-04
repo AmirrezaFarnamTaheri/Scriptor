@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,11 @@ use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
 use crate::write::save_note;
+
+static DEFINITION_LINE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]:\s*(.+)$").expect("valid definition regex"));
+static WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex"));
 
 pub const RULE_MISSING_HEADING: &str = "missing-heading";
 pub const RULE_STALE_DEFINITIONS: &str = "stale-definitions";
@@ -54,6 +60,7 @@ struct TextEdit {
     new_text: String,
 }
 
+/// Normalizes and validates a list of lint rule names.
 pub fn normalize_rule_filter(rules: &[String]) -> Result<Vec<String>, VaultError> {
     if rules.is_empty() {
         return Ok(ALL_RULES.iter().map(|rule| (*rule).to_string()).collect());
@@ -78,6 +85,7 @@ pub fn normalize_rule_filter(rules: &[String]) -> Result<Vec<String>, VaultError
     Ok(active)
 }
 
+/// Lints all notes in the vault, returning a report of issues found.
 pub fn lint_vault(
     vault_id: &str,
     root: &VaultRoot,
@@ -343,14 +351,12 @@ struct DefinitionRange {
 }
 
 fn split_body_and_definitions(markdown: &str) -> (String, BTreeMap<String, DefinitionRange>) {
-    let definition_line =
-        Regex::new(r"^\[([^\]]+)\]:\s*(.+)$").expect("valid definition regex");
     let lines: Vec<&str> = markdown.lines().collect();
     let mut definition_start = lines.len();
     let mut existing = BTreeMap::new();
 
     for (index, line) in lines.iter().enumerate().rev() {
-        if let Some(capture) = definition_line.captures(line) {
+        if let Some(capture) = DEFINITION_LINE_RE.captures(line) {
             let label = capture.get(1).map(|value| value.as_str()).unwrap_or("").to_string();
             let url = capture.get(2).map(|value| value.as_str()).unwrap_or("").trim().to_string();
             existing.insert(label, DefinitionRange { url });
@@ -365,11 +371,10 @@ fn split_body_and_definitions(markdown: &str) -> (String, BTreeMap<String, Defin
 }
 
 fn expected_link_definitions(markdown: &str, note_paths: &[String]) -> BTreeMap<String, String> {
-    let wikilink = Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex");
     let (body, _) = split_body_and_definitions(markdown);
     let mut expected = BTreeMap::new();
 
-    for capture in wikilink.captures_iter(&body) {
+    for capture in WIKILINK_RE.captures_iter(&body) {
         let label = capture
             .get(1)
             .map(|value| value.as_str().trim())

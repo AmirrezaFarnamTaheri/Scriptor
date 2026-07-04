@@ -131,6 +131,10 @@ fn build_export_job_input(
         None => default_export_directory(session.root.root()),
     };
 
+    let config = scriptor_vault::load_vault_config(session.root.root())
+        .map_err(|error| error.to_string())?;
+    let trusted_pandoc_hash = config.trusted_binaries.and_then(|tb| tb.pandoc_hash);
+
     Ok(ExportJobInput {
         format: format.to_string(),
         source_markdown: note.markdown,
@@ -142,6 +146,7 @@ fn build_export_job_input(
         vault_root: session.root.root().display().to_string(),
         job_id,
         preserve_temp_on_failure: false,
+        trusted_pandoc_hash,
     })
 }
 
@@ -169,6 +174,10 @@ fn build_export_job_from_markdown(
         None => default_export_directory(session.root.root()),
     };
 
+    let config = scriptor_vault::load_vault_config(session.root.root())
+        .map_err(|error| error.to_string())?;
+    let trusted_pandoc_hash = config.trusted_binaries.and_then(|tb| tb.pandoc_hash);
+
     Ok(ExportJobInput {
         format: format.to_string(),
         source_markdown,
@@ -180,6 +189,7 @@ fn build_export_job_from_markdown(
         vault_root: session.root.root().display().to_string(),
         job_id,
         preserve_temp_on_failure: false,
+        trusted_pandoc_hash,
     })
 }
 
@@ -393,6 +403,7 @@ pub struct PdfTranslateOutput {
 
 #[tauri::command]
 pub fn pdf_translate(
+    state: tauri::State<AppState>,
     input_path: String,
     lang_in: Option<String>,
     lang_out: Option<String>,
@@ -400,16 +411,23 @@ pub fn pdf_translate(
 ) -> Result<PdfTranslateOutput, String> {
     use std::path::{Path, PathBuf};
 
+    let session = active_session(&state)?;
+    let relative = RelativeVaultPath::parse(&input_path).map_err(|error| format!("invalid input_path: {error}"))?;
+    let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+    let resolved_str = resolved.display().to_string();
+
     let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
     let mut command = std::process::Command::new(&pdf2zh);
     command
-        .arg(&input_path)
+        .arg(&resolved_str)
         .arg("-li")
         .arg(lang_in.unwrap_or_else(|| "en".into()))
         .arg("-lo")
         .arg(lang_out.unwrap_or_else(|| "zh".into()));
     if let Some(out) = output_path {
-        command.arg("-o").arg(out);
+        let out_relative = RelativeVaultPath::parse(&out).map_err(|error| format!("invalid output_path: {error}"))?;
+        let out_resolved = session.root.resolve_relative(&out_relative).map_err(|error| error.to_string())?;
+        command.arg("-o").arg(&out_resolved);
     }
 
     let status = command.status().map_err(|error| {
@@ -421,12 +439,11 @@ pub fn pdf_translate(
         return Err("pdf2zh exited with an error.".into());
     }
 
-    let input = PathBuf::from(&input_path);
-    let stem = input
+    let stem = resolved
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("document");
-    let parent = input.parent().unwrap_or_else(|| Path::new("."));
+    let parent = resolved.parent().unwrap_or_else(|| Path::new("."));
     let inferred = parent.join(format!("{stem}-dual.pdf"));
     Ok(PdfTranslateOutput {
         output_path: inferred.display().to_string(),

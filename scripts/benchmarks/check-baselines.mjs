@@ -41,20 +41,42 @@ function checkThreshold(name, measured, baseline) {
 const baselines = loadBaselines()
 const report = { timestamp: new Date().toISOString(), results: [] }
 
+const requiredBaselines = ['vault_scan_1k_ms', 'search_1k_ms', 'editor_frame_ms', 'preview_render_ms', 'startup_ms']
+for (const key of requiredBaselines) {
+  if (baselines[key] === undefined) {
+    console.warn(`WARNING: baseline '${key}' is not defined in perf-baselines.json`)
+  }
+}
+
 console.log('==> vault_scan benchmark')
-const scanOut = run('cargo run -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 3')
+const scanOut = run('cargo run --release -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 3')
 const scanMs = parseMeanMs(scanOut) ?? 0
 report.results.push(checkThreshold('vault_scan_1k_ms', scanMs, baselines.vault_scan_1k_ms))
 
 console.log('==> search benchmark')
-const searchOut = run('cargo run -p scriptor-cli -- bench-search packages/test-fixtures/vaults/minimal Research --iterations 3')
+const searchOut = run('cargo run --release -p scriptor-cli -- bench-search packages/test-fixtures/vaults/minimal Research --iterations 3')
 const searchMs = parseMeanMs(searchOut) ?? 0
 report.results.push(checkThreshold('search_1k_ms', searchMs, baselines.search_1k_ms))
 
 console.log('==> canvas_snapshot benchmark')
-const canvasOut = run('cargo run -p scriptor-cli -- bench-canvas-snapshot packages/test-fixtures/canvas/overlap-blocks.json --iterations 3')
+const canvasOut = run('cargo run --release -p scriptor-cli -- bench-canvas-snapshot packages/test-fixtures/canvas/overlap-blocks.json --iterations 3')
 const canvasMs = parseMeanMs(canvasOut) ?? 0
 report.results.push(checkThreshold('canvas_snapshot_ms', canvasMs, baselines.canvas_snapshot_ms))
+
+console.log('==> editor_frame benchmark')
+const editorOut = run('cargo run --release -p scriptor-cli -- bench-editor-frame packages/test-fixtures/vaults/minimal --iterations 3')
+const editorMs = parseMeanMs(editorOut) ?? 0
+report.results.push(checkThreshold('editor_frame_ms', editorMs, baselines.editor_frame_ms ?? 16))
+
+console.log('==> preview_render benchmark')
+const previewOut = run('cargo run --release -p scriptor-cli -- bench-preview-render packages/test-fixtures/vaults/minimal --iterations 3')
+const previewMs = parseMeanMs(previewOut) ?? 0
+report.results.push(checkThreshold('preview_render_ms', previewMs, baselines.preview_render_ms ?? 250))
+
+console.log('==> startup benchmark')
+const startupOut = run('cargo run -p scriptor-cli -- bench-startup --iterations 3')
+const startupMs = parseMeanMs(startupOut) ?? 0
+report.results.push(checkThreshold('startup_ms', startupMs, baselines.startup_ms ?? 2000))
 
 console.log('\n=== Performance Baseline Report ===')
 const failures = []

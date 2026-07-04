@@ -106,7 +106,9 @@ pub fn render_plantuml_svg(source: &str) -> Result<String, ExportError> {
 fn run_plantuml_engine(input_path: &std::path::Path, svg_path: &std::path::Path) -> Result<String, String> {
     if let Ok(path) = std::env::var("PLANTUML_BIN") {
         if !path.is_empty() {
-            let output = Command::new(&path)
+            let binary = std::path::PathBuf::from(&path);
+            validate_binary_path(&binary, "PLANTUML_BIN")?;
+            let output = Command::new(&binary)
                 .args(["-tsvg", &input_path.display().to_string()])
                 .output()
                 .map_err(|error| error.to_string())?;
@@ -117,6 +119,7 @@ fn run_plantuml_engine(input_path: &std::path::Path, svg_path: &std::path::Path)
     }
 
     if let Ok(jar) = std::env::var("PLANTUML_JAR") {
+        validate_binary_path(std::path::Path::new(&jar), "PLANTUML_JAR")?;
         let output = Command::new("java")
             .args(["-jar", &jar, "-tsvg", &input_path.display().to_string()])
             .output()
@@ -137,6 +140,22 @@ fn run_plantuml_engine(input_path: &std::path::Path, svg_path: &std::path::Path)
         ));
     }
     fs::read_to_string(svg_path).map_err(|e| e.to_string())
+}
+
+fn validate_binary_path(binary: &std::path::Path, env_var: &str) -> Result<(), String> {
+    if !binary.exists() {
+        return Err(format!("{env_var} path does not exist: {}", binary.display()));
+    }
+    if binary.is_dir() {
+        return Err(format!("{env_var} path is a directory, not a file: {}", binary.display()));
+    }
+    let canonical = binary
+        .canonicalize()
+        .map_err(|e| format!("{env_var} path cannot be canonicalized: {e}"))?;
+    if canonical.is_dir() {
+        return Err(format!("{env_var} resolved to a directory: {}", canonical.display()));
+    }
+    Ok(())
 }
 
 fn which_binary(name: &str) -> Option<std::path::PathBuf> {

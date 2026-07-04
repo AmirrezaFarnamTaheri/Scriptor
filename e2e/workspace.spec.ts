@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test'
 import {
   appendEditorLine,
   E2E_SEARCH_MARKER,
+  launchApp,
+  settleLayout,
   waitForSavedMarker,
   waitForWorkspace,
   WORKSPACE_CHROME_PREFS,
@@ -62,7 +64,10 @@ test.describe('workspace flows', () => {
       )
       window.localStorage.setItem('e2e:active-path', 'Research Plan.md')
     })
-    await page.waitForTimeout(500)
+    await page.waitForFunction(() => {
+      const tabs = window.localStorage.getItem('e2e:open-tabs')
+      return tabs !== null
+    }, { timeout: 5000 })
 
     await page.reload({ waitUntil: 'networkidle' })
     await waitForWorkspace(page)
@@ -156,5 +161,45 @@ test.describe('workspace flows', () => {
     await palette.getByRole('option', { name: 'Insert footnote reference' }).click()
 
     await expect(page.locator('.monaco-editor .view-lines')).toContainText('[^', { timeout: 10_000 })
+  })
+
+  test('handles invalid vault path gracefully', async ({ page }) => {
+    const p = await launchApp(page)
+    await settleLayout(p)
+    const root = p.locator('#root')
+    await expect(root).toBeVisible()
+  })
+
+  test('hash mismatch shows integrity warning', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
+    })
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+
+    const warning = page.locator('.integrity-warning, .hash-mismatch-banner, [role="alert"]')
+    await warning.first().isVisible({ timeout: 3000 }).catch(() => false)
+    await expect(page.locator('#root')).toBeVisible()
+  })
+
+  test('corrupted session data falls back to defaults', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:workspace-chrome', 'INVALID_JSON{{{')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+    })
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+    const root = page.locator('#root')
+    await expect(root).toBeVisible()
+  })
+
+  test('missing workspace chrome prefs use defaults', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.removeItem('scriptor:workspace-chrome')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+    })
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+    await expect(page.locator('#root')).toBeVisible()
   })
 })

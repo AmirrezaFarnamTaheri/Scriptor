@@ -21,11 +21,8 @@ fn next_rpc_id() -> u64 {
 }
 
 pub(crate) fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
-    let response = rpc_call(RpcRequest {
-        id: next_rpc_id(),
-        method,
-    })
-    .map_err(|error| error.to_string())?;
+    let response = rpc_call(RpcRequest::new(next_rpc_id(), method))
+        .map_err(|error| error.to_string())?;
     match response.result {
         RpcResult::Ok(payload) => Ok(payload),
         RpcResult::Err(message) => Err(message),

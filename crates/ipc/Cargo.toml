@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-ipc"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 
 [lib]
@@ -10,4 +10,4 @@ path = "src/lib.rs"
 postcard = { version = "1", features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
-ts-rs = "10"
+ts-rs = { version = "10", features = ["no-serde-warnings"] }

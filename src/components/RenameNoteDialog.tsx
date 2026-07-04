@@ -1,4 +1,8 @@
+import { useRef } from 'react'
+
 import type { RenameNoteDryRunOutput } from '../types/vault'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface RenameNoteDialogProps {
   currentPath: string
@@ -17,6 +21,10 @@ export function RenameNoteDialog({
   onPreview,
   onApply,
 }: RenameNoteDialogProps) {
+  const dialogRef = useRef<HTMLFormElement>(null)
+  useEscapeToClose(true, onClose)
+  useFocusTrap(dialogRef, { active: true })
+
   const folderPrefix = currentPath.includes('/')
     ? `${currentPath.slice(0, currentPath.lastIndexOf('/') + 1)}`
     : ''
@@ -30,8 +38,10 @@ export function RenameNoteDialog({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <form
+        ref={dialogRef}
         className="rename-dialog"
         role="dialog"
+        aria-modal="true"
         aria-label="Rename note"
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => {

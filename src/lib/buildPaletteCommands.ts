@@ -73,6 +73,16 @@ export interface PaletteCommandContext {
   applyEditorTransform?: (action: 'footnote') => void
   setPerfHudOpen?: (open: boolean) => void
   perfHudOpen?: boolean
+  hibernateGraph?: boolean
+  setHibernateGraph?: (value: boolean) => void
+  hibernateMcp?: boolean
+  setHibernateMcp?: (value: boolean) => void
+  hibernateWatcher?: boolean
+  setHibernateWatcher?: (value: boolean) => void
+  hibernateGit?: boolean
+  setHibernateGit?: (value: boolean) => void
+  hibernateSpellcheck?: boolean
+  setHibernateSpellcheck?: (value: boolean) => void
 }
 
 export function buildPaletteCommands(context: PaletteCommandContext): PaletteCommand[] {
@@ -116,6 +126,16 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     applyEditorTransform,
     setPerfHudOpen,
     perfHudOpen,
+    hibernateGraph,
+    setHibernateGraph,
+    hibernateMcp,
+    setHibernateMcp,
+    hibernateWatcher,
+    setHibernateWatcher,
+    hibernateGit,
+    setHibernateGit,
+    hibernateSpellcheck,
+    setHibernateSpellcheck,
   } = context
 
   const baseCommands: AppCommandDefinition[] = [
@@ -240,6 +260,56 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
       label: splitPreview ? 'Close split preview' : 'Open split preview',
       run: () => setSplitPreview((value) => !value),
     },
+    ...(setHibernateGraph
+      ? [
+          {
+            id: 'toggle-hibernate-graph',
+            label: hibernateGraph ? 'Wake graph simulation subsystem' : 'Hibernate graph simulation subsystem',
+            run: () => setHibernateGraph(!hibernateGraph),
+            keywords: ['performance', 'battery', 'd3', 'force', 'cpu'],
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
+    ...(setHibernateMcp
+      ? [
+          {
+            id: 'toggle-hibernate-mcp',
+            label: hibernateMcp ? 'Wake MCP subsystem' : 'Hibernate MCP subsystem',
+            run: () => setHibernateMcp(!hibernateMcp),
+            keywords: ['performance', 'battery', 'model', 'context', 'protocol'],
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
+    ...(setHibernateWatcher
+      ? [
+          {
+            id: 'toggle-hibernate-watcher',
+            label: hibernateWatcher ? 'Wake file system watcher' : 'Hibernate file system watcher',
+            run: () => setHibernateWatcher(!hibernateWatcher),
+            keywords: ['performance', 'battery', 'file', 'system', 'watch'],
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
+    ...(setHibernateGit
+      ? [
+          {
+            id: 'toggle-hibernate-git',
+            label: hibernateGit ? 'Wake Git status polling' : 'Hibernate Git status polling',
+            run: () => setHibernateGit(!hibernateGit),
+            keywords: ['performance', 'battery', 'git', 'poll', 'status'],
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
+    ...(setHibernateSpellcheck
+      ? [
+          {
+            id: 'toggle-hibernate-spellcheck',
+            label: hibernateSpellcheck ? 'Wake spellcheck and grammar engine' : 'Hibernate spellcheck and grammar engine',
+            run: () => setHibernateSpellcheck(!hibernateSpellcheck),
+            keywords: ['performance', 'battery', 'spellcheck', 'grammar', 'languagetool', 'hunspell'],
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
     ...(setEditorSurfaceMode
       ? [
           {

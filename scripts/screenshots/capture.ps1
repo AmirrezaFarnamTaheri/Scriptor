@@ -14,12 +14,6 @@ if (-not $env:CI) {
 }
 Write-Host "==> Browser channel: $env:PLAYWRIGHT_CHANNEL"
 
-Write-Host "==> Build screenshot frontend (E2E mock bridge)"
-$env:VITE_E2E_MODE = "true"
-pnpm build --mode e2e
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-Remove-Item Env:VITE_E2E_MODE -ErrorAction SilentlyContinue
-
 Write-Host "==> Capture screenshots via playwright.e2e.config"
 pnpm exec playwright test --config playwright.e2e.config.ts e2e/screenshots.spec.ts
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

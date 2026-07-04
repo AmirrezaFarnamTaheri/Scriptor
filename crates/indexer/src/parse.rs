@@ -1,5 +1,15 @@
+use std::sync::LazyLock;
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+static TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?:^|\s)#([A-Za-z0-9_/-]+)").expect("valid tag regex"));
+static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex")
+});
+static MARKDOWN_LINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[([^\]]*)\]\(([^)]+)\)").expect("valid markdown link regex"));
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -229,8 +239,7 @@ fn extract_title(body: &str, path: &str) -> String {
 }
 
 fn extract_tags(body: &str) -> Vec<String> {
-    let tag_regex = Regex::new(r"(?:^|\s)#([A-Za-z0-9_/-]+)").expect("valid tag regex");
-    tag_regex
+    TAG_RE
         .captures_iter(body)
         .filter_map(|capture| capture.get(1).map(|value| value.as_str().to_string()))
         .collect()
@@ -245,13 +254,11 @@ fn extract_headings(body: &str) -> Vec<String> {
 
 fn extract_links(body: &str) -> Vec<ParsedLink> {
     let mut links = Vec::new();
-    let wikilink = Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex");
-    let markdown_link = Regex::new(r"\[([^\]]*)\]\(([^)]+)\)").expect("valid markdown link regex");
 
     for (index, line) in body.lines().enumerate() {
         let line_number = (index + 1) as u32;
 
-        for capture in wikilink.captures_iter(line) {
+        for capture in WIKILINK_RE.captures_iter(line) {
             let target = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
             let label = capture
                 .get(2)
@@ -268,7 +275,7 @@ fn extract_links(body: &str) -> Vec<ParsedLink> {
             });
         }
 
-        for capture in markdown_link.captures_iter(line) {
+        for capture in MARKDOWN_LINK_RE.captures_iter(line) {
             let label = capture.get(1).map(|value| value.as_str()).unwrap_or("").to_string();
             let target = capture.get(2).map(|value| value.as_str()).unwrap_or("").to_string();
             let kind = if target.starts_with("http://") || target.starts_with("https://") {

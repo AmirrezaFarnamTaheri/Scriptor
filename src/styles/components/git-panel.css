@@ -1,4 +1,4 @@
-/* Git panel (BL-22) */
+/* Git panel */
 
 .git-panel {
   width: min(520px, calc(100vw - 32px));
@@ -9,7 +9,7 @@
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-raised);
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .git-panel header {
@@ -86,5 +86,12 @@
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--bg);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.git-commit-form input:focus {
+  outline: none;
+  border-color: var(--primary-strong);
+  box-shadow: var(--focus-ring);
 }

@@ -1,4 +1,4 @@
-/* Modal and toast overlays (BL-22) */
+/* Modal and toast overlays */
 
 .modal-backdrop {
   position: fixed;
@@ -9,7 +9,7 @@
   background: var(--overlay);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  animation: fade-rise var(--spring-gentle) both;
+  animation: fade-rise var(--ease-gentle) both;
 }
 
 .app-toast {
@@ -24,7 +24,7 @@
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: var(--surface-raised);
+  background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: var(--shadow-md);
   color: var(--ink-strong);
 }

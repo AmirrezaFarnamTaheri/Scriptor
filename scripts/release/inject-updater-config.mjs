@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Injects Tauri updater pubkey + endpoint from env before release builds (BL-30).
+ * Injects Tauri updater pubkey + endpoint from env before release builds.
  *
  * Usage:
  *   SCRIPTOR_UPDATER_PUBKEY="<base64>" SCRIPTOR_UPDATER_ENDPOINT="https://..." \

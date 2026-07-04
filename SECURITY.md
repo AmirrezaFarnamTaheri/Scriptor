@@ -34,6 +34,8 @@ We will coordinate disclosure and a fix before public announcement when appropri
 
 - Scriptor desktop application and bundled daemon
 - Vault data handling, plugin sandbox boundaries, and MCP permission modes (15 tools)
+- Endpoint signing (HMAC) for daemon RPC authentication
+- Vault encryption at rest (AES-256-GCM with Argon2id key derivation)
 - Daemon tracing and structured telemetry spans
 - Release artifacts published from this repository
 

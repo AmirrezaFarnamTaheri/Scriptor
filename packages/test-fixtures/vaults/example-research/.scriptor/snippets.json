@@ -1,0 +1,20 @@
+[
+  {
+    "id": "snippet-daily",
+    "name": "Daily note header",
+    "prefix": "daily",
+    "body": "---\ntitle: \"{{date}}\"\ntype: daily\ntags: [daily]\n---\n\n# {{date}}\n\n## Tasks\n\n- [ ] \n\n## Notes\n\n"
+  },
+  {
+    "id": "snippet-meeting",
+    "name": "Meeting notes",
+    "prefix": "meeting",
+    "body": "---\ntitle: \"Meeting: {{title}}\"\ntype: meeting\ntags: [meeting]\ndate: {{date}}\nattendees: []\n---\n\n# Meeting: {{title}}\n\n## Agenda\n\n1. \n\n## Notes\n\n\n## Action Items\n\n- [ ] "
+  },
+  {
+    "id": "snippet-reference",
+    "name": "Reference note",
+    "prefix": "ref",
+    "body": "---\ntitle: \"{{title}}\"\ntype: reference\nauthors: []\ntags: [reference]\n---\n\n# {{title}}\n\n## Citation\n\n## Summary\n\n## Key Points\n\n- \n\n## Links\n\n"
+  }
+]

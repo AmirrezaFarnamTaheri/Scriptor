@@ -1,10 +1,9 @@
-# BL-45: Vault Encryption at Rest
+# Vault Encryption at Rest
 
 ## Status
 
 - **Phase**: D — Strategic Expansion
 - **Priority**: High (security-sensitive)
-- **Tracking**: BL-45
 
 ## Current State
 

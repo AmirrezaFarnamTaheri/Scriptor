@@ -203,6 +203,7 @@ mod tests {
                 vault_root: std::env::temp_dir().display().to_string(),
                 job_id: None,
                 preserve_temp_on_failure: false,
+                trusted_pandoc_hash: None,
             })
             .expect("start");
 

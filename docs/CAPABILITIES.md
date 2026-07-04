@@ -49,7 +49,19 @@ pnpm check:tui       # Terminal UI smoke
 pnpm check:a11y      # Static accessibility checks
 pnpm check:a11y-axe  # axe-core WCAG 2a/2aa/2.1aa automated audit
 pnpm check:plugins   # Plugin manifest + marketplace catalog
+pnpm check:mcp       # MCP tool manifest validation
+pnpm check:contracts # TypeScript contract packages
+pnpm check:canvas    # Canvas engine contracts
+pnpm check:editor    # Editor engine contracts
+pnpm check:renderer  # Renderer contracts
+pnpm check:export    # Export pipeline contracts
+pnpm check:knowledge # Knowledge graph contracts
+pnpm check:citations # Citation engine contracts
+pnpm check:headless  # Headless runner contracts
+pnpm check:perf      # Performance baseline check
+pnpm test:rust       # Rust unit and integration tests
 pnpm test:visual     # Visual regression Playwright tests
+pnpm test:e2e        # Playwright end-to-end tests
 ```
 
 CI mirrors these in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).

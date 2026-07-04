@@ -713,7 +713,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             }))
         }
         "set_headless_engine" => Ok(Value::Null),
-        "pdf_translate" => to_value(cmd_pdf_translate(payload)?),
+        "pdf_translate" => to_value(cmd_pdf_translate(state, payload)?),
         "git_status_cmd" => {
             let session = state.require_session()?;
             to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
@@ -745,16 +745,20 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         "git_read_conflict_markers_cmd" => {
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
+            let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
             let file_path = session
                 .root
-                .root()
-                .join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                .resolve_relative(&relative)
+                .map_err(|error| error.to_string())?;
             to_value(read_conflict_markers(&file_path).map_err(|e| e.to_string())?)
         }
         "git_show_head_file_cmd" => {
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
-            to_value(git_show_head_file(session.root.root(), &path).map_err(|e| e.to_string())?)
+            let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
+            let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+            let rel_str = resolved.strip_prefix(session.root.root()).unwrap_or(&resolved);
+            to_value(git_show_head_file(session.root.root(), &rel_str.to_string_lossy()).map_err(|e| e.to_string())?)
         }
         "plantuml_render" => to_value(cmd_plantuml_render(payload)?),
         "canvas_hit_test" => {
@@ -1016,7 +1020,10 @@ fn build_export_note_input(
         .next()
         .unwrap_or("note");
     let output_directory = match output_subdirectory {
-        Some(subdir) => session.root.root().join(subdir),
+        Some(subdir) => {
+            let _validated = RelativeVaultPath::parse(subdir).map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+            session.root.root().join(subdir)
+        }
         None => default_export_directory(session.root.root()),
     };
     Ok(ExportJobInput {
@@ -1030,6 +1037,7 @@ fn build_export_note_input(
         vault_root: session.root.root().display().to_string(),
         job_id,
         preserve_temp_on_failure: false,
+        trusted_pandoc_hash: None,
     })
 }
 
@@ -1052,7 +1060,10 @@ fn build_export_markdown_input(
         .next()
         .unwrap_or("note");
     let output_directory = match output_subdirectory {
-        Some(subdir) => session.root.root().join(subdir),
+        Some(subdir) => {
+            let _validated = RelativeVaultPath::parse(subdir).map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+            session.root.root().join(subdir)
+        }
         None => default_export_directory(session.root.root()),
     };
     Ok(ExportJobInput {
@@ -1066,6 +1077,7 @@ fn build_export_markdown_input(
         vault_root: session.root.root().display().to_string(),
         job_id,
         preserve_temp_on_failure: false,
+        trusted_pandoc_hash: None,
     })
 }
 
@@ -1075,18 +1087,24 @@ struct PdfTranslateOutput {
     output_path: String,
 }
 
-fn cmd_pdf_translate(payload: &Value) -> Result<PdfTranslateOutput, String> {
+fn cmd_pdf_translate(state: &DaemonState, payload: &Value) -> Result<PdfTranslateOutput, String> {
+    let session = state.require_session()?;
     let input_path = require_str(payload, "input_path")?;
+    let relative = RelativeVaultPath::parse(&input_path).map_err(|error| format!("invalid input_path: {error}"))?;
+    let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+    let resolved_str = resolved.display().to_string();
     let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
     let mut command = Command::new(&pdf2zh);
     command
-        .arg(&input_path)
+        .arg(&resolved_str)
         .arg("-li")
         .arg(optional_str(payload, "lang_in").unwrap_or_else(|| "en".into()))
         .arg("-lo")
         .arg(optional_str(payload, "lang_out").unwrap_or_else(|| "zh".into()));
     if let Some(out) = optional_str(payload, "output_path") {
-        command.arg("-o").arg(out);
+        let out_relative = RelativeVaultPath::parse(&out).map_err(|error| format!("invalid output_path: {error}"))?;
+        let out_resolved = session.root.resolve_relative(&out_relative).map_err(|error| error.to_string())?;
+        command.arg("-o").arg(&out_resolved);
     }
     let status = command.status().map_err(|error| {
         format!(
@@ -1096,12 +1114,11 @@ fn cmd_pdf_translate(payload: &Value) -> Result<PdfTranslateOutput, String> {
     if !status.success() {
         return Err("pdf2zh exited with an error.".into());
     }
-    let input = PathBuf::from(&input_path);
-    let stem = input
+    let stem = resolved
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("document");
-    let parent = input.parent().unwrap_or_else(|| Path::new("."));
+    let parent = resolved.parent().unwrap_or_else(|| Path::new("."));
     Ok(PdfTranslateOutput {
         output_path: parent.join(format!("{stem}-dual.pdf")).display().to_string(),
     })

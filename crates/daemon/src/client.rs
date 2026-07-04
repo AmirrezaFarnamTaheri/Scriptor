@@ -54,10 +54,7 @@ impl ClientInner {
             let Ok(mut stream) = connect_client() else {
                 return;
             };
-            let subscribe = RpcRequest {
-                id: 0,
-                method: RpcMethod::SubscribeEvents,
-            };
+            let subscribe = RpcRequest::new(0, RpcMethod::SubscribeEvents);
             if write_frame(&mut stream, &subscribe).is_err() {
                 return;
             }

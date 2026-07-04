@@ -1,4 +1,4 @@
-/* Editor workspace, split pane, format toolbar, editor pane, preview pane (BL-22) */
+/* Editor workspace, split pane, format toolbar, editor pane, preview pane */
 
 .editor-workspace {
   min-height: 0;
@@ -15,17 +15,26 @@
   position: relative;
   cursor: col-resize;
   touch-action: none;
-  background: color-mix(in oklch, var(--border) 35%, transparent);
+  background: transparent;
   border: 0;
   padding: 0;
+  transition: background var(--ease-soft), box-shadow var(--ease-soft);
+  z-index: 50;
 }
 
-.split-pane-handle:hover,
-.split-pane-handle.is-dragging {
+.split-pane-handle:hover:not(.is-locked),
+.split-pane-handle.is-dragging:not(.is-locked) {
   background: var(--primary-soft);
+  box-shadow: 0 0 12px var(--primary-glow);
 }
 
-.split-pane-handle::after {
+.split-pane-handle.is-locked {
+  cursor: default;
+  pointer-events: none;
+  background: transparent;
+}
+
+.split-pane-handle:not(.is-locked)::after {
   content: '';
   position: absolute;
   inset: 0 -4px;
@@ -70,11 +79,19 @@ body.is-split-resizing .editor-preview-pane {
 .editor-empty {
   display: grid;
   place-content: center;
-  gap: 14px;
+  justify-items: center;
+  gap: 16px;
   height: 100%;
   padding: 24px;
   text-align: center;
   color: var(--muted);
+  animation: fade-in 400ms var(--ease-soft) both;
+}
+
+.editor-empty p {
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.6;
 }
 
 .markdown-editor,
@@ -119,38 +136,76 @@ body.is-split-resizing .editor-preview-pane {
 
 .tabs-row {
   min-width: 0;
-  min-height: 44px;
-  overflow: auto;
+  min-height: 48px;
+  overflow-x: auto;
+  scrollbar-width: none;
   display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  padding: 6px 8px 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface-muted);
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background: var(--surface-muted, var(--bg-elevated));
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.tabs-row::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  min-width: 140px;
-  max-width: 210px;
-  height: 36px;
+  min-width: 120px;
+  max-width: 220px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 8px 8px 0 0;
+  border-radius: 6px;
   background: transparent;
   color: var(--muted);
   font-size: 13px;
+  font-weight: 500;
+  transition: all 150ms var(--ease-soft);
+  user-select: none;
+}
+
+.tab:hover:not(.active) {
+  background: color-mix(in oklch, var(--ink) 5%, transparent);
+  color: var(--ink);
+}
+
+.tab svg:first-child {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+.tab svg:last-child {
+  margin-left: auto;
+  border-radius: 4px;
+  padding: 2px;
+  width: 16px;
+  height: 16px;
+  transition: all 150ms var(--ease-soft);
+  opacity: 0;
+}
+
+.tab:hover svg:last-child,
+.tab.active svg:last-child {
+  opacity: 1;
+}
+
+.tab svg:last-child:hover {
+  background: color-mix(in oklch, var(--danger) 15%, transparent);
+  color: var(--danger);
 }
 
 .tab.active {
   position: relative;
-  border-color: var(--border);
-  border-bottom-color: var(--bg);
   background: var(--bg);
+  border-color: var(--border);
   color: var(--ink-strong);
-  font-weight: 680;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
 .tab.active::after,
@@ -158,12 +213,51 @@ body.is-split-resizing .editor-preview-pane {
   content: none;
 }
 
-.format-row {
-  gap: 6px;
-  padding: 0 12px;
-  min-height: 42px;
+.editor-toolbar-wrapper {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+}
+
+.format-row.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  min-height: 44px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: transparent;
+}
+
+.format-row.editor-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+.format-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border-soft, var(--border));
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.toolbar-spacer {
+  flex: 1;
+  min-width: 16px;
 }
 
 .format-row button {
@@ -172,17 +266,41 @@ body.is-split-resizing .editor-preview-pane {
   border: 1px solid transparent;
   border-radius: 6px;
   background: transparent;
+  color: var(--muted);
+  transition: all 150ms var(--ease-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 6px;
+}
+
+.format-row button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.format-row button:hover:not(:disabled) {
+  background: var(--surface-hover);
   color: var(--ink);
 }
 
-.format-row button:hover,
-.format-row button.active {
-  border-color: var(--border);
-  background: var(--surface-muted);
+.format-row button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-.format-row span {
-  flex: 1;
+.format-row button.active {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  border-color: color-mix(in oklch, var(--primary) 20%, transparent);
+}
+
+.editor-assist-container {
+  padding: 0 12px 6px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .editor-surface {
@@ -242,13 +360,32 @@ body.is-split-resizing .editor-preview-pane {
 }
 
 .editor-status {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
-  padding: 0 18px;
+  gap: 16px;
+  min-height: 32px;
+  padding: 0 16px;
   border-top: 1px solid var(--border);
+  background: var(--surface-muted, var(--bg));
   color: var(--muted);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-status span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-status .word-count-delta {
+  color: var(--primary);
+  font-weight: 500;
 }
 
 .editor-status svg {
+  width: 14px;
+  height: 14px;
   color: var(--primary-strong);
 }

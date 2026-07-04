@@ -36,9 +36,18 @@ Targeted checks during development:
 pnpm test:rust                 # Rust unit tests
 pnpm check:contracts           # TypeScript contract packages
 pnpm check:plugins             # Plugin manifest validation
+pnpm check:mcp                 # MCP tool manifest validation
 pnpm check:daemon              # Headless daemon IPC smoke
 pnpm check:tui                 # Terminal UI smoke
-pnpm lint                      # ESLint + prettier
+pnpm check:canvas              # Canvas engine contracts
+pnpm check:editor              # Editor engine contracts
+pnpm check:renderer            # Renderer contracts
+pnpm check:export              # Export pipeline contracts
+pnpm check:knowledge           # Knowledge graph contracts
+pnpm check:citations           # Citation engine contracts
+pnpm check:headless            # Headless runner contracts
+pnpm check:perf                # Performance baseline check
+pnpm lint                      # ESLint
 pnpm check:a11y-axe            # axe-core WCAG automated audit
 pnpm test:visual               # Visual regression Playwright tests
 ```
@@ -46,7 +55,7 @@ pnpm test:visual               # Visual regression Playwright tests
 ## Code style
 
 - **Rust:** `clippy` (warnings as errors) and `rustfmt`. Run `cargo clippy --workspace` and `cargo fmt --check` before submitting.
-- **TypeScript:** ESLint + Prettier. Run `pnpm lint` to check. The project uses `verbatimModuleSyntax` — prefer `import type` for type-only imports.
+- **TypeScript:** ESLint. Run `pnpm lint` to check. The project uses `verbatimModuleSyntax` — prefer `import type` for type-only imports.
 - Match existing code conventions in the file you are editing. When creating new files, follow the patterns of neighboring modules.
 
 ## Documentation and screenshots

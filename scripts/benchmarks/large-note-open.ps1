@@ -19,7 +19,7 @@ if (-not (Test-Path $notePath)) {
 $times = @()
 for ($index = 0; $index -lt $Iterations; $index++) {
     $elapsed = Measure-Command {
-        cargo run -p scriptor-cli -- read $vault --note $note | Out-Null
+        cargo run --release -p scriptor-cli -- read $vault --note $note | Out-Null
     }
     $times += $elapsed.TotalMilliseconds
 }

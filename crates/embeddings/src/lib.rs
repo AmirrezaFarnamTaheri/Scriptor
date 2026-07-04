@@ -1,5 +1,6 @@
 use rusqlite::{params, Connection};
 use std::path::Path;
+use std::sync::Mutex;
 
 pub mod error;
 pub mod ollama_client;
@@ -17,7 +18,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
 ";
 
 pub struct EmbeddingStore {
-    conn: Connection,
+    conn: Mutex<Connection>,
     dimension: usize,
 }
 
@@ -30,13 +31,13 @@ impl EmbeddingStore {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn, dimension })
+        Ok(Self { conn: Mutex::new(conn), dimension })
     }
 
     pub fn open_in_memory(dimension: usize) -> Result<Self, EmbeddingError> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn, dimension })
+        Ok(Self { conn: Mutex::new(conn), dimension })
     }
 
     pub fn dimension(&self) -> usize {
@@ -52,7 +53,8 @@ impl EmbeddingStore {
         }
 
         let bytes = vector_to_bytes(vector);
-        self.conn.execute(
+        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        conn.execute(
             "INSERT OR REPLACE INTO embeddings (id, vector, dimension, updated_at)
              VALUES (?1, ?2, ?3, unixepoch())",
             params![id, bytes, self.dimension as i64],
@@ -68,7 +70,8 @@ impl EmbeddingStore {
             });
         }
 
-        let mut stmt = self.conn.prepare("SELECT id, vector FROM embeddings WHERE dimension = ?1")?;
+        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let mut stmt = conn.prepare("SELECT id, vector FROM embeddings WHERE dimension = ?1")?;
         let rows = stmt.query_map(params![self.dimension as i64], |row| {
             let id: String = row.get(0)?;
             let blob: Vec<u8> = row.get(1)?;
@@ -89,15 +92,14 @@ impl EmbeddingStore {
     }
 
     pub fn delete_embedding(&self, id: &str) -> Result<(), EmbeddingError> {
-        self.conn
-            .execute("DELETE FROM embeddings WHERE id = ?1", params![id])?;
+        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        conn.execute("DELETE FROM embeddings WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     pub fn count(&self) -> Result<usize, EmbeddingError> {
-        let count: i64 = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
+        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
         Ok(count as usize)
     }
 }
@@ -177,5 +179,70 @@ mod tests {
         let store = EmbeddingStore::open_in_memory(3).unwrap();
         let err = store.upsert_embedding("x", &[1.0, 2.0]);
         assert!(matches!(err, Err(EmbeddingError::DimensionMismatch { .. })));
+    }
+
+    #[test]
+    fn dimension_mismatch_on_query() {
+        let store = EmbeddingStore::open_in_memory(4).unwrap();
+        store.upsert_embedding("a", &[1.0, 0.0, 0.0, 0.0]).unwrap();
+        let err = store.query_nearest(&[1.0, 0.0], 5);
+        assert!(matches!(err, Err(EmbeddingError::DimensionMismatch { .. })));
+    }
+
+    #[test]
+    fn empty_vector_stores_and_queries() {
+        let store = EmbeddingStore::open_in_memory(0).unwrap();
+        store.upsert_embedding("empty", &[]).unwrap();
+        assert_eq!(store.count().unwrap(), 1);
+    }
+
+    #[test]
+    fn zero_vector_cosine_similarity() {
+        let store = EmbeddingStore::open_in_memory(3).unwrap();
+        store.upsert_embedding("zero", &[0.0, 0.0, 0.0]).unwrap();
+        store.upsert_embedding("one", &[1.0, 0.0, 0.0]).unwrap();
+        let results = store.query_nearest(&[0.0, 0.0, 0.0], 5).unwrap();
+        assert_eq!(results.len(), 2);
+        for (_, sim) in &results {
+            assert!(*sim == 0.0, "zero vector similarity should be 0.0");
+        }
+    }
+
+    #[test]
+    fn concurrent_upserts() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let store = Arc::new(EmbeddingStore::open_in_memory(4).unwrap());
+        let mut handles = Vec::new();
+        for i in 0..8 {
+            let s = Arc::clone(&store);
+            handles.push(thread::spawn(move || {
+                let id = format!("note/{i}");
+                let vec = vec![i as f32, 0.0, 0.0, 0.0];
+                s.upsert_embedding(&id, &vec).unwrap();
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        assert_eq!(store.count().unwrap(), 8);
+    }
+
+    #[test]
+    fn upsert_replaces_existing() {
+        let store = EmbeddingStore::open_in_memory(2).unwrap();
+        store.upsert_embedding("note", &[1.0, 0.0]).unwrap();
+        store.upsert_embedding("note", &[0.0, 1.0]).unwrap();
+        assert_eq!(store.count().unwrap(), 1);
+        let results = store.query_nearest(&[0.0, 1.0], 1).unwrap();
+        assert!((results[0].1 - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn delete_nonexistent_is_noop() {
+        let store = EmbeddingStore::open_in_memory(2).unwrap();
+        store.delete_embedding("missing").unwrap();
+        assert_eq!(store.count().unwrap(), 0);
     }
 }

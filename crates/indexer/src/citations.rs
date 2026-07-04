@@ -1,35 +1,41 @@
+use std::sync::LazyLock;
+
 use regex::Regex;
 
 use crate::parse::ParsedCitation;
 
+static BRACKET_BLOCK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[([^\[\]]*@[^\[\]]*)\]").expect("valid bracket citation block regex"));
+static BRACED_KEY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@\{([^}]+)\}").expect("valid braced citekey regex"));
+static PLAIN_KEY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"@([A-Za-z][A-Za-z0-9:_#.$/-]*)").expect("valid plain citekey regex"));
+static SUPPRESS_KEY_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"-@([A-Za-z][A-Za-z0-9:_#.$/-]*)").expect("valid suppress citekey regex"));
+
 /// Extract Pandoc-style citation keys from Markdown body text.
 /// Reimplements citekey discovery aligned with Pandoc manual semantics (not Zettlr source).
 pub fn extract_pandoc_citations(body: &str) -> Vec<ParsedCitation> {
-    let bracket_block = Regex::new(r"\[([^\[\]]*@[^\[\]]*)\]").expect("valid bracket citation block regex");
-    let braced_key = Regex::new(r"@\{([^}]+)\}").expect("valid braced citekey regex");
-    let plain_key = Regex::new(r"@([A-Za-z][A-Za-z0-9:_#.$/-]*)").expect("valid plain citekey regex");
-    let suppress_key = Regex::new(r"-@([A-Za-z][A-Za-z0-9:_#.$/-]*)").expect("valid suppress citekey regex");
-
     let mut citations = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
 
     for (index, line) in body.lines().enumerate() {
         let line_number = (index + 1) as u32;
 
-        for capture in bracket_block.captures_iter(line) {
+        for capture in BRACKET_BLOCK_RE.captures_iter(line) {
             let inner = capture.get(1).map(|m| m.as_str()).unwrap_or("");
-            push_keys_from_segment(inner, line_number, &braced_key, &plain_key, &mut citations, &mut seen);
+            push_keys_from_segment(inner, line_number, &BRACED_KEY_RE, &PLAIN_KEY_RE, &mut citations, &mut seen);
         }
 
         // Inline / suppress-author citations outside bracket blocks.
-        let without_brackets = bracket_block.replace_all(line, " ");
-        for capture in suppress_key.captures_iter(&without_brackets) {
+        let without_brackets = BRACKET_BLOCK_RE.replace_all(line, " ");
+        for capture in SUPPRESS_KEY_RE.captures_iter(&without_brackets) {
             if let Some(key) = capture.get(1) {
                 push_key(key.as_str(), line_number, &mut citations, &mut seen);
             }
         }
 
-        for capture in plain_key.captures_iter(&without_brackets) {
+        for capture in PLAIN_KEY_RE.captures_iter(&without_brackets) {
             if let Some(key) = capture.get(1) {
                 let start = capture.get(0).map(|m| m.start()).unwrap_or(0);
                 if start > 0 && without_brackets.as_bytes().get(start - 1) == Some(&b'-') {

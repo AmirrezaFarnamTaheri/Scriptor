@@ -8,17 +8,48 @@ use thiserror::Error;
 use ts_rs::TS;
 
 pub const FRAME_MAGIC: u32 = 0x4152434c; // "ARCL"
-pub const MAX_FRAME_BYTES: usize = 16 * 1024 * 1024;
+pub const MAX_FRAME_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
+#[ts(export, export_to = "../../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct RpcRequest {
     pub id: u64,
     pub method: RpcMethod,
+    #[serde(default)]
+    #[ts(optional)]
+    pub endpoint_nonce: Option<String>,
+}
+
+impl RpcRequest {
+    pub fn new(id: u64, method: RpcMethod) -> Self {
+        Self {
+            id,
+            method,
+            endpoint_nonce: None,
+        }
+    }
+
+    pub fn with_nonce(id: u64, method: RpcMethod, nonce: String) -> Self {
+        Self {
+            id,
+            method,
+            endpoint_nonce: Some(nonce),
+        }
+    }
+}
+
+impl Default for RpcRequest {
+    fn default() -> Self {
+        Self {
+            id: 0,
+            method: RpcMethod::Ping,
+            endpoint_nonce: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
+#[ts(export, export_to = "../../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcMethod {
     Ping,
     OpenVault { path: String },
@@ -246,7 +277,6 @@ pub fn read_frame_resyncing<R: std::io::Read>(reader: &mut R) -> Result<Vec<u8>,
 }
 
 const RESYNC_SCAN_BUDGET: usize = 64 * 1024;
-const INITIAL_CAPACITY: usize = 4096;
 
 fn read_frame_inner<R: std::io::Read>(reader: &mut R, resync: bool) -> Result<Vec<u8>, IpcError> {
     let mut header = [0u8; 8];
@@ -261,7 +291,7 @@ fn read_frame_inner<R: std::io::Read>(reader: &mut R, resync: bool) -> Result<Ve
         return Err(IpcError::InvalidMagic);
     };
 
-    read_body_after_partial_length(reader, &partial_len, INITIAL_CAPACITY)
+    read_body_after_partial_length(reader, &partial_len)
 }
 
 fn sync_to_length_field<R: std::io::Read>(reader: &mut R, scan_buf: &mut Vec<u8>) -> Result<Vec<u8>, IpcError> {
@@ -287,7 +317,6 @@ fn find_length_field_start(buf: &[u8]) -> Option<usize> {
 fn read_body_after_partial_length<R: std::io::Read>(
     reader: &mut R,
     partial_len: &[u8],
-    initial_capacity: usize,
 ) -> Result<Vec<u8>, IpcError> {
     use std::io::Read;
 
@@ -299,12 +328,14 @@ fn read_body_after_partial_length<R: std::io::Read>(
     len_bytes[..partial_len.len()].copy_from_slice(partial_len);
     reader.read_exact(&mut len_bytes[partial_len.len()..])?;
 
+    // `len` is validated against MAX_FRAME_BYTES below, so a single exact
+    // allocation is memory-safe and removes reallocation churn on large frames.
     let len = u32::from_le_bytes(len_bytes) as usize;
     if len > MAX_FRAME_BYTES {
         return Err(IpcError::FrameTooLarge(len));
     }
 
-    let mut body = Vec::with_capacity(len.min(initial_capacity));
+    let mut body = Vec::with_capacity(len);
     reader
         .take(len as u64)
         .read_to_end(&mut body)
@@ -330,13 +361,10 @@ mod tests {
 
     #[test]
     fn request_roundtrip() {
-        let request = RpcRequest {
-            id: 7,
-            method: RpcMethod::SearchNotes {
-                query: "daily".into(),
-                limit: 25,
-            },
-        };
+        let request = RpcRequest::new(7, RpcMethod::SearchNotes {
+            query: "daily".into(),
+            limit: 25,
+        });
         let frame = encode_frame(&request).expect("encode");
         let decoded = decode_request(&frame).expect("decode");
         assert_eq!(decoded, request);
@@ -354,10 +382,7 @@ mod tests {
 
     #[test]
     fn read_frame_roundtrip_via_io() {
-        let request = RpcRequest {
-            id: 1,
-            method: RpcMethod::Ping,
-        };
+        let request = RpcRequest::new(1, RpcMethod::Ping);
         let frame = encode_frame(&request).expect("encode");
         let mut cursor = std::io::Cursor::new(frame);
         let body = read_frame(&mut cursor).expect("read");
@@ -367,10 +392,7 @@ mod tests {
 
     #[test]
     fn read_frame_resyncing_skips_leading_garbage() {
-        let request = RpcRequest {
-            id: 2,
-            method: RpcMethod::Ping,
-        };
+        let request = RpcRequest::new(2, RpcMethod::Ping);
         let mut frame = encode_frame(&request).expect("encode");
         let mut payload = b"GARB".to_vec();
         payload.append(&mut frame);
@@ -390,10 +412,7 @@ mod tests {
 
     #[test]
     fn decode_body_returns_borrowed_slice_without_extra_allocation() {
-        let request = RpcRequest {
-            id: 3,
-            method: RpcMethod::Ping,
-        };
+        let request = RpcRequest::new(3, RpcMethod::Ping);
         let frame = encode_frame(&request).expect("encode");
         let body = decode_body(&frame).expect("decode body");
         let decoded: RpcRequest = postcard::from_bytes(body).expect("postcard");
@@ -402,21 +421,15 @@ mod tests {
 
     #[test]
     fn invoke_and_list_commands_roundtrip() {
-        let invoke = RpcRequest {
-            id: 9,
-            method: RpcMethod::Invoke {
-                command: "health_check".into(),
-                payload_json: "{}".into(),
-            },
-        };
+        let invoke = RpcRequest::new(9, RpcMethod::Invoke {
+            command: "health_check".into(),
+            payload_json: "{}".into(),
+        });
         let frame = encode_frame(&invoke).expect("encode");
         let decoded = decode_request(&frame).expect("decode");
         assert_eq!(decoded, invoke);
 
-        let list = RpcRequest {
-            id: 10,
-            method: RpcMethod::ListCommands,
-        };
+        let list = RpcRequest::new(10, RpcMethod::ListCommands);
         let frame = encode_frame(&list).expect("encode");
         let decoded = decode_request(&frame).expect("decode");
         assert_eq!(decoded.method, RpcMethod::ListCommands);
@@ -430,5 +443,38 @@ mod tests {
         let frame = encode_response(&json_payload).expect("encode");
         let decoded = decode_response(&frame).expect("decode");
         assert_eq!(decoded, json_payload);
+    }
+
+    #[test]
+    fn read_body_after_partial_length_allocates_exactly() {
+        // A valid 1 MiB body should allocate the buffer exactly once
+        // (capacity == len) rather than growing through multiple reallocations.
+        // The cursor must be positioned at the body and partial_len must carry
+        // the actual length bytes — matching how read_frame_inner calls this.
+        let payload = vec![0xA5u8; 1024 * 1024];
+        let len_bytes = (payload.len() as u32).to_le_bytes();
+        let mut cursor = std::io::Cursor::new(payload.as_slice());
+        let body = read_body_after_partial_length(&mut cursor, &len_bytes)
+            .expect("read body");
+        assert_eq!(body.len(), payload.len());
+        assert_eq!(body.capacity(), payload.len());
+    }
+
+    #[test]
+    fn read_frame_accepts_max_sized_body_at_boundary() {
+        // A frame whose body length equals MAX_FRAME_BYTES must be accepted
+        // (boundary check is `>`, not `>=`), and the body must be read fully.
+        let mut payload = vec![0u8; MAX_FRAME_BYTES];
+        for (i, b) in payload.iter_mut().enumerate() {
+            *b = (i % 251) as u8; // non-trivial pattern
+        }
+        let mut frame = Vec::with_capacity(8 + payload.len());
+        frame.extend_from_slice(&FRAME_MAGIC.to_le_bytes());
+        frame.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        frame.extend_from_slice(&payload);
+        let mut cursor = std::io::Cursor::new(frame);
+        let body = read_frame(&mut cursor).expect("max-sized frame reads");
+        assert_eq!(body.len(), MAX_FRAME_BYTES);
+        assert_eq!(body, payload);
     }
 }

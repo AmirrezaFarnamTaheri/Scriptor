@@ -8,7 +8,7 @@ Scriptor is for writers, researchers, students, technical authors, and knowledge
 
 ## Product purpose
 
-Scriptor is a fast, desktop-native, local-first Markdown knowledge workspace. Its purpose is to help users capture notes, connect ideas, maintain healthy knowledge graphs, publish polished documents, use optional canvas boards for visual thinking, and automate carefully through Git, MCP, and AI review flows.
+Scriptor is a fast, desktop-native, local-first Markdown knowledge workspace. Its purpose is to help users capture notes, connect ideas, maintain healthy knowledge graphs, publish polished documents, use optional canvas boards for visual thinking, and automate carefully through Git, MCP, and AI review flows. It does all of this within a premium, glassmorphic environment that is visually stunning, deeply customizable, and completely resizable to fit any workflow.
 
 ![Workspace layout: vault tree, split editor and preview, inspector rail](docs/assets/screenshots/editor-preview.png)
 
@@ -44,11 +44,11 @@ See [`docs/brand/BRAND.md`](docs/brand/BRAND.md) for logomark, wordmark, and ass
 
 ## Design principles
 
-1. **The workspace is the product.** Open into writing, search, graph, export, and vault status — not a landing page.
+1. **The workspace is the product.** Open into writing, search, graph, export, and vault status — not a landing page. The interface must always feel like a premium, responsive instrument.
 2. **Files are sacred.** Every mutation should feel inspectable, reversible, and tied to the vault model.
 3. **Show capability through operational surfaces.** Jobs, Git state, export readiness, backlinks, and vault health should be visible without shouting.
 4. **AI is an assistant with boundaries.** Read-only and draft modes come before write-approved automation.
-5. **Performance is part of trust.** Indexing, export, graph building, and preview work should feel measurable and calm.
+5. **Performance is part of trust.** Indexing, export, graph building, preview work, and UI resizing must feel meticulously crafted, fluid, and calm.
 
 ## Accessibility and inclusion
 

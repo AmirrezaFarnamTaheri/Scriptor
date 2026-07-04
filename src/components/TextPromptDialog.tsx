@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef } from 'react'
 
 import type { TextPromptRequest } from '../hooks/useTextPrompt'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface TextPromptDialogProps {
   request: TextPromptRequest
@@ -11,6 +13,10 @@ interface TextPromptDialogProps {
 export function TextPromptDialog({ request, onSubmit, onCancel }: TextPromptDialogProps) {
   const inputId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
+  const dialogRef = useRef<HTMLFormElement>(null)
+
+  useEscapeToClose(true, onCancel)
+  useFocusTrap(dialogRef, { active: true, initialFocus: false })
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -20,6 +26,7 @@ export function TextPromptDialog({ request, onSubmit, onCancel }: TextPromptDial
   return (
     <div className="modal-backdrop" role="presentation" onClick={onCancel}>
       <form
+        ref={dialogRef}
         className="rename-dialog"
         role="dialog"
         aria-modal="true"

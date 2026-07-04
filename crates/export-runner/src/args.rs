@@ -52,8 +52,13 @@ pub fn build_pandoc_args(
     ];
 
     if let Some(title) = title {
+        let sanitized: String = title
+            .chars()
+            .filter(|&c| c != '\n' && c != '\r' && c != '\0')
+            .map(|c| if c.is_control() || c == ':' { ' ' } else { c })
+            .collect();
         args.push("--metadata".into());
-        args.push(format!("title={title}"));
+        args.push(format!("title={sanitized}"));
     }
 
     match format {

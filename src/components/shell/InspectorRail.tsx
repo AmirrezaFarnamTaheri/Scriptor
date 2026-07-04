@@ -2,7 +2,7 @@ import type { RefObject } from 'react'
 import { useMemo } from 'react'
 import { Archive, FileText, Pencil, Tags } from 'lucide-react'
 
-import { MarkdownPreview, type MarkdownPreviewHandle } from '@scriptor/renderer'
+import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 import type { LoadedPlugin } from '@scriptor/plugin-api'
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
@@ -24,8 +24,8 @@ interface InspectorRailProps {
   previewProps: {
     fetchNote?: (target: string) => Promise<string | null>
     readVaultText?: (path: string) => Promise<string | null>
-    executeDql?: (query: string) => Promise<unknown>
-    runCodeChunk?: (language: string, code: string) => Promise<unknown>
+    executeDql?: (query: string) => Promise<DqlResultRow[]>
+    runCodeChunk?: (language: string, code: string) => Promise<CodeChunkRunResult>
     postProcessHtml?: (html: string) => string
     renderPlantUmlLocal?: (source: string) => Promise<string | null>
   }
@@ -207,8 +207,8 @@ export function InspectorRail({
                     basePath={activePath}
                     fetchNote={previewProps.fetchNote}
                     readVaultText={previewProps.readVaultText}
-                    executeDql={previewProps.executeDql as any}
-                    runCodeChunk={previewProps.runCodeChunk as any}
+                    executeDql={previewProps.executeDql}
+                    runCodeChunk={previewProps.runCodeChunk}
                     postProcessHtml={previewProps.postProcessHtml}
                     renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
                   />

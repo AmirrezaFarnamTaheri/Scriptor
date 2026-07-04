@@ -1,4 +1,4 @@
-/* Git 3-way conflict resolver (BL-25) */
+/* Git 3-way conflict resolver */
 
 .conflict-resolver,
 .conflict-resolver-3way {
@@ -132,10 +132,11 @@
 .writing-targets-panel,
 .conflict-resolver {
   width: min(520px, 92vw);
-  background: var(--surface);
+  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+  box-shadow: var(--shadow-lg);
 }
 
 .conflict-resolver-3way {

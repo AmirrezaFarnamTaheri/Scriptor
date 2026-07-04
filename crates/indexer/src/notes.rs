@@ -94,7 +94,7 @@ pub fn indexed_note_count(cache: &IndexCache, vault_id: &str) -> Result<u32, Ind
         params![vault_id],
         |row| row.get(0),
     )?;
-    Ok(count as u32)
+    Ok(u32::try_from(count).unwrap_or(u32::MAX))
 }
 
 pub fn total_word_count(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
@@ -104,7 +104,7 @@ pub fn total_word_count(cache: &IndexCache, vault_id: &str) -> Result<u32, Index
         params![vault_id],
         |row| row.get(0),
     )?;
-    Ok(total as u32)
+    Ok(u32::try_from(total).unwrap_or(u32::MAX))
 }
 
 pub fn load_note_metadata(

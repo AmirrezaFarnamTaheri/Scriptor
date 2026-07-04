@@ -23,6 +23,7 @@ pub struct SaveNoteOptions {
     pub dry_run: bool,
 }
 
+/// Saves a note to the vault with default options.
 pub fn save_note(
     vault_id: &str,
     root: &VaultRoot,
@@ -40,6 +41,7 @@ pub fn save_note(
     )
 }
 
+/// Saves a note with explicit options (e.g., dry-run mode).
 pub fn save_note_with_options(
     vault_id: &str,
     root: &VaultRoot,
@@ -103,7 +105,23 @@ pub fn save_note_with_options(
     if absolute.exists() {
         backup_for_recovery(root, &absolute, path.as_str())?;
         if let Ok(existing) = read_note(vault_id, root, path) {
-            let _ = append_note_history(root, path.as_str(), &existing.markdown, &existing.metadata.content_hash);
+            if let Err(error) = append_note_history(
+                root,
+                path.as_str(),
+                &existing.markdown,
+                &existing.metadata.content_hash,
+            ) {
+                // History is a best-effort safety net; the primary save must still
+                // succeed. Surface the failure via structured tracing so the daemon
+                // telemetry (and operators) can see it, rather than swallowing it.
+                tracing::warn!(
+                    target: "scriptor_vault::write",
+                    vault_id,
+                    note_path = %path.as_str(),
+                    error = %error,
+                    "failed to append note history before overwrite; save continues",
+                );
+            }
         }
     }
 
@@ -143,7 +161,7 @@ fn backup_for_recovery(root: &VaultRoot, absolute: &Path, relative_path: &str) -
     fs::write(&backup_path, content).map_err(|source| VaultError::io(&backup_path, source))
 }
 
-/// Restores disk state after a failed post-save index update (daemon BL-81).
+/// Restores disk state after a failed post-save index update.
 pub fn rollback_save_note(
     vault_id: &str,
     root: &VaultRoot,

@@ -491,10 +491,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&summary)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 3,
-                    method: RpcMethod::RebuildIndex,
-                })?;
+                let response = rpc_call(RpcRequest::new(3, RpcMethod::RebuildIndex))?;
                 print_rpc_response(&response)?;
             }
         }
@@ -507,10 +504,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", health_report_json(&cache, &session)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 4,
-                    method: RpcMethod::HealthReport,
-                })?;
+                let response = rpc_call(RpcRequest::new(4, RpcMethod::HealthReport))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::HealthReport { json }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),
@@ -527,10 +521,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", health_diagnostics_json(&cache, &session)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 5,
-                    method: RpcMethod::HealthDiagnostics,
-                })?;
+                let response = rpc_call(RpcRequest::new(5, RpcMethod::HealthDiagnostics))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),
@@ -579,13 +570,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&hits)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 6,
-                    method: RpcMethod::SearchNotes {
-                        query: query.clone(),
-                        limit,
-                    },
-                })?;
+                let response = rpc_call(RpcRequest::new(6, RpcMethod::SearchNotes {
+                    query: query.clone(),
+                    limit,
+                }))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::SearchHits { hits }) => {
                         println!("{}", serde_json::to_string_pretty(&hits)?);
@@ -605,10 +593,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&hits)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 7,
-                    method: RpcMethod::Backlinks { path: note.clone() },
-                })?;
+                let response = rpc_call(RpcRequest::new(7, RpcMethod::Backlinks { path: note.clone() }))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::Backlinks { json, .. }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),
@@ -626,13 +611,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&graph)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 8,
-                    method: RpcMethod::GraphSummary {
-                        path: note.clone(),
-                        depth,
-                    },
-                })?;
+                let response = rpc_call(RpcRequest::new(8, RpcMethod::GraphSummary {
+                    path: note.clone(),
+                    depth,
+                }))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::GraphSummary { json }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),
@@ -666,12 +648,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let session = open_vault(&path)?;
             let relative = RelativeVaultPath::parse(&note)?;
             let document = read_note(&session.descriptor.id, &session.root, &relative)?;
+            let heading_re = regex::Regex::new(r"^(#+)\s+(.*)$")?;
             let outline: Vec<serde_json::Value> = document
                 .markdown
                 .lines()
                 .enumerate()
                 .filter_map(|(index, line)| {
-                    let caps = regex::Regex::new(r"^(#+)\s+(.*)$").ok()?.captures(line)?;
+                    let caps = heading_re.captures(line)?;
                     Some(serde_json::json!({
                         "line": index + 1,
                         "level": caps.get(1)?.as_str().len(),
@@ -867,6 +850,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 vault_root: session.root.root().display().to_string(),
                 job_id: None,
                 preserve_temp_on_failure: false,
+                trusted_pandoc_hash: None,
             };
             let output = run_export_job(input)?;
             println!("{}", serde_json::to_string_pretty(&output)?);
@@ -878,10 +862,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&status)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest {
-                    id: 9,
-                    method: RpcMethod::GitStatus,
-                })?;
+                let response = rpc_call(RpcRequest::new(9, RpcMethod::GitStatus))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::GitStatus { json }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),

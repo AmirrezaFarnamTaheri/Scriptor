@@ -161,10 +161,11 @@ pub fn orphaned_note_count(
     let mut statement = conn.prepare("SELECT path FROM notes WHERE vault_id = ?1")?;
     let rows = statement.query_map([vault_id], |row| row.get::<_, String>(0))?;
     let path_set: std::collections::BTreeSet<_> = note_paths.iter().cloned().collect();
-    Ok(rows
+    let count = rows
         .filter_map(Result::ok)
         .filter(|path| !path_set.contains(path))
-        .count() as u32)
+        .count();
+    Ok(u32::try_from(count).unwrap_or(u32::MAX))
 }
 
 pub fn default_cache_path(vault_root: &Path) -> PathBuf {

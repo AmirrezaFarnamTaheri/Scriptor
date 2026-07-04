@@ -7,6 +7,7 @@ pub mod activity_log;
 pub mod config;
 pub mod delete;
 pub mod diagnostics;
+pub mod encryption;
 pub mod error;
 pub mod fs;
 pub mod frontmatter_ops;

@@ -1,9 +1,10 @@
 use std::path::Path;
+use std::sync::Mutex;
 
 use tantivy::collector::TopDocs;
 use tantivy::doc;
 use tantivy::query::QueryParser;
-use tantivy::schema::{Schema, Value, STORED, TEXT};
+use tantivy::schema::{Schema, Value, STORED, STRING, TEXT};
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy};
 
 pub mod error;
@@ -25,6 +26,7 @@ pub struct TantivyIndex {
     path_field: tantivy::schema::Field,
     title_field: tantivy::schema::Field,
     body_field: tantivy::schema::Field,
+    writer: Mutex<IndexWriter>,
 }
 
 impl TantivyIndex {
@@ -32,7 +34,7 @@ impl TantivyIndex {
         std::fs::create_dir_all(path)?;
 
         let mut schema_builder = Schema::builder();
-        let path_field = schema_builder.add_text_field("path", TEXT | STORED);
+        let path_field = schema_builder.add_text_field("path", STRING | STORED);
         let title_field = schema_builder.add_text_field("title", TEXT | STORED);
         let body_field = schema_builder.add_text_field("body", TEXT | STORED);
         let schema = schema_builder.build();
@@ -48,6 +50,8 @@ impl TantivyIndex {
             .reload_policy(ReloadPolicy::OnCommitWithDelay)
             .try_into()?;
 
+        let writer: IndexWriter = index.writer(50_000_000)?;
+
         Ok(Self {
             index,
             reader,
@@ -55,11 +59,14 @@ impl TantivyIndex {
             path_field,
             title_field,
             body_field,
+            writer: Mutex::new(writer),
         })
     }
 
     pub fn index_note(&self, path: &str, title: &str, body: &str) -> Result<(), TantivyError> {
-        let mut writer: IndexWriter = self.index.writer(50_000_000)?;
+        let mut writer = self.writer.lock().map_err(|e| {
+            TantivyError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+        })?;
 
         let term = tantivy::Term::from_field_text(self.path_field, path);
         writer.delete_term(term);
@@ -71,6 +78,7 @@ impl TantivyIndex {
         ))?;
 
         writer.commit()?;
+        self.reader.reload()?;
         Ok(())
     }
 
@@ -165,5 +173,116 @@ mod tests {
 
         let hits = index.search("common", 3).unwrap();
         assert!(hits.len() <= 3);
+    }
+
+    #[test]
+    fn special_characters_in_query() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("note.md", "C++ Guide", "Learn C++ programming")
+            .unwrap();
+        let hits = index.search("C++", 10).unwrap();
+        assert!(!hits.is_empty(), "should find notes with C++ in title/body");
+    }
+
+    #[test]
+    fn empty_body_indexable() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("empty.md", "Empty Note", "")
+            .unwrap();
+        let hits = index.search("Empty", 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "empty.md");
+    }
+
+    #[test]
+    fn reindex_idempotent() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("a.md", "Title", "body content")
+            .unwrap();
+        index
+            .index_note("a.md", "Title", "body content")
+            .unwrap();
+        let hits = index.search("body", 10).unwrap();
+        assert_eq!(hits.len(), 1, "reindexing same path should not duplicate");
+    }
+
+    #[test]
+    fn empty_search_returns_empty() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("a.md", "Title", "body")
+            .unwrap();
+        let hits = index.search("nonexistent_term_xyz", 10).unwrap();
+        assert!(hits.is_empty());
+    }
+
+    #[test]
+    fn search_returns_title_and_snippet() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("test.md", "My Title", "The body contains searchable keywords")
+            .unwrap();
+        let hits = index.search("searchable", 1).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].title, "My Title");
+        assert!(hits[0].body_snippet.contains("searchable"));
+    }
+
+    #[test]
+    fn concurrent_writes_do_not_panic() {
+        use std::sync::Arc;
+        use std::thread;
+
+        let dir = tempdir().unwrap();
+        let index = Arc::new(TantivyIndex::create_or_open(dir.path()).unwrap());
+        let mut handles = Vec::new();
+        for i in 0..6 {
+            let idx = Arc::clone(&index);
+            handles.push(thread::spawn(move || {
+                idx.index_note(
+                    &format!("concurrent/{i}.md"),
+                    &format!("Title {i}"),
+                    &format!("body content for note {i}"),
+                )
+                .unwrap();
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        let hits = index.search("body", 10).unwrap();
+        assert!(hits.len() >= 1);
+    }
+
+    #[test]
+    fn unicode_query_works() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("uni.md", "Ünïcödé Title", "special characters content")
+            .unwrap();
+        let hits = index.search("Ünïcödé", 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "uni.md");
+    }
+
+    #[test]
+    fn special_chars_in_path_roundtrip() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+        index
+            .index_note("notes/C++ & Rust.md", "C++ & Rust", "systems programming")
+            .unwrap();
+        let hits = index.search("Rust", 10).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "notes/C++ & Rust.md");
     }
 }

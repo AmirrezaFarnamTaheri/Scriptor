@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { FileOutput, Globe, History, Loader2 } from 'lucide-react'
 
 import type { ExportProfile } from '@scriptor/core/contracts/export'
+import type { DqlResultRow, CodeChunkRunResult } from '@scriptor/renderer'
 
 import { ExportPreflightPreview } from './ExportPreflightPreview'
 import { ExportPrintPreview } from './ExportPrintPreview'
@@ -15,8 +16,8 @@ interface PublishCenterProps {
   previewProps: {
     fetchNote?: (target: string) => Promise<string | null>
     readVaultText?: (path: string) => Promise<string | null>
-    executeDql?: (query: string) => Promise<unknown>
-    runCodeChunk?: (language: string, code: string) => Promise<unknown>
+    executeDql?: (query: string) => Promise<DqlResultRow[]>
+    runCodeChunk?: (language: string, code: string) => Promise<CodeChunkRunResult>
     postProcessHtml?: (html: string) => string
     renderPlantUmlLocal?: (source: string) => Promise<string | null>
   }

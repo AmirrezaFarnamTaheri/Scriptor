@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=Scriptor
+Comment=Local-first Markdown knowledge workspace
+Exec=scriptor %u
+Icon=com.scriptor.Scriptor
+Type=Application
+Categories=Office;TextEditor;Utility;
+MimeType=text/markdown;text/x-markdown;application/x-scriptor-vault;
+Keywords=markdown;notes;knowledge;wiki;zettelkasten;writing;
+StartupNotify=true
+StartupWMClass=scriptor
+Terminal=false

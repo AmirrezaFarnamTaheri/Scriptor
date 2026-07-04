@@ -33,6 +33,10 @@ const DEFAULT_CONFIG = {
 }
 
 export function installE2eBridge(): void {
+  // Mock Tauri internals so `isTauriRuntime` returns true
+  if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
+    ;(window as any).__TAURI_INTERNALS__ = {}
+  }
   mockIPC((cmd, payload) => {
     switch (cmd) {
       case 'vault_open':
@@ -45,8 +49,6 @@ export function installE2eBridge(): void {
           })
         }
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
-      case 'vault_scan':
-        return SCREENSHOT_SCAN
       case 'vault_read_note': {
         const readPath = String((payload as { path?: string }).path ?? 'Research Plan.md')
         if (readPath === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
@@ -185,6 +187,7 @@ export function installE2eBridge(): void {
         return []
       case 'git_status_cmd': {
         const hasConflicts = window.sessionStorage.getItem('e2e:git-conflicts') === '1'
+        console.log('e2e bootstrap: git_status_cmd called, hasConflicts =', hasConflicts)
         return {
           is_repo: true,
           branch: 'main',
@@ -309,7 +312,32 @@ export function installE2eBridge(): void {
         return undefined
       case 'health_check':
         return 'ok'
+      case 'plugin:path|document_dir':
+        return 'C:/Users/e2e/Documents'
+      case 'plugin:path|join': {
+        const paths = (payload as { paths?: string[] }).paths ?? []
+        return paths.join('/')
+      }
       default:
+        if (cmd.startsWith('canvas_')) {
+          if (cmd === 'canvas_list_documents') {
+            return []
+          }
+          if (cmd === 'canvas_load_document') {
+            return JSON.stringify({
+              id: 'canvas-board-default',
+              vaultId: 'vault-default',
+              title: 'Research board',
+              mode: 'edgeless',
+              layers: [
+                { id: 'layer-main', name: 'Main', visible: true, locked: false, order: 0 }
+              ],
+              blocks: [],
+              updatedAt: new Date().toISOString()
+            })
+          }
+          return null
+        }
         if (cmd.startsWith('daemon_')) {
           return cmd === 'daemon_ping' ? { version: '0.1.0-e2e' } : null
         }

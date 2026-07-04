@@ -39,6 +39,38 @@ fn resolve_vault_relative(vault_root: &Path, output_dir: &Path, path: &Path) -> 
     output_dir.join(path)
 }
 
+fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), ExportError> {
+    let p = Path::new(path);
+    if p.is_absolute() {
+        return Err(ExportError::DisallowedArg(format!(
+            "absolute path not allowed for file reference arg: {path}"
+        )));
+    }
+    let candidate = vault_root.join(p);
+    let normalized = normalize_theme_path(&candidate);
+    let canonical_root = vault_root.canonicalize().unwrap_or_else(|_| vault_root.to_path_buf());
+    if !normalized.starts_with(&canonical_root) {
+        return Err(ExportError::DisallowedArg(format!(
+            "path escapes vault root: {path}"
+        )));
+    }
+    Ok(())
+}
+
+fn normalize_theme_path(path: &Path) -> std::path::PathBuf {
+    let mut output = std::path::PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => { output.pop(); }
+            std::path::Component::CurDir => {}
+            std::path::Component::Normal(part) => output.push(part),
+            std::path::Component::RootDir => output.push(std::path::MAIN_SEPARATOR_STR),
+            std::path::Component::Prefix(prefix) => output.push(prefix.as_os_str()),
+        }
+    }
+    output
+}
+
 pub fn resolve_extra_args(
     vault_root: &Path,
     output_dir: &Path,
@@ -87,6 +119,26 @@ pub fn resolve_extra_args(
                 }
             };
             resolved.push(format!("--csl={}", absolute.display()));
+        } else if let Some(filter_path) = arg.strip_prefix("--lua-filter=") {
+            validate_path_within_vault(vault_root, filter_path)?;
+            let path = Path::new(filter_path);
+            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            resolved.push(format!("--lua-filter={}", absolute.display()));
+        } else if let Some(filter_path) = arg.strip_prefix("--filter=") {
+            validate_path_within_vault(vault_root, filter_path)?;
+            let path = Path::new(filter_path);
+            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            resolved.push(format!("--filter={}", absolute.display()));
+        } else if let Some(ref_path) = arg.strip_prefix("--reference-doc=") {
+            validate_path_within_vault(vault_root, ref_path)?;
+            let path = Path::new(ref_path);
+            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            resolved.push(format!("--reference-doc={}", absolute.display()));
+        } else if let Some(tmpl_path) = arg.strip_prefix("--template=") {
+            validate_path_within_vault(vault_root, tmpl_path)?;
+            let path = Path::new(tmpl_path);
+            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            resolved.push(format!("--template={}", absolute.display()));
         } else {
             resolved.push(arg.clone());
         }

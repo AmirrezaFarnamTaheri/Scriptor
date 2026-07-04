@@ -26,10 +26,12 @@ pub struct ScannedEntry {
     pub size_bytes: u64,
 }
 
+/// Scans the vault root for all entries (notes, assets, directories).
 pub fn scan_vault(root: &VaultRoot) -> Result<Vec<ScannedEntry>, VaultError> {
     scan_vault_with_roots(root, &[])
 }
 
+/// Scans the vault root and any extra root directories for entries.
 pub fn scan_vault_with_roots(
     root: &VaultRoot,
     extra_roots: &[String],
@@ -138,6 +140,7 @@ fn format_path(path: &Path) -> String {
         .join("/")
 }
 
+/// Lists all note paths in the vault.
 pub fn list_notes(root: &VaultRoot) -> Result<Vec<RelativeVaultPath>, VaultError> {
     scan_vault(root)?
         .into_iter()

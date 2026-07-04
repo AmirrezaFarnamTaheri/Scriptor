@@ -48,8 +48,12 @@ export function useMcpRuntime(
   pluginExportProfiles: ExportProfileContribution[] = [],
   pluginMcpTools: McpToolContribution[] = [],
   pluginCommandRuntime?: PluginCommandRuntime,
+  hibernated: boolean = false,
 ) {
-  const mode = normalizeMcpMode(vaultConfig.mcp?.mode, vaultConfig.mcp?.disabled)
+  const mode = normalizeMcpMode(
+    vaultConfig?.mcp?.mode,
+    vaultConfig?.mcp?.disabled === true || !vaultOpen || hibernated,
+  )
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
   const [snapshot, setSnapshot] = useState(0)
 

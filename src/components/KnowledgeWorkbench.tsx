@@ -6,6 +6,7 @@ import { KnowledgeFiltersPanel } from './KnowledgeFiltersPanel'
 import { SavedViewsPanel } from './SavedViewsPanel'
 import { SmartCollectionsPanel } from './SmartCollectionsPanel'
 import { TagBrowserPanel } from './TagBrowserPanel'
+import { useI18n } from '../lib/i18n'
 
 export type KnowledgeWorkbenchTab = 'repair' | 'views' | 'collections' | 'tags' | 'discover'
 
@@ -28,11 +29,11 @@ interface KnowledgeWorkbenchProps {
 }
 
 const TABS = [
-  { id: 'repair', label: 'Repair queue' },
-  { id: 'views', label: 'Saved views' },
-  { id: 'collections', label: 'Smart collections' },
-  { id: 'tags', label: 'Tags' },
-  { id: 'discover', label: 'Discover' },
+  { id: 'repair', labelKey: 'knowledge.repair' },
+  { id: 'views', labelKey: 'knowledge.views' },
+  { id: 'collections', labelKey: 'knowledge.tags' },
+  { id: 'tags', labelKey: 'knowledge.tags' },
+  { id: 'discover', labelKey: 'knowledge.tags' },
 ] as const
 
 export function KnowledgeWorkbench({
@@ -47,6 +48,7 @@ export function KnowledgeWorkbench({
   onRenameTag,
   promptText,
 }: KnowledgeWorkbenchProps) {
+  const { t } = useI18n()
   const [tab, setTab] = useState<KnowledgeWorkbenchTab>(initialTab)
 
   useEffect(() => {
@@ -60,12 +62,12 @@ export function KnowledgeWorkbench({
 
   return (
     <UnifiedPanelShell
-      title="Knowledge workbench"
-      subtitle="Repair queues, saved views, and tag discovery in one place."
+      title={t('knowledge.title')}
+      subtitle={t('knowledge.subtitle')}
       icon={<BookOpen size={18} />}
-      ariaLabel="Knowledge workbench"
+      ariaLabel={t('knowledge.title')}
       onClose={onClose}
-      tabs={TABS.map((entry) => ({ id: entry.id, label: entry.label }))}
+      tabs={TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) }))}
       activeTab={tab}
       onTabChange={(next) => setTab(next as KnowledgeWorkbenchTab)}
       className="knowledge-workbench-panel knowledge-filters-panel"

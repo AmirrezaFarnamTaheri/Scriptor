@@ -525,14 +525,23 @@ export class McpRuntime {
     switch (toolName) {
       case 'mcp.search': {
         const payload = input as McpSearchInput
+        if (typeof payload.query !== 'string' || !payload.query.trim()) {
+          throw new Error('mcp.search requires a non-empty "query" string')
+        }
         return ctx.search(payload.query, payload.limit ?? 25)
       }
       case 'mcp.readNote': {
         const payload = input as McpReadNoteInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.readNote requires a non-empty "path" string')
+        }
         return ctx.readNote(payload.path)
       }
       case 'mcp.inspectBacklinks': {
         const payload = input as McpBacklinksInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.inspectBacklinks requires a non-empty "path" string')
+        }
         return ctx.backlinks(payload.path)
       }
       case 'mcp.inspectBrokenLinks':
@@ -541,6 +550,9 @@ export class McpRuntime {
         return ctx.exportProfiles?.() ?? ([] as ExportProfile[])
       case 'mcp.inspectOutline': {
         const payload = input as McpOutlineInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.inspectOutline requires a non-empty "path" string')
+        }
         const note = await ctx.readNote(payload.path)
         return {
           path: payload.path,
@@ -565,6 +577,9 @@ export class McpRuntime {
       }
       case 'mcp.searchByTag': {
         const payload = input as McpSearchByTagInput
+        if (typeof payload.tag !== 'string' || !payload.tag.trim()) {
+          throw new Error('mcp.searchByTag requires a non-empty "tag" string')
+        }
         if (!ctx.notesForTag) {
           throw new Error('Tag search is not available')
         }
@@ -597,6 +612,9 @@ export class McpRuntime {
       }
       case 'mcp.traverseGraph': {
         const payload = input as McpTraverseGraphInput
+        if (typeof payload.focusPath !== 'string' || !payload.focusPath.trim()) {
+          throw new Error('mcp.traverseGraph requires a non-empty "focusPath" string')
+        }
         if (!ctx.traverseGraph) {
           throw new Error('Graph traversal is not available')
         }
@@ -604,6 +622,9 @@ export class McpRuntime {
       }
       case 'mcp.renderMarkdown': {
         const payload = input as McpRenderMarkdownInput
+        if (typeof payload.markdown !== 'string') {
+          throw new Error('mcp.renderMarkdown requires a "markdown" string')
+        }
         if (!ctx.renderMarkdown) {
           throw new Error('Markdown rendering is not available')
         }
@@ -611,6 +632,15 @@ export class McpRuntime {
       }
       case 'mcp.proposePatch': {
         const payload = input as McpProposePatchInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.proposePatch requires a non-empty "path" string')
+        }
+        if (typeof payload.proposedMarkdown !== 'string') {
+          throw new Error('mcp.proposePatch requires a "proposedMarkdown" string')
+        }
+        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
+          throw new Error('mcp.proposePatch requires a non-empty "summary" string')
+        }
         const patch = this.proposePatch(payload)
         if (!patch) {
           throw new Error('Draft patches require draft or write-approved mode')
@@ -619,6 +649,12 @@ export class McpRuntime {
       }
       case 'mcp.proposeTagPatch': {
         const payload = input as McpProposeTagPatchInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.proposeTagPatch requires a non-empty "path" string')
+        }
+        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
+          throw new Error('mcp.proposeTagPatch requires a non-empty "summary" string')
+        }
         const patch = await this.proposeTagPatch(payload)
         if (!patch) {
           throw new Error('Tag patches require draft or write-approved mode')
@@ -627,12 +663,30 @@ export class McpRuntime {
       }
       case 'mcp.createNote': {
         const payload = input as McpCreateNoteInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.createNote requires a non-empty "path" string')
+        }
+        if (typeof payload.markdown !== 'string') {
+          throw new Error('mcp.createNote requires a "markdown" string')
+        }
+        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
+          throw new Error('mcp.createNote requires a non-empty "summary" string')
+        }
         const patch = createNoteDraft(payload)
         this.drafts.unshift(patch)
         return patch
       }
       case 'mcp.moveNote': {
         const payload = input as McpMoveNoteInput
+        if (typeof payload.from !== 'string' || !payload.from.trim()) {
+          throw new Error('mcp.moveNote requires a non-empty "from" string')
+        }
+        if (typeof payload.to !== 'string' || !payload.to.trim()) {
+          throw new Error('mcp.moveNote requires a non-empty "to" string')
+        }
+        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
+          throw new Error('mcp.moveNote requires a non-empty "summary" string')
+        }
         const note = await ctx.readNote(payload.from)
         const patch = moveNoteDraft(payload, note.markdown, note.metadata.content_hash)
         this.drafts.unshift(patch)
@@ -640,6 +694,12 @@ export class McpRuntime {
       }
       case 'mcp.deleteNote': {
         const payload = input as McpDeleteNoteInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.deleteNote requires a non-empty "path" string')
+        }
+        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
+          throw new Error('mcp.deleteNote requires a non-empty "summary" string')
+        }
         const patch = deleteNoteDraft(payload)
         this.drafts.unshift(patch)
         return patch

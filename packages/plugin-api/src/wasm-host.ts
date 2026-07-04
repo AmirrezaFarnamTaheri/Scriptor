@@ -1,5 +1,5 @@
 /**
- * WASM plugin host ABI scaffold (BL-39). Full sandbox runtime is not yet wired.
+ * WASM plugin host ABI scaffold. Full sandbox runtime is not yet wired.
  */
 export const WASM_PLUGIN_ABI_VERSION = 1
 
@@ -22,6 +22,6 @@ export function validateWasmPluginManifest(manifest: WasmPluginManifest): string
 }
 
 export async function loadWasmPlugin(_manifest: WasmPluginManifest): Promise<null> {
-  // Placeholder until BL-39 runtime lands; safe mode plugins remain JS-only today.
+  // Placeholder until WASM runtime lands; safe mode plugins remain JS-only today.
   return null
 }

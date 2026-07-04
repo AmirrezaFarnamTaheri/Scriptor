@@ -20,12 +20,32 @@ export const WORKSPACE_CHROME_PREFS = {
   editorSurfaceMode: 'source',
 }
 
+export async function launchApp(page: Page) {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  return page
+}
+
+export async function openCommandPalette(page: Page) {
+  await page.keyboard.press('Control+KeyK')
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await expect(palette).toBeVisible({ timeout: 5000 })
+}
+
+export async function runCommand(page: Page, commandName: string) {
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await palette.getByRole('searchbox', { name: 'Command palette search' }).fill(commandName)
+  await palette.getByRole('option').first().click()
+}
+
 export async function settleLayout(page: Page) {
   await page.evaluate(async () => {
     await document.fonts.ready
     window.dispatchEvent(new Event('resize'))
   })
-  await page.waitForTimeout(300)
+  await page.waitForFunction(() => {
+    const root = document.getElementById('root')
+    return root && root.getBoundingClientRect().width > 0
+  }, { timeout: 5000 })
 }
 
 export async function waitForWorkspace(page: Page) {
@@ -85,5 +105,8 @@ export async function waitForSavedMarker(page: Page, marker: string) {
   await expect(page.getByRole('region', { name: 'Editor' }).getByText(/^Saved /)).toBeVisible({
     timeout: 15_000,
   })
-  await page.waitForTimeout(900)
+  await page.waitForFunction(() => {
+    const saved = document.querySelector('[role="region"][aria-label="Editor"]')
+    return saved && saved.textContent && /Saved \d/.test(saved.textContent)
+  }, { timeout: 5000 })
 }

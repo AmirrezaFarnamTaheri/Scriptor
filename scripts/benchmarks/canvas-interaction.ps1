@@ -6,4 +6,4 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "../..")
 
-cargo run -p scriptor-cli -- bench-canvas-hit-test $Fixture --iterations $Iterations
+cargo run --release -p scriptor-cli -- bench-canvas-hit-test $Fixture --iterations $Iterations

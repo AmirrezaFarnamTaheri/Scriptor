@@ -1,5 +1,5 @@
 /**
- * Offloads canvas SVG serialization from the main thread (BL-72).
+ * Offloads canvas SVG serialization from the main thread.
  */
 export interface CanvasRenderWorkerRequest {
   id: string

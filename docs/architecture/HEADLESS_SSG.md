@@ -1,10 +1,9 @@
-# BL-41: Headless SSG / CI Export
+# Headless SSG / CI Export
 
 ## Status
 
 - **Phase**: D — Strategic Expansion
 - **Priority**: Medium
-- **Tracking**: BL-41
 
 ## Current State
 

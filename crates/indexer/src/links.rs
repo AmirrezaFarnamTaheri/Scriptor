@@ -56,7 +56,7 @@ pub fn count_links(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerErr
             params![vault_id],
             |row| row.get(0),
         )?;
-    Ok(count as u32)
+    Ok(u32::try_from(count).unwrap_or(u32::MAX))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

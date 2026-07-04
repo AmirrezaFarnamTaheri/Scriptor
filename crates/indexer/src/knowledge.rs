@@ -90,7 +90,7 @@ fn note_link_summaries(
          GROUP BY notes.path",
     )?;
     let rows = statement.query_map(params![session.descriptor.id], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)? as u32))
+        Ok((row.get::<_, String>(0)?, u32::try_from(row.get::<_, i64>(1)?).unwrap_or(u32::MAX)))
     })?;
     for row in rows {
         let (path, count) = row?;

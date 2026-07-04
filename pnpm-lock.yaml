@@ -316,6 +316,8 @@ importers:
         specifier: ^3.0.4
         version: 3.0.4
 
+  packages/zotero-connector: {}
+
 packages:
 
   '@antfu/install-pkg@1.1.0':

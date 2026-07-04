@@ -1,10 +1,9 @@
-# BL-42: i18n Framework
+# i18n Framework
 
 ## Status
 
 - **Phase**: D — Strategic Expansion
 - **Priority**: Low-Medium
-- **Tracking**: BL-42
 
 ## Current State
 

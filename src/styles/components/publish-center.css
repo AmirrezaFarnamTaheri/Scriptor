@@ -1,16 +1,27 @@
-/* Publish center + export preflight (BL-67, BL-70) */
+/* Publish center + export preflight */
 
 .publish-center-grid {
-  display: grid;
-  gap: 18px;
+  display: flex;
+  flex-direction: column;
   padding-top: 12px;
+}
+
+.publish-center-section {
+  padding: 24px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.publish-center-section:last-child {
+  border-bottom: none;
 }
 
 .publish-center-section h3 {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin: 0 0 6px;
+  gap: 10px;
+  margin: 0 0 8px;
+  font-size: 15px;
+  color: var(--ink-strong);
 }
 
 .publish-profile-list,
@@ -25,11 +36,17 @@
 .publish-profile-list li,
 .publish-history-list li {
   display: grid;
-  gap: 6px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: 12px;
   background: var(--surface-2);
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.publish-profile-list li:hover {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
 }
 
 .publish-profile-actions {

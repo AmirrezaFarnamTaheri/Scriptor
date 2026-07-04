@@ -1,10 +1,9 @@
-# BL-37: Local Embeddings & Vector Index
+# Local Embeddings & Vector Index
 
 ## Status
 
 - **Phase**: D — Strategic Expansion
 - **Priority**: High
-- **Tracking**: BL-37
 
 ## Current State
 

@@ -106,6 +106,8 @@ export function useVaultWorkspace(options?: {
     collapsedFolders: Record<string, boolean>
     sidebarView: 'vault' | 'inbox'
   }) => void
+  hibernateWatcher?: boolean
+  hibernateGit?: boolean
 }) {
   const [status, setStatus] = useState<WorkspaceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -244,9 +246,11 @@ export function useVaultWorkspace(options?: {
   })
 
   const refreshVaultCore = useCallback(async () => {
-    await refreshVaultEntries()
-    await refreshHealth()
-    await refreshNoteSummaries()
+    await Promise.all([
+      refreshVaultEntries(),
+      refreshHealth(),
+      refreshNoteSummaries()
+    ])
   }, [refreshHealth, refreshVaultEntries, refreshNoteSummaries])
 
   const editorRefs = useMemo(
@@ -281,7 +285,6 @@ export function useVaultWorkspace(options?: {
     pullRemote,
     pushRemote,
   } = useWorkspaceGit({
-    vaultOpen: Boolean(vault),
     refreshVault: refreshVaultCore,
     logActivity,
     setError,
@@ -369,6 +372,8 @@ export function useVaultWorkspace(options?: {
     applyFilesystemChangesRef,
     refreshGit,
     vaultRefreshTimer,
+    hibernated: options?.hibernateWatcher,
+    hibernateGit: options?.hibernateGit,
   })
 
   useEffect(() => {
@@ -432,11 +437,15 @@ export function useVaultWorkspace(options?: {
             await openNote(firstNote.path)
           }
         }
-        await refreshHealth(opened.vault)
-        await refreshGit()
-        await refreshVaultConfig()
-        await refreshVaultSnippets()
-        await refreshNoteSummaries()
+        void Promise.all([
+          refreshHealth(opened.vault),
+          refreshGit(),
+          refreshVaultConfig(),
+          refreshVaultSnippets(),
+          refreshNoteSummaries()
+        ]).catch((err) => {
+          console.error('Failed to load background vault services:', err)
+        })
         try {
           const persisted = await vaultReadActivityLog(100)
           if (persisted.length > 0) {

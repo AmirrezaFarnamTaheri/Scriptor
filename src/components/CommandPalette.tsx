@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Search } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useI18n } from '../lib/i18n'
 
 export interface PaletteCommand {
@@ -25,6 +27,7 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
   const [noteHits, setNoteHits] = useState<Array<{ path: string; title: string }>>([])
   const [isSearchingNotes, setIsSearchingNotes] = useState(false)
   const listRef = useRef<HTMLUListElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const searchTimer = useRef<number | null>(null)
 
   const noteCommands = useMemo<PaletteCommand[]>(
@@ -91,6 +94,7 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
   }, [selectedIndex, mergedCommands.length])
 
   useEscapeToClose(open, onClose)
+  useFocusTrap(containerRef, { active: open })
 
   const runSelected = (command: PaletteCommand) => {
     command.run()
@@ -102,32 +106,40 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
   if (!open) return null
 
   return (
-    <div className="command-palette-overlay" role="dialog" aria-label={t('commandPalette.ariaLabel')}>
-      <div className="command-palette">
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowDown') {
-              event.preventDefault()
-              setSelectedIndex((current) => Math.min(current + 1, Math.max(mergedCommands.length - 1, 0)))
-            } else if (event.key === 'ArrowUp') {
-              event.preventDefault()
-              setSelectedIndex((current) => Math.max(current - 1, 0))
-            } else if (event.key === 'Enter' && mergedCommands[selectedIndex]) {
-              event.preventDefault()
-              runSelected(mergedCommands[selectedIndex])
+    <div
+      className="command-palette-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('commandPalette.ariaLabel')}
+    >
+      <div className="command-palette" ref={containerRef}>
+        <div className="command-palette-header">
+          <Search className="command-palette-search-icon" />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'ArrowDown') {
+                event.preventDefault()
+                setSelectedIndex((current) => Math.min(current + 1, Math.max(mergedCommands.length - 1, 0)))
+              } else if (event.key === 'ArrowUp') {
+                event.preventDefault()
+                setSelectedIndex((current) => Math.max(current - 1, 0))
+              } else if (event.key === 'Enter' && mergedCommands[selectedIndex]) {
+                event.preventDefault()
+                runSelected(mergedCommands[selectedIndex])
+              }
+            }}
+            placeholder={t('commandPalette.placeholder')}
+            aria-label={t('commandPalette.ariaLabel')}
+            aria-controls="command-palette-list"
+            aria-activedescendant={
+              mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined
             }
-          }}
-          placeholder={t('commandPalette.placeholder')}
-          aria-label={t('commandPalette.ariaLabel')}
-          aria-controls="command-palette-list"
-          aria-activedescendant={
-            mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined
-          }
-          autoFocus
-        />
+            autoFocus
+          />
+        </div>
         {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => (

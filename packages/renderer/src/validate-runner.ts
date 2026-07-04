@@ -159,5 +159,3 @@ test('hostile markdown fixtures strip script and event handlers', () => {
     assert.doesNotMatch(html, /javascript:/i)
   }
 })
-
-console.log('Renderer validation passed')

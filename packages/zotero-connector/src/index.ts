@@ -79,30 +79,60 @@ export class ZoteroConnector {
 
   async listCollections(): Promise<ZoteroCollection[]> {
     this.ensureConnected()
-    const response = await this.fetch('/collections')
-    if (!response.ok) {
-      throw new Error(`Failed to list collections: ${response.status}`)
+    const allCollections: ZoteroCollection[] = []
+    let start = 0
+    const limit = 100
+
+    for (;;) {
+      const response = await this.fetch('/collections', { start: String(start), limit: String(limit) })
+      if (!response.ok) {
+        throw new Error(`Failed to list collections: ${response.status}`)
+      }
+      const data = (await response.json()) as ZoteroApiCollection[]
+      for (const item of data) {
+        allCollections.push({
+          key: item.key,
+          name: item.data.name,
+          parentCollection: item.data.parentCollection,
+          numItems: item.data.numItems,
+        })
+      }
+      if (data.length < limit) break
+      start += limit
     }
-    const data = (await response.json()) as ZoteroApiCollection[]
-    return data.map((item) => ({
-      key: item.key,
-      name: item.data.name,
-      parentCollection: item.data.parentCollection,
-      numItems: item.data.numItems,
-    }))
+
+    return allCollections
   }
 
   async listItems(collectionId?: string): Promise<ZoteroItem[]> {
     this.ensureConnected()
     const path = collectionId ? `/collections/${collectionId}/items` : '/items'
-    const response = await this.fetch(path, { itemType: '-attachment || note' })
-    if (!response.ok) {
-      throw new Error(`Failed to list items: ${response.status}`)
+    const allItems: ZoteroItem[] = []
+    let start = 0
+    const limit = 100
+    const seen = new Set<string>()
+
+    for (;;) {
+      const response = await this.fetch(path, {
+        itemType: '-attachment || note',
+        start: String(start),
+        limit: String(limit),
+      })
+      if (!response.ok) {
+        throw new Error(`Failed to list items: ${response.status}`)
+      }
+      const data = (await response.json()) as ZoteroApiItem[]
+      for (const item of data) {
+        if (item.data.itemType !== 'attachment' && item.data.itemType !== 'note' && !seen.has(item.key)) {
+          seen.add(item.key)
+          allItems.push(item.data)
+        }
+      }
+      if (data.length < limit) break
+      start += limit
     }
-    const data = (await response.json()) as ZoteroApiItem[]
-    return data
-      .filter((item) => item.data.itemType !== 'attachment' && item.data.itemType !== 'note')
-      .map((item) => item.data)
+
+    return allItems
   }
 
   async exportBibTeX(collectionId?: string): Promise<string> {

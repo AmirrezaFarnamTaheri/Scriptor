@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react'
-import { MarkdownPreview } from '@scriptor/renderer'
+import { MarkdownPreview, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 
 import { WidgetCard } from './chrome/WorkspaceChrome'
 
@@ -9,8 +9,8 @@ interface ExportPrintPreviewProps {
   previewProps: {
     fetchNote?: (target: string) => Promise<string | null>
     readVaultText?: (path: string) => Promise<string | null>
-    executeDql?: (query: string) => Promise<unknown>
-    runCodeChunk?: (language: string, code: string) => Promise<unknown>
+    executeDql?: (query: string) => Promise<DqlResultRow[]>
+    runCodeChunk?: (language: string, code: string) => Promise<CodeChunkRunResult>
     postProcessHtml?: (html: string) => string
     renderPlantUmlLocal?: (source: string) => Promise<string | null>
   }
@@ -46,8 +46,8 @@ export function ExportPrintPreview({ markdown, activePath, previewProps }: Expor
                   basePath={activePath}
                   fetchNote={previewProps.fetchNote}
                   readVaultText={previewProps.readVaultText}
-                  executeDql={previewProps.executeDql as any}
-                  runCodeChunk={previewProps.runCodeChunk as any}
+                  executeDql={previewProps.executeDql}
+                  runCodeChunk={previewProps.runCodeChunk}
                   postProcessHtml={previewProps.postProcessHtml}
                   renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
                 />

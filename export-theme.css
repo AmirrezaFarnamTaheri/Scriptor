@@ -1,0 +1,84 @@
+/* Scriptor HTML export theme — injected via Pandoc --css */
+:root {
+  color-scheme: light dark;
+  --ink: #1a1d21;
+  --muted: #5c6570;
+  --border: #d8dee6;
+  --accent: #2f6fed;
+  --bg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e8ecf1;
+    --muted: #9aa3ad;
+    --border: #2a3139;
+    --accent: #6ea3ff;
+    --bg: #12151a;
+  }
+}
+
+body {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--bg);
+  max-width: 720px;
+  margin: 2rem auto;
+  padding: 0 1.25rem;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.25;
+  margin-top: 1.6em;
+  margin-bottom: 0.5em;
+}
+
+p, ul, ol, blockquote, pre, table {
+  margin: 0.85em 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  font-family: Consolas, "Courier New", monospace;
+  background: color-mix(in oklch, var(--border) 55%, transparent);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+
+pre {
+  background: color-mix(in oklch, var(--border) 35%, transparent);
+  padding: 0.85em 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1em;
+  color: var(--muted);
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 0.45em 0.65em;
+  text-align: left;
+}
+
+th {
+  background: color-mix(in oklch, var(--border) 40%, transparent);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 2rem 0;
+}

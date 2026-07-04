@@ -42,10 +42,7 @@ pub fn resolve_daemon_binary() -> PathBuf {
 }
 
 pub fn daemon_ping() -> Result<String, Box<dyn std::error::Error>> {
-    let response = rpc_call(RpcRequest {
-        id: 1,
-        method: RpcMethod::Ping,
-    })?;
+    let response = rpc_call(RpcRequest::new(1, RpcMethod::Ping))?;
     match response.result {
         RpcResult::Ok(RpcPayload::Pong { version }) => Ok(version),
         RpcResult::Err(message) => Err(message.into()),
@@ -78,12 +75,9 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
 }
 
 pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let response = rpc_call(RpcRequest {
-        id: 2,
-        method: RpcMethod::OpenVault {
-            path: path.display().to_string(),
-        },
-    })?;
+    let response = rpc_call(RpcRequest::new(2, RpcMethod::OpenVault {
+        path: path.display().to_string(),
+    }))?;
     match response.result {
         RpcResult::Ok(RpcPayload::VaultOpened { .. }) => Ok(()),
         RpcResult::Err(message) => Err(message.into()),

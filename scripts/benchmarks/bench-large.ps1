@@ -32,8 +32,8 @@ if (-not (Test-Path $vault)) {
 }
 
 if ($Mode -eq 'scan') {
-    cargo run -p scriptor-cli -- bench-scan $vault --iterations $Iterations
+    cargo run --release -p scriptor-cli -- bench-scan $vault --iterations $Iterations
 } else {
-    cargo run -p scriptor-cli -- rebuild-index $vault | Out-Null
-    cargo run -p scriptor-cli -- bench-search $vault $Query --iterations $Iterations
+    cargo run --release -p scriptor-cli -- rebuild-index $vault | Out-Null
+    cargo run --release -p scriptor-cli -- bench-search $vault $Query --iterations $Iterations
 }

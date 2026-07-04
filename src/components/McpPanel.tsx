@@ -8,6 +8,7 @@ import { McpDraftDiffEditor } from './editor/McpDraftDiffEditor'
 import { MCP_RECIPES } from '../lib/mcpRecipes'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
+import { useI18n } from '../lib/i18n'
 
 const MODES: McpMode[] = ['off', 'read-only', 'draft', 'write-approved']
 
@@ -49,10 +50,10 @@ const TOOL_DEFAULTS: Record<string, string> = {
 }
 
 const TABS = [
-  { id: 'recipes', label: 'Recipes' },
-  { id: 'tools', label: 'Tools' },
-  { id: 'drafts', label: 'Drafts' },
-  { id: 'audit', label: 'Audit' },
+  { id: 'recipes', labelKey: 'mcp.tabRecipes' },
+  { id: 'tools', labelKey: 'mcp.tabTools' },
+  { id: 'drafts', labelKey: 'mcp.tabDrafts' },
+  { id: 'audit', labelKey: 'mcp.tabAudit' },
 ] as const
 
 export function McpPanel({
@@ -74,6 +75,7 @@ export function McpPanel({
   aiEnabled = false,
   onGenerateDraft,
 }: McpPanelProps) {
+  const { t } = useI18n()
   const [tab, setTab] = useState<McpTab>('recipes')
   const [selectedTool, setSelectedTool] = useState(tools[0]?.name ?? 'mcp.search')
   const [inputJson, setInputJson] = useState(TOOL_DEFAULTS['mcp.search'])
@@ -87,20 +89,20 @@ export function McpPanel({
 
   return (
     <UnifiedPanelShell
-      title="MCP automation"
-      subtitle="Permissioned tools with audit logging and draft approval gates."
+      title={t('mcp.title')}
+      subtitle={t('mcp.subtitle')}
       icon={<Sparkles size={18} />}
-      ariaLabel="MCP automation"
+      ariaLabel={t('mcp.title')}
       onClose={onClose}
       presentation={presentation}
       className="mcp-panel knowledge-filters-panel"
       wide
-      tabs={TABS.map((entry) => ({ id: entry.id, label: entry.label }))}
+      tabs={TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) }))}
       activeTab={tab}
       onTabChange={(next) => setTab(next as McpTab)}
       headerActions={
         <button type="button" className="toolbar-button" onClick={onResetPermissions}>
-          Reset vault MCP
+          {t('mcp.resetVaultMcp')}
         </button>
       }
     >
@@ -118,19 +120,19 @@ export function McpPanel({
         {aiEnabled && activePath && onGenerateDraft ? (
           <button type="button" className="toolbar-button" onClick={onGenerateDraft}>
             <Sparkles size={14} />
-            Generate with AI
+            {t('mcp.generateWithAi')}
           </button>
         ) : null}
       </div>
 
       {mode === 'off' ? (
-        <p className="empty-state">MCP is disabled for this vault. Select a mode to expose tools.</p>
+        <p className="empty-state">{t('mcp.disabledMessage')}</p>
       ) : (
         <>
           {tab === 'recipes' ? (
-            <section className="mcp-recipes" aria-label="Guided automation recipes">
+            <section className="mcp-recipes" aria-label={t('mcp.guidedAutomationRecipes')}>
               <p className="health-subtitle">
-                One-click workflows that pre-fill tool inputs. Review results before approving any drafts.
+                {t('mcp.recipesDescription')}
               </p>
               <div className="mcp-recipe-grid">
                 {MCP_RECIPES.map((recipe) => (
@@ -158,7 +160,7 @@ export function McpPanel({
             <>
               <div className="mcp-tool-playground">
                 <label>
-                  <span>Tool</span>
+                  <span>{t('mcp.tool')}</span>
                   <select
                     value={effectiveTool?.name ?? ''}
                     onChange={(event) => {
@@ -175,7 +177,7 @@ export function McpPanel({
                   </select>
                 </label>
                 <label>
-                  <span>Input JSON</span>
+                  <span>{t('mcp.inputJson')}</span>
                   <textarea rows={6} value={inputJson} onChange={(event) => setInputJson(event.target.value)} />
                 </label>
                 <button
@@ -194,7 +196,7 @@ export function McpPanel({
                     }
                   }}
                 >
-                  Invoke tool
+                  {t('mcp.invokeTool')}
                 </button>
               </div>
 
@@ -208,9 +210,9 @@ export function McpPanel({
 
           {tab === 'drafts' ? (
             <section className="mcp-drafts">
-              <h3>Pending drafts ({drafts.length})</h3>
+              <h3>{t('mcp.pendingDrafts', { count: drafts.length })}</h3>
               {drafts.length === 0 ? (
-                <p className="empty-state">No pending draft patches.</p>
+                <p className="empty-state">{t('mcp.noPendingDrafts')}</p>
               ) : (
                 <ul>
                   {drafts.map((draft) => (
@@ -231,7 +233,7 @@ export function McpPanel({
                             }
                           }}
                         >
-                          {expandedDraftId === draft.id ? 'Hide diff' : 'Review diff'}
+                          {expandedDraftId === draft.id ? t('mcp.hideDiff') : t('mcp.reviewDiff')}
                         </button>
                         {expandedDraftId === draft.id ? (
                           <McpDraftDiffEditor
@@ -248,10 +250,10 @@ export function McpPanel({
                           disabled={mode !== 'write-approved'}
                           onClick={() => onApproveDraft(draft.id)}
                         >
-                          Approve
+                          {t('mcp.approve')}
                         </button>
                         <button type="button" className="toolbar-button" onClick={() => onRejectDraft(draft.id)}>
-                          Reject
+                          {t('mcp.reject')}
                         </button>
                       </div>
                     </li>
@@ -259,7 +261,7 @@ export function McpPanel({
                 </ul>
               )}
               {mode !== 'write-approved' && drafts.length > 0 ? (
-                <p className="mcp-hint">Switch to write-approved mode to apply drafts to the vault.</p>
+                <p className="mcp-hint">{t('mcp.switchToWriteApproved')}</p>
               ) : null}
             </section>
           ) : null}
@@ -267,7 +269,7 @@ export function McpPanel({
           {tab === 'audit' ? (
             <section className="mcp-audit">
               {audit.length === 0 ? (
-                <p className="empty-state">No tool calls yet.</p>
+                <p className="empty-state">{t('mcp.noToolCalls')}</p>
               ) : (
                 <ul>
                   {audit.map((entry) => (

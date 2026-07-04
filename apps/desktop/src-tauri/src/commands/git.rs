@@ -3,6 +3,7 @@ use scriptor_native_git::{
     git_show_head_file, git_show_merge_base_file, git_status, read_conflict_markers, GitCommitOutput,
     GitConflictResolveOutput, GitPullOutput, GitPushOutput, GitStatus,
 };
+use scriptor_vault::RelativeVaultPath;
 
 use crate::AppState;
 use crate::state::{active_session, use_headless_engine};
@@ -69,18 +70,25 @@ pub fn git_show_merge_base_file_cmd(
     path: String,
 ) -> Result<Option<String>, String> {
     let session = active_session(&state)?;
-    git_show_merge_base_file(session.root.root(), &path).map_err(|error| error.to_string())
+    let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
+    let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+    let rel_str = resolved.strip_prefix(session.root.root()).unwrap_or(&resolved);
+    git_show_merge_base_file(session.root.root(), &rel_str.to_string_lossy()).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub fn git_read_conflict_markers_cmd(state: tauri::State<AppState>, path: String) -> Result<Vec<String>, String> {
     let session = active_session(&state)?;
-    let file_path = session.root.root().join(path.replace('/', std::path::MAIN_SEPARATOR_STR));
+    let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
+    let file_path = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
     read_conflict_markers(&file_path).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
 pub fn git_show_head_file_cmd(state: tauri::State<AppState>, path: String) -> Result<Option<String>, String> {
     let session = active_session(&state)?;
-    git_show_head_file(session.root.root(), &path).map_err(|error| error.to_string())
+    let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
+    let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+    let rel_str = resolved.strip_prefix(session.root.root()).unwrap_or(&resolved);
+    git_show_head_file(session.root.root(), &rel_str.to_string_lossy()).map_err(|error| error.to_string())
 }

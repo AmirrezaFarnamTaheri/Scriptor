@@ -84,8 +84,9 @@ pub fn log_entry_from_output(output: &ExportJobOutput, success: bool) -> ExportJ
 pub const SLOW_EXPORT_THRESHOLD_MS: u64 = 30_000;
 
 pub fn count_slow_exports(vault_root: &Path) -> Result<u32, ExportError> {
-    Ok(read_export_logs(vault_root, 50)?
+    let count = read_export_logs(vault_root, 50)?
         .into_iter()
         .filter(|entry| entry.success && entry.duration_ms >= SLOW_EXPORT_THRESHOLD_MS)
-        .count() as u32)
+        .count();
+    Ok(u32::try_from(count).unwrap_or(u32::MAX))
 }

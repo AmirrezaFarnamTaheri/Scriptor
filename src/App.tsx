@@ -65,12 +65,14 @@ import { useAppTheme } from './hooks/useAppTheme'
 import { useHeadlessEngine } from './hooks/useHeadlessEngine'
 import { usePreviewBridge } from './hooks/usePreviewBridge'
 import { useScreenshotAutoOpen } from './screenshot/useScreenshotAutoOpen'
+import { useResizablePanel } from './hooks/useResizablePanel'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
 import { useWorkspaceMode, usePersistedMobilePane, type WorkspaceMode } from './hooks/useWorkspaceMode'
 import { useWorkspaceChrome } from './hooks/useWorkspaceChrome'
 import { useWorkspaceLayout } from './hooks/useWorkspaceLayout'
 import { runPluginCommand } from './lib/runPluginCommand'
+import { SplitPaneHandle } from './components/SplitPaneHandle'
 import { vaultDeleteNote, vaultListRecentNotes } from './bridge/commands'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
@@ -201,6 +203,7 @@ function App() {
   const inspectorPanelRef = useRef<HTMLElement | null>(null)
   const splitPreviewScrollRef = useRef<HTMLElement | null>(null)
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null)
+  const workspaceGridRef = useRef<HTMLElement | null>(null)
   const [splitPreview, setSplitPreview] = usePersistedBoolean('scriptor:split-preview', false)
   const [vimMode, setVimMode] = usePersistedBoolean('scriptor:vim-mode', false)
   const [spellcheck, setSpellcheck] = usePersistedBoolean('scriptor:spellcheck', false)
@@ -210,6 +213,13 @@ function App() {
     'http://localhost:8010/v2/check',
   )
   const [wysiwyg, setWysiwyg] = usePersistedBoolean('scriptor:wysiwyg', false)
+
+  // Subsystem Hibernation States
+  const [hibernateGraph, setHibernateGraph] = usePersistedBoolean('scriptor:hibernate-graph', false)
+  const [hibernateMcp, setHibernateMcp] = usePersistedBoolean('scriptor:hibernate-mcp', false)
+  const [hibernateWatcher, setHibernateWatcher] = usePersistedBoolean('scriptor:hibernate-watcher', false)
+  const [hibernateSpellcheck, setHibernateSpellcheck] = usePersistedBoolean('scriptor:hibernate-spellcheck', false)
+  const [hibernateGit, setHibernateGit] = usePersistedBoolean('scriptor:hibernate-git', false)
   const [typewriter, setTypewriter] = usePersistedBoolean('scriptor:typewriter', false)
   const [distractionFree, setDistractionFree] = usePersistedBoolean('scriptor:distraction-free', false)
   const [editorMode, setEditorMode] = useState<'codemirror' | 'monaco'>(() => {
@@ -275,6 +285,8 @@ function App() {
       setCollapsedFolders(layout.collapsedFolders)
       setSidebarViewRef.current(layout.sidebarView)
     },
+    hibernateWatcher,
+    hibernateGit,
   })
   useEffect(() => {
     setSidebarViewRef.current = workspace.setSidebarView
@@ -298,6 +310,7 @@ function App() {
       void workspace.openNote(target.path)
     },
   })
+
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
   const recentVaults = useRecentVaults()
   useEffect(() => {
@@ -308,11 +321,11 @@ function App() {
   const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph, activeNote } = workspace
 
   useEffect(() => {
-    if (spellcheck) {
+    if (spellcheck && !hibernateSpellcheck) {
       setActiveHunspellLocale(spellcheckLocale)
       void loadHunspellLocale(spellcheckLocale)
     }
-  }, [spellcheck, spellcheckLocale])
+  }, [spellcheck, spellcheckLocale, hibernateSpellcheck])
 
   useEffect(() => {
     configureLanguageTool({ endpoint: languageToolEndpoint })
@@ -334,15 +347,17 @@ function App() {
     }
   }, [workspaceActivePath, activeNote?.metadata.title])
   const plugins = usePluginRegistry(Boolean(workspace.vault))
+  const { setPluginExportProfiles } = workspace
   useEffect(() => {
-    workspace.setPluginExportProfiles(plugins.contributions.exportProfiles)
-  }, [plugins.contributions.exportProfiles, workspace.setPluginExportProfiles])
+    setPluginExportProfiles(plugins.contributions.exportProfiles)
+  }, [plugins.contributions.exportProfiles, setPluginExportProfiles])
 
+  const { refreshHealth, fixVaultLint, exportWithProfile } = workspace
   const pluginCommandRuntime = useMemo(
     () => ({
-      refreshHealth: () => workspace.refreshHealth(),
-      fixVaultLint: () => workspace.fixVaultLint(),
-      exportWithProfile: workspace.exportWithProfile,
+      refreshHealth: () => refreshHealth(),
+      fixVaultLint: () => fixVaultLint(),
+      exportWithProfile,
       setStatusDockTab,
       setHealthDashboardOpen,
       openCanvas: () => setCanvasOpen(true),
@@ -350,9 +365,9 @@ function App() {
     [
       setHealthDashboardOpen,
       setStatusDockTab,
-      workspace.exportWithProfile,
-      workspace.fixVaultLint,
-      workspace.refreshHealth,
+      exportWithProfile,
+      fixVaultLint,
+      refreshHealth,
     ],
   )
 
@@ -365,6 +380,7 @@ function App() {
     plugins.contributions.exportProfiles,
     plugins.contributions.mcpTools,
     pluginCommandRuntime,
+    hibernateMcp,
   )
   const ai = useAiProvider()
   const diagnostics = useDiagnosticsSettings(Boolean(workspace.vault))
@@ -373,7 +389,7 @@ function App() {
     (html: string) => applyRendererExtensions(html, rendererExtensions),
     [rendererExtensions],
   )
-  const nativeReady = isNativeBridgeAvailable()
+  const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const {
     headlessEngine,
     setHeadlessEngine,
@@ -399,6 +415,34 @@ function App() {
     },
     [nativeReady],
   )
+
+  // Auto-open last vault or default cache vault on startup
+  useEffect(() => {
+    if (!nativeReady || workspace.vault || workspace.status !== 'idle') return
+
+    void (async () => {
+      // 1. Try to open the most recent vault
+      if (recentVaults.recent.length > 0) {
+        try {
+          await workspace.openVaultAt(recentVaults.recent[0])
+          return
+        } catch {
+          // If it fails (e.g. folder deleted), forget it and fall through to default
+          recentVaults.forget(recentVaults.recent[0])
+        }
+      }
+
+      // 2. Fall back to default cache folder
+      try {
+        const { documentDir, join } = await import('@tauri-apps/api/path')
+        const docDir = await documentDir()
+        const defaultVaultPath = await join(docDir, 'ScriptorVault')
+        await workspace.openVaultAt(defaultVaultPath)
+      } catch (err) {
+        console.error('Failed to auto-open default vault:', err)
+      }
+    })()
+  }, [nativeReady, recentVaults, workspace.vault, workspace.status, workspace.openVaultAt])
   const bibliography = useMemo(
     () => (workspace.vault && nativeReady ? bibliographyRaw : []),
     [bibliographyRaw, nativeReady, workspace.vault],
@@ -413,7 +457,29 @@ function App() {
     onHandlePointerUp: onSplitHandlePointerUp,
     onHandlePointerCancel: onSplitHandlePointerCancel,
     onHandleDoubleClick: onSplitHandleDoubleClick,
-  } = useSplitPaneResize(showSplitPreview, editorWorkspaceRef)
+  } = useSplitPaneResize(showSplitPreview && !chrome.layoutLocked, editorWorkspaceRef)
+
+  const vaultResizer = useResizablePanel(
+    !chrome.vaultSidebarCollapsed && !chrome.layoutLocked,
+    workspaceGridRef,
+    'left',
+    chrome.vaultWidth,
+    200,
+    600,
+    'scriptor:vault-width',
+    (collapsed) => patchChrome({ vaultSidebarCollapsed: collapsed })
+  )
+
+  const inspectorResizer = useResizablePanel(
+    !chrome.inspectorCollapsed && !chrome.layoutLocked,
+    workspaceGridRef,
+    'right',
+    chrome.inspectorWidth,
+    300,
+    800,
+    'scriptor:inspector-width',
+    (collapsed) => patchChrome({ inspectorCollapsed: collapsed })
+  )
   const showInspectorPreview =
     (chrome.editorSurfaceMode === 'rendered' || activeMode === 'preview') &&
     Boolean(workspace.activePath) &&
@@ -575,19 +641,19 @@ function App() {
     if (workspace.vault) {
       journey.markVaultOpen()
     }
-  }, [workspace.vault?.id])
+  }, [workspace.vault?.id, journey])
 
   useEffect(() => {
     if (workspace.lastRebuildMs != null) {
       journey.markIndexRebuild(workspace.lastRebuildMs)
     }
-  }, [workspace.lastRebuildMs])
+  }, [workspace.lastRebuildMs, journey])
 
   useEffect(() => {
     if (workspace.exportResult) {
       journey.markExport()
     }
-  }, [workspace.exportResult?.artifact_path])
+  }, [workspace.exportResult?.artifact_path, journey])
 
   useEffect(() => {
     const layout = layouts[workspaceMode]
@@ -599,16 +665,16 @@ function App() {
 
   useEffect(() => {
     if (gitPanelOpen) journey.recordPanelOpen('git')
-  }, [gitPanelOpen])
+  }, [gitPanelOpen, journey])
   useEffect(() => {
     if (mcpPanelOpen) journey.recordPanelOpen('mcp')
-  }, [mcpPanelOpen])
+  }, [mcpPanelOpen, journey])
   useEffect(() => {
     if (portalOpen) journey.recordPanelOpen('portal')
-  }, [portalOpen])
+  }, [portalOpen, journey])
   useEffect(() => {
     if (knowledgeWorkbenchOpen) journey.recordPanelOpen('workbench')
-  }, [knowledgeWorkbenchOpen])
+  }, [knowledgeWorkbenchOpen, journey])
 
   useEffect(() => {
     if (!nativeReady || !workspace.vault) {
@@ -655,7 +721,7 @@ function App() {
     perfMetrics.setGraphNodeCount(workspace.graph?.nodes.length ?? null)
   }, [workspace.graph?.nodes.length, perfMetrics])
 
-  const draftWordCount = countWords(workspace.draftMarkdown)
+  const draftWordCount = useMemo(() => countWords(workspace.draftMarkdown), [workspace.draftMarkdown])
   const savedWordCount = workspace.activeNote?.metadata.word_count ?? 0
   const isNoteDirty = workspace.isNoteDirty
   const savedReadingMinutes = workspace.activeNote?.metadata.reading_time_minutes ?? 0
@@ -663,7 +729,7 @@ function App() {
     draftWordCount === 0 ? 0 : Math.max(1, Math.floor(draftWordCount / 200))
   const readingMinutes = isNoteDirty ? draftReadingMinutes : savedReadingMinutes
   const wordCountDelta = isNoteDirty ? draftWordCount - savedWordCount : 0
-  const charCount = countCharacters(workspace.draftMarkdown)
+  const charCount = useMemo(() => countCharacters(workspace.draftMarkdown), [workspace.draftMarkdown])
   const healthAction = !workspace.health
     ? 'Loading…'
     : workspace.health.broken_links === 0 && workspace.health.unresolved_citations === 0
@@ -834,6 +900,16 @@ function App() {
         applyEditorTransform: (action) => workspace.applyEditorTransform(action),
         setPerfHudOpen,
         perfHudOpen,
+        hibernateGraph,
+        setHibernateGraph,
+        hibernateMcp,
+        setHibernateMcp,
+        hibernateWatcher,
+        setHibernateWatcher,
+        hibernateGit,
+        setHibernateGit,
+        hibernateSpellcheck,
+        setHibernateSpellcheck,
       }),
     [
       ai,
@@ -867,6 +943,16 @@ function App() {
       splitPreview,
       workspace,
       perfHudOpen,
+      hibernateGraph,
+      setHibernateGraph,
+      hibernateMcp,
+      setHibernateMcp,
+      hibernateWatcher,
+      setHibernateWatcher,
+      hibernateGit,
+      setHibernateGit,
+      hibernateSpellcheck,
+      setHibernateSpellcheck,
     ],
   )
 
@@ -909,6 +995,22 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [])
 
+  const keydownWorkspaceActions = useMemo(() => ({
+    chooseVaultFolder: workspace.chooseVaultFolder,
+    setSidebarView: workspace.setSidebarView,
+    createDailyNote: workspace.createDailyNote,
+    loadGraph: workspace.loadGraph,
+    reopenClosedTab: workspace.reopenClosedTab,
+    activePath: workspace.activePath,
+  }), [
+    workspace.chooseVaultFolder,
+    workspace.setSidebarView,
+    workspace.createDailyNote,
+    workspace.loadGraph,
+    workspace.reopenClosedTab,
+    workspace.activePath,
+  ])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!event.altKey || event.metaKey || event.ctrlKey) return
@@ -919,15 +1021,15 @@ function App() {
       switch (event.key.toLowerCase()) {
         case 'o':
           event.preventDefault()
-          void workspace.chooseVaultFolder()
+          void keydownWorkspaceActions.chooseVaultFolder()
           break
         case 'i':
           event.preventDefault()
-          workspace.setSidebarView('inbox')
+          keydownWorkspaceActions.setSidebarView('inbox')
           break
         case 'd':
           event.preventDefault()
-          void workspace.createDailyNote()
+          void keydownWorkspaceActions.createDailyNote()
           break
         case 's':
           event.preventDefault()
@@ -936,7 +1038,7 @@ function App() {
         case 'g':
           event.preventDefault()
           setGraphOpen(true)
-          void workspace.loadGraph(workspace.activePath)
+          void keydownWorkspaceActions.loadGraph(keydownWorkspaceActions.activePath)
           break
         case 'c':
           event.preventDefault()
@@ -945,7 +1047,7 @@ function App() {
         case 't':
           if (event.shiftKey) {
             event.preventDefault()
-            workspace.reopenClosedTab()
+            keydownWorkspaceActions.reopenClosedTab()
           }
           break
         default:
@@ -954,13 +1056,8 @@ function App() {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [workspace])
+  }, [keydownWorkspaceActions])
 
-  const gitLabel = workspace.gitStatus?.is_repo
-    ? workspace.gitStatus.clean
-      ? `Git clean${workspace.gitStatus.branch ? ` (${workspace.gitStatus.branch})` : ''}`
-      : `Git ${workspace.gitStatus.changed_files.length} changed`
-    : 'No Git repo'
   const gitTitle = workspace.gitStatus?.is_repo
     ? workspace.gitStatus.clean
       ? 'Repository clean'
@@ -1005,7 +1102,6 @@ function App() {
             void workspace.loadGraph(workspace.activePath)
           }}
           onOpenCanvas={() => setCanvasOpen(true)}
-          gitLabel={gitLabel}
           gitTitle={gitTitle}
           gitSuccess={workspace.gitStatus?.is_repo === true && workspace.gitStatus.clean === true}
           gitNeutral={!workspace.gitStatus?.is_repo}
@@ -1016,6 +1112,10 @@ function App() {
           onOpenSettings={() => setSettingsOpen(true)}
           theme={theme}
           onToggleTheme={toggleTheme}
+          vaultSidebarCollapsed={chrome.vaultSidebarCollapsed}
+          onToggleVaultSidebar={() => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed })}
+          inspectorCollapsed={chrome.inspectorCollapsed}
+          onToggleInspector={() => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed })}
         />
 
         {!nativeReady && (
@@ -1033,6 +1133,7 @@ function App() {
 
       <section
         className="workspace-grid"
+        ref={workspaceGridRef}
         data-mobile-pane={mobilePane}
         data-vault-collapsed={chrome.vaultSidebarCollapsed ? 'true' : 'false'}
         data-inspector-collapsed={chrome.inspectorCollapsed ? 'true' : 'false'}
@@ -1043,6 +1144,8 @@ function App() {
             '--editor-line-height': String(chrome.editorLineHeight),
             '--editor-padding': `${chrome.editorPaddingPx}px`,
             '--preview-max-ch': `${chrome.previewMaxWidthCh}ch`,
+            '--vault-width': `${vaultResizer.width}px`,
+            '--inspector-width': `${inspectorResizer.width}px`,
           } as React.CSSProperties
         }
       >
@@ -1108,10 +1211,26 @@ function App() {
           recentNotes={recentNotes}
         />
 
+        {chrome.vaultSidebarCollapsed ? (
+          <div className="resizer-placeholder vault-collapsed-placeholder" />
+        ) : (
+          <SplitPaneHandle
+            direction="horizontal"
+            dragging={vaultResizer.dragging}
+            locked={chrome.layoutLocked}
+            onPointerDown={vaultResizer.onHandlePointerDown}
+            onPointerMove={vaultResizer.onHandlePointerMove}
+            onPointerUp={vaultResizer.onHandlePointerUp}
+            onPointerCancel={vaultResizer.onHandlePointerCancel}
+            onDoubleClick={vaultResizer.onHandleDoubleClick}
+          />
+        )}
+
         <EditorWorkspace
           activePath={workspace.activePath}
           onOpenVault={() => void workspace.chooseVaultFolder()}
           openTabs={workspace.openTabs}
+          layoutLocked={chrome.layoutLocked}
           isNoteDirty={isNoteDirty}
           inboxPaths={inboxPaths}
           canReopenClosedTab={workspace.closedTabs.length > 0}
@@ -1145,7 +1264,7 @@ function App() {
           toggleEditorTheme={toggleEditorTheme}
           vimMode={vimMode}
           setVimMode={setVimMode}
-          spellcheck={spellcheck}
+          spellcheck={spellcheck && !hibernateSpellcheck}
           setSpellcheck={setSpellcheck}
           wysiwyg={wysiwyg}
           setWysiwyg={setWysiwyg}
@@ -1153,7 +1272,7 @@ function App() {
           setTypewriter={setTypewriter}
           distractionFree={distractionFree}
           setDistractionFree={setDistractionFree}
-          languageTool={languageTool}
+          languageTool={languageTool && !hibernateSpellcheck}
           setLanguageTool={setLanguageTool}
           stickiesVisible={stickiesVisible}
           setStickiesVisible={setStickiesVisible}
@@ -1208,6 +1327,21 @@ function App() {
           editorSurfaceMode={chrome.editorSurfaceMode}
           onEditorSurfaceModeChange={setEditorSurfaceMode}
         />
+
+        {chrome.inspectorCollapsed ? (
+          <div className="resizer-placeholder inspector-collapsed-placeholder" />
+        ) : (
+          <SplitPaneHandle
+            direction="horizontal"
+            dragging={inspectorResizer.dragging}
+            locked={chrome.layoutLocked}
+            onPointerDown={inspectorResizer.onHandlePointerDown}
+            onPointerMove={inspectorResizer.onHandlePointerMove}
+            onPointerUp={inspectorResizer.onHandlePointerUp}
+            onPointerCancel={inspectorResizer.onHandlePointerCancel}
+            onDoubleClick={inspectorResizer.onHandleDoubleClick}
+          />
+        )}
 
         <InspectorRail
           railRef={inspectorPanelRef}
@@ -1334,6 +1468,16 @@ function App() {
         onDiagnosticsOptInChange={diagnostics.setOptIn}
         timeToFirstEditMs={journey.timeToFirstEditMs}
         timeToFirstExportMs={journey.timeToFirstExportMs}
+        hibernateGraph={hibernateGraph}
+        onHibernateGraphChange={setHibernateGraph}
+        hibernateMcp={hibernateMcp}
+        onHibernateMcpChange={setHibernateMcp}
+        hibernateWatcher={hibernateWatcher}
+        onHibernateWatcherChange={setHibernateWatcher}
+        hibernateGit={hibernateGit}
+        onHibernateGitChange={setHibernateGit}
+        hibernateSpellcheck={hibernateSpellcheck}
+        onHibernateSpellcheckChange={setHibernateSpellcheck}
       />
       ) : null}
 
@@ -1401,6 +1545,8 @@ function App() {
             setGraphOpen(false)
             openKnowledgeWorkbench('discover')
           }}
+          hibernated={hibernateGraph}
+          onToggleHibernate={() => setHibernateGraph((prev) => !prev)}
         />
         </Suspense>
       )}
@@ -1582,6 +1728,7 @@ function App() {
           aiHasApiKey={ai.hasApiKey}
           aiBusy={ai.busy}
           aiLastError={ai.lastError}
+          aiHttpWarning={ai.httpWarning}
           onAiProviderChange={ai.setProvider}
           onAiEndpointChange={ai.setEndpoint}
           onAiSaveApiKey={(secret) => {
@@ -1616,6 +1763,16 @@ function App() {
           journey={journey.snapshot}
           timeToFirstEditMs={journey.timeToFirstEditMs}
           timeToFirstExportMs={journey.timeToFirstExportMs}
+          hibernateGraph={hibernateGraph}
+          onHibernateGraphChange={setHibernateGraph}
+          hibernateMcp={hibernateMcp}
+          onHibernateMcpChange={setHibernateMcp}
+          hibernateWatcher={hibernateWatcher}
+          onHibernateWatcherChange={setHibernateWatcher}
+          hibernateGit={hibernateGit}
+          onHibernateGitChange={setHibernateGit}
+          hibernateSpellcheck={hibernateSpellcheck}
+          onHibernateSpellcheckChange={setHibernateSpellcheck}
           onResetJourney={journey.reset}
           workspaceChrome={chrome}
           onPatchWorkspaceChrome={patchChrome}

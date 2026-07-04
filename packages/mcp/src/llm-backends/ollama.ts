@@ -44,12 +44,39 @@ export interface OllamaModel {
 }
 
 const DEFAULT_ENDPOINT = 'http://localhost:11434'
+const DEFAULT_TIMEOUT_MS = 120_000
 
 export class OllamaBackend {
   private endpoint: string
+  private timeoutMs: number
 
-  constructor(endpoint: string = DEFAULT_ENDPOINT) {
+  constructor(endpoint: string = DEFAULT_ENDPOINT, timeoutMs: number = DEFAULT_TIMEOUT_MS) {
     this.endpoint = endpoint.replace(/\/+$/, '')
+    this.timeoutMs = timeoutMs
+  }
+
+  private async fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs)
+    try {
+      return await globalThis.fetch(url, { ...init, signal: controller.signal })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error(`Ollama request timed out after ${this.timeoutMs}ms`, { cause: error })
+      }
+      throw error
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  private async parseErrorResponse(response: Response): Promise<string> {
+    try {
+      const body = await response.json() as { error?: string; message?: string }
+      return body.error ?? body.message ?? `${response.status} ${response.statusText}`
+    } catch {
+      return `${response.status} ${response.statusText}`
+    }
   }
 
   async generate(prompt: string, options?: GenerateOptions): Promise<GenerateResponse> {
@@ -63,14 +90,15 @@ export class OllamaBackend {
     if (options?.topP !== undefined) body.top_p = options.topP
     if (options?.maxTokens !== undefined) body.num_predict = options.maxTokens
 
-    const response = await globalThis.fetch(`${this.endpoint}/api/generate`, {
+    const response = await this.fetchWithTimeout(`${this.endpoint}/api/generate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
 
     if (!response.ok) {
-      throw new Error(`Ollama generate failed: ${response.status} ${response.statusText}`)
+      const detail = await this.parseErrorResponse(response)
+      throw new Error(`Ollama generate failed: ${detail}`)
     }
 
     return (await response.json()) as GenerateResponse
@@ -86,24 +114,26 @@ export class OllamaBackend {
     if (options?.topP !== undefined) body.top_p = options.topP
     if (options?.maxTokens !== undefined) body.num_predict = options.maxTokens
 
-    const response = await globalThis.fetch(`${this.endpoint}/api/chat`, {
+    const response = await this.fetchWithTimeout(`${this.endpoint}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
 
     if (!response.ok) {
-      throw new Error(`Ollama chat failed: ${response.status} ${response.statusText}`)
+      const detail = await this.parseErrorResponse(response)
+      throw new Error(`Ollama chat failed: ${detail}`)
     }
 
     return (await response.json()) as ChatResponse
   }
 
   async listModels(): Promise<OllamaModel[]> {
-    const response = await globalThis.fetch(`${this.endpoint}/api/tags`)
+    const response = await this.fetchWithTimeout(`${this.endpoint}/api/tags`, {})
 
     if (!response.ok) {
-      throw new Error(`Ollama list models failed: ${response.status} ${response.statusText}`)
+      const detail = await this.parseErrorResponse(response)
+      throw new Error(`Ollama list models failed: ${detail}`)
     }
 
     const data = (await response.json()) as { models: OllamaModel[] }

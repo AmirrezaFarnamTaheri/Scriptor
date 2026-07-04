@@ -1,4 +1,4 @@
-# BL-38: Tantivy vs FTS5 Evaluation
+# Tantivy vs FTS5 Evaluation
 
 ## Summary
 

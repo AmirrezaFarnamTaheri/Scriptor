@@ -5,7 +5,7 @@ use chrono::Utc;
 use scriptor_indexer::{
     backlinks_for_path, execute_dql_query, list_dead_end_notes, list_inbox_notes, list_orphan_notes,
     list_unresolved_link_targets, list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown,
-    query_focused_graph, search_notes, traverse_graph, InboxPeriod,
+    query_focused_graph, search_notes, traverse_graph, IndexCache, InboxPeriod,
 };
 use scriptor_vault::{
     append_mcp_mutation, build_note_markdown, load_vault_config, open_vault, read_note,
@@ -55,6 +55,7 @@ struct McpError {
 struct McpStdioState {
     session: VaultSession,
     trust_stdio: bool,
+    index_cache: IndexCache,
 }
 
 const READ_TOOLS: &[(&str, &str, &str)] = &[
@@ -143,9 +144,11 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
 
 pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
     let session = open_vault(&options.vault_path).map_err(|error| error.to_string())?;
+    let index_cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let mut state = McpStdioState {
         session,
         trust_stdio: options.trust_stdio,
+        index_cache,
     };
     let stdin = io::stdin();
     let mut stdout = io::stdout();
@@ -246,8 +249,17 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("query")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "query is required".to_string())?;
+            if query.is_empty() {
+                return Err("query must not be empty".into());
+            }
+            if query.len() > 1000 {
+                return Err("query too long (max 1000 chars)".into());
+            }
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(25) as u32;
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if limit == 0 || limit > 500 {
+                return Err("limit must be between 1 and 500".into());
+            }
+            let cache = &state.index_cache;
             let hits = search_notes(&cache, &state.session.descriptor.id, query, limit)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(hits).map_err(|error| error.to_string())?)
@@ -257,6 +269,12 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("path")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "path is required".to_string())?;
+            if path.is_empty() {
+                return Err("path must not be empty".into());
+            }
+            if path.len() > 4096 {
+                return Err("path too long (max 4096 chars)".into());
+            }
             let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
             let note = read_note(
                 &state.session.descriptor.id,
@@ -271,13 +289,16 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("path")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "path is required".to_string())?;
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if path.is_empty() {
+                return Err("path must not be empty".into());
+            }
+            let cache = &state.index_cache;
             let hits = backlinks_for_path(&cache, &state.session, path)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(hits).map_err(|error| error.to_string())?)
         }
         "mcp.inspectBrokenLinks" => {
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            let cache = &state.index_cache;
             let targets = list_unresolved_link_targets(&cache, &state.session)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(targets).map_err(|error| error.to_string())?)
@@ -296,6 +317,9 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("path")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "path is required".to_string())?;
+            if path.is_empty() {
+                return Err("path must not be empty".into());
+            }
             let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
             let note = read_note(
                 &state.session.descriptor.id,
@@ -311,16 +335,19 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
             }))
         }
         "mcp.listTags" => {
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            let cache = &state.index_cache;
             let mut tags = list_vault_tags(&cache, &state.session.descriptor.id)
                 .map_err(|error| error.to_string())?;
             if let Some(prefix) = args.get("prefix").and_then(Value::as_str) {
+                if prefix.len() > 200 {
+                    return Err("prefix too long (max 200 chars)".into());
+                }
                 let prefix = prefix.trim_start_matches('#').to_lowercase();
                 tags.retain(|entry| entry.tag.to_lowercase().starts_with(&prefix));
             }
             if let Some(limit) = args.get("limit").and_then(Value::as_u64) {
                 let limit = limit as usize;
-                if limit > 0 {
+                if limit > 0 && limit <= 10000 {
                     tags.truncate(limit);
                 }
             }
@@ -332,8 +359,17 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .and_then(Value::as_str)
                 .ok_or_else(|| "tag is required".to_string())?
                 .trim_start_matches('#');
+            if tag.is_empty() {
+                return Err("tag must not be empty".into());
+            }
+            if tag.len() > 200 {
+                return Err("tag too long (max 200 chars)".into());
+            }
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(50) as usize;
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if limit > 10000 {
+                return Err("limit too large (max 10000)".into());
+            }
+            let cache = &state.index_cache;
             let mut notes = notes_for_tag(&cache, &state.session.descriptor.id, tag)
                 .map_err(|error| error.to_string())?;
             if limit > 0 {
@@ -342,7 +378,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
             Ok(serde_json::to_value(notes).map_err(|error| error.to_string())?)
         }
         "mcp.inspectGraphSummary" => {
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            let cache = &state.index_cache;
             let orphans = list_orphan_notes(&cache, &state.session).map_err(|error| error.to_string())?;
             let dead_ends =
                 list_dead_end_notes(&cache, &state.session).map_err(|error| error.to_string())?;
@@ -366,8 +402,14 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("focusPath")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "focusPath is required".to_string())?;
+            if focus_path.is_empty() {
+                return Err("focusPath must not be empty".into());
+            }
             let depth = args.get("depth").and_then(Value::as_u64).unwrap_or(2) as u32;
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if depth == 0 || depth > 10 {
+                return Err("depth must be between 1 and 10".into());
+            }
+            let cache = &state.index_cache;
             let graph = traverse_graph(&cache, &state.session, focus_path, depth)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(graph).map_err(|error| error.to_string())?)
@@ -375,7 +417,10 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
         "mcp.exportGraph" => {
             let focus_path = args.get("focusPath").and_then(Value::as_str);
             let depth = args.get("depth").and_then(Value::as_u64).unwrap_or(2) as u32;
-            let cache = open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if depth == 0 || depth > 10 {
+                return Err("depth must be between 1 and 10".into());
+            }
+            let cache = &state.index_cache;
             let graph = query_focused_graph(&cache, &state.session, focus_path, depth, &[])
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(graph).map_err(|error| error.to_string())?)
@@ -385,6 +430,9 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("markdown")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "markdown is required".to_string())?;
+            if markdown.len() > 1_000_000 {
+                return Err("markdown too long (max 1MB)".into());
+            }
             Ok(json!({ "html": render_markdown_html(markdown) }))
         }
         "mcp.listSavedViews" => {
@@ -397,8 +445,13 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("query")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "query is required".to_string())?;
-            let cache =
-                open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if query.is_empty() {
+                return Err("query must not be empty".into());
+            }
+            if query.len() > 10000 {
+                return Err("query too long (max 10000 chars)".into());
+            }
+            let cache = &state.index_cache;
             let rows = execute_dql_query(&cache, &state.session, query)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(rows).map_err(|error| error.to_string())?)
@@ -408,9 +461,15 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("period")
                 .and_then(Value::as_str)
                 .unwrap_or("all");
+            let valid_periods = ["all", "today", "yesterday", "week", "month"];
+            if !valid_periods.contains(&period) {
+                return Err(format!("invalid period: {period}. valid: {:?}", valid_periods));
+            }
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(50) as usize;
-            let cache =
-                open_cache_for_session(&state.session).map_err(|error| error.to_string())?;
+            if limit > 10000 {
+                return Err("limit too large (max 10000)".into());
+            }
+            let cache = &state.index_cache;
             let mut notes = list_inbox_notes(
                 &cache,
                 &state.session.descriptor.id,
@@ -430,10 +489,19 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("path")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "path is required".to_string())?;
+            if path.is_empty() {
+                return Err("path must not be empty".into());
+            }
+            if path.len() > 4096 {
+                return Err("path too long (max 4096 chars)".into());
+            }
             let markdown = args
                 .get("proposedMarkdown")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "proposedMarkdown is required".to_string())?;
+            if markdown.len() > 10_000_000 {
+                return Err("proposedMarkdown too long (max 10MB)".into());
+            }
             let expected_hash = args
                 .get("baseContentHash")
                 .and_then(Value::as_str)
@@ -455,10 +523,19 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("path")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "path is required".to_string())?;
+            if path.is_empty() {
+                return Err("path must not be empty".into());
+            }
+            if path.len() > 4096 {
+                return Err("path too long (max 4096 chars)".into());
+            }
             let title = args
                 .get("title")
                 .and_then(Value::as_str)
                 .unwrap_or("Untitled");
+            if title.len() > 1000 {
+                return Err("title too long (max 1000 chars)".into());
+            }
             let note_type = args.get("noteType").and_then(Value::as_str);
             let template_body = args.get("templateBody").and_then(Value::as_str);
             let markdown = args
@@ -466,6 +543,9 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .and_then(Value::as_str)
                 .map(str::to_string)
                 .unwrap_or_else(|| build_note_markdown(title, note_type, template_body));
+            if markdown.len() > 10_000_000 {
+                return Err("markdown too long (max 10MB)".into());
+            }
             write_note_with_audit(state, "mcp.createNote", "note.create", path, &markdown, None)
         }
         "mcp.updateFrontmatter" => {
@@ -476,14 +556,29 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 .get("path")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "path is required".to_string())?;
+            if path.is_empty() {
+                return Err("path must not be empty".into());
+            }
+            if path.len() > 4096 {
+                return Err("path too long (max 4096 chars)".into());
+            }
             let field = args
                 .get("field")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "field is required".to_string())?;
+            if field.is_empty() {
+                return Err("field must not be empty".into());
+            }
+            if field.len() > 200 {
+                return Err("field too long (max 200 chars)".into());
+            }
             let value = args
                 .get("value")
                 .and_then(Value::as_str)
                 .ok_or_else(|| "value is required".to_string())?;
+            if value.len() > 100_000 {
+                return Err("value too long (max 100K chars)".into());
+            }
             update_frontmatter_with_audit(state, path, field, value)
         }
         other => Err(format!("Unknown tool: {other}")),
@@ -602,7 +697,7 @@ fn render_markdown_html(markdown: &str) -> String {
     let mut html_output = String::new();
     let parser = Parser::new_ext(markdown, Options::all());
     html::push_html(&mut html_output, parser);
-    html_output
+    ammonia::clean(&html_output)
 }
 
 #[cfg(test)]
@@ -636,9 +731,11 @@ mod tests {
         fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write note");
 
         let session = open_vault(&dir.path().display().to_string()).expect("open vault");
+        let index_cache = open_cache_for_session(&session).expect("open cache");
         let state = McpStdioState {
             session,
             trust_stdio: true,
+            index_cache,
         };
 
         write_note_with_audit(
@@ -674,9 +771,11 @@ mod tests {
         .expect("write note");
 
         let session = open_vault(&dir.path().display().to_string()).expect("open vault");
+        let index_cache = open_cache_for_session(&session).expect("open cache");
         let state = McpStdioState {
             session,
             trust_stdio: true,
+            index_cache,
         };
 
         update_frontmatter_with_audit(&state, "note.md", "status", "reviewed")

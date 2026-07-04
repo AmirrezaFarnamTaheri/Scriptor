@@ -1,10 +1,9 @@
-# BL-34: Native Rust Citation Engine
+# Native Rust Citation Engine
 
 ## Status
 
 - **Phase**: D — Strategic Expansion
 - **Priority**: Medium
-- **Tracking**: BL-34
 
 ## Current State
 
@@ -21,7 +20,7 @@ Scriptor uses **citeproc-js** running inside a Web Worker for citation rendering
 - Cold-start ~400ms on large bibliographies (25k+ vault)
 - JS heap pressure limits concurrent renders
 - Locale data shipped as separate JSON bundles (~80 locales × 12 KB)
-- Cannot run headless (blocks CI/SSG use case BL-41)
+- Cannot run headless (blocks CI/SSG use case)
 
 ## Evaluation Criteria
 

@@ -6,7 +6,7 @@
   grid-template-rows: auto auto 1fr;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-raised);
+  background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: 0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
 }
 
@@ -18,7 +18,7 @@
   grid-template-rows: auto 1fr auto;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: color-mix(in oklch, var(--surface) 92%, white);
+  background: color-mix(in oklch, var(--surface) 92%, var(--bg-elevated));
   box-shadow: 0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
 }
 

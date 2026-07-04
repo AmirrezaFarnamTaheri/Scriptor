@@ -25,4 +25,8 @@ impl EventHub {
         let mut subscribers = self.subscribers.lock().expect("event hub lock");
         subscribers.retain(|tx| tx.send(event.clone()).is_ok());
     }
+
+    pub fn close(&self) {
+        self.subscribers.lock().expect("event hub lock").clear();
+    }
 }

@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './lib/monaco-environment.ts'
 import './index.css'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
 
 function applyInitialTheme() {
@@ -17,6 +18,9 @@ function applyInitialTheme() {
 
 async function mountApp() {
   applyInitialTheme()
+  console.log('--- STARTING SCRIPTOR APP ---')
+  console.log('VITE_E2E_MODE:', import.meta.env.VITE_E2E_MODE)
+  console.log('VITE_SCREENSHOT_MODE:', import.meta.env.VITE_SCREENSHOT_MODE)
   if (import.meta.env.VITE_E2E_MODE === 'true') {
     const { installE2eBridge } = await import('./e2e/bootstrap.ts')
     installE2eBridge()
@@ -27,10 +31,14 @@ async function mountApp() {
 
   const fixtureMode =
     import.meta.env.VITE_E2E_MODE === 'true' || import.meta.env.VITE_SCREENSHOT_MODE === 'true'
-  const app = fixtureMode ? <App /> : (
-    <StrictMode>
-      <App />
-    </StrictMode>
+  const app = (
+    <ErrorBoundary name="app-root">
+      {fixtureMode ? <App /> : (
+        <StrictMode>
+          <App />
+        </StrictMode>
+      )}
+    </ErrorBoundary>
   )
 
   createRoot(document.getElementById('root')!).render(app)

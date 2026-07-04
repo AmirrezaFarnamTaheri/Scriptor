@@ -77,7 +77,7 @@ export function useVaultBackup(vaultOpen: boolean) {
     }
     try {
       const list = await vaultListBackups(settings.backupPath || undefined)
-      setBackups(list)
+      setBackups(list || [])
     } catch {
       setBackups([])
     }
@@ -93,7 +93,7 @@ export function useVaultBackup(vaultOpen: boolean) {
       setLastMessage(`Backup created: ${entry.name}`)
       await listBackups()
 
-      const allBackups = await vaultListBackups(settings.backupPath || undefined)
+      const allBackups = (await vaultListBackups(settings.backupPath || undefined)) || []
       if (allBackups.length > settings.maxSnapshots) {
         const toDelete = allBackups.slice(settings.maxSnapshots)
         for (const old of toDelete) {
@@ -110,6 +110,12 @@ export function useVaultBackup(vaultOpen: boolean) {
       setIsBusy(false)
     }
   }, [vaultOpen, settings.backupPath, settings.maxSnapshots, listBackups])
+
+  const triggerBackupRef = useRef(triggerBackup)
+
+  useEffect(() => {
+    triggerBackupRef.current = triggerBackup
+  }, [triggerBackup])
 
   const restoreBackup = useCallback(
     async (backupName: string) => {
@@ -161,7 +167,7 @@ export function useVaultBackup(vaultOpen: boolean) {
     if (settings.enabled && vaultOpen && settings.intervalMinutes > 0) {
       intervalRef.current = setInterval(
         () => {
-          void triggerBackup()
+          void triggerBackupRef.current()
         },
         settings.intervalMinutes * 60 * 1000,
       )
@@ -173,7 +179,7 @@ export function useVaultBackup(vaultOpen: boolean) {
         intervalRef.current = null
       }
     }
-  }, [settings.enabled, settings.intervalMinutes, vaultOpen, triggerBackup])
+  }, [settings.enabled, settings.intervalMinutes, vaultOpen])
 
   return {
     settings,

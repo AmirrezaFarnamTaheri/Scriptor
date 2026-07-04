@@ -6,6 +6,9 @@ dist/
 dist-ssr/
 target/
 
+# Root-level build artifact leaks (protect tracked index.html source)
+/assets/
+
 # Vite / TypeScript
 *.local
 .vite/

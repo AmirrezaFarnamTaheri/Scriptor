@@ -1,13 +1,26 @@
 import type { CSSProperties, PointerEventHandler, RefObject } from 'react'
 import {
   Archive,
+  ArrowDownToLine,
+  ArrowUpToLine,
+  Bold,
   CheckCircle2,
+  Columns,
+  FileBox,
   FileText,
   FolderOpen,
+  Heading1,
+  Heading2,
+  Heading3,
+  Italic,
   Link,
+  ListTree,
   MoreHorizontal,
   PanelRight,
+  Rows,
   Sparkles,
+  Table,
+  Target,
   X,
 } from 'lucide-react'
 import {
@@ -136,6 +149,7 @@ interface EditorWorkspaceProps {
   showLineNumbers?: boolean
   editorSurfaceMode?: 'source' | 'split' | 'rendered'
   onEditorSurfaceModeChange?: (mode: 'source' | 'split' | 'rendered') => void
+  layoutLocked?: boolean
 }
 
 export function EditorWorkspace(props: EditorWorkspaceProps) {
@@ -143,6 +157,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     activePath,
     onOpenVault,
     openTabs,
+    layoutLocked = false,
     isNoteDirty = false,
     inboxPaths,
     canReopenClosedTab = false,
@@ -295,8 +310,9 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
       </div>
 
       {showFormatToolbar ? (
-      <div className="format-row editor-toolbar" aria-label="Markdown tools">
-        <div className="format-group" aria-label="View mode">
+      <div className="editor-toolbar-wrapper">
+        <div className="format-row editor-toolbar" aria-label="Markdown tools">
+          <div className="format-group" aria-label="View mode">
           {(
             [
               ['Source', 'source'],
@@ -315,50 +331,48 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           ))}
         </div>
         <div className="format-group" aria-label="Structure">
-          {(
-            [
-              ['H1', 'h1'],
-              ['H2', 'h2'],
-              ['H3', 'h3'],
-            ] as const
-          ).map(([tool, action]) => (
-            <button type="button" key={tool} disabled={!activePath} onClick={() => applyEditorTransform(action)}>
-              {tool}
-            </button>
-          ))}
-          <button type="button" disabled={!activePath} onClick={onToggleToc}>
-            TOC
+          <button type="button" disabled={!activePath} title="Heading 1" onClick={() => applyEditorTransform('h1')}>
+            <Heading1 />
           </button>
-          <button type="button" disabled={!activePath} onClick={onOpenFrontmatter}>
-            FM
+          <button type="button" disabled={!activePath} title="Heading 2" onClick={() => applyEditorTransform('h2')}>
+            <Heading2 />
           </button>
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('move-section-up')}>
-            §↑
+          <button type="button" disabled={!activePath} title="Heading 3" onClick={() => applyEditorTransform('h3')}>
+            <Heading3 />
           </button>
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('move-section-down')}>
-            §↓
+          <button type="button" disabled={!activePath} title="Table of Contents" onClick={onToggleToc}>
+            <ListTree />
+          </button>
+          <button type="button" disabled={!activePath} title="Frontmatter" onClick={onOpenFrontmatter}>
+            <FileBox />
+          </button>
+          <button type="button" disabled={!activePath} title="Move Section Up" onClick={() => applyEditorTransform('move-section-up')}>
+            <ArrowUpToLine />
+          </button>
+          <button type="button" disabled={!activePath} title="Move Section Down" onClick={() => applyEditorTransform('move-section-down')}>
+            <ArrowDownToLine />
           </button>
         </div>
 
         <div className="format-group" aria-label="Style and insert">
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('bold')}>
-            B
+          <button type="button" disabled={!activePath} title="Bold" onClick={() => applyEditorTransform('bold')}>
+            <Bold />
           </button>
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('italic')}>
-            I
+          <button type="button" disabled={!activePath} title="Italic" onClick={() => applyEditorTransform('italic')}>
+            <Italic />
           </button>
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('link')}>
+          <button type="button" disabled={!activePath} title="Link" onClick={() => applyEditorTransform('link')}>
             <Link />
           </button>
           <TypographyMenu disabled={!activePath} onSelect={(action) => applyEditorTypography(action)} />
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('table')}>
-            Table
+          <button type="button" disabled={!activePath} title="Insert Table" onClick={() => applyEditorTransform('table')}>
+            <Table />
           </button>
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('table-add-row')}>
-            +Row
+          <button type="button" disabled={!activePath} title="Add Row" onClick={() => applyEditorTransform('table-add-row')}>
+            <Rows />
           </button>
-          <button type="button" disabled={!activePath} onClick={() => applyEditorTransform('table-add-col')}>
-            +Col
+          <button type="button" disabled={!activePath} title="Add Column" onClick={() => applyEditorTransform('table-add-col')}>
+            <Columns />
           </button>
           <InsertMenu disabled={!activePath} onInsert={insertSnippet} />
         </div>
@@ -367,8 +381,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           <button type="button" disabled={!activePath} title="Mark note organized (inbox triage)" onClick={onOrganizeActive}>
             <CheckCircle2 />
           </button>
-          <button type="button" onClick={onOpenWritingTargets}>
-            Targets
+          <button type="button" title="Writing Targets" onClick={onOpenWritingTargets}>
+            <Target />
           </button>
           <button type="button" onClick={onOpenCheatsheet}>
             Cheatsheet
@@ -443,6 +457,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           onOpenExport={() => onOpenPublishCenter?.()}
         />
         ) : null}
+        </div>
       </div>
       ) : null}
 
@@ -531,6 +546,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           <>
             <SplitPaneHandle
               dragging={splitDragging}
+              locked={layoutLocked}
               onPointerDown={onSplitHandlePointerDown}
               onPointerMove={onSplitHandlePointerMove}
               onPointerUp={onSplitHandlePointerUp}

@@ -173,7 +173,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           window.clearTimeout(debounceTimer.current)
         }
       }
-    }, [markdown, basePath, fetchNote, enableBreaks])
+    }, [markdown, basePath])
 
     useEffect(() => {
       if (!html || !contentRef.current) return
@@ -225,7 +225,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         detachZoom?.()
         detachCopy?.()
       }
-    }, [html, executeDql, runCodeChunk, fetchNote])
+    }, [html, executeDql, runCodeChunk])
 
     return (
       <article className={className} aria-label="Markdown preview" aria-busy={isRendering}>

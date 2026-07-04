@@ -1,0 +1,167 @@
+name: Release ARM64
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version (e.g. 0.1.0)
+        required: false
+        default: '0.1.0'
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-arm-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: .
+
+env:
+  SCRIPTOR_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: aarch64
+            targets: deb,appimage
+            artifact: scriptor-linux-arm64-installers
+          - os: macos-latest
+            platform: macos
+            arch: aarch64
+            targets: dmg
+            artifact: scriptor-macos-arm64-installers
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            apps/desktop/src-tauri
+            .
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            patchelf
+          mkdir -p ~/.cargo
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure cross-compilation (macOS)
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: rustup target add aarch64-apple-darwin
+
+      - name: Import Apple signing certificate
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          if [ -z "$APPLE_CERTIFICATE" ]; then
+            echo "No Apple certificate secret; using ad-hoc signing."
+            exit 0
+          fi
+          KEYCHAIN=build.keychain
+          security create-keychain -p actions "$KEYCHAIN"
+          security default-keychain -s "$KEYCHAIN"
+          security unlock-keychain -p actions "$KEYCHAIN"
+          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
+          security import certificate.p12 -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
+
+      - name: Configure macOS signing
+        if: matrix.platform == 'macos'
+        shell: bash
+        env:
+          _APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          _APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          _APPLE_ID: ${{ secrets.APPLE_ID }}
+          _APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          _APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$_APPLE_CERTIFICATE" ] && [ -n "$_APPLE_SIGNING_IDENTITY" ]; then
+            echo "APPLE_SIGNING_IDENTITY=$_APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
+            [ -n "$_APPLE_ID" ] && echo "APPLE_ID=$_APPLE_ID" >> "$GITHUB_ENV"
+            [ -n "$_APPLE_PASSWORD" ] && echo "APPLE_PASSWORD=$_APPLE_PASSWORD" >> "$GITHUB_ENV"
+            [ -n "$_APPLE_TEAM_ID" ] && echo "APPLE_TEAM_ID=$_APPLE_TEAM_ID" >> "$GITHUB_ENV"
+            echo "Using Apple Developer ID signing."
+          else
+            echo "No Apple signing identity configured; using ad-hoc signing."
+          fi
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Tauri bundle (${{ matrix.platform }}-${{ matrix.arch }})
+        env:
+          TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
+          CARGO_BUILD_TARGET: ${{ matrix.platform == 'macos' && 'aarch64-apple-darwin' || '' }}
+        run: pnpm --dir apps/desktop build
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: target/**/release/bundle/**/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all installer artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: List release artifacts
+        run: find release-artifacts -type f | sort
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: release-artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

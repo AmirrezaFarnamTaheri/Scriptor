@@ -11,7 +11,6 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 | [`../README.md`](../README.md) | Everyone | Project overview, install, and support |
 | [`guides/GETTING_STARTED.md`](./guides/GETTING_STARTED.md) | New users | First vault, workflows, and export setup |
 | [`CAPABILITIES.md`](./CAPABILITIES.md) | Users & contributors | Feature map and validation commands |
-| [`ROADMAP.md`](./ROADMAP.md) | Everyone | Development roadmap and planned features |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Everyone | Release history |
 
 ## Product
@@ -34,7 +33,6 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 
 | Document | Purpose |
 |----------|---------|
-| [`../scriptor_audit_and_roadmap.md`](../scriptor_audit_and_roadmap.md) | Audit, risk register, prioritized backlog (BL-01–BL-86) |
 | [`architecture/PLUGIN_SYSTEM.md`](./architecture/PLUGIN_SYSTEM.md) | Plugin manifest and safe mode |
 | [`architecture/IPC_DAEMON.md`](./architecture/IPC_DAEMON.md) | Headless daemon IPC |
 | [`architecture/TUI_PARITY.md`](./architecture/TUI_PARITY.md) | Terminal UI surface |
@@ -46,6 +44,8 @@ Complete documentation for **Scriptor v0.1.0** — product, design, architecture
 | [`architecture/HEADLESS_SSG.md`](./architecture/HEADLESS_SSG.md) | Headless SSG/CI export pipeline |
 | [`architecture/I18N_FRAMEWORK.md`](./architecture/I18N_FRAMEWORK.md) | Internationalization framework |
 | [`architecture/ENCRYPTION_AT_REST.md`](./architecture/ENCRYPTION_AT_REST.md) | Vault encryption at rest |
+| [`architecture/MOBILE_ARCHITECTURE.md`](./architecture/MOBILE_ARCHITECTURE.md) | Mobile foreground-only architecture |
+| [`architecture/TANTIVY_EVAL.md`](./architecture/TANTIVY_EVAL.md) | Tantivy vs FTS5 evaluation |
 
 ## Plugins
 

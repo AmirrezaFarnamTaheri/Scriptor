@@ -33,7 +33,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates
+          workspaces: "."
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -77,6 +77,18 @@ jobs:
       - name: Rust tests
         run: cargo test --workspace --exclude scriptor-desktop
 
+      - name: Check cargo-deny
+        run: cargo deny check
+
+      - name: Check npm audit
+        run: pnpm audit --prod
+
+      - name: Check ts-rs bindings
+        run: cargo test -p scriptor-ipc
+
+      - name: Check xtask
+        run: cargo xtask release-smoke
+
   validate-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -96,7 +108,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates
+          workspaces: "."
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -107,8 +119,11 @@ jobs:
       - name: Accessibility smoke
         run: pnpm check:a11y
 
+      - name: axe-core WCAG audit
+        run: pnpm check:a11y-axe
+
       - name: Minimal vault scan budget
-        run: cargo run -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 3
+        run: cargo run --release -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 3
 
       - name: TUI smoke
         run: pnpm check:tui
@@ -135,7 +150,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates
+          workspaces: "."
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

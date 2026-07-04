@@ -1,17 +1,23 @@
 import {
+  BookOpenText,
   Box,
-  CheckCircle2,
   ChevronDown,
   ChevronRight,
   Command,
-  FolderOpen,
-  Lock,
-  Heart,
   Contrast,
+  FolderOpen,
+  GitBranch,
+  Globe,
+  Heart,
+  LayoutDashboard,
+  Lock,
   Moon,
   Network,
+  PanelLeft,
+  PanelRight,
   Settings,
   Sun,
+  Zap,
 } from 'lucide-react'
 
 import { BrandMark, BrandWordmark } from '../../brand/BrandMark'
@@ -41,7 +47,6 @@ interface AppTopBarProps {
   onOpenQuickCapture: () => void
   onOpenGraph: () => void
   onOpenCanvas: () => void
-  gitLabel: string
   gitTitle: string
   gitSuccess: boolean
   gitNeutral?: boolean
@@ -52,6 +57,10 @@ interface AppTopBarProps {
   onOpenSettings: () => void
   theme: AppTheme
   onToggleTheme: () => void
+  vaultSidebarCollapsed: boolean
+  onToggleVaultSidebar: () => void
+  inspectorCollapsed: boolean
+  onToggleInspector: () => void
 }
 
 const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
@@ -81,7 +90,6 @@ export function AppTopBar({
   onOpenQuickCapture,
   onOpenGraph,
   onOpenCanvas,
-  gitLabel,
   gitTitle,
   gitSuccess,
   gitNeutral = false,
@@ -92,11 +100,21 @@ export function AppTopBar({
   onOpenSettings,
   theme,
   onToggleTheme,
+  vaultSidebarCollapsed,
+  onToggleVaultSidebar,
+  inspectorCollapsed,
+  onToggleInspector,
 }: AppTopBarProps) {
   const { t } = useI18n()
   return (
     <header className="topbar surface-glass">
       <div className="brand">
+        <IconButton
+          label={vaultSidebarCollapsed ? t('actions.expand') ?? 'Expand sidebar' : t('actions.collapse') ?? 'Collapse sidebar'}
+          onClick={onToggleVaultSidebar}
+        >
+          <PanelLeft />
+        </IconButton>
         <BrandMark />
         <BrandWordmark />
         {vault ? <small className="vault-badge">{vault.name}</small> : null}
@@ -148,52 +166,52 @@ export function AppTopBar({
       </label>
 
       <div className="top-actions" data-workspace-mode={workspaceMode}>
-        <button
-          type="button"
-          className={`toolbar-button mode-action${workspaceMode === 'knowledge' ? ' emphasized' : ''}`}
+        <IconButton
+          label={t('topBar.workbench')}
           onClick={onOpenKnowledgeWorkbench}
+          className={workspaceMode === 'knowledge' ? 'emphasized' : undefined}
         >
-          {t('topBar.workbench')}
-        </button>
-        <button
-          type="button"
-          className={`toolbar-button mode-action${workspaceMode === 'publish' ? ' emphasized' : ''}`}
+          <BookOpenText />
+        </IconButton>
+        <IconButton
+          label={t('topBar.publish')}
           onClick={onOpenPublishCenter}
+          className={workspaceMode === 'publish' ? 'emphasized' : undefined}
         >
-          {t('topBar.publish')}
-        </button>
-        <button type="button" className="toolbar-button" onClick={onOpenPortal}>
-          {t('topBar.portal')}
-        </button>
-        <button type="button" className="toolbar-button" onClick={onOpenQuickCapture}>
-          {t('topBar.capture')}
-        </button>
-        <button type="button" className="toolbar-button" onClick={onOpenGraph}>
+          <Globe />
+        </IconButton>
+        <IconButton label={t('topBar.portal')} onClick={onOpenPortal}>
+          <LayoutDashboard />
+        </IconButton>
+        <IconButton label={t('topBar.capture')} onClick={onOpenQuickCapture}>
+          <Zap />
+        </IconButton>
+        <IconButton label={t('topBar.graph')} onClick={onOpenGraph}>
           <Network />
-          {t('topBar.graph')}
-        </button>
-        <button type="button" className="toolbar-button" onClick={onOpenCanvas}>
+        </IconButton>
+        <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
           <Box />
-          {t('topBar.canvas')}
-        </button>
+        </IconButton>
+        
         <button
           type="button"
           className={`status-button ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
           title={gitTitle}
           onClick={onOpenGit}
         >
-          <CheckCircle2 />
-          {gitLabel}
+          <GitBranch />
         </button>
         <button
           type="button"
           className={`status-button${workspaceMode === 'automation' ? ' emphasized' : ''}`}
           onClick={onOpenMcp}
+          title={mcpLabel}
         >
           <Lock />
-          {mcpLabel}
+          <span style={{ display: 'none' }}>{mcpLabel}</span>
           <ChevronDown />
         </button>
+        
         <IconButton
           label={
             theme === 'high-contrast'
@@ -205,6 +223,12 @@ export function AppTopBar({
           onClick={onToggleTheme}
         >
           {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
+        </IconButton>
+        <IconButton
+          label={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
+          onClick={onToggleInspector}
+        >
+          <PanelRight />
         </IconButton>
         <IconButton label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
           <Heart />

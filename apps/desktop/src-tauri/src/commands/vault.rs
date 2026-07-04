@@ -25,6 +25,10 @@ use super::shared::{parse_daemon_json, restart_vault_watcher};
 
 #[tauri::command]
 pub fn vault_open(app: AppHandle, state: tauri::State<AppState>, root_path: String) -> Result<OpenVaultOutput, String> {
+    let path = std::path::Path::new(&root_path);
+    if !path.exists() {
+        std::fs::create_dir_all(path).map_err(|error| format!("failed to create vault folder: {error}"))?;
+    }
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
     *state.session.lock().expect("session lock") = Some(session.clone());

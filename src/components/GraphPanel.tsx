@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { buildForceNodes } from '../lib/forceGraph'
 import { loadVaultPresetJson, saveVaultPresetJson, VAULT_GRAPH_PRESETS_PATH } from '../lib/vaultPresets'
 import type { GraphQueryOutput } from '../types/vault'
 import { GraphCanvas, type CanvasNode } from './GraphCanvas'
+import { useI18n } from '../lib/i18n'
 
 interface GraphPreset {
   id: string
@@ -55,6 +55,8 @@ interface GraphPanelProps {
   onOpenWorkbench?: () => void
   depth: number
   fullVault: boolean
+  hibernated?: boolean
+  onToggleHibernate?: () => void
 }
 
 const VIEW_WIDTH = 720
@@ -72,7 +74,10 @@ export function GraphPanel({
   onOpenWorkbench,
   depth,
   fullVault,
+  hibernated = false,
+  onToggleHibernate,
 }: GraphPanelProps) {
+  const { t } = useI18n()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
@@ -92,7 +97,7 @@ export function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
-    if (!graph || !useCanvas) {
+    if (!graph || hibernated) {
       setWorkerLayout(null)
       setWorkerLoading(false)
       return
@@ -112,16 +117,25 @@ export function GraphPanel({
       height: VIEW_HEIGHT,
     })
     return () => worker.terminate()
-  }, [graph, useCanvas])
+  }, [graph])
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
-    if (useCanvas && workerLayout) return workerLayout
-    return buildForceNodes(graph.nodes, graph.edges, {
-      width: VIEW_WIDTH,
-      height: VIEW_HEIGHT,
+    if (workerLayout) return workerLayout
+    return graph.nodes.map((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(graph.nodes.length, 1)
+      const radius = Math.min(VIEW_WIDTH, VIEW_HEIGHT) * 0.28
+      return {
+        id: node.id,
+        label: node.label,
+        path: node.path,
+        unresolved: node.unresolved,
+        color: node.color,
+        x: VIEW_WIDTH / 2 + Math.cos(angle) * radius,
+        y: VIEW_HEIGHT / 2 + Math.sin(angle) * radius,
+      }
     })
-  }, [graph, useCanvas, workerLayout])
+  }, [graph, workerLayout])
 
   const nodeById = useMemo(() => new Map(layout.map((node) => [node.id, node])), [layout])
 
@@ -204,34 +218,80 @@ export function GraphPanel({
     [focusedNodeId, layout, adjacency, nodeById, announce, onSelectNode, onClose],
   )
 
-  if (!graph) {
+  if (hibernated) {
     return (
-      <div className="graph-overlay" role="dialog" aria-label="Knowledge graph">
+      <div className="graph-overlay" role="dialog" aria-label={t('graph.ariaLabel')}>
         <header className="graph-header">
-          <h2>Knowledge Graph</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close graph">
+          <h2>{t('graph.title')}</h2>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
             ×
           </button>
         </header>
-        <p className="empty-state">Open a vault and select a note to explore links.</p>
+        <div className="graph-hibernated-placeholder" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flex: 1,
+          textAlign: 'center',
+          padding: '24px',
+          color: 'var(--muted)',
+        }}>
+          <span style={{ fontSize: '32px', marginBottom: '16px' }}>💤</span>
+          <h4 style={{ margin: '0 0 8px 0', color: 'var(--ink)' }}>Graph Subsystem Hibernated</h4>
+          <p style={{ maxWidth: '360px', margin: '0 0 20px 0', fontSize: '13px', lineHeight: '1.5', color: 'var(--muted)' }}>
+            Background layout simulation is paused to optimize battery life and improve app responsiveness.
+          </p>
+          <button
+            type="button"
+            className="toolbar-button active"
+            onClick={onToggleHibernate}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: 'var(--primary)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: 500,
+              transition: 'background-color 150ms ease-out',
+            }}
+          >
+            Wake Up Subsystem
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!graph) {
+    return (
+      <div className="graph-overlay" role="dialog" aria-label={t('graph.ariaLabel')}>
+        <header className="graph-header">
+          <h2>{t('graph.title')}</h2>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
+            ×
+          </button>
+        </header>
+        <p className="empty-state">{t('graph.emptyState')}</p>
       </div>
     )
   }
 
   return (
-    <div className="graph-overlay" role="dialog" aria-label="Knowledge graph">
+    <div className="graph-overlay" role="dialog" aria-label={t('graph.ariaLabel')}>
       <header className="graph-header">
         <div>
-          <h2>Knowledge Graph</h2>
+          <h2>{t('graph.title')}</h2>
           <span>
-            {graph.nodes.length} nodes · {graph.edges.length} edges
-            {focusPath ? ` · focus ${focusPath}` : fullVault ? ' · vault view' : ''}
+            {t('graph.nodeCount', { count: graph.nodes.length })} · {t('graph.edgeCount', { count: graph.edges.length })}
+            {focusPath ? ` · ${t('graph.focus', { path: focusPath })}` : fullVault ? ` · ${t('graph.vaultView')}` : ''}
           </span>
         </div>
         <div className="graph-controls">
           {onOpenWorkbench ? (
             <button type="button" className="toolbar-button" onClick={onOpenWorkbench}>
-              Workbench
+              {t('graph.workbench')}
             </button>
           ) : null}
           {presets.map((preset) => (
@@ -256,11 +316,11 @@ export function GraphPanel({
                 localStorage.setItem(GRAPH_PRESETS_KEY, JSON.stringify(presets))
               }}
             >
-              Save presets
+              {t('actions.save')} presets
             </button>
           ) : null}
           <label>
-            Depth
+            {t('settings.graphDepth')}
             <input
               type="range"
               min={1}
@@ -275,16 +335,16 @@ export function GraphPanel({
             className={fullVault ? 'active' : undefined}
             onClick={() => onRefresh(!fullVault)}
           >
-            {fullVault ? 'Focused view' : 'Vault view'}
+            {fullVault ? t('graph.neighborhood', { depth }) : t('graph.vaultView')}
           </button>
         </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Close graph">
+        <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
           ×
         </button>
       </header>
 
       {graphGroups.length > 0 ? (
-        <div className="graph-group-legend" aria-label="Graph group colors">
+        <div className="graph-group-legend" aria-label={t('graph.groupColors')}>
           {graphGroups.map((group) => (
             <span key={group.tag_prefix} className="graph-group-chip">
               <i style={{ backgroundColor: group.color }} aria-hidden />
@@ -299,7 +359,7 @@ export function GraphPanel({
       {useCanvas ? (
         workerLoading ? (
           <div className="graph-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: VIEW_HEIGHT }}>
-            <span>Computing layout...</span>
+            <span>{t('graph.computingLayout')}</span>
           </div>
         ) : (
           <GraphCanvas
@@ -318,11 +378,11 @@ export function GraphPanel({
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         role="application"
         tabIndex={0}
-        aria-label="Knowledge graph. Use arrow keys to navigate nodes, Enter to open, Escape to close."
+        aria-label={t('graph.ariaLabel')}
         onKeyDown={handleKeyDown}
       >
         <title>
-          Force-directed graph with {graph.nodes.length} nodes and {graph.edges.length} edges
+          {t('graph.title')} — {t('graph.nodeCount', { count: graph.nodes.length })} · {t('graph.edgeCount', { count: graph.edges.length })}
         </title>
         {graph.edges.map((edge) => {
           const source = nodeById.get(edge.source)
@@ -365,7 +425,7 @@ export function GraphPanel({
               }}
               style={{ cursor: node.path ? 'pointer' : 'default' }}
               role="button"
-              aria-label={`${node.label}, ${connectionCount} connection${connectionCount === 1 ? '' : 's'}${isFocus ? ' (current focus note)' : ''}`}
+              aria-label={`${node.label}, ${t('graph.connections', { count: connectionCount, plural: connectionCount === 1 ? '' : 's' })}${isFocus ? t('graph.currentFocus') : ''}`}
             >
               {isKeyboardFocused && (
                 <circle r={22} fill="none" className="graph-node-focus-ring" />

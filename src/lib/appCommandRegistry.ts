@@ -40,6 +40,11 @@ export type AppCommandId =
   | 'open-support'
   | 'insert-footnote'
   | 'toggle-perf-hud'
+  | 'toggle-hibernate-graph'
+  | 'toggle-hibernate-mcp'
+  | 'toggle-hibernate-watcher'
+  | 'toggle-hibernate-git'
+  | 'toggle-hibernate-spellcheck'
 
 export interface AppCommandDefinition {
   id: AppCommandId

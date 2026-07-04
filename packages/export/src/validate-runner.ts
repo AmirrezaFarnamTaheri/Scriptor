@@ -119,5 +119,3 @@ test('supportsHtmlSnippetPreview gates HTML dry-run pane', () => {
   assert.equal(supportsHtmlSnippetPreview('wechat-html'), true)
   assert.equal(supportsHtmlSnippetPreview('pdf'), false)
 })
-
-console.log('Export validation passed')

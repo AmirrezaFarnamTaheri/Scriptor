@@ -33,6 +33,7 @@ pub struct NoteDocument {
     pub markdown: String,
 }
 
+/// Reads a note from the vault, returning its markdown content and metadata.
 pub fn read_note(
     vault_id: &str,
     root: &VaultRoot,
@@ -49,6 +50,7 @@ pub fn read_note(
     Ok(NoteDocument { metadata, markdown })
 }
 
+/// Extracts metadata from raw markdown content.
 pub fn metadata_from_markdown(
     vault_id: &str,
     path: &RelativeVaultPath,
@@ -71,6 +73,7 @@ pub fn metadata_from_markdown(
     }
 }
 
+/// Generates a unique note ID from vault ID and path.
 pub fn note_id(vault_id: &str, path: &RelativeVaultPath) -> String {
     format!("{vault_id}:{}", path.as_str())
 }

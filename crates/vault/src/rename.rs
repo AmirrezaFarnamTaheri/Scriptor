@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
+use std::sync::LazyLock;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,9 @@ use crate::patch_log::{collect_rename_backups, write_rename_patch_log};
 use crate::rename_transaction::StagedRenameTransaction;
 use crate::scan::{list_notes, scan_vault, ScannedEntryKind};
 use crate::write::save_note;
+
+static WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex"));
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct RenameNoteDryRunOutput {
@@ -28,6 +32,7 @@ pub struct RenameNoteApplyOutput {
     pub link_edits: u32,
 }
 
+/// Performs a dry-run of a note rename, returning what would change.
 pub fn rename_dry_run(
     vault_id: &str,
     root: &VaultRoot,
@@ -76,6 +81,7 @@ pub fn rename_dry_run(
     })
 }
 
+/// Applies a note rename, updating all links in the vault.
 pub fn rename_apply(
     vault_id: &str,
     root: &VaultRoot,
@@ -88,6 +94,7 @@ pub fn rename_apply(
     Ok(output)
 }
 
+/// Applies a note rename in staged mode, returning the staged transaction for commit/abort.
 pub fn rename_apply_staged(
     vault_id: &str,
     root: &VaultRoot,
@@ -207,12 +214,11 @@ pub fn unresolved_link_targets(root: &VaultRoot) -> Result<Vec<(String, String)>
         .map(|path| (path.as_str().trim_end_matches(".md").rsplit('/').next().unwrap_or("").to_string(), path.to_string()))
         .collect();
 
-    let wikilink = Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex");
     let mut unresolved = Vec::new();
 
     for note_path in notes {
         let markdown = read_note("health", root, &note_path)?.markdown;
-        for capture in wikilink.captures_iter(&markdown) {
+        for capture in WIKILINK_RE.captures_iter(&markdown) {
             let target = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
             if target.is_empty() {
                 continue;

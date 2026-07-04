@@ -29,7 +29,7 @@ Skip the Tauri bundle while iterating:
 powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1 -SkipTauri
 ```
 
-### Updater signing (BL-30)
+### Updater signing
 
 Signed auto-updates require injecting the Tauri updater public key before the desktop bundle step. `package.ps1` runs `inject-updater-config.mjs` automatically when bundling.
 

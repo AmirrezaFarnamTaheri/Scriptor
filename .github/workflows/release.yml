@@ -64,7 +64,7 @@ jobs:
         with:
           workspaces: |
             apps/desktop/src-tauri
-            crates
+            .
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'

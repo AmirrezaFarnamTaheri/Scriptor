@@ -82,11 +82,13 @@ pub fn write_pdf_from_svg(svg: &str, output_path: &Path) -> Result<(), CanvasErr
     let _ = fs::remove_file(&html_path);
 
     if !output.status.success() {
+        let _ = fs::remove_dir_all(&temp_dir);
         return Err(CanvasError::ExportFailed(format!(
             "pandoc pdf export failed: {}",
             String::from_utf8_lossy(&output.stderr)
         )));
     }
 
+    let _ = fs::remove_dir_all(&temp_dir);
     Ok(())
 }

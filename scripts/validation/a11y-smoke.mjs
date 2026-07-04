@@ -50,6 +50,70 @@ if (existsSync(graphPanelPath)) {
   failures.push('GraphPanel.tsx')
 }
 
+const buttonPath = join(root, 'src/components/Button.tsx')
+const dialogPath = join(root, 'src/components/Dialog.tsx')
+const inputPath = join(root, 'src/components/Input.tsx')
+
+for (const [componentPath, componentName] of [
+  [buttonPath, 'Button.tsx'],
+  [dialogPath, 'Dialog.tsx'],
+  [inputPath, 'Input.tsx'],
+]) {
+  if (existsSync(componentPath)) {
+    const src = readFileSync(componentPath, 'utf8')
+    if (!src.includes('aria-label') && !src.includes('aria-labelledby') && !src.includes('aria-describedby')) {
+      failures.push(`${componentName} interactive aria-label`)
+    }
+  }
+}
+
+const allComponentPaths = [
+  join(root, 'src/components'),
+  join(root, 'src'),
+]
+
+if (existsSync(cssPath)) {
+  const cssContent = readFileSync(cssPath, 'utf8')
+  const focusTokens = ['--focus-ring', '--focus-outline', '--focus-ring-color', '--focus-ring-width']
+  const foundToken = focusTokens.some(t => cssContent.includes(t))
+  if (!foundToken) failures.push('focus ring CSS token (--focus-ring-*)')
+}
+
+const editorPath = join(root, 'src/components/Editor.tsx')
+const sidebarPath = join(root, 'src/components/Sidebar.tsx')
+const toolbarPath = join(root, 'src/components/FormatToolbar.tsx')
+
+if (existsSync(editorPath)) {
+  const editorSource = readFileSync(editorPath, 'utf8')
+  if (!editorSource.includes('aria-label=') && !editorSource.includes('aria-labelledby=')) {
+    failures.push('editor aria-label')
+  }
+} else {
+  failures.push('Editor.tsx')
+}
+
+if (existsSync(sidebarPath)) {
+  const sidebarSource = readFileSync(sidebarPath, 'utf8')
+  if (!sidebarSource.includes('aria-label=') && !sidebarSource.includes('role="navigation"')) {
+    failures.push('sidebar aria-label')
+  }
+}
+
+if (existsSync(toolbarPath)) {
+  const toolbarSource = readFileSync(toolbarPath, 'utf8')
+  if (!toolbarSource.includes('aria-label=') && !toolbarSource.includes('role="toolbar"')) {
+    failures.push('toolbar aria-label')
+  }
+}
+
+const css = readFileSync(cssPath, 'utf8')
+if (!css.includes(':focus-visible') && !css.includes(':focus')) {
+  failures.push('focus-visible or :focus styles missing')
+}
+if (!css.includes('outline') && !css.includes('box-shadow')) {
+  failures.push('focus indicator (outline/box-shadow) missing')
+}
+
 if (failures.length > 0) {
   console.error(`A11y smoke failed: missing ${failures.join(', ')}`)
   process.exit(1)

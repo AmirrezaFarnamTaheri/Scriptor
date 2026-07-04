@@ -1,4 +1,4 @@
-/** Updater signing placeholder in default dev builds (BL-30). */
+/** Updater signing placeholder in default dev builds. */
 export const UPDATER_PUBKEY_PLACEHOLDER = 'dW5kZWZpbmVk'
 
 export function isUpdaterSigningConfigured(pubkey?: string | null): boolean {

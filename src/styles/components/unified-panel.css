@@ -1,14 +1,17 @@
-/* Unified panel shell used by settings, history, knowledge panels (BL-22) */
+/* Unified panel shell used by settings, history, knowledge panels */
 
 .unified-panel-shell {
   width: min(720px, 92vw);
   max-height: min(82vh, 760px);
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
-  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);
   border-radius: 16px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  overflow: hidden;
 }
 
 .unified-panel-wide {
@@ -16,19 +19,24 @@
 }
 
 .unified-panel-header {
+  flex-shrink: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
+  padding: 20px 24px 16px;
   border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 .unified-panel-header h2 {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-strong);
 }
 
 .unified-panel-header-actions {
@@ -52,6 +60,12 @@
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 12px;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
+.unified-panel-tabs button:hover:not(.active) {
+  background: var(--surface-raised);
+  border-color: var(--border-strong);
 }
 
 .unified-panel-tabs button.active {
@@ -61,9 +75,11 @@
 }
 
 .unified-panel-body {
+  flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: 0 18px 18px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 24px 24px;
 }
 
 .dock-backdrop {
@@ -83,7 +99,16 @@
   border-radius: 16px 0 0 16px;
   pointer-events: auto;
   z-index: 41;
-  animation: dock-slide-in 180ms ease-out;
+  background: var(--dialog-bg, var(--bg-elevated));
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  animation: dock-slide-in 250ms var(--ease-soft);
+}
+
+body:has(.unified-panel-docked) .workspace-grid {
+  padding-right: min(480px, 92vw);
 }
 
 @keyframes dock-slide-in {

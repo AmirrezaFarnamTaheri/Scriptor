@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
 import {
@@ -7,6 +7,8 @@ import {
   parseConflictHunks,
   type ConflictHunkChoice,
 } from '../lib/conflictMerge'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 function NumberedConflictBlock({
   title,
@@ -59,6 +61,10 @@ export function ConflictResolverModal({
     Object.fromEntries(parsed.hunks.map((hunk) => [hunk.id, 'ours' as const])),
   )
 
+  useEffect(() => {
+    setChoices(Object.fromEntries(parsed.hunks.map((hunk) => [hunk.id, 'ours' as const])))
+  }, [parsed])
+
   const mergedPreview = useMemo(
     () => applyConflictChoices(source, choices, basePreview),
     [basePreview, choices, source],
@@ -68,11 +74,17 @@ export function ConflictResolverModal({
     setChoices((current) => ({ ...current, [id]: choice }))
   }
 
+  const dialogRef = useRef<HTMLElement>(null)
+  useEscapeToClose(true, onClose)
+  useFocusTrap(dialogRef, { active: true })
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
+        ref={dialogRef}
         className="conflict-resolver conflict-resolver-3way"
         role="dialog"
+        aria-modal="true"
         aria-label="Resolve merge conflict"
         onClick={(event) => event.stopPropagation()}
       >

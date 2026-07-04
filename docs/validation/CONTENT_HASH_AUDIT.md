@@ -1,4 +1,4 @@
-# BL-29: Content-Hash Skip Audit on Incremental Paths
+# Content-Hash Skip Audit on Incremental Paths
 
 **Date:** 2026-06-27
 **Status:** Audit complete — no code gaps found; desktop app gap documented as architectural trade-off
@@ -97,7 +97,7 @@ fails after a disk write, `rollback_save_note` restores the previous content.
 The desktop app's `vault_save_note` (vault.rs:48-72) writes to disk and returns
 immediately. The watcher indexes asynchronously. If indexing fails, there is no
 rollback mechanism. The file stays on disk in its new state while the index
-stale.
+stays stale.
 
 **Impact:** Low. The watcher will retry on the next filesystem event, and a
 full `rebuild_index` can always recover. This is a deliberate trade-off for

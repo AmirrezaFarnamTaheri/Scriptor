@@ -6,6 +6,7 @@ interface AiProviderSettingsProps {
   hasApiKey: boolean
   busy: boolean
   lastError: string | null
+  httpWarning?: string | null
   onProviderChange: (provider: AiProviderId) => void
   onEndpointChange: (endpoint: string) => void
   onSaveApiKey: (secret: string) => void
@@ -18,6 +19,7 @@ export function AiProviderSettings({
   hasApiKey,
   busy,
   lastError,
+  httpWarning,
   onProviderChange,
   onEndpointChange,
   onSaveApiKey,
@@ -66,6 +68,7 @@ export function AiProviderSettings({
         </button>
       </div>
       {lastError && <p className="preview-error">{lastError}</p>}
+      {httpWarning && <p className="settings-status warn" role="alert">{httpWarning}</p>}
     </section>
   )
 }

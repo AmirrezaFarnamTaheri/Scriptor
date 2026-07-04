@@ -7,7 +7,7 @@
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-raised);
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .mcp-panel header {
@@ -44,8 +44,16 @@
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--bg);
   font: inherit;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.mcp-tool-playground select:focus,
+.mcp-tool-playground textarea:focus {
+  outline: none;
+  border-color: var(--primary-strong);
+  box-shadow: var(--focus-ring);
 }
 
 .mcp-result {

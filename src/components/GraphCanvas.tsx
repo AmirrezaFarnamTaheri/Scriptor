@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -39,10 +39,11 @@ interface GraphCanvasProps {
 
 export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const hoveredIdRef = useRef<string | null>(null)
   const transformRef = useRef({ x: 0, y: 0, scale: 1 })
   const dragRef = useRef<{ startX: number; startY: number; startTx: number; startTy: number } | null>(null)
   const nodeMap = useRef(new Map<string, CanvasNode>())
+  const frameRef = useRef<number | null>(null)
 
   useEffect(() => {
     const map = new Map<string, CanvasNode>()
@@ -62,6 +63,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
     const { x: tx, y: ty, scale } = transformRef.current
+    const hoveredId = hoveredIdRef.current
     ctx.clearRect(0, 0, width, height)
     ctx.save()
     ctx.translate(tx, ty)
@@ -110,7 +112,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     }
 
     ctx.restore()
-  }, [nodes, edges, focusPath, hoveredId, width, height])
+  }, [nodes, edges, focusPath, width, height])
 
   useEffect(() => {
     draw()
@@ -137,18 +139,32 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     return null
   }, [nodes])
 
+  const scheduleDraw = useCallback(() => {
+    if (frameRef.current) cancelAnimationFrame(frameRef.current)
+    frameRef.current = requestAnimationFrame(() => {
+      frameRef.current = null
+      draw()
+    })
+  }, [draw])
+
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragRef.current) {
       const { startX, startY, startTx, startTy } = dragRef.current
       transformRef.current.x = startTx + (e.clientX - startX)
       transformRef.current.y = startTy + (e.clientY - startY)
-      draw()
+      scheduleDraw()
       return
     }
     const { x, y } = screenToCanvas(e.clientX, e.clientY)
     const node = findNodeAt(x, y)
-    setHoveredId(node?.id ?? null)
-  }, [screenToCanvas, findNodeAt, draw])
+    const newHoveredId = node?.id ?? null
+    if (hoveredIdRef.current !== newHoveredId) {
+      hoveredIdRef.current = newHoveredId
+      const canvas = canvasRef.current
+      if (canvas) canvas.style.cursor = newHoveredId ? 'pointer' : 'grab'
+      scheduleDraw()
+    }
+  }, [screenToCanvas, findNodeAt, scheduleDraw])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     dragRef.current = {
@@ -185,13 +201,13 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     t.x = mx - (mx - t.x) * (newScale / t.scale)
     t.y = my - (my - t.y) * (newScale / t.scale)
     t.scale = newScale
-    draw()
-  }, [draw])
+    scheduleDraw()
+  }, [scheduleDraw])
 
   return (
     <canvas
       ref={canvasRef}
-      style={{ width, height, cursor: hoveredId ? 'pointer' : 'grab' }}
+      style={{ width, height, cursor: 'grab' }}
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}

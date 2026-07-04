@@ -89,4 +89,3 @@ test('planDailyNotePreview resolves path and title tokens', () => {
   assert.equal(preview.title, 'Journal 2026-06-23')
 })
 
-console.log('Knowledge validation passed')

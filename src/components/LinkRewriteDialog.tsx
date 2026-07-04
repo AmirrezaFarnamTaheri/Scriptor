@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 
 import type { LinkRewritePreview } from '../types/vault'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface LinkRewriteDialogProps {
   title: string
@@ -25,11 +27,17 @@ export function LinkRewriteDialog({
   onApply,
   children,
 }: LinkRewriteDialogProps) {
+  const dialogRef = useRef<HTMLFormElement>(null)
+  useEscapeToClose(true, onClose)
+  useFocusTrap(dialogRef, { active: true })
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <form
+        ref={dialogRef}
         className="rename-dialog"
         role="dialog"
+        aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
         onSubmit={(event) => {

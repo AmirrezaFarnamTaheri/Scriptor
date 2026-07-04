@@ -1,7 +1,7 @@
 {
   "name": "Scriptor",
   "build": {
-    "dockerfile": "../Dockerfile",
+    "dockerfile": "Dockerfile",
     "context": ".."
   },
   "workspaceFolder": "/workspace",

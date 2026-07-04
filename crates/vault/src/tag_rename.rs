@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::LazyLock;
 
 use regex::Regex;
 
@@ -9,6 +10,11 @@ use crate::path::VaultRoot;
 use crate::scan::list_notes;
 use crate::write::save_note;
 
+static VALID_TAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[A-Za-z0-9_/-]+$").expect("valid tag label regex"));
+static HASHTAG_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"#([A-Za-z0-9_/-]+)").expect("valid hashtag regex"));
+
 fn normalize_tag_label(label: &str) -> Result<String, VaultError> {
     let clean = label.trim().trim_start_matches('#');
     if clean.is_empty() {
@@ -17,8 +23,7 @@ fn normalize_tag_label(label: &str) -> Result<String, VaultError> {
         });
     }
 
-    let valid = Regex::new(r"^[A-Za-z0-9_/-]+$").expect("valid tag label regex");
-    if !valid.is_match(clean) {
+    if !VALID_TAG_RE.is_match(clean) {
         return Err(VaultError::InvalidConfig {
             message: format!("invalid tag label: {clean}"),
         });
@@ -42,8 +47,7 @@ fn remap_tag(tag: &str, old_root: &str, new_root: &str) -> String {
 }
 
 fn rewrite_hashtag_line(line: &str, old_root: &str, new_root: &str, edits: &mut u32) -> String {
-    let hashtag = Regex::new(r"#([A-Za-z0-9_/-]+)").expect("valid hashtag regex");
-    hashtag
+    HASHTAG_RE
         .replace_all(line, |capture: &regex::Captures| {
             let tag = capture.get(1).map(|value| value.as_str()).unwrap_or("");
             if !tag_should_rewrite(tag, old_root) {

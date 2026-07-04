@@ -7,6 +7,7 @@ export function useAppToast(timeoutMs = 6000, maxQueue = DEFAULT_MAX_QUEUE) {
   const queueRef = useRef<string[]>([])
   const timerRef = useRef<number | null>(null)
   const showingRef = useRef(false)
+  const showNextRef = useRef<(() => void) | null>(null)
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -29,9 +30,11 @@ export function useAppToast(timeoutMs = 6000, maxQueue = DEFAULT_MAX_QUEUE) {
       showingRef.current = false
       timerRef.current = null
       setToastMessage(null)
-      showNext()
+      showNextRef.current?.()
     }, timeoutMs)
   }, [clearTimer, timeoutMs])
+
+  showNextRef.current = showNext
 
   const showToast = useCallback(
     (next: string) => {

@@ -1,7 +1,9 @@
 use std::fs;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::LazyLock;
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use zip::write::SimpleFileOptions;
 use zip::ZipWriter;
@@ -11,6 +13,9 @@ use crate::note::read_note;
 use crate::open::open_vault;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::write::save_note;
+
+static IMAGE_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"!\[[^\]]*\]\(([^)]+)\)").expect("image regex"));
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TextBundleExportOutput {
@@ -121,8 +126,7 @@ pub fn import_text_bundle(
 }
 
 fn extract_local_assets(markdown: &str) -> Vec<String> {
-    let image_re = regex::Regex::new(r"!\[[^\]]*\]\(([^)]+)\)").expect("image regex");
-    image_re
+    IMAGE_RE
         .captures_iter(markdown)
         .filter_map(|caps| caps.get(1).map(|value| value.as_str().trim().to_string()))
         .filter(|path| !path.starts_with("http://") && !path.starts_with("https://"))

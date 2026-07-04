@@ -2,6 +2,7 @@
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 [![Version](https://img.shields.io/badge/version-0.1.0-teal.svg)](CHANGELOG.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
 [![GitHub stars](https://img.shields.io/github/stars/AmirrezaFarnamTaheri/Scriptor?style=social)](https://github.com/AmirrezaFarnamTaheri/Scriptor/stargazers)
 
 **The instrument for serious writing.** Scriptor is a low-overhead, desktop-native, local-first Markdown knowledge workspace for long-form writing, research, citations, graph navigation, canvas boards, exports, Git, and permissioned AI/MCP automation.
@@ -16,7 +17,7 @@
 - **Local-first:** Plain Markdown on disk — no proprietary database, no lock-in.
 - **Desktop-native:** Tauri 2 shell with Rust vault kernel, SQLite indexer, and optional headless daemon.
 - **Research-ready:** Backlinks, citations, knowledge graph, vault health, and Pandoc export profiles.
-- **Calm workspace:** Glass shell with split editor/preview, inspector presets, and distraction-free mode.
+- **Calm, Premium Workspace:** Stunning glassmorphic shell with dynamic resizable sidebars, subtle micro-animations (150-250ms fluid transitions), deeply customized typography, and distraction-free mode.
 - **Automation with boundaries:** Git integration, MCP read-only tools, plugin safe mode, and draft/write-approved AI flows.
 
 ## Quick start
@@ -46,7 +47,7 @@ Targeted checks during development:
 
 ```powershell
 pnpm test:rust                 # Rust tests only
-pnpm lint                      # ESLint + prettier
+pnpm lint                      # ESLint
 pnpm check:contracts           # TypeScript contract packages
 pnpm check:plugins             # Plugin manifest validation
 pnpm check:a11y-axe            # axe-core WCAG automated audit
@@ -76,7 +77,7 @@ All UI screenshots: [`docs/assets/screenshots/`](docs/assets/screenshots/).
 
 ## Capabilities
 
-v0.1 ships a complete research workspace: desktop shell, vault kernel, SQLite indexer, export runner, Git integration with 3-way conflict resolver, canvas boards with resvg worker offload, MCP 15 tools with audit JSONL, plugin safe mode with author guide, headless daemon with tracing spans, terminal UI, multi-locale spellcheck, keyboard shortcut editor, scheduled vault snapshots, and the glass workspace shell.
+v0.1 ships a complete research workspace: desktop shell, vault kernel with auto-creation of default vaults (instant startup/notepad mode), SQLite indexer, export runner, Git integration with 3-way conflict resolver, canvas boards with resvg worker offload, MCP 15 tools with audit JSONL, plugin safe mode with author guide, headless daemon with tracing spans, terminal UI, multi-locale spellcheck, keyboard shortcut editor, scheduled vault snapshots, collapsible/minimizable side panels with topbar toggles, opaque dialog overlays for enhanced contrast/legibility, and the premium glassmorphic workspace shell featuring dynamic, user-resizable panels and robust fluid transitions.
 
 See [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) for the full surface map and validation commands.
 
@@ -85,11 +86,13 @@ See [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) for the full surface map and 
 ```powershell
 pnpm dev --host 127.0.0.1      # Web shell (browser)
 pnpm build                     # Production frontend build
-pnpm lint
+pnpm lint                      # ESLint
 pnpm check:release             # Full local release gate
 pnpm desktop:build             # Desktop installers
 pnpm screenshots:capture:web   # Regenerate docs screenshots
 cargo check --workspace
+cargo test --workspace
+pnpm test:e2e                  # Playwright end-to-end tests
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full development setup, testing, and code style guidelines.
@@ -98,8 +101,6 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full development setup, testing, an
 
 | Document | Purpose |
 |---|---|
-| [`docs/ROADMAP.md`](docs/ROADMAP.md) | Development roadmap and planned features |
-| [`scriptor_audit_and_roadmap.md`](scriptor_audit_and_roadmap.md) | Audit, risk register, backlog |
 | [`docs/README.md`](docs/README.md) | Documentation index |
 | [`PRODUCT.md`](PRODUCT.md) | Product principles and audience |
 | [`DESIGN.md`](DESIGN.md) | Visual and interaction rules |

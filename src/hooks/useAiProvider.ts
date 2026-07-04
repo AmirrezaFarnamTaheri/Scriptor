@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { keychainDeleteSecret, keychainGetSecret, keychainSetSecret } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { translate } from '../lib/i18n'
 
 export type AiProviderId = 'openai-compatible' | 'off'
 
@@ -26,6 +27,20 @@ export function useAiProvider() {
   const [hasApiKey, setHasApiKey] = useState(false)
   const [busy, setBusy] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
+  const [httpWarning, setHttpWarning] = useState<string | null>(null)
+
+  const checkHttps = useCallback((url: string) => {
+    try {
+      const parsed = new URL(url)
+      const isLocalhost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'
+      if (parsed.protocol === 'http:' && !isLocalhost) {
+        return translate('en', 'aiProvider.httpWarning')
+      }
+    } catch {
+      // invalid URL — let the request fail naturally
+    }
+    return null
+  }, [])
 
   const refreshKeyState = useCallback(async () => {
     if (!isNativeBridgeAvailable()) {
@@ -38,7 +53,8 @@ export function useAiProvider() {
 
   useEffect(() => {
     void refreshKeyState()
-  }, [refreshKeyState])
+    setHttpWarning(checkHttps(endpoint))
+  }, [refreshKeyState, checkHttps, endpoint])
 
   const setProvider = useCallback((next: AiProviderId) => {
     setProviderState(next)
@@ -48,7 +64,8 @@ export function useAiProvider() {
   const setEndpoint = useCallback((next: string) => {
     setEndpointState(next)
     window.localStorage.setItem(ENDPOINT_KEY, next)
-  }, [])
+    setHttpWarning(checkHttps(next))
+  }, [checkHttps])
 
   const saveApiKey = useCallback(async (secret: string) => {
     setBusy(true)
@@ -137,6 +154,7 @@ export function useAiProvider() {
     enabled,
     busy,
     lastError,
+    httpWarning,
     setProvider,
     setEndpoint,
     saveApiKey,

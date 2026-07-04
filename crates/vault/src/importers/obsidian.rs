@@ -1,14 +1,21 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::sync::LazyLock;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::error::VaultError;
-use crate::hash::content_hash;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::write::save_note;
+
+static EMBED_WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"!\[\[([^\]]+?)\]\]").expect("embed wikilink regex"));
+static WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[([^\]]+?)(?:\|([^\]]+?))?\]\]").expect("wikilink regex"));
+static HIGHLIGHT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"==(.+?)==").expect("highlight regex"));
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -165,7 +172,7 @@ fn import_note(
 }
 
 fn import_attachment(
-    root: &VaultRoot,
+    _root: &VaultRoot,
     obsidian_root: &Path,
     relative: &Path,
     attachments_dir: &Path,
@@ -202,8 +209,7 @@ fn convert_obsidian_syntax(markdown: &str) -> String {
 }
 
 fn convert_embed_wikilinks(markdown: &str) -> String {
-    let re = Regex::new(r"!\[\[([^\]]+?)\]\]").expect("embed wikilink regex");
-    re.replace_all(markdown, |caps: &regex::Captures| {
+    EMBED_WIKILINK_RE.replace_all(markdown, |caps: &regex::Captures| {
         let target = &caps[1];
         if let Some((name, _heading)) = target.split_once('#') {
             format!("[[{name}]]")
@@ -215,8 +221,7 @@ fn convert_embed_wikilinks(markdown: &str) -> String {
 }
 
 fn convert_wikilinks(markdown: &str) -> String {
-    let re = Regex::new(r"\[\[([^\]]+?)(?:\|([^\]]+?))?\]\]").expect("wikilink regex");
-    re.replace_all(markdown, |caps: &regex::Captures| {
+    WIKILINK_RE.replace_all(markdown, |caps: &regex::Captures| {
         let target = &caps[1];
         let display = caps.get(2).map(|m| m.as_str()).unwrap_or(target);
 
@@ -232,30 +237,54 @@ fn convert_wikilinks(markdown: &str) -> String {
 }
 
 fn convert_highlights(markdown: &str) -> String {
-    let re = Regex::new(r"==(.+?)==").expect("highlight regex");
-    re.replace_all(markdown, "<mark>$1</mark>").into_owned()
+    HIGHLIGHT_RE.replace_all(markdown, "<mark>$1</mark>").into_owned()
 }
 
 fn convert_callouts(markdown: &str) -> String {
-    let re = Regex::new(r"(?m)^> \[!(\w+)\](?:\s*(.*))?$").expect("callout regex");
-    re.replace_all(markdown, |caps: &regex::Captures| {
-        let callout_type = &caps[1];
-        let title = caps.get(2).map(|m| m.as_str().trim()).unwrap_or("");
-        let gfm_type = match callout_type.to_lowercase().as_str() {
-            "note" => "NOTE",
-            "tip" | "hint" => "TIP",
-            "important" => "IMPORTANT",
-            "warning" | "caution" => "WARNING",
-            "danger" | "error" => "CAUTION",
-            _ => "NOTE",
-        };
-        if title.is_empty() {
-            format!("> [!{gfm_type}]")
+    let lines: Vec<&str> = markdown.lines().collect();
+    let mut result = String::new();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let trimmed = lines[i].trim_start();
+        if let Some(rest) = trimmed.strip_prefix("> [!") {
+            let close = rest.find(']').unwrap_or(0);
+            let callout_type = &rest[..close];
+            let after = rest[close + 1..].trim();
+            let gfm_type = match callout_type.to_lowercase().as_str() {
+                "note" => "NOTE",
+                "tip" | "hint" => "TIP",
+                "important" => "IMPORTANT",
+                "warning" | "caution" => "WARNING",
+                "danger" | "error" => "CAUTION",
+                _ => "NOTE",
+            };
+            if after.is_empty() {
+                result.push_str(&format!("> [!{gfm_type}]"));
+            } else {
+                result.push_str(&format!("> [!{gfm_type}] {after}"));
+            }
+            i += 1;
+            while i < lines.len() {
+                let continuation = lines[i].trim_start();
+                if continuation.starts_with("> ") {
+                    result.push('\n');
+                    result.push_str(lines[i]);
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
         } else {
-            format!("> [!{gfm_type}] {title}")
+            result.push_str(lines[i]);
+            i += 1;
         }
-    })
-    .into_owned()
+        if i < lines.len() {
+            result.push('\n');
+        }
+    }
+
+    result
 }
 
 fn strip_frontmatter(markdown: &str) -> String {
@@ -363,5 +392,141 @@ mod tests {
         assert!(result.contains("<mark>important</mark>"));
         assert!(result.contains("> [!TIP] Quick tip"));
         assert!(result.contains("[here](<_Other Note>)"));
+    }
+
+    #[test]
+    fn test_convert_multiple_highlights() {
+        let input = "==first== and ==second== and ==third==";
+        let result = convert_highlights(input);
+        assert_eq!(result, "<mark>first</mark> and <mark>second</mark> and <mark>third</mark>");
+    }
+
+    #[test]
+    fn test_convert_callouts_warning() {
+        let input = "> [!warning] Proceed with caution";
+        assert_eq!(convert_callouts(input), "> [!WARNING] Proceed with caution");
+    }
+
+    #[test]
+    fn test_convert_callouts_important() {
+        let input = "> [!important]\n> Critical section";
+        assert_eq!(convert_callouts(input), "> [!IMPORTANT]\n> Critical section");
+    }
+
+    #[test]
+    fn test_convert_callouts_unknown_type_defaults_to_note() {
+        let input = "> [!custom] Some info";
+        assert_eq!(convert_callouts(input), "> [!NOTE] Some info");
+    }
+
+    #[test]
+    fn test_convert_embed_wikilinks_multiple() {
+        let input = "Start ![[Note A]] middle ![[Note B#Section]] end";
+        let result = convert_embed_wikilinks(input);
+        assert_eq!(result, "Start [[Note A]] middle [[Note B]] end");
+    }
+
+    #[test]
+    fn test_convert_wikilinks_file_extension_as_image() {
+        let input = "![[diagram.png]]";
+        let result = convert_wikilinks(&convert_embed_wikilinks(input));
+        assert!(result.contains("![diagram.png](<_diagram.png>)"));
+    }
+
+    #[test]
+    fn test_frontmatter_preserved_by_default() {
+        let input = "---\ntitle: My Note\ntags: [test]\n---\n\nBody content";
+        let result = convert_obsidian_syntax(input);
+        assert!(result.starts_with("---\ntitle: My Note\ntags: [test]\n---\n\nBody content"));
+    }
+
+    #[test]
+    fn test_strip_frontmatter_with_extra_newlines() {
+        let input = "---\ntitle: Test\n---\n\n\nBody after blanks";
+        let result = strip_frontmatter(input);
+        assert_eq!(result, "Body after blanks");
+    }
+
+    #[test]
+    fn test_convert_callouts_no_title() {
+        let input = "> [!note]";
+        assert_eq!(convert_callouts(input), "> [!NOTE]");
+    }
+
+    #[test]
+    fn test_empty_vault_import() {
+        let tmp = tempfile::tempdir().unwrap();
+        let obsidian_dir = tmp.path().join(".obsidian");
+        fs::create_dir(&obsidian_dir).unwrap();
+
+        let vault_tmp = tempfile::tempdir().unwrap();
+        let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+        let result =
+            import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        assert_eq!(result.notes_imported, 0);
+        assert_eq!(result.attachments_imported, 0);
+        assert_eq!(result.skipped_files, 0);
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_binary_files_skipped_or_imported() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join(".obsidian")).unwrap();
+        fs::write(tmp.path().join("image.png"), [0x89, 0x50, 0x4E, 0x47]).unwrap();
+        fs::write(tmp.path().join("readme.md"), "# Hello").unwrap();
+
+        let vault_tmp = tempfile::tempdir().unwrap();
+        let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+        let result =
+            import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        assert_eq!(result.notes_imported, 1);
+        assert_eq!(result.attachments_imported, 1);
+    }
+
+    #[test]
+    fn test_binary_files_skipped_when_import_disabled() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join(".obsidian")).unwrap();
+        fs::write(tmp.path().join("doc.pdf"), b"%PDF-1.4").unwrap();
+        fs::write(tmp.path().join("note.md"), "content").unwrap();
+
+        let vault_tmp = tempfile::tempdir().unwrap();
+        let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
+        let options = ImportObsidianOptions {
+            import_attachments: false,
+            ..Default::default()
+        };
+        let result =
+            import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        assert_eq!(result.notes_imported, 1);
+        assert_eq!(result.attachments_imported, 0);
+        assert_eq!(result.skipped_files, 1);
+    }
+
+    #[test]
+    fn test_convert_callouts_multiline_continuation() {
+        let input = "> [!warning] Title\n> Line 1\n> Line 2\n> Line 3";
+        let result = convert_callouts(input);
+        assert!(result.contains("> [!WARNING] Title"));
+        assert!(result.contains("> Line 1"));
+        assert!(result.contains("> Line 2"));
+        assert!(result.contains("> Line 3"));
+    }
+
+    #[test]
+    fn test_frontmatter_with_complex_yaml() {
+        let input = "---\ntitle: Test\nauthors:\n  - Alice\n  - Bob\ntags: [rust, wasm]\ndate: 2024-01-15\n---\n\nBody here";
+        let result = strip_frontmatter(input);
+        assert_eq!(result, "Body here");
+    }
+
+    #[test]
+    fn test_wikilink_to_file_with_extension() {
+        let input = "[[report.pdf]]";
+        let result = convert_wikilinks(input);
+        assert!(result.contains("![report.pdf]"));
     }
 }

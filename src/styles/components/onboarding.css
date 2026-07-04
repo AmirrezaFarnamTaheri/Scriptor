@@ -1,4 +1,4 @@
-/* First-run onboarding tour (BL-22) */
+/* First-run onboarding tour */
 
 .onboarding-backdrop {
   z-index: var(--scriptor-modal-z, 120);

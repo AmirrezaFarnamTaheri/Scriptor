@@ -40,5 +40,3 @@ test('shortcutMatches detects combo', () => {
   } as KeyboardEvent
   assert.equal(shortcutMatches(event, parsed), true)
 })
-
-console.log('Portal validation passed')

@@ -5,14 +5,12 @@ import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
 
 interface UseWorkspaceGitOptions {
-  vaultOpen: boolean
   refreshVault: () => Promise<void>
   logActivity: (kind: ActivityEntry['kind'], message: string, detail?: string) => void
   setError: (message: string | null) => void
 }
 
 export function useWorkspaceGit({
-  vaultOpen,
   refreshVault,
   logActivity,
   setError,
@@ -21,17 +19,15 @@ export function useWorkspaceGit({
   const [isGitBusy, setIsGitBusy] = useState(false)
 
   const refreshGit = useCallback(async () => {
-    if (!vaultOpen) {
-      setGitStatusState(null)
-      return
-    }
     try {
       const status = await gitStatus()
+      console.log('useWorkspaceGit: fetched status', status)
       setGitStatusState(status)
-    } catch {
+    } catch (err) {
+      console.error('useWorkspaceGit: gitStatus error', err)
       setGitStatusState(null)
     }
-  }, [vaultOpen])
+  }, [])
 
   const commitFiles = useCallback(
     async (files: string[], message: string) => {

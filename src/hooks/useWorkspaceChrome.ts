@@ -19,6 +19,9 @@ export interface WorkspaceChromePrefs {
   editorPaddingPx: number
   previewMaxWidthCh: number
   editorSurfaceMode: EditorSurfaceMode
+  vaultWidth: number
+  inspectorWidth: number
+  layoutLocked: boolean
 }
 
 export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
@@ -36,6 +39,9 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   editorPaddingPx: 12,
   previewMaxWidthCh: 72,
   editorSurfaceMode: 'source',
+  vaultWidth: 318,
+  inspectorWidth: 408,
+  layoutLocked: false,
 }
 
 const STORAGE_KEY = 'scriptor:workspace-chrome'

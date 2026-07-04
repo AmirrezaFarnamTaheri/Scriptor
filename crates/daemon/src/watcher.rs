@@ -51,7 +51,12 @@ fn apply_watch_batch(state: &Arc<Mutex<DaemonState>>, events: Vec<VaultWatchEven
     };
 
     if let Err(error) = incremental_notes_index_with_cache(&session, &cache, &paths, &[]) {
-        eprintln!("scriptor-daemon watcher index error: {error}");
+        tracing::warn!(
+            target: "scriptor_daemon::watcher",
+            changed_paths = paths.len(),
+            %error,
+            "incremental index update failed for watch batch",
+        );
     }
 }
 
@@ -74,12 +79,9 @@ mod tests {
         let state = Arc::new(Mutex::new(DaemonState::default()));
         {
             let mut guard = state.lock().expect("daemon state lock");
-            let open = guard.handle(RpcRequest {
-                id: 1,
-                method: RpcMethod::OpenVault {
-                    path: dir.path().display().to_string(),
-                },
-            });
+            let open = guard.handle(RpcRequest::new(1, RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            }));
             assert!(matches!(open.result, RpcResult::Ok(RpcPayload::VaultOpened { .. })));
             guard.wait_index_rebuild();
         }
@@ -90,13 +92,10 @@ mod tests {
         let mut found = false;
         for _ in 0..40 {
             thread::sleep(Duration::from_millis(50));
-            let search = state.lock().expect("daemon state lock").handle(RpcRequest {
-                id: 2,
-                method: RpcMethod::SearchNotes {
-                    query: "Watcher body".into(),
-                    limit: 10,
-                },
-            });
+            let search = state.lock().expect("daemon state lock").handle(RpcRequest::new(2, RpcMethod::SearchNotes {
+                query: "Watcher body".into(),
+                limit: 10,
+            }));
             if let RpcResult::Ok(RpcPayload::SearchHits { hits }) = search.result {
                 if hits.iter().any(|hit| hit.path == "external.md") {
                     found = true;

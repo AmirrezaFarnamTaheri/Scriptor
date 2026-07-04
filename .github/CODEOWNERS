@@ -1,9 +1,7 @@
-# Arclume ownership placeholders.
+# Ownership placeholders.
 
 /PRODUCT.md @product-architecture
 /DESIGN.md @design-systems
-/docs/forensics/ @product-architecture
-/docs/owners/ @engineering-leadership
 /docs/contracts/ @core-contracts
 /docs/validation/ @quality-engineering
 
@@ -11,12 +9,10 @@
 /packages/core/ @core-contracts
 /packages/editor/ @editor-experience
 /packages/renderer/ @publication
-/packages/graph/ @knowledge-graph
 /packages/canvas/ @canvas-experience
 /packages/export/ @publication
 /packages/mcp/ @automation-ai
 /packages/plugin-api/ @core-contracts @automation-ai
-/packages/cli/ @core-contracts
 /packages/test-fixtures/ @quality-engineering
 
 /crates/vault/ @vault-kernel
@@ -25,6 +21,7 @@
 /crates/native-git/ @native-platform
 /crates/system-bridge/ @native-platform
 /crates/canvas-engine/ @canvas-experience @native-platform
+/crates/cli/ @core-contracts
 
 /scripts/benchmarks/ @quality-engineering
 /scripts/release/ @release-engineering

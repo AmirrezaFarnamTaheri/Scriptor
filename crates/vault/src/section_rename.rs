@@ -1,4 +1,5 @@
 use std::collections::BTreeSet;
+use std::sync::LazyLock;
 
 use regex::Regex;
 
@@ -8,6 +9,17 @@ use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
 use crate::write::save_note;
+
+static HEADING_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^(#+)\s+(.*)$").expect("valid heading regex"));
+static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex")
+});
+static SELF_WIKILINK_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]").expect("valid self wikilink regex"));
+static MARKDOWN_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)").expect("valid md link regex")
+});
 
 fn normalize_section_label(label: &str) -> Result<String, VaultError> {
     let clean = label.trim();
@@ -35,11 +47,10 @@ fn rewrite_heading_lines(
     new_heading: &str,
     edits: &mut u32,
 ) -> String {
-    let heading = Regex::new(r"^(#+)\s+(.*)$").expect("valid heading regex");
     markdown
         .lines()
         .map(|line| {
-            let Some(capture) = heading.captures(line) else {
+            let Some(capture) = HEADING_RE.captures(line) else {
                 return line.to_string();
             };
             let level = capture.get(1).map(|value| value.as_str()).unwrap_or("#");
@@ -78,13 +89,8 @@ pub fn rewrite_section_links_in_markdown(
     new_section: &str,
 ) -> (String, u32) {
     let mut edits = 0u32;
-    let wikilink =
-        Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex");
-    let self_wikilink = Regex::new(r"\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]").expect("valid self wikilink regex");
-    let markdown_link =
-        Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)").expect("valid md link regex");
 
-    let step_one = wikilink
+    let step_one = WIKILINK_RE
         .replace_all(markdown, |capture: &regex::Captures| {
             let target = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
             let section = capture.get(2).map(|value| value.as_str().trim()).unwrap_or("");
@@ -105,7 +111,7 @@ pub fn rewrite_section_links_in_markdown(
         })
         .into_owned();
 
-    let step_two = self_wikilink
+    let step_two = SELF_WIKILINK_RE
         .replace_all(&step_one, |capture: &regex::Captures| {
             let section = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
             let alias = capture.get(2).map(|value| value.as_str());
@@ -120,7 +126,7 @@ pub fn rewrite_section_links_in_markdown(
         })
         .into_owned();
 
-    let updated = markdown_link
+    let updated = MARKDOWN_LINK_RE
         .replace_all(&step_two, |capture: &regex::Captures| {
             let label = capture.name("label").map(|value| value.as_str()).unwrap_or("");
             let url = capture.name("url").map(|value| value.as_str().trim()).unwrap_or("");

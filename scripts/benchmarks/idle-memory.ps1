@@ -3,8 +3,12 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path $PSScriptRoot '../..'
 Set-Location $root
 
-cargo build -q -p scriptor-cli
-$exe = Join-Path $root 'target/debug/scriptor.exe'
+cargo build --release -q -p scriptor-cli
+$exe = if ($IsWindows -or $env:OS -eq 'Windows_NT') {
+    Join-Path $root 'target/release/scriptor.exe'
+} else {
+    Join-Path $root 'target/release/scriptor'
+}
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $process = Start-Process -FilePath $exe -ArgumentList @('system-info') -PassThru -NoNewWindow -Wait

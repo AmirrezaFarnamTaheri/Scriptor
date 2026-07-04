@@ -43,6 +43,7 @@ interface SettingsPanelProps {
   aiHasApiKey: boolean
   aiBusy: boolean
   aiLastError: string | null
+  aiHttpWarning?: string | null
   onAiProviderChange: (provider: AiProviderId) => void
   onAiEndpointChange: (endpoint: string) => void
   onAiSaveApiKey: (secret: string) => void
@@ -57,6 +58,16 @@ interface SettingsPanelProps {
   activePath?: string | null
   onClose: () => void
   onConfigSaved?: () => void
+  hibernateGraph?: boolean
+  onHibernateGraphChange?: (enabled: boolean) => void
+  hibernateMcp?: boolean
+  onHibernateMcpChange?: (enabled: boolean) => void
+  hibernateWatcher?: boolean
+  onHibernateWatcherChange?: (enabled: boolean) => void
+  hibernateGit?: boolean
+  onHibernateGitChange?: (enabled: boolean) => void
+  hibernateSpellcheck?: boolean
+  onHibernateSpellcheckChange?: (enabled: boolean) => void
   workspaceMode?: WorkspaceMode
   workspaceLayouts?: Record<WorkspaceMode, WorkspaceLayout>
   onSaveWorkspaceLayout?: (mode: WorkspaceMode, layout: WorkspaceLayout) => void
@@ -730,6 +741,7 @@ export function SettingsPanel({
                   ['showLineNumbers', 'Show line numbers'],
                   ['vaultSidebarCollapsed', 'Collapse vault sidebar'],
                   ['inspectorCollapsed', 'Collapse inspector'],
+                  ['layoutLocked', 'Lock Workspace Layout'],
                 ] as const
               ).map(([key, label]) => (
                 <label className="diagnostics-opt-in" key={key}>

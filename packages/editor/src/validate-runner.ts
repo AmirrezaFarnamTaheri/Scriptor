@@ -237,5 +237,3 @@ test('generateLinkReferenceDefinitions appends placeholder definitions', () => {
   const next = generateLinkReferenceDefinitions(markdown)
   assert.match(next, /\[note-label\]:\s+note-label\.md/)
 })
-
-console.log('Editor validation passed')

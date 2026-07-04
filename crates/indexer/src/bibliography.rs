@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use regex::Regex;
 use rusqlite::params;
@@ -10,6 +11,15 @@ use scriptor_vault::{scan_vault, ScannedEntryKind, VaultSession};
 use crate::citation::register_bibliography_keys;
 use crate::db::IndexCache;
 use crate::error::IndexerError;
+
+static ENTRY_START_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"@([A-Za-z]+)\s*\{\s*([^,\s]+)\s*,"#).expect("valid bib entry regex"));
+static TITLE_FIELD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"title\s*=\s*\{([^}]*)\}"#).expect("valid title regex"));
+static AUTHOR_FIELD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"author\s*=\s*\{([^}]*)\}"#).expect("valid author regex"));
+static YEAR_FIELD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"year\s*=\s*(?:\{([^}]*)\}|(\d{4}))"#).expect("valid year regex"));
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BibliographyEntry {
@@ -87,15 +97,9 @@ pub fn list_bibliography_entries(cache: &IndexCache) -> Result<Vec<BibliographyE
 }
 
 fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
-    let entry_start =
-        Regex::new(r#"@([A-Za-z]+)\s*\{\s*([^,\s]+)\s*,"#).expect("valid bib entry regex");
-    let title_field = Regex::new(r#"title\s*=\s*\{([^}]*)\}"#).expect("valid title regex");
-    let author_field = Regex::new(r#"author\s*=\s*\{([^}]*)\}"#).expect("valid author regex");
-    let year_field =
-        Regex::new(r#"year\s*=\s*(?:\{([^}]*)\}|(\d{4}))"#).expect("valid year regex");
     let mut entries = Vec::new();
 
-    for capture in entry_start.captures_iter(raw) {
+    for capture in ENTRY_START_RE.captures_iter(raw) {
         let entry_type = capture.get(1).map(|value| value.as_str()).unwrap_or("misc");
         let key = capture
             .get(2)
@@ -108,17 +112,17 @@ fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
 
         let start = capture.get(0).map(|value| value.start()).unwrap_or(0);
         let slice = &raw[start..];
-        let title = title_field
+        let title = TITLE_FIELD_RE
             .captures(slice)
             .and_then(|title_capture| title_capture.get(1))
             .map(|value| normalize_bib_value(value.as_str()))
             .unwrap_or_else(|| key.clone());
-        let author = author_field
+        let author = AUTHOR_FIELD_RE
             .captures(slice)
             .and_then(|author_capture| author_capture.get(1))
             .map(|value| normalize_bib_value(value.as_str()))
             .unwrap_or_default();
-        let year = year_field
+        let year = YEAR_FIELD_RE
             .captures(slice)
             .and_then(|year_capture| {
                 year_capture

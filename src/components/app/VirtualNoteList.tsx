@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { FileText } from 'lucide-react'
 
-const DEFAULT_ROW_HEIGHT = 32
+const ROW_HEIGHT = 32
+const OVERSCAN = 5
 
 interface VirtualNoteListProps {
   paths: string[]
@@ -19,10 +20,8 @@ export function VirtualNoteList({
   onDeleteNote,
 }: VirtualNoteListProps) {
   const containerRef = useRef<HTMLUListElement>(null)
-  const rowRefs = useRef<Map<number, HTMLLIElement>>(new Map())
   const [viewportHeight, setViewportHeight] = useState(320)
   const [scrollTop, setScrollTop] = useState(0)
-  const [rowHeights, setRowHeights] = useState<Record<number, number>>({})
 
   useEffect(() => {
     const element = containerRef.current
@@ -32,67 +31,31 @@ export function VirtualNoteList({
     return () => observer.disconnect()
   }, [])
 
-  useEffect(() => {
-    const observers: ResizeObserver[] = []
-    for (const [index, element] of rowRefs.current.entries()) {
-      const observer = new ResizeObserver((entries) => {
-        const height = Math.max(DEFAULT_ROW_HEIGHT, Math.ceil(entries[0]?.contentRect.height ?? DEFAULT_ROW_HEIGHT))
-        setRowHeights((current) => (current[index] === height ? current : { ...current, [index]: height }))
-      })
-      observer.observe(element)
-      observers.push(observer)
-    }
-    return () => observers.forEach((observer) => observer.disconnect())
-  }, [paths.length, scrollTop])
-
-  const offsets = useCallback(() => {
-    let offset = 0
-    const list: number[] = []
-    for (let index = 0; index < paths.length; index += 1) {
-      list.push(offset)
-      offset += rowHeights[index] ?? DEFAULT_ROW_HEIGHT
-    }
-    return { offsets: list, totalHeight: offset }
-  }, [paths.length, rowHeights])
-
-  const { offsets: rowOffsets, totalHeight } = offsets()
-
-  let startIndex = 0
-  while (startIndex < paths.length && rowOffsets[startIndex] + (rowHeights[startIndex] ?? DEFAULT_ROW_HEIGHT) < scrollTop) {
-    startIndex += 1
-  }
-  startIndex = Math.max(0, startIndex - 4)
-
-  let endIndex = startIndex
-  let visible = 0
-  while (endIndex < paths.length && visible < viewportHeight + DEFAULT_ROW_HEIGHT * 8) {
-    visible += rowHeights[endIndex] ?? DEFAULT_ROW_HEIGHT
-    endIndex += 1
-  }
+  const totalHeight = paths.length * ROW_HEIGHT
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
+  const visibleCount = Math.ceil(viewportHeight / ROW_HEIGHT) + (OVERSCAN * 2)
+  const endIndex = Math.min(paths.length, startIndex + visibleCount)
+  const visiblePaths = paths.slice(startIndex, endIndex)
 
   return (
     <ul
       ref={containerRef}
       className="virtual-note-list"
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      style={{ maxHeight: 'min(60vh, 640px)', overflow: 'auto' }}
+      style={{ maxHeight: 'min(60vh, 640px)', overflow: 'auto', position: 'relative' }}
     >
-      <div style={{ height: totalHeight, position: 'relative' }}>
-        {paths.slice(startIndex, endIndex).map((path, offset) => {
-          const index = startIndex + offset
+      <div style={{ height: totalHeight, minHeight: '100%', position: 'relative' }}>
+        {visiblePaths.map((path, index) => {
+          const absoluteIndex = startIndex + index
           return (
             <li
               key={path}
-              ref={(element) => {
-                if (element) rowRefs.current.set(index, element)
-                else rowRefs.current.delete(index)
-              }}
               style={{
                 position: 'absolute',
-                top: rowOffsets[index],
+                top: absoluteIndex * ROW_HEIGHT,
                 left: 0,
                 right: 0,
-                minHeight: DEFAULT_ROW_HEIGHT,
+                height: ROW_HEIGHT,
               }}
             >
               <button
@@ -109,7 +72,7 @@ export function VirtualNoteList({
                 }}
               >
                 <FileText />
-                <span>{path.split('/').pop()}</span>
+                <span className="truncate">{path.split('/').pop()}</span>
               </button>
             </li>
           )

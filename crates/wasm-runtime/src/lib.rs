@@ -161,4 +161,115 @@ mod tests {
         let err = runtime.host_read_note(idx, "notes/test.md");
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
     }
+
+    #[test]
+    fn write_notes_requires_write_capability() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::read_only();
+        let idx = runtime.load_plugin("reader", &minimal_wasm(), caps).unwrap();
+        let err = runtime.host_write_note(idx, "a.md", "content");
+        assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
+    }
+
+    #[test]
+    fn search_requires_search_capability() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        let idx = runtime.load_plugin("nosrch", &minimal_wasm(), caps).unwrap();
+        let err = runtime.host_search(idx, "query", 10);
+        assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
+    }
+
+    #[test]
+    fn full_access_allows_all_host_fns() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::full_access();
+        let idx = runtime.load_plugin("full", &minimal_wasm(), caps).unwrap();
+        // All capability checks pass; stub returns Runtime error (not CapabilityDenied)
+        let read_err = runtime.host_read_note(idx, "a.md").unwrap_err();
+        assert!(matches!(read_err, WasmRuntimeError::Runtime(_)));
+        let write_err = runtime.host_write_note(idx, "a.md", "x").unwrap_err();
+        assert!(matches!(write_err, WasmRuntimeError::Runtime(_)));
+        let search_err = runtime.host_search(idx, "q", 5).unwrap_err();
+        assert!(matches!(search_err, WasmRuntimeError::Runtime(_)));
+    }
+
+    #[test]
+    fn too_small_bytes_rejected() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        let err = runtime.load_plugin("tiny", &[0x00, 0x61], caps);
+        assert!(matches!(err, Err(WasmRuntimeError::Load(_))));
+    }
+
+    #[test]
+    fn host_log_always_succeeds() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        let idx = runtime.load_plugin("logger", &minimal_wasm(), caps).unwrap();
+        runtime.host_log(idx, "info", "hello").unwrap();
+    }
+
+    #[test]
+    fn get_plugin_out_of_bounds() {
+        let runtime = WasmPluginRuntime::new();
+        let err = runtime.get_plugin(99);
+        assert!(matches!(err, Err(WasmRuntimeError::Load(_))));
+    }
+
+    #[test]
+    fn load_multiple_plugins() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        runtime.load_plugin("a", &minimal_wasm(), caps.clone()).unwrap();
+        runtime.load_plugin("b", &minimal_wasm(), caps).unwrap();
+        assert_eq!(runtime.plugin_count(), 2);
+    }
+
+    #[test]
+    fn oversized_wasm_bytes_loads() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        // 1MB of WASM (valid header + padding) — should succeed since runtime
+        // doesn't impose a size limit beyond header validation
+        let mut bytes = vec![0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
+        bytes.resize(1_000_000, 0x00);
+        let idx = runtime.load_plugin("large", &bytes, caps).unwrap();
+        assert_eq!(idx, 0);
+        assert_eq!(runtime.plugin_count(), 1);
+    }
+
+    #[test]
+    fn empty_bytes_rejected() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        let err = runtime.load_plugin("empty", &[], caps);
+        assert!(matches!(err, Err(WasmRuntimeError::Load(_))));
+    }
+
+    #[test]
+    fn exact_4_byte_wrong_magic_rejected() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::default();
+        let err = runtime.load_plugin("bad4", &[0xDE, 0xAD, 0xBE, 0xEF], caps);
+        assert!(matches!(err, Err(WasmRuntimeError::Load(_))));
+    }
+
+    #[test]
+    fn canvas_capability_enforced() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::read_only();
+        let idx = runtime.load_plugin("no-canvas", &minimal_wasm(), caps).unwrap();
+        let err = runtime.get_plugin(idx).unwrap().capabilities.check("canvas");
+        assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
+    }
+
+    #[test]
+    fn export_capability_enforced() {
+        let mut runtime = WasmPluginRuntime::new();
+        let caps = PluginCapabilities::read_only();
+        let idx = runtime.load_plugin("no-export", &minimal_wasm(), caps).unwrap();
+        let err = runtime.get_plugin(idx).unwrap().capabilities.check("export");
+        assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
+    }
 }

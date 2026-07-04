@@ -17,11 +17,11 @@
 
 .pressable {
   transition:
-    transform var(--spring-fast),
-    background var(--spring-soft),
-    border-color var(--spring-soft),
-    box-shadow var(--spring-soft),
-    color var(--spring-soft);
+    transform var(--ease-fast),
+    background var(--ease-soft),
+    border-color var(--ease-soft),
+    box-shadow var(--ease-soft),
+    color var(--ease-soft);
 }
 
 .pressable:hover {
@@ -34,8 +34,8 @@
 
 .elevate-hover {
   transition:
-    transform var(--spring-soft),
-    box-shadow var(--spring-soft);
+    transform var(--ease-soft),
+    box-shadow var(--ease-soft);
 }
 
 .elevate-hover:hover {
@@ -54,13 +54,10 @@
   }
 }
 
-@keyframes spring-in {
+@keyframes scale-in {
   0% {
     opacity: 0;
-    transform: scale(0.92);
-  }
-  60% {
-    transform: scale(1.02);
+    transform: scale(0.95);
   }
   100% {
     opacity: 1;
@@ -78,11 +75,11 @@
 }
 
 .fade-rise {
-  animation: fade-rise var(--spring-gentle) both;
+  animation: fade-rise var(--ease-gentle) both;
 }
 
-.spring-in {
-  animation: spring-in var(--spring-soft) both;
+.scale-in {
+  animation: scale-in var(--ease-soft) both;
 }
 
 .panel-loading {
@@ -106,7 +103,7 @@
   .pressable,
   .elevate-hover,
   .fade-rise,
-  .spring-in,
+  .scale-in,
   .panel-loading {
     animation: none !important;
     transition: none !important;

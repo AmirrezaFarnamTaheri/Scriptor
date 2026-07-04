@@ -4,11 +4,11 @@ Visual and interaction rules for the Scriptor shell. Token values live in [`docs
 
 ## System
 
-Scriptor is a restrained desktop product interface: neutral surfaces, graphite structure, deep ink text, cyan-teal action color, and amber only for operational warnings or active jobs. The UI is dense enough for research work but calm enough for long writing sessions.
+Scriptor is a premium, restrained desktop product interface: neutral surfaces, graphite structure, deep ink text, cyan-teal action color, and amber only for operational warnings or active jobs. The UI is dense enough for research work but calm and elegant enough for long writing sessions, elevated by refined glassmorphic layers and deep, ambient drop shadows.
 
 ## Scene
 
-A quiet research desk at noon: soft light through glass, graphite instruments, a small teal status lamp, and one amber progress indicator when work is actively running.
+A quiet research desk at noon: soft light through glass, graphite instruments, dynamic resizable panels, a small teal status lamp, and one amber progress indicator when work is actively running.
 
 ## Color
 
@@ -29,18 +29,22 @@ Brand assets: [`docs/brand/BRAND.md`](docs/brand/BRAND.md).
 
 ## Layout
 
+The workspace layout is fluid, dynamic, and fully user-resizable via interactive grab-handles with hover-glow effects. Users can resize panes directly or lock the layout in settings to prevent accidental shifting.
 See [`docs/design/LAYOUT_BLUEPRINTS.md`](docs/design/LAYOUT_BLUEPRINTS.md) for desktop, tablet, mobile, and TUI structure.
 
 ## Components
 
-- **Glass panels:** frosted surfaces with backdrop blur (`.surface-glass`).
+- **Glass panels:** frosted surfaces with backdrop blur, subtle inner gradients, and precise border highlights (`.surface-glass`, `.unified-panel`).
+- **Resizers:** sleek, interactive drag handles with glowing focus states.
 - **Buttons:** compact, spring press feedback (`.pressable`), radius `--radius-sm`–`--radius-md`.
 - **Cards:** inspector widgets only; avoid nested cards.
 - **Icons:** Lucide outline icons, consistent stroke weight.
 
 ## Motion
 
+- Fluid, curated easings spanning 150ms-250ms for seamless interactions.
 - Spring curves: `--spring-fast`, `--spring-soft`, `--spring-gentle`.
+- Hover and focus states on layout resizers and interactive elements.
 - Progress fill animation for active jobs.
 - `prefers-reduced-motion` disables nonessential transitions.
 

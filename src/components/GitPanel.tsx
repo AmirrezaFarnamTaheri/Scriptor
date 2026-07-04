@@ -6,6 +6,7 @@ import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import type { GitStatus } from '../types/vault'
+import { useI18n } from '../lib/i18n'
 
 type PendingGitAction =
   | { kind: 'commit'; files: string[]; message: string }
@@ -45,6 +46,7 @@ export function GitPanel({
   readNoteAtHead,
   readNoteWorking,
 }: GitPanelProps) {
+  const { t } = useI18n()
   const [message, setMessage] = useState('Update vault notes')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pendingAction, setPendingAction] = useState<PendingGitAction | null>(null)
@@ -109,44 +111,44 @@ export function GitPanel({
   if (!status?.is_repo) {
     return (
       <UnifiedPanelShell
-        title="Git"
-        subtitle="Version control for this vault."
+        title={t('git.title')}
+        subtitle={t('git.subtitle')}
         icon={<GitBranch size={18} />}
-        ariaLabel="Git status"
+        ariaLabel={t('git.status')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
       >
-        <p className="empty-state">This vault is not a Git repository.</p>
+        <p className="empty-state">{t('git.notARepo')}</p>
       </UnifiedPanelShell>
     )
   }
 
   return (
     <UnifiedPanelShell
-      title="Git"
-      subtitle={`${status.branch ?? 'detached'}${status.has_upstream ? ` · ${status.ahead} ahead · ${status.behind} behind` : ''}`}
+      title={t('git.title')}
+      subtitle={`${status.branch ?? t('git.detached')}${status.has_upstream ? ` · ${t('git.aheadBehind', { ahead: status.ahead, behind: status.behind })}` : ''}`}
       icon={<GitBranch size={18} />}
-      ariaLabel="Git status"
+      ariaLabel={t('git.status')}
       onClose={onClose}
       presentation={presentation}
       className="git-panel knowledge-filters-panel"
       wide
       tabs={[
-        { id: 'changes', label: 'Changes' },
-        { id: 'diff', label: 'HEAD diff' },
+        { id: 'changes', label: t('git.changes') },
+        { id: 'diff', label: t('git.headDiff') },
       ]}
       activeTab={tab}
       onTabChange={(next) => setTab(next as GitTab)}
       headerActions={
         <button type="button" className="toolbar-button" disabled={isBusy} onClick={onRefresh}>
-          Refresh
+          {t('actions.refresh')}
         </button>
       }
     >
       {status.has_conflicts ? (
         <p className="git-conflict-banner" role="alert">
-          {status.conflicted_files.length} merge conflict(s) must be resolved manually before pull or push.
+          {t('git.mergeConflict', { count: status.conflicted_files.length })}
         </p>
       ) : null}
 
@@ -159,7 +161,7 @@ export function GitPanel({
               disabled={isBusy || !status.has_upstream || status.has_conflicts}
               onClick={() => setPendingAction({ kind: 'pull' })}
             >
-              Pull
+              {t('git.pull')}
             </button>
             <button
               type="button"
@@ -167,7 +169,7 @@ export function GitPanel({
               disabled={isBusy || !status.has_upstream || status.has_conflicts}
               onClick={() => setPendingAction({ kind: 'push' })}
             >
-              Push
+              {t('git.push')}
             </button>
           </div>
 
@@ -216,7 +218,11 @@ export function GitPanel({
                         </button>
                       ) : null}
                       {file.conflict && onResolveConflict ? (
-                        <button type="button" onClick={() => onResolveConflict(file.path)}>
+                        <button
+                          type="button"
+                          className="conflict-resolve-btn"
+                          onClick={() => onResolveConflict(file.path)}
+                        >
                           Resolve
                         </button>
                       ) : null}
@@ -241,10 +247,10 @@ export function GitPanel({
               }}
             >
               <label>
-                <span>Commit message</span>
+                <span>{t('git.commitMessagePlaceholder')}</span>
                 <input value={message} onChange={(event) => setMessage(event.target.value)} required />
               </label>
-              <div className="git-commit-templates" aria-label="Commit message templates">
+              <div className="git-commit-templates" aria-label={t('git.commitMessagePlaceholder')}>
                 {commitTemplates.map((template) => (
                   <button key={template} type="button" className="toolbar-button" onClick={() => setMessage(template)}>
                     {template}
@@ -252,7 +258,7 @@ export function GitPanel({
                 ))}
               </div>
               <button type="submit" className="primary-button" disabled={isBusy || effectiveSelection.length === 0}>
-                Commit selected
+                {t('git.commitSelected')}
               </button>
             </form>
           )}
@@ -277,24 +283,24 @@ export function GitPanel({
               <GitDiffPreview path={previewPath} before={diffBefore} after={diffAfter} />
               {onOpenNote ? (
                 <button type="button" className="toolbar-button" onClick={() => onOpenNote(previewPath)}>
-                  Open note
+                  {t('actions.open')}
                 </button>
               ) : null}
             </>
           ) : (
-            <p className="empty-state">No changed markdown notes to preview.</p>
+            <p className="empty-state">{t('git.noChanges')}</p>
           )}
         </div>
       )}
 
       {pendingAction ? (
-        <div className="git-confirm-dialog" role="alertdialog" aria-label="Confirm Git action">
+        <div className="git-confirm-dialog" role="alertdialog" aria-label={t('git.confirmAction')}>
           <p>
             {pendingAction.kind === 'commit'
-              ? `Commit ${pendingAction.files.length} file(s) with message "${pendingAction.message}"?`
+              ? t('git.commitSelected') + ` ${pendingAction.files.length} file(s) "${pendingAction.message}"?`
               : pendingAction.kind === 'pull'
-                ? 'Pull changes from upstream?'
-                : 'Push local commits to upstream?'}
+                ? t('git.pull') + '?'
+                : t('git.push') + '?'}
           </p>
           {pendingAction.kind === 'commit' ? (
             <ul className="git-confirm-files">
@@ -305,7 +311,7 @@ export function GitPanel({
           ) : null}
           <div className="git-confirm-actions">
             <button type="button" className="toolbar-button" onClick={() => setPendingAction(null)}>
-              Cancel
+              {t('actions.cancel')}
             </button>
             <button
               type="button"
@@ -322,7 +328,7 @@ export function GitPanel({
                 setPendingAction(null)
               }}
             >
-              Confirm
+              {t('actions.check')}
             </button>
           </div>
         </div>

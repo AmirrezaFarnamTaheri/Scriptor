@@ -5,7 +5,7 @@
   padding: 18px;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface-raised);
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .rename-dialog header {
@@ -25,7 +25,15 @@
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: white;
+  background: var(--bg);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.rename-dialog input[type='text']:focus,
+.rename-dialog input:not([type='checkbox']):focus {
+  outline: none;
+  border-color: var(--primary-strong);
+  box-shadow: var(--focus-ring);
 }
 
 .checkbox-row {

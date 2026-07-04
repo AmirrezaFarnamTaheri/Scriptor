@@ -12,6 +12,8 @@ interface UseWorkspaceFilesystemSyncOptions {
   applyFilesystemChangesRef: MutableRefObject<(paths: string[]) => Promise<void>>
   refreshGit: () => Promise<void>
   vaultRefreshTimer: MutableRefObject<number | null>
+  hibernated?: boolean
+  hibernateGit?: boolean
 }
 
 export function useWorkspaceFilesystemSync({
@@ -21,15 +23,19 @@ export function useWorkspaceFilesystemSync({
   applyFilesystemChangesRef,
   refreshGit,
   vaultRefreshTimer,
+  hibernated = false,
+  hibernateGit = false,
 }: UseWorkspaceFilesystemSyncOptions) {
   useEffect(() => {
-    if (!vault || !isNativeBridgeAvailable()) {
+    if (!vault || !isNativeBridgeAvailable() || hibernated) {
       return
     }
 
     const onFocus = () => {
       void checkExternalChangesRef.current()
-      void refreshGit()
+      if (!hibernateGit) {
+        void refreshGit()
+      }
     }
 
     window.addEventListener('focus', onFocus)
@@ -38,10 +44,10 @@ export function useWorkspaceFilesystemSync({
     return () => {
       window.removeEventListener('focus', onFocus)
     }
-  }, [checkExternalChangesRef, refreshGit, vault])
+  }, [checkExternalChangesRef, refreshGit, vault, hibernated, hibernateGit])
 
   useEffect(() => {
-    if (!vault || !isNativeBridgeAvailable()) {
+    if (!vault || !isNativeBridgeAvailable() || hibernated) {
       return
     }
 
@@ -87,5 +93,6 @@ export function useWorkspaceFilesystemSync({
     checkExternalChangesRef,
     vault,
     vaultRefreshTimer,
+    hibernated,
   ])
 }
