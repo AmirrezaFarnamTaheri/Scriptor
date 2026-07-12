@@ -33,25 +33,25 @@ async function waitForReady() {
 }
 
 const preview = run(['exec', 'vite', 'preview', '--host', host, '--port', String(port), '--strictPort'])
+let previewExited = false
+preview.once('exit', () => {
+  previewExited = true
+})
 
 try {
-  await Promise.race([
-    waitForReady(),
-    exited(preview, 'Vite preview').then(() => {
-      throw new Error('Vite preview exited before becoming ready')
-    }),
-  ])
+  await waitForReady()
+  if (previewExited) throw new Error('Vite preview exited before becoming ready')
 
   const axe = run([
     'exec',
     'axe',
     url,
-    '--rules',
+    '--tags',
     'wcag2a,wcag2aa,wcag21aa',
     '--exit',
     '--chrome-options=no-sandbox,headless,disable-dev-shm-usage',
   ])
   await exited(axe, 'axe accessibility audit')
 } finally {
-  preview.kill('SIGTERM')
+  if (!previewExited) preview.kill('SIGTERM')
 }
