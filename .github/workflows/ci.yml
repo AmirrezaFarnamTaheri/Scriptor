@@ -17,6 +17,166 @@ jobs:
   validate-fast:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@b906aff
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck contracts
+        run: pnpm check:contracts
+
+      - name: Validate MCP runtime
+        run: pnpm check:mcp
+
+      - name: Validate plugin API
+        run: pnpm check:plugins
+
+      - name: Validate canvas package
+        run: pnpm check:canvas
+
+      - name: Validate editor package
+        run: pnpm check:editor
+
+      - name: Validate renderer package
+        run: pnpm check:renderer
+
+      - name: Validate export package
+        run: pnpm check:export
+
+      - name: Validate portal package
+        run: pnpm check:portal
+
+      - name: Validate knowledge helpers
+        run: pnpm check:knowledge
+
+      - name: Validate citations
+        run: pnpm check:citations
+
+      - name: Validate headless bridge
+        run: pnpm check:headless
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Rust tests
+        run: cargo test --workspace --exclude scriptor-desktop
+
+      - name: Check cargo-deny
+        run: cargo deny check
+
+      - name: Check npm audit
+        run: pnpm audit --prod
+
+      - name: Check ts-rs bindings
+        run: cargo test -p scriptor-ipc
+
+      - name: Check xtask
+        run: cargo xtask release-smoke
+
+  validate-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        run: pnpm build
+
+      - name: Accessibility smoke
+        run: pnpm check:a11y
+
+      - name: axe-core WCAG audit
+        run: pnpm check:a11y-axe
+
+      - name: Minimal vault scan budget
+        run: cargo run --release -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 3
+
+      - name: TUI smoke
+        run: pnpm check:tui
+
+      - name: Daemon IPC smoke
+        run: pnpm check:daemon
+
+  release-smoke:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Release smoke
+        run: powershell -ExecutionPolicy Bypass -File scripts/release/smoke.ps1 -SkipExportDiscover
+
+      - name: Performance gate (1k scan)
+        run: powershell -ExecutionPolicy Bypass -File scripts/release/perf-gate.ps1 -Size 1k
+
+      - name: Canvas interaction budget
+        run: pnpm bench:canvas
+
+      - name: Startup budget
+        run: pnpm bench:startup
+
+      - name: Idle memory budget
+        run: pnpm bench:idle-memory
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -t scriptor-ci .
+
+      - name: Run container smoke
+        run: docker run --rm scriptor-ci
