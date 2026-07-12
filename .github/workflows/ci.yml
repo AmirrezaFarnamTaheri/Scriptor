@@ -107,10 +107,20 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install cargo-deny
-        run: cargo install cargo-deny --version 0.19.9 --locked --quiet
+        shell: bash
+        run: |
+          if ! cargo install cargo-deny --version 0.19.9 --locked > cargo-deny-install.log 2>&1; then
+            tail -n 200 cargo-deny-install.log
+            exit 1
+          fi
 
       - name: Check cargo-deny
-        run: cargo deny check
+        shell: bash
+        run: |
+          if ! cargo deny check > cargo-deny-check.log 2>&1; then
+            cat cargo-deny-check.log
+            exit 1
+          fi
 
       - name: Check npm audit
         run: pnpm audit --prod
