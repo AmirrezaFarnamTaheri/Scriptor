@@ -51,9 +51,15 @@ pub fn verify_binary_hash(
     log::info!("{label} SHA-256: {computed} (path: {})", binary_path.display());
 
     if let Some(expected) = expected_hash {
-        if computed != expected {
+        let normalized = expected.trim().to_ascii_lowercase();
+        if normalized.len() != 64 || !normalized.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(ExportError::Process(format!(
-                "{label} hash mismatch: expected {expected}, found {computed}"
+                "{label} trusted hash must be a 64-character SHA-256 hex digest"
+            )));
+        }
+        if computed != normalized {
+            return Err(ExportError::Process(format!(
+                "{label} hash mismatch: expected {normalized}, found {computed}"
             )));
         }
     }
@@ -84,8 +90,10 @@ pub fn discover_pandoc_with_trusted_hash(
 
     for bundled in bundled_pandoc_paths() {
         if bundled.exists() {
-            if let Ok(discovery) = probe_pandoc_with_hash(&bundled, trusted_hash) {
-                return Ok(discovery);
+            match probe_pandoc_with_hash(&bundled, trusted_hash) {
+                Ok(discovery) => return Ok(discovery),
+                Err(error) if trusted_hash.is_some() => return Err(error),
+                Err(_) => continue,
             }
         }
     }
@@ -136,10 +144,12 @@ fn probe_pandoc_with_hash(
     };
 
     let sha256 = if resolved_path.exists() {
-        verify_binary_hash(&resolved_path, trusted_hash, "pandoc").unwrap_or_else(|err| {
-            log::warn!("Pandoc hash verification failed: {err}");
-            None
-        })
+        verify_binary_hash(&resolved_path, trusted_hash, "pandoc")?
+    } else if trusted_hash.is_some() {
+        return Err(ExportError::Process(
+            "pandoc trusted hash configured but the resolved executable path cannot be verified"
+                .to_string(),
+        ));
     } else {
         None
     };
