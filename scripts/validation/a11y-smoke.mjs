@@ -67,29 +67,24 @@ for (const [componentPath, componentName] of [
   }
 }
 
-const allComponentPaths = [
-  join(root, 'src/components'),
-  join(root, 'src'),
-]
-
 if (existsSync(cssPath)) {
   const cssContent = readFileSync(cssPath, 'utf8')
   const focusTokens = ['--focus-ring', '--focus-outline', '--focus-ring-color', '--focus-ring-width']
-  const foundToken = focusTokens.some(t => cssContent.includes(t))
+  const foundToken = focusTokens.some((token) => cssContent.includes(token))
   if (!foundToken) failures.push('focus ring CSS token (--focus-ring-*)')
 }
 
-const editorPath = join(root, 'src/components/Editor.tsx')
+const editorWorkspacePath = join(root, 'src/components/shell/EditorWorkspace.tsx')
 const sidebarPath = join(root, 'src/components/Sidebar.tsx')
 const toolbarPath = join(root, 'src/components/FormatToolbar.tsx')
 
-if (existsSync(editorPath)) {
-  const editorSource = readFileSync(editorPath, 'utf8')
-  if (!editorSource.includes('aria-label=') && !editorSource.includes('aria-labelledby=')) {
-    failures.push('editor aria-label')
+if (existsSync(editorWorkspacePath)) {
+  const editorSource = readFileSync(editorWorkspacePath, 'utf8')
+  if (!editorSource.includes('aria-label="Editor"') && !editorSource.includes('aria-labelledby=')) {
+    failures.push('editor workspace aria-label')
   }
 } else {
-  failures.push('Editor.tsx')
+  failures.push('EditorWorkspace.tsx')
 }
 
 if (existsSync(sidebarPath)) {
