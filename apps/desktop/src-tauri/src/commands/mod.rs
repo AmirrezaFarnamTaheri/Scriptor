@@ -1,3 +1,4 @@
+pub mod backup;
 pub mod canvas;
 pub mod code_chunk;
 pub mod daemon;
