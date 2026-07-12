@@ -43,12 +43,26 @@ jobs:
           fi
 
       - name: Check cargo-deny
+        id: cargo-deny
+        continue-on-error: true
+        shell: bash
+        run: cargo deny check > cargo-deny-check.log 2>&1
+
+      - name: Upload cargo-deny report
+        if: steps.cargo-deny.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: cargo-deny-report
+          path: cargo-deny-check.log
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Enforce cargo-deny result
+        if: steps.cargo-deny.outcome == 'failure'
         shell: bash
         run: |
-          if ! cargo deny check > cargo-deny-check.log 2>&1; then
-            tail -n 300 cargo-deny-check.log
-            exit 1
-          fi
+          tail -n 80 cargo-deny-check.log
+          exit 1
 
       - name: Check npm audit
         run: pnpm audit --prod
