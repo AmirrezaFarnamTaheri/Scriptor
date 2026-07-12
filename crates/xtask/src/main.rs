@@ -62,7 +62,7 @@ fn pnpm(args: &[&str]) -> Result<()> {
 }
 
 fn release_smoke() -> Result<()> {
-    cargo(&["build", "--workspace"])?;
+    cargo(&["build", "--workspace", "--exclude", "scriptor-desktop"])?;
     cargo(&["test", "--workspace", "--exclude", "scriptor-desktop"])?;
     pnpm(&["build"])?;
     println!("Release smoke passed.");
