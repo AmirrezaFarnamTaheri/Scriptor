@@ -8,6 +8,14 @@ $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "../.."
 Set-Location $root
 
+Write-Host "==> Build daemon sidecar"
+& cargo build -p scriptor-daemon --bin scriptor-daemon
+if ($LASTEXITCODE -ne 0) {
+    throw "failed to build scriptor-daemon sidecar"
+}
+$daemonName = if ($IsWindows) { "scriptor-daemon.exe" } else { "scriptor-daemon" }
+$env:SCRIPTOR_DAEMON_BIN = Join-Path $root "target/debug/$daemonName"
+
 function Invoke-ScriptorCli {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
     & cargo run -p scriptor-cli -- @Args
