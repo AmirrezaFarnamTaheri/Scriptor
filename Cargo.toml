@@ -21,3 +21,8 @@ exclude = ["crates/ipc/fuzz"]
 
 [workspace.package]
 license = "AGPL-3.0-or-later"
+
+# citationberg 0.7.0 was published with vulnerable quick-xml 0.38.x.
+# Pin the upstream security-only fix until the next crates.io release.
+[patch.crates-io]
+citationberg = { git = "https://github.com/typst/citationberg", rev = "06a591e2f237d25e1dfdedac3f3d1494c496c52d" }
