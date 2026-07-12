@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install cargo-deny
+        run: cargo install cargo-deny --version 0.19.9 --locked
+
       - name: Typecheck contracts
         run: pnpm check:contracts
 
