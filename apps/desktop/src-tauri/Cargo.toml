@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Scriptor desktop shell"
 authors = ["Scriptor"]
 edition = "2024"
+license.workspace = true
 
 [lib]
 name = "scriptor_desktop_lib"
