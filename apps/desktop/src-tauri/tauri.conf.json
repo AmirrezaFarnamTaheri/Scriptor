@@ -25,10 +25,10 @@
   },
   "plugins": {
     "updater": {
-      "active": true,
-      "endpoints": ["https://releases.scriptor.app/{{target}}/{{current_version}}"],
-      "dialog": true,
-      "pubkey": "dW5kZWZpbmVk"
+      "active": false,
+      "endpoints": [],
+      "dialog": false,
+      "pubkey": ""
     },
     "deep-link": {
       "desktop": {
