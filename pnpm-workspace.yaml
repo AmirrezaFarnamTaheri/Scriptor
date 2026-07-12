@@ -2,3 +2,6 @@ packages:
   - "apps/*"
   - "packages/*"
   - "packages/plugins/*"
+
+allowBuilds:
+  chromedriver: true
