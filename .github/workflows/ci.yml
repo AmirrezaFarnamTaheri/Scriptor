@@ -46,7 +46,7 @@ jobs:
         shell: bash
         run: |
           if ! cargo deny check > cargo-deny-check.log 2>&1; then
-            cat cargo-deny-check.log
+            tail -n 300 cargo-deny-check.log
             exit 1
           fi
 
