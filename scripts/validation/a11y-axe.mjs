@@ -5,35 +5,53 @@ const port = 4173
 const url = `http://${host}:${port}`
 const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 
-function spawnCommand(args, options = {}) {
-  return spawn(pnpm, args, {
-    stdio: 'inherit',
-    windowsHide: true,
-    ...options,
+const run = (args, stdio = 'inherit') =>
+  spawn(pnpm, args, { stdio, windowsHide: true })
+
+const exited = (child, label) =>
+  new Promise((resolve, reject) => {
+    child.once('error', reject)
+    child.once('exit', (code, signal) => {
+      if (signal) reject(new Error(`${label} terminated by ${signal}`))
+      else if (code === 0) resolve()
+      else reject(new Error(`${label} exited with code ${code}`))
+    })
   })
-}
 
-async function waitForReady(target, timeoutMs = 30_000) {
-  const deadline = Date.now() + timeoutMs
-  let lastError
-
+async function waitForReady() {
+  const deadline = Date.now() + 30_000
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(target, { redirect: 'manual' })
-      if (response.ok || (response.status >= 300 && response.status < 400)) return
-      lastError = new Error(`preview returned HTTP ${response.status}`)
-    } catch (error) {
-      lastError = error
+      const response = await fetch(url)
+      if (response.ok) return
+    } catch {
+      // Preview is still starting.
     }
     await new Promise((resolve) => setTimeout(resolve, 250))
   }
-
-  throw new Error(`Vite preview did not become ready at ${target}: ${lastError ?? 'timeout'}`)
+  throw new Error(`Vite preview did not become ready at ${url}`)
 }
 
-function waitForExit(child, label) {
-  return new Promise((resolve, reject) => {
-    child.once('error', reject)
-    child.once('exit', (code, signal) => {
-      if (signal) {
-        reject(new Error(`${label} terminated
+const preview = run(['exec', 'vite', 'preview', '--host', host, '--port', String(port), '--strictPort'])
+
+try {
+  await Promise.race([
+    waitForReady(),
+    exited(preview, 'Vite preview').then(() => {
+      throw new Error('Vite preview exited before becoming ready')
+    }),
+  ])
+
+  const axe = run([
+    'exec',
+    'axe',
+    url,
+    '--rules',
+    'wcag2a,wcag2aa,wcag21aa',
+    '--exit',
+    '--chrome-options=no-sandbox,headless,disable-dev-shm-usage',
+  ])
+  await exited(axe, 'axe accessibility audit')
+} finally {
+  preview.kill('SIGTERM')
+}
