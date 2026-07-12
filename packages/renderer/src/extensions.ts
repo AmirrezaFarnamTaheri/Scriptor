@@ -17,13 +17,26 @@ export function applyRendererExtensions(
     }
   }
 
-  const badges = extensions
+  const badges = [...extensions]
     .sort((left, right) => right.priority - left.priority)
     .map(
       (extension) =>
-        `<span class="renderer-extension-badge" data-extension="${extension.id}">${extension.label}</span>`,
+        `<span class="renderer-extension-badge" data-extension="${escapeAttribute(extension.id)}">${escapeHtml(extension.label)}</span>`,
     )
     .join('')
 
   return `${next}<footer class="renderer-extension-footer" aria-hidden="true">${badges}</footer>`
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value).replaceAll('`', '&#96;')
 }
