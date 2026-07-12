@@ -22,6 +22,7 @@ use commands::git::{
     git_apply_merged_conflict_cmd, git_commit_cmd, git_pull_cmd, git_push_cmd, git_read_conflict_markers_cmd,
     git_resolve_conflict_cmd, git_show_head_file_cmd, git_show_merge_base_file_cmd, git_status_cmd,
 };
+use commands::history::vault_restore_note_history_revision;
 use commands::indexer::{
     indexer_apply_filesystem_changes, indexer_backlinks, indexer_evaluate_view, indexer_execute_dql,
     indexer_graph, indexer_health_diagnostics, indexer_list_bibliography, indexer_list_dead_ends, indexer_list_inbox,
@@ -43,7 +44,7 @@ use commands::vault::{
     vault_rename_section_apply, vault_rename_section_dry_run, vault_rename_tag_apply, vault_rename_tag_dry_run,
     vault_save_asset, vault_save_config_cmd, vault_save_note, vault_save_snippets,
     vault_save_workspace_session, vault_scan, vault_textbundle_export, vault_health, vault_list_note_history,
-    vault_read_note_history_revision, vault_restore_note_history_revision,
+    vault_read_note_history_revision,
 };
 use serde::Serialize;
 use tauri::Emitter;
