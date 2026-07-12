@@ -20,45 +20,60 @@ function parseDeepLink(url: string): { kind: 'vault' | 'note'; path: string } | 
   }
 }
 
-export function usePlatformShell(handlers: PlatformShellHandlers) {
+export function usePlatformShell({ onDeepLink, onQuickCapture }: PlatformShellHandlers) {
   useEffect(() => {
     if (import.meta.env.VITE_E2E_MODE === 'true' || import.meta.env.VITE_SCREENSHOT_MODE === 'true') {
       return
     }
 
+    let disposed = false
     let unlistenAction: (() => void) | undefined
     let unlistenDeepLink: (() => void) | undefined
 
-    void (async () => {
+    const register = async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event')
-        unlistenAction = await listen<{ action: string; payload?: string | null }>(
+        const actionCleanup = await listen<{ action: string; payload?: string | null }>(
           'platform:action',
           (event) => {
             if (event.payload.action === 'quick-capture') {
-              handlers.onQuickCapture?.()
+              onQuickCapture?.()
             }
           },
         )
-        unlistenDeepLink = await listen<{ action: string; payload?: string | null }>(
+        if (disposed) {
+          actionCleanup()
+          return
+        }
+        unlistenAction = actionCleanup
+
+        const deepLinkCleanup = await listen<{ action: string; payload?: string | null }>(
           'platform:deep-link',
           (event) => {
             const url = event.payload.payload
             if (url) {
-              handlers.onDeepLink?.(url)
+              onDeepLink?.(url)
             }
           },
         )
+        if (disposed) {
+          deepLinkCleanup()
+          return
+        }
+        unlistenDeepLink = deepLinkCleanup
       } catch {
-        // Browser dev mode without Tauri shell
+        // Browser dev mode without Tauri shell.
       }
-    })()
+    }
+
+    void register()
 
     return () => {
+      disposed = true
       unlistenAction?.()
       unlistenDeepLink?.()
     }
-  }, [handlers.onDeepLink, handlers.onQuickCapture])
+  }, [onDeepLink, onQuickCapture])
 }
 
 export { parseDeepLink }
