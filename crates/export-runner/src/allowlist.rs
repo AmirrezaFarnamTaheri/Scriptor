@@ -18,13 +18,11 @@ const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--variable=",
     "--reference-doc=",
     "--template=",
-    "--lua-filter=",
-    "--filter=",
     "--slide-level=",
     "--highlight-style=",
 ];
 
-const ALLOWED_VALUE_FLAGS: &[&str] = &["-t", "--metadata", "--filter", "--lua-filter", "--variable"];
+const ALLOWED_VALUE_FLAGS: &[&str] = &["-t", "--metadata", "--variable"];
 
 fn contains_shell_metachar(value: &str) -> bool {
     value.contains(['&', '|', ';', '`', '\n', '\r'])
@@ -87,6 +85,18 @@ mod tests {
     fn rejects_output_escape() {
         let error = validate_extra_args(&["--output=/tmp/x".into()]).unwrap_err();
         assert!(error.to_string().contains("disallowed"));
+    }
+
+    #[test]
+    fn rejects_executable_filters() {
+        for args in [
+            vec!["--filter=evil".into()],
+            vec!["--filter".into(), "evil".into()],
+            vec!["--lua-filter=evil.lua".into()],
+            vec!["--lua-filter".into(), "evil.lua".into()],
+        ] {
+            validate_extra_args(&args).expect_err("executable filters must be rejected");
+        }
     }
 
     #[test]
