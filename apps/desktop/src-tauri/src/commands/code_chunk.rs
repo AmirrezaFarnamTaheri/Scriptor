@@ -1,3 +1,4 @@
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -9,6 +10,7 @@ use crate::state::{active_session, AppState};
 
 const MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const TIMEOUT_SECS: u64 = 30;
+const CODE_EXECUTION_OPT_IN: &str = "SCRIPTOR_ALLOW_CODE_EXECUTION";
 
 #[derive(Debug, Serialize)]
 pub struct CodeChunkRunOutput {
@@ -59,12 +61,24 @@ fn truncate_output(value: String) -> String {
     format!("{}…\n[truncated]", &value[..end])
 }
 
+fn execution_enabled() -> bool {
+    std::env::var(CODE_EXECUTION_OPT_IN)
+        .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+        .unwrap_or(false)
+}
+
 #[tauri::command]
 pub fn code_chunk_run(
     state: tauri::State<AppState>,
     language: String,
     code: String,
 ) -> Result<CodeChunkRunOutput, String> {
+    if !execution_enabled() {
+        return Err(format!(
+            "code execution is disabled by default; set {CODE_EXECUTION_OPT_IN}=1 only for a trusted workspace"
+        ));
+    }
+
     let session = active_session(&state)?;
     let lang = language.trim().to_lowercase();
     let (binary, prefix_args) = allowed_runner(&lang).ok_or_else(|| {
@@ -90,46 +104,62 @@ pub fn code_chunk_run(
     for arg in prefix_args {
         command.arg(arg);
     }
-    if lang == "cmd" || lang == "batch" {
-        command.arg(&script_path);
-    } else if lang == "python" || lang == "py" || lang == "node" || lang == "javascript" || lang == "js" {
-        command.arg(&script_path);
-    } else {
-        command.arg(&script_path);
-    }
+    command.arg(&script_path);
 
     let started = Instant::now();
     let mut child = command
-        .current_dir(work_dir)
+        .current_dir(&work_dir)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|error| format!("failed to spawn {binary}: {error}"))?;
 
+    // Drain both pipes while the child is running. Waiting before reading can
+    // deadlock when either OS pipe buffer fills.
+    let stdout = child.stdout.take().ok_or_else(|| "failed to capture stdout".to_string())?;
+    let stderr = child.stderr.take().ok_or_else(|| "failed to capture stderr".to_string())?;
+    let stdout_reader = thread::spawn(move || {
+        let mut reader = stdout;
+        let mut bytes = Vec::new();
+        let _ = reader.read_to_end(&mut bytes);
+        bytes
+    });
+    let stderr_reader = thread::spawn(move || {
+        let mut reader = stderr;
+        let mut bytes = Vec::new();
+        let _ = reader.read_to_end(&mut bytes);
+        bytes
+    });
+
     let timeout = Duration::from_secs(TIMEOUT_SECS);
-    loop {
-        if let Some(_status) = child.try_wait().map_err(|error| error.to_string())? {
-            break;
+    let status = loop {
+        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
+            break status;
         }
         if started.elapsed() >= timeout {
             let _ = child.kill();
             let _ = child.wait();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
             let _ = std::fs::remove_file(&script_path);
             return Err(format!("code chunk exceeded {TIMEOUT_SECS}s timeout"));
         }
         thread::sleep(Duration::from_millis(50));
-    }
+    };
 
-    let child = child
-        .wait_with_output()
-        .map_err(|error| format!("failed to collect output from {binary}: {error}"))?;
-
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| format!("failed to collect stdout from {binary}"))?;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| format!("failed to collect stderr from {binary}"))?;
     let _ = std::fs::remove_file(&script_path);
 
     Ok(CodeChunkRunOutput {
-        exit_code: child.status.code().unwrap_or(-1),
-        stdout: truncate_output(String::from_utf8_lossy(&child.stdout).into_owned()),
-        stderr: truncate_output(String::from_utf8_lossy(&child.stderr).into_owned()),
+        exit_code: status.code().unwrap_or(-1),
+        stdout: truncate_output(String::from_utf8_lossy(&stdout).into_owned()),
+        stderr: truncate_output(String::from_utf8_lossy(&stderr).into_owned()),
         duration_ms: started.elapsed().as_millis() as u64,
         language: lang,
     })
@@ -137,7 +167,7 @@ pub fn code_chunk_run(
 
 #[cfg(test)]
 mod tests {
-    use super::truncate_output;
+    use super::{execution_enabled, truncate_output, CODE_EXECUTION_OPT_IN};
 
     #[test]
     fn truncate_output_keeps_utf8_boundaries() {
@@ -145,6 +175,12 @@ mod tests {
         let truncated = truncate_output(source);
         assert!(truncated.contains("[truncated]"));
         assert!(truncated.is_char_boundary(truncated.len()));
+    }
+
+    #[test]
+    fn code_execution_is_disabled_without_explicit_opt_in() {
+        std::env::remove_var(CODE_EXECUTION_OPT_IN);
+        assert!(!execution_enabled());
     }
 }
 
