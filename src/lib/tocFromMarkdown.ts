@@ -5,15 +5,24 @@ export function generateTocFromMarkdown(markdown: string): TocEntry[] {
   const lines = markdown.split('\n')
   const counters = [0, 0, 0, 0, 0, 0]
   const entries: TocEntry[] = []
-  let inFence = false
+  let fenceChar: '`' | '~' | null = null
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]
-    if (/^```/.test(line.trim())) {
-      inFence = !inFence
-      continue
+    const fence = /^(`{3,}|~{3,})/.exec(line.trim())
+    if (fence) {
+      const char = fence[1][0] as '`' | '~'
+      if (fenceChar === null) {
+        fenceChar = char
+        continue
+      }
+      if (fenceChar === char) {
+        fenceChar = null
+        continue
+      }
+      // A ~~~ line inside a ``` fence (or vice versa) is fenced content.
     }
-    if (inFence) continue
+    if (fenceChar !== null) continue
 
     const atx = /^(#{1,6})\s+(.+)$/.exec(line)
     if (!atx) continue
@@ -24,10 +33,10 @@ export function generateTocFromMarkdown(markdown: string): TocEntry[] {
     for (let reset = level; reset < counters.length; reset += 1) {
       counters[reset] = 0
     }
-    const renderedLevel = counters
-      .slice(0, level)
-      .filter((value) => value > 0)
-      .join('.')
+    // Keep skipped levels as an explicit 0 segment. Dropping empty levels made
+    // `# A` + `### B` render as "1.1", indistinguishable from a real `##`
+    // sibling; it now renders "1.0.1".
+    const renderedLevel = counters.slice(0, level).join('.')
 
     entries.push({
       line: index + 1,

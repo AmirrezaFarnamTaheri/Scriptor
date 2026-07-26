@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 
 import en from './en.json'
 import de from './de.json'
@@ -53,7 +53,30 @@ export function isRtl(locale: AppLocale): boolean {
 
 export const SUPPORTED_LOCALES: AppLocale[] = ['en', 'de', 'fa']
 
-export function useI18n() {
+/** Mirror the active locale onto <html dir/lang> so RTL applies on first paint. */
+export function applyDocumentLocale(locale: AppLocale): void {
+  if (typeof document === 'undefined') return
+  document.documentElement.dir = isRtl(locale) ? 'rtl' : 'ltr'
+  document.documentElement.lang = locale
+}
+
+export interface I18nValue {
+  locale: AppLocale
+  t: (key: string, params?: Record<string, string | number>) => string
+  changeLocale: (next: AppLocale) => void
+  supportedLocales: AppLocale[]
+  localeLabels: Record<AppLocale, string>
+  rtl: boolean
+}
+
+export const I18nContext = createContext<I18nValue | null>(null)
+
+/**
+ * Builds the shared i18n value. Used by `I18nProvider`; also used as a
+ * self-contained fallback by `useI18n` so a component rendered outside the
+ * provider still works instead of crashing.
+ */
+export function useI18nState(): I18nValue {
   const [locale, setLocale] = useState<AppLocale>(() => getStoredLocale())
 
   const t = useCallback(
@@ -61,7 +84,9 @@ export function useI18n() {
       let result = translate(locale, key)
       if (params) {
         for (const [paramKey, paramValue] of Object.entries(params)) {
-          result = result.replace(`{{${paramKey}}}`, String(paramValue))
+          // replaceAll: a translation using the same placeholder twice used to
+          // render the second occurrence literally.
+          result = result.replaceAll(`{{${paramKey}}}`, String(paramValue))
         }
       }
       return result
@@ -72,13 +97,7 @@ export function useI18n() {
   const changeLocale = useCallback((next: AppLocale) => {
     setStoredLocale(next)
     setLocale(next)
-    if (isRtl(next)) {
-      document.documentElement.dir = 'rtl'
-      document.documentElement.lang = 'fa'
-    } else {
-      document.documentElement.dir = 'ltr'
-      document.documentElement.lang = next
-    }
+    applyDocumentLocale(next)
   }, [])
 
   return useMemo(
@@ -92,4 +111,15 @@ export function useI18n() {
     }),
     [changeLocale, locale, t],
   )
+}
+
+/**
+ * Read the app-wide locale. Consumes `I18nContext` so a locale change in
+ * Settings re-renders every panel; falls back to local state when no provider
+ * is mounted.
+ */
+export function useI18n(): I18nValue {
+  const shared = useContext(I18nContext)
+  const standalone = useI18nState()
+  return shared ?? standalone
 }

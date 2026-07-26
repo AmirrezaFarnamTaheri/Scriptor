@@ -21,7 +21,6 @@ export function useWorkspaceGit({
   const refreshGit = useCallback(async () => {
     try {
       const status = await gitStatus()
-      console.log('useWorkspaceGit: fetched status', status)
       setGitStatusState(status)
     } catch (err) {
       console.error('useWorkspaceGit: gitStatus error', err)

@@ -268,7 +268,7 @@ export class McpRuntime {
   private readonly audit = new AuditLog()
   private readonly drafts: DraftPatch[] = []
   private mode: McpMode
-  private readonly context: McpVaultContext | null
+  private context: McpVaultContext | null
 
   constructor(mode: McpMode, context: McpVaultContext | null) {
     this.mode = mode
@@ -277,6 +277,15 @@ export class McpRuntime {
 
   setMode(mode: McpMode): void {
     this.mode = mode
+  }
+
+  /**
+   * Swap the vault bindings in place. Callers must mutate rather than
+   * reconstruct the runtime: a fresh instance would drop every pending draft
+   * and the whole security audit log.
+   */
+  setContext(context: McpVaultContext | null): void {
+    this.context = context
   }
 
   getMode(): McpMode {

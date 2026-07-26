@@ -8,6 +8,8 @@ import { useI18n } from '../lib/i18n'
 export interface PaletteCommand {
   id: string
   label: string
+  /** Search synonyms — matched alongside the label. */
+  keywords?: string[]
   run: () => void
   group?: 'command' | 'note'
 }
@@ -15,7 +17,7 @@ export interface PaletteCommand {
 interface CommandPaletteProps {
   open: boolean
   onClose: () => void
-  commands: Array<{ id: string; label: string; run: () => void }>
+  commands: PaletteCommand[]
   searchNotes?: (query: string) => Promise<Array<{ path: string; title: string }>>
   onOpenNote?: (path: string) => void
 }
@@ -46,7 +48,11 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
   const mergedCommands = useMemo(() => {
     const needle = query.trim().toLowerCase()
     const filteredCommands = needle
-      ? commands.filter((command) => command.label.toLowerCase().includes(needle))
+      ? commands.filter(
+          (command) =>
+            command.label.toLowerCase().includes(needle) ||
+            (command.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(needle)),
+        )
       : commands
     if (!searchNotes || !needle) {
       return filteredCommands.map((command) => ({ ...command, group: 'command' as const }))
