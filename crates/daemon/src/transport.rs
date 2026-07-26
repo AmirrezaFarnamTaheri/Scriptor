@@ -639,6 +639,23 @@ mod tests {
         );
     }
 
+    /// Poll `condition` until it holds or `timeout` elapses, returning whether
+    /// it became true.
+    ///
+    /// Preferred over a fixed sleep for cross-thread handshakes: a sleep sized
+    /// for an idle machine silently becomes a race on a loaded CI runner, and
+    /// the resulting failure surfaces far from its cause.
+    fn wait_for(timeout: Duration, mut condition: impl FnMut() -> bool) -> bool {
+        let deadline = std::time::Instant::now() + timeout;
+        while std::time::Instant::now() < deadline {
+            if condition() {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        condition()
+    }
+
     struct PipeGuard {
         name: Option<String>,
     }
@@ -980,7 +997,20 @@ mod tests {
             client.has_event_listener(),
             "listener must start once the daemon is reachable again"
         );
-        std::thread::sleep(Duration::from_millis(100));
+
+        // `has_event_listener` only reports that the listener thread was
+        // spawned; it may not have completed its SubscribeEvents handshake
+        // yet. Broadcasts reach registered subscribers only, so firing the
+        // reload before then loses the event and the receive below times out.
+        // Wait on the hub's own view rather than guessing with a sleep — a
+        // fixed delay here is what made this test flake under CPU load.
+        let subscribed = wait_for(Duration::from_secs(10), || {
+            event_hub_ref.subscriber_count() > 0
+        });
+        assert!(
+            subscribed,
+            "event listener should register with the hub before the broadcast"
+        );
 
         let reloader = crate::client::DaemonRpcClient::new();
         reloader

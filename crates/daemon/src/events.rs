@@ -20,6 +20,16 @@ impl EventHub {
         rx
     }
 
+    /// Number of currently attached subscribers.
+    ///
+    /// A broadcast only reaches sessions that have already registered, so
+    /// callers that must not race a subscriber still being set up (tests
+    /// waiting for a reconnected event listener, for instance) can poll this
+    /// instead of sleeping for an arbitrary interval.
+    pub fn subscriber_count(&self) -> usize {
+        lock_recover(&self.subscribers).len()
+    }
+
     pub fn broadcast_config_reloaded(&self, json: String, generation: u64) {
         let event = RpcEvent {
             payload: RpcEventPayload::ConfigReloaded { json, generation },
