@@ -62,4 +62,85 @@ export function e2eSearchNotes(query: string, limit: number): SearchHit[] {
   return hits.slice(0, limit)
 }
 
+function noteStem(path: string): string {
+  return path.replace(/\.md$/i, '').split('/').pop() ?? path
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Match `[[Stem]]`, `[[Stem|alias]]` and `[[Stem#heading]]` for a single stem.
+ * Deliberately narrow — the fixture vault only uses plain stem wikilinks.
+ */
+function wikilinkPattern(stem: string): RegExp {
+  return new RegExp(`\\[\\[${escapeRegExp(stem)}((?:\\||#)[^\\]]*)?\\]\\]`, 'g')
+}
+
+function countWikilinks(markdown: string, stem: string): number {
+  return markdown.match(wikilinkPattern(stem))?.length ?? 0
+}
+
+export function e2eListNotePaths(): string[] {
+  return [...noteBodies.keys()]
+}
+
+/**
+ * Preview a note rename the way the Rust `vault_rename_dry_run` command does:
+ * report every other note that contains a wikilink to the source stem.
+ */
+export function e2eRenameDryRun(fromPath: string, toPath: string, updateLinks: boolean) {
+  const stem = noteStem(fromPath)
+  const affected_files: string[] = []
+  let link_edits = 0
+  if (updateLinks) {
+    for (const [path, markdown] of noteBodies) {
+      if (path === fromPath) continue
+      const hits = countWikilinks(markdown, stem)
+      if (hits > 0) {
+        affected_files.push(path)
+        link_edits += hits
+      }
+    }
+  }
+  const warnings = noteBodies.has(toPath) ? [`${toPath} already exists`] : []
+  return { affected_files, link_edits, warnings }
+}
+
+/**
+ * Apply a note rename in the in-memory fixture vault, rewriting wikilinks in
+ * every other note when `updateLinks` is set. This mirrors the Rust
+ * `vault_rename_apply` contract so the browser E2E can assert that the app
+ * requests link rewriting and surfaces the rewritten note afterwards. It does
+ * not (and cannot) verify the Rust rewriter itself.
+ */
+export function e2eRenameApply(fromPath: string, toPath: string, updateLinks: boolean) {
+  const fromStem = noteStem(fromPath)
+  const toStem = noteStem(toPath)
+  const body = noteBodies.get(fromPath) ?? screenshotNoteDocument(fromPath).markdown
+  noteBodies.delete(fromPath)
+  noteBodies.set(toPath, body)
+
+  const affected_files: string[] = []
+  let link_edits = 0
+  if (updateLinks) {
+    for (const [path, markdown] of noteBodies) {
+      if (path === toPath) continue
+      const hits = countWikilinks(markdown, fromStem)
+      if (hits === 0) continue
+      noteBodies.set(
+        path,
+        markdown.replace(wikilinkPattern(fromStem), (_match, suffix: string | undefined) =>
+          `[[${toStem}${suffix ?? ''}]]`,
+        ),
+      )
+      affected_files.push(path)
+      link_edits += hits
+    }
+  }
+
+  return { from_path: fromPath, to_path: toPath, affected_files, link_edits }
+}
+
 export { SCREENSHOT_SCAN, SCREENSHOT_VAULT }
