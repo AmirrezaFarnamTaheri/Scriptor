@@ -54,6 +54,29 @@ fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), Expor
             "path escapes vault root: {path}"
         )));
     }
+    // Lexical containment alone is insufficient: an in-vault symlink can point
+    // at an external file, which pandoc would then read (and `--embed-resources`
+    // would inline). Canonicalize each existing prefix so a symlinked parent is
+    // caught even when the leaf does not exist yet.
+    let mut prefix = canonical_root.clone();
+    for component in p.components() {
+        let std::path::Component::Normal(part) = component else {
+            continue;
+        };
+        prefix.push(part);
+        if !prefix.exists() {
+            break;
+        }
+        let canonical = prefix.canonicalize().map_err(|source| ExportError::Io {
+            path: prefix.clone(),
+            source,
+        })?;
+        if !canonical.starts_with(&canonical_root) {
+            return Err(ExportError::DisallowedArg(format!(
+                "path escapes vault root via symlink: {path}"
+            )));
+        }
+    }
     Ok(())
 }
 
@@ -230,5 +253,63 @@ mod tests {
         }
 
         let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn rejects_symlinked_file_reference_escaping_vault() {
+        let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
+        let outside = std::env::temp_dir().join(format!("scriptor-outside-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).expect("vault dir");
+        fs::create_dir_all(&outside).expect("outside dir");
+        let secret = outside.join("secret.bib");
+        fs::write(&secret, "@article{a,title={x}}").expect("secret file");
+
+        // A vault-relative name that is really a symlink to an external file.
+        let link = vault.join("linked.bib");
+        let linked = {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&secret, &link)
+            }
+            #[cfg(windows)]
+            {
+                std::os::windows::fs::symlink_file(&secret, &link)
+            }
+        };
+        if linked.is_err() {
+            let _ = fs::remove_dir_all(&vault);
+            let _ = fs::remove_dir_all(&outside);
+            return;
+        }
+
+        let result = resolve_extra_args(&vault, &vault, &["--bibliography=linked.bib".to_string()]);
+        assert!(
+            result.is_err(),
+            "symlinked file reference escaping the vault must be rejected"
+        );
+
+        // A symlinked *parent* redirecting an otherwise in-vault path.
+        let dir_link = vault.join("linkeddir");
+        let dir_linked = {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&outside, &dir_link).is_ok()
+            }
+            #[cfg(windows)]
+            {
+                std::os::windows::fs::symlink_dir(&outside, &dir_link).is_ok()
+            }
+        };
+        if dir_linked {
+            let result =
+                resolve_extra_args(&vault, &vault, &["--csl=linkeddir/secret.bib".to_string()]);
+            assert!(
+                result.is_err(),
+                "symlinked parent directory escaping the vault must be rejected"
+            );
+        }
+
+        let _ = fs::remove_dir_all(&vault);
+        let _ = fs::remove_dir_all(&outside);
     }
 }

@@ -108,8 +108,13 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
     }
 }
 
-/// Resolve a caller-supplied export subdirectory against the vault root,
-/// rejecting absolute paths and traversal (mirrors the daemon's validation).
+/// Resolve a caller-supplied export subdirectory against the vault root.
+///
+/// Delegates to `VaultRoot::resolve_relative`, which rejects absolute paths and
+/// traversal *and* canonicalizes every existing path prefix. The prefix walk
+/// matters here because the directory is created afterwards: a lexical
+/// `starts_with` check would still follow an existing symlinked parent that
+/// redirects the export outside the vault.
 fn resolve_output_directory(
     session: &VaultSession,
     output_subdirectory: Option<String>,
@@ -118,11 +123,10 @@ fn resolve_output_directory(
         Some(subdir) => {
             let relative = RelativeVaultPath::parse(&subdir)
                 .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
-            let candidate = session.root.root().join(relative.as_str());
-            if !candidate.starts_with(session.root.root()) {
-                return Err(format!("output_subdirectory escapes vault root: {subdir}"));
-            }
-            Ok(candidate)
+            session
+                .root
+                .resolve_relative(&relative)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))
         }
         None => Ok(default_export_directory(session.root.root())),
     }

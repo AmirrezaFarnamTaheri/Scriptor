@@ -14,25 +14,41 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let temp_name = format!(".scriptor-{}.tmp", uuid::Uuid::new_v4());
     let temp_path = parent.join(temp_name);
 
-    {
-        let mut file = fs::File::create(&temp_path).map_err(|source| VaultError::io(&temp_path, source))?;
+    let write_result = (|| -> Result<(), VaultError> {
+        let mut file = fs::File::create(&temp_path)
+            .map_err(|source| VaultError::io(&temp_path, source))?;
         file.write_all(bytes)
             .map_err(|source| VaultError::io(&temp_path, source))?;
         file.sync_all()
             .map_err(|source| VaultError::io(&temp_path, source))?;
+        Ok(())
+    })();
+
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temp_path);
+        return Err(error);
     }
 
     if let Err(source) = fs::rename(&temp_path, path) {
-        let recovery = parent.join(format!(".scriptor-failed-{}.tmp", uuid::Uuid::new_v4()));
-        let _ = fs::rename(&temp_path, &recovery);
+        let _ = fs::remove_file(&temp_path);
         return Err(VaultError::io(path, source));
     }
 
-    if let Some(parent) = path.parent()
-        && let Ok(file) = fs::OpenOptions::new().read(true).open(parent) {
-            let _ = file.sync_all();
-        }
+    sync_parent_directory(parent)?;
+    Ok(())
+}
 
+#[cfg(unix)]
+fn sync_parent_directory(parent: &Path) -> Result<(), VaultError> {
+    let directory = fs::File::open(parent).map_err(|source| VaultError::io(parent, source))?;
+    directory
+        .sync_all()
+        .map_err(|source| VaultError::io(parent, source))
+}
+
+#[cfg(not(unix))]
+fn sync_parent_directory(_parent: &Path) -> Result<(), VaultError> {
+    // Windows does not provide portable directory fsync semantics through std::fs.
     Ok(())
 }
 
@@ -43,11 +59,9 @@ const TEMP_PREFIX: &str = ".scriptor-";
 
 /// Garbage-collect stale atomic-write temp files under `root` older than `max_age`.
 ///
-/// Atomic writes create `.scriptor-<uuid>.tmp` files (in-progress) and, on rename
-/// failure, `.scriptor-failed-<uuid>.tmp` recovery files. In-progress files are
-/// normally renamed away on success, but a crash can leave them orphaned; failed
-/// recovery files are never reclaimed on their own. This sweeps both kinds, but only
-/// removes entries older than `max_age` to avoid clobbering a concurrent write.
+/// Atomic writes create `.scriptor-<uuid>.tmp` files. In-progress files are
+/// normally renamed away on success, but a crash can leave them orphaned. This
+/// sweeps those files only after `max_age` to avoid clobbering a concurrent write.
 ///
 /// Errors reading individual entries are swallowed (best-effort); only a failure to
 /// read the directory itself is surfaced.
@@ -94,10 +108,6 @@ pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize,
             continue;
         }
 
-        // Failed-write recovery files (.scriptor-failed-<uuid>.tmp) and stale
-        // in-progress files (.scriptor-<uuid>.tmp) are both safe to remove once
-        // older than `max_age` — a concurrent writer still in flight would have
-        // a fresh mtime and is skipped by the age check above.
         if fs::remove_file(entry.path()).is_ok() {
             removed += 1;
         }
@@ -124,19 +134,31 @@ mod tests {
     }
 
     #[test]
+    fn atomic_write_replaces_content_without_leaving_temp_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("note.md");
+        fs::write(&target, b"old").unwrap();
+
+        atomic_write(&target, b"new").unwrap();
+
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+        let leftovers = fs::read_dir(dir.path())
+            .unwrap()
+            .flatten()
+            .filter(|entry| entry.file_name().to_string_lossy().starts_with(TEMP_PREFIX))
+            .count();
+        assert_eq!(leftovers, 0);
+    }
+
+    #[test]
     fn cleanup_removes_only_stale_scriptor_temps() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
 
-        // Stale in-progress temp — should be removed.
-        write_temp(root, ".scriptor-deadbeef.tmp", 60 * 60 * 48); // 2 days
-        // Stale failed-recovery temp — should be removed.
+        write_temp(root, ".scriptor-deadbeef.tmp", 60 * 60 * 48);
         write_temp(root, ".scriptor-failed-cafe.tmp", 60 * 60 * 48);
-        // Fresh in-progress temp (mimics a concurrent write) — must be kept.
         write_temp(root, ".scriptor-fresh.tmp", 5);
-        // Unrelated user file — must be kept.
         write_temp(root, "note.md", 60 * 60 * 48);
-        // Unrelated dotfile with .tmp suffix but wrong prefix — must be kept.
         write_temp(root, ".other.tmp", 60 * 60 * 48);
 
         let removed = cleanup_stale_temp_files(root, Duration::from_secs(60 * 60 * 24)).unwrap();

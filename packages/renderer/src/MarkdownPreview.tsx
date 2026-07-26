@@ -32,6 +32,12 @@ export interface MarkdownPreviewProps {
   renderPlantUmlLocal?: (source: string) => Promise<string | null>
 }
 
+interface WorkerRenderRequest {
+  id: number
+  markdown: string
+  options: PreviewPipelineOptions
+}
+
 const PREVIEW_DEBOUNCE_MS = 200
 const USE_PREVIEW_WORKER = import.meta.env.VITE_SCREENSHOT_MODE !== 'true'
 
@@ -56,6 +62,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     const [renderError, setRenderError] = useState<string | null>(null)
     const requestId = useRef(0)
     const workerRef = useRef<Worker | null>(null)
+    const workerFallbackRef = useRef<WorkerRenderRequest | null>(null)
     const debounceTimer = useRef<number | null>(null)
     const contentRef = useRef<HTMLDivElement>(null)
     const postProcessRef = useRef(postProcessHtml)
@@ -99,22 +106,23 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       }
 
       worker.onerror = () => {
-        const currentId = requestId.current
+        const fallback = workerFallbackRef.current
+        if (!fallback || fallback.id !== requestId.current) return
         try {
-          const html = renderMarkdownPreview(markdown, {
-            enableBreaks: enableBreaksRef.current,
-          })
-          if (requestId.current !== currentId) return
+          const fallbackHtml = renderMarkdownPreview(fallback.markdown, fallback.options)
+          if (requestId.current !== fallback.id) return
           setRenderError(null)
-          setHtml(postProcessRef.current ? postProcessRef.current(html) : html)
-        } catch {
-          setRenderError('Preview worker failed')
+          setHtml(postProcessRef.current ? postProcessRef.current(fallbackHtml) : fallbackHtml)
+        } catch (error) {
+          if (requestId.current !== fallback.id) return
+          setRenderError(error instanceof Error ? error.message : 'Preview worker failed')
           setHtml('')
         }
         setIsRendering(false)
       }
 
       return () => {
+        workerFallbackRef.current = null
         worker.terminate()
         workerRef.current = null
       }
@@ -125,11 +133,12 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         window.clearTimeout(debounceTimer.current)
       }
 
+      requestId.current += 1
+      const currentId = requestId.current
+      workerFallbackRef.current = null
       setIsRendering(true)
       debounceTimer.current = window.setTimeout(() => {
         void (async () => {
-          requestId.current += 1
-          const currentId = requestId.current
           let prepared = markdown
           const noteFetcher = fetchNoteRef.current
           const noteBasePath = basePathRef.current
@@ -149,10 +158,10 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
 
           if (!USE_PREVIEW_WORKER) {
             try {
-              const html = renderMarkdownPreview(prepared, options)
+              const nextHtml = renderMarkdownPreview(prepared, options)
               if (requestId.current !== currentId) return
               setRenderError(null)
-              setHtml(postProcessRef.current ? postProcessRef.current(html) : html)
+              setHtml(postProcessRef.current ? postProcessRef.current(nextHtml) : nextHtml)
             } catch (error) {
               if (requestId.current !== currentId) return
               setRenderError(error instanceof Error ? error.message : 'Preview rendering failed')
@@ -163,17 +172,26 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           }
 
           const worker = workerRef.current
-          if (!worker) return
-          worker.postMessage({ id: currentId, markdown: prepared, options })
+          if (!worker) {
+            if (requestId.current === currentId) {
+              setRenderError('Preview worker is unavailable')
+              setIsRendering(false)
+            }
+            return
+          }
+          const workerRequest = { id: currentId, markdown: prepared, options }
+          workerFallbackRef.current = workerRequest
+          worker.postMessage(workerRequest)
         })()
       }, PREVIEW_DEBOUNCE_MS)
 
       return () => {
         if (debounceTimer.current) {
           window.clearTimeout(debounceTimer.current)
+          debounceTimer.current = null
         }
       }
-    }, [markdown, basePath])
+    }, [markdown, basePath, enableBreaks, fetchNote])
 
     useEffect(() => {
       if (!html || !contentRef.current) return
@@ -215,9 +233,9 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
             detachCopy = attachPreviewCodeCopy(contentRef.current)
           }
         })
-        .catch(() => {
+        .catch((error) => {
           if (!cancelled) {
-            setRenderError('Mermaid diagram rendering failed')
+            setRenderError(error instanceof Error ? error.message : 'Preview hydration failed')
           }
         })
       return () => {

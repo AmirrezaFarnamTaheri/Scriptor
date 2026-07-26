@@ -8,6 +8,8 @@ const vault = process.argv[2] ?? 'packages/test-fixtures/vaults/minimal'
 
 process.chdir(root)
 console.log(`Running Scriptor TUI smoke against ${vault}`)
-execFileSync('cargo', ['run', '-p', 'scriptor-cli', '--', 'tui', vault, '--smoke-test'], {
-  stdio: 'inherit',
-})
+execFileSync(
+  'cargo',
+  ['run', '-p', 'scriptor-cli', '--', 'tui', vault, '--smoke-test', '--in-process'],
+  { stdio: 'inherit' },
+)

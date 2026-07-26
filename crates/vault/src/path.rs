@@ -74,11 +74,33 @@ impl VaultRoot {
     }
 
     pub fn resolve_relative(&self, relative: &RelativeVaultPath) -> Result<PathBuf, VaultError> {
-        let candidate = self.root.join(relative.as_str().replace('/', std::path::MAIN_SEPARATOR_STR));
+        let candidate = self
+            .root
+            .join(relative.as_str().replace('/', std::path::MAIN_SEPARATOR_STR));
         let normalized = normalize_components(&candidate);
 
         if !normalized.starts_with(&self.root) {
             return Err(VaultError::PathEscape(relative.to_string()));
+        }
+
+        // Canonicalize every existing prefix. This is required even when the final
+        // target does not exist: an existing parent may be a symlink that redirects
+        // creation outside the vault.
+        let mut prefix = self.root.clone();
+        for component in Path::new(relative.as_str()).components() {
+            let Component::Normal(part) = component else {
+                continue;
+            };
+            prefix.push(part);
+            if !prefix.exists() {
+                break;
+            }
+            let canonical = prefix
+                .canonicalize()
+                .map_err(|source| VaultError::io(&prefix, source))?;
+            if !canonical.starts_with(&self.root) {
+                return Err(VaultError::SymlinkEscape(relative.to_string()));
+            }
         }
 
         if candidate.exists() {
@@ -204,12 +226,36 @@ mod tests {
             }
         };
         if linked.is_err() {
-            // Symlink creation may require elevated privileges on Windows.
             return;
         }
 
         let root = VaultRoot::open(vault_dir.path()).unwrap();
         let relative = RelativeVaultPath::parse("escape.md").unwrap();
+        let result = root.resolve_relative(&relative);
+        assert!(matches!(result, Err(VaultError::SymlinkEscape(_))));
+    }
+
+    #[test]
+    fn rejects_nonexistent_target_below_symlinked_parent() {
+        let vault_dir = tempfile::tempdir().unwrap();
+        let outside_dir = tempfile::tempdir().unwrap();
+        let link = vault_dir.path().join("escape");
+        let linked = {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(outside_dir.path(), &link)
+            }
+            #[cfg(windows)]
+            {
+                std::os::windows::fs::symlink_dir(outside_dir.path(), &link)
+            }
+        };
+        if linked.is_err() {
+            return;
+        }
+
+        let root = VaultRoot::open(vault_dir.path()).unwrap();
+        let relative = RelativeVaultPath::parse("escape/new.md").unwrap();
         let result = root.resolve_relative(&relative);
         assert!(matches!(result, Err(VaultError::SymlinkEscape(_))));
     }

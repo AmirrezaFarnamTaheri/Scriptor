@@ -19,32 +19,26 @@ export function SplitPaneHandle({
   onPointerCancel,
   onDoubleClick,
 }: SplitPaneHandleProps) {
-  if (locked) {
-    return (
-      <div
-        className="split-pane-handle is-locked"
-        data-direction={direction}
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Locked workspace border"
-      />
-    )
-  }
+  const orientation = direction === 'vertical' ? 'horizontal' : 'vertical'
 
   return (
     <div
-      className={`split-pane-handle ${dragging ? 'is-dragging' : ''}`}
+      className={`split-pane-handle ${dragging ? 'is-dragging' : ''} ${locked ? 'is-locked' : ''}`}
       data-direction={direction}
       role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize editor and preview panes"
-      tabIndex={0}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
-      onDoubleClick={onDoubleClick}
+      aria-orientation={orientation}
+      aria-label={locked ? 'Locked workspace border' : 'Resize editor and preview panes'}
+      aria-valuemin={160}
+      aria-valuemax={1600}
+      aria-valuenow={800}
+      tabIndex={locked ? -1 : 0}
+      onPointerDown={locked ? undefined : onPointerDown}
+      onPointerMove={locked ? undefined : onPointerMove}
+      onPointerUp={locked ? undefined : onPointerUp}
+      onPointerCancel={locked ? undefined : onPointerCancel}
+      onDoubleClick={locked ? undefined : onDoubleClick}
       onKeyDown={(event) => {
+        if (locked) return
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault()
           onDoubleClick()

@@ -33,8 +33,14 @@ test('filterInboxEntries sorts newest first and respects period', () => {
     summary({ path: 'new.md', title: 'New', modified_at: daysAgo(2) }),
     summary({ path: 'done.md', title: 'Done', organized: true, modified_at: daysAgo(1) }),
   ]
-  const week = filterInboxEntries(notes, 'week')
-  assert.deepEqual(week.map((note) => note.path), ['new.md'])
+  const originalNow = Date.now
+  Date.now = () => Date.parse('2026-06-23T12:00:00.000Z')
+  try {
+    const week = filterInboxEntries(notes, 'week')
+    assert.deepEqual(week.map((note) => note.path), ['new.md'])
+  } finally {
+    Date.now = originalNow
+  }
   const all = filterInboxEntries(notes, 'all')
   assert.deepEqual(all.map((note) => note.path), ['new.md', 'old.md'])
 })
@@ -91,4 +97,3 @@ test('planDailyNotePreview resolves path and title tokens', () => {
   assert.equal(preview.path, 'journal/2026-06-23.md')
   assert.equal(preview.title, 'Journal 2026-06-23')
 })
-

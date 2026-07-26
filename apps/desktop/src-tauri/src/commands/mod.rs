@@ -1,8 +1,10 @@
+pub mod backup;
 pub mod canvas;
 pub mod code_chunk;
 pub mod daemon;
 pub mod export;
 pub mod git;
+pub mod history;
 pub mod indexer;
 pub mod media;
 pub mod shared;

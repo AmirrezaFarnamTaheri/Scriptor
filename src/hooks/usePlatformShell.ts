@@ -5,19 +5,42 @@ interface PlatformShellHandlers {
   onDeepLink?: (url: string) => void
 }
 
-function parseDeepLink(url: string): { kind: 'vault' | 'note'; path: string } | null {
+interface DeepLinkTarget {
+  kind: 'vault' | 'note'
+  path: string
+}
+
+const MAX_DEEP_LINK_PATH_LENGTH = 4096
+const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/
+
+function parseDeepLink(url: string): DeepLinkTarget | null {
   try {
     const parsed = new URL(url)
     if (parsed.protocol !== 'scriptor:') return null
-    const path = parsed.searchParams.get('path') ?? parsed.pathname.replace(/^\//, '')
-    if (!path) return null
-    if (parsed.host === 'note' || parsed.pathname.startsWith('/note')) {
-      return { kind: 'note', path }
+    if (parsed.host !== 'vault' && parsed.host !== 'note') return null
+
+    const path = (parsed.searchParams.get('path') ?? parsed.pathname.replace(/^\//, '')).trim()
+    if (!path || path.length > MAX_DEEP_LINK_PATH_LENGTH || CONTROL_CHARACTERS.test(path)) return null
+
+    if (parsed.host === 'note') {
+      const normalized = path.replaceAll('\\', '/')
+      if (normalized.startsWith('/') || /^[A-Za-z]:\//.test(normalized)) return null
+      const components = normalized.split('/')
+      if (components.some((component) => component === '' || component === '.' || component === '..')) {
+        return null
+      }
+      return { kind: 'note', path: normalized }
     }
+
     return { kind: 'vault', path }
   } catch {
     return null
   }
+}
+
+function confirmDeepLink(target: DeepLinkTarget): boolean {
+  const resource = target.kind === 'vault' ? 'vault' : 'note'
+  return window.confirm(`Open this ${resource} from an external link?\n\n${target.path}`)
 }
 
 export function usePlatformShell(handlers: PlatformShellHandlers) {
@@ -36,7 +59,7 @@ export function usePlatformShell(handlers: PlatformShellHandlers) {
     let unlistenAction: (() => void) | undefined
     let unlistenDeepLink: (() => void) | undefined
 
-    void (async () => {
+    const register = async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event')
         const disposeAction = await listen<{ action: string; payload?: string | null }>(
@@ -56,9 +79,10 @@ export function usePlatformShell(handlers: PlatformShellHandlers) {
           'platform:deep-link',
           (event) => {
             const url = event.payload.payload
-            if (url) {
-              handlersRef.current.onDeepLink?.(url)
-            }
+            if (!url) return
+            const target = parseDeepLink(url)
+            if (!target || !confirmDeepLink(target)) return
+            handlersRef.current.onDeepLink?.(url)
           },
         )
         if (!active) {
@@ -67,9 +91,11 @@ export function usePlatformShell(handlers: PlatformShellHandlers) {
         }
         unlistenDeepLink = disposeDeepLink
       } catch {
-        // Browser dev mode without Tauri shell
+        // Browser dev mode without Tauri shell.
       }
-    })()
+    }
+
+    void register()
 
     return () => {
       active = false
