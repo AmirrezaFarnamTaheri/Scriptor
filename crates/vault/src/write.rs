@@ -151,12 +151,16 @@ fn recovery_backup_path(root: &VaultRoot, relative_path: &str) -> std::path::Pat
 }
 
 fn backup_for_recovery(root: &VaultRoot, absolute: &Path, relative_path: &str) -> Result<(), VaultError> {
-    let content = fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
+    // Read bytes, not a String: a note that is not valid UTF-8 must still be
+    // saveable, and the backup must be a faithful copy either way.
+    let content = fs::read(absolute).map_err(|source| VaultError::io(absolute, source))?;
     let backup_path = recovery_backup_path(root, relative_path);
     if let Some(parent) = backup_path.parent() {
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
-    fs::write(&backup_path, content).map_err(|source| VaultError::io(&backup_path, source))
+    // Atomic, not a plain write: a crash mid-backup would otherwise leave a
+    // truncated file that rollback would happily restore over the real note.
+    atomic_write(&backup_path, &content)
 }
 
 /// Restores disk state after a failed post-save index update.
@@ -177,8 +181,8 @@ pub fn rollback_save_note(
         Some(expected_hash) => {
             let backup_path = recovery_backup_path(root, path.as_str());
             let markdown =
-                fs::read_to_string(&backup_path).map_err(|source| VaultError::io(&backup_path, source))?;
-            atomic_write(&absolute, markdown.as_bytes())?;
+                fs::read(&backup_path).map_err(|source| VaultError::io(&backup_path, source))?;
+            atomic_write(&absolute, &markdown)?;
             let restored = read_note(vault_id, root, path)?;
             if restored.metadata.content_hash != expected_hash {
                 return Err(VaultError::InvalidConfig {

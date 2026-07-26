@@ -55,11 +55,22 @@ CREATE TABLE IF NOT EXISTS citation_refs (
 );
 ";
 
-pub const MIGRATE_V2_TO_V3: &str = "
-ALTER TABLE notes ADD COLUMN note_type TEXT;
-ALTER TABLE notes ADD COLUMN organized INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0;
-";
+/// Columns added by the v2 -> v3 migration.
+///
+/// SQLite has no `ADD COLUMN IF NOT EXISTS`, so the migration applies each entry
+/// individually and skips columns that already exist (see `migration::migrate_cache`).
+/// Each tuple is `(column_name, ALTER TABLE statement)`.
+pub const MIGRATE_V2_TO_V3: &[(&str, &str)] = &[
+    ("note_type", "ALTER TABLE notes ADD COLUMN note_type TEXT"),
+    (
+        "organized",
+        "ALTER TABLE notes ADD COLUMN organized INTEGER NOT NULL DEFAULT 0",
+    ),
+    (
+        "archived",
+        "ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0",
+    ),
+];
 
 pub const CREATE_RECENT_ACCESS: &str = "
 CREATE TABLE IF NOT EXISTS recent_access (

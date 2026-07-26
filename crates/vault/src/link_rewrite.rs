@@ -272,7 +272,10 @@ pub(crate) fn split_frontmatter(markdown: &str) -> (Option<String>, String) {
         return (None, markdown.to_string());
     }
 
-    let lines: Vec<&str> = markdown.lines().collect();
+    // `split('\n')` rather than `lines()`: the latter silently drops the
+    // document's trailing newline and any trailing blank lines, so a rejoin
+    // would rewrite the end of every note it touches.
+    let lines: Vec<&str> = crate::text::split_lines(markdown).collect();
     if lines.len() < 2 {
         return (None, markdown.to_string());
     }

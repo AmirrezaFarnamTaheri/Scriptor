@@ -3,6 +3,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
@@ -106,7 +107,15 @@ fn build_reindex_paths(txn: &RenameTransactionManifest) -> Vec<String> {
     paths
 }
 
+/// Rolls a `Staged` transaction back.
+///
+/// A crash can land anywhere inside the link-rewrite loop, so some affected
+/// notes may already have been rewritten to point at a filename that was never
+/// created. Restoring their backups — not just the source note — is what makes
+/// a partially-applied rename recoverable.
 fn recover_staged_transaction(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<(), VaultError> {
+    restore_affected_backups(root, txn)?;
+
     let from = RelativeVaultPath::parse(&txn.from_path)?;
     let to = RelativeVaultPath::parse(&txn.to_path)?;
     let from_abs = root.resolve_relative(&from)?;
@@ -243,7 +252,12 @@ fn backup_file(root: &VaultRoot, dir: &Path, relative_path: &str) -> Result<Stri
         return Err(VaultError::NoteNotFound(relative_path.to_string()));
     }
 
-    let backup_name = relative_path.replace('/', "__");
+    // The backup filename must be injective over the full relative path.
+    // Flattening separators (`a/b.md` -> `a__b.md`) collided with a literal
+    // `a__b.md`, so a rename touching both wrote one note's contents into the
+    // other's backup and rollback restored the wrong file. A hash of the full
+    // path cannot collide that way.
+    let backup_name = hex::encode(Sha256::digest(relative_path.as_bytes()));
     let backup_abs = dir.join(format!("{backup_name}.bak"));
     fs::copy(&source, &backup_abs).map_err(|source| VaultError::io(&backup_abs, source))?;
     Ok(format!(".scriptor/{TXN_DIR_NAME}/{backup_name}.bak"))
@@ -369,6 +383,83 @@ mod tests {
         staged.abort().unwrap();
         let other = std::fs::read_to_string(dir.path().join("Other.md")).unwrap();
         assert!(other.contains("[[Note]]"));
+        assert!(!manifest_path(&session.root).is_file());
+    }
+
+    #[test]
+    fn backups_do_not_collide_across_separator_flattened_paths() {
+        let dir = tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("archive")).unwrap();
+        // `archive/notes.md` and `archive__notes.md` both flattened to
+        // `archive__notes.md.bak` under the old scheme, so one note's backup
+        // overwrote the other's and rollback restored the wrong content.
+        std::fs::write(dir.path().join("archive/notes.md"), "# Nested\n").unwrap();
+        std::fs::write(dir.path().join("archive__notes.md"), "# Flat\n").unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Renamed.md").unwrap();
+        let mut staged = StagedRenameTransaction::begin(
+            &session.root,
+            &from,
+            &to,
+            &[
+                "Note.md".into(),
+                "archive/notes.md".into(),
+                "archive__notes.md".into(),
+            ],
+        )
+        .unwrap();
+
+        let backups: Vec<_> = staged.manifest.affected_backups.values().cloned().collect();
+        assert_eq!(backups.len(), 2);
+        assert_ne!(backups[0], backups[1], "backup names collided");
+
+        staged.record_phase(RenamePhase::LinkWritesDone).unwrap();
+        std::fs::write(dir.path().join("archive/notes.md"), "# Clobbered\n").unwrap();
+        std::fs::write(dir.path().join("archive__notes.md"), "# Clobbered\n").unwrap();
+        staged.abort().unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("archive/notes.md")).unwrap(),
+            "# Nested\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("archive__notes.md")).unwrap(),
+            "# Flat\n"
+        );
+    }
+
+    #[test]
+    fn staged_recovery_restores_partially_rewritten_notes() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        std::fs::write(dir.path().join("Other.md"), "# Other\n\n[[Note]]\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Renamed.md").unwrap();
+        let staged = StagedRenameTransaction::begin(
+            &session.root,
+            &from,
+            &to,
+            &["Note.md".into(), "Other.md".into()],
+        )
+        .unwrap();
+
+        // Simulate a crash partway through the link-rewrite loop: one note is
+        // already pointing at a filename that was never created.
+        std::fs::write(dir.path().join("Other.md"), "# Other\n\n[[Renamed]]\n").unwrap();
+        drop(staged);
+
+        recover_pending_rename_transactions(&session.root).unwrap();
+
+        let other = std::fs::read_to_string(dir.path().join("Other.md")).unwrap();
+        assert!(
+            other.contains("[[Note]]"),
+            "staged recovery left a dangling rewritten link: {other:?}"
+        );
         assert!(!manifest_path(&session.root).is_file());
     }
 

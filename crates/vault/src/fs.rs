@@ -17,6 +17,10 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let write_result = (|| -> Result<(), VaultError> {
         let mut file = fs::File::create(&temp_path)
             .map_err(|source| VaultError::io(&temp_path, source))?;
+        // `File::create` yields 0644 (minus umask), so replacing a note the user
+        // had chmod'ed to 0600 would silently make it world-readable. Carry the
+        // destination's own mode over to the replacement before it is exposed.
+        inherit_destination_mode(path, &file)?;
         file.write_all(bytes)
             .map_err(|source| VaultError::io(&temp_path, source))?;
         file.sync_all()
@@ -35,6 +39,31 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     }
 
     sync_parent_directory(parent)?;
+    Ok(())
+}
+
+/// Copies the destination file's permission bits onto the freshly created temp
+/// file. A destination that does not exist yet keeps the platform default.
+#[cfg(unix)]
+fn inherit_destination_mode(destination: &Path, temp: &fs::File) -> Result<(), VaultError> {
+    use std::os::unix::fs::PermissionsExt;
+
+    let Ok(metadata) = fs::metadata(destination) else {
+        return Ok(());
+    };
+    if !metadata.is_file() {
+        return Ok(());
+    }
+
+    let mode = metadata.permissions().mode() & 0o7777;
+    temp.set_permissions(fs::Permissions::from_mode(mode))
+        .map_err(|source| VaultError::io(destination, source))
+}
+
+#[cfg(not(unix))]
+fn inherit_destination_mode(_destination: &Path, _temp: &fs::File) -> Result<(), VaultError> {
+    // Windows ACLs are inherited from the containing directory; there is no
+    // portable mode to copy through std::fs.
     Ok(())
 }
 
@@ -59,23 +88,43 @@ const TEMP_PREFIX: &str = ".scriptor-";
 
 /// Garbage-collect stale atomic-write temp files under `root` older than `max_age`.
 ///
-/// Atomic writes create `.scriptor-<uuid>.tmp` files. In-progress files are
-/// normally renamed away on success, but a crash can leave them orphaned. This
-/// sweeps those files only after `max_age` to avoid clobbering a concurrent write.
+/// Atomic writes create `.scriptor-<uuid>.tmp` files *in the target's own
+/// directory*, so this walks the whole tree: a crash while saving
+/// `notes/2026/x.md` used to leave a temp file that a root-only sweep never
+/// reclaimed. Hidden directories (including the internal `.scriptor` tree) are
+/// pruned, matching the scan walker.
+///
+/// In-progress files are normally renamed away on success; this sweeps orphans
+/// only after `max_age` to avoid clobbering a concurrent write.
 ///
 /// Errors reading individual entries are swallowed (best-effort); only a failure to
-/// read the directory itself is surfaced.
+/// read the root directory itself is surfaced.
 pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize, VaultError> {
     let now = std::time::SystemTime::now();
     let mut removed = 0usize;
 
-    let entries = match fs::read_dir(root) {
-        Ok(entries) => entries,
-        Err(source) => return Err(VaultError::io(root, source)),
-    };
+    // Surface an unreadable root as an error; per-entry failures below stay
+    // best-effort.
+    fs::read_dir(root).map_err(|source| VaultError::io(root, source))?;
 
-    for entry in entries.flatten() {
-        let file_name_os = entry.file_name();
+    let walker = walkdir::WalkDir::new(root)
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|entry| {
+            if entry.depth() == 0 {
+                return true;
+            }
+            if !entry.file_type().is_dir() {
+                return true;
+            }
+            !entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with('.')
+        });
+
+    for entry in walker.flatten() {
+        let file_name_os = entry.file_name().to_owned();
         let file_name = match file_name_os.to_str() {
             Some(name) => name,
             None => continue,
@@ -93,6 +142,7 @@ pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize,
         if !metadata.is_file() {
             continue;
         }
+        let path = entry.path().to_path_buf();
 
         // Skip files that are still being written: require they be older than max_age.
         let modified = match metadata.modified() {
@@ -108,7 +158,7 @@ pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize,
             continue;
         }
 
-        if fs::remove_file(entry.path()).is_ok() {
+        if fs::remove_file(&path).is_ok() {
             removed += 1;
         }
     }
@@ -168,6 +218,80 @@ mod tests {
         assert!(root.join(".scriptor-fresh.tmp").exists());
         assert!(root.join("note.md").exists());
         assert!(root.join(".other.tmp").exists());
+    }
+
+    #[test]
+    fn cleanup_sweeps_nested_directories() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let nested = root.join("notes/2026");
+        fs::create_dir_all(&nested).unwrap();
+
+        write_temp(root, ".scriptor-root.tmp", 60 * 60 * 48);
+        write_temp(&nested, ".scriptor-nested.tmp", 60 * 60 * 48);
+        write_temp(&nested, ".scriptor-fresh.tmp", 5);
+        write_temp(&nested, "x.md", 60 * 60 * 48);
+
+        // Internal + hidden directories are pruned, like the scan walker.
+        let internal = root.join(".scriptor/rename-txn");
+        fs::create_dir_all(&internal).unwrap();
+        write_temp(&internal, ".scriptor-internal.tmp", 60 * 60 * 48);
+
+        let removed = cleanup_stale_temp_files(root, Duration::from_secs(60 * 60 * 24)).unwrap();
+        assert_eq!(removed, 2);
+        assert!(!root.join(".scriptor-root.tmp").exists());
+        assert!(!nested.join(".scriptor-nested.tmp").exists());
+        assert!(nested.join(".scriptor-fresh.tmp").exists());
+        assert!(nested.join("x.md").exists());
+        assert!(internal.join(".scriptor-internal.tmp").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_write_preserves_restrictive_destination_mode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("private.md");
+        fs::write(&target, b"secret").unwrap();
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o600)).unwrap();
+
+        atomic_write(&target, b"still secret").unwrap();
+
+        let mode = fs::metadata(&target).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o600, "expected 0600, found {mode:o}");
+        assert_eq!(fs::read(&target).unwrap(), b"still secret");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_write_preserves_executable_destination_mode() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("hook.sh");
+        fs::write(&target, b"#!/bin/sh\n").unwrap();
+        fs::set_permissions(&target, fs::Permissions::from_mode(0o750)).unwrap();
+
+        atomic_write(&target, b"#!/bin/sh\necho hi\n").unwrap();
+
+        let mode = fs::metadata(&target).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o750, "expected 0750, found {mode:o}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn atomic_write_to_new_path_uses_platform_default() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("fresh.md");
+        atomic_write(&target, b"new").unwrap();
+
+        let mode = fs::metadata(&target).unwrap().permissions().mode() & 0o777;
+        // Whatever the umask yields, it must at least be owner-readable and not
+        // something we invented.
+        assert_ne!(mode & 0o400, 0);
     }
 
     #[test]
