@@ -18,7 +18,7 @@ import {
 
 import { analyzeFrontmatter } from './frontmatter.ts'
 import { removeListMarkers } from './gfm-commands.ts'
-import { htmlToMarkdown } from './paste-handler.ts'
+import { htmlToMarkdown, nodeToMarkdown } from './paste-handler.ts'
 import { MERMAID_SNIPPETS, MATH_SNIPPETS } from './snippet-catalogs.ts'
 import { normalizeSnippetCatalog, parseSnippetCatalogJson } from './snippet-catalog.ts'
 import {
@@ -177,6 +177,141 @@ test('htmlToMarkdown converts basic HTML tags', () => {
 test('htmlToMarkdown converts links', () => {
   const markdown = htmlToMarkdown('<p>Visit <a href="https://example.com">Example</a></p>')
   assert.equal(markdown.trim(), 'Visit [Example](https://example.com)')
+})
+
+// --- paste-handler regression tests ----------------------------------------
+
+interface FakeNode {
+  nodeType: number
+  textContent: string | null
+  tagName: string
+  childNodes: FakeNode[]
+  children: FakeNode[]
+  parentElement: FakeNode | null
+  getAttribute(name: string): string | null
+}
+
+function textNode(value: string): FakeNode {
+  return {
+    nodeType: 3,
+    textContent: value,
+    tagName: '',
+    childNodes: [],
+    children: [],
+    parentElement: null,
+    getAttribute: () => null,
+  }
+}
+
+function elementNode(
+  tagName: string,
+  childNodes: FakeNode[] = [],
+  attributes: Record<string, string> = {},
+): FakeNode {
+  const element: FakeNode = {
+    nodeType: 1,
+    textContent: null,
+    tagName: tagName.toUpperCase(),
+    childNodes,
+    children: childNodes.filter((child) => child.nodeType === 1),
+    parentElement: null,
+    getAttribute: (name: string) => attributes[name] ?? null,
+  }
+  for (const child of childNodes) {
+    child.parentElement = element
+  }
+  return element
+}
+
+function toMarkdown(node: FakeNode): string {
+  return nodeToMarkdown(node as unknown as Node)
+}
+
+test('nested lists keep their indentation instead of flattening', () => {
+  const nested = elementNode('ul', [
+    elementNode('li', [
+      textNode('One'),
+      elementNode('ul', [elementNode('li', [textNode('One A')]), elementNode('li', [textNode('One B')])]),
+    ]),
+    elementNode('li', [textNode('Two')]),
+  ])
+
+  assert.equal(toMarkdown(nested), ['- One', '  - One A', '  - One B', '- Two', '', ''].join('\n'))
+})
+
+test('nested ordered lists restart numbering per level', () => {
+  const nested = elementNode('ol', [
+    elementNode('li', [
+      textNode('First'),
+      elementNode('ol', [elementNode('li', [textNode('Inner one')]), elementNode('li', [textNode('Inner two')])]),
+    ]),
+    elementNode('li', [textNode('Second')]),
+  ])
+
+  assert.equal(
+    toMarkdown(nested),
+    ['1. First', '  1. Inner one', '  2. Inner two', '2. Second', '', ''].join('\n'),
+  )
+})
+
+test('links from the DOM path drop unsafe schemes', () => {
+  const hostile = elementNode('a', [textNode('click me')], { href: 'javascript:alert(1)' })
+  assert.equal(toMarkdown(hostile), 'click me')
+
+  const smuggled = elementNode('a', [textNode('x')], { href: 'java script:alert(1)' })
+  assert.equal(toMarkdown(smuggled), 'x')
+
+  const dataUrl = elementNode('a', [textNode('y')], { href: '  DATA:text/html;base64,PHNjcmlwdD4=' })
+  assert.equal(toMarkdown(dataUrl), 'y')
+
+  const empty = elementNode('a', [], { href: 'vbscript:msgbox(1)' })
+  assert.equal(toMarkdown(empty), 'link')
+})
+
+test('links from the DOM path keep allowed schemes', () => {
+  assert.equal(
+    toMarkdown(elementNode('a', [textNode('Example')], { href: 'https://example.com' })),
+    '[Example](https://example.com)',
+  )
+  assert.equal(
+    toMarkdown(elementNode('a', [textNode('Mail')], { href: 'mailto:a@example.com' })),
+    '[Mail](mailto:a@example.com)',
+  )
+  assert.equal(toMarkdown(elementNode('a', [textNode('Rel')], { href: 'notes/other.md' })), '[Rel](notes/other.md)')
+  assert.equal(toMarkdown(elementNode('a', [textNode('Anchor')], { href: '#section' })), '[Anchor](#section)')
+})
+
+test('link targets with parentheses or spaces are percent-encoded', () => {
+  const markdown = toMarkdown(
+    elementNode('a', [textNode('Doc')], { href: 'https://example.com/a (b)/c d.png' }),
+  )
+  assert.equal(markdown, '[Doc](https://example.com/a%20%28b%29/c%20d.png)')
+  const target = markdown.slice(markdown.indexOf('](') + 2, -1)
+  assert.ok(!/[ ()]/.test(target), 'link target must not contain raw spaces or parentheses')
+})
+
+test('htmlToMarkdown fallback path sanitizes and encodes link targets', () => {
+  const hostile = htmlToMarkdown('<p>Go <a href="javascript:alert(1)">here</a></p>')
+  assert.ok(!hostile.includes('javascript:'))
+  assert.ok(!hostile.includes(']('))
+  assert.match(hostile, /Go here/)
+
+  const messy = htmlToMarkdown('<p><a href="https://example.com/a (b)">Doc</a></p>')
+  assert.equal(messy.trim(), '[Doc](https://example.com/a%20%28b%29)')
+})
+
+test('clipboard collections are read as array-likes, not iterables', () => {
+  const source = fs.readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), 'paste-handler.ts'),
+    'utf8',
+  )
+  assert.ok(source.includes('Array.from(items)'), 'DataTransferItemList must be converted with Array.from')
+  assert.ok(source.includes('Array.from(files)'), 'FileList must be converted with Array.from')
+  assert.doesNotMatch(
+    source,
+    /for\s*\(\s*const\s+\w+\s+of\s+(items|files)\s*\)/,
+    'DataTransferItemList/FileList are not iterable per spec',
+  )
 })
 
 test('snippet catalogs expose mermaid and math templates', () => {

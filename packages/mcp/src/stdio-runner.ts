@@ -123,9 +123,9 @@ async function runStdioFramingTests(): Promise<string[]> {
     failures.push(`notifications must not be answered, got ${notifications.length} responses`)
   }
 
-  // Full handshake over the wire.
+  // Full handshake over the wire, using the current stable revision.
   const handshake = await driveStdio([
-    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}\n',
+    `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"${MCP_PROTOCOL_VERSION}","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}\n`,
     '{"jsonrpc":"2.0","method":"notifications/initialized"}\n',
     '{"jsonrpc":"2.0","id":2,"method":"tools/list"}\n',
   ])
@@ -136,13 +136,37 @@ async function runStdioFramingTests(): Promise<string[]> {
       | { protocolVersion?: string; serverInfo?: { name?: string; version?: string }; capabilities?: { tools?: unknown } }
       | undefined
     if (result?.protocolVersion !== MCP_PROTOCOL_VERSION) {
-      failures.push('initialize must advertise the MCP protocolVersion')
+      failures.push('initialize must agree to the requested protocolVersion when supported')
     }
     if (!result?.serverInfo?.name || !result.serverInfo.version) {
       failures.push('initialize must advertise serverInfo name and version')
     }
     if (!result?.capabilities?.tools) {
       failures.push('initialize must advertise tools capability')
+    }
+  }
+
+  // Version negotiation: an older-but-supported revision is honoured, an
+  // unknown one falls back to this server's newest rather than being echoed.
+  const negotiated = await driveStdio([
+    '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05"}}\n',
+    '{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"1999-01-01"}}\n',
+    '{"jsonrpc":"2.0","id":3,"method":"initialize","params":{}}\n',
+  ])
+  if (negotiated.length !== 3) {
+    failures.push(`expected 3 initialize responses, got ${negotiated.length}`)
+  } else {
+    const versionOf = (index: number) =>
+      (negotiated[index].result as { protocolVersion?: string } | undefined)?.protocolVersion
+
+    if (versionOf(0) !== '2024-11-05') {
+      failures.push('initialize must honour an older revision this server still supports')
+    }
+    if (versionOf(1) !== MCP_PROTOCOL_VERSION) {
+      failures.push('initialize must not echo back an unsupported protocolVersion')
+    }
+    if (versionOf(2) !== MCP_PROTOCOL_VERSION) {
+      failures.push('initialize must fall back to the newest revision when none is requested')
     }
   }
 

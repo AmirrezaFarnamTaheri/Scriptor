@@ -3,10 +3,25 @@ import type { CommandResult } from '@scriptor/core/contracts/command'
 import type { McpRuntime } from './runtime'
 
 /**
- * MCP protocol revision advertised during `initialize`. `2024-11-05` is the
- * revision this server implements; bump only alongside the handshake shape.
+ * MCP protocol revisions this server can speak, newest first.
+ *
+ * Revisions are date strings. `2025-11-25` is the current stable spec; the
+ * older entries stay listed because clients pinned to them still interoperate
+ * with this server's handshake and tool surface.
+ *
+ * Note: the 2026-07-28 release candidate drops the `initialize` handshake in
+ * favour of per-request `_meta`, so adopting it is a protocol change rather
+ * than a version bump and is deliberately not listed here.
  */
-export const MCP_PROTOCOL_VERSION = '2024-11-05'
+export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [
+  '2025-11-25',
+  '2025-06-18',
+  '2025-03-26',
+  '2024-11-05',
+] as const
+
+/** Revision advertised when the client asks for one this server cannot speak. */
+export const MCP_PROTOCOL_VERSION = MCP_SUPPORTED_PROTOCOL_VERSIONS[0]
 export const MCP_SERVER_NAME = 'scriptor-mcp'
 export const MCP_SERVER_VERSION = '0.1.0'
 
@@ -117,8 +132,19 @@ export async function handleMcpRequest(
   }
 
   if (request.method === 'initialize') {
+    // Negotiation per spec: honour the client's requested revision when this
+    // server speaks it, otherwise answer with our newest and let the client
+    // decide whether it can proceed. Echoing the request back unconditionally
+    // would claim support for revisions we do not implement.
+    const requested = request.params?.protocolVersion
+    const agreed =
+      typeof requested === 'string' &&
+      (MCP_SUPPORTED_PROTOCOL_VERSIONS as readonly string[]).includes(requested)
+        ? requested
+        : MCP_PROTOCOL_VERSION
+
     return jsonRpcResult(id, {
-      protocolVersion: MCP_PROTOCOL_VERSION,
+      protocolVersion: agreed,
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
     })
