@@ -104,8 +104,8 @@ pub fn render_plantuml_svg(source: &str) -> Result<String, ExportError> {
 }
 
 fn run_plantuml_engine(input_path: &std::path::Path, svg_path: &std::path::Path) -> Result<String, String> {
-    if let Ok(path) = std::env::var("PLANTUML_BIN") {
-        if !path.is_empty() {
+    if let Ok(path) = std::env::var("PLANTUML_BIN")
+        && !path.is_empty() {
             let binary = std::path::PathBuf::from(&path);
             validate_binary_path(&binary, "PLANTUML_BIN")?;
             let output = Command::new(&binary)
@@ -116,7 +116,6 @@ fn run_plantuml_engine(input_path: &std::path::Path, svg_path: &std::path::Path)
                 return fs::read_to_string(svg_path).map_err(|e| e.to_string());
             }
         }
-    }
 
     if let Ok(jar) = std::env::var("PLANTUML_JAR") {
         validate_binary_path(std::path::Path::new(&jar), "PLANTUML_JAR")?;

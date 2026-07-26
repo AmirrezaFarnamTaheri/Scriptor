@@ -515,6 +515,8 @@ impl DaemonState {
         })
     }
 
+    // Mirrors the RPC wire shape of ExportStartMarkdown one-to-one.
+    #[allow(clippy::too_many_arguments)]
     fn build_export_markdown_input(
         &self,
         note_path: &str,
@@ -642,6 +644,16 @@ mod tests {
             permissions.set_readonly(true);
             std::fs::set_permissions(&path, permissions).expect("set readonly");
         }
+        // Privileged users (e.g. root in CI containers) bypass read-only file
+        // permissions, so the injected index failure never happens; skip there.
+        if std::fs::OpenOptions::new()
+            .append(true)
+            .open(&cache_path)
+            .is_ok()
+        {
+            eprintln!("skipping: read-only cache does not block writes in this environment");
+            return;
+        }
         state.refresh_index_cache().expect("refresh index cache");
 
         let save = state.handle(RpcRequest::new(21, RpcMethod::SaveNote {
@@ -676,6 +688,7 @@ mod tests {
             let mut permissions = std::fs::metadata(&path)
                 .expect("cache metadata")
                 .permissions();
+            #[allow(clippy::permissions_set_readonly_false)]
             permissions.set_readonly(false);
             let _ = std::fs::set_permissions(&path, permissions);
         }
@@ -850,13 +863,11 @@ mod tests {
 
             if latencies.len() % 10 == 0 {
                 let status = state.handle(RpcRequest::new(200 + latencies.len() as u64, RpcMethod::IndexRebuildStatus));
-                if let RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) = status.result {
-                    if let Ok(report) = serde_json::from_str::<RebuildProgressReport>(&json) {
-                        if report.status == RebuildStatus::Complete && latencies.len() >= MIN_PINGS {
+                if let RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) = status.result
+                    && let Ok(report) = serde_json::from_str::<RebuildProgressReport>(&json)
+                        && report.status == RebuildStatus::Complete && latencies.len() >= MIN_PINGS {
                             break;
                         }
-                    }
-                }
             }
         }
 

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PluginCapabilities {
     pub read_notes: bool,
     pub write_notes: bool,
@@ -9,20 +9,6 @@ pub struct PluginCapabilities {
     pub export: bool,
     pub network: bool,
     pub subprocess: bool,
-}
-
-impl Default for PluginCapabilities {
-    fn default() -> Self {
-        Self {
-            read_notes: false,
-            write_notes: false,
-            search: false,
-            canvas: false,
-            export: false,
-            network: false,
-            subprocess: false,
-        }
-    }
 }
 
 impl PluginCapabilities {

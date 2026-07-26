@@ -113,11 +113,10 @@ impl ClientInner {
                 continue;
             }
 
-            if let Ok(response) = postcard::from_bytes::<RpcResponse>(&body) {
-                if response.id == request_id {
+            if let Ok(response) = postcard::from_bytes::<RpcResponse>(&body)
+                && response.id == request_id {
                     return Ok(response);
                 }
-            }
         }
     }
 

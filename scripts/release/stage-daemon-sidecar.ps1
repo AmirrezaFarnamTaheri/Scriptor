@@ -6,10 +6,17 @@ $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "../.."
 Set-Location $root
 
-Write-Host "==> Build scriptor-daemon release binary"
-cargo build -p scriptor-daemon --release
+function Invoke-Checked {
+    param([string]$File, [string[]]$Arguments)
+    & $File @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $File $Arguments"
+    }
+}
 
-$hostTriple = (rustc -vV | Select-String "^host: ").ToString().Replace("host: ", "").Trim()
+Write-Host "==> Build scriptor-daemon release binary"
+Invoke-Checked cargo @("build", "-p", "scriptor-daemon", "--release")
+
 $source = Join-Path $root "target/release/scriptor-daemon.exe"
 if (-not (Test-Path $source)) {
   $source = Join-Path $root "target/release/scriptor-daemon"

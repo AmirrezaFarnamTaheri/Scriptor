@@ -6,7 +6,15 @@ $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "../.."
 Set-Location $root
 
-cargo test -p scriptor-system-bridge manifest:: --quiet
+function Invoke-Checked {
+    param([string]$File, [string[]]$Arguments)
+    & $File @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $File $Arguments"
+    }
+}
+
+Invoke-Checked cargo @("test", "-p", "scriptor-system-bridge", "manifest::", "--quiet")
 
 if (-not (Test-Path $Manifest)) {
   Write-Error "Manifest not found: $Manifest"

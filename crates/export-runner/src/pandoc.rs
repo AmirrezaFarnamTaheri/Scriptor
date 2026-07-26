@@ -50,13 +50,12 @@ pub fn verify_binary_hash(
 
     log::info!("{label} SHA-256: {computed} (path: {})", binary_path.display());
 
-    if let Some(expected) = expected_hash {
-        if computed != expected {
+    if let Some(expected) = expected_hash
+        && computed != expected {
             return Err(ExportError::Process(format!(
                 "{label} hash mismatch: expected {expected}, found {computed}"
             )));
         }
-    }
 
     Ok(Some(computed))
 }
@@ -83,11 +82,10 @@ pub fn discover_pandoc_with_trusted_hash(
     }
 
     for bundled in bundled_pandoc_paths() {
-        if bundled.exists() {
-            if let Ok(discovery) = probe_pandoc_with_hash(&bundled, trusted_hash) {
+        if bundled.exists()
+            && let Ok(discovery) = probe_pandoc_with_hash(&bundled, trusted_hash) {
                 return Ok(discovery);
             }
-        }
     }
 
     probe_pandoc_with_hash(Path::new("pandoc"), trusted_hash)

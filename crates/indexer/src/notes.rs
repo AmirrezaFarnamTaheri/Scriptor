@@ -29,7 +29,8 @@ pub fn upsert_note(
     enriched.archived = parsed.archived;
 
     let conn = cache.connection()?;
-    conn.execute(
+    let tx = conn.unchecked_transaction()?;
+    tx.execute(
         "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, tags_json, note_type, organized, archived)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
          ON CONFLICT(id) DO UPDATE SET
@@ -57,14 +58,15 @@ pub fn upsert_note(
         ],
     )?;
 
-    conn.execute(
+    tx.execute(
         "DELETE FROM note_fts WHERE note_id = ?1",
         params![metadata.id],
     )?;
-    conn.execute(
+    tx.execute(
         "INSERT INTO note_fts(note_id, title, body) VALUES (?1, ?2, ?3)",
         params![metadata.id, metadata.title, markdown],
     )?;
+    tx.commit()?;
 
     Ok(())
 }
@@ -155,10 +157,12 @@ pub fn remove_note_from_index(
     }
 
     let conn = cache.connection()?;
-    conn.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
-    conn.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_key])?;
-    conn.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
-    conn.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
+    let tx = conn.unchecked_transaction()?;
+    tx.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
+    tx.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_key])?;
+    tx.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
+    tx.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
+    tx.commit()?;
     Ok(true)
 }
 

@@ -38,6 +38,31 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
     Err(IndexerError::SchemaRebuildRequired { found: current, expected: SCHEMA_VERSION })
 }
 
+pub fn open_cache_migrated(path: impl AsRef<std::path::Path>) -> Result<IndexCache, IndexerError> {
+    match IndexCache::open(path.as_ref()) {
+        Ok(cache) => {
+            if let Err(IndexerError::SchemaRebuildRequired { .. }) =
+                migrate_cache(&*cache.connection()?)
+            {
+                drop(cache);
+                let path_buf = path.as_ref().to_path_buf();
+                if path_buf.exists() {
+                    std::fs::remove_file(&path_buf).map_err(|source| IndexerError::Io {
+                        path: path_buf.clone(),
+                        source,
+                    })?;
+                }
+                let rebuilt = IndexCache::open(path)?;
+                migrate_cache(&*rebuilt.connection()?)?;
+                return Ok(rebuilt);
+            }
+            migrate_cache(&*cache.connection()?)?;
+            Ok(cache)
+        }
+        Err(error) => Err(error),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -62,30 +87,5 @@ mod tests {
         assert_eq!(version, SCHEMA_VERSION.to_string());
         connection.execute("INSERT INTO recent_access(path, opened_at) VALUES ('a.md', 'now')", [])?;
         Ok(())
-    }
-}
-
-pub fn open_cache_migrated(path: impl AsRef<std::path::Path>) -> Result<IndexCache, IndexerError> {
-    match IndexCache::open(path.as_ref()) {
-        Ok(cache) => {
-            if let Err(IndexerError::SchemaRebuildRequired { .. }) =
-                migrate_cache(&*cache.connection()?)
-            {
-                drop(cache);
-                let path_buf = path.as_ref().to_path_buf();
-                if path_buf.exists() {
-                    std::fs::remove_file(&path_buf).map_err(|source| IndexerError::Io {
-                        path: path_buf.clone(),
-                        source,
-                    })?;
-                }
-                let rebuilt = IndexCache::open(path)?;
-                migrate_cache(&*rebuilt.connection()?)?;
-                return Ok(rebuilt);
-            }
-            migrate_cache(&*cache.connection()?)?;
-            Ok(cache)
-        }
-        Err(error) => Err(error),
     }
 }

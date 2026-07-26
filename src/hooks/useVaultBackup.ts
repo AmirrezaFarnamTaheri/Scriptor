@@ -91,25 +91,32 @@ export function useVaultBackup(vaultOpen: boolean) {
     try {
       const entry = await vaultCreateBackup(settings.backupPath || undefined)
       setLastMessage(`Backup created: ${entry.name}`)
-      await listBackups()
 
       const allBackups = (await vaultListBackups(settings.backupPath || undefined)) || []
-      if (allBackups.length > settings.maxSnapshots) {
-        const toDelete = allBackups.slice(settings.maxSnapshots)
-        for (const old of toDelete) {
-          try {
-            await vaultDeleteBackup(old.name, settings.backupPath || undefined)
-          } catch {
-            // Best-effort cleanup
-          }
+      const sorted = [...allBackups].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+      )
+      const deleted = new Set<string>()
+      const failedDeletes: string[] = []
+      for (const old of sorted.slice(settings.maxSnapshots)) {
+        try {
+          await vaultDeleteBackup(old.name, settings.backupPath || undefined)
+          deleted.add(old.name)
+        } catch {
+          // Best-effort cleanup; keep the entry visible and report below.
+          failedDeletes.push(old.name)
         }
+      }
+      setBackups(sorted.filter((backup) => !deleted.has(backup.name)))
+      if (failedDeletes.length > 0) {
+        setLastError(`Could not delete ${failedDeletes.length} old backup(s): ${failedDeletes.join(', ')}`)
       }
     } catch (caught) {
       setLastError(caught instanceof Error ? caught.message : 'Backup failed')
     } finally {
       setIsBusy(false)
     }
-  }, [vaultOpen, settings.backupPath, settings.maxSnapshots, listBackups])
+  }, [vaultOpen, settings.backupPath, settings.maxSnapshots])
 
   const triggerBackupRef = useRef(triggerBackup)
 

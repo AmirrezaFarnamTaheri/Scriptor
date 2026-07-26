@@ -12,6 +12,7 @@ import { unified } from 'unified'
 
 import { preprocessWikilinks } from './preprocess.ts'
 import { promoteMermaidHtml } from './mermaid-html.ts'
+import { rehypeHeadingIds } from './rehype-heading-ids.ts'
 import { rehypeSourceLines } from './rehype-source-lines.ts'
 import { preprocessImports } from './remark-import.ts'
 import { remarkAlerts } from './remark-alerts.ts'
@@ -171,6 +172,7 @@ function createProcessor(options: PreviewPipelineOptions = {}) {
     .use(rehypeRaw)
     .use(rehypeKatex)
     .use(rehypeHighlight, { detect: true, ignoreMissing: true })
+    .use(rehypeHeadingIds)
     .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
     .use(rehypeSourceLines)
     .use(rehypeStringify)

@@ -15,9 +15,7 @@ import {
   canvasSnapshot,
   canvasTemplateDryRun,
 } from '../bridge/commands'
-import { canvasRenderSvg } from '../bridge/canvas'
 import { isNativeBridgeAvailable } from '../bridge/platform'
-import { svgToDataUrlInWorker } from '../lib/canvasRenderWorker'
 
 export interface CanvasBoardSummary {
   id: string
@@ -39,7 +37,21 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const [canRedo, setCanRedo] = useState(false)
   const saveTimer = useRef<number | null>(null)
   const historyRef = useRef<{ past: CanvasDocument[]; future: CanvasDocument[] }>({ past: [], future: [] })
+  const lastCommittedSerializedRef = useRef('')
   const persistRef = useRef<(next: CanvasDocument) => void>(() => {})
+  const documentRef = useRef(document)
+
+  useEffect(() => {
+    documentRef.current = document
+  }, [document])
+
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) {
+        window.clearTimeout(saveTimer.current)
+      }
+    }
+  }, [])
 
   const syncHistoryFlags = useCallback(() => {
     const history = historyRef.current
@@ -50,6 +62,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const resetHistory = useCallback(
     (snapshot: CanvasDocument) => {
       historyRef.current = { past: [structuredClone(snapshot)], future: [] }
+      lastCommittedSerializedRef.current = JSON.stringify(snapshot)
       syncHistoryFlags()
     },
     [syncHistoryFlags],
@@ -183,10 +196,11 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
   const commitDocument = useCallback((next: CanvasDocument) => {
     const history = historyRef.current
-    const current = history.past[history.past.length - 1]
-    if (current && JSON.stringify(current) === JSON.stringify(next)) {
+    const serialized = JSON.stringify(next)
+    if (history.past.length > 0 && serialized === lastCommittedSerializedRef.current) {
       return next
     }
+    lastCommittedSerializedRef.current = serialized
     history.past.push(structuredClone(next))
     if (history.past.length > 50) {
       history.past.shift()
@@ -250,6 +264,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         try {
           const output = await canvasApplyTemplate(JSON.stringify(document), templateId)
           const next = output.document as CanvasDocument
+          documentRef.current = next
           setDocument(next)
           commitDocument(next)
           setStatus(`Inserted ${output.blocksAdded} blocks from ${templateLabel}.`)
@@ -276,16 +291,16 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         }
       }
 
-      setDocument((current) => {
-        const next = {
-          ...current,
-          title: templateLabel,
-          blocks: [...current.blocks, ...added],
-          updatedAt: new Date().toISOString(),
-        }
-        commitDocument(next)
-        return next
-      })
+      const base = documentRef.current
+      const next = {
+        ...base,
+        title: templateLabel,
+        blocks: [...base.blocks, ...added],
+        updatedAt: new Date().toISOString(),
+      }
+      documentRef.current = next
+      setDocument(next)
+      commitDocument(next)
       setStatus(`Inserted ${added.length} blocks from ${templateLabel}.`)
     },
     [commitDocument, document, vaultOpen],
@@ -293,11 +308,10 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
   const updateDocument = useCallback(
     (updater: (current: CanvasDocument) => CanvasDocument) => {
-      setDocument((current) => {
-        const next = updater(current)
-        commitDocument(next)
-        return next
-      })
+      const next = updater(documentRef.current)
+      documentRef.current = next
+      setDocument(next)
+      commitDocument(next)
     },
     [commitDocument],
   )
@@ -308,7 +322,10 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     const current = history.past.pop()!
     history.future.unshift(current)
     const previous = history.past[history.past.length - 1]!
-    setDocument(structuredClone(previous))
+    lastCommittedSerializedRef.current = JSON.stringify(previous)
+    const restored = structuredClone(previous)
+    documentRef.current = restored
+    setDocument(restored)
     persistRef.current(previous)
     syncHistoryFlags()
     setStatus('Undid last change.')
@@ -319,7 +336,10 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     if (history.future.length === 0) return
     const next = history.future.shift()!
     history.past.push(next)
-    setDocument(structuredClone(next))
+    lastCommittedSerializedRef.current = JSON.stringify(next)
+    const restored = structuredClone(next)
+    documentRef.current = restored
+    setDocument(restored)
     persistRef.current(next)
     syncHistoryFlags()
     setStatus('Redid change.')
@@ -333,10 +353,6 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       }
 
       try {
-        if (format === 'svg') {
-          const svg = await canvasRenderSvg(JSON.stringify(document))
-          await svgToDataUrlInWorker(svg)
-        }
         const outputPath = `.scriptor/exports/${document.id}.${format}`
         const result = await canvasSnapshot(JSON.stringify(document), format, outputPath, false)
         setStatus(`Exported ${format.toUpperCase()} to ${result.artifactPath}`)

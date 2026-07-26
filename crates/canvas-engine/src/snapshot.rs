@@ -40,23 +40,30 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
     blocks.sort_by_key(|block| block.z_index);
 
     for block in blocks {
-        let fill = block
-            .style
-            .as_ref()
-            .and_then(|style| style.fill.clone())
-            .unwrap_or_else(|| "#ffffff".into());
-        let stroke = block
-            .style
-            .as_ref()
-            .and_then(|style| style.stroke.clone())
-            .unwrap_or_else(|| "#64748b".into());
+        let fill = sanitize_color(
+            block
+                .style
+                .as_ref()
+                .and_then(|style| style.fill.as_deref())
+                .unwrap_or("#ffffff"),
+            "#ffffff",
+        );
+        let stroke = sanitize_color(
+            block
+                .style
+                .as_ref()
+                .and_then(|style| style.stroke.as_deref())
+                .unwrap_or("#64748b"),
+            "#64748b",
+        );
+        let block_id = xml_escape(&block.id);
         let label = block.content_ref.clone().unwrap_or_else(|| block.id.clone());
 
         match block.kind {
             CanvasBlockKind::Connector => {
                 svg.push_str(&format!(
                     r##"<g data-block-id="{}"><line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="2" marker-end="url(#arrow)" /><text x="{}" y="{}" font-size="12" fill="#334155">{}</text></g>"##,
-                    block.id,
+                    block_id,
                     block.bounds.x,
                     block.bounds.y,
                     block.bounds.x + block.bounds.width,
@@ -72,7 +79,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                 let href = block.content_ref.clone().unwrap_or_else(|| "image".into());
                 svg.push_str(&format!(
                     r##"<g data-block-id="{}"><rect x="{}" y="{}" width="{}" height="{}" fill="#e2e8f0" stroke="{}" /><text x="{}" y="{}" font-size="12" fill="#475569">img: {}</text></g>"##,
-                    block.id,
+                    block_id,
                     block.bounds.x,
                     block.bounds.y,
                     block.bounds.width,
@@ -87,7 +94,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             CanvasBlockKind::Embed => {
                 svg.push_str(&format!(
                     r##"<g data-block-id="{}"><rect x="{}" y="{}" width="{}" height="{}" fill="#f1f5f9" stroke="{}" stroke-dasharray="4 2" /><text x="{}" y="{}" font-size="12" fill="#475569">embed: {}</text></g>"##,
-                    block.id,
+                    block_id,
                     block.bounds.x,
                     block.bounds.y,
                     block.bounds.width,
@@ -126,7 +133,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     .unwrap_or(2.0);
                 svg.push_str(&format!(
                     r##"<g data-block-id="{}"><path d="{}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" /></g>"##,
-                    block.id,
+                    block_id,
                     path,
                     stroke,
                     stroke_width,
@@ -142,7 +149,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
 
         svg.push_str(&format!(
             r##"<g data-block-id="{}"><rect x="{}" y="{}" width="{}" height="{}" rx="{}" fill="{}" stroke="{}" /><text x="{}" y="{}" font-family="Segoe UI, sans-serif" font-size="14" fill="#0f172a">{}</text></g>"##,
-            block.id,
+            block_id,
             block.bounds.x,
             block.bounds.y,
             block.bounds.width,
@@ -276,9 +283,28 @@ fn xml_escape(value: &str) -> String {
         .replace('"', "&quot;")
 }
 
+/// Accept only `#rgb`..`#rrggbbaa` hex colors or plain ASCII-alphabetic color
+/// names; anything else (quotes, spaces, functional notation) falls back to a
+/// safe default so canvas JSON can never inject SVG attributes.
+fn sanitize_color(value: &str, fallback: &str) -> String {
+    let trimmed = value.trim();
+    let hex_ok = trimmed
+        .strip_prefix('#')
+        .is_some_and(|rest| (3..=8).contains(&rest.len()) && rest.chars().all(|c| c.is_ascii_hexdigit()));
+    let name_ok = !trimmed.is_empty()
+        && trimmed.len() <= 32
+        && trimmed.chars().all(|c| c.is_ascii_alphabetic());
+    if hex_ok || name_ok {
+        trimmed.to_string()
+    } else {
+        fallback.to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scene::{CanvasBlock, CanvasBlockKind, CanvasStyle};
     use crate::templates::{apply_template_dry_run, empty_document};
 
     #[test]
@@ -290,6 +316,55 @@ mod tests {
         let svg = render_svg(&merged, None);
         assert!(svg.contains("Weekly focus"));
         assert!(svg.contains("data-block-id"));
+    }
+
+    #[test]
+    fn svg_escapes_hostile_style_and_id() {
+        let mut document = empty_document("vault", "Board");
+        let layer_id = document.layers.first().map(|layer| layer.id.clone()).unwrap_or_else(|| "layer".into());
+        document.blocks.push(CanvasBlock {
+            id: r#"a"/><script>alert(1)</script>"#.into(),
+            kind: CanvasBlockKind::Markdown,
+            layer_id,
+            bounds: CanvasRect {
+                x: 0.0,
+                y: 0.0,
+                width: 100.0,
+                height: 50.0,
+            },
+            z_index: 0,
+            source_note_id: None,
+            shape_kind: None,
+            content_ref: None,
+            style: Some(CanvasStyle {
+                fill: Some(r#"#fff" onload="alert(1)"#.into()),
+                stroke: Some(r#"red"><script>x</script>"#.into()),
+                stroke_width: None,
+                opacity: None,
+                text_style: None,
+            }),
+            locked: None,
+            stroke_points: None,
+        });
+
+        let svg = render_svg(&document, None);
+        assert!(!svg.contains("<script>"), "script tag must not survive: {svg}");
+        assert!(!svg.contains(r#"" onload="#), "attribute breakout must not survive: {svg}");
+        // Hostile colors fall back to safe defaults.
+        assert!(svg.contains(r##"fill="#ffffff""##));
+        assert!(svg.contains(r##"stroke="#64748b""##));
+        // The hostile id is escaped, not dropped.
+        assert!(svg.contains("a&quot;/&gt;&lt;script&gt;"));
+    }
+
+    #[test]
+    fn sanitize_color_accepts_hex_and_names_only() {
+        assert_eq!(sanitize_color("#abc", "#000000"), "#abc");
+        assert_eq!(sanitize_color("#AABBCCDD", "#000000"), "#AABBCCDD");
+        assert_eq!(sanitize_color("rebeccapurple", "#000000"), "rebeccapurple");
+        assert_eq!(sanitize_color("url(#evil)", "#000000"), "#000000");
+        assert_eq!(sanitize_color("#ggg", "#000000"), "#000000");
+        assert_eq!(sanitize_color("red\" x=\"y", "#000000"), "#000000");
     }
 
     #[test]

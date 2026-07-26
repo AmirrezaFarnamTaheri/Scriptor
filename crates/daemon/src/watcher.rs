@@ -96,12 +96,11 @@ mod tests {
                 query: "Watcher body".into(),
                 limit: 10,
             }));
-            if let RpcResult::Ok(RpcPayload::SearchHits { hits }) = search.result {
-                if hits.iter().any(|hit| hit.path == "external.md") {
+            if let RpcResult::Ok(RpcPayload::SearchHits { hits }) = search.result
+                && hits.iter().any(|hit| hit.path == "external.md") {
                     found = true;
                     break;
                 }
-            }
         }
 
         assert!(found, "external note should be indexed by daemon watcher");

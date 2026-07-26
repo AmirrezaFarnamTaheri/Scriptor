@@ -16,6 +16,29 @@ import {
   type McpMoveNoteInput,
 } from './note-writes.ts'
 
+/**
+ * Ensure a tool path argument stays inside the vault: relative, no drive
+ * letters or UNC prefixes, and no `..` segments. Returns the value unchanged.
+ */
+export function assertVaultRelativePath(value: string, name = 'path'): string {
+  const normalized = value.replace(/\\/g, '/')
+  if (normalized.startsWith('/') || /^[a-zA-Z]:/.test(normalized)) {
+    throw new Error(`${name} must be a vault-relative path`)
+  }
+  if (normalized.split('/').some((segment) => segment === '..')) {
+    throw new Error(`${name} must not contain ".." segments`)
+  }
+  return value
+}
+
+/** Validate an integer payload value against an inclusive range. */
+export function assertBoundedInt(value: unknown, min: number, max: number, name: string): number {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`${name} must be an integer between ${min} and ${max}`)
+  }
+  return value
+}
+
 export interface McpSearchInput {
   query: string
   limit?: number
@@ -239,6 +262,8 @@ export function allMcpTools(): McpToolDescriptor[] {
   return [...READ_ONLY_TOOLS, ...WRITE_TOOLS]
 }
 
+const MAX_DRAFTS = 100
+
 export class McpRuntime {
   private readonly audit = new AuditLog()
   private readonly drafts: DraftPatch[] = []
@@ -269,6 +294,22 @@ export class McpRuntime {
 
   listDrafts(): DraftPatch[] {
     return this.drafts.filter((patch) => patch.status === 'pending')
+  }
+
+  private pushDraft(patch: DraftPatch): void {
+    this.drafts.unshift(patch)
+    while (this.drafts.length > MAX_DRAFTS) {
+      // Newest drafts sit at the front, so evict from the back: prefer the
+      // oldest resolved (non-pending) draft, falling back to the oldest overall.
+      let evictIndex = -1
+      for (let index = this.drafts.length - 1; index >= 0; index -= 1) {
+        if (this.drafts[index].status !== 'pending') {
+          evictIndex = index
+          break
+        }
+      }
+      this.drafts.splice(evictIndex >= 0 ? evictIndex : this.drafts.length - 1, 1)
+    }
   }
 
   async invoke(toolName: string, input: unknown): Promise<CommandResult> {
@@ -364,7 +405,7 @@ export class McpRuntime {
       summary: input.summary,
       baseContentHash: input.baseContentHash,
     })
-    this.drafts.unshift(patch)
+    this.pushDraft(patch)
     this.audit.append({
       toolName: 'mcp.proposePatch',
       mode: this.mode,
@@ -400,7 +441,7 @@ export class McpRuntime {
       summary: input.summary,
       baseContentHash: input.baseContentHash ?? note.metadata.content_hash,
     })
-    this.drafts.unshift(patch)
+    this.pushDraft(patch)
     this.audit.append({
       toolName: 'mcp.proposeTagPatch',
       mode: this.mode,
@@ -528,13 +569,14 @@ export class McpRuntime {
         if (typeof payload.query !== 'string' || !payload.query.trim()) {
           throw new Error('mcp.search requires a non-empty "query" string')
         }
-        return ctx.search(payload.query, payload.limit ?? 25)
+        return ctx.search(payload.query, assertBoundedInt(payload.limit ?? 25, 1, 500, 'limit'))
       }
       case 'mcp.readNote': {
         const payload = input as McpReadNoteInput
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.readNote requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         return ctx.readNote(payload.path)
       }
       case 'mcp.inspectBacklinks': {
@@ -542,6 +584,7 @@ export class McpRuntime {
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.inspectBacklinks requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         return ctx.backlinks(payload.path)
       }
       case 'mcp.inspectBrokenLinks':
@@ -553,6 +596,7 @@ export class McpRuntime {
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.inspectOutline requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         const note = await ctx.readNote(payload.path)
         return {
           path: payload.path,
@@ -570,8 +614,8 @@ export class McpRuntime {
           const prefix = payload.prefix.replace(/^#/, '').toLowerCase()
           tags = tags.filter((entry) => entry.tag.toLowerCase().startsWith(prefix))
         }
-        if (payload.limit && payload.limit > 0) {
-          tags = tags.slice(0, payload.limit)
+        if (payload.limit !== undefined) {
+          tags = tags.slice(0, assertBoundedInt(payload.limit, 1, 500, 'limit'))
         }
         return tags
       }
@@ -583,14 +627,20 @@ export class McpRuntime {
         if (!ctx.notesForTag) {
           throw new Error('Tag search is not available')
         }
-        return ctx.notesForTag(payload.tag.replace(/^#/, ''), payload.limit)
+        return ctx.notesForTag(
+          payload.tag.replace(/^#/, ''),
+          payload.limit === undefined ? undefined : assertBoundedInt(payload.limit, 1, 500, 'limit'),
+        )
       }
       case 'mcp.exportGraph': {
         const payload = input as McpExportGraphInput
         if (!ctx.exportGraph) {
           throw new Error('Graph export is not available')
         }
-        return ctx.exportGraph(payload.focusPath, payload.depth ?? 1)
+        if (typeof payload.focusPath === 'string') {
+          assertVaultRelativePath(payload.focusPath, 'focusPath')
+        }
+        return ctx.exportGraph(payload.focusPath, assertBoundedInt(payload.depth ?? 1, 1, 10, 'depth'))
       }
       case 'mcp.inspectGraphSummary': {
         const [orphans, deadEnds, unresolved, tags] = await Promise.all([
@@ -618,7 +668,8 @@ export class McpRuntime {
         if (!ctx.traverseGraph) {
           throw new Error('Graph traversal is not available')
         }
-        return ctx.traverseGraph(payload.focusPath, payload.depth ?? 2)
+        assertVaultRelativePath(payload.focusPath, 'focusPath')
+        return ctx.traverseGraph(payload.focusPath, assertBoundedInt(payload.depth ?? 2, 1, 10, 'depth'))
       }
       case 'mcp.renderMarkdown': {
         const payload = input as McpRenderMarkdownInput
@@ -635,6 +686,7 @@ export class McpRuntime {
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.proposePatch requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         if (typeof payload.proposedMarkdown !== 'string') {
           throw new Error('mcp.proposePatch requires a "proposedMarkdown" string')
         }
@@ -652,6 +704,7 @@ export class McpRuntime {
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.proposeTagPatch requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
           throw new Error('mcp.proposeTagPatch requires a non-empty "summary" string')
         }
@@ -666,6 +719,7 @@ export class McpRuntime {
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.createNote requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         if (typeof payload.markdown !== 'string') {
           throw new Error('mcp.createNote requires a "markdown" string')
         }
@@ -673,7 +727,7 @@ export class McpRuntime {
           throw new Error('mcp.createNote requires a non-empty "summary" string')
         }
         const patch = createNoteDraft(payload)
-        this.drafts.unshift(patch)
+        this.pushDraft(patch)
         return patch
       }
       case 'mcp.moveNote': {
@@ -681,15 +735,17 @@ export class McpRuntime {
         if (typeof payload.from !== 'string' || !payload.from.trim()) {
           throw new Error('mcp.moveNote requires a non-empty "from" string')
         }
+        assertVaultRelativePath(payload.from, 'from')
         if (typeof payload.to !== 'string' || !payload.to.trim()) {
           throw new Error('mcp.moveNote requires a non-empty "to" string')
         }
+        assertVaultRelativePath(payload.to, 'to')
         if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
           throw new Error('mcp.moveNote requires a non-empty "summary" string')
         }
         const note = await ctx.readNote(payload.from)
         const patch = moveNoteDraft(payload, note.markdown, note.metadata.content_hash)
-        this.drafts.unshift(patch)
+        this.pushDraft(patch)
         return patch
       }
       case 'mcp.deleteNote': {
@@ -697,11 +753,12 @@ export class McpRuntime {
         if (typeof payload.path !== 'string' || !payload.path.trim()) {
           throw new Error('mcp.deleteNote requires a non-empty "path" string')
         }
+        assertVaultRelativePath(payload.path)
         if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
           throw new Error('mcp.deleteNote requires a non-empty "summary" string')
         }
         const patch = deleteNoteDraft(payload)
-        this.drafts.unshift(patch)
+        this.pushDraft(patch)
         return patch
       }
       default:
@@ -840,6 +897,42 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
   )
   if (!approvedWrite.ok) failures.push('write-approved should approve draft')
   if (!writeApprovedSaved) failures.push('write-approved approval should call save bridge')
+
+  const traversal = await runtime.invoke('mcp.readNote', { path: '../outside.md' })
+  if (traversal.ok) failures.push('readNote should reject ".." traversal paths')
+  const absolute = await runtime.invoke('mcp.readNote', { path: '/etc/passwd' })
+  if (absolute.ok) failures.push('readNote should reject absolute paths')
+  for (const hostile of ['C:\\vault\\note.md', '\\\\server\\share\\note.md', 'a/../../b.md']) {
+    try {
+      assertVaultRelativePath(hostile)
+      failures.push(`assertVaultRelativePath should reject ${hostile}`)
+    } catch {
+      // expected
+    }
+  }
+  try {
+    assertVaultRelativePath('notes/sub/note.md')
+  } catch {
+    failures.push('assertVaultRelativePath should accept nested relative paths')
+  }
+
+  const badLimit = await runtime.invoke('mcp.search', { query: 'note', limit: 0 })
+  if (badLimit.ok) failures.push('search should reject out-of-range limit')
+  const badDepth = await runtime.invoke('mcp.exportGraph', { focusPath: 'note.md', depth: 99 })
+  if (badDepth.ok) failures.push('exportGraph should reject out-of-range depth')
+  const fractionalDepth = await runtime.invoke('mcp.traverseGraph', { focusPath: 'note.md', depth: 1.5 })
+  if (fractionalDepth.ok) failures.push('traverseGraph should reject non-integer depth')
+
+  for (let index = 0; index < 120; index += 1) {
+    await draftRuntime.invoke('mcp.proposePatch', {
+      path: `flood-${index}.md`,
+      proposedMarkdown: `# Flood ${index}`,
+      summary: `flood ${index}`,
+    })
+  }
+  if (draftRuntime.listDrafts().length > 100) {
+    failures.push('draft accumulation should be capped at 100')
+  }
 
   return failures
 }

@@ -5,6 +5,8 @@ interface Props {
   fallback?: ReactNode
   /** Optional identifier shown in console/logs to pinpoint which boundary fired. */
   name?: string
+  /** When any value in this array changes, a caught error is cleared so children can re-render. */
+  resetKeys?: unknown[]
 }
 
 interface State {
@@ -35,12 +37,21 @@ export class ErrorBoundary extends Component<Props, State> {
     }
   }
 
-  componentDidUpdate(_prevProps: Props, prevState: State) {
-    // When a navigation occurs (React Router key change or path change),
-    // automatically clear the error so the new route can render.
+  componentDidUpdate(prevProps: Props) {
+    // When a navigation occurs (route key or path change surfaced via resetKeys),
+    // automatically clear the error so the new view can render.
     // This prevents users from getting stuck on a broken view.
-    if (prevState.hasError && !this.state.hasError) {
-      return
+    if (!this.state.hasError) return
+    const prevKeys = prevProps.resetKeys
+    const nextKeys = this.props.resetKeys
+    if (prevKeys === nextKeys) return
+    const changed =
+      !prevKeys ||
+      !nextKeys ||
+      prevKeys.length !== nextKeys.length ||
+      nextKeys.some((key, index) => !Object.is(key, prevKeys[index]))
+    if (changed) {
+      this.handleReset()
     }
   }
 

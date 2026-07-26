@@ -42,11 +42,10 @@ impl RenameLinkTarget {
     }
 
     pub fn replacement_identifier(&self, link_target: &str, to: &RenameLinkTarget) -> String {
-        if let (Some(from_dir), Some(to_dir)) = (&self.directory_identifier, &to.directory_identifier) {
-            if link_target.eq_ignore_ascii_case(from_dir) {
+        if let (Some(from_dir), Some(to_dir)) = (&self.directory_identifier, &to.directory_identifier)
+            && link_target.eq_ignore_ascii_case(from_dir) {
                 return to_dir.clone();
             }
-        }
         if link_target.eq_ignore_ascii_case(&self.title)
             || link_target.eq_ignore_ascii_case(&self.basename)
             || link_target == self.path

@@ -13,26 +13,36 @@ export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
   const [searchResults, setSearchResults] = useState<SearchHit[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const searchTimer = useRef<number | null>(null)
+  const searchRequestId = useRef(0)
 
   const runSearch = useCallback(
     async (query: string) => {
       const trimmed = query.trim()
       if (!trimmed) {
+        searchRequestId.current += 1
         setSearchResults([])
         return
       }
 
+      const requestId = ++searchRequestId.current
       setIsSearching(true)
       const started = performance.now()
       try {
         const hits = await indexerSearch(trimmed, 25)
+        if (requestId !== searchRequestId.current) {
+          return
+        }
         options?.onSearchTiming?.(Math.round(performance.now() - started))
         setSearchResults(hits)
         options?.onSearchComplete?.(hits)
       } catch {
-        setSearchResults([])
+        if (requestId === searchRequestId.current) {
+          setSearchResults([])
+        }
       } finally {
-        setIsSearching(false)
+        if (requestId === searchRequestId.current) {
+          setIsSearching(false)
+        }
       }
     },
     [options],
@@ -52,6 +62,7 @@ export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
   )
 
   const clearSearch = useCallback(() => {
+    searchRequestId.current += 1
     setSearchQuery('')
     setSearchResults([])
     if (searchTimer.current) {

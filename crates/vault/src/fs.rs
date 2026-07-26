@@ -28,11 +28,10 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
         return Err(VaultError::io(path, source));
     }
 
-    if let Some(parent) = path.parent() {
-        if let Ok(file) = fs::OpenOptions::new().read(true).open(parent) {
+    if let Some(parent) = path.parent()
+        && let Ok(file) = fs::OpenOptions::new().read(true).open(parent) {
             let _ = file.sync_all();
         }
-    }
 
     Ok(())
 }

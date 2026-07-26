@@ -24,50 +24,54 @@ interface LayoutRequest {
 }
 
 self.onmessage = (event: MessageEvent<LayoutRequest>) => {
-  const { nodes, edges, width, height, iterations = 120 } = event.data
+  try {
+    const { nodes, edges, width, height, iterations = 120 } = event.data
 
-  if (nodes.length === 0) {
-    self.postMessage({ nodes: [] })
-    return
-  }
-
-  const simNodes = nodes.map((node, index) => {
-    const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1)
-    const radius = Math.min(width, height) * 0.28
-    return {
-      ...node,
-      x: width / 2 + Math.cos(angle) * radius,
-      y: height / 2 + Math.sin(angle) * radius,
+    if (nodes.length === 0) {
+      self.postMessage({ type: 'done', nodes: [] })
+      return
     }
-  })
 
-  const nodeIds = new Set(simNodes.map((n) => n.id))
-  const links = edges
-    .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
-    .map((e) => ({ source: e.source, target: e.target }))
+    const simNodes = nodes.map((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1)
+      const radius = Math.min(width, height) * 0.28
+      return {
+        ...node,
+        x: width / 2 + Math.cos(angle) * radius,
+        y: height / 2 + Math.sin(angle) * radius,
+      }
+    })
 
-  const simulation = forceSimulation(simNodes)
-    .force('charge', forceManyBody().strength(-280))
-    .force('link', forceLink(links).id((n) => (n as { id: string }).id).distance(110).strength(0.55))
-    .force('center', forceCenter(width / 2, height / 2))
-    .stop()
+    const nodeIds = new Set(simNodes.map((n) => n.id))
+    const links = edges
+      .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
+      .map((e) => ({ source: e.source, target: e.target }))
 
-  for (let step = 0; step < iterations; step += 1) {
-    simulation.tick()
-    if (step % 20 === 0) {
-      self.postMessage({ type: 'tick', step, total: iterations })
+    const simulation = forceSimulation(simNodes)
+      .force('charge', forceManyBody().strength(-280))
+      .force('link', forceLink(links).id((n) => (n as { id: string }).id).distance(110).strength(0.55))
+      .force('center', forceCenter(width / 2, height / 2))
+      .stop()
+
+    for (let step = 0; step < iterations; step += 1) {
+      simulation.tick()
+      if (step % 20 === 0) {
+        self.postMessage({ type: 'tick', step, total: iterations })
+      }
     }
+
+    const result = simNodes.map((node) => ({
+      id: node.id,
+      x: Math.max(36, Math.min(width - 36, node.x ?? width / 2)),
+      y: Math.max(36, Math.min(height - 36, node.y ?? height / 2)),
+      label: node.label,
+      path: node.path,
+      unresolved: node.unresolved,
+      color: node.color,
+    }))
+
+    self.postMessage({ type: 'done', nodes: result })
+  } catch (error) {
+    self.postMessage({ type: 'error', message: error instanceof Error ? error.message : String(error) })
   }
-
-  const result = simNodes.map((node) => ({
-    id: node.id,
-    x: Math.max(36, Math.min(width - 36, node.x ?? width / 2)),
-    y: Math.max(36, Math.min(height - 36, node.y ?? height / 2)),
-    label: node.label,
-    path: node.path,
-    unresolved: node.unresolved,
-    color: node.color,
-  }))
-
-  self.postMessage({ type: 'done', nodes: result })
 }

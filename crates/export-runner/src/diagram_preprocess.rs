@@ -66,10 +66,13 @@ fn collect_diagram_fences(markdown: &str) -> Vec<DiagramFence> {
     let mut index = 0;
 
     while index + 3 <= bytes.len() {
-        if &markdown[index..index + 3] != "```" {
+        // Compare on raw bytes: `index` advances one byte at a time, so slicing the
+        // &str here would panic whenever it lands inside a multi-byte UTF-8 char.
+        if bytes.get(index..index + 3) != Some(b"```") {
             index += 1;
             continue;
         }
+        // `index` is on an ASCII backtick, so every &str slice below is boundary-safe.
 
         let line_end = markdown[index..]
             .find('\n')
@@ -145,5 +148,26 @@ mod tests {
         assert!(processed.contains("![Mermaid diagram]("));
         assert!(processed.contains("diagram-mermaid-0.svg"));
         assert!(!processed.contains("```mermaid"));
+    }
+
+    #[test]
+    fn handles_multibyte_utf8_before_and_after_fence() {
+        let markdown = "# Café ☕ — résumé 🚀\n\nnaïve text\n\n```mermaid\nflowchart TD\n  A --> B\n```\n\nfinale — é 🎉";
+        let temp = tempdir().expect("tempdir");
+        let (processed, files) = preprocess_diagrams(markdown, temp.path()).expect("preprocess");
+        assert_eq!(files.len(), 1);
+        assert!(processed.contains("![Mermaid diagram]("));
+        assert!(processed.contains("Café ☕ — résumé 🚀"));
+        assert!(processed.contains("finale — é 🎉"));
+        assert!(!processed.contains("```mermaid"));
+    }
+
+    #[test]
+    fn multibyte_markdown_without_fences_is_untouched() {
+        let markdown = "héllo 🌍 — no fences here, just ``é`` inline";
+        let temp = tempdir().expect("tempdir");
+        let (processed, files) = preprocess_diagrams(markdown, temp.path()).expect("preprocess");
+        assert!(files.is_empty());
+        assert_eq!(processed, markdown);
     }
 }

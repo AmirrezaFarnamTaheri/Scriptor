@@ -1,4 +1,6 @@
-use scriptor_vault::{read_note, scan_vault, ScannedEntryKind, VaultSession};
+use scriptor_vault::{
+    metadata_from_markdown, read_note, scan_vault, NoteDocument, ScannedEntryKind, VaultSession,
+};
 
 use crate::bibliography::sync_vault_bibliography;
 use crate::citation::register_bibliography_keys;
@@ -91,9 +93,22 @@ pub fn rebuild_index_with_progress(
     let mut links_written = 0u32;
     let progress_stride = (notes_total / 3).max(1);
 
-    for (index, entry) in note_entries.iter().enumerate() {
+    for (index, entry) in note_entries.into_iter().enumerate() {
         let path = scriptor_vault::RelativeVaultPath::parse(&entry.path)?;
-        let note = read_note(&session.descriptor.id, &session.root, &path)?;
+        // Reuse the content the scan already read instead of re-reading every
+        // file; fall back to a fresh read if the scan did not capture it.
+        let note = match (entry.content, entry.modified_at) {
+            (Some(markdown), Some(modified_at)) => NoteDocument {
+                metadata: metadata_from_markdown(
+                    &session.descriptor.id,
+                    &path,
+                    &markdown,
+                    modified_at,
+                ),
+                markdown,
+            },
+            _ => read_note(&session.descriptor.id, &session.root, &path)?,
+        };
 
         if !note_needs_reindex(&cache, &note.metadata, &note.markdown)? {
             skipped_notes += 1;
@@ -104,7 +119,7 @@ pub fn rebuild_index_with_progress(
         }
 
         let processed = (index + 1) as u32;
-        if processed % progress_stride == 0 || processed == notes_total {
+        if processed.is_multiple_of(progress_stride) || processed == notes_total {
             emit("indexing", processed, notes_total, RebuildStatus::Running);
         }
     }
@@ -161,8 +176,8 @@ pub fn incremental_notes_index_with_cache(
     paths: &[String],
     bibliography_keys: &[&str],
 ) -> Result<IncrementalIndexSummary, IndexerError> {
-    sync_vault_bibliography(&cache, session)?;
-    register_bibliography_keys(&cache, bibliography_keys)?;
+    sync_vault_bibliography(cache, session)?;
+    register_bibliography_keys(cache, bibliography_keys)?;
 
     let mut summary = IncrementalIndexSummary {
         updated: 0,
@@ -176,7 +191,7 @@ pub fn incremental_notes_index_with_cache(
             continue;
         }
 
-        match apply_note_index_change(session, &cache, path)? {
+        match apply_note_index_change(session, cache, path)? {
             NoteIndexAction::Updated => summary.updated += 1,
             NoteIndexAction::Removed => summary.removed += 1,
             NoteIndexAction::Skipped => summary.skipped += 1,

@@ -1,4 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
+
+const PERSIST_DEBOUNCE_MS = 200
 
 export function usePersistedString(key: string, defaultValue: string) {
   const [value, setValue] = useState(() => {
@@ -11,20 +13,18 @@ export function usePersistedString(key: string, defaultValue: string) {
     }
   })
 
-  const setPersisted = useCallback(
-    (next: string | ((previous: string) => string)) => {
-      setValue((previous) => {
-        const resolved = typeof next === 'function' ? next(previous) : next
-        try {
-          localStorage.setItem(key, resolved)
-        } catch {
-          // Ignore storage failures in private browsing.
-        }
-        return resolved
-      })
-    },
-    [key],
-  )
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(key, value)
+      } catch {
+        // Ignore storage failures in private browsing.
+      }
+    }, PERSIST_DEBOUNCE_MS)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [key, value])
 
-  return [value, setPersisted] as const
+  return [value, setValue] as const
 }

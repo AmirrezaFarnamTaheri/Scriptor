@@ -146,7 +146,7 @@ fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
 }
 
 fn normalize_bib_value(value: &str) -> String {
-    value.replace('{', "").replace('}', "").trim().to_string()
+    value.replace(['{', '}'], "").trim().to_string()
 }
 
 pub fn default_bibliography_paths(vault_root: &Path) -> Vec<String> {

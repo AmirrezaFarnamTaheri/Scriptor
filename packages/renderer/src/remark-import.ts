@@ -10,8 +10,27 @@ function vaultJoin(base: string, relative: string): string {
   return `${base.replace(/\\/g, '/').replace(/\/$/, '')}/${rel}`
 }
 
-function vaultNormalize(path: string): string {
-  return path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\.\//, '')
+/**
+ * Normalize a vault-relative path, resolving `.`/`..` segments.
+ * Returns null for paths that are absolute, carry a scheme/drive letter,
+ * or escape the vault root via `..`.
+ */
+function vaultNormalize(path: string): string | null {
+  const normalized = path.replace(/\\/g, '/')
+  if (normalized.startsWith('/') || /^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(normalized)) {
+    return null
+  }
+  const segments: string[] = []
+  for (const segment of normalized.split('/')) {
+    if (segment.length === 0 || segment === '.') continue
+    if (segment === '..') {
+      if (segments.length === 0) return null
+      segments.pop()
+      continue
+    }
+    segments.push(segment)
+  }
+  return segments.join('/')
 }
 
 export interface ImportResolverOptions {
@@ -33,9 +52,8 @@ export function preprocessImports(markdown: string, options: ImportResolverOptio
   const basePath = options.basePath ?? ''
   const seen = new Set<string>()
 
-  function resolveImportPath(importPath: string): string {
+  function resolveImportPath(importPath: string): string | null {
     const trimmed = importPath.trim()
-    if (/^https?:\/\//i.test(trimmed)) return trimmed
     if (basePath.length === 0) return vaultNormalize(trimmed)
     return vaultNormalize(vaultJoin(vaultDirname(basePath), trimmed))
   }
@@ -47,6 +65,9 @@ export function preprocessImports(markdown: string, options: ImportResolverOptio
 
     return current.replace(IMPORT_LINE, (_match, importPath: string) => {
       const resolved = resolveImportPath(importPath)
+      if (resolved == null) {
+        return `\n> Import path not allowed: ${importPath}\n`
+      }
       if (chain.includes(resolved) || seen.has(resolved)) {
         return `\n> Circular import detected: ${importPath}\n`
       }
@@ -64,7 +85,8 @@ export function preprocessImports(markdown: string, options: ImportResolverOptio
     })
   }
 
-  return inline(markdown.replace(/\r\n/g, '\n'), 1, basePath ? [vaultNormalize(basePath)] : [])
+  const normalizedBase = basePath ? vaultNormalize(basePath) : null
+  return inline(markdown.replace(/\r\n/g, '\n'), 1, normalizedBase ? [normalizedBase] : [])
 }
 
 /** Async variant for vault hosts that resolve imports over IPC. */
@@ -80,9 +102,8 @@ export async function preprocessImportsAsync(
   const basePath = options.basePath ?? ''
   const seen = new Set<string>()
 
-  function resolveImportPath(importPath: string, currentBase: string): string {
+  function resolveImportPath(importPath: string, currentBase: string): string | null {
     const trimmed = importPath.trim()
-    if (/^https?:\/\//i.test(trimmed)) return trimmed
     if (currentBase.length === 0) return vaultNormalize(trimmed)
     return vaultNormalize(vaultJoin(vaultDirname(currentBase), trimmed))
   }
@@ -95,19 +116,31 @@ export async function preprocessImportsAsync(
     const matches = [...current.matchAll(IMPORT_LINE)]
     if (matches.length === 0) return current
 
-    let output = current
+    // Rebuild the output by slicing around each match so replacement text is
+    // inserted literally ($&/$1/$$ in imported notes must never be interpreted)
+    // and later occurrences of identical text are never hijacked.
+    let output = ''
+    let cursor = 0
     for (const match of matches) {
+      const index = match.index ?? 0
+      output += current.slice(cursor, index)
+      cursor = index + match[0].length
+
       const importPath = match[1]?.trim() ?? ''
       const currentBase = chain[chain.length - 1] ?? basePath
       const resolved = resolveImportPath(importPath, currentBase)
+      if (resolved == null) {
+        output += `\n> Import path not allowed: ${importPath}\n`
+        continue
+      }
       if (chain.includes(resolved) || seen.has(resolved)) {
-        output = output.replace(match[0], `\n> Circular import detected: ${importPath}\n`)
+        output += `\n> Circular import detected: ${importPath}\n`
         continue
       }
 
       const imported = await options.fetchNote(resolved)
       if (imported == null) {
-        output = output.replace(match[0], `\n> Import not found: ${importPath}\n`)
+        output += `\n> Import not found: ${importPath}\n`
         continue
       }
 
@@ -115,13 +148,15 @@ export async function preprocessImportsAsync(
       const nextChain = [...chain, resolved]
       const inlined = await inline(imported.replace(/\r\n/g, '\n'), depth + 1, nextChain)
       seen.delete(resolved)
-      output = output.replace(match[0], `\n${inlined}\n`)
+      output += `\n${inlined}\n`
     }
+    output += current.slice(cursor)
 
     return output
   }
 
-  return inline(markdown.replace(/\r\n/g, '\n'), 1, basePath ? [vaultNormalize(basePath)] : [])
+  const normalizedBase = basePath ? vaultNormalize(basePath) : null
+  return inline(markdown.replace(/\r\n/g, '\n'), 1, normalizedBase ? [normalizedBase] : [])
 }
 
 /** Remark plugin hook point — imports are expanded in {@link preprocessImports}. */

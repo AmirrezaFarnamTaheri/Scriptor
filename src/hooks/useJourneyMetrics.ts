@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 export interface JourneySnapshot {
   vaultOpenedAt: number | null
@@ -49,6 +49,9 @@ export function useJourneyMetrics() {
   const update = useCallback((updater: (current: JourneySnapshot) => JourneySnapshot) => {
     setSnapshot((current) => {
       const next = updater(current)
+      if (next === current) {
+        return current
+      }
       persist(next)
       return next
     })
@@ -118,15 +121,28 @@ export function useJourneyMetrics() {
       ? snapshot.firstExportAt - snapshot.vaultOpenedAt
       : null
 
-  return {
-    snapshot,
-    markVaultOpen,
-    markFirstEdit,
-    markExport,
-    markIndexRebuild,
-    recordPanelOpen,
-    reset,
-    timeToFirstEditMs,
-    timeToFirstExportMs,
-  }
+  return useMemo(
+    () => ({
+      snapshot,
+      markVaultOpen,
+      markFirstEdit,
+      markExport,
+      markIndexRebuild,
+      recordPanelOpen,
+      reset,
+      timeToFirstEditMs,
+      timeToFirstExportMs,
+    }),
+    [
+      snapshot,
+      markVaultOpen,
+      markFirstEdit,
+      markExport,
+      markIndexRebuild,
+      recordPanelOpen,
+      reset,
+      timeToFirstEditMs,
+      timeToFirstExportMs,
+    ],
+  )
 }

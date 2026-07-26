@@ -18,8 +18,8 @@ pub fn resolve_daemon_binary() -> PathBuf {
         return PathBuf::from(path);
     }
 
-    if let Ok(exe) = std::env::current_exe() {
-        if let Some(parent) = exe.parent() {
+    if let Ok(exe) = std::env::current_exe()
+        && let Some(parent) = exe.parent() {
             let candidates = if cfg!(windows) {
                 ["scriptor-daemon.exe", "../scriptor-daemon.exe", "../../scriptor-daemon.exe"]
             } else {
@@ -32,7 +32,6 @@ pub fn resolve_daemon_binary() -> PathBuf {
                 }
             }
         }
-    }
 
     if cfg!(windows) {
         PathBuf::from("scriptor-daemon.exe")

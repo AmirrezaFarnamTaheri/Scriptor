@@ -16,7 +16,10 @@ RUN corepack enable
 
 WORKDIR /workspace
 
+# Fetch dependencies first so this layer is cached unless the lockfile changes.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
+
 COPY apps ./apps
 COPY crates ./crates
 COPY packages ./packages
@@ -29,6 +32,6 @@ COPY vite.config.ts ./
 COPY eslint.config.js ./
 COPY Cargo.toml Cargo.lock ./
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --offline
 
 CMD ["bash", "-lc", "pnpm build && cargo run -p scriptor-cli -- system-info"]

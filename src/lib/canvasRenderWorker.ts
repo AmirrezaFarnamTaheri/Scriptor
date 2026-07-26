@@ -2,6 +2,7 @@ import type { CanvasRenderWorkerRequest, CanvasRenderWorkerResponse } from '../w
 
 let worker: Worker | null = null
 let nextId = 0
+const REQUEST_TIMEOUT_MS = 20_000
 
 function getWorker(): Worker {
   if (!worker) {
@@ -15,17 +16,24 @@ export function svgToDataUrlInWorker(svg: string): Promise<string> {
   const instance = getWorker()
 
   return new Promise((resolve, reject) => {
-    const onMessage = (event: MessageEvent<CanvasRenderWorkerResponse>) => {
-      if (event.data.id !== id) return
+    function settle() {
+      window.clearTimeout(timeoutId)
       instance.removeEventListener('message', onMessage)
       instance.removeEventListener('error', onError)
+    }
+    function onMessage(event: MessageEvent<CanvasRenderWorkerResponse>) {
+      if (event.data.id !== id) return
+      settle()
       resolve(event.data.dataUrl)
     }
-    const onError = (event: ErrorEvent) => {
-      instance.removeEventListener('message', onMessage)
-      instance.removeEventListener('error', onError)
+    function onError(event: ErrorEvent) {
+      settle()
       reject(event.error ?? new Error(event.message))
     }
+    const timeoutId = window.setTimeout(() => {
+      settle()
+      reject(new Error('canvas render worker timed out'))
+    }, REQUEST_TIMEOUT_MS)
     instance.addEventListener('message', onMessage)
     instance.addEventListener('error', onError)
     const payload: CanvasRenderWorkerRequest = { id, svg }

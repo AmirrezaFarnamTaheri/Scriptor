@@ -41,14 +41,13 @@ jobs:
             arch: aarch64
             targets: dmg
             artifact: scriptor-macos-arm64-installers
+            cargo_target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -60,9 +59,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: |
-            apps/desktop/src-tauri
-            .
+          workspaces: "."
 
       - name: Install Linux dependencies
         if: matrix.platform == 'linux'
@@ -86,6 +83,11 @@ jobs:
         shell: bash
         run: rustup target add aarch64-apple-darwin
 
+      - name: Set cargo build target
+        if: matrix.cargo_target != ''
+        shell: bash
+        run: echo "CARGO_BUILD_TARGET=${{ matrix.cargo_target }}" >> "$GITHUB_ENV"
+
       - name: Import Apple signing certificate
         if: matrix.platform == 'macos'
         shell: bash
@@ -101,8 +103,8 @@ jobs:
           security create-keychain -p actions "$KEYCHAIN"
           security default-keychain -s "$KEYCHAIN"
           security unlock-keychain -p actions "$KEYCHAIN"
-          echo "$APPLE_CERTIFICATE" | base64 --decode > certificate.p12
-          security import certificate.p12 -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
 
       - name: Configure macOS signing
@@ -131,7 +133,6 @@ jobs:
       - name: Tauri bundle (${{ matrix.platform }}-${{ matrix.arch }})
         env:
           TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
-          CARGO_BUILD_TARGET: ${{ matrix.platform == 'macos' && 'aarch64-apple-darwin' || '' }}
         run: pnpm --dir apps/desktop build
 
       - name: Upload installers
@@ -140,6 +141,13 @@ jobs:
           name: ${{ matrix.artifact }}
           path: target/**/release/bundle/**/*
           if-no-files-found: error
+
+      - name: Clean up Apple signing material
+        if: always() && matrix.platform == 'macos'
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security delete-keychain build.keychain 2>/dev/null || true
 
   publish:
     needs: build

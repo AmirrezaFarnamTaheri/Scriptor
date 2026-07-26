@@ -8,7 +8,7 @@ import { preprocessWikilinks } from './preprocess.ts'
 import { renderMarkdownPipeline } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
 import { findPreviewAnchor } from './scroll-sync.ts'
-import { preprocessImports } from './remark-import.ts'
+import { preprocessImports, preprocessImportsAsync } from './remark-import.ts'
 import { preprocessWikilinkEmbeds } from './remark-wikilink-embed.ts'
 import { parseMpeAttributes } from './remark-mpe-code-chunks.ts'
 
@@ -49,6 +49,49 @@ test('preprocessImports inlines markdown with depth and cycle guards', () => {
   assert.match(cyclic, /Circular import detected/)
 })
 
+test('preprocessImportsAsync inserts imported text literally', async () => {
+  const notes = new Map<string, string>([
+    ['notes/math.md', 'Cost is $$x^2$$ and pattern $& stays $1 literal'],
+  ])
+  const out = await preprocessImportsAsync('@import "math.md"\n\nAfter', {
+    fetchNote: async (path) => notes.get(path) ?? null,
+    basePath: 'notes/main.md',
+  })
+  assert.match(out, /Cost is \$\$x\^2\$\$ and pattern \$& stays \$1 literal/)
+  assert.match(out, /After/)
+})
+
+test('import paths may not escape the vault or reference URLs', async () => {
+  const fetched: string[] = []
+  const fetchNote = (path: string) => {
+    fetched.push(path)
+    return null
+  }
+  const traversal = preprocessImports('@import "../../etc/passwd"', {
+    fetchNote,
+    basePath: 'notes/main.md',
+  })
+  assert.match(traversal, /Import path not allowed/)
+
+  const absolute = preprocessImports('@import "/etc/passwd"', { fetchNote })
+  assert.match(absolute, /Import path not allowed/)
+
+  const url = await preprocessImportsAsync('@import "https://evil.example/x.md"', {
+    fetchNote: async (path) => {
+      fetched.push(path)
+      return null
+    },
+  })
+  assert.match(url, /Import path not allowed/)
+  assert.deepEqual(fetched, [])
+
+  const inVault = preprocessImports('@import "../sibling.md"', {
+    fetchNote: (path) => (path === 'sibling.md' ? 'Sibling body' : null),
+    basePath: 'notes/main.md',
+  })
+  assert.match(inVault, /Sibling body/)
+})
+
 test('pipeline inlines @import when fetchNote is provided', () => {
   const html = renderMarkdownPipeline('@import "part.md"\n\nAfter', {
     fetchNote: (path) => (path.endsWith('part.md') ? 'Imported **bold**' : null),
@@ -83,12 +126,28 @@ test('pipeline renders markup highlight and underline', () => {
   assert.match(html, /class="markup-underline"[^>]*>emphasis<\/span>/)
 })
 
-test('pipeline renders [TOC] from headings', () => {
+test('pipeline renders [TOC] with anchors that match emitted heading ids', () => {
   const html = renderMarkdownPipeline('# Title\n\n[TOC]\n\n## Section\n\n### Detail')
   assert.match(html, /class="markdown-toc"/)
-  assert.match(html, /href="#section"/)
   assert.match(html, />Section</)
   assert.match(html, />Detail</)
+  const hrefs = [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1])
+  assert.ok(hrefs.length >= 3, 'TOC should link every heading')
+  for (const href of hrefs) {
+    assert.match(html, new RegExp(`<h[1-6][^>]*\\bid="${href}"`), `anchor #${href} should resolve`)
+  }
+})
+
+test('pipeline TOC anchors survive duplicate and unicode headings', () => {
+  const html = renderMarkdownPipeline('[TOC]\n\n## Notes\n\n## Notes\n\n## Café π')
+  const hrefs = [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1])
+  assert.equal(new Set(hrefs).size, 3, 'duplicate headings should get de-duplicated anchors')
+  assert.ok(hrefs.some((href) => href.endsWith('notes')))
+  assert.ok(hrefs.some((href) => href.endsWith('notes-1')))
+  assert.ok(hrefs.some((href) => href.endsWith('café-π')))
+  for (const href of hrefs) {
+    assert.match(html, new RegExp(`<h2[^>]*\\bid="${href}"`), `anchor #${href} should resolve`)
+  }
 })
 
 test('pipeline renders ```math fences with KaTeX', () => {

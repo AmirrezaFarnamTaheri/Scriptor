@@ -72,3 +72,7 @@ apps/desktop/src-tauri/WixTools/
 # Merge / patch artifacts
 *.orig
 *.rej
+
+# SQLite transient WAL/SHM churn from fixture test runs
+*.sqlite-wal
+*.sqlite-shm

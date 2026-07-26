@@ -194,6 +194,12 @@ function App() {
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
   const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
   const journey = useJourneyMetrics()
+  const {
+    markVaultOpen: journeyMarkVaultOpen,
+    markIndexRebuild: journeyMarkIndexRebuild,
+    markExport: journeyMarkExport,
+    recordPanelOpen: journeyRecordPanelOpen,
+  } = journey
   const { presentation: panelPresentation, setPresentation: setPanelPresentation } = usePanelPresentation()
   const [inspectorPreset, setInspectorPreset] = useState<InspectorPreset>(() => readInspectorPreset())
   const [bibliographyRaw, setBibliographyRaw] = useState<BibliographyEntry[]>([])
@@ -269,6 +275,12 @@ function App() {
     () => window.localStorage.getItem('scriptor:perf-hud') === 'true',
   )
   const perfMetrics = usePerfMetrics()
+  const {
+    markVaultOpenStart: perfMarkVaultOpenStart,
+    markVaultOpenEnd: perfMarkVaultOpenEnd,
+    setWorkspaceCounts: perfSetWorkspaceCounts,
+    setGraphNodeCount: perfSetGraphNodeCount,
+  } = perfMetrics
   const [frontmatterOpen, setFrontmatterOpen] = useState(false)
   const [vaultTags, setVaultTags] = useState<string[]>([])
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
@@ -313,11 +325,12 @@ function App() {
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
   const recentVaults = useRecentVaults()
+  const rememberRecentVault = recentVaults.remember
   useEffect(() => {
     if (workspace.vault?.root_path) {
-      recentVaults.remember(workspace.vault.root_path)
+      rememberRecentVault(workspace.vault.root_path)
     }
-  }, [recentVaults, workspace.vault?.root_path])
+  }, [rememberRecentVault, workspace.vault?.root_path])
   const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph, activeNote } = workspace
 
   useEffect(() => {
@@ -639,21 +652,21 @@ function App() {
 
   useEffect(() => {
     if (workspace.vault) {
-      journey.markVaultOpen()
+      journeyMarkVaultOpen()
     }
-  }, [workspace.vault?.id, journey])
+  }, [workspace.vault?.id, journeyMarkVaultOpen])
 
   useEffect(() => {
     if (workspace.lastRebuildMs != null) {
-      journey.markIndexRebuild(workspace.lastRebuildMs)
+      journeyMarkIndexRebuild(workspace.lastRebuildMs)
     }
-  }, [workspace.lastRebuildMs, journey])
+  }, [workspace.lastRebuildMs, journeyMarkIndexRebuild])
 
   useEffect(() => {
     if (workspace.exportResult) {
-      journey.markExport()
+      journeyMarkExport()
     }
-  }, [workspace.exportResult?.artifact_path, journey])
+  }, [workspace.exportResult?.artifact_path, journeyMarkExport])
 
   useEffect(() => {
     const layout = layouts[workspaceMode]
@@ -664,17 +677,17 @@ function App() {
   }, [workspaceMode, layouts])
 
   useEffect(() => {
-    if (gitPanelOpen) journey.recordPanelOpen('git')
-  }, [gitPanelOpen, journey])
+    if (gitPanelOpen) journeyRecordPanelOpen('git')
+  }, [gitPanelOpen, journeyRecordPanelOpen])
   useEffect(() => {
-    if (mcpPanelOpen) journey.recordPanelOpen('mcp')
-  }, [mcpPanelOpen, journey])
+    if (mcpPanelOpen) journeyRecordPanelOpen('mcp')
+  }, [mcpPanelOpen, journeyRecordPanelOpen])
   useEffect(() => {
-    if (portalOpen) journey.recordPanelOpen('portal')
-  }, [portalOpen, journey])
+    if (portalOpen) journeyRecordPanelOpen('portal')
+  }, [portalOpen, journeyRecordPanelOpen])
   useEffect(() => {
-    if (knowledgeWorkbenchOpen) journey.recordPanelOpen('workbench')
-  }, [knowledgeWorkbenchOpen, journey])
+    if (knowledgeWorkbenchOpen) journeyRecordPanelOpen('workbench')
+  }, [knowledgeWorkbenchOpen, journeyRecordPanelOpen])
 
   useEffect(() => {
     if (!nativeReady || !workspace.vault) {
@@ -706,20 +719,20 @@ function App() {
 
   useEffect(() => {
     if (workspace.status === 'opening') {
-      perfMetrics.markVaultOpenStart()
+      perfMarkVaultOpenStart()
     }
     if (workspace.status === 'ready') {
-      perfMetrics.markVaultOpenEnd()
+      perfMarkVaultOpenEnd()
     }
-  }, [workspace.status, perfMetrics])
+  }, [workspace.status, perfMarkVaultOpenStart, perfMarkVaultOpenEnd])
 
   useEffect(() => {
-    perfMetrics.setWorkspaceCounts(workspace.openTabs.length, workspace.sections.length)
-  }, [workspace.openTabs.length, workspace.sections.length, perfMetrics])
+    perfSetWorkspaceCounts(workspace.openTabs.length, workspace.sections.length)
+  }, [workspace.openTabs.length, workspace.sections.length, perfSetWorkspaceCounts])
 
   useEffect(() => {
-    perfMetrics.setGraphNodeCount(workspace.graph?.nodes.length ?? null)
-  }, [workspace.graph?.nodes.length, perfMetrics])
+    perfSetGraphNodeCount(workspace.graph?.nodes.length ?? null)
+  }, [workspace.graph?.nodes.length, perfSetGraphNodeCount])
 
   const draftWordCount = useMemo(() => countWords(workspace.draftMarkdown), [workspace.draftMarkdown])
   const savedWordCount = workspace.activeNote?.metadata.word_count ?? 0

@@ -10,11 +10,12 @@ type HeadingInfo = {
 export function remarkToc() {
   return (tree: Parameters<typeof visit>[0]) => {
     const headings: HeadingInfo[] = []
+    const slugger = createSlugger()
 
     visit(tree, 'heading', (node: { depth: number; children: unknown[] }) => {
       const text = collectText(node.children).trim()
       if (text.length === 0) return
-      headings.push({ depth: node.depth, text, id: slugify(text) })
+      headings.push({ depth: node.depth, text, id: slugger(text) })
     })
 
     visit(
@@ -48,6 +49,12 @@ function collectText(children: unknown[]): string {
   return text
 }
 
+/**
+ * rehype-sanitize clobbers `id` attributes with this prefix, so TOC anchors
+ * must target the prefixed ids to resolve after sanitization.
+ */
+export const HEADING_ANCHOR_PREFIX = 'user-content-'
+
 function renderToc(headings: HeadingInfo[]): string {
   if (headings.length === 0) {
     return '<nav class="markdown-toc" aria-label="Table of contents"><p class="markdown-toc-empty">No headings</p></nav>'
@@ -56,18 +63,33 @@ function renderToc(headings: HeadingInfo[]): string {
   const items = headings
     .map(
       (heading) =>
-        `<li class="markdown-toc-item markdown-toc-depth-${heading.depth}"><a href="#${escapeAttr(heading.id)}">${escapeHtml(heading.text)}</a></li>`,
+        `<li class="markdown-toc-item markdown-toc-depth-${heading.depth}"><a href="#${escapeAttr(`${HEADING_ANCHOR_PREFIX}${heading.id}`)}">${escapeHtml(heading.text)}</a></li>`,
     )
     .join('')
   return `<nav class="markdown-toc" aria-label="Table of contents"><ul class="markdown-toc-list">${items}</ul></nav>`
 }
 
-function slugify(value: string): string {
+export function slugify(value: string): string {
   return value
     .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
+    .replace(/[^\p{L}\p{N}\s-]/gu, '')
     .trim()
     .replace(/\s+/g, '-')
+}
+
+/**
+ * Stateful slug generator that de-duplicates colliding ids with -1/-2 suffixes.
+ * Used by both the `[TOC]` renderer and the heading-id rehype plugin so anchors
+ * and heading ids always agree.
+ */
+export function createSlugger(): (text: string) => string {
+  const counts = new Map<string, number>()
+  return (text: string) => {
+    const base = slugify(text)
+    const count = counts.get(base) ?? 0
+    counts.set(base, count + 1)
+    return count === 0 ? base : `${base}-${count}`
+  }
 }
 
 function escapeHtml(value: string): string {

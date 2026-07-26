@@ -4,8 +4,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Invoke-Checked {
+    param([string]$File, [string[]]$Arguments)
+    & $File @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $File $Arguments"
+    }
+}
+
 Write-Host "Building container image $Tag"
-docker build -t $Tag .
+Invoke-Checked docker @("build", "-t", $Tag, ".")
 
 Write-Host "Running container smoke"
-docker run --rm $Tag
+Invoke-Checked docker @("run", "--rm", $Tag)

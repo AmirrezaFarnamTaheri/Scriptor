@@ -18,13 +18,11 @@ const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--variable=",
     "--reference-doc=",
     "--template=",
-    "--lua-filter=",
-    "--filter=",
     "--slide-level=",
     "--highlight-style=",
 ];
 
-const ALLOWED_VALUE_FLAGS: &[&str] = &["-t", "--metadata", "--filter", "--lua-filter", "--variable"];
+const ALLOWED_VALUE_FLAGS: &[&str] = &["-t", "--metadata", "--variable"];
 
 fn contains_shell_metachar(value: &str) -> bool {
     value.contains(['&', '|', ';', '`', '\n', '\r'])
@@ -55,10 +53,9 @@ fn validate_flag_token(arg: &str) -> Result<bool, ExportError> {
     if ALLOWED_VALUE_FLAGS.iter().any(|flag| flag == &arg) {
         return Ok(true);
     }
-    // Pandoc format targets and slide-level values appear as bare tokens after -t / --slide-level.
-    if !arg.starts_with('-') {
-        return Ok(false);
-    }
+    // Bare (non-dash) tokens are only permitted as the value immediately following
+    // an allowed value flag (handled by the caller); anywhere else they would be
+    // passed to pandoc as extra input files, so reject them here.
     Err(ExportError::DisallowedArg(arg.to_string()))
 }
 
@@ -87,6 +84,27 @@ mod tests {
     fn rejects_output_escape() {
         let error = validate_extra_args(&["--output=/tmp/x".into()]).unwrap_err();
         assert!(error.to_string().contains("disallowed"));
+    }
+
+    #[test]
+    fn rejects_filter_flags() {
+        assert!(validate_extra_args(&["--filter=/tmp/evil.py".into()]).is_err());
+        assert!(validate_extra_args(&["--lua-filter=evil.lua".into()]).is_err());
+        assert!(validate_extra_args(&["--filter".into(), "evil.py".into()]).is_err());
+        assert!(validate_extra_args(&["--lua-filter".into(), "evil.lua".into()]).is_err());
+    }
+
+    #[test]
+    fn rejects_bare_tokens_outside_value_position() {
+        assert!(validate_extra_args(&["extra-input.md".into()]).is_err());
+        assert!(validate_extra_args(&["--standalone".into(), "extra-input.md".into()]).is_err());
+        assert!(validate_extra_args(&["--slide-level=2".into(), "extra-input.md".into()]).is_err());
+    }
+
+    #[test]
+    fn allows_bare_token_as_value_of_value_flag() {
+        validate_extra_args(&["-t".into(), "revealjs".into()]).expect("format target value");
+        validate_extra_args(&["--variable".into(), "theme:moon".into()]).expect("variable value");
     }
 
     #[test]

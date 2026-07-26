@@ -16,7 +16,7 @@ impl RelativeVaultPath {
         &self.0
     }
 
-    pub fn resolve<'a>(&self, root: &'a VaultRoot) -> Result<PathBuf, VaultError> {
+    pub fn resolve(&self, root: &VaultRoot) -> Result<PathBuf, VaultError> {
         root.resolve_relative(self)
     }
 }

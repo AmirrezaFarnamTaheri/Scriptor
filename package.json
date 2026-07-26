@@ -2,8 +2,17 @@
   "name": "scriptor",
   "description": "Scriptor — local-first Markdown knowledge workspace",
   "private": true,
+  "pnpm": {
+    "overrides": {
+      "dompurify": ">=3.4.12"
+    }
+  },
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
   "license": "AGPL-3.0-or-later",
   "author": "Amirreza \"Farnam\" Taheri <taherifarnam@gmail.com>",
   "homepage": "https://github.com/AmirrezaFarnamTaheri/Scriptor",

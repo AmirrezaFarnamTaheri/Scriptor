@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 export interface PerfMetricsSnapshot {
   vaultOpenMs: number | null
@@ -43,12 +43,15 @@ export function usePerfMetrics() {
     setMetrics((current) => ({ ...current, graphNodeCount }))
   }, [])
 
-  return {
-    metrics,
-    markVaultOpenStart,
-    markVaultOpenEnd,
-    recordSearchMs,
-    setWorkspaceCounts,
-    setGraphNodeCount,
-  }
+  return useMemo(
+    () => ({
+      metrics,
+      markVaultOpenStart,
+      markVaultOpenEnd,
+      recordSearchMs,
+      setWorkspaceCounts,
+      setGraphNodeCount,
+    }),
+    [metrics, markVaultOpenStart, markVaultOpenEnd, recordSearchMs, setWorkspaceCounts, setGraphNodeCount],
+  )
 }

@@ -49,6 +49,26 @@ test('analyzeFrontmatter flags lines without key separator', () => {
   assert.equal(analysis.warningLines[0], 2)
 })
 
+test('analyzeFrontmatter accepts block sequences and indented continuations', () => {
+  const markdown = ['---', 'tags:', '  - one', '  - two', 'title: >', '  folded text', '---', ''].join('\n')
+  const analysis = analyzeFrontmatter(markdown)
+  assert.equal(analysis.valid, true)
+  assert.deepEqual(analysis.warningLines, [])
+})
+
+test('analyzeFrontmatter tolerates trailing space on the closing delimiter', () => {
+  const markdown = ['---', 'title: Hello', '--- ', ''].join('\n')
+  const analysis = analyzeFrontmatter(markdown)
+  assert.equal(analysis.valid, true)
+  assert.notEqual(analysis.error, 'unterminated frontmatter')
+})
+
+test('analyzeFrontmatter validates documents with a leading BOM', () => {
+  const analysis = analyzeFrontmatter('\uFEFF---\ntitle Hello\n---\n')
+  assert.equal(analysis.valid, false)
+  assert.deepEqual(analysis.warningLines, [2])
+})
+
 test('wrapSelectionText wraps with markers', () => {
   assert.equal(wrapSelectionText('Hello', '**'), '**Hello**')
 })
@@ -236,4 +256,45 @@ test('generateLinkReferenceDefinitions appends placeholder definitions', () => {
   const markdown = 'See [note-label] for details.'
   const next = generateLinkReferenceDefinitions(markdown)
   assert.match(next, /\[note-label\]:\s+note-label\.md/)
+})
+
+test('link reference rules ignore task-list checkboxes', () => {
+  const markdown = ['# Tasks', '', '- [x] done item', '- [ ] open item', '1. [X] numbered done', ''].join('\n')
+  const messages = lintLinkReferences(markdown)
+  assert.equal(messages.filter((message) => message.ruleId === 'foam-missing-reference').length, 0)
+  assert.equal(generateLinkReferenceDefinitions(markdown), markdown)
+})
+
+test('link reference rules skip fenced code regions', () => {
+  const markdown = ['Text', '', '```', 'array[index] and [not-a-ref]', '```', ''].join('\n')
+  const messages = lintLinkReferences(markdown)
+  assert.equal(messages.filter((message) => message.ruleId === 'foam-missing-reference').length, 0)
+  assert.equal(generateLinkReferenceDefinitions(markdown), markdown)
+})
+
+import { replaceDelimited } from './typography-transforms.ts'
+
+test('replaceDelimited keeps delimiter parity when text starts with the delimiter', () => {
+  assert.equal(replaceDelimited("'", '"')("'hello'"), '"hello"')
+  assert.equal(replaceDelimited('`', '"')('`hello` and `world`'), '"hello" and "world"')
+  assert.equal(replaceDelimited('"', '*')('"hello"'), '*hello*')
+})
+
+import { findSiblingIndex, sectionRange } from './move-section.ts'
+import type { TocEntry } from './toc-field.ts'
+
+test('move-section targets siblings, skipping child headings', () => {
+  // ## A (pos 0) / ### A1 (pos 20) / ## B (pos 40) in a 60-char doc
+  const entries = [
+    { line: 1, pos: 0, text: 'A', level: 2, renderedLevel: '1', id: 'a' },
+    { line: 3, pos: 20, text: 'A1', level: 3, renderedLevel: '1.1', id: 'a1' },
+    { line: 5, pos: 40, text: 'B', level: 2, renderedLevel: '2', id: 'b' },
+  ] satisfies TocEntry[]
+  assert.equal(findSiblingIndex(entries, 0, 1), 2)
+  assert.equal(findSiblingIndex(entries, 2, -1), 0)
+  assert.equal(findSiblingIndex(entries, 1, 1), -1)
+  assert.equal(findSiblingIndex(entries, 1, -1), -1)
+  assert.deepEqual(sectionRange(entries, 0, 60), { from: 0, to: 40 })
+  assert.deepEqual(sectionRange(entries, 1, 60), { from: 20, to: 40 })
+  assert.deepEqual(sectionRange(entries, 2, 60), { from: 40, to: 60 })
 })

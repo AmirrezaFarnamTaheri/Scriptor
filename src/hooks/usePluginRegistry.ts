@@ -91,6 +91,7 @@ export function usePluginRegistry(vaultOpen: boolean) {
 
   const snapshot = useMemo(() => registry.getSnapshot(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
   const enabledPlugins = useMemo(() => registry.listEnabled(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
+  const plugins = useMemo(() => registry.listAll(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
   const contributions = useMemo(() => collectContributions(enabledPlugins), [enabledPlugins])
   const pluginHosts = useMemo(
     () =>
@@ -179,7 +180,7 @@ export function usePluginRegistry(vaultOpen: boolean) {
     setPluginEnabled,
     installFromMarketplace,
     marketplaceCatalog,
-    plugins: registry.listAll(),
+    plugins,
     manifestsReady,
   }
 }

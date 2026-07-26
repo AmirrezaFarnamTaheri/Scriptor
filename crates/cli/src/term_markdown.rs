@@ -94,8 +94,7 @@ pub fn render_markdown_lines(markdown: &str, width: usize, max_lines: usize, scr
                 }
             }
             Event::Code(text) => {
-                let style = if in_code_block { CODE } else { CODE };
-                current.push(Span::styled(text.to_string(), style));
+                current.push(Span::styled(text.to_string(), CODE));
             }
             Event::Start(Tag::Emphasis) => {
                 emphasis_depth += 1;

@@ -5,9 +5,40 @@ export interface DiffLine {
   newLine?: number
 }
 
+function buildOccurrenceMap(lines: string[]): Map<string, number[]> {
+  const map = new Map<string, number[]>()
+  for (let index = 0; index < lines.length; index += 1) {
+    const existing = map.get(lines[index])
+    if (existing) {
+      existing.push(index)
+    } else {
+      map.set(lines[index], [index])
+    }
+  }
+  return map
+}
+
+function nextOccurrence(occurrences: Map<string, number[]>, line: string, fromIndex: number): number {
+  const positions = occurrences.get(line)
+  if (!positions) return -1
+  let low = 0
+  let high = positions.length
+  while (low < high) {
+    const mid = (low + high) >> 1
+    if (positions[mid] < fromIndex) {
+      low = mid + 1
+    } else {
+      high = mid
+    }
+  }
+  return low < positions.length ? positions[low] : -1
+}
+
 export function buildLineDiff(before: string, after: string): DiffLine[] {
   const left = before.split('\n')
   const right = after.split('\n')
+  const leftOccurrences = buildOccurrenceMap(left)
+  const rightOccurrences = buildOccurrenceMap(right)
   const rows: DiffLine[] = []
 
   let leftIndex = 0
@@ -36,8 +67,8 @@ export function buildLineDiff(before: string, after: string): DiffLine[] {
       continue
     }
 
-    const nextLeftInRight = right.indexOf(leftLine, rightIndex + 1)
-    const nextRightInLeft = left.indexOf(rightLine, leftIndex + 1)
+    const nextLeftInRight = nextOccurrence(rightOccurrences, leftLine, rightIndex + 1)
+    const nextRightInLeft = nextOccurrence(leftOccurrences, rightLine, leftIndex + 1)
 
     if (nextLeftInRight !== -1 && (nextRightInLeft === -1 || nextLeftInRight - rightIndex <= nextRightInLeft - leftIndex)) {
       rows.push({ kind: 'add', text: rightLine, newLine: rightIndex + 1 })

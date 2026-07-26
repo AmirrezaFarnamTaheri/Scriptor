@@ -266,14 +266,13 @@ fn cleanup_transaction(root: &VaultRoot, txn: &RenameTransactionManifest) -> Res
     }
     let _ = fs::remove_file(manifest_path(root));
     let dir = txn_dir(root);
-    if dir.is_dir() {
-        if fs::read_dir(&dir)
+    if dir.is_dir()
+        && fs::read_dir(&dir)
             .map(|mut entries| entries.next().is_none())
             .unwrap_or(false)
         {
             let _ = fs::remove_dir(&dir);
         }
-    }
     Ok(())
 }
 

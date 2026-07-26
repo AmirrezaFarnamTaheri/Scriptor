@@ -1,14 +1,17 @@
-import { type EditorSelection, type StateCommand, type Transaction } from '@codemirror/state'
+import type { StateCommand } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
 export type TransformText = (text: string) => string
 
 function delimit(delimiter: string): (text: string) => string[] {
   const pattern = new RegExp(`(${delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g')
-  return (text: string) => text.split(pattern).filter(Boolean)
+  // Splitting on a capture group keeps delimiters at odd indices and content
+  // (possibly empty) at even indices. Dropping empty chunks would shift that
+  // parity, so they are preserved and rejoin as empty strings.
+  return (text: string) => text.split(pattern)
 }
 
-function replaceDelimited(delimiter: string, replacement: string): TransformText {
+export function replaceDelimited(delimiter: string, replacement: string): TransformText {
   return (text: string) => {
     const chunks = delimit(delimiter)(text)
     return chunks
@@ -107,7 +110,7 @@ export function toSentenceCase(locale = 'en'): StateCommand {
 }
 
 export function quotesToItalics(marker: '*' | '_' = '*'): StateCommand {
-  return transformSelectedText(replaceDelimited('"', `${marker}$1${marker}`.replace('$1', '')))
+  return transformSelectedText(replaceDelimited('"', marker))
 }
 
 export const italicsToQuotes: StateCommand = transformSelectedText((text) =>
@@ -152,25 +155,4 @@ export function applyTypographyAction(view: EditorView, action: TypographyAction
     state: view.state,
     dispatch: (transaction) => view.dispatch(transaction),
   })
-}
-
-export function composeTypographyChanges(
-  ranges: readonly EditorSelection['ranges'][number][],
-  doc: string,
-  action: TypographyAction,
-  locale = 'en',
-): Transaction | null {
-  const transform = (text: string): string => {
-    const view = { state: { sliceDoc: () => text } } as unknown as EditorView
-    applyTypographyAction(view, action, locale)
-    return text
-  }
-  const changes = ranges
-    .map((range) => {
-      const slice = doc.slice(range.from, range.to)
-      const next = transform(slice)
-      return next !== slice ? { from: range.from, to: range.to, insert: next } : null
-    })
-    .filter(Boolean) as { from: number; to: number; insert: string }[]
-  return changes.length ? { changes } as unknown as Transaction : null
 }

@@ -46,9 +46,9 @@ fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), Expor
             "absolute path not allowed for file reference arg: {path}"
         )));
     }
-    let candidate = vault_root.join(p);
-    let normalized = normalize_theme_path(&candidate);
     let canonical_root = vault_root.canonicalize().unwrap_or_else(|_| vault_root.to_path_buf());
+    let candidate = canonical_root.join(p);
+    let normalized = normalize_theme_path(&candidate);
     if !normalized.starts_with(&canonical_root) {
         return Err(ExportError::DisallowedArg(format!(
             "path escapes vault root: {path}"
@@ -80,55 +80,40 @@ pub fn resolve_extra_args(
     let mut resolved = Vec::with_capacity(extra_args.len());
     for arg in extra_args {
         if let Some(css_path) = arg.strip_prefix("--css=") {
+            validate_path_within_vault(vault_root, css_path)?;
             let path = Path::new(css_path);
-            let absolute = if path.is_absolute() {
-                path.to_path_buf()
+            let candidate = output_dir.join(path);
+            let absolute = if candidate.exists() {
+                candidate
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "export-theme.css")
+            {
+                materialize_export_theme(output_dir)?
             } else {
-                let candidate = output_dir.join(path);
-                if candidate.exists() {
-                    candidate
-                } else if path
-                    .file_name()
-                    .is_some_and(|name| name == "export-theme.css")
-                {
-                    materialize_export_theme(output_dir)?
-                } else {
-                    candidate
-                }
+                candidate
             };
             resolved.push(format!("--css={}", absolute.display()));
         } else if let Some(bib_path) = arg.strip_prefix("--bibliography=") {
+            validate_path_within_vault(vault_root, bib_path)?;
             let path = Path::new(bib_path);
             let absolute = resolve_vault_relative(vault_root, output_dir, path);
             resolved.push(format!("--bibliography={}", absolute.display()));
         } else if let Some(csl_path) = arg.strip_prefix("--csl=") {
+            validate_path_within_vault(vault_root, csl_path)?;
             let path = Path::new(csl_path);
-            let absolute = if path.is_absolute() {
-                path.to_path_buf()
+            let candidate = resolve_vault_relative(vault_root, output_dir, path);
+            let absolute = if candidate.exists() {
+                candidate
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "apa-lite.csl")
+            {
+                materialize_default_csl(output_dir)?
             } else {
-                let candidate = resolve_vault_relative(vault_root, output_dir, path);
-                if candidate.exists() {
-                    candidate
-                } else if path
-                    .file_name()
-                    .is_some_and(|name| name == "apa-lite.csl")
-                {
-                    materialize_default_csl(output_dir)?
-                } else {
-                    candidate
-                }
+                candidate
             };
             resolved.push(format!("--csl={}", absolute.display()));
-        } else if let Some(filter_path) = arg.strip_prefix("--lua-filter=") {
-            validate_path_within_vault(vault_root, filter_path)?;
-            let path = Path::new(filter_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
-            resolved.push(format!("--lua-filter={}", absolute.display()));
-        } else if let Some(filter_path) = arg.strip_prefix("--filter=") {
-            validate_path_within_vault(vault_root, filter_path)?;
-            let path = Path::new(filter_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
-            resolved.push(format!("--filter={}", absolute.display()));
         } else if let Some(ref_path) = arg.strip_prefix("--reference-doc=") {
             validate_path_within_vault(vault_root, ref_path)?;
             let path = Path::new(ref_path);
@@ -210,6 +195,39 @@ mod tests {
         let csl_path = PathBuf::from(csl.trim_start_matches("--csl="));
         assert!(csl_path.is_absolute());
         assert!(csl_path.exists());
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn rejects_absolute_and_traversal_file_reference_args() {
+        let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).expect("vault dir");
+
+        for arg in [
+            "--css=/etc/passwd",
+            "--css=../outside.css",
+            "--bibliography=/etc/passwd",
+            "--bibliography=../../outside.bib",
+            "--csl=/etc/passwd",
+            "--csl=a/../../outside.csl",
+        ] {
+            let result = resolve_extra_args(&vault, &vault, &[arg.to_string()]);
+            assert!(result.is_err(), "expected rejection for {arg}");
+        }
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn rejects_filter_args_entirely() {
+        let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).expect("vault dir");
+
+        for arg in ["--filter=inside.py", "--lua-filter=inside.lua"] {
+            let result = resolve_extra_args(&vault, &vault, &[arg.to_string()]);
+            assert!(result.is_err(), "expected rejection for {arg}");
+        }
 
         let _ = fs::remove_dir_all(&vault);
     }

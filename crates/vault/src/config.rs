@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
+use crate::path::{RelativeVaultPath, VaultRoot};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DailyNoteConfig {
@@ -29,7 +30,7 @@ pub struct ExportConfig {
     pub export_on_save: ExportOnSaveConfig,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExportOnSaveConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -100,18 +101,10 @@ impl Default for InboxConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WorkflowConfig {
     #[serde(default)]
     pub auto_advance_inbox_after_organize: bool,
-}
-
-impl Default for WorkflowConfig {
-    fn default() -> Self {
-        Self {
-            auto_advance_inbox_after_organize: false,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -178,16 +171,10 @@ pub struct TrustedBinaries {
     pub pdf2zh_hash: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct CanvasConfig {
     #[serde(default)]
     pub crdt_enabled: bool,
-}
-
-impl Default for CanvasConfig {
-    fn default() -> Self {
-        Self { crdt_enabled: false }
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -223,15 +210,6 @@ fn default_csl_style_path() -> String {
 
 fn default_daily_word_target() -> u32 {
     500
-}
-
-impl Default for ExportOnSaveConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            profile_id: None,
-        }
-    }
 }
 
 impl Default for WritingTargetsConfig {
@@ -342,14 +320,25 @@ pub fn plan_daily_note(vault_root: &Path, date: Option<NaiveDate>) -> Result<Dai
 }
 
 pub fn load_vault_template(vault_root: &Path, templates_directory: &str, template_rel: &str) -> Result<String, VaultError> {
-    let relative = template_rel.trim_start_matches('/');
-    let path = if relative.contains('/') {
-        vault_root.join(relative)
+    let trimmed = template_rel.trim_start_matches('/');
+    let raw = if trimmed.contains('/') {
+        trimmed.to_string()
     } else {
-        vault_root.join(templates_directory.trim_end_matches('/')).join(relative)
+        let dir = templates_directory.trim_matches('/');
+        if dir.is_empty() {
+            trimmed.to_string()
+        } else {
+            format!("{dir}/{trimmed}")
+        }
     };
+    // Route through the same traversal-rejecting resolution used for note reads:
+    // RelativeVaultPath rejects `..`, absolute paths, and backslashes, and
+    // resolve_relative additionally guards against symlink escapes.
+    let relative = RelativeVaultPath::parse(&raw)?;
+    let root = VaultRoot::open(vault_root)?;
+    let path = root.resolve_relative(&relative)?;
     if !path.exists() {
-        return Err(VaultError::NoteNotFound(path.display().to_string()));
+        return Err(VaultError::NoteNotFound(relative.to_string()));
     }
     fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))
 }
@@ -410,6 +399,38 @@ mod tests {
         let config = VaultConfig::default();
         assert_eq!(config.export.bibliography_path, "references.bib");
         assert_eq!(config.export.csl_style_path, "apa-lite.csl");
+    }
+
+    #[test]
+    fn load_vault_template_reads_template_inside_vault() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let templates = dir.path().join(".scriptor/templates");
+        std::fs::create_dir_all(&templates)?;
+        std::fs::write(templates.join("meeting.md"), "# Meeting\n")?;
+        std::fs::write(dir.path().join("top-level.md"), "# Top\n")?;
+
+        let body = load_vault_template(dir.path(), ".scriptor/templates", "meeting.md")?;
+        assert_eq!(body, "# Meeting\n");
+        let body = load_vault_template(dir.path(), ".scriptor/templates", "/meeting.md")?;
+        assert_eq!(body, "# Meeting\n");
+        let body = load_vault_template(dir.path(), ".scriptor/templates", ".scriptor/templates/meeting.md")?;
+        assert_eq!(body, "# Meeting\n");
+        Ok(())
+    }
+
+    #[test]
+    fn load_vault_template_rejects_traversal() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let outside = dir.path().join("secret.txt");
+        std::fs::write(&outside, "secret")?;
+        let vault = dir.path().join("vault");
+        std::fs::create_dir_all(&vault)?;
+
+        assert!(load_vault_template(&vault, ".scriptor/templates", "../secret.txt").is_err());
+        assert!(load_vault_template(&vault, ".scriptor/templates", "a/../../secret.txt").is_err());
+        assert!(load_vault_template(&vault, ".scriptor/templates", "/../secret.txt").is_err());
+        assert!(load_vault_template(&vault, "..", "secret.txt").is_err());
+        Ok(())
     }
 
     #[test]

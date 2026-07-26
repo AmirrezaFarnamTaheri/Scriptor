@@ -1,4 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
+
+const PERSIST_DEBOUNCE_MS = 200
 
 export function usePersistedNumber(key: string, defaultValue: number) {
   const [value, setValue] = useState(() => {
@@ -12,20 +14,18 @@ export function usePersistedNumber(key: string, defaultValue: number) {
     }
   })
 
-  const setPersisted = useCallback(
-    (next: number | ((previous: number) => number)) => {
-      setValue((previous) => {
-        const resolved = typeof next === 'function' ? next(previous) : next
-        try {
-          localStorage.setItem(key, String(resolved))
-        } catch {
-          // Ignore storage failures in private browsing.
-        }
-        return resolved
-      })
-    },
-    [key],
-  )
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      try {
+        localStorage.setItem(key, String(value))
+      } catch {
+        // Ignore storage failures in private browsing.
+      }
+    }, PERSIST_DEBOUNCE_MS)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [key, value])
 
-  return [value, setPersisted] as const
+  return [value, setValue] as const
 }

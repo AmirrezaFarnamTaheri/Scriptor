@@ -219,8 +219,8 @@ fn append_cache_diagnostics(
         });
     }
 
-    if let Some(version) = read_schema_version(&conn)? {
-        if version != SCHEMA_VERSION {
+    if let Some(version) = read_schema_version(&conn)?
+        && version != SCHEMA_VERSION {
             issues.push(HealthIssue {
                 kind: "stale_cache".into(),
                 path: cache_rel.clone(),
@@ -230,7 +230,6 @@ fn append_cache_diagnostics(
                 line: None,
             });
         }
-    }
 
     let note_count = note_paths.len() as u32;
     if indexed < note_count {

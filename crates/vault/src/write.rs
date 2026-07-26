@@ -50,8 +50,8 @@ pub fn save_note_with_options(
     expected_content_hash: Option<&str>,
     options: SaveNoteOptions,
 ) -> Result<SaveNoteOutput, VaultError> {
-    if let Some(expected) = expected_content_hash {
-        if root.resolve_relative(path)?.exists() {
+    if let Some(expected) = expected_content_hash
+        && root.resolve_relative(path)?.exists() {
             let existing = read_note(vault_id, root, path)?;
             if existing.metadata.content_hash != expected {
                 return Err(VaultError::HashMismatch {
@@ -61,7 +61,6 @@ pub fn save_note_with_options(
                 });
             }
         }
-    }
 
     let absolute = root.resolve_relative(path)?;
     let previous_content_hash = if absolute.exists() {
@@ -104,8 +103,8 @@ pub fn save_note_with_options(
 
     if absolute.exists() {
         backup_for_recovery(root, &absolute, path.as_str())?;
-        if let Ok(existing) = read_note(vault_id, root, path) {
-            if let Err(error) = append_note_history(
+        if let Ok(existing) = read_note(vault_id, root, path)
+            && let Err(error) = append_note_history(
                 root,
                 path.as_str(),
                 &existing.markdown,
@@ -122,7 +121,6 @@ pub fn save_note_with_options(
                     "failed to append note history before overwrite; save continues",
                 );
             }
-        }
     }
 
     atomic_write(&absolute, markdown.as_bytes())?;

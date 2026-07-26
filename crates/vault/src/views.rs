@@ -121,12 +121,11 @@ impl Serialize for ViewFilterNode {
 impl<'de> Deserialize<'de> for ViewFilterNode {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
-        if let serde_json::Value::Object(map) = &value {
-            if map.contains_key("all") || map.contains_key("any") {
+        if let serde_json::Value::Object(map) = &value
+            && (map.contains_key("all") || map.contains_key("any")) {
                 let group: ViewFilter = serde_json::from_value(value).map_err(de::Error::custom)?;
                 return Ok(ViewFilterNode::Group(group));
             }
-        }
         let condition: ViewFilterCondition =
             serde_json::from_value(value).map_err(de::Error::custom)?;
         Ok(ViewFilterNode::Condition(condition))
@@ -153,7 +152,7 @@ fn evaluate_view_filter_condition(condition: &ViewFilterCondition, note: &ViewNo
             let Some(raw) = json_scalar(&condition.value) else {
                 return false;
             };
-            path_matches(&note.path, &raw)
+            path_matches(note.path, &raw)
         }
         ViewFilterOp::TitleContains => {
             let Some(raw) = json_scalar(&condition.value) else {
@@ -167,7 +166,7 @@ fn evaluate_view_filter_condition(condition: &ViewFilterCondition, note: &ViewNo
             };
             note.tags
                 .iter()
-                .any(|tag| tag.eq_ignore_ascii_case(&raw.trim_start_matches('#')))
+                .any(|tag| tag.eq_ignore_ascii_case(raw.trim_start_matches('#')))
         }
         ViewFilterOp::ModifiedWithinDays => {
             let Some(days) = json_u64(&condition.value) else {

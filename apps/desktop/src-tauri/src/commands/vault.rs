@@ -625,6 +625,46 @@ pub fn vault_list_backups(
     Ok(backups)
 }
 
+/// Validate a caller-supplied backup name and resolve it to a directory inside
+/// `backup_root`. The name must be a single normal path component matching the
+/// `vault-backup-` naming scheme used by `vault_create_backup`, and the
+/// canonicalized result must remain inside the canonicalized backup root.
+fn resolve_backup_dir(
+    backup_root: &std::path::Path,
+    backup_name: &str,
+) -> Result<std::path::PathBuf, String> {
+    let is_single_component = {
+        let mut components = std::path::Path::new(backup_name).components();
+        matches!(
+            (components.next(), components.next()),
+            (Some(std::path::Component::Normal(_)), None)
+        )
+    };
+    if backup_name.is_empty()
+        || backup_name.contains(['/', '\\'])
+        || !is_single_component
+        || !backup_name.starts_with("vault-backup-")
+    {
+        return Err(format!("invalid backup name: {backup_name}"));
+    }
+
+    let candidate = backup_root.join(backup_name);
+    if !candidate.exists() {
+        return Err(format!("Backup not found: {backup_name}"));
+    }
+
+    let canonical_root = backup_root
+        .canonicalize()
+        .map_err(|e| format!("failed to resolve backup directory: {e}"))?;
+    let canonical = candidate
+        .canonicalize()
+        .map_err(|e| format!("failed to resolve backup path: {e}"))?;
+    if canonical.parent() != Some(canonical_root.as_path()) {
+        return Err(format!("backup path escapes backup directory: {backup_name}"));
+    }
+    Ok(canonical)
+}
+
 #[tauri::command]
 pub fn vault_restore_backup(
     state: tauri::State<AppState>,
@@ -639,10 +679,7 @@ pub fn vault_restore_backup(
         _ => vault_root.join(".scriptor").join("backups"),
     };
 
-    let backup_dir = backup_root.join(&backup_name);
-    if !backup_dir.exists() {
-        return Err(format!("Backup not found: {backup_name}"));
-    }
+    let backup_dir = resolve_backup_dir(&backup_root, &backup_name)?;
 
     for entry in std::fs::read_dir(&backup_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
@@ -672,10 +709,7 @@ pub fn vault_delete_backup(
         _ => vault_root.join(".scriptor").join("backups"),
     };
 
-    let backup_dir = backup_root.join(&backup_name);
-    if !backup_dir.exists() {
-        return Err(format!("Backup not found: {backup_name}"));
-    }
+    let backup_dir = resolve_backup_dir(&backup_root, &backup_name)?;
 
     std::fs::remove_dir_all(&backup_dir).map_err(|e| format!("Failed to delete backup: {e}"))
 }

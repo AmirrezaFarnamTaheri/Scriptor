@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface PlatformShellHandlers {
   onQuickCapture?: () => void
@@ -21,44 +21,62 @@ function parseDeepLink(url: string): { kind: 'vault' | 'note'; path: string } | 
 }
 
 export function usePlatformShell(handlers: PlatformShellHandlers) {
+  const handlersRef = useRef(handlers)
+
+  useEffect(() => {
+    handlersRef.current = handlers
+  }, [handlers])
+
   useEffect(() => {
     if (import.meta.env.VITE_E2E_MODE === 'true' || import.meta.env.VITE_SCREENSHOT_MODE === 'true') {
       return
     }
 
+    let active = true
     let unlistenAction: (() => void) | undefined
     let unlistenDeepLink: (() => void) | undefined
 
     void (async () => {
       try {
         const { listen } = await import('@tauri-apps/api/event')
-        unlistenAction = await listen<{ action: string; payload?: string | null }>(
+        const disposeAction = await listen<{ action: string; payload?: string | null }>(
           'platform:action',
           (event) => {
             if (event.payload.action === 'quick-capture') {
-              handlers.onQuickCapture?.()
+              handlersRef.current.onQuickCapture?.()
             }
           },
         )
-        unlistenDeepLink = await listen<{ action: string; payload?: string | null }>(
+        if (!active) {
+          disposeAction()
+          return
+        }
+        unlistenAction = disposeAction
+        const disposeDeepLink = await listen<{ action: string; payload?: string | null }>(
           'platform:deep-link',
           (event) => {
             const url = event.payload.payload
             if (url) {
-              handlers.onDeepLink?.(url)
+              handlersRef.current.onDeepLink?.(url)
             }
           },
         )
+        if (!active) {
+          disposeDeepLink()
+          return
+        }
+        unlistenDeepLink = disposeDeepLink
       } catch {
         // Browser dev mode without Tauri shell
       }
     })()
 
     return () => {
+      active = false
       unlistenAction?.()
       unlistenDeepLink?.()
     }
-  }, [handlers.onDeepLink, handlers.onQuickCapture])
+  }, [])
 }
 
 export { parseDeepLink }

@@ -58,7 +58,7 @@ fn generate_nonce() -> String {
 
 fn compute_endpoint_hmac(socket_name: &str, pid: u32, nonce: &str) -> String {
     let mac = hmac_sha256_simple(&format!("{socket_name}:{pid}:{nonce}"));
-    hex::encode(&mac)
+    hex::encode(mac)
 }
 
 fn hmac_sha256_simple(message: &str) -> [u8; 32] {
@@ -78,18 +78,28 @@ fn hmac_sha256_simple(message: &str) -> [u8; 32] {
     }
 
     let mut inner = Sha256::new();
-    inner.update(&ipad);
+    inner.update(ipad);
     inner.update(message.as_bytes());
     let inner_hash = inner.finalize();
 
     let mut outer = Sha256::new();
-    outer.update(&opad);
-    outer.update(&inner_hash);
+    outer.update(opad);
+    outer.update(inner_hash);
     let result = outer.finalize();
 
     let mut out = [0u8; 32];
     out.copy_from_slice(&result);
     out
+}
+
+/// Constant-time byte comparison so HMAC verification does not leak match
+/// prefixes through timing. Length mismatch returns early, which only reveals
+/// the length (fixed at 64 hex chars for valid endpoints).
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
 fn endpoint_hmac_key() -> String {
@@ -175,11 +185,16 @@ pub fn read_endpoint() -> Result<DaemonEndpoint, IpcError> {
     let endpoint: DaemonEndpoint =
         serde_json::from_slice(&bytes).map_err(|error| IpcError::Codec(error.to_string()))?;
 
-    if let (Some(nonce), Some(hmac)) = (&endpoint.nonce, &endpoint.hmac) {
-        let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce);
-        if hmac != &expected_hmac {
-            return Err(IpcError::Codec("endpoint HMAC mismatch; file may be tampered".into()));
-        }
+    // Verification is mandatory: an endpoint file without nonce/hmac is rejected
+    // outright so a tampered file cannot bypass authentication by omitting them.
+    let (Some(nonce), Some(hmac)) = (&endpoint.nonce, &endpoint.hmac) else {
+        return Err(IpcError::Codec(
+            "endpoint file missing nonce/hmac; refusing unauthenticated endpoint".into(),
+        ));
+    };
+    let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce);
+    if !constant_time_eq(hmac.as_bytes(), expected_hmac.as_bytes()) {
+        return Err(IpcError::Codec("endpoint HMAC mismatch; file may be tampered".into()));
     }
 
     Ok(endpoint)
@@ -255,6 +270,18 @@ pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
     LocalSocketStream::connect(name.borrow()).map_err(IpcError::from)
 }
 
+/// RAII guard for one connection slot: decrements the active-connection counter
+/// on drop, including when the handler thread panics.
+struct ConnectionSlot {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for ConnectionSlot {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
     if !cfg!(windows)
@@ -295,9 +322,14 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
         }
         let state = Arc::clone(&state);
         let event_hub = Arc::clone(&event_hub);
-        let active_connections = Arc::clone(&active_connections);
         active_connections.fetch_add(1, Ordering::SeqCst);
+        // Decrement via a drop guard so a panicking handler cannot leak the
+        // connection slot (the guard runs during unwind as well).
+        let slot = ConnectionSlot {
+            counter: Arc::clone(&active_connections),
+        };
         std::thread::spawn(move || {
+            let _slot = slot;
             if let Err(error) = handle_connection(stream, &state, &event_hub) {
                 tracing::warn!(
                     target: "scriptor_daemon::transport",
@@ -305,7 +337,6 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
                     "connection handler ended with error",
                 );
             }
-            active_connections.fetch_sub(1, Ordering::SeqCst);
         });
     }
 }
@@ -622,11 +653,10 @@ mod tests {
 
     impl Drop for PipeGuard {
         fn drop(&mut self) {
-            if let Some(ref name) = self.name {
-                if !cfg!(windows) {
+            if let Some(ref name) = self.name
+                && !cfg!(windows) {
                     let _ = std::fs::remove_file(name);
                 }
-            }
         }
     }
 
@@ -695,6 +725,50 @@ mod tests {
         let endpoint = read_endpoint().expect("read");
         assert_eq!(endpoint.socket_name, socket);
         let _ = remove_endpoint_file();
+    }
+
+    #[test]
+    fn read_endpoint_rejects_missing_hmac() {
+        let _guard = endpoint_lock();
+        let path = endpoint_file_path().expect("endpoint path");
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let json = serde_json::json!({ "socket_name": "some-socket", "pid": 1234 }).to_string();
+        std::fs::write(&path, json).expect("write endpoint");
+        let result = read_endpoint();
+        assert!(result.is_err(), "endpoint without nonce/hmac must be rejected");
+        let _ = remove_endpoint_file();
+    }
+
+    #[test]
+    fn read_endpoint_rejects_tampered_hmac() {
+        let _guard = endpoint_lock();
+        let socket = default_socket_name().expect("socket");
+        write_endpoint(&socket).expect("write");
+        let path = endpoint_file_path().expect("endpoint path");
+        let raw = std::fs::read_to_string(&path).expect("read endpoint file");
+        let mut endpoint: DaemonEndpoint = serde_json::from_str(&raw).expect("parse endpoint");
+        endpoint.socket_name = format!("{}-tampered", endpoint.socket_name);
+        std::fs::write(&path, serde_json::to_string(&endpoint).expect("serialize")).expect("rewrite");
+        let result = read_endpoint();
+        assert!(result.is_err(), "tampered endpoint must fail HMAC verification");
+        let _ = remove_endpoint_file();
+    }
+
+    #[test]
+    fn connection_slot_decrements_on_panic() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        counter.fetch_add(1, Ordering::SeqCst);
+        let slot = ConnectionSlot {
+            counter: Arc::clone(&counter),
+        };
+        let handle = std::thread::spawn(move || {
+            let _slot = slot;
+            panic!("simulated handler panic");
+        });
+        assert!(handle.join().is_err());
+        assert_eq!(counter.load(Ordering::SeqCst), 0, "slot must be released on panic");
     }
 
     #[test]

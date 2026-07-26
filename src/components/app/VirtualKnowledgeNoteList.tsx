@@ -17,7 +17,7 @@ export function VirtualKnowledgeNoteList({
   triageLabel,
   onTriageNext,
 }: VirtualKnowledgeNoteListProps) {
-  const containerRef = useRef<HTMLUListElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState(360)
   const [scrollTop, setScrollTop] = useState(0)
 
@@ -35,13 +35,15 @@ export function VirtualKnowledgeNoteList({
   const endIndex = Math.min(notes.length, startIndex + visibleCount)
 
   return (
-    <ul
+    <div
       ref={containerRef}
-      className="virtual-note-list knowledge-note-list virtual-knowledge-list"
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       style={{ maxHeight: 'min(52vh, 560px)', overflow: 'auto' }}
     >
-      <div style={{ height: totalHeight, position: 'relative' }}>
+      <ul
+        className="virtual-note-list knowledge-note-list virtual-knowledge-list"
+        style={{ height: totalHeight, position: 'relative' }}
+      >
         {notes.slice(startIndex, endIndex).map((note, offset) => {
           const index = startIndex + offset
           return (
@@ -70,7 +72,7 @@ export function VirtualKnowledgeNoteList({
             </li>
           )
         })}
-      </div>
-    </ul>
+      </ul>
+    </div>
   )
 }

@@ -67,11 +67,6 @@ for (const [componentPath, componentName] of [
   }
 }
 
-const allComponentPaths = [
-  join(root, 'src/components'),
-  join(root, 'src'),
-]
-
 if (existsSync(cssPath)) {
   const cssContent = readFileSync(cssPath, 'utf8')
   const focusTokens = ['--focus-ring', '--focus-outline', '--focus-ring-color', '--focus-ring-width']

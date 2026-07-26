@@ -1,7 +1,7 @@
 import Editor, { type BeforeMount, type OnMount } from '@monaco-editor/react'
 import type { editor as MonacoEditor } from 'monaco-editor'
 import { insertFootnoteIntoMarkdown, setDistractionFreeClass } from '@scriptor/editor'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 import {
   registerMarkdownCompletions,
@@ -47,6 +47,13 @@ export function MonacoMarkdownEditor({
   const monacoRef = useRef<typeof import('monaco-editor') | null>(null)
   const completionDisposableRef = useRef<{ dispose: () => void } | null>(null)
   const latest = useRef(value)
+  const onChangeRef = useRef(onChange)
+  const lastInsertSeqRef = useRef<number | null>(null)
+  const lastTransformSeqRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    onChangeRef.current = onChange
+  }, [onChange])
 
   useEffect(() => {
     setMonacoCompletionContext(completionContext ?? {})
@@ -83,6 +90,10 @@ export function MonacoMarkdownEditor({
 
     const uri = monaco.Uri.file(notePath)
     const existing = monaco.editor.getModel(uri)
+    if (existing && existing === modelRef.current) {
+      editor.setModel(existing)
+      return
+    }
     existing?.dispose()
 
     const model = monaco.editor.createModel(latest.current, 'markdown', uri)
@@ -94,20 +105,24 @@ export function MonacoMarkdownEditor({
   useEffect(() => {
     const editor = editorRef.current
     if (!editor || !insertRequest?.text) return
+    if (lastInsertSeqRef.current === insertRequest.seq) return
     const model = editor.getModel()
     if (!model) return
+    lastInsertSeqRef.current = insertRequest.seq
     const selection = editor.getSelection()
     const range = selection ?? model.getFullModelRange()
     editor.executeEdits('scriptor-insert', [{ range, text: insertRequest.text, forceMoveMarkers: true }])
-    onChange(model.getValue())
-  }, [insertRequest, onChange])
+    onChangeRef.current(model.getValue())
+  }, [insertRequest])
 
   useEffect(() => {
     const editor = editorRef.current
     if (!editor || !transformRequest?.action) return
+    if (lastTransformSeqRef.current === transformRequest.seq) return
     const model = editor.getModel()
     if (!model) return
     if (transformRequest.action !== 'footnote') return
+    lastTransformSeqRef.current = transformRequest.seq
     const selection = editor.getSelection()
     const start = model.getOffsetAt(selection?.getStartPosition() ?? { lineNumber: 1, column: 1 })
     const end = model.getOffsetAt(selection?.getEndPosition() ?? { lineNumber: 1, column: 1 })
@@ -116,8 +131,8 @@ export function MonacoMarkdownEditor({
     const position = model.getPositionAt(cursor)
     editor.setPosition(position)
     editor.revealPositionInCenter(position)
-    onChange(markdown)
-  }, [transformRequest, onChange])
+    onChangeRef.current(markdown)
+  }, [transformRequest])
 
   useEffect(() => {
     const editor = editorRef.current
@@ -199,6 +214,12 @@ export function MonacoMarkdownEditor({
     }
   }
 
+  const editorFontSize = useMemo(
+    () =>
+      Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')) || 14,
+    [],
+  )
+
   const hostClassName = [
     className,
     distractionFree ? 'scriptor-focus-editor' : '',
@@ -221,7 +242,7 @@ export function MonacoMarkdownEditor({
           minimap: { enabled: false },
           fontFamily: 'var(--editor-font-family, var(--mono))',
           lineNumbers: showLineNumbers ? 'on' : 'off',
-          fontSize: Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--editor-font-size')) || 14,
+          fontSize: editorFontSize,
           scrollBeyondLastLine: false,
           quickSuggestions: { strings: true },
         }}

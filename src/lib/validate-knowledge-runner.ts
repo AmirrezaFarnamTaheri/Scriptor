@@ -25,10 +25,13 @@ test('isInboxEntry excludes organized, archived, and type definitions', () => {
 })
 
 test('filterInboxEntries sorts newest first and respects period', () => {
+  // Dates are relative to now so the period filter stays deterministic over
+  // time; a hardcoded fixture ages out of the rolling window and breaks.
+  const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
   const notes = [
-    summary({ path: 'old.md', title: 'Old', modified_at: '2026-01-01T00:00:00.000Z' }),
-    summary({ path: 'new.md', title: 'New', modified_at: '2026-06-20T12:00:00.000Z' }),
-    summary({ path: 'done.md', title: 'Done', organized: true, modified_at: '2026-06-21T00:00:00.000Z' }),
+    summary({ path: 'old.md', title: 'Old', modified_at: daysAgo(60) }),
+    summary({ path: 'new.md', title: 'New', modified_at: daysAgo(2) }),
+    summary({ path: 'done.md', title: 'Done', organized: true, modified_at: daysAgo(1) }),
   ]
   const week = filterInboxEntries(notes, 'week')
   assert.deepEqual(week.map((note) => note.path), ['new.md'])

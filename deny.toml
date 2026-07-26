@@ -1,11 +1,10 @@
-# cargo-deny configuration for Scriptor
+# cargo-deny configuration for Scriptor (cargo-deny 0.14+ / v2 schema)
 # https://embarkstudios.github.io/cargo-deny/
 
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
-yanked = "warn"
-notice = "warn"
+version = 2
+# Warn about unmaintained advisories for all crates in the graph.
+unmaintained = "all"
 ignore = []
 
 [bans]
@@ -14,7 +13,7 @@ wildcards = "allow"
 highlight = "all"
 
 [licenses]
-unlicensed = "deny"
+version = 2
 allow = [
     "MIT",
     "Apache-2.0",
@@ -23,16 +22,17 @@ allow = [
     "BSD-3-Clause",
     "ISC",
     "Unicode-DFS-2016",
+    "Unicode-3.0",
     "Zlib",
     "MPL-2.0",
     "CC0-1.0",
+    "Unlicense",
+    "0BSD",
+    "BSL-1.0",
     "OpenSSL",
-    "Unicode-3.0",
+    # Scriptor itself is AGPL-3.0-or-later.
+    "AGPL-3.0-or-later",
 ]
-deny = []
-copyleft = "warn"
-allow-osi-fsf-free = "either"
-default = "deny"
 
 [sources]
 unknown-registry = "deny"

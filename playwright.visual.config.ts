@@ -14,7 +14,7 @@ export default defineConfig({
     },
   },
   outputDir: 'test-results/visual',
-  updateSnapshots: 'missing',
+  updateSnapshots: process.env.CI ? 'none' : 'missing',
   use: {
     ...devices['Desktop Edge'],
     channel: systemChannel,

@@ -44,6 +44,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
   const dragRef = useRef<{ startX: number; startY: number; startTx: number; startTy: number } | null>(null)
   const nodeMap = useRef(new Map<string, CanvasNode>())
   const frameRef = useRef<number | null>(null)
+  const backingSizeRef = useRef({ width: 0, height: 0, dpr: 0 })
 
   useEffect(() => {
     const map = new Map<string, CanvasNode>()
@@ -58,8 +59,12 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     if (!ctx) return
 
     const dpr = window.devicePixelRatio || 1
-    canvas.width = width * dpr
-    canvas.height = height * dpr
+    const backing = backingSizeRef.current
+    if (backing.width !== width || backing.height !== height || backing.dpr !== dpr) {
+      canvas.width = width * dpr
+      canvas.height = height * dpr
+      backingSizeRef.current = { width, height, dpr }
+    }
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 
     const { x: tx, y: ty, scale } = transformRef.current
@@ -147,6 +152,23 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     })
   }, [draw])
 
+  useEffect(() => {
+    return () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current)
+        frameRef.current = null
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    const endDrag = () => {
+      dragRef.current = null
+    }
+    window.addEventListener('mouseup', endDrag)
+    return () => window.removeEventListener('mouseup', endDrag)
+  }, [])
+
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragRef.current) {
       const { startX, startY, startTx, startTy } = dragRef.current
@@ -188,7 +210,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     }
   }, [screenToCanvas, findNodeAt, onSelectNode])
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
     const factor = e.deltaY < 0 ? 1.1 : 0.9
     const canvas = canvasRef.current
@@ -204,6 +226,13 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     scheduleDraw()
   }, [scheduleDraw])
 
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.addEventListener('wheel', handleWheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
+
   return (
     <canvas
       ref={canvasRef}
@@ -211,7 +240,6 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       onMouseMove={handleMouseMove}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      onWheel={handleWheel}
     />
   )
 }

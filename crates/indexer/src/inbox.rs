@@ -80,9 +80,9 @@ pub fn list_inbox_notes(
     let cutoff = period.cutoff_rfc3339();
     Ok(summaries
         .into_iter()
-        .filter(|note| is_inbox_candidate(note))
+        .filter(is_inbox_candidate)
         .filter(|note| {
-            cutoff.as_ref().map_or(true, |cutoff_at| note.modified_at.as_str() >= cutoff_at.as_str())
+            cutoff.as_ref().is_none_or(|cutoff_at| note.modified_at.as_str() >= cutoff_at.as_str())
         })
         .collect())
 }

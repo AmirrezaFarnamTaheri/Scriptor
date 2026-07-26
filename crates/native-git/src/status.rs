@@ -192,10 +192,18 @@ fn read_sync_counts(repo_root: &Path) -> (u32, u32, bool) {
         return (0, 0, true);
     };
 
-    let mut parts = output.split('\t');
-    let behind = parts.next().and_then(|value| value.parse().ok()).unwrap_or(0);
-    let ahead = parts.next().and_then(|value| value.parse().ok()).unwrap_or(0);
+    let (ahead, behind) = parse_sync_counts(&output);
     (ahead, behind, true)
+}
+
+/// Parses `git rev-list --left-right --count HEAD...@{upstream}` output.
+/// The left field counts commits only reachable from HEAD (ahead of upstream);
+/// the right field counts commits only reachable from upstream (behind).
+fn parse_sync_counts(output: &str) -> (u32, u32) {
+    let mut parts = output.split('\t');
+    let ahead = parts.next().and_then(|value| value.trim().parse().ok()).unwrap_or(0);
+    let behind = parts.next().and_then(|value| value.trim().parse().ok()).unwrap_or(0);
+    (ahead, behind)
 }
 
 pub fn git_show_head_file(repo_root: &Path, path: &str) -> Result<Option<String>, GitError> {
@@ -225,8 +233,8 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
         Err(GitError::Command(_)) => {
             let merge_head = run_git(repo_root, &["rev-parse", "-q", "MERGE_HEAD"]).ok();
             let head = run_git(repo_root, &["rev-parse", "HEAD"]).ok();
-            if let (Some(merge_head), Some(head)) = (merge_head, head) {
-                if let Ok(base) = run_git(
+            if let (Some(merge_head), Some(head)) = (merge_head, head)
+                && let Ok(base) = run_git(
                     repo_root,
                     &["merge-base", &head, &merge_head],
                 ) {
@@ -237,7 +245,6 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
                         Err(error) => Err(error),
                     };
                 }
-            }
             Ok(None)
         }
         Err(error) => Err(error),
@@ -280,6 +287,59 @@ mod tests {
             )
             .into());
         }
+        Ok(())
+    }
+
+    #[test]
+    fn parse_sync_counts_maps_left_field_to_ahead() {
+        // `rev-list --left-right --count HEAD...@{upstream}` prints <ahead>\t<behind>.
+        assert_eq!(parse_sync_counts("2\t5"), (2, 5));
+        assert_eq!(parse_sync_counts("0\t0"), (0, 0));
+        assert_eq!(parse_sync_counts("garbage"), (0, 0));
+    }
+
+    #[test]
+    fn ahead_counts_local_commits_not_pushed() -> Result<(), Box<dyn std::error::Error>> {
+        let origin = tempdir()?;
+        Command::new("git")
+            .args(["init", origin.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(origin.path())?;
+        fs::write(origin.path().join("note.md"), "# One\n")?;
+        Command::new("git")
+            .current_dir(origin.path())
+            .args(["add", "note.md"])
+            .output()?;
+        git_commit(origin.path(), "init")?;
+
+        let clones = tempdir()?;
+        let work = clones.path().join("work");
+        let clone_output = Command::new("git")
+            .args([
+                "clone",
+                origin.path().to_str().unwrap(),
+                work.to_str().unwrap(),
+            ])
+            .output()?;
+        if !clone_output.status.success() {
+            return Err(format!(
+                "git clone failed: {}",
+                String::from_utf8_lossy(&clone_output.stderr)
+            )
+            .into());
+        }
+        configure_git_identity(&work)?;
+        fs::write(work.join("note.md"), "# Two\n")?;
+        Command::new("git")
+            .current_dir(&work)
+            .args(["add", "note.md"])
+            .output()?;
+        git_commit(&work, "local change")?;
+
+        let status = git_status(&work)?;
+        assert!(status.has_upstream);
+        assert_eq!(status.ahead, 1, "local-only commit must count as ahead");
+        assert_eq!(status.behind, 0);
         Ok(())
     }
 

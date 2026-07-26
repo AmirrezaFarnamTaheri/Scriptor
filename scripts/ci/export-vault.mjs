@@ -17,7 +17,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { mkdir, writeFile, rm } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 
 const USAGE = `
 Usage: node scripts/ci/export-vault.mjs [options]
@@ -127,18 +127,13 @@ async function main() {
     }
   );
 
-  let stdout = '';
-  let stderr = '';
-
   daemon.stdout.on('data', (chunk) => {
     const text = chunk.toString();
-    stdout += text;
     process.stdout.write(text);
   });
 
   daemon.stderr.on('data', (chunk) => {
     const text = chunk.toString();
-    stderr += text;
     process.stderr.write(text);
   });
 

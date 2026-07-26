@@ -6,10 +6,12 @@ use scriptor_indexer::{
 };
 use scriptor_vault::VaultSession;
 
+type RebuildHandle = JoinHandle<Result<RebuildSummary, String>>;
+
 #[derive(Debug, Clone)]
 pub struct IndexRebuildJob {
     progress: Arc<Mutex<RebuildProgressReport>>,
-    handle: Arc<Mutex<Option<JoinHandle<Result<RebuildSummary, String>>>>>,
+    handle: Arc<Mutex<Option<RebuildHandle>>>,
 }
 
 impl Default for IndexRebuildJob {
@@ -68,7 +70,71 @@ impl IndexRebuildJob {
     pub fn wait(&self) {
         let handle = self.handle.lock().expect("handle lock").take();
         if let Some(handle) = handle {
-            let _ = handle.join();
+            match handle.join() {
+                Ok(Ok(_)) => {}
+                Ok(Err(error)) => {
+                    // The worker normally records its own failure, but make sure
+                    // the progress report always reaches a terminal state.
+                    let mut state = self.progress.lock().expect("progress lock");
+                    if state.status != RebuildStatus::Failed {
+                        state.status = RebuildStatus::Failed;
+                        state.phase = error;
+                    }
+                }
+                Err(panic) => {
+                    // A panicking rebuild thread must not leave the progress
+                    // report stuck at Running.
+                    let message = panic
+                        .downcast_ref::<String>()
+                        .map(String::as_str)
+                        .or_else(|| panic.downcast_ref::<&str>().copied())
+                        .unwrap_or("index rebuild thread panicked");
+                    let mut state = self.progress.lock().expect("progress lock");
+                    state.status = RebuildStatus::Failed;
+                    state.phase = format!("index rebuild panicked: {message}");
+                }
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn running_job_with_handle(handle: RebuildHandle) -> IndexRebuildJob {
+        let job = IndexRebuildJob::default();
+        {
+            let mut progress = job.progress.lock().expect("progress lock");
+            progress.status = RebuildStatus::Running;
+            progress.phase = "indexing".into();
+        }
+        *job.handle.lock().expect("handle lock") = Some(handle);
+        job
+    }
+
+    #[test]
+    fn wait_marks_progress_failed_when_thread_panics() {
+        let handle: RebuildHandle =
+            thread::spawn(|| -> Result<RebuildSummary, String> { panic!("boom") });
+        let job = running_job_with_handle(handle);
+
+        job.wait();
+
+        let progress = job.progress_snapshot();
+        assert_eq!(progress.status, RebuildStatus::Failed);
+        assert!(progress.phase.contains("boom"), "phase: {}", progress.phase);
+    }
+
+    #[test]
+    fn wait_marks_progress_failed_on_error_result() {
+        let handle: RebuildHandle = thread::spawn(|| Err("db locked".to_string()));
+        let job = running_job_with_handle(handle);
+
+        job.wait();
+
+        let progress = job.progress_snapshot();
+        assert_eq!(progress.status, RebuildStatus::Failed);
+        assert_eq!(progress.phase, "db locked");
     }
 }
