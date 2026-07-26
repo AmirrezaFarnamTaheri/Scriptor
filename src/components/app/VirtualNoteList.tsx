@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { FileText } from 'lucide-react'
 
 const ROW_HEIGHT = 32
@@ -12,7 +12,7 @@ interface VirtualNoteListProps {
   onDeleteNote?: (path: string) => void
 }
 
-export function VirtualNoteList({
+function VirtualNoteListImpl({
   paths,
   activePath,
   onOpenNote,
@@ -83,3 +83,9 @@ export function VirtualNoteList({
     </div>
   )
 }
+
+/**
+ * Memoized: this subtree re-renders on every App-level render (including every
+ * keystroke in the editor draft) even though its own props rarely change.
+ */
+export const VirtualNoteList = memo(VirtualNoteListImpl)

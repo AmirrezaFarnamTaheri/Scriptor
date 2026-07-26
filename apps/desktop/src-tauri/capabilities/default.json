@@ -7,7 +7,7 @@
     "core:default",
     "shell:allow-open",
     "dialog:default",
-    "updater:default",
+    "updater:allow-check",
     "deep-link:default"
   ]
 }

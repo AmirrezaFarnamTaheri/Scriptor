@@ -1,3 +1,5 @@
+import { escapeHtml, slugify } from './escape.ts'
+
 export interface EmbedFetchContext {
   /** Resolve note path/title to markdown body. Host implements vault lookup. */
   fetchNote: (path: string) => Promise<string | null> | string | null
@@ -40,19 +42,8 @@ function extractSection(markdown: string, section: string): string {
   return lines.slice(start, end).join('\n').trim()
 }
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
-
 function renderFallback(markdown: string): string {
-  return `<div class="wikilink-embed-body">${markdown
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')}</div>`
+  return `<div class="wikilink-embed-body">${escapeHtml(markdown)}</div>`
 }
 
 /** Hydrate `data-wikilink-embed` placeholders by fetching note content from the host. */

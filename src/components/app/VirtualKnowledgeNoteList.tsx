@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 
 import type { KnowledgeNoteSummary } from '../../types/vault'
 
@@ -11,7 +11,7 @@ interface VirtualKnowledgeNoteListProps {
   onTriageNext?: (path: string) => void
 }
 
-export function VirtualKnowledgeNoteList({
+function VirtualKnowledgeNoteListImpl({
   notes,
   onOpenNote,
   triageLabel,
@@ -76,3 +76,9 @@ export function VirtualKnowledgeNoteList({
     </div>
   )
 }
+
+/**
+ * Memoized: this subtree re-renders on every App-level render (including every
+ * keystroke in the editor draft) even though its own props rarely change.
+ */
+export const VirtualKnowledgeNoteList = memo(VirtualKnowledgeNoteListImpl)

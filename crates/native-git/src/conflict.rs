@@ -16,7 +16,12 @@ fn validate_conflict_path(repo_root: &Path, path: &str) -> Result<std::path::Pat
     if path.contains('\0') || path.contains('\n') || path.contains('\r') {
         return Err(GitError::Command(format!("invalid path characters: {path}")));
     }
-    if path.contains("..") {
+    // Reject only real parent-directory components. A substring check on ".."
+    // also rejected legitimate names such as `notes..md` or `v1..2/report.md`.
+    if std::path::Path::new(path)
+        .components()
+        .any(|component| matches!(component, std::path::Component::ParentDir))
+    {
         return Err(GitError::Command(format!("path traversal not allowed: {path}")));
     }
     let file_path = repo_root.join(path);
@@ -150,4 +155,40 @@ fn run_git(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
         ));
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn accepts_filenames_containing_a_literal_double_dot() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path().canonicalize().expect("canonicalize");
+        for name in ["notes..md", "v1..2/report.md", "..leading.md", "trailing..md"] {
+            validate_conflict_path(&root, name)
+                .unwrap_or_else(|error| panic!("{name} should be accepted: {error}"));
+        }
+    }
+
+    #[test]
+    fn rejects_parent_directory_components() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path().canonicalize().expect("canonicalize");
+        for name in ["../escape.md", "notes/../../escape.md", ".."] {
+            assert!(
+                validate_conflict_path(&root, name).is_err(),
+                "{name} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_control_characters() {
+        let dir = tempdir().expect("tempdir");
+        let root = dir.path().canonicalize().expect("canonicalize");
+        assert!(validate_conflict_path(&root, "bad\nname.md").is_err());
+        assert!(validate_conflict_path(&root, "bad\0name.md").is_err());
+    }
 }

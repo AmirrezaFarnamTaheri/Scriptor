@@ -9,6 +9,13 @@ use crate::search::search_notes;
 use crate::tags::notes_for_tag;
 use crate::views::list_view_notes;
 
+/// Result cap shared by every DQL clause.
+const DQL_RESULT_LIMIT: usize = 200;
+
+/// How many candidate rows `path matches` may pull out of SQLite before the
+/// user-supplied regex is applied to them.
+const PATH_MATCH_SCAN_LIMIT: i64 = 5_000;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DqlResultRow {
     pub path: String,
@@ -275,10 +282,13 @@ fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec
         .build()
         .map_err(|error| IndexerError::InvalidQuery(error.to_string()))?;
     let conn = cache.connection()?;
+    // Two bounds, because the regex is applied in Rust rather than in SQL: the
+    // SQL LIMIT caps how many rows are ever materialised and matched against a
+    // user-supplied pattern, and the result cap matches the sibling clauses.
     let mut statement = conn.prepare(
-        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path",
+        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2",
     )?;
-    let rows = statement.query_map(params![vault_id], |row| {
+    let rows = statement.query_map(params![vault_id, PATH_MATCH_SCAN_LIMIT], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
@@ -288,6 +298,7 @@ fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec
     Ok(rows
         .filter_map(|row| row.ok())
         .filter(|row| re.is_match(&row.path))
+        .take(DQL_RESULT_LIMIT)
         .collect())
 }
 
@@ -371,6 +382,34 @@ mod tests {
             r#"title contains "café" and body contains "café""#,
         )?;
         assert!(rows.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn path_matches_caps_its_result_set() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        {
+            let conn = cache.connection()?;
+            for index in 0..(DQL_RESULT_LIMIT + 50) {
+                conn.execute(
+                    "INSERT INTO notes (id, vault_id, path, title, content_hash, modified_at, word_count)
+                     VALUES (?1, 'vault-test', ?2, ?3, 'hash', '2026-01-01T00:00:00Z', 1)",
+                    params![
+                        format!("note-{index:04}"),
+                        format!("notes/{index:04}.md"),
+                        format!("Note {index}")
+                    ],
+                )?;
+            }
+        }
+
+        let rows = path_matches(&cache, "vault-test", r"^notes/")?;
+        assert_eq!(
+            rows.len(),
+            DQL_RESULT_LIMIT,
+            "path matches must be bounded like its sibling clauses"
+        );
         Ok(())
     }
 

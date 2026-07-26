@@ -25,9 +25,7 @@
   },
   "plugins": {
     "updater": {
-      "active": false,
       "endpoints": [],
-      "dialog": false,
       "pubkey": ""
     },
     "deep-link": {

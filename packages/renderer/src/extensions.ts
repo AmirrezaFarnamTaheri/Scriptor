@@ -1,5 +1,7 @@
 import type { RendererExtensionContribution } from '@scriptor/core/contracts/plugin'
 
+import { escapeAttr, escapeHtml } from './escape.ts'
+
 const PUBLISH_CALLOUT_MARKER = '<!-- scriptor:publish-callout -->'
 
 export function applyRendererExtensions(
@@ -21,22 +23,9 @@ export function applyRendererExtensions(
     .sort((left, right) => right.priority - left.priority)
     .map(
       (extension) =>
-        `<span class="renderer-extension-badge" data-extension="${escapeAttribute(extension.id)}">${escapeHtml(extension.label)}</span>`,
+        `<span class="renderer-extension-badge" data-extension="${escapeAttr(extension.id)}">${escapeHtml(extension.label)}</span>`,
     )
     .join('')
 
   return `${next}<footer class="renderer-extension-footer" aria-hidden="true">${badges}</footer>`
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
-}
-
-function escapeAttribute(value: string): string {
-  return escapeHtml(value).replaceAll('`', '&#96;')
 }

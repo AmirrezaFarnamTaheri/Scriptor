@@ -14,7 +14,7 @@ import {
   Settings,
   Tags,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, memo } from 'react'
 
 import { InboxPanel } from '../inbox/InboxPanel'
 import { VaultTreeSkeleton } from './VaultTreeSkeleton'
@@ -61,7 +61,7 @@ interface VaultSidebarProps {
   recentNotes?: Array<{ path: string; title: string }>
 }
 
-export function VaultSidebar({
+function VaultSidebarImpl({
   vaultStatus = 'idle',
   sections,
   activePath,
@@ -308,3 +308,9 @@ export function VaultSidebar({
     </aside>
   )
 }
+
+/**
+ * Memoized: this subtree re-renders on every App-level render (including every
+ * keystroke in the editor draft) even though its own props rarely change.
+ */
+export const VaultSidebar = memo(VaultSidebarImpl)

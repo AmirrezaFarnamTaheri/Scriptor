@@ -1,5 +1,7 @@
 import { visit } from 'unist-util-visit'
 
+import { escapeAttr } from './escape.ts'
+
 /** Foam-style wikilink embeds: `![[Note]]`, `![[Note#Section]]`. */
 
 const WIKILINK_EMBED_PATTERN =
@@ -46,13 +48,4 @@ export function remarkWikilinkEmbed() {
       parent.children.splice(index, 1, ...parts)
     })
   }
-}
-
-function escapeAttr(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;')
 }

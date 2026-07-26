@@ -8,6 +8,8 @@ import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import { ReferencesPreviewPanel } from '../ReferencesPreviewPanel'
 import { PluginPanel } from '../PluginPanel'
+import { ErrorBoundary } from '../ErrorBoundary'
+import { PanelErrorFallback } from '../PanelErrorFallback'
 import { NoteQualityCard } from '../inspector/NoteQualityCard'
 import { PreviewQABar } from '../inspector/PreviewQABar'
 import { INSPECTOR_PRESETS, type InspectorPreset } from '../../lib/inspectorPresets'
@@ -200,6 +202,17 @@ export function InspectorRail({
               </p>
               <WidgetCard title="Preview">
                 {activePath ? (
+                  <ErrorBoundary
+                    name="inspector-markdown-preview"
+                    resetKeys={[activePath]}
+                    fallback={
+                      <PanelErrorFallback
+                        variant="inline"
+                        title="The preview"
+                        detail="Rendering this note failed — a Markdown extension or plugin renderer may have thrown. Switching notes will retry."
+                      />
+                    }
+                  >
                   <MarkdownPreview
                     ref={previewRef}
                     markdown={draftMarkdown}
@@ -212,6 +225,7 @@ export function InspectorRail({
                     postProcessHtml={previewProps.postProcessHtml}
                     renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
                   />
+                  </ErrorBoundary>
                 ) : (
                   <p className="empty-state">Open a note to preview Markdown.</p>
                 )}
@@ -400,6 +414,16 @@ export function InspectorRail({
           )}
         </>
       ) : (
+        <ErrorBoundary
+          name="plugin-panel"
+          fallback={
+            <PanelErrorFallback
+              variant="inline"
+              title="The plugins panel"
+              detail="A plugin contribution failed to render. Enabling safe mode from Settings disables third-party plugins."
+            />
+          }
+        >
         <PluginPanel
           plugins={plugins.plugins}
           templatePacks={plugins.templatePacks}
@@ -410,6 +434,7 @@ export function InspectorRail({
           onTogglePlugin={plugins.onTogglePlugin}
           onInstallMarketplace={plugins.onInstallMarketplace}
         />
+        </ErrorBoundary>
       )}
     </aside>
   )

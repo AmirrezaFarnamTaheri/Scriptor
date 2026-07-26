@@ -8,6 +8,8 @@ use scriptor_export_runner::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::locks::lock_recover;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ExportJobState {
@@ -67,7 +69,7 @@ impl ExportJobRunner {
     }
 
     pub fn progress_snapshot(&self) -> ExportProgressReport {
-        self.progress.lock().expect("export progress lock").clone()
+        lock_recover(&self.progress).clone()
     }
 
     pub fn start(&self, mut input: ExportJobInput) -> Result<String, String> {
@@ -80,7 +82,7 @@ impl ExportJobRunner {
         input.job_id = Some(job_id.clone());
 
         {
-            let mut progress = self.progress.lock().expect("export progress lock");
+            let mut progress = lock_recover(&self.progress);
             *progress = ExportProgressReport {
                 job_id: job_id.clone(),
                 status: ExportJobState::Running,
@@ -97,21 +99,21 @@ impl ExportJobRunner {
             let progress_cb: ExportProgressCallback = Arc::new({
                 let progress = Arc::clone(&progress);
                 move |_chunk: &str| {
-                    let mut guard = progress.lock().expect("export progress lock");
+                    let mut guard = lock_recover(&progress);
                     guard.event_index = guard.event_index.saturating_add(1);
                     guard.phase = "exporting".into();
                 }
             });
 
             {
-                let mut guard = progress.lock().expect("export progress lock");
+                let mut guard = lock_recover(&progress);
                 guard.phase = "starting".into();
                 guard.event_index = guard.event_index.saturating_add(1);
             }
 
             let result = run_export_job_with_cancel(input, Some(&cancel_slot), Some(progress_cb));
 
-            let mut guard = progress.lock().expect("export progress lock");
+            let mut guard = lock_recover(&progress);
             match result {
                 Ok(output) => {
                     guard.status = ExportJobState::Complete;
@@ -139,12 +141,12 @@ impl ExportJobRunner {
             }
         });
 
-        *self.handle.lock().expect("export handle lock") = Some(handle);
+        *lock_recover(&self.handle) = Some(handle);
         Ok(job_id)
     }
 
     pub fn cancel(&self, job_id: Option<&str>) -> Result<bool, String> {
-        let active = self.progress.lock().expect("export progress lock");
+        let active = lock_recover(&self.progress);
         if active.status != ExportJobState::Running {
             return Ok(false);
         }
@@ -156,7 +158,7 @@ impl ExportJobRunner {
 
         let cancelled = cancel_active_export(&self.cancel_slot).is_some();
         if cancelled {
-            let mut guard = self.progress.lock().expect("export progress lock");
+            let mut guard = lock_recover(&self.progress);
             if job_id.is_none() || job_id == Some(guard.job_id.as_str()) {
                 guard.status = ExportJobState::Cancelled;
                 guard.phase = "cancelled".into();
@@ -166,14 +168,14 @@ impl ExportJobRunner {
     }
 
     pub fn wait(&self) {
-        let handle = self.handle.lock().expect("export handle lock").take();
+        let handle = lock_recover(&self.handle).take();
         if let Some(handle) = handle {
             let _ = handle.join();
         }
     }
 
     pub fn take_result(&self, job_id: &str) -> Option<ExportJobOutput> {
-        let guard = self.progress.lock().expect("export progress lock");
+        let guard = lock_recover(&self.progress);
         if guard.job_id != job_id || guard.status != ExportJobState::Complete {
             return None;
         }

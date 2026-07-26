@@ -2,6 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use scriptor_ipc::{RpcEvent, RpcEventPayload};
 
+use crate::locks::lock_recover;
+
 #[derive(Default)]
 pub struct EventHub {
     subscribers: Mutex<Vec<std::sync::mpsc::Sender<RpcEvent>>>,
@@ -14,7 +16,7 @@ impl EventHub {
 
     pub fn register(&self) -> std::sync::mpsc::Receiver<RpcEvent> {
         let (tx, rx) = std::sync::mpsc::channel();
-        self.subscribers.lock().expect("event hub lock").push(tx);
+        lock_recover(&self.subscribers).push(tx);
         rx
     }
 
@@ -22,11 +24,11 @@ impl EventHub {
         let event = RpcEvent {
             payload: RpcEventPayload::ConfigReloaded { json, generation },
         };
-        let mut subscribers = self.subscribers.lock().expect("event hub lock");
+        let mut subscribers = lock_recover(&self.subscribers);
         subscribers.retain(|tx| tx.send(event.clone()).is_ok());
     }
 
     pub fn close(&self) {
-        self.subscribers.lock().expect("event hub lock").clear();
+        lock_recover(&self.subscribers).clear();
     }
 }

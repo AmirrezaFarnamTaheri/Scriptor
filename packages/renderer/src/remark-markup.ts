@@ -1,5 +1,7 @@
 import { visit } from 'unist-util-visit'
 
+import { escapeHtml } from './escape.ts'
+
 /** doocs/md style inline markup: `==highlight==`, `++underline++`. */
 export function remarkMarkup() {
   return (tree: Parameters<typeof visit>[0]) => {
@@ -35,11 +37,4 @@ export function remarkMarkup() {
       parent.children.splice(index, 1, ...parts)
     })
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
 }

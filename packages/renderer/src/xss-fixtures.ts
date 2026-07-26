@@ -340,7 +340,11 @@ export const XSS_FIXTURES: XssFixture[] = [
     id: 'xss-51',
     label: 'mutation XSS via backtick attribute',
     markdown: '<img src=x onerror=`alert(1)`>',
-    blockedPatterns: blocked(['onerror']),
+    // The backticks make markdown parse this as inline code before any HTML
+    // parser sees it, so no <img> element is ever constructed and the leftover
+    // `onerror=` is escaped prose. Assert the element is absent; auditMarkup
+    // independently proves no live handler attribute exists.
+    blockedPatterns: blocked(['<img']),
   },
   {
     id: 'xss-52',
@@ -366,7 +370,10 @@ export const XSS_FIXTURES: XssFixture[] = [
     id: 'xss-55',
     label: 'DOM clobbering via anchor name',
     markdown: '<a id="document" name="cookie" href="http://evil.com">',
-    blockedPatterns: blocked(['<a']),
+    // `<a>` itself is legitimate markdown output, so blocking the tag was wrong.
+    // The actual defence is hast-util-sanitize's clobberPrefix, which rewrites
+    // id/name to `user-content-*` so they cannot shadow `document.cookie` et al.
+    blockedPatterns: blocked(['id="document"', 'name="cookie"']),
   },
 
   // --- CSS injection ---
@@ -422,7 +429,9 @@ export const XSS_FIXTURES: XssFixture[] = [
     id: 'xss-63',
     label: 'data: URI with SVG script',
     markdown: '[click](data:image/svg+xml,<svg onload=alert(1)>)',
-    blockedPatterns: blocked(['data:image/svg+xml']),
+    // The payload only matters as a *link target*; the raw string surviving as
+    // escaped prose is inert. Assert on the attribute, not the substring.
+    blockedPatterns: blocked(['href="data:', 'onload']),
   },
   {
     id: 'xss-64',

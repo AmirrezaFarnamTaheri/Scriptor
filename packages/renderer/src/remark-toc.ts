@@ -1,5 +1,7 @@
 import { visit } from 'unist-util-visit'
 
+import { escapeAttr, escapeHtml, slugify } from './escape.ts'
+
 type HeadingInfo = {
   depth: number
   text: string
@@ -69,13 +71,7 @@ function renderToc(headings: HeadingInfo[]): string {
   return `<nav class="markdown-toc" aria-label="Table of contents"><ul class="markdown-toc-list">${items}</ul></nav>`
 }
 
-export function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu, '')
-    .trim()
-    .replace(/\s+/g, '-')
-}
+export { slugify } from './escape.ts'
 
 /**
  * Stateful slug generator that de-duplicates colliding ids with -1/-2 suffixes.
@@ -90,15 +86,4 @@ export function createSlugger(): (text: string) => string {
     counts.set(base, count + 1)
     return count === 0 ? base : `${base}-${count}`
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value).replaceAll('"', '&quot;')
 }

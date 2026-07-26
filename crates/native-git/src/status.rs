@@ -10,6 +10,9 @@ pub struct GitChangedFile {
     pub path: String,
     pub status: String,
     pub conflict: bool,
+    /// For rename/copy entries, where the file came from. `None` otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_path: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -145,17 +148,115 @@ fn parse_porcelain(output: &str) -> Vec<GitChangedFile> {
                 return None;
             }
             let raw_code = &line[..2];
-            let path = line[2..].trim_start();
+            let rest = line[2..].trim_start();
+            if rest.is_empty() {
+                return None;
+            }
+
+            // Rename/copy entries carry both endpoints: `R  ORIG -> PATH`.
+            let (original, path) = match split_rename(rest) {
+                Some((original, path)) => (Some(unquote_path(original)), unquote_path(path)),
+                None => (None, unquote_path(rest)),
+            };
             if path.is_empty() {
                 return None;
             }
+
             Some(GitChangedFile {
-                path: path.to_string(),
+                path,
                 status: map_status(raw_code.trim()),
                 conflict: is_conflict_code(raw_code),
+                original_path: original,
             })
         })
         .collect()
+}
+
+const RENAME_SEPARATOR: &str = " -> ";
+
+/// Splits `ORIG -> PATH`, skipping over a C-quoted left-hand side so a
+/// separator-looking sequence inside a quoted filename is not mistaken for the
+/// real separator.
+fn split_rename(rest: &str) -> Option<(&str, &str)> {
+    let search_from = if rest.starts_with('"') {
+        closing_quote_index(rest)? + 1
+    } else {
+        0
+    };
+    let offset = rest[search_from..].find(RENAME_SEPARATOR)?;
+    let split_at = search_from + offset;
+    Some((&rest[..split_at], &rest[split_at + RENAME_SEPARATOR.len()..]))
+}
+
+/// Byte index of the quote that closes the one at index 0, honouring backslash escapes.
+fn closing_quote_index(value: &str) -> Option<usize> {
+    let bytes = value.as_bytes();
+    let mut index = 1;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' => index += 2,
+            b'"' => return Some(index),
+            _ => index += 1,
+        }
+    }
+    None
+}
+
+/// Reverses git's C-style quoting (`core.quotePath`, on by default), which
+/// renders every non-ASCII byte as an octal escape inside a quoted string.
+/// Unquoted paths are returned as-is.
+fn unquote_path(raw: &str) -> String {
+    let raw = raw.trim();
+    if raw.len() < 2 || !raw.starts_with('"') || !raw.ends_with('"') {
+        return raw.to_string();
+    }
+
+    let inner = &raw.as_bytes()[1..raw.len() - 1];
+    let mut out: Vec<u8> = Vec::with_capacity(inner.len());
+    let mut index = 0;
+    while index < inner.len() {
+        if inner[index] != b'\\' {
+            out.push(inner[index]);
+            index += 1;
+            continue;
+        }
+        index += 1;
+        let Some(&escape) = inner.get(index) else {
+            // Trailing backslash: keep it rather than losing a byte.
+            out.push(b'\\');
+            break;
+        };
+        index += 1;
+        match escape {
+            b'a' => out.push(0x07),
+            b'b' => out.push(0x08),
+            b'f' => out.push(0x0c),
+            b'n' => out.push(b'\n'),
+            b'r' => out.push(b'\r'),
+            b't' => out.push(b'\t'),
+            b'v' => out.push(0x0b),
+            b'"' | b'\\' => out.push(escape),
+            b'0'..=b'7' => {
+                // Up to three octal digits, e.g. `\303` for one UTF-8 byte.
+                let mut value = u32::from(escape - b'0');
+                let mut digits = 1;
+                while digits < 3 {
+                    match inner.get(index) {
+                        Some(&digit @ b'0'..=b'7') => {
+                            value = value * 8 + u32::from(digit - b'0');
+                            index += 1;
+                            digits += 1;
+                        }
+                        _ => break,
+                    }
+                }
+                out.push(value as u8);
+            }
+            other => out.push(other),
+        }
+    }
+
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn map_status(code: &str) -> String {
@@ -349,6 +450,88 @@ mod tests {
         assert_eq!(files.len(), 1);
         assert!(files[0].conflict);
         assert_eq!(files[0].status, "conflict");
+    }
+
+    #[test]
+    fn parses_c_quoted_unicode_path() {
+        // `core.quotePath` is on by default, so git emits non-ASCII names
+        // octal-escaped inside double quotes.
+        let files = parse_porcelain("?? \"na\\303\\257ve note.md\"\n");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "naïve note.md");
+        assert_eq!(files[0].status, "added");
+        assert!(files[0].original_path.is_none());
+    }
+
+    #[test]
+    fn parses_rename_entry_into_both_endpoints() {
+        let files = parse_porcelain("R  old.md -> new.md\n");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "new.md");
+        assert_eq!(files[0].original_path.as_deref(), Some("old.md"));
+        assert_eq!(files[0].status, "renamed");
+    }
+
+    #[test]
+    fn parses_rename_entry_with_quoted_unicode_endpoints() {
+        let files = parse_porcelain("R  \"caf\\303\\251.md\" -> \"r\\303\\251sum\\303\\251.md\"\n");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "résumé.md");
+        assert_eq!(files[0].original_path.as_deref(), Some("café.md"));
+    }
+
+    #[test]
+    fn rename_separator_inside_a_quoted_name_is_not_a_split_point() {
+        let files = parse_porcelain("R  \"a -> b.md\" -> \"c.md\"\n");
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].original_path.as_deref(), Some("a -> b.md"));
+        assert_eq!(files[0].path, "c.md");
+    }
+
+    #[test]
+    fn unquotes_escaped_control_characters() {
+        assert_eq!(unquote_path(r#""tab\there.md""#), "tab\there.md");
+        assert_eq!(unquote_path(r#""quote\"name.md""#), "quote\"name.md");
+        assert_eq!(unquote_path(r#""back\\slash.md""#), "back\\slash.md");
+        assert_eq!(unquote_path("plain.md"), "plain.md");
+    }
+
+    #[test]
+    fn reports_unicode_and_renamed_paths_from_a_real_repo() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("old.md"), "# Old\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "old.md"])
+            .output()?;
+        git_commit(dir.path(), "init")?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["mv", "old.md", "new.md"])
+            .output()?;
+        fs::write(dir.path().join("café.md"), "# Café\n")?;
+
+        let status = git_status(dir.path())?;
+        let unicode = status
+            .changed_files
+            .iter()
+            .find(|file| file.path == "café.md")
+            .ok_or("unicode path missing from status")?;
+        assert!(unicode.original_path.is_none());
+
+        let renamed = status
+            .changed_files
+            .iter()
+            .find(|file| file.status == "renamed")
+            .ok_or("rename entry missing from status")?;
+        assert_eq!(renamed.path, "new.md");
+        assert_eq!(renamed.original_path.as_deref(), Some("old.md"));
+        Ok(())
     }
 
     #[test]

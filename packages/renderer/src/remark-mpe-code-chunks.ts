@@ -1,5 +1,10 @@
 import { visit } from 'unist-util-visit'
 
+import { escapeAttr, escapeHtml } from './escape.ts'
+
+/** Fence-meta keys are interpolated into attribute *names*, so they are charset-restricted. */
+const SAFE_ATTRIBUTE_NAME = /^[a-z][a-z0-9-]*$/
+
 const CODE_CHUNK_LANGS = new Set(['code-chunk', 'run', 'cmd', 'powershell', 'pwsh', 'python', 'node', 'sh'])
 
 export type MpeCodeChunkAttributes = Record<string, string>
@@ -68,7 +73,13 @@ export function remarkMpeCodeChunks() {
         if (outputMode.length > 0) attrParts.push(`data-mpe-output="${escapeAttr(outputMode)}"`)
         for (const [key, valueAttr] of Object.entries(attrs)) {
           if (key === 'cmd' || key === 'hide' || key === 'output' || key === 'title' || key === 'id') continue
-          attrParts.push(`data-mpe-${escapeAttr(key)}="${escapeAttr(valueAttr)}"`)
+          // Attribute *names* cannot be made safe by escaping: entity-encoding a
+          // `"` leaves it a literal `&quot;` in name position, while any
+          // whitespace in the key simply starts a new attribute — so a fence
+          // meta of `{a'" onload="alert(1)}` used to synthesise a live onload
+          // handler. Names must be charset-validated instead.
+          if (!SAFE_ATTRIBUTE_NAME.test(key)) continue
+          attrParts.push(`data-mpe-${key}="${escapeAttr(valueAttr)}"`)
         }
 
         const hideClass = hide.length > 0 ? ' mpe-code-chunk-hidden' : ''
@@ -86,16 +97,4 @@ export function remarkMpeCodeChunks() {
       },
     )
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value).replaceAll("'", '&#39;')
 }
