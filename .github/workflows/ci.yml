@@ -17,6 +17,22 @@ defaults:
     working-directory: .
 
 jobs:
+  source-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package exact source tree
+        shell: bash
+        run: git archive --format=zip --output=scriptor-source.zip HEAD
+      - name: Upload exact source tree
+        uses: actions/upload-artifact@v4
+        with:
+          name: scriptor-source-${{ github.sha }}
+          path: scriptor-source.zip
+          if-no-files-found: error
+          retention-days: 1
+
   supply-chain:
     runs-on: ubuntu-latest
     timeout-minutes: 30
