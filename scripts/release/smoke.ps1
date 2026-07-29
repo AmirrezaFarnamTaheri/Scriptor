@@ -22,7 +22,6 @@ $daemonPath = Join-Path $root "target/debug/$daemonName"
 if (-not (Test-Path -LiteralPath $daemonPath -PathType Leaf)) {
     throw "scriptor-daemon binary not found after build: $daemonPath"
 }
-$env:SCRIPTOR_DAEMON_BIN = (Resolve-Path -LiteralPath $daemonPath).Path
 
 function Invoke-ScriptorCli {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
@@ -36,12 +35,34 @@ function Invoke-ScriptorCli {
 $sourceVault = (Resolve-Path -LiteralPath $VaultPath).Path
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "scriptor-release-smoke-$([guid]::NewGuid().ToString('N'))"
 $smokeVault = Join-Path $tempRoot "vault"
+$smokeAppData = Join-Path $tempRoot "appdata"
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $smokeAppData | Out-Null
 Copy-Item -LiteralPath $sourceVault -Destination $smokeVault -Recurse -Force
+
+$originalAppData = $env:APPDATA
+$originalDaemonBin = $env:SCRIPTOR_DAEMON_BIN
+$daemonProcessId = $null
+
+# The daemon endpoint, HMAC key, and process belong exclusively to this smoke
+# invocation. This prevents stale user/runner state from satisfying the ping and
+# makes it safe to terminate the exact child during cleanup.
+if ($isWindowsPlatform) {
+    $env:APPDATA = $smokeAppData
+}
+$env:SCRIPTOR_DAEMON_BIN = (Resolve-Path -LiteralPath $daemonPath).Path
 
 try {
     Write-Host "==> Daemon auto-start and ping"
     Invoke-ScriptorCli daemon ping | Out-Null
+
+    $endpointJson = Invoke-ScriptorCli daemon endpoint | Out-String
+    $endpoint = $endpointJson | ConvertFrom-Json
+    $daemonProcessId = [int]$endpoint.pid
+    if ($daemonProcessId -le 0) {
+        throw "daemon endpoint did not expose a valid process id"
+    }
+    Write-Host "Smoke daemon PID: $daemonProcessId"
 
     Write-Host "==> Open vault"
     Invoke-ScriptorCli open $smokeVault
@@ -108,5 +129,30 @@ try {
     Write-Host "Release smoke checks passed."
 }
 finally {
+    if ($daemonProcessId) {
+        Write-Host "==> Stop smoke daemon $daemonProcessId"
+        Stop-Process -Id $daemonProcessId -Force -ErrorAction SilentlyContinue
+        for ($attempt = 0; $attempt -lt 40; $attempt++) {
+            if (-not (Get-Process -Id $daemonProcessId -ErrorAction SilentlyContinue)) {
+                break
+            }
+            Start-Sleep -Milliseconds 250
+        }
+        if (Get-Process -Id $daemonProcessId -ErrorAction SilentlyContinue) {
+            Write-Warning "Smoke daemon $daemonProcessId did not terminate within 10 seconds."
+        }
+    }
+
+    if ($null -eq $originalAppData) {
+        Remove-Item Env:APPDATA -ErrorAction SilentlyContinue
+    } else {
+        $env:APPDATA = $originalAppData
+    }
+    if ($null -eq $originalDaemonBin) {
+        Remove-Item Env:SCRIPTOR_DAEMON_BIN -ErrorAction SilentlyContinue
+    } else {
+        $env:SCRIPTOR_DAEMON_BIN = $originalDaemonBin
+    }
+
     Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
