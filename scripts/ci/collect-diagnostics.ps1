@@ -28,12 +28,12 @@ function Get-ToolVersion {
         $resolved = Get-Command $Command -ErrorAction Stop
         $result = (& $resolved.Source @Arguments 2>&1 | Out-String).Trim()
         if ([string]::IsNullOrWhiteSpace($result)) {
-            return "$Command: available at $($resolved.Source)"
+            return "${Command}: available at $($resolved.Source)"
         }
         return ($result -replace "`r?`n", " | ")
     }
     catch {
-        return "$Command: unavailable"
+        return "${Command}: unavailable"
     }
 }
 
@@ -134,7 +134,11 @@ foreach ($drive in @(Get-PSDrive -PSProvider FileSystem | Sort-Object Name)) {
 Add-DiagnosticLine ""
 
 Add-DiagnosticLine "repository_inventory:"
-foreach ($item in @(Get-ChildItem -Force | Sort-Object PSIsContainer -Descending, Name | Select-Object -First 100)) {
+$inventory = Get-ChildItem -Force | Sort-Object -Property @(
+    @{ Expression = "PSIsContainer"; Descending = $true },
+    @{ Expression = "Name"; Descending = $false }
+) | Select-Object -First 100
+foreach ($item in @($inventory)) {
     $kind = if ($item.PSIsContainer) { "dir" } else { "file" }
     $size = if ($item.PSIsContainer) { "-" } else { $item.Length }
     Add-DiagnosticLine "  ${kind}: $($item.Name) bytes=$size"
