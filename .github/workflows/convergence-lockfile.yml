@@ -1,0 +1,63 @@
+name: Regenerate convergence lockfile
+
+on:
+  push:
+    branches:
+      - convergence/all-open-prs-2026-07-29
+    paths:
+      - .github/workflows/convergence-lockfile.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: convergence-lockfile
+  cancel-in-progress: true
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out convergence branch
+        uses: actions/checkout@v7
+        with:
+          ref: convergence/all-open-prs-2026-07-29
+          fetch-depth: 0
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Regenerate combined lockfile
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+
+      - name: Verify frozen install
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify integrated Node types
+        shell: bash
+        run: |
+          grep -F '"@types/node": "^26.1.2"' package.json
+          grep -F "'@types/node@26.1.2':" pnpm-lock.yaml
+
+      - name: Commit regenerated lockfile
+        shell: bash
+        run: |
+          if git diff --quiet -- pnpm-lock.yaml; then
+            echo "Lockfile already matches the combined manifest."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore(deps): regenerate unified pnpm lockfile"
+          git push origin HEAD:convergence/all-open-prs-2026-07-29
