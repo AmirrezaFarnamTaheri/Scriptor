@@ -13,9 +13,9 @@
   },
   "dependencies": {
     "hast-util-sanitize": "^5.0.2",
-    "katex": "^0.17.0",
+    "katex": "^0.18.1",
     "highlight.js": "^11.11.1",
-    "mermaid": "^11.15.0",
+    "mermaid": "^11.16.0",
     "plantuml-encoder": "^1.4.0",
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",
@@ -31,6 +31,6 @@
     "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
-    "@types/hast": "^3.0.4"
+    "@types/hast": "^3.0.5"
   }
 }
