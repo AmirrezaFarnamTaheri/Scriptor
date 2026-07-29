@@ -56,38 +56,47 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("crates/cli/src/tui.rs")
           text = path.read_text(encoding="utf-8")
-          replacements = [
-              (
-                  """use crossterm::{
-              event::{self, Event, KeyCode, KeyEventKind},
-              execute,
-              terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-          };
-          """,
-                  "use crossterm::event::{self, Event, KeyCode, KeyEventKind};\n",
-              ),
-              (
-                  """impl TerminalGuard {
-              fn enter() -> Result<(Self, DefaultTerminal), Box<dyn std::error::Error>> {
-                  enable_raw_mode()?;
-                  let mut stdout = std::io::stdout();
-                  execute!(stdout, EnterAlternateScreen)?;
-                  Ok((Self, ratatui::init()))
-              }
-          }
 
-          impl Drop for TerminalGuard {
-              fn drop(&mut self) {
-                  let _ = disable_raw_mode();
-                  let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
-                  ratatui::restore();
-              }
-          }
-          """,
-                  """impl TerminalGuard {
+          import_pattern = re.compile(
+              r"use crossterm::\{\s*"
+              r"event::\{self, Event, KeyCode, KeyEventKind\},\s*"
+              r"execute,\s*"
+              r"terminal::\{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen\},\s*"
+              r"\};"
+          )
+          text, import_count = import_pattern.subn(
+              "use crossterm::event::{self, Event, KeyCode, KeyEventKind};",
+              text,
+          )
+          if import_count != 1:
+              raise SystemExit(
+                  f"expected exactly one manual crossterm lifecycle import block, found {import_count}"
+              )
+
+          start_marker = "impl TerminalGuard {"
+          end_marker = "pub fn safe_fit"
+          if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+              raise SystemExit("unexpected TerminalGuard/safe_fit structure")
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          old_block = text[start:end]
+          required = [
+              "enable_raw_mode()?;",
+              "EnterAlternateScreen",
+              "ratatui::init()",
+              "disable_raw_mode()",
+              "LeaveAlternateScreen",
+              "ratatui::restore();",
+          ]
+          missing = [token for token in required if token not in old_block]
+          if missing:
+              raise SystemExit(f"TerminalGuard block missing expected tokens: {missing}")
+
+          new_block = """impl TerminalGuard {
               fn enter() -> Result<(Self, DefaultTerminal), Box<dyn std::error::Error>> {
                   Ok((Self, ratatui::try_init()?))
               }
@@ -98,14 +107,9 @@ jobs:
                   ratatui::restore();
               }
           }
-          """,
-              ),
-          ]
-          for old, new in replacements:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"expected exactly one TUI lifecycle pattern, found {count}")
-              text = text.replace(old, new)
+
+          """
+          text = text[:start] + new_block + text[end:]
           path.write_text(text, encoding="utf-8")
           PY
           rustfmt --edition 2024 crates/cli/src/tui.rs
