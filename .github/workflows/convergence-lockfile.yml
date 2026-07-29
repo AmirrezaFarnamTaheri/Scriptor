@@ -51,6 +51,65 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Normalize TUI terminal lifecycle
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("crates/cli/src/tui.rs")
+          text = path.read_text(encoding="utf-8")
+          replacements = [
+              (
+                  """use crossterm::{
+              event::{self, Event, KeyCode, KeyEventKind},
+              execute,
+              terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+          };
+          """,
+                  "use crossterm::event::{self, Event, KeyCode, KeyEventKind};\n",
+              ),
+              (
+                  """impl TerminalGuard {
+              fn enter() -> Result<(Self, DefaultTerminal), Box<dyn std::error::Error>> {
+                  enable_raw_mode()?;
+                  let mut stdout = std::io::stdout();
+                  execute!(stdout, EnterAlternateScreen)?;
+                  Ok((Self, ratatui::init()))
+              }
+          }
+
+          impl Drop for TerminalGuard {
+              fn drop(&mut self) {
+                  let _ = disable_raw_mode();
+                  let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
+                  ratatui::restore();
+              }
+          }
+          """,
+                  """impl TerminalGuard {
+              fn enter() -> Result<(Self, DefaultTerminal), Box<dyn std::error::Error>> {
+                  Ok((Self, ratatui::try_init()?))
+              }
+          }
+
+          impl Drop for TerminalGuard {
+              fn drop(&mut self) {
+                  ratatui::restore();
+              }
+          }
+          """,
+              ),
+          ]
+          for old, new in replacements:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected exactly one TUI lifecycle pattern, found {count}")
+              text = text.replace(old, new)
+          path.write_text(text, encoding="utf-8")
+          PY
+          rustfmt --edition 2024 crates/cli/src/tui.rs
+
       - name: Regenerate combined npm lockfile
         run: pnpm install --lockfile-only --no-frozen-lockfile
 
@@ -72,6 +131,8 @@ jobs:
           grep -F 'ratatui = "0.30.2"' crates/cli/Cargo.toml
           test "$(grep -c '^name = "crossterm"$' Cargo.lock)" -eq 1
           grep -A1 '^name = "crossterm"$' Cargo.lock | grep -F 'version = "0.29.0"'
+          grep -F 'ratatui::try_init()?' crates/cli/src/tui.rs
+          ! grep -q 'enable_raw_mode\|EnterAlternateScreen\|LeaveAlternateScreen' crates/cli/src/tui.rs
 
           grep -F 'resvg = "0.47"' crates/canvas-engine/Cargo.toml
           grep -F 'tiny-skia = "0.12"' crates/canvas-engine/Cargo.toml
@@ -82,15 +143,15 @@ jobs:
           grep -A1 '^name = "usvg"$' Cargo.lock | grep -F 'version = "0.47.0"'
           grep -A1 '^name = "tiny-skia"$' Cargo.lock | grep -F 'version = "0.12.0"'
 
-      - name: Commit reconciled lockfiles
+      - name: Commit reconciled sources and lockfiles
         shell: bash
         run: |
-          if git diff --quiet -- pnpm-lock.yaml Cargo.lock; then
-            echo "Lockfiles already match the combined manifests."
+          if git diff --quiet -- pnpm-lock.yaml Cargo.lock crates/cli/src/tui.rs; then
+            echo "Sources and lockfiles already match the combined manifests."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml Cargo.lock
-          git commit -m "chore(deps): reconcile unified lockfiles"
+          git add pnpm-lock.yaml Cargo.lock crates/cli/src/tui.rs
+          git commit -m "chore(deps): reconcile unified dependency graph"
           git push origin HEAD:convergence/all-open-prs-2026-07-29
