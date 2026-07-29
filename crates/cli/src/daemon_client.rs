@@ -14,6 +14,8 @@ pub const IN_PROCESS_DEPRECATION: &str =
 const DAEMON_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const DAEMON_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const DAEMON_EXISTING_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
+const DAEMON_EXISTING_RECOVERY_TIMEOUT: Duration = Duration::from_secs(5);
+const DAEMON_EXISTING_RECOVERY_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const DAEMON_STARTUP_PING_TIMEOUT: Duration = Duration::from_secs(1);
 const DAEMON_COMMAND_PING_TIMEOUT: Duration = Duration::from_secs(5);
 const DAEMON_SOCKET_ENV: &str = "SCRIPTOR_DAEMON_SOCKET";
@@ -93,10 +95,133 @@ fn bounded_startup_ping_timeout(now: Instant, deadline: Instant) -> Option<Durat
     }
 }
 
+/// Verify whether the authenticated endpoint's recorded process still exists.
+///
+/// This deliberately mirrors the daemon transport's liveness check. It is kept
+/// here because startup arbitration must happen before another listener is
+/// spawned: a transient EOF from a live daemon is not permission to create a
+/// competing process on the same named pipe or Unix socket.
+fn process_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+
+    #[cfg(unix)]
+    {
+        Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
+    #[cfg(windows)]
+    {
+        use std::ffi::c_void;
+
+        unsafe extern "system" {
+            fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+            fn CloseHandle(handle: *mut c_void) -> i32;
+        }
+
+        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+        unsafe {
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if handle.is_null() {
+                return false;
+            }
+            CloseHandle(handle);
+            true
+        }
+    }
+}
+
+/// Recover from a transient connection failure without ever racing a second
+/// daemon against an authenticated endpoint whose process is still alive.
+fn recover_existing_daemon(
+    mut endpoint: DaemonEndpoint,
+    initial_error: String,
+) -> Result<Option<DaemonEndpoint>, Box<dyn std::error::Error>> {
+    let deadline = Instant::now() + DAEMON_EXISTING_RECOVERY_TIMEOUT;
+    let mut last_error = initial_error.clone();
+
+    loop {
+        if !process_alive(endpoint.pid) {
+            return Ok(None);
+        }
+
+        let now = Instant::now();
+        let Some(ping_timeout) = bounded_startup_ping_timeout(now, deadline) else {
+            break;
+        };
+
+        // Every retry starts from a fresh local socket. An EOF may leave the
+        // previous stream between frames and therefore unsafe to reuse.
+        reset_rpc_session();
+        match daemon_ping_with_timeout(ping_timeout) {
+            Ok(_) => {
+                let current = read_endpoint()?;
+                if process_alive(current.pid) {
+                    return Ok(Some(current));
+                }
+                return Ok(None);
+            }
+            Err(error) => last_error = error.to_string(),
+        }
+
+        // Another authorised process may replace a genuinely dead daemon while
+        // this caller is recovering. Follow the newly signed endpoint instead
+        // of retaining an obsolete PID/socket pair.
+        if let Ok(current) = read_endpoint() {
+            endpoint = current;
+        }
+        if !process_alive(endpoint.pid) {
+            return Ok(None);
+        }
+
+        let now = Instant::now();
+        let Some(remaining) = deadline.checked_duration_since(now) else {
+            break;
+        };
+        if remaining.is_zero() {
+            break;
+        }
+        thread::sleep(remaining.min(DAEMON_EXISTING_RECOVERY_POLL_INTERVAL));
+    }
+
+    if !process_alive(endpoint.pid) {
+        return Ok(None);
+    }
+
+    Err(format!(
+        "daemon endpoint {} belongs to live pid {} but did not recover within {}s; refusing to spawn a duplicate listener on the same socket; initial ping error: {}; last ping error: {}",
+        endpoint.socket_name,
+        endpoint.pid,
+        DAEMON_EXISTING_RECOVERY_TIMEOUT.as_secs(),
+        initial_error,
+        last_error,
+    )
+    .into())
+}
+
 /// Ensure a daemon is reachable, spawning and monitoring the sidecar when needed.
 pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Error>> {
-    if daemon_ping_with_timeout(DAEMON_EXISTING_PROBE_TIMEOUT).is_ok() {
-        return read_endpoint().map_err(Into::into);
+    let initial_ping_error = match daemon_ping_with_timeout(DAEMON_EXISTING_PROBE_TIMEOUT) {
+        Ok(_) => return read_endpoint().map_err(Into::into),
+        Err(error) => error.to_string(),
+    };
+
+    // A signed endpoint plus a live PID is authoritative even when one ping
+    // fails. Windows named pipes can briefly return EOF while the listener is
+    // cycling instances between short-lived CLI clients. Recover against that
+    // process first; spawning immediately creates a duplicate-listener race.
+    if let Ok(endpoint) = read_endpoint()
+        && process_alive(endpoint.pid)
+        && let Some(recovered) = recover_existing_daemon(endpoint, initial_ping_error)?
+    {
+        return Ok(recovered);
     }
 
     let binary = resolve_daemon_binary();
@@ -260,5 +385,11 @@ mod tests {
             Some(remaining)
         );
         assert_eq!(bounded_startup_ping_timeout(now, now), None);
+    }
+
+    #[test]
+    fn process_liveness_rejects_zero_and_accepts_current_process() {
+        assert!(!process_alive(0));
+        assert!(process_alive(std::process::id()));
     }
 }
