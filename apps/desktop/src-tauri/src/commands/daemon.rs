@@ -3,11 +3,11 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::Duration;
 
-use scriptor_daemon::{read_endpoint, rpc_call, DaemonEndpoint};
+use scriptor_daemon::{DaemonEndpoint, read_endpoint, rpc_call};
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResult};
 use serde::Serialize;
-use tauri::path::BaseDirectory;
 use tauri::Manager;
+use tauri::path::BaseDirectory;
 
 static RPC_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -21,8 +21,8 @@ fn next_rpc_id() -> u64 {
 }
 
 pub(crate) fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
-    let response = rpc_call(RpcRequest::new(next_rpc_id(), method))
-        .map_err(|error| error.to_string())?;
+    let response =
+        rpc_call(RpcRequest::new(next_rpc_id(), method)).map_err(|error| error.to_string())?;
     match response.result {
         RpcResult::Ok(payload) => Ok(payload),
         RpcResult::Err(message) => Err(message),
@@ -33,15 +33,18 @@ fn resolve_daemon_binary(app: &tauri::AppHandle) -> std::path::PathBuf {
     if let Ok(path) = std::env::var("SCRIPTOR_DAEMON_BIN") {
         return std::path::PathBuf::from(path);
     }
-    let mut candidates = vec![
+    #[cfg(windows)]
+    let candidates = vec![
+        "binaries/scriptor-daemon.exe".to_string(),
+        "binaries/scriptor-daemon".to_string(),
+        "scriptor-daemon".to_string(),
+        "scriptor-daemon.exe".to_string(),
+    ];
+    #[cfg(not(windows))]
+    let candidates = vec![
         "binaries/scriptor-daemon".to_string(),
         "scriptor-daemon".to_string(),
     ];
-    #[cfg(windows)]
-    {
-        candidates.insert(0, "binaries/scriptor-daemon.exe".to_string());
-        candidates.push("scriptor-daemon.exe".to_string());
-    }
     for candidate in candidates {
         if let Ok(resource) = app.path().resolve(&candidate, BaseDirectory::Resource) {
             if resource.is_file() {
@@ -409,7 +412,11 @@ pub(crate) fn bridge_save_note(
     daemon_save_note(path, markdown, expected_content_hash, dry_run)
 }
 
-pub(crate) fn bridge_rename_apply(from_path: String, to_path: String, update_links: bool) -> Result<String, String> {
+pub(crate) fn bridge_rename_apply(
+    from_path: String,
+    to_path: String,
+    update_links: bool,
+) -> Result<String, String> {
     daemon_rename_apply(from_path, to_path, update_links)
 }
 

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use scriptor_export_runner::{
-    cancel_active_export, default_export_directory, discover_pandoc, run_export_job_with_cancel,
-    ExportJobInput, ExportJobOutput, ExportProgressCallback, PandocDiscovery,
+    ExportJobInput, ExportJobOutput, ExportProgressCallback, PandocDiscovery, cancel_active_export,
+    default_export_directory, discover_pandoc, run_export_job_with_cancel,
 };
-use scriptor_vault::{read_note, RelativeVaultPath, VaultSession};
+use scriptor_vault::{RelativeVaultPath, VaultSession, read_note};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
@@ -13,8 +13,8 @@ use crate::AppState;
 use crate::state::{active_session, use_headless_engine};
 
 use super::daemon::{
-    bridge_export_cancel, bridge_export_job_status, bridge_export_run_markdown, bridge_export_run_note,
-    bridge_export_start_note,
+    bridge_export_cancel, bridge_export_job_status, bridge_export_run_markdown,
+    bridge_export_run_note, bridge_export_start_note,
 };
 use super::shared::parse_daemon_json;
 
@@ -60,6 +60,12 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
         std::thread::sleep(std::time::Duration::from_millis(100));
         let json = bridge_export_job_status()?;
         let report = parse_daemon_json::<DaemonExportProgressReport>(&json)?;
+        if report.job_id != job_id {
+            return Err(format!(
+                "daemon export status job mismatch: expected {}, got {}",
+                job_id, report.job_id
+            ));
+        }
         if report.event_index > last_event_index {
             let _ = app.emit(
                 "export:progress",
@@ -90,7 +96,9 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
             "failed" => {
                 let failed = ExportJobFailed {
                     job_id,
-                    error: report.error.unwrap_or_else(|| "daemon export failed".into()),
+                    error: report
+                        .error
+                        .unwrap_or_else(|| "daemon export failed".into()),
                 };
                 let _ = app.emit("export:failed", &failed);
                 return Ok(());
@@ -246,7 +254,8 @@ pub fn export_run_note(
         None,
     )?;
 
-    run_export_job_with_cancel(input, Some(&state.export_cancel), None).map_err(|error| error.to_string())
+    run_export_job_with_cancel(input, Some(&state.export_cancel), None)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -281,7 +290,8 @@ pub fn export_run_markdown(
         output_subdirectory,
         None,
     )?;
-    run_export_job_with_cancel(input, Some(&state.export_cancel), None).map_err(|error| error.to_string())
+    run_export_job_with_cancel(input, Some(&state.export_cancel), None)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -427,11 +437,15 @@ pub fn pdf_translate(
     lang_out: Option<String>,
     output_path: Option<String>,
 ) -> Result<PdfTranslateOutput, String> {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     let session = active_session(&state)?;
-    let relative = RelativeVaultPath::parse(&input_path).map_err(|error| format!("invalid input_path: {error}"))?;
-    let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+    let relative = RelativeVaultPath::parse(&input_path)
+        .map_err(|error| format!("invalid input_path: {error}"))?;
+    let resolved = session
+        .root
+        .resolve_relative(&relative)
+        .map_err(|error| error.to_string())?;
     let resolved_str = resolved.display().to_string();
 
     let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
@@ -443,8 +457,12 @@ pub fn pdf_translate(
         .arg("-lo")
         .arg(lang_out.unwrap_or_else(|| "zh".into()));
     if let Some(out) = output_path {
-        let out_relative = RelativeVaultPath::parse(&out).map_err(|error| format!("invalid output_path: {error}"))?;
-        let out_resolved = session.root.resolve_relative(&out_relative).map_err(|error| error.to_string())?;
+        let out_relative = RelativeVaultPath::parse(&out)
+            .map_err(|error| format!("invalid output_path: {error}"))?;
+        let out_resolved = session
+            .root
+            .resolve_relative(&out_relative)
+            .map_err(|error| error.to_string())?;
         command.arg("-o").arg(&out_resolved);
     }
 

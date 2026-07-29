@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use serde::Serialize;
 
-use crate::state::{active_session, AppState};
+use crate::state::{AppState, active_session};
 
 const MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const TIMEOUT_SECS: u64 = 30;
@@ -23,7 +23,9 @@ pub struct CodeChunkRunOutput {
 
 fn allowed_runner(language: &str) -> Option<(&'static str, Vec<&'static str>)> {
     match language {
-        "powershell" | "ps1" => Some(("powershell", vec!["-NoProfile", "-NonInteractive", "-File"])),
+        "powershell" | "ps1" => {
+            Some(("powershell", vec!["-NoProfile", "-NonInteractive", "-File"]))
+        }
         "pwsh" => Some(("pwsh", vec!["-NoProfile", "-NonInteractive", "-File"])),
         "python" | "py" => Some(("python", vec![])),
         "node" | "javascript" | "js" => Some(("node", vec![])),
@@ -61,10 +63,20 @@ fn truncate_output(value: String) -> String {
     format!("{}…\n[truncated]", &value[..end])
 }
 
-fn execution_enabled() -> bool {
-    std::env::var(CODE_EXECUTION_OPT_IN)
-        .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+fn execution_enabled_from_value(value: Option<&str>) -> bool {
+    value
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "1" | "true" | "yes"
+            )
+        })
         .unwrap_or(false)
+}
+
+fn execution_enabled() -> bool {
+    let value = std::env::var(CODE_EXECUTION_OPT_IN).ok();
+    execution_enabled_from_value(value.as_deref())
 }
 
 #[tauri::command]
@@ -117,8 +129,14 @@ pub fn code_chunk_run(
 
     // Drain both pipes while the child is running. Waiting before reading can
     // deadlock when either OS pipe buffer fills.
-    let stdout = child.stdout.take().ok_or_else(|| "failed to capture stdout".to_string())?;
-    let stderr = child.stderr.take().ok_or_else(|| "failed to capture stderr".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "failed to capture stdout".to_string())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "failed to capture stderr".to_string())?;
     let stdout_reader = thread::spawn(move || {
         let mut reader = stdout;
         let mut bytes = Vec::new();
@@ -167,7 +185,7 @@ pub fn code_chunk_run(
 
 #[cfg(test)]
 mod tests {
-    use super::{execution_enabled, truncate_output, CODE_EXECUTION_OPT_IN};
+    use super::{execution_enabled_from_value, truncate_output};
 
     #[test]
     fn truncate_output_keeps_utf8_boundaries() {
@@ -178,9 +196,14 @@ mod tests {
     }
 
     #[test]
-    fn code_execution_is_disabled_without_explicit_opt_in() {
-        std::env::remove_var(CODE_EXECUTION_OPT_IN);
-        assert!(!execution_enabled());
+    fn code_execution_requires_explicit_opt_in() {
+        assert!(!execution_enabled_from_value(None));
+        for value in ["", "0", "false", "no", "random"] {
+            assert!(!execution_enabled_from_value(Some(value)), "{value:?}");
+        }
+        for value in ["1", " true ", "TRUE", "yes", "YeS"] {
+            assert!(execution_enabled_from_value(Some(value)), "{value:?}");
+        }
     }
 }
 
@@ -189,12 +212,13 @@ pub fn vault_publish_starlight(
     state: tauri::State<AppState>,
     output_path: String,
 ) -> Result<serde_json::Value, String> {
-    use scriptor_vault::{load_vault_config, scan_vault_with_roots, ScannedEntryKind};
+    use scriptor_vault::{ScannedEntryKind, load_vault_config, scan_vault_with_roots};
     use std::fs;
 
     let session = active_session(&state)?;
     let config = load_vault_config(session.root.root()).unwrap_or_default();
-    let entries = scan_vault_with_roots(&session.root, &config.extra_roots).map_err(|e| e.to_string())?;
+    let entries =
+        scan_vault_with_roots(&session.root, &config.extra_roots).map_err(|e| e.to_string())?;
     let output = std::path::PathBuf::from(&output_path);
     let docs_dir = output.join("src").join("content").join("docs");
     fs::create_dir_all(&docs_dir).map_err(|e| e.to_string())?;
