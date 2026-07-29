@@ -40,6 +40,9 @@ New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 Copy-Item -LiteralPath $sourceVault -Destination $smokeVault -Recurse -Force
 
 try {
+    Write-Host "==> Daemon auto-start and ping"
+    Invoke-ScriptorCli daemon ping | Out-Null
+
     Write-Host "==> Open vault"
     Invoke-ScriptorCli open $smokeVault
 
