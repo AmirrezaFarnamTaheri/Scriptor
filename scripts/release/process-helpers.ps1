@@ -1,13 +1,17 @@
 function ConvertTo-NativeCommandLineArgument {
+    <#
+    .SYNOPSIS
+    Quotes one native-process argument without changing its value.
+    .DESCRIPTION
+    Applies the CommandLineToArgvW-compatible escaping rules required by
+    Rust/Clap on Windows while remaining valid for Start-Process elsewhere.
+    #>
     param([AllowEmptyString()][string]$Value)
 
     if ($Value.Length -gt 0 -and $Value -notmatch '[\s"]') {
         return $Value
     }
 
-    # Follow the CommandLineToArgvW quoting rules used by Rust/Clap on Windows:
-    # quote whitespace-bearing arguments, double backslashes before a quote,
-    # and double trailing backslashes before the closing quote.
     $builder = New-Object System.Text.StringBuilder
     [void]$builder.Append('"')
     $backslashes = 0
@@ -41,7 +45,175 @@ function ConvertTo-NativeCommandLineArgument {
     $builder.ToString()
 }
 
+function Test-NativeWindowsPlatform {
+    <# .SYNOPSIS Returns whether the current PowerShell host is running on Windows. #>
+    return (
+        $env:OS -eq 'Windows_NT' -or
+        [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
+    )
+}
+
+function Start-NativeProcessCapture {
+    <#
+    .SYNOPSIS
+    Starts a native process with stdout and stderr redirected to files.
+    .DESCRIPTION
+    File redirection avoids pipe-drain deadlocks and lets timeout supervision
+    remain independent from descendants that accidentally retain inherited
+    output handles.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [string[]]$Arguments = @(),
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string]$StandardOutputPath,
+        [Parameter(Mandatory = $true)][string]$StandardErrorPath
+    )
+
+    $resolvedFile = (Get-Command $FilePath -ErrorAction Stop).Source
+    $argumentLine = ($Arguments | ForEach-Object {
+        ConvertTo-NativeCommandLineArgument -Value ([string]$_)
+    }) -join ' '
+    $displayCommand = "$resolvedFile $argumentLine".Trim()
+
+    $startParameters = @{
+        FilePath               = $resolvedFile
+        WorkingDirectory       = $WorkingDirectory
+        RedirectStandardOutput = $StandardOutputPath
+        RedirectStandardError  = $StandardErrorPath
+        PassThru               = $true
+        ErrorAction            = 'Stop'
+    }
+    if (-not [string]::IsNullOrWhiteSpace($argumentLine)) {
+        $startParameters.ArgumentList = $argumentLine
+    }
+    if (Test-NativeWindowsPlatform) {
+        $startParameters.NoNewWindow = $true
+    }
+
+    $process = Start-Process @startParameters
+    [pscustomobject]@{
+        Process        = $process
+        ResolvedFile   = $resolvedFile
+        ArgumentLine   = $argumentLine
+        DisplayCommand = $displayCommand
+    }
+}
+
+function Stop-NativeProcessTree {
+    <#
+    .SYNOPSIS
+    Terminates a native process and all descendants within a bounded grace period.
+    .DESCRIPTION
+    Uses Windows taskkill /T when available and .NET recursive termination on
+    other platforms. It never performs an unbounded WaitForExit call.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process,
+        [ValidateRange(1, 30)][int]$GraceSeconds = 5
+    )
+
+    try {
+        $Process.Refresh()
+        if ($Process.HasExited) {
+            return
+        }
+    }
+    catch {
+        return
+    }
+
+    $killErrors = New-Object System.Collections.Generic.List[string]
+    $terminated = $false
+    if (Test-NativeWindowsPlatform) {
+        $taskkill = Get-Command taskkill.exe -ErrorAction SilentlyContinue
+        if ($taskkill) {
+            try {
+                & $taskkill.Source /PID $Process.Id /T /F 2>$null | Out-Null
+                if ($LASTEXITCODE -eq 0) {
+                    $terminated = $true
+                } else {
+                    $killErrors.Add("taskkill exited with $LASTEXITCODE")
+                }
+            }
+            catch {
+                $killErrors.Add($_.Exception.Message)
+            }
+        }
+    }
+
+    if (-not $terminated) {
+        try {
+            $Process.Kill($true)
+            $terminated = $true
+        }
+        catch {
+            $killErrors.Add($_.Exception.Message)
+            try {
+                $Process.Kill()
+                $terminated = $true
+            }
+            catch {
+                $killErrors.Add($_.Exception.Message)
+            }
+        }
+    }
+
+    $deadline = [DateTimeOffset]::UtcNow.AddSeconds($GraceSeconds)
+    do {
+        Start-Sleep -Milliseconds 100
+        try {
+            $Process.Refresh()
+            if ($Process.HasExited) {
+                return
+            }
+        }
+        catch {
+            return
+        }
+    } while ([DateTimeOffset]::UtcNow -lt $deadline)
+
+    # One final best-effort recursive kill closes races where a child appeared
+    # between the first process-tree snapshot and termination.
+    try { $Process.Kill($true) } catch { $killErrors.Add($_.Exception.Message) }
+    try {
+        $Process.Refresh()
+        if (-not $Process.HasExited) {
+            $detail = if ($killErrors.Count -gt 0) { ": $($killErrors -join '; ')" } else { '' }
+            throw "process tree rooted at PID $($Process.Id) did not terminate within ${GraceSeconds}s$detail"
+        }
+    }
+    catch [System.InvalidOperationException] {
+        return
+    }
+}
+
+function Read-NativeProcessCapture {
+    <# .SYNOPSIS Reads a redirected native-process output file without failing cleanup. #>
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return ''
+    }
+    try {
+        return [string](Get-Content -LiteralPath $Path -Raw -ErrorAction Stop)
+    }
+    catch {
+        return "<capture unavailable: $($_.Exception.Message)>"
+    }
+}
+
 function Invoke-BoundedProcess {
+    <#
+    .SYNOPSIS
+    Runs a native command with a hard whole-process-tree deadline.
+    .DESCRIPTION
+    Supervises a directly owned Process handle, emits heartbeats, redirects
+    output to files to avoid pipe deadlocks, and recursively terminates the
+    process tree when the deadline expires.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
@@ -54,95 +226,88 @@ function Invoke-BoundedProcess {
         [switch]$SuppressStandardError
     )
 
-    $resolvedFile = (Get-Command $FilePath -ErrorAction Stop).Source
-    $argumentLine = ($Arguments | ForEach-Object {
-        ConvertTo-NativeCommandLineArgument -Value ([string]$_)
-    }) -join ' '
-    $displayCommand = "$resolvedFile $argumentLine".Trim()
-    if ([string]::IsNullOrWhiteSpace($PhaseName)) {
-        $PhaseName = [System.IO.Path]::GetFileName($resolvedFile)
-    }
+    $captureRoot = Join-Path ([System.IO.Path]::GetTempPath()) "scriptor-process-$([guid]::NewGuid().ToString('N'))"
+    $stdoutPath = Join-Path $captureRoot 'stdout.log'
+    $stderrPath = Join-Path $captureRoot 'stderr.log'
+    New-Item -ItemType Directory -Force -Path $captureRoot | Out-Null
 
-    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
-    $startInfo.FileName = $resolvedFile
-    $startInfo.Arguments = $argumentLine
-    $startInfo.WorkingDirectory = $WorkingDirectory
-    $startInfo.UseShellExecute = $false
-    $startInfo.CreateNoWindow = $true
-    $startInfo.RedirectStandardOutput = $true
-    $startInfo.RedirectStandardError = $true
-
-    $process = New-Object System.Diagnostics.Process
-    $process.StartInfo = $startInfo
+    $processInfo = $null
+    $process = $null
+    $timedOut = $false
     $startedAt = [DateTimeOffset]::UtcNow
     $lastHeartbeat = $startedAt
 
-    Write-Host "::group::$PhaseName"
-    Write-Host "command: $displayCommand"
-    Write-Host "working_directory: $WorkingDirectory"
-    Write-Host "started_utc: $($startedAt.ToString('o'))"
-    Write-Host "timeout_seconds: $TimeoutSeconds"
-
     try {
-        if (-not $process.Start()) {
-            throw "failed to start process: $displayCommand"
+        $captureParameters = @{
+            FilePath           = $FilePath
+            Arguments          = $Arguments
+            WorkingDirectory   = $WorkingDirectory
+            StandardOutputPath = $stdoutPath
+            StandardErrorPath  = $stderrPath
         }
+        $processInfo = Start-NativeProcessCapture @captureParameters
+        $process = $processInfo.Process
+        if ([string]::IsNullOrWhiteSpace($PhaseName)) {
+            $PhaseName = [System.IO.Path]::GetFileName($processInfo.ResolvedFile)
+        }
+
+        Write-Host "::group::$PhaseName"
+        Write-Host "command: $($processInfo.DisplayCommand)"
+        Write-Host "working_directory: $WorkingDirectory"
+        Write-Host "started_utc: $($startedAt.ToString('o'))"
+        Write-Host "timeout_seconds: $TimeoutSeconds"
         Write-Host "pid: $($process.Id)"
 
-        # Consume both pipes asynchronously so a verbose child cannot deadlock
-        # while the parent polls for a bounded completion time.
-        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
-        $stderrTask = $process.StandardError.ReadToEndAsync()
+        while ($true) {
+            $process.Refresh()
+            if ($process.HasExited) {
+                break
+            }
 
-        while (-not $process.WaitForExit(500)) {
             $now = [DateTimeOffset]::UtcNow
             $elapsed = $now - $startedAt
             if ($elapsed.TotalSeconds -ge $TimeoutSeconds) {
-                try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
-                try { $process.WaitForExit() } catch { }
-                $stdout = $stdoutTask.Result
-                $stderr = $stderrTask.Result
-                if ($stdout -and -not $SuppressStandardOutput) {
-                    Write-Host $stdout.TrimEnd()
-                }
-                if ($stderr -and -not $SuppressStandardError) {
-                    Write-Host $stderr.TrimEnd()
-                }
-                throw (
-                    "process timed out after ${TimeoutSeconds}s: $displayCommand" +
-                    "`nstdout:`n$stdout`nstderr:`n$stderr"
-                )
+                $timedOut = $true
+                Stop-NativeProcessTree -Process $process -GraceSeconds 5
+                break
             }
 
             if (($now - $lastHeartbeat).TotalSeconds -ge $HeartbeatSeconds) {
                 Write-Host "::notice title=$PhaseName heartbeat::pid=$($process.Id) elapsed=$([math]::Round($elapsed.TotalSeconds))s deadline=${TimeoutSeconds}s"
                 $lastHeartbeat = $now
             }
+            Start-Sleep -Milliseconds 250
         }
 
-        # The parameterless call closes the asynchronous stream-drain race before
-        # reading task results.
-        $process.WaitForExit()
-        $stdout = $stdoutTask.Result
-        $stderr = $stderrTask.Result
-        $finishedAt = [DateTimeOffset]::UtcNow
-        $duration = $finishedAt - $startedAt
-
+        $stdout = Read-NativeProcessCapture -Path $stdoutPath
+        $stderr = Read-NativeProcessCapture -Path $stderrPath
         if ($stdout -and -not $SuppressStandardOutput) {
-            Write-Host "--- stdout ---"
+            Write-Host '--- stdout ---'
             Write-Host $stdout.TrimEnd()
         }
         if ($stderr -and -not $SuppressStandardError) {
-            Write-Host "--- stderr ---"
+            Write-Host '--- stderr ---'
             Write-Host $stderr.TrimEnd()
         }
+
+        $finishedAt = [DateTimeOffset]::UtcNow
+        $duration = $finishedAt - $startedAt
         Write-Host "finished_utc: $($finishedAt.ToString('o'))"
         Write-Host "duration_seconds: $([math]::Round($duration.TotalSeconds, 3))"
-        Write-Host "exit_code: $($process.ExitCode)"
 
-        if ($process.ExitCode -ne 0) {
+        if ($timedOut) {
+            Write-Host 'exit_code: 124'
             throw (
-                "process failed with exit code $($process.ExitCode): $displayCommand" +
+                "process timed out after ${TimeoutSeconds}s: $($processInfo.DisplayCommand)" +
+                "`nstdout:`n$stdout`nstderr:`n$stderr"
+            )
+        }
+
+        $exitCode = $process.ExitCode
+        Write-Host "exit_code: $exitCode"
+        if ($exitCode -ne 0) {
+            throw (
+                "process failed with exit code $exitCode: $($processInfo.DisplayCommand)" +
                 "`nstdout:`n$stdout`nstderr:`n$stderr"
             )
         }
@@ -150,7 +315,21 @@ function Invoke-BoundedProcess {
         return $stdout
     }
     finally {
-        Write-Host "::endgroup::"
-        $process.Dispose()
+        if ($process) {
+            try {
+                $process.Refresh()
+                if (-not $process.HasExited) {
+                    Stop-NativeProcessTree -Process $process -GraceSeconds 5
+                }
+            }
+            catch {
+                Write-Warning $_.Exception.Message
+            }
+        }
+        if ($process) {
+            $process.Dispose()
+        }
+        Write-Host '::endgroup::'
+        Remove-Item -LiteralPath $captureRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
