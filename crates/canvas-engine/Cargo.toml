@@ -14,7 +14,7 @@ serde_json = "1"
 tempfile = "3"
 thiserror = "2"
 tiny-skia = "0.11"
-usvg = { version = "0.44", features = ["text"] }
+usvg = { version = "0.47", features = ["text"] }
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
