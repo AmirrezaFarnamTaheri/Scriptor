@@ -16,6 +16,7 @@ on:
       - Cargo.lock
       - crates/cli/Cargo.toml
       - crates/canvas-engine/Cargo.toml
+      - crates/tantivy-indexer/src/lib.rs
       - .github/workflows/convergence-lockfile.yml
 
 permissions:
@@ -114,6 +115,23 @@ jobs:
           PY
           rustfmt --edition 2024 crates/cli/src/tui.rs
 
+      - name: Migrate Tantivy score collector
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("crates/tantivy-indexer/src/lib.rs")
+          text = path.read_text(encoding="utf-8")
+          old = "let top_docs = searcher.search(&query, &TopDocs::with_limit(limit))?;"
+          new = "let top_docs = searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;"
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"expected exactly one Tantivy 0.22 TopDocs call, found {count}")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          rustfmt --edition 2024 crates/tantivy-indexer/src/lib.rs
+
       - name: Regenerate combined npm lockfile
         run: pnpm install --lockfile-only --no-frozen-lockfile
 
@@ -147,15 +165,17 @@ jobs:
           grep -A1 '^name = "usvg"$' Cargo.lock | grep -F 'version = "0.47.0"'
           grep -A1 '^name = "tiny-skia"$' Cargo.lock | grep -F 'version = "0.12.0"'
 
+          grep -F 'TopDocs::with_limit(limit).order_by_score()' crates/tantivy-indexer/src/lib.rs
+
       - name: Commit reconciled sources and lockfiles
         shell: bash
         run: |
-          if git diff --quiet -- pnpm-lock.yaml Cargo.lock crates/cli/src/tui.rs; then
+          if git diff --quiet -- pnpm-lock.yaml Cargo.lock crates/cli/src/tui.rs crates/tantivy-indexer/src/lib.rs; then
             echo "Sources and lockfiles already match the combined manifests."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml Cargo.lock crates/cli/src/tui.rs
+          git add pnpm-lock.yaml Cargo.lock crates/cli/src/tui.rs crates/tantivy-indexer/src/lib.rs
           git commit -m "chore(deps): reconcile unified dependency graph"
           git push origin HEAD:convergence/all-open-prs-2026-07-29
