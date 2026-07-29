@@ -256,7 +256,7 @@ jobs:
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "GitHub Release publication"
 
       - name: Download all installer artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: release-artifacts
           merge-multiple: true
