@@ -1,35 +1,42 @@
 param(
     [string]$VaultPath = "packages/test-fixtures/vaults/minimal",
     [string]$Note = "Research Plan.md",
-    [switch]$SkipExportDiscover
+    [switch]$SkipExportDiscover,
+    [ValidateRange(1, 900)][int]$CommandTimeoutSeconds = 180
 )
 
 $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "../.."
 Set-Location $root
+. (Join-Path $PSScriptRoot "process-helpers.ps1")
 
 $isWindowsPlatform =
     $env:OS -eq "Windows_NT" -or
     [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 
-Write-Host "==> Build daemon sidecar"
-& cargo build -p scriptor-daemon --bin scriptor-daemon
-if ($LASTEXITCODE -ne 0) {
-    throw "failed to build scriptor-daemon sidecar"
-}
+Write-Host "==> Build daemon sidecar and CLI once"
+Invoke-BoundedProcess -FilePath "cargo" -Arguments @(
+    "build", "-p", "scriptor-daemon", "--bin", "scriptor-daemon"
+) -WorkingDirectory $root -TimeoutSeconds 900 | Out-Null
+Invoke-BoundedProcess -FilePath "cargo" -Arguments @(
+    "build", "-p", "scriptor-cli", "--bin", "scriptor"
+) -WorkingDirectory $root -TimeoutSeconds 900 | Out-Null
+
 $daemonName = if ($isWindowsPlatform) { "scriptor-daemon.exe" } else { "scriptor-daemon" }
+$cliName = if ($isWindowsPlatform) { "scriptor.exe" } else { "scriptor" }
 $daemonPath = Join-Path $root "target/debug/$daemonName"
-if (-not (Test-Path -LiteralPath $daemonPath -PathType Leaf)) {
-    throw "scriptor-daemon binary not found after build: $daemonPath"
+$cliPath = Join-Path $root "target/debug/$cliName"
+foreach ($requiredBinary in @($daemonPath, $cliPath)) {
+    if (-not (Test-Path -LiteralPath $requiredBinary -PathType Leaf)) {
+        throw "required smoke binary not found after build: $requiredBinary"
+    }
 }
+$daemonPath = (Resolve-Path -LiteralPath $daemonPath).Path
+$cliPath = (Resolve-Path -LiteralPath $cliPath).Path
 
 function Invoke-ScriptorCli {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
-    & cargo run -p scriptor-cli -- @Args
-    $exitCode = $LASTEXITCODE
-    if ($exitCode -ne 0) {
-        throw "scriptor-cli failed ($exitCode): $($Args -join ' ')"
-    }
+    Invoke-BoundedProcess -FilePath $cliPath -Arguments $Args -WorkingDirectory $root -TimeoutSeconds $CommandTimeoutSeconds
 }
 
 $sourceVault = (Resolve-Path -LiteralPath $VaultPath).Path
@@ -50,13 +57,13 @@ $daemonProcessId = $null
 if ($isWindowsPlatform) {
     $env:APPDATA = $smokeAppData
 }
-$env:SCRIPTOR_DAEMON_BIN = (Resolve-Path -LiteralPath $daemonPath).Path
+$env:SCRIPTOR_DAEMON_BIN = $daemonPath
 
 try {
     Write-Host "==> Daemon auto-start and ping"
     Invoke-ScriptorCli daemon ping | Out-Null
 
-    $endpointJson = Invoke-ScriptorCli daemon endpoint | Out-String
+    $endpointJson = Invoke-ScriptorCli daemon endpoint
     $endpoint = $endpointJson | ConvertFrom-Json
     $daemonProcessId = [int]$endpoint.pid
     if ($daemonProcessId -le 0) {
@@ -65,7 +72,7 @@ try {
     Write-Host "Smoke daemon PID: $daemonProcessId"
 
     Write-Host "==> Open vault"
-    Invoke-ScriptorCli open $smokeVault
+    Invoke-ScriptorCli open $smokeVault | Write-Host
 
     Write-Host "==> Scan vault"
     Invoke-ScriptorCli scan $smokeVault | Out-Null
@@ -92,10 +99,11 @@ try {
     Invoke-ScriptorCli export $smokeVault --note $Note --format html --dry-run | Out-Null
 
     Write-Host "==> Export smoke"
-    & (Join-Path $PSScriptRoot "export-smoke.ps1") -VaultPath $smokeVault -Note $Note
-    if ($LASTEXITCODE -ne 0) {
-        throw "export smoke failed ($LASTEXITCODE)"
-    }
+    & (Join-Path $PSScriptRoot "export-smoke.ps1") \
+        -VaultPath $smokeVault \
+        -Note $Note \
+        -CliPath $cliPath \
+        -CommandTimeoutSeconds $CommandTimeoutSeconds
 
     Write-Host "==> Canvas hit-test fixture"
     Invoke-ScriptorCli canvas-hit-test packages/test-fixtures/canvas/overlap-blocks.json --x 100 --y 100 | Out-Null
@@ -129,6 +137,18 @@ try {
     Write-Host "Release smoke checks passed."
 }
 finally {
+    if (-not $daemonProcessId) {
+        $endpointPath = Join-Path $smokeAppData "scriptor/daemon-endpoint.json"
+        if (Test-Path -LiteralPath $endpointPath -PathType Leaf) {
+            try {
+                $daemonProcessId = [int]((Get-Content -LiteralPath $endpointPath -Raw | ConvertFrom-Json).pid)
+            }
+            catch {
+                Write-Warning "Could not recover smoke daemon PID from $endpointPath"
+            }
+        }
+    }
+
     if ($daemonProcessId) {
         Write-Host "==> Stop smoke daemon $daemonProcessId"
         Stop-Process -Id $daemonProcessId -Force -ErrorAction SilentlyContinue
@@ -139,7 +159,7 @@ finally {
             Start-Sleep -Milliseconds 250
         }
         if (Get-Process -Id $daemonProcessId -ErrorAction SilentlyContinue) {
-            Write-Warning "Smoke daemon $daemonProcessId did not terminate within 10 seconds."
+            throw "smoke daemon $daemonProcessId did not terminate within 10 seconds"
         }
     }
 
