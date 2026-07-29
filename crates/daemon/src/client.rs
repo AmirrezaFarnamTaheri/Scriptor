@@ -1,12 +1,13 @@
+use std::io::{self, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
 use scriptor_ipc::{
-    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcEvent, RpcMethod, RpcRequest,
-    RpcResponse, ServerMessage,
+    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcEvent,
+    RpcMethod, RpcRequest, RpcResponse, ServerMessage,
 };
 
 use crate::locks::lock_recover;
@@ -16,6 +17,11 @@ use crate::transport::connect_client;
 /// Generous enough for the synchronous export/reindex RPCs, but finite: the
 /// callers are UI command threads that must never block forever.
 const RPC_READ_TIMEOUT: Duration = Duration::from_secs(120);
+
+/// Poll interval used only for nonblocking transports such as Windows named
+/// pipes. Keeping the retry inside the `Read`/`Write` adapter preserves partial
+/// frame progress instead of restarting a length-prefixed read mid-frame.
+const NONBLOCKING_RETRY_INTERVAL: Duration = Duration::from_millis(5);
 
 /// How many frames that are not the awaited response may be observed before
 /// `read_response_frame` gives up. Without this, a daemon that never emits the
@@ -34,6 +40,72 @@ fn is_read_timeout(error: &IpcError) -> bool {
             std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut
         )
     )
+}
+
+/// Adapts a nonblocking transport to ordinary blocking `Read`/`Write` calls
+/// while enforcing one absolute deadline for the whole RPC attempt.
+///
+/// Windows local sockets are named pipes. `interprocess` deliberately reports
+/// receive-timeout configuration as unsupported for them, but it does support
+/// nonblocking mode. Retrying `WouldBlock` here is materially safer than
+/// retrying `read_frame_resyncing`: this adapter retains the caller's partially
+/// filled buffers, so a wake-up in the middle of an 8-byte frame header cannot
+/// desynchronise the stream.
+struct DeadlineIo<'a, T> {
+    inner: &'a mut T,
+    deadline: Instant,
+}
+
+impl<'a, T> DeadlineIo<'a, T> {
+    fn new(inner: &'a mut T, deadline: Instant) -> Self {
+        Self { inner, deadline }
+    }
+
+    fn wait_for_io(&self) -> io::Result<()> {
+        let now = Instant::now();
+        if now >= self.deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC I/O deadline exceeded",
+            ));
+        }
+        thread::sleep((self.deadline - now).min(NONBLOCKING_RETRY_INTERVAL));
+        Ok(())
+    }
+}
+
+impl<T: Read> Read for DeadlineIo<'_, T> {
+    fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+        loop {
+            match self.inner.read(buffer) {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.wait_for_io()?,
+                result => return result,
+            }
+        }
+    }
+}
+
+impl<T: Write> Write for DeadlineIo<'_, T> {
+    fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        loop {
+            match self.inner.write(buffer) {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.wait_for_io()?,
+                result => return result,
+            }
+        }
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        loop {
+            match self.inner.flush() {
+                Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.wait_for_io()?,
+                result => return result,
+            }
+        }
+    }
 }
 
 type EventHandler = Box<dyn Fn(RpcEvent) + Send + Sync>;
@@ -90,8 +162,7 @@ impl ClientInner {
     }
 
     fn register_event_handler(&self, handler: EventHandler) {
-        lock_recover(&self.event_handlers)
-            .push(handler);
+        lock_recover(&self.event_handlers).push(handler);
         self.ensure_event_listener();
     }
 
@@ -167,10 +238,15 @@ impl ClientInner {
         *guard = Some(EventListener { stop, handle });
     }
 
-    fn ensure_connected(&self) -> Result<std::sync::MutexGuard<'_, Option<LocalSocketStream>>, IpcError> {
+    fn ensure_connected(
+        &self,
+    ) -> Result<std::sync::MutexGuard<'_, Option<LocalSocketStream>>, IpcError> {
         let mut guard = lock_recover(&self.stream);
         if guard.is_none() {
             let stream = connect_client()?;
+            #[cfg(windows)]
+            stream.set_nonblocking(true).map_err(IpcError::from)?;
+            #[cfg(not(windows))]
             stream
                 .set_recv_timeout(Some(RPC_READ_TIMEOUT))
                 .map_err(IpcError::from)?;
@@ -186,14 +262,14 @@ impl ClientInner {
         }
     }
 
-    fn read_response_frame(
+    fn read_response_frame<R: Read>(
         &self,
-        stream: &mut LocalSocketStream,
+        stream: &mut R,
         request_id: u64,
     ) -> Result<RpcResponse, IpcError> {
-        // Both bounds matter: the socket-level receive timeout stops a silent
-        // daemon from parking the caller, and the frame budget stops a chatty
-        // one whose response id never matches from doing the same.
+        // Both bounds matter: the absolute I/O deadline stops a silent daemon
+        // from parking the caller, and the frame budget stops a chatty daemon
+        // whose response id never matches from doing the same.
         for _ in 0..MAX_UNMATCHED_FRAMES {
             let body = match read_frame_resyncing(stream) {
                 Ok(body) => body,
@@ -218,9 +294,10 @@ impl ClientInner {
             }
 
             if let Ok(response) = postcard::from_bytes::<RpcResponse>(&body)
-                && response.id == request_id {
-                    return Ok(response);
-                }
+                && response.id == request_id
+            {
+                return Ok(response);
+            }
         }
 
         Err(IpcError::Codec(format!(
@@ -228,13 +305,21 @@ impl ClientInner {
         )))
     }
 
+    fn call_once(
+        &self,
+        stream: &mut LocalSocketStream,
+        request: &RpcRequest,
+    ) -> Result<RpcResponse, IpcError> {
+        let deadline = Instant::now() + RPC_READ_TIMEOUT;
+        let mut io = DeadlineIo::new(stream, deadline);
+        write_frame(&mut io, request)?;
+        self.read_response_frame(&mut io, request.id)
+    }
+
     fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
         let mut guard = self.ensure_connected()?;
         let stream = guard.as_mut().expect("connected stream");
-        match (|| {
-            write_frame(stream, &request)?;
-            self.read_response_frame(stream, request.id)
-        })() {
+        match self.call_once(stream, &request) {
             Ok(response) => Ok(response),
             Err(error) if should_reconnect(&error) => {
                 drop(guard);
@@ -243,8 +328,7 @@ impl ClientInner {
                 self.drop_stream();
                 let mut guard = self.ensure_connected()?;
                 let stream = guard.as_mut().expect("connected stream");
-                write_frame(stream, &request)?;
-                self.read_response_frame(stream, request.id)
+                self.call_once(stream, &request)
             }
             Err(error) => {
                 // A timeout or a decode failure can leave unconsumed bytes in
@@ -308,4 +392,69 @@ pub fn reset_rpc_session() {
 
 pub fn register_rpc_event_handler(handler: impl Fn(RpcEvent) + Send + Sync + 'static) {
     SHARED_CLIENT.register_event_handler(handler);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+
+    struct ScriptedIo {
+        reads: VecDeque<io::Result<Vec<u8>>>,
+        written: Vec<u8>,
+    }
+
+    impl Read for ScriptedIo {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            match self.reads.pop_front().expect("scripted read") {
+                Ok(bytes) => {
+                    let count = bytes.len().min(buffer.len());
+                    buffer[..count].copy_from_slice(&bytes[..count]);
+                    if count < bytes.len() {
+                        self.reads.push_front(Ok(bytes[count..].to_vec()));
+                    }
+                    Ok(count)
+                }
+                Err(error) => Err(error),
+            }
+        }
+    }
+
+    impl Write for ScriptedIo {
+        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+            self.written.extend_from_slice(buffer);
+            Ok(buffer.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn deadline_io_retries_would_block_without_losing_partial_read() {
+        let mut scripted = ScriptedIo {
+            reads: VecDeque::from([
+                Ok(vec![1, 2]),
+                Err(io::Error::from(io::ErrorKind::WouldBlock)),
+                Ok(vec![3, 4]),
+            ]),
+            written: Vec::new(),
+        };
+        let mut io = DeadlineIo::new(&mut scripted, Instant::now() + Duration::from_secs(1));
+        let mut buffer = [0u8; 4];
+        io.read_exact(&mut buffer).expect("read completes");
+        assert_eq!(buffer, [1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn deadline_io_turns_permanent_would_block_into_timeout() {
+        let mut scripted = ScriptedIo {
+            reads: VecDeque::from([Err(io::Error::from(io::ErrorKind::WouldBlock))]),
+            written: Vec::new(),
+        };
+        let mut io = DeadlineIo::new(&mut scripted, Instant::now());
+        let error = io.read(&mut [0u8; 1]).expect_err("deadline must expire");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
 }
