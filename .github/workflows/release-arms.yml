@@ -253,7 +253,7 @@ jobs:
           "| Inventory downloaded ARM64 release artifacts | PASS | - | 0 | ``publication-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Attach ARM64 installers to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           fail_on_unmatched_files: true
