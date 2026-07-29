@@ -69,10 +69,24 @@ jobs:
           old_export = "    use std::path::{Path, PathBuf};"
           if export.count(old_export) != 1:
               raise SystemExit("unexpected PathBuf import shape in export.rs")
-          export_path.write_text(
-              export.replace(old_export, "    use std::path::Path;"),
-              encoding="utf-8",
+          export = export.replace(old_export, "    use std::path::Path;")
+          report_parse = (
+              "        let report = "
+              "parse_daemon_json::<DaemonExportProgressReport>(&json)?;\n"
           )
+          if export.count(report_parse) != 1:
+              raise SystemExit("unexpected daemon export report parse shape")
+          export = export.replace(
+              report_parse,
+              report_parse
+              + "        if report.job_id != job_id {\n"
+              + "            return Err(format!(\n"
+              + "                \"daemon export status job mismatch: expected {}, got {}\",\n"
+              + "                job_id, report.job_id\n"
+              + "            ));\n"
+              + "        }\n",
+          )
+          export_path.write_text(export, encoding="utf-8")
 
           daemon_path = Path("apps/desktop/src-tauri/src/commands/daemon.rs")
           daemon = daemon_path.read_text(encoding="utf-8")
@@ -105,6 +119,72 @@ jobs:
           if count != 1:
               raise SystemExit(f"expected one daemon candidate block, replaced {count}")
           daemon_path.write_text(daemon, encoding="utf-8")
+
+          code_chunk_path = Path("apps/desktop/src-tauri/src/commands/code_chunk.rs")
+          code_chunk = code_chunk_path.read_text(encoding="utf-8")
+          old_execution_enabled = '''fn execution_enabled() -> bool {
+              std::env::var(CODE_EXECUTION_OPT_IN)
+                  .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+                  .unwrap_or(false)
+          }
+          '''
+          new_execution_enabled = '''fn execution_enabled_from_value(value: Option<&str>) -> bool {
+              value
+                  .map(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+                  .unwrap_or(false)
+          }
+
+          fn execution_enabled() -> bool {
+              let value = std::env::var(CODE_EXECUTION_OPT_IN).ok();
+              execution_enabled_from_value(value.as_deref())
+          }
+          '''
+          if code_chunk.count(old_execution_enabled) != 1:
+              raise SystemExit("unexpected execution_enabled function shape")
+          code_chunk = code_chunk.replace(old_execution_enabled, new_execution_enabled)
+          old_tests = '''    use super::{execution_enabled, truncate_output, CODE_EXECUTION_OPT_IN};
+
+              #[test]
+              fn truncate_output_keeps_utf8_boundaries() {
+                  let source = format!("{}{}", "🙂".repeat(70_000), "tail");
+                  let truncated = truncate_output(source);
+                  assert!(truncated.contains("[truncated]"));
+                  assert!(truncated.is_char_boundary(truncated.len()));
+              }
+
+              #[test]
+              fn code_execution_is_disabled_without_explicit_opt_in() {
+                  std::env::remove_var(CODE_EXECUTION_OPT_IN);
+                  assert!(!execution_enabled());
+              }
+          '''
+          new_tests = '''    use super::{execution_enabled_from_value, truncate_output};
+
+              #[test]
+              fn truncate_output_keeps_utf8_boundaries() {
+                  let source = format!("{}{}", "🙂".repeat(70_000), "tail");
+                  let truncated = truncate_output(source);
+                  assert!(truncated.contains("[truncated]"));
+                  assert!(truncated.is_char_boundary(truncated.len()));
+              }
+
+              #[test]
+              fn code_execution_requires_explicit_opt_in() {
+                  assert!(!execution_enabled_from_value(None));
+                  for value in ["", "0", "false", "no", "random"] {
+                      assert!(!execution_enabled_from_value(Some(value)), "{value:?}");
+                  }
+                  for value in ["1", " true ", "TRUE", "yes", "YeS"] {
+                      assert!(execution_enabled_from_value(Some(value)), "{value:?}");
+                  }
+              }
+          '''
+          if code_chunk.count(old_tests) != 1:
+              raise SystemExit("unexpected code chunk test shape")
+          code_chunk_path.write_text(
+              code_chunk.replace(old_tests, new_tests),
+              encoding="utf-8",
+          )
 
           workflow_expr = lambda name: "$" + "{{ " + name + " }}"
           desktop_workflow = Path(".github/workflows/desktop-check.yml")
