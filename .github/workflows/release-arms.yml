@@ -58,12 +58,10 @@ jobs:
       - name: Configure pnpm
         uses: pnpm/action-setup@v6
 
-      - name: Configure Node.js 22 with pnpm cache
+      - name: Configure Node.js 22
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Configure stable Rust
         uses: dtolnay/rust-toolchain@stable
