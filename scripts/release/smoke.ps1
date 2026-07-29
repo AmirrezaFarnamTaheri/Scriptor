@@ -14,6 +14,11 @@ $isWindowsPlatform =
     $env:OS -eq "Windows_NT" -or
     [System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT
 
+if ($isWindowsPlatform) {
+    Write-Host "==> Verify process deadline and process-tree cleanup"
+    & (Join-Path $PSScriptRoot "../ci/test-process-timeouts.ps1")
+}
+
 Write-Host "==> Build daemon sidecar and CLI once"
 Invoke-BoundedProcess -FilePath "cargo" -Arguments @(
     "build", "-p", "scriptor-daemon", "--bin", "scriptor-daemon"
@@ -40,27 +45,38 @@ function Invoke-ScriptorCli {
 }
 
 $sourceVault = (Resolve-Path -LiteralPath $VaultPath).Path
-$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "scriptor-release-smoke-$([guid]::NewGuid().ToString('N'))"
+$smokeId = [guid]::NewGuid().ToString('N')
+$tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "scriptor-release-smoke-$smokeId"
 $smokeVault = Join-Path $tempRoot "vault"
 $smokeAppData = Join-Path $tempRoot "appdata"
-New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
-New-Item -ItemType Directory -Force -Path $smokeAppData | Out-Null
-Copy-Item -LiteralPath $sourceVault -Destination $smokeVault -Recurse -Force
+$smokeSocket = if ($isWindowsPlatform) {
+    "scriptor-smoke-$smokeId"
+} else {
+    Join-Path $tempRoot 'scriptor-smoke.sock'
+}
 
 $originalAppData = $env:APPDATA
 $originalDaemonBin = $env:SCRIPTOR_DAEMON_BIN
+$originalDaemonSocket = $env:SCRIPTOR_DAEMON_SOCKET
 $daemonProcessId = $null
 
-# The daemon endpoint, HMAC key, and process belong exclusively to this smoke
-# invocation. This prevents stale user/runner state from satisfying the ping and
-# makes it safe to terminate the exact child during cleanup.
-if ($isWindowsPlatform) {
-    $env:APPDATA = $smokeAppData
-}
-$env:SCRIPTOR_DAEMON_BIN = $daemonPath
-
 try {
-    Write-Host "==> Daemon auto-start and ping"
+    # Creation and copying are inside the cleanup region so even a partial or
+    # failed fixture copy cannot strand a temporary directory.
+    New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
+    New-Item -ItemType Directory -Force -Path $smokeAppData | Out-Null
+    Copy-Item -LiteralPath $sourceVault -Destination $smokeVault -Recurse -Force
+
+    # The endpoint, HMAC key, named pipe, and process belong exclusively to this
+    # invocation. APPDATA alone is insufficient on Windows because namespaced
+    # local sockets otherwise share the global `scriptor-core` pipe name.
+    if ($isWindowsPlatform) {
+        $env:APPDATA = $smokeAppData
+    }
+    $env:SCRIPTOR_DAEMON_BIN = $daemonPath
+    $env:SCRIPTOR_DAEMON_SOCKET = $smokeSocket
+
+    Write-Host "==> Daemon auto-start and ping ($smokeSocket)"
     Invoke-ScriptorCli daemon ping | Out-Null
 
     $endpointJson = Invoke-ScriptorCli daemon endpoint
@@ -168,6 +184,11 @@ finally {
         Remove-Item Env:SCRIPTOR_DAEMON_BIN -ErrorAction SilentlyContinue
     } else {
         $env:SCRIPTOR_DAEMON_BIN = $originalDaemonBin
+    }
+    if ($null -eq $originalDaemonSocket) {
+        Remove-Item Env:SCRIPTOR_DAEMON_SOCKET -ErrorAction SilentlyContinue
+    } else {
+        $env:SCRIPTOR_DAEMON_SOCKET = $originalDaemonSocket
     }
 
     Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
