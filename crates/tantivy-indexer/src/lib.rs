@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use tantivy::collector::TopDocs;
 use tantivy::doc;
 use tantivy::query::QueryParser;
-use tantivy::schema::{Schema, Value, STORED, STRING, TEXT};
+use tantivy::schema::{STORED, STRING, Schema, TEXT, Value};
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy};
 
 pub mod error;
@@ -64,9 +64,10 @@ impl TantivyIndex {
     }
 
     pub fn index_note(&self, path: &str, title: &str, body: &str) -> Result<(), TantivyError> {
-        let mut writer = self.writer.lock().map_err(|e| {
-            TantivyError::Io(std::io::Error::other(e.to_string()))
-        })?;
+        let mut writer = self
+            .writer
+            .lock()
+            .map_err(|e| TantivyError::Io(std::io::Error::other(e.to_string())))?;
 
         let term = tantivy::Term::from_field_text(self.path_field, path);
         writer.delete_term(term);
@@ -84,12 +85,10 @@ impl TantivyIndex {
 
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, TantivyError> {
         let searcher = self.reader.searcher();
-        let query_parser = QueryParser::for_index(
-            &self.index,
-            vec![self.title_field, self.body_field],
-        );
+        let query_parser =
+            QueryParser::for_index(&self.index, vec![self.title_field, self.body_field]);
         let query = query_parser.parse_query(query)?;
-        let top_docs = searcher.search(&query, &TopDocs::with_limit(limit))?;
+        let top_docs = searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;
 
         let mut results = Vec::new();
         for (score, doc_address) in top_docs {
@@ -135,7 +134,11 @@ mod tests {
         let index = TantivyIndex::create_or_open(dir.path()).unwrap();
 
         index
-            .index_note("notes/hello.md", "Hello World", "This is a test note about rust")
+            .index_note(
+                "notes/hello.md",
+                "Hello World",
+                "This is a test note about rust",
+            )
             .unwrap();
         index
             .index_note("notes/other.md", "Other Note", "Nothing interesting here")
@@ -167,7 +170,11 @@ mod tests {
 
         for i in 0..10 {
             index
-                .index_note(&format!("n{i}.md"), &format!("Note {i}"), "common body text")
+                .index_note(
+                    &format!("n{i}.md"),
+                    &format!("Note {i}"),
+                    "common body text",
+                )
                 .unwrap();
         }
 
@@ -190,9 +197,7 @@ mod tests {
     fn empty_body_indexable() {
         let dir = tempdir().unwrap();
         let index = TantivyIndex::create_or_open(dir.path()).unwrap();
-        index
-            .index_note("empty.md", "Empty Note", "")
-            .unwrap();
+        index.index_note("empty.md", "Empty Note", "").unwrap();
         let hits = index.search("Empty", 10).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].path, "empty.md");
@@ -202,12 +207,8 @@ mod tests {
     fn reindex_idempotent() {
         let dir = tempdir().unwrap();
         let index = TantivyIndex::create_or_open(dir.path()).unwrap();
-        index
-            .index_note("a.md", "Title", "body content")
-            .unwrap();
-        index
-            .index_note("a.md", "Title", "body content")
-            .unwrap();
+        index.index_note("a.md", "Title", "body content").unwrap();
+        index.index_note("a.md", "Title", "body content").unwrap();
         let hits = index.search("body", 10).unwrap();
         assert_eq!(hits.len(), 1, "reindexing same path should not duplicate");
     }
@@ -216,9 +217,7 @@ mod tests {
     fn empty_search_returns_empty() {
         let dir = tempdir().unwrap();
         let index = TantivyIndex::create_or_open(dir.path()).unwrap();
-        index
-            .index_note("a.md", "Title", "body")
-            .unwrap();
+        index.index_note("a.md", "Title", "body").unwrap();
         let hits = index.search("nonexistent_term_xyz", 10).unwrap();
         assert!(hits.is_empty());
     }
@@ -228,7 +227,11 @@ mod tests {
         let dir = tempdir().unwrap();
         let index = TantivyIndex::create_or_open(dir.path()).unwrap();
         index
-            .index_note("test.md", "My Title", "The body contains searchable keywords")
+            .index_note(
+                "test.md",
+                "My Title",
+                "The body contains searchable keywords",
+            )
             .unwrap();
         let hits = index.search("searchable", 1).unwrap();
         assert_eq!(hits.len(), 1);
