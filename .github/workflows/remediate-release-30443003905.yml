@@ -186,75 +186,6 @@ jobs:
               encoding="utf-8",
           )
 
-          workflow_expr = lambda name: "$" + "{{ " + name + " }}"
-          desktop_workflow = Path(".github/workflows/desktop-check.yml")
-          desktop_workflow.write_text(
-              f'''name: Desktop compile
-
-          on:
-            push:
-              branches: [main, master]
-              paths:
-                - "apps/desktop/**"
-                - "crates/**"
-                - "Cargo.toml"
-                - "Cargo.lock"
-                - ".github/workflows/desktop-check.yml"
-            pull_request:
-              paths:
-                - "apps/desktop/**"
-                - "crates/**"
-                - "Cargo.toml"
-                - "Cargo.lock"
-                - ".github/workflows/desktop-check.yml"
-
-          permissions:
-            contents: read
-
-          concurrency:
-            group: desktop-compile-{workflow_expr("github.workflow")}-{workflow_expr("github.ref")}
-            cancel-in-progress: true
-
-          jobs:
-            check:
-              name: cargo check ({workflow_expr("matrix.os")})
-              strategy:
-                fail-fast: false
-                matrix:
-                  os: [ubuntu-22.04, windows-latest, macos-latest]
-              runs-on: {workflow_expr("matrix.os")}
-              timeout-minutes: 45
-              steps:
-                - uses: actions/checkout@v4
-
-                - uses: dtolnay/rust-toolchain@stable
-
-                - uses: Swatinem/rust-cache@v2
-                  with:
-                    workspaces: "."
-
-                - name: Install Linux desktop dependencies
-                  if: runner.os == 'Linux'
-                  shell: bash
-                  run: |
-                    sudo apt-get update
-                    sudo apt-get install -y \\
-                      libwebkit2gtk-4.1-dev \\
-                      libappindicator3-dev \\
-                      librsvg2-dev \\
-                      libssl-dev \\
-                      libgtk-3-dev \\
-                      patchelf
-
-                - name: Check desktop crate
-                  run: cargo check -p scriptor-desktop --all-targets --locked
-          ''',
-              encoding="utf-8",
-          )
-
-          temporary_workflow = Path(".github/workflows/remediate-release-30443003905.yml")
-          temporary_workflow.unlink()
-
           command_files = Path("apps/desktop/src-tauri/src/commands").glob("*.rs")
           definitions = sum(
               path.read_text(encoding="utf-8").count(
@@ -268,24 +199,32 @@ jobs:
               )
           PY
 
-      - name: Format Rust changes
-        run: cargo fmt --all
-
-      - name: Verify formatting
-        run: cargo fmt --all -- --check
+      - name: Format changed Rust files
+        shell: bash
+        run: |
+          rustfmt --edition 2024 \
+            apps/desktop/src-tauri/src/commands/vault.rs \
+            apps/desktop/src-tauri/src/commands/export.rs \
+            apps/desktop/src-tauri/src/commands/daemon.rs \
+            apps/desktop/src-tauri/src/commands/code_chunk.rs
+          git diff --check
 
       - name: Compile desktop crate
         run: cargo check -p scriptor-desktop --all-targets --locked
 
-      - name: Commit verified remediation
+      - name: Commit verified source remediation
         shell: bash
         run: |
-          if git diff --quiet; then
-            echo "No remediation changes were produced."
-            exit 1
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add \
+            apps/desktop/src-tauri/src/commands/vault.rs \
+            apps/desktop/src-tauri/src/commands/export.rs \
+            apps/desktop/src-tauri/src/commands/daemon.rs \
+            apps/desktop/src-tauri/src/commands/code_chunk.rs
+          if git diff --cached --quiet; then
+            echo "No source remediation changes were produced."
+            exit 1
+          fi
           git commit -m "fix: restore desktop release compilation"
           git push origin HEAD:fix/release-30443003905-desktop-command-collision
