@@ -99,11 +99,7 @@ try {
     Invoke-ScriptorCli export $smokeVault --note $Note --format html --dry-run | Out-Null
 
     Write-Host "==> Export smoke"
-    & (Join-Path $PSScriptRoot "export-smoke.ps1") \
-        -VaultPath $smokeVault \
-        -Note $Note \
-        -CliPath $cliPath \
-        -CommandTimeoutSeconds $CommandTimeoutSeconds
+    & (Join-Path $PSScriptRoot "export-smoke.ps1") -VaultPath $smokeVault -Note $Note -CliPath $cliPath -CommandTimeoutSeconds $CommandTimeoutSeconds
 
     Write-Host "==> Canvas hit-test fixture"
     Invoke-ScriptorCli canvas-hit-test packages/test-fixtures/canvas/overlap-blocks.json --x 100 --y 100 | Out-Null
