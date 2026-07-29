@@ -16,17 +16,41 @@ defaults:
   run:
     working-directory: .
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  FORCE_COLOR: 1
+
 jobs:
   source-snapshot:
+    name: Source snapshot and provenance
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/source-snapshot
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout exact workflow commit
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: Package exact source tree
-        shell: bash
-        run: git archive --format=zip --output=scriptor-source.zip HEAD
+
+      - name: Describe source snapshot scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Source snapshot and provenance"
+
+      - name: Package exact Git source tree
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Package exact Git source tree" -FilePath "git" -ArgumentList @("archive", "--format=zip", "--output=scriptor-source.zip", "HEAD") -TimeoutSeconds 120
+
+      - name: Fingerprint source archive
+        shell: pwsh
+        run: |
+          $archive = Get-Item -LiteralPath scriptor-source.zip
+          $hash = (Get-FileHash -LiteralPath $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "archive=$($archive.FullName)`nbytes=$($archive.Length)`nsha256=$hash" | Set-Content -LiteralPath "$env:CI_LOG_DIR/source-archive.log" -Encoding utf8
+          Write-Host "Source archive: $($archive.Length) bytes; sha256=$hash"
+          "| Source archive | PASS | - | 0 | ``source-archive.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
       - name: Upload exact source tree
         uses: actions/upload-artifact@v7
         with:
@@ -35,244 +59,456 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Capture source snapshot failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Source snapshot and provenance"
+
+      - name: Finalize source snapshot evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Source snapshot and provenance" -Status "${{ job.status }}"
+
+      - name: Upload source snapshot evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-source-snapshot-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
+
   supply-chain:
+    name: Supply-chain and lockfile audit
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/supply-chain
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Describe supply-chain scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Supply-chain and lockfile audit"
 
-      - name: Refresh compatible Cargo dependencies
-        run: cargo update
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Refresh compatible Cargo dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Refresh compatible Cargo dependency graph" -FilePath "cargo" -ArgumentList @("update") -TimeoutSeconds 900
 
       - name: Upload refreshed Cargo lockfile
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: refreshed-cargo-lock
+          name: refreshed-cargo-lock-${{ github.run_attempt }}
           path: Cargo.lock
           if-no-files-found: error
           retention-days: 1
 
-      - uses: taiki-e/install-action@v2
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-deny
 
-      - name: Check cargo-deny
+      - name: Record cargo-deny version
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Record cargo-deny version" -FilePath "cargo-deny" -ArgumentList @("--version") -TimeoutSeconds 60
+
+      - name: Audit Rust licenses, bans, advisories, and sources
         id: cargo-deny
         continue-on-error: true
-        shell: bash
-        run: cargo deny check > cargo-deny-check.log 2>&1
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Audit Rust licenses bans advisories and sources" -FilePath "cargo" -ArgumentList @("deny", "check") -TimeoutSeconds 900
 
-      - name: Upload cargo-deny report
-        if: steps.cargo-deny.outcome == 'failure'
-        uses: actions/upload-artifact@v7
-        with:
-          name: cargo-deny-report
-          path: cargo-deny-check.log
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Enforce cargo-deny result
-        if: steps.cargo-deny.outcome == 'failure'
-        shell: bash
-        run: |
-          tail -n 80 cargo-deny-check.log
-          exit 1
-
-      - name: Check npm audit
+      - name: Audit production npm dependencies
         id: npm-audit
         continue-on-error: true
-        shell: bash
-        run: pnpm audit --prod > npm-audit-check.log 2>&1
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Audit production npm dependencies" -FilePath "pnpm" -ArgumentList @("audit", "--prod") -TimeoutSeconds 600
 
-      - name: Upload npm audit report
-        if: steps.npm-audit.outcome == 'failure'
+      - name: Enforce supply-chain audit outcomes
+        if: always()
+        shell: pwsh
+        env:
+          CARGO_DENY_OUTCOME: ${{ steps.cargo-deny.outcome }}
+          NPM_AUDIT_OUTCOME: ${{ steps.npm-audit.outcome }}
+        run: |
+          $failures = @()
+          if ($env:CARGO_DENY_OUTCOME -eq "failure") { $failures += "cargo-deny" }
+          if ($env:NPM_AUDIT_OUTCOME -eq "failure") { $failures += "pnpm audit --prod" }
+          @(
+            "",
+            "### Supply-chain enforcement",
+            "",
+            "| Check | Outcome |",
+            "|---|---|",
+            "| cargo-deny | $env:CARGO_DENY_OUTCOME |",
+            "| pnpm audit --prod | $env:NPM_AUDIT_OUTCOME |"
+          ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          if ($failures.Count -gt 0) {
+            throw "Supply-chain audit failure(s): $($failures -join ', '). See per-command logs and failure-context.log."
+          }
+
+      - name: Capture supply-chain failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Supply-chain and lockfile audit"
+
+      - name: Finalize supply-chain evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Supply-chain and lockfile audit" -Status "${{ job.status }}"
+
+      - name: Upload supply-chain evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: npm-audit-report
-          path: npm-audit-check.log
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Enforce npm audit result
-        if: steps.npm-audit.outcome == 'failure'
-        shell: bash
-        run: |
-          tail -n 80 npm-audit-check.log
-          exit 1
+          name: ci-evidence-supply-chain-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
 
   validate-fast:
+    name: Contracts, automation, lint, and Rust tests
     needs: supply-chain
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/validate-fast
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Describe fast validation scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Contracts, automation, lint, and Rust tests"
+
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Parse every PowerShell script
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Parse every PowerShell script" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/ci/validate-powershell.ps1") -TimeoutSeconds 300
+
+      - name: Install actionlint 1.7.12
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install actionlint 1.7.12" -FilePath "go" -ArgumentList @("install", "github.com/rhysd/actionlint/cmd/actionlint@v1.7.12") -TimeoutSeconds 600
+
+      - name: Validate every GitHub Actions workflow
+        shell: pwsh
+        run: |
+          $actionlint = Join-Path ((& go env GOPATH).Trim()) "bin/actionlint"
+          ./scripts/ci/invoke-logged.ps1 -Name "Validate every GitHub Actions workflow" -FilePath $actionlint -ArgumentList @() -TimeoutSeconds 300
 
       - name: Typecheck contracts
-        run: pnpm check:contracts
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Typecheck contracts" -FilePath "pnpm" -ArgumentList @("check:contracts") -TimeoutSeconds 600
 
       - name: Validate MCP runtime
-        run: pnpm check:mcp
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate MCP runtime" -FilePath "pnpm" -ArgumentList @("check:mcp") -TimeoutSeconds 600
 
       - name: Validate plugin API
-        run: pnpm check:plugins
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate plugin API" -FilePath "pnpm" -ArgumentList @("check:plugins") -TimeoutSeconds 600
 
       - name: Validate canvas package
-        run: pnpm check:canvas
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate canvas package" -FilePath "pnpm" -ArgumentList @("check:canvas") -TimeoutSeconds 600
 
       - name: Validate editor package
-        run: pnpm check:editor
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate editor package" -FilePath "pnpm" -ArgumentList @("check:editor") -TimeoutSeconds 600
 
       - name: Validate renderer package
-        run: pnpm check:renderer
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate renderer package" -FilePath "pnpm" -ArgumentList @("check:renderer") -TimeoutSeconds 600
 
       - name: Validate export package
-        run: pnpm check:export
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate export package" -FilePath "pnpm" -ArgumentList @("check:export") -TimeoutSeconds 600
 
       - name: Validate portal package
-        run: pnpm check:portal
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate portal package" -FilePath "pnpm" -ArgumentList @("check:portal") -TimeoutSeconds 600
 
       - name: Validate knowledge helpers
-        run: pnpm check:knowledge
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate knowledge helpers" -FilePath "pnpm" -ArgumentList @("check:knowledge") -TimeoutSeconds 600
 
       - name: Validate citations
-        run: pnpm check:citations
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate citations" -FilePath "pnpm" -ArgumentList @("check:citations") -TimeoutSeconds 600
 
       - name: Validate headless bridge
-        run: pnpm check:headless
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Validate headless bridge" -FilePath "pnpm" -ArgumentList @("check:headless") -TimeoutSeconds 600
 
-      - name: Lint
-        run: pnpm lint
+      - name: Lint JavaScript and TypeScript
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Lint JavaScript and TypeScript" -FilePath "pnpm" -ArgumentList @("lint") -TimeoutSeconds 900
 
-      - name: Rust tests
-        run: cargo test --workspace --exclude scriptor-desktop
+      - name: Test Rust workspace except desktop shell
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust workspace except desktop shell" -FilePath "cargo" -ArgumentList @("test", "--workspace", "--exclude", "scriptor-desktop") -TimeoutSeconds 1800
 
-      - name: Check ts-rs bindings
-        run: cargo test -p scriptor-ipc
+      - name: Verify generated ts-rs bindings
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Verify generated ts-rs bindings" -FilePath "cargo" -ArgumentList @("test", "-p", "scriptor-ipc") -TimeoutSeconds 900
 
-      - name: Check xtask
-        run: cargo xtask release-smoke
+      - name: Run xtask release smoke
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 900
+
+      - name: Capture fast validation failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Contracts, automation, lint, and Rust tests"
+
+      - name: Finalize fast validation evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, lint, and Rust tests" -Status "${{ job.status }}"
+
+      - name: Upload fast validation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-validate-fast-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
 
   validate-frontend:
+    name: Frontend, accessibility, TUI, and daemon smoke
     needs: supply-chain
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/validate-frontend
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Describe frontend validation scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke"
 
-      - name: Build frontend
-        run: pnpm build
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
-      - name: Accessibility smoke
-        run: pnpm check:a11y
+      - name: Build frontend packages and desktop UI
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Build frontend packages and desktop UI" -FilePath "pnpm" -ArgumentList @("build") -TimeoutSeconds 1200
 
-      - name: axe-core WCAG audit
-        run: pnpm check:a11y-axe
+      - name: Run accessibility smoke
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run accessibility smoke" -FilePath "pnpm" -ArgumentList @("check:a11y") -TimeoutSeconds 600
 
-      - name: Minimal vault scan budget
-        run: cargo run --release -p scriptor-cli -- bench-scan packages/test-fixtures/vaults/minimal --iterations 3
+      - name: Run axe-core WCAG audit
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run axe-core WCAG audit" -FilePath "pnpm" -ArgumentList @("check:a11y-axe") -TimeoutSeconds 600
 
-      - name: TUI smoke
-        run: pnpm check:tui
+      - name: Enforce minimal-vault scan budget
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Enforce minimal-vault scan budget" -FilePath "cargo" -ArgumentList @("run", "--release", "-p", "scriptor-cli", "--", "bench-scan", "packages/test-fixtures/vaults/minimal", "--iterations", "3") -TimeoutSeconds 1200
 
-      - name: Daemon IPC smoke
-        run: pnpm check:daemon
+      - name: Run terminal UI smoke
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run terminal UI smoke" -FilePath "pnpm" -ArgumentList @("check:tui") -TimeoutSeconds 600
+
+      - name: Run daemon IPC smoke
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run daemon IPC smoke" -FilePath "pnpm" -ArgumentList @("check:daemon") -TimeoutSeconds 900
+
+      - name: Capture frontend validation failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke"
+
+      - name: Finalize frontend validation evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke" -Status "${{ job.status }}"
+
+      - name: Upload frontend validation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-validate-frontend-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
 
   release-smoke:
+    name: Windows release smoke and performance gates
     needs: supply-chain
     runs-on: windows-latest
     timeout-minutes: 60
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/release-smoke-windows
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v6
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v7
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Describe Windows release scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Windows release smoke and performance gates"
 
-      - name: Release smoke
-        run: powershell -ExecutionPolicy Bypass -File scripts/release/smoke.ps1 -SkipExportDiscover
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
-      - name: Performance gate (1k scan)
-        run: powershell -ExecutionPolicy Bypass -File scripts/release/perf-gate.ps1 -Size 1k
+      - name: Exercise hermetic daemon and release smoke
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Exercise hermetic daemon and release smoke" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/smoke.ps1", "-SkipExportDiscover", "-CommandTimeoutSeconds", "180") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
-      - name: Canvas interaction budget
-        run: pnpm bench:canvas
+      - name: Enforce 1k vault scan performance gate
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Enforce 1k vault scan performance gate" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/perf-gate.ps1", "-Size", "1k") -TimeoutSeconds 1200
 
-      - name: Startup budget
-        run: pnpm bench:startup
+      - name: Enforce canvas interaction budget
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Enforce canvas interaction budget" -FilePath "pnpm" -ArgumentList @("bench:canvas") -TimeoutSeconds 600
 
-      - name: Idle memory budget
-        run: pnpm bench:idle-memory
+      - name: Enforce startup budget
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Enforce startup budget" -FilePath "pnpm" -ArgumentList @("bench:startup") -TimeoutSeconds 600
+
+      - name: Enforce idle-memory budget
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Enforce idle-memory budget" -FilePath "pnpm" -ArgumentList @("bench:idle-memory") -TimeoutSeconds 600
+
+      - name: Capture Windows release failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Windows release smoke and performance gates"
+
+      - name: Finalize Windows release evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Windows release smoke and performance gates" -Status "${{ job.status }}"
+
+      - name: Upload Windows release evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-release-smoke-windows-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
 
   container-smoke:
+    name: Container image build and runtime smoke
     needs: supply-chain
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/container-smoke
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Describe container validation scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Container image build and runtime smoke"
 
       - name: Build container image
-        run: docker build -t scriptor-ci .
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Build container image" -FilePath "docker" -ArgumentList @("build", "--progress=plain", "-t", "scriptor-ci", ".") -TimeoutSeconds 1800
 
       - name: Run container smoke
-        run: docker run --rm scriptor-ci
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run container smoke" -FilePath "docker" -ArgumentList @("run", "--rm", "scriptor-ci") -TimeoutSeconds 600
+
+      - name: Capture container failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Container image build and runtime smoke"
+
+      - name: Finalize container evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Container image build and runtime smoke" -Status "${{ job.status }}"
+
+      - name: Upload container evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-container-smoke-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
