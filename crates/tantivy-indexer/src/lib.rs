@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use tantivy::collector::TopDocs;
 use tantivy::doc;
 use tantivy::query::QueryParser;
-use tantivy::schema::{STORED, STRING, Schema, TEXT, Value};
+use tantivy::schema::{Schema, Value, STORED, STRING, TEXT};
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy};
 
 pub mod error;
@@ -180,6 +180,36 @@ mod tests {
 
         let hits = index.search("common", 3).unwrap();
         assert!(hits.len() <= 3);
+    }
+
+    #[test]
+    fn search_orders_results_by_descending_relevance_score() {
+        let dir = tempdir().unwrap();
+        let index = TantivyIndex::create_or_open(dir.path()).unwrap();
+
+        index
+            .index_note(
+                "high.md",
+                "Rust Rust Rust",
+                "rust rust rust systems programming",
+            )
+            .unwrap();
+        index
+            .index_note("low.md", "General Notes", "a single rust mention")
+            .unwrap();
+        index
+            .index_note("none.md", "Unrelated", "no matching language term")
+            .unwrap();
+
+        let hits = index.search("rust", 10).unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].path, "high.md");
+        assert!(
+            hits.windows(2).all(|pair| pair[0].score >= pair[1].score),
+            "results must be ordered by descending score: {:?}",
+            hits.iter().map(|hit| hit.score).collect::<Vec<_>>()
+        );
+        assert!(hits[0].score > hits[1].score);
     }
 
     #[test]
