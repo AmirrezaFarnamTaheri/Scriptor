@@ -1,5 +1,6 @@
 name: Apply verified vault slice
 
+# Explicit retrigger after repairing the verified payload decoding pipeline.
 on:
   push:
     branches: [claude/repo-audit-optimization-f7m4hi]
