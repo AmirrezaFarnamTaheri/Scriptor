@@ -8,6 +8,8 @@ pub mod index_job;
 pub mod locks;
 pub mod transport;
 pub mod watcher;
+#[cfg(windows)]
+mod windows_rpc;
 
 use std::time::Duration;
 
@@ -23,10 +25,9 @@ pub use transport::{
 /// Public process-wide RPC facade.
 ///
 /// Unix retains the existing persistent request session. Windows local sockets
-/// are named pipes and do not expose a portable shutdown operation, so root-level
-/// request/response calls use a fresh client whose pipe handle is dropped before
-/// the call returns. The event-listener API remains backed by its independent
-/// persistent client and is not interrupted by one-shot request cleanup.
+/// are named pipes and use a fresh bounded request adapter whose handle is
+/// dropped before the call returns. The independent event-listener session is
+/// not interrupted by one-shot request cleanup.
 pub struct SharedRpcClient;
 
 static SHARED_RPC_CLIENT: SharedRpcClient = SharedRpcClient;
@@ -37,14 +38,7 @@ pub fn shared_rpc_client() -> &'static SharedRpcClient {
 
 impl SharedRpcClient {
     pub fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
-        #[cfg(windows)]
-        {
-            DaemonRpcClient::new().call(request)
-        }
-        #[cfg(not(windows))]
-        {
-            client::shared_rpc_client().call(request)
-        }
+        self.call_with_timeout(request, Duration::from_secs(120))
     }
 
     pub fn call_with_timeout(
@@ -54,7 +48,7 @@ impl SharedRpcClient {
     ) -> Result<RpcResponse, IpcError> {
         #[cfg(windows)]
         {
-            DaemonRpcClient::new().call_with_timeout(request, timeout)
+            windows_rpc::call_with_timeout(request, timeout)
         }
         #[cfg(not(windows))]
         {

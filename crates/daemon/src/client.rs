@@ -57,24 +57,11 @@ fn is_read_timeout(error: &IpcError) -> bool {
 struct DeadlineIo<'a, T> {
     inner: &'a mut T,
     deadline: Instant,
-    retry_zero_reads: bool,
 }
 
 impl<'a, T> DeadlineIo<'a, T> {
     fn new(inner: &'a mut T, deadline: Instant) -> Self {
-        Self::new_with_zero_read_retry(inner, deadline, cfg!(windows))
-    }
-
-    fn new_with_zero_read_retry(
-        inner: &'a mut T,
-        deadline: Instant,
-        retry_zero_reads: bool,
-    ) -> Self {
-        Self {
-            inner,
-            deadline,
-            retry_zero_reads,
-        }
+        Self { inner, deadline }
     }
 
     fn wait_for_io(&self) -> io::Result<()> {
@@ -92,19 +79,10 @@ impl<'a, T> DeadlineIo<'a, T> {
 
 impl<T: Read> Read for DeadlineIo<'_, T> {
     fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
-        if buffer.is_empty() {
-            return Ok(0);
-        }
-
         loop {
             match self.inner.read(buffer) {
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.wait_for_io()?,
-                // Windows PIPE_NOWAIT may report a temporarily empty named pipe
-                // as a zero-byte read instead of WouldBlock. Retrying inside the
-                // adapter preserves read_exact's partially filled buffer and keeps
-                // the operation bounded by the same absolute RPC deadline.
-                Ok(0) if self.retry_zero_reads => self.wait_for_io()?,
                 result => return result,
             }
         }
@@ -208,4 +186,420 @@ impl ClientInner {
     /// The thread is *not* joined here. It spends its life blocked in a
     /// `read` on the daemon socket, which cannot be interrupted portably
     /// (`interprocess::local_socket::Stream` exposes no shutdown or duplicate
-    /// handle, and a receive²È="25Í”¤°(€€€€€€€€€€€ÉÈ¡•ÉÉ½È¤¥˜Í¡½Õ±‘}É•½¹¹•Ð ™•ÉÉ½È¤€˜˜%¹ÍÑ…¹Ðèé¹½Ü ¤€ð‘•…‘±¥¹”€ôøì(€€€€€€€€€€€€€€€‘É½À¡Õ…É¤ì(€€€€€€€€€€€€€€€€¼¼=¹±äÑ¡”É•ÅÕ•ÍÐÍ½­•Ð¥ÌÉ•å±•¡•É”ìÑ¡”•Ù•¹Ð±¥ÍÑ•¹•È(€€€€€€€€€€€€€€€€¼¼¥Ì¥¹‘•Á•¹‘•¹Ð…¹µÕÍÐÍÕÉÙ¥Ù”…¸IAµ±•Ù•°É•½¹¹•Ð¸(€€€€€€€€€€€€€€€Í•±˜¹‘É½Á}ÍÑÉ•…´ ¤ì(€€€€€€€€€€€€€€€±•ÐµÕÐÕ…É€ôÍ•±˜¹•¹ÍÕÉ•}½¹¹•Ñ•¡‘•…‘±¥¹”¤üì(€€€€€€€€€€€€€€€±•ÐÍÑÉ•…´€ôÕ…É¹…Í}µÕÐ ¤¹•áÁ•Ð ‰½¹¹•Ñ•ÍÑÉ•…´ˆ¤ì(€€€€€€€€€€€€€€€Í•±˜¹…±±}½¹”¡ÍÑÉ•…´°€™É•ÅÕ•ÍÐ°‘•…‘±¥¹”°Ñ¥µ•½ÕÐ¤(€€€€€€€€€€€ô(€€€€€€€€€€€ÉÈ¡•ÉÉ½È¤€ôøì(€€€€€€€€€€€€€€€€¼¼Ñ¥µ•½ÕÐ½È„‘•½‘”™…¥±ÕÉ”…¸±•…Ù”Õ¹½¹ÍÕµ•‰åÑ•Ì¥¸(€€€€€€€€€€€€€€€€¼¼Ñ¡”Í½­•Ð°Í¼¹•Ù•ÈÉ•ÕÍ”¥Ð™½ÈÑ¡”¹•áÐ…±°¸(€€€€€€€€€€€€€€€‘É½À¡Õ…É¤ì(€€€€€€€€€€€€€€€Í•±˜¹‘É½Á}ÍÑÉ•…´ ¤ì(€€€€€€€€€€€€€€€ÉÈ¡•ÉÉ½È¤(€€€€€€€€€€€ô(€€€€€€€ô(€€€ô((€€€™¸…±° ™Í•±˜°É•ÅÕ•ÍÐèIÁI•ÅÕ•ÍÐ¤€´øI•ÍÕ±ÐñIÁI•ÍÁ½¹Í”°%ÁÉÉ½Èøì(€€€€€€€Í•±˜¹…±±}Ý¥Ñ¡}Ñ¥µ•½ÕÐ¡É•ÅÕ•ÍÐ°IA}I}Q%5=UP¤(€€€ô)ô((¼¼¼A•ÉÍ¥ÍÑ•¹Ð±½…°µÍ½­•ÐÍ•ÍÍ¥½¸Ñ¡…ÐµÕ±Ñ¥Á±•á•ÌIAÌ½¸½¹”½¹¹•Ñ¥½¸¸)ÁÕˆÍÑÉÕÐ…•µ½¹IÁ±¥•¹Ðì(€€€¥¹¹•Èè±¥•¹Ñ%¹¹•È°)ô()¥µÁ°…•µ½¹IÁ±¥•¹Ðì(€€€ÁÕˆ™¸¹•Ü ¤€´øM•±˜ì(€€€€€€€M•±˜ì(€€€€€€€€€€€¥¹¹•Èè±¥•¹Ñ%¹¹•Èèé¹•Ü ¤°(€€€€€€€ô(€€€ô((€€€€¼¼¼É½ÀÑ¡”…¡•½¹¹•Ñ¥½¸Í¼Ñ¡”¹•áÐ…±±€½Á•¹Ì„™É•Í Í½­•Ð¸(€€€ÁÕˆ™¸É•Í•Ð ™Í•±˜¤ì(€€€€€€€Í•±˜¹¥¹¹•È¹É•Í•Ð ¤ì(€€€ô((€€€ÁÕˆ™¸É•¥ÍÑ•É}•Ù•¹Ñ}¡…¹‘±•È ™Í•±˜°¡…¹‘±•Èè¥µÁ°¸¡IÁÙ•¹Ð¤€¬M•¹€¬Må¹Œ€¬€ÍÑ…Ñ¥Œ¤ì(€€€€€€€Í•±˜¹¥¹¹•È¹É•¥ÍÑ•É}•Ù•¹Ñ}¡…¹‘±•È¡	½àèé¹•Ü¡¡…¹‘±•È¤¤ì(€€€ô((€€€ÁÕˆ™¸…±° ™Í•±˜°É•ÅÕ•ÍÐèIÁI•ÅÕ•ÍÐ¤€´øI•ÍÕ±ÐñIÁI•ÍÁ½¹Í”°%ÁÉÉ½Èøì(€€€€€€€Í•±˜¹¥¹¹•È¹…±°¡É•ÅÕ•ÍÐ¤(€€€ô((€€€€¼¼¼á•ÕÑ”½¹”IAÝ¥Ñ¡¥¸„…±±•ÈµÍÕÁÁ±¥•Ý¡½±”µ…±°‰Õ‘•Ð¸Q¡”‰Õ‘•Ð(€€€€¼¼¼¥¹±Õ‘•ÌÍ½­•ÐÍ•ÑÕÀ°É•ÅÕ•ÍÐÝÉ¥Ñ”°É•ÍÁ½¹Í”É•…°…¹½¹”É•½¹¹•Ð¸(€€€ÁÕˆ™¸…±±}Ý¥Ñ¡}Ñ¥µ•½ÕÐ (€€€€€€€€™Í•±˜°(€€€€€€€É•ÅÕ•ÍÐèIÁI•ÅÕ•ÍÐ°(€€€€€€€Ñ¥µ•½ÕÐèÕÉ…Ñ¥½¸°(€€€€¤€´øI•ÍÕ±ÐñIÁI•ÍÁ½¹Í”°%ÁÉÉ½Èøì(€€€€€€€Í•±˜¹¥¹¹•È¹…±±}Ý¥Ñ¡}Ñ¥µ•½ÕÐ¡É•ÅÕ•ÍÐ°Ñ¥µ•½ÕÐ¤(€€€ô((€€€€¼¼¼]¡•Ñ¡•È„±¥Ù”•Ù•¹Ðµ±¥ÍÑ•¹•ÈÑ¡É•…¥ÌÕÉÉ•¹Ñ±ä±…¥µ•‰äÑ¡¥Ì±¥•¹Ð¸(€€€€m™œ¡Ñ•ÍÐ¥t(€€€ÁÕˆ¡É…Ñ”¤™¸¡…Í}•Ù•¹Ñ}±¥ÍÑ•¹•È ™Í•±˜¤€´ø‰½½°ì(€€€€€€€±½­}É•½Ù•È ™Í•±˜¹¥¹¹•È¹±¥ÍÑ•¹•È¤¹¥Í}Í½µ” ¤(€€€ô)ô()¥µÁ°•™…Õ±Ð™½È…•µ½¹IÁ±¥•¹Ðì(€€€™¸‘•™…Õ±Ð ¤€´øM•±˜ì(€€€€€€€M•±˜èé¹•Ü ¤(€€€ô)ô()ÍÑ…Ñ¥ŒM!I}1%9Pè1…éå1½¬ñ…•µ½¹IÁ±¥•¹Ðø€ô1…éå1½¬èé¹•Ü¡…•µ½¹IÁ±¥•¹Ðèé¹•Ü¤ì()ÁÕˆ™¸Í¡…É•‘}ÉÁ}±¥•¹Ð ¤€´ø€˜ÍÑ…Ñ¥Œ…•µ½¹IÁ±¥•¹Ðì(€€€€™M!I}1%9P)ô((¼¼¼±•…ÈÑ¡”ÁÉ½•ÍÌµÝ¥‘”IAÍ•ÍÍ¥½¸€¡”¹œ¸…™Ñ•È‘…•µ½¸É•ÍÑ…ÉÐ¤¸)ÁÕˆ™¸É•Í•Ñ}ÉÁ}Í•ÍÍ¥½¸ ¤ì(€€€M!I}1%9P¹É•Í•Ð ¤ì)ô()ÁÕˆ™¸É•¥ÍÑ•É}ÉÁ}•Ù•¹Ñ}¡…¹‘±•È¡¡…¹‘±•Èè¥µÁ°¸¡IÁÙ•¹Ð¤€¬M•¹€¬Må¹Œ€¬€ÍÑ…Ñ¥Œ¤ì(€€€M!I}1%9P¹É•¥ÍÑ•É}•Ù•¹Ñ}¡…¹‘±•È¡¡…¹‘±•È¤ì)ô((m™œ¡Ñ•ÍÐ¥t)µ½Ñ•ÍÑÌì(€€€ÕÍ”ÍÕÁ•Èèè¨ì(€€€ÕÍ”ÍÑèé½±±•Ñ¥½¹ÌèéY••ÅÕ”ì((€€€ÍÑÉÕÐMÉ¥ÁÑ•‘%¼ì(€€€€€€€É•…‘ÌèY••ÅÕ”ñ¥¼èéI•ÍÕ±ÐñY•ŒñÔàøøø°(€€€€€€€ÝÉ¥ÑÑ•¸èY•ŒñÔàø°(€€€ô((€€€¥µÁ°I•…™½ÈMÉ¥ÁÑ•‘%¼ì(€€€€€€€™¸É•… ™µÕÐÍ•±˜°‰Õ™™•Èè€™µÕÐmÔát¤€´ø¥¼èéI•ÍÕ±ÐñÕÍ¥é”øì(€€€€€€€€€€€µ…Ñ Í•±˜¹É•…‘Ì¹Á½Á}™É½¹Ð ¤¹•áÁ•Ð ‰ÍÉ¥ÁÑ•É•…ˆ¤ì(€€€€€€€€€€€€€€€=¬¡‰åÑ•Ì¤€ôøì(€€€€€€€€€€€€€€€€€€€±•Ð½Õ¹Ð€ô‰åÑ•Ì¹±•¸ ¤¹µ¥¸¡‰Õ™™•È¹±•¸ ¤¤ì(€€€€€€€€€€€€€€€€€€€‰Õ™™•Él¸¹½Õ¹Ñt¹½Áå}™É½µ}Í±¥” ™‰åÑ•Íl¸¹½Õ¹Ñt¤ì(€€€€€€€€€€€€€€€€€€€¥˜½Õ¹Ð€ð‰åÑ•Ì¹±•¸ ¤ì(€€€€€€€€€€€€€€€€€€€€€€€Í•±˜¹É•…‘Ì¹ÁÕÍ¡}™É½¹Ð¡=¬¡‰åÑ•Ím½Õ¹Ð¸¹t¹Ñ½}Ù•Œ ¤¤¤ì(€€€€€€€€€€€€€€€€€€€ô(€€€€€€€€€€€€€€€€€€€=¬¡½Õ¹Ð¤(€€€€€€€€€€€€€€€ô(€€€€€€€€€€€€€€€ÉÈ¡•ÉÉ½È¤€ôøÉÈ¡•ÉÉ½È¤°(€€€€€€€€€€€ô(€€€€€€€ô(€€€ô((€€€¥µÁ°]É¥Ñ”™½ÈMÉ¥ÁÑ•‘%¼ì(€€€€€€€™¸ÝÉ¥Ñ” ™µÕÐÍ•±˜°‰Õ™™•Èè€™mÔát¤€´ø¥¼èéI•ÍÕ±ÐñÕÍ¥é”øì(€€€€€€€€€€€Í•±˜¹ÝÉ¥ÑÑ•¸¹•áÑ•¹‘}™É½µ}Í±¥”¡‰Õ™™•È¤ì(€€€€€€€€€€€=¬¡‰Õ™™•È¹±•¸ ¤¤(€€€€€€€ô((€€€€€€€™¸™±ÕÍ  ™µÕÐÍ•±˜¤€´ø¥¼èéI•ÍÕ±Ðð ¤øì(€€€€€€€€€€€=¬  ¤¤(€€€€€€€ô(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‘•…‘±¥¹•}¥½}É•ÑÉ¥•Í}Ý½Õ±‘}‰±½­}Ý¥Ñ¡½ÕÑ}±½Í¥¹}Á…ÉÑ¥…±}É•… ¤ì(€€€€€€€±•ÐµÕÐÍÉ¥ÁÑ•€ôMÉ¥ÁÑ•‘%¼ì(€€€€€€€€€€€É•…‘ÌèY••ÅÕ”èé™É½´¡l(€€€€€€€€€€€€€€€=¬¡Ù•Œ…lÄ°€Ét¤°(€€€€€€€€€€€€€€€ÉÈ¡¥¼èéÉÉ½Èèé™É½´¡¥¼èéÉÉ½É-¥¹èé]½Õ±‘	±½¬¤¤°(€€€€€€€€€€€€€€€=¬¡Ù•Œ…lÌ°€Ñt¤°(€€€€€€€€€€€t¤°(€€€€€€€€€€€ÝÉ¥ÑÑ•¸èY•Œèé¹•Ü ¤°(€€€€€€€ôì(€€€€€€€±•ÐµÕÐ¥¼€ô•…‘±¥¹•%¼èé¹•Ü ™µÕÐÍÉ¥ÁÑ•°%¹ÍÑ…¹Ðèé¹½Ü ¤€¬ÕÉ…Ñ¥½¸èé™É½µ}Í•Ì Ä¤¤ì(€€€€€€€±•ÐµÕÐ‰Õ™™•È€ôlÁÔàì€Ñtì(€€€€€€€¥¼¹É•…‘}•á…Ð ™µÕÐ‰Õ™™•È¤¹•áÁ•Ð ‰É•…½µÁ±•Ñ•Ìˆ¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡‰Õ™™•È°lÄ°€È°€Ì°€Ñt¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‘•…‘±¥¹•}¥½}É•ÑÉ¥•Í}ÑÉ…¹Í¥•¹Ñ}é•É½}É•…‘}Ý¥Ñ¡½ÕÑ}±½Í¥¹}Á…ÉÑ¥…±}É•… ¤ì(€€€€€€€±•ÐµÕÐÍÉ¥ÁÑ•€ôMÉ¥ÁÑ•‘%¼ì(€€€€€€€€€€€É•…‘ÌèY••ÅÕ”èé™É½´¡l(€€€€€€€€€€€€€€€=¬¡Ù•Œ…lÄ°€Ét¤°(€€€€€€€€€€€€€€€=¬¡Y•Œèé¹•Ü ¤¤°(€€€€€€€€€€€€€€€=¬¡Ù•Œ…lÌ°€Ñt¤°(€€€€€€€€€€€t¤°(€€€€€€€€€€€ÝÉ¥ÑÑ•¸èY•Œèé¹•Ü ¤°(€€€€€€€ôì(€€€€€€€±•ÐµÕÐ¥¼€ô•…‘±¥¹•%¼èé¹•Ý}Ý¥Ñ¡}é•É½}É•…‘}É•ÑÉä (€€€€€€€€€€€€™µÕÐÍÉ¥ÁÑ•°(€€€€€€€€€€€%¹ÍÑ…¹Ðèé¹½Ü ¤€¬ÕÉ…Ñ¥½¸èé™É½µ}Í•Ì Ä¤°(€€€€€€€€€€€ÑÉÕ”°(€€€€€€€€¤ì(€€€€€€€±•ÐµÕÐ‰Õ™™•È€ôlÁÔàì€Ñtì(€€€€€€€¥¼¹É•…‘}•á…Ð ™µÕÐ‰Õ™™•È¤¹•áÁ•Ð ‰É•…½µÁ±•Ñ•Ìˆ¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡‰Õ™™•È°lÄ°€È°€Ì°€Ñt¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‘•…‘±¥¹•}¥½}ÑÕÉ¹Í}Á•Éµ…¹•¹Ñ}é•É½}É•…‘}¥¹Ñ½}Ñ¥µ•½ÕÐ ¤ì(€€€€€€€±•ÐµÕÐÍÉ¥ÁÑ•€ôMÉ¥ÁÑ•‘%¼ì(€€€€€€€€€€€É•…‘ÌèY••ÅÕ”èé™É½´¡m=¬¡Y•Œèé¹•Ü ¤¥t¤°(€€€€€€€€€€€ÝÉ¥ÑÑ•¸èY•Œèé¹•Ü ¤°(€€€€€€€ôì(€€€€€€€±•ÐµÕÐ¥¼€ô•…‘±¥¹•%¼èé¹•Ý}Ý¥Ñ¡}é•É½}É•…‘}É•ÑÉä (€€€€€€€€€€€€™µÕÐÍÉ¥ÁÑ•°(€€€€€€€€€€€%¹ÍÑ…¹Ðèé¹½Ü ¤°(€€€€€€€€€€€ÑÉÕ”°(€€€€€€€€¤ì(€€€€€€€±•Ð•ÉÉ½È€ô¥¼¹É•… ™µÕÐlÁÔàì€Åt¤¹•áÁ•Ñ}•ÉÈ ‰‘•…‘±¥¹”µÕÍÐ•áÁ¥É”ˆ¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡•ÉÉ½È¹­¥¹ ¤°¥¼èéÉÉ½É-¥¹èéQ¥µ•‘=ÕÐ¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‘•…‘±¥¹•}¥½}ÁÉ•Í•ÉÙ•Í}ÍÑ…¹‘…É‘}•½™}Ý¡•¹}é•É½}É•ÑÉå}¥Í}‘¥Í…‰±• ¤ì(€€€€€€€±•ÐµÕÐÍÉ¥ÁÑ•€ôMÉ¥ÁÑ•‘%¼ì(€€€€€€€€€€€É•…‘ÌèY••ÅÕ”èé™É½´¡m=¬¡Y•Œèé¹•Ü ¤¥t¤°(€€€€€€€€€€€ÝÉ¥ÑÑ•¸èY•Œèé¹•Ü ¤°(€€€€€€€ôì(€€€€€€€±•ÐµÕÐ¥¼€ô•…‘±¥¹•%¼èé¹•Ý}Ý¥Ñ¡}é•É½}É•…‘}É•ÑÉä (€€€€€€€€€€€€™µÕÐÍÉ¥ÁÑ•°(€€€€€€€€€€€%¹ÍÑ…¹Ðèé¹½Ü ¤€¬ÕÉ…Ñ¥½¸èé™É½µ}Í•Ì Ä¤°(€€€€€€€€€€€™…±Í”°(€€€€€€€€¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡¥¼¹É•… ™µÕÐlÁÔàì€Åt¤¹•áÁ•Ð ‰=¥ÌÉ•ÑÕÉ¹•ˆ¤°€À¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‘•…‘±¥¹•}¥½}•µÁÑå}‰Õ™™•É}É•ÑÕÉ¹Í}¥µµ•‘¥…Ñ•±ä ¤ì(€€€€€€€±•ÐµÕÐÍÉ¥ÁÑ•€ôMÉ¥ÁÑ•‘%¼ì(€€€€€€€€€€€É•…‘ÌèY••ÅÕ”èé¹•Ü ¤°(€€€€€€€€€€€ÝÉ¥ÑÑ•¸èY•Œèé¹•Ü ¤°(€€€€€€€ôì(€€€€€€€±•ÐµÕÐ¥¼€ô•…‘±¥¹•%¼èé¹•Ý}Ý¥Ñ¡}é•É½}É•…‘}É•ÑÉä (€€€€€€€€€€€€™µÕÐÍÉ¥ÁÑ•°(€€€€€€€€€€€%¹ÍÑ…¹Ðèé¹½Ü ¤°(€€€€€€€€€€€ÑÉÕ”°(€€€€€€€€¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡¥¼¹É•… ™µÕÐmt¤¹•áÁ•Ð ‰•µÁÑäÉ•…ÍÕ••‘Ìˆ¤°€À¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸‘•…‘±¥¹•}¥½}ÑÕÉ¹Í}Á•Éµ…¹•¹Ñ}Ý½Õ±‘}‰±½­}¥¹Ñ½}Ñ¥µ•½ÕÐ ¤ì(€€€€€€€±•ÐµÕÐÍÉ¥ÁÑ•€ôMÉ¥ÁÑ•‘%¼ì(€€€€€€€€€€€É•…‘ÌèY••ÅÕ”èé™É½´¡mÉÈ¡¥¼èéÉÉ½Èèé™É½´¡¥¼èéÉÉ½É-¥¹èé]½Õ±‘	±½¬¤¥t¤°(€€€€€€€€€€€ÝÉ¥ÑÑ•¸èY•Œèé¹•Ü ¤°(€€€€€€€ôì(€€€€€€€±•ÐµÕÐ¥¼€ô•…‘±¥¹•%¼èé¹•Ü ™µÕÐÍÉ¥ÁÑ•°%¹ÍÑ…¹Ðèé¹½Ü ¤¤ì(€€€€€€€±•Ð•ÉÉ½È€ô¥¼¹É•… ™µÕÐlÁÔàì€Åt¤¹•áÁ•Ñ}•ÉÈ ‰‘•…‘±¥¹”µÕÍÐ•áÁ¥É”ˆ¤ì(€€€€€€€…ÍÍ•ÉÑ}•Ä„¡•ÉÉ½È¹­¥¹ ¤°¥¼èéÉÉ½É-¥¹èéQ¥µ•‘=ÕÐ¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸é•É½}‘ÕÉ…Ñ¥½¹}½¹¹•Ñ¥½¹}¥Í}É•©•Ñ•‘}‰•™½É•}•¹‘Á½¥¹Ñ}±½½­ÕÀ ¤ì(€€€€€€€±•Ð•ÉÉ½È€ô½¹¹•Ñ}±¥•¹Ñ}Ý¥Ñ¡}Ñ¥µ•½ÕÐ¡ÕÉ…Ñ¥½¸èéiI<¤(€€€€€€€€€€€€¹•áÁ•Ñ}•ÉÈ ‰é•É¼½¹¹•Ñ¥½¸Ñ¥µ•½ÕÐµÕÍÐ™…¥°ˆ¤ì(€€€€€€€…ÍÍ•ÉÐ„¡¥Í}É•…‘}Ñ¥µ•½ÕÐ ™•ÉÉ½È¤¤ì(€€€ô((€€€€mÑ•ÍÑt(€€€™¸é•É½}‘ÕÉ…Ñ¥½¹}…±±}¥Í}É•©•Ñ•‘}‰•™½É•}½¹¹•Ñ¥¹œ ¤ì(€€€€€€€±•Ð±¥•¹Ð€ô…•µ½¹IÁ±¥•¹Ðèé¹•Ü ¤ì(€€€€€€€±•Ð•ÉÉ½È€ô±¥•¹Ð(€€€€€€€€€€€€¹…±±}Ý¥Ñ¡}Ñ¥µ•½ÕÐ (€€€€€€€€€€€€€€€IÁI•ÅÕ•ÍÐèé¹•Ü Ä°IÁ5•Ñ¡½èéA¥¹œ¤°(€€€€€€€€€€€€€€€ÕÉ…Ñ¥½¸èéiI<°(€€€€€€€€€€€€¤(€€€€€€€€€€€€¹•áÁ•Ñ}•ÉÈ ‰é•É¼Ñ¥µ•½ÕÐµÕÍÐ™…¥°ˆ¤ì(€€€€€€€…ÍÍ•ÉÐ„¡¥Í}É•…‘}Ñ¥µ•½ÕÐ ™•ÉÉ½È¤¤ì(€€€ô)ô(
+    /// handle, and a receive timeout would let a poll wake mid-frame and desync
+    /// the stream). Joining would therefore block the caller â€” often a UI
+    /// command thread â€” until the daemon happens to send something. Instead the
+    /// stop flag makes the thread stop dispatching immediately and exit at its
+    /// next wake-up, which for the usual `reset()` trigger (daemon restart) is
+    /// the moment the socket closes. `ensure_event_listener` reaps the finished
+    /// handle.
+    fn stop_event_listener(&self) {
+        if let Some(listener) = lock_recover(&self.listener).take() {
+            listener.stop.store(true, Ordering::SeqCst);
+            drop(listener.handle);
+        }
+    }
+
+    fn register_event_handler(&self, handler: EventHandler) {
+        lock_recover(&self.event_handlers).push(handler);
+        self.ensure_event_listener();
+    }
+
+    fn ensure_event_listener(&self) {
+        let mut guard = lock_recover(&self.listener);
+        match guard.as_ref() {
+            // Still running: nothing to do.
+            Some(listener) if !listener.handle.is_finished() => return,
+            // Exited on its own (daemon went away); reap it and start over.
+            Some(_) => {
+                if let Some(listener) = guard.take() {
+                    let _ = listener.handle.join();
+                }
+            }
+            None => {}
+        }
+
+        // Connect before claiming the slot. The previous implementation flipped
+        // an `event_listener_started` flag first and returned early when the
+        // connection failed, which permanently blocked every later attempt to
+        // start a listener for the lifetime of the process.
+        let mut stream = match connect_client() {
+            Ok(stream) => stream,
+            Err(error) => {
+                tracing::warn!(
+                    target: "scriptor_daemon::client",
+                    %error,
+                    "event listener could not connect; will retry on next registration",
+                );
+                return;
+            }
+        };
+        let subscribe = RpcRequest::new(0, RpcMethod::SubscribeEvents);
+        if let Err(error) = write_frame(&mut stream, &subscribe) {
+            tracing::warn!(
+                target: "scriptor_daemon::client",
+                %error,
+                "event listener could not subscribe; will retry on next registration",
+            );
+            return;
+        }
+
+        let handlers = Arc::clone(&self.event_handlers);
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = Arc::clone(&stop);
+        let handle = thread::spawn(move || {
+            while !thread_stop.load(Ordering::SeqCst) {
+                let body = match read_frame_resyncing(&mut stream) {
+                    Ok(body) => body,
+                    Err(_) => break,
+                };
+
+                // Re-check after the blocking read: a listener that was retired
+                // while waiting must not deliver stale events to handlers that
+                // a newer listener now owns.
+                if thread_stop.load(Ordering::SeqCst) {
+                    break;
+                }
+
+                let event = match postcard::from_bytes::<ServerMessage>(&body) {
+                    Ok(ServerMessage::Event(event)) => event,
+                    Ok(ServerMessage::Response(_)) => continue,
+                    Err(_) => continue,
+                };
+
+                let handlers = lock_recover(&handlers);
+                for handler in handlers.iter() {
+                    handler(event.clone());
+                }
+            }
+        });
+
+        *guard = Some(EventListener { stop, handle });
+    }
+
+    fn ensure_connected(
+        &self,
+        deadline: Instant,
+    ) -> Result<std::sync::MutexGuard<'_, Option<LocalSocketStream>>, IpcError> {
+        if Instant::now() >= deadline {
+            return Err(IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC connection deadline exceeded",
+            )));
+        }
+
+        let mut guard = lock_recover(&self.stream);
+        if guard.is_none() {
+            let remaining = deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
+                IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC connection deadline exceeded",
+                ))
+            })?;
+            if remaining.is_zero() {
+                return Err(IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC connection deadline exceeded",
+                )));
+            }
+
+            // The timeout and Windows nonblocking mode are applied while the
+            // stream is created. Applying them afterwards leaves `connect`
+            // itself outside the whole-call deadline and can park forever on
+            // a busy named pipe.
+            let stream = connect_client_with_timeout(remaining)?;
+            #[cfg(not(windows))]
+            {
+                stream
+                    .set_recv_timeout(Some(remaining))
+                    .map_err(IpcError::from)?;
+                stream
+                    .set_send_timeout(Some(remaining))
+                    .map_err(IpcError::from)?;
+            }
+            if Instant::now() >= deadline {
+                return Err(IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC connection deadline exceeded",
+                )));
+            }
+            *guard = Some(stream);
+        }
+        Ok(guard)
+    }
+
+    fn dispatch_inline_event(&self, event: RpcEvent) {
+        let handlers = lock_recover(&self.event_handlers);
+        for handler in handlers.iter() {
+            handler(event.clone());
+        }
+    }
+
+    fn read_response_frame<R: Read>(
+        &self,
+        stream: &mut R,
+        request_id: u64,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        // Both bounds matter: the absolute I/O deadline stops a silent daemon
+        // from parking the caller, and the frame budget stops a chatty daemon
+        // whose response id never matches from doing the same.
+        for _ in 0..MAX_UNMATCHED_FRAMES {
+            let body = match read_frame_resyncing(stream) {
+                Ok(body) => body,
+                Err(error) if is_read_timeout(&error) => {
+                    return Err(IpcError::Codec(format!(
+                        "timed out after {:.3}s waiting for response to request {request_id}",
+                        timeout.as_secs_f64()
+                    )));
+                }
+                Err(error) => return Err(error),
+            };
+            if let Ok(message) = postcard::from_bytes::<ServerMessage>(&body) {
+                match message {
+                    ServerMessage::Response(response) => {
+                        if response.id == request_id {
+                            return Ok(response);
+                        }
+                    }
+                    ServerMessage::Event(event) => self.dispatch_inline_event(event),
+                }
+                continue;
+            }
+
+            if let Ok(response) = postcard::from_bytes::<RpcResponse>(&body)
+                && response.id == request_id
+            {
+                return Ok(response);
+            }
+        }
+
+        Err(IpcError::Codec(format!(
+            "gave up after {MAX_UNMATCHED_FRAMES} frames without a response matching request {request_id}"
+        )))
+    }
+
+    fn call_once(
+        &self,
+        stream: &mut LocalSocketStream,
+        request: &RpcRequest,
+        deadline: Instant,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        let remaining = deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
+            IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC I/O deadline exceeded",
+            ))
+        })?;
+        if remaining.is_zero() {
+            return Err(IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC I/O deadline exceeded",
+            )));
+        }
+        #[cfg(not(windows))]
+        {
+            stream
+                .set_recv_timeout(Some(remaining))
+                .map_err(IpcError::from)?;
+            stream
+                .set_send_timeout(Some(remaining))
+                .map_err(IpcError::from)?;
+        }
+
+        let mut io = DeadlineIo::new(stream, deadline);
+        write_frame(&mut io, request)?;
+        self.read_response_frame(&mut io, request.id, timeout)
+    }
+
+    fn call_with_timeout(
+        &self,
+        request: RpcRequest,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        if timeout.is_zero() {
+            return Err(IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC timeout must be greater than zero",
+            )));
+        }
+
+        // One absolute deadline covers the initial attempt and the one allowed
+        // reconnect. A short caller budget therefore cannot expand to two full
+        // socket timeouts.
+        let deadline = Instant::now() + timeout;
+        let mut guard = self.ensure_connected(deadline)?;
+        let stream = guard.as_mut().expect("connected stream");
+        match self.call_once(stream, &request, deadline, timeout) {
+            Ok(response) => Ok(response),
+            Err(error) if should_reconnect(&error) && Instant::now() < deadline => {
+                drop(guard);
+                // Only the request socket is recycled here; the event listener
+                // is independent and must survive an RPC-level reconnect.
+                self.drop_stream();
+                let mut guard = self.ensure_connected(deadline)?;
+                let stream = guard.as_mut().expect("connected stream");
+                self.call_once(stream, &request, deadline, timeout)
+            }
+            Err(error) => {
+                // A timeout or a decode failure can leave unconsumed bytes in
+                // the socket, so never reuse it for the next call.
+                drop(guard);
+                self.drop_stream();
+                Err(error)
+            }
+        }
+    }
+
+    fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
+        self.call_with_timeout(request, RPC_READ_TIMEOUT)
+    }
+}
+
+/// Persistent local-socket session that multiplexes RPCs on one connection.
+pub struct DaemonRpcClient {
+    inner: ClientInner,
+}
+
+impl DaemonRpcClient {
+    pub fn new() -> Self {
+        Self {
+            inner: ClientInner::new(),
+        }
+    }
+
+    /// Drop the cached connection so the next `call` opens a fresh socket.
+    pub fn reset(&self) {
+        self.inner.reset();
+    }
+
+    pub fn register_event_handler(&self, handler: impl Fn(RpcEvent) + Send + Sync + 'static) {
+        self.inner.register_event_handler(Box::new(handler));
+    }
+
+    pub fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
+        self.inner.call(request)
+    }
+
+    /// Execute one RPC within a caller-supplied whole-call budget. The budget
+    /// includes socket setup, request write, response read, and one reconnect.
+    pub fn call_with_timeout(
+        &self,
+        request: RpcRequest,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        self.inner.call_with_timeout(request, timeout)
+    }
+
+    /// Whether a live event-listener thread is currently claimed by this client.
+    #[cfg(test)]
+    pub(crate) fn has_event_listener(&self) -> bool {
+        lock_recover(&self.inner.listener).is_some()
+    }
+}
+
+impl Default for DaemonRpcClient {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+static SHARED_CLIENT: LazyLock<DaemonRpcClient> = LazyLock::new(DaemonRpcClient::new);
+
+pub fn shared_rpc_client() -> &'static DaemonRpcClient {
+    &SHARED_CLIENT
+}
+
+/// Clear the process-wide RPC session (e.g. after daemon restart).
+pub fn reset_rpc_session() {
+    SHARED_CLIENT.reset();
+}
+
+pub fn register_rpc_event_handler(handler: impl Fn(RpcEvent) + Send + Sync + 'static) {
+    SHARED_CLIENT.register_event_handler(handler);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::VecDeque;
+
+    struct ScriptedIo {
+        reads: VecDeque<io::Result<Vec<u8>>>,
+        written: Vec<u8>,
+    }
+
+    impl Read for ScriptedIo {
+        fn read(&mut self, buffer: &mut [u8]) -> io::Result<usize> {
+            match self.reads.pop_front().expect("scripted read") {
+                Ok(bytes) => {
+                    let count = bytes.len().min(buffer.len());
+                    buffer[..count].copy_from_slice(&bytes[..count]);
+                    if count < bytes.len() {
+                        self.reads.push_front(Ok(bytes[count..].to_vec()));
+                    }
+                    Ok(count)
+                }
+                Err(error) => Err(error),
+            }
+        }
+    }
+
+    impl Write for ScriptedIo {
+        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+            self.written.extend_from_slice(buffer);
+            Ok(buffer.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn deadline_io_retries_would_block_without_losing_partial_read() {
+        let mut scripted = ScriptedIo {
+            reads: VecDeque::from([
+                Ok(vec![1, 2]),
+                Err(io::Error::from(io::ErrorKind::WouldBlock)),
+                Ok(vec![3, 4]),
+            ]),
+            written: Vec::new(),
+        };
+        let mut io = DeadlineIo::new(&mut scripted, Instant::now() + Duration::from_secs(1));
+        let mut buffer = [0u8; 4];
+        io.read_exact(&mut buffer).expect("read completes");
+        assert_eq!(buffer, [1, 2, 3, 4]);
+    }
+
+    #[test]
+    fn deadline_io_turns_permanent_would_block_into_timeout() {
+        let mut scripted = ScriptedIo {
+            reads: VecDeque::from([Err(io::Error::from(io::ErrorKind::WouldBlock))]),
+            written: Vec::new(),
+        };
+        let mut io = DeadlineIo::new(&mut scripted, Instant::now());
+        let error = io.read(&mut [0u8; 1]).expect_err("deadline must expire");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[test]
+    fn zero_duration_connection_is_rejected_before_endpoint_lookup() {
+        let error = connect_client_with_timeout(Duration::ZERO)
+            .expect_err("zero connection timeout must fail");
+        assert!(is_read_timeout(&error));
+    }
+
+    #[test]
+    fn zero_duration_call_is_rejected_before_connecting() {
+        let client = DaemonRpcClient::new();
+        let error = client
+            .call_with_timeout(
+                RpcRequest::new(1, RpcMethod::Ping),
+                Duration::ZERO,
+            )
+            .expect_err("zero timeout must fail");
+        assert!(is_read_timeout(&error));
+    }
+}
