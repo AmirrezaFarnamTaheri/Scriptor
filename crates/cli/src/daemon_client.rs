@@ -15,11 +15,15 @@ const DAEMON_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const DAEMON_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(250);
 const DAEMON_EXISTING_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
 const DAEMON_STARTUP_PING_TIMEOUT: Duration = Duration::from_secs(1);
+const DAEMON_COMMAND_PING_TIMEOUT: Duration = Duration::from_secs(5);
+const DAEMON_SOCKET_ENV: &str = "SCRIPTOR_DAEMON_SOCKET";
 
+/// Emit the compatibility warning for the deprecated in-process indexer.
 pub fn warn_in_process_deprecated() {
     eprintln!("{IN_PROCESS_DEPRECATION}");
 }
 
+/// Resolve the daemon sidecar from an explicit override, beside the CLI, or PATH.
 pub fn resolve_daemon_binary() -> PathBuf {
     if let Ok(path) = std::env::var("SCRIPTOR_DAEMON_BIN") {
         return PathBuf::from(path);
@@ -52,6 +56,7 @@ pub fn resolve_daemon_binary() -> PathBuf {
     }
 }
 
+/// Perform one ping within a caller-supplied whole-RPC budget.
 fn daemon_ping_with_timeout(timeout: Duration) -> Result<String, Box<dyn std::error::Error>> {
     let response = shared_rpc_client()
         .call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), timeout)?;
@@ -62,15 +67,23 @@ fn daemon_ping_with_timeout(timeout: Duration) -> Result<String, Box<dyn std::er
     }
 }
 
+/// Ping an already-running daemon without inheriting the 120-second budget
+/// reserved for long-running export and index RPCs.
 pub fn daemon_ping() -> Result<String, Box<dyn std::error::Error>> {
-    let response = rpc_call(RpcRequest::new(1, RpcMethod::Ping))?;
-    match response.result {
-        RpcResult::Ok(RpcPayload::Pong { version }) => Ok(version),
-        RpcResult::Err(message) => Err(message.into()),
-        _ => Err("unexpected daemon ping response".into()),
-    }
+    daemon_ping_with_timeout(DAEMON_COMMAND_PING_TIMEOUT)
 }
 
+/// Build the daemon serve command, including an optional isolated socket name.
+fn daemon_serve_command(binary: &Path, socket_override: Option<&str>) -> Command {
+    let mut command = Command::new(binary);
+    command.arg("serve");
+    if let Some(socket) = socket_override.filter(|value| !value.trim().is_empty()) {
+        command.args(["--socket", socket]);
+    }
+    command
+}
+
+/// Cap one startup probe by both the per-ping limit and remaining startup budget.
 fn bounded_startup_ping_timeout(now: Instant, deadline: Instant) -> Option<Duration> {
     let remaining = deadline.checked_duration_since(now)?;
     if remaining.is_zero() {
@@ -80,6 +93,7 @@ fn bounded_startup_ping_timeout(now: Instant, deadline: Instant) -> Option<Durat
     }
 }
 
+/// Ensure a daemon is reachable, spawning and monitoring the sidecar when needed.
 pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Error>> {
     if daemon_ping_with_timeout(DAEMON_EXISTING_PROBE_TIMEOUT).is_ok() {
         return read_endpoint().map_err(Into::into);
@@ -87,11 +101,14 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
 
     let binary = resolve_daemon_binary();
     let binary_display = binary.display().to_string();
-    let mut child = Command::new(&binary)
-        .arg("serve")
-        // A daemon outlives the CLI invocation that launched it. Inheriting a
-        // PowerShell or CI pipeline's handles keeps that pipeline open forever,
-        // even after the CLI exits. Detach all three standard streams.
+    let socket_override = std::env::var(DAEMON_SOCKET_ENV)
+        .ok()
+        .filter(|value| !value.trim().is_empty());
+    let mut command = daemon_serve_command(&binary, socket_override.as_deref());
+    // A daemon outlives the CLI invocation that launched it. Inheriting a
+    // PowerShell or CI pipeline's handles keeps that pipeline open forever,
+    // even after the CLI exits. Detach all three standard streams.
+    let mut child = command
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -166,6 +183,7 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
     .into())
 }
 
+/// Open a vault in the already-running daemon session.
 pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let response = rpc_call(RpcRequest::new(
         2,
@@ -180,6 +198,7 @@ pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
+/// Ensure the daemon is ready and has opened `path`.
 pub fn ensure_vault_open(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     ensure_daemon_running()?;
     open_vault(path)
@@ -193,6 +212,33 @@ mod tests {
     fn resolve_daemon_binary_returns_path() {
         let path = resolve_daemon_binary();
         assert!(!path.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn daemon_serve_command_applies_isolated_socket_override() {
+        let command = daemon_serve_command(Path::new("scriptor-daemon"), Some("scriptor-smoke-123"));
+        let args = command
+            .get_args()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            args,
+            vec![
+                "serve".to_string(),
+                "--socket".to_string(),
+                "scriptor-smoke-123".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn daemon_serve_command_ignores_blank_socket_override() {
+        let command = daemon_serve_command(Path::new("scriptor-daemon"), Some("   "));
+        let args = command
+            .get_args()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(args, vec!["serve".to_string()]);
     }
 
     #[test]
