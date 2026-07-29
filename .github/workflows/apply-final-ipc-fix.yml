@@ -1,0 +1,132 @@
+name: Apply final IPC reconciliation
+
+on:
+  push:
+    branches:
+      - convergence/all-open-prs-2026-07-29
+    paths:
+      - .github/workflows/apply-final-ipc-fix.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: final-ipc-reconciliation
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: convergence/all-open-prs-2026-07-29
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Apply guarded IPC lifecycle fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          client = Path('crates/daemon/src/client.rs')
+          text = client.read_text(encoding='utf-8')
+          old = '''    pub fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
+                  self.inner.call(request)
+              }
+
+              /// Execute one RPC within a caller-supplied whole-call budget. The budget
+              /// includes socket setup, request write, response read, and one reconnect.
+              pub fn call_with_timeout(
+                  &self,
+                  request: RpcRequest,
+                  timeout: Duration,
+              ) -> Result<RpcResponse, IpcError> {
+                  self.inner.call_with_timeout(request, timeout)
+              }
+          '''
+          new = '''    pub fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
+                  self.call_with_timeout(request, RPC_READ_TIMEOUT)
+              }
+
+              /// Execute one RPC within a caller-supplied whole-call budget. The budget
+              /// includes socket setup, request write, response read, and one reconnect.
+              pub fn call_with_timeout(
+                  &self,
+                  request: RpcRequest,
+                  timeout: Duration,
+              ) -> Result<RpcResponse, IpcError> {
+                  let result = self.inner.call_with_timeout(request, timeout);
+                  // Windows local sockets are named pipes and provide no portable
+                  // shutdown primitive. Explicitly dropping a one-shot request socket
+                  // releases its pipe instance before the next CLI process connects.
+                  // The independent event-listener socket remains unaffected.
+                  #[cfg(windows)]
+                  self.inner.drop_stream();
+                  result
+              }
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one DaemonRpcClient call block, found {text.count(old)}')
+          client.write_text(text.replace(old, new), encoding='utf-8')
+
+          transport = Path('crates/daemon/src/transport.rs')
+          text = transport.read_text(encoding='utf-8')
+          old = '''        unsafe extern "system" {
+                      fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+                      fn CloseHandle(handle: *mut c_void) -> i32;
+                  }
+
+                  const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+                  unsafe {
+                      let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+                      if handle.is_null() {
+                          return false;
+                      }
+                      CloseHandle(handle);
+                      true
+                  }
+          '''
+          new = '''        unsafe extern "system" {
+                      fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+                      fn GetExitCodeProcess(handle: *mut c_void, exit_code: *mut u32) -> i32;
+                      fn CloseHandle(handle: *mut c_void) -> i32;
+                  }
+
+                  const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+                  const STILL_ACTIVE: u32 = 259;
+                  unsafe {
+                      let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+                      if handle.is_null() {
+                          return false;
+                      }
+                      let mut exit_code = 0u32;
+                      let queried = GetExitCodeProcess(handle, &mut exit_code);
+                      CloseHandle(handle);
+                      queried != 0 && exit_code == STILL_ACTIVE
+                  }
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one transport Windows liveness block, found {text.count(old)}')
+          transport.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+
+          rustfmt --edition 2024 crates/daemon/src/client.rs crates/daemon/src/transport.rs
+          cargo test -p scriptor-daemon --lib --locked
+
+      - name: Commit fixes and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/apply-final-ipc-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add crates/daemon/src/client.rs crates/daemon/src/transport.rs
+          git commit -m "fix(ipc): close Windows one-shot sessions explicitly"
+          git push origin HEAD:convergence/all-open-prs-2026-07-29
