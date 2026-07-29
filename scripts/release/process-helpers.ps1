@@ -48,6 +48,9 @@ function Invoke-BoundedProcess {
         [string[]]$Arguments = @(),
         [Parameter(Mandatory = $true)][string]$WorkingDirectory,
         [ValidateRange(1, 3600)][int]$TimeoutSeconds = 180,
+        [ValidateRange(5, 300)][int]$HeartbeatSeconds = 15,
+        [string]$PhaseName,
+        [switch]$SuppressStandardOutput,
         [switch]$SuppressStandardError
     )
 
@@ -55,6 +58,10 @@ function Invoke-BoundedProcess {
     $argumentLine = ($Arguments | ForEach-Object {
         ConvertTo-NativeCommandLineArgument -Value ([string]$_)
     }) -join ' '
+    $displayCommand = "$resolvedFile $argumentLine".Trim()
+    if ([string]::IsNullOrWhiteSpace($PhaseName)) {
+        $PhaseName = [System.IO.Path]::GetFileName($resolvedFile)
+    }
 
     $startInfo = New-Object System.Diagnostics.ProcessStartInfo
     $startInfo.FileName = $resolvedFile
@@ -67,41 +74,75 @@ function Invoke-BoundedProcess {
 
     $process = New-Object System.Diagnostics.Process
     $process.StartInfo = $startInfo
+    $startedAt = [DateTimeOffset]::UtcNow
+    $lastHeartbeat = $startedAt
+
+    Write-Host "::group::$PhaseName"
+    Write-Host "command: $displayCommand"
+    Write-Host "working_directory: $WorkingDirectory"
+    Write-Host "started_utc: $($startedAt.ToString('o'))"
+    Write-Host "timeout_seconds: $TimeoutSeconds"
 
     try {
         if (-not $process.Start()) {
-            throw "failed to start process: $resolvedFile $argumentLine"
+            throw "failed to start process: $displayCommand"
         }
+        Write-Host "pid: $($process.Id)"
 
         # Consume both pipes asynchronously so a verbose child cannot deadlock
-        # while the parent is waiting for it to exit.
+        # while the parent polls for a bounded completion time.
         $stdoutTask = $process.StandardOutput.ReadToEndAsync()
         $stderrTask = $process.StandardError.ReadToEndAsync()
 
-        if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
-            try { $process.Kill() } catch { }
-            try { $process.WaitForExit() } catch { }
-            $stdout = $stdoutTask.Result
-            $stderr = $stderrTask.Result
-            throw (
-                "process timed out after ${TimeoutSeconds}s: $resolvedFile $argumentLine" +
-                "`nstdout:`n$stdout`nstderr:`n$stderr"
-            )
+        while (-not $process.WaitForExit(500)) {
+            $now = [DateTimeOffset]::UtcNow
+            $elapsed = $now - $startedAt
+            if ($elapsed.TotalSeconds -ge $TimeoutSeconds) {
+                try { $process.Kill($true) } catch { try { $process.Kill() } catch { } }
+                try { $process.WaitForExit() } catch { }
+                $stdout = $stdoutTask.Result
+                $stderr = $stderrTask.Result
+                if ($stdout -and -not $SuppressStandardOutput) {
+                    Write-Host $stdout.TrimEnd()
+                }
+                if ($stderr -and -not $SuppressStandardError) {
+                    Write-Host $stderr.TrimEnd()
+                }
+                throw (
+                    "process timed out after ${TimeoutSeconds}s: $displayCommand" +
+                    "`nstdout:`n$stdout`nstderr:`n$stderr"
+                )
+            }
+
+            if (($now - $lastHeartbeat).TotalSeconds -ge $HeartbeatSeconds) {
+                Write-Host "::notice title=$PhaseName heartbeat::pid=$($process.Id) elapsed=$([math]::Round($elapsed.TotalSeconds))s deadline=${TimeoutSeconds}s"
+                $lastHeartbeat = $now
+            }
         }
 
-        # WaitForExit(milliseconds) can return before asynchronous stream events
-        # are fully drained on .NET Framework; the parameterless call closes that
-        # race before reading task results.
+        # The parameterless call closes the asynchronous stream-drain race before
+        # reading task results.
         $process.WaitForExit()
         $stdout = $stdoutTask.Result
         $stderr = $stderrTask.Result
+        $finishedAt = [DateTimeOffset]::UtcNow
+        $duration = $finishedAt - $startedAt
 
+        if ($stdout -and -not $SuppressStandardOutput) {
+            Write-Host "--- stdout ---"
+            Write-Host $stdout.TrimEnd()
+        }
         if ($stderr -and -not $SuppressStandardError) {
+            Write-Host "--- stderr ---"
             Write-Host $stderr.TrimEnd()
         }
+        Write-Host "finished_utc: $($finishedAt.ToString('o'))"
+        Write-Host "duration_seconds: $([math]::Round($duration.TotalSeconds, 3))"
+        Write-Host "exit_code: $($process.ExitCode)"
+
         if ($process.ExitCode -ne 0) {
             throw (
-                "process failed with exit code $($process.ExitCode): $resolvedFile $argumentLine" +
+                "process failed with exit code $($process.ExitCode): $displayCommand" +
                 "`nstdout:`n$stdout`nstderr:`n$stderr"
             )
         }
@@ -109,6 +150,7 @@ function Invoke-BoundedProcess {
         return $stdout
     }
     finally {
+        Write-Host "::endgroup::"
         $process.Dispose()
     }
 }
