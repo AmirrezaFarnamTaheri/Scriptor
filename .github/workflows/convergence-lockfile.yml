@@ -6,6 +6,13 @@ on:
       - convergence/all-open-prs-2026-07-29
     paths:
       - .github/workflows/convergence-lockfile.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - package.json
+      - pnpm-lock.yaml
+      - .github/workflows/convergence-lockfile.yml
 
 permissions:
   contents: write
