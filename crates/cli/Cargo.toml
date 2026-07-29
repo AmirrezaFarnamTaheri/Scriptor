@@ -18,7 +18,7 @@ scriptor-indexer = { path = "../indexer" }
 scriptor-native-git = { path = "../native-git" }
 scriptor-vault = { path = "../vault" }
 clap = { version = "4", features = ["derive"] }
-crossterm = "0.28"
+crossterm = "0.29"
 ratatui = "0.28"
 regex = "1"
 serde = { version = "1", features = ["derive"] }
