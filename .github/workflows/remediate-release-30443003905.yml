@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - fix/release-30443003905-desktop-command-collision
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
