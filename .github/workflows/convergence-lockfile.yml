@@ -13,6 +13,9 @@ on:
       - crates/cli/src/tui.rs
       - crates/canvas-engine/Cargo.toml
       - crates/tantivy-indexer/src/lib.rs
+      - src/lib/monaco-environment.ts
+      - src/workers/**
+      - src/types/monaco-workers.d.ts
       - scripts/ci/reconcile-convergence.sh
       - .github/workflows/convergence-lockfile.yml
   pull_request:
@@ -27,6 +30,9 @@ on:
       - crates/cli/src/tui.rs
       - crates/canvas-engine/Cargo.toml
       - crates/tantivy-indexer/src/lib.rs
+      - src/lib/monaco-environment.ts
+      - src/workers/**
+      - src/types/monaco-workers.d.ts
       - scripts/ci/reconcile-convergence.sh
       - .github/workflows/convergence-lockfile.yml
 
