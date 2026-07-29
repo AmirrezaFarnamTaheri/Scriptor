@@ -4,11 +4,27 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
+import { unified } from 'unified'
+import { visit } from 'unist-util-visit'
+import remarkParse from 'remark-parse'
+
+import { escapeAttr, escapeHtml, slugify } from './escape.ts'
 import { preprocessWikilinks } from './preprocess.ts'
+import { sanitizeStyleAttribute } from './rehype-safe-style.ts'
+import { remarkToc } from './remark-toc.ts'
+import { remarkMpeCodeChunks } from './remark-mpe-code-chunks.ts'
+
+/*
+ * Regression suites that used to be dead code: nothing imported them, so
+ * `pnpm check:renderer` never executed a single XSS fixture or perf budget.
+ * They register their own node:test cases on import — keep these imports.
+ */
+import { auditMarkup } from './xss-test.ts'
+import './preview-budget-test.ts'
 import { renderMarkdownPipeline } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
 import { findPreviewAnchor } from './scroll-sync.ts'
-import { preprocessImports } from './remark-import.ts'
+import { preprocessImports, preprocessImportsAsync } from './remark-import.ts'
 import { preprocessWikilinkEmbeds } from './remark-wikilink-embed.ts'
 import { parseMpeAttributes } from './remark-mpe-code-chunks.ts'
 
@@ -49,6 +65,49 @@ test('preprocessImports inlines markdown with depth and cycle guards', () => {
   assert.match(cyclic, /Circular import detected/)
 })
 
+test('preprocessImportsAsync inserts imported text literally', async () => {
+  const notes = new Map<string, string>([
+    ['notes/math.md', 'Cost is $$x^2$$ and pattern $& stays $1 literal'],
+  ])
+  const out = await preprocessImportsAsync('@import "math.md"\n\nAfter', {
+    fetchNote: async (path) => notes.get(path) ?? null,
+    basePath: 'notes/main.md',
+  })
+  assert.match(out, /Cost is \$\$x\^2\$\$ and pattern \$& stays \$1 literal/)
+  assert.match(out, /After/)
+})
+
+test('import paths may not escape the vault or reference URLs', async () => {
+  const fetched: string[] = []
+  const fetchNote = (path: string) => {
+    fetched.push(path)
+    return null
+  }
+  const traversal = preprocessImports('@import "../../etc/passwd"', {
+    fetchNote,
+    basePath: 'notes/main.md',
+  })
+  assert.match(traversal, /Import path not allowed/)
+
+  const absolute = preprocessImports('@import "/etc/passwd"', { fetchNote })
+  assert.match(absolute, /Import path not allowed/)
+
+  const url = await preprocessImportsAsync('@import "https://evil.example/x.md"', {
+    fetchNote: async (path) => {
+      fetched.push(path)
+      return null
+    },
+  })
+  assert.match(url, /Import path not allowed/)
+  assert.deepEqual(fetched, [])
+
+  const inVault = preprocessImports('@import "../sibling.md"', {
+    fetchNote: (path) => (path === 'sibling.md' ? 'Sibling body' : null),
+    basePath: 'notes/main.md',
+  })
+  assert.match(inVault, /Sibling body/)
+})
+
 test('pipeline inlines @import when fetchNote is provided', () => {
   const html = renderMarkdownPipeline('@import "part.md"\n\nAfter', {
     fetchNote: (path) => (path.endsWith('part.md') ? 'Imported **bold**' : null),
@@ -83,12 +142,28 @@ test('pipeline renders markup highlight and underline', () => {
   assert.match(html, /class="markup-underline"[^>]*>emphasis<\/span>/)
 })
 
-test('pipeline renders [TOC] from headings', () => {
+test('pipeline renders [TOC] with anchors that match emitted heading ids', () => {
   const html = renderMarkdownPipeline('# Title\n\n[TOC]\n\n## Section\n\n### Detail')
   assert.match(html, /class="markdown-toc"/)
-  assert.match(html, /href="#section"/)
   assert.match(html, />Section</)
   assert.match(html, />Detail</)
+  const hrefs = [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1])
+  assert.ok(hrefs.length >= 3, 'TOC should link every heading')
+  for (const href of hrefs) {
+    assert.match(html, new RegExp(`<h[1-6][^>]*\\bid="${href}"`), `anchor #${href} should resolve`)
+  }
+})
+
+test('pipeline TOC anchors survive duplicate and unicode headings', () => {
+  const html = renderMarkdownPipeline('[TOC]\n\n## Notes\n\n## Notes\n\n## Café π')
+  const hrefs = [...html.matchAll(/href="#([^"]+)"/g)].map((match) => match[1])
+  assert.equal(new Set(hrefs).size, 3, 'duplicate headings should get de-duplicated anchors')
+  assert.ok(hrefs.some((href) => href.endsWith('notes')))
+  assert.ok(hrefs.some((href) => href.endsWith('notes-1')))
+  assert.ok(hrefs.some((href) => href.endsWith('café-π')))
+  for (const href of hrefs) {
+    assert.match(html, new RegExp(`<h2[^>]*\\bid="${href}"`), `anchor #${href} should resolve`)
+  }
 })
 
 test('pipeline renders ```math fences with KaTeX', () => {
@@ -158,4 +233,112 @@ test('hostile markdown fixtures strip script and event handlers', () => {
     assert.doesNotMatch(html, /<iframe/i)
     assert.doesNotMatch(html, /javascript:/i)
   }
+})
+
+// --- canonical escaping helpers -------------------------------------------
+// These used to be six divergent private copies of `escapeHtml` (remark-toc's
+// omitted `"`, remark-mpe-code-chunks' included it) plus four of `escapeAttr`
+// and two of `slugify`. They now all resolve to ./escape.ts.
+
+test('escapeHtml escapes all five HTML-significant characters', () => {
+  assert.equal(escapeHtml(`&<>"'`), '&amp;&lt;&gt;&quot;&#39;')
+  // Ampersand must be escaped first or the other entities get double-escaped.
+  assert.equal(escapeHtml('&lt;'), '&amp;lt;')
+  assert.equal(escapeHtml('plain text'), 'plain text')
+})
+
+test('escapeAttr escapes the five characters plus the mXSS backtick', () => {
+  assert.equal(escapeAttr('a`b'), 'a&#96;b')
+  assert.equal(escapeAttr(`" onerror="alert(1)`), '&quot; onerror=&quot;alert(1)')
+  for (const char of ['&', '<', '>', '"', "'", '`']) {
+    assert.doesNotMatch(escapeAttr(`x${char}y`), new RegExp(`x\\${char}y`), `${char} must not survive`)
+  }
+})
+
+test('slugify is unicode-aware so distinct non-latin headings do not collide', () => {
+  assert.equal(slugify('Hello World'), 'hello-world')
+  assert.equal(slugify('Café π'), 'café-π')
+  // The old ASCII-only embed-client copy collapsed both of these to '', which
+  // made `![[Note#π]]` resolve against a `## Ω` heading.
+  assert.notEqual(slugify('π'), slugify('Ω'))
+})
+
+function renderRawHtmlNodes(markdown: string, plugin: () => unknown): string {
+  const tree = unified().use(remarkParse).use(plugin as never).parse(markdown)
+  const processed = unified().use(remarkParse).use(plugin as never).runSync(tree)
+  let html = ''
+  visit(processed, 'html', (node: { value?: string }) => {
+    html += node.value ?? ''
+  })
+  return html
+}
+
+test('remark-toc escapes quotes in heading text (previously divergent copy omitted ")', () => {
+  const html = renderRawHtmlNodes('# Say "hi" & <b>x</b>\n\n[TOC]\n', remarkToc)
+  assert.match(html, /class="markdown-toc"/)
+  assert.doesNotMatch(html, /<a href="#[^"]*">Say "hi"/, 'raw double quotes must not reach the TOC link text')
+  assert.match(html, /&quot;hi&quot;/)
+  assert.match(html, /&amp;/)
+  // the href is attribute context and must be escapeAttr-clean
+  const href = /href="([^"]*)"/.exec(html)?.[1] ?? ''
+  assert.doesNotMatch(href, /["'`<>]/)
+})
+
+test('remark-toc TOC anchors survive a heading crafted to break out of the href', () => {
+  // The payload survives as escaped link *text*; what must not happen is it
+  // becoming a live attribute on the <a> or <h1>.
+  const html = renderMarkdownPipeline('# a" onmouseover="alert(1)\n\n[TOC]\n')
+  assert.deepEqual(auditMarkup(html), [])
+  assert.doesNotMatch(html, /<[^>]*\sonmouseover/i)
+})
+
+test('mpe code chunk attributes cannot break out of their quoted attribute', () => {
+  const html = renderRawHtmlNodes(
+    '```powershell {title=a\'" onload="alert(1)}\nGet-Date\n```',
+    remarkMpeCodeChunks,
+  )
+  assert.doesNotMatch(html, /\son(?:load|error|click)\s*=/i, 'no handler attribute may be synthesised')
+  assert.match(html, /data-mpe-title="/)
+  // every emitted attribute name must be a plain data-mpe-* identifier
+  for (const name of html.matchAll(/\s([^\s=<>"']+)=/g)) {
+    assert.match(name[1] ?? '', /^[a-z][a-z0-9-]*$/, `attribute name "${name[1]}" is not a plain identifier`)
+  }
+  const rendered = renderMarkdownPipeline('```powershell {title=a\'" onload="alert(1)}\nx\n```')
+  assert.deepEqual(auditMarkup(rendered), [])
+})
+
+// --- inline style filtering ------------------------------------------------
+
+test('sanitizeStyleAttribute strips CSS exfiltration and overlay primitives', () => {
+  assert.equal(sanitizeStyleAttribute('background:url(https://evil.example/beacon)'), '')
+  assert.equal(sanitizeStyleAttribute('background:url(javascript:alert(1))'), '')
+  assert.equal(sanitizeStyleAttribute('background:expression(alert(1))'), '')
+  assert.equal(sanitizeStyleAttribute('-moz-binding:url(http://evil/x.xml)'), '')
+  assert.equal(sanitizeStyleAttribute('behavior:url(#default#time2)'), '')
+  assert.equal(sanitizeStyleAttribute('position:fixed;top:0;left:0'), 'top:0;left:0')
+  assert.equal(sanitizeStyleAttribute('position:sticky'), '')
+  // KaTeX layout declarations must survive untouched.
+  assert.equal(
+    sanitizeStyleAttribute('height:0.8em;vertical-align:-0.2em;position:relative;top:2px'),
+    'height:0.8em;vertical-align:-0.2em;position:relative;top:2px',
+  )
+})
+
+test('pipeline strips dangerous CSS from author-supplied span styles', () => {
+  const html = renderMarkdownPipeline('<span style="background:url(javascript:alert(1));position:fixed">x</span>')
+  assert.doesNotMatch(html, /javascript:/i)
+  assert.doesNotMatch(html, /position\s*:\s*fixed/i)
+  assert.match(html, /<span[^>]*>x<\/span>/)
+})
+
+test('pipeline still renders KaTeX inline styles', () => {
+  const html = renderMarkdownPipeline('$$\n\\frac{1}{2}\n$$')
+  assert.match(html, /katex/i)
+  assert.match(html, /style="[^"]*height:/)
+})
+
+test('<style> content is removed, not leaked as visible text', () => {
+  const html = renderMarkdownPipeline('<style>@import url("javascript:alert(1)");</style>')
+  assert.doesNotMatch(html, /javascript:/i)
+  assert.doesNotMatch(html, /@import/i)
 })

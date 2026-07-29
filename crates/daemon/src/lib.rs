@@ -5,6 +5,7 @@ pub mod events;
 pub mod export_job;
 pub mod handler;
 pub mod index_job;
+pub mod locks;
 pub mod transport;
 pub mod watcher;
 

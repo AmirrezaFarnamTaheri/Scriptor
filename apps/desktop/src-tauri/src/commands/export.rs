@@ -108,6 +108,30 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
     }
 }
 
+/// Resolve a caller-supplied export subdirectory against the vault root.
+///
+/// Delegates to `VaultRoot::resolve_relative`, which rejects absolute paths and
+/// traversal *and* canonicalizes every existing path prefix. The prefix walk
+/// matters here because the directory is created afterwards: a lexical
+/// `starts_with` check would still follow an existing symlinked parent that
+/// redirects the export outside the vault.
+fn resolve_output_directory(
+    session: &VaultSession,
+    output_subdirectory: Option<String>,
+) -> Result<std::path::PathBuf, String> {
+    match output_subdirectory {
+        Some(subdir) => {
+            let relative = RelativeVaultPath::parse(&subdir)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+            session
+                .root
+                .resolve_relative(&relative)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))
+        }
+        None => Ok(default_export_directory(session.root.root())),
+    }
+}
+
 fn build_export_job_input(
     session: &VaultSession,
     note_path: &str,
@@ -126,10 +150,7 @@ fn build_export_job_input(
         .next()
         .unwrap_or("note");
 
-    let output_directory = match output_subdirectory {
-        Some(subdir) => session.root.root().join(subdir),
-        None => default_export_directory(session.root.root()),
-    };
+    let output_directory = resolve_output_directory(session, output_subdirectory)?;
 
     let config = scriptor_vault::load_vault_config(session.root.root())
         .map_err(|error| error.to_string())?;
@@ -169,10 +190,7 @@ fn build_export_job_from_markdown(
         .next()
         .unwrap_or("note");
 
-    let output_directory = match output_subdirectory {
-        Some(subdir) => session.root.root().join(subdir),
-        None => default_export_directory(session.root.root()),
-    };
+    let output_directory = resolve_output_directory(session, output_subdirectory)?;
 
     let config = scriptor_vault::load_vault_config(session.root.root())
         .map_err(|error| error.to_string())?;

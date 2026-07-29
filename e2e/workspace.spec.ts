@@ -89,7 +89,7 @@ test.describe('workspace flows', () => {
 
     await page.keyboard.press('Control+KeyK')
     const palette = page.getByRole('dialog', { name: 'Command palette' })
-    await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('Note history')
+    await palette.getByRole('searchbox').fill('Note history')
     await palette.getByRole('option', { name: 'Note history timeline' }).click()
 
     const historyPanel = page.getByRole('dialog', { name: 'Note history' })
@@ -142,7 +142,7 @@ test.describe('workspace flows', () => {
 
     await page.keyboard.press('Control+KeyK')
     const palette = page.getByRole('dialog', { name: 'Command palette' })
-    await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('performance HUD')
+    await palette.getByRole('searchbox').fill('performance HUD')
     await palette.getByRole('option', { name: 'Show performance HUD' }).click()
 
     const hud = page.locator('.perf-hud-overlay')
@@ -157,7 +157,7 @@ test.describe('workspace flows', () => {
 
     await page.keyboard.press('Control+KeyK')
     const palette = page.getByRole('dialog', { name: 'Command palette' })
-    await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('Insert footnote')
+    await palette.getByRole('searchbox').fill('Insert footnote')
     await palette.getByRole('option', { name: 'Insert footnote reference' }).click()
 
     await expect(page.locator('.monaco-editor .view-lines')).toContainText('[^', { timeout: 10_000 })
@@ -171,15 +171,15 @@ test.describe('workspace flows', () => {
   })
 
   test('hash mismatch shows integrity warning', async ({ page }) => {
-    await page.addInitScript(() => {
-      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
-    })
-    await page.goto('/', { waitUntil: 'networkidle' })
-    await waitForWorkspace(page)
-
-    const warning = page.locator('.integrity-warning, .hash-mismatch-banner, [role="alert"]')
-    await warning.first().isVisible({ timeout: 3000 }).catch(() => false)
-    await expect(page.locator('#root')).toBeVisible()
+    // The `e2e:hash-mismatch` flag this test sets is not honoured anywhere in
+    // src/ — no fixture ever produces a content-hash mismatch, so the warning
+    // locator could never match. The old body called isVisible() and threw the
+    // result away, leaving a test that asserted nothing about integrity.
+    test.skip(
+      true,
+      'No E2E fixture produces a content-hash mismatch; src/e2e/bootstrap.ts does not implement the e2e:hash-mismatch flag.',
+    )
+    void page
   })
 
   test('corrupted session data falls back to defaults', async ({ page }) => {

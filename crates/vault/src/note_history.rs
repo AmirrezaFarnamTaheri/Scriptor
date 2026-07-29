@@ -42,8 +42,12 @@ fn manifest_path(root: &VaultRoot, relative_path: &str) -> PathBuf {
     history_dir(root, relative_path).join("manifest.json")
 }
 
-fn revision_path(root: &VaultRoot, relative_path: &str, revision_id: &str) -> PathBuf {
-    history_dir(root, relative_path).join(format!("{revision_id}.md"))
+fn revision_path(root: &VaultRoot, relative_path: &str, revision_id: &str) -> Result<PathBuf, VaultError> {
+    // Revision ids are always generated as UUIDs (see append_note_history); reject
+    // anything else so a caller-supplied id can never traverse out of the history dir.
+    let parsed = Uuid::parse_str(revision_id)
+        .map_err(|_| VaultError::InvalidRelativePath(format!("invalid revision id: {revision_id}")))?;
+    Ok(history_dir(root, relative_path).join(format!("{parsed}.md")))
 }
 
 fn preview_line(markdown: &str) -> String {
@@ -71,7 +75,7 @@ pub fn read_note_history_revision(
     note_path: &str,
     revision_id: &str,
 ) -> Result<String, VaultError> {
-    let path = revision_path(root, note_path, revision_id);
+    let path = revision_path(root, note_path, revision_id)?;
     fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))
 }
 
@@ -92,7 +96,7 @@ pub fn append_note_history(
         preview: preview_line(markdown),
     };
 
-    let snapshot = revision_path(root, note_path, &entry.id);
+    let snapshot = revision_path(root, note_path, &entry.id)?;
     atomic_write(&snapshot, markdown.as_bytes())?;
 
     let manifest_file = manifest_path(root, note_path);
@@ -114,8 +118,9 @@ pub fn append_note_history(
     manifest.revisions.insert(0, entry.clone());
     if manifest.revisions.len() > MAX_REVISIONS_PER_NOTE {
         for stale in manifest.revisions.split_off(MAX_REVISIONS_PER_NOTE) {
-            let stale_path = revision_path(root, note_path, &stale.id);
-            let _ = fs::remove_file(stale_path);
+            if let Ok(stale_path) = revision_path(root, note_path, &stale.id) {
+                let _ = fs::remove_file(stale_path);
+            }
         }
     }
 
@@ -150,5 +155,27 @@ mod tests {
         assert_eq!(history[0].content_hash, "hash-two");
         let body = read_note_history_revision(&session.root, "note.md", &history[1].id).expect("read");
         assert!(body.contains("# One"));
+    }
+
+    #[test]
+    fn rejects_non_uuid_revision_ids() {
+        let dir = tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("note.md"), "# One\n").expect("write");
+        let session = open_vault(dir.path()).expect("open");
+        append_note_history(&session.root, "note.md", "# One\n", "hash-one").expect("append");
+
+        for hostile in [
+            "../../../etc/passwd",
+            "..",
+            "manifest",
+            "a/b",
+            "0123456789abcdef0123456789abcdef01234567", // not a uuid
+        ] {
+            let result = read_note_history_revision(&session.root, "note.md", hostile);
+            assert!(
+                matches!(result, Err(VaultError::InvalidRelativePath(_))),
+                "expected rejection for revision id {hostile:?}"
+            );
+        }
     }
 }

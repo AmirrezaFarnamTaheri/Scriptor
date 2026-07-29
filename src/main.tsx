@@ -2,8 +2,10 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './lib/monaco-environment.ts'
 import './index.css'
+import { AccessibilitySemantics } from './components/AccessibilitySemantics'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
+import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 
 function applyInitialTheme() {
   const stored = window.localStorage.getItem('scriptor:app-theme')
@@ -33,11 +35,14 @@ async function mountApp() {
     import.meta.env.VITE_E2E_MODE === 'true' || import.meta.env.VITE_SCREENSHOT_MODE === 'true'
   const app = (
     <ErrorBoundary name="app-root">
-      {fixtureMode ? <App /> : (
-        <StrictMode>
-          <App />
-        </StrictMode>
-      )}
+      <AccessibilitySemantics />
+      <I18nProvider>
+        {fixtureMode ? <App /> : (
+          <StrictMode>
+            <App />
+          </StrictMode>
+        )}
+      </I18nProvider>
     </ErrorBoundary>
   )
 

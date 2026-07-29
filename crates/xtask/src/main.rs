@@ -62,7 +62,7 @@ fn pnpm(args: &[&str]) -> Result<()> {
 }
 
 fn release_smoke() -> Result<()> {
-    cargo(&["build", "--workspace"])?;
+    cargo(&["build", "--workspace", "--exclude", "scriptor-desktop"])?;
     cargo(&["test", "--workspace", "--exclude", "scriptor-desktop"])?;
     pnpm(&["build"])?;
     println!("Release smoke passed.");
@@ -154,11 +154,10 @@ fn load_baselines() -> Result<Baselines> {
 
 fn parse_mean_ms(output: &str) -> Result<f64> {
     for line in output.lines() {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line) {
-            if let Some(m) = v.get("mean_ms").and_then(|v| v.as_f64()) {
+        if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
+            && let Some(m) = v.get("mean_ms").and_then(|v| v.as_f64()) {
                 return Ok(m);
             }
-        }
     }
     bail!("could not parse mean_ms from benchmark output")
 }

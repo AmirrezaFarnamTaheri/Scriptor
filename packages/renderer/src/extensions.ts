@@ -1,5 +1,7 @@
 import type { RendererExtensionContribution } from '@scriptor/core/contracts/plugin'
 
+import { escapeAttr, escapeHtml } from './escape.ts'
+
 const PUBLISH_CALLOUT_MARKER = '<!-- scriptor:publish-callout -->'
 
 export function applyRendererExtensions(
@@ -17,11 +19,11 @@ export function applyRendererExtensions(
     }
   }
 
-  const badges = extensions
+  const badges = [...extensions]
     .sort((left, right) => right.priority - left.priority)
     .map(
       (extension) =>
-        `<span class="renderer-extension-badge" data-extension="${extension.id}">${extension.label}</span>`,
+        `<span class="renderer-extension-badge" data-extension="${escapeAttr(extension.id)}">${escapeHtml(extension.label)}</span>`,
     )
     .join('')
 

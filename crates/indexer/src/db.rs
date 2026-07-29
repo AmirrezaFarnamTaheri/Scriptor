@@ -90,37 +90,6 @@ fn apply_connection_pragmas(connection: &Connection) -> Result<(), rusqlite::Err
     Ok(())
 }
 
-#[cfg(test)]
-mod db_pragma_tests {
-    use super::*;
-    use std::sync::Arc;
-    use std::thread;
-
-    #[test]
-    fn opens_with_wal_journal_mode() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let cache_path = temp.path().join("index.sqlite");
-        let cache = IndexCache::open(&cache_path).expect("open");
-        let mode: String = cache.journal_mode().expect("journal_mode");
-        assert_eq!(mode.to_ascii_lowercase(), "wal");
-    }
-
-    #[test]
-    fn pool_serves_concurrent_connections() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let cache = Arc::new(IndexCache::open(temp.path().join("index.sqlite")).expect("open"));
-        let handles: Vec<_> = (0..8)
-            .map(|_| {
-                let cache = Arc::clone(&cache);
-                thread::spawn(move || cache.connection().map(|_| ()))
-            })
-            .collect();
-        for handle in handles {
-            handle.join().expect("join").expect("connection");
-        }
-    }
-}
-
 pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, IndexerError> {
     let table_exists: bool = connection
         .query_row(
@@ -170,4 +139,35 @@ pub fn orphaned_note_count(
 
 pub fn default_cache_path(vault_root: &Path) -> PathBuf {
     vault_root.join(".scriptor/cache/index.sqlite")
+}
+
+#[cfg(test)]
+mod db_pragma_tests {
+    use super::*;
+    use std::sync::Arc;
+    use std::thread;
+
+    #[test]
+    fn opens_with_wal_journal_mode() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let cache_path = temp.path().join("index.sqlite");
+        let cache = IndexCache::open(&cache_path).expect("open");
+        let mode: String = cache.journal_mode().expect("journal_mode");
+        assert_eq!(mode.to_ascii_lowercase(), "wal");
+    }
+
+    #[test]
+    fn pool_serves_concurrent_connections() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let cache = Arc::new(IndexCache::open(temp.path().join("index.sqlite")).expect("open"));
+        let handles: Vec<_> = (0..8)
+            .map(|_| {
+                let cache = Arc::clone(&cache);
+                thread::spawn(move || cache.connection().map(|_| ()))
+            })
+            .collect();
+        for handle in handles {
+            handle.join().expect("join").expect("connection");
+        }
+    }
 }

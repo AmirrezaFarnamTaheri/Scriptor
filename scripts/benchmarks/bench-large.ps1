@@ -10,6 +10,14 @@ param(
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "../..")
 
+function Invoke-Checked {
+    param([string]$File, [string[]]$Arguments)
+    & $File @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $File $Arguments"
+    }
+}
+
 $vaultMap = @{
     '100' = 'packages/test-fixtures/vaults/synthetic-100'
     '1k' = 'packages/test-fixtures/vaults/synthetic-1k'
@@ -33,7 +41,9 @@ if (-not (Test-Path $vault)) {
 
 if ($Mode -eq 'scan') {
     cargo run --release -p scriptor-cli -- bench-scan $vault --iterations $Iterations
+    if ($LASTEXITCODE -ne 0) { exit 1 }
 } else {
-    cargo run --release -p scriptor-cli -- rebuild-index $vault | Out-Null
+    Invoke-Checked cargo @("run", "--release", "-p", "scriptor-cli", "--", "rebuild-index", $vault) | Out-Null
     cargo run --release -p scriptor-cli -- bench-search $vault $Query --iterations $Iterations
+    if ($LASTEXITCODE -ne 0) { exit 1 }
 }

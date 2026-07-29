@@ -17,10 +17,13 @@ pub fn replace_note_links(
     let parsed = parse_note_markdown(path, markdown);
 
     let conn = cache.connection()?;
-    conn.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
+    // The delete and the re-insert must be atomic: without a transaction a failure partway
+    // through leaves the note with no links at all, silently dropping every backlink to it.
+    let transaction = conn.unchecked_transaction()?;
+    transaction.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
 
     let mut inserted = 0u32;
-    for link in parsed.links {
+    for (ordinal, link) in parsed.links.into_iter().enumerate() {
         let kind = match link.kind {
             ParsedLinkKind::Markdown => "markdown",
             ParsedLinkKind::Wikilink => "wikilink",
@@ -29,8 +32,11 @@ pub fn replace_note_links(
             ParsedLinkKind::External => "external",
         };
 
-        let link_id = format!("{note_key}:{}:{}", link.line, link.target);
-        conn.execute(
+        // The ordinal keeps the primary key unique per occurrence. Two identical links on the
+        // same line (`See [[A]] and [[A]] again.`), or a wikilink and a Markdown link pointing at
+        // the same target on the same line, would otherwise collide on the primary key.
+        let link_id = format!("{note_key}:{}:{ordinal}:{}", link.line, link.target);
+        transaction.execute(
             "INSERT INTO links(id, vault_id, from_note_id, to_note_id, to_path, kind, label, line)
              VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6, ?7)",
             params![
@@ -46,6 +52,7 @@ pub fn replace_note_links(
         inserted += 1;
     }
 
+    transaction.commit()?;
     Ok(inserted)
 }
 
@@ -134,4 +141,62 @@ pub fn backlinks_for_path(
     )?;
 
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scriptor_vault::{open_vault, save_note};
+    use tempfile::tempdir;
+
+    fn write_note(session: &VaultSession, path: &str, markdown: &str) -> Result<(), IndexerError> {
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &scriptor_vault::RelativeVaultPath::parse(path)?,
+            markdown,
+            None,
+        )?;
+        Ok(())
+    }
+
+    #[test]
+    fn duplicate_links_on_one_line_are_all_stored() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path())?;
+        let cache = crate::rebuild::open_cache_for_session(&session)?;
+
+        let markdown = "# Source\n\nSee [[Target]] and [[Target]] again, plus [Target](Target).\n";
+        write_note(&session, "source.md", markdown)?;
+
+        let inserted = replace_note_links(&cache, &session, "source.md", markdown)?;
+        assert_eq!(inserted, 3, "every occurrence should be stored");
+        assert_eq!(count_links(&cache, &session.descriptor.id)?, 3);
+
+        // Re-indexing the same note must be idempotent rather than accumulating rows.
+        let reinserted = replace_note_links(&cache, &session, "source.md", markdown)?;
+        assert_eq!(reinserted, 3);
+        assert_eq!(count_links(&cache, &session.descriptor.id)?, 3);
+
+        Ok(())
+    }
+
+    #[test]
+    fn backlinks_survive_a_note_with_duplicate_links() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path())?;
+        let cache = crate::rebuild::open_cache_for_session(&session)?;
+
+        write_note(&session, "target.md", "# Target\n")?;
+        let markdown = "# Source\n\nSee [[Target]] and [[Target]] again.\n";
+        write_note(&session, "source.md", markdown)?;
+
+        crate::rebuild::rebuild_index(&session, &[])?;
+
+        let hits = backlinks_for_path(&cache, &session, "target.md")?;
+        assert_eq!(hits.len(), 2, "duplicate links must not wipe the backlinks");
+        assert!(hits.iter().all(|hit| hit.from_path == "source.md"));
+
+        Ok(())
+    }
 }

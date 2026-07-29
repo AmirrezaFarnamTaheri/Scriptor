@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 const STORAGE_KEY = 'scriptor.recent-vaults'
 
@@ -24,5 +24,5 @@ export function useRecentVaults() {
     setRecent((current) => current.filter((entry) => entry !== path))
   }, [])
 
-  return { recent, remember, forget }
+  return useMemo(() => ({ recent, remember, forget }), [recent, remember, forget])
 }

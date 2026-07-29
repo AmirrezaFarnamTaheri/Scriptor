@@ -57,11 +57,10 @@ impl VaultWatcher {
 }
 
 fn parse_watch_path(root: &Path, absolute: &Path) -> Option<VaultWatchEvent> {
-    if let Some(file_name) = absolute.file_name().and_then(|name| name.to_str()) {
-        if file_name.starts_with(".scriptor-") && file_name.ends_with(".tmp") {
+    if let Some(file_name) = absolute.file_name().and_then(|name| name.to_str())
+        && file_name.starts_with(".scriptor-") && file_name.ends_with(".tmp") {
             return None;
         }
-    }
 
     let relative = vault_relative_path(root, absolute)?;
     if !relative.ends_with(".md") {

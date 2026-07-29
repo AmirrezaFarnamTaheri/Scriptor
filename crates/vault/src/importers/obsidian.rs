@@ -247,8 +247,9 @@ fn convert_callouts(markdown: &str) -> String {
 
     while i < lines.len() {
         let trimmed = lines[i].trim_start();
-        if let Some(rest) = trimmed.strip_prefix("> [!") {
-            let close = rest.find(']').unwrap_or(0);
+        if let Some(rest) = trimmed.strip_prefix("> [!")
+            && let Some(close) = rest.find(']')
+        {
             let callout_type = &rest[..close];
             let after = rest[close + 1..].trim();
             let gfm_type = match callout_type.to_lowercase().as_str() {
@@ -288,12 +289,11 @@ fn convert_callouts(markdown: &str) -> String {
 }
 
 fn strip_frontmatter(markdown: &str) -> String {
-    if markdown.starts_with("---") {
-        if let Some(end) = markdown[3..].find("\n---") {
+    if markdown.starts_with("---")
+        && let Some(end) = markdown[3..].find("\n---") {
             let after = &markdown[end + 7..];
             return after.trim_start_matches('\n').to_string();
         }
-    }
     markdown.to_string()
 }
 
@@ -451,6 +451,31 @@ mod tests {
     fn test_convert_callouts_no_title() {
         let input = "> [!note]";
         assert_eq!(convert_callouts(input), "> [!NOTE]");
+    }
+
+    #[test]
+    fn test_convert_callouts_malformed_without_close_bracket() {
+        // No closing `]`: the line must pass through verbatim instead of panicking.
+        assert_eq!(convert_callouts("> [!"), "> [!");
+        assert_eq!(convert_callouts("> [!é"), "> [!é");
+        assert_eq!(
+            convert_callouts("before\n> [!\nafter"),
+            "before\n> [!\nafter"
+        );
+    }
+
+    #[test]
+    fn test_import_note_with_malformed_callout() {
+        let tmp = tempfile::tempdir().unwrap();
+        fs::create_dir(tmp.path().join(".obsidian")).unwrap();
+        fs::write(tmp.path().join("broken.md"), "> [!\n\n> [!é\n\nBody").unwrap();
+
+        let vault_tmp = tempfile::tempdir().unwrap();
+        let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
+        let options = ImportObsidianOptions::default();
+        let result = import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        assert_eq!(result.notes_imported, 1);
+        assert!(result.errors.is_empty());
     }
 
     #[test]

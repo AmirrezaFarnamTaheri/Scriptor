@@ -42,11 +42,10 @@ impl RenameLinkTarget {
     }
 
     pub fn replacement_identifier(&self, link_target: &str, to: &RenameLinkTarget) -> String {
-        if let (Some(from_dir), Some(to_dir)) = (&self.directory_identifier, &to.directory_identifier) {
-            if link_target.eq_ignore_ascii_case(from_dir) {
+        if let (Some(from_dir), Some(to_dir)) = (&self.directory_identifier, &to.directory_identifier)
+            && link_target.eq_ignore_ascii_case(from_dir) {
                 return to_dir.clone();
             }
-        }
         if link_target.eq_ignore_ascii_case(&self.title)
             || link_target.eq_ignore_ascii_case(&self.basename)
             || link_target == self.path
@@ -273,7 +272,10 @@ pub(crate) fn split_frontmatter(markdown: &str) -> (Option<String>, String) {
         return (None, markdown.to_string());
     }
 
-    let lines: Vec<&str> = markdown.lines().collect();
+    // `split('\n')` rather than `lines()`: the latter silently drops the
+    // document's trailing newline and any trailing blank lines, so a rejoin
+    // would rewrite the end of every note it touches.
+    let lines: Vec<&str> = crate::text::split_lines(markdown).collect();
     if lines.len() < 2 {
         return (None, markdown.to_string());
     }

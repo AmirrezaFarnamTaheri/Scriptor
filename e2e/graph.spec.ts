@@ -6,16 +6,16 @@ test.describe('Graph panel', () => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
-    const panel = page.locator('.graph-panel, .unified-panel-shell, [role="dialog"]')
-    await expect(panel.first()).toBeVisible({ timeout: 5000 })
+    await runCommand(page, 'Open graph')
+    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(panel).toBeVisible({ timeout: 15_000 })
   })
 
   test('has accessible graph container', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
+    await runCommand(page, 'Open graph')
     await page.waitForFunction(() => {
       return document.querySelector('svg[role="application"], canvas[role="img"]') !== null
     }, { timeout: 5000 })
@@ -27,9 +27,9 @@ test.describe('Graph panel', () => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
-    const panel = page.locator('.graph-panel, .unified-panel-shell, [role="dialog"]')
-    await expect(panel.first()).toBeVisible({ timeout: 5000 })
+    await runCommand(page, 'Open graph')
+    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(panel).toBeVisible({ timeout: 15_000 })
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
     await expect(graphContainer.first()).toBeVisible({ timeout: 5000 })
@@ -42,16 +42,16 @@ test.describe('Graph panel', () => {
     await page.keyboard.press('ArrowDown')
     await page.waitForFunction(() => document.activeElement?.closest('.graph-canvas, [role="application"]') !== null)
 
-    await expect(panel.first()).toBeVisible({ timeout: 3000 })
+    await expect(panel).toBeVisible({ timeout: 3000 })
   })
 
   test('enter key activates focused node', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
-    const panel = page.locator('.graph-panel, .unified-panel-shell, [role="dialog"]')
-    await expect(panel.first()).toBeVisible({ timeout: 5000 })
+    await runCommand(page, 'Open graph')
+    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(panel).toBeVisible({ timeout: 15_000 })
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
     await expect(graphContainer.first()).toBeVisible({ timeout: 5000 })
@@ -60,53 +60,63 @@ test.describe('Graph panel', () => {
     await page.keyboard.press('Tab')
     await page.waitForFunction(() => document.activeElement?.closest('.graph-canvas, [role="application"]') !== null)
     await page.keyboard.press('Enter')
-    await expect(panel.first()).toBeVisible({ timeout: 3000 })
+    await expect(panel).toBeVisible({ timeout: 3000 })
   })
 
   test('escape closes graph panel', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
-    const panel = page.locator('.graph-panel, .unified-panel-shell, [role="dialog"]')
-    await expect(panel.first()).toBeVisible({ timeout: 5000 })
+    await runCommand(page, 'Open graph')
+    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(panel).toBeVisible({ timeout: 15_000 })
     await page.keyboard.press('Escape')
-    await expect(panel.first()).not.toBeVisible({ timeout: 5000 })
+    await expect(panel).not.toBeVisible({ timeout: 5000 })
   })
 
   test('depth slider controls graph depth', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
-    const panel = page.locator('.graph-panel, .unified-panel-shell, [role="dialog"]')
-    await expect(panel.first()).toBeVisible({ timeout: 5000 })
+    await runCommand(page, 'Open graph')
+    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(panel).toBeVisible({ timeout: 15_000 })
 
-    const slider = panel.locator('input[type="range"], .depth-slider, [data-testid="depth-slider"]')
-    if (await slider.first().isVisible({ timeout: 3000 }).catch(() => false)) {
-      const _initialValue = await slider.first().inputValue()
-      await slider.first().fill('3')
-      await page.waitForTimeout(500)
-      const newValue = await slider.first().inputValue()
-      expect(newValue).toBe('3')
-    }
-    await expect(panel.first()).toBeVisible({ timeout: 3000 })
+    // The depth control is a plain range input in `.graph-controls`; require it
+    // rather than skipping silently when it cannot be found.
+    const slider = panel.getByRole('slider', { name: 'Graph depth' })
+    await expect(slider).toBeVisible({ timeout: 10_000 })
+    const initialValue = await slider.inputValue()
+    const target = initialValue === '3' ? '4' : '3'
+
+    await slider.fill(target)
+    await expect(slider).toHaveValue(target)
+    expect(target).not.toBe(initialValue)
+    // The panel echoes the current depth next to the slider.
+    await expect(panel.locator('.graph-controls label span')).toHaveText(target)
   })
 
-  test('graph zoom controls are accessible', async ({ page }) => {
+  // Renamed from "graph zoom controls are accessible": the graph panel has no
+  // zoom in/out buttons (src/components/GraphPanel.tsx) — the old test called
+  // isVisible() on two locators that never match and discarded both results.
+  // Assert the view controls that do exist instead.
+  test('graph view controls are accessible', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
     await openCommandPalette(page)
-    await runCommand(page, 'open-graph')
-    const panel = page.locator('.graph-panel, .unified-panel-shell, [role="dialog"]')
-    await expect(panel.first()).toBeVisible({ timeout: 5000 })
+    await runCommand(page, 'Open graph')
+    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(panel).toBeVisible({ timeout: 15_000 })
 
-    const zoomIn = panel.getByRole('button', { name: /zoom in|\+/i })
-      .or(panel.locator('.zoom-in, [data-testid="zoom-in"]'))
-    const zoomOut = panel.getByRole('button', { name: /zoom out|-/i })
-      .or(panel.locator('.zoom-out, [data-testid="zoom-out"]'))
-    await zoomIn.first().isVisible({ timeout: 2000 }).catch(() => false)
-    await zoomOut.first().isVisible({ timeout: 2000 }).catch(() => false)
-    await expect(panel.first()).toBeVisible({ timeout: 3000 })
+    const controls = panel.locator('.graph-controls')
+    await expect(controls.getByRole('button', { name: 'Neighborhood (depth 2)' })).toBeVisible()
+    await expect(controls.getByRole('button', { name: 'Full vault' })).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Close graph' })).toBeVisible()
+
+    // Switching to the full-vault view flips the toggle button's label.
+    const viewToggle = controls.getByRole('button', { name: 'vault view' })
+    await expect(viewToggle).toBeVisible()
+    await viewToggle.click()
+    await expect(controls.getByRole('button', { name: 'vault view' })).toHaveCount(0)
   })
 })

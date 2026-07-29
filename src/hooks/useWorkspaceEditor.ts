@@ -309,76 +309,68 @@ export function useWorkspaceEditor({
     )
   }, [])
 
-  const scheduleSave = useCallback(
-    (markdown: string) => {
+  const performSave = useCallback(
+    async (markdown: string) => {
       if (!activePath || !activeNote) return
 
-      if (saveTimer.current) {
-        window.clearTimeout(saveTimer.current)
-      }
-
-      saveTimer.current = window.setTimeout(() => {
-        void (async () => {
-          setIsSaving(true)
-          setError(null)
-          try {
-            const overwrite = saveOverwriteRef.current
-            const saved = await vaultSaveNote(
-              activePath,
-              markdown,
-              overwrite ? undefined : activeNote.metadata.content_hash,
-            )
-            saveOverwriteRef.current = false
-            setExternalChangeConflict(null)
-            setActiveNote({ metadata: saved.metadata, markdown })
-            setDraftMarkdown(markdown)
-            setOpenTabs((tabs) =>
-              tabs.map((tab) =>
-                tab.path === activePath
-                  ? { ...tab, title: saved.metadata.title, contentHash: saved.metadata.content_hash }
-                  : tab,
-              ),
-            )
-            setLastSavedAt(new Date().toLocaleTimeString())
-            await indexerUpdateNote(activePath)
-            await refreshVaultCore()
-            await loadBacklinks(activePath)
-            if (searchQuery.trim()) {
-              await runSearch(searchQuery)
-            }
-            if (vaultConfig.export.export_on_save?.enabled && vaultConfig.export.export_on_save.profile_id) {
-              const profiles = exportProfilesRef.current ?? []
-              const profile = findExportProfile(profiles, vaultConfig.export.export_on_save.profile_id)
-              if (profile) {
-                void exportStartNote(activePath, profile.id, false)
-              }
-            }
-          } catch (caught) {
-            const message = caught instanceof Error ? caught.message : String(caught)
-            if (isContentHashMismatchError(message)) {
-              try {
-                const disk = await vaultReadNote(activePath)
-                setExternalChangeConflict({
-                  path: activePath,
-                  loaded_hash: activeNote.metadata.content_hash,
-                  disk_hash: disk.metadata.content_hash,
-                })
-              } catch {
-                setExternalChangeConflict({
-                  path: activePath,
-                  loaded_hash: activeNote.metadata.content_hash,
-                  disk_hash: 'unknown',
-                })
-              }
-              logActivity('error', 'Save blocked — note changed on disk', activePath)
-            } else {
-              setError(message)
-            }
-          } finally {
-            setIsSaving(false)
+      setIsSaving(true)
+      setError(null)
+      try {
+        const overwrite = saveOverwriteRef.current
+        const saved = await vaultSaveNote(
+          activePath,
+          markdown,
+          overwrite ? undefined : activeNote.metadata.content_hash,
+        )
+        saveOverwriteRef.current = false
+        setExternalChangeConflict(null)
+        setActiveNote({ metadata: saved.metadata, markdown })
+        setDraftMarkdown(markdown)
+        setOpenTabs((tabs) =>
+          tabs.map((tab) =>
+            tab.path === activePath
+              ? { ...tab, title: saved.metadata.title, contentHash: saved.metadata.content_hash }
+              : tab,
+          ),
+        )
+        setLastSavedAt(new Date().toLocaleTimeString())
+        await indexerUpdateNote(activePath)
+        await refreshVaultCore()
+        await loadBacklinks(activePath)
+        if (searchQuery.trim()) {
+          await runSearch(searchQuery)
+        }
+        if (vaultConfig.export.export_on_save?.enabled && vaultConfig.export.export_on_save.profile_id) {
+          const profiles = exportProfilesRef.current ?? []
+          const profile = findExportProfile(profiles, vaultConfig.export.export_on_save.profile_id)
+          if (profile) {
+            void exportStartNote(activePath, profile.id, false)
           }
-        })()
-      }, 700)
+        }
+      } catch (caught) {
+        const message = caught instanceof Error ? caught.message : String(caught)
+        if (isContentHashMismatchError(message)) {
+          try {
+            const disk = await vaultReadNote(activePath)
+            setExternalChangeConflict({
+              path: activePath,
+              loaded_hash: activeNote.metadata.content_hash,
+              disk_hash: disk.metadata.content_hash,
+            })
+          } catch {
+            setExternalChangeConflict({
+              path: activePath,
+              loaded_hash: activeNote.metadata.content_hash,
+              disk_hash: 'unknown',
+            })
+          }
+          logActivity('error', 'Save blocked — note changed on disk', activePath)
+        } else {
+          setError(message)
+        }
+      } finally {
+        setIsSaving(false)
+      }
     },
     [
       activeNote,
@@ -392,6 +384,21 @@ export function useWorkspaceEditor({
       setError,
       vaultConfig,
     ],
+  )
+
+  const scheduleSave = useCallback(
+    (markdown: string) => {
+      if (!activePath || !activeNote) return
+
+      if (saveTimer.current) {
+        window.clearTimeout(saveTimer.current)
+      }
+
+      saveTimer.current = window.setTimeout(() => {
+        void performSave(markdown)
+      }, 700)
+    },
+    [activeNote, activePath, performSave],
   )
 
   const insertSnippet = useCallback(
@@ -424,8 +431,8 @@ export function useWorkspaceEditor({
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
     }
-    scheduleSave(draftMarkdownRef.current)
-  }, [activeNote, activePath, scheduleSave])
+    await performSave(draftMarkdownRef.current)
+  }, [activeNote, activePath, performSave])
 
   const updateDraft = useCallback(
     (markdown: string) => {

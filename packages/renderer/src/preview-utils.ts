@@ -1,3 +1,7 @@
+import { escapeAttr } from './escape.ts'
+
+export { escapeAttr, escapeHtml, slugify } from './escape.ts'
+
 const ALLOWED_TAGS = new Set([
   'p',
   'h1',
@@ -25,14 +29,6 @@ const ALLOWED_TAGS = new Set([
   'input',
 ])
 
-export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
 export function sanitizeHtml(html: string): string {
   return html.replace(/<\/?([a-z0-9]+)([^>]*)>/gi, (match, tagName: string, attrs: string) => {
     const tag = tagName.toLowerCase()
@@ -48,7 +44,7 @@ export function sanitizeHtml(html: string): string {
       const hrefMatch = /href\s*=\s*"([^"]+)"/i.exec(attrs)
       const href = hrefMatch?.[1] ?? '#'
       if (/^(https?:|mailto:|#)/i.test(href)) {
-        return `<a href="${escapeHtml(href)}" rel="noopener noreferrer">`
+        return `<a href="${escapeAttr(href)}" rel="noopener noreferrer">`
       }
       return '<a href="#">'
     }

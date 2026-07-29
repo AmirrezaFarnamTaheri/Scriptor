@@ -130,15 +130,20 @@ pub fn rename_apply_staged(
         }
     }
 
+    // Record the phase *before* the writes begin. Recording it afterwards left a
+    // crash mid-loop looking like `Staged`, and the `Staged` recovery path only
+    // restored the source note — every already-rewritten note kept links to a
+    // filename that was never created. Announcing the phase up front means a
+    // crash at any point in the loop rolls the whole batch back.
+    if update_links && !pending_writes.is_empty() {
+        staged.record_phase(crate::rename_transaction::RenamePhase::LinkWritesDone)?;
+    }
+
     for (path, markdown) in &pending_writes {
         if path != from_path.as_str() {
             let relative = RelativeVaultPath::parse(path)?;
             save_note(vault_id, root, &relative, markdown, None)?;
         }
-    }
-
-    if update_links && !pending_writes.is_empty() {
-        staged.record_phase(crate::rename_transaction::RenamePhase::LinkWritesDone)?;
     }
 
     let from_absolute = root.resolve_relative(from_path)?;

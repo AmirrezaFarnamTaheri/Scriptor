@@ -1,5 +1,7 @@
 import { visit } from 'unist-util-visit'
 
+import { escapeAttr, escapeHtml } from './escape.ts'
+
 /** Infographic callout blocks: ` ```infographic title ` */
 export function remarkInfographic() {
   return (tree: Parameters<typeof visit>[0]) => {
@@ -31,16 +33,4 @@ export function remarkInfographic() {
       },
     )
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value)
 }

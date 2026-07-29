@@ -25,18 +25,18 @@
   --ink-strong: #0f172a;
   --ink: #1e293b;
   --text: var(--ink);
-  --muted: #64748b;
-  --faint: #94a3b8;
+  --muted: #475569;
+  --faint: #64748b;
 
-  --primary: #0D9488;
-  --primary-strong: #14B8A6;
-  --primary-soft: rgba(13, 148, 136, 0.12);
-  --primary-glow: rgba(13, 148, 136, 0.2);
+  --primary: #0f766e;
+  --primary-strong: #0f766e;
+  --primary-soft: rgba(15, 118, 110, 0.12);
+  --primary-glow: rgba(15, 118, 110, 0.2);
 
   --amber: #F97316;
   --amber-soft: rgba(249, 115, 22, 0.15);
   --danger: #dc2626;
-  --success: #059669;
+  --success: #047857;
 
   --glass-bg: rgba(255, 255, 255, 0.75);
   --glass-border: rgba(148, 163, 184, 0.2);
@@ -44,7 +44,7 @@
   --glass-blur: blur(24px) saturate(1.6);
 
   --overlay: rgba(15, 23, 42, 0.35);
-  --focus-ring: 0 0 0 3px rgba(13, 148, 136, 0.25);
+  --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.25);
   --focus-outline: 2px solid var(--primary-strong);
 }
 
@@ -238,13 +238,4 @@ textarea:focus-visible {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
-  border: 3px solid var(--bg);
-  border-radius: 999px;
-  background-clip: padding-box;
-}
-
-.truncate {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }

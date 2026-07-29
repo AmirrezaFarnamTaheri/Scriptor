@@ -5,6 +5,7 @@
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
     "types": ["vite/client"],
+    "strict": true,
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -22,5 +23,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/lib/validate-citation-runner.ts", "src/lib/validate-knowledge-runner.ts", "src/lib/validate-headless-runner.ts"]
+  "exclude": ["src/lib/validate-citation-runner.ts", "src/lib/validate-knowledge-runner.ts", "src/lib/validate-headless-runner.ts", "src/lib/validate-merge-runner.ts"]
 }

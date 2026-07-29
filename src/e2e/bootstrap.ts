@@ -7,7 +7,13 @@ import {
   screenshotHealthDiagnostics,
   screenshotRebuildSummary,
 } from '../screenshot/fixture.ts'
-import { e2eNoteDocument, e2eSaveNote, e2eSearchNotes } from './state.ts'
+import {
+  e2eNoteDocument,
+  e2eRenameApply,
+  e2eRenameDryRun,
+  e2eSaveNote,
+  e2eSearchNotes,
+} from './state.ts'
 import { installE2eMcpHarness } from './mcp.harness.ts'
 
 const DEFAULT_CONFIG = {
@@ -32,7 +38,49 @@ const DEFAULT_CONFIG = {
   mcp: { mode: 'read-only', disabled: false },
 }
 
+declare global {
+  interface Window {
+    /** Commits recorded by the mocked `git_commit_cmd`, oldest first. */
+    __scriptorE2eGitCommits?: Array<{ files: string[]; message: string }>
+    /** Payload of the most recent `git_apply_merged_conflict_cmd` call. */
+    __scriptorE2eMergedConflict?: { path: string; mergedMarkdown: string }
+    /** Payload of the most recent `vault_rename_apply` call. */
+    __scriptorE2eRenameApply?: { fromPath: string; toPath: string; updateLinks: boolean }
+  }
+}
+
+/**
+ * Conflicted `Field Notes.md` fixtures, selected by the `e2e:git-conflicts`
+ * session-storage flag.
+ *
+ * - `'1'` — the original single balanced hunk. Kept byte-for-byte because the
+ *   conflict-resolver screenshot snapshot is taken against it.
+ * - `'2'` — a balanced hunk with content *before and after* it, followed by a
+ *   dangling `<<<<<<<` with no `=======`/`>>>>>>>`. This is the shape that used
+ *   to make `applyConflictChoices` truncate the file to EOF.
+ */
+const CONFLICT_FIXTURES: Record<string, string> = {
+  '1':
+    '# Field Notes\n\n<<<<<<< ours\nObservations from the first literature pass.\n\n- Link back to [[Research Plan]]\n=======\nUpdated field observations after second pass.\n\n- New findings from [[Methodology]] review\n>>>>>>> theirs\n',
+  '2':
+    '# Field Notes\n\nPreamble recorded before the merge.\n\n' +
+    '<<<<<<< ours\nObservations from the first literature pass.\n\n- Link back to [[Research Plan]]\n' +
+    '=======\nUpdated field observations after second pass.\n\n- New findings from [[Methodology]] review\n' +
+    '>>>>>>> theirs\n\n## Next steps\n\n- Schedule follow-up interviews.\n\n' +
+    '<<<<<<< ours\nDangling half-conflict with no closing marker.\n',
+}
+
+function activeConflictFixture(): string | null {
+  const flag = window.sessionStorage.getItem('e2e:git-conflicts')
+  if (!flag) return null
+  return CONFLICT_FIXTURES[flag] ?? null
+}
+
 export function installE2eBridge(): void {
+  // Once a commit has been recorded, `git_status_cmd` reports a clean tree so
+  // tests can assert that a commit round trip actually changed something.
+  let committed = false
+  let conflictsResolved = false
   // Mock Tauri internals so `isTauriRuntime` returns true
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
     ;(window as any).__TAURI_INTERNALS__ = {}
@@ -51,7 +99,8 @@ export function installE2eBridge(): void {
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
       case 'vault_read_note': {
         const readPath = String((payload as { path?: string }).path ?? 'Research Plan.md')
-        if (readPath === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+        const conflictFixture = readPath === 'Field Notes.md' ? activeConflictFixture() : null
+        if (conflictFixture && !conflictsResolved) {
           return {
             metadata: {
               id: 'note-field-notes',
@@ -67,7 +116,7 @@ export function installE2eBridge(): void {
               organized: true,
               archived: false,
             },
-            markdown: '# Field Notes\n\n<<<<<<< ours\nObservations from the first literature pass.\n\n- Link back to [[Research Plan]]\n=======\nUpdated field observations after second pass.\n\n- New findings from [[Methodology]] review\n>>>>>>> theirs\n',
+            markdown: conflictFixture,
           }
         }
         return e2eNoteDocument(readPath)
@@ -77,6 +126,22 @@ export function installE2eBridge(): void {
         const path = String(body.path ?? 'Research Plan.md')
         const markdown = String(body.markdown ?? '')
         return e2eSaveNote(path, markdown)
+      }
+      case 'vault_rename_dry_run': {
+        const body = payload as { fromPath?: string; toPath?: string; updateLinks?: boolean }
+        return e2eRenameDryRun(
+          String(body.fromPath ?? ''),
+          String(body.toPath ?? ''),
+          body.updateLinks !== false,
+        )
+      }
+      case 'vault_rename_apply': {
+        const body = payload as { fromPath?: string; toPath?: string; updateLinks?: boolean }
+        const fromPath = String(body.fromPath ?? '')
+        const toPath = String(body.toPath ?? '')
+        const updateLinks = body.updateLinks !== false
+        window.__scriptorE2eRenameApply = { fromPath, toPath, updateLinks }
+        return e2eRenameApply(fromPath, toPath, updateLinks)
       }
       case 'vault_load_config':
         return DEFAULT_CONFIG
@@ -186,8 +251,21 @@ export function installE2eBridge(): void {
       case 'vault_list_view_notes':
         return []
       case 'git_status_cmd': {
-        const hasConflicts = window.sessionStorage.getItem('e2e:git-conflicts') === '1'
-        console.log('e2e bootstrap: git_status_cmd called, hasConflicts =', hasConflicts)
+        const hasConflicts =
+          activeConflictFixture() !== null && !conflictsResolved
+        if (committed) {
+          return {
+            is_repo: true,
+            branch: 'main',
+            changed_files: [],
+            clean: true,
+            ahead: 1,
+            behind: 0,
+            has_upstream: true,
+            has_conflicts: false,
+            conflicted_files: [],
+          }
+        }
         return {
           is_repo: true,
           branch: 'main',
@@ -205,30 +283,54 @@ export function installE2eBridge(): void {
           conflicted_files: hasConflicts ? ['Field Notes.md'] : [],
         }
       }
+      case 'git_commit_cmd': {
+        const body = payload as { files?: string[]; message?: string }
+        const files = body.files ?? []
+        const message = String(body.message ?? '')
+        window.__scriptorE2eGitCommits = [
+          ...(window.__scriptorE2eGitCommits ?? []),
+          { files, message },
+        ]
+        committed = true
+        return { commit_hash: 'e2ecommit', files_committed: files }
+      }
       case 'git_read_conflict_markers_cmd': {
         const path = String((payload as { path?: string }).path ?? 'Field Notes.md')
-        if (path === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+        if (path === 'Field Notes.md' && activeConflictFixture() !== null) {
           return ['# Conflict markers found', '=======', '>>>>>>> theirs']
         }
         return []
       }
       case 'git_show_head_file_cmd': {
         const path = String((payload as { path?: string }).path ?? '')
-        if (path === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+        if (path === 'Field Notes.md' && activeConflictFixture() !== null) {
           return '# Field Notes\n\nOurs version of the field notes.\n'
         }
         return null
       }
       case 'git_show_merge_base_file_cmd': {
         const path = String((payload as { path?: string }).path ?? '')
-        if (path === 'Field Notes.md' && window.sessionStorage.getItem('e2e:git-conflicts') === '1') {
+        if (path === 'Field Notes.md' && activeConflictFixture() !== null) {
           return '# Field Notes\n\nBase ancestor version.\n'
         }
         return null
       }
-      case 'git_resolve_conflict_cmd':
-      case 'git_apply_merged_conflict_cmd':
-        return { path: String((payload as { path?: string }).path ?? ''), strategy: 'merged' }
+      case 'git_resolve_conflict_cmd': {
+        conflictsResolved = true
+        const body = payload as { path?: string; strategy?: string }
+        return { path: String(body.path ?? ''), strategy: String(body.strategy ?? 'ours') }
+      }
+      case 'git_apply_merged_conflict_cmd': {
+        const body = payload as { path?: string; mergedMarkdown?: string }
+        const path = String(body.path ?? '')
+        const mergedMarkdown = String(body.mergedMarkdown ?? '')
+        window.__scriptorE2eMergedConflict = { path, mergedMarkdown }
+        // The resolved file is written back to the vault, so subsequent reads
+        // must return the merged text rather than the conflicted fixture.
+        e2eSaveNote(path, mergedMarkdown)
+        conflictsResolved = true
+        return { path, strategy: 'merged' }
+      }
       case 'system_info':
         return {
           os: 'Windows',

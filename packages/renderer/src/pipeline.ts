@@ -12,6 +12,8 @@ import { unified } from 'unified'
 
 import { preprocessWikilinks } from './preprocess.ts'
 import { promoteMermaidHtml } from './mermaid-html.ts'
+import { rehypeHeadingIds } from './rehype-heading-ids.ts'
+import { rehypeSafeStyle } from './rehype-safe-style.ts'
 import { rehypeSourceLines } from './rehype-source-lines.ts'
 import { preprocessImports } from './remark-import.ts'
 import { remarkAlerts } from './remark-alerts.ts'
@@ -52,6 +54,13 @@ const mathTagNames = [
 
 const sanitizeSchema = {
   ...defaultSchema,
+  /*
+   * `hast-util-sanitize` drops a disallowed *element* but keeps its children, so
+   * a stripped `<style>` used to dump its raw CSS into the document as visible
+   * text (see xss-95 / xss-103). `strip` removes the subtree outright. `script`
+   * is already in the default schema; `style` is ours.
+   */
+  strip: [...(defaultSchema.strip ?? []), 'style'],
   tagNames: [
     ...(defaultSchema.tagNames ?? []),
     ...mathTagNames,
@@ -171,6 +180,8 @@ function createProcessor(options: PreviewPipelineOptions = {}) {
     .use(rehypeRaw)
     .use(rehypeKatex)
     .use(rehypeHighlight, { detect: true, ignoreMissing: true })
+    .use(rehypeHeadingIds)
+    .use(rehypeSafeStyle as never)
     .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
     .use(rehypeSourceLines)
     .use(rehypeStringify)

@@ -58,6 +58,7 @@ export function toPaletteCommands(definitions: AppCommandDefinition[]): PaletteC
   return definitions.map((definition) => ({
     id: definition.id,
     label: definition.shortcut ? `${definition.label} (${definition.shortcut})` : definition.label,
+    keywords: definition.keywords,
     run: definition.run,
   }))
 }

@@ -62,16 +62,35 @@ export function hitTest(document: CanvasDocument, point: CanvasPoint): CanvasBlo
   return candidates[0] ?? null
 }
 
+const SVG_COLOR_PATTERN = /^#[0-9a-fA-F]{3,8}$|^[a-zA-Z]+$/
+
+function safeSvgColor(value: string | undefined, fallback: string): string {
+  return value !== undefined && SVG_COLOR_PATTERN.test(value) ? value : fallback
+}
+
+function isFiniteRect(rect: CanvasRect): boolean {
+  return (
+    Number.isFinite(rect.x) &&
+    Number.isFinite(rect.y) &&
+    Number.isFinite(rect.width) &&
+    Number.isFinite(rect.height)
+  )
+}
+
 export function renderSvg(document: CanvasDocument, bounds?: CanvasRect): string {
-  const viewport = bounds ?? sceneBounds(document)
+  let viewport = bounds ?? sceneBounds(document)
+  if (!isFiniteRect(viewport)) {
+    viewport = { x: 0, y: 0, width: 640, height: 480 }
+  }
   const blocks = [...document.blocks].sort((left, right) => left.zIndex - right.zIndex)
   const elements = blocks
     .map((block) => {
-      const fill = block.style?.fill ?? '#ffffff'
-      const stroke = block.style?.stroke ?? '#64748b'
+      if (!isFiniteRect(block.bounds)) return ''
+      const fill = safeSvgColor(block.style?.fill, '#ffffff')
+      const stroke = safeSvgColor(block.style?.stroke, '#64748b')
       const label = block.contentRef ?? block.id
       const rx = block.kind === 'sticky-note' ? 8 : 2
-      return `<g data-block-id="${block.id}"><rect x="${block.bounds.x}" y="${block.bounds.y}" width="${block.bounds.width}" height="${block.bounds.height}" rx="${rx}" fill="${fill}" stroke="${stroke}" /><text x="${block.bounds.x + 12}" y="${block.bounds.y + 24}" font-family="Segoe UI, sans-serif" font-size="14" fill="#0f172a">${escapeXml(label)}</text></g>`
+      return `<g data-block-id="${escapeXml(block.id)}"><rect x="${block.bounds.x}" y="${block.bounds.y}" width="${block.bounds.width}" height="${block.bounds.height}" rx="${rx}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}" /><text x="${block.bounds.x + 12}" y="${block.bounds.y + 24}" font-family="Segoe UI, sans-serif" font-size="14" fill="#0f172a">${escapeXml(label)}</text></g>`
     })
     .join('')
 
@@ -118,6 +137,7 @@ function escapeXml(value: string): string {
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
 }
 
 export function runCanvasValidationTests(documentFromFixture?: (name: string) => CanvasDocument): string[] {
@@ -147,6 +167,36 @@ export function runCanvasValidationTests(documentFromFixture?: (name: string) =>
   const svg = renderSvg(document)
   if (!svg.includes('Idea')) {
     failures.push('renderSvg should include block labels')
+  }
+
+  const hostile = createEmptyDocument('vault', 'Hostile')
+  hostile.blocks.push({
+    id: 'evil"/><script>alert(1)</script>',
+    kind: 'shape',
+    layerId: 'layer-main',
+    bounds: { x: 0, y: 0, width: 100, height: 100 },
+    zIndex: 1,
+    style: {
+      fill: '"><script>alert(1)</script>',
+      stroke: "red' onload='alert(1)",
+    },
+  })
+  hostile.blocks.push({
+    id: 'nan-block',
+    kind: 'shape',
+    layerId: 'layer-main',
+    bounds: { x: Number.NaN, y: 0, width: Number.POSITIVE_INFINITY, height: 100 },
+    zIndex: 2,
+  })
+  const hostileSvg = renderSvg(hostile, { x: 0, y: 0, width: 200, height: 200 })
+  if (hostileSvg.includes('<script') || hostileSvg.includes("onload='")) {
+    failures.push('renderSvg must escape hostile id/fill/stroke values')
+  }
+  if (!hostileSvg.includes('fill="#ffffff"') || !hostileSvg.includes('stroke="#64748b"')) {
+    failures.push('renderSvg should fall back to safe colors for invalid fill/stroke')
+  }
+  if (hostileSvg.includes('NaN') || hostileSvg.includes('Infinity')) {
+    failures.push('renderSvg must skip blocks with non-finite bounds')
   }
 
   if (canvasTemplateCatalog.length !== CANVAS_TEMPLATE_IDS.length) {

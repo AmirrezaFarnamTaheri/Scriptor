@@ -41,6 +41,8 @@ import { TocSidebar } from '../TocSidebar'
 import { TypographyMenu } from '../TypographyMenu'
 import { InsertMenu } from '../InsertMenu'
 import { SplitPaneHandle } from '../SplitPaneHandle'
+import { ErrorBoundary } from '../ErrorBoundary'
+import { PanelErrorFallback } from '../PanelErrorFallback'
 import { MarkdownPreview, type MarkdownPreviewHandle } from '@scriptor/renderer'
 import type { ExternalChangeConflict } from '../../types/vault'
 
@@ -488,7 +490,18 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             />
           ) : null}
           {activePath ? (
-            editorMode === 'monaco' ? (
+            <ErrorBoundary
+              name="markdown-editor"
+              resetKeys={[activePath, editorMode]}
+              fallback={
+                <PanelErrorFallback
+                  variant="inline"
+                  title="The editor"
+                  detail="The editor surface failed to render. Switching notes or toggling the editor engine will retry."
+                />
+              }
+            >
+            {editorMode === 'monaco' ? (
               <MonacoMarkdownEditor
                 key={activePath}
                 notePath={activePath}
@@ -531,7 +544,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 showLineNumbers={showLineNumbers}
                 className="markdown-editor"
               />
-            )
+            )}
+            </ErrorBoundary>
           ) : (
             <div className="editor-empty">
               <p>Select a note from the vault or open a folder to start writing.</p>
@@ -554,6 +568,17 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               onDoubleClick={onSplitHandleDoubleClick}
             />
             <aside className="editor-preview-pane" aria-label="Split Markdown preview" ref={splitPreviewScrollRef}>
+              <ErrorBoundary
+                name="split-markdown-preview"
+                resetKeys={[activePath]}
+                fallback={
+                  <PanelErrorFallback
+                    variant="inline"
+                    title="The split preview"
+                    detail="Rendering this note failed — a Markdown extension or plugin renderer may have thrown. The editor is unaffected."
+                  />
+                }
+              >
               <MarkdownPreview
                 ref={previewRef}
                 markdown={draftMarkdown}
@@ -566,6 +591,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 postProcessHtml={previewProps.postProcessHtml}
                 renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
               />
+              </ErrorBoundary>
             </aside>
           </>
         ) : null}

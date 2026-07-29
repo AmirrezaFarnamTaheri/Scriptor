@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use scriptor_export_runner::{
@@ -1038,7 +1038,7 @@ struct GenerateVaultSummary {
 }
 
 fn generate_vault(
-    output: &PathBuf,
+    output: &Path,
     count: u32,
     prefix: &str,
 ) -> Result<GenerateVaultSummary, Box<dyn std::error::Error>> {

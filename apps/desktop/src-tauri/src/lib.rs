@@ -4,6 +4,7 @@ mod state;
 
 pub use state::AppState;
 
+use commands::backup::{vault_create_backup, vault_delete_backup, vault_list_backups, vault_restore_backup};
 use commands::canvas::{
     canvas_apply_template, canvas_hit_test, canvas_list_documents, canvas_list_templates, canvas_load_document,
     canvas_query_blocks, canvas_render_svg, canvas_restore_template, canvas_save_document, canvas_snapshot,
@@ -21,6 +22,7 @@ use commands::git::{
     git_apply_merged_conflict_cmd, git_commit_cmd, git_pull_cmd, git_push_cmd, git_read_conflict_markers_cmd,
     git_resolve_conflict_cmd, git_show_head_file_cmd, git_show_merge_base_file_cmd, git_status_cmd,
 };
+use commands::history::vault_restore_note_history_revision;
 use commands::indexer::{
     indexer_apply_filesystem_changes, indexer_backlinks, indexer_evaluate_view, indexer_execute_dql,
     indexer_graph, indexer_health_diagnostics, indexer_list_bibliography, indexer_list_dead_ends, indexer_list_inbox,
@@ -33,16 +35,16 @@ use commands::system::{
     keychain_set_secret, plantuml_render, set_headless_engine, system_info,
 };
 use commands::vault::{
-    vault_append_activity_log, vault_append_stats_history, vault_build_note_markdown, vault_create_backup,
-    vault_delete_backup, vault_delete_note, vault_detect_obsidian, vault_frontmatter_set, vault_import_obsidian,
-    vault_lint_fix, vault_list_backups, vault_list_recent_notes, vault_list_view_notes, vault_load_config,
+    vault_append_activity_log, vault_append_stats_history, vault_build_note_markdown,
+    vault_delete_note, vault_detect_obsidian, vault_frontmatter_set, vault_import_obsidian,
+    vault_lint_fix, vault_list_recent_notes, vault_list_view_notes, vault_load_config,
     vault_load_snippets, vault_load_template, vault_open, vault_plan_daily_note, vault_read_activity_log,
     vault_read_note, vault_read_stats_history, vault_read_workspace_session, vault_record_recent_note,
     vault_rename_apply, vault_rename_block_apply, vault_rename_block_dry_run, vault_rename_dry_run,
     vault_rename_section_apply, vault_rename_section_dry_run, vault_rename_tag_apply, vault_rename_tag_dry_run,
-    vault_restore_backup, vault_save_asset, vault_save_config_cmd, vault_save_note, vault_save_snippets,
+    vault_save_asset, vault_save_config_cmd, vault_save_note, vault_save_snippets,
     vault_save_workspace_session, vault_scan, vault_textbundle_export, vault_health, vault_list_note_history,
-    vault_read_note_history_revision, vault_restore_note_history_revision,
+    vault_read_note_history_revision,
 };
 use serde::Serialize;
 use tauri::Emitter;

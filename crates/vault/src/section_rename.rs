@@ -31,6 +31,11 @@ fn normalize_section_label(label: &str) -> Result<String, VaultError> {
     Ok(clean.to_string())
 }
 
+/// Upper bound on a block id. Block ids arrive over IPC, and an unbounded one
+/// can exceed the regex compiler's size limit, which used to reach a `.expect`
+/// and take down the daemon worker.
+const MAX_BLOCK_ID_LEN: usize = 256;
+
 fn normalize_block_id(label: &str) -> Result<String, VaultError> {
     let clean = label.trim().trim_start_matches('^');
     if clean.is_empty() {
@@ -38,7 +43,28 @@ fn normalize_block_id(label: &str) -> Result<String, VaultError> {
             message: "block id cannot be empty".into(),
         });
     }
+    if clean.chars().count() > MAX_BLOCK_ID_LEN {
+        return Err(VaultError::InvalidConfig {
+            message: format!("block id is too long (maximum {MAX_BLOCK_ID_LEN} characters)"),
+        });
+    }
     Ok(clean.to_string())
+}
+
+/// Compiles the anchor pattern for `old_block` once per rename.
+///
+/// The trailing boundary is what stops renaming `^a` from rewriting `^ab` into
+/// `^xb`. The `regex` crate has no look-around, so the boundary is captured as
+/// `tail` and written straight back out. A compile failure is propagated rather
+/// than reaching a panic.
+fn block_anchor_regex(old_block: &str) -> Result<Regex, VaultError> {
+    Regex::new(&format!(
+        r"\^{}(?P<tail>[^\w\-]|$)",
+        regex::escape(old_block)
+    ))
+    .map_err(|source| VaultError::InvalidConfig {
+        message: format!("invalid block id \"{old_block}\": {source}"),
+    })
 }
 
 fn rewrite_heading_lines(
@@ -47,8 +73,7 @@ fn rewrite_heading_lines(
     new_heading: &str,
     edits: &mut u32,
 ) -> String {
-    markdown
-        .lines()
+    crate::text::split_lines(markdown)
         .map(|line| {
             let Some(capture) = HEADING_RE.captures(line) else {
                 return line.to_string();
@@ -66,16 +91,16 @@ fn rewrite_heading_lines(
 }
 
 fn rewrite_block_anchor_lines(
+    anchor: &Regex,
     markdown: &str,
-    old_block: &str,
     new_block: &str,
     edits: &mut u32,
 ) -> String {
-    let anchor = Regex::new(&format!(r"\^({})", regex::escape(old_block))).expect("valid block regex");
     anchor
-        .replace_all(markdown, |_: &regex::Captures| {
+        .replace_all(markdown, |capture: &regex::Captures| {
             *edits += 1;
-            format!("^{new_block}")
+            let tail = capture.name("tail").map(|value| value.as_str()).unwrap_or("");
+            format!("^{new_block}{tail}")
         })
         .into_owned()
 }
@@ -180,11 +205,16 @@ fn apply_source_note_heading_update(
     if !update_heading {
         return (markdown.to_string(), 0);
     }
-    let (frontmatter, body) = split_frontmatter(markdown);
+    // Normalize to LF for the frontmatter split and heading scan, then put the
+    // document's own line endings back so a heading rename touches one line
+    // rather than every line of a CRLF note.
+    let style = crate::text::LineStyle::detect(markdown);
+    let normalized = crate::text::to_lf(markdown);
+    let (frontmatter, body) = split_frontmatter(&normalized);
     let mut edits = 0u32;
     let updated_body = rewrite_heading_lines(&body, old_heading, new_heading, &mut edits);
     (
-        join_frontmatter(frontmatter.as_deref(), &updated_body),
+        style.restore(&join_frontmatter(frontmatter.as_deref(), &updated_body)),
         edits,
     )
 }
@@ -313,6 +343,8 @@ pub fn block_rename_dry_run(
     }
 
     let target_title = read_note(vault_id, root, note_path)?.metadata.title;
+    // Compiled once, not once per note.
+    let anchor = block_anchor_regex(&old_id)?;
     let mut affected = BTreeSet::new();
     let mut edits = 0u32;
     let mut warnings = Vec::new();
@@ -329,7 +361,7 @@ pub fn block_rename_dry_run(
         );
         let (updated, anchor_edits) = if update_anchor && path.as_str() == note_path.as_str() {
             let mut anchor_count = 0u32;
-            let next = rewrite_block_anchor_lines(&updated, &old_id, &new_id, &mut anchor_count);
+            let next = rewrite_block_anchor_lines(&anchor, &updated, &new_id, &mut anchor_count);
             (next, anchor_count)
         } else {
             (updated, 0)
@@ -367,6 +399,7 @@ pub fn block_rename_apply(
     let old_id = normalize_block_id(old_block)?;
     let new_id = normalize_block_id(new_block)?;
     let target_title = read_note(vault_id, root, note_path)?.metadata.title;
+    let anchor = block_anchor_regex(&old_id)?;
 
     for path in list_notes(root)? {
         let document = read_note(vault_id, root, &path)?;
@@ -380,7 +413,7 @@ pub fn block_rename_apply(
         );
         let (updated, anchor_edits) = if update_anchor && path.as_str() == note_path.as_str() {
             let mut anchor_count = 0u32;
-            let next = rewrite_block_anchor_lines(&updated, &old_id, &new_id, &mut anchor_count);
+            let next = rewrite_block_anchor_lines(&anchor, &updated, &new_id, &mut anchor_count);
             (next, anchor_count)
         } else {
             (updated, 0)
@@ -436,6 +469,81 @@ mod tests {
         )
         .expect("read source");
         assert!(source.markdown.contains("[[Target#New Section]]"));
+    }
+
+    #[test]
+    fn block_rename_respects_anchor_boundaries() {
+        let dir = tempdir().expect("tempdir");
+        std::fs::write(
+            dir.path().join("Target.md"),
+            "# Target\n\nOne. ^a\n\nTwo. ^ab\n\nThree. ^a-b\n",
+        )
+        .expect("write target");
+
+        let session = open_vault(dir.path()).expect("open vault");
+        let target = RelativeVaultPath::parse("Target.md").expect("path");
+        block_rename_apply(&session.descriptor.id, &session.root, &target, "a", "x", true)
+            .expect("rename block");
+
+        let updated = std::fs::read_to_string(dir.path().join("Target.md")).expect("read");
+        assert!(updated.contains("One. ^x"), "got: {updated}");
+        assert!(updated.contains("Two. ^ab"), "^ab was clobbered: {updated}");
+        assert!(updated.contains("Three. ^a-b"), "^a-b was clobbered: {updated}");
+    }
+
+    #[test]
+    fn rejects_oversized_block_id_instead_of_panicking() {
+        let dir = tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("Target.md"), "# Target\n\nBody. ^id\n").expect("write");
+        let session = open_vault(dir.path()).expect("open vault");
+        let target = RelativeVaultPath::parse("Target.md").expect("path");
+
+        let oversized = "a".repeat(100_000);
+        let result = block_rename_dry_run(
+            &session.descriptor.id,
+            &session.root,
+            &target,
+            &oversized,
+            "new-id",
+            true,
+        );
+        assert!(matches!(result, Err(VaultError::InvalidConfig { .. })));
+
+        let result = block_rename_apply(
+            &session.descriptor.id,
+            &session.root,
+            &target,
+            "old-id",
+            &oversized,
+            true,
+        );
+        assert!(matches!(result, Err(VaultError::InvalidConfig { .. })));
+    }
+
+    #[test]
+    fn heading_rename_preserves_crlf_and_trailing_newline() {
+        let (updated, edits) =
+            apply_source_note_heading_update("# Note\r\n\r\n## Old\r\n\r\nBody\r\n", "Old", "New", true);
+        assert_eq!(edits, 1);
+        assert_eq!(updated, "# Note\r\n\r\n## New\r\n\r\nBody\r\n");
+
+        let (updated, edits) =
+            apply_source_note_heading_update("# Note\n\n## Old\n\nBody\n", "Old", "New", true);
+        assert_eq!(edits, 1);
+        assert_eq!(updated, "# Note\n\n## New\n\nBody\n");
+    }
+
+    #[test]
+    fn heading_rename_round_trips_untouched_documents() {
+        for input in [
+            "# Note\r\n\r\n## Keep\r\n",
+            "---\ntitle: X\n---\n\n## Keep\n\n\n",
+            "no trailing newline",
+        ] {
+            let (updated, edits) = apply_source_note_heading_update(input, "Old", "New", true);
+            assert_eq!(edits, 0);
+            assert_eq!(updated, input, "round trip for {input:?}");
+        }
     }
 
     #[test]

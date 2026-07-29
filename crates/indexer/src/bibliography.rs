@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use scriptor_vault::{scan_vault, ScannedEntryKind, VaultSession};
 
-use crate::citation::register_bibliography_keys;
+use crate::citation::register_bibliography_keys_on;
 use crate::db::IndexCache;
 use crate::error::IndexerError;
 
@@ -60,19 +60,25 @@ pub fn sync_vault_bibliography(
         }
     }
 
+    // Delete + re-insert must be atomic on a single connection. Splitting them across two pooled
+    // connections without a transaction leaves the cache with zero `bib:` keys whenever anything
+    // fails in between, which makes every citation in the vault report as unresolved.
     let conn = cache.connection()?;
-    conn.execute("DELETE FROM cache_meta WHERE key LIKE 'bib:%'", [])?;
+    let transaction = conn.unchecked_transaction()?;
+    transaction.execute("DELETE FROM cache_meta WHERE key LIKE 'bib:%'", [])?;
+    transaction.execute("DELETE FROM cache_meta WHERE key LIKE 'bibmeta:%'", [])?;
 
     let key_refs: Vec<&str> = keys.iter().map(String::as_str).collect();
-    register_bibliography_keys(cache, &key_refs)?;
+    register_bibliography_keys_on(&transaction, &key_refs)?;
 
     for entry in &entries {
         let payload = serde_json::to_string(entry)?;
-        conn.execute(
+        transaction.execute(
             "INSERT OR REPLACE INTO cache_meta(key, value) VALUES (?1, ?2)",
             params![format!("bibmeta:{}", entry.key), payload],
         )?;
     }
+    transaction.commit()?;
 
     entries.sort_by(|left, right| left.key.cmp(&right.key));
     Ok(entries)
@@ -99,7 +105,14 @@ pub fn list_bibliography_entries(cache: &IndexCache) -> Result<Vec<BibliographyE
 fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
     let mut entries = Vec::new();
 
-    for capture in ENTRY_START_RE.captures_iter(raw) {
+    // Entry boundaries have to be known up front: without them a field lookup runs to EOF and an
+    // entry that omits a field silently inherits that field from a later entry.
+    let starts: Vec<usize> = ENTRY_START_RE
+        .find_iter(raw)
+        .map(|matched| matched.start())
+        .collect();
+
+    for (index, capture) in ENTRY_START_RE.captures_iter(raw).enumerate() {
         let entry_type = capture.get(1).map(|value| value.as_str()).unwrap_or("misc");
         let key = capture
             .get(2)
@@ -111,7 +124,8 @@ fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
         }
 
         let start = capture.get(0).map(|value| value.start()).unwrap_or(0);
-        let slice = &raw[start..];
+        let end = starts.get(index + 1).copied().unwrap_or(raw.len());
+        let slice = &raw[start..end];
         let title = TITLE_FIELD_RE
             .captures(slice)
             .and_then(|title_capture| title_capture.get(1))
@@ -146,7 +160,7 @@ fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
 }
 
 fn normalize_bib_value(value: &str) -> String {
-    value.replace('{', "").replace('}', "").trim().to_string()
+    value.replace(['{', '}'], "").trim().to_string()
 }
 
 pub fn default_bibliography_paths(vault_root: &Path) -> Vec<String> {
@@ -190,5 +204,28 @@ mod tests {
         let entries = parse_bibtex(raw, "refs.bib");
         assert_eq!(entries[0].year, "2024");
         assert_eq!(entries[1].year, "2023");
+    }
+
+    #[test]
+    fn fields_do_not_bleed_from_a_later_entry() {
+        let raw = r#"
+@book{a,
+  author = {Author A}
+}
+@book{b,
+  title = {Only B Has A Title},
+  author = {Author B},
+  year = {2001}
+}
+"#;
+        let entries = parse_bibtex(raw, "refs.bib");
+        assert_eq!(entries.len(), 2);
+        // `a` has no title/year of its own: it must fall back, not borrow `b`'s values.
+        assert_eq!(entries[0].key, "a");
+        assert_eq!(entries[0].title, "a");
+        assert_eq!(entries[0].author, "Author A");
+        assert_eq!(entries[0].year, "");
+        assert_eq!(entries[1].title, "Only B Has A Title");
+        assert_eq!(entries[1].year, "2001");
     }
 }

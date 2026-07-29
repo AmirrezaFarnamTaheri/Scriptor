@@ -64,7 +64,7 @@ test.describe('visual regression', () => {
 
     await page.keyboard.press('Control+KeyK')
     const palette = page.getByRole('dialog', { name: 'Command palette' })
-    await palette.getByRole('searchbox', { name: 'Command palette search' }).fill('Settings')
+    await palette.getByRole('searchbox').fill('Settings')
     await palette.getByRole('option', { name: /Settings/ }).click()
 
     const settings = page.getByRole('dialog', { name: /Settings/ })

@@ -7,18 +7,19 @@ export interface FrontmatterAnalysis {
 
 /** Mirrors `crates/indexer/src/parse.rs` frontmatter validation for live editor feedback. */
 export function analyzeFrontmatter(markdown: string): FrontmatterAnalysis {
-  if (!markdown.startsWith('---\n') && !markdown.startsWith('---\r\n')) {
+  const source = markdown.replace(/^\uFEFF/, '')
+  if (!source.startsWith('---\n') && !source.startsWith('---\r\n')) {
     return { valid: true, warningLines: [] }
   }
 
-  const lines = markdown.split(/\r?\n/)
+  const lines = source.split(/\r?\n/)
   if (lines.length < 2) {
     return { valid: false, error: 'unterminated frontmatter', warningLines: [1] }
   }
 
   let endIndex = -1
   for (let index = 1; index < lines.length; index += 1) {
-    if (lines[index] === '---') {
+    if (lines[index].trim() === '---') {
       endIndex = index
       break
     }
@@ -30,8 +31,14 @@ export function analyzeFrontmatter(markdown: string): FrontmatterAnalysis {
 
   const warningLines: number[] = []
   for (let index = 1; index < endIndex; index += 1) {
-    const trimmed = lines[index].trim()
+    const line = lines[index]
+    const trimmed = line.trim()
     if (trimmed.length === 0 || trimmed.startsWith('#')) {
+      continue
+    }
+    // Block-sequence items (`- item`) and indented continuation lines are
+    // valid YAML without a `key:` separator.
+    if (/^\s*-(\s|$)/.test(line) || /^\s/.test(line)) {
       continue
     }
     if (!trimmed.includes(':')) {

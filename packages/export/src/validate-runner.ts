@@ -67,6 +67,38 @@ test('validateExportProfiles rejects traversal output directories', () => {
   assert.ok(errors.some((error) => error.includes('vault')))
 })
 
+test('validateExportProfiles rejects absolute, UNC, and drive-letter output directories', () => {
+  for (const outputDirectory of ['/etc/exports', 'C:\\exports', '\\\\server\\share\\exports']) {
+    const errors = validateExportProfiles([
+      { ...DEFAULT_EXPORT_PROFILES[0]!, outputDirectory },
+    ])
+    assert.ok(errors.some((error) => error.includes('vault')), `should reject ${outputDirectory}`)
+  }
+})
+
+test('validateExportProfiles allows dotted names that are not traversal segments', () => {
+  const errors = validateExportProfiles([
+    { ...DEFAULT_EXPORT_PROFILES[0]!, outputDirectory: 'exports/my..notes' },
+  ])
+  assert.deepEqual(errors, [])
+})
+
+test('validateExportProfiles rejects substitution and redirection metacharacters in args', () => {
+  for (const arg of ['$(rm -rf /)', 'a`b`', 'out>file', '<input', 'line\nbreak', 'a;b', '--flag=$HOME']) {
+    const errors = validateExportProfiles([
+      { ...DEFAULT_EXPORT_PROFILES[0]!, extraPandocArgs: [arg] },
+    ])
+    assert.ok(errors.length > 0, `should reject ${JSON.stringify(arg)}`)
+  }
+})
+
+test('validateExportProfiles rejects malformed flag forms', () => {
+  const errors = validateExportProfiles([
+    { ...DEFAULT_EXPORT_PROFILES[0]!, extraPandocArgs: ['-xyz'] },
+  ])
+  assert.ok(errors.some((error) => error.includes('unrecognized pandoc argument form')))
+})
+
 test('validateExportProfiles accepts wechat-html format', () => {
   const errors = validateExportProfiles([
     {

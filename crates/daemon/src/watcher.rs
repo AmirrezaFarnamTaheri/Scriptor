@@ -3,13 +3,14 @@ use std::sync::{Arc, Mutex};
 use scriptor_indexer::incremental_notes_index_with_cache;
 use scriptor_vault::{VaultWatchEvent, VaultWatcher};
 
+use crate::locks::lock_recover;
 use crate::handler::DaemonState;
 
 const WATCH_DEBOUNCE_MS: u64 = 300;
 
 pub fn restart_vault_watcher(state: &Arc<Mutex<DaemonState>>) -> Result<(), String> {
     let root = {
-        let mut guard = state.lock().expect("daemon state lock");
+        let mut guard = lock_recover(state);
         guard.clear_vault_watcher();
         let session = guard
             .session()
@@ -23,9 +24,7 @@ pub fn restart_vault_watcher(state: &Arc<Mutex<DaemonState>>) -> Result<(), Stri
     })
     .map_err(|error| error.to_string())?;
 
-    state
-        .lock()
-        .expect("daemon state lock")
+    lock_recover(state)
         .set_vault_watcher(watcher);
     Ok(())
 }
@@ -37,7 +36,7 @@ fn apply_watch_batch(state: &Arc<Mutex<DaemonState>>, events: Vec<VaultWatchEven
     }
 
     let (session, cache) = {
-        let guard = state.lock().expect("daemon state lock");
+        let guard = lock_recover(state);
         (
             guard.session().cloned(),
             guard.index_cache().cloned(),
@@ -78,7 +77,7 @@ mod tests {
 
         let state = Arc::new(Mutex::new(DaemonState::default()));
         {
-            let mut guard = state.lock().expect("daemon state lock");
+            let mut guard = lock_recover(&state);
             let open = guard.handle(RpcRequest::new(1, RpcMethod::OpenVault {
                 path: dir.path().display().to_string(),
             }));
@@ -92,16 +91,15 @@ mod tests {
         let mut found = false;
         for _ in 0..40 {
             thread::sleep(Duration::from_millis(50));
-            let search = state.lock().expect("daemon state lock").handle(RpcRequest::new(2, RpcMethod::SearchNotes {
+            let search = lock_recover(&state).handle(RpcRequest::new(2, RpcMethod::SearchNotes {
                 query: "Watcher body".into(),
                 limit: 10,
             }));
-            if let RpcResult::Ok(RpcPayload::SearchHits { hits }) = search.result {
-                if hits.iter().any(|hit| hit.path == "external.md") {
+            if let RpcResult::Ok(RpcPayload::SearchHits { hits }) = search.result
+                && hits.iter().any(|hit| hit.path == "external.md") {
                     found = true;
                     break;
                 }
-            }
         }
 
         assert!(found, "external note should be indexed by daemon watcher");

@@ -35,6 +35,10 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+# Not a secret: enables the mocked Tauri bridge for `vite --mode e2e`.
+# Without it VITE_E2E_MODE is undefined and the whole E2E suite runs against
+# an app that never opens a vault.
+!.env.e2e
 *.pem
 *.pfx
 *.p12
@@ -72,3 +76,7 @@ apps/desktop/src-tauri/WixTools/
 # Merge / patch artifacts
 *.orig
 *.rej
+
+# SQLite transient WAL/SHM churn from fixture test runs
+*.sqlite-wal
+*.sqlite-shm

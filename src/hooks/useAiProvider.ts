@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { keychainDeleteSecret, keychainGetSecret, keychainSetSecret } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
@@ -9,6 +9,7 @@ export type AiProviderId = 'openai-compatible' | 'off'
 const PROVIDER_KEY = 'scriptor.ai.provider'
 const ENDPOINT_KEY = 'scriptor.ai.endpoint'
 const KEYCHAIN_ACCOUNT = 'ai.openai-compatible.api_key'
+const REQUEST_TIMEOUT_MS = 30_000
 
 function readProvider(): AiProviderId {
   if (typeof window === 'undefined') return 'off'
@@ -28,6 +29,17 @@ export function useAiProvider() {
   const [busy, setBusy] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
   const [httpWarning, setHttpWarning] = useState<string | null>(null)
+  const abortControllersRef = useRef<Set<AbortController>>(new Set())
+
+  useEffect(() => {
+    const controllers = abortControllersRef.current
+    return () => {
+      for (const controller of controllers) {
+        controller.abort()
+      }
+      controllers.clear()
+    }
+  }, [])
 
   const checkHttps = useCallback((url: string) => {
     try {
@@ -47,8 +59,13 @@ export function useAiProvider() {
       setHasApiKey(false)
       return
     }
-    const secret = await keychainGetSecret(KEYCHAIN_ACCOUNT)
-    setHasApiKey(Boolean(secret))
+    try {
+      const secret = await keychainGetSecret(KEYCHAIN_ACCOUNT)
+      setHasApiKey(Boolean(secret))
+    } catch (error) {
+      setHasApiKey(false)
+      setLastError(error instanceof Error ? error.message : String(error))
+    }
   }, [])
 
   useEffect(() => {
@@ -101,46 +118,69 @@ export function useAiProvider() {
       if (!isNativeBridgeAvailable()) {
         throw new Error('AI provider requires the desktop app')
       }
+      let parsedEndpoint: URL
+      try {
+        parsedEndpoint = new URL(endpoint)
+      } catch {
+        throw new Error('AI provider endpoint is not a valid URL')
+      }
+      const isLocalhost =
+        parsedEndpoint.hostname === 'localhost' || parsedEndpoint.hostname === '127.0.0.1'
+      if (parsedEndpoint.protocol !== 'https:' && !isLocalhost) {
+        const message = 'AI provider endpoint must use https:// (plain http is only allowed for localhost)'
+        setLastError(message)
+        throw new Error(message)
+      }
+
       const apiKey = await keychainGetSecret(KEYCHAIN_ACCOUNT)
       if (!apiKey) {
         throw new Error('Add an API key in Settings before using AI draft proposals')
       }
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            {
-              role: 'system',
-              content:
-                'You rewrite Markdown notes. Return only the updated Markdown body with no commentary.',
-            },
-            {
-              role: 'user',
-              content: `Current note:\n\n${currentMarkdown}\n\nInstruction:\n${prompt}`,
-            },
-          ],
-          temperature: 0.2,
-        }),
-      })
+      const controller = new AbortController()
+      abortControllersRef.current.add(controller)
+      const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content:
+                  'You rewrite Markdown notes. Return only the updated Markdown body with no commentary.',
+              },
+              {
+                role: 'user',
+                content: `Current note:\n\n${currentMarkdown}\n\nInstruction:\n${prompt}`,
+              },
+            ],
+            temperature: 0.2,
+          }),
+        })
 
-      if (!response.ok) {
-        throw new Error(`AI provider request failed (${response.status})`)
-      }
+        if (!response.ok) {
+          throw new Error(`AI provider request failed (${response.status})`)
+        }
 
-      const payload = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>
+        const payload = (await response.json()) as {
+          choices?: Array<{ message?: { content?: string } }>
+        }
+        const proposed = payload.choices?.[0]?.message?.content?.trim()
+        if (!proposed) {
+          throw new Error('AI provider returned an empty draft')
+        }
+        return proposed
+      } finally {
+        window.clearTimeout(timeoutId)
+        abortControllersRef.current.delete(controller)
       }
-      const proposed = payload.choices?.[0]?.message?.content?.trim()
-      if (!proposed) {
-        throw new Error('AI provider returned an empty draft')
-      }
-      return proposed
     },
     [endpoint, provider],
   )

@@ -7,13 +7,23 @@ export interface ShortcutOverride {
   shortcut: string | null
 }
 
+/**
+ * Overrides always use a null prototype so an `in` / lookup on an inherited
+ * name (`constructor`, `toString`, …) cannot resolve to a built-in.
+ */
+function emptyOverrides(): Record<string, string | null> {
+  return Object.create(null) as Record<string, string | null>
+}
+
 function loadOverrides(): Record<string, string | null> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return {}
-    return JSON.parse(raw) as Record<string, string | null>
+    if (!raw) return emptyOverrides()
+    const parsed = JSON.parse(raw) as Record<string, string | null>
+    if (parsed === null || typeof parsed !== 'object') return emptyOverrides()
+    return Object.assign(emptyOverrides(), parsed)
   } catch {
-    return {}
+    return emptyOverrides()
   }
 }
 
@@ -33,7 +43,7 @@ export function useKeyboardShortcuts() {
 
   const getShortcut = useCallback(
     (commandId: string, defaultShortcut?: string): string | undefined => {
-      if (commandId in overrides) {
+      if (Object.hasOwn(overrides, commandId)) {
         const override = overrides[commandId]
         return override === null ? undefined : override
       }
@@ -45,7 +55,7 @@ export function useKeyboardShortcuts() {
   const setShortcut = useCallback(
     (commandId: string, shortcut: string | null) => {
       setOverrides((prev) => {
-        const next = { ...prev, [commandId]: shortcut }
+        const next = Object.assign(emptyOverrides(), prev, { [commandId]: shortcut })
         saveOverrides(next)
         return next
       })
@@ -56,7 +66,7 @@ export function useKeyboardShortcuts() {
   const resetShortcut = useCallback(
     (commandId: string) => {
       setOverrides((prev) => {
-        const next = { ...prev }
+        const next = Object.assign(emptyOverrides(), prev)
         delete next[commandId]
         saveOverrides(next)
         return next
@@ -66,12 +76,12 @@ export function useKeyboardShortcuts() {
   )
 
   const resetAllShortcuts = useCallback(() => {
-    setOverrides({})
-    saveOverrides({})
+    setOverrides(emptyOverrides())
+    saveOverrides(emptyOverrides())
   }, [])
 
   const hasOverride = useCallback(
-    (commandId: string) => commandId in overrides,
+    (commandId: string) => Object.hasOwn(overrides, commandId),
     [overrides],
   )
 

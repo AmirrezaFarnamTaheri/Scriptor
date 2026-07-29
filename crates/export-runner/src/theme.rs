@@ -46,13 +46,36 @@ fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), Expor
             "absolute path not allowed for file reference arg: {path}"
         )));
     }
-    let candidate = vault_root.join(p);
-    let normalized = normalize_theme_path(&candidate);
     let canonical_root = vault_root.canonicalize().unwrap_or_else(|_| vault_root.to_path_buf());
+    let candidate = canonical_root.join(p);
+    let normalized = normalize_theme_path(&candidate);
     if !normalized.starts_with(&canonical_root) {
         return Err(ExportError::DisallowedArg(format!(
             "path escapes vault root: {path}"
         )));
+    }
+    // Lexical containment alone is insufficient: an in-vault symlink can point
+    // at an external file, which pandoc would then read (and `--embed-resources`
+    // would inline). Canonicalize each existing prefix so a symlinked parent is
+    // caught even when the leaf does not exist yet.
+    let mut prefix = canonical_root.clone();
+    for component in p.components() {
+        let std::path::Component::Normal(part) = component else {
+            continue;
+        };
+        prefix.push(part);
+        if !prefix.exists() {
+            break;
+        }
+        let canonical = prefix.canonicalize().map_err(|source| ExportError::Io {
+            path: prefix.clone(),
+            source,
+        })?;
+        if !canonical.starts_with(&canonical_root) {
+            return Err(ExportError::DisallowedArg(format!(
+                "path escapes vault root via symlink: {path}"
+            )));
+        }
     }
     Ok(())
 }
@@ -80,55 +103,40 @@ pub fn resolve_extra_args(
     let mut resolved = Vec::with_capacity(extra_args.len());
     for arg in extra_args {
         if let Some(css_path) = arg.strip_prefix("--css=") {
+            validate_path_within_vault(vault_root, css_path)?;
             let path = Path::new(css_path);
-            let absolute = if path.is_absolute() {
-                path.to_path_buf()
+            let candidate = output_dir.join(path);
+            let absolute = if candidate.exists() {
+                candidate
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "export-theme.css")
+            {
+                materialize_export_theme(output_dir)?
             } else {
-                let candidate = output_dir.join(path);
-                if candidate.exists() {
-                    candidate
-                } else if path
-                    .file_name()
-                    .is_some_and(|name| name == "export-theme.css")
-                {
-                    materialize_export_theme(output_dir)?
-                } else {
-                    candidate
-                }
+                candidate
             };
             resolved.push(format!("--css={}", absolute.display()));
         } else if let Some(bib_path) = arg.strip_prefix("--bibliography=") {
+            validate_path_within_vault(vault_root, bib_path)?;
             let path = Path::new(bib_path);
             let absolute = resolve_vault_relative(vault_root, output_dir, path);
             resolved.push(format!("--bibliography={}", absolute.display()));
         } else if let Some(csl_path) = arg.strip_prefix("--csl=") {
+            validate_path_within_vault(vault_root, csl_path)?;
             let path = Path::new(csl_path);
-            let absolute = if path.is_absolute() {
-                path.to_path_buf()
+            let candidate = resolve_vault_relative(vault_root, output_dir, path);
+            let absolute = if candidate.exists() {
+                candidate
+            } else if path
+                .file_name()
+                .is_some_and(|name| name == "apa-lite.csl")
+            {
+                materialize_default_csl(output_dir)?
             } else {
-                let candidate = resolve_vault_relative(vault_root, output_dir, path);
-                if candidate.exists() {
-                    candidate
-                } else if path
-                    .file_name()
-                    .is_some_and(|name| name == "apa-lite.csl")
-                {
-                    materialize_default_csl(output_dir)?
-                } else {
-                    candidate
-                }
+                candidate
             };
             resolved.push(format!("--csl={}", absolute.display()));
-        } else if let Some(filter_path) = arg.strip_prefix("--lua-filter=") {
-            validate_path_within_vault(vault_root, filter_path)?;
-            let path = Path::new(filter_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
-            resolved.push(format!("--lua-filter={}", absolute.display()));
-        } else if let Some(filter_path) = arg.strip_prefix("--filter=") {
-            validate_path_within_vault(vault_root, filter_path)?;
-            let path = Path::new(filter_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
-            resolved.push(format!("--filter={}", absolute.display()));
         } else if let Some(ref_path) = arg.strip_prefix("--reference-doc=") {
             validate_path_within_vault(vault_root, ref_path)?;
             let path = Path::new(ref_path);
@@ -212,5 +220,96 @@ mod tests {
         assert!(csl_path.exists());
 
         let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn rejects_absolute_and_traversal_file_reference_args() {
+        let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).expect("vault dir");
+
+        for arg in [
+            "--css=/etc/passwd",
+            "--css=../outside.css",
+            "--bibliography=/etc/passwd",
+            "--bibliography=../../outside.bib",
+            "--csl=/etc/passwd",
+            "--csl=a/../../outside.csl",
+        ] {
+            let result = resolve_extra_args(&vault, &vault, &[arg.to_string()]);
+            assert!(result.is_err(), "expected rejection for {arg}");
+        }
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn rejects_filter_args_entirely() {
+        let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).expect("vault dir");
+
+        for arg in ["--filter=inside.py", "--lua-filter=inside.lua"] {
+            let result = resolve_extra_args(&vault, &vault, &[arg.to_string()]);
+            assert!(result.is_err(), "expected rejection for {arg}");
+        }
+
+        let _ = fs::remove_dir_all(&vault);
+    }
+
+    #[test]
+    fn rejects_symlinked_file_reference_escaping_vault() {
+        let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
+        let outside = std::env::temp_dir().join(format!("scriptor-outside-{}", uuid::Uuid::new_v4()));
+        fs::create_dir_all(&vault).expect("vault dir");
+        fs::create_dir_all(&outside).expect("outside dir");
+        let secret = outside.join("secret.bib");
+        fs::write(&secret, "@article{a,title={x}}").expect("secret file");
+
+        // A vault-relative name that is really a symlink to an external file.
+        let link = vault.join("linked.bib");
+        let linked = {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&secret, &link)
+            }
+            #[cfg(windows)]
+            {
+                std::os::windows::fs::symlink_file(&secret, &link)
+            }
+        };
+        if linked.is_err() {
+            let _ = fs::remove_dir_all(&vault);
+            let _ = fs::remove_dir_all(&outside);
+            return;
+        }
+
+        let result = resolve_extra_args(&vault, &vault, &["--bibliography=linked.bib".to_string()]);
+        assert!(
+            result.is_err(),
+            "symlinked file reference escaping the vault must be rejected"
+        );
+
+        // A symlinked *parent* redirecting an otherwise in-vault path.
+        let dir_link = vault.join("linkeddir");
+        let dir_linked = {
+            #[cfg(unix)]
+            {
+                std::os::unix::fs::symlink(&outside, &dir_link).is_ok()
+            }
+            #[cfg(windows)]
+            {
+                std::os::windows::fs::symlink_dir(&outside, &dir_link).is_ok()
+            }
+        };
+        if dir_linked {
+            let result =
+                resolve_extra_args(&vault, &vault, &["--csl=linkeddir/secret.bib".to_string()]);
+            assert!(
+                result.is_err(),
+                "symlinked parent directory escaping the vault must be rejected"
+            );
+        }
+
+        let _ = fs::remove_dir_all(&vault);
+        let _ = fs::remove_dir_all(&outside);
     }
 }

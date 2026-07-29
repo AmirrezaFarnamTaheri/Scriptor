@@ -108,7 +108,14 @@ export function GraphPanel({
       if (e.data.type === 'done') {
         setWorkerLayout(e.data.nodes as CanvasNode[])
         setWorkerLoading(false)
+      } else if (e.data.type === 'error') {
+        setWorkerLayout(null)
+        setWorkerLoading(false)
       }
+    }
+    worker.onerror = () => {
+      setWorkerLayout(null)
+      setWorkerLoading(false)
     }
     worker.postMessage({
       nodes: graph.nodes,
@@ -117,7 +124,7 @@ export function GraphPanel({
       height: VIEW_HEIGHT,
     })
     return () => worker.terminate()
-  }, [graph])
+  }, [graph, hibernated])
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []

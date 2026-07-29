@@ -108,43 +108,87 @@ impl VaultEncryption {
         }
     }
 
+    /// Encrypts with a caller-supplied raw key.
+    ///
+    /// No passphrase was involved, so the header records an all-zero salt and
+    /// key id: those fields describe the Argon2 derivation, and inventing random
+    /// values for them (as this used to do) makes the file claim a derivation
+    /// that never happened and can never be reproduced.
     pub fn encrypt_data(&self, data: &[u8], key: &[u8]) -> Result<Vec<u8>, EncryptionError> {
+        self.encrypt_with_header(data, key, &[0u8; SALT_LEN], &[0u8; KEY_ID_LEN])
+    }
+
+    /// Derives a key from `passphrase` and stores the salt and key id that were
+    /// actually used, so [`decrypt_data_with_passphrase`](Self::decrypt_data_with_passphrase)
+    /// can reproduce the derivation.
+    pub fn encrypt_data_with_passphrase(
+        &self,
+        data: &[u8],
+        passphrase: &str,
+    ) -> Result<Vec<u8>, EncryptionError> {
+        let salt = generate_salt()?;
+        let key = self.derive_key(passphrase, &salt)?;
+        let key_id = key_id_for(key.as_bytes());
+        self.encrypt_with_header(data, key.as_bytes(), &salt, &key_id)
+    }
+
+    fn encrypt_with_header(
+        &self,
+        data: &[u8],
+        key: &[u8],
+        salt: &[u8; SALT_LEN],
+        key_id: &[u8; KEY_ID_LEN],
+    ) -> Result<Vec<u8>, EncryptionError> {
         if key.len() != 32 {
             return Err(EncryptionError::Encrypt("key must be 32 bytes".into()));
         }
-        let nonce = generate_nonce();
+        let nonce = generate_nonce()?;
         let ciphertext = aes_gcm_encrypt(key, &nonce, data)?;
-        let key_id = generate_key_id();
-        let salt = generate_salt();
 
         let mut output = Vec::with_capacity(HEADER_LEN + ciphertext.len());
         output.extend_from_slice(MAGIC);
         output.push(VERSION);
         output.push(ALGORITHM_AES256GCM);
         output.push(KDF_ARGON2ID);
-        output.extend_from_slice(&salt);
+        output.extend_from_slice(salt);
         output.extend_from_slice(&nonce);
-        output.extend_from_slice(&key_id);
+        output.extend_from_slice(key_id);
         output.extend_from_slice(&ciphertext);
         Ok(output)
     }
 
     pub fn decrypt_data(&self, encrypted: &[u8], key: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-        if encrypted.len() < HEADER_LEN + TAG_LEN {
-            return Err(EncryptionError::InvalidFormat("file too short".into()));
+        let header = EncryptedHeader::parse(encrypted)?;
+        aes_gcm_decrypt(key, &header.nonce, &encrypted[HEADER_LEN..])
+    }
+
+    /// Reads the salt and key id back out of the header, re-derives the key and
+    /// decrypts. Fails cleanly for a wrong passphrase and for payloads that were
+    /// not produced by [`encrypt_data_with_passphrase`](Self::encrypt_data_with_passphrase).
+    pub fn decrypt_data_with_passphrase(
+        &self,
+        encrypted: &[u8],
+        passphrase: &str,
+    ) -> Result<Vec<u8>, EncryptionError> {
+        let header = EncryptedHeader::parse(encrypted)?;
+        if header.salt.iter().all(|&byte| byte == 0) {
+            return Err(EncryptionError::InvalidFormat(
+                "payload carries no KDF salt; it was encrypted with a raw key".into(),
+            ));
         }
-        if &encrypted[..4] != MAGIC {
-            return Err(EncryptionError::InvalidFormat("bad magic bytes".into()));
+        let key = self.derive_key(passphrase, &header.salt)?;
+        // The key id is a cheap, constant-time-comparable check that reports a
+        // wrong passphrase as such instead of as a generic AEAD tag failure.
+        if key_id_for(key.as_bytes()) != header.key_id {
+            return Err(EncryptionError::InvalidPassphrase);
         }
-        if encrypted[4] != VERSION {
-            return Err(EncryptionError::InvalidFormat(format!("unsupported version {}", encrypted[4])));
-        }
-        if encrypted[5] != ALGORITHM_AES256GCM {
-            return Err(EncryptionError::UnsupportedAlgorithm(format!("algorithm byte {}", encrypted[5])));
-        }
-        let nonce = &encrypted[HEADER_LEN - NONCE_LEN - KEY_ID_LEN..HEADER_LEN - KEY_ID_LEN];
-        let ciphertext = &encrypted[HEADER_LEN..];
-        aes_gcm_decrypt(key, nonce, ciphertext)
+        aes_gcm_decrypt(key.as_bytes(), &header.nonce, &encrypted[HEADER_LEN..])
+            .map_err(|_| EncryptionError::InvalidPassphrase)
+    }
+
+    /// Parses the on-disk header without decrypting.
+    pub fn read_header(&self, encrypted: &[u8]) -> Result<EncryptedHeader, EncryptionError> {
+        EncryptedHeader::parse(encrypted)
     }
 
     pub fn encrypt_note(&self, note_path: &Path, key: &DerivedKey) -> Result<(), EncryptionError> {
@@ -169,26 +213,101 @@ impl VaultEncryption {
     }
 }
 
-fn generate_nonce() -> [u8; NONCE_LEN] {
+fn generate_nonce() -> Result<[u8; NONCE_LEN], EncryptionError> {
     let mut nonce = [0u8; NONCE_LEN];
-    fill_random(&mut nonce);
-    nonce
+    fill_random(&mut nonce)?;
+    Ok(nonce)
 }
 
-fn generate_salt() -> [u8; SALT_LEN] {
+fn generate_salt() -> Result<[u8; SALT_LEN], EncryptionError> {
     let mut salt = [0u8; SALT_LEN];
-    fill_random(&mut salt);
-    salt
+    fill_random(&mut salt)?;
+    Ok(salt)
 }
 
-fn generate_key_id() -> [u8; KEY_ID_LEN] {
+/// Stable, non-secret 4-byte tag identifying a derived key.
+///
+/// Domain-separated so it cannot collide with any other hash of the key, and
+/// truncated to 32 bits so it identifies the key without being useful to an
+/// attacker beyond what trial decryption already offers.
+fn key_id_for(key: &[u8; 32]) -> [u8; KEY_ID_LEN] {
+    use sha2::{Digest, Sha256};
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"scriptor-vault-key-id\0");
+    hasher.update(key);
+    let digest = hasher.finalize();
     let mut id = [0u8; KEY_ID_LEN];
-    fill_random(&mut id);
+    id.copy_from_slice(&digest[..KEY_ID_LEN]);
     id
 }
 
-fn fill_random(buf: &mut [u8]) {
-    getrandom::getrandom(buf).expect("random source unavailable");
+/// A missing OS random source is an environment failure, not a bug: report it
+/// rather than aborting the process mid-encryption.
+fn fill_random(buf: &mut [u8]) -> Result<(), EncryptionError> {
+    getrandom::getrandom(buf)
+        .map_err(|error| EncryptionError::Encrypt(format!("random source unavailable: {error}")))
+}
+
+/// Parsed header of a `SENC` payload.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EncryptedHeader {
+    pub version: u8,
+    pub algorithm: u8,
+    pub kdf: u8,
+    /// Argon2 salt used to derive the key, or all zeroes for a raw-key payload.
+    pub salt: [u8; SALT_LEN],
+    pub nonce: [u8; NONCE_LEN],
+    /// Tag of the derived key, or all zeroes for a raw-key payload.
+    pub key_id: [u8; KEY_ID_LEN],
+}
+
+impl EncryptedHeader {
+    fn parse(encrypted: &[u8]) -> Result<Self, EncryptionError> {
+        if encrypted.len() < HEADER_LEN + TAG_LEN {
+            return Err(EncryptionError::InvalidFormat("file too short".into()));
+        }
+        if &encrypted[..4] != MAGIC {
+            return Err(EncryptionError::InvalidFormat("bad magic bytes".into()));
+        }
+        if encrypted[4] != VERSION {
+            return Err(EncryptionError::InvalidFormat(format!(
+                "unsupported version {}",
+                encrypted[4]
+            )));
+        }
+        if encrypted[5] != ALGORITHM_AES256GCM {
+            return Err(EncryptionError::UnsupportedAlgorithm(format!(
+                "algorithm byte {}",
+                encrypted[5]
+            )));
+        }
+        if encrypted[6] != KDF_ARGON2ID {
+            return Err(EncryptionError::UnsupportedAlgorithm(format!(
+                "kdf byte {}",
+                encrypted[6]
+            )));
+        }
+
+        let salt_start = 7;
+        let nonce_start = salt_start + SALT_LEN;
+        let key_id_start = nonce_start + NONCE_LEN;
+        let mut salt = [0u8; SALT_LEN];
+        salt.copy_from_slice(&encrypted[salt_start..nonce_start]);
+        let mut nonce = [0u8; NONCE_LEN];
+        nonce.copy_from_slice(&encrypted[nonce_start..key_id_start]);
+        let mut key_id = [0u8; KEY_ID_LEN];
+        key_id.copy_from_slice(&encrypted[key_id_start..HEADER_LEN]);
+
+        Ok(Self {
+            version: encrypted[4],
+            algorithm: encrypted[5],
+            kdf: encrypted[6],
+            salt,
+            nonce,
+            key_id,
+        })
+    }
 }
 
 fn aes_gcm_encrypt(key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
@@ -360,6 +479,84 @@ mod tests {
         let encrypted = enc.encrypt_data(&data, &key).unwrap();
         let decrypted = enc.decrypt_data(&encrypted, &key).unwrap();
         assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn passphrase_roundtrip_succeeds() {
+        let enc = VaultEncryption::new();
+        let data = b"passphrase protected note";
+        let encrypted = enc.encrypt_data_with_passphrase(data, "correct horse").unwrap();
+        let decrypted = enc
+            .decrypt_data_with_passphrase(&encrypted, "correct horse")
+            .unwrap();
+        assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn passphrase_decrypt_with_wrong_passphrase_fails_cleanly() {
+        let enc = VaultEncryption::new();
+        let encrypted = enc
+            .encrypt_data_with_passphrase(b"secret", "correct horse")
+            .unwrap();
+        let error = enc
+            .decrypt_data_with_passphrase(&encrypted, "battery staple")
+            .expect_err("wrong passphrase must fail");
+        assert!(matches!(error, EncryptionError::InvalidPassphrase), "{error}");
+    }
+
+    #[test]
+    fn header_records_the_salt_actually_used_for_derivation() {
+        let enc = VaultEncryption::new();
+        let encrypted = enc.encrypt_data_with_passphrase(b"payload", "pass").unwrap();
+        let header = enc.read_header(&encrypted).unwrap();
+        assert!(
+            header.salt.iter().any(|&byte| byte != 0),
+            "passphrase payloads must carry a real salt"
+        );
+        // Re-deriving from the stored salt must reproduce the exact key,
+        // which the recorded key id confirms.
+        let key = enc.derive_key("pass", &header.salt).unwrap();
+        assert_eq!(key_id_for(key.as_bytes()), header.key_id);
+        let decrypted = aes_gcm_decrypt(key.as_bytes(), &header.nonce, &encrypted[HEADER_LEN..]).unwrap();
+        assert_eq!(decrypted, b"payload");
+    }
+
+    #[test]
+    fn salt_differs_between_passphrase_encryptions() {
+        let enc = VaultEncryption::new();
+        let first = enc.encrypt_data_with_passphrase(b"x", "pass").unwrap();
+        let second = enc.encrypt_data_with_passphrase(b"x", "pass").unwrap();
+        assert_ne!(
+            enc.read_header(&first).unwrap().salt,
+            enc.read_header(&second).unwrap().salt
+        );
+    }
+
+    #[test]
+    fn raw_key_payload_records_no_kdf_material() {
+        let enc = VaultEncryption::new();
+        let encrypted = enc.encrypt_data(b"raw key payload", &[42u8; 32]).unwrap();
+        let header = enc.read_header(&encrypted).unwrap();
+        assert!(header.salt.iter().all(|&byte| byte == 0));
+        assert!(header.key_id.iter().all(|&byte| byte == 0));
+
+        let error = enc
+            .decrypt_data_with_passphrase(&encrypted, "anything")
+            .expect_err("raw-key payload is not passphrase decryptable");
+        assert!(matches!(error, EncryptionError::InvalidFormat(_)), "{error}");
+    }
+
+    #[test]
+    fn passphrase_payload_still_decrypts_with_the_derived_raw_key() {
+        // The header layout is unchanged, so the raw-key path keeps working.
+        let enc = VaultEncryption::new();
+        let encrypted = enc.encrypt_data_with_passphrase(b"both paths", "pass").unwrap();
+        let header = enc.read_header(&encrypted).unwrap();
+        let key = enc.derive_key("pass", &header.salt).unwrap();
+        assert_eq!(
+            enc.decrypt_data(&encrypted, key.as_bytes()).unwrap(),
+            b"both paths"
+        );
     }
 
     #[test]

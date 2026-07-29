@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use scriptor_export_runner::run_export_job;
 use scriptor_indexer::rebuild_index;
 
+use crate::locks::lock_recover;
 use crate::command_gateway;
 use crate::events::EventHub;
 use crate::handler::DaemonState;
@@ -50,21 +51,24 @@ pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
     Ok(data_dir.join(ENDPOINT_FILE))
 }
 
-fn generate_nonce() -> String {
+/// A failing OS random source is an environment problem, not a bug: surface it
+/// as an error so the caller can report it instead of aborting the daemon.
+fn generate_nonce() -> Result<String, IpcError> {
     let mut bytes = [0u8; 32];
-    getrandom::getrandom(&mut bytes).expect("random source unavailable");
-    hex::encode(bytes)
+    getrandom::getrandom(&mut bytes)
+        .map_err(|error| IpcError::Codec(format!("random source unavailable: {error}")))?;
+    Ok(hex::encode(bytes))
 }
 
-fn compute_endpoint_hmac(socket_name: &str, pid: u32, nonce: &str) -> String {
-    let mac = hmac_sha256_simple(&format!("{socket_name}:{pid}:{nonce}"));
-    hex::encode(&mac)
+fn compute_endpoint_hmac(socket_name: &str, pid: u32, nonce: &str) -> Result<String, IpcError> {
+    let mac = hmac_sha256_simple(&format!("{socket_name}:{pid}:{nonce}"))?;
+    Ok(hex::encode(mac))
 }
 
-fn hmac_sha256_simple(message: &str) -> [u8; 32] {
+fn hmac_sha256_simple(message: &str) -> Result<[u8; 32], IpcError> {
     use sha2::{Digest, Sha256};
 
-    let key = endpoint_hmac_key();
+    let key = endpoint_hmac_key()?;
     let mut key_bytes = [0u8; 32];
     let key_src = key.as_bytes();
     let copy_len = key_src.len().min(32);
@@ -78,30 +82,40 @@ fn hmac_sha256_simple(message: &str) -> [u8; 32] {
     }
 
     let mut inner = Sha256::new();
-    inner.update(&ipad);
+    inner.update(ipad);
     inner.update(message.as_bytes());
     let inner_hash = inner.finalize();
 
     let mut outer = Sha256::new();
-    outer.update(&opad);
-    outer.update(&inner_hash);
+    outer.update(opad);
+    outer.update(inner_hash);
     let result = outer.finalize();
 
     let mut out = [0u8; 32];
     out.copy_from_slice(&result);
-    out
+    Ok(out)
 }
 
-fn endpoint_hmac_key() -> String {
+/// Constant-time byte comparison so HMAC verification does not leak match
+/// prefixes through timing. Length mismatch returns early, which only reveals
+/// the length (fixed at 64 hex chars for valid endpoints).
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
+fn endpoint_hmac_key() -> Result<String, IpcError> {
     let data_dir = scriptor_data_dir("scriptor").unwrap_or_else(|_| std::env::temp_dir());
     let key_path = data_dir.join(".endpoint-hmac-key");
     if let Ok(existing) = fs::read_to_string(&key_path) {
         let trimmed = existing.trim().to_string();
         if !trimmed.is_empty() {
-            return trimmed;
+            return Ok(trimmed);
         }
     }
-    let nonce = generate_nonce();
+    let nonce = generate_nonce()?;
     if let Err(error) = fs::create_dir_all(&data_dir) {
         tracing::warn!(
             target: "scriptor_daemon::transport",
@@ -138,13 +152,13 @@ fn endpoint_hmac_key() -> String {
             );
         }
     }
-    nonce
+    Ok(nonce)
 }
 
 pub fn write_endpoint(socket_name: &str) -> Result<(), IpcError> {
-    let nonce = generate_nonce();
+    let nonce = generate_nonce()?;
     let pid = std::process::id();
-    let hmac = compute_endpoint_hmac(socket_name, pid, &nonce);
+    let hmac = compute_endpoint_hmac(socket_name, pid, &nonce)?;
     let endpoint = DaemonEndpoint {
         socket_name: socket_name.to_string(),
         pid,
@@ -175,11 +189,16 @@ pub fn read_endpoint() -> Result<DaemonEndpoint, IpcError> {
     let endpoint: DaemonEndpoint =
         serde_json::from_slice(&bytes).map_err(|error| IpcError::Codec(error.to_string()))?;
 
-    if let (Some(nonce), Some(hmac)) = (&endpoint.nonce, &endpoint.hmac) {
-        let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce);
-        if hmac != &expected_hmac {
-            return Err(IpcError::Codec("endpoint HMAC mismatch; file may be tampered".into()));
-        }
+    // Verification is mandatory: an endpoint file without nonce/hmac is rejected
+    // outright so a tampered file cannot bypass authentication by omitting them.
+    let (Some(nonce), Some(hmac)) = (&endpoint.nonce, &endpoint.hmac) else {
+        return Err(IpcError::Codec(
+            "endpoint file missing nonce/hmac; refusing unauthenticated endpoint".into(),
+        ));
+    };
+    let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce)?;
+    if !constant_time_eq(hmac.as_bytes(), expected_hmac.as_bytes()) {
+        return Err(IpcError::Codec("endpoint HMAC mismatch; file may be tampered".into()));
     }
 
     Ok(endpoint)
@@ -255,6 +274,18 @@ pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
     LocalSocketStream::connect(name.borrow()).map_err(IpcError::from)
 }
 
+/// RAII guard for one connection slot: decrements the active-connection counter
+/// on drop, including when the handler thread panics.
+struct ConnectionSlot {
+    counter: Arc<AtomicUsize>,
+}
+
+impl Drop for ConnectionSlot {
+    fn drop(&mut self) {
+        self.counter.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
     if !cfg!(windows)
@@ -295,9 +326,14 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
         }
         let state = Arc::clone(&state);
         let event_hub = Arc::clone(&event_hub);
-        let active_connections = Arc::clone(&active_connections);
         active_connections.fetch_add(1, Ordering::SeqCst);
+        // Decrement via a drop guard so a panicking handler cannot leak the
+        // connection slot (the guard runs during unwind as well).
+        let slot = ConnectionSlot {
+            counter: Arc::clone(&active_connections),
+        };
         std::thread::spawn(move || {
+            let _slot = slot;
             if let Err(error) = handle_connection(stream, &state, &event_hub) {
                 tracing::warn!(
                     target: "scriptor_daemon::transport",
@@ -305,7 +341,6 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
                     "connection handler ended with error",
                 );
             }
-            active_connections.fetch_sub(1, Ordering::SeqCst);
         });
     }
 }
@@ -335,7 +370,7 @@ pub fn handle_connection(
         let request: RpcRequest =
             postcard::from_bytes(&body).map_err(|error| IpcError::Codec(error.to_string()))?;
 
-        if let Some(expected_nonce) = &state.lock().expect("daemon state lock").endpoint_nonce {
+        if let Some(expected_nonce) = &lock_recover(state).endpoint_nonce {
             match &request.endpoint_nonce {
                 Some(provided) if provided == expected_nonce => {}
                 _ => {
@@ -394,7 +429,7 @@ fn dispatch_request(
         }
         RpcMethod::RebuildIndex => dispatch_rebuild_sync(state, id),
         RpcMethod::OpenVault { .. } => {
-            let response = state.lock().expect("daemon state lock").handle(request);
+            let response = lock_recover(state).handle(request);
             if matches!(response.result, RpcResult::Ok(RpcPayload::VaultOpened { .. }))
                 && let Err(error) = restart_vault_watcher(state) {
                     tracing::warn!(
@@ -405,7 +440,7 @@ fn dispatch_request(
                 }
             response
         }
-        _ => state.lock().expect("daemon state lock").handle(request),
+        _ => lock_recover(state).handle(request),
     };
 
     if let RpcResult::Ok(RpcPayload::ConfigReloaded { json, generation }) = &response.result {
@@ -435,7 +470,7 @@ fn dispatch_invoke_outside_lock(
     let result: Result<String, String> = match command {
         "export_run_note" | "export_run_markdown" => {
             let input = {
-                let guard = state.lock().expect("daemon state lock");
+                let guard = lock_recover(state);
                 command_gateway::prepare_export_run(&guard, command, &payload)
             };
             match input {
@@ -447,7 +482,7 @@ fn dispatch_invoke_outside_lock(
         }
         "indexer_rebuild" => {
             let session = {
-                let guard = state.lock().expect("daemon state lock");
+                let guard = lock_recover(state);
                 guard.wait_index_rebuild();
                 match guard.session().cloned() {
                     Some(session) => session,
@@ -468,7 +503,7 @@ fn dispatch_invoke_outside_lock(
         "vault_open" => match require_invoke_str(&payload, "root_path") {
             Ok(root_path) => {
                 let output = {
-                    let mut guard = state.lock().expect("daemon state lock");
+                    let mut guard = lock_recover(state);
                     match guard.open_vault_invoke(root_path) {
                         Ok(output) => output,
                         Err(error) => return RpcResponse {
@@ -512,9 +547,7 @@ fn require_invoke_str(payload: &serde_json::Value, key: &str) -> Result<String, 
 }
 
 fn dispatch_export_sync(state: &Arc<Mutex<DaemonState>>, id: u64, method: &RpcMethod) -> RpcResponse {
-    let prepared = state
-        .lock()
-        .expect("daemon state lock")
+    let prepared = lock_recover(state)
         .prepare_export_input(method);
     let result = match prepared {
         Ok(input) => match run_export_job(input) {
@@ -537,7 +570,7 @@ fn dispatch_export_sync(state: &Arc<Mutex<DaemonState>>, id: u64, method: &RpcMe
 
 fn dispatch_rebuild_sync(state: &Arc<Mutex<DaemonState>>, id: u64) -> RpcResponse {
     let session = {
-        let guard = state.lock().expect("daemon state lock");
+        let guard = lock_recover(state);
         guard.wait_index_rebuild();
         match guard.session().cloned() {
             Some(session) => session,
@@ -606,6 +639,23 @@ mod tests {
         );
     }
 
+    /// Poll `condition` until it holds or `timeout` elapses, returning whether
+    /// it became true.
+    ///
+    /// Preferred over a fixed sleep for cross-thread handshakes: a sleep sized
+    /// for an idle machine silently becomes a race on a loaded CI runner, and
+    /// the resulting failure surfaces far from its cause.
+    fn wait_for(timeout: Duration, mut condition: impl FnMut() -> bool) -> bool {
+        let deadline = std::time::Instant::now() + timeout;
+        while std::time::Instant::now() < deadline {
+            if condition() {
+                return true;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        condition()
+    }
+
     struct PipeGuard {
         name: Option<String>,
     }
@@ -622,11 +672,10 @@ mod tests {
 
     impl Drop for PipeGuard {
         fn drop(&mut self) {
-            if let Some(ref name) = self.name {
-                if !cfg!(windows) {
+            if let Some(ref name) = self.name
+                && !cfg!(windows) {
                     let _ = std::fs::remove_file(name);
                 }
-            }
         }
     }
 
@@ -698,6 +747,50 @@ mod tests {
     }
 
     #[test]
+    fn read_endpoint_rejects_missing_hmac() {
+        let _guard = endpoint_lock();
+        let path = endpoint_file_path().expect("endpoint path");
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let json = serde_json::json!({ "socket_name": "some-socket", "pid": 1234 }).to_string();
+        std::fs::write(&path, json).expect("write endpoint");
+        let result = read_endpoint();
+        assert!(result.is_err(), "endpoint without nonce/hmac must be rejected");
+        let _ = remove_endpoint_file();
+    }
+
+    #[test]
+    fn read_endpoint_rejects_tampered_hmac() {
+        let _guard = endpoint_lock();
+        let socket = default_socket_name().expect("socket");
+        write_endpoint(&socket).expect("write");
+        let path = endpoint_file_path().expect("endpoint path");
+        let raw = std::fs::read_to_string(&path).expect("read endpoint file");
+        let mut endpoint: DaemonEndpoint = serde_json::from_str(&raw).expect("parse endpoint");
+        endpoint.socket_name = format!("{}-tampered", endpoint.socket_name);
+        std::fs::write(&path, serde_json::to_string(&endpoint).expect("serialize")).expect("rewrite");
+        let result = read_endpoint();
+        assert!(result.is_err(), "tampered endpoint must fail HMAC verification");
+        let _ = remove_endpoint_file();
+    }
+
+    #[test]
+    fn connection_slot_decrements_on_panic() {
+        let counter = Arc::new(AtomicUsize::new(0));
+        counter.fetch_add(1, Ordering::SeqCst);
+        let slot = ConnectionSlot {
+            counter: Arc::clone(&counter),
+        };
+        let handle = std::thread::spawn(move || {
+            let _slot = slot;
+            panic!("simulated handler panic");
+        });
+        assert!(handle.join().is_err());
+        assert_eq!(counter.load(Ordering::SeqCst), 0, "slot must be released on panic");
+    }
+
+    #[test]
     fn rpc_roundtrip_over_socket() {
         let _guard = endpoint_lock();
         teardown_rpc_session();
@@ -718,6 +811,48 @@ mod tests {
         ready_rx.recv_timeout(Duration::from_secs(5)).expect("listener ready");
         let response = rpc_call_with_retry(RpcRequest::new(1, RpcMethod::Ping), 5).expect("rpc");
         assert!(matches!(response.result, RpcResult::Ok(_)));
+        teardown_rpc_session();
+        server.join().expect("server thread");
+        pipe_guard.disarm();
+    }
+
+    /// A panic inside a request handler poisons the shared daemon state mutex.
+    /// The daemon must keep answering RPCs afterwards instead of panicking on
+    /// every subsequent lock acquisition.
+    #[test]
+    fn serves_requests_after_state_lock_is_poisoned() {
+        let _guard = endpoint_lock();
+        teardown_rpc_session();
+        let (socket, _socket_dir) = test_socket_name();
+        let mut pipe_guard = PipeGuard::new(&socket);
+        write_endpoint(&socket).expect("write endpoint");
+
+        let state = Arc::new(Mutex::new(DaemonState::default()));
+        let poisoner = Arc::clone(&state);
+        let panicked = std::thread::spawn(move || {
+            let _held = lock_recover(&poisoner);
+            panic!("simulated handler panic while holding daemon state");
+        });
+        assert!(panicked.join().is_err(), "helper thread should have panicked");
+        assert!(
+            state.lock().is_err(),
+            "the daemon state mutex should now be poisoned"
+        );
+
+        let state_for_server = Arc::clone(&state);
+        let socket_for_server = socket.clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let listener = create_listener_with_retry(&socket_for_server, 10);
+            ready_tx.send(()).expect("send ready");
+            let event_hub = EventHub::new();
+            accept_and_handle_n(&listener, &state_for_server, &event_hub, 1);
+        });
+
+        ready_rx.recv_timeout(Duration::from_secs(5)).expect("listener ready");
+        let response = rpc_call_with_retry(RpcRequest::new(1, RpcMethod::Ping), 5)
+            .expect("daemon must still answer RPCs after poisoning");
+        assert!(matches!(response.result, RpcResult::Ok(RpcPayload::Pong { .. })));
         teardown_rpc_session();
         server.join().expect("server thread");
         pipe_guard.disarm();
@@ -750,6 +885,153 @@ mod tests {
         }
         client.reset();
         server.join().expect("server thread");
+        pipe_guard.disarm();
+    }
+
+    /// A daemon that never emits the awaited id must not park the calling
+    /// thread forever: the frame budget turns it into a descriptive error.
+    #[test]
+    fn rpc_call_bails_out_on_flood_of_unmatched_responses() {
+        let _guard = endpoint_lock();
+        teardown_rpc_session();
+        let (socket, _socket_dir) = test_socket_name();
+        let mut pipe_guard = PipeGuard::new(&socket);
+        write_endpoint(&socket).expect("write endpoint");
+
+        let socket_for_server = socket.clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel::<()>();
+        let server = std::thread::spawn(move || {
+            let listener = create_listener_with_retry(&socket_for_server, 10);
+            ready_tx.send(()).expect("send ready");
+            let mut stream = listener.accept().expect("accept");
+            read_frame_resyncing(&mut stream).expect("read request");
+            for offset in 0..1024u64 {
+                let response = RpcResponse {
+                    id: 10_000 + offset,
+                    result: RpcResult::Ok(RpcPayload::Unit),
+                };
+                if write_frame(&mut stream, &ServerMessage::Response(response)).is_err() {
+                    break;
+                }
+            }
+            // Keep the connection open so the client cannot mistake this for a
+            // disconnect and silently retry.
+            let _ = done_rx.recv_timeout(Duration::from_secs(30));
+        });
+
+        ready_rx.recv_timeout(Duration::from_secs(5)).expect("listener ready");
+        let client = crate::client::DaemonRpcClient::new();
+        let error = client
+            .call(RpcRequest::new(7, RpcMethod::Ping))
+            .expect_err("mismatched ids must not hang the caller");
+        assert!(
+            error.to_string().contains("without a response matching request 7"),
+            "unexpected error: {error}"
+        );
+        client.reset();
+        let _ = done_tx.send(());
+        server.join().expect("server thread");
+        pipe_guard.disarm();
+    }
+
+    /// A failed first connection used to latch `event_listener_started` forever,
+    /// so events were never delivered again for the lifetime of the process.
+    #[test]
+    fn event_listener_recovers_after_failed_connection() {
+        let _guard = endpoint_lock();
+        teardown_rpc_session();
+        let _ = remove_endpoint_file();
+
+        let client = crate::client::DaemonRpcClient::new();
+        client.register_event_handler(|_| {});
+        assert!(
+            !client.has_event_listener(),
+            "no listener may be claimed when the daemon is unreachable"
+        );
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::create_dir_all(dir.path().join(".scriptor")).expect("scriptor dir");
+        std::fs::write(dir.path().join("alpha.md"), "# Alpha\n").expect("write");
+        let config_json = r#"{"daily_note":{"directory":"notes","filename_format":"{iso}","title_format":"{iso}","template_path":null}}"#;
+        std::fs::write(dir.path().join(".scriptor/config.json"), config_json).expect("write config");
+        let vault_path = dir.path().display().to_string();
+
+        let (socket, _socket_dir) = test_socket_name();
+        let mut pipe_guard = PipeGuard::new(&socket);
+        write_endpoint(&socket).expect("write endpoint");
+
+        let socket_for_server = socket.clone();
+        let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+        let (handle_tx, handle_rx) = std::sync::mpsc::channel();
+        let (eh_tx, eh_rx) = std::sync::mpsc::channel();
+        let server = std::thread::spawn(move || {
+            let listener = create_listener_with_retry(&socket_for_server, 10);
+            let state = Arc::new(Mutex::new(DaemonState::default()));
+            let event_hub = EventHub::new();
+            {
+                let mut daemon = lock_recover(&state);
+                daemon.handle(RpcRequest::new(0, RpcMethod::OpenVault { path: vault_path }));
+                daemon.wait_index_rebuild();
+            }
+            eh_tx.send(Arc::clone(&event_hub)).expect("send event hub");
+            ready_tx.send(()).expect("send ready");
+            for _ in 0..2 {
+                let stream = listener.accept().expect("accept");
+                let handle = spawn_test_handler(stream, Arc::clone(&state), Arc::clone(&event_hub));
+                handle_tx.send(handle).expect("send handle");
+            }
+        });
+
+        ready_rx.recv_timeout(Duration::from_secs(10)).expect("listener ready");
+        let event_hub_ref = eh_rx.recv_timeout(Duration::from_secs(5)).expect("recv event hub");
+
+        // Second registration on the same client must be able to start a
+        // listener now that the daemon is reachable.
+        let (event_tx, event_rx) = std::sync::mpsc::channel();
+        client.register_event_handler(move |event| {
+            let RpcEventPayload::ConfigReloaded { json, generation } = event.payload;
+            let _ = event_tx.send((json, generation));
+        });
+        assert!(
+            client.has_event_listener(),
+            "listener must start once the daemon is reachable again"
+        );
+
+        // `has_event_listener` only reports that the listener thread was
+        // spawned; it may not have completed its SubscribeEvents handshake
+        // yet. Broadcasts reach registered subscribers only, so firing the
+        // reload before then loses the event and the receive below times out.
+        // Wait on the hub's own view rather than guessing with a sleep — a
+        // fixed delay here is what made this test flake under CPU load.
+        let subscribed = wait_for(Duration::from_secs(10), || {
+            event_hub_ref.subscriber_count() > 0
+        });
+        assert!(
+            subscribed,
+            "event listener should register with the hub before the broadcast"
+        );
+
+        let reloader = crate::client::DaemonRpcClient::new();
+        reloader
+            .call(RpcRequest::new(51, RpcMethod::ReloadConfig))
+            .expect("reload rpc");
+
+        let (json, generation) = event_rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("recovered listener should receive the broadcast event");
+        assert!(json.contains("notes"));
+        assert_eq!(generation, 1);
+
+        client.reset();
+        reloader.reset();
+        event_hub_ref.close();
+        teardown_rpc_session();
+        server.join().expect("server thread");
+        for _ in 0..2 {
+            let handle = handle_rx.recv_timeout(Duration::from_secs(5)).expect("recv handle");
+            handle.join().expect("handler thread");
+        }
         pipe_guard.disarm();
     }
 
@@ -856,7 +1138,7 @@ mod tests {
             let listener = create_listener_with_retry(&socket_for_server, 10);
             let state = Arc::new(Mutex::new(DaemonState::default()));
             {
-                let mut daemon = state.lock().expect("daemon state lock");
+                let mut daemon = lock_recover(&state);
                 daemon.handle(RpcRequest::new(0, RpcMethod::OpenVault { path: vault_path }));
                 daemon.wait_index_rebuild();
             }
@@ -916,7 +1198,7 @@ mod tests {
             let state = Arc::new(Mutex::new(DaemonState::default()));
             let event_hub = EventHub::new();
             {
-                let mut daemon = state.lock().expect("daemon state lock");
+                let mut daemon = lock_recover(&state);
                 daemon.handle(RpcRequest::new(0, RpcMethod::OpenVault { path: vault_path }));
                 daemon.wait_index_rebuild();
             }

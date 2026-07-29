@@ -51,9 +51,15 @@ pub fn verify_binary_hash(
     log::info!("{label} SHA-256: {computed} (path: {})", binary_path.display());
 
     if let Some(expected) = expected_hash {
-        if computed != expected {
+        let normalized = expected.trim().to_ascii_lowercase();
+        if normalized.len() != 64 || !normalized.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(ExportError::Process(format!(
-                "{label} hash mismatch: expected {expected}, found {computed}"
+                "{label} trusted hash must be a 64-character SHA-256 hex digest"
+            )));
+        }
+        if computed != normalized {
+            return Err(ExportError::Process(format!(
+                "{label} hash mismatch: expected {normalized}, found {computed}"
             )));
         }
     }
@@ -84,13 +90,19 @@ pub fn discover_pandoc_with_trusted_hash(
 
     for bundled in bundled_pandoc_paths() {
         if bundled.exists() {
-            if let Ok(discovery) = probe_pandoc_with_hash(&bundled, trusted_hash) {
-                return Ok(discovery);
+            match probe_pandoc_with_hash(&bundled, trusted_hash) {
+                Ok(discovery) => return Ok(discovery),
+                // A trusted hash was configured and this bundled binary failed
+                // verification: fail closed rather than silently falling
+                // through to an unverified PATH pandoc.
+                Err(error) if trusted_hash.is_some() => return Err(error),
+                Err(_) => continue,
             }
         }
     }
 
-    probe_pandoc_with_hash(Path::new("pandoc"), trusted_hash)
+    let path = which_pandoc().ok_or(ExportError::PandocMissing)?;
+    probe_pandoc_with_hash(&path, trusted_hash)
 }
 
 fn bundled_pandoc_paths() -> Vec<PathBuf> {
@@ -114,7 +126,19 @@ fn probe_pandoc_with_hash(
     path: &Path,
     trusted_hash: Option<&str>,
 ) -> Result<PandocDiscovery, ExportError> {
-    let output = Command::new(path)
+    let resolved_path = if path == Path::new("pandoc") {
+        which_pandoc().ok_or(ExportError::PandocMissing)?
+    } else {
+        path.to_path_buf()
+    };
+
+    if !resolved_path.exists() {
+        return Err(ExportError::PandocMissing);
+    }
+
+    let sha256 = verify_binary_hash(&resolved_path, trusted_hash, "pandoc")?;
+
+    let output = Command::new(&resolved_path)
         .arg("--version")
         .output()
         .map_err(|_| ExportError::PandocMissing)?;
@@ -128,21 +152,6 @@ fn probe_pandoc_with_hash(
         .next()
         .unwrap_or("pandoc")
         .to_string();
-
-    let resolved_path = if path == Path::new("pandoc") {
-        which_pandoc().unwrap_or_else(|| PathBuf::from("pandoc"))
-    } else {
-        path.to_path_buf()
-    };
-
-    let sha256 = if resolved_path.exists() {
-        verify_binary_hash(&resolved_path, trusted_hash, "pandoc").unwrap_or_else(|err| {
-            log::warn!("Pandoc hash verification failed: {err}");
-            None
-        })
-    } else {
-        None
-    };
 
     Ok(PandocDiscovery {
         path: resolved_path.display().to_string(),

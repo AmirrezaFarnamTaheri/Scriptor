@@ -7,36 +7,44 @@ $ErrorActionPreference = "Stop"
 $root = Join-Path $PSScriptRoot "../.."
 Set-Location $root
 
+function Invoke-Checked {
+    param([string]$File, [string[]]$Arguments)
+    & $File @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed ($LASTEXITCODE): $File $Arguments"
+    }
+}
+
 Write-Host "==> Install dependencies"
-pnpm install
+Invoke-Checked pnpm @("install")
 
 Write-Host "==> Contract and plugin checks"
-pnpm check:contracts
-pnpm check:mcp
-pnpm check:plugins
-pnpm check:canvas
-pnpm check:editor
-pnpm check:renderer
-pnpm check:export
-pnpm check:portal
-pnpm check:knowledge
-pnpm check:citations
-pnpm check:headless
+Invoke-Checked pnpm @("check:contracts")
+Invoke-Checked pnpm @("check:mcp")
+Invoke-Checked pnpm @("check:plugins")
+Invoke-Checked pnpm @("check:canvas")
+Invoke-Checked pnpm @("check:editor")
+Invoke-Checked pnpm @("check:renderer")
+Invoke-Checked pnpm @("check:export")
+Invoke-Checked pnpm @("check:portal")
+Invoke-Checked pnpm @("check:knowledge")
+Invoke-Checked pnpm @("check:citations")
+Invoke-Checked pnpm @("check:headless")
 
 Write-Host "==> Lint and build frontend"
-pnpm lint
-pnpm build
+Invoke-Checked pnpm @("lint")
+Invoke-Checked pnpm @("build")
 
 Write-Host "==> Rust tests"
-cargo test --workspace --exclude scriptor-desktop
+Invoke-Checked cargo @("test", "--workspace", "--exclude", "scriptor-desktop")
 
 Write-Host "==> Release smoke"
 & (Join-Path $PSScriptRoot "smoke.ps1")
 
 Write-Host "==> TUI and daemon smoke"
-pnpm check:tui
-pnpm check:daemon
-pnpm check:a11y
+Invoke-Checked pnpm @("check:tui")
+Invoke-Checked pnpm @("check:daemon")
+Invoke-Checked pnpm @("check:a11y")
 
 if (-not $SkipPerfGate) {
     Write-Host "==> Performance gate"
@@ -45,10 +53,10 @@ if (-not $SkipPerfGate) {
 
 if (-not $SkipTauri) {
     Write-Host "==> Inject updater signing config"
-    node (Join-Path $PSScriptRoot "inject-updater-config.mjs")
+    Invoke-Checked node @((Join-Path $PSScriptRoot "inject-updater-config.mjs"))
 
     Write-Host "==> Tauri desktop bundle"
-    pnpm --dir apps/desktop build
+    Invoke-Checked pnpm @("--dir", "apps/desktop", "build")
     Write-Host "==> Release manifest"
     & (Join-Path $PSScriptRoot "write-manifest.ps1")
     & (Join-Path $PSScriptRoot "verify-manifest.ps1")

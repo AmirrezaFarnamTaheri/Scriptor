@@ -929,8 +929,8 @@ fn cmd_save_note(
         SaveNoteOptions { dry_run },
     )
     .map_err(|error| error.to_string())?;
-    if !dry_run {
-        if let Err(error) =
+    if !dry_run
+        && let Err(error) =
             incremental_note_index_with_cache(session, state.require_cache()?, path, &[])
         {
             if let Err(rollback_error) = rollback_save_note(
@@ -945,7 +945,6 @@ fn cmd_save_note(
             }
             return Err(error.to_string());
         }
-    }
     Ok(output)
 }
 
@@ -986,14 +985,13 @@ fn cmd_resolve_wikilink(state: &DaemonState, target: &str) -> Result<Value, Stri
             continue;
         }
         note_paths.push(entry.path.clone());
-        if let Ok(relative) = RelativeVaultPath::parse(&entry.path) {
-            if let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative) {
+        if let Ok(relative) = RelativeVaultPath::parse(&entry.path)
+            && let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative) {
                 let parsed = parse_note_markdown(&entry.path, &document.markdown);
                 if !parsed.aliases.is_empty() {
                     aliases_by_path.insert(entry.path, parsed.aliases);
                 }
             }
-        }
     }
     to_value(resolve_wikilink_target_with_aliases(
         &note_paths,
@@ -1041,6 +1039,8 @@ fn build_export_note_input(
     })
 }
 
+// Mirrors the RPC wire shape of ExportStartMarkdown one-to-one.
+#[allow(clippy::too_many_arguments)]
 fn build_export_markdown_input(
     state: &DaemonState,
     note_path: &str,
@@ -1141,9 +1141,9 @@ fn cmd_plantuml_render(payload: &Value) -> Result<PlantUmlRenderOutput, String> 
     Ok(PlantUmlRenderOutput { svg, engine })
 }
 
-fn run_plantuml(input: &PathBuf) -> Result<(String, String), String> {
-    if let Ok(path) = std::env::var("PLANTUML_BIN") {
-        if !path.is_empty() {
+fn run_plantuml(input: &Path) -> Result<(String, String), String> {
+    if let Ok(path) = std::env::var("PLANTUML_BIN")
+        && !path.is_empty() {
             let output = Command::new(&path)
                 .args(["-tsvg", &input.display().to_string()])
                 .output()
@@ -1153,7 +1153,6 @@ fn run_plantuml(input: &PathBuf) -> Result<(String, String), String> {
                 return Ok((svg, path));
             }
         }
-    }
 
     if let Ok(jar) = std::env::var("PLANTUML_JAR") {
         let output = Command::new("java")
@@ -1237,16 +1236,22 @@ fn require_i64(payload: &Value, key: &str) -> Result<i64, String> {
 }
 
 fn require_bytes(payload: &Value, key: &str) -> Result<Vec<u8>, String> {
-    payload
+    let array = payload
         .get(key)
         .and_then(Value::as_array)
-        .map(|array| {
-            array
-                .iter()
-                .filter_map(|value| value.as_u64().map(|byte| byte as u8))
-                .collect()
+        .ok_or_else(|| format!("missing or invalid bytes field: {key}"))?;
+    array
+        .iter()
+        .enumerate()
+        .map(|(index, value)| {
+            value
+                .as_u64()
+                .and_then(|byte| u8::try_from(byte).ok())
+                .ok_or_else(|| {
+                    format!("invalid byte at index {index} in field {key}: expected integer 0..=255")
+                })
         })
-        .ok_or_else(|| format!("missing or invalid bytes field: {key}"))
+        .collect()
 }
 
 fn require_deserialize<T: serde::de::DeserializeOwned>(payload: &Value, key: &str) -> Result<T, String> {
@@ -1276,5 +1281,21 @@ mod tests {
         let mut state = DaemonState::default();
         let result = dispatch(&mut state, "health_check", &json!({})).expect("health_check");
         assert_eq!(result, json!("ok"));
+    }
+
+    #[test]
+    fn require_bytes_accepts_valid_byte_array() {
+        let payload = json!({ "data": [0, 1, 127, 255] });
+        assert_eq!(require_bytes(&payload, "data"), Ok(vec![0, 1, 127, 255]));
+    }
+
+    #[test]
+    fn require_bytes_rejects_out_of_range_and_non_integer_values() {
+        assert!(require_bytes(&json!({ "data": [0, 256] }), "data").is_err());
+        assert!(require_bytes(&json!({ "data": [1, -1] }), "data").is_err());
+        assert!(require_bytes(&json!({ "data": [1, 1.5] }), "data").is_err());
+        assert!(require_bytes(&json!({ "data": [1, "2"] }), "data").is_err());
+        assert!(require_bytes(&json!({ "data": "abc" }), "data").is_err());
+        assert!(require_bytes(&json!({}), "data").is_err());
     }
 }

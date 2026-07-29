@@ -27,6 +27,7 @@ pub mod section_rename;
 pub mod snippets;
 pub mod tag_rename;
 pub mod stats_history;
+pub(crate) mod text;
 pub mod textbundle;
 pub mod importers;
 pub mod watch;

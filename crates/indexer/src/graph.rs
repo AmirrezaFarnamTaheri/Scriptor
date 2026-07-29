@@ -50,6 +50,31 @@ pub fn query_focused_graph(
     let link_rows = load_link_rows(cache, &session.descriptor.id)?;
     let note_tags = load_note_tags(cache, &session.descriptor.id)?;
 
+    // Precompute adjacency once instead of rescanning every link (and linearly
+    // resolving targets) on each BFS step.
+    let resolved_links: Vec<ResolvedLink<'_>> = link_rows
+        .iter()
+        .map(|row| ResolvedLink {
+            row,
+            target: resolve_target(&note_index, &row.to_path),
+        })
+        .collect();
+    let mut outgoing: HashMap<&str, Vec<&ResolvedLink<'_>>> = HashMap::new();
+    let mut incoming: HashMap<&str, Vec<&ResolvedLink<'_>>> = HashMap::new();
+    for link in &resolved_links {
+        outgoing
+            .entry(link.row.from_note_id.as_str())
+            .or_default()
+            .push(link);
+        if let Some((target_id, _)) = &link.target {
+            incoming.entry(target_id.as_str()).or_default().push(link);
+        }
+    }
+    let id_to_note: HashMap<&str, &NoteRow> = note_index
+        .values()
+        .map(|note| (note.id.as_str(), note))
+        .collect();
+
     let max_depth = depth.clamp(1, 5);
     let max_nodes = if focus_path.is_some() { 200 } else { 120 };
     let mut visited: HashSet<String> = HashSet::new();
@@ -81,52 +106,52 @@ pub fn query_focused_graph(
             continue;
         }
 
-        for link in link_rows.iter().filter(|row| row.from_note_id == current_id) {
-            let edge_id = link.id.clone();
+        for link in outgoing.get(current_id.as_str()).into_iter().flatten() {
+            let edge_id = link.row.id.clone();
             if edge_ids.insert(edge_id.clone()) {
-                let target_id = resolve_target(&note_index, &link.to_path);
                 edges.push(GraphEdge {
                     id: edge_id,
                     source: current_id.clone(),
-                    target: target_id
+                    target: link
+                        .target
                         .as_ref()
                         .map(|(id, _)| id.clone())
-                        .unwrap_or_else(|| format!("unresolved:{}", link.to_path)),
-                    kind: link.kind.clone(),
+                        .unwrap_or_else(|| format!("unresolved:{}", link.row.to_path)),
+                    kind: link.row.kind.clone(),
                 });
             }
 
-            if let Some((target_id, _)) = resolve_target(&note_index, &link.to_path) {
-                if visited.insert(target_id.clone()) {
-                    queue.push_back((target_id, current_depth + 1));
+            if let Some((target_id, _)) = &link.target
+                && visited.insert(target_id.clone()) {
+                    queue.push_back((target_id.clone(), current_depth + 1));
                 }
-            }
         }
 
-        for link in link_rows.iter().filter(|row| {
-            resolve_target(&note_index, &row.to_path)
-                .map(|(id, _)| id == current_id)
-                .unwrap_or(false)
-        }) {
-            let edge_id = link.id.clone();
+        for link in incoming.get(current_id.as_str()).into_iter().flatten() {
+            let edge_id = link.row.id.clone();
             if edge_ids.insert(edge_id.clone()) {
                 edges.push(GraphEdge {
                     id: edge_id,
-                    source: link.from_note_id.clone(),
+                    source: link.row.from_note_id.clone(),
                     target: current_id.clone(),
-                    kind: link.kind.clone(),
+                    kind: link.row.kind.clone(),
                 });
             }
 
-            if visited.insert(link.from_note_id.clone()) {
-                queue.push_back((link.from_note_id.clone(), current_depth + 1));
+            if visited.insert(link.row.from_note_id.clone()) {
+                queue.push_back((link.row.from_note_id.clone(), current_depth + 1));
             }
         }
     }
 
+    // Sort visited ids so node emission (and thus tie-breaking among equal
+    // labels after the final sort) is deterministic.
+    let mut visited_ids: Vec<String> = visited.into_iter().collect();
+    visited_ids.sort();
+
     let mut nodes = Vec::new();
-    for node_id in visited {
-        if let Some(note) = note_index.values().find(|row| row.id == node_id) {
+    for node_id in visited_ids {
+        if let Some(note) = id_to_note.get(node_id.as_str()) {
             let color = note_tags
                 .get(&note.id)
                 .and_then(|tags| {
@@ -221,6 +246,12 @@ struct LinkRow {
     from_note_id: String,
     to_path: String,
     kind: String,
+}
+
+/// A link row with its target resolution computed once, up front.
+struct ResolvedLink<'a> {
+    row: &'a LinkRow,
+    target: Option<(String, String)>,
 }
 
 fn load_note_tags(

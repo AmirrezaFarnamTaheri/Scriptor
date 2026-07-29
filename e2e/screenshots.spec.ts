@@ -78,7 +78,9 @@ async function waitForSettingsReady(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
   await expect(dialog.locator('dd').first()).not.toHaveText('Checking...', { timeout: 20_000 })
-  await expect(dialog.getByText('3.1.11')).toBeVisible({ timeout: 20_000 })
+  // Version-agnostic: assert a resolved semver-ish version is rendered rather
+  // than pinning a literal that breaks on every Pandoc/app version bump.
+  await expect(dialog.getByText(/^\d+\.\d+(\.\d+)*$/).first()).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(500)
 }
 

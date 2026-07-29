@@ -55,7 +55,7 @@ pub fn restore_template_checkpoint(
     vault_root: &Path,
     patch_id: &str,
 ) -> Result<CanvasDocument, CanvasError> {
-    let file = patches_dir(vault_root).join(format!("template-{patch_id}.json"));
+    let file = checkpoint_path(vault_root, patch_id)?;
     let raw = fs::read_to_string(&file).map_err(|source| CanvasError::IoRead {
         path: file.clone(),
         source,
@@ -88,7 +88,7 @@ fn write_undo_checkpoint(
         patch_log: preview.patch_log.clone(),
     };
 
-    let file = dir.join(format!("template-{patch_id}.json"));
+    let file = checkpoint_path(vault_root, patch_id)?;
     let payload = serde_json::to_string_pretty(&checkpoint)
         .map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
     fs::write(&file, &payload).map_err(|source| CanvasError::IoWrite {
@@ -104,4 +104,98 @@ fn write_undo_checkpoint(
 
 fn patches_dir(vault_root: &Path) -> std::path::PathBuf {
     vault_root.join(".scriptor/canvas/patches")
+}
+
+/// Resolve the checkpoint file for `patch_id`, rejecting anything that is not a
+/// plain identifier.
+///
+/// `patch_id` reaches this crate straight from an IPC payload. Interpolating it
+/// into a file name unchecked let `x/../../../../etc/hosts` escape the patches
+/// directory and have an arbitrary file read and JSON-parsed.
+fn checkpoint_path(vault_root: &Path, patch_id: &str) -> Result<std::path::PathBuf, CanvasError> {
+    validate_patch_id(patch_id)?;
+    Ok(patches_dir(vault_root).join(format!("template-{patch_id}.json")))
+}
+
+/// Longest accepted patch id. Real ids are UUIDs (36 chars).
+const MAX_PATCH_ID_LEN: usize = 64;
+
+fn validate_patch_id(patch_id: &str) -> Result<(), CanvasError> {
+    if patch_id.is_empty() || patch_id.len() > MAX_PATCH_ID_LEN {
+        return Err(CanvasError::InvalidDocument(format!(
+            "invalid patch id: must be 1..={MAX_PATCH_ID_LEN} characters"
+        )));
+    }
+    if !patch_id
+        .bytes()
+        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    {
+        return Err(CanvasError::InvalidDocument(
+            "invalid patch id: only [A-Za-z0-9_-] are allowed".into(),
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::templates::empty_document;
+
+    #[test]
+    fn traversal_patch_ids_are_rejected() {
+        let root = Path::new("/vault");
+        for hostile in [
+            "x/../../../../etc/hosts",
+            "../../secret",
+            "..",
+            "a/b",
+            "a\\b",
+            "a\0b",
+            "",
+            "a.json",
+            "%2e%2e",
+        ] {
+            let error = checkpoint_path(root, hostile)
+                .err()
+                .unwrap_or_else(|| panic!("patch id {hostile:?} must be rejected"));
+            assert!(matches!(error, CanvasError::InvalidDocument(_)));
+        }
+    }
+
+    #[test]
+    fn restore_rejects_traversal_without_touching_the_filesystem() {
+        let temp = std::env::temp_dir().join(format!("scriptor-canvas-apply-{}", Uuid::new_v4()));
+        let error = restore_template_checkpoint(&temp, "x/../../../../etc/hosts")
+            .expect_err("traversal must be rejected");
+        assert!(matches!(error, CanvasError::InvalidDocument(_)));
+    }
+
+    #[test]
+    fn overlong_patch_id_is_rejected() {
+        let id = "a".repeat(MAX_PATCH_ID_LEN + 1);
+        assert!(checkpoint_path(Path::new("/vault"), &id).is_err());
+    }
+
+    #[test]
+    fn uuid_patch_ids_are_accepted() {
+        let id = Uuid::new_v4().to_string();
+        let path = checkpoint_path(Path::new("/vault"), &id).expect("uuid is a valid patch id");
+        assert!(path.ends_with(format!("template-{id}.json")));
+    }
+
+    #[test]
+    fn apply_then_restore_round_trips() {
+        let temp = std::env::temp_dir().join(format!("scriptor-canvas-apply-rt-{}", Uuid::new_v4()));
+        fs::create_dir_all(&temp).expect("temp");
+
+        let document = empty_document("vault-1", "Board");
+        let applied = apply_template(&temp, &document, "weekly-plan").expect("apply");
+        assert!(applied.blocks_added > 0);
+
+        let restored = restore_template_checkpoint(&temp, &applied.patch_id).expect("restore");
+        assert_eq!(restored.blocks.len(), document.blocks.len());
+
+        let _ = fs::remove_dir_all(&temp);
+    }
 }

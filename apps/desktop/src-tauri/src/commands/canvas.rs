@@ -71,11 +71,13 @@ pub fn canvas_list_templates() -> Result<Vec<scriptor_canvas_engine::CanvasTempl
 
 #[tauri::command]
 pub fn canvas_snapshot(
+    state: tauri::State<AppState>,
     scene_json: String,
     format: String,
     output_path: String,
     dry_run: bool,
 ) -> Result<scriptor_canvas_engine::SnapshotOutput, String> {
+    let session = active_session(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     let snapshot_format = match format.as_str() {
         "svg" => SnapshotFormat::Svg,
@@ -83,13 +85,21 @@ pub fn canvas_snapshot(
         "pdf" => SnapshotFormat::Pdf,
         other => return Err(format!("unsupported snapshot format: {other}")),
     };
-    write_snapshot(
-        &document,
-        std::path::Path::new(&output_path),
-        snapshot_format,
-        dry_run,
-    )
-    .map_err(|error| error.to_string())
+    // Only vault-relative output paths are accepted (the frontend passes
+    // `.scriptor/exports/<id>.<ext>`); traversal, absolute paths, and symlink
+    // escapes are rejected by the vault path resolution.
+    let relative = scriptor_vault::RelativeVaultPath::parse(&output_path)
+        .map_err(|error| format!("invalid output_path: {error}"))?;
+    let resolved = session
+        .root
+        .resolve_relative(&relative)
+        .map_err(|error| error.to_string())?;
+    if !dry_run
+        && let Some(parent) = resolved.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|error| format!("failed to create snapshot directory: {error}"))?;
+        }
+    write_snapshot(&document, &resolved, snapshot_format, dry_run).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

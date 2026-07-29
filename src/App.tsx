@@ -33,6 +33,8 @@ import { RenameSectionDialog } from './components/RenameSectionDialog'
 import { RenameTagDialog } from './components/RenameTagDialog'
 import { CommandPalette } from './components/CommandPalette'
 import { AppToast } from './components/AppToast'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { PanelErrorFallback } from './components/PanelErrorFallback'
 import type { SystemInfoSnapshot } from './components/SettingsPanel'
 import { type StatusDockTab } from './components/StatusDockPanel'
 import { ConflictResolverModal } from './components/ConflictResolverModal'
@@ -194,6 +196,12 @@ function App() {
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
   const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
   const journey = useJourneyMetrics()
+  const {
+    markVaultOpen: journeyMarkVaultOpen,
+    markIndexRebuild: journeyMarkIndexRebuild,
+    markExport: journeyMarkExport,
+    recordPanelOpen: journeyRecordPanelOpen,
+  } = journey
   const { presentation: panelPresentation, setPresentation: setPanelPresentation } = usePanelPresentation()
   const [inspectorPreset, setInspectorPreset] = useState<InspectorPreset>(() => readInspectorPreset())
   const [bibliographyRaw, setBibliographyRaw] = useState<BibliographyEntry[]>([])
@@ -269,6 +277,12 @@ function App() {
     () => window.localStorage.getItem('scriptor:perf-hud') === 'true',
   )
   const perfMetrics = usePerfMetrics()
+  const {
+    markVaultOpenStart: perfMarkVaultOpenStart,
+    markVaultOpenEnd: perfMarkVaultOpenEnd,
+    setWorkspaceCounts: perfSetWorkspaceCounts,
+    setGraphNodeCount: perfSetGraphNodeCount,
+  } = perfMetrics
   const [frontmatterOpen, setFrontmatterOpen] = useState(false)
   const [vaultTags, setVaultTags] = useState<string[]>([])
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
@@ -313,11 +327,12 @@ function App() {
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
   const recentVaults = useRecentVaults()
+  const rememberRecentVault = recentVaults.remember
   useEffect(() => {
     if (workspace.vault?.root_path) {
-      recentVaults.remember(workspace.vault.root_path)
+      rememberRecentVault(workspace.vault.root_path)
     }
-  }, [recentVaults, workspace.vault?.root_path])
+  }, [rememberRecentVault, workspace.vault?.root_path])
   const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph, activeNote } = workspace
 
   useEffect(() => {
@@ -639,21 +654,21 @@ function App() {
 
   useEffect(() => {
     if (workspace.vault) {
-      journey.markVaultOpen()
+      journeyMarkVaultOpen()
     }
-  }, [workspace.vault?.id, journey])
+  }, [workspace.vault?.id, journeyMarkVaultOpen])
 
   useEffect(() => {
     if (workspace.lastRebuildMs != null) {
-      journey.markIndexRebuild(workspace.lastRebuildMs)
+      journeyMarkIndexRebuild(workspace.lastRebuildMs)
     }
-  }, [workspace.lastRebuildMs, journey])
+  }, [workspace.lastRebuildMs, journeyMarkIndexRebuild])
 
   useEffect(() => {
     if (workspace.exportResult) {
-      journey.markExport()
+      journeyMarkExport()
     }
-  }, [workspace.exportResult?.artifact_path, journey])
+  }, [workspace.exportResult?.artifact_path, journeyMarkExport])
 
   useEffect(() => {
     const layout = layouts[workspaceMode]
@@ -664,17 +679,17 @@ function App() {
   }, [workspaceMode, layouts])
 
   useEffect(() => {
-    if (gitPanelOpen) journey.recordPanelOpen('git')
-  }, [gitPanelOpen, journey])
+    if (gitPanelOpen) journeyRecordPanelOpen('git')
+  }, [gitPanelOpen, journeyRecordPanelOpen])
   useEffect(() => {
-    if (mcpPanelOpen) journey.recordPanelOpen('mcp')
-  }, [mcpPanelOpen, journey])
+    if (mcpPanelOpen) journeyRecordPanelOpen('mcp')
+  }, [mcpPanelOpen, journeyRecordPanelOpen])
   useEffect(() => {
-    if (portalOpen) journey.recordPanelOpen('portal')
-  }, [portalOpen, journey])
+    if (portalOpen) journeyRecordPanelOpen('portal')
+  }, [portalOpen, journeyRecordPanelOpen])
   useEffect(() => {
-    if (knowledgeWorkbenchOpen) journey.recordPanelOpen('workbench')
-  }, [knowledgeWorkbenchOpen, journey])
+    if (knowledgeWorkbenchOpen) journeyRecordPanelOpen('workbench')
+  }, [knowledgeWorkbenchOpen, journeyRecordPanelOpen])
 
   useEffect(() => {
     if (!nativeReady || !workspace.vault) {
@@ -706,20 +721,20 @@ function App() {
 
   useEffect(() => {
     if (workspace.status === 'opening') {
-      perfMetrics.markVaultOpenStart()
+      perfMarkVaultOpenStart()
     }
     if (workspace.status === 'ready') {
-      perfMetrics.markVaultOpenEnd()
+      perfMarkVaultOpenEnd()
     }
-  }, [workspace.status, perfMetrics])
+  }, [workspace.status, perfMarkVaultOpenStart, perfMarkVaultOpenEnd])
 
   useEffect(() => {
-    perfMetrics.setWorkspaceCounts(workspace.openTabs.length, workspace.sections.length)
-  }, [workspace.openTabs.length, workspace.sections.length, perfMetrics])
+    perfSetWorkspaceCounts(workspace.openTabs.length, workspace.sections.length)
+  }, [workspace.openTabs.length, workspace.sections.length, perfSetWorkspaceCounts])
 
   useEffect(() => {
-    perfMetrics.setGraphNodeCount(workspace.graph?.nodes.length ?? null)
-  }, [workspace.graph?.nodes.length, perfMetrics])
+    perfSetGraphNodeCount(workspace.graph?.nodes.length ?? null)
+  }, [workspace.graph?.nodes.length, perfSetGraphNodeCount])
 
   const draftWordCount = useMemo(() => countWords(workspace.draftMarkdown), [workspace.draftMarkdown])
   const savedWordCount = workspace.activeNote?.metadata.word_count ?? 0
@@ -1077,6 +1092,100 @@ function App() {
     [draftWordCount, workspace.health, workspace.inspectorLinks.length],
   )
 
+  // --- Stable handlers for the memoized VaultSidebar -------------------------
+  // `workspace` is a fresh object every render, so these deliberately depend on
+  // the individual (useCallback-stable) members rather than on `workspace`.
+  const {
+    chooseVaultFolder: workspaceChooseVaultFolder,
+    createNote: workspaceCreateNote,
+    createNoteOfType: workspaceCreateNoteOfType,
+    createNoteFromTemplate: workspaceCreateNoteFromTemplate,
+    rebuildIndex: workspaceRebuildIndex,
+    createDailyNote: workspaceCreateDailyNote,
+    createDailyNoteForOffset: workspaceCreateDailyNoteForOffset,
+    organizeNote: workspaceOrganizeNote,
+    openNote: workspaceOpenNote,
+    closeTab: workspaceCloseTab,
+    refreshVault: workspaceRefreshVault,
+    importDroppedFiles: workspaceImportDroppedFiles,
+  } = workspace
+
+  const handleChooseVault = useCallback(() => {
+    void workspaceChooseVaultFolder()
+  }, [workspaceChooseVaultFolder])
+  const handleCreateNote = useCallback(() => {
+    void workspaceCreateNote()
+  }, [workspaceCreateNote])
+  const handleCreateNoteOfType = useCallback(
+    (typeName: string) => {
+      void workspaceCreateNoteOfType(typeName)
+    },
+    [workspaceCreateNoteOfType],
+  )
+  const handleCreateNoteFromTemplate = useCallback(
+    (templatePath: string) => {
+      void workspaceCreateNoteFromTemplate(templatePath)
+    },
+    [workspaceCreateNoteFromTemplate],
+  )
+  const handleRebuildIndex = useCallback(() => {
+    void workspaceRebuildIndex()
+  }, [workspaceRebuildIndex])
+  const handleOpenTags = useCallback(() => openKnowledgeWorkbench('tags'), [openKnowledgeWorkbench])
+  const handleOpenFilters = useCallback(() => openKnowledgeWorkbench('repair'), [openKnowledgeWorkbench])
+  const handleOpenSavedViews = useCallback(() => openKnowledgeWorkbench('views'), [openKnowledgeWorkbench])
+  const handleOpenSnippets = useCallback(() => setSnippetsOpen(true), [])
+  const handleOpenSettings = useCallback(() => setSettingsOpen(true), [])
+  const handleCreateDailyNote = useCallback(() => {
+    void workspaceCreateDailyNote()
+  }, [workspaceCreateDailyNote])
+  const handleCreateDailyNoteOffset = useCallback(
+    (offset: number) => {
+      void workspaceCreateDailyNoteForOffset(offset)
+    },
+    [workspaceCreateDailyNoteForOffset],
+  )
+  const handleOrganizeNote = useCallback(
+    (path: string) => {
+      void workspaceOrganizeNote(path)
+    },
+    [workspaceOrganizeNote],
+  )
+  const handleOpenNote = useCallback(
+    (path: string) => {
+      void workspaceOpenNote(path)
+    },
+    [workspaceOpenNote],
+  )
+  const handleRenameNote = useCallback((path: string) => {
+    setRenameTargetPath(path)
+    setRenameOpen(true)
+  }, [])
+  const handleDeleteNote = useCallback(
+    (path: string) => {
+      if (!window.confirm(`Delete "${path}"?`)) return
+      void vaultDeleteNote(path).then(() => {
+        workspaceCloseTab(path)
+        void workspaceRebuildIndex()
+        void workspaceRefreshVault()
+      })
+    },
+    [workspaceCloseTab, workspaceRebuildIndex, workspaceRefreshVault],
+  )
+  const handleImportFiles = useCallback(
+    async (files: FileList) => {
+      const paths = await workspaceImportDroppedFiles(files, { filter: isMarkdownFile })
+      if (paths.length > 0) {
+        showToast(`Imported ${paths.length} note${paths.length === 1 ? '' : 's'}`)
+        void workspaceRefreshVault()
+      }
+      return paths
+    },
+    [workspaceImportDroppedFiles, showToast, workspaceRefreshVault],
+  )
+  const handleDeleteNoteIfNative = nativeReady ? handleDeleteNote : undefined
+  const handleImportFilesIfNative = nativeReady ? handleImportFiles : undefined
+
   return (
     <main className="app-shell" aria-label={BRAND_WORKSPACE_LABEL} data-workspace-mode={workspaceMode}>
       <div className="app-chrome">
@@ -1164,50 +1273,25 @@ function App() {
           templatePaths={workspace.templatePaths}
           onSidebarViewChange={workspace.setSidebarView}
           onCollapsedFoldersChange={setCollapsedFolders}
-          onChooseVault={() => void workspace.chooseVaultFolder()}
-          onCreateNote={() => void workspace.createNote()}
-          onCreateNoteOfType={(typeName) => void workspace.createNoteOfType(typeName)}
-          onCreateNoteFromTemplate={(templatePath) => void workspace.createNoteFromTemplate(templatePath)}
-          onRebuildIndex={() => void workspace.rebuildIndex()}
-          onOpenTags={() => openKnowledgeWorkbench('tags')}
-          onOpenFilters={() => openKnowledgeWorkbench('repair')}
-          onOpenSavedViews={() => openKnowledgeWorkbench('views')}
-          onOpenSnippets={() => setSnippetsOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onCreateDailyNote={() => void workspace.createDailyNote()}
-          onCreateDailyNoteOffset={(offset) => void workspace.createDailyNoteForOffset(offset)}
+          onChooseVault={handleChooseVault}
+          onCreateNote={handleCreateNote}
+          onCreateNoteOfType={handleCreateNoteOfType}
+          onCreateNoteFromTemplate={handleCreateNoteFromTemplate}
+          onRebuildIndex={handleRebuildIndex}
+          onOpenTags={handleOpenTags}
+          onOpenFilters={handleOpenFilters}
+          onOpenSavedViews={handleOpenSavedViews}
+          onOpenSnippets={handleOpenSnippets}
+          onOpenSettings={handleOpenSettings}
+          onCreateDailyNote={handleCreateDailyNote}
+          onCreateDailyNoteOffset={handleCreateDailyNoteOffset}
           dailyNoteLabel={dailyNoteLabel}
-          onOrganizeNote={(path) => void workspace.organizeNote(path)}
+          onOrganizeNote={handleOrganizeNote}
           onSearchQueryChange={workspace.setVaultSearchQuery}
-          onOpenNote={(path) => void workspace.openNote(path)}
-          onRenameNote={(path) => {
-            setRenameTargetPath(path)
-            setRenameOpen(true)
-          }}
-          onDeleteNote={
-            nativeReady
-              ? (path) => {
-                  if (!window.confirm(`Delete "${path}"?`)) return
-                  void vaultDeleteNote(path).then(() => {
-                    workspace.closeTab(path)
-                    void workspace.rebuildIndex()
-                    void workspace.refreshVault()
-                  })
-                }
-              : undefined
-          }
-          onImportFiles={
-            nativeReady
-              ? async (files) => {
-                  const paths = await workspace.importDroppedFiles(files, { filter: isMarkdownFile })
-                  if (paths.length > 0) {
-                    showToast(`Imported ${paths.length} note${paths.length === 1 ? '' : 's'}`)
-                    void workspace.refreshVault()
-                  }
-                  return paths
-                }
-              : undefined
-          }
+          onOpenNote={handleOpenNote}
+          onRenameNote={handleRenameNote}
+          onDeleteNote={handleDeleteNoteIfNative}
+          onImportFiles={handleImportFilesIfNative}
           recentNotes={recentNotes}
         />
 
@@ -1496,6 +1580,11 @@ function App() {
       />
 
       {canvasOpen && (
+        <ErrorBoundary
+          name="canvas-panel"
+          resetKeys={[workspace.activePath]}
+          fallback={<PanelErrorFallback title="The canvas" onDismiss={() => setCanvasOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <CanvasPanel
           key={workspace.vault?.id ?? 'no-vault'}
@@ -1509,6 +1598,7 @@ function App() {
           onOpenNote={(path) => void workspace.openNote(path)}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       <CommandPalette
@@ -1520,6 +1610,11 @@ function App() {
       />
 
       {graphOpen && (
+        <ErrorBoundary
+          name="graph-panel"
+          resetKeys={[workspace.activePath]}
+          fallback={<PanelErrorFallback title="The graph" onDismiss={() => setGraphOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <GraphPanel
           graph={workspace.graph}
@@ -1549,9 +1644,14 @@ function App() {
           onToggleHibernate={() => setHibernateGraph((prev) => !prev)}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {mcpPanelOpen && (
+        <ErrorBoundary
+          name="mcp-panel"
+          fallback={<PanelErrorFallback title="The MCP panel" onDismiss={() => setMcpPanelOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <McpPanel
           mode={mcp.mode}
@@ -1596,9 +1696,14 @@ function App() {
           }}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {gitPanelOpen && (
+        <ErrorBoundary
+          name="git-panel"
+          fallback={<PanelErrorFallback title="The Git panel" onDismiss={() => setGitPanelOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <GitPanel
           status={workspace.gitStatus}
@@ -1626,6 +1731,7 @@ function App() {
           }
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {writingTargetsOpen && (
@@ -1682,6 +1788,10 @@ function App() {
       ) : null}
 
       {healthDashboardOpen && (
+        <ErrorBoundary
+          name="vault-health-panel"
+          fallback={<PanelErrorFallback title="Vault health" onDismiss={() => setHealthDashboardOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <VaultHealthDashboard
           diagnostics={workspace.healthDiagnostics}
@@ -1705,6 +1815,7 @@ function App() {
           isFixingVaultLint={workspace.isFixingVaultLint}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {frontmatterOpen && workspace.activePath ? (
@@ -1717,6 +1828,10 @@ function App() {
       ) : null}
 
       {settingsOpen && (
+        <ErrorBoundary
+          name="settings-panel"
+          fallback={<PanelErrorFallback title="Settings" onDismiss={() => setSettingsOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <SettingsPanel
           vaultOpen={Boolean(workspace.vault)}
@@ -1790,9 +1905,14 @@ function App() {
           }}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {bibliographyOpen && (
+        <ErrorBoundary
+          name="bibliography-panel"
+          fallback={<PanelErrorFallback title="The bibliography" onDismiss={() => setBibliographyOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <BibliographyPanel
           entries={bibliography}
@@ -1818,9 +1938,15 @@ function App() {
           }
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {knowledgeWorkbenchOpen && (
+        <ErrorBoundary
+          name="knowledge-workbench"
+          resetKeys={[workspace.activePath]}
+          fallback={<PanelErrorFallback title="The workbench" onDismiss={() => setKnowledgeWorkbenchOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <KnowledgeWorkbench
             vaultOpen={Boolean(workspace.vault)}
@@ -1845,9 +1971,15 @@ function App() {
             promptText={promptText}
           />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {publishCenterOpen && (
+        <ErrorBoundary
+          name="publish-center"
+          resetKeys={[workspace.activePath]}
+          fallback={<PanelErrorFallback title="Publish Center" onDismiss={() => setPublishCenterOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <PublishCenter
             activePath={workspace.activePath}
@@ -1867,9 +1999,14 @@ function App() {
             onPublishStarlight={() => void publishStarlight()}
           />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {snippetsOpen && (
+        <ErrorBoundary
+          name="snippets-panel"
+          fallback={<PanelErrorFallback title="Snippets" onDismiss={() => setSnippetsOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <SnippetsPanelLazy
           vaultOpen={Boolean(workspace.vault)}
@@ -1877,6 +2014,7 @@ function App() {
           onSaved={() => void workspace.refreshVaultSnippets()}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {cheatsheetOpen ? <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} /> : null}
@@ -1892,6 +2030,10 @@ function App() {
       {supportOpen ? <SupportPanel onClose={() => setSupportOpen(false)} /> : null}
 
       {portalOpen ? (
+        <ErrorBoundary
+          name="portal-panel"
+          fallback={<PanelErrorFallback title="The portal" onDismiss={() => setPortalOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <PortalPanel
           categories={workspaceStore.portal.categories}
@@ -1916,9 +2058,14 @@ function App() {
           onOpenNote={(path) => void workspace.openNote(path)}
         />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       {quickCaptureOpen ? (
+        <ErrorBoundary
+          name="quick-capture-panel"
+          fallback={<PanelErrorFallback title="Quick capture" onDismiss={() => setQuickCaptureOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <QuickCapturePanel
           scratchpad={workspaceStore.quickCapture.scratchpad}
@@ -2033,9 +2180,15 @@ function App() {
           }}
         />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       {noteHistoryOpen ? (
+        <ErrorBoundary
+          name="note-history-panel"
+          resetKeys={[workspace.activePath]}
+          fallback={<PanelErrorFallback title="Note history" onDismiss={() => setNoteHistoryOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <NoteHistoryPanel
             path={workspace.activePath}
@@ -2046,6 +2199,7 @@ function App() {
             }}
           />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       <StickyNotesLayer

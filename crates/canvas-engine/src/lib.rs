@@ -17,10 +17,13 @@ pub use scene::{
     parse_document_json, document_to_json, CanvasBlock, CanvasBlockKind, CanvasDocument,
     CanvasLayer, CanvasMode, CanvasPoint, CanvasRect, CanvasTemplate,
 };
-pub use snapshot::{render_svg, write_snapshot, SnapshotFormat, SnapshotOutput};
+pub use snapshot::{
+    render_svg, write_snapshot, SnapshotFormat, SnapshotOutput, MAX_SNAPSHOT_DIMENSION,
+};
 pub use snapshot_raster::{write_png_from_svg, write_png_from_svg_async};
 pub use store::{
-    canvas_boards_dir, list_documents, load_document, save_document, CanvasDocumentSummary,
+    canvas_boards_dir, list_documents, list_documents_reporting_skipped, load_document,
+    save_document, CanvasDocumentSummary,
 };
 pub use templates::{
     apply_template_dry_run, empty_document, list_templates, TemplateApplyPreview,

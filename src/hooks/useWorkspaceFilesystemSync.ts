@@ -1,5 +1,5 @@
 import type { MutableRefObject } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { subscribeVaultEvents } from '../bridge/vaultEvents'
@@ -26,6 +26,8 @@ export function useWorkspaceFilesystemSync({
   hibernated = false,
   hibernateGit = false,
 }: UseWorkspaceFilesystemSyncOptions) {
+  const pendingPathsRef = useRef<Set<string>>(new Set())
+
   useEffect(() => {
     if (!vault || !isNativeBridgeAvailable() || hibernated) {
       return
@@ -53,6 +55,7 @@ export function useWorkspaceFilesystemSync({
 
     let active = true
     let unlisten: (() => void) | undefined
+    const pendingPaths = pendingPathsRef.current
 
     void subscribeVaultEvents({
       onFilesystemChanged: (payload) => {
@@ -65,11 +68,19 @@ export function useWorkspaceFilesystemSync({
           void checkExternalChangesRef.current()
         }
 
+        for (const event of payload.events) {
+          pendingPaths.add(event.path)
+        }
+
         if (vaultRefreshTimer.current) {
           window.clearTimeout(vaultRefreshTimer.current)
         }
         vaultRefreshTimer.current = window.setTimeout(() => {
-          void applyFilesystemChangesRef.current(payload.events.map((event) => event.path))
+          const paths = Array.from(pendingPaths)
+          pendingPaths.clear()
+          if (paths.length > 0) {
+            void applyFilesystemChangesRef.current(paths)
+          }
         }, 500)
       },
     }).then((dispose) => {
@@ -86,6 +97,7 @@ export function useWorkspaceFilesystemSync({
       if (vaultRefreshTimer.current) {
         window.clearTimeout(vaultRefreshTimer.current)
       }
+      pendingPaths.clear()
     }
   }, [
     activePathRef,

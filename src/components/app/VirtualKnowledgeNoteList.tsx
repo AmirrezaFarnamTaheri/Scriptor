@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 
 import type { KnowledgeNoteSummary } from '../../types/vault'
 
@@ -11,13 +11,13 @@ interface VirtualKnowledgeNoteListProps {
   onTriageNext?: (path: string) => void
 }
 
-export function VirtualKnowledgeNoteList({
+function VirtualKnowledgeNoteListImpl({
   notes,
   onOpenNote,
   triageLabel,
   onTriageNext,
 }: VirtualKnowledgeNoteListProps) {
-  const containerRef = useRef<HTMLUListElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState(360)
   const [scrollTop, setScrollTop] = useState(0)
 
@@ -35,13 +35,15 @@ export function VirtualKnowledgeNoteList({
   const endIndex = Math.min(notes.length, startIndex + visibleCount)
 
   return (
-    <ul
+    <div
       ref={containerRef}
-      className="virtual-note-list knowledge-note-list virtual-knowledge-list"
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
       style={{ maxHeight: 'min(52vh, 560px)', overflow: 'auto' }}
     >
-      <div style={{ height: totalHeight, position: 'relative' }}>
+      <ul
+        className="virtual-note-list knowledge-note-list virtual-knowledge-list"
+        style={{ height: totalHeight, position: 'relative' }}
+      >
         {notes.slice(startIndex, endIndex).map((note, offset) => {
           const index = startIndex + offset
           return (
@@ -70,7 +72,13 @@ export function VirtualKnowledgeNoteList({
             </li>
           )
         })}
-      </div>
-    </ul>
+      </ul>
+    </div>
   )
 }
+
+/**
+ * Memoized: this subtree re-renders on every App-level render (including every
+ * keystroke in the editor draft) even though its own props rarely change.
+ */
+export const VirtualKnowledgeNoteList = memo(VirtualKnowledgeNoteListImpl)

@@ -65,7 +65,7 @@ impl TantivyIndex {
 
     pub fn index_note(&self, path: &str, title: &str, body: &str) -> Result<(), TantivyError> {
         let mut writer = self.writer.lock().map_err(|e| {
-            TantivyError::Io(std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+            TantivyError::Io(std::io::Error::other(e.to_string()))
         })?;
 
         let term = tantivy::Term::from_field_text(self.path_field, path);
@@ -259,7 +259,7 @@ mod tests {
             h.join().unwrap();
         }
         let hits = index.search("body", 10).unwrap();
-        assert!(hits.len() >= 1);
+        assert!(!hits.is_empty());
     }
 
     #[test]

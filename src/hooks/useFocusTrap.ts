@@ -40,18 +40,14 @@ export function useFocusTrap<T extends HTMLElement>(
 
     const previouslyFocused = document.activeElement as HTMLElement | null
 
+    let rafId: number | null = null
     if (initialFocus) {
       // Defer one frame so children mount before we search for focusable nodes.
-      const id = window.requestAnimationFrame(() => {
+      rafId = window.requestAnimationFrame(() => {
+        rafId = null
         const first = container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
         first?.focus()
       })
-      // Cleanup rAF if effect tears down before it fires.
-      return () => {
-        window.cancelAnimationFrame(id)
-        const target = restoreTo ?? previouslyFocused
-        target?.focus?.()
-      }
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
@@ -82,6 +78,10 @@ export function useFocusTrap<T extends HTMLElement>(
 
     document.addEventListener('keydown', onKeyDown)
     return () => {
+      // Cleanup rAF if effect tears down before it fires.
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId)
+      }
       document.removeEventListener('keydown', onKeyDown)
       const target = restoreTo ?? previouslyFocused
       target?.focus?.()

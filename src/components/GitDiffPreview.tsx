@@ -1,3 +1,5 @@
+import { useMemo } from 'react'
+
 import { buildLineDiff, summarizeDiff, type DiffLine } from '../lib/simpleDiff'
 
 interface GitDiffPreviewProps {
@@ -19,7 +21,7 @@ function DiffRow({ row }: { row: DiffLine }) {
 }
 
 export function GitDiffPreview({ path, before, after }: GitDiffPreviewProps) {
-  const rows = buildLineDiff(before, after)
+  const rows = useMemo(() => buildLineDiff(before, after), [before, after])
   const summary = summarizeDiff(rows)
   const changedOnly = rows.filter((row) => row.kind !== 'same')
 

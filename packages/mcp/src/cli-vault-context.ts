@@ -1,12 +1,20 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
-import type { McpVaultContext } from './runtime.ts'
+import { assertVaultRelativePath, type McpVaultContext } from './runtime.ts'
 
 const execFileAsync = promisify(execFile)
 
 function resolveCliBinary(): string {
   return process.env.SCRIPTOR_CLI?.trim() || 'scriptor'
+}
+
+/** Reject values that the CLI would otherwise parse as flags. */
+function assertSafeCliValue(value: string, name: string): string {
+  if (value.startsWith('-')) {
+    throw new Error(`${name} must not start with "-"`)
+  }
+  return value
 }
 
 async function runCliJson<T>(args: string[]): Promise<T> {
@@ -26,23 +34,25 @@ export function createCliVaultContext(vaultPath: string): McpVaultContext {
         'search',
         vaultPath,
         '--query',
-        query,
+        assertSafeCliValue(query, 'query'),
         '--limit',
         String(limit),
       ])
       return hits
     },
     readNote: async (path) => {
+      assertVaultRelativePath(path)
       const document = await runCliJson<{ metadata: { title: string; content_hash: string }; markdown: string }>([
         'read',
         vaultPath,
         '--note',
-        path,
+        assertSafeCliValue(path, 'path'),
       ])
       return document
     },
     backlinks: async (path) => {
-      return runCliJson<unknown[]>(['backlinks', vaultPath, '--note', path])
+      assertVaultRelativePath(path)
+      return runCliJson<unknown[]>(['backlinks', vaultPath, '--note', assertSafeCliValue(path, 'path')])
     },
     brokenLinks: async () => {
       const diagnostics = await runCliJson<{

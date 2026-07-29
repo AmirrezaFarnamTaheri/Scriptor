@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -196,6 +196,7 @@ fn lint_note_markdown(
     note_paths: &[String],
     rules: &[String],
 ) -> Vec<LintIssue> {
+    let markdown = &crate::text::to_lf(markdown);
     let mut issues = Vec::new();
     for rule in rules {
         match rule.as_str() {
@@ -213,7 +214,11 @@ fn apply_fixes(
     note_paths: &[String],
     rules: &[String],
 ) -> Result<(String, u32), VaultError> {
-    let mut updated = markdown.to_string();
+    // Work on an LF-normalized copy and restore the document's own line-ending
+    // style at the end, so fixing one line in a CRLF note does not rewrite every
+    // line ending in the file.
+    let style = crate::text::LineStyle::detect(markdown);
+    let mut updated = crate::text::to_lf(markdown);
     let mut count = 0u32;
 
     for rule in rules {
@@ -234,7 +239,7 @@ fn apply_fixes(
         }
     }
 
-    Ok((updated, count))
+    Ok((style.restore(&updated), count))
 }
 
 fn check_missing_heading(path: &str, markdown: &str) -> Vec<LintIssue> {
@@ -301,40 +306,38 @@ fn check_stale_definitions(markdown: &str, note_paths: &[String]) -> Vec<LintIss
 }
 
 fn rebuild_with_definitions(markdown: &str, note_paths: &[String]) -> Option<String> {
-    let expected = expected_link_definitions(markdown, note_paths);
-    let (body, existing) = split_body_and_definitions(markdown);
-    let mut target = BTreeMap::new();
+    let split = split_body_and_definitions(markdown);
+    let expected = expected_link_definitions(&split.body, note_paths);
 
-    for (label, url) in expected {
-        target.insert(label, url);
-    }
-    for (label, range) in &existing {
-        if range.url.contains("://") {
-            target.entry(label.clone()).or_insert_with(|| range.url.clone());
-        }
-    }
-
-    let current: Vec<String> = existing
-        .iter()
-        .map(|(label, range)| format!("[{label}]: {}", range.url))
-        .collect();
-    let desired: Vec<String> = target
+    let desired: Vec<String> = expected
         .iter()
         .map(|(label, url)| format!("[{label}]: {url}"))
         .collect();
 
-    if current == desired {
-        return None;
-    }
+    // Hand-written definitions pass through verbatim and keep their original
+    // order; only machine-managed ones (labels that a body wikilink points at)
+    // are regenerated.
+    let mut definitions = split.preserved;
+    definitions.extend(desired);
 
-    let mut output = body.trim_end().to_string();
-    if !desired.is_empty() {
-        if !output.is_empty() {
-            output.push_str("\n\n");
+    let mut output = split.body;
+    if definitions.is_empty() {
+        // No definition block at all: keep the body byte-for-byte, including any
+        // trailing blank lines, and restore the document's final newline.
+        if markdown.ends_with('\n') && !output.ends_with('\n') {
+            output.push('\n');
         }
-        output.push_str(&desired.join("\n"));
-        output.push('\n');
-    } else if markdown.ends_with('\n') && !output.ends_with('\n') {
+    } else {
+        if !output.is_empty() {
+            // A body that already ends in a newline carries the user's own
+            // trailing blank lines; only add the single separator line.
+            if output.ends_with('\n') {
+                output.push('\n');
+            } else {
+                output.push_str("\n\n");
+            }
+        }
+        output.push_str(&definitions.join("\n"));
         output.push('\n');
     }
 
@@ -345,21 +348,20 @@ fn rebuild_with_definitions(markdown: &str, note_paths: &[String]) -> Option<Str
     Some(output)
 }
 
-#[derive(Debug, Clone)]
-struct DefinitionRange {
-    url: String,
+#[derive(Debug, Clone, Default)]
+struct DefinitionSplit {
+    /// Everything above the trailing definition block, joined losslessly.
+    body: String,
+    /// Trailing definition lines that are not machine-managed, verbatim.
+    preserved: Vec<String>,
 }
 
-fn split_body_and_definitions(markdown: &str) -> (String, BTreeMap<String, DefinitionRange>) {
-    let lines: Vec<&str> = markdown.lines().collect();
+fn split_body_and_definitions(markdown: &str) -> DefinitionSplit {
+    let lines: Vec<&str> = crate::text::split_lines(markdown).collect();
     let mut definition_start = lines.len();
-    let mut existing = BTreeMap::new();
 
     for (index, line) in lines.iter().enumerate().rev() {
-        if let Some(capture) = DEFINITION_LINE_RE.captures(line) {
-            let label = capture.get(1).map(|value| value.as_str()).unwrap_or("").to_string();
-            let url = capture.get(2).map(|value| value.as_str()).unwrap_or("").trim().to_string();
-            existing.insert(label, DefinitionRange { url });
+        if DEFINITION_LINE_RE.is_match(line) {
             definition_start = index;
         } else if !line.trim().is_empty() {
             break;
@@ -367,14 +369,41 @@ fn split_body_and_definitions(markdown: &str) -> (String, BTreeMap<String, Defin
     }
 
     let body = lines[..definition_start].join("\n");
-    (body, existing)
+    // A definition is machine-managed only when its label is the target of a
+    // wikilink in the body. Anything else is the user's own reference
+    // definition and must survive `lint --fix` untouched.
+    let managed_labels = wikilink_labels(&body);
+
+    let mut preserved = Vec::new();
+    for line in &lines[definition_start..] {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let is_managed = DEFINITION_LINE_RE
+            .captures(line)
+            .and_then(|capture| capture.get(1))
+            .is_some_and(|label| managed_labels.contains(label.as_str().trim()));
+        if !is_managed {
+            preserved.push((*line).to_string());
+        }
+    }
+
+    DefinitionSplit { body, preserved }
 }
 
-fn expected_link_definitions(markdown: &str, note_paths: &[String]) -> BTreeMap<String, String> {
-    let (body, _) = split_body_and_definitions(markdown);
+fn wikilink_labels(body: &str) -> BTreeSet<String> {
+    WIKILINK_RE
+        .captures_iter(body)
+        .filter_map(|capture| capture.get(1))
+        .map(|value| value.as_str().trim().to_string())
+        .filter(|label| !label.is_empty())
+        .collect()
+}
+
+fn expected_link_definitions(body: &str, note_paths: &[String]) -> BTreeMap<String, String> {
     let mut expected = BTreeMap::new();
 
-    for capture in WIKILINK_RE.captures_iter(&body) {
+    for capture in WIKILINK_RE.captures_iter(body) {
         let label = capture
             .get(1)
             .map(|value| value.as_str().trim())
@@ -435,7 +464,9 @@ fn apply_text_edits(markdown: &str, edits: &[TextEdit]) -> String {
             .then(right.column.cmp(&left.column))
     });
 
-    let mut lines: Vec<String> = markdown.lines().map(str::to_string).collect();
+    let mut lines: Vec<String> = crate::text::split_lines(markdown)
+        .map(str::to_string)
+        .collect();
     let had_trailing_newline = markdown.ends_with('\n');
 
     for edit in sorted {
@@ -466,7 +497,7 @@ fn apply_text_edits(markdown: &str, edits: &[TextEdit]) -> String {
             }
             merged.push_str(&suffix);
         }
-        lines = merged.lines().map(str::to_string).collect();
+        lines = crate::text::split_lines(&merged).map(str::to_string).collect();
     }
 
     let mut output = lines.join("\n");
@@ -513,6 +544,108 @@ mod tests {
         .expect("apply");
         assert_eq!(count, 1);
         assert!(updated.contains("[other]: other"));
+    }
+
+    #[test]
+    fn stale_definitions_preserves_hand_written_definitions() {
+        let note_paths = vec!["other.md".to_string()];
+        let input = "# Note\n\nSee [[other]].\n\n[spec]: ./design/spec.pdf\n";
+        let (updated, _) = apply_fixes(
+            "note.md",
+            input,
+            &note_paths,
+            &[RULE_STALE_DEFINITIONS.to_string()],
+        )
+        .expect("apply");
+        assert!(
+            updated.contains("[spec]: ./design/spec.pdf"),
+            "hand-written definition was deleted: {updated:?}"
+        );
+        assert!(updated.contains("[other]: other"));
+    }
+
+    #[test]
+    fn stale_definitions_leaves_a_note_with_only_hand_written_definitions_alone() {
+        let input = "# Note\n\nNo wikilinks.\n\n[spec]: ./design/spec.pdf\n[rfc]: https://example.com/rfc\n";
+        assert!(rebuild_with_definitions(input, &[]).is_none());
+        let (updated, count) =
+            apply_fixes("note.md", input, &[], &[RULE_STALE_DEFINITIONS.to_string()])
+                .expect("apply");
+        assert_eq!(count, 0);
+        assert_eq!(updated, input);
+    }
+
+    #[test]
+    fn stale_definitions_does_not_flag_a_clean_note() {
+        let note_paths = vec!["other.md".to_string()];
+        let input = "# Note\n\nSee [[other]].\n\n[spec]: ./design/spec.pdf\n[other]: other\n";
+        assert!(rebuild_with_definitions(input, &note_paths).is_none());
+    }
+
+    #[test]
+    fn stale_definitions_preserves_trailing_blank_lines() {
+        let note_paths = vec!["other.md".to_string()];
+        let input = "# Note\n\nSee [[other]].\n\n\n[other]: stale\n";
+        let (updated, _) = apply_fixes(
+            "note.md",
+            input,
+            &note_paths,
+            &[RULE_STALE_DEFINITIONS.to_string()],
+        )
+        .expect("apply");
+        assert_eq!(updated, "# Note\n\nSee [[other]].\n\n\n[other]: other\n");
+    }
+
+    #[test]
+    fn fixes_preserve_crlf_line_endings() {
+        let input = "Body only\r\n";
+        let (updated, count) =
+            apply_fixes("note.md", input, &[], &[RULE_MISSING_HEADING.to_string()]).expect("apply");
+        assert_eq!(count, 1);
+        assert_eq!(updated, "# note\r\n\r\nBody only\r\n");
+        assert!(
+            !updated.contains("\r\r"),
+            "mangled line endings: {updated:?}"
+        );
+    }
+
+    #[test]
+    fn crlf_note_without_issues_round_trips() {
+        let note_paths = vec!["other.md".to_string()];
+        let input = "# Note\r\n\r\nSee [[other]].\r\n\r\n[other]: other\r\n";
+        let (updated, _) = apply_fixes(
+            "note.md",
+            input,
+            &note_paths,
+            &[RULE_STALE_DEFINITIONS.to_string()],
+        )
+        .expect("apply");
+        assert_eq!(updated, input);
+    }
+
+    #[test]
+    fn lint_vault_fix_keeps_hand_written_definitions_on_disk() {
+        let dir = tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("other.md"), "# Other\n").expect("write");
+        std::fs::write(
+            dir.path().join("note.md"),
+            "# Note\n\nSee [[other]].\n\n[spec]: ./design/spec.pdf\n",
+        )
+        .expect("write");
+
+        let session = open_vault(dir.path()).expect("open");
+        lint_vault_fix(
+            &session.descriptor.id,
+            &session.root,
+            &[RULE_STALE_DEFINITIONS.to_string()],
+        )
+        .expect("fix");
+
+        let updated = std::fs::read_to_string(dir.path().join("note.md")).expect("read");
+        assert!(
+            updated.contains("[spec]: ./design/spec.pdf"),
+            "lint --fix deleted a hand-written definition: {updated:?}"
+        );
     }
 
     #[test]

@@ -145,8 +145,17 @@ pub fn run_export_job_with_cancel(
         .spawn()
         .map_err(|error| ExportError::Process(error.to_string()))?;
 
-    let mut stdout_pipe = child.stdout.take();
+    let stdout_pipe = child.stdout.take();
     let mut stderr_pipe = child.stderr.take();
+    // Drain stdout concurrently: reading it only after wait() deadlocks once the
+    // child fills the OS pipe buffer (~64 KiB) with output.
+    let stdout_reader = stdout_pipe.map(|mut pipe| {
+        thread::spawn(move || {
+            let mut accumulated = String::new();
+            let _ = pipe.read_to_string(&mut accumulated);
+            accumulated
+        })
+    });
     let stderr_reader = stderr_pipe.take().map(|pipe| {
         let progress_cb = progress.clone();
         thread::spawn(move || {
@@ -176,10 +185,9 @@ pub fn run_export_job_with_cancel(
             .map_err(|error| ExportError::Process(error.to_string()))?
     };
 
-    let mut stdout = String::new();
-    if let Some(mut pipe) = stdout_pipe.take() {
-        let _ = pipe.read_to_string(&mut stdout);
-    }
+    let stdout = stdout_reader
+        .map(|handle| handle.join().unwrap_or_default())
+        .unwrap_or_default();
     let stderr = stderr_reader
         .map(|handle| handle.join().unwrap_or_default())
         .unwrap_or_default();

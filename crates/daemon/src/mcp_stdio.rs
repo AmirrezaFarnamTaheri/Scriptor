@@ -260,7 +260,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("limit must be between 1 and 500".into());
             }
             let cache = &state.index_cache;
-            let hits = search_notes(&cache, &state.session.descriptor.id, query, limit)
+            let hits = search_notes(cache, &state.session.descriptor.id, query, limit)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(hits).map_err(|error| error.to_string())?)
         }
@@ -293,13 +293,13 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("path must not be empty".into());
             }
             let cache = &state.index_cache;
-            let hits = backlinks_for_path(&cache, &state.session, path)
+            let hits = backlinks_for_path(cache, &state.session, path)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(hits).map_err(|error| error.to_string())?)
         }
         "mcp.inspectBrokenLinks" => {
             let cache = &state.index_cache;
-            let targets = list_unresolved_link_targets(&cache, &state.session)
+            let targets = list_unresolved_link_targets(cache, &state.session)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(targets).map_err(|error| error.to_string())?)
         }
@@ -336,7 +336,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
         }
         "mcp.listTags" => {
             let cache = &state.index_cache;
-            let mut tags = list_vault_tags(&cache, &state.session.descriptor.id)
+            let mut tags = list_vault_tags(cache, &state.session.descriptor.id)
                 .map_err(|error| error.to_string())?;
             if let Some(prefix) = args.get("prefix").and_then(Value::as_str) {
                 if prefix.len() > 200 {
@@ -370,7 +370,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("limit too large (max 10000)".into());
             }
             let cache = &state.index_cache;
-            let mut notes = notes_for_tag(&cache, &state.session.descriptor.id, tag)
+            let mut notes = notes_for_tag(cache, &state.session.descriptor.id, tag)
                 .map_err(|error| error.to_string())?;
             if limit > 0 {
                 notes.truncate(limit);
@@ -379,12 +379,12 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
         }
         "mcp.inspectGraphSummary" => {
             let cache = &state.index_cache;
-            let orphans = list_orphan_notes(&cache, &state.session).map_err(|error| error.to_string())?;
+            let orphans = list_orphan_notes(cache, &state.session).map_err(|error| error.to_string())?;
             let dead_ends =
-                list_dead_end_notes(&cache, &state.session).map_err(|error| error.to_string())?;
-            let unresolved = list_unresolved_link_targets(&cache, &state.session)
+                list_dead_end_notes(cache, &state.session).map_err(|error| error.to_string())?;
+            let unresolved = list_unresolved_link_targets(cache, &state.session)
                 .map_err(|error| error.to_string())?;
-            let tags = list_vault_tags(&cache, &state.session.descriptor.id)
+            let tags = list_vault_tags(cache, &state.session.descriptor.id)
                 .map_err(|error| error.to_string())?;
             Ok(json!({
                 "orphan_count": orphans.len(),
@@ -410,7 +410,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("depth must be between 1 and 10".into());
             }
             let cache = &state.index_cache;
-            let graph = traverse_graph(&cache, &state.session, focus_path, depth)
+            let graph = traverse_graph(cache, &state.session, focus_path, depth)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(graph).map_err(|error| error.to_string())?)
         }
@@ -421,7 +421,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("depth must be between 1 and 10".into());
             }
             let cache = &state.index_cache;
-            let graph = query_focused_graph(&cache, &state.session, focus_path, depth, &[])
+            let graph = query_focused_graph(cache, &state.session, focus_path, depth, &[])
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(graph).map_err(|error| error.to_string())?)
         }
@@ -452,7 +452,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("query too long (max 10000 chars)".into());
             }
             let cache = &state.index_cache;
-            let rows = execute_dql_query(&cache, &state.session, query)
+            let rows = execute_dql_query(cache, &state.session, query)
                 .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(rows).map_err(|error| error.to_string())?)
         }
@@ -471,7 +471,7 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
             }
             let cache = &state.index_cache;
             let mut notes = list_inbox_notes(
-                &cache,
+                cache,
                 &state.session.descriptor.id,
                 InboxPeriod::parse(period),
             )
@@ -730,7 +730,7 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write note");
 
-        let session = open_vault(&dir.path().display().to_string()).expect("open vault");
+        let session = open_vault(dir.path().display().to_string()).expect("open vault");
         let index_cache = open_cache_for_session(&session).expect("open cache");
         let state = McpStdioState {
             session,
@@ -770,7 +770,7 @@ mod tests {
         )
         .expect("write note");
 
-        let session = open_vault(&dir.path().display().to_string()).expect("open vault");
+        let session = open_vault(dir.path().display().to_string()).expect("open vault");
         let index_cache = open_cache_for_session(&session).expect("open cache");
         let state = McpStdioState {
             session,

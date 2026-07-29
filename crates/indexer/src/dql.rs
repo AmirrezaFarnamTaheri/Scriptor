@@ -9,6 +9,13 @@ use crate::search::search_notes;
 use crate::tags::notes_for_tag;
 use crate::views::list_view_notes;
 
+/// Result cap shared by every DQL clause.
+const DQL_RESULT_LIMIT: usize = 200;
+
+/// How many candidate rows `path matches` may pull out of SQLite before the
+/// user-supplied regex is applied to them.
+const PATH_MATCH_SCAN_LIMIT: i64 = 5_000;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DqlResultRow {
     pub path: String,
@@ -136,13 +143,13 @@ fn extract_links_to_target(query: &str) -> Option<String> {
     if value.starts_with("[[") && value.ends_with("]]") {
         return Some(value[2..value.len() - 2].trim().to_string());
     }
-    if value.starts_with('"') {
-        let end = value[1..].find('"')?;
-        return Some(value[1..1 + end].to_string());
+    if let Some(inner) = value.strip_prefix('"') {
+        let end = inner.find('"')?;
+        return Some(inner[..end].to_string());
     }
-    if value.starts_with('\'') {
-        let end = value[1..].find('\'')?;
-        return Some(value[1..1 + end].to_string());
+    if let Some(inner) = value.strip_prefix('\'') {
+        let end = inner.find('\'')?;
+        return Some(inner[..end].to_string());
     }
     if value.is_empty() {
         None
@@ -159,17 +166,17 @@ fn split_compound(query: &str, op: &str) -> Vec<String> {
     let mut parts = Vec::new();
     let mut current = String::new();
     let mut in_quotes = false;
+    // `to_ascii_lowercase` only rewrites ASCII bytes, so `lower` shares the exact
+    // byte layout of `query`; byte offsets are valid in both strings.
     let lower = query.to_ascii_lowercase();
     let op_lower = op.to_ascii_lowercase();
-    let chars: Vec<char> = query.chars().collect();
     let mut index = 0;
 
-    while index < chars.len() {
-        let ch = chars[index];
+    while let Some(ch) = query[index..].chars().next() {
         if ch == '"' {
             in_quotes = !in_quotes;
             current.push(ch);
-            index += 1;
+            index += ch.len_utf8();
             continue;
         }
 
@@ -184,7 +191,7 @@ fn split_compound(query: &str, op: &str) -> Vec<String> {
         }
 
         current.push(ch);
-        index += 1;
+        index += ch.len_utf8();
     }
 
     let part = current.trim().to_string();
@@ -218,13 +225,13 @@ fn extract_quoted_after(input: &str, prefix: &str) -> Option<String> {
     } else {
         input.strip_prefix(prefix)?.trim()
     };
-    if rest.starts_with('"') {
-        let end = rest[1..].find('"')?;
-        return Some(rest[1..1 + end].to_string());
+    if let Some(inner) = rest.strip_prefix('"') {
+        let end = inner.find('"')?;
+        return Some(inner[..end].to_string());
     }
-    if rest.starts_with('\'') {
-        let end = rest[1..].find('\'')?;
-        return Some(rest[1..1 + end].to_string());
+    if let Some(inner) = rest.strip_prefix('\'') {
+        let end = inner.find('\'')?;
+        return Some(inner[..end].to_string());
     }
     if prefix.is_empty() {
         return None;
@@ -269,12 +276,19 @@ fn body_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Vec
 }
 
 fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
-    let re = regex::Regex::new(pattern).map_err(|error| IndexerError::InvalidQuery(error.to_string()))?;
+    let re = regex::RegexBuilder::new(pattern)
+        .size_limit(1 << 20)
+        .dfa_size_limit(1 << 20)
+        .build()
+        .map_err(|error| IndexerError::InvalidQuery(error.to_string()))?;
     let conn = cache.connection()?;
+    // Two bounds, because the regex is applied in Rust rather than in SQL: the
+    // SQL LIMIT caps how many rows are ever materialised and matched against a
+    // user-supplied pattern, and the result cap matches the sibling clauses.
     let mut statement = conn.prepare(
-        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path",
+        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2",
     )?;
-    let rows = statement.query_map(params![vault_id], |row| {
+    let rows = statement.query_map(params![vault_id, PATH_MATCH_SCAN_LIMIT], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
@@ -284,6 +298,7 @@ fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec
     Ok(rows
         .filter_map(|row| row.ok())
         .filter(|row| re.is_match(&row.path))
+        .take(DQL_RESULT_LIMIT)
         .collect())
 }
 
@@ -329,5 +344,81 @@ mod tests {
             extract_links_to_target("links to [[Project Plan]]"),
             Some("Project Plan".to_string())
         );
+    }
+
+    #[test]
+    fn split_compound_handles_non_ascii_query() {
+        let parts = split_compound(
+            r#"title contains "café" and body contains "naïve — 🚀""#,
+            " and ",
+        );
+        assert_eq!(parts.len(), 2);
+        assert!(parts[0].contains("café"));
+        assert!(parts[1].contains("naïve — 🚀"));
+    }
+
+    fn test_session(root: &std::path::Path) -> VaultSession {
+        VaultSession {
+            descriptor: scriptor_vault::VaultDescriptor {
+                id: "vault-test".into(),
+                name: "test".into(),
+                root_path: root.display().to_string(),
+                opened_at: "2026-01-01T00:00:00Z".into(),
+                status: scriptor_vault::VaultStatus::Ready,
+            },
+            root: scriptor_vault::VaultRoot::open(root).expect("vault root"),
+            pending_reindex_paths: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn execute_dql_with_non_ascii_query_does_not_panic() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let session = test_session(dir.path());
+        let rows = execute_dql_query(
+            &cache,
+            &session,
+            r#"title contains "café" and body contains "café""#,
+        )?;
+        assert!(rows.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn path_matches_caps_its_result_set() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        {
+            let conn = cache.connection()?;
+            for index in 0..(DQL_RESULT_LIMIT + 50) {
+                conn.execute(
+                    "INSERT INTO notes (id, vault_id, path, title, content_hash, modified_at, word_count)
+                     VALUES (?1, 'vault-test', ?2, ?3, 'hash', '2026-01-01T00:00:00Z', 1)",
+                    params![
+                        format!("note-{index:04}"),
+                        format!("notes/{index:04}.md"),
+                        format!("Note {index}")
+                    ],
+                )?;
+            }
+        }
+
+        let rows = path_matches(&cache, "vault-test", r"^notes/")?;
+        assert_eq!(
+            rows.len(),
+            DQL_RESULT_LIMIT,
+            "path matches must be bounded like its sibling clauses"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pathological_regex_returns_error_instead_of_exploding() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempfile::tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let result = path_matches(&cache, "vault-test", "(?:(?:(?:a{100}){100}){100}){100}");
+        assert!(matches!(result, Err(IndexerError::InvalidQuery(_))));
+        Ok(())
     }
 }

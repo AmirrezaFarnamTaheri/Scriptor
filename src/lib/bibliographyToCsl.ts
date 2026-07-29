@@ -37,7 +37,9 @@ export function bibliographyEntryToCslItem(entry: BibliographyEntry): Record<str
 export function bibliographyEntriesToCslItems(
   entries: BibliographyEntry[],
 ): Record<string, Record<string, unknown>> {
-  const items: Record<string, Record<string, unknown>> = {}
+  // Null-prototype: `.bib` files supply the keys, and an entry keyed
+  // `__proto__` would otherwise hit the prototype setter and corrupt the map.
+  const items: Record<string, Record<string, unknown>> = Object.create(null)
   for (const entry of entries) {
     items[entry.key] = bibliographyEntryToCslItem(entry)
   }

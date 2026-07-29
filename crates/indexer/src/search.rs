@@ -27,19 +27,22 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
 
     let mut parts = Vec::new();
     for (index, token) in tokens.iter().enumerate() {
-        let cleaned = token
-            .term
-            .trim_matches('"')
-            .replace('"', "")
-            .replace('*', "");
-        if cleaned.is_empty() {
+        let cleaned = token.term.trim_matches('"');
+        // Skip terms with no searchable content: a punctuation-only phrase
+        // tokenizes to nothing, which FTS5 rejects.
+        if !cleaned.chars().any(char::is_alphanumeric) {
             continue;
         }
 
+        // Emit each term as a quoted prefix phrase so FTS5 operators and
+        // punctuation (`(`, `)`, `:`, `^`, `-`, ...) in user input are treated
+        // literally instead of being parsed as MATCH syntax. Embedded quotes
+        // are escaped by doubling, per SQLite string rules.
+        let quoted = format!("\"{}\"*", cleaned.replace('"', "\"\""));
         let mut clause = if token.negate {
-            format!("NOT {cleaned}*")
+            format!("NOT {quoted}")
         } else {
-            format!("{cleaned}*")
+            quoted
         };
 
         if index > 0 {
@@ -155,16 +158,59 @@ mod tests {
     fn builds_and_or_not_query() {
         assert_eq!(
             build_fts_query("alpha beta"),
-            Some("alpha* AND beta*".into())
+            Some("\"alpha\"* AND \"beta\"*".into())
         );
         assert_eq!(
             build_fts_query("alpha | beta"),
-            Some("alpha* OR beta*".into())
+            Some("\"alpha\"* OR \"beta\"*".into())
         );
         assert_eq!(
             build_fts_query("!draft published"),
-            Some("NOT draft* AND published*".into())
+            Some("NOT \"draft\"* AND \"published\"*".into())
         );
+    }
+
+    #[test]
+    fn quotes_terms_so_fts_operators_are_literal() {
+        assert_eq!(build_fts_query("a("), Some("\"a(\"*".into()));
+        assert_eq!(build_fts_query("body:secret"), Some("\"body:secret\"*".into()));
+        // Embedded quotes are escaped by doubling inside the phrase.
+        assert_eq!(build_fts_query("say\"hi"), Some("\"say\"\"hi\"*".into()));
+    }
+
+    #[test]
+    fn search_with_fts_metacharacters_does_not_error(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+
+        let path = RelativeVaultPath::parse("Marker.md")?;
+        let markdown = "# Marker\n\nthe body:secret marker\n";
+        let metadata =
+            metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
+        upsert_note(&cache, &metadata, markdown)?;
+
+        let other = RelativeVaultPath::parse("Other.md")?;
+        let other_markdown = "# Other\n\nkeep this secret safe\n";
+        let other_metadata =
+            metadata_from_markdown("vault-test", &other, other_markdown, "2026-01-01T00:00:00Z".into());
+        upsert_note(&cache, &other_metadata, other_markdown)?;
+
+        // Would previously be parsed as MATCH syntax (unbalanced paren / column filter).
+        let hits = search_notes(&cache, "vault-test", "a(", 10)?;
+        assert!(hits.len() <= 2);
+
+        // `body:` must not act as a column filter: only the note containing the
+        // literal "body:secret" text matches, not every note mentioning "secret".
+        let hits = search_notes(&cache, "vault-test", "body:secret", 10)?;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "Marker.md");
+
+        for query in ["(", ")", "^boost", "-minus", "NEAR(", "col:val OR x"] {
+            let result = search_notes(&cache, "vault-test", query, 10);
+            assert!(result.is_ok(), "query {query:?} errored: {result:?}");
+        }
+        Ok(())
     }
 
     #[test]

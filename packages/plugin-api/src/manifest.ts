@@ -23,12 +23,26 @@ const BLOCKED_PERMISSIONS = new Set<PluginPermission['permission']>([
   'secrets',
 ])
 
-const ID_PATTERN = /^[a-z0-9][a-z0-9.-]*$/
+// Dot-separated lowercase segments: no leading/trailing dots and no `..`.
+const ID_PATTERN = /^[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*$/
+const MAX_ID_LENGTH = 64
 
 function isCompatibleApiVersion(version: string): boolean {
-  const [major] = version.split('.')
-  const [expectedMajor] = PLUGIN_API_VERSION.split('.')
-  return major === expectedMajor
+  const [major, minor] = version.split('.')
+  const [expectedMajor, expectedMinor] = PLUGIN_API_VERSION.split('.')
+  if (major !== expectedMajor) return false
+  // Semver treats 0.x minor bumps as breaking, so require the minor to match
+  // while the API is still pre-1.0.
+  if (major === '0') return minor === expectedMinor
+  return true
+}
+
+function asArray<T>(value: readonly T[] | undefined): readonly T[] {
+  return Array.isArray(value) ? value : []
+}
+
+function hasEntries(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0
 }
 
 export interface ManifestValidationResult {
@@ -39,29 +53,33 @@ export interface ManifestValidationResult {
 export function validatePluginManifest(manifest: PluginManifest): ManifestValidationResult {
   const errors: string[] = []
 
-  if (!manifest.id || !ID_PATTERN.test(manifest.id)) {
+  if (!manifest.id || manifest.id.length > MAX_ID_LENGTH || !ID_PATTERN.test(manifest.id)) {
     errors.push('plugin id must be lowercase dotted identifier')
   }
   if (!manifest.name?.trim()) errors.push('plugin name is required')
   if (!manifest.version?.trim()) errors.push('plugin version is required')
   if (!manifest.publisher?.trim()) errors.push('plugin publisher is required')
   if (!manifest.description?.trim()) errors.push('plugin description is required')
-  if (!manifest.activation?.length) errors.push('plugin activation policy is required')
-  if (!manifest.capabilities?.length) errors.push('plugin capabilities are required')
-  if (!manifest.permissions?.length) errors.push('plugin permissions are required')
+
+  const activation = asArray(manifest.activation)
+  const capabilities = asArray(manifest.capabilities)
+  const permissions = asArray(manifest.permissions)
+  if (activation.length === 0) errors.push('plugin activation policy is required')
+  if (capabilities.length === 0) errors.push('plugin capabilities are required')
+  if (permissions.length === 0) errors.push('plugin permissions are required')
 
   const apiVersion = manifest.apiVersion ?? PLUGIN_API_VERSION
   if (!isCompatibleApiVersion(apiVersion)) {
     errors.push(`plugin apiVersion ${apiVersion} is incompatible with host ${PLUGIN_API_VERSION}`)
   }
 
-  for (const capability of manifest.capabilities ?? []) {
+  for (const capability of capabilities) {
     if (!VALID_CAPABILITIES.has(capability)) {
       errors.push(`unsupported capability: ${capability}`)
     }
   }
 
-  for (const entry of manifest.permissions ?? []) {
+  for (const entry of permissions) {
     if (BLOCKED_PERMISSIONS.has(entry.permission)) {
       errors.push(`blocked permission in v1 plugins: ${entry.permission}`)
     }
@@ -73,25 +91,25 @@ export function validatePluginManifest(manifest: PluginManifest): ManifestValida
     }
   }
 
-  if (manifest.contributes?.mcpTools?.length && !manifest.capabilities.includes('mcp-tool')) {
+  if (hasEntries(manifest.contributes?.mcpTools) && !capabilities.includes('mcp-tool')) {
     errors.push('mcp tool contributions require mcp-tool capability')
   }
-  if (manifest.contributes?.exportProfiles?.length && !manifest.capabilities.includes('export-profile')) {
+  if (hasEntries(manifest.contributes?.exportProfiles) && !capabilities.includes('export-profile')) {
     errors.push('export profile contributions require export-profile capability')
   }
-  if (manifest.contributes?.rendererExtensions?.length && !manifest.capabilities.includes('renderer-extension')) {
+  if (hasEntries(manifest.contributes?.rendererExtensions) && !capabilities.includes('renderer-extension')) {
     errors.push('renderer extensions require renderer-extension capability')
   }
-  if (manifest.contributes?.inspectorWidgets?.length && !manifest.capabilities.includes('inspector-widget')) {
+  if (hasEntries(manifest.contributes?.inspectorWidgets) && !capabilities.includes('inspector-widget')) {
     errors.push('inspector widget contributions require inspector-widget capability')
   }
-  if (manifest.contributes?.templatePacks?.length && !manifest.capabilities.includes('template-pack')) {
+  if (hasEntries(manifest.contributes?.templatePacks) && !capabilities.includes('template-pack')) {
     errors.push('template pack contributions require template-pack capability')
   }
-  if (manifest.contributes?.canvasTools?.length && !manifest.capabilities.includes('canvas-tool')) {
+  if (hasEntries(manifest.contributes?.canvasTools) && !capabilities.includes('canvas-tool')) {
     errors.push('canvas tool contributions require canvas-tool capability')
   }
-  if (manifest.contributes?.canvasBlocks?.length && !manifest.capabilities.includes('canvas-block')) {
+  if (hasEntries(manifest.contributes?.canvasBlocks) && !capabilities.includes('canvas-block')) {
     errors.push('canvas block contributions require canvas-block capability')
   }
 
@@ -204,6 +222,50 @@ export function runManifestValidationTests(): string[] {
     },
   }
   if (!validatePluginManifest(publishPack).ok) failures.push('publish-pack manifest should pass validation')
+
+  const missingCapabilities = {
+    ...valid,
+    id: 'scriptor.no-caps',
+    capabilities: undefined,
+    contributes: {
+      mcpTools: [{ id: 'tool', label: 'Tool' }],
+    },
+  } as unknown as PluginManifest
+  try {
+    const result = validatePluginManifest(missingCapabilities)
+    if (result.ok) failures.push('manifest without capabilities should fail validation')
+    if (!result.errors.some((error) => error.includes('mcp-tool capability'))) {
+      failures.push('contribution checks should still run when capabilities is absent')
+    }
+  } catch {
+    failures.push('absent capabilities must not throw during validation')
+  }
+
+  const nonArrayFields = {
+    ...valid,
+    id: 'scriptor.bad-shapes',
+    capabilities: 'command',
+    permissions: { permission: 'read' },
+    activation: 'manual',
+  } as unknown as PluginManifest
+  try {
+    if (validatePluginManifest(nonArrayFields).ok) {
+      failures.push('non-array capability/permission fields should fail validation')
+    }
+  } catch {
+    failures.push('non-array capability/permission fields must not throw')
+  }
+
+  const minorBreaking: PluginManifest = { ...valid, id: 'scriptor.newer-minor', apiVersion: '0.2.0' }
+  if (validatePluginManifest(minorBreaking).ok) {
+    failures.push('0.x minor apiVersion mismatch should fail validation')
+  }
+
+  for (const badId of ['bad..id', '.leading', 'trailing.', 'UPPER.case', `a${'b'.repeat(80)}`]) {
+    if (validatePluginManifest({ ...valid, id: badId }).ok) {
+      failures.push(`plugin id "${badId}" should fail validation`)
+    }
+  }
 
   return failures
 }

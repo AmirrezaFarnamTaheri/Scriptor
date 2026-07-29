@@ -85,6 +85,57 @@ export function lintMarkdownDocument(markdown: string): EditorLintMessage[] {
 const REF_DEF = /^\[([^\]]+)\]:\s+(\S+)/gm
 const REF_USAGE = /\[([^\]]+)\](?!\()/g
 
+interface DocumentIndex {
+  /** Character offset of the start of each line. */
+  lineOffsets: number[]
+  /** True for lines inside (or delimiting) fenced code blocks. */
+  fencedLines: boolean[]
+}
+
+function indexDocument(text: string): DocumentIndex {
+  const lineOffsets = [0]
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '\n') lineOffsets.push(index + 1)
+  }
+  const fencedLines: boolean[] = []
+  let inFence = false
+  for (let line = 0; line < lineOffsets.length; line += 1) {
+    const start = lineOffsets[line]!
+    const end = line + 1 < lineOffsets.length ? lineOffsets[line + 1]! - 1 : text.length
+    if (text.slice(start, end).trim().startsWith('```')) {
+      fencedLines.push(true)
+      inFence = !inFence
+      continue
+    }
+    fencedLines.push(inFence)
+  }
+  return { lineOffsets, fencedLines }
+}
+
+/** 1-based line number for a character offset via binary search over line starts. */
+function lineNumberAt(lineOffsets: number[], index: number): number {
+  let low = 0
+  let high = lineOffsets.length - 1
+  while (low < high) {
+    const mid = (low + high + 1) >> 1
+    if (lineOffsets[mid]! <= index) {
+      low = mid
+    } else {
+      high = mid - 1
+    }
+  }
+  return low + 1
+}
+
+/** `- [x]` / `- [ ]` style task-list checkboxes are not link references. */
+function isTaskListCheckbox(markdown: string, match: RegExpExecArray): boolean {
+  const label = match[1]!
+  if (!/^[xX ]$/.test(label)) return false
+  const lineStart = markdown.lastIndexOf('\n', match.index - 1) + 1
+  const prefix = markdown.slice(lineStart, match.index)
+  return /^\s*(?:[-*+]|\d+[.)])\s+$/.test(prefix)
+}
+
 function isFoamReferenceUsage(markdown: string, match: RegExpExecArray): boolean {
   const label = match[1]!
   if (label.startsWith('!') || label.startsWith('@')) return false
@@ -97,21 +148,27 @@ function isFoamReferenceUsage(markdown: string, match: RegExpExecArray): boolean
 
 export function lintLinkReferences(markdown: string): EditorLintMessage[] {
   const messages: EditorLintMessage[] = []
+  const { lineOffsets, fencedLines } = indexDocument(markdown)
   const definitions = new Map<string, number>()
   let match: RegExpExecArray | null
   const defPattern = new RegExp(REF_DEF.source, REF_DEF.flags)
   while ((match = defPattern.exec(markdown)) !== null) {
-    definitions.set(match[1]!.toLowerCase(), lineAt(markdown, match.index))
+    const line = lineNumberAt(lineOffsets, match.index)
+    if (fencedLines[line - 1]) continue
+    definitions.set(match[1]!.toLowerCase(), line)
   }
 
   const usagePattern = new RegExp(REF_USAGE.source, REF_USAGE.flags)
   while ((match = usagePattern.exec(markdown)) !== null) {
+    const line = lineNumberAt(lineOffsets, match.index)
+    if (fencedLines[line - 1]) continue
+    if (isTaskListCheckbox(markdown, match)) continue
     if (!isFoamReferenceUsage(markdown, match)) continue
     const label = match[1]!
     if (!definitions.has(label.toLowerCase())) {
       messages.push({
-        line: lineAt(markdown, match.index),
-        column: match.index - markdown.lastIndexOf('\n', match.index),
+        line,
+        column: match.index - lineOffsets[line - 1]! + 1,
         message: `Missing link reference definition for [${label}]`,
         ruleId: 'foam-missing-reference',
         severity: 'warning',
@@ -139,6 +196,7 @@ export function lintLinkReferences(markdown: string): EditorLintMessage[] {
 
 export function generateLinkReferenceDefinitions(markdown: string): string {
   const existing = new Set<string>()
+  const { lineOffsets, fencedLines } = indexDocument(markdown)
   let match: RegExpExecArray | null
   const defPattern = new RegExp(REF_DEF.source, REF_DEF.flags)
   while ((match = defPattern.exec(markdown)) !== null) {
@@ -148,6 +206,9 @@ export function generateLinkReferenceDefinitions(markdown: string): string {
   const additions: string[] = []
   const usagePattern = new RegExp(REF_USAGE.source, REF_USAGE.flags)
   while ((match = usagePattern.exec(markdown)) !== null) {
+    if (fencedLines[lineNumberAt(lineOffsets, match.index) - 1]) continue
+    if (isTaskListCheckbox(markdown, match)) continue
+    if (!isFoamReferenceUsage(markdown, match)) continue
     const label = match[1]!
     if (label.startsWith('!') || existing.has(label.toLowerCase())) continue
     existing.add(label.toLowerCase())
@@ -158,10 +219,6 @@ export function generateLinkReferenceDefinitions(markdown: string): string {
   if (additions.length === 0) return markdown
   const suffix = markdown.endsWith('\n') ? '' : '\n'
   return `${markdown}${suffix}\n${additions.join('\n')}\n`
-}
-
-function lineAt(text: string, index: number): number {
-  return text.slice(0, index).split('\n').length
 }
 
 function escapeRegExp(value: string): string {

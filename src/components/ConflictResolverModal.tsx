@@ -3,6 +3,7 @@ import { X } from 'lucide-react'
 
 import {
   applyConflictChoices,
+  estimateBaseHunkStart,
   extractBaseHunk,
   parseConflictHunks,
   type ConflictHunkChoice,
@@ -106,7 +107,11 @@ export function ConflictResolverModal({
               const contentStart = hunk.startLine + 1
               const contentEnd = hunk.endLine - 1
               const hunkBase = basePreview
-                ? extractBaseHunk(basePreview, hunk.startLine, Math.max(hunk.ours.split('\n').length, hunk.theirs.split('\n').length))
+                ? extractBaseHunk(
+                    basePreview,
+                    estimateBaseHunkStart(parsed.hunks, hunk.id),
+                    Math.max(hunk.ours.split('\n').length, hunk.theirs.split('\n').length),
+                  )
                 : null
               return (
                 <section key={hunk.id} className="conflict-hunk-card">

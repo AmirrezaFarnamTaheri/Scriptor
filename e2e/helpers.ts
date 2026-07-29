@@ -20,7 +20,23 @@ export const WORKSPACE_CHROME_PREFS = {
   editorSurfaceMode: 'source',
 }
 
-export async function launchApp(page: Page) {
+/**
+ * Deterministic app boot: the onboarding tour renders a modal over the whole
+ * workspace on a fresh profile, which makes every palette/panel interaction
+ * flaky, so mark it complete before the app mounts. Callers that need extra
+ * bootstrap state should add their own `page.addInitScript` before calling.
+ */
+export async function launchApp(page: Page, options: { theme?: string } = {}) {
+  // Seed only when unset: init scripts run on every navigation, and clobbering
+  // the theme on reload would mask persistence bugs.
+  await page.addInitScript((theme: string) => {
+    if (window.localStorage.getItem('scriptor:onboarding-complete') === null) {
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+    }
+    if (window.localStorage.getItem('scriptor:app-theme') === null) {
+      window.localStorage.setItem('scriptor:app-theme', theme)
+    }
+  }, options.theme ?? 'light')
   await page.goto('/', { waitUntil: 'networkidle' })
   return page
 }
@@ -31,10 +47,35 @@ export async function openCommandPalette(page: Page) {
   await expect(palette).toBeVisible({ timeout: 5000 })
 }
 
-export async function runCommand(page: Page, commandName: string) {
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Type `commandLabel` into the command palette and activate the first result.
+ *
+ * The palette filters on the *visible label* (`CommandPalette.tsx` does a plain
+ * `label.toLowerCase().includes(needle)`), never on the command id, and it also
+ * appends note search hits below the command hits. So the first option is not
+ * guaranteed to be the command that was asked for: a fuzzy-match change or a
+ * note whose title collides would silently redirect every command-driven test.
+ * Assert the option we are about to click actually names the requested command
+ * before clicking it.
+ */
+export async function runCommand(page: Page, commandLabel: string) {
   const palette = page.getByRole('dialog', { name: 'Command palette' })
-  await palette.getByRole('searchbox', { name: 'Command palette search' }).fill(commandName)
-  await palette.getByRole('option').first().click()
+  await palette.getByRole('searchbox').fill(commandLabel)
+  const option = palette.getByRole('option').first()
+  await expect(
+    option,
+    `command palette had no option for "${commandLabel}"`,
+  ).toBeVisible({ timeout: 5000 })
+  await expect(
+    option,
+    `command palette resolved "${commandLabel}" to a different option`,
+  ).toHaveText(new RegExp(escapeRegExp(commandLabel), 'i'))
+  await option.click()
+  await expect(palette).toBeHidden({ timeout: 5000 })
 }
 
 export async function settleLayout(page: Page) {

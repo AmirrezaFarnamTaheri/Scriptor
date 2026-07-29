@@ -2,11 +2,35 @@
 # https://embarkstudios.github.io/cargo-deny/
 
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
 yanked = "warn"
-notice = "warn"
-ignore = []
+# Every ignored advisory below is classified as unmaintained and reports
+# "No safe upgrade is available". Upgradeable vulnerabilities remain denied.
+ignore = [
+    # Tauri's Linux GTK3/WebKit compatibility stack.
+    "RUSTSEC-2024-0411",
+    "RUSTSEC-2024-0412",
+    "RUSTSEC-2024-0413",
+    "RUSTSEC-2024-0414",
+    "RUSTSEC-2024-0415",
+    "RUSTSEC-2024-0416",
+    "RUSTSEC-2024-0417",
+    "RUSTSEC-2024-0418",
+    "RUSTSEC-2024-0419",
+    "RUSTSEC-2024-0420",
+    "RUSTSEC-2024-0370",
+    # Transitive dependencies with no maintained compatible release.
+    "RUSTSEC-2023-0089",
+    "RUSTSEC-2024-0384",
+    "RUSTSEC-2024-0436",
+    "RUSTSEC-2026-0192",
+    "RUSTSEC-2026-0206",
+    # Tauri urlpattern's rust-unic dependency family.
+    "RUSTSEC-2025-0075",
+    "RUSTSEC-2025-0080",
+    "RUSTSEC-2025-0081",
+    "RUSTSEC-2025-0098",
+    "RUSTSEC-2025-0100",
+]
 
 [bans]
 multiple-versions = "warn"
@@ -14,13 +38,16 @@ wildcards = "allow"
 highlight = "all"
 
 [licenses]
-unlicensed = "deny"
 allow = [
+    "AGPL-3.0-or-later",
     "MIT",
     "Apache-2.0",
     "Apache-2.0 WITH LLVM-exception",
     "BSD-2-Clause",
     "BSD-3-Clause",
+    "0BSD",
+    "BSL-1.0",
+    "CDLA-Permissive-2.0",
     "ISC",
     "Unicode-DFS-2016",
     "Zlib",
@@ -29,13 +56,11 @@ allow = [
     "OpenSSL",
     "Unicode-3.0",
 ]
-deny = []
-copyleft = "warn"
-allow-osi-fsf-free = "either"
-default = "deny"
+confidence-threshold = 0.8
 
 [sources]
 unknown-registry = "deny"
 unknown-git = "deny"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
-allow-git = []
+# Temporary, commit-pinned upstream fix for quick-xml RUSTSEC-2026-0194/0195.
+allow-git = ["https://github.com/typst/citationberg"]

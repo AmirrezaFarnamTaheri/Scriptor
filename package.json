@@ -2,8 +2,17 @@
   "name": "scriptor",
   "description": "Scriptor — local-first Markdown knowledge workspace",
   "private": true,
+  "pnpm": {
+    "overrides": {
+      "dompurify": ">=3.4.12"
+    }
+  },
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
   "license": "AGPL-3.0-or-later",
   "author": "Amirreza \"Farnam\" Taheri <taherifarnam@gmail.com>",
   "homepage": "https://github.com/AmirrezaFarnamTaheri/Scriptor",
@@ -40,6 +49,7 @@
     "check:citations": "node --experimental-strip-types src/lib/validate-citation-runner.ts",
     "check:zotero": "pnpm --dir packages/zotero-connector check:zotero",
     "check:knowledge": "node --experimental-strip-types src/lib/validate-knowledge-runner.ts",
+    "check:merge": "node --experimental-strip-types src/lib/validate-merge-runner.ts",
     "check:rust": "cargo check --workspace",
     "test:rust": "cargo test --workspace --exclude scriptor-desktop",
     "prepare:desktop": "powershell -ExecutionPolicy Bypass -File scripts/release/stage-daemon-sidecar.ps1",
@@ -51,7 +61,7 @@
     "release:package": "powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1",
     "release:smoke": "powershell -ExecutionPolicy Bypass -File scripts/release/smoke.ps1",
     "release:perf-gate": "powershell -ExecutionPolicy Bypass -File scripts/release/perf-gate.ps1",
-    "check:release": "pnpm check:contracts && pnpm check:mcp && pnpm check:plugins && pnpm check:canvas && pnpm check:editor && pnpm check:renderer && pnpm check:export && pnpm check:portal && pnpm check:knowledge && pnpm check:citations && pnpm check:headless && pnpm lint && pnpm build && pnpm test:rust && pnpm check:tui && pnpm check:daemon && pnpm check:container && pnpm release:smoke && pnpm release:perf-gate && pnpm bench:canvas && pnpm bench:startup && pnpm bench:idle-memory && pnpm check:a11y && pnpm check:a11y-axe",
+    "check:release": "pnpm check:contracts && pnpm check:mcp && pnpm check:plugins && pnpm check:canvas && pnpm check:editor && pnpm check:renderer && pnpm check:export && pnpm check:portal && pnpm check:knowledge && pnpm check:merge && pnpm check:citations && pnpm check:headless && pnpm lint && pnpm build && pnpm test:rust && pnpm check:tui && pnpm check:daemon && pnpm check:container && pnpm release:smoke && pnpm release:perf-gate && pnpm bench:canvas && pnpm bench:startup && pnpm bench:idle-memory && pnpm check:a11y && pnpm check:a11y-axe",
     "cli": "cargo run -p scriptor-cli --",
     "bench:vault-scan": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/vault-scan.ps1",
     "bench:search": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/search.ps1",
@@ -67,7 +77,7 @@
     "release:export-smoke": "powershell -ExecutionPolicy Bypass -File scripts/release/export-smoke.ps1",
     "release:packaged-smoke": "powershell -ExecutionPolicy Bypass -File scripts/release/packaged-smoke.ps1",
     "check:a11y": "node scripts/validation/a11y-smoke.mjs",
-    "check:a11y-axe": "axe dist/index.html --rules wcag2a,wcag2aa,wcag21aa --exit",
+    "check:a11y-axe": "node scripts/validation/a11y-axe.mjs",
     "bench:startup": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/startup.ps1",
     "bench:idle-memory": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/idle-memory.ps1",
     "fixtures:synthetic": "powershell -ExecutionPolicy Bypass -File scripts/fixture-import/generate-synthetic-vault.ps1",

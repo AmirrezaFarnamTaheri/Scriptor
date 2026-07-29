@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo } from 'react'
 import { FileText } from 'lucide-react'
 
 const ROW_HEIGHT = 32
@@ -12,14 +12,14 @@ interface VirtualNoteListProps {
   onDeleteNote?: (path: string) => void
 }
 
-export function VirtualNoteList({
+function VirtualNoteListImpl({
   paths,
   activePath,
   onOpenNote,
   onRenameNote,
   onDeleteNote,
 }: VirtualNoteListProps) {
-  const containerRef = useRef<HTMLUListElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState(320)
   const [scrollTop, setScrollTop] = useState(0)
 
@@ -38,13 +38,15 @@ export function VirtualNoteList({
   const visiblePaths = paths.slice(startIndex, endIndex)
 
   return (
-    <ul
+    <div
       ref={containerRef}
-      className="virtual-note-list"
       onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-      style={{ maxHeight: 'min(60vh, 640px)', overflow: 'auto', position: 'relative' }}
+      style={{ maxHeight: 'min(60vh, 640px)', overflow: 'auto' }}
     >
-      <div style={{ height: totalHeight, minHeight: '100%', position: 'relative' }}>
+      <ul
+        className="virtual-note-list"
+        style={{ height: totalHeight, minHeight: '100%', position: 'relative' }}
+      >
         {visiblePaths.map((path, index) => {
           const absoluteIndex = startIndex + index
           return (
@@ -77,7 +79,13 @@ export function VirtualNoteList({
             </li>
           )
         })}
-      </div>
-    </ul>
+      </ul>
+    </div>
   )
 }
+
+/**
+ * Memoized: this subtree re-renders on every App-level render (including every
+ * keystroke in the editor draft) even though its own props rarely change.
+ */
+export const VirtualNoteList = memo(VirtualNoteListImpl)
