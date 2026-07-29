@@ -141,8 +141,16 @@ fn process_alive(pid: u32) -> bool {
     }
 }
 
-/// Recover from a transient connection failure without ever racing a second
-/// daemon against an authenticated endpoint whose process is still alive.
+/// Recover from a transient connection failure without killing or trusting the
+/// endpoint PID as the final arbiter.
+///
+/// Windows may recycle a terminated daemon's PID while the signed endpoint is
+/// still present. Conversely, a genuinely live daemon may briefly cycle named-
+/// pipe instances. We first retry the authenticated endpoint. If it remains
+/// unavailable, the caller is allowed to start exactly one replacement process:
+/// the operating system's socket bind then decides whether the old listener is
+/// truly still owned. This avoids killing a reused PID and avoids racing two
+/// successfully bound daemons.
 fn recover_existing_daemon(
     mut endpoint: DaemonEndpoint,
     initial_error: String,
@@ -194,19 +202,15 @@ fn recover_existing_daemon(
         thread::sleep(remaining.min(DAEMON_EXISTING_RECOVERY_POLL_INTERVAL));
     }
 
-    if !process_alive(endpoint.pid) {
-        return Ok(None);
-    }
-
-    Err(format!(
-        "daemon endpoint {} belongs to live pid {} but did not recover within {}s; refusing to spawn a duplicate listener on the same socket; initial ping error: {}; last ping error: {}",
-        endpoint.socket_name,
-        endpoint.pid,
-        DAEMON_EXISTING_RECOVERY_TIMEOUT.as_secs(),
-        initial_error,
-        last_error,
-    )
-    .into())
+    tracing::warn!(
+        target: "scriptor_cli::daemon_client",
+        socket = %endpoint.socket_name,
+        pid = endpoint.pid,
+        initial_error = %initial_error,
+        last_error = %last_error,
+        "authenticated daemon endpoint remained unavailable; probing ownership with one replacement bind",
+    );
+    Ok(None)
 }
 
 /// Ensure a daemon is reachable, spawning and monitoring the sidecar when needed.
@@ -216,10 +220,9 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
         Err(error) => error.to_string(),
     };
 
-    // A signed endpoint plus a live PID is authoritative even when one ping
-    // fails. Windows named pipes can briefly return EOF while the listener is
-    // cycling instances between short-lived CLI clients. Recover against that
-    // process first; spawning immediately creates a duplicate-listener race.
+    // A signed endpoint plus a live PID is retried before replacement. PID
+    // liveness is not authoritative on its own because Windows can recycle a
+    // terminated process identifier; the subsequent socket bind is definitive.
     if let Ok(endpoint) = read_endpoint()
         && process_alive(endpoint.pid)
         && let Some(recovered) = recover_existing_daemon(endpoint, initial_ping_error)?
@@ -252,6 +255,12 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
         match child.try_wait() {
             Ok(Some(status)) => {
                 reset_rpc_session();
+                // The replacement may have lost the bind race to a legitimate
+                // listener that recovered while it was starting. Prefer that
+                // now-responsive authenticated endpoint over a false failure.
+                if daemon_ping_with_timeout(DAEMON_STARTUP_PING_TIMEOUT).is_ok() {
+                    return read_endpoint().map_err(Into::into);
+                }
                 let detail = last_ping_error
                     .as_deref()
                     .unwrap_or("the daemon exited before the first ping completed");
