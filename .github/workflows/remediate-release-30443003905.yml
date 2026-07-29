@@ -1,0 +1,204 @@
+name: Remediate release run 30443003905
+
+on:
+  push:
+    branches:
+      - fix/release-30443003905-desktop-command-collision
+
+permissions:
+  contents: write
+
+concurrency:
+  group: remediate-release-30443003905
+  cancel-in-progress: false
+
+jobs:
+  remediate:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/release-30443003905-desktop-command-collision
+          fetch-depth: 0
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install Linux desktop dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            patchelf
+
+      - name: Apply root-cause remediation
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          vault_path = Path("apps/desktop/src-tauri/src/commands/vault.rs")
+          vault = vault_path.read_text(encoding="utf-8")
+          pattern = re.compile(
+              r"\n#\[tauri::command\]\npub fn vault_restore_note_history_revision\(\n"
+              r".*?\n\}\n\n(?=// Backup create/list/restore/delete commands live)",
+              re.DOTALL,
+          )
+          vault, count = pattern.subn("\n", vault)
+          if count != 1:
+              raise SystemExit(f"expected one stale restore command, removed {count}")
+          vault_path.write_text(vault, encoding="utf-8")
+
+          export_path = Path("apps/desktop/src-tauri/src/commands/export.rs")
+          export = export_path.read_text(encoding="utf-8")
+          old_export = "    use std::path::{Path, PathBuf};"
+          if export.count(old_export) != 1:
+              raise SystemExit("unexpected PathBuf import shape in export.rs")
+          export_path.write_text(
+              export.replace(old_export, "    use std::path::Path;"),
+              encoding="utf-8",
+          )
+
+          daemon_path = Path("apps/desktop/src-tauri/src/commands/daemon.rs")
+          daemon = daemon_path.read_text(encoding="utf-8")
+          old_daemon = '''    let mut candidates = vec![
+              "binaries/scriptor-daemon".to_string(),
+              "scriptor-daemon".to_string(),
+          ];
+          #[cfg(windows)]
+          {
+              candidates.insert(0, "binaries/scriptor-daemon.exe".to_string());
+              candidates.push("scriptor-daemon.exe".to_string());
+          }
+          '''
+          new_daemon = '''    #[cfg(windows)]
+          let candidates = vec![
+              "binaries/scriptor-daemon.exe".to_string(),
+              "binaries/scriptor-daemon".to_string(),
+              "scriptor-daemon".to_string(),
+              "scriptor-daemon.exe".to_string(),
+          ];
+          #[cfg(not(windows))]
+          let candidates = vec![
+              "binaries/scriptor-daemon".to_string(),
+              "scriptor-daemon".to_string(),
+          ];
+          '''
+          if daemon.count(old_daemon) != 1:
+              raise SystemExit("unexpected daemon candidate-list shape")
+          daemon_path.write_text(
+              daemon.replace(old_daemon, new_daemon),
+              encoding="utf-8",
+          )
+
+          desktop_workflow = Path(".github/workflows/desktop-check.yml")
+          desktop_workflow.write_text('''name: Desktop compile
+
+          on:
+            push:
+              branches: [main, master]
+              paths:
+                - "apps/desktop/**"
+                - "crates/**"
+                - "Cargo.toml"
+                - "Cargo.lock"
+                - ".github/workflows/desktop-check.yml"
+            pull_request:
+              paths:
+                - "apps/desktop/**"
+                - "crates/**"
+                - "Cargo.toml"
+                - "Cargo.lock"
+                - ".github/workflows/desktop-check.yml"
+
+          permissions:
+            contents: read
+
+          concurrency:
+            group: desktop-compile-${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
+
+          jobs:
+            check:
+              name: cargo check (${{ matrix.os }})
+              strategy:
+                fail-fast: false
+                matrix:
+                  os: [ubuntu-22.04, windows-latest, macos-latest]
+              runs-on: ${{ matrix.os }}
+              timeout-minutes: 45
+              steps:
+                - uses: actions/checkout@v4
+
+                - uses: dtolnay/rust-toolchain@stable
+
+                - uses: Swatinem/rust-cache@v2
+                  with:
+                    workspaces: "."
+
+                - name: Install Linux desktop dependencies
+                  if: runner.os == 'Linux'
+                  shell: bash
+                  run: |
+                    sudo apt-get update
+                    sudo apt-get install -y \\
+                      libwebkit2gtk-4.1-dev \\
+                      libappindicator3-dev \\
+                      librsvg2-dev \\
+                      libssl-dev \\
+                      libgtk-3-dev \\
+                      patchelf
+
+                - name: Check desktop crate
+                  run: cargo check -p scriptor-desktop --all-targets --locked
+          ''', encoding="utf-8")
+
+          temporary_workflow = Path(".github/workflows/remediate-release-30443003905.yml")
+          temporary_workflow.unlink()
+
+          command_files = Path("apps/desktop/src-tauri/src/commands").glob("*.rs")
+          definitions = sum(
+              path.read_text(encoding="utf-8").count(
+                  "pub fn vault_restore_note_history_revision("
+              )
+              for path in command_files
+          )
+          if definitions != 1:
+              raise SystemExit(
+                  f"expected exactly one restore command definition, found {definitions}"
+              )
+          PY
+
+      - name: Format Rust changes
+        run: cargo fmt --all
+
+      - name: Verify formatting
+        run: cargo fmt --all -- --check
+
+      - name: Compile desktop crate
+        run: cargo check -p scriptor-desktop --all-targets --locked
+
+      - name: Commit verified remediation
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No remediation changes were produced."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: restore desktop release compilation"
+          git push origin HEAD:fix/release-30443003905-desktop-command-collision
