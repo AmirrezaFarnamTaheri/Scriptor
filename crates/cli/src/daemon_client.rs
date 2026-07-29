@@ -3,7 +3,9 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use scriptor_daemon::{read_endpoint, reset_rpc_session, rpc_call, DaemonEndpoint};
+use scriptor_daemon::{
+    read_endpoint, reset_rpc_session, rpc_call, shared_rpc_client, DaemonEndpoint,
+};
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResult};
 
 pub const IN_PROCESS_DEPRECATION: &str =
@@ -11,6 +13,8 @@ pub const IN_PROCESS_DEPRECATION: &str =
 
 const DAEMON_STARTUP_TIMEOUT: Duration = Duration::from_secs(30);
 const DAEMON_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(250);
+const DAEMON_EXISTING_PROBE_TIMEOUT: Duration = Duration::from_secs(1);
+const DAEMON_STARTUP_PING_TIMEOUT: Duration = Duration::from_secs(1);
 
 pub fn warn_in_process_deprecated() {
     eprintln!("{IN_PROCESS_DEPRECATION}");
@@ -48,6 +52,16 @@ pub fn resolve_daemon_binary() -> PathBuf {
     }
 }
 
+fn daemon_ping_with_timeout(timeout: Duration) -> Result<String, Box<dyn std::error::Error>> {
+    let response = shared_rpc_client()
+        .call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), timeout)?;
+    match response.result {
+        RpcResult::Ok(RpcPayload::Pong { version }) => Ok(version),
+        RpcResult::Err(message) => Err(message.into()),
+        _ => Err("unexpected daemon ping response".into()),
+    }
+}
+
 pub fn daemon_ping() -> Result<String, Box<dyn std::error::Error>> {
     let response = rpc_call(RpcRequest::new(1, RpcMethod::Ping))?;
     match response.result {
@@ -57,8 +71,17 @@ pub fn daemon_ping() -> Result<String, Box<dyn std::error::Error>> {
     }
 }
 
+fn bounded_startup_ping_timeout(now: Instant, deadline: Instant) -> Option<Duration> {
+    let remaining = deadline.checked_duration_since(now)?;
+    if remaining.is_zero() {
+        None
+    } else {
+        Some(remaining.min(DAEMON_STARTUP_PING_TIMEOUT))
+    }
+}
+
 pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Error>> {
-    if daemon_ping().is_ok() {
+    if daemon_ping_with_timeout(DAEMON_EXISTING_PROBE_TIMEOUT).is_ok() {
         return read_endpoint().map_err(Into::into);
     }
 
@@ -104,15 +127,23 @@ pub fn ensure_daemon_running() -> Result<DaemonEndpoint, Box<dyn std::error::Err
             }
         }
 
-        match daemon_ping() {
+        let now = Instant::now();
+        let Some(ping_timeout) = bounded_startup_ping_timeout(now, deadline) else {
+            break;
+        };
+        match daemon_ping_with_timeout(ping_timeout) {
             Ok(_) => return read_endpoint().map_err(Into::into),
             Err(error) => last_ping_error = Some(error.to_string()),
         }
 
-        if Instant::now() >= deadline {
+        let now = Instant::now();
+        let Some(remaining) = deadline.checked_duration_since(now) else {
+            break;
+        };
+        if remaining.is_zero() {
             break;
         }
-        thread::sleep(DAEMON_STARTUP_POLL_INTERVAL);
+        thread::sleep(remaining.min(DAEMON_STARTUP_POLL_INTERVAL));
     }
 
     let endpoint_belongs_to_child = read_endpoint()
@@ -162,5 +193,26 @@ mod tests {
     fn resolve_daemon_binary_returns_path() {
         let path = resolve_daemon_binary();
         assert!(!path.as_os_str().is_empty());
+    }
+
+    #[test]
+    fn startup_ping_timeout_is_capped_by_per_ping_limit() {
+        let now = Instant::now();
+        let deadline = now + Duration::from_secs(10);
+        assert_eq!(
+            bounded_startup_ping_timeout(now, deadline),
+            Some(DAEMON_STARTUP_PING_TIMEOUT)
+        );
+    }
+
+    #[test]
+    fn startup_ping_timeout_uses_smaller_remaining_budget() {
+        let now = Instant::now();
+        let remaining = Duration::from_millis(125);
+        assert_eq!(
+            bounded_startup_ping_timeout(now, now + remaining),
+            Some(remaining)
+        );
+        assert_eq!(bounded_startup_ping_timeout(now, now), None);
     }
 }
