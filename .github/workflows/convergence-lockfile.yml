@@ -1,4 +1,4 @@
-name: Regenerate convergence lockfile
+name: Reconcile convergence lockfiles
 
 on:
   push:
@@ -12,19 +12,22 @@ on:
     paths:
       - package.json
       - pnpm-lock.yaml
+      - Cargo.toml
+      - Cargo.lock
+      - crates/cli/Cargo.toml
       - .github/workflows/convergence-lockfile.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: convergence-lockfile
+  group: convergence-lockfiles
   cancel-in-progress: true
 
 jobs:
-  regenerate:
+  reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out convergence branch
         uses: actions/checkout@v7
@@ -44,27 +47,39 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Regenerate combined lockfile
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Regenerate combined npm lockfile
         run: pnpm install --lockfile-only --no-frozen-lockfile
 
-      - name: Verify frozen install
+      - name: Verify frozen npm install
         run: pnpm install --frozen-lockfile
 
-      - name: Verify integrated Node types
+      - name: Regenerate aligned Cargo lockfile
+        shell: bash
+        run: |
+          cargo update -p ratatui --precise 0.30.2
+          cargo check -p scriptor-cli --locked
+
+      - name: Verify integrated dependency invariants
         shell: bash
         run: |
           grep -F '"@types/node": "^26.1.2"' package.json
           grep -F "'@types/node@26.1.2':" pnpm-lock.yaml
+          grep -F 'ratatui = "0.30.2"' crates/cli/Cargo.toml
+          test "$(grep -c '^name = "crossterm"$' Cargo.lock)" -eq 1
+          grep -A1 '^name = "crossterm"$' Cargo.lock | grep -F 'version = "0.29.0"'
 
-      - name: Commit regenerated lockfile
+      - name: Commit reconciled lockfiles
         shell: bash
         run: |
-          if git diff --quiet -- pnpm-lock.yaml; then
-            echo "Lockfile already matches the combined manifest."
+          if git diff --quiet -- pnpm-lock.yaml Cargo.lock; then
+            echo "Lockfiles already match the combined manifests."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add pnpm-lock.yaml
-          git commit -m "chore(deps): regenerate unified pnpm lockfile"
+          git add pnpm-lock.yaml Cargo.lock
+          git commit -m "chore(deps): reconcile unified lockfiles"
           git push origin HEAD:convergence/all-open-prs-2026-07-29
