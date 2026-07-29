@@ -240,7 +240,15 @@ impl ClientInner {
 
     fn ensure_connected(
         &self,
+        deadline: Instant,
     ) -> Result<std::sync::MutexGuard<'_, Option<LocalSocketStream>>, IpcError> {
+        if Instant::now() >= deadline {
+            return Err(IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC connection deadline exceeded",
+            )));
+        }
+
         let mut guard = lock_recover(&self.stream);
         if guard.is_none() {
             let stream = connect_client()?;
@@ -250,6 +258,12 @@ impl ClientInner {
             stream
                 .set_recv_timeout(Some(RPC_READ_TIMEOUT))
                 .map_err(IpcError::from)?;
+            if Instant::now() >= deadline {
+                return Err(IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC connection deadline exceeded",
+                )));
+            }
             *guard = Some(stream);
         }
         Ok(guard)
@@ -266,6 +280,7 @@ impl ClientInner {
         &self,
         stream: &mut R,
         request_id: u64,
+        timeout: Duration,
     ) -> Result<RpcResponse, IpcError> {
         // Both bounds matter: the absolute I/O deadline stops a silent daemon
         // from parking the caller, and the frame budget stops a chatty daemon
@@ -275,8 +290,8 @@ impl ClientInner {
                 Ok(body) => body,
                 Err(error) if is_read_timeout(&error) => {
                     return Err(IpcError::Codec(format!(
-                        "timed out after {}s waiting for response to request {request_id}",
-                        RPC_READ_TIMEOUT.as_secs()
+                        "timed out after {:.3}s waiting for response to request {request_id}",
+                        timeout.as_secs_f64()
                     )));
                 }
                 Err(error) => return Err(error),
@@ -309,26 +324,59 @@ impl ClientInner {
         &self,
         stream: &mut LocalSocketStream,
         request: &RpcRequest,
+        deadline: Instant,
+        timeout: Duration,
     ) -> Result<RpcResponse, IpcError> {
-        let deadline = Instant::now() + RPC_READ_TIMEOUT;
+        let remaining = deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
+            IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC I/O deadline exceeded",
+            ))
+        })?;
+        if remaining.is_zero() {
+            return Err(IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC I/O deadline exceeded",
+            )));
+        }
+        #[cfg(not(windows))]
+        stream
+            .set_recv_timeout(Some(remaining))
+            .map_err(IpcError::from)?;
+
         let mut io = DeadlineIo::new(stream, deadline);
         write_frame(&mut io, request)?;
-        self.read_response_frame(&mut io, request.id)
+        self.read_response_frame(&mut io, request.id, timeout)
     }
 
-    fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
-        let mut guard = self.ensure_connected()?;
+    fn call_with_timeout(
+        &self,
+        request: RpcRequest,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        if timeout.is_zero() {
+            return Err(IpcError::Io(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "RPC timeout must be greater than zero",
+            )));
+        }
+
+        // One absolute deadline covers the initial attempt and the one allowed
+        // reconnect. A short caller budget therefore cannot expand to two full
+        // socket timeouts.
+        let deadline = Instant::now() + timeout;
+        let mut guard = self.ensure_connected(deadline)?;
         let stream = guard.as_mut().expect("connected stream");
-        match self.call_once(stream, &request) {
+        match self.call_once(stream, &request, deadline, timeout) {
             Ok(response) => Ok(response),
-            Err(error) if should_reconnect(&error) => {
+            Err(error) if should_reconnect(&error) && Instant::now() < deadline => {
                 drop(guard);
                 // Only the request socket is recycled here; the event listener
                 // is independent and must survive an RPC-level reconnect.
                 self.drop_stream();
-                let mut guard = self.ensure_connected()?;
+                let mut guard = self.ensure_connected(deadline)?;
                 let stream = guard.as_mut().expect("connected stream");
-                self.call_once(stream, &request)
+                self.call_once(stream, &request, deadline, timeout)
             }
             Err(error) => {
                 // A timeout or a decode failure can leave unconsumed bytes in
@@ -338,6 +386,10 @@ impl ClientInner {
                 Err(error)
             }
         }
+    }
+
+    fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
+        self.call_with_timeout(request, RPC_READ_TIMEOUT)
     }
 }
 
@@ -364,6 +416,16 @@ impl DaemonRpcClient {
 
     pub fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
         self.inner.call(request)
+    }
+
+    /// Execute one RPC within a caller-supplied whole-call budget. The budget
+    /// includes socket setup, request write, response read, and one reconnect.
+    pub fn call_with_timeout(
+        &self,
+        request: RpcRequest,
+        timeout: Duration,
+    ) -> Result<RpcResponse, IpcError> {
+        self.inner.call_with_timeout(request, timeout)
     }
 
     /// Whether a live event-listener thread is currently claimed by this client.
@@ -456,5 +518,17 @@ mod tests {
         let mut io = DeadlineIo::new(&mut scripted, Instant::now());
         let error = io.read(&mut [0u8; 1]).expect_err("deadline must expire");
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[test]
+    fn zero_duration_call_is_rejected_before_connecting() {
+        let client = DaemonRpcClient::new();
+        let error = client
+            .call_with_timeout(
+                RpcRequest::new(1, RpcMethod::Ping),
+                Duration::ZERO,
+            )
+            .expect_err("zero timeout must fail");
+        assert!(is_read_timeout(&error));
     }
 }
