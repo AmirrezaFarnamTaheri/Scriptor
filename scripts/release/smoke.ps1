@@ -38,10 +38,70 @@ foreach ($requiredBinary in @($daemonPath, $cliPath)) {
 }
 $daemonPath = (Resolve-Path -LiteralPath $daemonPath).Path
 $cliPath = (Resolve-Path -LiteralPath $cliPath).Path
+$normalizedDaemonPath = [System.IO.Path]::GetFullPath($daemonPath).TrimEnd('\', '/')
 
 function Invoke-ScriptorCli {
     param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
     Invoke-BoundedProcess -FilePath $cliPath -Arguments $Args -WorkingDirectory $root -TimeoutSeconds $CommandTimeoutSeconds
+}
+
+function Stop-SmokeDaemonCandidate {
+    <#
+    .SYNOPSIS
+    Stops only a process proven to be the smoke-owned daemon binary.
+    .DESCRIPTION
+    A PID alone is unsafe on Windows because it may be recycled after the daemon
+    exits. The executable path is mandatory, and the originally observed daemon
+    also carries a process-start-time check so cleanup cannot target a reused PID.
+    #>
+    param(
+        [Parameter(Mandatory = $true)][int]$ProcessId,
+        [Nullable[datetime]]$ExpectedStartTimeUtc,
+        [Parameter(Mandatory = $true)][string]$Reason
+    )
+
+    $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
+    if (-not $process) {
+        return
+    }
+
+    try {
+        $actualPath = [System.IO.Path]::GetFullPath($process.Path).TrimEnd('\', '/')
+    }
+    catch {
+        Write-Warning "Refusing to stop PID $ProcessId ($Reason): executable path could not be verified."
+        return
+    }
+    if (-not $actualPath.Equals($normalizedDaemonPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        Write-Warning "Refusing to stop PID $ProcessId ($Reason): executable is '$actualPath', expected '$normalizedDaemonPath'."
+        return
+    }
+
+    if ($null -ne $ExpectedStartTimeUtc) {
+        try {
+            $actualStart = $process.StartTime.ToUniversalTime()
+        }
+        catch {
+            Write-Warning "Refusing to stop PID $ProcessId ($Reason): process start time could not be verified."
+            return
+        }
+        if ([math]::Abs(($actualStart - $ExpectedStartTimeUtc.Value).TotalSeconds) -gt 1) {
+            Write-Warning "Refusing to stop PID $ProcessId ($Reason): PID was reused after the recorded daemon exited."
+            return
+        }
+    }
+
+    Write-Host "==> Stop smoke daemon $ProcessId ($Reason)"
+    Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+    for ($attempt = 0; $attempt -lt 40; $attempt++) {
+        if (-not (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
+            return
+        }
+        Start-Sleep -Milliseconds 250
+    }
+    if (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
+        throw "smoke daemon $ProcessId did not terminate within 10 seconds"
+    }
 }
 
 $sourceVault = (Resolve-Path -LiteralPath $VaultPath).Path
@@ -49,6 +109,7 @@ $smokeId = [guid]::NewGuid().ToString('N')
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "scriptor-release-smoke-$smokeId"
 $smokeVault = Join-Path $tempRoot "vault"
 $smokeAppData = Join-Path $tempRoot "appdata"
+$smokeEndpointPath = Join-Path $smokeAppData "scriptor/daemon-endpoint.json"
 $smokeSocket = if ($isWindowsPlatform) {
     "scriptor-smoke-$smokeId"
 } else {
@@ -59,6 +120,7 @@ $originalAppData = $env:APPDATA
 $originalDaemonBin = $env:SCRIPTOR_DAEMON_BIN
 $originalDaemonSocket = $env:SCRIPTOR_DAEMON_SOCKET
 $daemonProcessId = $null
+$daemonProcessStartTimeUtc = $null
 
 try {
     # Creation and copying are inside the cleanup region so even a partial or
@@ -84,6 +146,12 @@ try {
     $daemonProcessId = [int]$endpoint.pid
     if ($daemonProcessId -le 0) {
         throw "daemon endpoint did not expose a valid process id"
+    }
+    try {
+        $daemonProcessStartTimeUtc = (Get-Process -Id $daemonProcessId -ErrorAction Stop).StartTime.ToUniversalTime()
+    }
+    catch {
+        Write-Warning "Could not capture initial smoke daemon start time for PID $daemonProcessId."
     }
     Write-Host "Smoke daemon PID: $daemonProcessId"
 
@@ -149,30 +217,36 @@ try {
     Write-Host "Release smoke checks passed."
 }
 finally {
-    if (-not $daemonProcessId) {
-        $endpointPath = Join-Path $smokeAppData "scriptor/daemon-endpoint.json"
-        if (Test-Path -LiteralPath $endpointPath -PathType Leaf) {
-            try {
-                $daemonProcessId = [int]((Get-Content -LiteralPath $endpointPath -Raw | ConvertFrom-Json).pid)
-            }
-            catch {
-                Write-Warning "Could not recover smoke daemon PID from $endpointPath"
-            }
+    $cleanupCandidates = @{}
+    if ($daemonProcessId) {
+        $cleanupCandidates[[string]$daemonProcessId] = [pscustomobject]@{
+            ProcessId = [int]$daemonProcessId
+            ExpectedStartTimeUtc = $daemonProcessStartTimeUtc
+            Reason = 'initial signed endpoint'
         }
     }
 
-    if ($daemonProcessId) {
-        Write-Host "==> Stop smoke daemon $daemonProcessId"
-        Stop-Process -Id $daemonProcessId -Force -ErrorAction SilentlyContinue
-        for ($attempt = 0; $attempt -lt 40; $attempt++) {
-            if (-not (Get-Process -Id $daemonProcessId -ErrorAction SilentlyContinue)) {
-                break
+    if (Test-Path -LiteralPath $smokeEndpointPath -PathType Leaf) {
+        try {
+            $currentEndpoint = Get-Content -LiteralPath $smokeEndpointPath -Raw | ConvertFrom-Json
+            if ([string]$currentEndpoint.socket_name -eq $smokeSocket -and [int]$currentEndpoint.pid -gt 0) {
+                $currentPid = [int]$currentEndpoint.pid
+                $cleanupCandidates[[string]$currentPid] = [pscustomobject]@{
+                    ProcessId = $currentPid
+                    ExpectedStartTimeUtc = $null
+                    Reason = 'current signed smoke endpoint'
+                }
+            } else {
+                Write-Warning "Refusing endpoint cleanup because its socket does not match '$smokeSocket'."
             }
-            Start-Sleep -Milliseconds 250
         }
-        if (Get-Process -Id $daemonProcessId -ErrorAction SilentlyContinue) {
-            throw "smoke daemon $daemonProcessId did not terminate within 10 seconds"
+        catch {
+            Write-Warning "Could not parse current smoke endpoint at $smokeEndpointPath."
         }
+    }
+
+    foreach ($candidate in $cleanupCandidates.Values) {
+        Stop-SmokeDaemonCandidate -ProcessId $candidate.ProcessId -ExpectedStartTimeUtc $candidate.ExpectedStartTimeUtc -Reason $candidate.Reason
     }
 
     if ($null -eq $originalAppData) {
