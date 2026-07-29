@@ -8,7 +8,7 @@ license.workspace = true
 path = "src/lib.rs"
 
 [dependencies]
-tantivy = "0.22"
+tantivy = "0.26"
 thiserror = "2"
 
 [dev-dependencies]
