@@ -93,7 +93,7 @@ fn remaining(deadline: Instant) -> Result<Duration, IpcError> {
 
 fn call_once(request: &mut RpcRequest, deadline: Instant) -> Result<RpcResponse, IpcError> {
     let endpoint = read_endpoint()?;
-    request.endpoint_nonce = Some(endpoint.nonce);
+    request.endpoint_nonce = endpoint.nonce;
     let name = endpoint
         .socket_name
         .as_str()
