@@ -95,12 +95,11 @@ fn bounded_startup_ping_timeout(now: Instant, deadline: Instant) -> Option<Durat
     }
 }
 
-/// Verify whether the authenticated endpoint's recorded process still exists.
+/// Verify whether the authenticated endpoint's recorded process is still running.
 ///
-/// This deliberately mirrors the daemon transport's liveness check. It is kept
-/// here because startup arbitration must happen before another listener is
-/// spawned: a transient EOF from a live daemon is not permission to create a
-/// competing process on the same named pipe or Unix socket.
+/// Merely opening a Windows process handle is insufficient: a terminated process
+/// object remains openable while another handle is retained. Querying its exit
+/// code distinguishes that stale object from a genuinely running daemon.
 fn process_alive(pid: u32) -> bool {
     if pid == 0 {
         return false;
@@ -123,17 +122,21 @@ fn process_alive(pid: u32) -> bool {
 
         unsafe extern "system" {
             fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+            fn GetExitCodeProcess(handle: *mut c_void, exit_code: *mut u32) -> i32;
             fn CloseHandle(handle: *mut c_void) -> i32;
         }
 
         const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+        const STILL_ACTIVE: u32 = 259;
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {
                 return false;
             }
+            let mut exit_code = 0u32;
+            let queried = GetExitCodeProcess(handle, &mut exit_code);
             CloseHandle(handle);
-            true
+            queried != 0 && exit_code == STILL_ACTIVE
         }
     }
 }
@@ -391,5 +394,18 @@ mod tests {
     fn process_liveness_rejects_zero_and_accepts_current_process() {
         assert!(!process_alive(0));
         assert!(process_alive(std::process::id()));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn process_liveness_rejects_exited_child_with_retained_handle() {
+        let mut child = Command::new("cmd")
+            .args(["/C", "exit", "0"])
+            .spawn()
+            .expect("spawn child");
+        let pid = child.id();
+        let status = child.wait().expect("wait for child");
+        assert!(status.success());
+        assert!(!process_alive(pid));
     }
 }
