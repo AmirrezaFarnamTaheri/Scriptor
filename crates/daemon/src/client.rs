@@ -1,17 +1,20 @@
 use std::io::{self, Read, Write};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, LazyLock, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
+use interprocess::local_socket::{ConnectOptions, GenericFilePath, GenericNamespaced};
+use interprocess::ConnectWaitMode;
 use scriptor_ipc::{
     fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcEvent,
     RpcMethod, RpcRequest, RpcResponse, ServerMessage,
 };
 
 use crate::locks::lock_recover;
-use crate::transport::connect_client;
+use crate::transport::{connect_client, read_endpoint};
 
 /// Upper bound on how long a single `call` waits for the daemon to answer.
 /// Generous enough for the synchronous export/reindex RPCs, but finite: the
@@ -106,6 +109,42 @@ impl<T: Write> Write for DeadlineIo<'_, T> {
             }
         }
     }
+}
+
+/// Connect within `timeout` and create Windows named-pipe streams in
+/// nonblocking mode from the instant they are opened.
+///
+/// The ordinary `LocalSocketStream::connect` path waits without a bound before
+/// nonblocking mode can be applied. Building the stream with `ConnectOptions`
+/// keeps connection establishment inside the same absolute RPC budget as frame
+/// writes and reads.
+fn connect_client_with_timeout(timeout: Duration) -> Result<LocalSocketStream, IpcError> {
+    if timeout.is_zero() {
+        return Err(IpcError::Io(io::Error::new(
+            io::ErrorKind::TimedOut,
+            "daemon connection timeout must be greater than zero",
+        )));
+    }
+
+    let endpoint = read_endpoint()?;
+    let name = if cfg!(windows) {
+        endpoint
+            .socket_name
+            .as_str()
+            .to_ns_name::<GenericNamespaced>()
+            .map_err(|error| IpcError::Codec(error.to_string()))?
+    } else {
+        Path::new(&endpoint.socket_name)
+            .to_fs_name::<GenericFilePath>()
+            .map_err(|error| IpcError::Codec(error.to_string()))?
+    };
+
+    ConnectOptions::new()
+        .name(name)
+        .wait_mode(ConnectWaitMode::Timeout(timeout))
+        .nonblocking_stream(cfg!(windows))
+        .connect_sync()
+        .map_err(IpcError::from)
 }
 
 type EventHandler = Box<dyn Fn(RpcEvent) + Send + Sync>;
@@ -251,13 +290,33 @@ impl ClientInner {
 
         let mut guard = lock_recover(&self.stream);
         if guard.is_none() {
-            let stream = connect_client()?;
-            #[cfg(windows)]
-            stream.set_nonblocking(true).map_err(IpcError::from)?;
+            let remaining = deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
+                IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC connection deadline exceeded",
+                ))
+            })?;
+            if remaining.is_zero() {
+                return Err(IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC connection deadline exceeded",
+                )));
+            }
+
+            // The timeout and Windows nonblocking mode are applied while the
+            // stream is created. Applying them afterwards leaves `connect`
+            // itself outside the whole-call deadline and can park forever on
+            // a busy named pipe.
+            let stream = connect_client_with_timeout(remaining)?;
             #[cfg(not(windows))]
-            stream
-                .set_recv_timeout(Some(RPC_READ_TIMEOUT))
-                .map_err(IpcError::from)?;
+            {
+                stream
+                    .set_recv_timeout(Some(remaining))
+                    .map_err(IpcError::from)?;
+                stream
+                    .set_send_timeout(Some(remaining))
+                    .map_err(IpcError::from)?;
+            }
             if Instant::now() >= deadline {
                 return Err(IpcError::Io(io::Error::new(
                     io::ErrorKind::TimedOut,
@@ -340,9 +399,14 @@ impl ClientInner {
             )));
         }
         #[cfg(not(windows))]
-        stream
-            .set_recv_timeout(Some(remaining))
-            .map_err(IpcError::from)?;
+        {
+            stream
+                .set_recv_timeout(Some(remaining))
+                .map_err(IpcError::from)?;
+            stream
+                .set_send_timeout(Some(remaining))
+                .map_err(IpcError::from)?;
+        }
 
         let mut io = DeadlineIo::new(stream, deadline);
         write_frame(&mut io, request)?;
@@ -518,6 +582,13 @@ mod tests {
         let mut io = DeadlineIo::new(&mut scripted, Instant::now());
         let error = io.read(&mut [0u8; 1]).expect_err("deadline must expire");
         assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    }
+
+    #[test]
+    fn zero_duration_connection_is_rejected_before_endpoint_lookup() {
+        let error = connect_client_with_timeout(Duration::ZERO)
+            .expect_err("zero connection timeout must fail");
+        assert!(is_read_timeout(&error));
     }
 
     #[test]
