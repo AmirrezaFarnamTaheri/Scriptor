@@ -307,7 +307,7 @@ function Invoke-BoundedProcess {
         Write-Host "exit_code: $exitCode"
         if ($exitCode -ne 0) {
             throw (
-                "process failed with exit code $exitCode: $($processInfo.DisplayCommand)" +
+                "process failed with exit code ${exitCode}: $($processInfo.DisplayCommand)" +
                 "`nstdout:`n$stdout`nstderr:`n$stderr"
             )
         }
