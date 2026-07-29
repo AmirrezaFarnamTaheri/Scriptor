@@ -24,9 +24,13 @@ defaults:
 
 env:
   SCRIPTOR_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  FORCE_COLOR: 1
 
 jobs:
   build:
+    name: Package ${{ matrix.platform }}-${{ matrix.arch }} installers
     strategy:
       fail-fast: false
       matrix:
@@ -36,6 +40,7 @@ jobs:
             arch: aarch64
             targets: deb,appimage
             artifact: scriptor-linux-arm64-installers
+            cargo_target: ''
           - os: macos-latest
             platform: macos
             arch: aarch64
@@ -44,49 +49,54 @@ jobs:
             cargo_target: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/release-${{ matrix.platform }}-${{ matrix.arch }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout release source
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - name: Configure Node.js 22
+        uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
 
-      - name: Install Linux dependencies
+      - name: Describe ARM64 release packaging scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "ARM64 release packaging (${{ matrix.platform }}-${{ matrix.arch }})"
+
+      - name: Install Linux ARM64 packaging dependencies
         if: matrix.platform == 'linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            libgtk-3-dev \
-            patchelf
-          mkdir -p ~/.cargo
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux ARM64 packaging dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf && mkdir -p ~/.cargo") -TimeoutSeconds 900
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
-      - name: Configure cross-compilation (macOS)
+      - name: Install macOS ARM64 Rust target
         if: matrix.platform == 'macos'
-        shell: bash
-        run: rustup target add aarch64-apple-darwin
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install macOS ARM64 Rust target" -FilePath "rustup" -ArgumentList @("target", "add", "aarch64-apple-darwin") -TimeoutSeconds 600
 
-      - name: Set cargo build target
+      - name: Configure Cargo build target
         if: matrix.cargo_target != ''
-        shell: bash
-        run: echo "CARGO_BUILD_TARGET=${{ matrix.cargo_target }}" >> "$GITHUB_ENV"
+        shell: pwsh
+        run: |
+          "CARGO_BUILD_TARGET=${{ matrix.cargo_target }}" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+          "cargo_build_target=${{ matrix.cargo_target }}" | Set-Content -LiteralPath "$env:CI_LOG_DIR/cargo-target.log" -Encoding utf8
+          Write-Host "Cargo build target: ${{ matrix.cargo_target }}"
+          "| Configure Cargo build target | PASS | - | 0 | ``cargo-target.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Import Apple signing certificate
         if: matrix.platform == 'macos'
@@ -95,8 +105,10 @@ jobs:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
         run: |
+          echo "::group::Import Apple signing certificate"
           if [ -z "$APPLE_CERTIFICATE" ]; then
-            echo "No Apple certificate secret; using ad-hoc signing."
+            echo "Signing mode: ad-hoc (APPLE_CERTIFICATE is not configured)."
+            echo "::endgroup::"
             exit 0
           fi
           KEYCHAIN=build.keychain
@@ -106,8 +118,10 @@ jobs:
           echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
           security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
+          echo "Signing mode: imported Apple certificate into ephemeral keychain."
+          echo "::endgroup::"
 
-      - name: Configure macOS signing
+      - name: Configure macOS signing and notarization inputs
         if: matrix.platform == 'macos'
         shell: bash
         env:
@@ -117,26 +131,57 @@ jobs:
           _APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           _APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          echo "::group::Configure macOS signing and notarization inputs"
           if [ -n "$_APPLE_CERTIFICATE" ] && [ -n "$_APPLE_SIGNING_IDENTITY" ]; then
             echo "APPLE_SIGNING_IDENTITY=$_APPLE_SIGNING_IDENTITY" >> "$GITHUB_ENV"
             [ -n "$_APPLE_ID" ] && echo "APPLE_ID=$_APPLE_ID" >> "$GITHUB_ENV"
             [ -n "$_APPLE_PASSWORD" ] && echo "APPLE_PASSWORD=$_APPLE_PASSWORD" >> "$GITHUB_ENV"
             [ -n "$_APPLE_TEAM_ID" ] && echo "APPLE_TEAM_ID=$_APPLE_TEAM_ID" >> "$GITHUB_ENV"
-            echo "Using Apple Developer ID signing."
+            echo "Signing mode: Apple Developer ID."
+            if [ -n "$_APPLE_ID" ] && [ -n "$_APPLE_PASSWORD" ] && [ -n "$_APPLE_TEAM_ID" ]; then
+              echo "Notarization inputs: complete."
+            else
+              echo "Notarization inputs: incomplete; signing can proceed without notarization."
+            fi
           else
-            echo "No Apple signing identity configured; using ad-hoc signing."
+            echo "Signing mode: ad-hoc."
           fi
+          echo "::endgroup::"
 
-      - name: Build frontend
-        run: pnpm build
+      - name: Build frontend for ARM64 package
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Build frontend for ARM64 package" -FilePath "pnpm" -ArgumentList @("build") -TimeoutSeconds 1200
 
-      - name: Tauri bundle (${{ matrix.platform }}-${{ matrix.arch }})
+      - name: Build Tauri ARM64 bundles
+        shell: pwsh
         env:
           TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
-        run: pnpm --dir apps/desktop build
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Build Tauri ARM64 bundles (${{ matrix.platform }}-${{ matrix.arch }})" -FilePath "pnpm" -ArgumentList @("--dir", "apps/desktop", "build") -TimeoutSeconds 4800 -HeartbeatSeconds 20
 
-      - name: Upload installers
-        uses: actions/upload-artifact@v4
+      - name: Inventory generated ARM64 bundles
+        if: always()
+        shell: pwsh
+        run: |
+          $inventoryPath = Join-Path $env:CI_LOG_DIR "bundle-inventory.log"
+          $lines = @(
+            "platform=${{ matrix.platform }}",
+            "arch=${{ matrix.arch }}",
+            "targets=${{ matrix.targets }}",
+            "cargo_target=${{ matrix.cargo_target }}",
+            "version=$env:SCRIPTOR_RELEASE_VERSION",
+            "captured_utc=$([DateTimeOffset]::UtcNow.ToString('o'))"
+          )
+          foreach ($item in @(Get-ChildItem -LiteralPath target -Recurse -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -match '[\\/]release[\\/]bundle[\\/]' } | Sort-Object FullName)) {
+            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lines += "file=$($item.FullName) bytes=$($item.Length) sha256=$hash"
+          }
+          if ($lines.Count -eq 6) { $lines += "warning=no bundle files found" }
+          $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
+          $lines | ForEach-Object { Write-Host $_ }
+          "| Inventory generated ARM64 bundles | PASS | - | 0 | ``bundle-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
+      - name: Upload ARM64 installers
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.artifact }}
           path: target/**/release/bundle/**/*
@@ -146,26 +191,68 @@ jobs:
         if: always() && matrix.platform == 'macos'
         shell: bash
         run: |
+          echo "::group::Clean up Apple signing material"
           rm -f "$RUNNER_TEMP/certificate.p12"
           security delete-keychain build.keychain 2>/dev/null || true
+          echo "Ephemeral certificate and keychain cleanup complete."
+          echo "::endgroup::"
+
+      - name: Capture ARM64 packaging failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "ARM64 release packaging (${{ matrix.platform }}-${{ matrix.arch }})"
+
+      - name: Finalize ARM64 packaging evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "ARM64 release packaging (${{ matrix.platform }}-${{ matrix.arch }})" -Status "${{ job.status }}"
+
+      - name: Upload ARM64 packaging evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-release-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
 
   publish:
+    name: Publish ARM64 assets to GitHub Release
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/release-arm64-publish
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout release metadata
+        uses: actions/checkout@v7
 
-      - name: Download all installer artifacts
+      - name: Describe ARM64 publication scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "ARM64 GitHub Release publication"
+
+      - name: Download all ARM64 installer artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts
           merge-multiple: true
 
-      - name: List release artifacts
-        run: find release-artifacts -type f | sort
+      - name: Inventory downloaded ARM64 release artifacts
+        shell: pwsh
+        run: |
+          $inventoryPath = Join-Path $env:CI_LOG_DIR "publication-inventory.log"
+          $lines = @()
+          foreach ($item in @(Get-ChildItem -LiteralPath release-artifacts -Recurse -File | Sort-Object FullName)) {
+            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $line = "file=$($item.FullName) bytes=$($item.Length) sha256=$hash"
+            $lines += $line
+            Write-Host $line
+          }
+          if ($lines.Count -eq 0) { throw "No downloaded ARM64 release artifacts were found." }
+          $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
+          "| Inventory downloaded ARM64 release artifacts | PASS | - | 0 | ``publication-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Create GitHub Release
+      - name: Attach ARM64 installers to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
@@ -173,3 +260,22 @@ jobs:
           files: release-artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Capture ARM64 publication failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "ARM64 GitHub Release publication"
+
+      - name: Finalize ARM64 publication evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "ARM64 GitHub Release publication" -Status "${{ job.status }}"
+
+      - name: Upload ARM64 publication evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-release-arm64-publish-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 14

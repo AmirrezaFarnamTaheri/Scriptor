@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'packages/test-fixtures/vaults/minimal/**'
+      - 'scripts/ci/**'
       - '.github/workflows/publish-vault.yml'
 
 concurrency:
@@ -14,58 +15,161 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+  FORCE_COLOR: 1
+
 jobs:
   export-and-deploy:
+    name: Export vault and package Pages artifact
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/publish-vault-export
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - name: Configure pnpm
+        uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Describe vault publication scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Vault export and Pages artifact packaging"
 
-      - name: Build daemon
-        run: cargo build -p scriptor-daemon --release
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
-      - name: Export vault to static site
+      - name: Build release daemon used by static exporter
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Build release daemon used by static exporter" -FilePath "cargo" -ArgumentList @("build", "-p", "scriptor-daemon", "--release") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Export minimal vault to strict static site
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Export minimal vault to strict static site" -FilePath "node" -ArgumentList @("scripts/ci/export-vault.mjs", "--vault", "packages/test-fixtures/vaults/minimal", "--profile", "blog", "--output", "./dist", "--ci", "--fail-on-warnings", "--daemon", "./target/release/scriptor-daemon") -TimeoutSeconds 1200
+
+      - name: Inventory exported static site
+        shell: pwsh
         run: |
-          node scripts/ci/export-vault.mjs \
-            --vault packages/test-fixtures/vaults/minimal \
-            --profile blog \
-            --output ./dist \
-            --ci \
-            --fail-on-warnings \
-            --daemon ./target/release/scriptor-daemon
+          $inventoryPath = Join-Path $env:CI_LOG_DIR "site-inventory.log"
+          $lines = @()
+          foreach ($item in @(Get-ChildItem -LiteralPath dist -Recurse -File | Sort-Object FullName)) {
+            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $line = "file=$($item.FullName) bytes=$($item.Length) sha256=$hash"
+            $lines += $line
+            Write-Host $line
+          }
+          if ($lines.Count -eq 0) { throw "Static export produced no files under dist/." }
+          $totalBytes = (Get-ChildItem -LiteralPath dist -Recurse -File | Measure-Object -Property Length -Sum).Sum
+          $lines += "file_count=$($lines.Count)"
+          $lines += "total_bytes=$totalBytes"
+          $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
+          "| Inventory exported static site | PASS | - | 0 | ``site-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist
 
+      - name: Capture vault export failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Vault export and Pages artifact packaging"
+
+      - name: Finalize vault export evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Vault export and Pages artifact packaging" -Status "${{ job.status }}"
+
+      - name: Upload vault export evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-publish-vault-export-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
+
   deploy:
+    name: Deploy vault artifact to GitHub Pages
     needs: export-and-deploy
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     permissions:
+      contents: read
       pages: write
       id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/publish-vault-deploy
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Checkout deployment metadata
+        uses: actions/checkout@v7
+
+      - name: Describe Pages deployment scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "GitHub Pages deployment"
+
+      - name: Deploy artifact to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Record deployed Pages URL
+        shell: pwsh
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:PAGE_URL)) { throw "deploy-pages returned an empty page_url output." }
+          @(
+            "page_url=$env:PAGE_URL",
+            "deployed_utc=$([DateTimeOffset]::UtcNow.ToString('o'))",
+            "sha=$env:GITHUB_SHA",
+            "run_id=$env:GITHUB_RUN_ID"
+          ) | Set-Content -LiteralPath "$env:CI_LOG_DIR/deployment.log" -Encoding utf8
+          Write-Host "Deployed Pages URL: $env:PAGE_URL"
+          @(
+            "",
+            "### Deployment result",
+            "",
+            "- URL: $env:PAGE_URL",
+            "- Commit: ``$env:GITHUB_SHA``"
+          ) | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
+      - name: Capture Pages deployment failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "GitHub Pages deployment"
+
+      - name: Finalize Pages deployment evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Pages deployment" -Status "${{ job.status }}"
+
+      - name: Upload Pages deployment evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-publish-vault-deploy-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 14

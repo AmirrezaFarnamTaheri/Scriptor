@@ -8,13 +8,12 @@ license.workspace = true
 scriptor-vault = { path = "../vault" }
 scriptor-export-runner = { path = "../export-runner" }
 chrono = { version = "0.4", features = ["serde"] }
-resvg = "0.44"
+resvg = "0.47"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"
 thiserror = "2"
-tiny-skia = "0.11"
-usvg = { version = "0.44", features = ["text"] }
+tiny-skia = "0.12"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]

@@ -1,6 +1,14 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use ratatui::{
+    DefaultTerminal, Frame,
+    layout::{Constraint, Direction, Layout},
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
+};
 use scriptor_daemon::rpc_call;
 use scriptor_indexer::{
     backlinks_for_path, health_diagnostics_json, list_note_summaries, open_cache_for_session,
@@ -8,19 +16,7 @@ use scriptor_indexer::{
 };
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResult};
 use scriptor_native_git::git_status;
-use scriptor_vault::{open_vault, read_note, RelativeVaultPath, VaultSession};
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{
-    layout::{Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
-    text::{Line, Span},
-    widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
-    DefaultTerminal, Frame,
-};
+use scriptor_vault::{RelativeVaultPath, VaultSession, open_vault, read_note};
 use serde::Deserialize;
 use unicode_segmentation::UnicodeSegmentation;
 use unicode_width::UnicodeWidthStr;
@@ -158,10 +154,7 @@ impl TuiApp {
         if self.use_daemon {
             self.ensure_daemon_vault()?;
             if self.query.trim().is_empty() {
-                let response = rpc_call(RpcRequest::new(
-                    self.next_rpc_id(),
-                    RpcMethod::ListNotes,
-                ))?;
+                let response = rpc_call(RpcRequest::new(self.next_rpc_id(), RpcMethod::ListNotes))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::NoteList { notes }) => {
                         self.notes = notes
@@ -231,7 +224,11 @@ impl TuiApp {
             self.selected = self.selected.min(self.notes.len().saturating_sub(1));
         }
         self.status = if self.query.trim().is_empty() {
-            let transport = if self.use_daemon { "daemon" } else { "in-process" };
+            let transport = if self.use_daemon {
+                "daemon"
+            } else {
+                "in-process"
+            };
             format!("{} notes ({transport})", self.notes.len())
         } else {
             format!("{} results for {}", self.notes.len(), self.query.trim())
@@ -242,10 +239,7 @@ impl TuiApp {
     fn refresh_footer_meta(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         if self.use_daemon {
             self.ensure_daemon_vault()?;
-            let git = rpc_call(RpcRequest::new(
-                self.next_rpc_id(),
-                RpcMethod::GitStatus,
-            ))?;
+            let git = rpc_call(RpcRequest::new(self.next_rpc_id(), RpcMethod::GitStatus))?;
             self.git_footer = match git.result {
                 RpcResult::Ok(RpcPayload::GitStatus { json }) => summarize_git_json(&json),
                 RpcResult::Err(message) => format!("git: {message}"),
@@ -257,7 +251,9 @@ impl TuiApp {
                 RpcMethod::HealthDiagnostics,
             ))?;
             self.health_footer = match health.result {
-                RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => summarize_health_json(&json),
+                RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => {
+                    summarize_health_json(&json)
+                }
                 RpcResult::Err(message) => format!("health: {message}"),
                 _ => String::from("health: unexpected response"),
             };
@@ -389,8 +385,11 @@ impl TuiApp {
                 .take(40)
                 .map(|node| format!("{} ({})", node.label, node.path))
                 .collect();
-            self.pane_lines
-                .push(format!("{} nodes, {} edges", graph.nodes.len(), graph.edges.len()));
+            self.pane_lines.push(format!(
+                "{} nodes, {} edges",
+                graph.nodes.len(),
+                graph.edges.len()
+            ));
         }
         Ok(())
     }
@@ -494,7 +493,11 @@ fn summarize_git(status: &scriptor_native_git::GitStatus) -> String {
     }
     let branch = status.branch.clone().unwrap_or_else(|| "detached".into());
     let changes = status.changed_files.len();
-    let conflicts = if status.has_conflicts { " conflicts" } else { "" };
+    let conflicts = if status.has_conflicts {
+        " conflicts"
+    } else {
+        ""
+    };
     format!("git: {branch} | {changes} changed{conflicts}")
 }
 
@@ -509,7 +512,11 @@ fn summarize_git_json(json: &str) -> String {
             format!(
                 "git: {branch} | {} changed{clean}{}",
                 status.changed_files.len(),
-                if status.has_conflicts { " conflicts" } else { "" }
+                if status.has_conflicts {
+                    " conflicts"
+                } else {
+                    ""
+                }
             )
         })
         .unwrap_or_else(|_| String::from("git: unavailable"))
@@ -551,7 +558,11 @@ fn format_graph_json(json: &str) -> Vec<String> {
                 })
                 .take(40)
                 .collect::<Vec<_>>();
-            lines.push(format!("{} nodes, {} edges", graph.nodes.len(), graph.edges.len()));
+            lines.push(format!(
+                "{} nodes, {} edges",
+                graph.nodes.len(),
+                graph.edges.len()
+            ));
             lines
         }
         Err(_) => vec!["Could not parse graph.".into()],
@@ -578,17 +589,12 @@ struct TerminalGuard;
 
 impl TerminalGuard {
     fn enter() -> Result<(Self, DefaultTerminal), Box<dyn std::error::Error>> {
-        enable_raw_mode()?;
-        let mut stdout = std::io::stdout();
-        execute!(stdout, EnterAlternateScreen)?;
-        Ok((Self, ratatui::init()))
+        Ok((Self, ratatui::try_init()?))
     }
 }
 
 impl Drop for TerminalGuard {
     fn drop(&mut self) {
-        let _ = disable_raw_mode();
-        let _ = execute!(std::io::stdout(), LeaveAlternateScreen);
         ratatui::restore();
     }
 }
@@ -638,7 +644,11 @@ fn header_text(app: &TuiApp) -> String {
 fn draw(frame: &mut Frame, app: &TuiApp) {
     let root = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(3), Constraint::Min(10), Constraint::Length(2)])
+        .constraints([
+            Constraint::Length(3),
+            Constraint::Min(10),
+            Constraint::Length(2),
+        ])
         .split(frame.area());
     let body = Layout::default()
         .direction(Direction::Horizontal)
@@ -646,8 +656,11 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .split(root[1]);
 
     frame.render_widget(
-        Paragraph::new(header_text(app))
-            .block(Block::default().borders(Borders::ALL).title("Command Surface")),
+        Paragraph::new(header_text(app)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Command Surface"),
+        ),
         root[0],
     );
 
@@ -660,7 +673,10 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
         .iter()
         .map(|note| {
             ListItem::new(vec![
-                Line::from(Span::styled(note.title.clone(), Style::default().add_modifier(Modifier::BOLD))),
+                Line::from(Span::styled(
+                    note.title.clone(),
+                    Style::default().add_modifier(Modifier::BOLD),
+                )),
                 Line::from(Span::raw(note.path.clone())),
             ])
         })
@@ -701,18 +717,20 @@ fn draw(frame: &mut Frame, app: &TuiApp) {
     );
 
     frame.render_widget(
-        Paragraph::new(footer_text(app))
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .border_style(Style::default().fg(Color::DarkGray)),
-            ),
+        Paragraph::new(footer_text(app)).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::DarkGray)),
+        ),
         root[2],
     );
 
     if app.show_help {
         let help = Paragraph::new(vec![
-            Line::from(Span::styled("Scriptor TUI — keyboard reference", Style::default().add_modifier(Modifier::BOLD))),
+            Line::from(Span::styled(
+                "Scriptor TUI — keyboard reference",
+                Style::default().add_modifier(Modifier::BOLD),
+            )),
             Line::from("j/k or arrows     Move note selection"),
             Line::from("/               Enter search mode"),
             Line::from("Enter / Esc     Apply or cancel search"),
@@ -820,7 +838,7 @@ pub fn smoke_test(path: PathBuf, use_daemon: bool) -> Result<(), Box<dyn std::er
 
 #[cfg(test)]
 mod tests {
-    use super::{footer_text, safe_fit, TuiApp, TuiNote};
+    use super::{TuiApp, TuiNote, footer_text, safe_fit};
 
     #[test]
     fn safe_fit_preserves_grapheme_boundaries() {
