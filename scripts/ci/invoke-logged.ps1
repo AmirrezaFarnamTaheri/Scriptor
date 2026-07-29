@@ -17,7 +17,11 @@ if ([string]::IsNullOrWhiteSpace($LogDirectory)) {
     $jobName = if ($env:GITHUB_JOB) { $env:GITHUB_JOB } else { 'local' }
     $LogDirectory = Join-Path (Get-Location).Path "artifacts/ci-logs/$jobName"
 }
-$LogDirectory = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $LogDirectory))
+if ([System.IO.Path]::IsPathRooted($LogDirectory)) {
+    $LogDirectory = [System.IO.Path]::GetFullPath($LogDirectory)
+} else {
+    $LogDirectory = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $LogDirectory))
+}
 New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
 
 $slug = ($Name.ToLowerInvariant() -replace '[^a-z0-9._-]+', '-') -replace '^-+|-+$', ''
