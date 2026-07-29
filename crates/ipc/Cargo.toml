@@ -11,4 +11,4 @@ path = "src/lib.rs"
 postcard = { version = "1", features = ["alloc"] }
 serde = { version = "1", features = ["derive"] }
 thiserror = "2"
-ts-rs = { version = "10", features = ["no-serde-warnings"] }
+ts-rs = { version = "12", features = ["no-serde-warnings"] }
