@@ -1,10 +1,10 @@
 import { loader } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
-import EditorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
-import CssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
-import HtmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
-import JsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
-import TsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+import EditorWorker from '../workers/monaco-editor.worker?worker'
+import CssWorker from '../workers/monaco-css.worker?worker'
+import HtmlWorker from '../workers/monaco-html.worker?worker'
+import JsonWorker from '../workers/monaco-json.worker?worker'
+import TsWorker from '../workers/monaco-typescript.worker?worker'
 
 // Bind @monaco-editor/react to the locally bundled monaco-editor.
 //
