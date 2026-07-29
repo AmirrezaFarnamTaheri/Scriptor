@@ -8,6 +8,7 @@ on:
       - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "scripts/ci/**"
       - ".github/workflows/desktop-check.yml"
   pull_request:
     paths:
@@ -15,6 +16,7 @@ on:
       - "crates/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "scripts/ci/**"
       - ".github/workflows/desktop-check.yml"
 
 permissions:
@@ -24,36 +26,67 @@ concurrency:
   group: desktop-compile-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
 jobs:
   check:
-    name: cargo check (${{ matrix.os }})
+    name: Desktop crate compile (${{ matrix.platform }})
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-22.04
+            platform: linux
+          - os: windows-latest
+            platform: windows
+          - os: macos-latest
+            platform: macos
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/desktop-${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Configure stable Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Restore Rust build cache
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: "."
 
-      - name: Install Linux desktop dependencies
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwebkit2gtk-4.1-dev \
-            libappindicator3-dev \
-            librsvg2-dev \
-            libssl-dev \
-            libgtk-3-dev \
-            patchelf
+      - name: Describe desktop compile scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Desktop crate compile (${{ matrix.platform }})"
 
-      - name: Check desktop crate
-        run: cargo check -p scriptor-desktop --all-targets --locked
+      - name: Install Linux desktop system dependencies
+        if: matrix.platform == 'linux'
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux desktop system dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf") -TimeoutSeconds 900
+
+      - name: Compile desktop crate, tests, examples, and build scripts
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Compile desktop crate tests examples and build scripts" -FilePath "cargo" -ArgumentList @("check", "-p", "scriptor-desktop", "--all-targets", "--locked") -TimeoutSeconds 2400 -HeartbeatSeconds 20
+
+      - name: Capture desktop compile failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Desktop crate compile (${{ matrix.platform }})"
+
+      - name: Finalize desktop compile evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Desktop crate compile (${{ matrix.platform }})" -Status "${{ job.status }}"
+
+      - name: Upload desktop compile evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-evidence-desktop-${{ matrix.platform }}-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
