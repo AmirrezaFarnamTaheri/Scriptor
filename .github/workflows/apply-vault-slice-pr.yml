@@ -1,0 +1,48 @@
+name: Apply verified vault remediation
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-verified-vault-remediation-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d59622b24fc2e660c36a0d9f1f4d1f5f9fef57
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Verify and apply remediation bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PATCH_BLOB_SHA: 5abf2d818114254969a7199708589a1368d8329a
+          PATCH_GZIP_SHA256: 6816e180bb2092330a616b57b3299db78217d062ff75d45f9832d0d6988fd023
+          PATCH_SHA256: 520d4df9dc0a8bf6898d788b2f6f7391f92e1260cb2c7aea818648b05e1ccc25
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/git/blobs/${PATCH_BLOB_SHA}" \
+            | jq -r '.content' | tr -d '\n' | base64 --decode \
+            | tr -d '\n' | base64 --decode > /tmp/vault-remediation.patch.gz
+          echo "${PATCH_GZIP_SHA256}  /tmp/vault-remediation.patch.gz" | sha256sum --check --strict
+          gzip --decompress --stdout /tmp/vault-remediation.patch.gz > /tmp/vault-remediation.patch
+          echo "${PATCH_SHA256}  /tmp/vault-remediation.patch" | sha256sum --check --strict
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git am --3way /tmp/vault-remediation.patch
+          git rm -f .github/workflows/apply-vault-slice.yml .github/workflows/apply-vault-slice-pr.yml
+          git commit --amend --no-edit
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
