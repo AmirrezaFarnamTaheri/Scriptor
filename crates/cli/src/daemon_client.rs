@@ -202,13 +202,12 @@ fn recover_existing_daemon(
         thread::sleep(remaining.min(DAEMON_EXISTING_RECOVERY_POLL_INTERVAL));
     }
 
-    tracing::warn!(
-        target: "scriptor_cli::daemon_client",
-        socket = %endpoint.socket_name,
-        pid = endpoint.pid,
-        initial_error = %initial_error,
-        last_error = %last_error,
-        "authenticated daemon endpoint remained unavailable; probing ownership with one replacement bind",
+    eprintln!(
+        "warning: authenticated daemon endpoint {} (pid {}) remained unavailable; probing socket ownership with one replacement bind; initial ping error: {}; last ping error: {}",
+        endpoint.socket_name,
+        endpoint.pid,
+        initial_error,
+        last_error,
     );
     Ok(None)
 }
