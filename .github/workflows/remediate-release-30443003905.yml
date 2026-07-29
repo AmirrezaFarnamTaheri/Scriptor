@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: remediate-release-30443003905
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   remediate:
@@ -54,12 +54,12 @@ jobs:
 
           vault_path = Path("apps/desktop/src-tauri/src/commands/vault.rs")
           vault = vault_path.read_text(encoding="utf-8")
-          pattern = re.compile(
+          vault_pattern = re.compile(
               r"\n#\[tauri::command\]\npub fn vault_restore_note_history_revision\(\n"
               r".*?\n\}\n\n(?=// Backup create/list/restore/delete commands live)",
               re.DOTALL,
           )
-          vault, count = pattern.subn("\n", vault)
+          vault, count = vault_pattern.subn("\n", vault)
           if count != 1:
               raise SystemExit(f"expected one stale restore command, removed {count}")
           vault_path.write_text(vault, encoding="utf-8")
@@ -76,38 +76,40 @@ jobs:
 
           daemon_path = Path("apps/desktop/src-tauri/src/commands/daemon.rs")
           daemon = daemon_path.read_text(encoding="utf-8")
-          old_daemon = '''    let mut candidates = vec![
-              "binaries/scriptor-daemon".to_string(),
-              "scriptor-daemon".to_string(),
-          ];
-          #[cfg(windows)]
-          {
-              candidates.insert(0, "binaries/scriptor-daemon.exe".to_string());
-              candidates.push("scriptor-daemon.exe".to_string());
-          }
-          '''
-          new_daemon = '''    #[cfg(windows)]
-          let candidates = vec![
-              "binaries/scriptor-daemon.exe".to_string(),
-              "binaries/scriptor-daemon".to_string(),
-              "scriptor-daemon".to_string(),
-              "scriptor-daemon.exe".to_string(),
-          ];
-          #[cfg(not(windows))]
-          let candidates = vec![
-              "binaries/scriptor-daemon".to_string(),
-              "scriptor-daemon".to_string(),
-          ];
-          '''
-          if daemon.count(old_daemon) != 1:
-              raise SystemExit("unexpected daemon candidate-list shape")
-          daemon_path.write_text(
-              daemon.replace(old_daemon, new_daemon),
-              encoding="utf-8",
+          daemon_pattern = re.compile(
+              r'    let mut candidates = vec!\[\n'
+              r'        "binaries/scriptor-daemon"\.to_string\(\),\n'
+              r'        "scriptor-daemon"\.to_string\(\),\n'
+              r'    \];\n'
+              r'    #\[cfg\(windows\)\]\n'
+              r'    \{\n'
+              r'        candidates\.insert\(0, "binaries/scriptor-daemon\.exe"\.to_string\(\)\);\n'
+              r'        candidates\.push\("scriptor-daemon\.exe"\.to_string\(\)\);\n'
+              r'    \}\n'
           )
+          new_daemon = (
+              "    #[cfg(windows)]\n"
+              "    let candidates = vec![\n"
+              "        \"binaries/scriptor-daemon.exe\".to_string(),\n"
+              "        \"binaries/scriptor-daemon\".to_string(),\n"
+              "        \"scriptor-daemon\".to_string(),\n"
+              "        \"scriptor-daemon.exe\".to_string(),\n"
+              "    ];\n"
+              "    #[cfg(not(windows))]\n"
+              "    let candidates = vec![\n"
+              "        \"binaries/scriptor-daemon\".to_string(),\n"
+              "        \"scriptor-daemon\".to_string(),\n"
+              "    ];\n"
+          )
+          daemon, count = daemon_pattern.subn(new_daemon, daemon)
+          if count != 1:
+              raise SystemExit(f"expected one daemon candidate block, replaced {count}")
+          daemon_path.write_text(daemon, encoding="utf-8")
 
+          workflow_expr = lambda name: "$" + "{{ " + name + " }}"
           desktop_workflow = Path(".github/workflows/desktop-check.yml")
-          desktop_workflow.write_text('''name: Desktop compile
+          desktop_workflow.write_text(
+              f'''name: Desktop compile
 
           on:
             push:
@@ -130,17 +132,17 @@ jobs:
             contents: read
 
           concurrency:
-            group: desktop-compile-${{ github.workflow }}-${{ github.ref }}
+            group: desktop-compile-{workflow_expr("github.workflow")}-{workflow_expr("github.ref")}
             cancel-in-progress: true
 
           jobs:
             check:
-              name: cargo check (${{ matrix.os }})
+              name: cargo check ({workflow_expr("matrix.os")})
               strategy:
                 fail-fast: false
                 matrix:
                   os: [ubuntu-22.04, windows-latest, macos-latest]
-              runs-on: ${{ matrix.os }}
+              runs-on: {workflow_expr("matrix.os")}
               timeout-minutes: 45
               steps:
                 - uses: actions/checkout@v4
@@ -166,7 +168,9 @@ jobs:
 
                 - name: Check desktop crate
                   run: cargo check -p scriptor-desktop --all-targets --locked
-          ''', encoding="utf-8")
+          ''',
+              encoding="utf-8",
+          )
 
           temporary_workflow = Path(".github/workflows/remediate-release-30443003905.yml")
           temporary_workflow.unlink()
