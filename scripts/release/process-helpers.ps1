@@ -72,6 +72,12 @@ function Start-NativeProcessCapture {
     )
 
     $resolvedFile = (Get-Command $FilePath -ErrorAction Stop).Source
+    if (Test-NativeWindowsPlatform) {
+        $candidates = Get-Command $FilePath -All -ErrorAction SilentlyContinue | Where-Object { $_.Extension -in '.exe', '.cmd', '.bat' }
+        if ($candidates) {
+            $resolvedFile = $candidates[0].Source
+        }
+    }
     $argumentLine = ($Arguments | ForEach-Object {
         ConvertTo-NativeCommandLineArgument -Value ([string]$_)
     }) -join ' '
