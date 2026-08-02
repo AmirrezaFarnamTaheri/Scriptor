@@ -149,7 +149,6 @@ fn connect_client_with_timeout(
         match ConnectOptions::new()
             .name(name.clone())
             .wait_mode(ConnectWaitMode::Timeout(timeout))
-            .nonblocking_stream(cfg!(windows))
             .connect_sync()
         {
             Ok(s) => break s,
