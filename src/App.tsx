@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'rea
 import {
   countCharacters,
   countWords,
-  type EditorThemeId,
   type MarkdownEditorHandle,
   type TocEntry,
   loadHunspellLocale,
@@ -53,7 +52,6 @@ import { AppToast } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
 import type { SystemInfoSnapshot } from './components/SettingsPanel'
-import { type StatusDockTab } from './components/StatusDockPanel'
 import { ConflictResolverModal } from './components/ConflictResolverModal'
 import { PerfHudOverlay } from './components/PerfHudOverlay'
 import { FrontmatterInspector } from './components/FrontmatterInspector'
@@ -77,7 +75,6 @@ import { useVaultWorkspace } from './hooks/useVaultWorkspace'
 import { useWorkspaceStore } from './hooks/useWorkspaceStore'
 import { usePortalShortcuts } from './hooks/usePortalShortcuts'
 import { useEditorPreviewScrollSync } from './hooks/useEditorPreviewScrollSync'
-import { usePersistedBoolean } from './hooks/usePersistedBoolean'
 import { useAppOverlayState } from './hooks/useAppOverlayState'
 import { useEditorPreferences } from './hooks/useEditorPreferences'
 import { useAppToast } from './hooks/useAppToast'
