@@ -1,27 +1,15 @@
-# Ownership placeholders.
+# Default ownership. Add domain maintainers as the team grows.
+* @AmirrezaFarnamTaheri
 
-/PRODUCT.md @product-architecture
-/DESIGN.md @design-systems
-/docs/contracts/ @core-contracts
-/docs/validation/ @quality-engineering
-
-/src/ @design-systems
-/packages/core/ @core-contracts
-/packages/editor/ @editor-experience
-/packages/renderer/ @publication
-/packages/canvas/ @canvas-experience
-/packages/export/ @publication
-/packages/mcp/ @automation-ai
-/packages/plugin-api/ @core-contracts @automation-ai
-/packages/test-fixtures/ @quality-engineering
-
-/crates/vault/ @vault-kernel
-/crates/indexer/ @indexing-search
-/crates/export-runner/ @publication
-/crates/native-git/ @native-platform
-/crates/system-bridge/ @native-platform
-/crates/canvas-engine/ @canvas-experience @native-platform
-/crates/cli/ @core-contracts
-
-/scripts/benchmarks/ @quality-engineering
-/scripts/release/ @release-engineering
+# Authority-bearing and release-sensitive surfaces.
+/.github/workflows/ @AmirrezaFarnamTaheri
+/apps/desktop/src-tauri/ @AmirrezaFarnamTaheri
+/crates/daemon/ @AmirrezaFarnamTaheri
+/crates/ipc/ @AmirrezaFarnamTaheri
+/crates/native-git/ @AmirrezaFarnamTaheri
+/crates/system-bridge/ @AmirrezaFarnamTaheri
+/crates/vault/ @AmirrezaFarnamTaheri
+/scripts/release/ @AmirrezaFarnamTaheri
+/SECURITY.md @AmirrezaFarnamTaheri
+/LICENSE @AmirrezaFarnamTaheri
+/COMMERCIAL-LICENSING.md @AmirrezaFarnamTaheri

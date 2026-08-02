@@ -1,13 +1,19 @@
-Scriptor — Additional Copyright and Licensing Notice
-=====================================================
+Scriptor — License Notice
+=========================
 
 Copyright (C) 2025 Amirreza "Farnam" Taheri <taherifarnam@gmail.com>
 
-Non-commercial use is licensed under the GNU Affero General Public License
-Version 3 (AGPL-3.0) reproduced below.
+SPDX-License-Identifier: AGPL-3.0-or-later
 
-Commercial use requires a separate license. See COMMERCIAL-LICENSING.md and
-contact taherifarnam@gmail.com.
+Scriptor is licensed under the GNU Affero General Public License version 3 or
+any later version. The AGPL grant includes commercial use, modification,
+distribution, and network operation when its obligations are satisfied.
+
+An alternative commercial license is available for organizations that want
+different terms, including proprietary distribution or operation without the
+AGPL source-availability obligations. See COMMERCIAL-LICENSING.md. The
+alternative license is not required for commercial activity that complies with
+the AGPL.
 
 ---------------------------------------------------------------------------
 

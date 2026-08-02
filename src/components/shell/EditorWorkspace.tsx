@@ -1,4 +1,4 @@
-import type { CSSProperties, PointerEventHandler, RefObject } from 'react'
+import { lazy, Suspense, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
 import {
   Archive,
   ArrowDownToLine,
@@ -17,6 +17,8 @@ import {
   ListTree,
   MoreHorizontal,
   PanelRight,
+  Pin,
+  RotateCcw,
   Rows,
   Sparkles,
   Table,
@@ -26,15 +28,17 @@ import {
 import {
   MarkdownEditor,
   type EditorAutocompleteContext,
+  type EditorTransformAction,
   type EditorThemeId,
   type MarkdownEditorHandle,
+  type MarkdownEditorProps,
   type SnippetCatalogEntry,
   type SnippetVariableContext,
   type TocEntry,
+  type TypographyAction,
 } from '@scriptor/editor'
 import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 
-import { MonacoMarkdownEditor } from '../editor/MonacoMarkdownEditor'
 import { InlineEditorAssist } from '../editor/InlineEditorAssist'
 import { ExternalChangeBanner } from '../ExternalChangeBanner'
 import { TocSidebar } from '../TocSidebar'
@@ -43,8 +47,18 @@ import { InsertMenu } from '../InsertMenu'
 import { SplitPaneHandle } from '../SplitPaneHandle'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
-import { MarkdownPreview, type MarkdownPreviewHandle } from '@scriptor/renderer'
+import {
+  MarkdownPreview,
+  type MarkdownPreviewHandle,
+  type MarkdownPreviewProps,
+} from '@scriptor/renderer'
 import type { ExternalChangeConflict } from '../../types/vault'
+
+const LazyMonacoMarkdownEditor = lazy(() =>
+  import('../editor/LazyMonacoMarkdownEditor').then((module) => ({
+    default: module.LazyMonacoMarkdownEditor,
+  })),
+)
 
 interface OpenTab {
   path: string
@@ -56,6 +70,8 @@ interface OpenTab {
 interface EditorWorkspaceProps {
   activePath: string | null
   onOpenVault: () => void
+  hasOpenVault: boolean
+  onCreateNote: () => void
   openTabs: OpenTab[]
   isNoteDirty?: boolean
   inboxPaths?: Set<string>
@@ -117,22 +133,23 @@ interface EditorWorkspaceProps {
   snippetCatalog: SnippetCatalogEntry[]
   editorAutocompleteContext: EditorAutocompleteContext
   monacoCompletionContext: MonacoCompletionContext
-  editorInsertRequest: any
-  editorTransformRequest: any
-  editorTypographyRequest: any
+  editorInsertRequest: MarkdownEditorProps['insertRequest']
+  editorTransformRequest: MarkdownEditorProps['transformRequest']
+  editorTypographyRequest: MarkdownEditorProps['typographyRequest']
   scrollToEditorLine: number | null
   saveImageFromClipboard?: (file: File) => Promise<string | null>
-  previewProps: {
-    fetchNote?: (target: string) => Promise<string | null>
-    readVaultText?: (path: string) => Promise<string | null>
-    executeDql?: (query: string) => Promise<unknown>
-    runCodeChunk?: (language: string, code: string) => Promise<unknown>
-    postProcessHtml?: (html: string) => string
-    renderPlantUmlLocal?: (source: string) => Promise<string | null>
-  }
+  previewProps: Pick<
+    MarkdownPreviewProps,
+    | 'fetchNote'
+    | 'readVaultText'
+    | 'executeDql'
+    | 'runCodeChunk'
+    | 'postProcessHtml'
+    | 'renderPlantUmlLocal'
+  >
   insertSnippet: (content: string) => void
-  applyEditorTransform: (action: string) => void
-  applyEditorTypography: (action: string) => void
+  applyEditorTransform: (action: EditorTransformAction) => void
+  applyEditorTypography: (action: TypographyAction) => void
   saveActiveNoteNow: () => void
   renameActiveNote: () => void
   isSaving: boolean
@@ -158,6 +175,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
   const {
     activePath,
     onOpenVault,
+    hasOpenVault,
+    onCreateNote,
     openTabs,
     layoutLocked = false,
     isNoteDirty = false,
@@ -252,65 +271,84 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     <section className="editor-panel" aria-label="Editor">
       <div className="tabs-row" role="tablist" aria-label="Open notes">
         {canReopenClosedTab && onReopenClosedTab ? (
-          <button type="button" className="tab-reopen" onClick={onReopenClosedTab} title="Reopen closed tab">
-            ↺
+          <button
+            type="button"
+            className="tab-reopen"
+            onClick={onReopenClosedTab}
+            aria-label="Reopen closed tab"
+            title="Reopen closed tab"
+          >
+            <RotateCcw aria-hidden="true" />
           </button>
         ) : null}
         {openTabs.length === 0 ? (
           <span className="empty-tab">No note open</span>
         ) : (
-          openTabs.map((tab) => (
-            <button
-              type="button"
-              className={`tab${tab.path === activePath ? ' active' : ''}${tab.path === activePath && isNoteDirty ? ' tab-dirty' : ''}${tab.pinned ? ' tab-pinned' : ''}`}
-              role="tab"
-              aria-selected={tab.path === activePath}
+          openTabs.map((tab, tabIndex) => (
+            <div
+              className={`tab-item${tab.path === activePath ? ' active' : ''}${tab.path === activePath && isNoteDirty ? ' tab-dirty' : ''}${tab.pinned ? ' tab-pinned' : ''}`}
               key={tab.path}
-              onClick={() => onOpenTab(tab.path)}
             >
-              <FileText />
-              <span>{tab.title}</span>
-              {inboxPaths?.has(tab.path) ? (
-                <span className="tab-lifecycle inbox" title="In inbox">
-                  inbox
-                </span>
-              ) : null}
-              {tab.path === activePath && isNoteDirty ? (
-                <span className="tab-dirty-dot" aria-label="Unsaved changes" title="Unsaved changes" />
-              ) : null}
-              {onTogglePinTab ? (
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className={`tab-pin${tab.pinned ? ' active' : ''}`}
-                  aria-label={tab.pinned ? 'Unpin tab' : 'Pin tab'}
-                  title={tab.pinned ? 'Unpin tab' : 'Pin tab'}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onTogglePinTab(tab.path)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      onTogglePinTab(tab.path)
-                    }
-                  }}
-                >
-                  •
-                </span>
-              ) : null}
-              <X
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onCloseTab(tab.path)
+              <button
+                type="button"
+                className="tab tab-main"
+                role="tab"
+                aria-selected={tab.path === activePath}
+                tabIndex={tab.path === activePath ? 0 : -1}
+                onClick={() => onOpenTab(tab.path)}
+                onKeyDown={(event) => {
+                  let targetIndex = tabIndex
+                  if (event.key === 'ArrowLeft') targetIndex = (tabIndex - 1 + openTabs.length) % openTabs.length
+                  else if (event.key === 'ArrowRight') targetIndex = (tabIndex + 1) % openTabs.length
+                  else if (event.key === 'Home') targetIndex = 0
+                  else if (event.key === 'End') targetIndex = openTabs.length - 1
+                  else return
+                  event.preventDefault()
+                  const target = openTabs[targetIndex]
+                  onOpenTab(target.path)
+                  requestAnimationFrame(() => {
+                    const tabButtons = event.currentTarget
+                      .closest('[role="tablist"]')
+                      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                    tabButtons?.[targetIndex]?.focus()
+                  })
                 }}
-              />
-            </button>
+              >
+                <FileText aria-hidden="true" />
+                <span className="tab-title">{tab.title}</span>
+                {inboxPaths?.has(tab.path) ? (
+                  <span className="tab-lifecycle inbox" title="In inbox">
+                    inbox
+                  </span>
+                ) : null}
+                {tab.path === activePath && isNoteDirty ? (
+                  <span className="tab-dirty-dot" aria-label="Unsaved changes" title="Unsaved changes" />
+                ) : null}
+              </button>
+              {onTogglePinTab ? (
+                <button
+                  type="button"
+                  className={`tab-icon-button tab-pin${tab.pinned ? ' active' : ''}`}
+                  aria-label={tab.pinned ? `Unpin ${tab.title}` : `Pin ${tab.title}`}
+                  title={tab.pinned ? 'Unpin tab' : 'Pin tab'}
+                  onClick={() => onTogglePinTab(tab.path)}
+                >
+                  <Pin aria-hidden="true" />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="tab-icon-button tab-close"
+                aria-label={`Close ${tab.title}`}
+                title="Close tab"
+                onClick={() => onCloseTab(tab.path)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
           ))
         )}
       </div>
-
       {showFormatToolbar ? (
       <div className="editor-toolbar-wrapper">
         <div className="format-row editor-toolbar" aria-label="Markdown tools">
@@ -502,21 +540,30 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               }
             >
             {editorMode === 'monaco' ? (
-              <MonacoMarkdownEditor
-                key={activePath}
-                notePath={activePath}
-                value={draftMarkdown}
-                onChange={updateDraft}
-                insertRequest={editorInsertRequest}
-                transformRequest={editorTransformRequest}
-                scrollToLine={scrollToEditorLine}
-                editorTheme={editorTheme}
-                typewriter={typewriter}
-                distractionFree={distractionFree}
-                showLineNumbers={showLineNumbers}
-                completionContext={monacoCompletionContext}
-                className="markdown-editor monaco-editor-host"
-              />
+              <Suspense
+                fallback={
+                  <div className="editor-loading-state" role="status" aria-live="polite">
+                    <span className="editor-loading-shimmer" aria-hidden="true" />
+                    <span>Loading advanced editor…</span>
+                  </div>
+                }
+              >
+                <LazyMonacoMarkdownEditor
+                  key={activePath}
+                  notePath={activePath}
+                  value={draftMarkdown}
+                  onChange={updateDraft}
+                  insertRequest={editorInsertRequest}
+                  transformRequest={editorTransformRequest}
+                  scrollToLine={scrollToEditorLine}
+                  editorTheme={editorTheme}
+                  typewriter={typewriter}
+                  distractionFree={distractionFree}
+                  showLineNumbers={showLineNumbers}
+                  completionContext={monacoCompletionContext}
+                  className="markdown-editor monaco-editor-host"
+                />
+              </Suspense>
             ) : (
               <MarkdownEditor
                 ref={editorRef}
@@ -547,12 +594,35 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             )}
             </ErrorBoundary>
           ) : (
-            <div className="editor-empty">
-              <p>Select a note from the vault or open a folder to start writing.</p>
-              <button type="button" className="primary-button" onClick={onOpenVault}>
-                <FolderOpen />
-                Open Vault
-              </button>
+            <div className="editor-empty" role="status">
+              <div className="editor-empty-icon" aria-hidden="true">
+                <FileText />
+              </div>
+              <div className="editor-empty-copy">
+                <h2>{hasOpenVault ? 'Start a new note' : 'Open your writing workspace'}</h2>
+                <p>
+                  {hasOpenVault
+                    ? 'Create a note or choose one from the vault to begin writing.'
+                    : 'Choose a Markdown vault to write, connect ideas, and publish from one focused workspace.'}
+                </p>
+              </div>
+              <div className="editor-empty-actions">
+                {hasOpenVault ? (
+                  <button type="button" className="primary-button" onClick={onCreateNote}>
+                    <FileText aria-hidden="true" />
+                    New note
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className={hasOpenVault ? 'action-button' : 'primary-button'}
+                  onClick={onOpenVault}
+                >
+                  <FolderOpen aria-hidden="true" />
+                  {hasOpenVault ? 'Open another vault' : 'Open vault'}
+                </button>
+              </div>
+              <small>Local-first · Markdown-native · Your files stay yours</small>
             </div>
           )}
         </article>
@@ -586,8 +656,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 basePath={activePath}
                 fetchNote={previewProps.fetchNote}
                 readVaultText={previewProps.readVaultText}
-                executeDql={previewProps.executeDql as any}
-                runCodeChunk={previewProps.runCodeChunk as any}
+                executeDql={previewProps.executeDql}
+                runCodeChunk={previewProps.runCodeChunk}
                 postProcessHtml={previewProps.postProcessHtml}
                 renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
               />

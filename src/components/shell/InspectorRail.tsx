@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { Archive, FileText, Pencil, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
-import type { LoadedPlugin } from '@scriptor/plugin-api'
+import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import { ReferencesPreviewPanel } from '../ReferencesPreviewPanel'
@@ -69,8 +69,12 @@ interface InspectorRailProps {
     safeMode: boolean
     healthDiagnostics: VaultHealthDiagnostics | null
     marketplaceCatalog: Array<{ id: string; name: string; version: string; description: string }>
+    activeVaultId: string | null
+    pluginPolicies: Record<string, PluginRuntimePolicy | null>
     onToggleSafeMode: (enabled: boolean) => void
     onTogglePlugin: (pluginId: string, enabled: boolean) => void
+    onReviewConsent: (pluginId: string, permissions: PluginRuntimePolicy['grantedPermissions'], vaultIds: string[]) => void
+    onRevokeConsent: (pluginId: string) => void
     onInstallMarketplace: (pluginId: string) => void
   }
 }
@@ -430,8 +434,12 @@ export function InspectorRail({
           safeMode={plugins.safeMode}
           healthDiagnostics={plugins.healthDiagnostics}
           marketplaceCatalog={plugins.marketplaceCatalog}
+          activeVaultId={plugins.activeVaultId}
+          pluginPolicies={plugins.pluginPolicies}
           onToggleSafeMode={plugins.onToggleSafeMode}
           onTogglePlugin={plugins.onTogglePlugin}
+          onReviewConsent={plugins.onReviewConsent}
+          onRevokeConsent={plugins.onRevokeConsent}
           onInstallMarketplace={plugins.onInstallMarketplace}
         />
         </ErrorBoundary>

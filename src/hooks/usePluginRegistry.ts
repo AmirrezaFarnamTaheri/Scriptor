@@ -9,6 +9,7 @@ import {
   loadMarketplaceCatalog,
   resolveMarketplaceManifest,
   type MarketplaceListing,
+  type PluginConsent,
   type ReadOnlyVaultQuery,
 } from '@scriptor/plugin-api'
 
@@ -18,6 +19,49 @@ import {
   vaultHealthDiagnostics,
   vaultReadNote,
 } from '../bridge/commands'
+import { expectRecord, expectStringArray } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+
+
+const PLUGIN_CONSENT_STORAGE_KEY = 'scriptor:plugins:consent'
+const PLUGIN_CONSENT_SCHEMA_VERSION = 1
+
+function validatePluginConsents(value: unknown): Record<string, PluginConsent> {
+  const record = expectRecord(value, 'plugin consent store')
+  return Object.fromEntries(
+    Object.entries(record).map(([pluginId, rawConsent]) => {
+      const consent = expectRecord(rawConsent, `plugin consent ${pluginId}`)
+      const grantedPermissions = expectStringArray(
+        consent.grantedPermissions,
+        `plugin consent ${pluginId}.grantedPermissions`,
+      ) as PluginConsent['grantedPermissions']
+      const allowedVaultIds = expectStringArray(
+        consent.allowedVaultIds,
+        `plugin consent ${pluginId}.allowedVaultIds`,
+      )
+      const allowlistedHosts =
+        consent.allowlistedHosts === undefined
+          ? []
+          : expectStringArray(consent.allowlistedHosts, `plugin consent ${pluginId}.allowlistedHosts`)
+      const networkAccess = consent.networkAccess === 'allowlist' ? 'allowlist' : 'blocked'
+      const reviewedAt = typeof consent.reviewedAt === 'string' ? consent.reviewedAt : undefined
+      return [pluginId, { grantedPermissions, allowedVaultIds, allowlistedHosts, networkAccess, reviewedAt }]
+    }),
+  )
+}
+
+function readInitialPolicies(): Record<string, PluginConsent> {
+  try {
+    return readVersionedStorage({
+      key: PLUGIN_CONSENT_STORAGE_KEY,
+      schemaVersion: PLUGIN_CONSENT_SCHEMA_VERSION,
+      fallback: {},
+      validate: validatePluginConsents,
+    })
+  } catch {
+    return {}
+  }
+}
 
 function readInitialSafeMode(): boolean {
   try {
@@ -27,8 +71,9 @@ function readInitialSafeMode(): boolean {
   }
 }
 
-export function usePluginRegistry(vaultOpen: boolean) {
-  const [registry] = useState(() => new PluginRegistry(readInitialSafeMode()))
+export function usePluginRegistry(activeVaultId: string | null) {
+  const vaultOpen = activeVaultId !== null
+  const [registry] = useState(() => new PluginRegistry(readInitialSafeMode(), readInitialPolicies()))
   const [revision, setRevision] = useState(0)
   const [manifestsReady, setManifestsReady] = useState(false)
 
@@ -100,16 +145,17 @@ export function usePluginRegistry(vaultOpen: boolean) {
         host: new PluginHost(
           registry.defaultPolicy(plugin.manifest.id) ?? {
             pluginId: plugin.manifest.id,
-            enabled: plugin.enabled,
-            grantedPermissions: plugin.manifest.permissions.map((entry) => entry.permission),
+            enabled: false,
+            grantedPermissions: [],
             allowedVaultIds: [],
             networkAccess: 'blocked',
             allowlistedHosts: [],
           },
+          activeVaultId,
           vaultQuery,
         ),
       })),
-    [enabledPlugins, registry, vaultQuery],
+    [activeVaultId, enabledPlugins, registry, vaultQuery],
   )
 
   const setSafeMode = useCallback(
@@ -127,7 +173,33 @@ export function usePluginRegistry(vaultOpen: boolean) {
 
   const setPluginEnabled = useCallback(
     (pluginId: string, enabled: boolean) => {
-      registry.setEnabled(pluginId, enabled)
+      registry.setEnabled(pluginId, enabled, activeVaultId)
+      bump()
+    },
+    [activeVaultId, bump, registry],
+  )
+
+  const setPluginConsent = useCallback(
+    (pluginId: string, consent: PluginConsent) => {
+      registry.setConsent(pluginId, consent)
+      writeVersionedStorage(
+        PLUGIN_CONSENT_STORAGE_KEY,
+        PLUGIN_CONSENT_SCHEMA_VERSION,
+        registry.exportConsents(),
+      )
+      bump()
+    },
+    [bump, registry],
+  )
+
+  const revokePluginConsent = useCallback(
+    (pluginId: string) => {
+      registry.revokeConsent(pluginId)
+      writeVersionedStorage(
+        PLUGIN_CONSENT_STORAGE_KEY,
+        PLUGIN_CONSENT_SCHEMA_VERSION,
+        registry.exportConsents(),
+      )
       bump()
     },
     [bump, registry],
@@ -157,7 +229,7 @@ export function usePluginRegistry(vaultOpen: boolean) {
         throw new Error(`unknown marketplace listing: ${listingId}`)
       }
       if (registry.has(listing.id)) {
-        registry.setEnabled(listing.id, !registry.getSnapshot().safeMode)
+        registry.setEnabled(listing.id, false, activeVaultId)
         bump()
         return
       }
@@ -168,7 +240,7 @@ export function usePluginRegistry(vaultOpen: boolean) {
       }
       bump()
     },
-    [bump, marketplaceCatalog, registry],
+    [activeVaultId, bump, marketplaceCatalog, registry],
   )
 
   return {
@@ -176,8 +248,14 @@ export function usePluginRegistry(vaultOpen: boolean) {
     contributions,
     vaultQuery,
     pluginHosts,
+    pluginPolicies: Object.fromEntries(
+      plugins.map((plugin) => [plugin.manifest.id, registry.defaultPolicy(plugin.manifest.id)]),
+    ),
+    activeVaultId,
     setSafeMode,
     setPluginEnabled,
+    setPluginConsent,
+    revokePluginConsent,
     installFromMarketplace,
     marketplaceCatalog,
     plugins,

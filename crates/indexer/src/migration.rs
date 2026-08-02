@@ -1,6 +1,8 @@
 use crate::db::{read_schema_version, IndexCache};
 use crate::error::IndexerError;
-use crate::schema::{apply_schema, CREATE_RECENT_ACCESS, MIGRATE_V2_TO_V3, SCHEMA_VERSION};
+use crate::schema::{
+    apply_schema, CREATE_INDEXES, CREATE_RECENT_ACCESS, MIGRATE_V2_TO_V3, SCHEMA_VERSION,
+};
 
 /// Apply versioned migrations or return `SchemaRebuildRequired` when unsafe to migrate in place.
 ///
@@ -37,6 +39,14 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         stamp_schema_version(&transaction, 3)?;
         transaction.commit()?;
         current = 3;
+    }
+
+    if current == 3 && SCHEMA_VERSION >= 4 {
+        let transaction = connection.unchecked_transaction()?;
+        transaction.execute_batch(CREATE_INDEXES)?;
+        stamp_schema_version(&transaction, 4)?;
+        transaction.commit()?;
+        current = 4;
     }
 
     if current == SCHEMA_VERSION {
@@ -253,4 +263,39 @@ CREATE TABLE IF NOT EXISTS notes (
         assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
         Ok(())
     }
+    #[test]
+    fn schema_v4_creates_indexes_for_core_vault_queries() -> Result<(), IndexerError> {
+        let connection = Connection::open_in_memory()?;
+        apply_schema(&connection)?;
+        let mut statement = connection.prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%' ORDER BY name",
+        )?;
+        let names = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        for expected in [
+            "idx_notes_vault_path",
+            "idx_notes_vault_modified",
+            "idx_links_vault_from",
+            "idx_links_vault_to_note",
+            "idx_links_vault_to_path",
+        ] {
+            assert!(names.iter().any(|name| name == expected), "missing {expected}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn vault_path_lookup_uses_secondary_index() -> Result<(), IndexerError> {
+        let connection = Connection::open_in_memory()?;
+        apply_schema(&connection)?;
+        let plan: String = connection.query_row(
+            "EXPLAIN QUERY PLAN SELECT title FROM notes WHERE vault_id = ?1 AND path = ?2",
+            ["vault", "note.md"],
+            |row| row.get(3),
+        )?;
+        assert!(plan.contains("idx_notes_vault_path"), "unexpected plan: {plan}");
+        Ok(())
+    }
+
 }

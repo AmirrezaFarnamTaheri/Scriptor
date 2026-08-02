@@ -1,7 +1,10 @@
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
+import { CheckCircle2, FolderOpen, ShieldAlert, X } from 'lucide-react'
 
 import { vaultDetectObsidian, vaultImportObsidian } from '../bridge/commands/vault.ts'
 import type { ObsidianImportResult } from '../bridge/commands/vault.ts'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface ObsidianImportDialogProps {
   onClose: () => void
@@ -9,7 +12,11 @@ interface ObsidianImportDialogProps {
 }
 
 export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDialogProps) {
+  const dialogRef = useRef<HTMLFormElement>(null)
   const pathId = useId()
+  const titleId = useId()
+  const descriptionId = useId()
+  const statusId = useId()
   const [sourcePath, setSourcePath] = useState('')
   const [convertWikilinks, setConvertWikilinks] = useState(true)
   const [importAttachments, setImportAttachments] = useState(true)
@@ -19,6 +26,9 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [result, setResult] = useState<ObsidianImportResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEscapeToClose(true, onClose)
+  useFocusTrap(dialogRef, { active: true, initialFocus: false })
 
   const handleValidate = useCallback(async () => {
     if (!sourcePath.trim()) return
@@ -30,9 +40,9 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
       if (!detected) {
         setError('No .obsidian/ directory found at this path')
       }
-    } catch (err) {
+    } catch (caught) {
       setIsValid(false)
-      setError(String(err))
+      setError(String(caught))
     } finally {
       setIsValidating(false)
     }
@@ -45,11 +55,11 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
       multiple: false,
       title: 'Select Obsidian Vault',
     })
-    if (selection) {
-      const path = Array.isArray(selection) ? selection[0] : selection
-      setSourcePath(path)
-      setIsValid(null)
-    }
+    if (!selection) return
+    const path = Array.isArray(selection) ? selection[0] : selection
+    setSourcePath(path)
+    setIsValid(null)
+    setError(null)
   }, [])
 
   const handleImport = useCallback(async () => {
@@ -65,146 +75,164 @@ export function ObsidianImportDialog({ onClose, onImported }: ObsidianImportDial
       })
       setResult(importResult)
       onImported?.(importResult)
-    } catch (err) {
-      setError(String(err))
+    } catch (caught) {
+      setError(String(caught))
     } finally {
       setIsImporting(false)
     }
   }, [sourcePath, convertWikilinks, importAttachments, preserveFrontmatter, onImported])
 
+  const validationMessage = isValid === true
+    ? 'Obsidian vault detected'
+    : isValid === false
+      ? 'This folder is not a valid Obsidian vault'
+      : null
+
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+    <div
+      className="modal-backdrop"
+      role="presentation"
+      onMouseDown={(event) => {
+        if (event.currentTarget === event.target) onClose()
+      }}
+    >
       <form
-        className="rename-dialog"
+        ref={dialogRef}
+        className="rename-dialog obsidian-import-dialog"
         role="dialog"
-        aria-label="Import Obsidian Vault"
-        onClick={(event) => event.stopPropagation()}
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        aria-busy={isImporting || isValidating}
         onSubmit={(event) => {
           event.preventDefault()
-          handleImport()
+          void handleImport()
         }}
       >
         <header>
-          <h2>Import Obsidian Vault</h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
-            &times;
+          <div className="obsidian-import-heading">
+            <span className="obsidian-import-mark" aria-hidden="true">
+              <FolderOpen />
+            </span>
+            <div>
+              <h2 id={titleId}>Import Obsidian vault</h2>
+              <p id={descriptionId}>Copy notes into the open Scriptor vault without modifying the source.</p>
+            </div>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close import dialog">
+            <X aria-hidden="true" />
           </button>
         </header>
 
-        <label className="rename-current-path" htmlFor={pathId}>
-          Source path
-        </label>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input
-            id={pathId}
-            className="toolbar-input"
-            type="text"
-            value={sourcePath}
-            onChange={(event) => {
-              setSourcePath(event.target.value)
-              setIsValid(null)
-            }}
-            placeholder="/path/to/obsidian-vault"
-            autoComplete="off"
-            style={{ flex: 1 }}
-          />
-          <button type="button" className="toolbar-button" onClick={handleBrowse}>
-            Browse
-          </button>
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={handleValidate}
-            disabled={isValidating || !sourcePath.trim()}
-          >
-            {isValidating ? 'Checking...' : 'Validate'}
-          </button>
+        <div className="obsidian-import-source">
+          <label className="rename-current-path" htmlFor={pathId}>
+            Source folder
+          </label>
+          <div className="obsidian-import-path-row">
+            <input
+              id={pathId}
+              className="toolbar-input"
+              type="text"
+              value={sourcePath}
+              onChange={(event) => {
+                setSourcePath(event.target.value)
+                setIsValid(null)
+                setError(null)
+              }}
+              placeholder="/path/to/obsidian-vault"
+              autoComplete="off"
+              autoFocus
+              aria-describedby={statusId}
+            />
+            <button type="button" className="toolbar-button" onClick={() => void handleBrowse()}>
+              Browse
+            </button>
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => void handleValidate()}
+              disabled={isValidating || !sourcePath.trim()}
+            >
+              {isValidating ? 'Checking…' : 'Validate'}
+            </button>
+          </div>
+          <div id={statusId} className="obsidian-import-status" aria-live="polite">
+            {validationMessage ? (
+              <p className={isValid ? 'is-success' : 'is-error'}>
+                {isValid ? <CheckCircle2 aria-hidden="true" /> : <ShieldAlert aria-hidden="true" />}
+                {validationMessage}
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        {isValid === true && (
-          <p style={{ color: 'var(--color-success, #16a34a)', margin: '0.5rem 0 0', fontSize: '0.85rem' }}>
-            Obsidian vault detected
-          </p>
-        )}
-        {isValid === false && (
-          <p style={{ color: 'var(--color-error, #dc2626)', margin: '0.5rem 0 0', fontSize: '0.85rem' }}>
-            Not an Obsidian vault
-          </p>
-        )}
-
-        <fieldset style={{ border: 'none', padding: '0.75rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          <legend style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Import options</legend>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+        <fieldset className="obsidian-import-options">
+          <legend>Import options</legend>
+          <label className="checkbox-row">
             <input
               type="checkbox"
               checked={convertWikilinks}
               onChange={(event) => setConvertWikilinks(event.target.checked)}
             />
-            Convert Obsidian syntax (wikilinks, ==highlights==, callouts)
+            <span>Convert wikilinks, highlights, and callouts</span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+          <label className="checkbox-row">
             <input
               type="checkbox"
               checked={importAttachments}
               onChange={(event) => setImportAttachments(event.target.checked)}
             />
-            Copy attachments (images, PDFs)
+            <span>Copy images, PDFs, and other attachments</span>
           </label>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+          <label className="checkbox-row">
             <input
               type="checkbox"
               checked={preserveFrontmatter}
               onChange={(event) => setPreserveFrontmatter(event.target.checked)}
             />
-            Preserve YAML frontmatter
+            <span>Preserve YAML frontmatter</span>
           </label>
         </fieldset>
 
-        {error && (
-          <p style={{ color: 'var(--color-error, #dc2626)', margin: '0.75rem 0 0', fontSize: '0.85rem' }}>
+        {error ? (
+          <p className="obsidian-import-error" role="alert">
+            <ShieldAlert aria-hidden="true" />
             {error}
           </p>
-        )}
+        ) : null}
 
-        {result && (
-          <div className="rename-preview" style={{ marginTop: '0.75rem' }}>
-            <strong>Import complete</strong>
-            <ul>
-              <li>{result.notesImported} notes imported</li>
-              <li>{result.attachmentsImported} attachments imported</li>
-              <li>{result.skippedFiles} files skipped</li>
-            </ul>
-            {result.errors.length > 0 && (
-              <>
-                <p style={{ color: 'var(--color-error, #dc2626)' }}>
-                  {result.errors.length} error{result.errors.length === 1 ? '' : 's'}:
-                </p>
+        {result ? (
+          <section className="rename-preview obsidian-import-result" aria-live="polite">
+            <div className="obsidian-import-result-heading">
+              <CheckCircle2 aria-hidden="true" />
+              <strong>Import complete</strong>
+            </div>
+            <dl className="obsidian-import-metrics">
+              <div><dt>Notes</dt><dd>{result.notesImported}</dd></div>
+              <div><dt>Attachments</dt><dd>{result.attachmentsImported}</dd></div>
+              <div><dt>Skipped</dt><dd>{result.skippedFiles}</dd></div>
+            </dl>
+            {result.errors.length > 0 ? (
+              <details className="obsidian-import-result-errors">
+                <summary>{result.errors.length} import error{result.errors.length === 1 ? '' : 's'}</summary>
                 <ul>
-                  {result.errors.slice(0, 10).map((err) => (
-                    <li key={err} style={{ fontSize: '0.8rem' }}>{err}</li>
-                  ))}
-                  {result.errors.length > 10 && (
-                    <li style={{ fontSize: '0.8rem' }}>...and {result.errors.length - 10} more</li>
-                  )}
+                  {result.errors.slice(0, 10).map((message) => <li key={message}>{message}</li>)}
+                  {result.errors.length > 10 ? <li>…and {result.errors.length - 10} more</li> : null}
                 </ul>
-              </>
-            )}
-          </div>
-        )}
+              </details>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="rename-actions">
           <button type="button" className="toolbar-button" onClick={onClose}>
             {result ? 'Close' : 'Cancel'}
           </button>
-          {!result && (
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={isImporting || !sourcePath.trim()}
-            >
-              {isImporting ? 'Importing...' : 'Import'}
+          {!result ? (
+            <button type="submit" className="primary-button" disabled={isImporting || !sourcePath.trim()}>
+              {isImporting ? 'Importing…' : 'Import vault'}
             </button>
-          )}
+          ) : null}
         </div>
       </form>
     </div>

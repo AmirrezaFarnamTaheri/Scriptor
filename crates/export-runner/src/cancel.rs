@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: export cancellation operates on an already-running child/process tree and is the streaming broker cleanup path.
 use std::process::Child;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::thread;

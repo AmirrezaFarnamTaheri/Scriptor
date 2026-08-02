@@ -18,14 +18,15 @@
   background: transparent;
   border: 0;
   padding: 0;
-  transition: background var(--ease-soft), box-shadow var(--ease-soft);
-  z-index: 50;
+  transition: background-color var(--ease-soft), outline-color var(--ease-soft);
+  z-index: 2;
 }
 
 .split-pane-handle:hover:not(.is-locked),
 .split-pane-handle.is-dragging:not(.is-locked) {
   background: var(--primary-soft);
-  box-shadow: 0 0 12px var(--primary-glow);
+  outline: 1px solid color-mix(in oklch, var(--primary) 44%, transparent);
+  outline-offset: -1px;
 }
 
 .split-pane-handle.is-locked {
@@ -164,7 +165,11 @@ body.is-split-resizing .editor-preview-pane {
   color: var(--muted);
   font-size: 13px;
   font-weight: 500;
-  transition: all 150ms var(--ease-soft);
+  transition:
+    background-color 150ms var(--ease-soft),
+    border-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    box-shadow 150ms var(--ease-soft);
   user-select: none;
 }
 
@@ -185,7 +190,10 @@ body.is-split-resizing .editor-preview-pane {
   padding: 2px;
   width: 16px;
   height: 16px;
-  transition: all 150ms var(--ease-soft);
+  transition:
+    background-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    opacity 150ms var(--ease-soft);
   opacity: 0;
 }
 
@@ -267,7 +275,11 @@ body.is-split-resizing .editor-preview-pane {
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  transition: all 150ms var(--ease-soft);
+  transition:
+    background-color 150ms var(--ease-soft),
+    border-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    transform 150ms var(--ease-soft);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -388,4 +400,213 @@ body.is-split-resizing .editor-preview-pane {
   width: 14px;
   height: 14px;
   color: var(--primary-strong);
+}
+
+/* Tabs are composite controls: activation, pinning, and closing remain separate
+   keyboard targets rather than nested interactive elements. */
+.tab-item {
+  min-width: 140px;
+  max-width: 248px;
+  height: 34px;
+  display: inline-grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  transition:
+    background var(--ease-soft),
+    border-color var(--ease-soft),
+    color var(--ease-soft),
+    box-shadow var(--ease-soft);
+}
+
+.tab-item:hover:not(.active) {
+  background: color-mix(in oklch, var(--ink) 5%, transparent);
+  color: var(--ink);
+}
+
+.tab-item.active {
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--ink-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.tab-item .tab {
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  height: 32px;
+  padding: 0 6px 0 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+}
+
+.tab-item .tab:hover,
+.tab-item .tab.active {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tab-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-icon-button,
+.tab-reopen {
+  width: 30px;
+  height: 30px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--faint);
+  opacity: 0;
+  transition:
+    opacity var(--ease-fast),
+    background var(--ease-fast),
+    color var(--ease-fast),
+    transform var(--ease-fast);
+}
+
+.tab-reopen {
+  flex: 0 0 auto;
+  opacity: 1;
+}
+
+.tab-item:hover .tab-icon-button,
+.tab-item:focus-within .tab-icon-button,
+.tab-item.active .tab-icon-button,
+.tab-icon-button.active {
+  opacity: 1;
+}
+
+.tab-icon-button:hover,
+.tab-reopen:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.tab-icon-button:active,
+.tab-reopen:active {
+  transform: scale(0.94);
+}
+
+.tab-close:hover {
+  background: color-mix(in oklch, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
+.tab-icon-button svg,
+.tab-reopen svg {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  opacity: 1;
+}
+
+.editor-empty {
+  position: relative;
+  align-content: center;
+  gap: 18px;
+  padding: clamp(24px, 6vw, 72px);
+  background:
+    radial-gradient(circle at 50% 30%, color-mix(in oklch, var(--primary) 9%, transparent), transparent 38%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface) 48%, transparent), transparent 64%);
+}
+
+.editor-empty::before {
+  content: '';
+  position: absolute;
+  width: min(520px, 78%);
+  height: min(360px, 58%);
+  border: 1px solid color-mix(in oklch, var(--border) 72%, transparent);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--surface-elevated) 46%, transparent);
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
+  pointer-events: none;
+}
+
+.editor-empty > * {
+  position: relative;
+  z-index: 1;
+}
+
+.editor-empty-icon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border: 1px solid color-mix(in oklch, var(--primary) 24%, var(--border));
+  border-radius: 16px;
+  background: color-mix(in oklch, var(--primary) 11%, var(--surface-elevated));
+  color: var(--primary-strong);
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-highlight);
+}
+
+.editor-empty-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.editor-empty-copy {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+}
+
+.editor-empty-copy h2 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-family: var(--font-display);
+  font-size: clamp(19px, 2vw, 25px);
+  letter-spacing: -0.025em;
+}
+
+.editor-empty-copy p {
+  max-width: 46ch;
+}
+
+.editor-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.editor-empty-actions .primary-button,
+.editor-empty-actions .action-button {
+  width: auto;
+  min-width: 132px;
+  margin-top: 0;
+}
+
+.editor-empty small {
+  color: var(--faint);
+  font-size: 11px;
+  letter-spacing: 0.015em;
+}
+
+@media (max-width: 640px) {
+  .tab-item {
+    min-width: 132px;
+  }
+
+  .tab-icon-button {
+    opacity: 1;
+  }
+
+  .editor-empty::before {
+    width: calc(100% - 24px);
+    height: calc(100% - 48px);
+  }
 }

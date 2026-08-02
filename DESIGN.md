@@ -1,61 +1,71 @@
-# Design
+# Design system
 
-Visual and interaction rules for the Scriptor shell. Token values live in [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md), `src/index.css`, and `src/styles/tokens/components.css`.
+Scriptor is an **operate** interface: users open it to write, navigate, inspect, compare, and publish. Visual expression supports those tasks; it never competes with them.
 
-## System
+## Direction
 
-Scriptor is a premium, restrained desktop product interface: neutral surfaces, graphite structure, deep ink text, cyan-teal action color, and amber only for operational warnings or active jobs. The UI is dense enough for research work but calm and elegant enough for long writing sessions, elevated by refined glassmorphic layers and deep, ambient drop shadows.
-
-## Scene
-
-A quiet research desk at noon: soft light through glass, graphite instruments, dynamic resizable panels, a small teal status lamp, and one amber progress indicator when work is actively running.
-
-## Color
-
-- **Primary:** cyan-teal (`--primary`, `--primary-strong`) for actions, links, and graph affordances.
-- **Operational:** amber (`--amber`, `--amber-soft`) for jobs and warnings only.
-- **Destructive:** `--danger` for errors and irreversible actions.
-- **Accent reserve:** deep crimson may be used sparingly for rare editorial emphasis — not as a primary brand color.
-
-Authoritative tokens: [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md).
-
-## Typography
-
-- **Chrome:** Sora (display wordmark), Inter (UI body) — see `--font-display`, `--font-body`.
-- **Editor:** JetBrains Mono / Cascadia Code stack (`--font-mono`).
-- Compact labels use weight and color, not uppercase tracking.
-
-Brand assets: [`docs/brand/BRAND.md`](docs/brand/BRAND.md).
+- Precise, quiet, luminous, technical without feeling like an IDE.
+- Neutral charcoal/slate surfaces with one restrained teal accent.
+- Dense information is separated by hierarchy, rhythm, and dividers rather than nested cards.
+- System sans-serif for UI and system monospace for code/numbers; no remote fonts.
+- No purple AI gradients, neon glows, faux paper, oversized marketing typography, or perpetual decorative motion.
 
 ## Layout
 
-The workspace layout is fluid, dynamic, and fully user-resizable via interactive grab-handles with hover-glow effects. Users can resize panes directly or lock the layout in settings to prevent accidental shifting.
-See [`docs/design/LAYOUT_BLUEPRINTS.md`](docs/design/LAYOUT_BLUEPRINTS.md) for desktop, tablet, mobile, and TUI structure.
+Desktop uses four functional regions:
 
-## Components
+1. top command bar;
+2. vault/navigation rail;
+3. editor/preview workspace;
+4. contextual inspector/status surfaces.
 
-- **Glass panels:** frosted surfaces with backdrop blur, subtle inner gradients, and precise border highlights (`.surface-glass`, `.unified-panel`).
-- **Resizers:** sleek, interactive drag handles with glowing focus states.
-- **Buttons:** compact, spring press feedback (`.pressable`), radius `--radius-sm`–`--radius-md`.
-- **Cards:** inspector widgets only; avoid nested cards.
-- **Icons:** Lucide outline icons, consistent stroke weight.
+At narrow widths, secondary regions collapse into one mobile pane switcher. Every workspace feature must be tested at `320`, `375`, `768`, `1024`, and `1440` pixels and at 200% zoom. No control may depend on hover alone.
+
+## Tokens
+
+Authoritative tokens live under `src/styles/tokens/` and `src/index.css`. New components must use semantic variables for surfaces, text, borders, focus, danger, warning, success, spacing, radii, and motion. Arbitrary colors and shadows require a documented exception.
+
+## Interaction contract
+
+Every async surface implements:
+
+- loading or progress state;
+- useful empty state;
+- actionable error state;
+- success confirmation when mutation is not otherwise visible;
+- cancellation for long-running work where supported.
+
+High-risk operations show scope and consequence in a native confirmation prompt. Disabled controls explain why. Destructive controls are not the default action.
+
+## Accessibility floor
+
+Target: WCAG 2.2 AA.
+
+- semantic HTML before ARIA;
+- visible `:focus-visible` treatment on every interactive element;
+- logical tab order and no keyboard traps;
+- dialogs use `aria-modal`, labels/descriptions, initial focus, contained focus, Escape handling, scroll lock, and focus restoration;
+- tabs support arrows, Home, End, and roving `tabIndex`;
+- status is not conveyed by color alone;
+- motion respects `prefers-reduced-motion`;
+- touch targets are at least 40×40 CSS pixels where space permits;
+- editor and UI text remain readable at 200% zoom;
+- tertiary text tokens maintain WCAG AA contrast on their primary surfaces;
+- the editor follows the application light/dark theme until the user explicitly overrides it.
 
 ## Motion
 
-- Fluid, curated easings spanning 150ms-250ms for seamless interactions.
-- Spring curves: `--spring-fast`, `--spring-soft`, `--spring-gentle`.
-- Hover and focus states on layout resizers and interactive elements.
-- Progress fill animation for active jobs.
-- `prefers-reduced-motion` disables nonessential transitions.
+Motion communicates state changes only. Default transitions are 120–220 ms using transform/opacity. Never animate layout-critical width/height continuously. Reduced-motion mode removes nonessential transitions and smooth scrolling.
 
-## Canvas
+## Component architecture
 
-Canvas mode is a focused working board, not a decorative whiteboard. It shares the neutral shell, compact toolbar, and explicit snapshot/export jobs. Canvas never displaces Markdown as the default first screen.
+- data/orchestration lives in hooks or domain controllers;
+- presentational components receive typed props;
+- shared overlays use the unified dialog/panel primitive;
+- components above 200 lines are decomposition candidates;
+- packages expose behavior only through declared entry points;
+- loading, empty, error, and success states are co-located with the owning surface.
 
-## Related documents
+## Visual verification
 
-| Document | Purpose |
-|----------|---------|
-| [`PRODUCT.md`](PRODUCT.md) | Product principles and exclusions |
-| [`docs/design/DESIGN_SYSTEM.md`](docs/design/DESIGN_SYSTEM.md) | Token reference |
-| [`docs/validation/ACCESSIBILITY_AUDIT.md`](docs/validation/ACCESSIBILITY_AUDIT.md) | Accessibility checklist |
+Playwright visual projects cover light/dark themes, desktop/mobile breakpoints, modal surfaces, editor/preview, knowledge workbench, settings, graph, and major workflow states. The frozen release candidate must additionally receive manual 200% zoom, screen-reader, and native-shell review until those checks are reliably automated. Pixel thresholds are intentionally low; snapshots must not mask full-page movement. See [`docs/validation/FRONTEND_QUALITY.md`](docs/validation/FRONTEND_QUALITY.md).

@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: export jobs stream Pandoc output and require cancellable child handles; policy is enforced by validated discovery, hashes, timeouts, and bounded logs.
 use std::fs;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};

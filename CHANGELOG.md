@@ -6,6 +6,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security and authority
+
+- Added scoped one-time native authorization for secret, network, process, Git, backup, publish, and destructive operations.
+- Removed generic keychain reads from JavaScript; AI provider credentials remain inside the native boundary.
+- Added one external-process broker with executable, environment, network, sandbox, timeout, output, and process-tree policy.
+- Removed implicit remote PlantUML/font fallbacks, inline-script CSP permission, and incomplete updater exposure.
+- Removed stale updater lock entries, generated permission schemas, and UI copy so the disabled capability cannot re-enter through checked-in artifacts.
+
+### Correctness, recovery, and scale
+
+- Fixed graph traversal depth/path provenance and selected-file Git commit isolation.
+- Added durable MCP intent/outcome auditing, idempotency, hash chaining, rotation, and pending-intent reconciliation.
+- Added bounded daemon event queues, watcher generation recovery, secondary SQLite indexes, batched knowledge/link queries, and bounded scans.
+- Split local recovery snapshots from verified external disaster-recovery backups with manifests and restore journals.
+- Added runtime JSON validators and versioned/quarantined persisted UI storage.
+
+### Release and governance
+
+- Added canonical `VERSION`, immutable action pins, fixed toolchains/runners, lockfile immutability gates, mandatory production signing/notarization, checksums, CycloneDX SBOM, release receipts, and attestations.
+- Corrected AGPL/commercial-license wording and documented contributor relicensing authority.
+- Added current architecture, capability maturity, release security, operations, deep-module, and encryption threat-model documents.
+- Added repository-native version, action, package-boundary, locale, docs, and source-contract validators.
+
+### UI and accessibility
+
+- Added modal focus containment/restoration and complete tab keyboard semantics.
+- Corrected Knowledge Workbench labels and locale parity.
+- Standardized semantic tokens, responsive states, reduced motion, and visual/accessibility release expectations.
+- Removed unsafe editor/preview type assertions, repaired note-tab composite controls, and added responsive graph, import, empty, and error surfaces.
+- Added a fail-closed frontend quality validator for explicit `any`, remote fonts, emoji controls, critical inline styles, typed contracts, modal focus, and compact layouts.
+- Made the editor inherit the shell light/dark theme until explicitly overridden and raised tertiary-text contrast across primary surfaces.
+
+### Verification and closure
+
+- Added a finding-by-finding remediation report, exact verification record, production release checklist, frontend quality standard, CODEOWNERS policy, and canonical-history audit script.
+- Every due-diligence item now has an explicit source remediation, controlled experimental posture, release-environment gate, or canonical-history gate.
+
 ## [0.1.0] - 2026-06-27
 
 First public release of Scriptor — a local-first Markdown knowledge workspace for serious writing and research.
@@ -91,6 +128,6 @@ First public release of Scriptor — a local-first Markdown knowledge workspace 
 - `tsconfig.contracts.json` now enforces `verbatimModuleSyntax: true` and `erasableSyntaxOnly: true`
 - Added `deny.toml` for `cargo-deny` with advisory, ban, license, and source policies
 
-**Final verification:** All 86 backlog items complete. All tests pass. 0 warnings. Production-ready.
+**Historical note:** this release description predates the current maturity ledger. Current support and verification status are documented in `docs/CAPABILITY-MATURITY.md` and release evidence.
 
 [0.1.0]: https://github.com/AmirrezaFarnamTaheri/Scriptor/releases/tag/v0.1.0

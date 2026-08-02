@@ -4,8 +4,10 @@ Release checklist for Scriptor desktop. Automated static checks run via `pnpm ch
 
 ## Keyboard
 
-- [ ] Tab order reaches vault search, note list, editor, inspector tabs, and status controls without traps *(manual)*.
+- [ ] Tab order reaches vault search, note list, editor, inspector tabs, and status controls without traps *(manual release gate)*.
 - [x] `Escape` closes graph panel, rename dialog, diagnostics drawer, Git panel, and other modal overlays (`useEscapeToClose`).
+- [x] Shared panels, graph, and Obsidian import trap focus while modal and restore prior focus on close (`useFocusTrap`).
+- [x] Note tabs expose separate activate, pin, and close controls without nested interactive elements; Arrow/Home/End navigation is supported.
 - [x] Editor accepts standard text input; CodeMirror focus ring uses `--focus-ring` / `--focus-outline` tokens.
 - [x] Icon buttons expose `aria-label` on toolbars and close buttons (spot-checked in shell components).
 
@@ -20,7 +22,7 @@ Release checklist for Scriptor desktop. Automated static checks run via `pnpm ch
 
 - [ ] Text contrast meets WCAG AA on default dark theme *(manual spot-check)*.
 - [x] Focus indicators defined in `src/index.css` *(verified by `check:a11y`)*.
-- [x] `prefers-reduced-motion` respected (`App.css` media query disables animations).
+- [x] `prefers-reduced-motion` respected (application CSS disables nonessential animations).
 
 ## Screen reader (spot check)
 
@@ -34,15 +36,18 @@ Release checklist for Scriptor desktop. Automated static checks run via `pnpm ch
 pnpm check:a11y
 ```
 
-Static shell checks run in CI/release gate. For deeper coverage, use browser devtools axe on `pnpm dev`:
+Static source checks run in CI/release gates. For browser coverage:
 
 ```powershell
 pnpm dev --host 127.0.0.1
+pnpm check:a11y-axe
+pnpm test:visual
 ```
 
-Document findings in the release PR. Block release only on **critical** issues (keyboard trap, missing labels on primary actions, unreadable contrast).
+Document findings in the release PR. Keyboard traps, missing names on primary actions, focus loss,
+unreadable contrast, and critical/serious axe violations block release.
 
 ## Known limitations (v0.1)
 
-- Graph panel exposes an off-screen node list (`aria-live`) for screen-reader summaries; interactive node exploration remains pointer-driven.
+- Graph panel uses one keyboard focus surface with arrow navigation, Enter activation, a live node summary, and modal focus containment. A screen-reader usability pass remains a manual release gate.
 - Command palette supports arrow keys, Enter, and Escape (`CommandPalette.tsx`).

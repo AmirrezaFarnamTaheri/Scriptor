@@ -14,6 +14,12 @@ pub struct VaultWatchEvent {
     pub kind: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum VaultWatchBatch {
+    Events(Vec<VaultWatchEvent>),
+    RescanRequired { reason: String },
+}
+
 pub struct VaultWatcher {
     _debouncer: Debouncer<RecommendedWatcher>,
 }
@@ -22,21 +28,29 @@ impl VaultWatcher {
     pub fn start(
         root: &VaultRoot,
         debounce_ms: u64,
-        mut on_batch: impl FnMut(Vec<VaultWatchEvent>) + Send + 'static,
+        mut on_batch: impl FnMut(VaultWatchBatch) + Send + 'static,
     ) -> Result<Self, VaultError> {
         let root_path = root.root().to_path_buf();
         let mut debouncer = new_debouncer(Duration::from_millis(debounce_ms), move |result| {
-            let Ok(events) = result else {
-                return;
-            };
-            let mut batch = Vec::new();
-            for DebouncedEvent { path, .. } in events {
-                if let Some(parsed) = parse_watch_path(&root_path, path.as_path()) {
-                    batch.push(parsed);
+            let events = match result {
+                Ok(events) => events,
+                Err(error) => {
+                    on_batch(VaultWatchBatch::RescanRequired {
+                        reason: error.to_string(),
+                    });
+                    return;
                 }
-            }
+            };
+
+            let batch: Vec<_> = events
+                .into_iter()
+                .filter_map(|DebouncedEvent { path, .. }| {
+                    parse_watch_path(&root_path, path.as_path())
+                })
+                .collect();
+
             if !batch.is_empty() {
-                on_batch(batch);
+                on_batch(VaultWatchBatch::Events(batch));
             }
         })
         .map_err(|error| VaultError::InvalidConfig {
@@ -58,15 +72,14 @@ impl VaultWatcher {
 
 fn parse_watch_path(root: &Path, absolute: &Path) -> Option<VaultWatchEvent> {
     if let Some(file_name) = absolute.file_name().and_then(|name| name.to_str())
-        && file_name.starts_with(".scriptor-") && file_name.ends_with(".tmp") {
-            return None;
-        }
-
-    let relative = vault_relative_path(root, absolute)?;
-    if !relative.ends_with(".md") {
+        && file_name.starts_with(".scriptor-")
+        && file_name.ends_with(".tmp")
+    {
         return None;
     }
-    if relative.starts_with(".scriptor/") {
+
+    let relative = vault_relative_path(root, absolute)?;
+    if !relative.ends_with(".md") || relative.starts_with(".scriptor/") {
         return None;
     }
 

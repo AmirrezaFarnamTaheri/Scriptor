@@ -5087,6 +5087,7 @@ dependencies = [
  "chrono",
  "resvg",
  "scriptor-export-runner",
+ "scriptor-system-bridge",
  "scriptor-vault",
  "serde",
  "serde_json",
@@ -5171,13 +5172,17 @@ dependencies = [
  "scriptor-vault",
  "serde",
  "serde_json",
+ "reqwest 0.12.28",
  "tauri",
  "tauri-build",
  "tauri-plugin-deep-link",
  "tauri-plugin-dialog",
  "tauri-plugin-shell",
- "tauri-plugin-updater",
+ "tempfile",
  "uuid",
+ "tracing",
+ "hex",
+ "sha2 0.11.0",
 ]
 
 [[package]]
@@ -5256,6 +5261,7 @@ dependencies = [
  "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.19",
+ "tracing",
 ]
 
 [[package]]
@@ -6416,38 +6422,6 @@ dependencies = [
  "tokio",
 ]
 
-[[package]]
-name = "tauri-plugin-updater"
-version = "2.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "806d9dac662c2e4594ff03c647a552f2c9bd544e7d0f683ec58f872f952ce4af"
-dependencies = [
- "base64 0.22.1",
- "dirs",
- "flate2",
- "futures-util",
- "http",
- "infer",
- "log",
- "minisign-verify",
- "osakit",
- "percent-encoding",
- "reqwest 0.13.4",
- "rustls",
- "semver",
- "serde",
- "serde_json",
- "tar",
- "tauri",
- "tauri-plugin",
- "tempfile",
- "thiserror 2.0.19",
- "time",
- "tokio",
- "url",
- "windows-sys 0.60.2",
- "zip 4.6.1",
-]
 
 [[package]]
 name = "tauri-runtime"

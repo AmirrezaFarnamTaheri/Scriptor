@@ -31,9 +31,9 @@ interface KnowledgeWorkbenchProps {
 const TABS = [
   { id: 'repair', labelKey: 'knowledge.repair' },
   { id: 'views', labelKey: 'knowledge.views' },
-  { id: 'collections', labelKey: 'knowledge.tags' },
+  { id: 'collections', labelKey: 'knowledge.collections' },
   { id: 'tags', labelKey: 'knowledge.tags' },
-  { id: 'discover', labelKey: 'knowledge.tags' },
+  { id: 'discover', labelKey: 'knowledge.discover' },
 ] as const
 
 export function KnowledgeWorkbench({

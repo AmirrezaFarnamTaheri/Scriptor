@@ -56,6 +56,75 @@ pub fn replace_note_links(
     Ok(inserted)
 }
 
+
+/// Resolves stored link targets to note IDs after note metadata is current.
+///
+/// Link parsing happens while individual notes are indexed, so the target note
+/// may not exist in the cache yet. This pass builds a case-insensitive lookup
+/// once, updates all links transactionally, and enables indexed graph traversal
+/// without loading every note and link into memory for each query.
+pub fn resolve_link_targets(
+    cache: &IndexCache,
+    vault_id: &str,
+) -> Result<u32, IndexerError> {
+    let conn = cache.connection()?;
+    let mut notes_statement = conn.prepare(
+        "SELECT id, path, title FROM notes WHERE vault_id = ?1 ORDER BY lower(path), id",
+    )?;
+    let note_rows = notes_statement.query_map(params![vault_id], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+        ))
+    })?;
+
+    let mut lookup = std::collections::HashMap::<String, String>::new();
+    for row in note_rows {
+        let (id, path, title) = row?;
+        let stem = path
+            .trim_end_matches(".md")
+            .rsplit('/')
+            .next()
+            .unwrap_or(&path)
+            .to_string();
+        for key in [path, title, stem] {
+            lookup.entry(key.to_lowercase()).or_insert_with(|| id.clone());
+        }
+    }
+    drop(notes_statement);
+
+    let mut links_statement = conn.prepare(
+        "SELECT id, to_path FROM links
+         WHERE vault_id = ?1 AND kind IN ('wikilink', 'markdown', 'heading')",
+    )?;
+    let link_rows = links_statement.query_map(params![vault_id], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut updates = Vec::new();
+    for row in link_rows {
+        let (id, target) = row?;
+        updates.push((id, lookup.get(&target.to_lowercase()).cloned()));
+    }
+    drop(links_statement);
+
+    let transaction = conn.unchecked_transaction()?;
+    let mut changed = 0u32;
+    {
+        let mut update = transaction.prepare(
+            "UPDATE links SET to_note_id = ?1 WHERE id = ?2 AND vault_id = ?3",
+        )?;
+        for (id, target_id) in updates {
+            changed = changed.saturating_add(
+                u32::try_from(update.execute(params![target_id, id, vault_id])?)
+                    .unwrap_or(u32::MAX),
+            );
+        }
+    }
+    transaction.commit()?;
+    Ok(changed)
+}
+
 pub fn count_links(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
     let conn = cache.connection()?;
     let count: i64 = conn.query_row(

@@ -6,6 +6,8 @@ import { isNativeBridgeAvailable } from '../bridge/platform'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { loadVaultPresetJson, saveVaultPresetJson, VAULT_SAVED_VIEWS_PATH } from '../lib/vaultPresets'
 import type { ViewNoteHit } from '../types/vault'
+import { expectArray, expectRecord, expectString } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 interface SavedViewsPanelProps {
   embedded?: boolean
@@ -32,15 +34,31 @@ interface SavedViewPreset {
 
 const PRESETS_STORAGE_KEY = 'scriptor.saved-views.presets'
 
+function validatePresets(value: unknown): SavedViewPreset[] {
+  const parsed = expectArray(value, 'saved views').map((item, index) => {
+    const context = `saved views[${index}]`
+    const record = expectRecord(item, context)
+    return {
+      id: expectString(record, 'id', context),
+      label: expectString(record, 'label', context),
+      titleContains: expectString(record, 'titleContains', context),
+      tagHas: expectString(record, 'tagHas', context),
+      pathMatches: expectString(record, 'pathMatches', context),
+      modifiedWithinDays: expectString(record, 'modifiedWithinDays', context),
+      ...(typeof record.inboxOnly === 'boolean' ? { inboxOnly: record.inboxOnly } : {}),
+    }
+  })
+  return parsed.length > 0 ? parsed : defaultPresets()
+}
+
 function loadPresets(): SavedViewPreset[] {
-  try {
-    const raw = localStorage.getItem(PRESETS_STORAGE_KEY)
-    if (!raw) return defaultPresets()
-    const parsed = JSON.parse(raw) as SavedViewPreset[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultPresets()
-  } catch {
-    return defaultPresets()
-  }
+  return readVersionedStorage({
+    key: PRESETS_STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: defaultPresets(),
+    validate: validatePresets,
+    migrate: validatePresets,
+  })
 }
 
 function defaultPresets(): SavedViewPreset[] {
@@ -182,7 +200,7 @@ export function SavedViewsPanel({
       }
       const updated = [...presets, next]
       setPresets(updated)
-      localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(updated))
+      writeVersionedStorage(PRESETS_STORAGE_KEY, 1, updated)
     })
   }
 
@@ -207,7 +225,7 @@ export function SavedViewsPanel({
               className="toolbar-button"
               onClick={() => {
                 void saveVaultPresetJson(VAULT_SAVED_VIEWS_PATH, presets)
-                localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets))
+                writeVersionedStorage(PRESETS_STORAGE_KEY, 1, presets)
               }}
             >
               Save presets to vault

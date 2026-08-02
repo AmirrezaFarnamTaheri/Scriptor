@@ -34,7 +34,7 @@ export function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
         <HardDrive size={16} style={{ marginRight: 6, verticalAlign: 'text-bottom' }} />
         Backup
       </h3>
-      <p className="health-subtitle">Scheduled vault snapshots copied to a local backup directory.</p>
+      <p className="health-subtitle">Verified recovery snapshots can stay inside the vault; disaster-recovery backups must use an absolute path on another disk or synced location.</p>
 
       <label className="diagnostics-opt-in">
         <input
@@ -68,10 +68,10 @@ export function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
       </label>
 
       <label className="settings-field">
-        Backup path (relative to vault)
+        Disaster-recovery backup path (absolute, outside vault)
         <input
           value={settings.backupPath}
-          placeholder=".scriptor/backups/"
+          placeholder="Leave empty for local recovery snapshots"
           onChange={(event) => setSettings({ backupPath: event.target.value })}
         />
       </label>
@@ -91,7 +91,7 @@ export function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
           <ul className="backup-list">
             {backups.slice(0, 10).map((entry) => (
               <li key={entry.name} className="backup-entry">
-                <span className="backup-name">{entry.name}</span>
+                <span className="backup-name">{entry.name} · {entry.storage_kind === 'external_backup' ? 'DR backup' : 'local snapshot'}{entry.verified ? ' · verified' : ' · legacy/unverified'}</span>
                 <span className="backup-meta">
                   {formatDate(entry.created_at)} · {formatBytes(entry.size_bytes)}
                 </span>

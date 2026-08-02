@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Sora:wght@600;700&display=swap');
 
 :root,
 [data-theme='light'] {
@@ -8,7 +7,7 @@
   --bg-elevated: #ffffff;
   --dialog-bg: #ffffff;
   --bg-mesh-a: color-mix(in oklch, #0d9488 12%, transparent);
-  --bg-mesh-b: color-mix(in oklch, #6366f1 10%, transparent);
+  --bg-mesh-b: color-mix(in oklch, #f59e0b 6%, transparent);
 
   --surface: rgba(255, 255, 255, 0.65);
   --surface-2: rgba(248, 250, 252, 0.8);
@@ -26,12 +25,11 @@
   --ink: #1e293b;
   --text: var(--ink);
   --muted: #475569;
-  --faint: #64748b;
+  --faint: #5b6b7f;
 
   --primary: #0f766e;
   --primary-strong: #0f766e;
   --primary-soft: rgba(15, 118, 110, 0.12);
-  --primary-glow: rgba(15, 118, 110, 0.2);
 
   --amber: #F97316;
   --amber-soft: rgba(249, 115, 22, 0.15);
@@ -55,7 +53,7 @@
   --bg-elevated: #0b0f19;
   --dialog-bg: #0b0f19;
   --bg-mesh-a: color-mix(in oklch, #2dd4bf 14%, transparent);
-  --bg-mesh-b: color-mix(in oklch, #6366f1 12%, transparent);
+  --bg-mesh-b: color-mix(in oklch, #f59e0b 5%, transparent);
 
   --surface: rgba(11, 15, 26, 0.6);
   --surface-2: rgba(17, 24, 39, 0.7);
@@ -73,12 +71,11 @@
   --ink: #f3f4f6;
   --text: var(--ink);
   --muted: #9ca3af;
-  --faint: #4b5563;
+  --faint: #7c8798;
 
   --primary: #2DD4BF;
   --primary-strong: #14B8A6;
   --primary-soft: rgba(45, 212, 191, 0.12);
-  --primary-glow: rgba(45, 212, 191, 0.25);
 
   --amber: #F97316;
   --amber-soft: rgba(249, 115, 22, 0.12);
@@ -96,7 +93,7 @@
 }
 
 [data-theme='high-contrast'] {
-  color-scheme: light;
+  color-scheme: dark;
 
   --bg: #000000;
   --bg-elevated: #0a0a0a;
@@ -125,7 +122,6 @@
   --primary: #00ffff;
   --primary-strong: #00e5e5;
   --primary-soft: rgba(0, 255, 255, 0.2);
-  --primary-glow: rgba(0, 255, 255, 0.45);
 
   --amber: #ffff00;
   --amber-soft: rgba(255, 255, 0, 0.25);
@@ -143,10 +139,10 @@
 }
 
 :root {
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
   --radius-pill: 999px;
 
   --space-1: 4px;
@@ -161,15 +157,17 @@
   --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
   --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
   --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
-  --shadow-glow: 0 0 0 1px var(--glass-border), 0 8px 32px var(--primary-glow);
 
   --ease-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-soft: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-gentle: 250ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  --font-display: 'Plus Jakarta Sans', 'Sora', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, monospace;
+  --font-display: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Avenir Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
+  --mono: var(--font-mono);
+  --accent: var(--primary-strong);
+  --accent-soft: var(--primary-soft);
 
   --text-xs: 11px;
   --text-sm: 13px;
@@ -183,6 +181,7 @@
   color: var(--ink);
   background: var(--bg);
   font-synthesis: none;
+  font-variant-numeric: tabular-nums;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -193,8 +192,8 @@
 }
 
 body {
-  min-width: 360px;
-  min-height: 100vh;
+  min-width: 320px;
+  min-height: 100dvh;
   margin: 0;
   background:
     radial-gradient(ellipse 80% 50% at 10% -10%, var(--bg-mesh-a), transparent 55%),
@@ -203,7 +202,31 @@ body {
 }
 
 #root {
-  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+::selection {
+  background: var(--primary-soft);
+  color: var(--ink-strong);
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 :focus-visible {

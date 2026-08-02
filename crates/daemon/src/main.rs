@@ -31,6 +31,7 @@ enum Commands {
 }
 
 fn main() {
+    let _ = scriptor_system_bridge::observability::init_observability("daemon");
     if let Err(error) = run() {
         eprintln!("scriptor-daemon error: {error}");
         std::process::exit(1);

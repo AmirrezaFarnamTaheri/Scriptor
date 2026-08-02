@@ -43,7 +43,10 @@ export interface VaultWatchEvent {
 }
 
 export interface VaultFilesystemChangedEvent {
+  generation: number
   events: VaultWatchEvent[]
+  rescan_required: boolean
+  reason?: string | null
 }
 
 export interface SaveNoteOutput {

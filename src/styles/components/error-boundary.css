@@ -1,0 +1,81 @@
+.error-boundary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 14px;
+  width: min(640px, calc(100% - 32px));
+  margin: 40px auto;
+  padding: 18px;
+  border: 1px solid color-mix(in oklch, var(--danger, #b42318) 24%, var(--border));
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--danger, #b42318) 5%, var(--surface-raised));
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.error-boundary-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in oklch, var(--danger, #b42318) 12%, var(--surface));
+  color: var(--danger, #b42318);
+}
+
+.error-boundary-content {
+  min-width: 0;
+}
+
+.error-boundary h2,
+.error-boundary p {
+  margin: 0;
+}
+
+.error-boundary h2 {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.error-boundary p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.error-boundary pre {
+  max-height: 180px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error-boundary-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+}
+
+@media (max-width: 620px) {
+  .error-boundary {
+    grid-template-columns: auto minmax(0, 1fr);
+    margin-block: 20px;
+  }
+
+  .error-boundary-retry {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    justify-content: center;
+  }
+}

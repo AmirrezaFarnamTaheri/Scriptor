@@ -1,132 +1,126 @@
 # Scriptor
 
-[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-teal.svg)](CHANGELOG.md)
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-0.1.0-0f766e.svg)](VERSION)
 [![CI](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
-[![GitHub stars](https://img.shields.io/github/stars/AmirrezaFarnamTaheri/Scriptor?style=social)](https://github.com/AmirrezaFarnamTaheri/Scriptor/stargazers)
 
-**The instrument for serious writing.** Scriptor is a low-overhead, desktop-native, local-first Markdown knowledge workspace for long-form writing, research, citations, graph navigation, canvas boards, exports, Git, and permissioned AI/MCP automation.
+**A local-first Markdown workspace for serious writing and research.** Scriptor combines a Tauri desktop shell, a Rust vault/indexing kernel, a React workspace, Git-aware editing, citations, graph navigation, publishing, canvas tools, and permissioned automation while keeping Markdown files portable on disk.
 
-![Scriptor workspace — vault sidebar, split editor and preview, inspector rail](docs/assets/screenshots/editor-preview.png)
 
-**Maintainer:** Amirreza "Farnam" Taheri · [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)  
-**Repository:** [github.com/AmirrezaFarnamTaheri/Scriptor](https://github.com/AmirrezaFarnamTaheri/Scriptor)
+## Current release posture
 
-## Why Scriptor
+Version `0.1.0` is an early production candidate. Core writing, vault, indexing, knowledge, Git, export, daemon, and desktop surfaces are implemented. Experimental capabilities are identified in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md); encryption, WASM plugins, local embeddings, mobile, and Tantivy are not marketed as shipped security or platform guarantees.
 
-- **Local-first:** Plain Markdown on disk — no proprietary database, no lock-in.
-- **Desktop-native:** Tauri 2 shell with Rust vault kernel, SQLite indexer, and optional headless daemon.
-- **Research-ready:** Backlinks, citations, knowledge graph, vault health, and Pandoc export profiles.
-- **Calm, Premium Workspace:** Stunning glassmorphic shell with dynamic resizable sidebars, subtle micro-animations (150-250ms fluid transitions), deeply customized typography, and distraction-free mode.
-- **Automation with boundaries:** Git integration, MCP read-only tools, plugin safe mode, and draft/write-approved AI flows.
+## Principles
 
-## Quick start
+- **Local-first:** Markdown remains the source of truth.
+- **Explicit authority:** destructive, secret, network, process, backup, and publishing actions require scoped authorization.
+- **Bounded work:** scans, graph traversals, event queues, subprocess output, logs, and audit tails have explicit limits.
+- **Recoverable mutation:** Git commits isolate the index, MCP writes use intent/outcome records, and restores verify manifests before promotion.
+- **One contract per boundary:** Rust IPC definitions generate TypeScript contracts; runtime JSON is validated before use.
+- **Honest maturity:** implemented, experimental, and design-only capabilities are documented separately.
 
-**Requirements:** Node.js 22+, pnpm 9+, Rust stable (for building from source).
+## Requirements
+
+- Node.js `22.16.0`
+- pnpm `10.33.0`
+- Rust `1.96.0`
+- Platform dependencies required by Tauri 2
+
+## Start from source
 
 ```powershell
-pnpm install
-cargo build --workspace
-pnpm dev --host 127.0.0.1      # Web shell (browser)
-pnpm desktop:dev               # Desktop shell (Tauri)
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+pnpm install --frozen-lockfile
+rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+rustup default 1.96.0
+pnpm dev --host 127.0.0.1
 ```
 
-Full walkthrough: [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.md).
-
-## Validation
-
-Run the full release gate or targeted checks before submitting changes:
+Desktop development:
 
 ```powershell
-pnpm check:release             # Full local release gate
-cargo test --workspace         # Rust unit and integration tests
-pnpm test:e2e                  # Playwright end-to-end tests
+pnpm desktop:dev
 ```
 
-Targeted checks during development:
+See [`docs/guides/GETTING_STARTED.md`](docs/guides/GETTING_STARTED.md) for first-run and vault workflows.
+
+## Verification
+
+Fast repository-native checks:
 
 ```powershell
-pnpm test:rust                 # Rust tests only
-pnpm lint                      # ESLint
-pnpm check:contracts           # TypeScript contract packages
-pnpm check:plugins             # Plugin manifest validation
-pnpm check:a11y-axe            # axe-core WCAG automated audit
-pnpm test:visual               # Visual regression Playwright tests
+pnpm version:check
+pnpm lint:actions
+pnpm lint:boundaries
+pnpm check:i18n
+pnpm check:docs
+pnpm check:source
+pnpm check:frontend-quality
 ```
 
-## Downloads
-
-Pre-built installers are published on [GitHub Releases](https://github.com/AmirrezaFarnamTaheri/Scriptor/releases) when a `v*` tag is pushed.
-
-| Platform | Formats |
-|----------|---------|
-| Windows | MSI, NSIS |
-| macOS | DMG |
-| Linux | DEB, AppImage |
-
-For PDF and advanced exports, install [Pandoc](https://pandoc.org/) separately — see [`docs/release/PANDOC_STRATEGY.md`](docs/release/PANDOC_STRATEGY.md).
-
-## More surfaces
-
-| Surface | Screenshot |
-|---------|------------|
-| Knowledge graph | ![Knowledge graph](docs/assets/screenshots/graph.png) |
-| Command palette | ![Command palette](docs/assets/screenshots/command-palette.png) |
-
-All UI screenshots: [`docs/assets/screenshots/`](docs/assets/screenshots/).
-
-## Capabilities
-
-v0.1 ships a complete research workspace: desktop shell, vault kernel with auto-creation of default vaults (instant startup/notepad mode), SQLite indexer, export runner, Git integration with 3-way conflict resolver, canvas boards with resvg worker offload, MCP 15 tools with audit JSONL, plugin safe mode with author guide, headless daemon with tracing spans, terminal UI, multi-locale spellcheck, keyboard shortcut editor, scheduled vault snapshots, collapsible/minimizable side panels with topbar toggles, opaque dialog overlays for enhanced contrast/legibility, and the premium glassmorphic workspace shell featuring dynamic, user-resizable panels and robust fluid transitions.
-
-See [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) for the full surface map and validation commands.
-
-## Development
+Full verification:
 
 ```powershell
-pnpm dev --host 127.0.0.1      # Web shell (browser)
-pnpm build                     # Production frontend build
-pnpm lint                      # ESLint
-pnpm check:release             # Full local release gate
-pnpm desktop:build             # Desktop installers
-pnpm screenshots:capture:web   # Regenerate docs screenshots
-cargo check --workspace
+pnpm install --frozen-lockfile
+pnpm lint
+pnpm build
+pnpm check:release
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-pnpm test:e2e                  # Playwright end-to-end tests
 ```
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for full development setup, testing, and code style guidelines.
+The full release gate includes contract runners, Rust tests, Playwright E2E/visual/accessibility tests, daemon/TUI/container smoke tests, performance gates, dependency audits, release packaging, and signature checks.
+
+## Architecture
+
+The current architecture, trust boundaries, data flows, and crate/package ownership are documented in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Key implementation roots:
+
+| Plane | Entry points |
+|---|---|
+| Desktop | `apps/desktop/src-tauri/src/lib.rs`, `src/App.tsx` |
+| Vault | `crates/vault/src/lib.rs` |
+| Index/search/graph | `crates/indexer/src/lib.rs` |
+| Daemon IPC | `crates/daemon/src/lib.rs`, `crates/ipc/src/lib.rs` |
+| Git | `crates/native-git/src/lib.rs` |
+| External tools | `crates/system-bridge/src/process.rs` |
+| Frontend packages | `packages/*/src/index.ts` |
+
+Workspace package imports are enforced through declared `package.json` exports. See [`packages/README.md`](packages/README.md).
+
+## Release security
+
+Production releases are tag-driven and fail unless:
+
+- tag/input version matches [`VERSION`](VERSION) and every manifest;
+- GitHub Actions are pinned to immutable SHAs;
+- Windows installers are Authenticode-signed;
+- macOS bundles are Developer ID-signed and notarized;
+- Linux packages have detached OpenPGP signatures;
+- checksums, CycloneDX SBOM, release receipt, and GitHub attestations are produced from the same downloaded build artifacts.
+
+Verification instructions: [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md).
 
 ## Documentation
 
-| Document | Purpose |
-|---|---|
-| [`docs/README.md`](docs/README.md) | Documentation index |
-| [`PRODUCT.md`](PRODUCT.md) | Product principles and audience |
-| [`DESIGN.md`](DESIGN.md) | Visual and interaction rules |
-| [`docs/CAPABILITIES.md`](docs/CAPABILITIES.md) | Shipped surfaces and validation |
-| [`CHANGELOG.md`](CHANGELOG.md) | Release history |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md) | Contribution guide |
-| [`SECURITY.md`](SECURITY.md) | Security reporting |
-| [`MAINTAINERS.md`](MAINTAINERS.md) | Maintainer contact |
-| [`COMMERCIAL-LICENSING.md`](COMMERCIAL-LICENSING.md) | Commercial license inquiries |
-| [`docs/release/SIGNING.md`](docs/release/SIGNING.md) | Release signing and notarization |
-| [`docs/release/PANDOC_STRATEGY.md`](docs/release/PANDOC_STRATEGY.md) | Pandoc setup for exports |
+- [`docs/README.md`](docs/README.md) — documentation index
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — current architecture and trust boundaries
+- [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) — shipped/experimental/design-only ledger
+- [`PRODUCT.md`](PRODUCT.md) — product outcomes and exclusions
+- [`DESIGN.md`](DESIGN.md) — UI system and accessibility contract
+- [`SECURITY.md`](SECURITY.md) — threat boundaries and vulnerability reporting
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow
+- [`CHANGELOG.md`](CHANGELOG.md) — release history
+- [`docs/FINAL-REMEDIATION-REPORT.md`](docs/FINAL-REMEDIATION-REPORT.md) — closure status for all due-diligence findings
+- [`docs/VERIFICATION.md`](docs/VERIFICATION.md) — exact proof boundaries and required commands
+- [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) — production go/no-go checklist
 
 ## License
 
-Scriptor is licensed under the **GNU Affero General Public License v3.0** for non-commercial use. See [`LICENSE`](LICENSE).
+Scriptor is licensed under **GNU AGPL-3.0-or-later**, including commercial use when the license obligations are followed. Organizations that do not want to comply with the AGPL may request a separate commercial license; see [`COMMERCIAL-LICENSING.md`](COMMERCIAL-LICENSING.md).
 
-**Commercial use** (proprietary redistribution, SaaS without AGPL compliance, etc.) requires a separate license — see [`COMMERCIAL-LICENSING.md`](COMMERCIAL-LICENSING.md) and contact [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com).
+## Maintainer
 
-## Support Scriptor
-
-- **Star the repo:** [github.com/AmirrezaFarnamTaheri/Scriptor/stargazers](https://github.com/AmirrezaFarnamTaheri/Scriptor/stargazers)
-- **Report issues:** [GitHub Issues](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues)
-- **Optional donations** (Settings → Support Scriptor, or below):
-
-| Network | Address |
-|---|---|
-| BTC | `bc1q68g4m4denjw4smhvwmnz5fychuj3ge2vupx07w` |
-| ETH | `0xbd5af5d1517317111db9523d6bb42fceae887abb` |
-| TRON | `TRjFLA1Dd32Bw1i3FxjZW5dmVub5UfXFSS` |
+Amirreza “Farnam” Taheri — [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com) — [GitHub](https://github.com/AmirrezaFarnamTaheri/Scriptor)

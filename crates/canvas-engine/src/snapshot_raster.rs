@@ -1,10 +1,11 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::time::Duration;
 use std::thread::JoinHandle;
 
 use resvg::usvg::{self, Transform};
 use scriptor_export_runner::discover_pandoc;
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, run_process};
 use tiny_skia::Pixmap;
 
 use crate::error::CanvasError;
@@ -96,18 +97,32 @@ pub fn write_pdf_from_svg(svg: &str, output_path: &Path) -> Result<(), CanvasErr
         source,
     })?;
 
-    let output = Command::new(&pandoc.path)
-        .arg(&html_path)
-        .arg("-o")
-        .arg(output_path)
-        .arg("--standalone")
-        .output()
-        .map_err(|error| CanvasError::ExportFailed(format!("pandoc failed to start: {error}")))?;
+    let receipt = run_process(
+        ProcessSpec::new(&pandoc.path)
+            .arg(&html_path)
+            .arg("-o")
+            .arg(output_path)
+            .arg("--standalone")
+            .current_dir(temp_dir.path())
+            .timeout(Duration::from_secs(2 * 60))
+            .max_output_bytes(256 * 1024)
+            .network_policy(NetworkPolicy::Deny)
+            .allow_unsandboxed_network_denial(
+                std::env::var("SCRIPTOR_ALLOW_UNSANDBOXED_EXTERNAL_TOOLS")
+                    .ok()
+                    .is_some_and(|value| {
+                        matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes")
+                    }),
+            )
+            .expected_sha256(std::env::var("SCRIPTOR_PANDOC_SHA256").ok()),
+    )
+    .map_err(|error| CanvasError::ExportFailed(format!("pandoc failed: {error}")))?;
 
-    if !output.status.success() {
+    if receipt.exit_code != 0 {
         return Err(CanvasError::ExportFailed(format!(
-            "pandoc pdf export failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            "pandoc pdf export failed with code {}: {}",
+            receipt.exit_code,
+            receipt.stderr.trim()
         )));
     }
 

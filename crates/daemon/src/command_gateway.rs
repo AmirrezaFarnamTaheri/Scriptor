@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::time::Duration;
 
 use chrono::NaiveDate;
 use scriptor_export_runner::{
@@ -24,7 +24,7 @@ use scriptor_canvas_engine::{
     load_document, parse_document_json, query_blocks_in_bounds, render_svg, restore_template_checkpoint,
     save_document, write_snapshot, CanvasPoint, CanvasRect, SnapshotFormat,
 };
-use scriptor_system_bridge::detect_system_info;
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use scriptor_vault::{
     append_activity_log, append_stats_history, block_rename_apply, block_rename_dry_run,
     build_note_markdown, delete_note, export_text_bundle, lint_vault_fix, list_note_history, list_recent_notes,
@@ -1090,37 +1090,64 @@ struct PdfTranslateOutput {
 fn cmd_pdf_translate(state: &DaemonState, payload: &Value) -> Result<PdfTranslateOutput, String> {
     let session = state.require_session()?;
     let input_path = require_str(payload, "input_path")?;
-    let relative = RelativeVaultPath::parse(&input_path).map_err(|error| format!("invalid input_path: {error}"))?;
-    let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
-    let resolved_str = resolved.display().to_string();
+    let relative = RelativeVaultPath::parse(&input_path)
+        .map_err(|error| format!("invalid input_path: {error}"))?;
+    let resolved = session
+        .root
+        .resolve_relative(&relative)
+        .map_err(|error| error.to_string())?;
     let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
-    let mut command = Command::new(&pdf2zh);
-    command
-        .arg(&resolved_str)
-        .arg("-li")
-        .arg(optional_str(payload, "lang_in").unwrap_or_else(|| "en".into()))
-        .arg("-lo")
-        .arg(optional_str(payload, "lang_out").unwrap_or_else(|| "zh".into()));
-    if let Some(out) = optional_str(payload, "output_path") {
-        let out_relative = RelativeVaultPath::parse(&out).map_err(|error| format!("invalid output_path: {error}"))?;
-        let out_resolved = session.root.resolve_relative(&out_relative).map_err(|error| error.to_string())?;
-        command.arg("-o").arg(&out_resolved);
-    }
-    let status = command.status().map_err(|error| {
+    let mut args = vec![
+        resolved.display().to_string(),
+        "-li".into(),
+        optional_str(payload, "lang_in").unwrap_or_else(|| "en".into()),
+        "-lo".into(),
+        optional_str(payload, "lang_out").unwrap_or_else(|| "zh".into()),
+    ];
+    let explicit_output = if let Some(out) = optional_str(payload, "output_path") {
+        let out_relative = RelativeVaultPath::parse(&out)
+            .map_err(|error| format!("invalid output_path: {error}"))?;
+        let out_resolved = session
+            .root
+            .resolve_relative(&out_relative)
+            .map_err(|error| error.to_string())?;
+        args.push("-o".into());
+        args.push(out_resolved.display().to_string());
+        Some(out_resolved)
+    } else {
+        None
+    };
+
+    let receipt = run_process(
+        ProcessSpec::new(&pdf2zh)
+            .args(args)
+            .current_dir(session.root.root())
+            .timeout(Duration::from_secs(15 * 60))
+            .max_output_bytes(512 * 1024)
+            .network_policy(NetworkPolicy::Allow)
+            .expected_sha256(std::env::var("SCRIPTOR_PDF2ZH_SHA256").ok()),
+    )
+    .map_err(|error| {
         format!(
-            "pdf2zh was not found ({error}). Install PDFMathTranslate (pip install pdf2zh) or set SCRIPTOR_PDF2ZH_PATH."
+            "PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256."
         )
     })?;
-    if !status.success() {
-        return Err("pdf2zh exited with an error.".into());
+    if receipt.exit_code != 0 {
+        return Err(format!(
+            "pdf2zh exited with code {}: {}",
+            receipt.exit_code,
+            receipt.stderr.trim()
+        ));
     }
+
     let stem = resolved
         .file_stem()
         .and_then(|value| value.to_str())
         .unwrap_or("document");
     let parent = resolved.parent().unwrap_or_else(|| Path::new("."));
+    let output = explicit_output.unwrap_or_else(|| parent.join(format!("{stem}-dual.pdf")));
     Ok(PdfTranslateOutput {
-        output_path: parent.join(format!("{stem}-dual.pdf")).display().to_string(),
+        output_path: output.display().to_string(),
     })
 }
 
@@ -1130,53 +1157,91 @@ struct PlantUmlRenderOutput {
     engine: String,
 }
 
+fn environment_opt_in(name: &str) -> bool {
+    std::env::var(name)
+        .ok()
+        .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+}
+
 fn cmd_plantuml_render(payload: &Value) -> Result<PlantUmlRenderOutput, String> {
     let source = require_str(payload, "source")?;
+    if source.len() > 1024 * 1024 {
+        return Err("PlantUML source exceeds the 1 MiB rendering limit".into());
+    }
     let temp_dir = std::env::temp_dir().join(format!("scriptor-plantuml-{}", Uuid::new_v4()));
     fs::create_dir_all(&temp_dir).map_err(|error| error.to_string())?;
     let input = temp_dir.join("diagram.puml");
     fs::write(&input, source).map_err(|error| error.to_string())?;
-    let (svg, engine) = run_plantuml(&input)?;
+    let result = run_plantuml(&input);
     let _ = fs::remove_dir_all(&temp_dir);
+    let (svg, engine) = result?;
     Ok(PlantUmlRenderOutput { svg, engine })
+}
+
+fn run_plantuml_candidate(
+    program: &str,
+    args: Vec<String>,
+    input: &Path,
+    expected_sha256: Option<String>,
+) -> Result<(String, String), String> {
+    let receipt = run_process(
+        ProcessSpec::new(program)
+            .args(args)
+            .current_dir(input.parent().unwrap_or_else(|| Path::new(".")))
+            .timeout(Duration::from_secs(30))
+            .max_output_bytes(256 * 1024)
+            .network_policy(NetworkPolicy::Deny)
+            .allow_unsandboxed_network_denial(environment_opt_in(
+                "SCRIPTOR_ALLOW_UNSANDBOXED_EXTERNAL_TOOLS",
+            ))
+            .expected_sha256(expected_sha256),
+    )
+    .map_err(|error| error.to_string())?;
+    if receipt.exit_code != 0 {
+        return Err(format!(
+            "PlantUML failed with exit code {}: {}",
+            receipt.exit_code,
+            receipt.stderr.trim()
+        ));
+    }
+    let svg = fs::read_to_string(input.with_extension("svg")).map_err(|error| error.to_string())?;
+    Ok((svg, receipt.resolved_program))
 }
 
 fn run_plantuml(input: &Path) -> Result<(String, String), String> {
     if let Ok(path) = std::env::var("PLANTUML_BIN")
-        && !path.is_empty() {
-            let output = Command::new(&path)
-                .args(["-tsvg", &input.display().to_string()])
-                .output()
-                .map_err(|error| error.to_string())?;
-            if output.status.success() {
-                let svg = fs::read_to_string(input.with_extension("svg")).map_err(|e| e.to_string())?;
-                return Ok((svg, path));
-            }
-        }
-
-    if let Ok(jar) = std::env::var("PLANTUML_JAR") {
-        let output = Command::new("java")
-            .args(["-jar", &jar, "-tsvg", &input.display().to_string()])
-            .output()
-            .map_err(|error| error.to_string())?;
-        if output.status.success() {
-            let svg = fs::read_to_string(input.with_extension("svg")).map_err(|e| e.to_string())?;
-            return Ok((svg, "java-plantuml".into()));
-        }
+        && !path.trim().is_empty()
+    {
+        return run_plantuml_candidate(
+            &path,
+            vec!["-tsvg".into(), input.display().to_string()],
+            input,
+            std::env::var("SCRIPTOR_PLANTUML_SHA256").ok(),
+        );
     }
 
-    let output = Command::new("plantuml")
-        .args(["-tsvg", &input.display().to_string()])
-        .output()
-        .map_err(|error| error.to_string())?;
-    if !output.status.success() {
-        return Err(format!(
-            "PlantUML failed: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+    if let Ok(jar) = std::env::var("PLANTUML_JAR")
+        && !jar.trim().is_empty()
+    {
+        return run_plantuml_candidate(
+            "java",
+            vec![
+                "-jar".into(),
+                jar,
+                "-tsvg".into(),
+                input.display().to_string(),
+            ],
+            input,
+            std::env::var("SCRIPTOR_JAVA_SHA256").ok(),
+        );
     }
-    let svg = fs::read_to_string(input.with_extension("svg")).map_err(|e| e.to_string())?;
-    Ok((svg, "plantuml".into()))
+
+    run_plantuml_candidate(
+        "plantuml",
+        vec!["-tsvg".into(), input.display().to_string()],
+        input,
+        std::env::var("SCRIPTOR_PLANTUML_SHA256").ok(),
+    )
 }
 
 fn to_value<T: Serialize>(value: T) -> Result<Value, String> {

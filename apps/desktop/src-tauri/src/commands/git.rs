@@ -5,6 +5,7 @@ use scriptor_native_git::{
 };
 use scriptor_vault::RelativeVaultPath;
 
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::AppState;
 use crate::state::{active_session, use_headless_engine};
 
@@ -32,13 +33,21 @@ pub fn git_commit_cmd(
 }
 
 #[tauri::command]
-pub fn git_pull_cmd(state: tauri::State<AppState>) -> Result<GitPullOutput, String> {
+pub fn git_pull_cmd(
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<GitPullOutput, String> {
+    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::GitPull, Some("active-vault"))?;
     let session = active_session(&state)?;
     git_pull(session.root.root()).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn git_push_cmd(state: tauri::State<AppState>) -> Result<GitPushOutput, String> {
+pub fn git_push_cmd(
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<GitPushOutput, String> {
+    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::GitPush, Some("active-vault"))?;
     let session = active_session(&state)?;
     git_push(session.root.root()).map_err(|error| error.to_string())
 }
@@ -48,7 +57,14 @@ pub fn git_resolve_conflict_cmd(
     state: tauri::State<AppState>,
     path: String,
     strategy: String,
+    authorization_token: String,
 ) -> Result<GitConflictResolveOutput, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::ApplyGitConflict,
+        Some(&path),
+    )?;
     let session = active_session(&state)?;
     git_resolve_conflict(session.root.root(), &path, &strategy).map_err(|error| error.to_string())
 }
@@ -58,7 +74,14 @@ pub fn git_apply_merged_conflict_cmd(
     state: tauri::State<AppState>,
     path: String,
     merged_markdown: String,
+    authorization_token: String,
 ) -> Result<GitConflictResolveOutput, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::ApplyGitConflict,
+        Some(&path),
+    )?;
     let session = active_session(&state)?;
     git_apply_merged_conflict(session.root.root(), &path, &merged_markdown)
         .map_err(|error| error.to_string())

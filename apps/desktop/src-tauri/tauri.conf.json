@@ -20,27 +20,30 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost data:; font-src 'self' asset: https://asset.localhost; connect-src 'self' ipc: https://ipc.localhost; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost data:; font-src 'self' asset: https://asset.localhost; connect-src 'self' ipc: https://ipc.localhost; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'"
     }
   },
   "plugins": {
-    "updater": {
-      "endpoints": [],
-      "pubkey": ""
-    },
     "deep-link": {
       "desktop": {
-        "schemes": ["scriptor"]
+        "schemes": [
+          "scriptor"
+        ]
       }
     }
   },
   "bundle": {
     "active": true,
     "targets": "all",
-    "resources": ["binaries/*"],
+    "resources": [
+      "binaries/*"
+    ],
     "fileAssociations": [
       {
-        "ext": ["md", "markdown"],
+        "ext": [
+          "md",
+          "markdown"
+        ],
         "name": "Markdown Note",
         "role": "Editor",
         "mimeType": "text/markdown"
@@ -61,8 +64,7 @@
       }
     },
     "macOS": {
-      "minimumSystemVersion": "10.15",
-      "signingIdentity": "-"
+      "minimumSystemVersion": "10.15"
     }
   }
 }

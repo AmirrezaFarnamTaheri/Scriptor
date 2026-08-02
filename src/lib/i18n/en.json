@@ -71,7 +71,6 @@
     "title": "Settings",
     "subtitle": "Desktop runtime, vault workflow, and diagnostics.",
     "runtime": "Runtime",
-    "checkForUpdates": "Check for updates",
     "nativeBridge": "Native Tauri bridge connected",
     "browserPreview": "Browser preview — run `pnpm desktop:dev` for vault commands",
     "pandoc": "Pandoc",
@@ -177,9 +176,6 @@
     "saveFailed": "Failed to save note",
     "loadFailed": "Failed to load note"
   },
-  "updater": {
-    "placeholder": "Updater signing key not configured for this build."
-  },
   "mcp": {
     "title": "MCP automation",
     "subtitle": "Permissioned tools with audit logging and draft approval gates.",
@@ -247,7 +243,9 @@
     "subtitle": "Repair queues, saved views, and tag discovery in one place.",
     "repair": "Repair",
     "views": "Views",
-    "tags": "Tags"
+    "tags": "Tags",
+    "collections": "Collections",
+    "discover": "Discover"
   },
   "settingsSection": {
     "panelPresentation": "Panel presentation",

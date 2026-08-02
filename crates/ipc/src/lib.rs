@@ -11,7 +11,7 @@ pub const FRAME_MAGIC: u32 = 0x4152434c; // "ARCL"
 pub const MAX_FRAME_BYTES: usize = 2 * 1024 * 1024;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[ts(export, export_to = "../../../packages/core/src/contracts/ipc-generated.ts")]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub struct RpcRequest {
     pub id: u64,
     pub method: RpcMethod,
@@ -49,7 +49,7 @@ impl Default for RpcRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
-#[ts(export, export_to = "../../../packages/core/src/contracts/ipc-generated.ts")]
+#[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcMethod {
     Ping,
     OpenVault { path: String },
@@ -171,6 +171,9 @@ pub struct RpcEvent {
 #[ts(export, export_to = "../../packages/core/src/contracts/ipc-generated.ts")]
 pub enum RpcEventPayload {
     ConfigReloaded { json: String, generation: u64 },
+    /// The event stream was interrupted or overflowed. Consumers must reload
+    /// authoritative state instead of assuming they observed every transition.
+    ResyncRequired { reason: String },
 }
 
 /// Server → client frame: either an RPC response or an unsolicited event.

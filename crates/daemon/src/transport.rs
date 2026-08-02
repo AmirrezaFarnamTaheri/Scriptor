@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: transport cleanup terminates a previously authenticated daemon process group; no user-supplied executable is launched.
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -107,55 +108,63 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 fn endpoint_hmac_key() -> Result<String, IpcError> {
-    let data_dir = scriptor_data_dir("scriptor").unwrap_or_else(|_| std::env::temp_dir());
+    let data_dir = scriptor_data_dir("scriptor")
+        .map_err(|error| IpcError::Codec(format!("cannot resolve daemon data directory: {error}")))?;
     let key_path = data_dir.join(".endpoint-hmac-key");
-    if let Ok(existing) = fs::read_to_string(&key_path) {
-        let trimmed = existing.trim().to_string();
-        if !trimmed.is_empty() {
+    match fs::read_to_string(&key_path) {
+        Ok(existing) => {
+            let trimmed = existing.trim().to_string();
+            if trimmed.is_empty() {
+                return Err(IpcError::Codec(format!(
+                    "daemon endpoint HMAC key is empty: {}",
+                    key_path.display()
+                )));
+            }
             return Ok(trimmed);
         }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(IpcError::from(error)),
     }
+
+    fs::create_dir_all(&data_dir).map_err(IpcError::from)?;
     let nonce = generate_nonce()?;
-    if let Err(error) = fs::create_dir_all(&data_dir) {
-        tracing::warn!(
-            target: "scriptor_daemon::transport",
-            data_dir = %data_dir.display(),
-            %error,
-            "failed to create data dir for HMAC key",
-        );
-    }
+
     #[cfg(unix)]
-    {
+    let opened = {
         use std::os::unix::fs::OpenOptionsExt;
         let mut opts = fs::OpenOptions::new();
-        opts.write(true).create(true).truncate(true).mode(0o600);
-        if let Ok(mut file) = opts.open(&key_path) {
+        opts.write(true).create_new(true).mode(0o600).open(&key_path)
+    };
+    #[cfg(not(unix))]
+    let opened = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&key_path);
+
+    match opened {
+        Ok(mut file) => {
             use std::io::Write;
-            if let Err(error) = file.write_all(nonce.as_bytes()) {
-                tracing::warn!(
-                    target: "scriptor_daemon::transport",
-                    key_path = %key_path.display(),
-                    %error,
-                    "failed to write HMAC key",
-                );
+            file.write_all(nonce.as_bytes()).map_err(IpcError::from)?;
+            file.sync_all().map_err(IpcError::from)?;
+            Ok(nonce)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            let existing = fs::read_to_string(&key_path).map_err(IpcError::from)?;
+            let trimmed = existing.trim().to_string();
+            if trimmed.is_empty() {
+                Err(IpcError::Codec(format!(
+                    "daemon endpoint HMAC key is empty after concurrent creation: {}",
+                    key_path.display()
+                )))
+            } else {
+                Ok(trimmed)
             }
         }
+        Err(error) => Err(IpcError::from(error)),
     }
-    #[cfg(not(unix))]
-    {
-        if let Err(error) = fs::write(&key_path, &nonce) {
-            tracing::warn!(
-                target: "scriptor_daemon::transport",
-                key_path = %key_path.display(),
-                %error,
-                "failed to write HMAC key",
-            );
-        }
-    }
-    Ok(nonce)
 }
 
-pub fn write_endpoint(socket_name: &str) -> Result<(), IpcError> {
+pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
     let nonce = generate_nonce()?;
     let pid = std::process::id();
     let hmac = compute_endpoint_hmac(socket_name, pid, &nonce)?;
@@ -181,7 +190,7 @@ pub fn write_endpoint(socket_name: &str) -> Result<(), IpcError> {
     {
         fs::write(&path, json).map_err(IpcError::from)?;
     }
-    Ok(())
+    Ok(endpoint)
 }
 
 pub fn read_endpoint() -> Result<DaemonEndpoint, IpcError> {
@@ -234,6 +243,8 @@ fn process_alive(pid: u32) -> bool {
             fn CloseHandle(handle: *mut c_void) -> i32;
         }
         const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+        // SAFETY: `pid` is not a pointer and is passed directly to Win32. The
+        // handle is null-checked and closed exactly once without escaping.
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {
@@ -267,11 +278,16 @@ fn resolve_name(path: &str) -> Result<Name<'_>, IpcError> {
     }
 }
 
-pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
+pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
     let endpoint = read_endpoint()?;
     verify_endpoint_process(&endpoint)?;
     let name = resolve_name(&endpoint.socket_name)?;
-    LocalSocketStream::connect(name.borrow()).map_err(IpcError::from)
+    let stream = LocalSocketStream::connect(name.borrow()).map_err(IpcError::from)?;
+    Ok((stream, endpoint))
+}
+
+pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
+    connect_authenticated_client().map(|(stream, _)| stream)
 }
 
 /// RAII guard for one connection slot: decrements the active-connection counter
@@ -297,7 +313,15 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
         .name(name.borrow())
         .create_sync()
         .map_err(IpcError::from)?;
-    write_endpoint(&resolved)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if Path::new(&resolved).exists() {
+            fs::set_permissions(&resolved, fs::Permissions::from_mode(0o600))
+                .map_err(IpcError::from)?;
+        }
+    }
+    let endpoint = write_endpoint(&resolved)?;
 
     struct EndpointCleanup;
     impl Drop for EndpointCleanup {
@@ -307,7 +331,10 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     }
     let _endpoint_guard = EndpointCleanup;
 
-    let state = Arc::new(Mutex::new(DaemonState::default()));
+    let state = Arc::new(Mutex::new(DaemonState {
+        endpoint_nonce: endpoint.nonce,
+        ..DaemonState::default()
+    }));
     let event_hub = EventHub::new();
     let active_connections = Arc::new(AtomicUsize::new(0));
 
@@ -353,8 +380,13 @@ pub fn handle_connection(
     let event_rx = event_hub.register();
     let mut limiter = RateLimiter::per_second(MAX_RPC_PER_CONNECTION_PER_SEC);
 
-    let drain_events = |stream: &mut LocalSocketStream, event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
-        while let Ok(event) = event_rx.try_recv() {
+    const MAX_EVENTS_PER_DRAIN: usize = 32;
+    let drain_events = |stream: &mut LocalSocketStream,
+                        event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
+        for _ in 0..MAX_EVENTS_PER_DRAIN {
+            let Ok(event) = event_rx.try_recv() else {
+                break;
+            };
             write_frame(stream, &ServerMessage::Event(event))?;
         }
         Ok::<(), IpcError>(())
@@ -990,8 +1022,9 @@ mod tests {
         // listener now that the daemon is reachable.
         let (event_tx, event_rx) = std::sync::mpsc::channel();
         client.register_event_handler(move |event| {
-            let RpcEventPayload::ConfigReloaded { json, generation } = event.payload;
-            let _ = event_tx.send((json, generation));
+            if let RpcEventPayload::ConfigReloaded { json, generation } = event.payload {
+                let _ = event_tx.send((json, generation));
+            }
         });
         assert!(
             client.has_event_listener(),
@@ -1217,8 +1250,9 @@ mod tests {
         let (event_tx, event_rx) = std::sync::mpsc::channel();
         let observer = crate::client::DaemonRpcClient::new();
         observer.register_event_handler(move |event| {
-            let RpcEventPayload::ConfigReloaded { json, generation } = event.payload;
-            let _ = event_tx.send((json, generation));
+            if let RpcEventPayload::ConfigReloaded { json, generation } = event.payload {
+                let _ = event_tx.send((json, generation));
+            }
         });
         std::thread::sleep(Duration::from_millis(100));
 

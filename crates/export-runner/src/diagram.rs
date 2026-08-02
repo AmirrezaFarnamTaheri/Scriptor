@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: diagram export needs streamed files plus bespoke timeout cleanup; executable discovery is allowlisted and bounded in this module.
 use std::fs;
 use std::io::{self, Read};
 use std::path::Path;

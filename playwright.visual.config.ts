@@ -9,8 +9,10 @@ export default defineConfig({
   expect: {
     timeout: 30_000,
     toHaveScreenshot: {
-      maxDiffPixelRatio: 0.2,
-      threshold: 0.2,
+      animations: 'disabled',
+      caret: 'hide',
+      maxDiffPixelRatio: 0.03,
+      threshold: 0.15,
     },
   },
   outputDir: 'test-results/visual',

@@ -1,12 +1,16 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
-use rusqlite::params;
+use rusqlite::{params, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
 
 use scriptor_vault::{note_id, VaultSession};
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
+
+const MAX_FOCUSED_NODES: usize = 200;
+const MAX_OVERVIEW_NODES: usize = 120;
+pub const MAX_GRAPH_DEPTH: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GraphNode {
@@ -39,6 +43,33 @@ struct NoteRow {
     title: String,
 }
 
+#[derive(Debug, Clone)]
+struct NeighborLink {
+    id: String,
+    from: NoteRow,
+    target: Option<NoteRow>,
+    unresolved_target: String,
+    kind: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct GraphTraverseStep {
+    pub path: String,
+    pub depth: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub via: Option<String>,
+}
+
+#[derive(Debug)]
+struct GraphSlice {
+    notes: HashMap<String, NoteRow>,
+    edges: Vec<GraphEdge>,
+    unresolved: HashSet<String>,
+    steps: Vec<GraphTraverseStep>,
+}
+
 pub fn query_focused_graph(
     cache: &IndexCache,
     session: &VaultSession,
@@ -46,295 +77,371 @@ pub fn query_focused_graph(
     depth: u32,
     graph_groups: &[scriptor_vault::GraphGroupRule],
 ) -> Result<GraphQueryOutput, IndexerError> {
-    let note_index = load_note_index(cache, &session.descriptor.id)?;
-    let link_rows = load_link_rows(cache, &session.descriptor.id)?;
-    let note_tags = load_note_tags(cache, &session.descriptor.id)?;
-
-    // Precompute adjacency once instead of rescanning every link (and linearly
-    // resolving targets) on each BFS step.
-    let resolved_links: Vec<ResolvedLink<'_>> = link_rows
-        .iter()
-        .map(|row| ResolvedLink {
-            row,
-            target: resolve_target(&note_index, &row.to_path),
-        })
-        .collect();
-    let mut outgoing: HashMap<&str, Vec<&ResolvedLink<'_>>> = HashMap::new();
-    let mut incoming: HashMap<&str, Vec<&ResolvedLink<'_>>> = HashMap::new();
-    for link in &resolved_links {
-        outgoing
-            .entry(link.row.from_note_id.as_str())
-            .or_default()
-            .push(link);
-        if let Some((target_id, _)) = &link.target {
-            incoming.entry(target_id.as_str()).or_default().push(link);
-        }
-    }
-    let id_to_note: HashMap<&str, &NoteRow> = note_index
-        .values()
-        .map(|note| (note.id.as_str(), note))
-        .collect();
-
-    let max_depth = depth.clamp(1, 5);
-    let max_nodes = if focus_path.is_some() { 200 } else { 120 };
-    let mut visited: HashSet<String> = HashSet::new();
-    let mut queue: VecDeque<(String, u32)> = VecDeque::new();
-    let mut edges: Vec<GraphEdge> = Vec::new();
-    let mut edge_ids: HashSet<String> = HashSet::new();
-
-    let seed_ids: Vec<String> = if let Some(path) = focus_path {
-        let key = note_id(&session.descriptor.id, &scriptor_vault::RelativeVaultPath::parse(path)?);
-        vec![key]
-    } else if note_index.len() <= max_nodes {
-        note_index.values().map(|note| note.id.clone()).collect()
+    let slice = if let Some(path) = focus_path {
+        collect_focused_slice(cache, session, path, depth)?
     } else {
-        note_index
-            .values()
-            .take(max_nodes)
-            .map(|note| note.id.clone())
-            .collect()
+        collect_overview_slice(cache, session)?
     };
+    let note_ids = slice.notes.keys().cloned().collect::<Vec<_>>();
+    let note_tags = load_note_tags(cache, &session.descriptor.id, &note_ids)?;
 
-    for seed in seed_ids {
-        if visited.insert(seed.clone()) {
-            queue.push_back((seed, 0));
-        }
-    }
+    let mut nodes = slice
+        .notes
+        .values()
+        .map(|note| GraphNode {
+            id: note.id.clone(),
+            path: note.path.clone(),
+            label: note.title.clone(),
+            unresolved: false,
+            color: note_tags.get(&note.id).and_then(|tags| {
+                tags.iter()
+                    .find_map(|tag| apply_graph_group_color(tag, graph_groups))
+            }),
+        })
+        .collect::<Vec<_>>();
+    nodes.extend(slice.unresolved.into_iter().map(|target| GraphNode {
+        id: format!("unresolved:{target}"),
+        path: String::new(),
+        label: target,
+        unresolved: true,
+        color: None,
+    }));
+    nodes.sort_by(|left, right| {
+        left.label
+            .to_ascii_lowercase()
+            .cmp(&right.label.to_ascii_lowercase())
+            .then_with(|| left.path.cmp(&right.path))
+            .then_with(|| left.id.cmp(&right.id))
+    });
 
-    while let Some((current_id, current_depth)) = queue.pop_front() {
-        if current_depth >= max_depth {
-            continue;
-        }
-
-        for link in outgoing.get(current_id.as_str()).into_iter().flatten() {
-            let edge_id = link.row.id.clone();
-            if edge_ids.insert(edge_id.clone()) {
-                edges.push(GraphEdge {
-                    id: edge_id,
-                    source: current_id.clone(),
-                    target: link
-                        .target
-                        .as_ref()
-                        .map(|(id, _)| id.clone())
-                        .unwrap_or_else(|| format!("unresolved:{}", link.row.to_path)),
-                    kind: link.row.kind.clone(),
-                });
-            }
-
-            if let Some((target_id, _)) = &link.target
-                && visited.insert(target_id.clone()) {
-                    queue.push_back((target_id.clone(), current_depth + 1));
-                }
-        }
-
-        for link in incoming.get(current_id.as_str()).into_iter().flatten() {
-            let edge_id = link.row.id.clone();
-            if edge_ids.insert(edge_id.clone()) {
-                edges.push(GraphEdge {
-                    id: edge_id,
-                    source: link.row.from_note_id.clone(),
-                    target: current_id.clone(),
-                    kind: link.row.kind.clone(),
-                });
-            }
-
-            if visited.insert(link.row.from_note_id.clone()) {
-                queue.push_back((link.row.from_note_id.clone(), current_depth + 1));
-            }
-        }
-    }
-
-    // Sort visited ids so node emission (and thus tie-breaking among equal
-    // labels after the final sort) is deterministic.
-    let mut visited_ids: Vec<String> = visited.into_iter().collect();
-    visited_ids.sort();
-
-    let mut nodes = Vec::new();
-    for node_id in visited_ids {
-        if let Some(note) = id_to_note.get(node_id.as_str()) {
-            let color = note_tags
-                .get(&note.id)
-                .and_then(|tags| {
-                    tags.iter()
-                        .find_map(|tag| apply_graph_group_color(tag, graph_groups))
-                });
-            nodes.push(GraphNode {
-                id: note.id.clone(),
-                path: note.path.clone(),
-                label: note.title.clone(),
-                unresolved: false,
-                color,
-            });
-            continue;
-        }
-
-        if let Some(unresolved) = node_id.strip_prefix("unresolved:") {
-            nodes.push(GraphNode {
-                id: node_id.clone(),
-                path: String::new(),
-                label: unresolved.to_string(),
-                unresolved: true,
-                color: None,
-            });
-        }
-    }
-
-    for edge in &edges {
-        if edge.target.starts_with("unresolved:") && !nodes.iter().any(|node| node.id == edge.target) {
-            let label = edge.target.trim_start_matches("unresolved:");
-            nodes.push(GraphNode {
-                id: edge.target.clone(),
-                path: String::new(),
-                label: label.to_string(),
-                unresolved: true,
-                color: None,
-            });
-        }
-    }
-
-    nodes.sort_by(|left, right| left.label.cmp(&right.label));
-
-    Ok(GraphQueryOutput { nodes, edges })
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct GraphTraverseStep {
-    pub path: String,
-    pub depth: u32,
-    pub via: Option<String>,
+    Ok(GraphQueryOutput {
+        nodes,
+        edges: slice.edges,
+    })
 }
 
 /// Breadth-first traversal from a focus note for MCP `traverse_graph`.
+///
+/// Each frontier is fetched through indexed `from_note_id`/`to_note_id` queries;
+/// the implementation never loads the entire vault graph into memory.
 pub fn traverse_graph(
     cache: &IndexCache,
     session: &VaultSession,
     focus_path: &str,
     depth: u32,
 ) -> Result<Vec<GraphTraverseStep>, IndexerError> {
-    let graph = query_focused_graph(cache, session, Some(focus_path), depth, &[])?;
+    Ok(collect_focused_slice(cache, session, focus_path, depth)?.steps)
+}
+
+fn collect_focused_slice(
+    cache: &IndexCache,
+    session: &VaultSession,
+    focus_path: &str,
+    depth: u32,
+) -> Result<GraphSlice, IndexerError> {
+    let relative = scriptor_vault::RelativeVaultPath::parse(focus_path)?;
+    let focus_id = note_id(&session.descriptor.id, &relative);
+    let Some(focus) = load_note_by_id(cache, &session.descriptor.id, &focus_id)? else {
+        return Ok(GraphSlice {
+            notes: HashMap::new(),
+            edges: Vec::new(),
+            unresolved: HashSet::new(),
+            steps: Vec::new(),
+        });
+    };
+
+    let max_depth = depth.clamp(1, MAX_GRAPH_DEPTH);
+    let mut notes = HashMap::from([(focus.id.clone(), focus.clone())]);
+    let mut visited = HashSet::from([focus.id.clone()]);
+    let mut frontier = vec![focus.id.clone()];
     let mut steps = vec![GraphTraverseStep {
-        path: focus_path.to_string(),
+        path: focus.path,
         depth: 0,
+        parent_path: None,
         via: None,
     }];
+    let mut edges = Vec::new();
+    let mut edge_ids = HashSet::new();
+    let mut unresolved = HashSet::new();
 
-    for edge in graph.edges {
-        if let Some(target) = graph.nodes.iter().find(|node| node.id == edge.target && !node.unresolved) {
-            steps.push(GraphTraverseStep {
-                path: target.path.clone(),
-                depth: 1,
-                via: Some(edge.kind.clone()),
-            });
+    for next_depth in 1..=max_depth {
+        if frontier.is_empty() || visited.len() >= MAX_FOCUSED_NODES {
+            break;
         }
+        let links = load_neighbor_links(cache, &session.descriptor.id, &frontier)?;
+        let frontier_set = frontier.iter().map(String::as_str).collect::<HashSet<_>>();
+        let mut candidates = Vec::<(NoteRow, String, String)>::new();
+
+        for link in links {
+            let target_id = link.target.as_ref().map(|target| target.id.clone());
+            let target_key = target_id
+                .clone()
+                .unwrap_or_else(|| format!("unresolved:{}", link.unresolved_target));
+            if edge_ids.insert(link.id.clone()) {
+                edges.push(GraphEdge {
+                    id: link.id.clone(),
+                    source: link.from.id.clone(),
+                    target: target_key,
+                    kind: link.kind.clone(),
+                });
+            }
+
+            if frontier_set.contains(link.from.id.as_str()) {
+                if let Some(target) = link.target.clone() {
+                    candidates.push((target, link.from.id.clone(), link.kind.clone()));
+                } else if !link.unresolved_target.is_empty() {
+                    unresolved.insert(link.unresolved_target.clone());
+                }
+            }
+            if let Some(target) = link.target.as_ref()
+                && frontier_set.contains(target.id.as_str())
+            {
+                candidates.push((link.from.clone(), target.id.clone(), link.kind.clone()));
+            }
+        }
+
+        candidates.sort_by(|left, right| {
+            left.0
+                .path
+                .to_ascii_lowercase()
+                .cmp(&right.0.path.to_ascii_lowercase())
+                .then_with(|| left.1.cmp(&right.1))
+                .then_with(|| left.2.cmp(&right.2))
+                .then_with(|| left.0.id.cmp(&right.0.id))
+        });
+
+        let mut next_frontier = Vec::new();
+        for (note, parent_id, via) in candidates {
+            if visited.len() >= MAX_FOCUSED_NODES {
+                break;
+            }
+            if !visited.insert(note.id.clone()) {
+                continue;
+            }
+            let parent_path = notes.get(&parent_id).map(|parent| parent.path.clone());
+            steps.push(GraphTraverseStep {
+                path: note.path.clone(),
+                depth: next_depth,
+                parent_path,
+                via: Some(via),
+            });
+            next_frontier.push(note.id.clone());
+            notes.insert(note.id.clone(), note);
+        }
+        frontier = next_frontier;
     }
 
-    steps.sort_by(|left, right| left.path.cmp(&right.path));
-    steps.dedup_by(|left, right| left.path == right.path);
-    Ok(steps)
+    let visible = notes.keys().map(String::as_str).collect::<HashSet<_>>();
+    edges.retain(|edge| {
+        visible.contains(edge.source.as_str())
+            && (visible.contains(edge.target.as_str()) || edge.target.starts_with("unresolved:"))
+    });
+    edges.sort_by(|left, right| {
+        left.source
+            .cmp(&right.source)
+            .then_with(|| left.target.cmp(&right.target))
+            .then_with(|| left.id.cmp(&right.id))
+    });
+
+    Ok(GraphSlice {
+        notes,
+        edges,
+        unresolved,
+        steps,
+    })
 }
 
-pub fn apply_graph_group_color(tag: &str, groups: &[scriptor_vault::GraphGroupRule]) -> Option<String> {
-    groups
-        .iter()
-        .find(|group| tag.starts_with(&group.tag_prefix))
-        .map(|group| group.color.clone())
+fn collect_overview_slice(
+    cache: &IndexCache,
+    session: &VaultSession,
+) -> Result<GraphSlice, IndexerError> {
+    let notes = load_overview_notes(cache, &session.descriptor.id, MAX_OVERVIEW_NODES)?;
+    let note_map = notes
+        .into_iter()
+        .map(|note| (note.id.clone(), note))
+        .collect::<HashMap<_, _>>();
+    let ids = note_map.keys().cloned().collect::<Vec<_>>();
+    let visible = ids.iter().map(String::as_str).collect::<HashSet<_>>();
+    let links = load_neighbor_links(cache, &session.descriptor.id, &ids)?;
+    let mut edges = Vec::new();
+    let mut edge_ids = HashSet::new();
+    let mut unresolved = HashSet::new();
+    for link in links {
+        if !visible.contains(link.from.id.as_str()) || !edge_ids.insert(link.id.clone()) {
+            continue;
+        }
+        match link.target {
+            Some(target) if visible.contains(target.id.as_str()) => edges.push(GraphEdge {
+                id: link.id,
+                source: link.from.id,
+                target: target.id,
+                kind: link.kind,
+            }),
+            None if !link.unresolved_target.is_empty() => {
+                unresolved.insert(link.unresolved_target.clone());
+                edges.push(GraphEdge {
+                    id: link.id,
+                    source: link.from.id,
+                    target: format!("unresolved:{}", link.unresolved_target),
+                    kind: link.kind,
+                });
+            }
+            _ => {}
+        }
+    }
+    edges.sort_by(|left, right| left.id.cmp(&right.id));
+    Ok(GraphSlice {
+        notes: note_map,
+        edges,
+        unresolved,
+        steps: Vec::new(),
+    })
 }
 
-#[derive(Debug, Clone)]
-struct LinkRow {
-    id: String,
-    from_note_id: String,
-    to_path: String,
-    kind: String,
-}
-
-/// A link row with its target resolution computed once, up front.
-struct ResolvedLink<'a> {
-    row: &'a LinkRow,
-    target: Option<(String, String)>,
-}
-
-fn load_note_tags(
+fn load_note_by_id(
     cache: &IndexCache,
     vault_id: &str,
-) -> Result<HashMap<String, Vec<String>>, IndexerError> {
-    let conn = cache.connection()?;
-    let mut statement = conn.prepare("SELECT id, tags_json FROM notes WHERE vault_id = ?1")?;
-    let rows = statement.query_map(params![vault_id], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-    })?;
-    let mut tags: HashMap<String, Vec<String>> = HashMap::new();
-    for row in rows {
-        let (note_id, tags_json) = row?;
-        let parsed: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
-        if !parsed.is_empty() {
-            tags.insert(note_id, parsed);
-        }
-    }
-    Ok(tags)
-}
-
-fn load_note_index(cache: &IndexCache, vault_id: &str) -> Result<HashMap<String, NoteRow>, IndexerError> {
+    id: &str,
+) -> Result<Option<NoteRow>, IndexerError> {
     let conn = cache.connection()?;
     let mut statement = conn.prepare(
-        "SELECT id, path, title FROM notes WHERE vault_id = ?1",
+        "SELECT id, path, title FROM notes WHERE vault_id = ?1 AND id = ?2 LIMIT 1",
     )?;
-    let rows = statement.query_map(params![vault_id], |row| {
+    let mut rows = statement.query(params![vault_id, id])?;
+    let Some(row) = rows.next()? else {
+        return Ok(None);
+    };
+    Ok(Some(NoteRow {
+        id: row.get(0)?,
+        path: row.get(1)?,
+        title: row.get(2)?,
+    }))
+}
+
+fn load_overview_notes(
+    cache: &IndexCache,
+    vault_id: &str,
+    limit: usize,
+) -> Result<Vec<NoteRow>, IndexerError> {
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(
+        "SELECT id, path, title
+         FROM notes
+         WHERE vault_id = ?1
+         ORDER BY lower(title), lower(path)
+         LIMIT ?2",
+    )?;
+    let rows = statement.query_map(params![vault_id, limit as i64], |row| {
         Ok(NoteRow {
             id: row.get(0)?,
             path: row.get(1)?,
             title: row.get(2)?,
         })
     })?;
-
-    let mut index = HashMap::new();
-    for row in rows {
-        let note = row?;
-        index.insert(note.path.clone(), note);
-    }
-    Ok(index)
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-fn load_link_rows(cache: &IndexCache, vault_id: &str) -> Result<Vec<LinkRow>, IndexerError> {
+fn load_neighbor_links(
+    cache: &IndexCache,
+    vault_id: &str,
+    frontier: &[String],
+) -> Result<Vec<NeighborLink>, IndexerError> {
+    if frontier.is_empty() {
+        return Ok(Vec::new());
+    }
+    let placeholders = std::iter::repeat("?").take(frontier.len())
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT
+           l.id,
+           l.kind,
+           l.to_path,
+           source.id,
+           source.path,
+           source.title,
+           target.id,
+           target.path,
+           target.title
+         FROM links l
+         JOIN notes source ON source.id = l.from_note_id AND source.vault_id = l.vault_id
+         LEFT JOIN notes target ON target.id = l.to_note_id AND target.vault_id = l.vault_id
+         WHERE l.vault_id = ?
+           AND (l.from_note_id IN ({placeholders}) OR l.to_note_id IN ({placeholders}))
+         ORDER BY lower(source.path), lower(COALESCE(target.path, l.to_path)), l.id"
+    );
+    let mut values = Vec::with_capacity(1 + frontier.len() * 2);
+    values.push(Value::Text(vault_id.to_string()));
+    values.extend(frontier.iter().cloned().map(Value::Text));
+    values.extend(frontier.iter().cloned().map(Value::Text));
+
     let conn = cache.connection()?;
-    let mut statement = conn.prepare(
-        "SELECT id, from_note_id, to_path, kind FROM links WHERE vault_id = ?1",
-    )?;
-    let rows = statement.query_map(params![vault_id], |row| {
-        Ok(LinkRow {
+    let mut statement = conn.prepare(&sql)?;
+    let rows = statement.query_map(params_from_iter(values.iter()), |row| {
+        let target_id = row.get::<_, Option<String>>(6)?;
+        let target_path = row.get::<_, Option<String>>(7)?.unwrap_or_default();
+        let target_title = row.get::<_, Option<String>>(8)?.unwrap_or_default();
+        Ok(NeighborLink {
             id: row.get(0)?,
-            from_note_id: row.get(1)?,
-            to_path: row.get(2)?,
-            kind: row.get(3)?,
+            kind: row.get(1)?,
+            unresolved_target: row.get::<_, Option<String>>(2)?.unwrap_or_default(),
+            from: NoteRow {
+                id: row.get(3)?,
+                path: row.get(4)?,
+                title: row.get(5)?,
+            },
+            target: target_id.map(|id| NoteRow {
+                id,
+                path: target_path,
+                title: target_title,
+            }),
         })
     })?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-fn resolve_target(note_index: &HashMap<String, NoteRow>, target: &str) -> Option<(String, String)> {
-    if let Some(note) = note_index.get(target) {
-        return Some((note.id.clone(), note.path.clone()));
+fn load_note_tags(
+    cache: &IndexCache,
+    vault_id: &str,
+    note_ids: &[String],
+) -> Result<HashMap<String, Vec<String>>, IndexerError> {
+    if note_ids.is_empty() {
+        return Ok(HashMap::new());
     }
+    let placeholders = std::iter::repeat("?").take(note_ids.len())
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT id, tags_json FROM notes WHERE vault_id = ? AND id IN ({placeholders})"
+    );
+    let mut values = Vec::with_capacity(1 + note_ids.len());
+    values.push(Value::Text(vault_id.to_string()));
+    values.extend(note_ids.iter().cloned().map(Value::Text));
 
-    for note in note_index.values() {
-        if note.title.eq_ignore_ascii_case(target) {
-            return Some((note.id.clone(), note.path.clone()));
-        }
-        let stem = note
-            .path
-            .trim_end_matches(".md")
-            .rsplit('/')
-            .next()
-            .unwrap_or(&note.path);
-        if stem.eq_ignore_ascii_case(target) {
-            return Some((note.id.clone(), note.path.clone()));
-        }
-        if note.path.eq_ignore_ascii_case(target) {
-            return Some((note.id.clone(), note.path.clone()));
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare(&sql)?;
+    let rows = statement.query_map(params_from_iter(values.iter()), |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+    })?;
+    let mut tags = HashMap::new();
+    for row in rows {
+        let (id, json) = row?;
+        let parsed = serde_json::from_str::<Vec<String>>(&json).unwrap_or_default();
+        if !parsed.is_empty() {
+            tags.insert(id, parsed);
         }
     }
+    Ok(tags)
+}
 
-    None
+pub fn apply_graph_group_color(
+    tag: &str,
+    groups: &[scriptor_vault::GraphGroupRule],
+) -> Option<String> {
+    groups
+        .iter()
+        .find(|group| tag.starts_with(&group.tag_prefix))
+        .map(|group| group.color.clone())
 }
 
 #[cfg(test)]
@@ -361,6 +468,52 @@ mod tests {
         let graph = query_focused_graph(&cache, &session, Some("Research Plan.md"), 1, &[])?;
         assert!(graph.nodes.len() >= 2);
         assert!(!graph.edges.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn traversal_preserves_bfs_depth_parent_and_stable_order() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        fs::write(dir.path().join("a.md"), "# A\n\n[[b]]\n")?;
+        fs::write(dir.path().join("b.md"), "# B\n\n[[c]]\n[[d]]\n")?;
+        fs::write(dir.path().join("c.md"), "# C\n\n[[a]]\n")?;
+        fs::write(dir.path().join("d.md"), "# D\n")?;
+
+        let session = open_vault(dir.path())?;
+        rebuild_index(&session, &[])?;
+        let cache = crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
+
+        let steps = traverse_graph(&cache, &session, "a.md", 3)?;
+        let summary: Vec<_> = steps
+            .iter()
+            .map(|step| (step.path.as_str(), step.depth, step.parent_path.as_deref()))
+            .collect();
+        assert_eq!(
+            summary,
+            vec![
+                ("a.md", 0, None),
+                ("b.md", 1, Some("a.md")),
+                ("c.md", 1, Some("a.md")),
+                ("d.md", 2, Some("b.md")),
+            ]
+        );
+        assert_eq!(steps[1].via.as_deref(), Some("wikilink"));
+        Ok(())
+    }
+
+    #[test]
+    fn traversal_respects_depth_and_returns_empty_for_missing_focus() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        fs::write(dir.path().join("a.md"), "# A\n\n[[b]]\n")?;
+        fs::write(dir.path().join("b.md"), "# B\n\n[[c]]\n")?;
+        fs::write(dir.path().join("c.md"), "# C\n")?;
+        let session = open_vault(dir.path())?;
+        rebuild_index(&session, &[])?;
+        let cache = crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
+
+        let steps = traverse_graph(&cache, &session, "a.md", 1)?;
+        assert!(steps.iter().all(|step| step.depth <= 1));
+        assert!(traverse_graph(&cache, &session, "missing.md", 2)?.is_empty());
         Ok(())
     }
 }

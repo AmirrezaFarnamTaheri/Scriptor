@@ -1,8 +1,11 @@
+mod authorization;
 mod commands;
 mod platform;
 mod state;
 
 pub use state::AppState;
+
+use authorization::authorize_sensitive_operation;
 
 use commands::backup::{vault_create_backup, vault_delete_backup, vault_list_backups, vault_restore_backup};
 use commands::canvas::{
@@ -31,8 +34,8 @@ use commands::indexer::{
     indexer_resolve_wikilink, indexer_search, indexer_traverse_graph, indexer_update_note,
 };
 use commands::system::{
-    copy_text_to_clipboard, diagnostics_append_event, health_check, keychain_delete_secret, keychain_get_secret,
-    keychain_set_secret, plantuml_render, set_headless_engine, system_info,
+    ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft, ai_provider_set_api_key,
+    copy_text_to_clipboard, diagnostics_append_event, health_check, plantuml_render, set_headless_engine, system_info,
 };
 use commands::vault::{
     vault_append_activity_log, vault_append_stats_history, vault_build_note_markdown,
@@ -55,28 +58,43 @@ struct DaemonConfigReloadedEvent {
     generation: u64,
 }
 
+#[derive(Debug, Clone, Serialize)]
+struct DaemonResyncRequiredEvent {
+    reason: String,
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _ = scriptor_system_bridge::observability::init_observability("desktop");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_deep_link::init())
         .setup(|app| {
             platform::setup(app)?;
             let handle = app.handle().clone();
             scriptor_daemon::register_rpc_event_handler(move |event| {
-                let scriptor_ipc::RpcEventPayload::ConfigReloaded { json, generation } = event.payload;
-                let _ = handle.emit(
-                    "daemon:config-reloaded",
-                    DaemonConfigReloadedEvent { json, generation },
-                );
+                match event.payload {
+                    scriptor_ipc::RpcEventPayload::ConfigReloaded { json, generation } => {
+                        let _ = handle.emit(
+                            "daemon:config-reloaded",
+                            DaemonConfigReloadedEvent { json, generation },
+                        );
+                    }
+                    scriptor_ipc::RpcEventPayload::ResyncRequired { reason } => {
+                        let _ = handle.emit(
+                            "daemon:resync-required",
+                            DaemonResyncRequiredEvent { reason },
+                        );
+                    }
+                }
             });
             Ok(())
         })
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             health_check,
+            authorize_sensitive_operation,
             set_headless_engine,
             copy_text_to_clipboard,
             plantuml_render,
@@ -160,9 +178,10 @@ pub fn run() {
             vault_detect_obsidian,
             vault_import_obsidian,
             diagnostics_append_event,
-            keychain_set_secret,
-            keychain_get_secret,
-            keychain_delete_secret,
+            ai_provider_has_api_key,
+            ai_provider_set_api_key,
+            ai_provider_delete_api_key,
+            ai_provider_propose_draft,
             canvas_hit_test,
             canvas_render_svg,
             canvas_template_dry_run,

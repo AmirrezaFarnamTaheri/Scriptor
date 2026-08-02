@@ -177,6 +177,8 @@ export function useVaultWorkspace(options?: {
     } catch {
       // ignore malformed daemon push
     }
+  }, () => {
+    void refreshVaultConfig()
   })
 
   const refreshNoteSummaries = useCallback(async () => {
@@ -371,6 +373,7 @@ export function useVaultWorkspace(options?: {
     checkExternalChangesRef,
     applyFilesystemChangesRef,
     refreshGit,
+    rebuildIndex: rebuildIndexWithGit,
     vaultRefreshTimer,
     hibernated: options?.hibernateWatcher,
     hibernateGit: options?.hibernateGit,

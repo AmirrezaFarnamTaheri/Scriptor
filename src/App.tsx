@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
 import {
   countCharacters,
   countWords,
@@ -15,6 +15,23 @@ import { useEditorLintProblems } from './hooks/useEditorLintProblems'
 import { plantumlRender, indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { VaultSidebar } from './components/app/VaultSidebar'
+import {
+  BibliographyPanel,
+  CanvasPanel,
+  GitPanel,
+  GraphPanel,
+  KnowledgeWorkbench,
+  McpPanel,
+  NoteHistoryPanel,
+  PanelFallback,
+  PortalPanel,
+  PublishCenter,
+  QuickCapturePanel,
+  SettingsPanel,
+  SnippetsPanelLazy,
+  VaultHealthDashboard,
+} from './components/app/lazyPanels'
+import { parseSimpleFrontmatter } from './lib/frontmatter'
 import { OnboardingTour } from './components/OnboardingTour'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
@@ -61,7 +78,8 @@ import { useWorkspaceStore } from './hooks/useWorkspaceStore'
 import { usePortalShortcuts } from './hooks/usePortalShortcuts'
 import { useEditorPreviewScrollSync } from './hooks/useEditorPreviewScrollSync'
 import { usePersistedBoolean } from './hooks/usePersistedBoolean'
-import { usePersistedString } from './hooks/usePersistedString'
+import { useAppOverlayState } from './hooks/useAppOverlayState'
+import { useEditorPreferences } from './hooks/useEditorPreferences'
 import { useAppToast } from './hooks/useAppToast'
 import { useAppTheme } from './hooks/useAppTheme'
 import { useHeadlessEngine } from './hooks/useHeadlessEngine'
@@ -119,73 +137,70 @@ import './styles/components/canvas-graph.css'
 import './App.css'
 import './styles/motion.css'
 
-const CanvasPanel = lazy(() => import('./components/CanvasPanel').then((module) => ({ default: module.CanvasPanel })))
-const GraphPanel = lazy(() => import('./components/GraphPanel').then((module) => ({ default: module.GraphPanel })))
-const GitPanel = lazy(() => import('./components/GitPanel').then((module) => ({ default: module.GitPanel })))
-const McpPanel = lazy(() => import('./components/McpPanel').then((module) => ({ default: module.McpPanel })))
-const SettingsPanel = lazy(() => import('./components/SettingsPanel').then((module) => ({ default: module.SettingsPanel })))
-const KnowledgeWorkbench = lazy(() =>
-  import('./components/KnowledgeWorkbench').then((module) => ({ default: module.KnowledgeWorkbench })),
-)
-const PublishCenter = lazy(() => import('./components/PublishCenter').then((module) => ({ default: module.PublishCenter })))
-const VaultHealthDashboard = lazy(() =>
-  import('./components/VaultHealthDashboard').then((module) => ({ default: module.VaultHealthDashboard })),
-)
-const PortalPanel = lazy(() => import('./components/portal/PortalPanel').then((module) => ({ default: module.PortalPanel })))
-const NoteHistoryPanel = lazy(() =>
-  import('./components/NoteHistoryPanel').then((module) => ({ default: module.NoteHistoryPanel })),
-)
-const QuickCapturePanel = lazy(() =>
-  import('./components/portal/QuickCapturePanel').then((module) => ({ default: module.QuickCapturePanel })),
-)
-const BibliographyPanel = lazy(() =>
-  import('./components/BibliographyPanel').then((module) => ({ default: module.BibliographyPanel })),
-)
-const SnippetsPanelLazy = lazy(() => import('./components/SnippetsPanel').then((module) => ({ default: module.SnippetsPanel })))
-
-function PanelFallback() {
-  return <div className="panel-loading" role="status">Loading panel…</div>
-}
-
-function parseSimpleFrontmatter(markdown: string): Record<string, string> {
-  const match = markdown.match(/^---\r?\n([\s\S]*?)\r?\n---/)
-  if (!match) return {}
-  const fields: Record<string, string> = {}
-  for (const line of match[1].split('\n')) {
-    const kv = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/)
-    if (kv) fields[kv[1]] = kv[2]
-  }
-  return fields
-}
-
 function App() {
-  const [activeMode, setActiveMode] = useState<'inspector' | 'preview' | 'plugins'>('inspector')
-  const [graphOpen, setGraphOpen] = useState(false)
-  const [canvasOpen, setCanvasOpen] = useState(false)
-  const [renameOpen, setRenameOpen] = useState(false)
-  const [renameTargetPath, setRenameTargetPath] = useState<string | null>(null)
-  const [gitPanelOpen, setGitPanelOpen] = useState(false)
-  const [healthDashboardOpen, setHealthDashboardOpen] = useState(false)
-  const [statusDockTab, setStatusDockTab] = useState<StatusDockTab>('output')
-  const [mcpPanelOpen, setMcpPanelOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [knowledgeWorkbenchOpen, setKnowledgeWorkbenchOpen] = useState(false)
-  const [knowledgeWorkbenchTab, setKnowledgeWorkbenchTab] = useState<KnowledgeWorkbenchTab>('repair')
-  const [publishCenterOpen, setPublishCenterOpen] = useState(false)
-  const [tagRenameTag, setTagRenameTag] = useState<string | null>(null)
-  const [sectionRenameTarget, setSectionRenameTarget] = useState<{ path: string; label: string } | null>(
-    null,
-  )
-  const [blockRenameTarget, setBlockRenameTarget] = useState<{ path: string; label: string } | null>(null)
+  const {
+    activeMode,
+    bibliographyOpen,
+    blockRenameTarget,
+    canvasOpen,
+    cheatsheetOpen,
+    conflictBasePreview,
+    conflictPath,
+    conflictSource,
+    frontmatterOpen,
+    gitPanelOpen,
+    graphOpen,
+    healthDashboardOpen,
+    knowledgeWorkbenchOpen,
+    knowledgeWorkbenchTab,
+    mcpPanelOpen,
+    noteHistoryOpen,
+    portalOpen,
+    publishCenterOpen,
+    quickCaptureOpen,
+    renameOpen,
+    renameTargetPath,
+    sectionRenameTarget,
+    setActiveMode,
+    setBibliographyOpen,
+    setBlockRenameTarget,
+    setCanvasOpen,
+    setCheatsheetOpen,
+    setConflictBasePreview,
+    setConflictPath,
+    setConflictSource,
+    setFrontmatterOpen,
+    setGitPanelOpen,
+    setGraphOpen,
+    setHealthDashboardOpen,
+    setKnowledgeWorkbenchOpen,
+    setKnowledgeWorkbenchTab,
+    setMcpPanelOpen,
+    setNoteHistoryOpen,
+    setPortalOpen,
+    setPublishCenterOpen,
+    setQuickCaptureOpen,
+    setRenameOpen,
+    setRenameTargetPath,
+    setSectionRenameTarget,
+    setSettingsOpen,
+    setSnippetsOpen,
+    setStatusDockTab,
+    setStickiesVisible,
+    setSupportOpen,
+    setTagRenameTag,
+    setTocOpen,
+    setWritingTargetsOpen,
+    settingsOpen,
+    snippetsOpen,
+    statusDockTab,
+    stickiesVisible,
+    supportOpen,
+    tagRenameTag,
+    tocOpen,
+    writingTargetsOpen,
+  } = useAppOverlayState()
   const [recentNotes, setRecentNotes] = useState<Array<{ path: string; title: string }>>([])
-  const [snippetsOpen, setSnippetsOpen] = useState(false)
-  const [cheatsheetOpen, setCheatsheetOpen] = useState(false)
-  const [supportOpen, setSupportOpen] = useState(false)
-  const [portalOpen, setPortalOpen] = useState(false)
-  const [noteHistoryOpen, setNoteHistoryOpen] = useState(false)
-  const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
-  const [stickiesVisible, setStickiesVisible] = useState(true)
-  const [bibliographyOpen, setBibliographyOpen] = useState(false)
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({})
   const [graphDepth, setGraphDepth] = useState(2)
   const [graphFullVault, setGraphFullVault] = useState(false)
@@ -212,67 +227,41 @@ function App() {
   const splitPreviewScrollRef = useRef<HTMLElement | null>(null)
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const workspaceGridRef = useRef<HTMLElement | null>(null)
-  const [splitPreview, setSplitPreview] = usePersistedBoolean('scriptor:split-preview', false)
-  const [vimMode, setVimMode] = usePersistedBoolean('scriptor:vim-mode', false)
-  const [spellcheck, setSpellcheck] = usePersistedBoolean('scriptor:spellcheck', false)
-  const [spellcheckLocale, setSpellcheckLocale] = usePersistedString('scriptor:spellcheck-locale', 'en-US')
-  const [languageToolEndpoint, setLanguageToolEndpoint] = usePersistedString(
-    'scriptor:languagetool-endpoint',
-    'http://localhost:8010/v2/check',
-  )
-  const [wysiwyg, setWysiwyg] = usePersistedBoolean('scriptor:wysiwyg', false)
-
-  // Subsystem Hibernation States
-  const [hibernateGraph, setHibernateGraph] = usePersistedBoolean('scriptor:hibernate-graph', false)
-  const [hibernateMcp, setHibernateMcp] = usePersistedBoolean('scriptor:hibernate-mcp', false)
-  const [hibernateWatcher, setHibernateWatcher] = usePersistedBoolean('scriptor:hibernate-watcher', false)
-  const [hibernateSpellcheck, setHibernateSpellcheck] = usePersistedBoolean('scriptor:hibernate-spellcheck', false)
-  const [hibernateGit, setHibernateGit] = usePersistedBoolean('scriptor:hibernate-git', false)
-  const [typewriter, setTypewriter] = usePersistedBoolean('scriptor:typewriter', false)
-  const [distractionFree, setDistractionFree] = usePersistedBoolean('scriptor:distraction-free', false)
-  const [editorMode, setEditorMode] = useState<'codemirror' | 'monaco'>(() => {
-    try {
-      return window.localStorage.getItem('scriptor:editor-mode') === 'monaco' ? 'monaco' : 'codemirror'
-    } catch {
-      return 'codemirror'
-    }
-  })
-  const [editorTheme, setEditorTheme] = useState<EditorThemeId>(() => {
-    try {
-      return window.localStorage.getItem('scriptor:editor-theme') === 'dark' ? 'dark' : 'light'
-    } catch {
-      return 'light'
-    }
-  })
-  const toggleEditorMode = useCallback(() => {
-    setEditorMode((current) => {
-      const next = current === 'codemirror' ? 'monaco' : 'codemirror'
-      try {
-        window.localStorage.setItem('scriptor:editor-mode', next)
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
-  }, [])
-  const toggleEditorTheme = useCallback(() => {
-    setEditorTheme((current) => {
-      const next = current === 'light' ? 'dark' : 'light'
-      try {
-        window.localStorage.setItem('scriptor:editor-theme', next)
-      } catch {
-        /* ignore */
-      }
-      return next
-    })
-  }, [])
-  const [languageTool, setLanguageTool] = usePersistedBoolean('scriptor:language-tool', false)
+  const {
+    distractionFree,
+    editorMode,
+    editorTheme,
+    hibernateGit,
+    hibernateGraph,
+    hibernateMcp,
+    hibernateSpellcheck,
+    hibernateWatcher,
+    languageTool,
+    languageToolEndpoint,
+    setDistractionFree,
+    setHibernateGit,
+    setHibernateGraph,
+    setHibernateMcp,
+    setHibernateSpellcheck,
+    setHibernateWatcher,
+    setLanguageTool,
+    setLanguageToolEndpoint,
+    setSpellcheck,
+    setSpellcheckLocale,
+    setSplitPreview,
+    setTypewriter,
+    setVimMode,
+    setWysiwyg,
+    spellcheck,
+    spellcheckLocale,
+    splitPreview,
+    toggleEditorMode,
+    toggleEditorTheme,
+    typewriter,
+    vimMode,
+    wysiwyg,
+  } = useEditorPreferences(theme)
   const { toastMessage, showToast, dismissToast } = useAppToast()
-  const [tocOpen, setTocOpen] = useState(false)
-  const [writingTargetsOpen, setWritingTargetsOpen] = useState(false)
-  const [conflictPath, setConflictPath] = useState<string | null>(null)
-  const [conflictSource, setConflictSource] = useState('')
-  const [conflictBasePreview, setConflictBasePreview] = useState<string | null>(null)
   const [perfHudOpen, setPerfHudOpen] = useState(
     () => window.localStorage.getItem('scriptor:perf-hud') === 'true',
   )
@@ -283,7 +272,6 @@ function App() {
     setWorkspaceCounts: perfSetWorkspaceCounts,
     setGraphNodeCount: perfSetGraphNodeCount,
   } = perfMetrics
-  const [frontmatterOpen, setFrontmatterOpen] = useState(false)
   const [vaultTags, setVaultTags] = useState<string[]>([])
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const commandPalette = useCommandPalette()
@@ -361,7 +349,7 @@ function App() {
       title: activeNote?.metadata.title ?? filename.replace(/\.md$/i, ''),
     }
   }, [workspaceActivePath, activeNote?.metadata.title])
-  const plugins = usePluginRegistry(Boolean(workspace.vault))
+  const plugins = usePluginRegistry(workspace.vault?.id ?? null)
   const { setPluginExportProfiles } = workspace
   useEffect(() => {
     setPluginExportProfiles(plugins.contributions.exportProfiles)
@@ -1313,6 +1301,8 @@ function App() {
         <EditorWorkspace
           activePath={workspace.activePath}
           onOpenVault={() => void workspace.chooseVaultFolder()}
+          hasOpenVault={Boolean(workspace.vault)}
+          onCreateNote={handleCreateNote}
           openTabs={workspace.openTabs}
           layoutLocked={chrome.layoutLocked}
           isNoteDirty={isNoteDirty}
@@ -1387,8 +1377,8 @@ function App() {
           saveImageFromClipboard={nativeReady ? workspace.saveVaultImage : undefined}
           previewProps={previewBridge}
           insertSnippet={(content) => workspace.insertSnippet(content)}
-          applyEditorTransform={(action) => workspace.applyEditorTransform(action as any)}
-          applyEditorTypography={(action) => workspace.applyEditorTypography(action as any)}
+          applyEditorTransform={workspace.applyEditorTransform}
+          applyEditorTypography={workspace.applyEditorTypography}
           saveActiveNoteNow={() => void workspace.saveActiveNoteNow()}
           renameActiveNote={() => {
             setRenameTargetPath(workspace.activePath)
@@ -1492,8 +1482,13 @@ function App() {
             safeMode: plugins.snapshot.safeMode,
             healthDiagnostics: workspace.healthDiagnostics,
             marketplaceCatalog: plugins.marketplaceCatalog,
+            activeVaultId: plugins.activeVaultId,
+            pluginPolicies: plugins.pluginPolicies,
             onToggleSafeMode: plugins.setSafeMode,
             onTogglePlugin: plugins.setPluginEnabled,
+            onReviewConsent: (pluginId, grantedPermissions, allowedVaultIds) =>
+              plugins.setPluginConsent(pluginId, { grantedPermissions, allowedVaultIds }),
+            onRevokeConsent: plugins.revokePluginConsent,
             onInstallMarketplace: (pluginId) => {
               void plugins.installFromMarketplace(pluginId).catch((error) => {
                 workspace.logActivity('error', 'Plugin install failed', error instanceof Error ? error.message : String(error))

@@ -1,0 +1,219 @@
+@media (max-width: 1180px) {
+  .workspace-grid {
+    grid-template-columns: 280px minmax(420px, 1fr);
+  }
+
+  .workspace-grid[data-vault-collapsed='true'] {
+    grid-template-columns: 0 minmax(420px, 1fr);
+  }
+
+  .workspace-grid[data-inspector-collapsed='true'] {
+    grid-template-columns: 280px minmax(420px, 1fr);
+  }
+
+  .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
+    grid-template-columns: 0 minmax(420px, 1fr);
+  }
+
+  .workspace-grid[data-inspector-collapsed='true'] .inspector-panel {
+    display: none;
+  }
+
+  .inspector-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .inspector-tabs {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 820px) {
+  .app-shell {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .topbar,
+  .status-strip {
+    flex-wrap: wrap;
+    padding-block: 10px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .command-search {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .workspace-grid,
+  .workspace-grid[data-vault-collapsed='true'],
+  .workspace-grid[data-inspector-collapsed='true'],
+  .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-grid[data-mobile-pane='vault'] .editor-panel,
+  .workspace-grid[data-mobile-pane='vault'] .inspector-panel,
+  .workspace-grid[data-mobile-pane='editor'] .vault-panel,
+  .workspace-grid[data-mobile-pane='editor'] .inspector-panel,
+  .workspace-grid[data-mobile-pane='inspector'] .vault-panel,
+  .workspace-grid[data-mobile-pane='inspector'] .editor-panel {
+    display: none;
+  }
+
+  .vault-panel,
+  .editor-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .inspector-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .job-progress {
+    width: 100%;
+  }
+
+  .repo-state {
+    margin-left: 0;
+  }
+
+  .mobile-workspace-chrome {
+    display: block;
+  }
+
+  .mobile-workspace-nav {
+    display: grid;
+  }
+}
+
+
+@media (max-width: 1024px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    padding-block: 8px;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .history-controls {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .workspace-mode-strip {
+    grid-column: 1 / -1;
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .workspace-mode-strip::-webkit-scrollbar,
+  .top-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .command-search {
+    grid-column: 1 / -1;
+    order: 4;
+    min-width: 0;
+  }
+
+  .top-actions {
+    min-width: 0;
+    max-width: min(44vw, 460px);
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 8px 10px;
+  }
+
+  .brand-wordmark,
+  .vault-badge {
+    display: none;
+  }
+
+  .brand {
+    gap: 6px;
+  }
+
+  .history-controls {
+    grid-column: 1 / -1;
+    order: 2;
+    width: 100%;
+  }
+
+  .history-controls .action-button {
+    flex: 0 0 auto;
+  }
+
+  .workspace-switcher {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .workspace-switcher select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .top-actions {
+    order: 1;
+    max-width: 56vw;
+  }
+
+  .workspace-mode-strip {
+    order: 3;
+  }
+
+  .command-search {
+    order: 4;
+    height: 42px;
+  }
+
+  .inspector-panel,
+  .vault-panel,
+  .editor-panel {
+    min-height: 0;
+  }
+
+  .unified-panel-shell,
+  .unified-panel-wide {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: var(--radius-lg);
+  }
+
+  .unified-panel-header {
+    padding: 16px;
+  }
+
+  .unified-panel-body {
+    padding-inline: 16px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+}

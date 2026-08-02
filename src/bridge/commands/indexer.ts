@@ -85,7 +85,8 @@ export async function indexerGraph(focusPath?: string, depth = 1): Promise<Graph
 export interface GraphTraverseStep {
   path: string
   depth: number
-  via: string | null
+  parent_path?: string | null
+  via?: string | null
 }
 
 export async function indexerTraverseGraph(focusPath: string, depth = 2): Promise<GraphTraverseStep[]> {

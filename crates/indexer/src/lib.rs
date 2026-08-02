@@ -34,7 +34,9 @@ pub use health::{
     build_health_diagnostics, build_health_report, health_diagnostics_json, health_report_json, CacheStatus,
     HealthIssue, VaultHealthDiagnostics, VaultHealthReport,
 };
-pub use links::{backlinks_for_path, count_links, replace_note_links, BacklinkHit};
+pub use links::{
+    backlinks_for_path, count_links, replace_note_links, resolve_link_targets, BacklinkHit,
+};
 pub use parse::{parse_note_markdown, ParsedCitation, ParsedLink, ParsedLinkKind, ParsedNote};
 pub use rebuild::{
     incremental_note_index, incremental_notes_index, incremental_note_index_with_cache,
@@ -43,7 +45,7 @@ pub use rebuild::{
 };
 pub use dql::{execute_dql_query, DqlResultRow};
 pub use graph::{
-    apply_graph_group_color, query_focused_graph, traverse_graph, GraphEdge, GraphNode, GraphQueryOutput,
+    apply_graph_group_color, query_focused_graph, traverse_graph, GraphEdge, GraphNode, GraphQueryOutput, MAX_GRAPH_DEPTH,
     GraphTraverseStep,
 };
 pub use search::{build_fts_query, search_notes, SearchHit};

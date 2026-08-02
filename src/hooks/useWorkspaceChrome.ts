@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 
 import type { EditorFontFamilyId } from '../brand/support'
+import { expectRecord } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 export type EditorSurfaceMode = 'source' | 'split' | 'rendered'
 
@@ -46,15 +48,18 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
 
 const STORAGE_KEY = 'scriptor:workspace-chrome'
 
+function validateChrome(value: unknown): WorkspaceChromePrefs {
+  return { ...DEFAULT_WORKSPACE_CHROME, ...expectRecord(value, 'workspace chrome') } as WorkspaceChromePrefs
+}
+
 function readChrome(): WorkspaceChromePrefs {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_WORKSPACE_CHROME }
-    const parsed = JSON.parse(raw) as Partial<WorkspaceChromePrefs>
-    return { ...DEFAULT_WORKSPACE_CHROME, ...parsed }
-  } catch {
-    return { ...DEFAULT_WORKSPACE_CHROME }
-  }
+  return readVersionedStorage({
+    key: STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: { ...DEFAULT_WORKSPACE_CHROME },
+    validate: validateChrome,
+    migrate: validateChrome,
+  })
 }
 
 export function useWorkspaceChrome() {
@@ -63,22 +68,14 @@ export function useWorkspaceChrome() {
   const patchChrome = useCallback((patch: Partial<WorkspaceChromePrefs>) => {
     setChrome((current) => {
       const next = { ...current, ...patch }
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      } catch {
-        // ignore storage failures
-      }
+      writeVersionedStorage(STORAGE_KEY, 1, next)
       return next
     })
   }, [])
 
   const resetChrome = useCallback(() => {
     setChrome(DEFAULT_WORKSPACE_CHROME)
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_WORKSPACE_CHROME))
-    } catch {
-      // ignore
-    }
+    writeVersionedStorage(STORAGE_KEY, 1, DEFAULT_WORKSPACE_CHROME)
   }, [])
 
   return { chrome, patchChrome, resetChrome }

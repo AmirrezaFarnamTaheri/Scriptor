@@ -1,6 +1,8 @@
 import { useCallback, useState } from 'react'
 
 import type { WorkspaceMode } from './useWorkspaceMode'
+import { expectRecord } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 export interface WorkspaceLayout {
   splitPreview: boolean
@@ -19,21 +21,26 @@ export const DEFAULT_WORKSPACE_LAYOUTS: Record<WorkspaceMode, WorkspaceLayout> =
 
 const STORAGE_KEY = 'scriptor:workspace-layouts'
 
+function validateLayouts(value: unknown): Record<WorkspaceMode, WorkspaceLayout> {
+  const parsed = expectRecord(value, 'workspace layouts')
+  return (Object.keys(DEFAULT_WORKSPACE_LAYOUTS) as WorkspaceMode[]).reduce(
+    (accumulator, mode) => {
+      const candidate = typeof parsed[mode] === 'object' && parsed[mode] !== null ? parsed[mode] : {}
+      accumulator[mode] = { ...DEFAULT_WORKSPACE_LAYOUTS[mode], ...(candidate as Partial<WorkspaceLayout>) }
+      return accumulator
+    },
+    {} as Record<WorkspaceMode, WorkspaceLayout>,
+  )
+}
+
 function readLayouts(): Record<WorkspaceMode, WorkspaceLayout> {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...DEFAULT_WORKSPACE_LAYOUTS }
-    const parsed = JSON.parse(raw) as Partial<Record<WorkspaceMode, Partial<WorkspaceLayout>>>
-    return (Object.keys(DEFAULT_WORKSPACE_LAYOUTS) as WorkspaceMode[]).reduce(
-      (accumulator, mode) => {
-        accumulator[mode] = { ...DEFAULT_WORKSPACE_LAYOUTS[mode], ...parsed[mode] }
-        return accumulator
-      },
-      {} as Record<WorkspaceMode, WorkspaceLayout>,
-    )
-  } catch {
-    return { ...DEFAULT_WORKSPACE_LAYOUTS }
-  }
+  return readVersionedStorage({
+    key: STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: { ...DEFAULT_WORKSPACE_LAYOUTS },
+    validate: validateLayouts,
+    migrate: validateLayouts,
+  })
 }
 
 export function useWorkspaceLayout() {
@@ -45,11 +52,7 @@ export function useWorkspaceLayout() {
         ...current,
         [mode]: { ...DEFAULT_WORKSPACE_LAYOUTS[mode], ...current[mode], ...patch },
       }
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
-      } catch {
-        // ignore storage failures
-      }
+      writeVersionedStorage(STORAGE_KEY, 1, next)
       return next
     })
   }, [])

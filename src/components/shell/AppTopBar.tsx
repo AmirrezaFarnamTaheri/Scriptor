@@ -208,7 +208,7 @@ export function AppTopBar({
           title={mcpLabel}
         >
           <Lock />
-          <span style={{ display: 'none' }}>{mcpLabel}</span>
+          <span className="sr-only">{mcpLabel}</span>
           <ChevronDown />
         </button>
         

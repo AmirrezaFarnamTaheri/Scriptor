@@ -39,9 +39,9 @@ jobs:
         include:
           - os: ubuntu-22.04
             platform: linux
-          - os: windows-latest
+          - os: windows-2025
             platform: windows
-          - os: macos-latest
+          - os: macos-15
             platform: macos
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -49,15 +49,15 @@ jobs:
       CI_LOG_DIR: artifacts/ci-logs/desktop-${{ matrix.platform }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "."
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
 
       - name: Describe desktop compile scope
         shell: pwsh
@@ -84,7 +84,7 @@ jobs:
 
       - name: Upload desktop compile evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-desktop-${{ matrix.platform }}-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}

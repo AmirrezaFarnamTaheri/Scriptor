@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: daemon lifecycle needs a long-lived child handle; this module owns explicit startup, shutdown, and timeout cleanup.
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -128,6 +129,9 @@ fn process_alive(pid: u32) -> bool {
 
         const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
         const STILL_ACTIVE: u32 = 259;
+        // SAFETY: `pid` is a value-only OS process identifier. The returned
+        // handle is checked for null, queried with a valid out pointer, and
+        // closed exactly once before this block returns.
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {

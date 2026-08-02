@@ -2,7 +2,6 @@
 
 Scriptor is a local-first Markdown knowledge workspace. This guide covers installation, opening your first vault, and the core workflows you will use every day.
 
-![Scriptor workspace after opening a vault](../assets/screenshots/editor-preview.png)
 
 ## Install
 
@@ -18,12 +17,16 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 ### Build from source
 
-**Requirements:** Node.js 22+, pnpm 9+, Rust stable.
+**Requirements:** Node.js `22.16.0`, pnpm `10.33.0`, Rust `1.96.0`, and the platform dependencies required by Tauri 2.
 
 ```powershell
 git clone https://github.com/AmirrezaFarnamTaheri/Scriptor.git
 cd Scriptor
-pnpm install
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+pnpm install --frozen-lockfile
+rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+rustup default 1.96.0
 pnpm desktop:dev
 ```
 
@@ -67,7 +70,6 @@ Use the top bar workspace modes — **Writing**, **Knowledge**, **Publish**, **R
 | Keyboard shortcuts | Settings → Keyboard Shortcuts | — |
 | Scheduled backups | Settings → Vault Snapshots | — |
 
-![Knowledge graph panel](../assets/screenshots/graph.png)
 
 ## Export setup
 

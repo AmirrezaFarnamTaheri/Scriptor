@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: Pandoc discovery/validation must probe candidates before the shared streaming export job can start.
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

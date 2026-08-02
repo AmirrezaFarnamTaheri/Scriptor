@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 
 import type { GitCommitOutput, GitPullOutput, GitPushOutput, GitStatus } from '../../types/vault'
 import { requireNative } from '../native.ts'
+import { authorizeSensitiveOperation } from './authorization.ts'
 
 export async function gitStatus(): Promise<GitStatus> {
   requireNative()
@@ -15,12 +16,14 @@ export async function gitCommit(files: string[], message: string): Promise<GitCo
 
 export async function gitPull(): Promise<GitPullOutput> {
   requireNative()
-  return invoke<GitPullOutput>('git_pull_cmd')
+  const authorizationToken = await authorizeSensitiveOperation('git_pull', 'active-vault')
+  return invoke<GitPullOutput>('git_pull_cmd', { authorizationToken })
 }
 
 export async function gitPush(): Promise<GitPushOutput> {
   requireNative()
-  return invoke<GitPushOutput>('git_push_cmd')
+  const authorizationToken = await authorizeSensitiveOperation('git_push', 'active-vault')
+  return invoke<GitPushOutput>('git_push_cmd', { authorizationToken })
 }
 
 export async function gitResolveConflict(
@@ -28,7 +31,8 @@ export async function gitResolveConflict(
   strategy: 'ours' | 'theirs',
 ): Promise<{ path: string; strategy: string }> {
   requireNative()
-  return invoke('git_resolve_conflict_cmd', { path, strategy })
+  const authorizationToken = await authorizeSensitiveOperation('apply_git_conflict', path)
+  return invoke('git_resolve_conflict_cmd', { path, strategy, authorizationToken })
 }
 
 export async function gitApplyMergedConflict(
@@ -36,7 +40,8 @@ export async function gitApplyMergedConflict(
   mergedMarkdown: string,
 ): Promise<{ path: string; strategy: string }> {
   requireNative()
-  return invoke('git_apply_merged_conflict_cmd', { path, mergedMarkdown })
+  const authorizationToken = await authorizeSensitiveOperation('apply_git_conflict', path)
+  return invoke('git_apply_merged_conflict_cmd', { path, mergedMarkdown, authorizationToken })
 }
 
 export async function gitReadConflictMarkers(path: string): Promise<string[]> {

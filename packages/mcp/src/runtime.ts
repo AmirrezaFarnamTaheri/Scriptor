@@ -649,7 +649,7 @@ export class McpRuntime {
         if (typeof payload.focusPath === 'string') {
           assertVaultRelativePath(payload.focusPath, 'focusPath')
         }
-        return ctx.exportGraph(payload.focusPath, assertBoundedInt(payload.depth ?? 1, 1, 10, 'depth'))
+        return ctx.exportGraph(payload.focusPath, assertBoundedInt(payload.depth ?? 1, 1, 5, 'depth'))
       }
       case 'mcp.inspectGraphSummary': {
         const [orphans, deadEnds, unresolved, tags] = await Promise.all([
@@ -678,7 +678,7 @@ export class McpRuntime {
           throw new Error('Graph traversal is not available')
         }
         assertVaultRelativePath(payload.focusPath, 'focusPath')
-        return ctx.traverseGraph(payload.focusPath, assertBoundedInt(payload.depth ?? 2, 1, 10, 'depth'))
+        return ctx.traverseGraph(payload.focusPath, assertBoundedInt(payload.depth ?? 2, 1, 5, 'depth'))
       }
       case 'mcp.renderMarkdown': {
         const payload = input as McpRenderMarkdownInput

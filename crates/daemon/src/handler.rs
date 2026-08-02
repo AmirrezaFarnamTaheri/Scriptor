@@ -27,6 +27,7 @@ pub struct DaemonState {
     pub(crate) index_rebuild: IndexRebuildJob,
     pub(crate) export_job: ExportJobRunner,
     pub(crate) vault_watcher: Option<VaultWatcher>,
+    pub(crate) watcher_generation: u64,
     pub(crate) endpoint_nonce: Option<String>,
 }
 

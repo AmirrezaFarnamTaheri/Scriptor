@@ -1,3 +1,4 @@
+// PROCESS_BROKER_EXCEPTION: desktop daemon startup requires a persistent managed child; executable resolution and shutdown are constrained in this module.
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
@@ -8,6 +9,9 @@ use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResult};
 use serde::Serialize;
 use tauri::Manager;
 use tauri::path::BaseDirectory;
+
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
+use crate::AppState;
 
 static RPC_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -88,7 +92,17 @@ pub fn daemon_endpoint() -> Result<DaemonEndpoint, String> {
 }
 
 #[tauri::command]
-pub fn daemon_start(app: tauri::AppHandle) -> Result<DaemonEndpoint, String> {
+pub fn daemon_start(
+    app: tauri::AppHandle,
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<DaemonEndpoint, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::DaemonControl,
+        Some("background-daemon"),
+    )?;
     if daemon_ping().is_ok() {
         return read_endpoint().map_err(|error| error.to_string());
     }

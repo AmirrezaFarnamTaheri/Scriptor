@@ -1,4 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from 'react'
+import { CircleAlert, RotateCcw } from 'lucide-react'
 
 interface Props {
   children: ReactNode
@@ -28,13 +29,6 @@ export class ErrorBoundary extends Component<Props, State> {
 
   private handleReset = () => {
     this.setState({ hasError: false, error: null })
-  }
-
-  private handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      this.handleReset()
-    }
   }
 
   componentDidUpdate(prevProps: Props) {
@@ -68,57 +62,25 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (
-          <div
-            role="alert"
-            aria-live="assertive"
-            aria-atomic="true"
-            style={{
-              padding: 24,
-              color: 'var(--color-text-primary, #e5534b)',
-              maxWidth: 600,
-              margin: '40px auto',
-              fontFamily: 'var(--font-sans, system-ui, sans-serif)',
-              lineHeight: 1.6,
-            }}
-          >
-            <h2 style={{ margin: '0 0 12px', fontSize: 18 }}>
-              Something went wrong
-            </h2>
-            <pre
-              style={{
-                background: 'var(--color-bg-secondary, #1a1a2e)',
-                color: 'var(--color-text-secondary, #aaa)',
-                padding: 12,
-                borderRadius: 8,
-                overflow: 'auto',
-                maxHeight: 200,
-                fontSize: 13,
-                margin: '0 0 16px',
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-              }}
-            >
-              {this.state.error?.message}
-            </pre>
+          <section role="alert" aria-live="assertive" aria-atomic="true" className="error-boundary">
+            <span className="error-boundary-mark" aria-hidden="true">
+              <CircleAlert />
+            </span>
+            <div className="error-boundary-content">
+              <h2>Something went wrong</h2>
+              <p>This surface stopped unexpectedly. Retry it without reloading the rest of your workspace.</p>
+              <pre>{this.state.error?.message}</pre>
+            </div>
             <button
               type="button"
               onClick={this.handleReset}
-              onKeyDown={this.handleKeyDown}
               autoFocus
-              style={{
-                padding: '8px 20px',
-                borderRadius: 6,
-                border: 'none',
-                background: 'var(--color-accent, #0f766e)',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: 14,
-                fontWeight: 500,
-              }}
+              className="primary-button error-boundary-retry"
             >
+              <RotateCcw aria-hidden="true" />
               Retry
             </button>
-          </div>
+          </section>
         )
       )
     }

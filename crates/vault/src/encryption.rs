@@ -382,11 +382,7 @@ mod tests {
 
         let mut key = key;
         let slice: &mut [u8; 32] = key.as_bytes_mut();
-        let ptr = slice.as_mut_ptr();
-        unsafe {
-            let _ = std::ptr::read(ptr as *const [u8; 32]);
-            std::ptr::write(slice, [0u8; 32]);
-        }
+        slice.fill(0);
         assert!(key.as_bytes().iter().all(|&b| b == 0), "key should be zeroizable");
     }
 

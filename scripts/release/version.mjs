@@ -1,0 +1,82 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import process from 'node:process';
+
+const root = path.resolve(import.meta.dirname, '../..');
+const canonicalPath = path.join(root, 'VERSION');
+const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const mode = process.argv[2] ?? 'check';
+const canonical = fs.readFileSync(canonicalPath, 'utf8').trim();
+if (!semver.test(canonical)) throw new Error(`VERSION is not valid SemVer: ${canonical}`);
+
+function walk(dir, name, out = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'dist') continue;
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) walk(full, name, out);
+    else if (entry.name === name) out.push(full);
+  }
+  return out;
+}
+
+const jsonFiles = walk(root, 'package.json');
+const cargoFiles = walk(root, 'Cargo.toml').filter((file) => !file.endsWith(`${path.sep}crates${path.sep}ipc${path.sep}fuzz${path.sep}Cargo.toml`));
+const tauriFile = path.join(root, 'apps/desktop/src-tauri/tauri.conf.json');
+const failures = [];
+const changed = [];
+
+for (const file of jsonFiles) {
+  const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (!value.version) continue;
+  if (mode === 'sync') {
+    if (value.version !== canonical) {
+      value.version = canonical;
+      fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
+      changed.push(path.relative(root, file));
+    }
+  } else if (value.version !== canonical) {
+    failures.push(`${path.relative(root, file)}: ${value.version}`);
+  }
+}
+
+for (const file of cargoFiles) {
+  const source = fs.readFileSync(file, 'utf8');
+  if (!/^\[package\]/m.test(source)) continue;
+  const match = source.match(/^version\s*=\s*"([^"]+)"/m);
+  if (!match) continue;
+  if (mode === 'sync') {
+    if (match[1] !== canonical) {
+      fs.writeFileSync(file, source.replace(/^version\s*=\s*"[^"]+"/m, `version = "${canonical}"`));
+      changed.push(path.relative(root, file));
+    }
+  } else if (match[1] !== canonical) {
+    failures.push(`${path.relative(root, file)}: ${match[1]}`);
+  }
+}
+
+const tauri = JSON.parse(fs.readFileSync(tauriFile, 'utf8'));
+if (mode === 'sync') {
+  if (tauri.version !== canonical) {
+    tauri.version = canonical;
+    fs.writeFileSync(tauriFile, `${JSON.stringify(tauri, null, 2)}\n`);
+    changed.push(path.relative(root, tauriFile));
+  }
+} else if (tauri.version !== canonical) {
+  failures.push(`${path.relative(root, tauriFile)}: ${tauri.version}`);
+}
+
+const expected = (process.env.SCRIPTOR_RELEASE_VERSION || process.env.GITHUB_REF_NAME || '').replace(/^v/, '') || undefined;
+if (mode !== 'sync' && expected && expected !== canonical) {
+  failures.push(`release input/tag: ${expected}`);
+}
+
+if (failures.length) {
+  console.error(`Version drift. Canonical VERSION=${canonical}`);
+  for (const failure of failures) console.error(`- ${failure}`);
+  process.exit(1);
+}
+
+console.log(mode === 'sync'
+  ? `Synchronized ${changed.length} manifest(s) to ${canonical}${changed.length ? `:\n- ${changed.join('\n- ')}` : ''}`
+  : `Version contract OK: ${canonical} across ${jsonFiles.length} package manifests, ${cargoFiles.length} Cargo manifests, and Tauri config.`);

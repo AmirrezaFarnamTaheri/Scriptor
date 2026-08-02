@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Box, Lock, ShieldCheck, TimerReset } from 'lucide-react'
+import { Box, Check, Lock, ShieldAlert, ShieldCheck, TimerReset } from 'lucide-react'
 
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
-import type { LoadedPlugin } from '@scriptor/plugin-api'
+import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { contributionLabels, summarizePluginContributions } from '../lib/pluginContributions'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import type { VaultHealthDiagnostics } from '../types/vault'
@@ -13,8 +13,12 @@ interface PluginPanelProps {
   safeMode: boolean
   healthDiagnostics: VaultHealthDiagnostics | null
   marketplaceCatalog: Array<{ id: string; name: string; version: string; description: string }>
+  activeVaultId: string | null
+  pluginPolicies: Record<string, PluginRuntimePolicy | null>
   onToggleSafeMode: (enabled: boolean) => void
   onTogglePlugin: (pluginId: string, enabled: boolean) => void
+  onReviewConsent: (pluginId: string, permissions: PluginRuntimePolicy['grantedPermissions'], vaultIds: string[]) => void
+  onRevokeConsent: (pluginId: string) => void
   onInstallMarketplace: (pluginId: string) => void
 }
 
@@ -24,14 +28,31 @@ export function PluginPanel({
   safeMode,
   healthDiagnostics,
   marketplaceCatalog,
+  activeVaultId,
+  pluginPolicies,
   onToggleSafeMode,
   onTogglePlugin,
+  onReviewConsent,
+  onRevokeConsent,
   onInstallMarketplace,
 }: PluginPanelProps) {
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
   const vaultLint = plugins.find((plugin) => plugin.manifest.id === 'scriptor-vault-lint')
   const selectedPlugin = plugins.find((plugin) => plugin.manifest.id === selectedPluginId) ?? null
+  const selectedPolicy = selectedPlugin ? pluginPolicies[selectedPlugin.manifest.id] ?? null : null
+  const requiredPermissions = selectedPlugin?.manifest.permissions
+    .filter((entry) => !entry.optional)
+    .map((entry) => entry.permission) ?? []
+  const requiresVaultScope = requiredPermissions.some(
+    (permission) => permission === 'read' || permission === 'write-approved',
+  )
+  const hasRequiredConsent = Boolean(
+    selectedPlugin &&
+      selectedPolicy &&
+      requiredPermissions.every((permission) => selectedPolicy.grantedPermissions.includes(permission)) &&
+      (!requiresVaultScope || (activeVaultId && selectedPolicy.allowedVaultIds.includes(activeVaultId))),
+  )
 
   return (
     <>
@@ -141,14 +162,64 @@ export function PluginPanel({
                 <dd>{selectedPlugin.manifest.capabilities.join(', ') || 'none'}</dd>
               </div>
               <div>
+                <dt>Consent</dt>
+                <dd>{hasRequiredConsent ? 'Reviewed for this vault' : 'Review required'}</dd>
+              </div>
+              <div>
                 <dt>Filesystem</dt>
-                <dd>Blocked (sandboxed)</dd>
+                <dd>Raw access blocked</dd>
               </div>
               <div>
                 <dt>Network</dt>
-                <dd>Blocked unless declared</dd>
+                <dd>{selectedPolicy?.networkAccess === 'allowlist' ? 'Allowlisted hosts only' : 'Blocked'}</dd>
               </div>
             </dl>
+            <section className="plugin-consent" aria-label="Plugin permission review">
+              <header>
+                {hasRequiredConsent ? <Check aria-hidden="true" /> : <ShieldAlert aria-hidden="true" />}
+                <div>
+                  <strong>{hasRequiredConsent ? 'Permissions reviewed' : 'Permission review required'}</strong>
+                  <span>
+                    {activeVaultId
+                      ? 'Access is revocable and scoped to the active vault.'
+                      : 'Open a vault before granting vault access.'}
+                  </span>
+                </div>
+              </header>
+              <ul>
+                {selectedPlugin.manifest.permissions.map((entry) => (
+                  <li key={entry.permission}>
+                    <strong>{entry.permission}</strong>
+                    <span>{entry.reason}</span>
+                    {entry.optional ? <em>optional</em> : null}
+                  </li>
+                ))}
+              </ul>
+              <div className="plugin-consent-actions">
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  disabled={!activeVaultId || safeMode}
+                  onClick={() =>
+                    onReviewConsent(
+                      selectedPlugin.manifest.id,
+                      selectedPlugin.manifest.permissions.map((entry) => entry.permission),
+                      activeVaultId ? [activeVaultId] : [],
+                    )
+                  }
+                >
+                  Review and grant for this vault
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  disabled={!selectedPolicy}
+                  onClick={() => onRevokeConsent(selectedPlugin.manifest.id)}
+                >
+                  Revoke access
+                </button>
+              </div>
+            </section>
             <div className="plugin-contribution-chips">
               {contributionLabels(summarizePluginContributions(selectedPlugin)).map((label) => (
                 <em key={label}>{label}</em>
@@ -157,7 +228,7 @@ export function PluginPanel({
             <button
               type="button"
               className="toolbar-button"
-              disabled={safeMode}
+              disabled={safeMode || (!selectedPlugin.enabled && !hasRequiredConsent)}
               onClick={() => onTogglePlugin(selectedPlugin.manifest.id, !selectedPlugin.enabled)}
             >
               {selectedPlugin.enabled ? 'Disable plugin' : 'Enable plugin'}

@@ -42,7 +42,11 @@ pub use note_history::{
     append_note_history, list_note_history, read_note_history_revision, restore_note_history_revision,
     NoteHistoryEntry, DEFAULT_NOTE_HISTORY_DIR, MAX_REVISIONS_PER_NOTE,
 };
-pub use mcp_audit::{append_mcp_mutation, McpMutationAuditRecord, DEFAULT_MCP_AUDIT_PATH};
+pub use mcp_audit::{
+    append_mcp_mutation, read_mcp_audit_tail, reconcile_pending_mcp_mutations,
+    McpMutationAuditRecord, DEFAULT_MCP_AUDIT_MAX_BYTES, DEFAULT_MCP_AUDIT_PATH,
+    DEFAULT_MCP_AUDIT_SEGMENTS,
+};
 pub use workspace_session::{
     read_workspace_session, write_workspace_session, WorkspaceSession, WorkspaceSessionTab,
     DEFAULT_WORKSPACE_SESSION_PATH,
@@ -81,9 +85,13 @@ pub use section_rename::{
     block_rename_apply, block_rename_dry_run, section_rename_apply, section_rename_dry_run,
 };
 pub use tag_rename::{tag_rename_apply, tag_rename_dry_run};
-pub use scan::{list_notes, scan_vault, scan_vault_with_roots, ScannedEntry, ScannedEntryKind};
+pub use scan::{
+    list_notes, scan_vault, scan_vault_for_index, scan_vault_with_roots,
+    scan_vault_with_roots_for_index, ScannedEntry, ScannedEntryKind,
+    MAX_INDEXED_NOTE_BYTES, MAX_SCAN_ENTRIES,
+};
 pub use snippets::{load_vault_snippets, save_vault_snippets, VaultSnippet, DEFAULT_SNIPPETS_PATH};
-pub use watch::{VaultWatchEvent, VaultWatcher};
+pub use watch::{VaultWatchBatch, VaultWatchEvent, VaultWatcher};
 pub use link_rewrite::{
     directory_identifier_for_path, is_directory_index_path, rewrite_note_rename_links, LinkRewriteApplyOutput,
     LinkRewritePreview, RenameLinkTarget,

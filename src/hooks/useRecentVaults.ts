@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { expectStringArray } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+
 const STORAGE_KEY = 'scriptor.recent-vaults'
 
 export function useRecentVaults() {
-  const [recent, setRecent] = useState<string[]>(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY)
-      return raw ? (JSON.parse(raw) as string[]) : []
-    } catch {
-      return []
-    }
-  })
+  const [recent, setRecent] = useState<string[]>(() =>
+    readVersionedStorage({
+      key: STORAGE_KEY,
+      schemaVersion: 1,
+      fallback: [],
+      validate: (value) => expectStringArray(value, 'recent vaults').slice(0, 12),
+      migrate: (value) => expectStringArray(value, 'recent vaults').slice(0, 12),
+    }),
+  )
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(recent.slice(0, 12)))
+    writeVersionedStorage(STORAGE_KEY, 1, recent.slice(0, 12))
   }, [recent])
 
   const remember = useCallback((path: string) => {

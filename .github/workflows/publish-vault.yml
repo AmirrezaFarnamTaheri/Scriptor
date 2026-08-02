@@ -23,31 +23,35 @@ env:
 jobs:
   export-and-deploy:
     name: Export vault and package Pages artifact
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CI_LOG_DIR: artifacts/ci-logs/publish-vault-export
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pnpm
-        uses: pnpm/action-setup@v6
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.16.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "."
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
 
       - name: Describe vault publication scope
         shell: pwsh
@@ -84,7 +88,7 @@ jobs:
           "| Inventory exported static site | PASS | - | 0 | ``site-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload GitHub Pages artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: ./dist
 
@@ -100,7 +104,7 @@ jobs:
 
       - name: Upload vault export evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-publish-vault-export-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -110,7 +114,7 @@ jobs:
   deploy:
     name: Deploy vault artifact to GitHub Pages
     needs: export-and-deploy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     if: github.ref == 'refs/heads/main'
     permissions:
@@ -124,7 +128,7 @@ jobs:
       CI_LOG_DIR: artifacts/ci-logs/publish-vault-deploy
     steps:
       - name: Checkout deployment metadata
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Describe Pages deployment scope
         shell: pwsh
@@ -132,7 +136,7 @@ jobs:
 
       - name: Deploy artifact to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
 
       - name: Record deployed Pages URL
         shell: pwsh
@@ -167,7 +171,7 @@ jobs:
 
       - name: Upload Pages deployment evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-publish-vault-deploy-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}

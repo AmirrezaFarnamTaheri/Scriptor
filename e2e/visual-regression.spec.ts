@@ -72,4 +72,28 @@ test.describe('visual regression', () => {
     await settleLayout(page)
     await expect(page).toHaveScreenshot('settings-panel.png')
   })
+
+  test('workspace compact mobile layout', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'light')
+      window.localStorage.setItem('scriptor:editor-theme', 'light')
+    })
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+    await settleLayout(page)
+    await expect(page).toHaveScreenshot('workspace-compact-mobile.png')
+  })
+
+  test('workspace tablet dark layout', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+      window.localStorage.setItem('scriptor:editor-theme', 'dark')
+    })
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+    await settleLayout(page)
+    await expect(page).toHaveScreenshot('workspace-tablet-dark.png')
+  })
 })

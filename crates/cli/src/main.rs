@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use scriptor_export_runner::{
     default_export_directory, discover_pandoc, run_export_job, ExportJobInput,
@@ -24,7 +24,7 @@ use scriptor_vault::{
 };
 use scriptor_daemon::rpc_call;
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult};
-use scriptor_system_bridge::detect_system_info;
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 
@@ -424,6 +424,7 @@ fn print_rpc_response(response: &RpcResponse) -> Result<(), Box<dyn std::error::
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = scriptor_system_bridge::observability::init_observability("cli");
     let cli = Cli::parse();
 
     match cli.command {
@@ -809,18 +810,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             output,
         } => {
             let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
-            let mut command = std::process::Command::new(&pdf2zh);
-            command.arg(&input).arg("-li").arg(&lang_in).arg("-lo").arg(&lang_out);
+            let mut args = vec![
+                input.as_os_str().to_os_string(),
+                "-li".into(),
+                lang_in.into(),
+                "-lo".into(),
+                lang_out.into(),
+            ];
             if let Some(out) = output {
-                command.arg("-o").arg(out);
+                args.push("-o".into());
+                args.push(out.into_os_string());
             }
-            let status = command.status().map_err(|error| {
+            let receipt = run_process(
+                ProcessSpec::new(&pdf2zh)
+                    .args(args)
+                    .timeout(Duration::from_secs(15 * 60))
+                    .max_output_bytes(512 * 1024)
+                    .network_policy(NetworkPolicy::Allow)
+                    .expected_sha256(std::env::var("SCRIPTOR_PDF2ZH_SHA256").ok()),
+            )
+            .map_err(|error| {
                 format!(
-                    "pdf2zh was not found ({error}). Install PDFMathTranslate (pip install pdf2zh) or set SCRIPTOR_PDF2ZH_PATH."
+                    "PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256."
                 )
             })?;
-            if !status.success() {
-                std::process::exit(status.code().unwrap_or(1));
+            if receipt.exit_code != 0 {
+                return Err(format!(
+                    "pdf2zh exited with code {}: {}",
+                    receipt.exit_code,
+                    receipt.stderr.trim()
+                )
+                .into());
             }
         }
         Commands::Export {

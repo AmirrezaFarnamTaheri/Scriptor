@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Settings } from 'lucide-react'
 
-import { UPDATER_PUBKEY_PLACEHOLDER } from '../lib/updaterConfig'
 import { useI18n } from '../lib/i18n'
 
 import { exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/commands'
@@ -229,33 +228,9 @@ export function SettingsPanel({
     >
         <div className="settings-section">
           <h3>Runtime</h3>
-          <button
-            type="button"
-            className="toolbar-button"
-            onClick={() => {
-              void (async () => {
-                try {
-                  const { check } = await import('@tauri-apps/plugin-updater')
-                  const update = await check()
-                  if (!update) {
-                    setStatus('You are on the latest build.')
-                    return
-                  }
-                  await update.downloadAndInstall()
-                  setStatus(`Updated to ${update.version}. Restart to apply.`)
-                } catch (error) {
-                  const message = error instanceof Error ? error.message : 'Update check failed'
-                  setStatus(
-                    nativeReady
-                      ? `${message} — ${t('settings.updater.placeholder')} (placeholder ${UPDATER_PUBKEY_PLACEHOLDER.slice(0, 8)}…).`
-                      : 'Update check requires the desktop app.',
-                  )
-                }
-              })()
-            }}
-          >
-            Check for updates
-          </button>
+          <p className="health-subtitle">
+            Updates are distributed as signed, checksum-published release artifacts. Built-in updating remains disabled until an authenticated delivery channel is configured.
+          </p>
           <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
             {nativeReady ? 'Native Tauri bridge connected' : 'Browser preview — run `pnpm desktop:dev` for vault commands'}
           </p>
