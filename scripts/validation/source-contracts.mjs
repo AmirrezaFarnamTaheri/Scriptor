@@ -134,5 +134,5 @@ test('local toolchains are pinned alongside CI', () => {
 test('macOS process sandbox escapes user-controlled writable paths', () => {
   const source = read('crates/system-bridge/src/process.rs')
   assert.match(source, /escape_sandbox_profile_string\(current_dir\.as_os_str\(\)\)/)
-  assert.match(source, /\.replace\('\"', "\\\\\\\""\)/)
+  assert.match(source, /\.replace\('"', "\\\\\\""\)/)
 })

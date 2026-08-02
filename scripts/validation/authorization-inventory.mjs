@@ -86,7 +86,7 @@ const bridgeSources = fs
   .map((name) => fs.readFileSync(path.join(root, 'src/bridge/commands', name), 'utf8'))
   .join('\n')
 for (const [, , , wireName] of sensitiveCommands) {
-  const frontendCall = new RegExp(`authorizeSensitiveOperation\\(\\s*['\"]${wireName}['\"]`)
+  const frontendCall = new RegExp(`authorizeSensitiveOperation\\(\\s*['"]${wireName}['"]`)
   if (!frontendCall.test(bridgeSources)) {
     fail(`no frontend bridge requests one-time authorization for ${wireName}`)
   }

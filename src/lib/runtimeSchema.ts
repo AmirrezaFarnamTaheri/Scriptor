@@ -4,7 +4,7 @@ export function parseJsonUnknown(payload: string, context: string): unknown {
   try {
     return JSON.parse(payload) as unknown
   } catch (error) {
-    throw new Error(`${context}: invalid JSON (${error instanceof Error ? error.message : String(error)})`)
+    throw new Error(`${context}: invalid JSON (${error instanceof Error ? error.message : String(error)})`, { cause: error })
   }
 }
 
