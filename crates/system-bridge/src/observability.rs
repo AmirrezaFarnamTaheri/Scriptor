@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Mutex, atomic::{AtomicU64, Ordering}};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use serde_json::{Map, Value, json};
+use serde_json::{Value, json};
 use tracing::field::{Field, Visit};
 use tracing::span::{Attributes, Id, Record};
 use tracing::subscriber::Interest;

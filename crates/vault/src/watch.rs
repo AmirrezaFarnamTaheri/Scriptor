@@ -31,7 +31,7 @@ impl VaultWatcher {
         mut on_batch: impl FnMut(VaultWatchBatch) + Send + 'static,
     ) -> Result<Self, VaultError> {
         let root_path = root.root().to_path_buf();
-        let mut debouncer = new_debouncer(Duration::from_millis(debounce_ms), move |result| {
+        let mut debouncer = new_debouncer(Duration::from_millis(debounce_ms), move |result: Result<Vec<DebouncedEvent>, notify_debouncer_mini::notify::Error>| {
             let events = match result {
                 Ok(events) => events,
                 Err(error) => {

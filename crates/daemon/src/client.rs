@@ -143,12 +143,25 @@ fn connect_client_with_timeout(
             .map_err(|error| IpcError::Codec(error.to_string()))?
     };
 
-    let stream = ConnectOptions::new()
-        .name(name)
-        .wait_mode(ConnectWaitMode::Timeout(timeout))
-        .nonblocking_stream(cfg!(windows))
-        .connect_sync()
-        .map_err(IpcError::from)?;
+    let retry_budget = Duration::from_millis(500).min(timeout);
+    let start = Instant::now();
+    let stream = loop {
+        match ConnectOptions::new()
+            .name(name.clone())
+            .wait_mode(ConnectWaitMode::Timeout(timeout))
+            .nonblocking_stream(cfg!(windows))
+            .connect_sync()
+        {
+            Ok(s) => break s,
+            Err(e) if e.kind() == io::ErrorKind::NotFound || e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::ConnectionRefused => {
+                if start.elapsed() >= retry_budget {
+                    return Err(IpcError::Io(e));
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(e) => return Err(IpcError::from(e)),
+        }
+    };
     Ok((stream, endpoint.nonce))
 }
 

@@ -56,7 +56,7 @@ pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
 /// as an error so the caller can report it instead of aborting the daemon.
 fn generate_nonce() -> Result<String, IpcError> {
     let mut bytes = [0u8; 32];
-    getrandom::getrandom(&mut bytes)
+    getrandom::fill(&mut bytes)
         .map_err(|error| IpcError::Codec(format!("random source unavailable: {error}")))?;
     Ok(hex::encode(bytes))
 }

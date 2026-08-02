@@ -1,7 +1,7 @@
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 
-use chrono::Utc;
+
 use scriptor_indexer::{
     backlinks_for_path, execute_dql_query, list_dead_end_notes, list_inbox_notes, list_orphan_notes,
     list_unresolved_link_targets, list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown,

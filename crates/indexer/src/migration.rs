@@ -146,6 +146,8 @@ mod tests {
         let connection = Connection::open_in_memory()?;
         connection.execute_batch(CREATE_META)?;
         connection.execute_batch(CREATE_NOTES)?;
+        connection.execute_batch(crate::schema::CREATE_LINKS)?;
+        connection.execute_batch(crate::schema::CREATE_CITATIONS)?;
         connection.execute(
             "INSERT INTO cache_meta(key, value) VALUES ('schema_version', '1')",
             [],
@@ -179,6 +181,8 @@ CREATE TABLE IF NOT EXISTS notes (
         let connection = Connection::open_in_memory()?;
         connection.execute_batch(CREATE_META)?;
         connection.execute_batch(CREATE_NOTES_V1)?;
+        connection.execute_batch(crate::schema::CREATE_LINKS)?;
+        connection.execute_batch(crate::schema::CREATE_CITATIONS)?;
         connection.execute(
             "INSERT INTO cache_meta(key, value) VALUES ('schema_version', ?1)",
             [version.to_string()],

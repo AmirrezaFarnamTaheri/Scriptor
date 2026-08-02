@@ -265,7 +265,7 @@ mod tests {
     #[test]
     fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        let root = VaultRoot::new(dir.path())?;
+        let root = VaultRoot::open(dir.path())?;
         let intent = McpMutationAuditRecord::intent(
             "id-1".into(),
             "mcp.proposePatch",
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn startup_reconciliation_closes_pending_intents() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        let root = VaultRoot::new(dir.path())?;
+        let root = VaultRoot::open(dir.path())?;
         append_mcp_mutation(
             &root,
             McpMutationAuditRecord::intent(

@@ -891,7 +891,11 @@ mod tests {
         let dir = tempdir()?;
         Command::new("git").args(["init", dir.path().to_str().unwrap()]).output()?;
         configure_git_identity(dir.path())?;
-        let literal = ":(glob)literal[1].md";
+        let literal = if cfg!(windows) {
+            "glob_literal[1].md"
+        } else {
+            ":(glob)literal[1].md"
+        };
         fs::write(dir.path().join(literal), "# Literal\n")?;
         Command::new("git").current_dir(dir.path()).args(["add", "."]).output()?;
         git_commit(dir.path(), "initial")?;

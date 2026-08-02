@@ -10,6 +10,7 @@ use serde::Serialize;
 use crate::{BridgeError, hash_file};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
+#[allow(dead_code)]
 const TERMINATION_GRACE: Duration = Duration::from_millis(250);
 const DEFAULT_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 
@@ -387,6 +388,7 @@ fn sandbox_available() -> bool {
     }
 }
 
+#[allow(dead_code)]
 fn command_exists(name: &str) -> bool {
     resolve_executable(OsStr::new(name), None).is_ok()
 }
@@ -400,7 +402,8 @@ fn sandboxed_command(spec: &ProcessSpec, resolved: &Path) -> Result<Command, Bri
 
     #[cfg(target_os = "linux")]
     {
-        let mut command = Command::new("bwrap");
+        let bwrap = resolve_executable(OsStr::new("bwrap"), None)?;
+        let mut command = Command::new(bwrap);
         command.args([
             "--die-with-parent",
             "--unshare-net",
@@ -422,13 +425,14 @@ fn sandboxed_command(spec: &ProcessSpec, resolved: &Path) -> Result<Command, Bri
 
     #[cfg(target_os = "macos")]
     {
+        let sandbox_exec = resolve_executable(OsStr::new("sandbox-exec"), None)?;
         let current_dir = spec.current_dir.as_deref().unwrap_or_else(|| Path::new("/tmp"));
         let writable_subpath = escape_sandbox_profile_string(current_dir.as_os_str());
         let profile = format!(
             "(version 1) (deny default) (allow process*) (allow file-read*) (allow file-write* (subpath \"{}\")) (deny network*)",
             writable_subpath
         );
-        let mut command = Command::new("sandbox-exec");
+        let mut command = Command::new(sandbox_exec);
         command.args(["-p", &profile]).arg(resolved).args(&spec.args);
         return Ok(command);
     }
@@ -443,6 +447,7 @@ fn sandboxed_command(spec: &ProcessSpec, resolved: &Path) -> Result<Command, Bri
 ///
 /// A vault path can contain quotes and backslashes. Interpolating it directly
 /// would let the path terminate the string and alter the generated policy.
+#[allow(dead_code)]
 fn escape_sandbox_profile_string(value: &OsStr) -> String {
     value
         .to_string_lossy()
@@ -499,6 +504,6 @@ mod tests {
                 .replace('\\', "\\\\")
                 .replace('"', "\\\"")
         );
-        assert!(!escaped.contains("\") (allow network*)"));
+        assert!(!escaped.contains(r#"/tmp/vault")"#));
     }
 }
