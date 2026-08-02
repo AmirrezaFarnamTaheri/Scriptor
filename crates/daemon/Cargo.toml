@@ -22,7 +22,7 @@ scriptor-canvas-engine = { path = "../canvas-engine" }
 ammonia = "4"
 chrono = { version = "0.4", features = ["clock"] }
 clap = { version = "4", features = ["derive"] }
-getrandom = "0.2"
+getrandom = "0.4"
 hex = "0.4"
 interprocess = "2"
 postcard = { version = "1", features = ["alloc"] }
