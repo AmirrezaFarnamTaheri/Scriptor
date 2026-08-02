@@ -342,14 +342,8 @@ jobs:
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
           "| Inventory downloaded release artifacts | PASS | - | 0 | ``publication-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Generate SBOM, checksums, and immutable release receipt
-        shell: pwsh
-        run: |
-          node scripts/release/generate-sbom.mjs release-evidence
-          node scripts/release/create-receipt.mjs release-artifacts release-evidence
-
-      - name: Attest release artifact provenance
-        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+      - name: Create GitHub Release and attach installers
+        uses: softprops/action-gh-release@v3
         with:
           subject-path: release-artifacts/**/*
 
