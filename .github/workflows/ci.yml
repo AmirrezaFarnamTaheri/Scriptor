@@ -191,7 +191,7 @@ jobs:
           retention-days: 7
 
   validate-fast:
-    name: Contracts, automation, lint, and Rust tests
+    name: Contracts, automation, and lint
     needs: supply-chain
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -215,14 +215,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Configure pinned Rust 1.96.0
-        shell: pwsh
-        run: |
-          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
-          rustup default 1.96.0
-          rustc --version
-          cargo --version
-
       - name: Validate repository governance contracts
         shell: pwsh
         run: |
@@ -235,7 +227,7 @@ jobs:
 
       - name: Describe fast validation scope
         shell: pwsh
-        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Contracts, automation, lint, and Rust tests"
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Contracts, automation, and lint"
 
       - name: Install frozen pnpm dependency graph
         shell: pwsh
@@ -303,6 +295,48 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Lint JavaScript and TypeScript" -FilePath "pnpm" -ArgumentList @("lint") -TimeoutSeconds 900
 
+      - name: Capture fast validation failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Contracts, automation, and lint"
+
+      - name: Finalize fast validation evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, and lint" -Status "${{ job.status }}"
+
+      - name: Upload fast validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-evidence-validate-fast-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
+
+  validate-rust:
+    name: Contracts, automation, lint, and Rust tests
+    needs: supply-chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/validate-rust
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Describe Rust validation scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
+
       - name: Test Rust workspace except desktop shell
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust workspace except desktop shell" -FilePath "cargo" -ArgumentList @("test", "--workspace", "--exclude", "scriptor-desktop") -TimeoutSeconds 1800
@@ -315,21 +349,21 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 900
 
-      - name: Capture fast validation failure context
+      - name: Capture Rust validation failure context
         if: failure()
         shell: pwsh
-        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Contracts, automation, lint, and Rust tests"
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Rust workspace tests and release smoke"
 
-      - name: Finalize fast validation evidence
+      - name: Finalize Rust validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, lint, and Rust tests" -Status "${{ job.status }}"
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Rust workspace tests and release smoke" -Status "${{ job.status }}"
 
-      - name: Upload fast validation evidence
+      - name: Upload Rust validation evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ci-evidence-validate-fast-${{ github.run_attempt }}
+          name: ci-evidence-validate-rust-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
           retention-days: 7
