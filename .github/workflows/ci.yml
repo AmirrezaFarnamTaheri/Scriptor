@@ -10,7 +10,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Let long-running Rust workspace tests finish; PR reruns must not terminate
+  # an active validation job while Cargo is compiling the workspace.
+  cancel-in-progress: false
 
 defaults:
   run:
