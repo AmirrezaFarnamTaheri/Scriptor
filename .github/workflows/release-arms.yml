@@ -296,7 +296,7 @@ jobs:
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "ARM64 GitHub Release publication"
 
       - name: Download all ARM64 installer artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: release-artifacts
           merge-multiple: true
@@ -316,10 +316,13 @@ jobs:
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
           "| Inventory downloaded ARM64 release artifacts | PASS | - | 0 | ``publication-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Attach ARM64 installers to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          subject-path: release-artifacts/**/*
+      - name: Generate source-bound ARM64 release evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release/generate-sbom.mjs release-evidence
+          node scripts/release/create-receipt.mjs release-artifacts release-evidence
+          node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence
 
       - name: Attest release SBOM
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0

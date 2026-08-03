@@ -12,7 +12,7 @@ const approvedPins = new Map([
   ['actions/checkout@v7.0.1', '3d3c42e5aac5ba805825da76410c181273ba90b1'],
   ['actions/setup-node@v7.0.0', '820762786026740c76f36085b0efc47a31fe5020'],
   ['actions/upload-artifact@v7.0.1', '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a'],
-  ['actions/download-artifact@v4.3.0', 'd3f86a106a0bac45b974a628896c90dbdf5c8093'],
+  ['actions/download-artifact@v8.0.1', '3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c'],
   ['actions/attest@v4.1.0', '59d89421af93a897026c735860bf21b6eb4f7b26'],
   ['actions/upload-pages-artifact@v5.0.0', 'fc324d3547104276b827a68afc52ff2a11cc49c9'],
   ['actions/deploy-pages@v5.0.0', 'cd2ce8fcbc39b97be8ca5fce6e763baed58fa128'],

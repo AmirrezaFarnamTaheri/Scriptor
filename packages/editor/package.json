@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./codemirror": "./src/codemirror-entry.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",

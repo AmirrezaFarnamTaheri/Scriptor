@@ -1,6 +1,6 @@
 {
   "name": "scriptor",
-  "description": "Scriptor — local-first Markdown knowledge workspace",
+  "description": "Scriptor \u2014 local-first Markdown knowledge workspace",
   "private": true,
   "pnpm": {
     "overrides": {
@@ -25,7 +25,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/validation/bundle-graph.mjs",
     "check:contracts": "tsc -p tsconfig.contracts.json --noEmit",
     "check:mcp": "node --experimental-strip-types packages/mcp/src/validate-runner.ts",
     "mcp:stdio": "node --experimental-strip-types packages/mcp/src/stdio-server.ts",
@@ -85,7 +85,7 @@
     "fixtures:synthetic-5k": "powershell -ExecutionPolicy Bypass -File scripts/fixture-import/generate-synthetic-vault.ps1 -Count 5000 -Output packages/test-fixtures/vaults/synthetic-5k",
     "fixtures:synthetic-100": "powershell -ExecutionPolicy Bypass -File scripts/fixture-import/generate-synthetic-vault.ps1 -Count 100 -Output packages/test-fixtures/vaults/synthetic-100",
     "fixtures:synthetic-25k": "powershell -ExecutionPolicy Bypass -File scripts/fixture-import/generate-synthetic-vault.ps1 -Count 25000 -Output packages/test-fixtures/vaults/synthetic-25k",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=0",
     "preview": "vite preview",
     "test:e2e": "playwright test --config playwright.e2e.config.ts",
     "test:visual": "playwright test --config playwright.visual.config.ts",
@@ -98,14 +98,18 @@
     "check:docs": "node scripts/validation/docs-contracts.mjs",
     "release:sbom": "node scripts/release/generate-sbom.mjs",
     "release:receipt": "node scripts/release/create-receipt.mjs",
-    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs",
-    "check:governance": "node scripts/release/version.mjs check && node scripts/validation/action-pins.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/i18n-parity.mjs && node scripts/validation/docs-contracts.mjs && node scripts/validation/frontend-quality.mjs",
+    "release:evidence:verify": "node scripts/release/verify-release-evidence.mjs",
+    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node --test scripts/benchmarks/benchmark-utils.test.mjs scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs",
+    "check:governance": "node scripts/release/version.mjs check && node scripts/validation/action-pins.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/i18n-parity.mjs && node scripts/validation/docs-contracts.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs",
     "check:rust:product": "cargo check --locked",
     "check:rust:incubating": "cargo check --locked -p scriptor-embeddings -p scriptor-tantivy-indexer -p scriptor-wasm-runtime",
     "test:rust:product": "cargo test --locked --exclude scriptor-desktop",
     "check:rust-source": "node scripts/validation/rust-source-contracts.mjs",
     "check:authorization": "node scripts/validation/authorization-inventory.mjs",
-    "check:frontend-quality": "node scripts/validation/frontend-quality.mjs"
+    "check:frontend-quality": "node scripts/validation/frontend-quality.mjs && node scripts/validation/css-custom-properties.mjs",
+    "check:bundle": "node scripts/validation/bundle-graph.mjs",
+    "check:benchmark-contracts": "node --test scripts/benchmarks/benchmark-utils.test.mjs",
+    "check:release-evidence-contracts": "node --test scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs"
   },
   "dependencies": {
     "@scriptor/canvas": "workspace:*",

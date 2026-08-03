@@ -14,6 +14,7 @@
   --surface-raised: rgba(255, 255, 255, 0.85);
   --surface-elevated: rgba(255, 255, 255, 0.95);
   --surface-muted: rgba(241, 245, 249, 0.9);
+  --surface-hover: rgba(15, 23, 42, 0.06);
   --panel: rgba(255, 255, 255, 0.72);
   --sidebar: rgba(248, 250, 252, 0.8);
   --selected: rgba(13, 148, 136, 0.1);
@@ -25,6 +26,7 @@
   --ink: #1e293b;
   --text: var(--ink);
   --muted: #475569;
+  --text-muted: var(--muted);
   --faint: #5b6b7f;
 
   --primary: #0f766e;
@@ -60,6 +62,7 @@
   --surface-raised: rgba(11, 15, 26, 0.8);
   --surface-elevated: rgba(17, 24, 39, 0.9);
   --surface-muted: rgba(31, 41, 55, 0.6);
+  --surface-hover: rgba(255, 255, 255, 0.08);
   --panel: rgba(11, 15, 26, 0.7);
   --sidebar: rgba(8, 11, 20, 0.8);
   --selected: rgba(45, 212, 191, 0.12);
@@ -71,6 +74,7 @@
   --ink: #f3f4f6;
   --text: var(--ink);
   --muted: #9ca3af;
+  --text-muted: var(--muted);
   --faint: #7c8798;
 
   --primary: #2DD4BF;
@@ -106,6 +110,7 @@
   --surface-raised: #111111;
   --surface-elevated: #1a1a1a;
   --surface-muted: #141414;
+  --surface-hover: #222222;
   --panel: #000000;
   --sidebar: #000000;
   --selected: #ffff00;
@@ -117,6 +122,7 @@
   --ink: #ffffff;
   --text: #ffffff;
   --muted: #e8e8e8;
+  --text-muted: var(--muted);
   --faint: #cccccc;
 
   --primary: #00ffff;
@@ -161,6 +167,7 @@
   --ease-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-soft: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-gentle: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
   --font-display: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
   --font-body: 'Avenir Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -216,17 +223,6 @@ select:disabled,
 textarea:disabled {
   cursor: not-allowed;
   opacity: 0.52;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
 }
 
 :focus-visible {

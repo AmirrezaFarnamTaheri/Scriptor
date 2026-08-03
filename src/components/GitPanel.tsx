@@ -47,24 +47,33 @@ export function GitPanel({
   readNoteWorking,
 }: GitPanelProps) {
   const { t } = useI18n()
-  const [message, setMessage] = useState('Update vault notes')
+  const [messageDraft, setMessageDraft] = useState<{ fingerprint: string; value: string } | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [pendingAction, setPendingAction] = useState<PendingGitAction | null>(null)
   const [tab, setTab] = useState<GitTab>('changes')
   const [diffPath, setDiffPath] = useState<string | null>(null)
-  const [diffBefore, setDiffBefore] = useState('')
-  const [diffAfter, setDiffAfter] = useState('')
-  const [diffStatus, setDiffStatus] = useState('')
+  const [diffState, setDiffState] = useState<{
+    path: string
+    before: string
+    after: string
+    error: string | null
+  } | null>(null)
 
   const changedPaths = useMemo(
     () => status?.changed_files.map((file) => file.path) ?? [],
     [status],
   )
 
-  useEffect(() => {
-    if (changedPaths.length === 0) return
-    setMessage(buildAutoCommitMessage(changedPaths))
-  }, [changedPaths.join('|')])
+  const changedFingerprint = changedPaths.join('|')
+  const automaticMessage = changedPaths.length > 0
+    ? buildAutoCommitMessage(changedPaths)
+    : 'Update vault notes'
+  const message = messageDraft?.fingerprint === changedFingerprint
+    ? messageDraft.value
+    : automaticMessage
+  const setMessage = (value: string) => {
+    setMessageDraft({ fingerprint: changedFingerprint, value })
+  }
 
   const effectiveSelection = useMemo(() => {
     if (selected.size > 0) return Array.from(selected)
@@ -77,28 +86,34 @@ export function GitPanel({
   useEffect(() => {
     if (tab !== 'diff' || !previewPath) return
     let cancelled = false
-    void (async () => {
-      setDiffStatus('Loading diff preview…')
-      try {
-        const before = readNoteAtHead ? (await readNoteAtHead(previewPath)) ?? '' : ''
-        const working = readNoteWorking ? await readNoteWorking(previewPath) : null
-        const after =
-          working ??
-          (readNoteAtHead ? (await readNoteAtHead(previewPath)) ?? '' : '')
-        if (cancelled) return
-        setDiffBefore(before)
-        setDiffAfter(after)
-        setDiffStatus('')
-      } catch (error) {
+    const requestedPath = previewPath
+    const readBefore = readNoteAtHead ? readNoteAtHead(requestedPath) : Promise.resolve(null)
+    const readWorking = readNoteWorking ? readNoteWorking(requestedPath) : Promise.resolve(null)
+    void Promise.all([readBefore, readWorking])
+      .then(async ([head, working]) => {
+        const before = head ?? ''
+        const after = working ?? (readNoteAtHead ? (await readNoteAtHead(requestedPath)) ?? '' : '')
+        if (!cancelled) setDiffState({ path: requestedPath, before, after, error: null })
+      })
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setDiffStatus(error instanceof Error ? error.message : 'Could not load diff preview')
+          setDiffState({
+            path: requestedPath,
+            before: '',
+            after: '',
+            error: error instanceof Error ? error.message : 'Could not load diff preview',
+          })
         }
-      }
-    })()
+      })
     return () => {
       cancelled = true
     }
   }, [previewPath, readNoteAtHead, readNoteWorking, tab])
+
+  const activeDiffState = diffState?.path === previewPath ? diffState : null
+  const diffBefore = activeDiffState?.before ?? ''
+  const diffAfter = activeDiffState?.after ?? ''
+  const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? 'Loading diff preview…' : '')
 
   const noteLabel = (path: string) => path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? path
 

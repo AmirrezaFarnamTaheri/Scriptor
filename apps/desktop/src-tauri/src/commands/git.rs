@@ -37,8 +37,13 @@ pub fn git_pull_cmd(
     state: tauri::State<AppState>,
     authorization_token: String,
 ) -> Result<GitPullOutput, String> {
-    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::GitPull, Some("active-vault"))?;
     let session = active_session(&state)?;
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GitPull,
+        Some(&session.descriptor.id),
+    )?;
     git_pull(session.root.root()).map_err(|error| error.to_string())
 }
 
@@ -47,8 +52,13 @@ pub fn git_push_cmd(
     state: tauri::State<AppState>,
     authorization_token: String,
 ) -> Result<GitPushOutput, String> {
-    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::GitPush, Some("active-vault"))?;
     let session = active_session(&state)?;
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GitPush,
+        Some(&session.descriptor.id),
+    )?;
     git_push(session.root.root()).map_err(|error| error.to_string())
 }
 

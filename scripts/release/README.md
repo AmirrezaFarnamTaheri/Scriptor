@@ -20,8 +20,10 @@ Release engineering scripts for Scriptor `0.1.0`.
 | `verify-bundle.mjs` | Cross-platform post-bundle artifact validation. |
 | `write-manifest.ps1` | Writes SHA-256 artifact metadata. |
 | `version.mjs` | Checks or synchronizes the canonical version. |
+| `source-identity.mjs` | Computes archive diagnostics or canonical commit-bound SHA-256 source identity from Git blobs and modes. |
 | `generate-sbom.mjs` | Generates the CycloneDX source/dependency SBOM. |
-| `create-receipt.mjs` | Creates the release evidence receipt. |
+| `create-receipt.mjs` | Creates the exact-subject release receipt and checksums. |
+| `verify-release-evidence.mjs` | Rejects source, SBOM, checksum, path, or subject-set drift before promotion. |
 
 ## Pinned environment
 
@@ -44,6 +46,7 @@ pnpm version:check
 pnpm check:governance
 pnpm check:source
 pnpm check:contracts
+pnpm check:release-evidence-contracts
 powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1 -SkipTauri
 ```
 

@@ -19,9 +19,6 @@ function applyInitialTheme() {
 
 async function mountApp() {
   applyInitialTheme()
-  console.log('--- STARTING SCRIPTOR APP ---')
-  console.log('VITE_E2E_MODE:', import.meta.env.VITE_E2E_MODE)
-  console.log('VITE_SCREENSHOT_MODE:', import.meta.env.VITE_SCREENSHOT_MODE)
   if (import.meta.env.VITE_E2E_MODE === 'true') {
     const { installE2eBridge } = await import('./e2e/bootstrap.ts')
     installE2eBridge()

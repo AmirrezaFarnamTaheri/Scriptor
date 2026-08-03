@@ -8,7 +8,10 @@ interface UseWorkspaceSearchOptions {
   onSearchTiming?: (ms: number) => void
 }
 
-export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
+export function useWorkspaceSearch({
+  onSearchComplete,
+  onSearchTiming,
+}: UseWorkspaceSearchOptions = {}) {
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<SearchHit[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -32,9 +35,9 @@ export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
         if (requestId !== searchRequestId.current) {
           return
         }
-        options?.onSearchTiming?.(Math.round(performance.now() - started))
+        onSearchTiming?.(Math.round(performance.now() - started))
         setSearchResults(hits)
-        options?.onSearchComplete?.(hits)
+        onSearchComplete?.(hits)
       } catch {
         if (requestId === searchRequestId.current) {
           setSearchResults([])
@@ -45,7 +48,7 @@ export function useWorkspaceSearch(options?: UseWorkspaceSearchOptions) {
         }
       }
     },
-    [options],
+    [onSearchComplete, onSearchTiming],
   )
 
   const setVaultSearchQuery = useCallback(

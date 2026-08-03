@@ -1,4 +1,3 @@
-// PROCESS_BROKER_EXCEPTION: desktop daemon startup requires a persistent managed child; executable resolution and shutdown are constrained in this module.
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
@@ -109,6 +108,7 @@ pub fn daemon_start(
 
     let binary = resolve_daemon_binary(&app);
     let binary_display = binary.display().to_string();
+    // PROCESS_BROKER_EXCEPTION(desktop-daemon-start)
     Command::new(&binary)
         .arg("serve")
         .spawn()

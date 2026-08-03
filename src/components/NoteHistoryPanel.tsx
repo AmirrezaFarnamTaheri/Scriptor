@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Clock, RotateCcw } from 'lucide-react'
 
 import {
@@ -22,41 +22,72 @@ interface NoteHistoryPanelProps {
   onRestored?: () => void
 }
 
+interface RevisionState {
+  path: string
+  rows: NoteHistoryRevision[]
+}
+
+interface PreviewState {
+  path: string
+  revisionId: string
+  markdown: string
+}
+
 export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
-  const [revisions, setRevisions] = useState<NoteHistoryRevision[]>([])
+  const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [preview, setPreview] = useState('')
+  const [previewState, setPreviewState] = useState<PreviewState | null>(null)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const refresh = useCallback(async () => {
-    if (!path) {
-      setRevisions([])
-      return
-    }
-    setStatus('')
-    try {
-      const rows = await vaultListNoteHistory(path)
-      setRevisions(rows)
-      setSelectedId(rows[0]?.id ?? null)
-    } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not load note history')
+  useEffect(() => {
+    if (!path) return
+    let cancelled = false
+    const requestedPath = path
+    void vaultListNoteHistory(requestedPath)
+      .then((rows) => {
+        if (cancelled) return
+        setRevisionState({ path: requestedPath, rows })
+        setSelectedId(rows[0]?.id ?? null)
+        setStatus('')
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRevisionState({ path: requestedPath, rows: [] })
+          setStatus(error instanceof Error ? error.message : 'Could not load note history')
+        }
+      })
+    return () => {
+      cancelled = true
     }
   }, [path])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
-
-  useEffect(() => {
-    if (!path || !selectedId) {
-      setPreview('')
-      return
+    if (!path || !selectedId) return
+    let cancelled = false
+    const requestedPath = path
+    const requestedRevision = selectedId
+    void vaultReadNoteHistoryRevision(requestedPath, requestedRevision)
+      .then((markdown) => {
+        if (!cancelled) {
+          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown: '' })
+        }
+      })
+    return () => {
+      cancelled = true
     }
-    void vaultReadNoteHistoryRevision(path, selectedId)
-      .then(setPreview)
-      .catch(() => setPreview(''))
   }, [path, selectedId])
+
+  const revisions = revisionState?.path === path ? revisionState.rows : []
+  const preview =
+    previewState?.path === path && previewState.revisionId === selectedId
+      ? previewState.markdown
+      : ''
 
   const restore = async () => {
     if (!path || !selectedId) return

@@ -26,7 +26,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  MarkdownEditor,
   type EditorAutocompleteContext,
   type EditorTransformAction,
   type EditorThemeId,
@@ -57,6 +56,12 @@ import type { ExternalChangeConflict } from '../../types/vault'
 const LazyMonacoMarkdownEditor = lazy(() =>
   import('../editor/LazyMonacoMarkdownEditor').then((module) => ({
     default: module.LazyMonacoMarkdownEditor,
+  })),
+)
+
+const LazyCodeMirrorMarkdownEditor = lazy(() =>
+  import('../editor/LazyCodeMirrorMarkdownEditor').then((module) => ({
+    default: module.LazyCodeMirrorMarkdownEditor,
   })),
 )
 
@@ -539,15 +544,15 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 />
               }
             >
-            {editorMode === 'monaco' ? (
-              <Suspense
-                fallback={
-                  <div className="editor-loading-state" role="status" aria-live="polite">
-                    <span className="editor-loading-shimmer" aria-hidden="true" />
-                    <span>Loading advanced editor…</span>
-                  </div>
-                }
-              >
+            <Suspense
+              fallback={
+                <div className="editor-loading-state" role="status" aria-live="polite">
+                  <span className="editor-loading-shimmer" aria-hidden="true" />
+                  <span>Loading editor…</span>
+                </div>
+              }
+            >
+              {editorMode === 'monaco' ? (
                 <LazyMonacoMarkdownEditor
                   key={activePath}
                   notePath={activePath}
@@ -563,9 +568,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                   completionContext={monacoCompletionContext}
                   className="markdown-editor monaco-editor-host"
                 />
-              </Suspense>
-            ) : (
-              <MarkdownEditor
+              ) : (
+              <LazyCodeMirrorMarkdownEditor
                 ref={editorRef}
                 key={activePath}
                 value={draftMarkdown}
@@ -590,8 +594,9 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 saveImageFromClipboard={saveImageFromClipboard}
                 showLineNumbers={showLineNumbers}
                 className="markdown-editor"
-              />
-            )}
+                />
+              )}
+            </Suspense>
             </ErrorBoundary>
           ) : (
             <div className="editor-empty" role="status">

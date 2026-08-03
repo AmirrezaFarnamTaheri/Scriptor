@@ -90,4 +90,4 @@ SQLite uses WAL, foreign keys, busy timeouts, transactional migrations, FTS, and
 
 ## Known architecture work
 
-The adapter layer still has large coordination files. The target is thin desktop/daemon/CLI/MCP adapters over typed application services. Decomposition must proceed by characterized vertical workflows, not a big-bang rewrite. See the capability ledger and change plan in `docs/CAPABILITY-MATURITY.md`.
+The adapter layer retains a large composition root, but deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tests, daemon command support, daemon transport tests, and CLI benchmarks now have focused owners. A source ratchet bounds the six identified hotspots. Further decomposition must proceed by characterized vertical workflows over typed application services, not a big-bang rewrite. See the capability ledger and `docs/REMEDIATION-2026-08-03.md`.

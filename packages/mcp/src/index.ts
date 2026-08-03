@@ -1,3 +1,4 @@
+export { runRuntimeReadOnlyTests } from './runtime-tests.ts'
 export { AuditLog, runAuditTests } from './audit.ts'
 export { approveDraftPatch, createDraftPatch, rejectDraftPatch, runDraftTests } from './draft.ts'
 export type { DraftPatch, DraftPatchStatus } from './draft.ts'
@@ -7,7 +8,6 @@ export {
   McpRuntime,
   READ_ONLY_TOOLS,
   WRITE_TOOLS,
-  runRuntimeReadOnlyTests,
 } from './runtime.ts'
 export type { HealthIssueLike, McpBacklinksInput, McpProposePatchInput, McpReadNoteInput, McpSearchInput, McpVaultContext } from './runtime.ts'
 export {

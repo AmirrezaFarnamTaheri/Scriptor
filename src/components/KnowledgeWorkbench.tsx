@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BookOpen, Network } from 'lucide-react'
 
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -50,10 +50,6 @@ export function KnowledgeWorkbench({
 }: KnowledgeWorkbenchProps) {
   const { t } = useI18n()
   const [tab, setTab] = useState<KnowledgeWorkbenchTab>(initialTab)
-
-  useEffect(() => {
-    setTab(initialTab)
-  }, [initialTab])
 
   const handleOpenNote = (path: string) => {
     onOpenNote(path)

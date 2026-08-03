@@ -24,27 +24,17 @@ const STEPS = [
 ] as const
 
 interface OnboardingTourProps {
-  open: boolean
   onComplete: () => void
   onOpenCheatsheet?: () => void
 }
 
-export function OnboardingTour({ open, onComplete, onOpenCheatsheet }: OnboardingTourProps) {
+export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) {
-      setStepIndex(0)
-    }
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
     dialogRef.current?.focus()
-  }, [open, stepIndex])
-
-  if (!open) return null
+  }, [stepIndex])
 
   const step = STEPS[stepIndex]
   const isLast = stepIndex >= STEPS.length - 1

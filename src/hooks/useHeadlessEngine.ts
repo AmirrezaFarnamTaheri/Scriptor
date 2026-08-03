@@ -61,19 +61,45 @@ export function useHeadlessEngine({ vaultRootPath, settingsOpen }: UseHeadlessEn
   }, [headlessEngine, nativeReady, refreshDaemonStatus, vaultRootPath])
 
   useEffect(() => {
-    if (!nativeReady || !headlessEngine || !vaultRootPath) {
-      return
+    if (!nativeReady || !headlessEngine || !vaultRootPath) return
+    let cancelled = false
+    void ensureDaemonReady()
+      .then(() => daemonOpenVault(vaultRootPath))
+      .then(() => daemonPing())
+      .then((ping) => {
+        if (!cancelled) {
+          setDaemonVersion(ping.version)
+          setDaemonError(null)
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setDaemonError(error instanceof Error ? error.message : String(error))
+      })
+    return () => {
+      cancelled = true
     }
-    void syncDaemonVault().catch((error) => {
-      setDaemonError(error instanceof Error ? error.message : String(error))
-    })
-  }, [headlessEngine, nativeReady, syncDaemonVault, vaultRootPath])
+  }, [headlessEngine, nativeReady, vaultRootPath])
 
   useEffect(() => {
-    if (settingsOpen && nativeReady && headlessEngine) {
-      void refreshDaemonStatus()
+    if (!settingsOpen || !nativeReady || !headlessEngine) return
+    let cancelled = false
+    void daemonPing()
+      .then((ping) => {
+        if (!cancelled) {
+          setDaemonVersion(ping.version)
+          setDaemonError(null)
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setDaemonVersion(null)
+          setDaemonError(error instanceof Error ? error.message : String(error))
+        }
+      })
+    return () => {
+      cancelled = true
     }
-  }, [headlessEngine, nativeReady, refreshDaemonStatus, settingsOpen])
+  }, [headlessEngine, nativeReady, settingsOpen])
 
   return {
     headlessEngine,

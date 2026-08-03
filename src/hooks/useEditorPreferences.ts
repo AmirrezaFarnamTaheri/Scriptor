@@ -27,8 +27,17 @@ function defaultEditorTheme(appTheme: AppTheme): EditorThemeId {
   return appTheme === 'light' ? 'light' : 'dark'
 }
 
-export function useEditorPreferences(appTheme: AppTheme) {
-  const [splitPreview, setSplitPreview] = usePersistedBoolean('scriptor:split-preview', false)
+interface InitialEditorLayout {
+  splitPreview: boolean
+  distractionFree: boolean
+}
+
+export function useEditorPreferences(appTheme: AppTheme, initialLayout?: InitialEditorLayout) {
+  const [splitPreview, setSplitPreview] = usePersistedBoolean(
+    'scriptor:split-preview',
+    false,
+    initialLayout?.splitPreview,
+  )
   const [vimMode, setVimMode] = usePersistedBoolean('scriptor:vim-mode', false)
   const [spellcheck, setSpellcheck] = usePersistedBoolean('scriptor:spellcheck', false)
   const [spellcheckLocale, setSpellcheckLocale] = usePersistedString('scriptor:spellcheck-locale', 'en-US')
@@ -38,7 +47,11 @@ export function useEditorPreferences(appTheme: AppTheme) {
   )
   const [wysiwyg, setWysiwyg] = usePersistedBoolean('scriptor:wysiwyg', false)
   const [typewriter, setTypewriter] = usePersistedBoolean('scriptor:typewriter', false)
-  const [distractionFree, setDistractionFree] = usePersistedBoolean('scriptor:distraction-free', false)
+  const [distractionFree, setDistractionFree] = usePersistedBoolean(
+    'scriptor:distraction-free',
+    false,
+    initialLayout?.distractionFree,
+  )
   const [languageTool, setLanguageTool] = usePersistedBoolean('scriptor:language-tool', false)
 
   const [hibernateGraph, setHibernateGraph] = usePersistedBoolean('scriptor:hibernate-graph', false)

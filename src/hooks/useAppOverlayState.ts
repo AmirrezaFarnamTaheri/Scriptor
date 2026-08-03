@@ -8,7 +8,7 @@ interface RenameTarget {
   label: string
 }
 
-export function useAppOverlayState() {
+export function useAppOverlayState(initialStickiesVisible = true) {
   const [activeMode, setActiveMode] = useState<'inspector' | 'preview' | 'plugins'>('inspector')
   const [graphOpen, setGraphOpen] = useState(false)
   const [canvasOpen, setCanvasOpen] = useState(false)
@@ -31,7 +31,7 @@ export function useAppOverlayState() {
   const [portalOpen, setPortalOpen] = useState(false)
   const [noteHistoryOpen, setNoteHistoryOpen] = useState(false)
   const [quickCaptureOpen, setQuickCaptureOpen] = useState(false)
-  const [stickiesVisible, setStickiesVisible] = useState(true)
+  const [stickiesVisible, setStickiesVisible] = useState(initialStickiesVisible)
   const [bibliographyOpen, setBibliographyOpen] = useState(false)
   const [tocOpen, setTocOpen] = useState(false)
   const [writingTargetsOpen, setWritingTargetsOpen] = useState(false)

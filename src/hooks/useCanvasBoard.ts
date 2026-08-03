@@ -192,7 +192,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     [refreshBoardList, vaultOpen],
   )
 
-  persistRef.current = persist
+  useEffect(() => {
+    persistRef.current = persist
+  }, [persist])
 
   const commitDocument = useCallback((next: CanvasDocument) => {
     const history = historyRef.current

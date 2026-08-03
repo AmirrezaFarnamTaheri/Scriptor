@@ -500,13 +500,13 @@ pub fn vault_lint_fix(
     state: tauri::State<AppState>,
     authorization_token: String,
 ) -> Result<LintApplyOutput, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::ApplyBulkFix,
-        Some("active-vault"),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let rules = vec![
         RULE_MISSING_HEADING.to_string(),
         RULE_STALE_DEFINITIONS.to_string(),

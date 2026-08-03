@@ -14,6 +14,17 @@ if ([string]::IsNullOrWhiteSpace($LogDirectory)) {
 $LogDirectory = [System.IO.Path]::GetFullPath((Join-Path (Get-Location).Path $LogDirectory))
 New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
 
+$sourceIdentityPath = Join-Path $LogDirectory "source-identity.json"
+$sourceIdentityArgs = @("scripts/release/source-identity.mjs", "--output", $sourceIdentityPath)
+if ($env:GITHUB_SHA) {
+    $sourceIdentityArgs += @("--require-git", "--expected-commit", $env:GITHUB_SHA)
+} else {
+    $sourceIdentityArgs += "--allow-archive"
+}
+& node @sourceIdentityArgs
+if ($LASTEXITCODE -ne 0) { throw "Failed to capture source identity." }
+$sourceIdentity = Get-Content -LiteralPath $sourceIdentityPath -Raw | ConvertFrom-Json
+
 $files = @()
 foreach ($item in @(Get-ChildItem -LiteralPath $LogDirectory -File -Recurse -ErrorAction SilentlyContinue | Sort-Object FullName)) {
     $relative = [System.IO.Path]::GetRelativePath($LogDirectory, $item.FullName).Replace('\', '/')
@@ -26,7 +37,7 @@ foreach ($item in @(Get-ChildItem -LiteralPath $LogDirectory -File -Recurse -Err
 }
 
 $manifest = [ordered]@{
-    schema_version = 1
+    schema_version = 2
     scope = $Scope
     status = $Status
     captured_utc = [DateTimeOffset]::UtcNow.ToString('o')
@@ -39,6 +50,12 @@ $manifest = [ordered]@{
     event = $env:GITHUB_EVENT_NAME
     ref = $env:GITHUB_REF
     sha = $env:GITHUB_SHA
+    source_mode = $sourceIdentity.sourceMode
+    source_commit = $sourceIdentity.sourceCommit
+    source_tree_sha256 = $sourceIdentity.sourceTreeSha256
+    source_dirty = $sourceIdentity.sourceDirty
+    source_file_count = $sourceIdentity.sourceFileCount
+    source_bytes = $sourceIdentity.sourceBytes
     runner_os = $env:RUNNER_OS
     runner_arch = $env:RUNNER_ARCH
     file_count = $files.Count

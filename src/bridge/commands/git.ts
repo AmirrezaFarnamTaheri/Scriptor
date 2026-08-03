@@ -14,15 +14,15 @@ export async function gitCommit(files: string[], message: string): Promise<GitCo
   return invoke<GitCommitOutput>('git_commit_cmd', { files, message })
 }
 
-export async function gitPull(): Promise<GitPullOutput> {
+export async function gitPull(vaultId: string): Promise<GitPullOutput> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('git_pull', 'active-vault')
+  const authorizationToken = await authorizeSensitiveOperation('git_pull', vaultId)
   return invoke<GitPullOutput>('git_pull_cmd', { authorizationToken })
 }
 
-export async function gitPush(): Promise<GitPushOutput> {
+export async function gitPush(vaultId: string): Promise<GitPushOutput> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('git_push', 'active-vault')
+  const authorizationToken = await authorizeSensitiveOperation('git_push', vaultId)
   return invoke<GitPushOutput>('git_push_cmd', { authorizationToken })
 }
 

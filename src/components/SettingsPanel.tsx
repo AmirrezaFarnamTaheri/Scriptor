@@ -18,19 +18,15 @@ import {
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
 import { EDITOR_FONT_FAMILIES } from '../brand/support'
 import type { PandocDiscovery, VaultConfig } from '../types/vault'
+import type { SystemInfoSnapshot } from '../types/system'
+import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
+import { VaultConfigSettingsSection } from './VaultConfigSettingsSection'
 import { AiProviderSettings } from './AiProviderSettings'
 import { DaemonOpsPanel } from './DaemonOpsPanel'
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { VaultBackupSettings } from './VaultBackupSettings'
 import { SUPPORTED_LOCALES } from '@scriptor/editor'
-
-export interface SystemInfoSnapshot {
-  os: string
-  arch: string
-  family: string
-  locale?: string
-}
 
 interface SettingsPanelProps {
   vaultOpen: boolean
@@ -90,27 +86,6 @@ interface SettingsPanelProps {
   onLanguageToolEndpointChange?: (endpoint: string) => void
 }
 
-const DEFAULT_CONFIG: VaultConfig = {
-  daily_note: {
-    directory: 'daily',
-    filename_format: '{iso}',
-    title_format: '{iso}',
-    template_path: null,
-  },
-  templates_directory: '.scriptor/templates',
-  inbox: { enabled: true, period: 'all', new_note_directory: null },
-  workflow: { auto_advance_inbox_after_organize: false },
-  note_types: { directory: 'type' },
-  export: {
-    bibliography_path: 'references.bib',
-    csl_style_path: 'apa-lite.csl',
-    export_on_save: { enabled: false, profile_id: null },
-  },
-  writing_targets: { daily_words: 500, history_path: '.scriptor/stats-history.json' },
-  graph_groups: [],
-  extra_roots: [],
-}
-
 export function SettingsPanel({
   vaultOpen,
   systemInfo,
@@ -158,7 +133,7 @@ export function SettingsPanel({
   onLanguageToolEndpointChange,
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales } = useI18n()
-  const [config, setConfig] = useState<VaultConfig>(DEFAULT_CONFIG)
+  const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [status, setStatus] = useState('')
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
   const [pandocError, setPandocError] = useState<string | null>(null)
@@ -166,9 +141,10 @@ export function SettingsPanel({
 
   const refreshPandoc = useCallback(async () => {
     if (!nativeReady) return
-    setPandocError(null)
     try {
-      setPandoc(await exportDiscover())
+      const discovered = await exportDiscover()
+      setPandoc(discovered)
+      setPandocError(null)
     } catch (error) {
       setPandoc(null)
       setPandocError(error instanceof Error ? error.message : 'Pandoc not found')
@@ -185,24 +161,39 @@ export function SettingsPanel({
     void vaultLoadConfig()
       .then((loaded) =>
         setConfig({
-          ...DEFAULT_CONFIG,
+          ...DEFAULT_VAULT_CONFIG,
           ...loaded,
-          daily_note: { ...DEFAULT_CONFIG.daily_note, ...loaded.daily_note },
-          export: { ...DEFAULT_CONFIG.export, ...loaded.export },
+          daily_note: { ...DEFAULT_VAULT_CONFIG.daily_note, ...loaded.daily_note },
+          export: { ...DEFAULT_VAULT_CONFIG.export, ...loaded.export },
           writing_targets: {
-            daily_words: loaded.writing_targets?.daily_words ?? DEFAULT_CONFIG.writing_targets!.daily_words,
-            history_path: loaded.writing_targets?.history_path ?? DEFAULT_CONFIG.writing_targets!.history_path,
+            daily_words: loaded.writing_targets?.daily_words ?? DEFAULT_VAULT_CONFIG.writing_targets!.daily_words,
+            history_path: loaded.writing_targets?.history_path ?? DEFAULT_VAULT_CONFIG.writing_targets!.history_path,
           },
-          graph_groups: loaded.graph_groups ?? DEFAULT_CONFIG.graph_groups,
-          extra_roots: loaded.extra_roots ?? DEFAULT_CONFIG.extra_roots,
+          graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
+          extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
         }),
       )
-      .catch(() => setConfig(DEFAULT_CONFIG))
+      .catch(() => setConfig(DEFAULT_VAULT_CONFIG))
   }, [nativeReady, vaultOpen])
 
   useEffect(() => {
-    if (nativeReady) void refreshPandoc()
-  }, [nativeReady, refreshPandoc])
+    if (!nativeReady) return
+    let cancelled = false
+    void exportDiscover()
+      .then((discovered) => {
+        if (cancelled) return
+        setPandoc(discovered)
+        setPandocError(null)
+      })
+      .catch((error) => {
+        if (cancelled) return
+        setPandoc(null)
+        setPandocError(error instanceof Error ? error.message : 'Pandoc not found')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [nativeReady])
 
   const saveConfig = async () => {
     if (!nativeReady) return
@@ -300,309 +291,15 @@ export function SettingsPanel({
           ) : null}
         </div>
 
-        {vaultOpen && nativeReady && (
-          <div className="settings-section">
-            <h3>Vault config</h3>
-            <p className="health-subtitle">Stored in `.scriptor/config.json` (Foam-compatible daily note paths).</p>
-            <label className="settings-field">
-              Daily note directory
-              <input
-                value={config.daily_note.directory}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    daily_note: { ...current.daily_note, directory: event.target.value },
-                  }))
-                }
-              />
-            </label>
-            <label className="settings-field">
-              Filename format
-              <input
-                value={config.daily_note.filename_format}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    daily_note: { ...current.daily_note, filename_format: event.target.value },
-                  }))
-                }
-              />
-            </label>
-            <label className="settings-field">
-              Title format
-              <input
-                value={config.daily_note.title_format}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    daily_note: { ...current.daily_note, title_format: event.target.value },
-                  }))
-                }
-              />
-            </label>
-            <p className="settings-preview" role="status">
-              Today&apos;s daily note: <code>{dailyNotePreview.path}</code> — title <code>{dailyNotePreview.title}</code>
-            </p>
-            <label className="settings-field">
-              Daily template path (optional)
-              <input
-                value={config.daily_note.template_path ?? ''}
-                placeholder=".scriptor/templates/daily.md"
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    daily_note: {
-                      ...current.daily_note,
-                      template_path: event.target.value.trim() || null,
-                    },
-                  }))
-                }
-              />
-            </label>
-            <label className="settings-field">
-              Templates directory
-              <input
-                value={config.templates_directory}
-                onChange={(event) =>
-                  setConfig((current) => ({ ...current, templates_directory: event.target.value }))
-                }
-              />
-            </label>
-            <h4 className="settings-subheading">Inbox workflow</h4>
-            <label className="settings-checkbox">
-              <input
-                type="checkbox"
-                checked={config.inbox?.enabled !== false}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    inbox: { ...DEFAULT_CONFIG.inbox!, ...current.inbox, enabled: event.target.checked },
-                  }))
-                }
-              />
-              Enable inbox triage (`_organized` frontmatter)
-            </label>
-            <label className="settings-field">
-              Inbox period
-              <select
-                value={config.inbox?.period ?? 'all'}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    inbox: {
-                      ...DEFAULT_CONFIG.inbox!,
-                      ...current.inbox,
-                      period: event.target.value as 'week' | 'month' | 'quarter' | 'all',
-                    },
-                  }))
-                }
-              >
-                <option value="all">All time</option>
-                <option value="week">Past week</option>
-                <option value="month">Past month</option>
-                <option value="quarter">Past quarter</option>
-              </select>
-            </label>
-            <label className="settings-field">
-              New note directory (optional)
-              <input
-                value={config.inbox?.new_note_directory ?? ''}
-                placeholder="inbox"
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    inbox: {
-                      ...DEFAULT_CONFIG.inbox!,
-                      ...current.inbox,
-                      new_note_directory: event.target.value.trim() || null,
-                    },
-                  }))
-                }
-              />
-            </label>
-            <label className="settings-checkbox">
-              <input
-                type="checkbox"
-                checked={config.workflow?.auto_advance_inbox_after_organize === true}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    workflow: {
-                      ...DEFAULT_CONFIG.workflow!,
-                      ...current.workflow,
-                      auto_advance_inbox_after_organize: event.target.checked,
-                    },
-                  }))
-                }
-              />
-              Auto-advance to next inbox note after organize
-            </label>
-            <label className="settings-field">
-              Note types directory
-              <input
-                value={config.note_types?.directory ?? 'type'}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    note_types: { directory: event.target.value },
-                  }))
-                }
-              />
-            </label>
-            <h4 className="settings-subheading">Export defaults</h4>
-            <p className="health-subtitle">Bibliography and CSL paths used by HTML, PDF, and DOCX profiles.</p>
-            <label className="settings-field">
-              Bibliography path
-              <input
-                value={config.export.bibliography_path}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    export: { ...current.export, bibliography_path: event.target.value },
-                  }))
-                }
-              />
-            </label>
-            <label className="settings-field">
-              CSL style path
-              <input
-                value={config.export.csl_style_path}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    export: { ...current.export, csl_style_path: event.target.value },
-                  }))
-                }
-              />
-            </label>
-            <label className="diagnostics-opt-in">
-              <input
-                type="checkbox"
-                checked={config.export.export_on_save?.enabled ?? false}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    export: {
-                      ...current.export,
-                      export_on_save: {
-                        enabled: event.target.checked,
-                        profile_id: current.export.export_on_save?.profile_id ?? 'html',
-                      },
-                    },
-                  }))
-                }
-              />
-              <span>Export on save (uses profile below)</span>
-            </label>
-            <label className="settings-field">
-              Export-on-save profile id
-              <input
-                value={config.export.export_on_save?.profile_id ?? ''}
-                placeholder="html"
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    export: {
-                      ...current.export,
-                      export_on_save: {
-                        enabled: current.export.export_on_save?.enabled ?? false,
-                        profile_id: event.target.value.trim() || null,
-                      },
-                    },
-                  }))
-                }
-              />
-            </label>
-            <h4 className="settings-subheading">Writing targets</h4>
-            <label className="settings-field">
-              Daily word target
-              <input
-                type="number"
-                min={0}
-                step={50}
-                value={config.writing_targets?.daily_words ?? 500}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    writing_targets: {
-                      ...current.writing_targets,
-                      daily_words: Number(event.target.value),
-                      history_path: current.writing_targets?.history_path ?? '.scriptor/stats-history.json',
-                    },
-                  }))
-                }
-              />
-            </label>
-            <label className="settings-field">
-              Stats history path
-              <input
-                value={config.writing_targets?.history_path ?? '.scriptor/stats-history.json'}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    writing_targets: {
-                      daily_words: current.writing_targets?.daily_words ?? 500,
-                      history_path: event.target.value.trim() || null,
-                    },
-                  }))
-                }
-              />
-            </label>
-            <h4 className="settings-subheading">Graph groups</h4>
-            <p className="health-subtitle">Tag prefix → node color (one rule per line: prefix,color).</p>
-            <textarea
-              className="settings-textarea"
-              rows={4}
-              value={(config.graph_groups ?? []).map((group) => `${group.tag_prefix},${group.color}`).join('\n')}
-              onChange={(event) => {
-                const graph_groups = event.target.value
-                  .split('\n')
-                  .map((line) => line.trim())
-                  .filter(Boolean)
-                  .map((line) => {
-                    const [tag_prefix, color] = line.split(',').map((part) => part.trim())
-                    return { tag_prefix: tag_prefix ?? '', color: color ?? '#888888' }
-                  })
-                  .filter((group) => group.tag_prefix.length > 0)
-                setConfig((current) => ({ ...current, graph_groups }))
-              }}
-            />
-            <h4 className="settings-subheading">Canvas collaboration</h4>
-            <label className="diagnostics-opt-in">
-              <input
-                type="checkbox"
-                checked={config.canvas?.crdt_enabled ?? false}
-                onChange={(event) =>
-                  setConfig((current) => ({
-                    ...current,
-                    canvas: { crdt_enabled: event.target.checked },
-                  }))
-                }
-              />
-              <span>Enable CRDT canvas sync (localStorage op log with cross-tab merge)</span>
-            </label>
-            <h4 className="settings-subheading">Extra scan roots</h4>
-            <p className="health-subtitle">Additional folders under the vault root to include in scans (one per line).</p>
-            <textarea
-              className="settings-textarea"
-              rows={3}
-              value={(config.extra_roots ?? []).join('\n')}
-              onChange={(event) =>
-                setConfig((current) => ({
-                  ...current,
-                  extra_roots: event.target.value
-                    .split('\n')
-                    .map((line) => line.trim())
-                    .filter(Boolean),
-                }))
-              }
-            />
-            <button type="button" className="primary-button" onClick={() => void saveConfig()}>
-              Save vault config
-            </button>
-            {status && <p className="settings-status">{status}</p>}
-          </div>
-        )}
+        {vaultOpen && nativeReady ? (
+          <VaultConfigSettingsSection
+            config={config}
+            setConfig={setConfig}
+            dailyNotePreview={dailyNotePreview}
+            status={status}
+            onSave={saveConfig}
+          />
+        ) : null}
 
         {vaultOpen && nativeReady && <VaultBackupSettings backup={backup} />}
 

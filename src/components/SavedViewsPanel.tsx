@@ -171,8 +171,22 @@ export function SavedViewsPanel({
 
   useEffect(() => {
     if (!canQuery) return
-    void runQuery()
-  }, [canQuery, runQuery])
+    let cancelled = false
+    void vaultListViewNotes(filterJson)
+      .then((hits) => {
+        if (cancelled) return
+        setResults(hits)
+        setStatus(`${hits.length} note${hits.length === 1 ? '' : 's'} match this view`)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setResults([])
+        setStatus(error instanceof Error ? error.message : 'View query failed')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [canQuery, filterJson])
 
   const applyPreset = (preset: SavedViewPreset) => {
     setTitleContains(preset.titleContains)

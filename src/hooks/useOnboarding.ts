@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 
 const STORAGE_KEY = 'scriptor:onboarding-complete'
 
@@ -8,14 +8,12 @@ function readComplete(): boolean {
 }
 
 export function useOnboarding() {
-  const [complete, setComplete] = useState(() => readComplete())
-  const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    if (!complete) {
-      setOpen(true)
-    }
-  }, [complete])
+  const [initialState] = useState(() => {
+    const complete = readComplete()
+    return { complete, open: !complete }
+  })
+  const [complete, setComplete] = useState(initialState.complete)
+  const [open, setOpen] = useState(initialState.open)
 
   const markComplete = useCallback(() => {
     window.localStorage.setItem(STORAGE_KEY, 'true')

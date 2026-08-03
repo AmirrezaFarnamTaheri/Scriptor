@@ -20,6 +20,24 @@ for (const directory of ['crates', 'apps']) walk(path.join(root, directory))
 
 const failures = []
 const relative = (file) => path.relative(root, file).replaceAll(path.sep, '/')
+const processInventoryPath = path.join(root, 'scripts/validation/process-launch-inventory.json')
+const processInventory = JSON.parse(fs.readFileSync(processInventoryPath, 'utf8'))
+if (processInventory.schemaVersion !== 1 || !Array.isArray(processInventory.entries)) {
+  throw new Error('process-launch-inventory.json must use schemaVersion 1 with an entries array')
+}
+const processEntries = new Map()
+for (const entry of processInventory.entries) {
+  if (!entry || typeof entry.id !== 'string' || !/^[a-z0-9-]+$/.test(entry.id)) {
+    failures.push(`invalid process launch inventory id: ${entry?.id ?? '<missing>'}`)
+    continue
+  }
+  if (processEntries.has(entry.id)) {
+    failures.push(`duplicate process launch inventory entry: ${entry.id}`)
+    continue
+  }
+  processEntries.set(entry.id, entry)
+}
+const usedProcessEntries = new Set()
 
 function stripRustLiteralsAndComments(source) {
   let output = ''
@@ -177,9 +195,45 @@ function checkProcessBoundary(file, source) {
   const fileName = relative(file)
   const launches = [...source.matchAll(/(?:std::process::|tokio::process::)?Command::new\s*\(/g)]
   if (launches.length === 0 || processBrokerAllowlist.some((pattern) => pattern.test(fileName))) return
-  if (!source.includes('PROCESS_BROKER_EXCEPTION:')) {
-    const line = source.slice(0, launches[0].index).split('\n').length
-    failures.push(`${fileName}:${line}: direct process launch bypasses system-bridge; migrate it or document PROCESS_BROKER_EXCEPTION`)
+  if (source.includes('PROCESS_BROKER_EXCEPTION:')) {
+    failures.push(`${fileName}: blanket PROCESS_BROKER_EXCEPTION markers are forbidden`)
+  }
+  const lines = source.split('\n')
+  for (const launch of launches) {
+    const line = source.slice(0, launch.index).split('\n').length
+    const context = lines.slice(Math.max(0, line - 4), line).join('\n')
+    const marker = context.match(/PROCESS_BROKER_EXCEPTION\(([a-z0-9-]+)\)/)
+    if (!marker) {
+      failures.push(`${fileName}:${line}: direct process launch lacks a per-launch PROCESS_BROKER_EXCEPTION(id) marker`)
+      continue
+    }
+    const id = marker[1]
+    const entry = processEntries.get(id)
+    if (!entry) {
+      failures.push(`${fileName}:${line}: process exception ${id} is missing from process-launch-inventory.json`)
+      continue
+    }
+    if (entry.file !== fileName) {
+      failures.push(`${fileName}:${line}: process exception ${id} belongs to ${entry.file}`)
+      continue
+    }
+    for (const field of ['owner', 'executableSource', 'argumentPolicy', 'timeoutCancellation', 'outputBounds', 'reviewExpires']) {
+      if (typeof entry[field] !== 'string' || entry[field].trim() === '') {
+        failures.push(`${fileName}:${line}: process exception ${id} is missing ${field}`)
+      }
+    }
+    if (entry.reviewExpires !== 'test-only') {
+      const expires = /^\d{4}-\d{2}-\d{2}$/.test(entry.reviewExpires ?? '')
+        ? Date.parse(`${entry.reviewExpires}T23:59:59Z`)
+        : Number.NaN
+      if (!Number.isFinite(expires)) failures.push(`${fileName}:${line}: process exception ${id} has invalid reviewExpires`)
+      else if (expires < Date.now()) failures.push(`${fileName}:${line}: process exception ${id} review expired on ${entry.reviewExpires}`)
+    }
+    if (!Array.isArray(entry.negativeTests) || entry.negativeTests.length === 0 || entry.negativeTests.some((value) => typeof value !== 'string' || value.trim() === '')) {
+      failures.push(`${fileName}:${line}: process exception ${id} has no valid negativeTests`)
+    }
+    if (usedProcessEntries.has(id)) failures.push(`${fileName}:${line}: process exception ${id} is reused`)
+    usedProcessEntries.add(id)
   }
 }
 
@@ -202,6 +256,10 @@ for (const file of rustFiles) {
   checkModules(file, source)
   checkProcessBoundary(file, source)
   checkUnsafeDocumentation(file, source)
+}
+
+for (const id of processEntries.keys()) {
+  if (!usedProcessEntries.has(id)) failures.push(`unused process launch inventory entry: ${id}`)
 }
 
 if (failures.length) {

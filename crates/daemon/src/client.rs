@@ -6,8 +6,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
-use interprocess::local_socket::{ConnectOptions, GenericFilePath, GenericNamespaced};
-use interprocess::ConnectWaitMode;
+use interprocess::local_socket::{GenericFilePath, GenericNamespaced};
 use scriptor_ipc::{
     fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcEvent,
     RpcEventPayload, RpcMethod, RpcRequest, RpcResponse, ServerMessage,
@@ -146,11 +145,7 @@ fn connect_client_with_timeout(
     let retry_budget = Duration::from_millis(500).min(timeout);
     let start = Instant::now();
     let stream = loop {
-        match ConnectOptions::new()
-            .name(name.clone())
-            .wait_mode(ConnectWaitMode::Timeout(timeout))
-            .connect_sync()
-        {
+        match LocalSocketStream::connect(name.clone()) {
             Ok(s) => break s,
             Err(e) if e.kind() == io::ErrorKind::NotFound || e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::ConnectionRefused => {
                 if start.elapsed() >= retry_budget {

@@ -32,7 +32,6 @@ export function useAiProvider() {
   const [hasApiKey, setHasApiKey] = useState(false)
   const [busy, setBusy] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
-  const [httpWarning, setHttpWarning] = useState<string | null>(null)
   const abortControllersRef = useRef<Set<AbortController>>(new Set())
 
   useEffect(() => {
@@ -72,9 +71,24 @@ export function useAiProvider() {
   }, [])
 
   useEffect(() => {
-    void refreshKeyState()
-    setHttpWarning(checkHttps(endpoint))
-  }, [refreshKeyState, checkHttps, endpoint])
+    if (!isNativeBridgeAvailable()) return
+    let cancelled = false
+    void aiProviderHasApiKey()
+      .then((available) => {
+        if (!cancelled) setHasApiKey(available)
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setHasApiKey(false)
+          setLastError(error instanceof Error ? error.message : String(error))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const httpWarning = useMemo(() => checkHttps(endpoint), [checkHttps, endpoint])
 
   const setProvider = useCallback((next: AiProviderId) => {
     setProviderState(next)
@@ -84,8 +98,7 @@ export function useAiProvider() {
   const setEndpoint = useCallback((next: string) => {
     setEndpointState(next)
     window.localStorage.setItem(ENDPOINT_KEY, next)
-    setHttpWarning(checkHttps(next))
-  }, [checkHttps])
+  }, [])
 
   const saveApiKey = useCallback(async (secret: string) => {
     setBusy(true)

@@ -37,6 +37,18 @@ function uniqueStrings(values: readonly string[]): string[] {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)))
 }
 
+function normalizeConsent(consent: PluginConsent, declared: ReadonlySet<string>): PluginConsent {
+  return {
+    grantedPermissions: uniqueStrings(consent.grantedPermissions).filter((permission) =>
+      declared.has(permission),
+    ) as Array<PluginPermission['permission']>,
+    allowedVaultIds: uniqueStrings(consent.allowedVaultIds),
+    networkAccess: consent.networkAccess === 'allowlist' ? 'allowlist' : 'blocked',
+    allowlistedHosts: uniqueStrings(consent.allowlistedHosts ?? []),
+    reviewedAt: consent.reviewedAt,
+  }
+}
+
 export class PluginRegistry {
   private plugins = new Map<string, LoadedPlugin>()
   private policies = new Map<string, PluginConsent>()
@@ -68,6 +80,8 @@ export class PluginRegistry {
       enabled: false,
       loadedAt: new Date().toISOString(),
     })
+    const consent = this.policies.get(manifest.id)
+    if (consent) this.policies.set(manifest.id, normalizeConsent(consent, new Set(manifest.permissions.map((entry) => entry.permission))))
     return { ok: true }
   }
 
@@ -88,14 +102,9 @@ export class PluginRegistry {
     const plugin = this.plugins.get(pluginId)
     if (!plugin) return false
     const declared = new Set(plugin.manifest.permissions.map((entry) => entry.permission))
-    const grantedPermissions = uniqueStrings(consent.grantedPermissions).filter((permission) =>
-      declared.has(permission as PluginPermission['permission']),
-    ) as Array<PluginPermission['permission']>
+    const normalized = normalizeConsent(consent, declared)
     this.policies.set(pluginId, {
-      grantedPermissions,
-      allowedVaultIds: uniqueStrings(consent.allowedVaultIds),
-      networkAccess: consent.networkAccess === 'allowlist' ? 'allowlist' : 'blocked',
-      allowlistedHosts: uniqueStrings(consent.allowlistedHosts ?? []),
+      ...normalized,
       reviewedAt: consent.reviewedAt ?? new Date().toISOString(),
     })
     if (!this.canEnable(pluginId)) plugin.enabled = false
@@ -170,11 +179,13 @@ export class PluginRegistry {
     const plugin = this.plugins.get(pluginId)
     if (!plugin) return null
     const consent = this.policies.get(pluginId)
+    const declared = new Set(plugin.manifest.permissions.map((entry) => entry.permission))
+    const grantedPermissions = (consent ? normalizeConsent(consent, declared).grantedPermissions : [])
     return {
       pluginId,
       enabled: plugin.enabled,
-      grantedPermissions: consent?.grantedPermissions ?? [],
-      allowedVaultIds: consent?.allowedVaultIds ?? [],
+      grantedPermissions,
+      allowedVaultIds: consent ? uniqueStrings(consent.allowedVaultIds) : [],
       networkAccess: consent?.networkAccess ?? 'blocked',
       allowlistedHosts: consent?.allowlistedHosts ?? [],
     }
@@ -183,6 +194,26 @@ export class PluginRegistry {
 
 export function runRegistryTests(): string[] {
   const failures: string[] = []
+  const persisted = new PluginRegistry(false, {
+    'scriptor.persisted': {
+      grantedPermissions: ['read', 'write-approved'],
+      allowedVaultIds: ['vault-a'],
+    },
+  })
+  const persistedResult = persisted.register({
+    id: 'scriptor.persisted',
+    name: 'Persisted',
+    version: '0.0.1',
+    publisher: 'Scriptor',
+    description: 'Persisted consent fixture',
+    activation: ['manual'],
+    capabilities: ['command'],
+    permissions: [{ permission: 'read', reason: 'test' }],
+  })
+  if (!persistedResult.ok) failures.push('persisted consent fixture should register')
+  if (persisted.defaultPolicy('scriptor.persisted')?.grantedPermissions.includes('write-approved')) {
+    failures.push('persisted consent must not grant undeclared permissions')
+  }
   const registry = new PluginRegistry(true)
   const result = registry.register({
     id: 'scriptor.test',

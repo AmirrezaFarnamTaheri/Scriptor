@@ -18,7 +18,6 @@ test('ipc exports use one canonical path and contain every TS type', () => {
   }
   assert.equal(fs.existsSync(path.join(root, 'crates/packages/core/src/contracts/ipc-generated.ts')), false)
 })
-
 test('knowledge tabs have unique localized labels in every shipped locale', () => {
   const source = read('src/components/KnowledgeWorkbench.tsx')
   const keys = [...source.matchAll(/labelKey: '([^']+)'/g)].map((match) => match[1])
@@ -63,14 +62,21 @@ test('vault config runtime parser preserves every supported optional section', (
   assert.doesNotMatch(source, /JSON\.parse\([^)]*\)\s+as\s+VaultConfig/)
 })
 
-test('Monaco is loaded only when the Monaco editor is selected', () => {
+test('editor engines are loaded only when their editor mode is rendered', () => {
   const main = read('src/main.tsx')
   const workspace = read('src/components/shell/EditorWorkspace.tsx')
   const lazyEditor = read('src/components/editor/LazyMonacoMarkdownEditor.tsx')
+  const lazyCodeMirror = read('src/components/editor/LazyCodeMirrorMarkdownEditor.tsx')
+  const editorIndex = read('packages/editor/src/index.ts')
   assert.doesNotMatch(main, /monaco-environment/)
   assert.match(workspace, /lazy\(\(\) =>\s*import\('\.\.\/editor\/LazyMonacoMarkdownEditor'\)/)
+  assert.match(workspace, /lazy\(\(\) =>\s*import\('\.\.\/editor\/LazyCodeMirrorMarkdownEditor'\)/)
   assert.match(workspace, /<Suspense[\s\S]*?<LazyMonacoMarkdownEditor/)
+  assert.match(workspace, /<Suspense[\s\S]*?<LazyCodeMirrorMarkdownEditor/)
   assert.match(lazyEditor, /import '\.\.\/\.\.\/lib\/monaco-environment'/)
+  assert.match(lazyCodeMirror, /@scriptor\/editor\/codemirror/)
+  assert.doesNotMatch(workspace, /\bMarkdownEditor\s*,/)
+  assert.doesNotMatch(editorIndex, /export\s*\{\s*MarkdownEditor\s*\}\s*from\s*['"]\.\/codemirror['"]/)
 })
 
 test('disabled updater is absent from source manifests and lockfiles', () => {
@@ -135,4 +141,35 @@ test('macOS process sandbox escapes user-controlled writable paths', () => {
   const source = read('crates/system-bridge/src/process.rs')
   assert.match(source, /escape_sandbox_profile_string\(current_dir\.as_os_str\(\)\)/)
   assert.match(source, /\.replace\('"', "\\\\\\""\)/)
+})
+
+test('performance baselines use the release executable and a hashed 1k fixture', () => {
+  const source = read('scripts/benchmarks/check-baselines.mjs')
+  const utilities = read('scripts/benchmarks/benchmark-utils.mjs')
+  assert.match(source, /'build', '--locked', '--release', '-p', 'scriptor-cli'/)
+  assert.match(source, /const vaultSize = 1000/)
+  assert.match(source, /synthetic vault cardinality mismatch/)
+  assert.match(source, /hashDirectory\(syntheticVault\)/)
+  assert.match(source, /expectedNotes: vaultSize/)
+  assert.doesNotMatch(source, /vaults\/minimal|'run', '-p', 'scriptor-cli'/)
+  assert.match(utilities, /parseBenchmarkReport/)
+  assert.match(utilities, /tree\.update\(relative\)/)
+})
+
+test('release evidence binds exact source and rejects unreceipted artifacts', () => {
+  const receipt = read('scripts/release/create-receipt.mjs')
+  const verifier = read('scripts/release/verify-release-evidence.mjs')
+  const utilities = read('scripts/release/release-evidence-utils.mjs')
+  const sbom = read('scripts/release/generate-sbom.mjs')
+  assert.match(receipt, /getSourceIdentity/)
+  assert.match(receipt, /collectSubjectFiles/)
+  assert.match(verifier, /requireGit:\s*true/)
+  assert.match(verifier, /requireClean:\s*true/)
+  assert.match(verifier, /assertExactSubjectSet/)
+  assert.match(verifier, /parseSha256Sums/)
+  assert.match(utilities, /unreceipted:/)
+  assert.match(utilities, /release subjects may not contain symbolic links/)
+  assert.match(sbom, /parsePnpmLockPackages/)
+  assert.match(sbom, /parseCargoLockPackages/)
+  assert.doesNotMatch(sbom, /scriptor:declared-range/)
 })

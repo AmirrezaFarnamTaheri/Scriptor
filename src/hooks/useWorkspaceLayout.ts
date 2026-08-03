@@ -43,6 +43,29 @@ function readLayouts(): Record<WorkspaceMode, WorkspaceLayout> {
   })
 }
 
+function readStoredWorkspaceMode(): WorkspaceMode {
+  try {
+    const raw = window.localStorage.getItem('scriptor:workspace-mode')
+    if (
+      raw === 'writing' ||
+      raw === 'knowledge' ||
+      raw === 'publish' ||
+      raw === 'review' ||
+      raw === 'automation'
+    ) {
+      return raw
+    }
+  } catch {
+    // Storage is optional; the writing layout is the safe fallback.
+  }
+  return 'writing'
+}
+
+export function readInitialWorkspaceLayout(): WorkspaceLayout {
+  const layouts = readLayouts()
+  return layouts[readStoredWorkspaceMode()]
+}
+
 export function useWorkspaceLayout() {
   const [layouts, setLayouts] = useState<Record<WorkspaceMode, WorkspaceLayout>>(() => readLayouts())
 

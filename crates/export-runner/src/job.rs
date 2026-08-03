@@ -1,4 +1,3 @@
-// PROCESS_BROKER_EXCEPTION: export jobs stream Pandoc output and require cancellable child handles; policy is enforced by validated discovery, hashes, timeouts, and bounded logs.
 use std::fs;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -139,6 +138,7 @@ pub fn run_export_job_with_cancel(
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let started = Instant::now();
 
+    // PROCESS_BROKER_EXCEPTION(export-pandoc-job)
     let mut child = Command::new(&pandoc.path)
         .args(&args)
         .stdout(Stdio::piped())

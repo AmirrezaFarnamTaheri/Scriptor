@@ -1,4 +1,3 @@
-// PROCESS_BROKER_EXCEPTION: diagram export needs streamed files plus bespoke timeout cleanup; executable discovery is allowlisted and bounded in this module.
 use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
@@ -104,6 +103,7 @@ pub fn render_mermaid_svg(source: &str) -> Result<String, ExportError> {
     let output_path = temp_dir.join("diagram.svg");
 
     let result = output_with_timeout(
+        // PROCESS_BROKER_EXCEPTION(mermaid-cli-render)
         Command::new(&mmdc_path).args([
             "-i",
             &input_path.display().to_string(),
@@ -227,6 +227,7 @@ pub(crate) fn run_plantuml_engine_with(
         let binary = std::path::PathBuf::from(path);
         validate_binary_path(&binary, "PLANTUML_BIN").map_err(EngineError::Configured)?;
         let output = output_with_timeout(
+            // PROCESS_BROKER_EXCEPTION(plantuml-configured-binary)
             Command::new(&binary).args(["-tsvg", &input_path.display().to_string()]),
             DIAGRAM_TIMEOUT,
         )
@@ -244,6 +245,7 @@ pub(crate) fn run_plantuml_engine_with(
     if let Some(jar) = plantuml_jar.filter(|value| !value.is_empty()) {
         validate_binary_path(Path::new(jar), "PLANTUML_JAR").map_err(EngineError::Configured)?;
         let output = output_with_timeout(
+            // PROCESS_BROKER_EXCEPTION(plantuml-jar-java)
             Command::new("java").args(["-jar", jar, "-tsvg", &input_path.display().to_string()]),
             DIAGRAM_TIMEOUT,
         )
@@ -259,6 +261,7 @@ pub(crate) fn run_plantuml_engine_with(
     }
 
     let output = output_with_timeout(
+        // PROCESS_BROKER_EXCEPTION(plantuml-path-render)
         Command::new("plantuml").args(["-tsvg", &input_path.display().to_string()]),
         DIAGRAM_TIMEOUT,
     )
@@ -296,6 +299,7 @@ fn validate_binary_path(binary: &Path, env_var: &str) -> Result<(), String> {
 
 fn which_binary(name: &str) -> Option<std::path::PathBuf> {
     if cfg!(windows) {
+        // PROCESS_BROKER_EXCEPTION(diagram-discovery-windows)
         output_with_timeout(Command::new("where").arg(name), WHICH_TIMEOUT)
             .ok()
             .and_then(|output| {
@@ -305,6 +309,7 @@ fn which_binary(name: &str) -> Option<std::path::PathBuf> {
                     .map(|line| std::path::PathBuf::from(line.trim()))
             })
     } else {
+        // PROCESS_BROKER_EXCEPTION(diagram-discovery-unix)
         output_with_timeout(Command::new("which").arg(name), WHICH_TIMEOUT)
             .ok()
             .and_then(|output| {
@@ -453,10 +458,12 @@ mod tests {
     #[test]
     fn output_with_timeout_kills_a_hanging_child() {
         let mut command = if cfg!(windows) {
+            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-windows-hang)
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", "ping -n 30 127.0.0.1 > NUL"]);
             cmd
         } else {
+            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-hang)
             let mut cmd = Command::new("sleep");
             cmd.arg("30");
             cmd
@@ -474,10 +481,12 @@ mod tests {
     #[test]
     fn output_with_timeout_returns_output_for_fast_child() {
         let mut command = if cfg!(windows) {
+            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-windows-fast)
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", "echo hi"]);
             cmd
         } else {
+            // PROCESS_BROKER_EXCEPTION(diagram-timeout-test-unix-fast)
             let mut cmd = Command::new("echo");
             cmd.arg("hi");
             cmd

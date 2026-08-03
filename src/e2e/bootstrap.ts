@@ -40,6 +40,8 @@ const DEFAULT_CONFIG = {
 
 declare global {
   interface Window {
+    /** Minimal marker used by the Tauri runtime detector in browser E2E mode. */
+    __TAURI_INTERNALS__?: Record<string, never>
     /** Commits recorded by the mocked `git_commit_cmd`, oldest first. */
     __scriptorE2eGitCommits?: Array<{ files: string[]; message: string }>
     /** Payload of the most recent `git_apply_merged_conflict_cmd` call. */
@@ -83,7 +85,7 @@ export function installE2eBridge(): void {
   let conflictsResolved = false
   // Mock Tauri internals so `isTauriRuntime` returns true
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
-    ;(window as any).__TAURI_INTERNALS__ = {}
+    window.__TAURI_INTERNALS__ = {}
   }
   mockIPC((cmd, payload) => {
     switch (cmd) {

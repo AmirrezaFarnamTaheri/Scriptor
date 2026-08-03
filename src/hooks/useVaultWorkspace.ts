@@ -108,7 +108,18 @@ export function useVaultWorkspace(options?: {
   }) => void
   hibernateWatcher?: boolean
   hibernateGit?: boolean
+  pluginExportProfiles?: ExportProfileContribution[]
+  onVaultChanged?: (vaultId: string) => void
 }) {
+  const {
+    onSearchComplete,
+    onSearchTiming,
+    onSessionLayoutRestore,
+    hibernateWatcher,
+    hibernateGit,
+    pluginExportProfiles = [],
+    onVaultChanged,
+  } = options ?? {}
   const [status, setStatus] = useState<WorkspaceStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [vault, setVault] = useState<VaultDescriptor | null>(null)
@@ -151,11 +162,9 @@ export function useVaultWorkspace(options?: {
     runSearch,
     setVaultSearchQuery,
     clearSearch,
-  } = useWorkspaceSearch(options)
+  } = useWorkspaceSearch({ onSearchComplete, onSearchTiming })
 
   const noteCount = useMemo(() => entries.filter((entry) => entry.kind === 'note').length, [entries])
-
-  const [pluginExportProfiles, setPluginExportProfiles] = useState<ExportProfileContribution[]>([])
 
   const refreshVaultConfig = useCallback(async () => {
     if (!vault) {
@@ -287,6 +296,7 @@ export function useVaultWorkspace(options?: {
     pullRemote,
     pushRemote,
   } = useWorkspaceGit({
+    vaultId: vault?.id ?? null,
     refreshVault: refreshVaultCore,
     logActivity,
     setError,
@@ -320,6 +330,7 @@ export function useVaultWorkspace(options?: {
     openNote,
     reloadActiveNoteFromDisk,
     keepEditingAfterExternalChange,
+    resetNoteNavigation,
     restoreEditorSession,
   } = editor
 
@@ -327,7 +338,7 @@ export function useVaultWorkspace(options?: {
     if (!vault) return null
     setIsFixingVaultLint(true)
     try {
-      const output = await vaultLintFix()
+      const output = await vaultLintFix(vault.id)
       await refreshVaultCore()
       if (activePathRef.current && output.fixed_paths.includes(activePathRef.current)) {
         await openNote(activePathRef.current)
@@ -375,8 +386,8 @@ export function useVaultWorkspace(options?: {
     refreshGit,
     rebuildIndex: rebuildIndexWithGit,
     vaultRefreshTimer,
-    hibernated: options?.hibernateWatcher,
-    hibernateGit: options?.hibernateGit,
+    hibernated: hibernateWatcher,
+    hibernateGit,
   })
 
   useEffect(() => {
@@ -396,11 +407,12 @@ export function useVaultWorkspace(options?: {
       setStatus('opening')
       setError(null)
       clearSearch()
-      editor.resetNoteNavigation()
+      resetNoteNavigation()
 
       try {
         const opened = await vaultOpen(rootPath)
         setVault(opened.vault)
+        onVaultChanged?.(opened.vault.id)
         setStatus('indexing')
 
         void indexerListNoteSummaries()
@@ -426,7 +438,7 @@ export function useVaultWorkspace(options?: {
         setStatus('ready')
 
         if (savedSession?.open_tabs?.length) {
-          options?.onSessionLayoutRestore?.({
+          onSessionLayoutRestore?.({
             collapsedFolders: savedSession.collapsed_folders ?? {},
             sidebarView: savedSession.sidebar_view === 'inbox' ? 'inbox' : 'vault',
           })
@@ -473,7 +485,23 @@ export function useVaultWorkspace(options?: {
         logActivity('error', 'Failed to open vault', message)
       }
     },
-    [logActivity, openNote, options, refreshGit, refreshHealth, refreshVaultConfig, refreshVaultSnippets, refreshNoteSummaries, restoreEditorSession],
+    [
+      clearSearch,
+      logActivity,
+      onSessionLayoutRestore,
+      onVaultChanged,
+      openNote,
+      refreshGit,
+      refreshHealth,
+      refreshNoteSummaries,
+      refreshVaultConfig,
+      refreshVaultSnippets,
+      resetNoteNavigation,
+      restoreEditorSession,
+      setHealth,
+      setHealthDiagnostics,
+      setRebuild,
+    ],
   )
 
   const { inboxNotes, noteTypes, templatePaths } = useWorkspaceKnowledge(noteSummaries, entries, vaultConfig)
@@ -600,7 +628,6 @@ export function useVaultWorkspace(options?: {
     isExporting,
     isGitBusy,
     exportProfiles,
-    setPluginExportProfiles,
     searchQuery,
     searchResults,
     isSearching,

@@ -102,8 +102,10 @@ export function GraphPanel({
   const dialogRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const liveRegionRef = useRef<HTMLDivElement>(null)
-  const [workerLayout, setWorkerLayout] = useState<CanvasNode[] | null>(null)
-  const [workerLoading, setWorkerLoading] = useState(false)
+  const [workerState, setWorkerState] = useState<{
+    graph: GraphQueryOutput
+    layout: CanvasNode[] | null
+  } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
 
   useEscapeToClose(true, onClose)
@@ -119,25 +121,18 @@ export function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
-    if (!graph || hibernated) {
-      setWorkerLayout(null)
-      setWorkerLoading(false)
-      return
-    }
-    setWorkerLoading(true)
+    if (!graph || hibernated) return
+    const requestedGraph = graph
     const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = (e: MessageEvent) => {
-      if (e.data.type === 'done') {
-        setWorkerLayout(e.data.nodes as CanvasNode[])
-        setWorkerLoading(false)
-      } else if (e.data.type === 'error') {
-        setWorkerLayout(null)
-        setWorkerLoading(false)
+    worker.onmessage = (event: MessageEvent) => {
+      if (event.data.type === 'done') {
+        setWorkerState({ graph: requestedGraph, layout: event.data.nodes as CanvasNode[] })
+      } else if (event.data.type === 'error') {
+        setWorkerState({ graph: requestedGraph, layout: null })
       }
     }
     worker.onerror = () => {
-      setWorkerLayout(null)
-      setWorkerLoading(false)
+      setWorkerState({ graph: requestedGraph, layout: null })
     }
     worker.postMessage({
       nodes: graph.nodes,
@@ -147,6 +142,9 @@ export function GraphPanel({
     })
     return () => worker.terminate()
   }, [graph, hibernated])
+
+  const workerLayout = !hibernated && workerState?.graph === graph ? workerState.layout : null
+  const workerLoading = Boolean(graph && !hibernated && workerState?.graph !== graph)
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []

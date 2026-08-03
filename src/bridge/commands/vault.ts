@@ -209,9 +209,9 @@ export async function vaultHealthDiagnostics(): Promise<VaultHealthDiagnostics> 
   return parseVaultHealthDiagnostics(payload)
 }
 
-export async function vaultLintFix(): Promise<LintApplyOutput> {
+export async function vaultLintFix(vaultId: string): Promise<LintApplyOutput> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('apply_bulk_fix', 'active-vault')
+  const authorizationToken = await authorizeSensitiveOperation('apply_bulk_fix', vaultId)
   return invoke<LintApplyOutput>('vault_lint_fix', { authorizationToken })
 }
 

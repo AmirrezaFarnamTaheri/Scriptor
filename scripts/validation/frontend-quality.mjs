@@ -97,7 +97,7 @@ rejectPattern('src/App.tsx', /as any/, 'application integration must not bypass 
     }
   }
 }
-requirePattern('src/App.tsx', /useEditorPreferences\(theme\)/, 'editor defaults must follow the application theme')
+requirePattern('src/App.tsx', /useEditorPreferences\(theme(?:,\s*initialWorkspaceLayout)?\)/, 'editor defaults must follow the application theme')
 requirePattern('src/hooks/useEditorPreferences.ts', /editorThemeOverride \?\? defaultEditorTheme\(appTheme\)/, 'editor theme must use an app-theme fallback until explicitly overridden')
 requirePattern('src/styles/components/editor-workspace.css', /@media\s*\(max-width:/, 'editor workspace needs an explicit compact layout')
 requirePattern('src/styles/components/canvas-graph.css', /@media\s*\(max-width:\s*720px\)/, 'graph needs an explicit compact layout')

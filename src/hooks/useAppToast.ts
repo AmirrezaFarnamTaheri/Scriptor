@@ -34,7 +34,12 @@ export function useAppToast(timeoutMs = 6000, maxQueue = DEFAULT_MAX_QUEUE) {
     }, timeoutMs)
   }, [clearTimer, timeoutMs])
 
-  showNextRef.current = showNext
+  useEffect(() => {
+    showNextRef.current = showNext
+    return () => {
+      showNextRef.current = null
+    }
+  }, [showNext])
 
   const showToast = useCallback(
     (next: string) => {

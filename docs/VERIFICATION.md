@@ -1,52 +1,57 @@
 # Verification record
 
-This document defines what constitutes proof for the current source candidate. Update it with the exact commit and command output for each release candidate.
+This document defines proof for the current source candidate. A release record must name the exact commit, source-tree hash, command, environment, and artifact set.
 
 ## Claim vocabulary
 
-- **Verified:** command executed against this source state and passed.
-- **Statically validated:** source was parsed or checked without compiling/running the full product.
-- **Reviewed:** code and contracts were inspected, but no executable proof was available.
-- **Pending:** required proof depends on unavailable tooling, credentials, platform, or canonical history.
-- **Failed:** command executed and did not pass.
+- **Verified:** the stated command executed against this source state and passed.
+- **Statically validated:** source or generated metadata was parsed and checked without compiling or running the full product.
+- **Reviewed:** code and contracts were inspected without executable proof.
+- **Pending:** required proof depends on unavailable tooling, dependencies, credentials, platform, browser, or canonical history.
+- **Failed:** the stated command executed and did not pass.
 
 ## Repository-native checks
 
 Run from the repository root:
 
 ```bash
-npm run check:source --silent
-npm run check:governance --silent
-npm run check:mcp --silent
-npm run check:plugins --silent
-npm run check:canvas --silent
-npm run check:portal --silent
-npm run check:export --silent
-npm run check:headless --silent
-npm run check:citations --silent
-npm run check:knowledge --silent
-npm run check:merge --silent
+pnpm check:source
+pnpm check:governance
+pnpm check:mcp
+pnpm check:plugins
+pnpm check:canvas
+pnpm check:editor
+pnpm check:portal
+pnpm check:renderer
+pnpm check:export
+pnpm check:headless
+pnpm check:citations
+pnpm check:knowledge
+pnpm check:merge
 ```
 
-`check:source` covers canonical IPC generation, Rust source/module/process contracts, native authorization inventory, and frontend quality. `check:governance` covers version parity, immutable Actions, package boundaries, locale parity, documentation/license contracts, and frontend quality.
+`check:source` covers generated IPC contracts, Rust source/module/process/unsafe policy, native authorization, frontend policy, hotspot ownership, benchmark utilities, and release-evidence utilities. `check:governance` covers version parity, immutable Actions, package boundaries, locale parity, documentation/license contracts, frontend policy, and hotspot ownership.
 
 ## Full engineering gate
 
-A release candidate is not verified until these run in a clean environment with the pinned toolchains:
+A release candidate is not verified until these commands pass in a clean environment with the pinned toolchains and frozen lockfiles:
 
 ```bash
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
 pnpm install --frozen-lockfile
 pnpm lint
-pnpm build
 pnpm check:contracts
+pnpm build
 pnpm check:release
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 cargo deny check
+pnpm audit --prod
 ```
+
+`pnpm build` includes the production bundle graph and initial gzip budget check. Warning-zero ESLint is part of `pnpm lint`.
 
 ## UI and accessibility gate
 
@@ -70,13 +75,15 @@ Required manual matrix:
 
 ## Release and recovery gate
 
-- produce installers from the exact audited source/tag;
-- verify Windows Authenticode, macOS Developer ID/notarization/staple, and Linux detached signatures;
-- verify `SHA256SUMS`, SBOM, release receipt, and GitHub attestation;
-- clean-install each package;
-- create an external backup, corrupt a copy, prove rejection, then restore on each supported OS;
-- interrupt restore and MCP mutation flows and prove deterministic recovery;
-- run startup, idle-memory, index, search, graph, editor, and export performance gates.
+- Build installers from the exact audited source commit.
+- Verify Windows Authenticode, macOS Developer ID/notarization/staple, and Linux detached signatures.
+- Generate the SBOM and receipt in the promotion job after all platform artifacts are downloaded.
+- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra subjects, unsafe paths, symlinks, and checksum/SBOM mismatch.
+- Verify GitHub attestations and release-tag lineage.
+- Clean-install each package.
+- Create an external backup, corrupt a copy, prove rejection, and restore on each supported OS.
+- Interrupt restore and MCP mutation flows and prove deterministic recovery.
+- Run startup, idle-memory, index, search, graph, editor, and export performance gates.
 
 ## Canonical history gate
 
@@ -88,30 +95,41 @@ bash scripts/governance/history-audit.sh . .history-audit
 
 Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, signed tags, and release lineage from the hosting platform.
 
-## Environment limitations for this remediation build
+## Remediation candidate execution record — 2026-08-03
 
-The remediation environment provided Node and a TypeScript parser but did not provide the pinned Rust toolchain, an installable pnpm dependency graph, browser binaries, native signing credentials, or canonical Git history. Therefore Cargo, full TypeScript semantic build, Playwright/axe, Tauri package, platform signature, restore-drill, and history claims remain **pending**, not implied by static success.
-
-## Remediation candidate execution record — 2026-08-01
-
-The following checks were executed against the final source candidate in the remediation environment.
+The following evidence was produced against the source candidate delivered with [`REMEDIATION-2026-08-03.md`](REMEDIATION-2026-08-03.md).
 
 ### Verified
 
-- `npm run check:source --silent` — 11 source-contract tests passed; 148 Rust source files passed lexical/module/process/unsafe-policy checks; 19 high-impact native commands passed authorization inventory; 389 production TypeScript/CSS files passed frontend policy checks.
-- `npm run check:governance --silent` — version parity across 16 npm manifests, 16 Cargo manifests, and Tauri; five workflow files with 45 immutable external action uses mapped to seven verified release identities; 14 deep-module packages/361 source files without boundary violations or cycles; three locales with 256 keys each; 15 required documents.
-- `npm run check:contracts --silent` — canonical generated IPC TypeScript contracts passed semantic type checking, including authenticated daemon event resynchronization.
+- Version parity: `0.1.0` across 16 package manifests, 16 Cargo manifests, and Tauri configuration.
+- Action policy: five workflow files, 43 external action uses, and seven immutable release identities.
+- Package boundaries: 14 packages and 377 source files with no unexported cross-package import or package cycle.
+- Locale parity: three locales with 256 keys each.
+- Documentation contracts: 15 required documents and referenced repository paths.
+- Source contracts: 13 tests, including lazy editor ownership, canonical 1k benchmark requirements, and exact-source release evidence.
+- Rust lexical/module/process/unsafe policy: 151 Rust files.
+- Native authorization inventory: 19 high-impact command bindings.
+- Frontend policy: 405 production TypeScript/CSS files.
+- CSS custom-property policy: 37 files, 77 declarations, and 894 uses.
+- Hotspot ratchet: six hotspot ceilings and ten extracted domain owners.
+- Note deletion behavior: serialized ordered success, duplicate/cancellation/disk rejection, best-effort post-delete reconciliation, and combined close/rebuild/refresh failures.
+- Utility tests: three benchmark, two source-identity, four release-evidence, and three SBOM lockfile tests.
 - Repository-native behavior runners passed for MCP, plugins, canvas (8 tests), portal (5), export (17), headless (1), citations (7), knowledge (7), and merge/conflict handling (11).
-- `npm run check:frontend-quality --silent` — interaction contracts, focus containment, theme coherence, responsive styles, no production `any`, no emoji glyph controls, no remote fonts, no static inline-style regressions, and no `transition: all` passed across 389 production TypeScript/CSS files.
-- Current-tree secret-pattern, data syntax, relative-import, CSS import, lockfile/importer, action-pin, version, documentation, locale, package-boundary, and `git diff --check` validations passed.
-- CycloneDX generation completed for the declared npm/Cargo graph. The generated SBOM and release receipt are delivery evidence, not substitutes for package-manager and Cargo vulnerability scans.
+- JavaScript syntax parsing passed for 33 files. TypeScript/TSX syntax parsing passed for 391 source files with zero parse diagnostics.
+- Static security patterns found no private-key header, common live-token prefix, disabled TLS verification, app-source dynamic execution, permissive CORS, or shell-string process construction.
+- Source identity tests prove canonical Git-blob hashing across line-ending-normalized clean worktrees, large binary blobs, and dirty-tree rejection.
+- New guards were falsified before acceptance: known-bad action pins, process launches, entry-to-editor bundle graphs, undefined CSS tokens, oversized modules, release subject extras, and artifact tampering fail; restored inputs pass. The bundle test uses a generic emitted filename to prove manifest key/source identity matching.
 
-### Pending because the environment could not provide the required dependency/toolchain/runtime
+### Pending because this environment lacks the required dependency/toolchain/runtime
 
-- `check:editor` stopped at missing installed `@codemirror/language`; `check:renderer` stopped at missing installed `unified`.
-- `npm run build`, lint, browser accessibility, E2E, and visual regression could not start because Corepack could not download pinned pnpm and the frozen dependency graph was not installed (`EAI_AGAIN registry.npmjs.org`).
-- TUI, daemon smoke, performance, Cargo formatting, compilation, Clippy, tests, and `cargo-deny` could not run because the pinned Rust toolchain was unavailable.
-- Tauri packaging, native signing/notarization, fresh visual snapshots, screen-reader/zoom review, restore drills, and platform performance measurements require supported OS runners, browsers, credentials, and installed tools.
-- `scripts/governance/history-audit.sh` correctly refused the one-commit archive-derived working repository; it must run against the canonical full-history clone.
+- Editor runner stops before tests because the supplied partial dependency tree lacks `style-mod`.
+- Renderer runner stops before tests because the supplied partial dependency tree lacks `bail`.
+- Full TypeScript semantic build stops at absent installed `vite/client` and Node type libraries.
+- ESLint cannot execute because the pinned dependency graph is not installed; its configuration now fails on any warning.
+- Cargo formatting, compilation, Clippy, tests, and `cargo-deny` cannot run because the pinned Rust toolchain is unavailable.
+- Production Vite output, browser accessibility, E2E, visual regression, Tauri packaging, signing/notarization, clean install, restore drills, and platform performance measurements require clean supported runners and credentials.
+- Git-history ownership, hotspot history, signed-tag lineage, and full-history secret scanning require the canonical repository rather than an archive-derived tree.
 
-A pending item is a release gate, not an inferred pass. This deliverable is a source-complete remediation candidate. Promotion to a signed production binary requires every applicable clean-environment gate above to pass against the exact packaged source hash.
+The release-evidence smoke test uses a temporary Git snapshot only to falsify verifier behavior. It proves pass/tamper/extra/dirty rejection logic; it is not provenance evidence for a canonical release.
+
+A pending item remains a release gate. Static and source-level remediation does not imply a signed production release.

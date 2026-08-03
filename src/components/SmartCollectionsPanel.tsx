@@ -111,9 +111,30 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   )
 
   useEffect(() => {
-    if (!activeCollection) return
-    void runQuery(activeCollection)
-  }, [activeCollection?.id, canQuery])
+    if (!canQuery || !activeCollection) return
+    let cancelled = false
+    const requestedCollection = activeCollection
+    void indexerExecuteDql(requestedCollection.query)
+      .then((rows) => {
+        if (cancelled) return
+        const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
+          path: row.path,
+          title: row.title,
+          inbound_links: 0,
+          outbound_links: 0,
+        }))
+        setResults(mapped)
+        setStatus(`${mapped.length} note(s) matched "${requestedCollection.label}".`)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setResults([])
+        setStatus(error instanceof Error ? error.message : 'DQL query failed')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeCollection, canQuery])
 
   const addCollection = () => {
     const label = draftLabel.trim()

@@ -2,6 +2,16 @@
 
 A production release is blocked until every required item is checked against the exact tag and artifact bytes.
 
+
+## Promotion stop conditions
+
+- [ ] stop if any required item below is pending, failed, skipped, or evidenced against a different source tree;
+- [ ] stop if the artifact subject set differs from the receipt by even one file;
+- [ ] stop if initial editor chunks enter the eager bundle graph or the gzip budget regresses;
+- [ ] stop if destructive-action cancellation/failure leaves disk, tabs, index, or vault state divergent;
+- [ ] stop if a process launch lacks a live per-call inventory entry or its review has expired;
+- [ ] stop if rollback, restore, signing, or observability cannot be demonstrated on the target platform.
+
 ## Source freeze
 
 - [ ] clean canonical working tree;

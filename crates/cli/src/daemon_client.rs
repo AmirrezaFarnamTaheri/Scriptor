@@ -1,4 +1,3 @@
-// PROCESS_BROKER_EXCEPTION: daemon lifecycle needs a long-lived child handle; this module owns explicit startup, shutdown, and timeout cleanup.
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::thread;
@@ -78,6 +77,7 @@ pub fn daemon_ping() -> Result<String, Box<dyn std::error::Error>> {
 
 /// Build the daemon serve command, including an optional isolated socket name.
 fn daemon_serve_command(binary: &Path, socket_override: Option<&str>) -> Command {
+    // PROCESS_BROKER_EXCEPTION(cli-daemon-serve)
     let mut command = Command::new(binary);
     command.arg("serve");
     if let Some(socket) = socket_override.filter(|value| !value.trim().is_empty()) {
@@ -108,6 +108,7 @@ fn process_alive(pid: u32) -> bool {
 
     #[cfg(unix)]
     {
+        // PROCESS_BROKER_EXCEPTION(cli-process-liveness-unix)
         Command::new("kill")
             .args(["-0", &pid.to_string()])
             .stdout(Stdio::null())
@@ -411,6 +412,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn process_liveness_rejects_exited_child_with_retained_handle() {
+        // PROCESS_BROKER_EXCEPTION(cli-process-liveness-test-windows)
         let mut child = Command::new("cmd")
             .args(["/C", "exit", "0"])
             .spawn()

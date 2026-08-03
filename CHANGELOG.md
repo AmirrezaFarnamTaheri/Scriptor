@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Audit remediation (2026-08-03)
+
+- Pinned every privileged GitHub Action to an immutable commit and tightened the verified-action inventory.
+- Bound SBOMs, receipts, checksums, subjects, and release verification to one clean Git commit and deterministic source-tree hash; the identity hashes canonical Git blobs and modes in one bounded batch, remains stable across line-ending normalization, and rejects staged, unstaged, or untracked drift. Unreceipted artifacts, unsafe paths, symlinks, stale source, and checksum drift now fail promotion.
+- Split Monaco and CodeMirror into lazy entry points and added a falsified production-manifest graph and gzip-budget gate.
+- Made ESLint warning-zero and refactored React Hooks warning sources instead of suppressing them.
+- Centralized destructive note deletion into one ordered, duplicate-safe controller with stage-specific failure tests.
+- Replaced file-wide process exceptions with a unique, expiring per-launch inventory and negative-policy tests.
+- Split the six largest coordination hotspots into focused owners and added a size/ownership regression ratchet.
+- Rebuilt the 1,000-note benchmark around a release executable, exact fixture cardinality/hash, robust JSON parsing, and p50/p95 metrics.
+- Added CSS custom-property validation, defined missing semantic tokens, removed the global reduced-motion kill switch, and removed startup debug logging.
+- Updated product context and added a finding-by-finding remediation and verification record.
+
 ### Security and authority
 
 - Added scoped one-time native authorization for secret, network, process, Git, backup, publish, and destructive operations.

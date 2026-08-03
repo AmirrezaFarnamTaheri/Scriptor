@@ -162,10 +162,19 @@ export function useVaultBackup(vaultOpen: boolean) {
   )
 
   useEffect(() => {
-    if (vaultOpen) {
-      void listBackups()
+    if (!vaultOpen) return
+    let cancelled = false
+    void vaultListBackups(settings.backupPath || undefined)
+      .then((entries) => {
+        if (!cancelled) setBackups(entries || [])
+      })
+      .catch(() => {
+        if (!cancelled) setBackups([])
+      })
+    return () => {
+      cancelled = true
     }
-  }, [vaultOpen, listBackups])
+  }, [settings.backupPath, vaultOpen])
 
   useEffect(() => {
     if (intervalRef.current) {
