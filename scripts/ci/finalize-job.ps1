@@ -17,7 +17,11 @@ New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
 $sourceIdentityPath = Join-Path $LogDirectory "source-identity.json"
 $sourceIdentityArgs = @("scripts/release/source-identity.mjs", "--output", $sourceIdentityPath)
 if ($env:GITHUB_SHA) {
-    $sourceIdentityArgs += @("--require-git", "--expected-commit", $env:GITHUB_SHA)
+    $checkedOutCommit = (& git rev-parse HEAD 2>$null).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($checkedOutCommit)) {
+        throw "Failed to resolve the checked-out Git commit."
+    }
+    $sourceIdentityArgs += @("--require-git", "--expected-commit", $checkedOutCommit)
 } else {
     $sourceIdentityArgs += "--allow-archive"
 }
