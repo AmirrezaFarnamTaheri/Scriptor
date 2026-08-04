@@ -34,7 +34,7 @@ Improve panel accessibility, state correctness, shortcut discoverability, and de
 - `useWorkspaceGit` owns status loading and error information.
 - `selectGitPanelState` maps owned data to loading, error, non-repository, or ready presentation.
 - Checkbox labels contain no nested buttons; row actions are adjacent controls.
-- Memoized rows receive stable callbacks, and commit selection is constrained to current changed paths.
+- Memoized rows receive stable callbacks across selection-only changes.
 
 ### Plugin and MCP panels
 
