@@ -98,6 +98,7 @@ interface GitPanelProps {
   readNoteWorking?: (path: string) => Promise<string | null>
 }
 
+/** Renders repository status, selection, diff, and confirmation flows for the active vault. */
 export function GitPanel({
   status,
   activePath,

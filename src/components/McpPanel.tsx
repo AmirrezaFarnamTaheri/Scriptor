@@ -55,6 +55,7 @@ const TABS = [
   { id: 'audit', labelKey: 'mcp.tabAudit' },
 ] as const
 
+/** Renders permission-scoped MCP recipes, tools, drafts, and audit history for the active vault. */
 export function McpPanel({
   mode,
   tools,
