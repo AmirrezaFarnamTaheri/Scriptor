@@ -58,7 +58,19 @@ fn cargo(args: &[&str]) -> Result<()> {
 }
 
 fn pnpm(args: &[&str]) -> Result<()> {
-    run("pnpm", args)
+    // Corepack-installed package-manager shims are not consistently visible
+    // to child processes on hosted runners. Prefer the shim when available,
+    // then fall back to invoking pnpm through corepack explicitly.
+    match Command::new("pnpm").args(args).status() {
+        Ok(status) if status.success() => Ok(()),
+        Ok(status) => bail!("pnpm exited with {status}"),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            let mut corepack_args = vec!["pnpm"];
+            corepack_args.extend_from_slice(args);
+            run("corepack", &corepack_args)
+        }
+        Err(error) => Err(error).with_context(|| "failed to run pnpm"),
+    }
 }
 
 fn release_smoke() -> Result<()> {
