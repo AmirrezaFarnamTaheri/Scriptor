@@ -4,11 +4,28 @@ import { gitCommit, gitPull, gitPush, gitStatus } from '../bridge/commands'
 import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
 
+export type WorkspaceGitStatus = GitStatus & { loadError?: string }
+
 interface UseWorkspaceGitOptions {
   vaultId: string | null
   refreshVault: () => Promise<void>
   logActivity: (kind: ActivityEntry['kind'], message: string, detail?: string) => void
   setError: (message: string | null) => void
+}
+
+function failedGitStatus(loadError: string): WorkspaceGitStatus {
+  return {
+    is_repo: false,
+    branch: null,
+    changed_files: [],
+    clean: true,
+    ahead: 0,
+    behind: 0,
+    has_upstream: false,
+    has_conflicts: false,
+    conflicted_files: [],
+    loadError,
+  }
 }
 
 export function useWorkspaceGit({
@@ -17,18 +34,25 @@ export function useWorkspaceGit({
   logActivity,
   setError,
 }: UseWorkspaceGitOptions) {
-  const [gitStatusState, setGitStatusState] = useState<GitStatus | null>(null)
-  const [isGitBusy, setIsGitBusy] = useState(false)
+  const [gitStatusState, setGitStatusState] = useState<WorkspaceGitStatus | null>(null)
+  const [isGitBusy, setIsGitBusy] = useState(true)
 
   const refreshGit = useCallback(async () => {
+    setIsGitBusy(true)
     try {
       const status = await gitStatus()
       setGitStatusState(status)
-    } catch (err) {
-      console.error('useWorkspaceGit: gitStatus error', err)
-      setGitStatusState(null)
+      setError(null)
+    } catch (caught) {
+      const detail = caught instanceof Error ? caught.message : String(caught)
+      console.error('useWorkspaceGit: gitStatus error', caught)
+      setGitStatusState(failedGitStatus(detail))
+      setError(detail)
+      logActivity('error', 'Git status refresh failed', detail)
+    } finally {
+      setIsGitBusy(false)
     }
-  }, [])
+  }, [logActivity, setError])
 
   const commitFiles = useCallback(
     async (files: string[], message: string) => {
@@ -60,6 +84,7 @@ export function useWorkspaceGit({
       if (!vaultId) throw new Error('No active vault is open.')
       const result = await gitPull(vaultId)
       await refreshVault()
+      await refreshGit()
       logActivity('success', 'Git pull complete', result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
@@ -68,7 +93,7 @@ export function useWorkspaceGit({
     } finally {
       setIsGitBusy(false)
     }
-  }, [logActivity, refreshVault, setError, vaultId])
+  }, [logActivity, refreshGit, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
     setIsGitBusy(true)
