@@ -182,6 +182,8 @@
     "resetVaultMcp": "بازنشانی MCP خزانه",
     "generateWithAi": "تولید با هوش مصنوعی",
     "disabledMessage": "MCP برای این خزانه غیرفعال است. یک حالت انتخاب کنید تا ابزارها نمایش داده شوند.",
+    "noToolsRegistered": "هیچ ابزار MCP برای پیکربندی فعلی سرور ثبت نشده است.",
+    "enableReadOnly": "فعال‌کردن MCP (فقط خواندنی)",
     "tabRecipes": "دستورالعمل‌ها",
     "tabTools": "ابزارها",
     "tabDrafts": "پیش‌نویس‌ها",

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-import { selectGitPanelState } from '../../src/lib/gitPanelState.ts'
+import { deriveEffectiveGitSelection, selectGitPanelState } from '../../src/lib/gitPanelState.ts'
 
 const READY_STATUS = {
   is_repo: true,
@@ -31,6 +31,21 @@ test('Git panel state selection covers every owned async state', () => {
   assert.match(hookSource, /const refreshGit = useCallback\(async \(\) => \{\s*setIsGitBusy\(true\)/)
 })
 
+test('Git selection drops paths removed by a status refresh', () => {
+  assert.deepEqual(
+    deriveEffectiveGitSelection(
+      new Set(['removed.md', 'kept.md']),
+      ['kept.md', 'new.md'],
+      ['new.md'],
+    ),
+    ['kept.md'],
+  )
+  assert.deepEqual(
+    deriveEffectiveGitSelection(new Set(['removed.md']), ['new.md'], ['new.md']),
+    ['new.md'],
+  )
+})
+
 test('Git file rows keep actions outside the checkbox label and handlers stable', () => {
   const source = readFileSync(new URL('../../src/components/GitPanel.tsx', import.meta.url), 'utf8')
   const labelBlock = source.match(/<label htmlFor=\{checkboxId\}>([\s\S]*?)<\/label>/)?.[1]
@@ -38,8 +53,19 @@ test('Git file rows keep actions outside the checkbox label and handlers stable'
   assert.ok(labelBlock, 'Git file-row label must remain explicitly associated with the checkbox')
   assert.doesNotMatch(labelBlock, /<button\b/, 'Git file-row label must not contain nested buttons')
   assert.match(source, /className="git-file-row-actions"/)
-  assert.match(source, /const defaultSelection = useMemo/)
+  assert.match(source, /deriveEffectiveGitSelection\(selected, changedPaths, defaultSelection\)/)
   assert.match(source, /const handleToggleSelect = useCallback\([\s\S]*?\}, \[defaultSelection\]\)/)
+})
+
+test('MCP empty states are localized and keep non-tool tabs available', () => {
+  const source = readFileSync(new URL('../../src/components/McpPanel.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /<Server aria-hidden="true" size=\{32\} className="text-muted" \/>/)
+  assert.match(source, /t\('mcp\.noToolsRegistered'\)/)
+  assert.match(source, /t\('mcp\.enableReadOnly'\)/)
+  assert.doesNotMatch(source, /mode === 'off' \|\| tools\.length === 0/)
+  assert.match(source, /tab === 'drafts'/)
+  assert.match(source, /tab === 'audit'/)
 })
 
 test('Git shortcut names and visual tooltips remain accessible', () => {

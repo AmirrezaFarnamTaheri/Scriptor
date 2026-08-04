@@ -1,6 +1,6 @@
 # Container diagram (C4 level 2)
 
-This view describes the primary desktop product surface. Mobile and headless deployments reuse parts of the same Rust and TypeScript packages but have different process boundaries.
+This view presents Tauri desktop as the primary supported product surface. The headless daemon, CLI, TUI, and MCP are supported operational surfaces that reuse selected Rust and TypeScript packages with their own process boundaries. Mobile remains experimental or design-only and is not represented as sharing the desktop or headless deployment boundaries.
 
 ## Containers
 

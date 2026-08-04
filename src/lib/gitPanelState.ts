@@ -12,3 +12,15 @@ export function selectGitPanelState(
   if (!status || !status.is_repo) return 'not-repository'
   return 'ready'
 }
+
+/** Removes paths that disappeared during a status refresh before a commit is prepared. */
+export function deriveEffectiveGitSelection(
+  selected: Iterable<string>,
+  changedPaths: readonly string[],
+  defaultSelection: readonly string[],
+): string[] {
+  const availablePaths = new Set(changedPaths)
+  const validSelected = Array.from(selected).filter((path) => availablePaths.has(path))
+  if (validSelected.length > 0) return validSelected
+  return defaultSelection.filter((path) => availablePaths.has(path))
+}

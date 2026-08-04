@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04  
 **Pull request:** #29  
-**Status:** implementation and current-head CI complete; manual release-candidate checks remain
+**Status:** implementation complete; current-head CI required before merge
 
 ## Goal
 
@@ -33,29 +33,32 @@ Improve panel accessibility, state correctness, shortcut discoverability, and de
 
 - `useWorkspaceGit` owns status loading and error information.
 - `selectGitPanelState` maps owned data to loading, error, non-repository, or ready presentation.
+- `deriveEffectiveGitSelection` removes selected paths that disappeared during a status refresh before a commit is prepared.
 - Checkbox labels contain no nested buttons; row actions are adjacent controls.
 - Memoized rows receive stable callbacks across selection-only changes.
 
 ### Plugin and MCP panels
 
 - Empty states are retained where the current owner can determine emptiness.
+- MCP drafts and audit remain accessible when no tools are registered; only tool-dependent tabs show the no-tools status.
+- New MCP empty-state copy is localized across English, German, and Persian, and decorative icons are hidden from assistive technology.
 - Unsupported loading/error props were removed rather than leaving unreachable UI branches.
 
 ### Documentation
 
-- `DESIGN.md`, `GEMINI.md`, and `design-system/scriptor/MASTER.md` defer to executable manifests and CSS tokens.
-- C4 diagrams describe the React, Tauri, daemon, MCP, and local-vault boundaries actually present in the repository.
+- `DESIGN.md`, `GEMINI.md`, and `design-system/scriptor/MASTER.md` defer to executable manifests and CSS tokens without copying resolved theme values.
+- C4 diagrams distinguish the primary Tauri desktop product, supported headless operational surfaces, and experimental/design-only mobile work.
 - Duplicate task ledgers and unsupported completion certificates were removed.
 
 ## Regression coverage
 
-- `scripts/validation/frontend-polish-contracts.test.mjs` covers Git panel state selection, row-label semantics, callback structure, shortcut names, and visual-tooltip accessibility.
+- `scripts/validation/frontend-polish-contracts.test.mjs` covers Git panel state selection, stale selection removal, row-label semantics, callback structure, MCP tab availability/localization, shortcut names, and visual-tooltip accessibility.
 - `scripts/validation/source-contracts.mjs` executes those focused contracts from the mandatory source-validation gate.
 - `e2e/frontend-polish-regressions.spec.ts` adds rendered checks for Git row markup and shortcut accessibility.
 
 ## Evidence collected
 
-The following completed successfully against the repaired source snapshot:
+The following completed successfully against the earlier repaired source snapshot:
 
 - `node scripts/validation/frontend-quality.mjs`
 - `node scripts/validation/css-custom-properties.mjs`
@@ -66,11 +69,13 @@ The following completed successfully against the repaired source snapshot:
 - `node scripts/validation/module-size-ratchet.mjs`
 - `node scripts/validation/source-contracts.mjs`
 - `node --experimental-strip-types --test scripts/validation/frontend-polish-contracts.test.mjs`
-- GitHub Actions CI run `30929841904` (run 264): all seven jobs passed on head `171d0a2855419d41fe466c41fdec89448e8050d5`
+- GitHub Actions CI run `30935422401` (run 265): all seven jobs passed on parent head `8f1032af3615712794aac22152496ee88b2d891b`
+
+Because the final review-reconciliation commit changes code, tests, translations, and documentation, a fresh current-head CI run is required before merge readiness is claimed.
 
 ## Not claimed by this record
 
 - No React DevTools profiling trace was captured, so no universal 16 ms render claim is made.
 - No blanket “zero slop” or “all asynchronous panels” claim is made.
 - Manual screen-reader, native-shell, 200% zoom, and full visual-regression results remain release-candidate checks unless current CI or attached evidence proves them.
-- The technical CI gate passed; final merge remains subject to repository approval and branch-protection policy.
+- Final merge remains subject to repository approval and branch-protection policy.

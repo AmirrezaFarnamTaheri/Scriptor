@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
 
 import { buildAutoCommitMessage } from '../lib/autoCommitMessage'
-import { selectGitPanelState } from '../lib/gitPanelState'
+import { deriveEffectiveGitSelection, selectGitPanelState } from '../lib/gitPanelState'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
@@ -149,8 +149,8 @@ export function GitPanel({
   }, [activePath, changedPaths])
 
   const effectiveSelection = useMemo(
-    () => (selected.size > 0 ? Array.from(selected) : defaultSelection),
-    [defaultSelection, selected],
+    () => deriveEffectiveGitSelection(selected, changedPaths, defaultSelection),
+    [changedPaths, defaultSelection, selected],
   )
 
   const handleToggleSelect = useCallback((path: string, checked: boolean) => {

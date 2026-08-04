@@ -86,6 +86,13 @@ export function McpPanel({
     [selectedTool, tools],
   )
 
+  const noToolsState = (
+    <div className="plugin-empty-graphic">
+      <Server aria-hidden="true" size={32} className="text-muted" />
+      <p>{t('mcp.noToolsRegistered')}</p>
+    </div>
+  )
+
   return (
     <UnifiedPanelShell
       title={t('mcp.title')}
@@ -124,93 +131,95 @@ export function McpPanel({
         ) : null}
       </div>
 
-      {mode === 'off' || tools.length === 0 ? (
+      {mode === 'off' ? (
         <div className="plugin-empty-graphic">
-          <Server size={32} className="text-muted" />
-          <p>{mode === 'off' ? t('mcp.disabledMessage') : 'No MCP tools registered for the current server configuration.'}</p>
-          {mode === 'off' ? (
-            <button type="button" className="primary-button" onClick={() => onModeChange('read-only')}>
-              Enable MCP (Read-Only)
-            </button>
-          ) : null}
+          <Server aria-hidden="true" size={32} className="text-muted" />
+          <p>{t('mcp.disabledMessage')}</p>
+          <button type="button" className="primary-button" onClick={() => onModeChange('read-only')}>
+            {t('mcp.enableReadOnly')}
+          </button>
         </div>
       ) : (
         <>
           {tab === 'recipes' ? (
-            <section className="mcp-recipes" aria-label={t('mcp.guidedAutomationRecipes')}>
-              <p className="health-subtitle">{t('mcp.recipesDescription')}</p>
-              <div className="mcp-recipe-grid">
-                {MCP_RECIPES.map((recipe) => (
-                  <button
-                    key={recipe.id}
-                    type="button"
-                    className="mcp-recipe-card"
-                    onClick={() => {
-                      setSelectedTool(recipe.toolName)
-                      setInputJson(JSON.stringify(recipe.buildInput({ activePath }), null, 2))
-                      onInvoke(recipe.toolName, recipe.buildInput({ activePath }))
-                      setTab('tools')
-                    }}
-                  >
-                    <strong>{recipe.label}</strong>
-                    <span>{recipe.description}</span>
-                    {recipe.modeHint ? <em>{recipe.modeHint}</em> : null}
-                  </button>
-                ))}
-              </div>
-            </section>
+            tools.length === 0 ? noToolsState : (
+              <section className="mcp-recipes" aria-label={t('mcp.guidedAutomationRecipes')}>
+                <p className="health-subtitle">{t('mcp.recipesDescription')}</p>
+                <div className="mcp-recipe-grid">
+                  {MCP_RECIPES.map((recipe) => (
+                    <button
+                      key={recipe.id}
+                      type="button"
+                      className="mcp-recipe-card"
+                      onClick={() => {
+                        setSelectedTool(recipe.toolName)
+                        setInputJson(JSON.stringify(recipe.buildInput({ activePath }), null, 2))
+                        onInvoke(recipe.toolName, recipe.buildInput({ activePath }))
+                        setTab('tools')
+                      }}
+                    >
+                      <strong>{recipe.label}</strong>
+                      <span>{recipe.description}</span>
+                      {recipe.modeHint ? <em>{recipe.modeHint}</em> : null}
+                    </button>
+                  ))}
+                </div>
+              </section>
+            )
           ) : null}
 
           {tab === 'tools' ? (
-            <>
-              <div className="mcp-tool-playground">
-                <label>
-                  <span>{t('mcp.tool')}</span>
-                  <select
-                    value={effectiveTool?.name ?? ''}
-                    onChange={(event) => {
-                      const name = event.target.value
-                      setSelectedTool(name)
-                      setInputJson(TOOL_DEFAULTS[name] ?? '{}')
+            tools.length === 0 ? noToolsState : (
+              <>
+                <div className="mcp-tool-playground">
+                  <label>
+                    <span>{t('mcp.tool')}</span>
+                    <select
+                      value={effectiveTool?.name ?? ''}
+                      onChange={(event) => {
+                        const name = event.target.value
+                        setSelectedTool(name)
+                        setInputJson(TOOL_DEFAULTS[name] ?? '{}')
+                      }}
+                    >
+                      {tools.map((tool) => (
+                        <option key={tool.name} value={tool.name}>
+                          {tool.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>{t('mcp.inputJson')}</span>
+                    <textarea rows={6} value={inputJson} onChange={(event) => setInputJson(event.target.value)} />
+                  </label>
+                  <button
+                    type="button"
+                    className="primary-button"
+                    disabled={!effectiveTool}
+                    onClick={() => {
+                      try {
+                        const parsed = inputJson.trim() ? JSON.parse(inputJson) : {}
+                        if (effectiveTool?.name === 'mcp.proposePatch' && activePath && !('path' in parsed)) {
+                          parsed.path = activePath
+                        }
+                        onInvoke(effectiveTool!.name, parsed)
+                      } catch {
+                        onInvoke(effectiveTool!.name, { parseError: true })
+                      }
                     }}
                   >
-                    {tools.map((tool) => (
-                      <option key={tool.name} value={tool.name}>
-                        {tool.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  <span>{t('mcp.inputJson')}</span>
-                  <textarea rows={6} value={inputJson} onChange={(event) => setInputJson(event.target.value)} />
-                </label>
-                <button
-                  type="button"
-                  className="primary-button"
-                  disabled={!effectiveTool}
-                  onClick={() => {
-                    try {
-                      const parsed = inputJson.trim() ? JSON.parse(inputJson) : {}
-                      if (effectiveTool?.name === 'mcp.proposePatch' && activePath && !('path' in parsed)) {
-                        parsed.path = activePath
-                      }
-                      onInvoke(effectiveTool!.name, parsed)
-                    } catch {
-                      onInvoke(effectiveTool!.name, { parseError: true })
-                    }
-                  }}
-                >
-                  {t('mcp.invokeTool')}
-                </button>
-              </div>
+                    {t('mcp.invokeTool')}
+                  </button>
+                </div>
 
-              {lastResult ? (
-                <pre className="mcp-result" aria-live="polite">
-                  {JSON.stringify(lastResult, null, 2)}
-                </pre>
-              ) : null}
-            </>
+                {lastResult ? (
+                  <pre className="mcp-result" aria-live="polite">
+                    {JSON.stringify(lastResult, null, 2)}
+                  </pre>
+                ) : null}
+              </>
+            )
           ) : null}
 
           {tab === 'drafts' ? (

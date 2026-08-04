@@ -8,17 +8,17 @@ Scriptor is a quiet, precise knowledge-work interface. It should feel technical 
 
 ## Theme tokens
 
-Use the existing semantic variables. Do not copy these values into component styles.
+Use the existing semantic variables. Do not copy their resolved theme values into documentation or component styles.
 
-| Role | Light | Dark | High contrast | Runtime variable |
-|---|---:|---:|---:|---|
-| Background | `#f5f7fb` | `#030712` | `#000000` | `--bg` |
-| Elevated background | `#ffffff` | `#0b0f19` | `#0a0a0a` | `--bg-elevated` |
-| Primary text | `#1e293b` | `#f3f4f6` | `#ffffff` | `--ink` |
-| Muted text | `#475569` | `#9ca3af` | `#e8e8e8` | `--muted` |
-| Primary accent | `#0f766e` | `#2dd4bf` | `#00ffff` | `--primary` |
-| Strong accent | `#0f766e` | `#14b8a6` | `#00e5e5` | `--primary-strong` |
-| Focus ring | theme-specific | theme-specific | yellow | `--focus-ring` |
+| Role | Runtime variable |
+|---|---|
+| Background | `--bg` |
+| Elevated background | `--bg-elevated` |
+| Primary text | `--ink` |
+| Muted text | `--muted` |
+| Primary accent | `--primary` |
+| Strong accent | `--primary-strong` |
+| Focus ring | `--focus-ring` |
 
 ## Typography
 

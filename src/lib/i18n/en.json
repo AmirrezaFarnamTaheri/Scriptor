@@ -182,6 +182,8 @@
     "resetVaultMcp": "Reset vault MCP",
     "generateWithAi": "Generate with AI",
     "disabledMessage": "MCP is disabled for this vault. Select a mode to expose tools.",
+    "noToolsRegistered": "No MCP tools registered for the current server configuration.",
+    "enableReadOnly": "Enable MCP (Read-Only)",
     "tabRecipes": "Recipes",
     "tabTools": "Tools",
     "tabDrafts": "Drafts",
