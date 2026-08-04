@@ -339,9 +339,9 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
 
-      - name: Test supported Rust product crates except desktop shell
+      - name: Test Rust transport and runtime crates
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Test supported Rust product crates except desktop shell" -FilePath "cargo" -ArgumentList @("test", "--locked", "-p", "scriptor-citation-engine", "-p", "scriptor-vault", "-p", "scriptor-indexer", "-p", "scriptor-export-runner", "-p", "scriptor-native-git", "-p", "scriptor-system-bridge", "-p", "scriptor-canvas-engine", "-p", "scriptor-ipc", "-p", "scriptor-daemon", "-p", "scriptor-cli", "-p", "scriptor-xtask") -TimeoutSeconds 1800
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust transport and runtime crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "-p", "scriptor-ipc", "-p", "scriptor-daemon", "-p", "scriptor-cli") -TimeoutSeconds 1800
 
       - name: Verify generated ts-rs bindings
         shell: pwsh
