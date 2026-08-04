@@ -4,8 +4,7 @@ import { useState } from 'react'
 
 export function shortcutLabel(key: string): string {
   if (typeof navigator === 'undefined') return `Ctrl+${key}`
-  const platform = navigator.userAgentData?.platform ?? navigator.platform
-  return /Mac|iPhone|iPad|iPod/i.test(platform) ? `⌘${key}` : `Ctrl+${key}`
+  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? `⌘${key}` : `Ctrl+${key}`
 }
 
 export function PanelHeader({
