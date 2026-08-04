@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
 
 import { buildAutoCommitMessage } from '../lib/autoCommitMessage'
+import { selectGitPanelState } from '../lib/gitPanelState'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
@@ -125,6 +126,7 @@ export function GitPanel({
     error: string | null
   } | null>(null)
 
+  const panelState = selectGitPanelState(status, isBusy)
   const changedPaths = useMemo(
     () => status?.changed_files.map((file) => file.path) ?? [],
     [status],
@@ -197,16 +199,14 @@ export function GitPanel({
   const diffBefore = activeDiffState?.before ?? ''
   const diffAfter = activeDiffState?.after ?? ''
   const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? 'Loading diff preview…' : '')
-
   const noteLabel = (path: string) => path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? path
-
   const commitTemplates = [
     'Update vault notes',
     'Draft: refine active note',
     'Organize knowledge links and tags',
   ] as const
 
-  if (!status && isBusy) {
+  if (panelState === 'loading') {
     return (
       <UnifiedPanelShell
         title={t('git.title')}
@@ -227,7 +227,7 @@ export function GitPanel({
     )
   }
 
-  if (status?.loadError) {
+  if (panelState === 'error') {
     return (
       <UnifiedPanelShell
         title={t('git.title')}
@@ -240,7 +240,7 @@ export function GitPanel({
       >
         <div className="preview-error-state" role="alert">
           <AlertCircle size={24} className="text-danger" />
-          <p>{status.loadError}</p>
+          <p>{status?.loadError}</p>
           <button type="button" className="toolbar-button" onClick={onRefresh}>
             <RefreshCw size={14} />
             {t('actions.retry') ?? 'Retry'}
@@ -250,7 +250,7 @@ export function GitPanel({
     )
   }
 
-  if (!status || !status.is_repo) {
+  if (panelState === 'not-repository' || !status) {
     return (
       <UnifiedPanelShell
         title={t('git.title')}
