@@ -2,12 +2,6 @@ import type { ReactNode } from 'react'
 import { CheckCircle2, ChevronDown, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
-/** Returns the platform-appropriate display label for a single-key shortcut. */
-export function shortcutLabel(key: string): string {
-  if (typeof navigator === 'undefined') return `Ctrl+${key}`
-  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? `⌘${key}` : `Ctrl+${key}`
-}
-
 /** Renders a compact section heading with an optional local action menu. */
 export function PanelHeader({
   title,

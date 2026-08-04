@@ -21,7 +21,8 @@ import {
 } from 'lucide-react'
 
 import { BrandMark, BrandWordmark } from '../../brand/BrandMark'
-import { IconButton, shortcutLabel } from '../chrome/WorkspaceChrome'
+import { IconButton } from '../chrome/WorkspaceChrome'
+import { shortcutLabel } from '../../lib/keyboardShortcuts'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
