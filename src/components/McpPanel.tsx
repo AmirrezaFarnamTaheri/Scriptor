@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
-import type { McpMode, McpToolDescriptor } from '@scriptor/core'
-import type { CommandResult } from '@scriptor/core'
-import { AlertCircle, RefreshCw, Server, Sparkles } from 'lucide-react'
+import type { CommandResult, McpMode, McpToolDescriptor } from '@scriptor/core'
+import { Server, Sparkles } from 'lucide-react'
 
 import type { DraftPatch } from '@scriptor/mcp'
 import { McpDraftDiffEditor } from './editor/McpDraftDiffEditor'
@@ -23,8 +22,6 @@ interface McpPanelProps {
   activePath: string | null
   editorTheme?: 'light' | 'dark'
   presentation?: PanelPresentation
-  isLoading?: boolean
-  error?: string | null
   onClose: () => void
   onModeChange: (mode: McpMode) => void
   onResetPermissions: () => void
@@ -34,7 +31,6 @@ interface McpPanelProps {
   onRejectDraft: (patchId: string) => void
   aiEnabled?: boolean
   onGenerateDraft?: () => void
-  onRetry?: () => void
 }
 
 const TOOL_DEFAULTS: Record<string, string> = {
@@ -68,8 +64,6 @@ export function McpPanel({
   activePath,
   editorTheme = 'dark',
   presentation = 'modal',
-  isLoading = false,
-  error = null,
   onClose,
   onModeChange,
   onResetPermissions,
@@ -79,7 +73,6 @@ export function McpPanel({
   onRejectDraft,
   aiEnabled = false,
   onGenerateDraft,
-  onRetry,
 }: McpPanelProps) {
   const { t } = useI18n()
   const [tab, setTab] = useState<McpTab>('recipes')
@@ -131,24 +124,7 @@ export function McpPanel({
         ) : null}
       </div>
 
-      {isLoading ? (
-        <div className="plugin-skeleton-grid" aria-busy="true" aria-label="Discovering MCP servers">
-          <div className="vault-skeleton-folder" />
-          <div className="vault-skeleton-row" />
-          <div className="vault-skeleton-row" />
-        </div>
-      ) : error ? (
-        <div className="preview-error-state" role="alert">
-          <AlertCircle size={24} className="text-danger" />
-          <p>{error}</p>
-          {onRetry ? (
-            <button type="button" className="toolbar-button" onClick={onRetry}>
-              <RefreshCw size={14} />
-              Retry connection
-            </button>
-          ) : null}
-        </div>
-      ) : mode === 'off' || tools.length === 0 ? (
+      {mode === 'off' || tools.length === 0 ? (
         <div className="plugin-empty-graphic">
           <Server size={32} className="text-muted" />
           <p>{mode === 'off' ? t('mcp.disabledMessage') : 'No MCP tools registered for the current server configuration.'}</p>
@@ -162,9 +138,7 @@ export function McpPanel({
         <>
           {tab === 'recipes' ? (
             <section className="mcp-recipes" aria-label={t('mcp.guidedAutomationRecipes')}>
-              <p className="health-subtitle">
-                {t('mcp.recipesDescription')}
-              </p>
+              <p className="health-subtitle">{t('mcp.recipesDescription')}</p>
               <div className="mcp-recipe-grid">
                 {MCP_RECIPES.map((recipe) => (
                   <button
