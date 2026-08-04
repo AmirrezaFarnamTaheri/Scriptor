@@ -7,8 +7,8 @@
 ---
 
 **Project:** Scriptor
-**Generated:** 2026-06-28 03:27:51
-**Category:** Micro SaaS
+**Generated:** 2026-08-04 15:03:09
+**Category:** Developer Tool / IDE
 
 ---
 
@@ -18,24 +18,24 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#171717` | `--color-primary` |
-| Secondary | `#404040` | `--color-secondary` |
-| CTA/Accent | `#D4AF37` | `--color-cta` |
-| Background | `#FFFFFF` | `--color-background` |
-| Text | `#171717` | `--color-text` |
+| Primary | `#1E293B` | `--color-primary` |
+| Secondary | `#334155` | `--color-secondary` |
+| CTA/Accent | `#22C55E` | `--color-cta` |
+| Background | `#0F172A` | `--color-background` |
+| Text | `#F8FAFC` | `--color-text` |
 
-**Color Notes:** Minimal black + accent gold
+**Color Notes:** Code dark + run green
 
 ### Typography
 
-- **Heading Font:** Inter
-- **Body Font:** Inter
-- **Mood:** minimal, clean, swiss, functional, neutral, professional
-- **Google Fonts:** [Inter + Inter](https://fonts.google.com/share?selection.family=Inter:wght@300;400;500;600;700)
+- **Heading Font:** Space Mono
+- **Body Font:** Space Mono
+- **Mood:** brutalist, raw, technical, monospace, minimal, stark
+- **Google Fonts:** [Space Mono + Space Mono](https://fonts.google.com/share?selection.family=Space+Mono:wght@400;700)
 
 **CSS Import:**
 ```css
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
 ```
 
 ### Spacing Variables
@@ -68,7 +68,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #D4AF37;
+  background: #22C55E;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -85,8 +85,8 @@
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #171717;
-  border: 2px solid #171717;
+  color: #1E293B;
+  border: 2px solid #1E293B;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -99,7 +99,7 @@
 
 ```css
 .card {
-  background: #FFFFFF;
+  background: #0F172A;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -125,9 +125,9 @@
 }
 
 .input:focus {
-  border-color: #171717;
+  border-color: #1E293B;
   outline: none;
-  box-shadow: 0 0 0 3px #17171720;
+  box-shadow: 0 0 0 3px #1E293B20;
 }
 ```
 
@@ -153,13 +153,13 @@
 
 ## Style Guidelines
 
-**Style:** Flat Design
+**Style:** Vibrant & Block-based
 
-**Keywords:** 2D, minimalist, bold colors, no shadows, clean lines, simple shapes, typography-focused, modern, icon-heavy
+**Keywords:** Bold, energetic, playful, block layout, geometric shapes, high color contrast, duotone, modern, energetic
 
-**Best For:** Web apps, mobile apps, cross-platform, startup MVPs, user-friendly, SaaS, dashboards, corporate
+**Best For:** Startups, creative agencies, gaming, social media, youth-focused, entertainment, consumer
 
-**Key Effects:** No gradients/shadows, simple hover (color/opacity shift), fast loading, clean transitions (150-200ms ease), minimal icons
+**Key Effects:** Large sections (48px+ gaps), animated patterns, bold hover (color shift), scroll-snap, large type (32px+), 200-300ms
 
 ### Page Pattern
 
@@ -173,8 +173,8 @@
 
 ## Anti-Patterns (Do NOT Use)
 
-- ❌ Complex onboarding flow
-- ❌ Cluttered layout
+- ❌ Flat design without depth
+- ❌ Text-heavy pages
 
 ### Additional Forbidden Patterns
 

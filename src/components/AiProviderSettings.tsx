@@ -67,8 +67,8 @@ export function AiProviderSettings({
           Clear keychain credential
         </button>
       </div>
-      {lastError && <p className="preview-error">{lastError}</p>}
-      {httpWarning && <p className="settings-status warn" role="alert">{httpWarning}</p>}
+      {lastError ? <p className="preview-error">{lastError}</p> : null}
+      {httpWarning ? <p className="settings-status warn" role="alert">{httpWarning}</p> : null}
     </section>
   )
 }

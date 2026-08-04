@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { GitBranch } from 'lucide-react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
 
 import { buildAutoCommitMessage } from '../lib/autoCommitMessage'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -15,10 +15,69 @@ type PendingGitAction =
 
 type GitTab = 'changes' | 'diff'
 
+interface GitFileRowProps {
+  file: GitChangedFile
+  isActive: boolean
+  isSelected: boolean
+  onToggleSelect: (path: string, selected: boolean) => void
+  onOpenNote?: (path: string) => void
+  onPreviewDiff?: (path: string) => void
+  onResolveConflict?: (path: string) => void
+}
+
+const GitFileRow = React.memo(function GitFileRow({
+  file,
+  isActive,
+  isSelected,
+  onToggleSelect,
+  onOpenNote,
+  onPreviewDiff,
+  onResolveConflict,
+}: GitFileRowProps) {
+  const noteLabel = file.path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? file.path
+  return (
+    <li className={isActive ? 'git-file-active' : undefined}>
+      <label>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={(event) => onToggleSelect(file.path, event.target.checked)}
+        />
+        <span>
+          {file.path.endsWith('.md') ? (
+            <button type="button" className="git-note-link" onClick={() => onOpenNote?.(file.path)}>
+              {noteLabel}
+            </button>
+          ) : (
+            file.path
+          )}
+          {file.path.endsWith('.md') ? <small className="git-file-path">{file.path}</small> : null}
+        </span>
+        <small>{file.conflict ? 'conflict' : file.status}</small>
+        {file.path.endsWith('.md') ? (
+          <button type="button" onClick={() => onPreviewDiff?.(file.path)}>
+            Preview diff
+          </button>
+        ) : null}
+        {file.conflict && onResolveConflict ? (
+          <button
+            type="button"
+            className="conflict-resolve-btn"
+            onClick={() => onResolveConflict(file.path)}
+          >
+            Resolve
+          </button>
+        ) : null}
+      </label>
+    </li>
+  )
+})
+
 interface GitPanelProps {
   status: GitStatus | null
   activePath: string | null
   isBusy: boolean
+  error?: string | null
   presentation?: PanelPresentation
   onClose: () => void
   onRefresh: () => void
@@ -35,6 +94,7 @@ export function GitPanel({
   status,
   activePath,
   isBusy,
+  error = null,
   presentation = 'modal',
   onClose,
   onRefresh,
@@ -123,7 +183,54 @@ export function GitPanel({
     'Organize knowledge links and tags',
   ] as const
 
-  if (!status?.is_repo) {
+  // State 1: Loading Skeleton
+  if (!status && isBusy) {
+    return (
+      <UnifiedPanelShell
+        title={t('git.title')}
+        subtitle="Checking repository status…"
+        icon={<GitBranch size={18} />}
+        ariaLabel={t('git.status')}
+        onClose={onClose}
+        presentation={presentation}
+        className="git-panel knowledge-filters-panel"
+      >
+        <div className="git-skeleton-loading" aria-busy="true" aria-label="Loading git status">
+          <div className="vault-skeleton-folder" />
+          <div className="vault-skeleton-row" />
+          <div className="vault-skeleton-row" />
+          <div className="vault-skeleton-row" />
+        </div>
+      </UnifiedPanelShell>
+    )
+  }
+
+  // State 2: Error Boundary with Retry
+  if (error) {
+    return (
+      <UnifiedPanelShell
+        title={t('git.title')}
+        subtitle="Git operation failed"
+        icon={<GitBranch size={18} />}
+        ariaLabel={t('git.status')}
+        onClose={onClose}
+        presentation={presentation}
+        className="git-panel knowledge-filters-panel"
+      >
+        <div className="preview-error-state" role="alert">
+          <AlertCircle size={24} className="text-danger" />
+          <p>{error}</p>
+          <button type="button" className="toolbar-button" onClick={onRefresh}>
+            <RefreshCw size={14} />
+            {t('actions.retry') ?? 'Retry'}
+          </button>
+        </div>
+      </UnifiedPanelShell>
+    )
+  }
+
+  // State 3: Not a Git Repo
+  if (!status || !status.is_repo) {
     return (
       <UnifiedPanelShell
         title={t('git.title')}
@@ -193,56 +300,41 @@ export function GitPanel({
             {activePath && changedPaths.includes(activePath) ? (
               <p className="health-subtitle git-active-note">Active note has uncommitted changes: {noteLabel(activePath)}</p>
             ) : null}
-            {!status.clean && (
+            {status.clean ? (
+              <div className="git-clean-state">
+                <CheckCircle2 size={32} className="text-success" />
+                <p>Everything up to date. All changes are committed to <code>{status.branch ?? 'HEAD'}</code>.</p>
+                <button type="button" className="toolbar-button" disabled={isBusy} onClick={onRefresh}>
+                  <RefreshCw size={14} />
+                  {t('actions.refresh')}
+                </button>
+              </div>
+            ) : (
               <ul>
                 {status.changed_files.map((file) => (
-                  <li key={file.path} className={file.path === activePath ? 'git-file-active' : undefined}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={effectiveSelection.includes(file.path)}
-                        onChange={(event) => {
-                          setSelected((current) => {
-                            const next = new Set(current.size > 0 ? current : effectiveSelection)
-                            if (event.target.checked) {
-                              next.add(file.path)
-                            } else {
-                              next.delete(file.path)
-                            }
-                            return next
-                          })
-                        }}
-                      />
-                      <span>
-                        {file.path.endsWith('.md') ? (
-                          <button type="button" className="git-note-link" onClick={() => onOpenNote?.(file.path)}>
-                            {noteLabel(file.path)}
-                          </button>
-                        ) : (
-                          file.path
-                        )}
-                        {file.path.endsWith('.md') ? <small className="git-file-path">{file.path}</small> : null}
-                      </span>
-                      <small>{file.conflict ? 'conflict' : file.status}</small>
-                      {file.path.endsWith('.md') ? (
-                        <button type="button" onClick={() => {
-                          setDiffPath(file.path)
-                          setTab('diff')
-                        }}>
-                          Preview diff
-                        </button>
-                      ) : null}
-                      {file.conflict && onResolveConflict ? (
-                        <button
-                          type="button"
-                          className="conflict-resolve-btn"
-                          onClick={() => onResolveConflict(file.path)}
-                        >
-                          Resolve
-                        </button>
-                      ) : null}
-                    </label>
-                  </li>
+                  <GitFileRow
+                    key={file.path}
+                    file={file}
+                    isActive={file.path === activePath}
+                    isSelected={effectiveSelection.includes(file.path)}
+                    onToggleSelect={(path, checked) => {
+                      setSelected((current) => {
+                        const next = new Set(current.size > 0 ? current : effectiveSelection)
+                        if (checked) {
+                          next.add(path)
+                        } else {
+                          next.delete(path)
+                        }
+                        return next
+                      })
+                    }}
+                    onOpenNote={onOpenNote}
+                    onPreviewDiff={(path) => {
+                      setDiffPath(path)
+                      setTab('diff')
+                    }}
+                    onResolveConflict={onResolveConflict}
+                  />
                 ))}
               </ul>
             )}

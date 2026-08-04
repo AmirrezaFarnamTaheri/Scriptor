@@ -5,25 +5,30 @@ Scriptor is an **operate** interface: users open it to write, navigate, inspect,
 ## Direction
 
 - Precise, quiet, luminous, technical without feeling like an IDE.
-- Neutral charcoal/slate surfaces with one restrained teal accent.
+- Neutral charcoal/slate surfaces with one restrained teal accent (`#0f766e` light, `#2DD4BF` dark).
+- **DFII (Design Feasibility & Impact Index):** `+13 / 15` (High Aesthetic Impact, Low Performance Risk, Strict Theme Consistency).
 - Dense information is separated by hierarchy, rhythm, and dividers rather than nested cards.
 - System sans-serif for UI and system monospace for code/numbers; no remote fonts.
-- No purple AI gradients, neon glows, faux paper, oversized marketing typography, or perpetual decorative motion.
 
-## Layout
+## Deslop & Anti-Slop Directives
 
-Desktop uses four functional regions:
-
-1. top command bar;
-2. vault/navigation rail;
-3. editor/preview workspace;
-4. contextual inspector/status surfaces.
-
-At narrow widths, secondary regions collapse into one mobile pane switcher. Every workspace feature must be tested at `320`, `375`, `768`, `1024`, and `1440` pixels and at 200% zoom. No control may depend on hover alone.
+- ❌ No default purple/indigo AI gradients (`bg-indigo-500` or `from-purple-500`).
+- ❌ No blob rounded card edges (`radius > 16px` on small cards).
+- ❌ No decorative glassmorphism or floating neon ambient orbs.
+- ❌ No emojis used as structural UI icons (SVG Lucide icons only).
+- ❌ No layout-shifting hover scale transforms.
 
 ## Tokens
 
 Authoritative tokens live under `src/styles/tokens/` and `src/index.css`. New components must use semantic variables for surfaces, text, borders, focus, danger, warning, success, spacing, radii, and motion. Arbitrary colors and shadows require a documented exception.
+
+| Token Scope | Light Mode | Dark Mode | High Contrast |
+| :--- | :--- | :--- | :--- |
+| **Primary Accent** | `#0f766e` | `#2DD4BF` | `#00ffff` |
+| **Primary Surface** | `#f5f7fb` | `#030712` | `#000000` |
+| **Secondary Surface** | `rgba(255, 255, 255, 0.65)` | `rgba(11, 15, 25, 0.6)` | `#000000` |
+| **Primary Text** | `#1e293b` | `#f3f4f6` | `#ffffff` |
+| **Focus Ring** | `rgba(15, 118, 110, 0.25)` | `rgba(45, 212, 191, 0.25)` | `#ffff00` |
 
 ## Interaction contract
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Box, Check, Lock, ShieldAlert, ShieldCheck, TimerReset } from 'lucide-react'
+import { AlertCircle, Box, Check, Lock, RefreshCw, ShieldAlert, ShieldCheck, TimerReset } from 'lucide-react'
 
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
@@ -15,11 +15,14 @@ interface PluginPanelProps {
   marketplaceCatalog: Array<{ id: string; name: string; version: string; description: string }>
   activeVaultId: string | null
   pluginPolicies: Record<string, PluginRuntimePolicy | null>
+  isLoading?: boolean
+  error?: string | null
   onToggleSafeMode: (enabled: boolean) => void
   onTogglePlugin: (pluginId: string, enabled: boolean) => void
   onReviewConsent: (pluginId: string, permissions: PluginRuntimePolicy['grantedPermissions'], vaultIds: string[]) => void
   onRevokeConsent: (pluginId: string) => void
   onInstallMarketplace: (pluginId: string) => void
+  onRetry?: () => void
 }
 
 export function PluginPanel({
@@ -30,11 +33,14 @@ export function PluginPanel({
   marketplaceCatalog,
   activeVaultId,
   pluginPolicies,
+  isLoading = false,
+  error = null,
   onToggleSafeMode,
   onTogglePlugin,
   onReviewConsent,
   onRevokeConsent,
   onInstallMarketplace,
+  onRetry,
 }: PluginPanelProps) {
   const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
@@ -116,34 +122,58 @@ export function PluginPanel({
         <header>
           <h2>Installed plugins</h2>
         </header>
-        <div className="plugin-list">
-          {plugins.map((plugin) => {
-            const summary = summarizePluginContributions(plugin)
-            const labels = contributionLabels(summary)
-            return (
-            <button
-              type="button"
-              key={plugin.manifest.id}
-              className={`${plugin.enabled ? 'active' : ''}${selectedPluginId === plugin.manifest.id ? ' selected' : ''}`}
-              onClick={() => setSelectedPluginId(plugin.manifest.id)}
-              disabled={safeMode}
-            >
-              <Box />
-              <span>{plugin.manifest.name}</span>
-              <small>{plugin.manifest.capabilities.join(', ')}</small>
-              {labels.length > 0 ? (
-                <span className="plugin-contribution-chips">
-                  {labels.map((label) => (
-                    <em key={label}>{label}</em>
-                  ))}
-                </span>
-              ) : null}
-              <em>{plugin.enabled ? 'enabled' : 'disabled'}</em>
-            </button>
-            )
-          })}
-        </div>
-        {safeMode && <p className="mcp-hint">Safe mode disables all plugins until turned off.</p>}
+        {isLoading ? (
+          <div className="plugin-skeleton-grid" aria-busy="true" aria-label="Discovering plugins">
+            <div className="vault-skeleton-folder" />
+            <div className="vault-skeleton-row" />
+            <div className="vault-skeleton-row" />
+          </div>
+        ) : error ? (
+          <div className="preview-error-state" role="alert">
+            <AlertCircle size={24} className="text-danger" />
+            <p>{error}</p>
+            {onRetry ? (
+              <button type="button" className="toolbar-button" onClick={onRetry}>
+                <RefreshCw size={14} />
+                Retry discovery
+              </button>
+            ) : null}
+          </div>
+        ) : plugins.length === 0 ? (
+          <div className="plugin-empty-graphic">
+            <Box size={32} className="text-muted" />
+            <p>No installed plugins found in this vault environment.</p>
+          </div>
+        ) : (
+          <div className="plugin-list">
+            {plugins.map((plugin) => {
+              const summary = summarizePluginContributions(plugin)
+              const labels = contributionLabels(summary)
+              return (
+              <button
+                type="button"
+                key={plugin.manifest.id}
+                className={`${plugin.enabled ? 'active' : ''}${selectedPluginId === plugin.manifest.id ? ' selected' : ''}`}
+                onClick={() => setSelectedPluginId(plugin.manifest.id)}
+                disabled={safeMode}
+              >
+                <Box />
+                <span>{plugin.manifest.name}</span>
+                <small>{plugin.manifest.capabilities.join(', ')}</small>
+                {labels.length > 0 ? (
+                  <span className="plugin-contribution-chips">
+                    {labels.map((label) => (
+                      <em key={label}>{label}</em>
+                    ))}
+                  </span>
+                ) : null}
+                <em>{plugin.enabled ? 'enabled' : 'disabled'}</em>
+              </button>
+              )
+            })}
+          </div>
+        )}
+        {safeMode ? <p className="mcp-hint">Safe mode disables all plugins until turned off.</p> : null}
         {selectedPlugin ? (
           <div className="plugin-detail-pane">
             <h3>{selectedPlugin.manifest.name}</h3>
@@ -237,7 +267,7 @@ export function PluginPanel({
         ) : null}
       </section>
 
-      {templatePacks.length > 0 && (
+      {templatePacks.length > 0 ? (
         <section className="widget-card">
           <header>
             <h2>Canvas templates</h2>
@@ -251,9 +281,9 @@ export function PluginPanel({
             ))}
           </ul>
         </section>
-      )}
+      ) : null}
 
-      {vaultLint?.enabled && lintSummary && (
+      {vaultLint?.enabled && lintSummary ? (
         <section className="widget-card">
           <header>
             <h2>Vault Lint</h2>
@@ -285,7 +315,7 @@ export function PluginPanel({
             </div>
           </div>
         </section>
-      )}
+      ) : null}
     </>
   )
 }

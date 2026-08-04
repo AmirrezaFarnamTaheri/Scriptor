@@ -1,9 +1,10 @@
-import { useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
+import { IconButton } from './WorkspaceChrome'
 
 export interface PanelTab {
   id: string
@@ -49,7 +50,7 @@ export function UnifiedPanelShell({
   useEscapeToClose(!docked, onClose)
   useFocusTrap(shellRef, { active: !docked })
 
-  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+  const handleTabKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!tabs || !onTabChange) return
     const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
     if (direction === 0 && event.key !== 'Home' && event.key !== 'End') return
@@ -63,7 +64,7 @@ export function UnifiedPanelShell({
     shellRef.current
       ?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${titleId}-tab-${tabs[nextIndex].id}`)}`)
       ?.focus()
-  }
+  }, [onTabChange, tabs, titleId])
 
   return (
     <div
@@ -93,9 +94,9 @@ export function UnifiedPanelShell({
           </div>
           <div className="unified-panel-header-actions">
             {headerActions}
-            <button type="button" className="icon-button" onClick={onClose} aria-label={`Close ${title}`}>
+            <IconButton label={`Close ${title}`} onClick={onClose}>
               <X aria-hidden="true" />
-            </button>
+            </IconButton>
           </div>
         </header>
 

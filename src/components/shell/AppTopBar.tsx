@@ -111,6 +111,7 @@ export function AppTopBar({
       <div className="brand">
         <IconButton
           label={vaultSidebarCollapsed ? t('actions.expand') ?? 'Expand sidebar' : t('actions.collapse') ?? 'Collapse sidebar'}
+          shortcut="⌘\"
           onClick={onToggleVaultSidebar}
         >
           <PanelLeft />
@@ -155,7 +156,7 @@ export function AppTopBar({
 
       <label className="command-search" onClick={onOpenCommandPalette}>
         <Command />
-        <span className="kbd">K</span>
+        <span className="kbd">⌘K</span>
         <input
           type="search"
           placeholder={t('topBar.typeCommandOrSearch')}
@@ -195,21 +196,28 @@ export function AppTopBar({
         
         <button
           type="button"
-          className={`status-button ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
-          title={gitTitle}
+          className={`status-button has-custom-tooltip ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
+          aria-label={gitTitle}
           onClick={onOpenGit}
         >
           <GitBranch />
+          <span className="custom-tooltip" role="tooltip">
+            {gitTitle}
+            <kbd className="shortcut-badge">⌘G</kbd>
+          </span>
         </button>
         <button
           type="button"
-          className={`status-button${workspaceMode === 'automation' ? ' emphasized' : ''}`}
+          className={`status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
           onClick={onOpenMcp}
-          title={mcpLabel}
+          aria-label={mcpLabel}
         >
           <Lock />
           <span className="sr-only">{mcpLabel}</span>
           <ChevronDown />
+          <span className="custom-tooltip" role="tooltip">
+            {mcpLabel}
+          </span>
         </button>
         
         <IconButton
@@ -226,6 +234,7 @@ export function AppTopBar({
         </IconButton>
         <IconButton
           label={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
+          shortcut="⌘I"
           onClick={onToggleInspector}
         >
           <PanelRight />

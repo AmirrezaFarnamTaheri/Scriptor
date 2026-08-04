@@ -301,7 +301,7 @@ export function SettingsPanel({
           />
         ) : null}
 
-        {vaultOpen && nativeReady && <VaultBackupSettings backup={backup} />}
+        {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} /> : null}
 
         <AiProviderSettings
           provider={aiProvider}

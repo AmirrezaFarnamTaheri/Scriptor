@@ -95,3 +95,43 @@
   border-color: var(--primary-strong);
   box-shadow: var(--focus-ring);
 }
+
+.git-clean-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 32px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+  margin-top: 12px;
+}
+
+.git-clean-state p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.git-clean-state code {
+  color: var(--primary-strong);
+  font-family: var(--mono);
+}
+
+.text-success {
+  color: var(--success, #22c55e);
+}
+
+.text-danger {
+  color: var(--danger, #ef4444);
+}
+
+.git-skeleton-loading {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

@@ -1,14 +1,17 @@
 /* Unified panel shell used by settings, history, knowledge panels */
 
 .unified-panel-shell {
-  width: min(720px, 92vw);
-  max-height: min(82vh, 760px);
+  position: relative;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
   display: flex;
   flex-direction: column;
-  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.05) inset;
+  border-radius: var(--radius-xl);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-xl);
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   overflow: hidden;
@@ -104,6 +107,8 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
   animation: dock-slide-in 250ms var(--ease-soft);
 }
 

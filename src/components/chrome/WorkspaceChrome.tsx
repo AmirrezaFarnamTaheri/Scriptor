@@ -83,12 +83,14 @@ export function WidgetCard({
 
 export function IconButton({
   label,
+  shortcut,
   children,
   onClick,
   disabled,
   className,
 }: {
   label: string
+  shortcut?: string
   children: ReactNode
   onClick?: () => void
   disabled?: boolean
@@ -97,13 +99,16 @@ export function IconButton({
   return (
     <button
       type="button"
-      className={`icon-button ${className ?? ''}`.trim()}
-      aria-label={label}
-      title={label}
+      className={`icon-button has-custom-tooltip ${className ?? ''}`.trim()}
+      aria-label={shortcut ? `${label} (${shortcut})` : label}
       onClick={onClick}
       disabled={disabled}
     >
       {children}
+      <span className="custom-tooltip" role="tooltip">
+        {label}
+        {shortcut ? <kbd className="shortcut-badge">{shortcut}</kbd> : null}
+      </span>
     </button>
   )
 }
