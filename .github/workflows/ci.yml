@@ -327,6 +327,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
       - name: Configure pinned Rust 1.96.0
         shell: pwsh
         run: |
