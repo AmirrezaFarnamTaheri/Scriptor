@@ -21,7 +21,7 @@ import {
 } from 'lucide-react'
 
 import { BrandMark, BrandWordmark } from '../../brand/BrandMark'
-import { IconButton } from '../chrome/WorkspaceChrome'
+import { IconButton, shortcutLabel } from '../chrome/WorkspaceChrome'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
@@ -106,12 +106,17 @@ export function AppTopBar({
   onToggleInspector,
 }: AppTopBarProps) {
   const { t } = useI18n()
+  const sidebarShortcut = shortcutLabel('\\')
+  const commandShortcut = shortcutLabel('K')
+  const gitShortcut = shortcutLabel('G')
+  const inspectorShortcut = shortcutLabel('I')
+
   return (
     <header className="topbar surface-glass">
       <div className="brand">
         <IconButton
           label={vaultSidebarCollapsed ? t('actions.expand') ?? 'Expand sidebar' : t('actions.collapse') ?? 'Collapse sidebar'}
-          shortcut="⌘\"
+          shortcut={sidebarShortcut}
           onClick={onToggleVaultSidebar}
         >
           <PanelLeft />
@@ -156,11 +161,11 @@ export function AppTopBar({
 
       <label className="command-search" onClick={onOpenCommandPalette}>
         <Command />
-        <span className="kbd">⌘K</span>
+        <span className="kbd" aria-hidden="true">{commandShortcut}</span>
         <input
           type="search"
           placeholder={t('topBar.typeCommandOrSearch')}
-          aria-label={t('topBar.typeCommandOrSearch')}
+          aria-label={`${t('topBar.typeCommandOrSearch')} (${commandShortcut})`}
           readOnly
           onFocus={onOpenCommandPalette}
         />
@@ -193,17 +198,17 @@ export function AppTopBar({
         <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
           <Box />
         </IconButton>
-        
+
         <button
           type="button"
           className={`status-button has-custom-tooltip ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
-          aria-label={gitTitle}
+          aria-label={`${gitTitle} (${gitShortcut})`}
           onClick={onOpenGit}
         >
           <GitBranch />
-          <span className="custom-tooltip" role="tooltip">
+          <span className="custom-tooltip" aria-hidden="true">
             {gitTitle}
-            <kbd className="shortcut-badge">⌘G</kbd>
+            <kbd className="shortcut-badge">{gitShortcut}</kbd>
           </span>
         </button>
         <button
@@ -215,11 +220,11 @@ export function AppTopBar({
           <Lock />
           <span className="sr-only">{mcpLabel}</span>
           <ChevronDown />
-          <span className="custom-tooltip" role="tooltip">
+          <span className="custom-tooltip" aria-hidden="true">
             {mcpLabel}
           </span>
         </button>
-        
+
         <IconButton
           label={
             theme === 'high-contrast'
@@ -234,7 +239,7 @@ export function AppTopBar({
         </IconButton>
         <IconButton
           label={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
-          shortcut="⌘I"
+          shortcut={inspectorShortcut}
           onClick={onToggleInspector}
         >
           <PanelRight />
