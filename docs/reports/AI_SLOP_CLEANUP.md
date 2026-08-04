@@ -13,7 +13,6 @@ This report records concrete defects removed from the frontend-polish change set
 - **Unreachable Git loading and error states:** status lifecycle now originates in `useWorkspaceGit` and is selected through a pure state helper.
 - **Invalid interactive markup:** Git row buttons were moved outside the checkbox label and associated with the checkbox through `htmlFor`.
 - **Memoization defeated by inline callbacks:** row handlers now originate at the parent and remain stable across selection-only changes.
-- **Stale commit selection:** effective selections are limited to paths still present in the latest Git status.
 - **Tooltip accessibility ambiguity:** visual tooltip content is hidden from assistive technology while triggers expose complete accessible names.
 - **Fixed overlay containment risk:** the shared panel shell no longer uses a transform that changes the containing block of fixed descendants.
 - **Unowned async states:** plugin and MCP loading/error APIs that callers could not truthfully supply were removed.
