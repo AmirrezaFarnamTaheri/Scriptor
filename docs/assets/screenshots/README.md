@@ -6,16 +6,16 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 
 | Screenshot | Description | Size | Used in |
 |---|---|---|---|
-| workspace-light.png | Main workspace in light mode (editor + vault sidebar + inspector) | 194 KB | README.md |
-| workspace-dark.png | Main workspace in dark mode | 192 KB | README.md |
-| editor-preview.png | Split editor + Markdown preview side by side | 194 KB | README.md |
-| command-palette.png | Ctrl+K command palette with search | 213 KB | README.md |
-| graph.png | Force-directed knowledge graph with wikilink edges | 193 KB | README.md |
+| workspace-light.png | Historical light workspace baseline | 194 KB | Baseline comparison only |
+| workspace-dark.png | Historical dark workspace baseline | 192 KB | Baseline comparison only |
+| editor-preview.png | Historical split editor/preview baseline | 194 KB | Baseline comparison only |
+| command-palette.png | Historical command palette baseline | 213 KB | Baseline comparison only |
+| graph.png | Historical graph baseline | 193 KB | Baseline comparison only |
 | canvas.png | Spatial canvas board for visual note arrangement | 37 KB | — |
 | git-panel.png | Version control status, commit, pull/push | 192 KB | — |
-| mcp-panel.png | MCP tools and automation recipes | 269 KB | README.md |
+| mcp-panel.png | Historical MCP panel baseline | 269 KB | Baseline comparison only |
 | settings.png | Runtime config, vault config, appearance, diagnostics | 37 KB | — |
-| publish-center.png | Export profiles, dry-run preflight, Pandoc integration | 216 KB | README.md |
+| publish-center.png | Historical publish-center baseline | 216 KB | Baseline comparison only |
 | vault-health.png | Vault health dashboard with lint and health scores | 228 KB | — |
 | knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 217 KB | — |
 | conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 192 KB | — |
@@ -25,17 +25,13 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | onboarding-tour.png | First-run product tour experience | 205 KB | — |
 | plugins.png | Plugin marketplace discovery and management | 204 KB | — |
 
-### Known Issues
+### Freshness and acceptance
 
-The following screenshots show the workspace without their intended dialog overlay due to
-lazy-loaded panel components crashing during E2E render (`Cannot read properties of null`):
-
-- **canvas.png** — Canvas panel fails to render in E2E mode
-- **settings.png** — Settings panel crashes during lazy load in E2E mode
-- **keyboard-shortcuts.png** — Same root cause as settings (settings panel contains shortcuts tab)
-
-The topbar overflows at 1440px viewport width, pushing Canvas, Settings, and other buttons
-off-screen (x > 1440px). These buttons are unreachable without scrolling the topbar.
+Checked-in PNGs are documentation assets and historical visual baselines. They are not proof
+that the current source renders correctly. Lazy-panel loading, topbar overflow, compact layouts,
+modal focus, and console/network cleanliness are asserted by the Playwright source suite and must
+be rerun from the frozen release candidate. Any stale snapshot is replaced only after a reviewer
+inspects the diff; visual failures are never hidden by raising the global tolerance.
 
 ## Regeneration
 
@@ -83,4 +79,6 @@ The screenshot pipeline uses the same E2E mock IPC bridge as the functional test
 - **`src/e2e/state.ts`** — In-memory note state for the mock vault
 - **`src/screenshot/fixture.ts`** — Fixture data (vault, scan, graph, health diagnostics)
 
-After UI changes that affect layout or copy, regenerate and commit the updated PNGs.
+After UI changes that affect layout or copy, regenerate and commit the updated PNGs. Record the
+browser/channel, OS, source commit, viewport, and result in the release PR. See
+[`../../validation/FRONTEND_QUALITY.md`](../../validation/FRONTEND_QUALITY.md).

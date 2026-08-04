@@ -1,29 +1,44 @@
 import { useEffect, useRef } from 'react'
 
-import { subscribeDaemonConfigReloaded, type DaemonConfigReloadedEvent } from '../bridge/daemonEvents'
+import {
+  subscribeDaemonConfigReloaded,
+  subscribeDaemonResyncRequired,
+  type DaemonConfigReloadedEvent,
+} from '../bridge/daemonEvents'
 
-export function useDaemonConfigEvents(handler: (event: DaemonConfigReloadedEvent) => void) {
+export function useDaemonConfigEvents(
+  handler: (event: DaemonConfigReloadedEvent) => void,
+  onResyncRequired?: (reason: string) => void,
+) {
   const handlerRef = useRef(handler)
+  const resyncRef = useRef(onResyncRequired)
 
   useEffect(() => {
     handlerRef.current = handler
   }, [handler])
 
   useEffect(() => {
-    let active = true
-    let unlisten: (() => void) | undefined
+    resyncRef.current = onResyncRequired
+  }, [onResyncRequired])
 
-    void subscribeDaemonConfigReloaded((event) => handlerRef.current(event)).then((dispose) => {
+  useEffect(() => {
+    let active = true
+    const unlisten: Array<() => void> = []
+
+    void Promise.all([
+      subscribeDaemonConfigReloaded((event) => handlerRef.current(event)),
+      subscribeDaemonResyncRequired((event) => resyncRef.current?.(event.reason)),
+    ]).then((dispose) => {
       if (!active) {
-        dispose()
+        for (const stop of dispose) stop()
         return
       }
-      unlisten = dispose
+      unlisten.push(...dispose)
     })
 
     return () => {
       active = false
-      unlisten?.()
+      for (const stop of unlisten) stop()
     }
   }, [])
 }

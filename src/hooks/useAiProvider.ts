@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { keychainDeleteSecret, keychainGetSecret, keychainSetSecret } from '../bridge/commands'
+import {
+  aiProviderDeleteApiKey,
+  aiProviderHasApiKey,
+  aiProviderProposeDraft,
+  aiProviderSetApiKey,
+} from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { translate } from '../lib/i18n'
 
@@ -8,7 +13,6 @@ export type AiProviderId = 'openai-compatible' | 'off'
 
 const PROVIDER_KEY = 'scriptor.ai.provider'
 const ENDPOINT_KEY = 'scriptor.ai.endpoint'
-const KEYCHAIN_ACCOUNT = 'ai.openai-compatible.api_key'
 const REQUEST_TIMEOUT_MS = 30_000
 
 function readProvider(): AiProviderId {
@@ -28,7 +32,6 @@ export function useAiProvider() {
   const [hasApiKey, setHasApiKey] = useState(false)
   const [busy, setBusy] = useState(false)
   const [lastError, setLastError] = useState<string | null>(null)
-  const [httpWarning, setHttpWarning] = useState<string | null>(null)
   const abortControllersRef = useRef<Set<AbortController>>(new Set())
 
   useEffect(() => {
@@ -60,8 +63,7 @@ export function useAiProvider() {
       return
     }
     try {
-      const secret = await keychainGetSecret(KEYCHAIN_ACCOUNT)
-      setHasApiKey(Boolean(secret))
+      setHasApiKey(await aiProviderHasApiKey())
     } catch (error) {
       setHasApiKey(false)
       setLastError(error instanceof Error ? error.message : String(error))
@@ -69,9 +71,24 @@ export function useAiProvider() {
   }, [])
 
   useEffect(() => {
-    void refreshKeyState()
-    setHttpWarning(checkHttps(endpoint))
-  }, [refreshKeyState, checkHttps, endpoint])
+    if (!isNativeBridgeAvailable()) return
+    let cancelled = false
+    void aiProviderHasApiKey()
+      .then((available) => {
+        if (!cancelled) setHasApiKey(available)
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setHasApiKey(false)
+          setLastError(error instanceof Error ? error.message : String(error))
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const httpWarning = useMemo(() => checkHttps(endpoint), [checkHttps, endpoint])
 
   const setProvider = useCallback((next: AiProviderId) => {
     setProviderState(next)
@@ -81,14 +98,13 @@ export function useAiProvider() {
   const setEndpoint = useCallback((next: string) => {
     setEndpointState(next)
     window.localStorage.setItem(ENDPOINT_KEY, next)
-    setHttpWarning(checkHttps(next))
-  }, [checkHttps])
+  }, [])
 
   const saveApiKey = useCallback(async (secret: string) => {
     setBusy(true)
     setLastError(null)
     try {
-      await keychainSetSecret(KEYCHAIN_ACCOUNT, secret)
+      await aiProviderSetApiKey(secret)
       setHasApiKey(secret.length > 0)
     } catch (error) {
       setLastError(error instanceof Error ? error.message : String(error))
@@ -101,7 +117,7 @@ export function useAiProvider() {
     setBusy(true)
     setLastError(null)
     try {
-      await keychainDeleteSecret(KEYCHAIN_ACCOUNT)
+      await aiProviderDeleteApiKey()
       setHasApiKey(false)
     } catch (error) {
       setLastError(error instanceof Error ? error.message : String(error))
@@ -132,51 +148,20 @@ export function useAiProvider() {
         throw new Error(message)
       }
 
-      const apiKey = await keychainGetSecret(KEYCHAIN_ACCOUNT)
-      if (!apiKey) {
-        throw new Error('Add an API key in Settings before using AI draft proposals')
-      }
-
       const controller = new AbortController()
       abortControllersRef.current.add(controller)
       const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
       try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          signal: controller.signal,
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content:
-                  'You rewrite Markdown notes. Return only the updated Markdown body with no commentary.',
-              },
-              {
-                role: 'user',
-                content: `Current note:\n\n${currentMarkdown}\n\nInstruction:\n${prompt}`,
-              },
-            ],
-            temperature: 0.2,
+        return await Promise.race([
+          aiProviderProposeDraft(endpoint, prompt, currentMarkdown),
+          new Promise<never>((_, reject) => {
+            controller.signal.addEventListener(
+              'abort',
+              () => reject(new Error('AI provider request timed out')),
+              { once: true },
+            )
           }),
-        })
-
-        if (!response.ok) {
-          throw new Error(`AI provider request failed (${response.status})`)
-        }
-
-        const payload = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string } }>
-        }
-        const proposed = payload.choices?.[0]?.message?.content?.trim()
-        if (!proposed) {
-          throw new Error('AI provider returned an empty draft')
-        }
-        return proposed
+        ])
       } finally {
         window.clearTimeout(timeoutId)
         abortControllersRef.current.delete(controller)

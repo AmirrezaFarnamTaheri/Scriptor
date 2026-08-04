@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 scriptor-vault = { path = "../vault" }
 scriptor-export-runner = { path = "../export-runner" }
+scriptor-system-bridge = { path = "../system-bridge" }
 chrono = { version = "0.4", features = ["serde"] }
 resvg = "0.47"
 serde = { version = "1", features = ["derive"] }

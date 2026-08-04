@@ -3,6 +3,7 @@ use scriptor_vault::{
     SaveNoteOptions, SaveNoteOutput,
 };
 
+use crate::authorization::{require_sensitive_operation, SensitiveOperation};
 use crate::state::{active_session, AppState};
 
 /// Restore a historical revision only if the note has not changed since this
@@ -13,7 +14,14 @@ pub fn vault_restore_note_history_revision(
     state: tauri::State<AppState>,
     path: String,
     revision_id: String,
+    authorization_token: String,
 ) -> Result<SaveNoteOutput, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::RestoreHistory,
+        Some(&path),
+    )?;
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     let current = read_note(&session.descriptor.id, &session.root, &relative)

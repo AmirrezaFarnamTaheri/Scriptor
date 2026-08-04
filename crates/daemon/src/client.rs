@@ -6,15 +6,14 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
-use interprocess::local_socket::{ConnectOptions, GenericFilePath, GenericNamespaced};
-use interprocess::ConnectWaitMode;
+use interprocess::local_socket::{GenericFilePath, GenericNamespaced};
 use scriptor_ipc::{
     fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcEvent,
-    RpcMethod, RpcRequest, RpcResponse, ServerMessage,
+    RpcEventPayload, RpcMethod, RpcRequest, RpcResponse, ServerMessage,
 };
 
 use crate::locks::lock_recover;
-use crate::transport::{connect_client, read_endpoint};
+use crate::transport::{connect_authenticated_client, read_endpoint};
 
 /// Upper bound on how long a single `call` waits for the daemon to answer.
 /// Generous enough for the synchronous export/reindex RPCs, but finite: the
@@ -30,6 +29,8 @@ const NONBLOCKING_RETRY_INTERVAL: Duration = Duration::from_millis(5);
 /// `read_response_frame` gives up. Without this, a daemon that never emits the
 /// matching id (or a desynced stream) parks the caller indefinitely.
 const MAX_UNMATCHED_FRAMES: usize = 512;
+const EVENT_RECONNECT_INITIAL_DELAY: Duration = Duration::from_millis(250);
+const EVENT_RECONNECT_MAX_DELAY: Duration = Duration::from_secs(5);
 
 fn should_reconnect(error: &IpcError) -> bool {
     is_expected_disconnect(error) || matches!(error, IpcError::Io(_))
@@ -118,7 +119,9 @@ impl<T: Write> Write for DeadlineIo<'_, T> {
 /// nonblocking mode can be applied. Building the stream with `ConnectOptions`
 /// keeps connection establishment inside the same absolute RPC budget as frame
 /// writes and reads.
-fn connect_client_with_timeout(timeout: Duration) -> Result<LocalSocketStream, IpcError> {
+fn connect_client_with_timeout(
+    timeout: Duration,
+) -> Result<(LocalSocketStream, Option<String>), IpcError> {
     if timeout.is_zero() {
         return Err(IpcError::Io(io::Error::new(
             io::ErrorKind::TimedOut,
@@ -139,15 +142,39 @@ fn connect_client_with_timeout(timeout: Duration) -> Result<LocalSocketStream, I
             .map_err(|error| IpcError::Codec(error.to_string()))?
     };
 
-    ConnectOptions::new()
-        .name(name)
-        .wait_mode(ConnectWaitMode::Timeout(timeout))
-        .nonblocking_stream(cfg!(windows))
-        .connect_sync()
-        .map_err(IpcError::from)
+    let retry_budget = Duration::from_millis(500).min(timeout);
+    let start = Instant::now();
+    let stream = loop {
+        match LocalSocketStream::connect(name.clone()) {
+            Ok(s) => break s,
+            Err(e) if e.kind() == io::ErrorKind::NotFound || e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::ConnectionRefused => {
+                if start.elapsed() >= retry_budget {
+                    return Err(IpcError::Io(e));
+                }
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            Err(e) => return Err(IpcError::from(e)),
+        }
+    };
+    Ok((stream, endpoint.nonce))
 }
 
 type EventHandler = Box<dyn Fn(RpcEvent) + Send + Sync>;
+
+fn connect_event_stream() -> Result<LocalSocketStream, IpcError> {
+    let (mut stream, endpoint) = connect_authenticated_client()?;
+    let mut subscribe = RpcRequest::new(0, RpcMethod::SubscribeEvents);
+    subscribe.endpoint_nonce = endpoint.nonce;
+    write_frame(&mut stream, &subscribe)?;
+    Ok(stream)
+}
+
+fn dispatch_event(handlers: &Arc<Mutex<Vec<EventHandler>>>, event: RpcEvent) {
+    let handlers = lock_recover(handlers);
+    for handler in handlers.iter() {
+        handler(event.clone());
+    }
+}
 
 /// Handle on the background thread that receives daemon events.
 struct EventListener {
@@ -155,8 +182,13 @@ struct EventListener {
     handle: thread::JoinHandle<()>,
 }
 
+struct AuthenticatedStream {
+    stream: LocalSocketStream,
+    endpoint_nonce: Option<String>,
+}
+
 struct ClientInner {
-    stream: Mutex<Option<LocalSocketStream>>,
+    stream: Mutex<Option<AuthenticatedStream>>,
     event_handlers: Arc<Mutex<Vec<EventHandler>>>,
     listener: Mutex<Option<EventListener>>,
 }
@@ -223,7 +255,7 @@ impl ClientInner {
         // an `event_listener_started` flag first and returned early when the
         // connection failed, which permanently blocked every later attempt to
         // start a listener for the lifetime of the process.
-        let mut stream = match connect_client() {
+        let mut stream = match connect_event_stream() {
             Ok(stream) => stream,
             Err(error) => {
                 tracing::warn!(
@@ -234,42 +266,65 @@ impl ClientInner {
                 return;
             }
         };
-        let subscribe = RpcRequest::new(0, RpcMethod::SubscribeEvents);
-        if let Err(error) = write_frame(&mut stream, &subscribe) {
-            tracing::warn!(
-                target: "scriptor_daemon::client",
-                %error,
-                "event listener could not subscribe; will retry on next registration",
-            );
-            return;
-        }
-
         let handlers = Arc::clone(&self.event_handlers);
         let stop = Arc::new(AtomicBool::new(false));
         let thread_stop = Arc::clone(&stop);
         let handle = thread::spawn(move || {
-            while !thread_stop.load(Ordering::SeqCst) {
-                let body = match read_frame_resyncing(&mut stream) {
-                    Ok(body) => body,
-                    Err(_) => break,
-                };
+            loop {
+                while !thread_stop.load(Ordering::SeqCst) {
+                    let body = match read_frame_resyncing(&mut stream) {
+                        Ok(body) => body,
+                        Err(_) => break,
+                    };
 
-                // Re-check after the blocking read: a listener that was retired
-                // while waiting must not deliver stale events to handlers that
-                // a newer listener now owns.
-                if thread_stop.load(Ordering::SeqCst) {
-                    break;
+                    // Re-check after the blocking read: a listener that was retired
+                    // while waiting must not deliver stale events to handlers that
+                    // a newer listener now owns.
+                    if thread_stop.load(Ordering::SeqCst) {
+                        return;
+                    }
+
+                    let event = match postcard::from_bytes::<ServerMessage>(&body) {
+                        Ok(ServerMessage::Event(event)) => event,
+                        Ok(ServerMessage::Response(_)) => continue,
+                        Err(_) => continue,
+                    };
+                    dispatch_event(&handlers, event);
                 }
 
-                let event = match postcard::from_bytes::<ServerMessage>(&body) {
-                    Ok(ServerMessage::Event(event)) => event,
-                    Ok(ServerMessage::Response(_)) => continue,
-                    Err(_) => continue,
-                };
+                if thread_stop.load(Ordering::SeqCst) {
+                    return;
+                }
 
-                let handlers = lock_recover(&handlers);
-                for handler in handlers.iter() {
-                    handler(event.clone());
+                let mut retry_delay = EVENT_RECONNECT_INITIAL_DELAY;
+                loop {
+                    if thread_stop.load(Ordering::SeqCst) {
+                        return;
+                    }
+                    thread::sleep(retry_delay);
+                    match connect_event_stream() {
+                        Ok(next_stream) => {
+                            stream = next_stream;
+                            dispatch_event(
+                                &handlers,
+                                RpcEvent {
+                                    payload: RpcEventPayload::ResyncRequired {
+                                        reason: "daemon event stream reconnected".into(),
+                                    },
+                                },
+                            );
+                            break;
+                        }
+                        Err(error) => {
+                            tracing::debug!(
+                                target: "scriptor_daemon::client",
+                                %error,
+                                ?retry_delay,
+                                "event listener reconnect pending",
+                            );
+                            retry_delay = (retry_delay * 2).min(EVENT_RECONNECT_MAX_DELAY);
+                        }
+                    }
                 }
             }
         });
@@ -280,7 +335,7 @@ impl ClientInner {
     fn ensure_connected(
         &self,
         deadline: Instant,
-    ) -> Result<std::sync::MutexGuard<'_, Option<LocalSocketStream>>, IpcError> {
+    ) -> Result<std::sync::MutexGuard<'_, Option<AuthenticatedStream>>, IpcError> {
         if Instant::now() >= deadline {
             return Err(IpcError::Io(io::Error::new(
                 io::ErrorKind::TimedOut,
@@ -307,7 +362,7 @@ impl ClientInner {
             // stream is created. Applying them afterwards leaves `connect`
             // itself outside the whole-call deadline and can park forever on
             // a busy named pipe.
-            let stream = connect_client_with_timeout(remaining)?;
+            let (stream, endpoint_nonce) = connect_client_with_timeout(remaining)?;
             #[cfg(not(windows))]
             {
                 stream
@@ -323,16 +378,16 @@ impl ClientInner {
                     "RPC connection deadline exceeded",
                 )));
             }
-            *guard = Some(stream);
+            *guard = Some(AuthenticatedStream {
+                stream,
+                endpoint_nonce,
+            });
         }
         Ok(guard)
     }
 
     fn dispatch_inline_event(&self, event: RpcEvent) {
-        let handlers = lock_recover(&self.event_handlers);
-        for handler in handlers.iter() {
-            handler(event.clone());
-        }
+        dispatch_event(&self.event_handlers, event);
     }
 
     fn read_response_frame<R: Read>(
@@ -381,7 +436,7 @@ impl ClientInner {
 
     fn call_once(
         &self,
-        stream: &mut LocalSocketStream,
+        connection: &mut AuthenticatedStream,
         request: &RpcRequest,
         deadline: Instant,
         timeout: Duration,
@@ -400,16 +455,20 @@ impl ClientInner {
         }
         #[cfg(not(windows))]
         {
-            stream
+            connection
+                .stream
                 .set_recv_timeout(Some(remaining))
                 .map_err(IpcError::from)?;
-            stream
+            connection
+                .stream
                 .set_send_timeout(Some(remaining))
                 .map_err(IpcError::from)?;
         }
 
-        let mut io = DeadlineIo::new(stream, deadline);
-        write_frame(&mut io, request)?;
+        let mut authenticated_request = request.clone();
+        authenticated_request.endpoint_nonce = connection.endpoint_nonce.clone();
+        let mut io = DeadlineIo::new(&mut connection.stream, deadline);
+        write_frame(&mut io, &authenticated_request)?;
         self.read_response_frame(&mut io, request.id, timeout)
     }
 

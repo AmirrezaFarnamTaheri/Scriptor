@@ -1,50 +1,48 @@
 # Security policy
 
-## Supported versions
-
-| Version | Supported |
-|---------|-----------|
-| 0.1.x   | Yes       |
-
-Security fixes are published for the latest 0.1.x release. Upgrade via [GitHub Releases](https://github.com/AmirrezaFarnamTaheri/Scriptor/releases).
-
 ## Reporting a vulnerability
 
-Please **do not** open public GitHub issues for security vulnerabilities.
+Do not open a public issue for a suspected vulnerability. Email **taherifarnam@gmail.com** with:
 
-Email **[taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)** with:
+- affected version/commit;
+- environment and prerequisites;
+- reproducible steps or proof of concept;
+- impact and data/authority crossed;
+- suggested embargo or coordination needs.
 
-- A description of the issue and potential impact
-- Steps to reproduce (proof-of-concept if available)
-- Affected versions and platforms
+Do not include real secrets or third-party personal data. Reports are acknowledged as soon as practical; disclosure timing is coordinated after impact and remediation are understood.
 
-### What to expect
+## Supported version
 
-| Step | Timeline |
-|------|----------|
-| Acknowledgment | Within 7 days |
-| Initial assessment | Within 14 days |
-| Fix and coordinated disclosure | As soon as a patch is ready |
+Only the current tagged release and current `main` branch receive security fixes. Release identity comes from [`VERSION`](VERSION).
 
-We will coordinate disclosure and a fix before public announcement when appropriate.
+## Trust boundaries
 
-## Scope
+- **Renderer:** treated as untrusted relative to native filesystem, keychain, process, backup, Git, network, and publish authority.
+- **Tauri commands:** classified by operation; sensitive commands require a fresh one-time scoped grant issued after native user confirmation.
+- **Daemon/IPC:** same-user local endpoint with HMAC-protected endpoint metadata, a per-endpoint nonce required on every request and event subscription, typed/versioned messages, bounded frames/queues, automatic authenticated resubscription, and explicit state resynchronization after an interrupted event stream.
+- **MCP:** explicit tools, durable intent/outcome audit records, idempotency keys, bounded logs, and recovery of pending intents.
+- **External tools/code chunks:** launched through the process broker with executable resolution, environment sanitization, network policy, time/output bounds, process-tree cancellation, and receipts.
+- **Plugins:** current runtime is restricted/manifest-first; permission consent, signed third-party distribution, and isolated execution remain graduation requirements.
+- **AI providers:** credentials stay in the native keychain boundary; network calls are issued by Rust through validated endpoints and do not expose raw secrets to JavaScript.
 
-**In scope:**
+## Data and privacy
 
-- Scriptor desktop application and bundled daemon
-- Vault data handling, plugin sandbox boundaries, and MCP permission modes (15 tools)
-- Endpoint signing (HMAC) for daemon RPC authentication
-- Vault encryption at rest (AES-256-GCM with Argon2id key derivation)
-- Daemon tracing and structured telemetry spans
-- Release artifacts published from this repository
+Scriptor is local-first. It does not require telemetry. Diagnostics are opt-in and should include only allowlisted, redacted fields. Remote PlantUML and remote fonts are disabled. Any optional remote integration must name the endpoint and data sent.
 
-**Out of scope:**
+## Encryption status
 
-- Third-party tools (Pandoc, Git, LanguageTool, Hunspell, OS keychains) except where Scriptor integrates unsafely
-- Social engineering or physical access attacks
-- Denial-of-service against local-only services without data impact
+`crates/vault/src/encryption.rs` contains versioned cryptographic primitives and tests. **Encrypted vaults are experimental and not a supported end-to-end security capability.** Indexes, backups, Git history, temporary files, metadata leakage, key recovery, and migration are not solved by a per-file primitive alone. See [`docs/ENCRYPTION-THREAT-MODEL.md`](docs/ENCRYPTION-THREAT-MODEL.md).
 
-## Maintainer
+## Release integrity
 
-Amirreza "Farnam" Taheri — [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)
+Production artifacts require platform signatures, notarization where applicable, SHA-256 checksums, CycloneDX SBOM, immutable release receipt, and GitHub provenance attestations. Verification instructions: [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md).
+The production go/no-go sequence is [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md); the current evidence vocabulary and unverified areas are recorded in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
+
+## Dependency and CI policy
+
+- lockfiles are validation inputs and must not be mutated by audit jobs;
+- external GitHub Actions use reviewed immutable commit SHAs with exact version comments;
+- Node, pnpm, Rust, runners, and release tools are pinned;
+- `cargo deny`, `pnpm audit --prod`, action pin, version, boundary, docs, and source-contract gates run in CI;
+- dependency updates occur in separate reviewed changes.

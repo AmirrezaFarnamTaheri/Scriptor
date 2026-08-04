@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 
 import type { ExportJobOutput, ExportJobStarted, PandocDiscovery } from '../../types/vault'
 import { requireNative } from '../native.ts'
+import { authorizeSensitiveOperation } from './authorization.ts'
 
 export async function exportDiscover(): Promise<PandocDiscovery> {
   requireNative()
@@ -58,11 +59,13 @@ export async function pdfTranslate(
   outputPath?: string,
 ): Promise<PdfTranslateOutput> {
   requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('pdf_translation', inputPath)
   return invoke<PdfTranslateOutput>('pdf_translate', {
     inputPath,
     langIn,
     langOut,
     outputPath: outputPath ?? null,
+    authorizationToken,
   })
 }
 

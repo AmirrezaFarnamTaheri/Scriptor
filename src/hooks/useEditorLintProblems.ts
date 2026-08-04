@@ -2,19 +2,28 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { lintMarkdownDocument, type EditorLintMessage } from '@scriptor/editor'
 
+interface LintState {
+  markdown: string
+  messages: EditorLintMessage[]
+}
+
 export function useEditorLintProblems(markdown: string, enabled = true): EditorLintMessage[] {
-  const [messages, setMessages] = useState<EditorLintMessage[]>([])
+  const [lintState, setLintState] = useState<LintState | null>(null)
 
   useEffect(() => {
-    if (!enabled || !markdown) {
-      setMessages([])
-      return
-    }
+    if (!enabled || !markdown) return
+    const requestedMarkdown = markdown
     const timer = window.setTimeout(() => {
-      setMessages(lintMarkdownDocument(markdown))
+      setLintState({
+        markdown: requestedMarkdown,
+        messages: lintMarkdownDocument(requestedMarkdown),
+      })
     }, 250)
     return () => window.clearTimeout(timer)
   }, [enabled, markdown])
 
-  return useMemo(() => messages, [messages])
+  return useMemo(
+    () => (enabled && markdown && lintState?.markdown === markdown ? lintState.messages : []),
+    [enabled, lintState, markdown],
+  )
 }

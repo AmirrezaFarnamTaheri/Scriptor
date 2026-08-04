@@ -1,4 +1,4 @@
-pub const SCHEMA_VERSION: i32 = 3;
+pub const SCHEMA_VERSION: i32 = 4;
 
 pub const CREATE_META: &str = "
 CREATE TABLE IF NOT EXISTS cache_meta (
@@ -72,6 +72,19 @@ pub const MIGRATE_V2_TO_V3: &[(&str, &str)] = &[
     ),
 ];
 
+
+pub const CREATE_INDEXES: &str = "
+CREATE INDEX IF NOT EXISTS idx_notes_vault_path ON notes(vault_id, path);
+CREATE INDEX IF NOT EXISTS idx_notes_vault_title ON notes(vault_id, title);
+CREATE INDEX IF NOT EXISTS idx_notes_vault_modified ON notes(vault_id, modified_at DESC);
+CREATE INDEX IF NOT EXISTS idx_links_vault_from ON links(vault_id, from_note_id);
+CREATE INDEX IF NOT EXISTS idx_links_vault_to_note ON links(vault_id, to_note_id);
+CREATE INDEX IF NOT EXISTS idx_links_vault_to_path ON links(vault_id, to_path);
+CREATE INDEX IF NOT EXISTS idx_links_from_kind ON links(from_note_id, kind);
+CREATE INDEX IF NOT EXISTS idx_citations_note ON citation_refs(note_id);
+CREATE INDEX IF NOT EXISTS idx_recent_access_opened ON recent_access(opened_at DESC);
+";
+
 pub const CREATE_RECENT_ACCESS: &str = "
 CREATE TABLE IF NOT EXISTS recent_access (
   path TEXT PRIMARY KEY,
@@ -86,6 +99,7 @@ pub fn apply_schema(connection: &rusqlite::Connection) -> rusqlite::Result<()> {
     connection.execute_batch(CREATE_FTS)?;
     connection.execute_batch(CREATE_CITATIONS)?;
     connection.execute_batch(CREATE_RECENT_ACCESS)?;
+    connection.execute_batch(CREATE_INDEXES)?;
     connection.execute(
         "INSERT OR REPLACE INTO cache_meta(key, value) VALUES ('schema_version', ?1)",
         [SCHEMA_VERSION.to_string()],

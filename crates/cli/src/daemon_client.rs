@@ -77,6 +77,7 @@ pub fn daemon_ping() -> Result<String, Box<dyn std::error::Error>> {
 
 /// Build the daemon serve command, including an optional isolated socket name.
 fn daemon_serve_command(binary: &Path, socket_override: Option<&str>) -> Command {
+    // PROCESS_BROKER_EXCEPTION(cli-daemon-serve)
     let mut command = Command::new(binary);
     command.arg("serve");
     if let Some(socket) = socket_override.filter(|value| !value.trim().is_empty()) {
@@ -107,6 +108,7 @@ fn process_alive(pid: u32) -> bool {
 
     #[cfg(unix)]
     {
+        // PROCESS_BROKER_EXCEPTION(cli-process-liveness-unix)
         Command::new("kill")
             .args(["-0", &pid.to_string()])
             .stdout(Stdio::null())
@@ -128,6 +130,9 @@ fn process_alive(pid: u32) -> bool {
 
         const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
         const STILL_ACTIVE: u32 = 259;
+        // SAFETY: `pid` is a value-only OS process identifier. The returned
+        // handle is checked for null, queried with a valid out pointer, and
+        // closed exactly once before this block returns.
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {
@@ -407,6 +412,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn process_liveness_rejects_exited_child_with_retained_handle() {
+        // PROCESS_BROKER_EXCEPTION(cli-process-liveness-test-windows)
         let mut child = Command::new("cmd")
             .args(["/C", "exit", "0"])
             .spawn()

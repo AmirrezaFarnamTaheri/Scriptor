@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::AppState;
 use crate::state::{active_session, use_headless_engine};
 
@@ -436,9 +437,16 @@ pub fn pdf_translate(
     lang_in: Option<String>,
     lang_out: Option<String>,
     output_path: Option<String>,
+    authorization_token: String,
 ) -> Result<PdfTranslateOutput, String> {
     use std::path::Path;
 
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::PdfTranslation,
+        Some(&input_path),
+    )?;
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&input_path)
         .map_err(|error| format!("invalid input_path: {error}"))?;
@@ -449,30 +457,47 @@ pub fn pdf_translate(
     let resolved_str = resolved.display().to_string();
 
     let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
-    let mut command = std::process::Command::new(&pdf2zh);
-    command
-        .arg(&resolved_str)
-        .arg("-li")
-        .arg(lang_in.unwrap_or_else(|| "en".into()))
-        .arg("-lo")
-        .arg(lang_out.unwrap_or_else(|| "zh".into()));
-    if let Some(out) = output_path {
+    let mut args = vec![
+        resolved_str,
+        "-li".into(),
+        lang_in.unwrap_or_else(|| "en".into()),
+        "-lo".into(),
+        lang_out.unwrap_or_else(|| "zh".into()),
+    ];
+    let explicit_output = if let Some(out) = output_path {
         let out_relative = RelativeVaultPath::parse(&out)
             .map_err(|error| format!("invalid output_path: {error}"))?;
         let out_resolved = session
             .root
             .resolve_relative(&out_relative)
             .map_err(|error| error.to_string())?;
-        command.arg("-o").arg(&out_resolved);
-    }
+        args.push("-o".into());
+        args.push(out_resolved.display().to_string());
+        Some(out_resolved)
+    } else {
+        None
+    };
 
-    let status = command.status().map_err(|error| {
+    let receipt = scriptor_system_bridge::run_process(
+        scriptor_system_bridge::ProcessSpec::new(&pdf2zh)
+            .args(args)
+            .current_dir(session.root.root())
+            .timeout(std::time::Duration::from_secs(15 * 60))
+            .max_output_bytes(512 * 1024)
+            .network_policy(scriptor_system_bridge::NetworkPolicy::Allow)
+            .expected_sha256(std::env::var("SCRIPTOR_PDF2ZH_SHA256").ok()),
+    )
+    .map_err(|error| {
         format!(
-            "pdf2zh was not found ({error}). Install PDFMathTranslate (pip install pdf2zh) or set SCRIPTOR_PDF2ZH_PATH."
+            "PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256."
         )
     })?;
-    if !status.success() {
-        return Err("pdf2zh exited with an error.".into());
+    if receipt.exit_code != 0 {
+        return Err(format!(
+            "pdf2zh exited with code {}: {}",
+            receipt.exit_code,
+            receipt.stderr.trim()
+        ));
     }
 
     let stem = resolved
@@ -480,8 +505,8 @@ pub fn pdf_translate(
         .and_then(|value| value.to_str())
         .unwrap_or("document");
     let parent = resolved.parent().unwrap_or_else(|| Path::new("."));
-    let inferred = parent.join(format!("{stem}-dual.pdf"));
+    let output = explicit_output.unwrap_or_else(|| parent.join(format!("{stem}-dual.pdf")));
     Ok(PdfTranslateOutput {
-        output_path: inferred.display().to_string(),
+        output_path: output.display().to_string(),
     })
 }

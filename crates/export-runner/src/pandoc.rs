@@ -138,6 +138,7 @@ fn probe_pandoc_with_hash(
 
     let sha256 = verify_binary_hash(&resolved_path, trusted_hash, "pandoc")?;
 
+    // PROCESS_BROKER_EXCEPTION(pandoc-version-probe)
     let output = Command::new(&resolved_path)
         .arg("--version")
         .output()
@@ -162,6 +163,7 @@ fn probe_pandoc_with_hash(
 
 fn which_pandoc() -> Option<PathBuf> {
     if cfg!(windows) {
+        // PROCESS_BROKER_EXCEPTION(pandoc-discovery-windows)
         Command::new("where")
             .arg("pandoc")
             .output()
@@ -173,6 +175,7 @@ fn which_pandoc() -> Option<PathBuf> {
                     .map(|line| PathBuf::from(line.trim()))
             })
     } else {
+        // PROCESS_BROKER_EXCEPTION(pandoc-discovery-unix)
         Command::new("which")
             .arg("pandoc")
             .output()

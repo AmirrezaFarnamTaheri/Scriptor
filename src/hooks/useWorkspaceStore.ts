@@ -20,15 +20,16 @@ export interface UseWorkspaceStoreOptions {
 }
 
 export function useWorkspaceStore(options: UseWorkspaceStoreOptions = {}) {
+  const { vaultOpen = false, readVaultText, writeVaultText } = options
   const [bundle, setBundle] = useState<WorkspaceBundle>(() => loadGlobalWorkspace())
   const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      if (options.vaultOpen && options.readVaultText) {
+      if (vaultOpen && readVaultText) {
         try {
-          const raw = await options.readVaultText(VAULT_WORKSPACE_PATH)
+          const raw = await readVaultText(VAULT_WORKSPACE_PATH)
           if (!cancelled && raw) {
             setBundle(parseWorkspaceBundle(raw))
           }
@@ -41,21 +42,21 @@ export function useWorkspaceStore(options: UseWorkspaceStoreOptions = {}) {
     return () => {
       cancelled = true
     }
-  }, [options.vaultOpen, options.readVaultText])
+  }, [readVaultText, vaultOpen])
 
   const persist = useCallback(
     async (next: WorkspaceBundle) => {
       setBundle(next)
       saveGlobalWorkspace(next)
-      if (options.vaultOpen && options.writeVaultText) {
+      if (vaultOpen && writeVaultText) {
         try {
-          await options.writeVaultText(VAULT_WORKSPACE_PATH, serializeWorkspaceBundle(next))
+          await writeVaultText(VAULT_WORKSPACE_PATH, serializeWorkspaceBundle(next))
         } catch {
           // local only
         }
       }
     },
-    [options.vaultOpen, options.writeVaultText],
+    [vaultOpen, writeVaultText],
   )
 
   const updatePortal = useCallback(

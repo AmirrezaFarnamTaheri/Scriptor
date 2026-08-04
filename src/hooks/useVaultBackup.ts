@@ -7,6 +7,8 @@ import {
   vaultRestoreBackup,
 } from '../bridge/commands'
 import type { VaultBackupEntry } from '../bridge/commands'
+import { expectRecord } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 const STORAGE_KEY = 'scriptor:vault-backup-settings'
 
@@ -21,37 +23,37 @@ const DEFAULT_SETTINGS: VaultBackupSettings = {
   enabled: false,
   intervalMinutes: 60,
   maxSnapshots: 10,
-  backupPath: '.scriptor/backups/',
+  backupPath: '',
+}
+
+function validateSettings(value: unknown): VaultBackupSettings {
+  const record = expectRecord(value, 'backup settings')
+  return {
+    enabled: typeof record.enabled === 'boolean' ? record.enabled : DEFAULT_SETTINGS.enabled,
+    intervalMinutes:
+      typeof record.intervalMinutes === 'number' && record.intervalMinutes > 0
+        ? record.intervalMinutes
+        : DEFAULT_SETTINGS.intervalMinutes,
+    maxSnapshots:
+      typeof record.maxSnapshots === 'number' && record.maxSnapshots > 0
+        ? record.maxSnapshots
+        : DEFAULT_SETTINGS.maxSnapshots,
+    backupPath: typeof record.backupPath === 'string' ? record.backupPath : DEFAULT_SETTINGS.backupPath,
+  }
 }
 
 function loadSettings(): VaultBackupSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEFAULT_SETTINGS
-    const parsed = JSON.parse(raw) as Partial<VaultBackupSettings>
-    return {
-      enabled: parsed.enabled ?? DEFAULT_SETTINGS.enabled,
-      intervalMinutes:
-        typeof parsed.intervalMinutes === 'number' && parsed.intervalMinutes > 0
-          ? parsed.intervalMinutes
-          : DEFAULT_SETTINGS.intervalMinutes,
-      maxSnapshots:
-        typeof parsed.maxSnapshots === 'number' && parsed.maxSnapshots > 0
-          ? parsed.maxSnapshots
-          : DEFAULT_SETTINGS.maxSnapshots,
-      backupPath: parsed.backupPath || DEFAULT_SETTINGS.backupPath,
-    }
-  } catch {
-    return DEFAULT_SETTINGS
-  }
+  return readVersionedStorage({
+    key: STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: DEFAULT_SETTINGS,
+    validate: validateSettings,
+    migrate: validateSettings,
+  })
 }
 
 function saveSettings(settings: VaultBackupSettings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
-  } catch {
-    // Ignore storage failures
-  }
+  writeVersionedStorage(STORAGE_KEY, 1, settings)
 }
 
 export function useVaultBackup(vaultOpen: boolean) {
@@ -160,10 +162,19 @@ export function useVaultBackup(vaultOpen: boolean) {
   )
 
   useEffect(() => {
-    if (vaultOpen) {
-      void listBackups()
+    if (!vaultOpen) return
+    let cancelled = false
+    void vaultListBackups(settings.backupPath || undefined)
+      .then((entries) => {
+        if (!cancelled) setBackups(entries || [])
+      })
+      .catch(() => {
+        if (!cancelled) setBackups([])
+      })
+    return () => {
+      cancelled = true
     }
-  }, [vaultOpen, listBackups])
+  }, [settings.backupPath, vaultOpen])
 
   useEffect(() => {
     if (intervalRef.current) {

@@ -18,6 +18,29 @@ members = [
   "apps/desktop/src-tauri",
 ]
 exclude = ["crates/ipc/fuzz"]
+# Supported product crates are the default build graph. Incubating engines stay
+# available to explicit workspace checks without slowing or expanding releases.
+default-members = [
+  "crates/citation-engine",
+  "crates/vault",
+  "crates/indexer",
+  "crates/export-runner",
+  "crates/native-git",
+  "crates/system-bridge",
+  "crates/canvas-engine",
+  "crates/ipc",
+  "crates/daemon",
+  "crates/cli",
+  "crates/xtask",
+  "apps/desktop/src-tauri",
+]
+
+[workspace.metadata.scriptor.capabilities]
+product = [
+  "citation-engine", "vault", "indexer", "export-runner", "native-git",
+  "system-bridge", "canvas-engine", "ipc", "daemon", "cli", "desktop",
+]
+incubating = ["embeddings", "tantivy-indexer", "wasm-runtime"]
 
 [workspace.package]
 license = "AGPL-3.0-or-later"

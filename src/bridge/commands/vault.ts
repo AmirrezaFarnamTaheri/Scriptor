@@ -19,6 +19,8 @@ import type {
   ViewNoteHit,
 } from '../../types/vault'
 import { requireNative } from '../native.ts'
+import { authorizeSensitiveOperation } from './authorization.ts'
+import { parseVaultHealthDiagnostics, parseVaultHealthReport } from '../../types/vaultValidators'
 
 export async function vaultOpen(rootPath: string): Promise<OpenVaultOutput> {
   requireNative()
@@ -62,7 +64,11 @@ export async function vaultRecordRecentNote(path: string): Promise<RecentNoteEnt
 
 export async function vaultDeleteNote(path: string): Promise<{ path: string; deleted: boolean }> {
   requireNative()
-  return invoke<{ path: string; deleted: boolean }>('vault_delete_note', { path })
+  const authorizationToken = await authorizeSensitiveOperation('delete_note', path)
+  return invoke<{ path: string; deleted: boolean }>('vault_delete_note', {
+    path,
+    authorizationToken,
+  })
 }
 
 export async function vaultLoadConfig(): Promise<VaultConfig> {
@@ -194,18 +200,19 @@ export async function vaultRenameBlockApply(
 export async function vaultHealth(): Promise<VaultHealthReport> {
   requireNative()
   const payload = await invoke<string>('vault_health')
-  return JSON.parse(payload) as VaultHealthReport
+  return parseVaultHealthReport(payload)
 }
 
 export async function vaultHealthDiagnostics(): Promise<VaultHealthDiagnostics> {
   requireNative()
   const payload = await invoke<string>('indexer_health_diagnostics')
-  return JSON.parse(payload) as VaultHealthDiagnostics
+  return parseVaultHealthDiagnostics(payload)
 }
 
-export async function vaultLintFix(): Promise<LintApplyOutput> {
+export async function vaultLintFix(vaultId: string): Promise<LintApplyOutput> {
   requireNative()
-  return invoke<LintApplyOutput>('vault_lint_fix')
+  const authorizationToken = await authorizeSensitiveOperation('apply_bulk_fix', vaultId)
+  return invoke<LintApplyOutput>('vault_lint_fix', { authorizationToken })
 }
 
 export async function vaultLoadSnippets(): Promise<VaultSnippet[]> {
@@ -295,7 +302,12 @@ export async function vaultReadNoteHistoryRevision(path: string, revisionId: str
 
 export async function vaultRestoreNoteHistoryRevision(path: string, revisionId: string): Promise<SaveNoteOutput> {
   requireNative()
-  return invoke<SaveNoteOutput>('vault_restore_note_history_revision', { path, revisionId })
+  const authorizationToken = await authorizeSensitiveOperation('restore_history', path)
+  return invoke<SaveNoteOutput>('vault_restore_note_history_revision', {
+    path,
+    revisionId,
+    authorizationToken,
+  })
 }
 
 export async function vaultFrontmatterSet(
@@ -313,7 +325,8 @@ export async function vaultPublishStarlight(outputPath: string): Promise<{
   docs_dir: string
 }> {
   requireNative()
-  return invoke('vault_publish_starlight', { outputPath })
+  const authorizationToken = await authorizeSensitiveOperation('publish_site', outputPath)
+  return invoke('vault_publish_starlight', { outputPath, authorizationToken })
 }
 
 export async function pickVaultFolder(): Promise<string | null> {
@@ -329,11 +342,18 @@ export interface VaultBackupEntry {
   path: string
   created_at: string
   size_bytes: number
+  storage_kind: 'local_snapshot' | 'external_backup'
+  verified: boolean
 }
 
 export async function vaultCreateBackup(backupPath?: string): Promise<VaultBackupEntry> {
   requireNative()
-  return invoke<VaultBackupEntry>('vault_create_backup', { backupPath: backupPath ?? null })
+  const scope = backupPath?.trim() || 'local-snapshot'
+  const authorizationToken = await authorizeSensitiveOperation('create_backup', scope)
+  return invoke<VaultBackupEntry>('vault_create_backup', {
+    backupPath: backupPath?.trim() || null,
+    authorizationToken,
+  })
 }
 
 export async function vaultListBackups(backupPath?: string): Promise<VaultBackupEntry[]> {
@@ -343,12 +363,22 @@ export async function vaultListBackups(backupPath?: string): Promise<VaultBackup
 
 export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<string> {
   requireNative()
-  return invoke<string>('vault_restore_backup', { backupName, backupPath: backupPath ?? null })
+  const authorizationToken = await authorizeSensitiveOperation('restore_backup', backupName)
+  return invoke<string>('vault_restore_backup', {
+    backupName,
+    backupPath: backupPath ?? null,
+    authorizationToken,
+  })
 }
 
 export async function vaultDeleteBackup(backupName: string, backupPath?: string): Promise<void> {
   requireNative()
-  await invoke('vault_delete_backup', { backupName, backupPath: backupPath ?? null })
+  const authorizationToken = await authorizeSensitiveOperation('delete_backup', backupName)
+  await invoke('vault_delete_backup', {
+    backupName,
+    backupPath: backupPath ?? null,
+    authorizationToken,
+  })
 }
 
 export interface ObsidianImportOptions {
@@ -375,10 +405,12 @@ export async function vaultImportObsidian(
   options?: ObsidianImportOptions,
 ): Promise<ObsidianImportResult> {
   requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('import_vault', obsidianPath)
   return invoke<ObsidianImportResult>('vault_import_obsidian', {
     obsidianPath,
     convertWikilinks: options?.convertWikilinks ?? true,
     importAttachments: options?.importAttachments ?? true,
     preserveFrontmatter: options?.preserveFrontmatter ?? true,
+    authorizationToken,
   })
 }

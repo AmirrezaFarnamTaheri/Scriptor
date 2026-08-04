@@ -5,6 +5,7 @@ import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
 
 interface UseWorkspaceGitOptions {
+  vaultId: string | null
   refreshVault: () => Promise<void>
   logActivity: (kind: ActivityEntry['kind'], message: string, detail?: string) => void
   setError: (message: string | null) => void
@@ -12,6 +13,7 @@ interface UseWorkspaceGitOptions {
 
 export function useWorkspaceGit({
   refreshVault,
+  vaultId,
   logActivity,
   setError,
 }: UseWorkspaceGitOptions) {
@@ -55,7 +57,8 @@ export function useWorkspaceGit({
     setIsGitBusy(true)
     setError(null)
     try {
-      const result = await gitPull()
+      if (!vaultId) throw new Error('No active vault is open.')
+      const result = await gitPull(vaultId)
       await refreshVault()
       logActivity('success', 'Git pull complete', result.message)
     } catch (caught) {
@@ -65,13 +68,14 @@ export function useWorkspaceGit({
     } finally {
       setIsGitBusy(false)
     }
-  }, [logActivity, refreshVault, setError])
+  }, [logActivity, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
     setIsGitBusy(true)
     setError(null)
     try {
-      const result = await gitPush()
+      if (!vaultId) throw new Error('No active vault is open.')
+      const result = await gitPush(vaultId)
       await refreshGit()
       logActivity('success', 'Git push complete', result.message)
     } catch (caught) {
@@ -81,7 +85,7 @@ export function useWorkspaceGit({
     } finally {
       setIsGitBusy(false)
     }
-  }, [logActivity, refreshGit, setError])
+  }, [logActivity, refreshGit, setError, vaultId])
 
   return {
     gitStatusState,

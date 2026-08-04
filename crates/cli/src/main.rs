@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use scriptor_export_runner::{
     default_export_directory, discover_pandoc, run_export_job, ExportJobInput,
@@ -24,7 +24,7 @@ use scriptor_vault::{
 };
 use scriptor_daemon::rpc_call;
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult};
-use scriptor_system_bridge::detect_system_info;
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use clap::{Parser, Subcommand};
 use serde::Serialize;
 
@@ -385,33 +385,8 @@ enum DaemonCommands {
     Endpoint,
 }
 
-#[derive(Debug, Serialize)]
-struct BenchScanReport {
-    scenario: &'static str,
-    vault_path: String,
-    iterations: u32,
-    note_count: u32,
-    mean_ms: f64,
-    min_ms: u64,
-    max_ms: u64,
-    budget_ms: u128,
-    within_budget: bool,
-}
-
-#[derive(Debug, Serialize)]
-struct BenchSearchReport {
-    scenario: &'static str,
-    vault_path: String,
-    query: String,
-    iterations: u32,
-    note_count: u32,
-    hit_count: u32,
-    mean_ms: f64,
-    min_ms: u64,
-    max_ms: u64,
-    budget_ms: u128,
-    within_budget: bool,
-}
+mod bench;
+use bench::*;
 
 fn print_rpc_response(response: &RpcResponse) -> Result<(), Box<dyn std::error::Error>> {
     match &response.result {
@@ -424,6 +399,7 @@ fn print_rpc_response(response: &RpcResponse) -> Result<(), Box<dyn std::error::
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _ = scriptor_system_bridge::observability::init_observability("cli");
     let cli = Cli::parse();
 
     match cli.command {
@@ -809,18 +785,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             output,
         } => {
             let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
-            let mut command = std::process::Command::new(&pdf2zh);
-            command.arg(&input).arg("-li").arg(&lang_in).arg("-lo").arg(&lang_out);
+            let mut args = vec![
+                input.as_os_str().to_os_string(),
+                "-li".into(),
+                lang_in.into(),
+                "-lo".into(),
+                lang_out.into(),
+            ];
             if let Some(out) = output {
-                command.arg("-o").arg(out);
+                args.push("-o".into());
+                args.push(out.into_os_string());
             }
-            let status = command.status().map_err(|error| {
+            let receipt = run_process(
+                ProcessSpec::new(&pdf2zh)
+                    .args(args)
+                    .timeout(Duration::from_secs(15 * 60))
+                    .max_output_bytes(512 * 1024)
+                    .network_policy(NetworkPolicy::Allow)
+                    .expected_sha256(std::env::var("SCRIPTOR_PDF2ZH_SHA256").ok()),
+            )
+            .map_err(|error| {
                 format!(
-                    "pdf2zh was not found ({error}). Install PDFMathTranslate (pip install pdf2zh) or set SCRIPTOR_PDF2ZH_PATH."
+                    "PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256."
                 )
             })?;
-            if !status.success() {
-                std::process::exit(status.code().unwrap_or(1));
+            if receipt.exit_code != 0 {
+                return Err(format!(
+                    "pdf2zh exited with code {}: {}",
+                    receipt.exit_code,
+                    receipt.stderr.trim()
+                )
+                .into());
             }
         }
         Commands::Export {
@@ -952,144 +947,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     Ok(())
-}
-
-fn bench_scan(path: &PathBuf, iterations: u32) -> Result<BenchScanReport, Box<dyn std::error::Error>> {
-    let session = open_vault(path)?;
-    let mut samples = Vec::with_capacity(iterations as usize);
-    let mut note_count = 0u32;
-
-    for _ in 0..iterations {
-        let started = Instant::now();
-        let entries = scan_vault(&session.root)?;
-        samples.push(started.elapsed().as_millis() as u64);
-        note_count = entries
-            .iter()
-            .filter(|entry| entry.kind == ScannedEntryKind::Note)
-            .count() as u32;
-    }
-
-    let sum: u64 = samples.iter().sum();
-    let mean_ms = sum as f64 / samples.len() as f64;
-    let min_ms = *samples.iter().min().unwrap_or(&0);
-    let max_ms = *samples.iter().max().unwrap_or(&0);
-
-    Ok(BenchScanReport {
-        scenario: "vault-scan",
-        vault_path: path.display().to_string(),
-        iterations,
-        note_count,
-        mean_ms,
-        min_ms,
-        max_ms,
-        budget_ms: VAULT_SCAN_BUDGET_MS,
-        within_budget: mean_ms <= VAULT_SCAN_BUDGET_MS as f64,
-    })
-}
-
-fn bench_search(
-    path: &PathBuf,
-    query: &str,
-    iterations: u32,
-) -> Result<BenchSearchReport, Box<dyn std::error::Error>> {
-    let session = open_vault(path)?;
-    rebuild_index(&session, &[])?;
-    let cache = open_cache_for_session(&session)?;
-    let note_count = scan_vault(&session.root)?
-        .into_iter()
-        .filter(|entry| entry.kind == ScannedEntryKind::Note)
-        .count() as u32;
-
-    let mut samples = Vec::with_capacity(iterations as usize);
-    let mut hit_count = 0u32;
-
-    for _ in 0..iterations {
-        let started = Instant::now();
-        let hits = search_notes(&cache, &session.descriptor.id, query, 25)?;
-        samples.push(started.elapsed().as_millis() as u64);
-        hit_count = hits.len() as u32;
-    }
-
-    let sum: u64 = samples.iter().sum();
-    let mean_ms = sum as f64 / samples.len() as f64;
-    let min_ms = *samples.iter().min().unwrap_or(&0);
-    let max_ms = *samples.iter().max().unwrap_or(&0);
-
-    Ok(BenchSearchReport {
-        scenario: "warm-search",
-        vault_path: path.display().to_string(),
-        query: query.to_string(),
-        iterations,
-        note_count,
-        hit_count,
-        mean_ms,
-        min_ms,
-        max_ms,
-        budget_ms: SEARCH_BUDGET_MS,
-        within_budget: mean_ms <= SEARCH_BUDGET_MS as f64,
-    })
-}
-
-#[derive(Debug, Serialize)]
-struct GenerateVaultSummary {
-    output: String,
-    note_count: u32,
-    prefix: String,
-}
-
-fn generate_vault(
-    output: &Path,
-    count: u32,
-    prefix: &str,
-) -> Result<GenerateVaultSummary, Box<dyn std::error::Error>> {
-    if output.exists() {
-        return Err(format!("Output path already exists: {}", output.display()).into());
-    }
-
-    fs::create_dir_all(output.join(prefix))?;
-
-    for index in 0..count {
-        let stem = format!("note-{index:05}");
-        let path = format!("{prefix}/{stem}.md");
-        let previous = if index > 0 {
-            format!("note-{:05}", index - 1)
-        } else {
-            String::new()
-        };
-        let next = if index + 1 < count {
-            format!("note-{:05}", index + 1)
-        } else {
-            String::new()
-        };
-
-        let links = [
-            if previous.is_empty() {
-                None
-            } else {
-                Some(format!("- [[{previous}]]"))
-            },
-            if next.is_empty() {
-                None
-            } else {
-                Some(format!("- [[{next}]]"))
-            },
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join("\n");
-
-        let body = format!(
-            "# {stem}\n\nSynthetic note {index} for benchmark fixtures.\n\n## Links\n{links}\n"
-        );
-        fs::write(output.join(&path), body)?;
-    }
-
-    Ok(GenerateVaultSummary {
-        output: output.display().to_string(),
-        note_count: count,
-        prefix: prefix.to_string(),
-    })
 }
 
 #[cfg(test)]

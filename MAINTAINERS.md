@@ -1,66 +1,46 @@
 # Maintainers
 
-## Lead maintainer
+## Current maintainer
 
-**Amirreza "Farnam" Taheri**  
-Email: [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)  
+Amirreza “Farnam” Taheri
+Email: [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)
 GitHub: [@AmirrezaFarnamTaheri](https://github.com/AmirrezaFarnamTaheri)
 
-## Project status
+## Ownership model
 
-Scriptor **v0.1.0** is the first public release. The project is actively maintained by the lead maintainer.
+The uploaded source baseline does not contain canonical Git history, so historical ownership and bus factor cannot be proven from this artifact alone. The repository now includes [`.github/CODEOWNERS`](.github/CODEOWNERS), but hosting enforcement and actual review concentration must be verified in the canonical repository. It should maintain:
 
-| Area | Contact |
-|------|---------|
-| Bug reports | [GitHub Issues](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues) |
-| Security | [SECURITY.md](SECURITY.md) — private email only |
-| Commercial licensing | [COMMERCIAL-LICENSING.md](COMMERCIAL-LICENSING.md) |
-| Contributions | [CONTRIBUTING.md](CONTRIBUTING.md) |
+- `CODEOWNERS` for security, release, Rust kernel, frontend, and docs paths;
+- at least two reviewers for release/signing and security-sensitive changes;
+- a quarterly ownership/churn/secret-history report;
+- signed release tags and protected production environments.
 
-## Support the project
+Until additional maintainers are recorded, the lead maintainer is the escalation owner for all areas. This is a continuity risk, not an inferred team structure.
 
-- **Star the repository:** [github.com/AmirrezaFarnamTaheri/Scriptor](https://github.com/AmirrezaFarnamTaheri/Scriptor)
-- **Report issues and contribute** via pull requests
-- **Donations (optional):** see [README.md](README.md#support-scriptor)
+Generate local history evidence from a full clone with:
 
-## Release process
+```bash
+bash scripts/governance/history-audit.sh . .history-audit
+```
 
-Releases are tagged `v*` and built by [`.github/workflows/release.yml`](.github/workflows/release.yml). Installers are published to GitHub Releases. See [`docs/release/SIGNING.md`](docs/release/SIGNING.md) for signing and notarization.
+## Release authority
 
-## Validation matrix
+Production releases:
 
-The full local release gate (`pnpm check:release`) runs all checks below. CI mirrors these on Ubuntu and Windows.
+1. originate from a `v<version>` tag matching [`VERSION`](VERSION);
+2. pass `.github/workflows/ci.yml` and platform compile/package gates;
+3. require signing/notarization secrets in a protected production environment;
+4. promote the exact downloaded build artifacts;
+5. publish checksums, SBOM, release receipt, and attestations.
 
-| Check | Command | Scope |
-|-------|---------|-------|
-| Contract packages | `pnpm check:contracts` | TypeScript contract compilation |
-| MCP validation | `pnpm check:mcp` | MCP tool manifest and runner |
-| Plugin validation | `pnpm check:plugins` | Plugin manifest, sandbox, registry |
-| Canvas validation | `pnpm check:canvas` | Canvas engine contracts |
-| Editor validation | `pnpm check:editor` | Editor engine contracts |
-| Renderer validation | `pnpm check:renderer` | Renderer contracts |
-| Export validation | `pnpm check:export` | Export pipeline contracts |
-| Portal validation | `pnpm check:portal` | Portal capture contracts |
-| Knowledge validation | `pnpm check:knowledge` | Knowledge graph contracts |
-| Citation validation | `pnpm check:citations` | Citation engine contracts |
-| Headless validation | `pnpm check:headless` | Headless runner contracts |
-| Lint | `pnpm lint` | ESLint |
-| Build | `pnpm build` | Production frontend build |
-| Rust tests | `pnpm test:rust` | `cargo test --workspace` |
-| Visual regression | `pnpm test:visual` | Playwright visual tests |
-| TUI smoke | `pnpm check:tui` | Terminal UI smoke test |
-| Daemon smoke | `pnpm check:daemon` | IPC daemon smoke test |
-| Container smoke | `pnpm check:container` | Container image smoke |
-| Release smoke | `pnpm release:smoke` | Release artifact smoke |
-| Perf gate | `pnpm release:perf-gate` | Performance baseline check |
-| Canvas bench | `pnpm bench:canvas` | Canvas interaction benchmark |
-| Startup bench | `pnpm bench:startup` | Startup time benchmark |
-| Idle memory bench | `pnpm bench:idle-memory` | Idle memory benchmark |
-| Accessibility | `pnpm check:a11y` | Static a11y checks |
-| axe-core audit | `pnpm check:a11y-axe` | WCAG 2a/2aa/2.1aa automated audit |
-| Rust tests | `cargo test --workspace` | Rust unit and integration tests |
-| E2E tests | `pnpm test:e2e` | Playwright end-to-end tests |
+See [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md).
 
-## Commercial inquiries
+## Support and escalation
 
-See [COMMERCIAL-LICENSING.md](COMMERCIAL-LICENSING.md).
+| Topic | Route |
+|---|---|
+| Security | Private email per [`SECURITY.md`](SECURITY.md) |
+| Bugs/features | GitHub Issues |
+| Contributions | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Licensing | [`COMMERCIAL-LICENSING.md`](COMMERCIAL-LICENSING.md) |
+| Capability status | [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) |

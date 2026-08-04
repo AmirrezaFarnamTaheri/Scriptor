@@ -11,6 +11,7 @@ interface UseWorkspaceFilesystemSyncOptions {
   checkExternalChangesRef: MutableRefObject<() => Promise<void>>
   applyFilesystemChangesRef: MutableRefObject<(paths: string[]) => Promise<void>>
   refreshGit: () => Promise<void>
+  rebuildIndex: () => Promise<void>
   vaultRefreshTimer: MutableRefObject<number | null>
   hibernated?: boolean
   hibernateGit?: boolean
@@ -22,6 +23,7 @@ export function useWorkspaceFilesystemSync({
   checkExternalChangesRef,
   applyFilesystemChangesRef,
   refreshGit,
+  rebuildIndex,
   vaultRefreshTimer,
   hibernated = false,
   hibernateGit = false,
@@ -59,7 +61,15 @@ export function useWorkspaceFilesystemSync({
 
     void subscribeVaultEvents({
       onFilesystemChanged: (payload) => {
-        if (!active || payload.events.length === 0) {
+        if (!active) {
+          return
+        }
+        if (payload.rescan_required) {
+          pendingPaths.clear()
+          void rebuildIndex()
+          return
+        }
+        if (payload.events.length === 0) {
           return
         }
 
@@ -103,6 +113,7 @@ export function useWorkspaceFilesystemSync({
     activePathRef,
     applyFilesystemChangesRef,
     checkExternalChangesRef,
+    rebuildIndex,
     vault,
     vaultRefreshTimer,
     hibernated,

@@ -1,86 +1,45 @@
-# Scriptor Documentation
+# Scriptor documentation
 
-![Scriptor workspace — split editor, preview, and inspector](assets/screenshots/editor-preview.png)
-
-Complete documentation for **Scriptor v0.1.0** — product, design, architecture, contracts, release, and validation.
-
-## Start here
-
-| Document | Audience | Purpose |
-|----------|----------|---------|
-| [`../README.md`](../README.md) | Everyone | Project overview, install, and support |
-| [`guides/GETTING_STARTED.md`](./guides/GETTING_STARTED.md) | New users | First vault, workflows, and export setup |
-| [`CAPABILITIES.md`](./CAPABILITIES.md) | Users & contributors | Feature map and validation commands |
-| [`../CHANGELOG.md`](../CHANGELOG.md) | Everyone | Release history |
-
-## Product
+## Authoritative current-state documents
 
 | Document | Purpose |
-|----------|---------|
-| [`../PRODUCT.md`](../PRODUCT.md) | Users, purpose, design principles, platforms |
-| [`../DESIGN.md`](../DESIGN.md) | Visual and interaction rules |
-| [`brand/BRAND.md`](./brand/BRAND.md) | Logo, wordmark, and brand constants |
-| [`assets/screenshots/README.md`](./assets/screenshots/README.md) | Generated UI screenshots |
+|---|---|
+| [`../README.md`](../README.md) | overview, setup, verification, release posture |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | runtime topology, ownership, trust and failure boundaries |
+| [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md) | shipped, experimental, evaluation, and design-only status |
+| [`../PRODUCT.md`](../PRODUCT.md) | user outcomes, promises, exclusions |
+| [`../DESIGN.md`](../DESIGN.md) | UI system, responsiveness, accessibility |
+| [`../SECURITY.md`](../SECURITY.md) | security boundary and reporting policy |
+| [`RELEASE-SECURITY.md`](RELEASE-SECURITY.md) | signing, SBOM, provenance, consumer verification |
+| [`ENCRYPTION-THREAT-MODEL.md`](ENCRYPTION-THREAT-MODEL.md) | experimental encryption decision gate |
+| [`OPERATIONS.md`](OPERATIONS.md) | tracing, correlation, health and incidents |
+| [`FINAL-REMEDIATION-REPORT.md`](FINAL-REMEDIATION-REPORT.md) | disposition and proof boundary for all 38 diligence findings |
+| [`VERIFICATION.md`](VERIFICATION.md) | executed, static, pending, release, and history proof gates |
+| [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md) | production go/no-go checklist |
 
-## Design system
+## User and contributor guides
 
-| Document | Purpose |
-|----------|---------|
-| [`design/DESIGN_SYSTEM.md`](./design/DESIGN_SYSTEM.md) | Tokens, typography, motion |
-| [`design/LAYOUT_BLUEPRINTS.md`](./design/LAYOUT_BLUEPRINTS.md) | Desktop, mobile, and TUI layout |
+- [`guides/GETTING_STARTED.md`](guides/GETTING_STARTED.md)
+- [`CAPABILITIES.md`](CAPABILITIES.md)
+- [`../CONTRIBUTING.md`](../CONTRIBUTING.md)
+- [`plugins/AUTHOR_GUIDE.md`](plugins/AUTHOR_GUIDE.md)
+- [`contracts/COMMAND_CATALOG.md`](contracts/COMMAND_CATALOG.md)
+- [`contracts/CONTRACT_INDEX.md`](contracts/CONTRACT_INDEX.md)
+- [`contracts/CONTRACT_GOVERNANCE.md`](contracts/CONTRACT_GOVERNANCE.md)
 
-## Architecture
+## Design and validation
 
-| Document | Purpose |
-|----------|---------|
-| [`architecture/PLUGIN_SYSTEM.md`](./architecture/PLUGIN_SYSTEM.md) | Plugin manifest and safe mode |
-| [`architecture/IPC_DAEMON.md`](./architecture/IPC_DAEMON.md) | Headless daemon IPC |
-| [`architecture/TUI_PARITY.md`](./architecture/TUI_PARITY.md) | Terminal UI surface |
-| [`architecture/PERFORMANCE_ARCHITECTURE.md`](./architecture/PERFORMANCE_ARCHITECTURE.md) | Performance measurement |
-| [`architecture/EDITOR_ENGINES.md`](./architecture/EDITOR_ENGINES.md) | CodeMirror and Monaco dual-engine roles |
-| [`architecture/CITATION_ENGINE_EVAL.md`](./architecture/CITATION_ENGINE_EVAL.md) | Native Rust citation engine evaluation |
-| [`architecture/WASM_PLUGINS.md`](./architecture/WASM_PLUGINS.md) | WASM plugin runtime architecture |
-| [`architecture/LOCAL_EMBEDDINGS.md`](./architecture/LOCAL_EMBEDDINGS.md) | Local embeddings and vector index |
-| [`architecture/HEADLESS_SSG.md`](./architecture/HEADLESS_SSG.md) | Headless SSG/CI export pipeline |
-| [`architecture/I18N_FRAMEWORK.md`](./architecture/I18N_FRAMEWORK.md) | Internationalization framework |
-| [`architecture/ENCRYPTION_AT_REST.md`](./architecture/ENCRYPTION_AT_REST.md) | Vault encryption at rest |
-| [`architecture/MOBILE_ARCHITECTURE.md`](./architecture/MOBILE_ARCHITECTURE.md) | Mobile foreground-only architecture |
-| [`architecture/TANTIVY_EVAL.md`](./architecture/TANTIVY_EVAL.md) | Tantivy vs FTS5 evaluation |
+- [`design/DESIGN_SYSTEM.md`](design/DESIGN_SYSTEM.md)
+- [`design/LAYOUT_BLUEPRINTS.md`](design/LAYOUT_BLUEPRINTS.md)
+- [`validation/ACCESSIBILITY_AUDIT.md`](validation/ACCESSIBILITY_AUDIT.md)
+- [`validation/FRONTEND_QUALITY.md`](validation/FRONTEND_QUALITY.md)
+- [`assets/screenshots/README.md`](assets/screenshots/README.md)
 
-## Plugins
+## Architecture records and evaluations
 
-| Document | Purpose |
-|----------|---------|
-| [`plugins/AUTHOR_GUIDE.md`](./plugins/AUTHOR_GUIDE.md) | Plugin author guide with hello-world walkthrough |
+Files under `architecture/` may describe implemented systems, evaluations, or future designs. Their status must agree with [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md). A design document is not proof that a capability ships.
 
-## Contracts
+## Release references
 
-| Document | Purpose |
-|----------|---------|
-| [`contracts/COMMAND_CATALOG.md`](./contracts/COMMAND_CATALOG.md) | Tauri, daemon, and CLI commands |
-| [`contracts/CONTRACT_INDEX.md`](./contracts/CONTRACT_INDEX.md) | Contract package index |
-| [`contracts/CONTRACT_GOVERNANCE.md`](./contracts/CONTRACT_GOVERNANCE.md) | Contract change policy |
-
-## Release and validation
-
-| Document | Purpose |
-|----------|---------|
-| [`release/PANDOC_STRATEGY.md`](./release/PANDOC_STRATEGY.md) | Pandoc discovery, bundling, and GPL/AGPL licensing boundary |
-| [`release/SIGNING.md`](./release/SIGNING.md) | Release signing and notarization |
-| [`validation/ACCESSIBILITY_AUDIT.md`](./validation/ACCESSIBILITY_AUDIT.md) | Accessibility checklist |
-| [`validation/CONTENT_HASH_AUDIT.md`](./validation/CONTENT_HASH_AUDIT.md) | Content-hash skip audit for incremental indexing |
-
-## Project governance
-
-| Document | Purpose |
-|----------|---------|
-| [`../LICENSE`](../LICENSE) | GNU AGPL v3.0 |
-| [`../COMMERCIAL-LICENSING.md`](../COMMERCIAL-LICENSING.md) | Commercial license inquiries |
-| [`../MAINTAINERS.md`](../MAINTAINERS.md) | Maintainer contact and release process |
-| [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Contribution guide |
-| [`../SECURITY.md`](../SECURITY.md) | Security reporting |
-
-## Support
-
-- **GitHub:** [AmirrezaFarnamTaheri/Scriptor](https://github.com/AmirrezaFarnamTaheri/Scriptor)
-- **Maintainer:** Amirreza "Farnam" Taheri — [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)
+- [`release/SIGNING.md`](release/SIGNING.md)
+- [`release/PANDOC_STRATEGY.md`](release/PANDOC_STRATEGY.md)

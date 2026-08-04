@@ -34,3 +34,173 @@
   font-size: 13px;
   line-height: 1.45;
 }
+
+.obsidian-import-dialog {
+  width: min(620px, calc(100vw - 28px));
+  gap: 18px;
+}
+
+.obsidian-import-heading,
+.obsidian-import-result-heading,
+.obsidian-import-error,
+.obsidian-import-status p {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.obsidian-import-heading h2,
+.obsidian-import-heading p {
+  margin: 0;
+}
+
+.obsidian-import-heading p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.obsidian-import-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.obsidian-import-source {
+  display: grid;
+  gap: 7px;
+}
+
+.obsidian-import-path-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+}
+
+.obsidian-import-path-row input {
+  min-width: 0;
+}
+
+.obsidian-import-status {
+  min-height: 22px;
+}
+
+.obsidian-import-status p,
+.obsidian-import-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.obsidian-import-status .is-success {
+  color: var(--success, #15803d);
+}
+
+.obsidian-import-status .is-error,
+.obsidian-import-error,
+.obsidian-import-result-errors {
+  color: var(--danger, #b42318);
+}
+
+.obsidian-import-options {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: color-mix(in oklch, var(--surface) 84%, transparent);
+}
+
+.obsidian-import-options legend {
+  padding-inline: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.obsidian-import-options .checkbox-row {
+  min-height: 28px;
+  font-size: 13px;
+}
+
+.obsidian-import-error {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in oklch, var(--danger, #b42318) 28%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in oklch, var(--danger, #b42318) 7%, var(--surface));
+}
+
+.obsidian-import-result {
+  display: grid;
+  gap: 12px;
+  margin-top: 0;
+}
+
+.obsidian-import-result-heading {
+  color: var(--success, #15803d);
+}
+
+.obsidian-import-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--border);
+}
+
+.obsidian-import-metrics div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  background: var(--surface-raised);
+}
+
+.obsidian-import-metrics dt {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.obsidian-import-metrics dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.obsidian-import-result-errors summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.obsidian-import-result-errors li {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 620px) {
+  .obsidian-import-dialog {
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    padding: 15px;
+  }
+
+  .obsidian-import-path-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .obsidian-import-path-row input {
+    grid-column: 1 / -1;
+  }
+}

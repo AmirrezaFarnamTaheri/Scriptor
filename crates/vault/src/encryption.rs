@@ -245,7 +245,7 @@ fn key_id_for(key: &[u8; 32]) -> [u8; KEY_ID_LEN] {
 /// A missing OS random source is an environment failure, not a bug: report it
 /// rather than aborting the process mid-encryption.
 fn fill_random(buf: &mut [u8]) -> Result<(), EncryptionError> {
-    getrandom::getrandom(buf)
+    getrandom::fill(buf)
         .map_err(|error| EncryptionError::Encrypt(format!("random source unavailable: {error}")))
 }
 
@@ -310,6 +310,7 @@ impl EncryptedHeader {
     }
 }
 
+#[allow(deprecated)]
 fn aes_gcm_encrypt(key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| EncryptionError::Encrypt(e.to_string()))?;
@@ -319,6 +320,7 @@ fn aes_gcm_encrypt(key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>
         .map_err(|e| EncryptionError::Encrypt(e.to_string()))
 }
 
+#[allow(deprecated)]
 fn aes_gcm_decrypt(key: &[u8], nonce: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
     let cipher = Aes256Gcm::new_from_slice(key)
         .map_err(|e| EncryptionError::Decrypt(e.to_string()))?;
@@ -382,11 +384,7 @@ mod tests {
 
         let mut key = key;
         let slice: &mut [u8; 32] = key.as_bytes_mut();
-        let ptr = slice.as_mut_ptr();
-        unsafe {
-            let _ = std::ptr::read(ptr as *const [u8; 32]);
-            std::ptr::write(slice, [0u8; 32]);
-        }
+        slice.fill(0);
         assert!(key.as_bytes().iter().all(|&b| b == 0), "key should be zeroizable");
     }
 

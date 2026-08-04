@@ -9,15 +9,10 @@ export default defineConfig({
     format: 'es',
   },
   build: {
+    manifest: true,
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('node_modules/monaco-editor')) {
-            return 'monaco'
-          }
-          if (id.includes('node_modules/@codemirror')) {
-            return 'codemirror'
-          }
           if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
             return 'react-vendor'
           }

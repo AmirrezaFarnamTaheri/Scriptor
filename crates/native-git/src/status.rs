@@ -1,5 +1,7 @@
-use std::path::Path;
-use std::process::Command;
+use std::collections::HashSet;
+use std::path::{Component, Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
@@ -82,23 +84,199 @@ pub fn git_commit_selected(
     if files.is_empty() {
         return Err(GitError::Command("no files selected for commit".into()));
     }
-
+    if message.trim().is_empty() {
+        return Err(GitError::Command("commit message must not be empty".into()));
+    }
     if !is_git_repo(repo_root)? {
         return Err(GitError::NotARepository(repo_root.display().to_string()));
     }
 
-    let mut add_args = vec!["add".to_string(), "--".to_string()];
-    add_args.extend(files.iter().cloned());
-    run_git(repo_root, &add_args.iter().map(String::as_str).collect::<Vec<_>>())?;
+    for file in files {
+        validate_selected_path(file)?;
+    }
 
-    run_git(repo_root, &["commit", "-m", message])?;
+    let selected_paths = expand_selected_paths(repo_root, files)?;
+    let head = run_git(repo_root, &["rev-parse", "HEAD"])?;
+    let branch_ref = run_git(repo_root, &["symbolic-ref", "-q", "HEAD"])?;
+    let real_index = repository_index_path(repo_root)?;
+    let original_index = std::fs::read(&real_index).ok();
+    let temp_index = temporary_index_path(repo_root)?;
+    let temp_index_guard = TemporaryIndex::new(temp_index.clone());
 
-    let hash = run_git(repo_root, &["rev-parse", "HEAD"])?;
+    run_git_with_index(repo_root, &temp_index, &["read-tree", &head])?;
+    let mut add_args = vec![
+        "--literal-pathspecs".to_string(),
+        "add".to_string(),
+        "--all".to_string(),
+        "--".to_string(),
+    ];
+    add_args.extend(selected_paths.iter().cloned());
+    run_git_with_index_owned(repo_root, &temp_index, &add_args)?;
 
+    let tree = run_git_with_index(repo_root, &temp_index, &["write-tree"])?;
+    let new_commit = run_git(
+        repo_root,
+        &["commit-tree", &tree, "-p", &head, "-m", message],
+    )?;
+    run_git(repo_root, &["update-ref", &branch_ref, &new_commit, &head])?;
+
+    if let Err(error) = reset_committed_paths_in_real_index(repo_root, &selected_paths) {
+        let rollback_result = run_git(repo_root, &["update-ref", &branch_ref, &head, &new_commit]);
+        let restore_result = restore_index(&real_index, original_index.as_deref());
+        return Err(GitError::Command(format!(
+            "failed to reconcile selected paths after commit: {error}; branch rollback: {}; index restore: {}",
+            format_result(&rollback_result),
+            format_result(&restore_result)
+        )));
+    }
+
+    let committed = run_git(
+        repo_root,
+        &[
+            "diff-tree",
+            "--no-commit-id",
+            "--name-only",
+            "-r",
+            "--root",
+            &new_commit,
+        ],
+    )?;
+    let files_committed = committed
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(str::to_string)
+        .collect();
+
+    drop(temp_index_guard);
     Ok(GitCommitOutput {
-        commit_hash: hash,
-        files_committed: files.to_vec(),
+        commit_hash: new_commit,
+        files_committed,
     })
+}
+
+fn expand_selected_paths(repo_root: &Path, files: &[String]) -> Result<Vec<String>, GitError> {
+    let status = git_status(repo_root)?;
+    let selected = files.iter().map(String::as_str).collect::<HashSet<_>>();
+    let mut expanded = files.to_vec();
+
+    for changed in status.changed_files {
+        let original_selected = changed
+            .original_path
+            .as_deref()
+            .is_some_and(|original| selected.contains(original));
+        if selected.contains(changed.path.as_str()) || original_selected {
+            expanded.push(changed.path);
+            if let Some(original) = changed.original_path {
+                expanded.push(original);
+            }
+        }
+    }
+
+    expanded.sort();
+    expanded.dedup();
+    Ok(expanded)
+}
+
+fn repository_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
+    let path = run_git(repo_root, &["rev-parse", "--git-path", "index"])?;
+    let path = PathBuf::from(path);
+    Ok(if path.is_absolute() { path } else { repo_root.join(path) })
+}
+
+fn reset_committed_paths_in_real_index(
+    repo_root: &Path,
+    paths: &[String],
+) -> Result<(), GitError> {
+    let mut args = vec![
+        "--literal-pathspecs".to_string(),
+        "reset".to_string(),
+        "--quiet".to_string(),
+        "HEAD".to_string(),
+        "--".to_string(),
+    ];
+    args.extend(paths.iter().cloned());
+    let borrowed = args.iter().map(String::as_str).collect::<Vec<_>>();
+    run_git(repo_root, &borrowed).map(|_| ())
+}
+
+fn restore_index(path: &Path, original: Option<&[u8]>) -> Result<(), GitError> {
+    match original {
+        Some(bytes) => std::fs::write(path, bytes)
+            .map_err(|error| GitError::Command(format!("failed to restore index: {error}"))),
+        None => match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(GitError::Command(format!(
+                "failed to remove newly created index: {error}"
+            ))),
+        },
+    }
+}
+
+fn format_result<T>(result: &Result<T, GitError>) -> String {
+    match result {
+        Ok(_) => "ok".to_string(),
+        Err(error) => error.to_string(),
+    }
+}
+
+fn validate_selected_path(path: &str) -> Result<(), GitError> {
+    if path.is_empty() || path.contains('\0') {
+        return Err(GitError::Command("selected path is empty or contains NUL".into()));
+    }
+    let parsed = Path::new(path);
+    if parsed.is_absolute()
+        || parsed
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return Err(GitError::Command(format!("selected path escapes repository: {path}")));
+    }
+    Ok(())
+}
+
+fn temporary_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
+    let git_dir = run_git(repo_root, &["rev-parse", "--absolute-git-dir"])?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos();
+    Ok(PathBuf::from(git_dir).join(format!(
+        "scriptor-index-{}-{nonce}",
+        std::process::id()
+    )))
+}
+
+struct TemporaryIndex {
+    path: PathBuf,
+}
+
+impl TemporaryIndex {
+    fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+}
+
+impl Drop for TemporaryIndex {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.path);
+        let mut lock_path = self.path.as_os_str().to_os_string();
+        lock_path.push(".lock");
+        let _ = std::fs::remove_file(std::path::PathBuf::from(lock_path));
+    }
+}
+
+fn run_git_with_index(repo_root: &Path, index: &Path, args: &[&str]) -> Result<String, GitError> {
+    run_git_command(repo_root, args, Some(index))
+}
+
+fn run_git_with_index_owned(
+    repo_root: &Path,
+    index: &Path,
+    args: &[String],
+) -> Result<String, GitError> {
+    let borrowed: Vec<&str> = args.iter().map(String::as_str).collect();
+    run_git_with_index(repo_root, index, &borrowed)
 }
 
 fn is_git_repo(repo_root: &Path) -> Result<bool, GitError> {
@@ -123,17 +301,31 @@ fn current_branch(repo_root: &Path) -> Result<String, GitError> {
 }
 
 pub(crate) fn run_git(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
-    let output = Command::new("git")
+    run_git_command(repo_root, args, None)
+}
+
+fn run_git_command(
+    repo_root: &Path,
+    args: &[&str],
+    index: Option<&Path>,
+) -> Result<String, GitError> {
+    let mut command = Command::new("git");
+    command
         .current_dir(repo_root)
         .args(args)
-        .output()
-        .map_err(|_| GitError::GitMissing)?;
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GCM_INTERACTIVE", "Never")
+        .stdin(Stdio::null());
+    if let Some(index) = index {
+        command.env("GIT_INDEX_FILE", index);
+    }
+    let output = command.output().map_err(|_| GitError::GitMissing)?;
 
     if !output.status.success() {
         return Err(GitError::Command(format!(
             "git {} failed: {}",
             args.join(" "),
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&output.stderr).trim()
         )));
     }
 
@@ -587,4 +779,130 @@ mod tests {
         assert!(base.is_none());
         Ok(())
     }
+
+    #[test]
+    fn selected_commit_preserves_unrelated_staging_and_cleans_selected_path() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("selected.md"), "# Selected\n")?;
+        fs::write(dir.path().join("unrelated.md"), "# Unrelated\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+        git_commit(dir.path(), "initial")?;
+
+        fs::write(dir.path().join("selected.md"), "# Selected changed\n")?;
+        fs::write(dir.path().join("unrelated.md"), "# Unrelated staged\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "--", "unrelated.md"])
+            .output()?;
+        let unrelated_stage_before = run_git(
+            dir.path(),
+            &["ls-files", "--stage", "--", "unrelated.md"],
+        )?;
+
+        let output = git_commit_selected(dir.path(), &["selected.md".into()], "selected only")?;
+
+        assert_eq!(output.files_committed, vec!["selected.md"]);
+        assert_eq!(
+            run_git(dir.path(), &["show", "HEAD:selected.md"])?,
+            "# Selected changed"
+        );
+        assert_eq!(
+            run_git(dir.path(), &["show", "HEAD:unrelated.md"])?,
+            "# Unrelated"
+        );
+        assert_eq!(
+            run_git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"])?,
+            unrelated_stage_before,
+            "unrelated staged content must remain unchanged"
+        );
+        assert_eq!(
+            run_git(dir.path(), &["diff", "--cached", "--name-only"])?,
+            "unrelated.md"
+        );
+        assert!(
+            run_git(dir.path(), &["status", "--porcelain=1", "--", "selected.md"])?
+                .is_empty(),
+            "committed selection must be clean in both index and worktree"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_handles_deletions() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("deleted.md"), "# Delete me\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+        git_commit(dir.path(), "initial")?;
+        fs::remove_file(dir.path().join("deleted.md"))?;
+
+        let output = git_commit_selected(dir.path(), &["deleted.md".into()], "delete selected")?;
+
+        assert_eq!(output.files_committed, vec!["deleted.md"]);
+        assert!(run_git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
+        assert!(run_git(dir.path(), &["show", "HEAD:deleted.md"]).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_expands_renames_to_both_paths(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("old.md"), "# Renamed\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+        git_commit(dir.path(), "initial")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["mv", "old.md", "new.md"])
+            .output()?;
+
+        let output = git_commit_selected(dir.path(), &["new.md".into()], "rename selected")?;
+
+        assert!(output.files_committed.iter().any(|path| path == "new.md"));
+        assert!(run_git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
+        assert_eq!(run_git(dir.path(), &["show", "HEAD:new.md"] )?, "# Renamed");
+        assert!(run_git(dir.path(), &["show", "HEAD:old.md"]).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_treats_pathspec_metacharacters_literally(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git").args(["init", dir.path().to_str().unwrap()]).output()?;
+        configure_git_identity(dir.path())?;
+        let literal = if cfg!(windows) {
+            "glob_literal[1].md"
+        } else {
+            ":(glob)literal[1].md"
+        };
+        fs::write(dir.path().join(literal), "# Literal\n")?;
+        Command::new("git").current_dir(dir.path()).args(["add", "."]).output()?;
+        git_commit(dir.path(), "initial")?;
+        fs::write(dir.path().join(literal), "# Changed\n")?;
+        let output = git_commit_selected(dir.path(), &[literal.into()], "literal path")?;
+        assert_eq!(output.files_committed, vec![literal]);
+        Ok(())
+    }
+
 }

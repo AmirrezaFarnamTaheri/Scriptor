@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { expectRecord } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+
 const STORAGE_KEY = 'scriptor:keyboard-shortcuts'
 
 export interface ShortcutOverride {
@@ -15,20 +18,29 @@ function emptyOverrides(): Record<string, string | null> {
   return Object.create(null) as Record<string, string | null>
 }
 
-function loadOverrides(): Record<string, string | null> {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return emptyOverrides()
-    const parsed = JSON.parse(raw) as Record<string, string | null>
-    if (parsed === null || typeof parsed !== 'object') return emptyOverrides()
-    return Object.assign(emptyOverrides(), parsed)
-  } catch {
-    return emptyOverrides()
+function validateOverrides(value: unknown): Record<string, string | null> {
+  const parsed = expectRecord(value, 'keyboard shortcuts')
+  const output = emptyOverrides()
+  for (const [key, shortcut] of Object.entries(parsed)) {
+    if (typeof shortcut === 'string' || shortcut === null) {
+      output[key] = shortcut
+    }
   }
+  return output
+}
+
+function loadOverrides(): Record<string, string | null> {
+  return readVersionedStorage({
+    key: STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: emptyOverrides(),
+    validate: validateOverrides,
+    migrate: validateOverrides,
+  })
 }
 
 function saveOverrides(overrides: Record<string, string | null>): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(overrides))
+  writeVersionedStorage(STORAGE_KEY, 1, overrides)
 }
 
 const VALID_KEY_PATTERN = /^(Ctrl|Alt|Shift|Meta)(\+(Ctrl|Alt|Shift|Meta))*\+[A-Za-z0-9]$|^[A-Za-z0-9]$|^F\d{1,2}$|^Escape$|^Enter$|^Tab$|^Backspace$|^Delete$|^Home$|^End$|^PageUp$|^PageDown$|^ArrowUp$|^ArrowDown$|^ArrowLeft$|^ArrowRight$|^Space$/

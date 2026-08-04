@@ -16,7 +16,11 @@ function Invoke-Checked {
 }
 
 Write-Host "==> Install dependencies"
-Invoke-Checked pnpm @("install")
+Invoke-Checked pnpm @("install", "--frozen-lockfile")
+
+Write-Host "==> Governance and source checks"
+Invoke-Checked pnpm @("check:governance")
+Invoke-Checked pnpm @("check:source")
 
 Write-Host "==> Contract and plugin checks"
 Invoke-Checked pnpm @("check:contracts")
@@ -52,9 +56,6 @@ if (-not $SkipPerfGate) {
 }
 
 if (-not $SkipTauri) {
-    Write-Host "==> Inject updater signing config"
-    Invoke-Checked node @((Join-Path $PSScriptRoot "inject-updater-config.mjs"))
-
     Write-Host "==> Tauri desktop bundle"
     Invoke-Checked pnpm @("--dir", "apps/desktop", "build")
     Write-Host "==> Release manifest"

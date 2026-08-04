@@ -138,6 +138,7 @@ pub fn run_export_job_with_cancel(
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let started = Instant::now();
 
+    // PROCESS_BROKER_EXCEPTION(export-pandoc-job)
     let mut child = Command::new(&pandoc.path)
         .args(&args)
         .stdout(Stdio::piped())

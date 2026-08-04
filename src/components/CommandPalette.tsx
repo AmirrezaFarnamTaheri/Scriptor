@@ -15,26 +15,31 @@ export interface PaletteCommand {
 }
 
 interface CommandPaletteProps {
-  open: boolean
   onClose: () => void
   commands: PaletteCommand[]
   searchNotes?: (query: string) => Promise<Array<{ path: string; title: string }>>
   onOpenNote?: (path: string) => void
 }
 
-export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
+export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
-  const [noteHits, setNoteHits] = useState<Array<{ path: string; title: string }>>([])
-  const [isSearchingNotes, setIsSearchingNotes] = useState(false)
+  const [noteSearch, setNoteSearch] = useState<{
+    query: string
+    hits: Array<{ path: string; title: string }>
+  }>({ query: '', hits: [] })
+  const [searchingQuery, setSearchingQuery] = useState<string | null>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchTimer = useRef<number | null>(null)
 
+  const normalizedQuery = query.trim()
+  const isSearchingNotes = searchingQuery === normalizedQuery
+
   const noteCommands = useMemo<PaletteCommand[]>(
     () =>
-      noteHits.map((hit) => ({
+      (noteSearch.query === normalizedQuery ? noteSearch.hits : []).map((hit) => ({
         id: `note:${hit.path}`,
         label: hit.title,
         group: 'note' as const,
@@ -42,7 +47,7 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
           onOpenNote?.(hit.path)
         },
       })),
-    [noteHits, onOpenNote],
+    [normalizedQuery, noteSearch, onOpenNote],
   )
 
   const mergedCommands = useMemo(() => {
@@ -54,7 +59,7 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
             (command.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(needle)),
         )
       : commands
-    if (!searchNotes || !needle) {
+    if (!searchNotes || needle.length < 2) {
       return filteredCommands.map((command) => ({ ...command, group: 'command' as const }))
     }
     return [
@@ -64,52 +69,38 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
   }, [commands, noteCommands, query, searchNotes])
 
   useEffect(() => {
-    if (!open || !searchNotes) {
-      setNoteHits([])
-      return
-    }
-    const needle = query.trim()
-    if (needle.length < 2) {
-      setNoteHits([])
-      return
-    }
-    if (searchTimer.current) {
-      window.clearTimeout(searchTimer.current)
-    }
+    if (!searchNotes || normalizedQuery.length < 2) return
+    const requestQuery = normalizedQuery
     searchTimer.current = window.setTimeout(() => {
-      setIsSearchingNotes(true)
-      void searchNotes(needle)
-        .then((hits) => setNoteHits(hits.slice(0, 12)))
-        .catch(() => setNoteHits([]))
-        .finally(() => setIsSearchingNotes(false))
+      setSearchingQuery(requestQuery)
+      void searchNotes(requestQuery)
+        .then((hits) => setNoteSearch({ query: requestQuery, hits: hits.slice(0, 12) }))
+        .catch(() => setNoteSearch({ query: requestQuery, hits: [] }))
+        .finally(() => {
+          setSearchingQuery((current) => (current === requestQuery ? null : current))
+        })
     }, 200)
     return () => {
       if (searchTimer.current) {
         window.clearTimeout(searchTimer.current)
+        searchTimer.current = null
       }
     }
-  }, [open, query, searchNotes])
-
-  useEffect(() => {
-    setSelectedIndex(0)
-  }, [query, open])
+  }, [normalizedQuery, searchNotes])
 
   useEffect(() => {
     const active = listRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')
     active?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex, mergedCommands.length])
 
-  useEscapeToClose(open, onClose)
-  useFocusTrap(containerRef, { active: open })
+  useEscapeToClose(true, onClose)
+  useFocusTrap(containerRef, { active: true })
 
   const runSelected = (command: PaletteCommand) => {
     command.run()
     onClose()
-    setQuery('')
-    setNoteHits([])
   }
 
-  if (!open) return null
 
   return (
     <div
@@ -124,7 +115,10 @@ export function CommandPalette({ open, onClose, commands, searchNotes, onOpenNot
           <input
             type="search"
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setSelectedIndex(0)
+            }}
             onKeyDown={(event) => {
               if (event.key === 'ArrowDown') {
                 event.preventDefault()

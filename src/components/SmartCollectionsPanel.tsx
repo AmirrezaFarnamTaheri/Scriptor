@@ -10,6 +10,8 @@ import {
 } from '../lib/vaultPresets'
 import { VirtualKnowledgeNoteList } from './app/VirtualKnowledgeNoteList'
 import type { KnowledgeNoteSummary } from '../types/vault'
+import { expectArray, expectRecord, expectString } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 export interface SmartCollection {
   id: string
@@ -25,23 +27,31 @@ const DEFAULT_COLLECTIONS: SmartCollection[] = [
   { id: 'inbox', label: 'Inbox folder', query: 'path matches inbox' },
 ]
 
+function validateCollections(value: unknown): SmartCollection[] {
+  const parsed = expectArray(value, 'smart collections').map((item, index) => {
+    const context = `smart collections[${index}]`
+    const record = expectRecord(item, context)
+    return {
+      id: expectString(record, 'id', context),
+      label: expectString(record, 'label', context),
+      query: expectString(record, 'query', context),
+    }
+  })
+  return parsed.length > 0 ? parsed : DEFAULT_COLLECTIONS
+}
+
 function loadCollections(): SmartCollection[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return DEFAULT_COLLECTIONS
-    const parsed = JSON.parse(raw) as SmartCollection[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_COLLECTIONS
-  } catch {
-    return DEFAULT_COLLECTIONS
-  }
+  return readVersionedStorage({
+    key: STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: DEFAULT_COLLECTIONS,
+    validate: validateCollections,
+    migrate: validateCollections,
+  })
 }
 
 function saveCollections(collections: SmartCollection[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(collections))
-  } catch {
-    // ignore storage failures
-  }
+  writeVersionedStorage(STORAGE_KEY, 1, collections)
 }
 
 interface SmartCollectionsPanelProps {
@@ -101,9 +111,30 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   )
 
   useEffect(() => {
-    if (!activeCollection) return
-    void runQuery(activeCollection)
-  }, [activeCollection?.id, canQuery])
+    if (!canQuery || !activeCollection) return
+    let cancelled = false
+    const requestedCollection = activeCollection
+    void indexerExecuteDql(requestedCollection.query)
+      .then((rows) => {
+        if (cancelled) return
+        const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
+          path: row.path,
+          title: row.title,
+          inbound_links: 0,
+          outbound_links: 0,
+        }))
+        setResults(mapped)
+        setStatus(`${mapped.length} note(s) matched "${requestedCollection.label}".`)
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setResults([])
+        setStatus(error instanceof Error ? error.message : 'DQL query failed')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeCollection, canQuery])
 
   const addCollection = () => {
     const label = draftLabel.trim()

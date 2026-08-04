@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 
+import { expectRecord } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+
 export interface JourneySnapshot {
   vaultOpenedAt: number | null
   firstEditAt: number | null
@@ -18,29 +21,39 @@ const EMPTY: JourneySnapshot = {
   panelOpens: {},
 }
 
-function readSnapshot(): JourneySnapshot {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return { ...EMPTY, panelOpens: {} }
-    const parsed = JSON.parse(raw) as Partial<JourneySnapshot>
-    return {
-      vaultOpenedAt: parsed.vaultOpenedAt ?? null,
-      firstEditAt: parsed.firstEditAt ?? null,
-      firstExportAt: parsed.firstExportAt ?? null,
-      lastIndexRebuildMs: parsed.lastIndexRebuildMs ?? null,
-      panelOpens: parsed.panelOpens ?? {},
-    }
-  } catch {
-    return { ...EMPTY, panelOpens: {} }
+function validateSnapshot(value: unknown): JourneySnapshot {
+  const parsed = expectRecord(value, 'journey metrics')
+  const panelOpensRecord = typeof parsed.panelOpens === 'object' && parsed.panelOpens !== null
+    ? expectRecord(parsed.panelOpens, 'journey metrics.panelOpens')
+    : {}
+  const panelOpens = Object.fromEntries(
+    Object.entries(panelOpensRecord).filter((entry): entry is [string, number] =>
+      typeof entry[1] === 'number' && Number.isFinite(entry[1]),
+    ),
+  )
+  const nullableNumber = (candidate: unknown) =>
+    typeof candidate === 'number' && Number.isFinite(candidate) ? candidate : null
+  return {
+    vaultOpenedAt: nullableNumber(parsed.vaultOpenedAt),
+    firstEditAt: nullableNumber(parsed.firstEditAt),
+    firstExportAt: nullableNumber(parsed.firstExportAt),
+    lastIndexRebuildMs: nullableNumber(parsed.lastIndexRebuildMs),
+    panelOpens,
   }
 }
 
+function readSnapshot(): JourneySnapshot {
+  return readVersionedStorage({
+    key: STORAGE_KEY,
+    schemaVersion: 1,
+    fallback: { ...EMPTY, panelOpens: {} },
+    validate: validateSnapshot,
+    migrate: validateSnapshot,
+  })
+}
+
 function persist(snapshot: JourneySnapshot) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot))
-  } catch {
-    // ignore storage failures
-  }
+  writeVersionedStorage(STORAGE_KEY, 1, snapshot)
 }
 
 export function useJourneyMetrics() {

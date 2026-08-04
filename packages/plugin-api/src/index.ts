@@ -13,7 +13,7 @@ export {
   PluginRegistry,
   runRegistryTests,
 } from './registry.ts'
-export type { LoadedPlugin, PluginRegistryEntry, PluginRegistrySnapshot } from './registry.ts'
+export type { LoadedPlugin, PluginConsent, PluginRegistryEntry, PluginRegistrySnapshot } from './registry.ts'
 export { collectContributions } from './contributions.ts'
 export { PluginHost, runHostSandboxTests } from './host.ts'
 export {

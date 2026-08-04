@@ -1,5 +1,6 @@
 use scriptor_vault::{
-    metadata_from_markdown, read_note, scan_vault, NoteDocument, ScannedEntryKind, VaultSession,
+    metadata_from_markdown, read_note, scan_vault_for_index, NoteDocument, ScannedEntryKind, VaultSession,
+    MAX_INDEXED_NOTE_BYTES,
 };
 
 use crate::bibliography::sync_vault_bibliography;
@@ -7,7 +8,7 @@ use crate::citation::register_bibliography_keys;
 use crate::db::{default_cache_path, IndexCache};
 use crate::error::IndexerError;
 use crate::health::{build_health_report, CacheStatus, VaultHealthReport};
-use crate::links::replace_note_links;
+use crate::links::{replace_note_links, resolve_link_targets};
 use crate::notes::{note_needs_reindex, remove_note_from_index, session_cache_path, upsert_note};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -80,7 +81,7 @@ pub fn rebuild_index_with_progress(
     sync_vault_bibliography(&cache, session)?;
     register_bibliography_keys(&cache, bibliography_keys)?;
 
-    let note_entries: Vec<_> = scan_vault(&session.root)?
+    let note_entries: Vec<_> = scan_vault_for_index(&session.root)?
         .into_iter()
         .filter(|entry| entry.kind == ScannedEntryKind::Note)
         .collect();
@@ -94,6 +95,16 @@ pub fn rebuild_index_with_progress(
     let progress_stride = (notes_total / 3).max(1);
 
     for (index, entry) in note_entries.into_iter().enumerate() {
+        if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
+            skipped_notes += 1;
+            tracing::warn!(
+                path = %entry.path,
+                size_bytes = entry.size_bytes,
+                limit_bytes = MAX_INDEXED_NOTE_BYTES,
+                "skipping oversized note during index rebuild"
+            );
+            continue;
+        }
         let path = scriptor_vault::RelativeVaultPath::parse(&entry.path)?;
         // Reuse the content the scan already read instead of re-reading every
         // file; fall back to a fresh read if the scan did not capture it.
@@ -123,6 +134,8 @@ pub fn rebuild_index_with_progress(
             emit("indexing", processed, notes_total, RebuildStatus::Running);
         }
     }
+
+    resolve_link_targets(&cache, &session.descriptor.id)?;
 
     emit("health", notes_total, notes_total, RebuildStatus::Running);
 
@@ -198,6 +211,7 @@ pub fn incremental_notes_index_with_cache(
         }
     }
 
+    resolve_link_targets(cache, &session.descriptor.id)?;
     Ok(summary)
 }
 

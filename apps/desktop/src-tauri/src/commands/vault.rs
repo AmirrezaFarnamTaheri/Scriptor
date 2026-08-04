@@ -21,8 +21,9 @@ use scriptor_vault::{
 };
 use tauri::AppHandle;
 
+use crate::authorization::{require_sensitive_operation, SensitiveOperation};
+use crate::state::{active_session, lock_recover, use_headless_engine};
 use crate::AppState;
-use crate::state::{active_session, use_headless_engine};
 
 use super::daemon::{
     bridge_health_report, bridge_reload_config, bridge_rename_apply, bridge_save_note,
@@ -43,7 +44,7 @@ pub fn vault_open(
     }
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
-    *state.session.lock().expect("session lock") = Some(session.clone());
+    *lock_recover(&state.session, "session") = Some(session.clone());
     restart_vault_watcher(&app, &state, &session)?;
     Ok(output)
 }
@@ -265,7 +266,14 @@ pub fn vault_rename_block_apply(
 pub fn vault_delete_note(
     state: tauri::State<AppState>,
     path: String,
+    authorization_token: String,
 ) -> Result<DeleteNoteOutput, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::DeleteNote,
+        Some(&path),
+    )?;
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     delete_note(&session.root, &relative).map_err(|error| error.to_string())
@@ -488,8 +496,17 @@ pub fn vault_list_view_notes(
 }
 
 #[tauri::command]
-pub fn vault_lint_fix(state: tauri::State<AppState>) -> Result<LintApplyOutput, String> {
+pub fn vault_lint_fix(
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<LintApplyOutput, String> {
     let session = active_session(&state)?;
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::ApplyBulkFix,
+        Some(&session.descriptor.id),
+    )?;
     let rules = vec![
         RULE_MISSING_HEADING.to_string(),
         RULE_STALE_DEFINITIONS.to_string(),
@@ -548,7 +565,14 @@ pub fn vault_import_obsidian(
     convert_wikilinks: Option<bool>,
     import_attachments: Option<bool>,
     preserve_frontmatter: Option<bool>,
+    authorization_token: String,
 ) -> Result<ImportResult, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::ImportVault,
+        Some(&obsidian_path),
+    )?;
     let session = active_session(&state)?;
     let options = ImportObsidianOptions {
         convert_wikilinks: convert_wikilinks.unwrap_or(true),

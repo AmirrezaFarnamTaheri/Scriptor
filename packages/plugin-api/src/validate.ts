@@ -33,7 +33,7 @@ export async function runPluginValidation(): Promise<string[]> {
     ...runManifestValidationTests(),
     ...runRegistryTests(),
     ...runSandboxTests(),
-    ...runHostSandboxTests(),
+    ...(await runHostSandboxTests()),
     ...runWasmHostScaffoldTests(),
   ]
   if (listBundledMarketplaceCatalog().length === 0) {

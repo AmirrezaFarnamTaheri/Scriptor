@@ -1,7 +1,14 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { X } from 'lucide-react'
 
 import { vaultFrontmatterSet } from '../bridge/commands'
+
+
+function stringifyFields(fields: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, value]) => [key, value == null ? '' : String(value)]),
+  )
+}
 
 interface FrontmatterInspectorProps {
   path: string
@@ -11,16 +18,8 @@ interface FrontmatterInspectorProps {
 }
 
 export function FrontmatterInspector({ path, fields, onClose, onSaved }: FrontmatterInspectorProps) {
-  const [draft, setDraft] = useState<Record<string, string>>({})
+  const [draft, setDraft] = useState<Record<string, string>>(() => stringifyFields(fields))
   const [status, setStatus] = useState('')
-
-  useEffect(() => {
-    const next: Record<string, string> = {}
-    for (const [key, value] of Object.entries(fields)) {
-      next[key] = value == null ? '' : String(value)
-    }
-    setDraft(next)
-  }, [fields, path])
 
   const saveField = async (field: string) => {
     setStatus('Saving…')

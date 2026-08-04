@@ -175,19 +175,19 @@ export function useWorkspaceEditor({
 
   useEffect(() => {
     activePathRef.current = activePath
-  }, [activePath])
+  }, [activePath, activePathRef])
 
   useEffect(() => {
     activeNoteRef.current = activeNote
-  }, [activeNote])
+  }, [activeNote, activeNoteRef])
 
   useEffect(() => {
     draftMarkdownRef.current = draftMarkdown
-  }, [draftMarkdown])
+  }, [draftMarkdown, draftMarkdownRef])
 
   useEffect(() => {
     isSavingRef.current = isSaving
-  }, [isSaving])
+  }, [isSaving, isSavingRef])
 
   const reloadActiveNoteFromDisk = useCallback(async () => {
     if (!activePath) {
@@ -262,11 +262,11 @@ export function useWorkspaceEditor({
     } catch {
       // Ignore transient read failures during external change checks.
     }
-  }, [loadBacklinks])
+  }, [activeNoteRef, activePathRef, draftMarkdownRef, isSavingRef, loadBacklinks])
 
   useEffect(() => {
     checkExternalChangesRef.current = checkExternalChanges
-  }, [checkExternalChanges])
+  }, [checkExternalChanges, checkExternalChangesRef])
 
   const closeTab = useCallback(
     (path: string, force = false) => {
@@ -432,7 +432,7 @@ export function useWorkspaceEditor({
       saveTimer.current = null
     }
     await performSave(draftMarkdownRef.current)
-  }, [activeNote, activePath, performSave])
+  }, [activeNote, activePath, draftMarkdownRef, performSave])
 
   const updateDraft = useCallback(
     (markdown: string) => {

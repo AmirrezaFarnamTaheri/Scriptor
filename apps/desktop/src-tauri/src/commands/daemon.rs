@@ -9,6 +9,9 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::path::BaseDirectory;
 
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
+use crate::AppState;
+
 static RPC_ID: AtomicU64 = AtomicU64::new(1);
 
 #[derive(Debug, Clone, Serialize)]
@@ -88,13 +91,24 @@ pub fn daemon_endpoint() -> Result<DaemonEndpoint, String> {
 }
 
 #[tauri::command]
-pub fn daemon_start(app: tauri::AppHandle) -> Result<DaemonEndpoint, String> {
+pub fn daemon_start(
+    app: tauri::AppHandle,
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<DaemonEndpoint, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::DaemonControl,
+        Some("background-daemon"),
+    )?;
     if daemon_ping().is_ok() {
         return read_endpoint().map_err(|error| error.to_string());
     }
 
     let binary = resolve_daemon_binary(&app);
     let binary_display = binary.display().to_string();
+    // PROCESS_BROKER_EXCEPTION(desktop-daemon-start)
     Command::new(&binary)
         .arg("serve")
         .spawn()

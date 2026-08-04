@@ -71,7 +71,6 @@
     "title": "Einstellungen",
     "subtitle": "Desktop-Laufzeit, Tresor-Workflow und Diagnose.",
     "runtime": "Laufzeit",
-    "checkForUpdates": "Nach Updates suchen",
     "nativeBridge": "Native Tauri-Brücke verbunden",
     "browserPreview": "Browser-Vorschau — `pnpm desktop:dev` für Tresor-Befehle ausführen",
     "pandoc": "Pandoc",
@@ -177,9 +176,6 @@
     "saveFailed": "Notiz konnte nicht gespeichert werden",
     "loadFailed": "Notiz konnte nicht geladen werden"
   },
-  "updater": {
-    "placeholder": "Updater-Signaturschlüssel für diesen Build nicht konfiguriert."
-  },
   "mcp": {
     "title": "MCP-Automatisierung",
     "subtitle": "Berechtigte Werkzeuge mit Audit-Protokoll und Entwurfs-Genehmigungsstufen.",
@@ -247,7 +243,9 @@
     "subtitle": "Reparaturwarteschlangen, gespeicherte Ansichten und Tag-Entdeckung an einem Ort.",
     "repair": "Reparieren",
     "views": "Ansichten",
-    "tags": "Tags"
+    "tags": "Tags",
+    "collections": "Sammlungen",
+    "discover": "Entdecken"
   },
   "settingsSection": {
     "panelPresentation": "Panel-Darstellung",

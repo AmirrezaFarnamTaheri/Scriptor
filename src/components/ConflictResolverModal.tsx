@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 
 import {
@@ -61,10 +61,6 @@ export function ConflictResolverModal({
   const [choices, setChoices] = useState<Record<number, ConflictHunkChoice>>(() =>
     Object.fromEntries(parsed.hunks.map((hunk) => [hunk.id, 'ours' as const])),
   )
-
-  useEffect(() => {
-    setChoices(Object.fromEntries(parsed.hunks.map((hunk) => [hunk.id, 'ours' as const])))
-  }, [parsed])
 
   const mergedPreview = useMemo(
     () => applyConflictChoices(source, choices, basePreview),

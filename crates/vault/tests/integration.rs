@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use scriptor_vault::{
-    open_vault, read_note, save_note, save_note_with_options, scan_vault, RelativeVaultPath,
+    open_vault, read_note, save_note, save_note_with_options, scan_vault, scan_vault_for_index, RelativeVaultPath,
     SaveNoteOptions, ScannedEntryKind, VaultError,
 };
 use tempfile::TempDir;
@@ -31,7 +31,7 @@ fn opens_minimal_fixture_vault() -> Result<(), VaultError> {
 fn scans_minimal_fixture_notes() -> Result<(), VaultError> {
     let (_dir, root) = copied_fixture();
     let session = open_vault(root)?;
-    let entries = scan_vault(&session.root)?;
+    let entries = scan_vault_for_index(&session.root)?;
     let notes: Vec<_> = entries
         .iter()
         .filter(|entry| entry.kind == ScannedEntryKind::Note)

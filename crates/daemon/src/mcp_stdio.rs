@@ -1,16 +1,16 @@
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 
-use chrono::Utc;
+
 use scriptor_indexer::{
     backlinks_for_path, execute_dql_query, list_dead_end_notes, list_inbox_notes, list_orphan_notes,
     list_unresolved_link_targets, list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown,
-    query_focused_graph, search_notes, traverse_graph, IndexCache, InboxPeriod,
+    query_focused_graph, search_notes, traverse_graph, IndexCache, InboxPeriod, MAX_GRAPH_DEPTH,
 };
 use scriptor_vault::{
     append_mcp_mutation, build_note_markdown, load_vault_config, open_vault, read_note,
-    save_note_with_options, set_frontmatter_field, McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions,
-    VaultSession,
+    reconcile_pending_mcp_mutations, save_note_with_options, set_frontmatter_field,
+    McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions, VaultSession,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -144,6 +144,7 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
 
 pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
     let session = open_vault(&options.vault_path).map_err(|error| error.to_string())?;
+    reconcile_pending_mcp_mutations(&session.root).map_err(|error| error.to_string())?;
     let index_cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let mut state = McpStdioState {
         session,
@@ -406,8 +407,8 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("focusPath must not be empty".into());
             }
             let depth = args.get("depth").and_then(Value::as_u64).unwrap_or(2) as u32;
-            if depth == 0 || depth > 10 {
-                return Err("depth must be between 1 and 10".into());
+            if depth == 0 || depth > MAX_GRAPH_DEPTH {
+                return Err(format!("depth must be between 1 and {MAX_GRAPH_DEPTH}"));
             }
             let cache = &state.index_cache;
             let graph = traverse_graph(cache, &state.session, focus_path, depth)
@@ -417,8 +418,8 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
         "mcp.exportGraph" => {
             let focus_path = args.get("focusPath").and_then(Value::as_str);
             let depth = args.get("depth").and_then(Value::as_u64).unwrap_or(2) as u32;
-            if depth == 0 || depth > 10 {
-                return Err("depth must be between 1 and 10".into());
+            if depth == 0 || depth > MAX_GRAPH_DEPTH {
+                return Err(format!("depth must be between 1 and {MAX_GRAPH_DEPTH}"));
             }
             let cache = &state.index_cache;
             let graph = query_focused_graph(cache, &state.session, focus_path, depth, &[])
@@ -593,40 +594,53 @@ fn write_note_with_audit(
     markdown: &str,
     expected_content_hash: Option<String>,
 ) -> Result<Value, String> {
+    // Validate the vault-relative path before recording an intent. Otherwise an
+    // invalid request would leave a permanently pending intent even though no
+    // mutation was attempted.
+    let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
     let start = Instant::now();
     let audit_id = Uuid::new_v4().to_string();
+    let intent = McpMutationAuditRecord::intent(
+        audit_id,
+        tool_name,
+        command_id,
+        Some(path.into()),
+        Some(format!("path={path}")),
+    );
+    append_mcp_mutation(&state.session.root, intent.clone()).map_err(|error| error.to_string())?;
 
     let result = save_note_with_options(
         &state.session.descriptor.id,
         &state.session.root,
-        &RelativeVaultPath::parse(path).map_err(|error| error.to_string())?,
+        &relative,
         markdown,
         expected_content_hash.as_deref(),
         SaveNoteOptions { dry_run: false },
     );
 
     let duration_ms = start.elapsed().as_millis() as u64;
-    let success = result.is_ok();
     let detail = result.as_ref().err().map(|error| error.to_string());
-
-    append_mcp_mutation(
+    if let Err(audit_error) = append_mcp_mutation(
         &state.session.root,
-        McpMutationAuditRecord {
-            id: audit_id,
-            tool_name: tool_name.into(),
-            mode: "write-approved".into(),
-            command_id: command_id.into(),
-            requested_at: Utc::now().to_rfc3339(),
-            approved_at: Some(Utc::now().to_rfc3339()),
-            outcome: if success { "allowed" } else { "denied" }.into(),
-            note_path: Some(path.into()),
-            detail,
-            input_summary: Some(format!("path={path}")),
-            success: Some(success),
-            duration_ms: Some(duration_ms),
-        },
-    )
-    .map_err(|error| error.to_string())?;
+        McpMutationAuditRecord::outcome(&intent, result.is_ok(), detail, duration_ms),
+    ) {
+        tracing::error!(
+            audit_id = %intent.id,
+            error = %audit_error,
+            mutation_succeeded = result.is_ok(),
+            "failed to persist MCP mutation outcome"
+        );
+        return match result {
+            Ok(_) => Err(format!(
+                "mutation succeeded but its audit outcome could not be persisted (audit id {}): {audit_error}; do not retry automatically",
+                intent.id
+            )),
+            Err(error) => Err(format!(
+                "{error}; audit outcome persistence also failed (audit id {}): {audit_error}",
+                intent.id
+            )),
+        };
+    }
 
     let output = result.map_err(|error| error.to_string())?;
     serde_json::to_value(output).map_err(|error| error.to_string())
@@ -638,56 +652,65 @@ fn update_frontmatter_with_audit(
     field: &str,
     value: &str,
 ) -> Result<Value, String> {
+    // Boundary validation belongs before the durable mutation intent. This
+    // prevents malformed paths from being mistaken for interrupted writes.
+    let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
     let start = Instant::now();
     let audit_id = Uuid::new_v4().to_string();
+    let intent = McpMutationAuditRecord::intent(
+        audit_id,
+        "mcp.updateFrontmatter",
+        "mcp.updateFrontmatter",
+        Some(path.into()),
+        Some(format!("path={path}, field={field}")),
+    );
+    append_mcp_mutation(&state.session.root, intent.clone()).map_err(|error| error.to_string())?;
 
-    let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
-    let note = read_note(
+    let result = read_note(
         &state.session.descriptor.id,
         &state.session.root,
         &relative,
-    );
-
-    let result = note
+    )
+    .map_err(|error| error.to_string())
+    .and_then(|note_doc| {
+        let updated_markdown =
+            set_frontmatter_field(&note_doc.markdown, field, value).map_err(|error| error.to_string())?;
+        save_note_with_options(
+            &state.session.descriptor.id,
+            &state.session.root,
+            &relative,
+            &updated_markdown,
+            None,
+            SaveNoteOptions { dry_run: false },
+        )
         .map_err(|error| error.to_string())
-        .and_then(|note_doc| {
-            let updated_markdown =
-                set_frontmatter_field(&note_doc.markdown, field, value).map_err(|error| error.to_string())?;
-            save_note_with_options(
-                &state.session.descriptor.id,
-                &state.session.root,
-                &relative,
-                &updated_markdown,
-                None,
-                SaveNoteOptions { dry_run: false },
-            )
-            .map_err(|error| error.to_string())
-        });
+    });
 
     let duration_ms = start.elapsed().as_millis() as u64;
-    let success = result.is_ok();
-    let detail = result.as_ref().err().map(|error| error.to_string());
-
-    append_mcp_mutation(
+    let detail = result.as_ref().err().cloned();
+    if let Err(audit_error) = append_mcp_mutation(
         &state.session.root,
-        McpMutationAuditRecord {
-            id: audit_id,
-            tool_name: "mcp.updateFrontmatter".into(),
-            mode: "write-approved".into(),
-            command_id: "mcp.updateFrontmatter".into(),
-            requested_at: Utc::now().to_rfc3339(),
-            approved_at: Some(Utc::now().to_rfc3339()),
-            outcome: if success { "allowed" } else { "denied" }.into(),
-            note_path: Some(path.into()),
-            detail,
-            input_summary: Some(format!("path={path}, field={field}")),
-            success: Some(success),
-            duration_ms: Some(duration_ms),
-        },
-    )
-    .map_err(|error| error.to_string())?;
+        McpMutationAuditRecord::outcome(&intent, result.is_ok(), detail, duration_ms),
+    ) {
+        tracing::error!(
+            audit_id = %intent.id,
+            error = %audit_error,
+            mutation_succeeded = result.is_ok(),
+            "failed to persist MCP frontmatter outcome"
+        );
+        return match result {
+            Ok(_) => Err(format!(
+                "frontmatter mutation succeeded but its audit outcome could not be persisted (audit id {}): {audit_error}; do not retry automatically",
+                intent.id
+            )),
+            Err(error) => Err(format!(
+                "{error}; audit outcome persistence also failed (audit id {}): {audit_error}",
+                intent.id
+            )),
+        };
+    }
 
-    let output = result.map_err(|error| error.to_string())?;
+    let output = result?;
     serde_json::to_value(output).map_err(|error| error.to_string())
 }
 
@@ -753,7 +776,16 @@ mod tests {
         let audit = fs::read_to_string(&audit_path).expect("read audit");
         assert!(audit.contains("mcp.proposePatch"));
         assert!(audit.contains("alpha.md"));
-        assert!(audit.contains("\"success\":true"));
+        let records: Vec<Value> = audit
+            .lines()
+            .map(|line| serde_json::from_str(line).expect("audit json"))
+            .collect();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0]["phase"], "intent");
+        assert_eq!(records[0]["outcome"], "pending");
+        assert_eq!(records[1]["phase"], "outcome");
+        assert_eq!(records[1]["success"], true);
+        assert!(records[1]["record_hash"].as_str().is_some());
         assert!(audit.contains("\"duration_ms\""));
         assert!(audit.contains("\"input_summary\""));
 

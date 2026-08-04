@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { BookOpen, Network } from 'lucide-react'
 
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -31,9 +31,9 @@ interface KnowledgeWorkbenchProps {
 const TABS = [
   { id: 'repair', labelKey: 'knowledge.repair' },
   { id: 'views', labelKey: 'knowledge.views' },
-  { id: 'collections', labelKey: 'knowledge.tags' },
+  { id: 'collections', labelKey: 'knowledge.collections' },
   { id: 'tags', labelKey: 'knowledge.tags' },
-  { id: 'discover', labelKey: 'knowledge.tags' },
+  { id: 'discover', labelKey: 'knowledge.discover' },
 ] as const
 
 export function KnowledgeWorkbench({
@@ -50,10 +50,6 @@ export function KnowledgeWorkbench({
 }: KnowledgeWorkbenchProps) {
   const { t } = useI18n()
   const [tab, setTab] = useState<KnowledgeWorkbenchTab>(initialTab)
-
-  useEffect(() => {
-    setTab(initialTab)
-  }, [initialTab])
 
   const handleOpenNote = (path: string) => {
     onOpenNote(path)

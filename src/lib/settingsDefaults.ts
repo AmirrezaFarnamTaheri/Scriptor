@@ -1,0 +1,22 @@
+import type { VaultConfig } from '../types/vault'
+
+export const DEFAULT_VAULT_CONFIG: VaultConfig = {
+  daily_note: {
+    directory: 'daily',
+    filename_format: '{iso}',
+    title_format: '{iso}',
+    template_path: null,
+  },
+  templates_directory: '.scriptor/templates',
+  inbox: { enabled: true, period: 'all', new_note_directory: null },
+  workflow: { auto_advance_inbox_after_organize: false },
+  note_types: { directory: 'type' },
+  export: {
+    bibliography_path: 'references.bib',
+    csl_style_path: 'apa-lite.csl',
+    export_on_save: { enabled: false, profile_id: null },
+  },
+  writing_targets: { daily_words: 500, history_path: '.scriptor/stats-history.json' },
+  graph_groups: [],
+  extra_roots: [],
+}

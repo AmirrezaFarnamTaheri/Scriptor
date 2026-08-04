@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { MoonStar, Power, X } from 'lucide-react'
 
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { loadVaultPresetJson, saveVaultPresetJson, VAULT_GRAPH_PRESETS_PATH } from '../lib/vaultPresets'
 import type { GraphQueryOutput } from '../types/vault'
 import { GraphCanvas, type CanvasNode } from './GraphCanvas'
 import { useI18n } from '../lib/i18n'
+import { expectArray, expectBoolean, expectNumber, expectRecord, expectString } from '../lib/runtimeSchema'
+import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 interface GraphPreset {
   id: string
@@ -16,15 +21,28 @@ const GRAPH_PRESETS_KEY = 'scriptor.graph.presets'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
+function validateGraphPresets(value: unknown): GraphPreset[] {
+  const parsed = expectArray(value, 'graph presets').map((item, index) => {
+    const context = `graph presets[${index}]`
+    const record = expectRecord(item, context)
+    return {
+      id: expectString(record, 'id', context),
+      label: expectString(record, 'label', context),
+      depth: Math.max(1, Math.min(5, expectNumber(record, 'depth', context))),
+      fullVault: expectBoolean(record, 'fullVault', context),
+    }
+  })
+  return parsed.length > 0 ? parsed : defaultGraphPresets()
+}
+
 function loadGraphPresets(): GraphPreset[] {
-  try {
-    const raw = localStorage.getItem(GRAPH_PRESETS_KEY)
-    if (!raw) return defaultGraphPresets()
-    const parsed = JSON.parse(raw) as GraphPreset[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : defaultGraphPresets()
-  } catch {
-    return defaultGraphPresets()
-  }
+  return readVersionedStorage({
+    key: GRAPH_PRESETS_KEY,
+    schemaVersion: 1,
+    fallback: defaultGraphPresets(),
+    validate: validateGraphPresets,
+    migrate: validateGraphPresets,
+  })
 }
 
 function defaultGraphPresets(): GraphPreset[] {
@@ -81,11 +99,17 @@ export function GraphPanel({
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
+  const dialogRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const liveRegionRef = useRef<HTMLDivElement>(null)
-  const [workerLayout, setWorkerLayout] = useState<CanvasNode[] | null>(null)
-  const [workerLoading, setWorkerLoading] = useState(false)
+  const [workerState, setWorkerState] = useState<{
+    graph: GraphQueryOutput
+    layout: CanvasNode[] | null
+  } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
+
+  useEscapeToClose(true, onClose)
+  useFocusTrap(dialogRef, { active: true })
 
   useEffect(() => {
     if (!vaultOpen) return
@@ -97,25 +121,18 @@ export function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
-    if (!graph || hibernated) {
-      setWorkerLayout(null)
-      setWorkerLoading(false)
-      return
-    }
-    setWorkerLoading(true)
+    if (!graph || hibernated) return
+    const requestedGraph = graph
     const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = (e: MessageEvent) => {
-      if (e.data.type === 'done') {
-        setWorkerLayout(e.data.nodes as CanvasNode[])
-        setWorkerLoading(false)
-      } else if (e.data.type === 'error') {
-        setWorkerLayout(null)
-        setWorkerLoading(false)
+    worker.onmessage = (event: MessageEvent) => {
+      if (event.data.type === 'done') {
+        setWorkerState({ graph: requestedGraph, layout: event.data.nodes as CanvasNode[] })
+      } else if (event.data.type === 'error') {
+        setWorkerState({ graph: requestedGraph, layout: null })
       }
     }
     worker.onerror = () => {
-      setWorkerLayout(null)
-      setWorkerLoading(false)
+      setWorkerState({ graph: requestedGraph, layout: null })
     }
     worker.postMessage({
       nodes: graph.nodes,
@@ -125,6 +142,9 @@ export function GraphPanel({
     })
     return () => worker.terminate()
   }, [graph, hibernated])
+
+  const workerLayout = !hibernated && workerState?.graph === graph ? workerState.layout : null
+  const workerLoading = Boolean(graph && !hibernated && workerState?.graph !== graph)
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
@@ -208,16 +228,6 @@ export function GraphPanel({
           onClose()
           break
         }
-        case 'Tab': {
-          event.preventDefault()
-          const currentIndex = layout.findIndex((n) => n.id === currentId)
-          const direction = event.shiftKey ? -1 : 1
-          const nextIndex = (currentIndex + direction + layout.length) % layout.length
-          const nextId = layout[nextIndex].id
-          setFocusedNodeId(nextId)
-          announce(nextId)
-          break
-        }
         default:
           break
       }
@@ -227,44 +237,27 @@ export function GraphPanel({
 
   if (hibernated) {
     return (
-      <div className="graph-overlay" role="dialog" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
-        <div className="graph-hibernated-placeholder" style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flex: 1,
-          textAlign: 'center',
-          padding: '24px',
-          color: 'var(--muted)',
-        }}>
-          <span style={{ fontSize: '32px', marginBottom: '16px' }}>💤</span>
-          <h4 style={{ margin: '0 0 8px 0', color: 'var(--ink)' }}>Graph Subsystem Hibernated</h4>
-          <p style={{ maxWidth: '360px', margin: '0 0 20px 0', fontSize: '13px', lineHeight: '1.5', color: 'var(--muted)' }}>
+        <div className="graph-hibernated-placeholder">
+          <MoonStar className="graph-hibernated-icon" aria-hidden="true" />
+          <h3>Graph paused</h3>
+          <p>
             Background layout simulation is paused to optimize battery life and improve app responsiveness.
           </p>
           <button
             type="button"
-            className="toolbar-button active"
+            className="primary-button graph-wake-button"
             onClick={onToggleHibernate}
-            style={{
-              padding: '8px 16px',
-              backgroundColor: 'var(--primary)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: 500,
-              transition: 'background-color 150ms ease-out',
-            }}
+            disabled={!onToggleHibernate}
           >
-            Wake Up Subsystem
+            <Power aria-hidden="true" />
+            Resume graph
           </button>
         </div>
       </div>
@@ -273,11 +266,11 @@ export function GraphPanel({
 
   if (!graph) {
     return (
-      <div className="graph-overlay" role="dialog" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
-            ×
+            <X aria-hidden="true" />
           </button>
         </header>
         <p className="empty-state">{t('graph.emptyState')}</p>
@@ -286,7 +279,7 @@ export function GraphPanel({
   }
 
   return (
-    <div className="graph-overlay" role="dialog" aria-label={t('graph.ariaLabel')}>
+    <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
       <header className="graph-header">
         <div>
           <h2>{t('graph.title')}</h2>
@@ -320,7 +313,7 @@ export function GraphPanel({
               className="toolbar-button"
               onClick={() => {
                 void saveVaultPresetJson(VAULT_GRAPH_PRESETS_PATH, presets)
-                localStorage.setItem(GRAPH_PRESETS_KEY, JSON.stringify(presets))
+                writeVersionedStorage(GRAPH_PRESETS_KEY, 1, presets)
               }}
             >
               {t('actions.save')} presets
@@ -346,7 +339,7 @@ export function GraphPanel({
           </button>
         </div>
         <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
-          ×
+          <X aria-hidden="true" />
         </button>
       </header>
 
@@ -354,7 +347,9 @@ export function GraphPanel({
         <div className="graph-group-legend" aria-label={t('graph.groupColors')}>
           {graphGroups.map((group) => (
             <span key={group.tag_prefix} className="graph-group-chip">
-              <i style={{ backgroundColor: group.color }} aria-hidden />
+              <svg className="graph-group-swatch" viewBox="0 0 10 10" aria-hidden="true">
+                <circle cx="5" cy="5" r="5" fill={group.color} />
+              </svg>
               #{group.tag_prefix}
             </span>
           ))}
@@ -365,7 +360,7 @@ export function GraphPanel({
 
       {useCanvas ? (
         workerLoading ? (
-          <div className="graph-loading" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: VIEW_HEIGHT }}>
+          <div className="graph-loading">
             <span>{t('graph.computingLayout')}</span>
           </div>
         ) : (
@@ -417,21 +412,19 @@ export function GraphPanel({
           return (
             <g
               key={node.id}
-              className={
-                node.unresolved
-                  ? 'graph-node unresolved'
-                  : isFocus
-                    ? 'graph-node focus'
-                    : 'graph-node'
-              }
               transform={`translate(${node.x}, ${node.y})`}
               onMouseEnter={() => setHoveredId(node.id)}
               onMouseLeave={() => setHoveredId(null)}
               onClick={() => {
                 if (node.path) onSelectNode(node.path)
               }}
-              style={{ cursor: node.path ? 'pointer' : 'default' }}
-              role="button"
+              className={`${
+                node.unresolved
+                  ? 'graph-node unresolved'
+                  : isFocus
+                    ? 'graph-node focus'
+                    : 'graph-node'
+              }${node.path ? ' graph-node-interactive' : ''}`}
               aria-label={`${node.label}, ${t('graph.connections', { count: connectionCount, plural: connectionCount === 1 ? '' : 's' })}${isFocus ? t('graph.currentFocus') : ''}`}
             >
               {isKeyboardFocused && (

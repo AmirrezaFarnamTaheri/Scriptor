@@ -1,94 +1,78 @@
-# Contributing to Scriptor
+# Contributing
 
-Thank you for considering a contribution to Scriptor.
+## Before changing code
 
-## Before you start
+1. Read [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md), and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+2. Check [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) before extending an experimental surface.
+3. For TypeScript packages, read [`packages/README.md`](packages/README.md); import packages only through declared entry points.
+4. Preserve unrelated staged, unstaged, and untracked work.
 
-1. Read [`PRODUCT.md`](PRODUCT.md) and [`DESIGN.md`](DESIGN.md) for product and UX constraints.
-2. Check [open issues](https://github.com/AmirrezaFarnamTaheri/Scriptor/issues) to avoid duplicate work.
-3. For large changes, open an issue or draft PR early for alignment with the maintainer.
-
-## Development setup
-
-**Requirements:** Node.js 22+, pnpm 9+, Rust stable.
+## Toolchain
 
 ```powershell
-pnpm install
-cargo build --workspace
+corepack enable
+corepack prepare pnpm@10.33.0 --activate
+pnpm install --frozen-lockfile
+rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+rustup default 1.96.0
+```
+
+## Development
+
+```powershell
+pnpm dev --host 127.0.0.1
 pnpm desktop:dev
 ```
 
-For containerized development, see the devcontainer configuration if available, or use the container smoke image: `pnpm check:container`.
+## Change process
 
-### Validation before submitting
+- Reproduce bugs with a failing test before the fix.
+- Keep mutation, refactor, dependency update, and generated-file changes reviewable.
+- Route external commands through `crates/system-bridge/src/process.rs`.
+- Validate runtime JSON from `unknown`; do not add unchecked boundary assertions.
+- Add authorization classification for every new native command.
+- Use bounded queues/collections/output for long-lived or user-controlled data.
+- Update source-of-truth files, then regenerate derived contracts.
+- Update docs and the capability ledger when maturity or support changes.
 
-Run the full release gate:
-
-```powershell
-pnpm check:release             # Full local release gate (lint + build + all checks)
-cargo test --workspace         # Rust unit and integration tests
-pnpm test:e2e                  # Playwright end-to-end tests
-```
-
-Targeted checks during development:
-
-```powershell
-pnpm test:rust                 # Rust unit tests
-pnpm check:contracts           # TypeScript contract packages
-pnpm check:plugins             # Plugin manifest validation
-pnpm check:mcp                 # MCP tool manifest validation
-pnpm check:daemon              # Headless daemon IPC smoke
-pnpm check:tui                 # Terminal UI smoke
-pnpm check:canvas              # Canvas engine contracts
-pnpm check:editor              # Editor engine contracts
-pnpm check:renderer            # Renderer contracts
-pnpm check:export              # Export pipeline contracts
-pnpm check:knowledge           # Knowledge graph contracts
-pnpm check:citations           # Citation engine contracts
-pnpm check:headless            # Headless runner contracts
-pnpm check:perf                # Performance baseline check
-pnpm lint                      # ESLint
-pnpm check:a11y-axe            # axe-core WCAG automated audit
-pnpm test:visual               # Visual regression Playwright tests
-```
-
-## Code style
-
-- **Rust:** `clippy` (warnings as errors) and `rustfmt`. Run `cargo clippy --workspace` and `cargo fmt --check` before submitting.
-- **TypeScript:** ESLint. Run `pnpm lint` to check. The project uses `verbatimModuleSyntax` — prefer `import type` for type-only imports.
-- Match existing code conventions in the file you are editing. When creating new files, follow the patterns of neighboring modules.
-
-## Documentation and screenshots
-
-- Update docs when behavior, commands, or UI copy changes.
-- User-visible changes belong in [`CHANGELOG.md`](CHANGELOG.md) under **Unreleased**.
-- If you change workspace layout, inspector panels, dialogs, or chrome visible in README/docs, regenerate screenshots:
+## Required checks
 
 ```powershell
-pnpm screenshots:capture:web
+pnpm version:check
+pnpm lint:actions
+pnpm lint:boundaries
+pnpm check:i18n
+pnpm check:docs
+pnpm check:source
+pnpm check:frontend-quality
+pnpm lint
+pnpm build
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
-Commit updated PNGs under `docs/assets/screenshots/` with your PR. See [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md).
+Run focused package validators and relevant Playwright suites for the changed behavior. UI changes must include keyboard, screen-reader semantics, loading/empty/error states, narrow viewport, and 200% zoom evidence.
 
-## Plugin authoring
-
-To build a Scriptor plugin, see the complete guide at [`docs/plugins/AUTHOR_GUIDE.md`](docs/plugins/AUTHOR_GUIDE.md). It covers manifests, capability types, the permission model, safe mode, and a hello-world walkthrough.
+Proof terminology and platform/release gates are defined in [`docs/VERIFICATION.md`](docs/VERIFICATION.md). Never describe a static source check as a compiled, packaged, native, or browser-verified result.
 
 ## Pull requests
 
-- Keep diffs focused; match existing code style and naming.
-- Ensure CI checks pass.
-- Do not commit build artifacts (`dist/`, `target/`, `test-results/`) or secrets (`.env`).
-- Update [`CHANGELOG.md`](CHANGELOG.md) for user-visible changes.
+Describe:
 
-## Security
+- observable behavior changed;
+- authority/data boundaries affected;
+- tests and commands run with results;
+- migration/rollback behavior;
+- screenshots for user-visible changes;
+- unverified platforms or residual risks.
 
-Report vulnerabilities privately — see [`SECURITY.md`](SECURITY.md). Do not open public issues for security reports.
+Do not commit secrets, generated build directories, debug logs, or personal vault data.
 
 ## Licensing
 
-By contributing, you agree that your contributions are licensed under the same terms as the project: **AGPL-3.0** for non-commercial use, with commercial licensing handled separately per [`COMMERCIAL-LICENSING.md`](COMMERCIAL-LICENSING.md).
+Unless otherwise stated, contributions are licensed under **AGPL-3.0-or-later**. By submitting a contribution, you represent that you have the right to license it on those terms. See [`COMMERCIAL-LICENSING.md`](COMMERCIAL-LICENSING.md) for the separate-license policy.
 
-## Contact
+## Security
 
-**Amirreza "Farnam" Taheri** — [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com)
+Report vulnerabilities privately according to [`SECURITY.md`](SECURITY.md).

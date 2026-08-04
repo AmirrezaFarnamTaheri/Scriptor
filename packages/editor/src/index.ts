@@ -1,6 +1,5 @@
 export type { EditorAdapter, EditorAdapterOptions, EditorStats } from './adapter'
 export { countCharacters, countWords } from './adapter'
-export { MarkdownEditor } from './codemirror'
 export type { MarkdownEditorHandle, MarkdownEditorProps, TocEntry } from './codemirror'
 export { applyEditorTransform, wrapText, replaceLines } from './transforms'
 export type { EditorTransformAction } from './transforms'

@@ -13,3 +13,64 @@
 .plugin-list button.selected {
   outline: 2px solid var(--accent);
 }
+
+.plugin-consent {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.plugin-consent > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.plugin-consent > header svg {
+  flex: 0 0 auto;
+  color: var(--primary-strong);
+}
+
+.plugin-consent > header div {
+  display: grid;
+  gap: 2px;
+}
+
+.plugin-consent > header span,
+.plugin-consent li span {
+  color: var(--muted);
+  font-size: var(--text-xs);
+}
+
+.plugin-consent ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plugin-consent li {
+  display: grid;
+  grid-template-columns: minmax(90px, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.plugin-consent li em {
+  color: var(--faint);
+  font-size: var(--text-xs);
+  font-style: normal;
+}
+
+.plugin-consent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}

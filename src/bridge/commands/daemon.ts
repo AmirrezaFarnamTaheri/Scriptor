@@ -11,6 +11,19 @@ import type {
   VaultHealthReport,
 } from '../../types/vault'
 import { requireNative } from '../native.ts'
+import {
+  parseBacklinkHits,
+  parseExportJobOutput,
+  parseGraphQueryOutput,
+  parseNoteIndexSummaries,
+  parseRebuildSummary,
+  parseRenameNoteApplyOutput,
+  parseSaveNoteOutput,
+  parseSearchHits,
+  parseVaultHealthDiagnostics,
+  parseVaultHealthReport,
+} from '../../types/vaultValidators'
+import { authorizeSensitiveOperation } from './authorization.ts'
 
 export interface DaemonEndpoint {
   socket_name: string
@@ -33,7 +46,11 @@ export async function daemonEndpoint(): Promise<DaemonEndpoint> {
 
 export async function daemonStart(): Promise<DaemonEndpoint> {
   requireNative()
-  return invoke<DaemonEndpoint>('daemon_start')
+  const authorizationToken = await authorizeSensitiveOperation(
+    'daemon_control',
+    'background-daemon',
+  )
+  return invoke<DaemonEndpoint>('daemon_start', { authorizationToken })
 }
 
 export async function ensureDaemonReady(): Promise<DaemonEndpoint> {
@@ -52,37 +69,37 @@ export async function daemonOpenVault(rootPath: string): Promise<void> {
 export async function daemonHealthDiagnostics(): Promise<VaultHealthDiagnostics> {
   requireNative()
   const payload = await invoke<string>('daemon_health_diagnostics')
-  return JSON.parse(payload) as VaultHealthDiagnostics
+  return parseVaultHealthDiagnostics(payload)
 }
 
 export async function daemonHealthReport(): Promise<VaultHealthReport> {
   requireNative()
   const payload = await invoke<string>('daemon_health_report')
-  return JSON.parse(payload) as VaultHealthReport
+  return parseVaultHealthReport(payload)
 }
 
 export async function daemonRebuildIndex(): Promise<RebuildSummary> {
   requireNative()
   const payload = await invoke<string>('daemon_rebuild_index')
-  return JSON.parse(payload) as RebuildSummary
+  return parseRebuildSummary(payload)
 }
 
 export async function daemonSearch(query: string, limit = 25): Promise<SearchHit[]> {
   requireNative()
   const payload = await invoke<string>('daemon_search', { query, limit })
-  return JSON.parse(payload) as SearchHit[]
+  return parseSearchHits(payload)
 }
 
 export async function daemonListNoteSummaries(): Promise<NoteIndexSummary[]> {
   requireNative()
   const payload = await invoke<string>('daemon_list_note_summaries')
-  return JSON.parse(payload) as NoteIndexSummary[]
+  return parseNoteIndexSummaries(payload)
 }
 
 export async function daemonBacklinks(path: string): Promise<BacklinkHit[]> {
   requireNative()
   const payload = await invoke<string>('daemon_backlinks', { path })
-  return JSON.parse(payload) as BacklinkHit[]
+  return parseBacklinkHits(payload)
 }
 
 export async function daemonGraph(focusPath?: string | null, depth = 1): Promise<GraphQueryOutput> {
@@ -91,7 +108,7 @@ export async function daemonGraph(focusPath?: string | null, depth = 1): Promise
     focusPath: focusPath ?? null,
     depth,
   })
-  return JSON.parse(payload) as GraphQueryOutput
+  return parseGraphQueryOutput(payload)
 }
 
 export async function daemonGitStatusJson(): Promise<string> {
@@ -112,7 +129,7 @@ export async function daemonSaveNote(
     expectedContentHash: expectedContentHash ?? null,
     dryRun: dryRun ?? false,
   })
-  return JSON.parse(payload) as SaveNoteOutput
+  return parseSaveNoteOutput(payload)
 }
 
 export async function daemonUpdateNoteIndex(path: string): Promise<boolean> {
@@ -131,7 +148,7 @@ export async function daemonRenameApply(
     toPath,
     updateLinks,
   })
-  return JSON.parse(payload) as import('../../types/vault').RenameNoteApplyOutput
+  return parseRenameNoteApplyOutput(payload)
 }
 
 export async function daemonExportRunNote(
@@ -149,7 +166,7 @@ export async function daemonExportRunNote(
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
   })
-  return JSON.parse(payload) as import('../../types/vault').ExportJobOutput
+  return parseExportJobOutput(payload)
 }
 
 export async function daemonExportRunMarkdown(
@@ -169,5 +186,5 @@ export async function daemonExportRunMarkdown(
     extraPandocArgs,
     outputSubdirectory: outputSubdirectory ?? null,
   })
-  return JSON.parse(payload) as import('../../types/vault').ExportJobOutput
+  return parseExportJobOutput(payload)
 }

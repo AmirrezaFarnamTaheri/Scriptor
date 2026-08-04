@@ -10,7 +10,9 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Let long-running Rust workspace tests finish; PR reruns must not terminate
+  # an active validation job while Cargo is compiling the workspace.
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -24,13 +26,13 @@ env:
 jobs:
   source-snapshot:
     name: Source snapshot and provenance
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       CI_LOG_DIR: artifacts/ci-logs/source-snapshot
     steps:
       - name: Checkout exact workflow commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
@@ -52,7 +54,7 @@ jobs:
           "| Source archive | PASS | - | 0 | ``source-archive.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload exact source tree
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: scriptor-source-head-${{ github.event.pull_request.head.sha || github.sha }}
           path: scriptor-source.zip
@@ -71,7 +73,7 @@ jobs:
 
       - name: Upload source snapshot evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-source-snapshot-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -80,26 +82,35 @@ jobs:
 
   supply-chain:
     name: Supply-chain and lockfile audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
       CI_LOG_DIR: artifacts/ci-logs/supply-chain
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pnpm
-        uses: pnpm/action-setup@v6
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.16.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
 
       - name: Describe supply-chain scope
         shell: pwsh
@@ -109,23 +120,19 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
-      - name: Refresh compatible Cargo dependency graph
+      - name: Verify committed lockfiles remain immutable
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Refresh compatible Cargo dependency graph" -FilePath "cargo" -ArgumentList @("update") -TimeoutSeconds 900
+        run: |
+          $cargoBefore = (Get-FileHash Cargo.lock -Algorithm SHA256).Hash
+          $pnpmBefore = (Get-FileHash pnpm-lock.yaml -Algorithm SHA256).Hash
+          cargo metadata --locked --format-version 1 | Out-Null
+          pnpm install --frozen-lockfile --offline
+          if ((Get-FileHash Cargo.lock -Algorithm SHA256).Hash -ne $cargoBefore) { throw "Cargo.lock changed during validation" }
+          if ((Get-FileHash pnpm-lock.yaml -Algorithm SHA256).Hash -ne $pnpmBefore) { throw "pnpm-lock.yaml changed during validation" }
 
-      - name: Upload refreshed Cargo lockfile
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: refreshed-cargo-lock-${{ github.run_attempt }}
-          path: Cargo.lock
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny
+      - name: Install pinned cargo-deny 0.20.2
+        shell: pwsh
+        run: cargo install cargo-deny --locked --version 0.20.2
 
       - name: Record cargo-deny version
         shell: pwsh
@@ -178,7 +185,7 @@ jobs:
 
       - name: Upload supply-chain evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-supply-chain-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -186,37 +193,43 @@ jobs:
           retention-days: 7
 
   validate-fast:
-    name: Contracts, automation, lint, and Rust tests
+    name: Contracts, automation, and lint
     needs: supply-chain
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CI_LOG_DIR: artifacts/ci-logs/validate-fast
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pnpm
-        uses: pnpm/action-setup@v6
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.16.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "."
+      - name: Validate repository governance contracts
+        shell: pwsh
+        run: |
+          node scripts/release/version.mjs check
+          node scripts/validation/action-pins.mjs
+          node scripts/validation/deep-module-boundaries.mjs
+          node scripts/validation/i18n-parity.mjs
+          node scripts/validation/docs-contracts.mjs
+          node scripts/validation/source-contracts.mjs
 
       - name: Describe fast validation scope
         shell: pwsh
-        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Contracts, automation, lint, and Rust tests"
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Contracts, automation, and lint"
 
       - name: Install frozen pnpm dependency graph
         shell: pwsh
@@ -284,9 +297,69 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Lint JavaScript and TypeScript" -FilePath "pnpm" -ArgumentList @("lint") -TimeoutSeconds 900
 
-      - name: Test Rust workspace except desktop shell
+      - name: Capture fast validation failure context
+        if: failure()
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust workspace except desktop shell" -FilePath "cargo" -ArgumentList @("test", "--workspace", "--exclude", "scriptor-desktop") -TimeoutSeconds 1800
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Contracts, automation, and lint"
+
+      - name: Finalize fast validation evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, and lint" -Status "${{ job.status }}"
+
+      - name: Upload fast validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-evidence-validate-fast-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 7
+
+  validate-rust:
+    name: Contracts, automation, lint, and Rust tests
+    needs: supply-chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/validate-rust
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Describe Rust validation scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
+
+      - name: Test Rust transport and runtime crates
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust transport and runtime crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "-p", "scriptor-ipc", "-p", "scriptor-daemon", "-p", "scriptor-cli") -TimeoutSeconds 1800
 
       - name: Verify generated ts-rs bindings
         shell: pwsh
@@ -296,21 +369,21 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 900
 
-      - name: Capture fast validation failure context
+      - name: Capture Rust validation failure context
         if: failure()
         shell: pwsh
-        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Contracts, automation, lint, and Rust tests"
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Rust workspace tests and release smoke"
 
-      - name: Finalize fast validation evidence
+      - name: Finalize Rust validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, lint, and Rust tests" -Status "${{ job.status }}"
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Rust workspace tests and release smoke" -Status "${{ job.status }}"
 
-      - name: Upload fast validation evidence
+      - name: Upload Rust validation evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ci-evidence-validate-fast-${{ github.run_attempt }}
+          name: ci-evidence-validate-rust-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
           retention-days: 7
@@ -318,31 +391,35 @@ jobs:
   validate-frontend:
     name: Frontend, accessibility, TUI, and daemon smoke
     needs: supply-chain
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CI_LOG_DIR: artifacts/ci-logs/validate-frontend
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pnpm
-        uses: pnpm/action-setup@v6
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.16.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "."
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
 
       - name: Describe frontend validation scope
         shell: pwsh
@@ -388,7 +465,7 @@ jobs:
 
       - name: Upload frontend validation evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-validate-frontend-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -398,31 +475,35 @@ jobs:
   release-smoke:
     name: Windows release smoke and performance gates
     needs: supply-chain
-    runs-on: windows-latest
+    runs-on: windows-2025
     timeout-minutes: 60
     env:
       CI_LOG_DIR: artifacts/ci-logs/release-smoke-windows
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pnpm
-        uses: pnpm/action-setup@v6
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.16.0
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "."
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
 
       - name: Describe Windows release scope
         shell: pwsh
@@ -464,7 +545,7 @@ jobs:
 
       - name: Upload Windows release evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-release-smoke-windows-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -474,13 +555,13 @@ jobs:
   container-smoke:
     name: Container image build and runtime smoke
     needs: supply-chain
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CI_LOG_DIR: artifacts/ci-logs/container-smoke
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Describe container validation scope
         shell: pwsh
@@ -506,7 +587,7 @@ jobs:
 
       - name: Upload container evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-container-smoke-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}

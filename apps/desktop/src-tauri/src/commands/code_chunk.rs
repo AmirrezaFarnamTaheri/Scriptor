@@ -1,16 +1,16 @@
-use std::io::Read;
 use std::path::PathBuf;
-use std::process::{Command, Stdio};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, run_process};
 use serde::Serialize;
 
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{AppState, active_session};
 
 const MAX_OUTPUT_BYTES: usize = 256 * 1024;
 const TIMEOUT_SECS: u64 = 30;
 const CODE_EXECUTION_OPT_IN: &str = "SCRIPTOR_ALLOW_CODE_EXECUTION";
+const UNSANDBOXED_CODE_EXECUTION_OPT_IN: &str = "SCRIPTOR_ALLOW_UNSANDBOXED_CODE_EXECUTION";
 
 #[derive(Debug, Serialize)]
 pub struct CodeChunkRunOutput {
@@ -46,24 +46,7 @@ fn extension_for(language: &str) -> &'static str {
     }
 }
 
-fn truncate_output(value: String) -> String {
-    if value.len() <= MAX_OUTPUT_BYTES {
-        return value;
-    }
-    let mut end = 0usize;
-    for (idx, _) in value.char_indices() {
-        if idx > MAX_OUTPUT_BYTES {
-            break;
-        }
-        end = idx;
-    }
-    if end == 0 {
-        return String::from("[truncated]");
-    }
-    format!("{}…\n[truncated]", &value[..end])
-}
-
-fn execution_enabled_from_value(value: Option<&str>) -> bool {
+fn enabled_from_value(value: Option<&str>) -> bool {
     value
         .map(|value| {
             matches!(
@@ -74,9 +57,19 @@ fn execution_enabled_from_value(value: Option<&str>) -> bool {
         .unwrap_or(false)
 }
 
-fn execution_enabled() -> bool {
-    let value = std::env::var(CODE_EXECUTION_OPT_IN).ok();
-    execution_enabled_from_value(value.as_deref())
+fn environment_opt_in(name: &str) -> bool {
+    std::env::var(name)
+        .ok()
+        .as_deref()
+        .is_some_and(|value| enabled_from_value(Some(value)))
+}
+
+fn mark_truncated(value: String, truncated: bool) -> String {
+    if truncated {
+        format!("{value}\n[truncated]")
+    } else {
+        value
+    }
 }
 
 #[tauri::command]
@@ -84,19 +77,28 @@ pub fn code_chunk_run(
     state: tauri::State<AppState>,
     language: String,
     code: String,
+    authorization_token: String,
 ) -> Result<CodeChunkRunOutput, String> {
-    if !execution_enabled() {
+    let lang = language.trim().to_lowercase();
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::CodeExecution,
+        Some(&lang),
+    )?;
+    if !environment_opt_in(CODE_EXECUTION_OPT_IN) {
         return Err(format!(
             "code execution is disabled by default; set {CODE_EXECUTION_OPT_IN}=1 only for a trusted workspace"
         ));
     }
+    if code.len() > 4 * 1024 * 1024 {
+        return Err("code chunk exceeds the 4 MiB execution limit".into());
+    }
 
     let session = active_session(&state)?;
-    let lang = language.trim().to_lowercase();
     let (binary, prefix_args) = allowed_runner(&lang).ok_or_else(|| {
         format!("unsupported code-chunk language: {language}. Allowed: powershell, pwsh, python, node, sh, cmd")
     })?;
-
     let work_dir = session
         .root
         .root()
@@ -112,97 +114,49 @@ pub fn code_chunk_run(
     ));
     std::fs::write(&script_path, code.as_bytes()).map_err(|error| error.to_string())?;
 
-    let mut command = Command::new(binary);
-    for arg in prefix_args {
-        command.arg(arg);
-    }
-    command.arg(&script_path);
-
-    let started = Instant::now();
-    let mut child = command
-        .current_dir(&work_dir)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| format!("failed to spawn {binary}: {error}"))?;
-
-    // Drain both pipes while the child is running. Waiting before reading can
-    // deadlock when either OS pipe buffer fills.
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| "failed to capture stdout".to_string())?;
-    let stderr = child
-        .stderr
-        .take()
-        .ok_or_else(|| "failed to capture stderr".to_string())?;
-    let stdout_reader = thread::spawn(move || {
-        let mut reader = stdout;
-        let mut bytes = Vec::new();
-        let _ = reader.read_to_end(&mut bytes);
-        bytes
-    });
-    let stderr_reader = thread::spawn(move || {
-        let mut reader = stderr;
-        let mut bytes = Vec::new();
-        let _ = reader.read_to_end(&mut bytes);
-        bytes
-    });
-
-    let timeout = Duration::from_secs(TIMEOUT_SECS);
-    let status = loop {
-        if let Some(status) = child.try_wait().map_err(|error| error.to_string())? {
-            break status;
-        }
-        if started.elapsed() >= timeout {
-            let _ = child.kill();
-            let _ = child.wait();
-            let _ = stdout_reader.join();
-            let _ = stderr_reader.join();
-            let _ = std::fs::remove_file(&script_path);
-            return Err(format!("code chunk exceeded {TIMEOUT_SECS}s timeout"));
-        }
-        thread::sleep(Duration::from_millis(50));
-    };
-
-    let stdout = stdout_reader
-        .join()
-        .map_err(|_| format!("failed to collect stdout from {binary}"))?;
-    let stderr = stderr_reader
-        .join()
-        .map_err(|_| format!("failed to collect stderr from {binary}"))?;
+    let mut args = prefix_args.into_iter().map(String::from).collect::<Vec<_>>();
+    args.push(script_path.display().to_string());
+    let result = run_process(
+        ProcessSpec::new(binary)
+            .args(args)
+            .current_dir(&work_dir)
+            .timeout(Duration::from_secs(TIMEOUT_SECS))
+            .max_output_bytes(MAX_OUTPUT_BYTES)
+            .network_policy(NetworkPolicy::Deny)
+            .allow_unsandboxed_network_denial(environment_opt_in(
+                UNSANDBOXED_CODE_EXECUTION_OPT_IN,
+            )),
+    );
     let _ = std::fs::remove_file(&script_path);
+    let receipt = result.map_err(|error| error.to_string())?;
 
     Ok(CodeChunkRunOutput {
-        exit_code: status.code().unwrap_or(-1),
-        stdout: truncate_output(String::from_utf8_lossy(&stdout).into_owned()),
-        stderr: truncate_output(String::from_utf8_lossy(&stderr).into_owned()),
-        duration_ms: started.elapsed().as_millis() as u64,
+        exit_code: receipt.exit_code,
+        stdout: mark_truncated(receipt.stdout, receipt.stdout_truncated),
+        stderr: mark_truncated(receipt.stderr, receipt.stderr_truncated),
+        duration_ms: receipt.duration_ms,
         language: lang,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{execution_enabled_from_value, truncate_output};
+    use super::{enabled_from_value, mark_truncated};
 
     #[test]
-    fn truncate_output_keeps_utf8_boundaries() {
-        let source = format!("{}{}", "🙂".repeat(70_000), "tail");
-        let truncated = truncate_output(source);
-        assert!(truncated.contains("[truncated]"));
-        assert!(truncated.is_char_boundary(truncated.len()));
+    fn output_receipts_mark_truncation() {
+        assert_eq!(mark_truncated("hello".into(), false), "hello");
+        assert!(mark_truncated("hello".into(), true).ends_with("[truncated]"));
     }
 
     #[test]
     fn code_execution_requires_explicit_opt_in() {
-        assert!(!execution_enabled_from_value(None));
+        assert!(!enabled_from_value(None));
         for value in ["", "0", "false", "no", "random"] {
-            assert!(!execution_enabled_from_value(Some(value)), "{value:?}");
+            assert!(!enabled_from_value(Some(value)), "{value:?}");
         }
         for value in ["1", " true ", "TRUE", "yes", "YeS"] {
-            assert!(execution_enabled_from_value(Some(value)), "{value:?}");
+            assert!(enabled_from_value(Some(value)), "{value:?}");
         }
     }
 }
@@ -211,10 +165,17 @@ mod tests {
 pub fn vault_publish_starlight(
     state: tauri::State<AppState>,
     output_path: String,
+    authorization_token: String,
 ) -> Result<serde_json::Value, String> {
     use scriptor_vault::{ScannedEntryKind, load_vault_config, scan_vault_with_roots};
     use std::fs;
 
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::PublishSite,
+        Some(&output_path),
+    )?;
     let session = active_session(&state)?;
     let config = load_vault_config(session.root.root()).unwrap_or_default();
     let entries =

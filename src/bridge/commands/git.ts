@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core'
 
 import type { GitCommitOutput, GitPullOutput, GitPushOutput, GitStatus } from '../../types/vault'
 import { requireNative } from '../native.ts'
+import { authorizeSensitiveOperation } from './authorization.ts'
 
 export async function gitStatus(): Promise<GitStatus> {
   requireNative()
@@ -13,14 +14,16 @@ export async function gitCommit(files: string[], message: string): Promise<GitCo
   return invoke<GitCommitOutput>('git_commit_cmd', { files, message })
 }
 
-export async function gitPull(): Promise<GitPullOutput> {
+export async function gitPull(vaultId: string): Promise<GitPullOutput> {
   requireNative()
-  return invoke<GitPullOutput>('git_pull_cmd')
+  const authorizationToken = await authorizeSensitiveOperation('git_pull', vaultId)
+  return invoke<GitPullOutput>('git_pull_cmd', { authorizationToken })
 }
 
-export async function gitPush(): Promise<GitPushOutput> {
+export async function gitPush(vaultId: string): Promise<GitPushOutput> {
   requireNative()
-  return invoke<GitPushOutput>('git_push_cmd')
+  const authorizationToken = await authorizeSensitiveOperation('git_push', vaultId)
+  return invoke<GitPushOutput>('git_push_cmd', { authorizationToken })
 }
 
 export async function gitResolveConflict(
@@ -28,7 +31,8 @@ export async function gitResolveConflict(
   strategy: 'ours' | 'theirs',
 ): Promise<{ path: string; strategy: string }> {
   requireNative()
-  return invoke('git_resolve_conflict_cmd', { path, strategy })
+  const authorizationToken = await authorizeSensitiveOperation('apply_git_conflict', path)
+  return invoke('git_resolve_conflict_cmd', { path, strategy, authorizationToken })
 }
 
 export async function gitApplyMergedConflict(
@@ -36,7 +40,8 @@ export async function gitApplyMergedConflict(
   mergedMarkdown: string,
 ): Promise<{ path: string; strategy: string }> {
   requireNative()
-  return invoke('git_apply_merged_conflict_cmd', { path, mergedMarkdown })
+  const authorizationToken = await authorizeSensitiveOperation('apply_git_conflict', path)
+  return invoke('git_apply_merged_conflict_cmd', { path, mergedMarkdown, authorizationToken })
 }
 
 export async function gitReadConflictMarkers(path: string): Promise<string[]> {

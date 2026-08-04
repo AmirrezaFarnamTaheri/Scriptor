@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 
 import { requireNative } from '../native.ts'
+import { authorizeSensitiveOperation } from './authorization.ts'
 
 export async function healthCheck(): Promise<string> {
   requireNative()
@@ -16,19 +17,37 @@ export async function diagnosticsAppendEvent(
   await invoke('diagnostics_append_event', { eventType, message, detailJson })
 }
 
-export async function keychainSetSecret(account: string, secret: string): Promise<void> {
+export async function aiProviderHasApiKey(): Promise<boolean> {
   requireNative()
-  await invoke('keychain_set_secret', { account, secret })
+  return invoke<boolean>('ai_provider_has_api_key')
 }
 
-export async function keychainGetSecret(account: string): Promise<string | null> {
+export async function aiProviderSetApiKey(secret: string): Promise<void> {
   requireNative()
-  return invoke<string | null>('keychain_get_secret', { account })
+  const authorizationToken = await authorizeSensitiveOperation('keychain_write', 'ai-provider')
+  await invoke('ai_provider_set_api_key', { secret, authorizationToken })
 }
 
-export async function keychainDeleteSecret(account: string): Promise<void> {
+export async function aiProviderDeleteApiKey(): Promise<void> {
   requireNative()
-  await invoke('keychain_delete_secret', { account })
+  const authorizationToken = await authorizeSensitiveOperation('keychain_delete', 'ai-provider')
+  await invoke('ai_provider_delete_api_key', { authorizationToken })
+}
+
+export async function aiProviderProposeDraft(
+  endpoint: string,
+  prompt: string,
+  currentMarkdown: string,
+): Promise<string> {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('ai_network_request', endpoint)
+  const proposal = await invoke<{ markdown: string }>('ai_provider_propose_draft', {
+    endpoint,
+    prompt,
+    currentMarkdown,
+    authorizationToken,
+  })
+  return proposal.markdown
 }
 
 export async function systemInfo(): Promise<{
@@ -51,12 +70,20 @@ export interface CodeChunkRunOutput {
 
 export async function codeChunkRun(language: string, code: string): Promise<CodeChunkRunOutput> {
   requireNative()
-  return invoke<CodeChunkRunOutput>('code_chunk_run', { language, code })
+  const authorizationToken = await authorizeSensitiveOperation(
+    'code_execution',
+    language.trim().toLowerCase(),
+  )
+  return invoke<CodeChunkRunOutput>('code_chunk_run', { language, code, authorizationToken })
 }
 
 export async function plantumlRender(source: string): Promise<{ svg: string; engine: string }> {
   requireNative()
-  return invoke('plantuml_render', { source })
+  const authorizationToken = await authorizeSensitiveOperation(
+    'plant_uml_execution',
+    'local-renderer',
+  )
+  return invoke('plantuml_render', { source, authorizationToken })
 }
 
 export async function vaultSaveAsset(relativePath: string, bytes: number[]): Promise<string> {

@@ -7,6 +7,14 @@ on:
         description: Release version (e.g. 0.1.0)
         required: false
         default: '0.1.0'
+      channel:
+        description: Build channel; production requires signing and notarization
+        required: true
+        type: choice
+        default: preview
+        options:
+          - preview
+          - production
   push:
     tags:
       - 'v*'
@@ -24,6 +32,7 @@ defaults:
 
 env:
   SCRIPTOR_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
+  SCRIPTOR_RELEASE_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || github.event.inputs.channel || 'preview' }}
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   FORCE_COLOR: 1
@@ -41,7 +50,7 @@ jobs:
             targets: deb,appimage
             artifact: scriptor-linux-arm64-installers
             cargo_target: ''
-          - os: macos-latest
+          - os: macos-15
             platform: macos
             arch: aarch64
             targets: dmg
@@ -53,23 +62,48 @@ jobs:
       CI_LOG_DIR: artifacts/ci-logs/release-${{ matrix.platform }}-${{ matrix.arch }}
     steps:
       - name: Checkout release source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Configure pnpm
-        uses: pnpm/action-setup@v6
+      - name: Validate release version and signing policy
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
+        run: |
+          node scripts/release/version.mjs check
+          if ($env:SCRIPTOR_RELEASE_CHANNEL -ne "production") { Write-Host "Preview channel: unsigned artifacts are allowed and are never published."; exit 0 }
+          switch ("${{ matrix.platform }}") {
+            "windows" { if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { throw "Production Windows release requires WINDOWS_CERTIFICATE and WINDOWS_CERTIFICATE_PASSWORD" } }
+            "macos" { foreach ($name in @("APPLE_CERTIFICATE","APPLE_CERTIFICATE_PASSWORD","APPLE_SIGNING_IDENTITY","APPLE_ID","APPLE_PASSWORD","APPLE_TEAM_ID")) { if ([string]::IsNullOrWhiteSpace((Get-Item "env:$name" -ErrorAction SilentlyContinue).Value)) { throw "Production macOS release requires $name" } } }
+            "linux" { if ([string]::IsNullOrWhiteSpace($env:LINUX_SIGNING_KEY)) { throw "Production Linux release requires LINUX_SIGNING_KEY" } }
+          }
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
 
       - name: Configure Node.js 22
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: 22.16.0
 
-      - name: Configure stable Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Restore Rust build cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: "."
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
 
       - name: Describe ARM64 release packaging scope
         shell: pwsh
@@ -85,7 +119,7 @@ jobs:
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
       - name: Install macOS ARM64 Rust target
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install macOS ARM64 Rust target" -FilePath "rustup" -ArgumentList @("target", "add", "aarch64-apple-darwin") -TimeoutSeconds 600
 
@@ -99,7 +133,7 @@ jobs:
           "| Configure Cargo build target | PASS | - | 0 | ``cargo-target.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Import Apple signing certificate
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
         shell: bash
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -122,7 +156,7 @@ jobs:
           echo "::endgroup::"
 
       - name: Configure macOS signing and notarization inputs
-        if: matrix.platform == 'macos'
+        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
         shell: bash
         env:
           _APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -158,6 +192,31 @@ jobs:
           TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
         run: ./scripts/ci/invoke-logged.ps1 -Name "Build Tauri ARM64 bundles (${{ matrix.platform }}-${{ matrix.arch }})" -FilePath "pnpm" -ArgumentList @("--dir", "apps/desktop", "build") -TimeoutSeconds 4800 -HeartbeatSeconds 20
 
+      - name: Sign and verify Linux ARM64 production bundles
+        if: matrix.platform == 'linux' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
+        shell: bash
+        env:
+          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
+        run: |
+          set -euo pipefail
+          key_file="$RUNNER_TEMP/scriptor-linux-signing-key.asc"
+          printf %s "$LINUX_SIGNING_KEY" | base64 --decode > "$key_file"
+          gpg --batch --import "$key_file"
+          mapfile -d "" bundles < <(find target -type f \( -name "*.deb" -o -name "*.AppImage" \) -path "*/release/bundle/*" -print0)
+          test "${#bundles[@]}" -gt 0
+          for bundle in "${bundles[@]}"; do gpg --batch --yes --armor --detach-sign "$bundle"; gpg --verify "$bundle.asc" "$bundle"; done
+          bundle_root=$(dirname "${bundles[0]}")
+          gpg --armor --export > "$bundle_root/scriptor-release-public-key.asc"
+          rm -f "$key_file"
+
+      - name: Verify macOS ARM64 production signatures and notarization
+        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d "" app; do codesign --verify --deep --strict --verbose=2 "$app"; done < <(find target -type d -name "*.app" -path "*/release/bundle/*" -print0)
+          while IFS= read -r -d "" dmg; do xcrun stapler validate "$dmg"; done < <(find target -type f -name "*.dmg" -path "*/release/bundle/*" -print0)
+
       - name: Inventory generated ARM64 bundles
         if: always()
         shell: pwsh
@@ -181,7 +240,7 @@ jobs:
           "| Inventory generated ARM64 bundles | PASS | - | 0 | ``bundle-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload ARM64 installers
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.artifact }}
           path: target/**/release/bundle/**/*
@@ -209,7 +268,7 @@ jobs:
 
       - name: Upload ARM64 packaging evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-release-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
@@ -220,19 +279,24 @@ jobs:
     name: Publish ARM64 assets to GitHub Release
     needs: build
     if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    runs-on: ubuntu-24.04
     env:
       CI_LOG_DIR: artifacts/ci-logs/release-arm64-publish
     steps:
       - name: Checkout release metadata
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Describe ARM64 publication scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "ARM64 GitHub Release publication"
 
       - name: Download all ARM64 installer artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: release-artifacts
           merge-multiple: true
@@ -252,14 +316,30 @@ jobs:
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
           "| Inventory downloaded ARM64 release artifacts | PASS | - | 0 | ``publication-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Attach ARM64 installers to GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Generate source-bound ARM64 release evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release/generate-sbom.mjs release-evidence
+          node scripts/release/create-receipt.mjs release-artifacts release-evidence
+          node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence
+
+      - name: Attest release SBOM
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          files: release-artifacts/**/*
+          subject-path: release-artifacts/**/*
+          sbom-path: release-evidence/scriptor.cyclonedx.json
+
+      - name: Attach verified ARM64 installers to GitHub Release
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Scriptor $GITHUB_REF_NAME"
+          mapfile -d "" files < <(find release-artifacts release-evidence -type f -print0)
+          test "${#files[@]}" -gt 0
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
 
       - name: Capture ARM64 publication failure context
         if: failure()
@@ -273,7 +353,7 @@ jobs:
 
       - name: Upload ARM64 publication evidence
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-release-arm64-publish-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}

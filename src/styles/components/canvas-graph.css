@@ -105,13 +105,6 @@
   color: var(--muted);
 }
 
-.graph-group-chip i {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  display: inline-block;
-}
-
 .canvas-stage svg {
   width: 100%;
   min-height: 360px;
@@ -242,3 +235,84 @@
   stroke-dasharray: 4 2;
 }
 
+
+.graph-hibernated-placeholder,
+.graph-loading {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 420px;
+  padding: 32px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.graph-hibernated-placeholder h3 {
+  margin: 14px 0 6px;
+  color: var(--ink);
+  font-size: 17px;
+  letter-spacing: -0.015em;
+}
+
+.graph-hibernated-placeholder p {
+  max-width: 42ch;
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.graph-hibernated-icon {
+  width: 34px;
+  height: 34px;
+  color: var(--primary);
+  stroke-width: 1.55;
+}
+
+.graph-wake-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding-inline: 16px;
+}
+
+.graph-group-swatch {
+  width: 10px;
+  height: 10px;
+  flex: none;
+}
+
+.graph-node-interactive {
+  cursor: pointer;
+}
+
+.graph-loading {
+  min-height: 420px;
+  font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  .graph-overlay {
+    inset: 64px 10px 72px;
+    border-radius: 12px;
+  }
+
+  .graph-header {
+    align-items: flex-start;
+    padding: 10px 12px;
+  }
+
+  .graph-controls {
+    order: 3;
+    width: 100%;
+    margin-left: 0;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+  }
+
+  .graph-controls button,
+  .graph-controls label {
+    flex: none;
+  }
+}

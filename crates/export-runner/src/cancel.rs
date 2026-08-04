@@ -122,10 +122,12 @@ mod tests {
 
     fn spawn_short_lived() -> Option<Child> {
         let mut command = if cfg!(windows) {
+            // PROCESS_BROKER_EXCEPTION(export-cancel-test-windows)
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", "exit 0"]);
             cmd
         } else {
+            // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix)
             Command::new("true")
         };
         command.stdout(Stdio::null()).stderr(Stdio::null()).spawn().ok()

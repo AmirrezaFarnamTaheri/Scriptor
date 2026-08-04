@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Chart,
   CategoryScale,
@@ -13,7 +13,7 @@ import {
 } from 'chart.js'
 import { X } from 'lucide-react'
 
-import { vaultAppendStatsHistory, vaultReadStatsHistory, type StatsHistoryEntry } from '../bridge/commands'
+import { vaultReadStatsHistory, type StatsHistoryEntry } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
 Chart.register(
@@ -35,12 +35,6 @@ interface WritingTargetsPanelProps {
   onClose: () => void
 }
 
-export function recordWritingSession(words: number): void {
-  if (!isNativeBridgeAvailable() || words <= 0) return
-  const today = new Date().toISOString().slice(0, 10)
-  void vaultAppendStatsHistory(today, words)
-}
-
 export function WritingTargetsPanel({
   dailyTarget,
   wordsToday,
@@ -51,21 +45,20 @@ export function WritingTargetsPanel({
   const chartRef = useRef<HTMLCanvasElement | null>(null)
   const chartInstance = useRef<Chart | null>(null)
 
-  const refreshHistory = useCallback(async () => {
-    if (!isNativeBridgeAvailable()) {
-      setHistory([])
-      return
-    }
-    try {
-      setHistory(await vaultReadStatsHistory())
-    } catch {
-      setHistory([])
-    }
-  }, [])
-
   useEffect(() => {
-    void refreshHistory()
-  }, [refreshHistory, wordsToday])
+    if (!isNativeBridgeAvailable()) return
+    let cancelled = false
+    void vaultReadStatsHistory()
+      .then((entries) => {
+        if (!cancelled) setHistory(entries)
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [wordsToday])
 
   useEffect(() => {
     if (!chartRef.current) return

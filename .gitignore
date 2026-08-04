@@ -30,6 +30,10 @@ playwright/.auth/
 # Logs
 *.log
 pnpm-debug.log*
+/artifacts/
+/ci-logs/
+/job_log.txt
+/ci.log
 
 # Environment and secrets
 .env
