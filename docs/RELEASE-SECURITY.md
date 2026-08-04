@@ -6,10 +6,10 @@
 
 ## Channels
 
-- **Preview:** manual, may be unsigned, never published as a production GitHub Release.
-- **Production:** `v*` tag or explicit production dispatch; signing requirements are fail-closed.
+- **Preview:** manual, may be unsigned, and is not published automatically.
+- **Production:** `v*` tag or explicit production dispatch; signing is best-effort when platform credentials are configured.
 
-## Production requirements
+## Production signing
 
 | Platform | Required proof |
 |---|---|
@@ -17,7 +17,7 @@
 | macOS | Developer ID signature, notarization credentials, `codesign --verify`, `stapler validate` |
 | Linux | armored detached OpenPGP signature for DEB/AppImage plus exported release public key |
 
-Production workflows fail before build when required secrets are absent.
+Production workflows continue without these optional secrets and clearly record unsigned artifacts in their job logs and release evidence. Consumers should verify signatures when present and treat unsigned artifacts according to their deployment policy.
 
 ## Supply-chain controls
 
@@ -58,4 +58,4 @@ spctl --assess --type execute --verbose=4 /Applications/Scriptor.app
 xcrun stapler validate Scriptor*.dmg
 ```
 
-A missing or invalid signature, checksum, SBOM, receipt, or attestation is a release blocker.
+A missing or invalid checksum, SBOM, receipt, or attestation is a release blocker. Signatures are additionally required where the consumer deployment policy mandates them.

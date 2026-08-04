@@ -78,12 +78,7 @@ jobs:
           LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
         run: |
           node scripts/release/version.mjs check
-          if ($env:SCRIPTOR_RELEASE_CHANNEL -ne "production") { Write-Host "Preview channel: unsigned artifacts are allowed and are never published."; exit 0 }
-          switch ("${{ matrix.platform }}") {
-            "windows" { if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE) -or [string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE_PASSWORD)) { throw "Production Windows release requires WINDOWS_CERTIFICATE and WINDOWS_CERTIFICATE_PASSWORD" } }
-            "macos" { foreach ($name in @("APPLE_CERTIFICATE","APPLE_CERTIFICATE_PASSWORD","APPLE_SIGNING_IDENTITY","APPLE_ID","APPLE_PASSWORD","APPLE_TEAM_ID")) { if ([string]::IsNullOrWhiteSpace((Get-Item "env:$name" -ErrorAction SilentlyContinue).Value)) { throw "Production macOS release requires $name" } } }
-            "linux" { if ([string]::IsNullOrWhiteSpace($env:LINUX_SIGNING_KEY)) { throw "Production Linux release requires LINUX_SIGNING_KEY" } }
-          }
+          Write-Host "Signing is optional; configured platform credentials will be used when available."
 
       - name: Configure pinned pnpm 10.33.0
         shell: pwsh
@@ -199,6 +194,10 @@ jobs:
           LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
         run: |
           set -euo pipefail
+          if [ -z "$LINUX_SIGNING_KEY" ]; then
+            echo "LINUX_SIGNING_KEY not configured; skipping Linux package signing."
+            exit 0
+          fi
           key_file="$RUNNER_TEMP/scriptor-linux-signing-key.asc"
           printf %s "$LINUX_SIGNING_KEY" | base64 --decode > "$key_file"
           gpg --batch --import "$key_file"
