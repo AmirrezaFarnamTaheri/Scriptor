@@ -176,4 +176,9 @@
   .git-file-row-actions {
     justify-content: flex-start;
   }
+
+  .git-file-row-actions button {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
