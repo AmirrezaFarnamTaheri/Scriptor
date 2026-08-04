@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04  
 **Scope:** Pull request #29  
-**Status:** reviewed and corrected; current-head CI remains the merge gate
+**Status:** reviewed and corrected; current-head CI passed
 
 ## Purpose
 
@@ -31,8 +31,12 @@ The focused Node contracts, source contracts, frontend-quality validation, CSS c
 
 All inline review threads were checked against the current effective diff. Valid findings were repaired. Release-signing findings were withdrawn as stale-base findings after the branch was synchronized with `main`; release workflow and release-security files are not part of the effective PR diff.
 
-## Remaining gates
+## Verification outcome
 
-- Required GitHub Actions checks must complete successfully on the current head.
-- Manual screen-reader, native-shell, 200% zoom, and release-candidate visual review are not inferred from source inspection.
+GitHub Actions run `30929841904` (CI run 264) completed successfully for head `171d0a2855419d41fe466c41fdec89448e8050d5`. All seven jobs passed: source provenance, supply-chain audit, contracts/lint, Rust tests, frontend/accessibility/TUI/daemon smoke, container smoke, and Windows release/performance gates.
+
+## Remaining release-candidate checks
+
+- Manual screen-reader, native-shell, 200% zoom, and release-candidate visual review are not inferred from source inspection or the current CI matrix.
+- Final merge remains subject to repository approval and branch-protection policy.
 - Future debt should be reported as scoped findings with reproducible evidence, not as a global “slop” score.
