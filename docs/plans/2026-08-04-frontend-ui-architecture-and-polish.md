@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04  
 **Pull request:** #29  
-**Status:** implementation complete; current-head CI required before merge
+**Status:** implementation and current-head CI complete; manual release-candidate checks remain
 
 ## Goal
 
@@ -66,10 +66,11 @@ The following completed successfully against the repaired source snapshot:
 - `node scripts/validation/module-size-ratchet.mjs`
 - `node scripts/validation/source-contracts.mjs`
 - `node --experimental-strip-types --test scripts/validation/frontend-polish-contracts.test.mjs`
+- GitHub Actions CI run `30929841904` (run 264): all seven jobs passed on head `171d0a2855419d41fe466c41fdec89448e8050d5`
 
 ## Not claimed by this record
 
 - No React DevTools profiling trace was captured, so no universal 16 ms render claim is made.
 - No blanket “zero slop” or “all asynchronous panels” claim is made.
 - Manual screen-reader, native-shell, 200% zoom, and full visual-regression results remain release-candidate checks unless current CI or attached evidence proves them.
-- Merge readiness depends on the required GitHub Actions run for the current head, not on this document.
+- The technical CI gate passed; final merge remains subject to repository approval and branch-protection policy.
