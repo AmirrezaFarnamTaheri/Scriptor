@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04  
 **Scope:** Pull request #29  
-**Status:** reviewed and corrected; current-head CI pending
+**Status:** reviewed and corrected; live CI status is tracked by the PR checks
 
 ## Purpose
 
@@ -27,7 +27,7 @@ This report records concrete defects removed from the frontend-polish change set
 - `scripts/validation/source-contracts.mjs`
 - `e2e/frontend-polish-regressions.spec.ts`
 
-The focused contracts cover Git state selection, stale selection removal, row semantics, MCP tab availability and localization, shortcut accessibility, and visual-tooltip behavior. Current-head results must come from the workflow run for the commit containing these changes.
+The focused contracts cover Git state selection, stale selection removal, row semantics, MCP tab availability and localization, shortcut accessibility, and visual-tooltip behavior.
 
 ## Review-thread reconciliation
 
@@ -35,7 +35,7 @@ All CodeRabbit and Qodo inline threads and top-level review findings were checke
 
 ## Verification status
 
-GitHub Actions run `30935422401` (CI run 265) passed all seven jobs on parent head `8f1032af3615712794aac22152496ee88b2d891b`. That run is historical evidence only because the final review-reconciliation commit changes code, tests, translations, and documentation. The new head requires a fresh successful CI run before a merge-readiness claim is made.
+GitHub Actions run `30935422401` (CI run 265) passed all seven jobs on historical parent head `8f1032af3615712794aac22152496ee88b2d891b`. This report does not encode a live check result. The workflow and check suite attached to the pull request's current head is authoritative for merge readiness.
 
 ## Remaining release-candidate checks
 

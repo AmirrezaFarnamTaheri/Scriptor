@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-04  
 **Pull request:** #29  
-**Status:** implementation complete; current-head CI required before merge
+**Status:** implementation complete; merge readiness is determined by current PR checks
 
 ## Goal
 
@@ -58,7 +58,7 @@ Improve panel accessibility, state correctness, shortcut discoverability, and de
 
 ## Evidence collected
 
-The following completed successfully against the earlier repaired source snapshot:
+The following completed successfully against an earlier repaired source snapshot:
 
 - `node scripts/validation/frontend-quality.mjs`
 - `node scripts/validation/css-custom-properties.mjs`
@@ -69,9 +69,9 @@ The following completed successfully against the earlier repaired source snapsho
 - `node scripts/validation/module-size-ratchet.mjs`
 - `node scripts/validation/source-contracts.mjs`
 - `node --experimental-strip-types --test scripts/validation/frontend-polish-contracts.test.mjs`
-- GitHub Actions CI run `30935422401` (run 265): all seven jobs passed on parent head `8f1032af3615712794aac22152496ee88b2d891b`
+- GitHub Actions CI run `30935422401` (run 265): all seven jobs passed on historical parent head `8f1032af3615712794aac22152496ee88b2d891b`
 
-Because the final review-reconciliation commit changes code, tests, translations, and documentation, a fresh current-head CI run is required before merge readiness is claimed.
+The workflow and check suite attached to the pull request's current head is authoritative for final verification and merge readiness.
 
 ## Not claimed by this record
 
