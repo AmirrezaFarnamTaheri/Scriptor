@@ -2,6 +2,12 @@ import type { ReactNode } from 'react'
 import { CheckCircle2, ChevronDown, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
+export function shortcutLabel(key: string): string {
+  if (typeof navigator === 'undefined') return `Ctrl+${key}`
+  const platform = navigator.userAgentData?.platform ?? navigator.platform
+  return /Mac|iPhone|iPad|iPod/i.test(platform) ? `⌘${key}` : `Ctrl+${key}`
+}
+
 export function PanelHeader({
   title,
   icon,
@@ -20,12 +26,12 @@ export function PanelHeader({
         {title}
         <ChevronDown />
       </button>
-      {menuItems && menuItems.length > 0 && (
+      {menuItems && menuItems.length > 0 ? (
         <div className="panel-menu">
           <IconButton label={`${title} options`} onClick={() => setMenuOpen((open) => !open)}>
             <MoreHorizontal />
           </IconButton>
-          {menuOpen && (
+          {menuOpen ? (
             <div className="panel-menu-popover" role="menu">
               {menuItems.map((item) => (
                 <button
@@ -41,9 +47,9 @@ export function PanelHeader({
                 </button>
               ))}
             </div>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
     </div>
   )
 }
@@ -63,8 +69,8 @@ export function WidgetCard({
     <section className="widget-card">
       <header>
         <h2>{title}</h2>
-        {action &&
-          (onAction ? (
+        {action ? (
+          onAction ? (
             <button type="button" className="widget-action" onClick={onAction}>
               <CheckCircle2 />
               {action}
@@ -74,7 +80,8 @@ export function WidgetCard({
               <CheckCircle2 />
               {action}
             </span>
-          ))}
+          )
+        ) : null}
       </header>
       {children}
     </section>
@@ -105,7 +112,7 @@ export function IconButton({
       disabled={disabled}
     >
       {children}
-      <span className="custom-tooltip" role="tooltip">
+      <span className="custom-tooltip" aria-hidden="true">
         {label}
         {shortcut ? <kbd className="shortcut-badge">{shortcut}</kbd> : null}
       </span>
