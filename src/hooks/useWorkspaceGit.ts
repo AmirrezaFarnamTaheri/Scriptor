@@ -4,6 +4,7 @@ import { gitCommit, gitPull, gitPush, gitStatus } from '../bridge/commands'
 import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
 
+/** Git status plus a status-refresh failure owned by the workspace Git hook. */
 export type WorkspaceGitStatus = GitStatus & { loadError?: string }
 
 interface UseWorkspaceGitOptions {
@@ -28,6 +29,11 @@ function failedGitStatus(loadError: string): WorkspaceGitStatus {
   }
 }
 
+/**
+ * Owns Git status refreshes and user-triggered commit, pull, and push operations.
+ * Status loading begins only when a refresh is actually in flight, so a workspace
+ * without an open vault cannot remain in a permanent loading presentation.
+ */
 export function useWorkspaceGit({
   refreshVault,
   vaultId,
@@ -35,7 +41,7 @@ export function useWorkspaceGit({
   setError,
 }: UseWorkspaceGitOptions) {
   const [gitStatusState, setGitStatusState] = useState<WorkspaceGitStatus | null>(null)
-  const [isGitBusy, setIsGitBusy] = useState(true)
+  const [isGitBusy, setIsGitBusy] = useState(false)
 
   const refreshGit = useCallback(async () => {
     setIsGitBusy(true)
