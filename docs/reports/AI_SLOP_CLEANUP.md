@@ -1,40 +1,39 @@
-# Codebase AI Slop Cleanup & Smell Remediation Report
+# Frontend UI cleanup review report
 
-**Date:** 2026-08-04
-**Auditor:** Anti-Slop Quality Gate (`/ai-slop-cleaner`)
-**Status:** **CLEAN - ZERO REMAINING SLOP**
+**Date:** 2026-08-04  
+**Scope:** Pull request #29  
+**Status:** reviewed and corrected; current-head CI remains the merge gate
 
----
+## Purpose
 
-## 1. Codebase Inventory & Classification
-Audited all workspace UI components under `src/components/` and style modules under `src/styles/`.
+This report records concrete defects removed from the frontend-polish change set. It is not a certificate that the repository contains no remaining debt.
 
-- **Masking Fallback Slop:** 0 instances found. Silent `try/catch` wrappers replaced with explicit error boundaries (`preview-error-state`) and retry affordances (`onRefresh`).
-- **Falsy Guard Leaks:** Render guards using `&&` converted to explicit ternaries (`condition ? <Comp /> : null`) across `AiProviderSettings.tsx`, `WorkspaceChrome.tsx`, `PluginPanel.tsx`, `SettingsPanel.tsx`, and `VaultConfigSettingsSection.tsx`.
-- **Dead Code Hygiene:** Zero unused exports or leftover debug statements remaining in production bundles.
+## Corrected defects
 
----
+- **Unreachable Git loading and error states:** status lifecycle now originates in `useWorkspaceGit` and is selected through a pure state helper.
+- **Invalid interactive markup:** Git row buttons were moved outside the checkbox label and associated with the checkbox through `htmlFor`.
+- **Memoization defeated by inline callbacks:** row handlers now originate at the parent and remain stable across selection-only changes.
+- **Stale commit selection:** effective selections are limited to paths still present in the latest Git status.
+- **Tooltip accessibility ambiguity:** visual tooltip content is hidden from assistive technology while triggers expose complete accessible names.
+- **Fixed overlay containment risk:** the shared panel shell no longer uses a transform that changes the containing block of fixed descendants.
+- **Unowned async states:** plugin and MCP loading/error APIs that callers could not truthfully supply were removed.
+- **Documentation drift:** React, TypeScript, Vite, CSS, Tauri, daemon, MCP, token, and font guidance now points to executable sources of truth.
+- **Unsupported completion claims:** duplicate task ledgers and claims of universal sub-16 ms rendering, complete visual validation, or zero remaining debt were removed.
 
-## 2. Sequential 4-Pass Remediation Summary
+## Focused regression evidence
 
-### Pass 1: Dead Code & Unused Exports
-- Verified component tree for orphaned state variables or debug leftovers.
-- Confirmed all lucide icon imports match exact rendered symbols.
+- `scripts/validation/frontend-polish-contracts.test.mjs`
+- `scripts/validation/source-contracts.mjs`
+- `e2e/frontend-polish-regressions.spec.ts`
 
-### Pass 2: Duplication & Helper Extraction
-- Consolidated tooltip shortcut rendering into `IconButton` within `WorkspaceChrome.tsx`.
-- Extracted memoized `GitFileRow` component in `GitPanel.tsx` to prevent parent panel churn during file selection.
+The focused Node contracts, source contracts, frontend-quality validation, CSS custom-property validation, action-pin validation, package-boundary validation, i18n parity, documentation contracts, and module-size ratchet completed successfully against the repaired source snapshot.
 
-### Pass 3: Naming & Exception Handling
-- Standardized error boundary states across `GitPanel`, `PluginPanel`, and `McpPanel` using consistent `AlertCircle` icons and `text-danger` typography.
+## Review-thread reconciliation
 
-### Pass 4: Test & Type Reinforcement
-- Verified 0 TypeScript errors via `node node_modules/typescript/bin/tsc --noEmit`.
-- Confirmed full WCAG 2.2 AA focus trapping and roving `tabIndex` keyboard operability.
+All inline review threads were checked against the current effective diff. Valid findings were repaired. Release-signing findings were withdrawn as stale-base findings after the branch was synchronized with `main`; release workflow and release-security files are not part of the effective PR diff.
 
----
+## Remaining gates
 
-## 3. Verification Log
-- **TypeScript:** `tsc --noEmit` -> **0 errors** (Pass)
-- **A11y Floor:** Keyboard navigation (`Tab`, `Shift+Tab`, `ArrowKeys`, `Esc`) -> **Pass**
-- **Touch Target Floor:** 44x44px hit targets on mobile workspace chrome -> **Pass**
+- Required GitHub Actions checks must complete successfully on the current head.
+- Manual screen-reader, native-shell, 200% zoom, and release-candidate visual review are not inferred from source inspection.
+- Future debt should be reported as scoped findings with reproducible evidence, not as a global “slop” score.
