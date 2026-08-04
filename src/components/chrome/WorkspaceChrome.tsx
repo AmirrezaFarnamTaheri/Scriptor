@@ -2,11 +2,13 @@ import type { ReactNode } from 'react'
 import { CheckCircle2, ChevronDown, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
+/** Returns the platform-appropriate display label for a single-key shortcut. */
 export function shortcutLabel(key: string): string {
   if (typeof navigator === 'undefined') return `Ctrl+${key}`
   return /Mac|iPhone|iPad|iPod/i.test(navigator.platform) ? `⌘${key}` : `Ctrl+${key}`
 }
 
+/** Renders a compact section heading with an optional local action menu. */
 export function PanelHeader({
   title,
   icon,
@@ -53,6 +55,7 @@ export function PanelHeader({
   )
 }
 
+/** Provides the shared heading and optional action treatment for dashboard widgets. */
 export function WidgetCard({
   title,
   action,
@@ -87,6 +90,10 @@ export function WidgetCard({
   )
 }
 
+/**
+ * Renders an icon-only button with a complete accessible name and a visual-only
+ * tooltip. The optional shortcut is included in the button's accessible name.
+ */
 export function IconButton({
   label,
   shortcut,
