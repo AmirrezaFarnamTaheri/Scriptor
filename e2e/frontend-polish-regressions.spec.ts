@@ -19,6 +19,7 @@ const READY_STATUS: WorkspaceGitStatus = {
   conflicted_files: [],
 }
 
+/** Opens the Git panel through the same command-palette flow used by users. */
 async function openGitPanel(page: Page) {
   await launchApp(page)
   await settleLayout(page)
@@ -30,8 +31,9 @@ async function openGitPanel(page: Page) {
 }
 
 test.describe('Git panel state selector', () => {
-  test('distinguishes loading, error, non-repository, and ready states', () => {
+  test('distinguishes loading, idle, error, non-repository, and ready states', () => {
     expect(selectGitPanelState(null, true)).toBe('loading')
+    expect(selectGitPanelState(null, false)).toBe('not-repository')
     expect(selectGitPanelState({ ...READY_STATUS, is_repo: false, loadError: 'bridge unavailable' }, false)).toBe('error')
     expect(selectGitPanelState({ ...READY_STATUS, is_repo: false }, false)).toBe('not-repository')
     expect(selectGitPanelState(READY_STATUS, false)).toBe('ready')
