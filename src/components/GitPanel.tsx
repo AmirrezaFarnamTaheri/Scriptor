@@ -143,15 +143,19 @@ export function GitPanel({
     setMessageDraft({ fingerprint: changedFingerprint, value })
   }
 
-  const effectiveSelection = useMemo(() => {
-    if (selected.size > 0) return Array.from(selected)
+  const defaultSelection = useMemo(() => {
     if (activePath && changedPaths.includes(activePath)) return [activePath]
     return changedPaths.slice(0, 1)
-  }, [activePath, changedPaths, selected])
+  }, [activePath, changedPaths])
+
+  const effectiveSelection = useMemo(
+    () => (selected.size > 0 ? Array.from(selected) : defaultSelection),
+    [defaultSelection, selected],
+  )
 
   const handleToggleSelect = useCallback((path: string, checked: boolean) => {
     setSelected((current) => {
-      const next = new Set(current.size > 0 ? current : effectiveSelection)
+      const next = new Set(current.size > 0 ? current : defaultSelection)
       if (checked) {
         next.add(path)
       } else {
@@ -159,7 +163,7 @@ export function GitPanel({
       }
       return next
     })
-  }, [effectiveSelection])
+  }, [defaultSelection])
 
   const handlePreviewDiff = useCallback((path: string) => {
     setDiffPath(path)
