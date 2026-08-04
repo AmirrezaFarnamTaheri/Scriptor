@@ -10,8 +10,7 @@
   border-radius: var(--radius-xl);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-lg);
-  will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
+  will-change: opacity;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   overflow: hidden;
@@ -107,22 +106,19 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
-  will-change: transform, opacity;
-  transform: translate3d(0, 0, 0);
-  animation: dock-slide-in 250ms var(--ease-soft);
+  will-change: opacity;
+  animation: dock-fade-in 200ms var(--ease-soft);
 }
 
 body:has(.unified-panel-docked) .workspace-grid {
   padding-right: min(480px, 92vw);
 }
 
-@keyframes dock-slide-in {
+@keyframes dock-fade-in {
   from {
-    transform: translateX(12px);
     opacity: 0.6;
   }
   to {
-    transform: translateX(0);
     opacity: 1;
   }
 }
