@@ -9,7 +9,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface-elevated);
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
   will-change: transform, opacity;
   transform: translate3d(0, 0, 0);
   backdrop-filter: var(--glass-blur);
