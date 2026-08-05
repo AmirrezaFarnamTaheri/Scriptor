@@ -23,8 +23,12 @@ test.describe('editor toolbar popovers', () => {
       await page.keyboard.press('ArrowDown')
 
       const menu = page.getByRole('menu', { name: new RegExp(menuName, 'i') })
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true')
       await expect(menu).toBeVisible()
+      await expect(menu).toHaveAttribute('data-positioned', 'true')
       await expect(menu).toHaveCSS('position', 'fixed')
+      expect(await menu.evaluate((element) => element.parentElement === document.body)).toBe(true)
+
       const firstItem = menu.getByRole('menuitem').first()
       await expect(firstItem).toBeFocused()
 
@@ -41,7 +45,14 @@ test.describe('editor toolbar popovers', () => {
       await expect(menu.getByRole('menuitem').last()).toBeFocused()
       await page.keyboard.press('Escape')
       await expect(menu).toBeHidden()
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false')
       await expect(trigger).toBeFocused()
+
+      await page.keyboard.press('ArrowDown')
+      await expect(menu).toBeVisible()
+      await page.keyboard.press('Tab')
+      await expect(menu).toBeHidden()
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false')
       await settleLayout(page)
     })
   }
