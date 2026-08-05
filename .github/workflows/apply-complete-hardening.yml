@@ -17,13 +17,12 @@ jobs:
       - name: Checkout staging payload
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Locate deletion offset
+      - name: Extract deletion window
         shell: bash
         run: |
           set -euo pipefail
           tr -d '\r\n' < .automation/scriptor-hardening.patch.gz.b64.part03 > "$RUNNER_TEMP/part03"
-          split -b 512 -d -a 2 "$RUNNER_TEMP/part03" "$RUNNER_TEMP/block-"
-          for block in "$RUNNER_TEMP"/block-*; do
-            echo "$(basename "$block") bytes=$(wc -c < "$block") sha256=$(sha256sum "$block" | cut -d' ' -f1)"
-          done
+          printf 'REMOTE_WINDOW='
+          dd if="$RUNNER_TEMP/part03" bs=1 skip=5500 count=900 status=none
+          printf '\n'
           exit 1
