@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
     branches: [main]
-    types: [reopened]
+    types: [reopened, synchronize]
 
 permissions:
   contents: read
