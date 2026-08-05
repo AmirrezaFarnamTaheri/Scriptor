@@ -51,7 +51,7 @@ jobs:
           git apply /tmp/pr32-review-fixes.patch
           git diff --check
 
-          node scripts/release/version.mjs check
+          env -u GITHUB_REF_NAME node scripts/release/version.mjs check
           node scripts/validation/action-pins.mjs
           node scripts/validation/deep-module-boundaries.mjs
           node scripts/validation/i18n-parity.mjs
