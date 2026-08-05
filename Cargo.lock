@@ -5573,7 +5573,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "scriptor-canvas-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "resvg",
@@ -5590,7 +5590,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-citation-engine"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hayagriva",
  "serde",
@@ -5599,7 +5599,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-cli"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "crossterm",
@@ -5622,7 +5622,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-daemon"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ammonia",
  "chrono",
@@ -5649,7 +5649,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-desktop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arboard",
  "chrono",
@@ -5678,7 +5678,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-embeddings"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "reqwest 0.13.4",
  "rusqlite",
@@ -5689,7 +5689,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-export-runner"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "hex",
@@ -5704,7 +5704,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-indexer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "hex",
@@ -5724,7 +5724,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-ipc"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "postcard",
  "serde",
@@ -5734,7 +5734,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-native-git"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5744,7 +5744,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-system-bridge"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "hex",
  "keyring",
@@ -5758,7 +5758,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-tantivy-indexer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "tantivy",
  "tempfile",
@@ -5767,7 +5767,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-vault"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -5791,7 +5791,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-wasm-runtime"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "thiserror 2.0.19",
@@ -5799,7 +5799,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-xtask"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",

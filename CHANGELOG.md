@@ -80,6 +80,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Portaled Typography and Insert menus to the viewport so the writing and split-preview surfaces cannot clip them.
 - Added keyboard navigation, Escape/outside-click dismissal, focus restoration, and scroll/resize repositioning.
 
+## [0.1.1] - 2026-08-06
+
+### Release reliability
+
+- Removed certificate and signing-secret dependencies from official GitHub Releases; installers are explicitly unsigned and release notes disclose unknown-publisher warnings.
+- Unified Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64 packaging under one release owner with exact installer staging.
+- Added architecture-bound trust-status evidence, receipt schema 4, flat SHA-256 checksums, CycloneDX SBOM, and GitHub attestations.
+- Added immutable tag kickoff and safe re-dispatch so a failed publication can recover without moving a tag.
+
+### Editor interface
+
+- Portaled Typography and Insert menus to the viewport so the writing and split-preview surfaces cannot clip them.
+- Added keyboard navigation, Escape/outside-click dismissal, focus restoration, and scroll/resize repositioning.
+
 ## [0.1.0] - 2026-06-27
 
 First public release of Scriptor — a local-first Markdown knowledge workspace for serious writing and research.
@@ -167,4 +181,5 @@ First public release of Scriptor — a local-first Markdown knowledge workspace 
 
 **Historical note:** this release description predates the current maturity ledger. Current support and verification status are documented in `docs/CAPABILITY-MATURITY.md` and release evidence.
 
+[0.1.1]: https://github.com/AmirrezaFarnamTaheri/Scriptor/releases/tag/v0.1.1
 [0.1.0]: https://github.com/AmirrezaFarnamTaheri/Scriptor/releases/tag/v0.1.0
