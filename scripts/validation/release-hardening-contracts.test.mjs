@@ -18,10 +18,13 @@ test('production publication is secret-free, architecture-complete, and stages i
   assert.match(workflow, /architecture:\s*x86_64/)
   assert.match(workflow, /architecture:\s*aarch64/)
   assert.match(workflow, /ubuntu-24\.04-arm/)
+  assert.match(workflow, /verify-runner-architecture\.mjs/)
   assert.match(workflow, /stage-release-assets\.mjs/)
   assert.match(staging, /expected exactly one/)
   assert.doesNotMatch(workflow, /target\/release\/bundle\/\*\*\/\*/)
   assert.equal(fs.existsSync(path.join(root, '.github/workflows/release-arms.yml')), false)
+  assert.equal(fs.existsSync(path.join(root, '.github/workflows/prepare-release-version.yml')), false)
+  assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
 test('manual release dispatch defaults to preview and production requires an immutable v* tag', () => {
@@ -39,35 +42,56 @@ test('manual release dispatch defaults to preview and production requires an imm
   assert.match(workflow, /github\.event_name\s*==\s*'push'[\s\S]{0,200}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/)
   assert.match(kickoff, /git tag -a/)
   assert.match(kickoff, /gh workflow run release\.yml/)
+  assert.match(kickoff, /--ref "\$\{\{ steps\.tag\.outputs\.tag \}\}"/)
   assert.match(kickoff, /refusing to move or reuse it/)
 })
 
-test('release receipt records target-specific unsigned trust status with schema 4', () => {
+test('release receipt separates installer subjects from architecture trust metadata', () => {
+  const workflow = read('.github/workflows/release.yml')
   const receipt = read('scripts/release/create-receipt.mjs')
   const verifier = read('scripts/release/verify-release-evidence.mjs')
   const signing = read('scripts/release/signing-evidence.mjs')
+
   assert.match(receipt, /schemaVersion:\s*4/)
   assert.match(verifier, /receipt\.schemaVersion !== 4/)
-  assert.match(receipt, /collectSigningEvidence/)
+  assert.match(receipt, /collectSigningEvidence\(outDir\)/)
+  assert.match(verifier, /collectSigningEvidence\(evidenceDir\)/)
   assert.match(receipt, /signing,/)
   assert.match(verifier, /assertSigningEvidence/)
   assert.match(signing, /architecture:/)
   assert.match(signing, /DEFAULT_RELEASE_TARGETS/)
   assert.doesNotMatch(signing, /production .* artifact is unsigned/)
+
+  assert.match(workflow, /Separate installer subjects from trust metadata/)
+  assert.match(workflow, /mv "\$\{evidence\[@\]\}" release-evidence\//)
+  assert.match(workflow, /test "\$\{#installers\[@\]\}" -eq 7/)
+  assert.match(workflow, /test "\$\{#evidence\[@\]\}" -eq 4/)
+  assert.match(workflow, /verify-signing-evidence\.mjs release-evidence/)
+  assert.match(workflow, /subject-path:\s*release-artifacts\/\*/)
+  assert.doesNotMatch(workflow, /subject-path:\s*release-evidence/)
 })
 
-test('toolbar popovers escape scroll clipping and provide keyboard recovery', () => {
+test('toolbar popovers escape scroll clipping without a React positioning loop', () => {
   const portal = read('src/components/ToolbarPopover.tsx')
   const css = read('src/styles/components/toolbar-popover.css')
   const appCss = read('src/App.css')
+  const e2e = read('e2e/toolbar-popovers.spec.ts')
+
   assert.match(portal, /createPortal\(/)
   assert.match(portal, /document\.body/)
   assert.match(portal, /addEventListener\('scroll', updatePosition, true\)/)
   assert.match(portal, /ResizeObserver/)
   assert.match(portal, /event\.key !== 'Escape'/)
+  assert.match(portal, /event\.key === 'Tab'/)
+  assert.match(portal, /panel\.style\.top/)
+  assert.match(portal, /data-positioned="false"/)
+  assert.doesNotMatch(portal, /\buseState\b|setPosition/)
   assert.match(css, /position:\s*fixed/)
   assert.match(css, /z-index:\s*10000/)
+  assert.match(css, /data-positioned='false'/)
   assert.match(appCss, /toolbar-popover\.css/)
+  assert.match(e2e, /parentElement === document\.body/)
+  assert.match(e2e, /press\('Tab'\)/)
 
   for (const file of ['src/components/TypographyMenu.tsx', 'src/components/InsertMenu.tsx']) {
     const source = read(file)
@@ -170,6 +194,7 @@ test('MCP runtime types and Windows unsigned verification stay complete', () => 
 
   const security = read('docs/RELEASE-SECURITY.md')
   assert.match(security, /Windows.*unknown-publisher|unknown-publisher.*Windows/is)
+  assert.match(security, /seven installer subjects only/i)
 })
 
 test('hash mismatch fixture fails only the first qualifying save', () => {
