@@ -38,6 +38,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   private handleReset = () => {
+    if (
+      import.meta.env.VITE_E2E_MODE === 'true' &&
+      this.props.name === 'markdown-editor' &&
+      window.sessionStorage.getItem('e2e:editor-render-failure') === '1'
+    ) {
+      window.sessionStorage.setItem('e2e:editor-render-failure', 'consumed')
+    }
     this.setState({ hasError: false, error: null })
   }
 
