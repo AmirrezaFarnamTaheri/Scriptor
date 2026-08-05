@@ -48,8 +48,8 @@ function normalizeShortcutKey(key: string): string | null {
 }
 
 function parseShortcut(shortcut: string): ParsedShortcut | null {
-  const parts = shortcut.split('+').map((part) => part.trim()).filter(Boolean)
-  if (parts.length === 0) return null
+  const parts = shortcut.split('+').map((part) => part.trim())
+  if (parts.some((part) => part.length === 0)) return null
 
   const keyPart = parts.at(-1)
   if (!keyPart) return null
