@@ -23,7 +23,7 @@ if (!fs.existsSync(subjectDir) || !fs.statSync(subjectDir).isDirectory()) {
 }
 
 const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
-if (receipt.schemaVersion !== 3) throw new Error(`unsupported release receipt schema: ${receipt.schemaVersion}`)
+if (receipt.schemaVersion !== 4) throw new Error(`unsupported release receipt schema: ${receipt.schemaVersion}`)
 const source = getSourceIdentity({
   root,
   expectedCommit: process.env.GITHUB_SHA || process.env.SCRIPTOR_SOURCE_COMMIT || undefined,
