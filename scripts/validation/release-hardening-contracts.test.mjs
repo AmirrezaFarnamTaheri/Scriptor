@@ -27,15 +27,19 @@ test('production publication is secret-free, architecture-complete, and stages i
   assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
-test('manual release dispatch defaults to preview and production requires an immutable v* tag', () => {
+test('manual release dispatch builds canonical VERSION and production requires an immutable v* tag', () => {
   const workflow = read('.github/workflows/release.yml')
   const kickoff = read('.github/workflows/release-kickoff.yml')
+  const versionScript = read('scripts/release/version.mjs')
   const dispatchStart = workflow.indexOf('  workflow_dispatch:')
   const tagStart = workflow.indexOf('  push:', dispatchStart)
   assert.ok(dispatchStart >= 0 && tagStart > dispatchStart, 'release workflow dispatch block is missing')
   const dispatch = workflow.slice(dispatchStart, tagStart)
   assert.match(dispatch, /publish:/)
   assert.match(dispatch, /default:\s*false/)
+  assert.doesNotMatch(dispatch, /\bversion:/)
+  assert.match(workflow, /Get-Content -LiteralPath VERSION -Raw/)
+  assert.match(workflow, /SCRIPTOR_RELEASE_VERSION=v\$canonicalVersion/)
 
   const productionGuard = /github\.event_name\s*==\s*'workflow_dispatch'[\s\S]{0,200}?inputs\.publish[\s\S]{0,200}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/
   assert.match(workflow, productionGuard)
@@ -43,7 +47,10 @@ test('manual release dispatch defaults to preview and production requires an imm
   assert.match(kickoff, /git tag -a/)
   assert.match(kickoff, /gh workflow run release\.yml/)
   assert.match(kickoff, /--ref "\$\{\{ steps\.tag\.outputs\.tag \}\}"/)
+  assert.doesNotMatch(kickoff, /-f version=/)
   assert.match(kickoff, /refusing to move or reuse it/)
+  assert.match(versionScript, /const versionTag = \/\^v/)
+  assert.match(versionScript, /versionTag\.test\(refName\)/)
 })
 
 test('release receipt separates installer subjects from architecture trust metadata', () => {
