@@ -6,6 +6,7 @@ import process from 'node:process';
 const root = path.resolve(import.meta.dirname, '../..');
 const canonicalPath = path.join(root, 'VERSION');
 const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+const versionTag = /^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 const mode = process.argv[2] ?? 'check';
 const canonical = fs.readFileSync(canonicalPath, 'utf8').trim();
 if (!semver.test(canonical)) throw new Error(`VERSION is not valid SemVer: ${canonical}`);
@@ -66,7 +67,10 @@ if (mode === 'sync') {
   failures.push(`${path.relative(root, tauriFile)}: ${tauri.version}`);
 }
 
-const expected = (process.env.SCRIPTOR_RELEASE_VERSION || process.env.GITHUB_REF_NAME || '').replace(/^v/, '') || undefined;
+const explicitExpected = String(process.env.SCRIPTOR_RELEASE_VERSION ?? '').trim();
+const refName = String(process.env.GITHUB_REF_NAME ?? '').trim();
+const expectedSource = explicitExpected || (versionTag.test(refName) ? refName : '');
+const expected = expectedSource.replace(/^v/, '') || undefined;
 if (mode !== 'sync' && expected && expected !== canonical) {
   failures.push(`release input/tag: ${expected}`);
 }
