@@ -34,7 +34,7 @@ const source = getSourceIdentity({
   requireClean: !allowArchive,
   allowArchive,
 })
-const signing = assertSigningEvidence(collectSigningEvidence(subjectDir), {
+const signing = assertSigningEvidence(collectSigningEvidence(outDir), {
   channel: process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'production',
   expectedSourceCommit: source.sourceCommit,
 })
