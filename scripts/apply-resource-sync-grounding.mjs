@@ -5,7 +5,12 @@ import path from 'node:path'
 import zlib from 'node:zlib'
 
 const directory = path.resolve('scripts/.resource-sync-grounding')
-const partNames = ['part-00.txt', 'part-01.txt']
+const partNames = fs.readdirSync(directory)
+  .filter((name) => /^part-\d+\.txt$/.test(name))
+  .sort()
+if (partNames.length !== 18) {
+  throw new Error(`expected 18 payload parts, found ${partNames.length}`)
+}
 const expectedFiles = new Map([
   ['apps/desktop/src-tauri/src/commands/resources/catalog.rs', '95f0144c04df0575ca64c3b5d92a97175deb015cdc8bf7c38a9ddf1307c2ecb8'],
   ['apps/desktop/src-tauri/src/commands/resources/discovery.rs', 'd53cdc636fcd084b08849234c70a879b55d12925404d50fccdaf457afd6f32af'],
