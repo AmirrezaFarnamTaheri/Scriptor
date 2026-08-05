@@ -11,11 +11,11 @@ function readArgument(name, fallback) {
 
 const result = validateSigningEnvironment({
   platform: readArgument('platform', process.env.SCRIPTOR_PLATFORM),
+  architecture: readArgument('architecture', process.env.SCRIPTOR_ARCHITECTURE),
   channel: readArgument('channel', process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'preview'),
 })
 
 console.log(
-  result.channel === 'production'
-    ? `Production signing inputs verified for ${result.platform}.`
-    : `Preview release policy verified for ${result.platform}; unsigned artifacts are permitted and are not auto-published.`,
+  `${result.channel} ${result.platform}/${result.architecture} policy verified: `
+  + 'release artifacts are unsigned and require checksum plus GitHub attestation verification.',
 )
