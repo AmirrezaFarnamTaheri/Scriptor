@@ -22,7 +22,11 @@ interface UseAppKeyboardShortcutsOptions {
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && Boolean(target.closest('input, textarea, [contenteditable="true"]'))
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  )
 }
 
 /** Owns configured global workspace shortcuts and keeps their dependencies explicit. */
