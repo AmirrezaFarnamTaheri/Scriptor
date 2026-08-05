@@ -1,12 +1,10 @@
 name: Apply unified AgentStack sync implementation
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/unified-agentstack-sync
-    paths:
-      - scripts/apply-unified-agentstack-sync.mjs
-      - .github/workflows/apply-unified-agentstack-sync.yml
+      - main
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
@@ -17,10 +15,11 @@ concurrency:
 
 jobs:
   apply:
+    if: github.event.pull_request.head.ref == 'feat/unified-agentstack-sync'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Checkout staging commit
+      - name: Checkout staging branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: feat/unified-agentstack-sync
@@ -37,5 +36,3 @@ jobs:
           git diff --cached --check
           git commit -m "feat(desktop): unify AgentStack sharing and sync"
           git push origin HEAD:feat/unified-agentstack-sync
-
-# This workflow removes itself after the reviewed payload is committed.
