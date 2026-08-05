@@ -12,6 +12,7 @@ target/
 # Release publication scratch
 /release-artifacts/
 /release-evidence/
+/release-output/
 
 # Vite / TypeScript
 *.local
