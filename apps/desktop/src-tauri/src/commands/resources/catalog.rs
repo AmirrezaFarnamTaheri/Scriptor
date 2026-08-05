@@ -18,10 +18,26 @@ pub enum SupportLevel {
     InventoryOnly,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResourceRootRole {
+    Primary,
+    Compatibility,
+}
+
+impl ResourceRootRole {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Primary => "primary",
+            Self::Compatibility => "compatibility",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ResourceRootDefinition {
     pub relative_path: &'static str,
     pub scope: &'static str,
+    pub role: ResourceRootRole,
 }
 
 #[derive(Debug, Clone)]
@@ -34,66 +50,58 @@ pub struct TargetDefinition {
     pub version_args: &'static [&'static str],
     pub extension_ids: &'static [&'static str],
     pub resource_roots: &'static [ResourceRootDefinition],
+    pub capability_note: &'static str,
+    pub documentation_url: Option<&'static str>,
+}
+
+const fn primary(relative_path: &'static str, scope: &'static str) -> ResourceRootDefinition {
+    ResourceRootDefinition {
+        relative_path,
+        scope,
+        role: ResourceRootRole::Primary,
+    }
+}
+
+const fn compatibility(relative_path: &'static str, scope: &'static str) -> ResourceRootDefinition {
+    ResourceRootDefinition {
+        relative_path,
+        scope,
+        role: ResourceRootRole::Compatibility,
+    }
 }
 
 const EMPTY_ROOTS: &[ResourceRootDefinition] = &[];
-const UNIVERSAL_ROOTS: &[ResourceRootDefinition] = &[ResourceRootDefinition {
-    relative_path: ".agents/skills",
-    scope: "user",
-}];
-const CLAUDE_ROOTS: &[ResourceRootDefinition] = &[ResourceRootDefinition {
-    relative_path: ".claude/skills",
-    scope: "user",
-}];
-const CODEX_ROOTS: &[ResourceRootDefinition] = &[ResourceRootDefinition {
-    relative_path: ".codex/skills",
-    scope: "user",
-}];
+const UNIVERSAL_ROOTS: &[ResourceRootDefinition] = &[primary(".agents/skills", "user")];
+const CLAUDE_ROOTS: &[ResourceRootDefinition] = &[primary(".claude/skills", "user")];
+const CODEX_ROOTS: &[ResourceRootDefinition] = &[primary(".agents/skills", "user")];
 const COPILOT_ROOTS: &[ResourceRootDefinition] = &[
-    ResourceRootDefinition {
-        relative_path: ".copilot/skills",
-        scope: "user",
-    },
-    ResourceRootDefinition {
-        relative_path: ".claude/skills",
-        scope: "user_compatibility",
-    },
-    ResourceRootDefinition {
-        relative_path: ".agents/skills",
-        scope: "user_compatibility",
-    },
+    primary(".copilot/skills", "user"),
+    compatibility(".claude/skills", "user_compatibility"),
+    compatibility(".agents/skills", "user_compatibility"),
+];
+const CURSOR_ROOTS: &[ResourceRootDefinition] = &[
+    primary(".cursor/skills", "user"),
+    compatibility(".agents/skills", "user_compatibility"),
+    compatibility(".claude/skills", "user_compatibility"),
+    compatibility(".codex/skills", "user_legacy_compatibility"),
 ];
 const WINDSURF_ROOTS: &[ResourceRootDefinition] = &[
-    ResourceRootDefinition {
-        relative_path: ".codeium/windsurf/skills",
-        scope: "user",
-    },
-    ResourceRootDefinition {
-        relative_path: ".agents/skills",
-        scope: "user_compatibility",
-    },
-    ResourceRootDefinition {
-        relative_path: ".claude/skills",
-        scope: "user_compatibility",
-    },
+    primary(".codeium/windsurf/skills", "user"),
+    compatibility(".agents/skills", "user_compatibility"),
+    compatibility(".claude/skills", "user_optional_compatibility"),
 ];
-const GEMINI_ROOTS: &[ResourceRootDefinition] = &[ResourceRootDefinition {
-    relative_path: ".gemini/skills",
-    scope: "user",
-}];
+const GEMINI_ROOTS: &[ResourceRootDefinition] = &[
+    primary(".gemini/skills", "user"),
+    compatibility(".agents/skills", "user_alias"),
+];
 const OPENCODE_ROOTS: &[ResourceRootDefinition] = &[
-    ResourceRootDefinition {
-        relative_path: ".config/opencode/skills",
-        scope: "user",
-    },
-    ResourceRootDefinition {
-        relative_path: ".agents/skills",
-        scope: "user_compatibility",
-    },
-    ResourceRootDefinition {
-        relative_path: ".claude/skills",
-        scope: "user_compatibility",
-    },
+    primary(".config/opencode/skills", "user"),
+    compatibility(".claude/skills", "user_compatibility"),
+    compatibility(".agents/skills", "user_compatibility"),
+];
+const AMP_ROOTS: &[ResourceRootDefinition] = &[
+    primary(".config/agents/skills", "user"),
+    compatibility(".claude/skills", "user_compatibility"),
 ];
 
 const NO_EXECUTABLES: &[&str] = &[];
@@ -104,13 +112,15 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
     vec![
         target(
             "agentstack",
-            "AgentStack registry",
+            "AgentStack private registry (beta)",
             TargetKind::Registry,
-            SupportLevel::Native,
-            &["agentstack"],
-            VERSION_FLAG,
+            SupportLevel::InventoryOnly,
+            NO_EXECUTABLES,
+            &[],
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "The agentstack.gg registry is a private beta and does not publish a stable local executable or ownership-manifest contract. Scriptor therefore does not guess from the ambiguous `agentstack` command name or write registry state.",
+            Some("https://agentstack.gg/access"),
         ),
         target(
             "universal",
@@ -121,6 +131,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             &[],
             NO_EXTENSIONS,
             UNIVERSAL_ROOTS,
+            "Vendor-neutral user library at ~/.agents/skills. It is writable without requiring a specific application installation.",
+            Some("https://agentskills.io"),
         ),
         target(
             "claude-code",
@@ -131,6 +143,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             &["anthropic.claude-code"],
             CLAUDE_ROOTS,
+            "Writes global skills to ~/.claude/skills after the Claude executable or official extension is confirmed.",
+            Some("https://docs.anthropic.com/en/docs/claude-code"),
         ),
         target(
             "codex",
@@ -141,16 +155,20 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             CODEX_ROOTS,
+            "Current Codex user skills live in ~/.agents/skills. ~/.codex/config.toml controls enablement but is not a skill directory.",
+            Some("https://developers.openai.com/codex/build-skills"),
         ),
         target(
             "vscode",
             "Visual Studio Code",
             TargetKind::Ide,
-            SupportLevel::Compatible,
+            SupportLevel::InventoryOnly,
             &["code", "code-insiders"],
             VERSION_FLAG,
             NO_EXTENSIONS,
-            COPILOT_ROOTS,
+            EMPTY_ROOTS,
+            "The editor installation is inventoried separately. Skill writes require a confirmed GitHub Copilot extension or Copilot CLI target.",
+            Some("https://code.visualstudio.com/docs/agent-customization/agent-skills"),
         ),
         target(
             "copilot-chat",
@@ -161,6 +179,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             &[],
             &["github.copilot-chat", "github.copilot"],
             COPILOT_ROOTS,
+            "Writes personal skills to ~/.copilot/skills and inventories the documented ~/.claude/skills and ~/.agents/skills compatibility roots.",
+            Some("https://code.visualstudio.com/docs/agent-customization/agent-skills"),
         ),
         target(
             "copilot-cli",
@@ -171,26 +191,32 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             COPILOT_ROOTS,
+            "Writes personal skills to ~/.copilot/skills and inventories the documented ~/.agents/skills compatibility root.",
+            Some("https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills"),
         ),
         target(
             "cursor",
             "Cursor",
             TargetKind::Ide,
-            SupportLevel::InventoryOnly,
+            SupportLevel::Compatible,
             &["cursor", "cursor-agent"],
             VERSION_FLAG,
             NO_EXTENSIONS,
-            EMPTY_ROOTS,
+            CURSOR_ROOTS,
+            "Writes global skills to ~/.cursor/skills and inventories Cursor's documented Agent Skills compatibility roots.",
+            Some("https://cursor.com/docs/skills"),
         ),
         target(
             "windsurf",
-            "Windsurf",
+            "Windsurf / Devin Desktop Cascade",
             TargetKind::Ide,
             SupportLevel::Compatible,
             &["windsurf"],
             VERSION_FLAG,
             NO_EXTENSIONS,
             WINDSURF_ROOTS,
+            "Writes global Cascade skills to ~/.codeium/windsurf/skills and inventories documented cross-agent roots.",
+            Some("https://docs.windsurf.com/windsurf/cascade/skills"),
         ),
         target(
             "zed",
@@ -201,6 +227,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             UNIVERSAL_ROOTS,
+            "Zed's global skill root is ~/.agents/skills; project-local skills remain scoped to trusted worktrees.",
+            Some("https://zed.dev/docs/ai/skills"),
         ),
         target(
             "jetbrains",
@@ -211,6 +239,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Installed IDEs are identified, but no stable cross-product global Agent Skills write contract is assumed.",
+            None,
         ),
         target(
             "gemini-cli",
@@ -221,6 +251,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             GEMINI_ROOTS,
+            "Writes user skills to ~/.gemini/skills and inventories ~/.agents/skills as the documented alias. The product currently documents an Antigravity transition for some plans.",
+            Some("https://geminicli.com/docs/cli/using-agent-skills/"),
         ),
         target(
             "cline",
@@ -231,6 +263,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             &[],
             &["saoudrizwan.claude-dev"],
             EMPTY_ROOTS,
+            "The exact installed extension is identified; writes remain disabled until a stable first-party Agent Skills contract is verified.",
+            None,
         ),
         target(
             "roo-code",
@@ -241,6 +275,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             &[],
             &["rooveterinaryinc.roo-cline"],
             EMPTY_ROOTS,
+            "The exact installed extension is identified; writes remain disabled until a stable first-party Agent Skills contract is verified.",
+            None,
         ),
         target(
             "continue",
@@ -251,6 +287,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             &[],
             &["continue.continue"],
             EMPTY_ROOTS,
+            "The exact installed extension is identified; Scriptor does not translate Agent Skills into Continue-specific configuration implicitly.",
+            None,
         ),
         target(
             "opencode",
@@ -261,6 +299,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             OPENCODE_ROOTS,
+            "Writes global skills to ~/.config/opencode/skills and inventories documented Claude- and agent-compatible global roots.",
+            Some("https://opencode.ai/docs/skills"),
         ),
         target(
             "aider",
@@ -271,6 +311,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Executable identity is recorded; no Agent Skills write mapping is inferred from prompt or convention files.",
+            None,
         ),
         target(
             "goose",
@@ -281,6 +323,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Executable identity is recorded; no unverified global skill root is written.",
+            None,
         ),
         target(
             "kiro",
@@ -291,6 +335,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Application identity is recorded; compatibility files are not treated as a native Agent Skills store.",
+            None,
         ),
         target(
             "trae",
@@ -301,6 +347,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Application and extension metadata are inventoried without assuming a writable Agent Skills location.",
+            None,
         ),
         target(
             "antigravity",
@@ -311,16 +359,20 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Detected as a transition target. Writes remain disabled until its first-party skill discovery and migration contract is stable.",
+            None,
         ),
         target(
             "amp",
             "Amp",
             TargetKind::Cli,
-            SupportLevel::InventoryOnly,
+            SupportLevel::Compatible,
             &["amp"],
             VERSION_FLAG,
             NO_EXTENSIONS,
-            EMPTY_ROOTS,
+            AMP_ROOTS,
+            "Writes global skills to ~/.config/agents/skills and inventories Amp's documented Claude compatibility root.",
+            Some("https://ampcode.com/news/agent-skills"),
         ),
         target(
             "droid",
@@ -331,6 +383,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Executable identity is recorded; no write root is enabled without a verified first-party contract.",
+            None,
         ),
         target(
             "qwen-code",
@@ -341,6 +395,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Executable identity is recorded; no write root is enabled without a verified first-party contract.",
+            None,
         ),
         target(
             "amazon-q",
@@ -351,6 +407,8 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             VERSION_FLAG,
             NO_EXTENSIONS,
             EMPTY_ROOTS,
+            "Executable identity is recorded; Agent Skills are not mapped onto Amazon Q configuration implicitly.",
+            None,
         ),
     ]
 }
@@ -365,6 +423,8 @@ fn target(
     version_args: &'static [&'static str],
     extension_ids: &'static [&'static str],
     resource_roots: &'static [ResourceRootDefinition],
+    capability_note: &'static str,
+    documentation_url: Option<&'static str>,
 ) -> TargetDefinition {
     TargetDefinition {
         id,
@@ -375,5 +435,7 @@ fn target(
         version_args,
         extension_ids,
         resource_roots,
+        capability_note,
+        documentation_url,
     }
 }
