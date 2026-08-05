@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - automation/apply-complete-hardening-2026-08-05
-  pull_request:
-    branches: [main]
 
 permissions:
   contents: write
@@ -16,7 +14,7 @@ concurrency:
 
 jobs:
   apply:
-    if: github.ref == 'refs/heads/automation/apply-complete-hardening-2026-08-05' || github.head_ref == 'automation/apply-complete-hardening-2026-08-05'
+    if: github.ref == 'refs/heads/automation/apply-complete-hardening-2026-08-05'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -35,9 +33,13 @@ jobs:
         run: |
           set -euo pipefail
           cat .automation/scriptor-hardening.patch.gz.b64.part* | tr -d '\r\n' > "$RUNNER_TEMP/hardening.patch.gz.b64"
+          echo "canonical-bytes=$(wc -c < "$RUNNER_TEMP/hardening.patch.gz.b64")"
+          sha256sum "$RUNNER_TEMP/hardening.patch.gz.b64"
           test "$(wc -c < "$RUNNER_TEMP/hardening.patch.gz.b64")" -eq 51892
           echo "42d6f82778167213dd1f950b0c6518fb0eb2f4a2f534bab084477e5e52283370  $RUNNER_TEMP/hardening.patch.gz.b64" | sha256sum -c -
           base64 --decode "$RUNNER_TEMP/hardening.patch.gz.b64" | gzip -d > "$RUNNER_TEMP/hardening.patch"
+          echo "patch-bytes=$(wc -c < "$RUNNER_TEMP/hardening.patch")"
+          sha256sum "$RUNNER_TEMP/hardening.patch"
           test "$(wc -c < "$RUNNER_TEMP/hardening.patch")" -eq 167598
           echo "e79963ecc5040926c0b445e387699123f20b8447a4540f136a3c9cd39873e917  $RUNNER_TEMP/hardening.patch" | sha256sum -c -
 
