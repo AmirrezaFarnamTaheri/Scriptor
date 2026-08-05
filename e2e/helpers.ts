@@ -113,7 +113,6 @@ export async function waitForWorkspace(page: Page) {
   })
   const editorSurface = page.locator('.monaco-editor .view-lines, .cm-content')
   await expect(editorSurface).toContainText('Research Plan', { timeout: 45_000 })
-  await page.waitForLoadState('networkidle')
   await settleLayout(page)
 }
 
