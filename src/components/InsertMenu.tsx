@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { ChevronDown, Plus } from 'lucide-react'
 
 import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor'
+import { ToolbarPopover } from './ToolbarPopover'
 
 interface InsertMenuProps {
   disabled?: boolean
@@ -12,7 +13,9 @@ const TASK_LIST = '- [ ] '
 
 export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
   const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerId = useId()
+  const menuId = useId()
 
   const items = [
     ...MERMAID_SNIPPETS.map((snippet) => ({
@@ -32,37 +35,51 @@ export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
   ]
 
   return (
-    <div className="insert-menu" ref={rootRef}>
+    <div className="insert-menu">
       <button
+        ref={triggerRef}
+        id={triggerId}
         type="button"
         className={open ? 'active' : undefined}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowDown') return
+          event.preventDefault()
+          setOpen(true)
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
       >
         <Plus size={14} />
         Insert
         <ChevronDown size={14} />
       </button>
-      {open ? (
-        <menu className="insert-menu-panel" role="menu">
-          {items.map((item) => (
-            <li key={item.id} role="none">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onInsert(item.content)
-                  setOpen(false)
-                }}
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </menu>
-      ) : null}
+      <ToolbarPopover
+        open={open}
+        id={menuId}
+        className="insert-menu-panel"
+        triggerRef={triggerRef}
+        labelledBy={triggerId}
+        onClose={() => setOpen(false)}
+      >
+        {items.map((item) => (
+          <li key={item.id} role="none">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onInsert(item.content)
+                setOpen(false)
+                triggerRef.current?.focus()
+              }}
+            >
+              {item.label}
+            </button>
+          </li>
+        ))}
+      </ToolbarPopover>
     </div>
   )
 }
