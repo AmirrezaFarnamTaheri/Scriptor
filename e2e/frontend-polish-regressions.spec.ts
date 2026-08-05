@@ -75,6 +75,43 @@ test.describe('Frontend polish regressions', () => {
     await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'true')
   })
 
+  test('global shortcuts ignore explicit, plaintext-only, empty, and inherited editable targets', async ({ page }) => {
+    await launchApp(page)
+    await settleLayout(page)
+    const workspace = page.locator('.workspace-grid')
+
+    await expect(workspace).toHaveAttribute('data-vault-collapsed', 'false')
+    for (const variant of ['true', 'plaintext-only', 'empty', 'inherited']) {
+      await page.evaluate((editableVariant) => {
+        document.querySelector('#shortcut-edit-fixture')?.remove()
+        const fixture = document.createElement('div')
+        fixture.id = 'shortcut-edit-fixture'
+
+        const target = document.createElement('span')
+        target.id = 'shortcut-edit-target'
+        target.tabIndex = 0
+        target.textContent = 'Editable shortcut fixture'
+
+        if (editableVariant === 'inherited') {
+          fixture.setAttribute('contenteditable', 'true')
+          fixture.append(target)
+        } else {
+          target.setAttribute('contenteditable', editableVariant === 'empty' ? '' : editableVariant)
+          fixture.append(target)
+        }
+
+        document.body.append(fixture)
+        target.focus()
+      }, variant)
+
+      await expect(page.locator('#shortcut-edit-target')).toBeFocused()
+      await page.keyboard.press('Control+Alt+KeyB')
+      await expect(workspace).toHaveAttribute('data-vault-collapsed', 'false')
+    }
+
+    await page.evaluate(() => document.querySelector('#shortcut-edit-fixture')?.remove())
+  })
+
   test('explicitly clearing Git selection leaves commit disabled', async ({ page }) => {
     const panel = await openGitPanel(page)
     const checkbox = panel.locator('.git-file-selection input[type="checkbox"]').first()
