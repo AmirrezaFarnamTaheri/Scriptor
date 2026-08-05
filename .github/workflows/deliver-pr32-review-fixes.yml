@@ -34,12 +34,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat .github/pr32-fix-part-00.b64 \
-              .github/pr32-fix-part-01.b64 \
-              .github/pr32-fix-part-02.b64 \
-              .github/pr32-fix-part-03.b64 \
-            | tr -d '\r\n' > /tmp/pr32-review-fixes.patch.b64
-          base64 --decode /tmp/pr32-review-fixes.patch.b64 > /tmp/pr32-review-fixes.patch
+          tr -d '\r\n' < .github/pr32-review-fixes.patch.gz.b64 \
+            | base64 --decode \
+            | gzip --decompress \
+            > /tmp/pr32-review-fixes.patch
 
           actual_patch_sha256="$(sha256sum /tmp/pr32-review-fixes.patch | cut -d ' ' -f 1)"
           test "$actual_patch_sha256" = "$EXPECTED_PATCH_SHA256"
