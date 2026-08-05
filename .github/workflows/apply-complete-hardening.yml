@@ -52,7 +52,7 @@ jobs:
           test "$(wc -c < "$RUNNER_TEMP/hardening.patch")" -eq 167598
           echo "e79963ecc5040926c0b445e387699123f20b8447a4540f136a3c9cd39873e917  $RUNNER_TEMP/hardening.patch" | sha256sum -c -
 
-      - name: Apply, validate, and publish one atomic commit
+      - name: Apply, validate, and publish non-workflow commit
         shell: bash
         env:
           EXPECTED_BASE: 045213834832d684abe9b88f8e634f89a9e7a20a
@@ -101,6 +101,8 @@ jobs:
           git diff --check
 
           git add -A
+          git restore --staged .github/workflows/ci.yml .github/workflows/release.yml
+          git restore .github/workflows/ci.yml .github/workflows/release.yml
           git diff --cached --quiet && exit 0
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
