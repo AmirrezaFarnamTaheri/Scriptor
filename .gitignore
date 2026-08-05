@@ -9,6 +9,10 @@ target/
 # Root-level build artifact leaks (protect tracked index.html source)
 /assets/
 
+# Release publication scratch
+/release-artifacts/
+/release-evidence/
+
 # Vite / TypeScript
 *.local
 .vite/
