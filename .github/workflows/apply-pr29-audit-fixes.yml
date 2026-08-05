@@ -17,7 +17,8 @@ on:
       - .github/workflows/apply-pr29-audit-fixes.yml
       - .audit/pr29-audit-fixes.part1
       - .audit/pr29-audit-fixes.part2
-      - .audit/pr29-audit-fixes.part3
+      - .audit/pr29-audit-fixes.part3a
+      - .audit/pr29-audit-fixes.part3b
       - .audit/pr29-audit-fixes.part4
 
 permissions:
@@ -43,7 +44,8 @@ jobs:
           git clone --quiet --branch "$STAGING_BRANCH" --single-branch "$auth_url" staging
           cat staging/.audit/pr29-audit-fixes.part1 \
               staging/.audit/pr29-audit-fixes.part2 \
-              staging/.audit/pr29-audit-fixes.part3 \
+              staging/.audit/pr29-audit-fixes.part3a \
+              staging/.audit/pr29-audit-fixes.part3b \
               staging/.audit/pr29-audit-fixes.part4 > patch.gz.b64
           echo "${EXPECTED_B64_SHA256}  patch.gz.b64" | sha256sum --check --strict
           base64 --decode patch.gz.b64 | gzip --decompress > audit-fixes.patch
