@@ -62,7 +62,6 @@ jobs:
             echo "Tag $tag already points to this release commit; re-dispatching publication."
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch production workflow on immutable tag
         shell: bash
@@ -71,5 +70,4 @@ jobs:
         run: >-
           gh workflow run release.yml
           --ref "${{ steps.tag.outputs.tag }}"
-          -f version="${{ steps.tag.outputs.version }}"
           -f publish=true
