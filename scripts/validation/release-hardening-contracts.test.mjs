@@ -77,14 +77,34 @@ test('merged audit report records final verification instead of pending status',
 
 test('reviewed workspace async flows remain race-free and rejection-safe', () => {
   const capture = read('src/components/app/QuickCaptureWorkspaceLayer.tsx')
-  assert.match(capture, /workspace\s*\.\s*createNote\(title,\s*body\)/)
+  assert.match(
+    capture,
+    /void workspace\s*\.\s*createNote\(title,\s*body\)[\s\S]{0,400}?\.catch\(\(error\) => reportCaptureFailure\(operation,\s*error\)\)/,
+  )
   assert.doesNotMatch(capture, /workspace\.updateDraft\(/)
   assert.doesNotMatch(capture, /workspace\.saveActiveNoteNow\(/)
-  assert.match(capture, /\.catch\(/)
 
   const rename = read('src/components/app/WorkspaceRenameDialogs.tsx')
-  assert.match(rename, /workspace\.logActivity\(\s*'error'/)
-  assert.match(rename, /\.catch\(/)
+  assert.match(
+    rename,
+    /const runWorkspaceOperation = \([\s\S]{0,300}?\) => \{[\s\S]{0,300}?void promise[\s\S]{0,300}?\.catch\(\(error\) =>[\s\S]{0,300}?workspace\.logActivity\(\s*'error'/,
+  )
+  for (const mutation of [
+    'previewTagRename',
+    'applyTagRename',
+    'previewBlockRename',
+    'applyBlockRename',
+    'previewSectionRename',
+    'applySectionRename',
+    'previewRename',
+    'applyRename',
+  ]) {
+    assert.match(
+      rename,
+      new RegExp(`runWorkspaceOperation\\([\\s\\S]{0,500}?workspace\\.${mutation}\\(`),
+      `${mutation} must be routed through runWorkspaceOperation`,
+    )
+  }
   assert.doesNotMatch(rename, /void workspace\./)
 })
 
@@ -111,6 +131,6 @@ test('hash mismatch fixture fails only the first qualifying save', () => {
   const bootstrap = read('src/e2e/bootstrap.ts')
   assert.match(
     bootstrap,
-    /body\.expectedContentHash\s*&&\s*!hashMismatchTriggered|!hashMismatchTriggered\s*&&\s*body\.expectedContentHash/,
+    /if\s*\(\s*window\.sessionStorage\.getItem\('e2e:hash-mismatch'\)\s*===\s*'1'\s*&&\s*body\.expectedContentHash\s*&&\s*!hashMismatchTriggered\s*\)\s*\{\s*hashMismatchTriggered\s*=\s*true[\s\S]{0,200}?throw new Error\(/,
   )
 })
