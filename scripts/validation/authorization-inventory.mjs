@@ -18,6 +18,7 @@ const sensitiveCommands = [
   ['git_resolve_conflict_cmd', 'apps/desktop/src-tauri/src/commands/git.rs', 'ApplyGitConflict', 'apply_git_conflict'],
   ['pdf_translate', 'apps/desktop/src-tauri/src/commands/export.rs', 'PdfTranslation', 'pdf_translation'],
   ['plantuml_render', 'apps/desktop/src-tauri/src/commands/system.rs', 'PlantUmlExecution', 'plant_uml_execution'],
+  ['resource_apply_plan', 'apps/desktop/src-tauri/src/commands/resources/mod.rs', 'ResourceSync', 'resource_sync'],
   ['vault_create_backup', 'apps/desktop/src-tauri/src/commands/backup.rs', 'CreateBackup', 'create_backup'],
   ['vault_delete_backup', 'apps/desktop/src-tauri/src/commands/backup.rs', 'DeleteBackup', 'delete_backup'],
   ['vault_delete_note', 'apps/desktop/src-tauri/src/commands/vault.rs', 'DeleteNote', 'delete_note'],
