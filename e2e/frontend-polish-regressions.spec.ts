@@ -25,7 +25,7 @@ async function openGitPanel(page: Page) {
   await settleLayout(page)
   await openCommandPalette(page)
   await runCommand(page, OPEN_GIT)
-  const panel = page.getByRole('dialog', { name: 'Git status' })
+  const panel = page.getByRole('dialog', { name: 'Git', exact: true })
   await expect(panel).toBeVisible({ timeout: 15_000 })
   return panel
 }
@@ -53,12 +53,12 @@ test.describe('Frontend polish regressions', () => {
     await launchApp(page)
     await settleLayout(page)
 
-    const gitButton = page.getByRole('button', { name: /Git.*(?:⌘G|Ctrl\+G)/i })
+    const gitButton = page.getByRole('button', { name: /(?:⌘⌥G|Ctrl\+Alt\+G)/i })
     await expect(gitButton).toBeVisible()
     await expect(gitButton.locator('.custom-tooltip')).toHaveAttribute('aria-hidden', 'true')
 
     await page.keyboard.press('Control+Alt+KeyG')
-    await expect(page.getByRole('dialog', { name: 'Git status' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Git', exact: true })).toBeVisible()
   })
 
   test('configured sidebar and inspector shortcuts execute their advertised actions', async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe('Frontend polish regressions', () => {
     await openCommandPalette(page)
     await runCommand(page, OPEN_GIT)
 
-    const panel = page.getByRole('dialog', { name: 'Git status' })
+    const panel = page.getByRole('dialog', { name: 'Git', exact: true })
     await expect(panel).toContainText('Git status unavailable')
     await expect(panel).toContainText('E2E Git bridge unavailable')
     const retry = panel.getByRole('button', { name: 'Retry' })

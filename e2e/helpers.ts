@@ -98,7 +98,7 @@ export async function waitForWorkspace(page: Page) {
   await expect(vaultList.getByRole('button', { name: 'Research Plan.md' })).toBeVisible({
     timeout: 45_000,
   })
-  await expect(page.locator('.tab.active', { hasText: 'Research Plan' })).toBeVisible({
+  await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
   })
   const monaco = page.locator('.monaco-editor .view-lines')

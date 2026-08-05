@@ -9,7 +9,7 @@ async function openGitPanel(page: Page) {
   await settleLayout(page)
   await openCommandPalette(page)
   await runCommand(page, OPEN_GIT)
-  const panel = page.getByRole('dialog', { name: 'Git status' })
+  const panel = page.getByRole('dialog', { name: 'Git', exact: true })
   await expect(panel).toBeVisible({ timeout: 15_000 })
   return panel
 }
