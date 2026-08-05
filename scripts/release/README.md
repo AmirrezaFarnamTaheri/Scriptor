@@ -21,13 +21,13 @@ Release engineering scripts for Scriptor.
 | `write-signing-evidence.mjs` | Writes source-bound platform/architecture trust status. |
 | `verify-signing-evidence.mjs` | Requires the complete supported target matrix and rejects status drift. |
 | `verify-bundle.mjs` | Cross-platform post-bundle artifact validation. |
-| `stage-release-assets.mjs` | Copies only distributable installers and target-status records into the upload boundary. |
+| `stage-release-assets.mjs` | Copies only distributable installers and target-status records into transport artifacts. |
 | `write-manifest.ps1` | Writes Windows installer SHA-256 metadata for local compatibility checks. |
 | `version.mjs` | Checks or synchronizes the canonical version. |
 | `source-identity.mjs` | Computes archive diagnostics or canonical commit-bound SHA-256 source identity from Git blobs and modes. |
 | `generate-sbom.mjs` | Generates the CycloneDX source/dependency SBOM. |
-| `create-receipt.mjs` | Creates receipt schema 4 with exact subjects, checksums, source identity, and target status. |
-| `verify-release-evidence.mjs` | Rejects source, SBOM, checksum, status, path, or subject-set drift before publication. |
+| `create-receipt.mjs` | Creates receipt schema 4 with exact installer subjects, checksums, source identity, and target status from the evidence directory. |
+| `verify-release-evidence.mjs` | Rejects source, SBOM, checksum, status, path, or installer-subject drift before publication. |
 
 ## Pinned environment
 
@@ -60,7 +60,7 @@ Build the desktop bundle only after the source checks pass:
 powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1
 ```
 
-Installers land under `target/release/bundle/`. Before upload, run the target-specific status writer and exact staging script. Example:
+Installers land under `target/release/bundle/`. Before transport, run the target-specific status writer and exact staging script. Example:
 
 ```bash
 node scripts/release/write-signing-evidence.mjs \
@@ -71,7 +71,7 @@ node scripts/release/stage-release-assets.mjs \
   --platform linux --architecture x86_64 --output-dir release-output
 ```
 
-`release-output` must contain only installable package files and one target-status JSON record. AppDir contents, `.app` internals, logs, and arbitrary bundle files are not release subjects.
+`release-output` must contain only installable package files and one target-status JSON record. AppDir contents, `.app` internals, logs, and arbitrary bundle files are excluded. In publication, trust records move to `release-evidence`, while `release-artifacts` contains only the seven installers that are checksummed and attested.
 
 ## Production workflow
 
@@ -79,9 +79,9 @@ node scripts/release/stage-release-assets.mjs \
 2. `Release Kickoff` validates parity and creates `v<VERSION>` without moving any existing tag.
 3. Kickoff dispatches `Release` on that tag because ordinary tag-push recursion from `GITHUB_TOKEN` is suppressed by GitHub.
 4. The unified matrix packages Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64.
-5. Publication verifies the complete target matrix, generates evidence, attests exact subjects, and creates or updates one GitHub Release.
+5. Publication proves exactly seven installers and four trust records, separates them, verifies the target matrix, generates evidence, attests only installers, and creates or updates one GitHub Release.
 
-The release is blocked by missing artifacts, target-status drift, source drift, checksum/SBOM/receipt mismatch, unreceipted files, or attestation failure. It is not blocked by absent signing certificates because official upstream artifacts make no publisher-signature claim.
+The release is blocked by missing artifacts, target-status drift, source drift, checksum/SBOM/receipt mismatch, unreceipted installer files, or attestation failure. It is not blocked by absent signing certificates because official upstream artifacts make no publisher-signature claim.
 
 ## Related documents
 
