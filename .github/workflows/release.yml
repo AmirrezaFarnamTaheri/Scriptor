@@ -163,6 +163,14 @@ jobs:
           SCRIPTOR_PLATFORM: ${{ matrix.platform }}
         run: ./scripts/ci/invoke-logged.ps1 -Name "Verify bundle artifacts and expected target coverage" -FilePath "node" -ArgumentList @("scripts/release/verify-bundle.mjs", "${{ matrix.platform }}") -TimeoutSeconds 300
 
+      - name: Sign and verify Windows production installers
+        if: matrix.platform == 'windows' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Sign Windows installers when certificate is configured" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/sign-installers.ps1") -TimeoutSeconds 900
+
       - name: Write Windows release manifest
         if: matrix.platform == 'windows'
         shell: pwsh
@@ -175,14 +183,6 @@ jobs:
         if: matrix.platform == 'windows'
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Verify Windows release manifest" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/verify-manifest.ps1") -TimeoutSeconds 300
-
-      - name: Sign and verify Windows production installers
-        if: matrix.platform == 'windows' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Sign Windows installers when certificate is configured" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/sign-installers.ps1") -TimeoutSeconds 900
 
       - name: Sign and verify Linux production bundles
         if: matrix.platform == 'linux' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
