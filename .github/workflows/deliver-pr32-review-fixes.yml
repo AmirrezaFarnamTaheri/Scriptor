@@ -29,8 +29,8 @@ jobs:
         shell: bash
         env:
           TARGET_BRANCH: audit/complete-repository-hardening-2026-08-05
-          EXPECTED_HEAD: 6696d62cf9f667c6c803cbb6a82b5c887ef6d263
-          EXPECTED_PATCH_SHA256: 1cd59085f0ecd64218344d7396587850e426f2639a3cbc49a4c9dad8f8847db2
+          EXPECTED_HEAD: 2f6b2a3af31bb2b36b9908696e40d7f69ad3338b
+          EXPECTED_PATCH_SHA256: b9557eede3e8375f0cc7e588328c9e80fc77e5a4572e9c83f13bfcc96acb5aea
         run: |
           set -euo pipefail
 
@@ -71,11 +71,11 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
+            e2e/canvas.spec.ts \
             e2e/frontend-polish-regressions.spec.ts \
             e2e/git.spec.ts \
-            e2e/graph.spec.ts \
             e2e/helpers.ts \
-            e2e/screenshots.spec.ts
+            src/e2e/bootstrap.ts
           test -z "$(git status --short | grep -v '^M  ' || true)"
-          git commit -m 'test(e2e): align locators with accessible UI'
+          git commit -m 'test(e2e): fix remaining Windows flows'
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
