@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    types: [reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cancel-obsolete-staging-queue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Confirm obsolete queue cancellation
+        run: echo "Superseded staging CI queue canceled; PR #44 is the authoritative delivery."
