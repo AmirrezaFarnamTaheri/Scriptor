@@ -2,11 +2,11 @@
 
 ## Source of version truth
 
-`VERSION` is canonical. `node scripts/release/version.mjs check` fails when an npm package, Cargo package, Tauri config, workflow input, or release tag disagrees. `node scripts/release/version.mjs sync` is used only in a reviewed version-change branch; lockfiles are regenerated and checked before merge.
+`VERSION` is canonical. `node scripts/release/version.mjs check` fails when an npm package, Cargo package, Tauri config, explicit release version, or release tag disagrees. Non-tag branch refs are not interpreted as versions. `node scripts/release/version.mjs sync` is used only in a reviewed version-change branch; lockfiles are regenerated and checked before merge.
 
 ## Channels and release ownership
 
-- **Preview:** a manual run with `publish: false`. It packages the requested version, uploads workflow artifacts, and never creates a GitHub Release.
+- **Preview:** a manual run with `publish: false`. It derives the version from the checked-out canonical `VERSION`, uploads workflow artifacts, and never creates a GitHub Release.
 - **Production:** an immutable `v<version>` tag whose value matches `VERSION`. The primary `Release` workflow is the only workflow allowed to create or modify a GitHub Release.
 
 A `VERSION` change merged to `main` starts `Release Kickoff`. It validates version parity, creates the tag only when it does not already exist, refuses to move or reuse a tag that points elsewhere, and dispatches the production workflow on that tag. The explicit dispatch is required because GitHub suppresses ordinary workflow recursion for events created with `GITHUB_TOKEN`.
