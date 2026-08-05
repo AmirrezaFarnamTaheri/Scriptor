@@ -34,17 +34,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > "$RUNNER_TEMP/part-checks" <<'CHECKS'
-          2d2a2dce28a2bc2ec4bdd8aafcd7a6311e9cd9038229f2257baddc392790e131  .automation/scriptor-hardening.patch.gz.b64.part00
-          6c04e0ac4d7c81cc422887c9424dc6383d88fa7e85d0936c661102385048db3f  .automation/scriptor-hardening.patch.gz.b64.part01
-          fd826bfe2b23ca844de3997b215ee5010dfff67c258410558eaae62c929dfe87  .automation/scriptor-hardening.patch.gz.b64.part02
-          cbac6b0a2357a6d7e7ef09bf6e286e2f86d815f0cd3c4face7be004aaabd51aa  .automation/scriptor-hardening.patch.gz.b64.part03
-          fb210989accc94dfd761ec7eae154227a5aaf1c758f05f8ef91c72c0a612028d  .automation/scriptor-hardening.patch.gz.b64.part04
-          368856497e898f83c65c008400f2469e654435182056e0562cba4c526b178624  .automation/scriptor-hardening.patch.gz.b64.part05
-          CHECKS
-          sha256sum -c "$RUNNER_TEMP/part-checks"
-          cat .automation/scriptor-hardening.patch.gz.b64.part* > "$RUNNER_TEMP/hardening.patch.gz.b64"
+          cat .automation/scriptor-hardening.patch.gz.b64.part* | tr -d '\r\n' > "$RUNNER_TEMP/hardening.patch.gz.b64"
+          test "$(wc -c < "$RUNNER_TEMP/hardening.patch.gz.b64")" -eq 51892
+          echo "42d6f82778167213dd1f950b0c6518fb0eb2f4a2f534bab084477e5e52283370  $RUNNER_TEMP/hardening.patch.gz.b64" | sha256sum -c -
           base64 --decode "$RUNNER_TEMP/hardening.patch.gz.b64" | gzip -d > "$RUNNER_TEMP/hardening.patch"
+          test "$(wc -c < "$RUNNER_TEMP/hardening.patch")" -eq 167598
           echo "e79963ecc5040926c0b445e387699123f20b8447a4540f136a3c9cd39873e917  $RUNNER_TEMP/hardening.patch" | sha256sum -c -
 
       - name: Apply, validate, and publish one atomic commit
