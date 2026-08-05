@@ -1,0 +1,65 @@
+name: Apply PR 29 audit fixes
+
+on:
+  push:
+    branches:
+      - automation/apply-pr29-audit-fixes-20260805
+    paths:
+      - .github/workflows/apply-pr29-audit-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_BRANCH: feature/frontend-ui-architecture-and-polish
+      STAGING_BRANCH: automation/apply-pr29-audit-fixes-20260805
+      EXPECTED_HEAD: c40edce554905c8c2a746d227ff6b356b92106aa
+      EXPECTED_B64_SHA256: 220f84113ec5d4ca43a684c9f0d1116f859dd64da7b7f5af135bae37e1bf1386
+      EXPECTED_PATCH_SHA256: ed0a1d4c8aed88f634ed51e4239bd85f150f94885a5d27648948e84e0ff58ef5
+    steps:
+      - name: Apply validated patch atomically
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          auth_url="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+
+          git clone --quiet --branch "$STAGING_BRANCH" --single-branch "$auth_url" staging
+          cat staging/.audit/pr29-audit-fixes.part1 \
+              staging/.audit/pr29-audit-fixes.part2 \
+              staging/.audit/pr29-audit-fixes.part3 \
+              staging/.audit/pr29-audit-fixes.part4 > patch.gz.b64
+          echo "${EXPECTED_B64_SHA256}  patch.gz.b64" | sha256sum --check --strict
+          base64 --decode patch.gz.b64 | gzip --decompress > audit-fixes.patch
+          echo "${EXPECTED_PATCH_SHA256}  audit-fixes.patch" | sha256sum --check --strict
+
+          git clone --quiet --branch "$TARGET_BRANCH" --single-branch "$auth_url" repo
+          cd repo
+          actual_head="$(git rev-parse HEAD)"
+          test "$actual_head" = "$EXPECTED_HEAD" || {
+            echo "Refusing to update moved PR head: expected $EXPECTED_HEAD, found $actual_head" >&2
+            exit 1
+          }
+
+          git apply --check ../audit-fixes.patch
+          git apply ../audit-fixes.patch
+          git diff --check
+
+          node --experimental-strip-types --test scripts/validation/frontend-polish-contracts.test.mjs
+          node scripts/validation/i18n-parity.mjs
+          node scripts/validation/source-contracts.mjs
+          node scripts/validation/docs-contracts.mjs
+          node scripts/validation/frontend-quality.mjs
+          node scripts/validation/css-custom-properties.mjs
+          node scripts/validation/action-pins.mjs
+          node scripts/validation/deep-module-boundaries.mjs
+          node scripts/validation/module-size-ratchet.mjs
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "fix(audit): address independent PR review findings"
+          git push origin "HEAD:${TARGET_BRANCH}"
