@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { isValidShortcut as validateShortcut } from '../lib/keyboardShortcuts'
 import { expectRecord } from '../lib/runtimeSchema'
@@ -51,11 +51,25 @@ export function isValidShortcut(shortcut: string): boolean {
   return validateShortcut(shortcut)
 }
 
+/** Provides synchronized shortcut overrides backed by versioned browser storage. */
 export function useKeyboardShortcuts() {
   const [overrides, setOverrides] = useState<Record<string, string | null>>(loadOverrides)
+  const overridesRef = useRef(overrides)
+  const pendingPersistenceRef = useRef<Record<string, string | null> | null>(null)
 
   useEffect(() => {
-    const reload = () => setOverrides(loadOverrides())
+    if (pendingPersistenceRef.current !== overrides) return
+    pendingPersistenceRef.current = null
+    saveOverrides(overrides)
+  }, [overrides])
+
+  useEffect(() => {
+    const reload = () => {
+      const next = loadOverrides()
+      pendingPersistenceRef.current = null
+      overridesRef.current = next
+      setOverrides(next)
+    }
     const onStorage = (event: StorageEvent) => {
       if (event.key === STORAGE_KEY) reload()
     }
@@ -65,6 +79,12 @@ export function useKeyboardShortcuts() {
       window.removeEventListener(SHORTCUTS_CHANGED_EVENT, reload)
       window.removeEventListener('storage', onStorage)
     }
+  }, [])
+
+  const commitOverrides = useCallback((next: Record<string, string | null>) => {
+    overridesRef.current = next
+    pendingPersistenceRef.current = next
+    setOverrides(next)
   }, [])
 
   const getShortcut = useCallback(
@@ -80,31 +100,24 @@ export function useKeyboardShortcuts() {
 
   const setShortcut = useCallback(
     (commandId: string, shortcut: string | null) => {
-      setOverrides((prev) => {
-        const next = Object.assign(emptyOverrides(), prev, { [commandId]: shortcut })
-        saveOverrides(next)
-        return next
-      })
+      const next = Object.assign(emptyOverrides(), overridesRef.current, { [commandId]: shortcut })
+      commitOverrides(next)
     },
-    [],
+    [commitOverrides],
   )
 
   const resetShortcut = useCallback(
     (commandId: string) => {
-      setOverrides((prev) => {
-        const next = Object.assign(emptyOverrides(), prev)
-        delete next[commandId]
-        saveOverrides(next)
-        return next
-      })
+      const next = Object.assign(emptyOverrides(), overridesRef.current)
+      delete next[commandId]
+      commitOverrides(next)
     },
-    [],
+    [commitOverrides],
   )
 
   const resetAllShortcuts = useCallback(() => {
-    setOverrides(emptyOverrides())
-    saveOverrides(emptyOverrides())
-  }, [])
+    commitOverrides(emptyOverrides())
+  }, [commitOverrides])
 
   const hasOverride = useCallback(
     (commandId: string) => Object.hasOwn(overrides, commandId),
