@@ -77,22 +77,24 @@ Toolbar-popover verification must prove that Typography and Insert menus:
 
 - are portaled outside `.editor-toolbar` and its horizontal overflow clipping;
 - remain inside the visual viewport after resize and ancestor scrolling;
+- reposition through bounded DOM style updates without a React render loop;
 - focus the first menu item when opened from the keyboard;
-- support Arrow Up/Down, Home, End, Escape, and outside-click dismissal;
-- restore focus to the trigger after keyboard dismissal.
+- support Arrow Up/Down, Home, End, Escape, Tab, and outside-click dismissal;
+- restore focus to the trigger after Escape dismissal.
 
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.
 - Assert that each runner architecture matches its declared target before packaging.
 - Produce Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64 target sets.
-- Stage only installer files and `signing-evidence-<platform>-<architecture>.json` records.
+- Transport only installer files and one `signing-evidence-<platform>-<architecture>.json` record per target.
+- Separate publication inputs into exactly seven installers under `release-artifacts` and exactly four trust records under `release-evidence`.
 - Verify that official target records state `signed: false`, `notarized: false`, and `signatureType: "none"`.
-- Run `node scripts/release/verify-signing-evidence.mjs release-artifacts production` before generating the SBOM and receipt.
-- Generate receipt schema 4 after all target artifacts are downloaded.
-- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra subjects, unsafe paths, symlinks, checksum/SBOM mismatch, incomplete target status, and target/source identity drift.
-- Verify GitHub attestations and immutable release-tag lineage.
-- Confirm that release notes disclose unknown-publisher behavior and provide checksum/attestation commands.
+- Run `node scripts/release/verify-signing-evidence.mjs release-evidence production` before generating the receipt.
+- Generate `SHA256SUMS` over the seven installer subjects only and receipt schema 4 with the four normalized trust records embedded.
+- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra installer subjects, unsafe paths, symlinks, checksum/SBOM mismatch, incomplete target status, and target/source identity drift.
+- Verify GitHub provenance and SBOM attestations for every installer plus immutable release-tag lineage.
+- Confirm that release notes disclose unknown-publisher behavior and provide single-installer checksum and attestation commands.
 - Clean-install each package and record operating-system warnings caused by the explicit unsigned policy.
 - Create an external backup, corrupt a copy, prove rejection, and restore on each supported OS.
 - Interrupt restore and MCP mutation flows and prove deterministic recovery.
@@ -107,6 +109,7 @@ Toolbar-popover verification must prove that Typography and Insert menus:
 - The unified `Release` workflow is the only GitHub Release owner; the former ARM-specific publication workflow is removed.
 - Architecture-bearing filenames prevent collisions when artifacts are merged for publication.
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
+- Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
 ## Canonical history gate
 
