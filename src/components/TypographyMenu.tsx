@@ -1,7 +1,8 @@
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
 import { TYPOGRAPHY_ACTIONS, type TypographyAction } from '@scriptor/editor'
+import { ToolbarPopover } from './ToolbarPopover'
 
 const LABELS: Record<TypographyAction, string> = {
   zapGremlins: 'Zap gremlins',
@@ -26,38 +27,54 @@ interface TypographyMenuProps {
 
 export function TypographyMenu({ disabled, onSelect }: TypographyMenuProps) {
   const [open, setOpen] = useState(false)
-  const rootRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerId = useId()
+  const menuId = useId()
 
   return (
-    <div className="typography-menu" ref={rootRef}>
+    <div className="typography-menu">
       <button
+        ref={triggerRef}
+        id={triggerId}
         type="button"
         className={open ? 'active' : undefined}
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowDown') return
+          event.preventDefault()
+          setOpen(true)
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
       >
         Typography <ChevronDown size={14} />
       </button>
-      {open ? (
-        <menu className="typography-menu-panel" role="menu">
-          {TYPOGRAPHY_ACTIONS.map((action) => (
-            <li key={action} role="none">
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  onSelect(action)
-                  setOpen(false)
-                }}
-              >
-                {LABELS[action]}
-              </button>
-            </li>
-          ))}
-        </menu>
-      ) : null}
+      <ToolbarPopover
+        open={open}
+        id={menuId}
+        className="typography-menu-panel"
+        triggerRef={triggerRef}
+        labelledBy={triggerId}
+        onClose={() => setOpen(false)}
+      >
+        {TYPOGRAPHY_ACTIONS.map((action) => (
+          <li key={action} role="none">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                onSelect(action)
+                setOpen(false)
+                triggerRef.current?.focus()
+              }}
+            >
+              {LABELS[action]}
+            </button>
+          </li>
+        ))}
+      </ToolbarPopover>
     </div>
   )
 }
