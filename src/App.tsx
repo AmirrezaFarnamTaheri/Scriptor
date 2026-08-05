@@ -118,6 +118,7 @@ import {
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { readInspectorPreset, writeInspectorPreset, type InspectorPreset } from './lib/inspectorPresets'
+import { useI18n } from './lib/i18n'
 import './styles/tokens/components.css'
 import './styles/layout/workspace.css'
 import './styles/components/modals.css'
@@ -137,6 +138,7 @@ import './App.css'
 import './styles/motion.css'
 
 function App() {
+  const { t } = useI18n()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
   const {
     activeMode,
@@ -921,13 +923,21 @@ function App() {
     openSnippets: () => setSnippetsOpen(true),
     openGraph: () => setGraphOpen(true),
     openCanvas: () => setCanvasOpen(true),
+    openKnowledgeWorkbench,
+    openGit: () => setGitPanelOpen(true),
+    toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
+    toggleInspector: () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
   })
 
-  const gitTitle = workspace.gitStatus?.is_repo
-    ? workspace.gitStatus.clean
-      ? 'Repository clean'
-      : `${workspace.gitStatus.changed_files.length} changed file(s)`
-    : 'Not a Git repository'
+  const gitTitle = workspace.isGitStatusLoading
+    ? t('git.checkingStatus')
+    : workspace.gitStatusError
+      ? t('git.statusUnavailable')
+      : workspace.gitStatus?.is_repo
+        ? workspace.gitStatus.clean
+          ? t('git.repositoryClean')
+          : t('git.changedFiles', { count: workspace.gitStatus.changed_files.length })
+        : t('git.notARepo')
   const healthMetrics = useMemo(
     () => [
       ['Links', String(workspace.inspectorLinks.length)],
@@ -992,8 +1002,13 @@ function App() {
           }}
           onOpenCanvas={() => setCanvasOpen(true)}
           gitTitle={gitTitle}
-          gitSuccess={workspace.gitStatus?.is_repo === true && workspace.gitStatus.clean === true}
-          gitNeutral={!workspace.gitStatus?.is_repo}
+          gitSuccess={
+            !workspace.isGitStatusLoading &&
+            !workspace.gitStatusError &&
+            workspace.gitStatus?.is_repo === true &&
+            workspace.gitStatus.clean === true
+          }
+          gitNeutral={!workspace.isGitStatusLoading && !workspace.gitStatusError && !workspace.gitStatus?.is_repo}
           onOpenGit={() => setGitPanelOpen(true)}
           mcpLabel={`MCP ${mcp.mode}`}
           onOpenMcp={() => setMcpPanelOpen(true)}
@@ -1495,6 +1510,8 @@ function App() {
         <Suspense fallback={<PanelFallback />}>
           <GitPanel
           status={workspace.gitStatus}
+          statusError={workspace.gitStatusError}
+          isStatusLoading={workspace.isGitStatusLoading}
           activePath={workspace.activePath}
           isBusy={workspace.isGitBusy}
           presentation={panelPresentation}

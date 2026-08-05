@@ -116,34 +116,34 @@ export function PluginPanel({
         <header>
           <h2>Installed plugins</h2>
         </header>
-        <div className="plugin-list">
+        <div className="plugin-list" aria-live="polite">
           {plugins.map((plugin) => {
             const summary = summarizePluginContributions(plugin)
             const labels = contributionLabels(summary)
             return (
-            <button
-              type="button"
-              key={plugin.manifest.id}
-              className={`${plugin.enabled ? 'active' : ''}${selectedPluginId === plugin.manifest.id ? ' selected' : ''}`}
-              onClick={() => setSelectedPluginId(plugin.manifest.id)}
-              disabled={safeMode}
-            >
-              <Box />
-              <span>{plugin.manifest.name}</span>
-              <small>{plugin.manifest.capabilities.join(', ')}</small>
-              {labels.length > 0 ? (
-                <span className="plugin-contribution-chips">
-                  {labels.map((label) => (
-                    <em key={label}>{label}</em>
-                  ))}
-                </span>
-              ) : null}
-              <em>{plugin.enabled ? 'enabled' : 'disabled'}</em>
-            </button>
+              <button
+                type="button"
+                key={plugin.manifest.id}
+                className={`${plugin.enabled ? 'active' : ''}${selectedPluginId === plugin.manifest.id ? ' selected' : ''}`}
+                onClick={() => setSelectedPluginId(plugin.manifest.id)}
+                disabled={safeMode}
+              >
+                <Box />
+                <span>{plugin.manifest.name}</span>
+                <small>{plugin.manifest.capabilities.join(', ')}</small>
+                {labels.length > 0 ? (
+                  <span className="plugin-contribution-chips">
+                    {labels.map((label) => (
+                      <em key={label}>{label}</em>
+                    ))}
+                  </span>
+                ) : null}
+                <em>{plugin.enabled ? 'enabled' : 'disabled'}</em>
+              </button>
             )
           })}
         </div>
-        {safeMode && <p className="mcp-hint">Safe mode disables all plugins until turned off.</p>}
+        {safeMode ? <p className="mcp-hint">Safe mode disables all plugins until turned off.</p> : null}
         {selectedPlugin ? (
           <div className="plugin-detail-pane">
             <h3>{selectedPlugin.manifest.name}</h3>
@@ -237,7 +237,7 @@ export function PluginPanel({
         ) : null}
       </section>
 
-      {templatePacks.length > 0 && (
+      {templatePacks.length > 0 ? (
         <section className="widget-card">
           <header>
             <h2>Canvas templates</h2>
@@ -251,9 +251,9 @@ export function PluginPanel({
             ))}
           </ul>
         </section>
-      )}
+      ) : null}
 
-      {vaultLint?.enabled && lintSummary && (
+      {vaultLint?.enabled && lintSummary ? (
         <section className="widget-card">
           <header>
             <h2>Vault Lint</h2>
@@ -285,7 +285,7 @@ export function PluginPanel({
             </div>
           </div>
         </section>
-      )}
+      ) : null}
     </>
   )
 }

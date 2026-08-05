@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { isValidShortcut as validateShortcut } from '../lib/keyboardShortcuts'
 import { expectRecord } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
 const STORAGE_KEY = 'scriptor:keyboard-shortcuts'
+const SHORTCUTS_CHANGED_EVENT = 'scriptor:keyboard-shortcuts-changed'
 
 export interface ShortcutOverride {
   commandId: string
@@ -41,17 +43,49 @@ function loadOverrides(): Record<string, string | null> {
 
 function saveOverrides(overrides: Record<string, string | null>): void {
   writeVersionedStorage(STORAGE_KEY, 1, overrides)
+  window.queueMicrotask(() => window.dispatchEvent(new Event(SHORTCUTS_CHANGED_EVENT)))
 }
 
-const VALID_KEY_PATTERN = /^(Ctrl|Alt|Shift|Meta)(\+(Ctrl|Alt|Shift|Meta))*\+[A-Za-z0-9]$|^[A-Za-z0-9]$|^F\d{1,2}$|^Escape$|^Enter$|^Tab$|^Backspace$|^Delete$|^Home$|^End$|^PageUp$|^PageDown$|^ArrowUp$|^ArrowDown$|^ArrowLeft$|^ArrowRight$|^Space$/
-
+/** Validates the canonical shortcut syntax accepted by the editor and key handler. */
 export function isValidShortcut(shortcut: string): boolean {
-  if (!shortcut || !shortcut.trim()) return false
-  return VALID_KEY_PATTERN.test(shortcut.trim())
+  return validateShortcut(shortcut)
 }
 
+/** Provides synchronized shortcut overrides backed by versioned browser storage. */
 export function useKeyboardShortcuts() {
   const [overrides, setOverrides] = useState<Record<string, string | null>>(loadOverrides)
+  const overridesRef = useRef(overrides)
+  const pendingPersistenceRef = useRef<Record<string, string | null> | null>(null)
+
+  useEffect(() => {
+    if (pendingPersistenceRef.current !== overrides) return
+    pendingPersistenceRef.current = null
+    saveOverrides(overrides)
+  }, [overrides])
+
+  useEffect(() => {
+    const reload = () => {
+      const next = loadOverrides()
+      pendingPersistenceRef.current = null
+      overridesRef.current = next
+      setOverrides(next)
+    }
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === STORAGE_KEY) reload()
+    }
+    window.addEventListener(SHORTCUTS_CHANGED_EVENT, reload)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener(SHORTCUTS_CHANGED_EVENT, reload)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [])
+
+  const commitOverrides = useCallback((next: Record<string, string | null>) => {
+    overridesRef.current = next
+    pendingPersistenceRef.current = next
+    setOverrides(next)
+  }, [])
 
   const getShortcut = useCallback(
     (commandId: string, defaultShortcut?: string): string | undefined => {
@@ -66,31 +100,24 @@ export function useKeyboardShortcuts() {
 
   const setShortcut = useCallback(
     (commandId: string, shortcut: string | null) => {
-      setOverrides((prev) => {
-        const next = Object.assign(emptyOverrides(), prev, { [commandId]: shortcut })
-        saveOverrides(next)
-        return next
-      })
+      const next = Object.assign(emptyOverrides(), overridesRef.current, { [commandId]: shortcut })
+      commitOverrides(next)
     },
-    [],
+    [commitOverrides],
   )
 
   const resetShortcut = useCallback(
     (commandId: string) => {
-      setOverrides((prev) => {
-        const next = Object.assign(emptyOverrides(), prev)
-        delete next[commandId]
-        saveOverrides(next)
-        return next
-      })
+      const next = Object.assign(emptyOverrides(), overridesRef.current)
+      delete next[commandId]
+      commitOverrides(next)
     },
-    [],
+    [commitOverrides],
   )
 
   const resetAllShortcuts = useCallback(() => {
-    setOverrides(emptyOverrides())
-    saveOverrides(emptyOverrides())
-  }, [])
+    commitOverrides(emptyOverrides())
+  }, [commitOverrides])
 
   const hasOverride = useCallback(
     (commandId: string) => Object.hasOwn(overrides, commandId),

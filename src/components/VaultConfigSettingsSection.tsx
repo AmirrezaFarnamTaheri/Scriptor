@@ -319,7 +319,7 @@ export function VaultConfigSettingsSection({
       <button type="button" className="primary-button" onClick={() => void onSave()}>
         Save vault config
       </button>
-      {status && <p className="settings-status">{status}</p>}
+      {status ? <p className="settings-status">{status}</p> : null}
     </div>
   )
 }

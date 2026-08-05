@@ -253,6 +253,9 @@ export function installE2eBridge(): void {
       case 'vault_list_view_notes':
         return []
       case 'git_status_cmd': {
+        if (window.sessionStorage.getItem('e2e:git-status-failure') === '1') {
+          throw new Error('E2E Git bridge unavailable')
+        }
         const hasConflicts =
           activeConflictFixture() !== null && !conflictsResolved
         if (committed) {

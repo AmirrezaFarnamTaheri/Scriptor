@@ -22,6 +22,9 @@ import {
 
 import { BrandMark, BrandWordmark } from '../../brand/BrandMark'
 import { IconButton } from '../chrome/WorkspaceChrome'
+import { getDefaultShortcut } from '../../lib/commandShortcutRegistry'
+import { formatShortcut } from '../../lib/keyboardShortcuts'
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
@@ -106,11 +109,22 @@ export function AppTopBar({
   onToggleInspector,
 }: AppTopBarProps) {
   const { t } = useI18n()
+  const { getShortcut } = useKeyboardShortcuts()
+  const sidebarShortcut = formatShortcut(
+    getShortcut('toggle-vault-sidebar', getDefaultShortcut('toggle-vault-sidebar')),
+  )
+  const commandShortcut = formatShortcut('Mod+K') ?? 'Ctrl+K'
+  const gitShortcut = formatShortcut(getShortcut('open-git', getDefaultShortcut('open-git')))
+  const inspectorShortcut = formatShortcut(
+    getShortcut('toggle-inspector', getDefaultShortcut('toggle-inspector')),
+  )
+
   return (
     <header className="topbar surface-glass">
       <div className="brand">
         <IconButton
-          label={vaultSidebarCollapsed ? t('actions.expand') ?? 'Expand sidebar' : t('actions.collapse') ?? 'Collapse sidebar'}
+          label={vaultSidebarCollapsed ? t('topBar.expandSidebar') : t('topBar.collapseSidebar')}
+          shortcut={sidebarShortcut}
           onClick={onToggleVaultSidebar}
         >
           <PanelLeft />
@@ -155,11 +169,11 @@ export function AppTopBar({
 
       <label className="command-search" onClick={onOpenCommandPalette}>
         <Command />
-        <span className="kbd">K</span>
+        <span className="kbd" aria-hidden="true">{commandShortcut}</span>
         <input
           type="search"
           placeholder={t('topBar.typeCommandOrSearch')}
-          aria-label={t('topBar.typeCommandOrSearch')}
+          aria-label={`${t('topBar.typeCommandOrSearch')} (${commandShortcut})`}
           readOnly
           onFocus={onOpenCommandPalette}
         />
@@ -192,26 +206,33 @@ export function AppTopBar({
         <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
           <Box />
         </IconButton>
-        
+
         <button
           type="button"
-          className={`status-button ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
-          title={gitTitle}
+          className={`status-button has-custom-tooltip ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
+          aria-label={gitShortcut ? `${gitTitle} (${gitShortcut})` : gitTitle}
           onClick={onOpenGit}
         >
           <GitBranch />
+          <span className="custom-tooltip" aria-hidden="true">
+            {gitTitle}
+            {gitShortcut ? <kbd className="shortcut-badge">{gitShortcut}</kbd> : null}
+          </span>
         </button>
         <button
           type="button"
-          className={`status-button${workspaceMode === 'automation' ? ' emphasized' : ''}`}
+          className={`status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
           onClick={onOpenMcp}
-          title={mcpLabel}
+          aria-label={mcpLabel}
         >
           <Lock />
           <span className="sr-only">{mcpLabel}</span>
           <ChevronDown />
+          <span className="custom-tooltip" aria-hidden="true">
+            {mcpLabel}
+          </span>
         </button>
-        
+
         <IconButton
           label={
             theme === 'high-contrast'
@@ -225,7 +246,8 @@ export function AppTopBar({
           {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
         <IconButton
-          label={inspectorCollapsed ? 'Expand inspector' : 'Collapse inspector'}
+          label={inspectorCollapsed ? t('topBar.expandInspector') : t('topBar.collapseInspector')}
+          shortcut={inspectorShortcut}
           onClick={onToggleInspector}
         >
           <PanelRight />

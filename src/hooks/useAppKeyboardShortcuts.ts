@@ -1,5 +1,9 @@
 import { useEffect } from 'react'
 
+import { getDefaultShortcut } from '../lib/commandShortcutRegistry'
+import { matchesShortcut } from '../lib/keyboardShortcuts'
+import { useKeyboardShortcuts } from './useKeyboardShortcuts'
+
 interface UseAppKeyboardShortcutsOptions {
   activePath: string | null
   chooseVaultFolder: () => Promise<unknown> | unknown
@@ -11,13 +15,21 @@ interface UseAppKeyboardShortcutsOptions {
   openSnippets: () => void
   openGraph: () => void
   openCanvas: () => void
+  openKnowledgeWorkbench: () => void
+  openGit: () => void
+  toggleVaultSidebar: () => void
+  toggleInspector: () => void
 }
 
 function isEditingTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && Boolean(target.closest('input, textarea, [contenteditable="true"]'))
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLElement && target.isContentEditable)
+  )
 }
 
-/** Owns global workspace shortcuts and keeps their dependencies explicit. */
+/** Owns configured global workspace shortcuts and keeps their dependencies explicit. */
 export function useAppKeyboardShortcuts({
   activePath,
   chooseVaultFolder,
@@ -29,60 +41,40 @@ export function useAppKeyboardShortcuts({
   openSnippets,
   openGraph,
   openCanvas,
+  openKnowledgeWorkbench,
+  openGit,
+  toggleVaultSidebar,
+  toggleInspector,
 }: UseAppKeyboardShortcutsOptions): void {
+  const { getShortcut } = useKeyboardShortcuts()
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (isEditingTarget(event.target)) return
 
-      const key = event.key.toLowerCase()
-      if (key === 'f' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      const run = (commandId: string, action: () => void): boolean => {
+        if (!matchesShortcut(event, getShortcut(commandId, getDefaultShortcut(commandId)))) return false
         event.preventDefault()
-        document.querySelector<HTMLInputElement>('.vault-search input')?.focus()
-        return
+        action()
+        return true
       }
 
-      if (key === 'h' && event.ctrlKey && event.altKey && !event.metaKey) {
-        event.preventDefault()
-        openNoteHistory()
-        return
-      }
-
-      if (!event.altKey || event.metaKey || event.ctrlKey) return
-      switch (key) {
-        case 'o':
-          event.preventDefault()
-          void chooseVaultFolder()
-          break
-        case 'i':
-          event.preventDefault()
-          setSidebarView('inbox')
-          break
-        case 'd':
-          event.preventDefault()
-          void createDailyNote()
-          break
-        case 's':
-          event.preventDefault()
-          openSnippets()
-          break
-        case 'g':
-          event.preventDefault()
-          openGraph()
-          void loadGraph(activePath)
-          break
-        case 'c':
-          event.preventDefault()
-          openCanvas()
-          break
-        case 't':
-          if (event.shiftKey) {
-            event.preventDefault()
-            reopenClosedTab()
-          }
-          break
-        default:
-          break
-      }
+      if (run('focus-search', () => document.querySelector<HTMLInputElement>('.vault-search input')?.focus())) return
+      if (run('open-note-history', openNoteHistory)) return
+      if (run('open-vault', () => void chooseVaultFolder())) return
+      if (run('open-inbox', () => setSidebarView('inbox'))) return
+      if (run('open-daily-note', () => void createDailyNote())) return
+      if (run('manage-snippets', openSnippets)) return
+      if (run('open-knowledge-workbench', openKnowledgeWorkbench)) return
+      if (run('open-graph', () => {
+        openGraph()
+        void loadGraph(activePath)
+      })) return
+      if (run('open-canvas', openCanvas)) return
+      if (run('reopen-closed-tab', reopenClosedTab)) return
+      if (run('open-git', openGit)) return
+      if (run('toggle-vault-sidebar', toggleVaultSidebar)) return
+      run('toggle-inspector', toggleInspector)
     }
 
     window.addEventListener('keydown', onKeyDown)
@@ -91,12 +83,17 @@ export function useAppKeyboardShortcuts({
     activePath,
     chooseVaultFolder,
     createDailyNote,
+    getShortcut,
     loadGraph,
     openCanvas,
+    openGit,
     openGraph,
+    openKnowledgeWorkbench,
     openNoteHistory,
     openSnippets,
     reopenClosedTab,
     setSidebarView,
+    toggleInspector,
+    toggleVaultSidebar,
   ])
 }

@@ -20,5 +20,23 @@ for (const [name, values] of parsed) {
   for (const key of values.keys()) if (!baseline.has(key)) failures.push(`${name}: extra ${key}`);
   for (const [key, value] of values) if (typeof value !== 'string' || !value.trim()) failures.push(`${name}: invalid value at ${key}`);
 }
+
+const sourceRoot = path.join(root, 'src');
+const sourceFiles = [];
+const collectSourceFiles = (directory) => {
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const absolute = path.join(directory, entry.name);
+    if (entry.isDirectory()) collectSourceFiles(absolute);
+    else if (/\.(ts|tsx)$/.test(entry.name)) sourceFiles.push(absolute);
+  }
+};
+collectSourceFiles(sourceRoot);
+for (const sourceFile of sourceFiles) {
+  const source = fs.readFileSync(sourceFile, 'utf8');
+  for (const match of source.matchAll(/\bt\(\s*['"]([^'"]+)['"]/g)) {
+    const key = match[1];
+    if (!baseline.has(key)) failures.push(`${path.relative(root, sourceFile)}: unknown translation key ${key}`);
+  }
+}
 if (failures.length) { console.error(failures.join('\n')); process.exit(1); }
 console.log(`Locale parity OK: ${files.length} locale(s), ${baseline.size} keys each.`);

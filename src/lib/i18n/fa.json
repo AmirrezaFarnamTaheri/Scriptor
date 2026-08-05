@@ -16,7 +16,11 @@
     "refresh": "بازنشانی",
     "check": "بررسی",
     "start": "شروع",
-    "reset": "بازنشانی"
+    "reset": "بازنشانی",
+    "retry": "تلاش دوباره",
+    "expand": "باز کردن",
+    "collapse": "جمع کردن",
+    "confirm": "تأیید"
   },
   "topBar": {
     "openVault": "باز کردن خزانه",
@@ -31,7 +35,11 @@
     "switchToHighContrast": "تغییر به تم با کنتراست بالا",
     "supportScriptor": "حمایت از اسکریپتور",
     "settings": "تنظیمات",
-    "typeCommandOrSearch": "دستور یا جستجو تایپ کنید..."
+    "typeCommandOrSearch": "دستور یا جستجو تایپ کنید...",
+    "expandSidebar": "باز کردن نوار کناری",
+    "collapseSidebar": "جمع کردن نوار کناری",
+    "expandInspector": "باز کردن بازرس",
+    "collapseInspector": "جمع کردن بازرس"
   },
   "commandPalette": {
     "placeholder": "دستور یا یادداشت تایپ کنید...",
@@ -182,6 +190,8 @@
     "resetVaultMcp": "بازنشانی MCP خزانه",
     "generateWithAi": "تولید با هوش مصنوعی",
     "disabledMessage": "MCP برای این خزانه غیرفعال است. یک حالت انتخاب کنید تا ابزارها نمایش داده شوند.",
+    "noToolsRegistered": "هیچ ابزار MCP برای پیکربندی فعلی سرور ثبت نشده است.",
+    "enableReadOnly": "فعال‌کردن MCP (فقط خواندنی)",
     "tabRecipes": "دستورالعمل‌ها",
     "tabTools": "ابزارها",
     "tabDrafts": "پیش‌نویس‌ها",
@@ -219,7 +229,26 @@
     "couldNotLoadDiff": "پیش‌نمایش تفاوت بارگذاری نشد",
     "confirmAction": "تایید عمل گیت",
     "stagedChanges": "تغییرات آماده",
-    "unstagedChanges": "تغییرات آماده نشده"
+    "unstagedChanges": "تغییرات آماده نشده",
+    "checkingStatus": "در حال بررسی وضعیت مخزن…",
+    "statusUnavailable": "وضعیت گیت در دسترس نیست",
+    "loadingStatus": "در حال بارگذاری وضعیت گیت",
+    "workingTreeClean": "درخت کاری پاک است",
+    "changedFiles": "{{count}} پروندهٔ تغییرکرده",
+    "activeNoteChanged": "یادداشت فعال تغییرات ثبت‌نشده دارد: {{note}}",
+    "everythingUpToDate": "همه‌چیز به‌روز است. همهٔ تغییرات در {{branch}} ثبت شده‌اند.",
+    "openNote": "باز کردن یادداشت",
+    "previewDiff": "پیش‌نمایش تفاوت",
+    "resolve": "حل کردن",
+    "conflict": "تعارض",
+    "note": "یادداشت",
+    "updateVaultNotes": "به‌روزرسانی یادداشت‌های خزانه",
+    "draftRefineActiveNote": "پیش‌نویس: بهبود یادداشت فعال",
+    "organizeLinksAndTags": "سامان‌دهی پیوندها و برچسب‌ها",
+    "commitConfirm": "ثبت {{count}} پرونده با پیام «{{message}}»؟",
+    "pullConfirm": "دریافت از بالادست پیکربندی‌شده؟",
+    "pushConfirm": "ارسال به بالادست پیکربندی‌شده؟",
+    "repositoryClean": "مخزن پاک است"
   },
   "graph": {
     "title": "گراف دانش",

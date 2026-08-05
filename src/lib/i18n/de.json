@@ -16,7 +16,11 @@
     "refresh": "Aktualisieren",
     "check": "Prüfen",
     "start": "Starten",
-    "reset": "Zurücksetzen"
+    "reset": "Zurücksetzen",
+    "retry": "Erneut versuchen",
+    "expand": "Erweitern",
+    "collapse": "Einklappen",
+    "confirm": "Bestätigen"
   },
   "topBar": {
     "openVault": "Tresor öffnen",
@@ -31,7 +35,11 @@
     "switchToHighContrast": "Zum Hochkontrast-Thema wechseln",
     "supportScriptor": "Scriptor unterstützen",
     "settings": "Einstellungen",
-    "typeCommandOrSearch": "Befehl oder Suche eingeben..."
+    "typeCommandOrSearch": "Befehl oder Suche eingeben...",
+    "expandSidebar": "Seitenleiste erweitern",
+    "collapseSidebar": "Seitenleiste einklappen",
+    "expandInspector": "Inspektor erweitern",
+    "collapseInspector": "Inspektor einklappen"
   },
   "commandPalette": {
     "placeholder": "Befehl oder Notiz eingeben...",
@@ -182,6 +190,8 @@
     "resetVaultMcp": "Tresor-MCP zurücksetzen",
     "generateWithAi": "Mit KI generieren",
     "disabledMessage": "MCP ist für diesen Tresor deaktiviert. Wählen Sie einen Modus, um Werkzeuge freizugeben.",
+    "noToolsRegistered": "Für die aktuelle Serverkonfiguration sind keine MCP-Werkzeuge registriert.",
+    "enableReadOnly": "MCP aktivieren (Nur Lesen)",
     "tabRecipes": "Rezepte",
     "tabTools": "Werkzeuge",
     "tabDrafts": "Entwürfe",
@@ -219,7 +229,26 @@
     "couldNotLoadDiff": "Diff-Vorschau konnte nicht geladen werden",
     "confirmAction": "Git-Aktion bestätigen",
     "stagedChanges": "Vorgemerkte Änderungen",
-    "unstagedChanges": "Nicht vorgemerkte Änderungen"
+    "unstagedChanges": "Nicht vorgemerkte Änderungen",
+    "checkingStatus": "Repository-Status wird geprüft…",
+    "statusUnavailable": "Git-Status nicht verfügbar",
+    "loadingStatus": "Git-Status wird geladen",
+    "workingTreeClean": "Arbeitsverzeichnis sauber",
+    "changedFiles": "{{count}} geänderte Datei(en)",
+    "activeNoteChanged": "Die aktive Notiz enthält nicht committete Änderungen: {{note}}",
+    "everythingUpToDate": "Alles ist aktuell. Alle Änderungen sind in {{branch}} committet.",
+    "openNote": "Notiz öffnen",
+    "previewDiff": "Diff-Vorschau",
+    "resolve": "Lösen",
+    "conflict": "Konflikt",
+    "note": "Notiz",
+    "updateVaultNotes": "Tresor-Notizen aktualisieren",
+    "draftRefineActiveNote": "Entwurf: aktive Notiz verfeinern",
+    "organizeLinksAndTags": "Wissenslinks und Tags organisieren",
+    "commitConfirm": "{{count}} Datei(en) mit der Nachricht „{{message}}“ committen?",
+    "pullConfirm": "Vom konfigurierten Upstream pullen?",
+    "pushConfirm": "Zum konfigurierten Upstream pushen?",
+    "repositoryClean": "Repository sauber"
   },
   "graph": {
     "title": "Wissensgraph",

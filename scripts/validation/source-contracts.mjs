@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
@@ -140,7 +141,7 @@ test('local toolchains are pinned alongside CI', () => {
 test('macOS process sandbox escapes user-controlled writable paths', () => {
   const source = read('crates/system-bridge/src/process.rs')
   assert.match(source, /escape_sandbox_profile_string\(current_dir\.as_os_str\(\)\)/)
-  assert.match(source, /\.replace\('"', "\\\\\\""\)/)
+  assert.match(source, /\.replace\('"', "\\\\\\["]"\)/)
 })
 
 test('performance baselines use the release executable and a hashed 1k fixture', () => {
@@ -172,4 +173,22 @@ test('release evidence binds exact source and rejects unreceipted artifacts', ()
   assert.match(sbom, /parsePnpmLockPackages/)
   assert.match(sbom, /parseCargoLockPackages/)
   assert.doesNotMatch(sbom, /scriptor:declared-range/)
+})
+
+
+test('frontend polish regression contracts pass under the pinned Node runtime', () => {
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--experimental-strip-types',
+      '--test',
+      path.join(root, 'scripts/validation/frontend-polish-contracts.test.mjs'),
+    ],
+    { cwd: root, encoding: 'utf8' },
+  )
+  assert.equal(
+    result.status,
+    0,
+    [result.stdout, result.stderr].filter(Boolean).join('\n'),
+  )
 })

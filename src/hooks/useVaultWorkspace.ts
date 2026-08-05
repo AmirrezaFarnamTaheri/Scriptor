@@ -290,6 +290,8 @@ export function useVaultWorkspace(options?: {
 
   const {
     gitStatusState,
+    gitStatusError,
+    isGitStatusLoading,
     isGitBusy,
     refreshGit,
     commitFiles,
@@ -623,6 +625,8 @@ export function useVaultWorkspace(options?: {
     graph,
     ...rename,
     gitStatus: gitStatusState,
+    gitStatusError,
+    isGitStatusLoading,
     exportResult,
     exportHistory,
     isExporting,

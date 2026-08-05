@@ -74,3 +74,25 @@
   gap: 8px;
   margin-top: 12px;
 }
+
+
+.plugin-empty-graphic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  padding: 32px 16px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-muted);
+  margin-top: 12px;
+}
+
+.plugin-empty-graphic p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 320px;
+}

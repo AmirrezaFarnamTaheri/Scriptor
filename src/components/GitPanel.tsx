@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
-import { GitBranch } from 'lucide-react'
+import React, { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
 
 import { buildAutoCommitMessage } from '../lib/autoCommitMessage'
+import { deriveEffectiveGitSelection, selectGitPanelState } from '../lib/gitPanelState'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
-import type { GitStatus } from '../types/vault'
+import type { GitChangedFile, GitStatus } from '../types/vault'
 import { useI18n } from '../lib/i18n'
 
 type PendingGitAction =
@@ -15,8 +16,76 @@ type PendingGitAction =
 
 type GitTab = 'changes' | 'diff'
 
+interface GitFileRowProps {
+  file: GitChangedFile
+  isActive: boolean
+  isSelected: boolean
+  onToggleSelect: (path: string, selected: boolean) => void
+  onOpenNote?: (path: string) => void
+  onPreviewDiff?: (path: string) => void
+  onResolveConflict?: (path: string) => void
+}
+
+const GitFileRow = React.memo(function GitFileRow({
+  file,
+  isActive,
+  isSelected,
+  onToggleSelect,
+  onOpenNote,
+  onPreviewDiff,
+  onResolveConflict,
+}: GitFileRowProps) {
+  const { t } = useI18n()
+  const checkboxId = useId()
+  const isMarkdown = file.path.endsWith('.md')
+  const noteLabel = file.path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? file.path
+
+  return (
+    <li className={isActive ? 'git-file-active' : undefined}>
+      <div className="git-file-selection">
+        <input
+          id={checkboxId}
+          type="checkbox"
+          checked={isSelected}
+          onChange={(event) => onToggleSelect(file.path, event.target.checked)}
+        />
+        <label htmlFor={checkboxId}>
+          <span>
+            {isMarkdown ? noteLabel : file.path}
+            {isMarkdown ? <small className="git-file-path">{file.path}</small> : null}
+          </span>
+          <small>{file.conflict ? t('git.conflict') : file.status}</small>
+        </label>
+      </div>
+      <div className="git-file-row-actions">
+        {isMarkdown && onOpenNote ? (
+          <button type="button" className="git-note-link" onClick={() => onOpenNote(file.path)}>
+            {t('git.openNote')}
+          </button>
+        ) : null}
+        {isMarkdown && onPreviewDiff ? (
+          <button type="button" onClick={() => onPreviewDiff(file.path)}>
+            {t('git.previewDiff')}
+          </button>
+        ) : null}
+        {file.conflict && onResolveConflict ? (
+          <button
+            type="button"
+            className="conflict-resolve-btn"
+            onClick={() => onResolveConflict(file.path)}
+          >
+            {t('git.resolve')}
+          </button>
+        ) : null}
+      </div>
+    </li>
+  )
+})
+
 interface GitPanelProps {
   status: GitStatus | null
+  statusError: string | null
+  isStatusLoading: boolean
   activePath: string | null
   isBusy: boolean
   presentation?: PanelPresentation
@@ -31,8 +100,11 @@ interface GitPanelProps {
   readNoteWorking?: (path: string) => Promise<string | null>
 }
 
+/** Renders repository status, selection, diff, and confirmation flows for the active vault. */
 export function GitPanel({
   status,
+  statusError,
+  isStatusLoading,
   activePath,
   isBusy,
   presentation = 'modal',
@@ -48,7 +120,7 @@ export function GitPanel({
 }: GitPanelProps) {
   const { t } = useI18n()
   const [messageDraft, setMessageDraft] = useState<{ fingerprint: string; value: string } | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string> | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingGitAction | null>(null)
   const [tab, setTab] = useState<GitTab>('changes')
   const [diffPath, setDiffPath] = useState<string | null>(null)
@@ -59,6 +131,7 @@ export function GitPanel({
     error: string | null
   } | null>(null)
 
+  const panelState = selectGitPanelState(status, statusError, isStatusLoading)
   const changedPaths = useMemo(
     () => status?.changed_files.map((file) => file.path) ?? [],
     [status],
@@ -67,7 +140,7 @@ export function GitPanel({
   const changedFingerprint = changedPaths.join('|')
   const automaticMessage = changedPaths.length > 0
     ? buildAutoCommitMessage(changedPaths)
-    : 'Update vault notes'
+    : t('git.updateVaultNotes')
   const message = messageDraft?.fingerprint === changedFingerprint
     ? messageDraft.value
     : automaticMessage
@@ -75,11 +148,32 @@ export function GitPanel({
     setMessageDraft({ fingerprint: changedFingerprint, value })
   }
 
-  const effectiveSelection = useMemo(() => {
-    if (selected.size > 0) return Array.from(selected)
+  const defaultSelection = useMemo(() => {
     if (activePath && changedPaths.includes(activePath)) return [activePath]
     return changedPaths.slice(0, 1)
-  }, [activePath, changedPaths, selected])
+  }, [activePath, changedPaths])
+
+  const effectiveSelection = useMemo(
+    () => deriveEffectiveGitSelection(selected, changedPaths, defaultSelection),
+    [changedPaths, defaultSelection, selected],
+  )
+
+  const handleToggleSelect = useCallback((path: string, checked: boolean) => {
+    setSelected((current) => {
+      const next = new Set(current ?? defaultSelection)
+      if (checked) {
+        next.add(path)
+      } else {
+        next.delete(path)
+      }
+      return next
+    })
+  }, [defaultSelection])
+
+  const handlePreviewDiff = useCallback((path: string) => {
+    setDiffPath(path)
+    setTab('diff')
+  }, [])
 
   const previewPath = diffPath ?? (activePath && changedPaths.includes(activePath) ? activePath : effectiveSelection[0] ?? null)
 
@@ -101,29 +195,71 @@ export function GitPanel({
             path: requestedPath,
             before: '',
             after: '',
-            error: error instanceof Error ? error.message : 'Could not load diff preview',
+            error: error instanceof Error ? error.message : t('git.couldNotLoadDiff'),
           })
         }
       })
     return () => {
       cancelled = true
     }
-  }, [previewPath, readNoteAtHead, readNoteWorking, tab])
+  }, [previewPath, readNoteAtHead, readNoteWorking, t, tab])
 
   const activeDiffState = diffState?.path === previewPath ? diffState : null
   const diffBefore = activeDiffState?.before ?? ''
   const diffAfter = activeDiffState?.after ?? ''
-  const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? 'Loading diff preview…' : '')
-
+  const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? t('git.loadingDiff') : '')
   const noteLabel = (path: string) => path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? path
-
   const commitTemplates = [
-    'Update vault notes',
-    'Draft: refine active note',
-    'Organize knowledge links and tags',
+    t('git.updateVaultNotes'),
+    t('git.draftRefineActiveNote'),
+    t('git.organizeLinksAndTags'),
   ] as const
 
-  if (!status?.is_repo) {
+  if (panelState === 'loading') {
+    return (
+      <UnifiedPanelShell
+        title={t('git.title')}
+        subtitle={t('git.checkingStatus')}
+        icon={<GitBranch size={18} />}
+        ariaLabel={t('git.status')}
+        onClose={onClose}
+        presentation={presentation}
+        className="git-panel knowledge-filters-panel"
+      >
+        <div className="git-skeleton-loading" aria-busy="true" aria-label={t('git.loadingStatus')}>
+          <div className="vault-skeleton-folder" />
+          <div className="vault-skeleton-row" />
+          <div className="vault-skeleton-row" />
+          <div className="vault-skeleton-row" />
+        </div>
+      </UnifiedPanelShell>
+    )
+  }
+
+  if (panelState === 'error') {
+    return (
+      <UnifiedPanelShell
+        title={t('git.title')}
+        subtitle={t('git.statusUnavailable')}
+        icon={<GitBranch size={18} />}
+        ariaLabel={t('git.status')}
+        onClose={onClose}
+        presentation={presentation}
+        className="git-panel knowledge-filters-panel"
+      >
+        <div className="preview-error-state" role="alert">
+          <AlertCircle size={24} className="text-danger" />
+          <p>{statusError}</p>
+          <button type="button" className="toolbar-button" disabled={isStatusLoading} onClick={onRefresh}>
+            <RefreshCw size={14} />
+            {t('actions.retry')}
+          </button>
+        </div>
+      </UnifiedPanelShell>
+    )
+  }
+
+  if (panelState === 'not-repository' || !status) {
     return (
       <UnifiedPanelShell
         title={t('git.title')}
@@ -156,7 +292,7 @@ export function GitPanel({
       activeTab={tab}
       onTabChange={(next) => setTab(next as GitTab)}
       headerActions={
-        <button type="button" className="toolbar-button" disabled={isBusy} onClick={onRefresh}>
+        <button type="button" className="toolbar-button" disabled={isBusy || isStatusLoading} onClick={onRefresh}>
           {t('actions.refresh')}
         </button>
       }
@@ -189,66 +325,44 @@ export function GitPanel({
           </div>
 
           <div className="git-changes">
-            <strong>{status.clean ? 'Working tree clean' : `${status.changed_files.length} changed file(s)`}</strong>
+            <strong>
+              {status.clean
+                ? t('git.workingTreeClean')
+                : t('git.changedFiles', { count: status.changed_files.length })}
+            </strong>
             {activePath && changedPaths.includes(activePath) ? (
-              <p className="health-subtitle git-active-note">Active note has uncommitted changes: {noteLabel(activePath)}</p>
+              <p className="health-subtitle git-active-note">
+                {t('git.activeNoteChanged', { note: noteLabel(activePath) })}
+              </p>
             ) : null}
-            {!status.clean && (
+            {status.clean ? (
+              <div className="git-clean-state">
+                <CheckCircle2 size={32} className="text-success" />
+                <p>{t('git.everythingUpToDate', { branch: status.branch ?? 'HEAD' })}</p>
+                <button type="button" className="toolbar-button" disabled={isBusy || isStatusLoading} onClick={onRefresh}>
+                  <RefreshCw size={14} />
+                  {t('actions.refresh')}
+                </button>
+              </div>
+            ) : (
               <ul>
                 {status.changed_files.map((file) => (
-                  <li key={file.path} className={file.path === activePath ? 'git-file-active' : undefined}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={effectiveSelection.includes(file.path)}
-                        onChange={(event) => {
-                          setSelected((current) => {
-                            const next = new Set(current.size > 0 ? current : effectiveSelection)
-                            if (event.target.checked) {
-                              next.add(file.path)
-                            } else {
-                              next.delete(file.path)
-                            }
-                            return next
-                          })
-                        }}
-                      />
-                      <span>
-                        {file.path.endsWith('.md') ? (
-                          <button type="button" className="git-note-link" onClick={() => onOpenNote?.(file.path)}>
-                            {noteLabel(file.path)}
-                          </button>
-                        ) : (
-                          file.path
-                        )}
-                        {file.path.endsWith('.md') ? <small className="git-file-path">{file.path}</small> : null}
-                      </span>
-                      <small>{file.conflict ? 'conflict' : file.status}</small>
-                      {file.path.endsWith('.md') ? (
-                        <button type="button" onClick={() => {
-                          setDiffPath(file.path)
-                          setTab('diff')
-                        }}>
-                          Preview diff
-                        </button>
-                      ) : null}
-                      {file.conflict && onResolveConflict ? (
-                        <button
-                          type="button"
-                          className="conflict-resolve-btn"
-                          onClick={() => onResolveConflict(file.path)}
-                        >
-                          Resolve
-                        </button>
-                      ) : null}
-                    </label>
-                  </li>
+                  <GitFileRow
+                    key={file.path}
+                    file={file}
+                    isActive={file.path === activePath}
+                    isSelected={effectiveSelection.includes(file.path)}
+                    onToggleSelect={handleToggleSelect}
+                    onOpenNote={onOpenNote}
+                    onPreviewDiff={handlePreviewDiff}
+                    onResolveConflict={onResolveConflict}
+                  />
                 ))}
               </ul>
             )}
           </div>
 
-          {!status.clean && (
+          {!status.clean ? (
             <form
               className="git-commit-form"
               onSubmit={(event) => {
@@ -257,7 +371,7 @@ export function GitPanel({
                 setPendingAction({
                   kind: 'commit',
                   files: effectiveSelection,
-                  message: message.trim() || 'Update vault notes',
+                  message: message.trim() || t('git.updateVaultNotes'),
                 })
               }}
             >
@@ -276,14 +390,14 @@ export function GitPanel({
                 {t('git.commitSelected')}
               </button>
             </form>
-          )}
+          ) : null}
         </>
       ) : (
         <div className="git-diff-tab">
           {previewPath ? (
             <>
               <label className="git-diff-picker">
-                <span>Note</span>
+                <span>{t('git.note')}</span>
                 <select value={previewPath} onChange={(event) => setDiffPath(event.target.value)}>
                   {changedPaths
                     .filter((path) => path.endsWith('.md'))
@@ -312,10 +426,10 @@ export function GitPanel({
         <div className="git-confirm-dialog" role="alertdialog" aria-label={t('git.confirmAction')}>
           <p>
             {pendingAction.kind === 'commit'
-              ? t('git.commitSelected') + ` ${pendingAction.files.length} file(s) "${pendingAction.message}"?`
+              ? t('git.commitConfirm', { count: pendingAction.files.length, message: pendingAction.message })
               : pendingAction.kind === 'pull'
-                ? t('git.pull') + '?'
-                : t('git.push') + '?'}
+                ? t('git.pullConfirm')
+                : t('git.pushConfirm')}
           </p>
           {pendingAction.kind === 'commit' ? (
             <ul className="git-confirm-files">
@@ -343,7 +457,7 @@ export function GitPanel({
                 setPendingAction(null)
               }}
             >
-              {t('actions.check')}
+              {t('actions.confirm')}
             </button>
           </div>
         </div>
