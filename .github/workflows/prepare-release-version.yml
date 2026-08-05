@@ -1,0 +1,104 @@
+name: Prepare Release Version
+
+on:
+  push:
+    branches:
+      - fix/release-publishing-and-toolbar-popovers
+    paths:
+      - VERSION
+      - .github/workflows/prepare-release-version.yml
+
+permissions:
+  contents: write
+
+jobs:
+  synchronize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout preparation branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/release-publishing-and-toolbar-popovers
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+
+      - name: Synchronize manifests and lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < VERSION)
+          node scripts/release/version.mjs sync
+          cargo metadata --format-version 1 >/dev/null
+          cargo metadata --locked --format-version 1 >/dev/null
+          pnpm install --lockfile-only --frozen-lockfile
+          SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check
+
+      - name: Update release changelog
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('CHANGELOG.md')
+          text = path.read_text()
+          version = Path('VERSION').read_text().strip()
+          heading = f'## [{version}] - 2026-08-06'
+          if heading not in text:
+              section = f"""{heading}
+
+          ### Release reliability
+
+          - Removed certificate and signing-secret dependencies from official GitHub Releases; installers are explicitly unsigned and release notes disclose unknown-publisher warnings.
+          - Unified Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64 packaging under one release owner with exact installer staging.
+          - Added architecture-bound trust-status evidence, receipt schema 4, flat SHA-256 checksums, CycloneDX SBOM, and GitHub attestations.
+          - Added immutable tag kickoff and safe re-dispatch so a failed publication can recover without moving a tag.
+
+          ### Editor interface
+
+          - Portaled Typography and Insert menus to the viewport so the writing and split-preview surfaces cannot clip them.
+          - Added keyboard navigation, Escape/outside-click dismissal, focus restoration, and scroll/resize repositioning.
+
+          """
+              marker = '## [0.1.0] - 2026-06-27'
+              if marker not in text:
+                  raise SystemExit(f'missing changelog marker: {marker}')
+              text = text.replace(marker, section + marker, 1)
+          replacements = {
+              '- Made production release signing fail closed across Windows, macOS, and Linux and bound native verification results to receipt schema 3.': '- Historical hardening made signing fail closed; the 0.1.1 policy supersedes it with explicit unsigned, architecture-bound status evidence and receipt schema 4.',
+              '- Added source-bound signing evidence, pre-publication verification, and production notarization enforcement.': '- Added source-bound trust-status evidence and pre-publication verification; official 0.1.1 assets are verified by checksums and GitHub attestations.',
+              '- Added canonical `VERSION`, immutable action pins, fixed toolchains/runners, lockfile immutability gates, mandatory production signing/notarization, checksums, CycloneDX SBOM, release receipts, and attestations.': '- Added canonical `VERSION`, immutable action pins, fixed toolchains/runners, lockfile immutability gates, explicit unsigned status, checksums, CycloneDX SBOM, release receipts, and attestations.',
+              '- GitHub Actions CI and release workflows (historical 0.1.0 posture used optional code signing; current production tags fail closed)': '- GitHub Actions CI and release workflows (0.1.1+ official assets are intentionally unsigned with explicit status evidence, checksums, and attestations)',
+          }
+          for old, new in replacements.items():
+              text = text.replace(old, new)
+          link = f'[{version}]: https://github.com/AmirrezaFarnamTaheri/Scriptor/releases/tag/v{version}\n'
+          if link not in text:
+              text = text.replace('[0.1.0]:', link + '[0.1.0]:', 1)
+          path.write_text(text)
+          PY
+
+      - name: Commit synchronized version metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < VERSION)
+          if git diff --quiet; then
+            echo "Version metadata already synchronized."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git commit -m "chore(release): synchronize v$version metadata"
+          git push origin HEAD:fix/release-publishing-and-toolbar-popovers
