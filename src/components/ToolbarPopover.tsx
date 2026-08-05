@@ -3,8 +3,6 @@ import {
   useEffect,
   useLayoutEffect,
   useRef,
-  useState,
-  type CSSProperties,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -14,7 +12,6 @@ import { createPortal } from 'react-dom'
 const VIEWPORT_PADDING = 8
 const POPOVER_GAP = 6
 const MIN_POPOVER_WIDTH = 220
-const MIN_POPOVER_HEIGHT = 120
 
 interface ToolbarPopoverProps {
   open: boolean
@@ -26,13 +23,6 @@ interface ToolbarPopoverProps {
   children: ReactNode
 }
 
-interface PopoverPosition {
-  top: number
-  left: number
-  minWidth: number
-  maxHeight: number
-}
-
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum)
 }
@@ -42,6 +32,11 @@ function menuItems(panel: HTMLElement): HTMLButtonElement[] {
     .filter((item) => !item.disabled)
 }
 
+/**
+ * Renders an editor-toolbar menu into the document body so scroll containers
+ * cannot clip it. Positioning mutates only the portal element's fixed-layout
+ * styles; opening or scrolling the menu never causes an additional React render.
+ */
 export function ToolbarPopover({
   open,
   id,
@@ -51,8 +46,7 @@ export function ToolbarPopover({
   onClose,
   children,
 }: ToolbarPopoverProps) {
-  const panelRef = useRef<HTMLElement>(null)
-  const [position, setPosition] = useState<PopoverPosition | null>(null)
+  const panelRef = useRef<HTMLUListElement>(null)
 
   const updatePosition = useCallback(() => {
     const trigger = triggerRef.current
@@ -60,49 +54,66 @@ export function ToolbarPopover({
     if (!trigger || !panel) return
 
     const triggerRect = trigger.getBoundingClientRect()
-    const panelRect = panel.getBoundingClientRect()
     const viewportWidth = window.innerWidth
     const viewportHeight = window.innerHeight
-    const minWidth = Math.min(
+    const maximumWidth = Math.max(0, viewportWidth - VIEWPORT_PADDING * 2)
+    const minimumWidth = Math.min(
       Math.max(MIN_POPOVER_WIDTH, triggerRect.width),
-      Math.max(0, viewportWidth - VIEWPORT_PADDING * 2),
-    )
-    const availableBelow = viewportHeight - triggerRect.bottom - POPOVER_GAP - VIEWPORT_PADDING
-    const availableAbove = triggerRect.top - POPOVER_GAP - VIEWPORT_PADDING
-    const opensAbove = availableBelow < Math.min(panelRect.height, MIN_POPOVER_HEIGHT)
-      && availableAbove > availableBelow
-    const availableHeight = Math.max(
-      MIN_POPOVER_HEIGHT,
-      opensAbove ? availableAbove : availableBelow,
-    )
-    const renderedHeight = Math.min(panelRect.height, availableHeight)
-    const top = opensAbove
-      ? Math.max(VIEWPORT_PADDING, triggerRect.top - POPOVER_GAP - renderedHeight)
-      : Math.min(
-          triggerRect.bottom + POPOVER_GAP,
-          viewportHeight - VIEWPORT_PADDING - renderedHeight,
-        )
-    const maximumLeft = Math.max(
-      VIEWPORT_PADDING,
-      viewportWidth - VIEWPORT_PADDING - Math.max(panelRect.width, minWidth),
+      maximumWidth,
     )
 
-    setPosition({
+    panel.style.minWidth = `${minimumWidth}px`
+    panel.style.maxWidth = `${maximumWidth}px`
+    panel.style.maxHeight = 'none'
+
+    const naturalWidth = Math.min(
+      Math.max(panel.scrollWidth, minimumWidth),
+      maximumWidth,
+    )
+    const naturalHeight = Math.min(
+      panel.scrollHeight,
+      Math.max(0, viewportHeight - VIEWPORT_PADDING * 2),
+    )
+    const availableBelow = Math.max(
+      0,
+      viewportHeight - triggerRect.bottom - POPOVER_GAP - VIEWPORT_PADDING,
+    )
+    const availableAbove = Math.max(
+      0,
+      triggerRect.top - POPOVER_GAP - VIEWPORT_PADDING,
+    )
+    const opensAbove = availableBelow < naturalHeight && availableAbove > availableBelow
+    const availableHeight = opensAbove ? availableAbove : availableBelow
+    const renderedHeight = Math.min(naturalHeight, availableHeight)
+    const top = opensAbove
+      ? triggerRect.top - POPOVER_GAP - renderedHeight
+      : triggerRect.bottom + POPOVER_GAP
+    const maximumLeft = Math.max(
+      VIEWPORT_PADDING,
+      viewportWidth - VIEWPORT_PADDING - naturalWidth,
+    )
+
+    panel.style.top = `${clamp(
       top,
-      left: clamp(triggerRect.left, VIEWPORT_PADDING, maximumLeft),
-      minWidth,
-      maxHeight: availableHeight,
-    })
+      VIEWPORT_PADDING,
+      Math.max(VIEWPORT_PADDING, viewportHeight - VIEWPORT_PADDING - renderedHeight),
+    )}px`
+    panel.style.left = `${clamp(triggerRect.left, VIEWPORT_PADDING, maximumLeft)}px`
+    panel.style.maxHeight = `${availableHeight}px`
+    panel.dataset.positioned = 'true'
   }, [triggerRef])
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPosition(null)
-      return undefined
-    }
+    if (!open) return undefined
 
     updatePosition()
-    const frame = window.requestAnimationFrame(updatePosition)
+    const frame = window.requestAnimationFrame(() => {
+      updatePosition()
+      const activeElement = document.activeElement
+      if (activeElement !== document.body && activeElement !== triggerRef.current) return
+      const panel = panelRef.current
+      if (panel) menuItems(panel)[0]?.focus()
+    })
     const resizeObserver = typeof ResizeObserver === 'undefined'
       ? null
       : new ResizeObserver(updatePosition)
@@ -143,17 +154,13 @@ export function ToolbarPopover({
     }
   }, [onClose, open, triggerRef])
 
-  useEffect(() => {
-    if (!open || !position) return
-    const activeElement = document.activeElement
-    if (activeElement !== document.body && activeElement !== triggerRef.current) return
-    const panel = panelRef.current
-    if (!panel) return
-    menuItems(panel)[0]?.focus()
-  }, [open, position, triggerRef])
-
-  const handleMenuKeyDown = (event: KeyboardEvent<HTMLElement>) => {
+  const handleMenuKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+    if (event.key === 'Tab') {
+      onClose()
+      return
+    }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
+
     const items = menuItems(event.currentTarget)
     if (items.length === 0) return
     event.preventDefault()
@@ -166,27 +173,19 @@ export function ToolbarPopover({
 
   if (!open || typeof document === 'undefined') return null
 
-  const style: CSSProperties = position
-    ? {
-        top: position.top,
-        left: position.left,
-        minWidth: position.minWidth,
-        maxHeight: position.maxHeight,
-      }
-    : { top: 0, left: 0, visibility: 'hidden' }
-
   return createPortal(
-    <menu
+    <ul
       id={id}
       ref={panelRef}
       className={`toolbar-menu-popover ${className}`}
       role="menu"
       aria-labelledby={labelledBy}
-      style={style}
+      aria-orientation="vertical"
+      data-positioned="false"
       onKeyDown={handleMenuKeyDown}
     >
       {children}
-    </menu>,
+    </ul>,
     document.body,
   )
 }
