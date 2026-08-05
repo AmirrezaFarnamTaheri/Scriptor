@@ -1,5 +1,15 @@
-import { Component, type ReactNode, type ErrorInfo } from 'react'
+import {
+  Component,
+  cloneElement,
+  isValidElement,
+  type ComponentProps,
+  type ErrorInfo,
+  type ReactElement,
+  type ReactNode,
+} from 'react'
 import { CircleAlert, RotateCcw } from 'lucide-react'
+
+import { PanelErrorFallback } from './PanelErrorFallback'
 
 interface Props {
   children: ReactNode
@@ -58,30 +68,42 @@ export class ErrorBoundary extends Component<Props, State> {
     window.removeEventListener('popstate', this.handleReset)
   }
 
+  private renderCustomFallback(): ReactNode {
+    const fallback = this.props.fallback
+    if (!isValidElement(fallback) || fallback.type !== PanelErrorFallback) {
+      return fallback
+    }
+
+    const panelFallback = fallback as ReactElement<ComponentProps<typeof PanelErrorFallback>>
+    return cloneElement(panelFallback, {
+      onRetry: panelFallback.props.onRetry ?? this.handleReset,
+    })
+  }
+
   render() {
     if (this.state.hasError) {
+      if (this.props.fallback) return this.renderCustomFallback()
+
       return (
-        this.props.fallback ?? (
-          <section role="alert" aria-live="assertive" aria-atomic="true" className="error-boundary">
-            <span className="error-boundary-mark" aria-hidden="true">
-              <CircleAlert />
-            </span>
-            <div className="error-boundary-content">
-              <h2>Something went wrong</h2>
-              <p>This surface stopped unexpectedly. Retry it without reloading the rest of your workspace.</p>
-              <pre>{this.state.error?.message}</pre>
-            </div>
-            <button
-              type="button"
-              onClick={this.handleReset}
-              autoFocus
-              className="primary-button error-boundary-retry"
-            >
-              <RotateCcw aria-hidden="true" />
-              Retry
-            </button>
-          </section>
-        )
+        <section role="alert" aria-live="assertive" aria-atomic="true" className="error-boundary">
+          <span className="error-boundary-mark" aria-hidden="true">
+            <CircleAlert />
+          </span>
+          <div className="error-boundary-content">
+            <h2>Something went wrong</h2>
+            <p>This surface stopped unexpectedly. Retry it without reloading the rest of your workspace.</p>
+            <pre>{this.state.error?.message}</pre>
+          </div>
+          <button
+            type="button"
+            onClick={this.handleReset}
+            autoFocus
+            className="primary-button error-boundary-retry"
+          >
+            <RotateCcw aria-hidden="true" />
+            Retry
+          </button>
+        </section>
       )
     }
     return this.props.children
