@@ -24,6 +24,21 @@ test('production release signing is fail-closed and publication verifies signing
   assert.ok(verifyWindowsManifest > writeWindowsManifest, 'Windows manifest must be verified after generation')
 })
 
+test('manual release dispatch is preview-only and production remains tag-only', () => {
+  const workflow = read('.github/workflows/release.yml')
+  const dispatchStart = workflow.indexOf('  workflow_dispatch:')
+  const tagStart = workflow.indexOf('  push:', dispatchStart)
+  assert.ok(dispatchStart >= 0 && tagStart > dispatchStart, 'release workflow dispatch block is missing')
+  const dispatch = workflow.slice(dispatchStart, tagStart)
+  assert.doesNotMatch(dispatch, /\bchannel:/)
+  assert.doesNotMatch(dispatch, /-\s+production/)
+  assert.match(
+    workflow,
+    /SCRIPTOR_RELEASE_CHANNEL:\s*\$\{\{\s*startsWith\(github\.ref, 'refs\/tags\/v'\)\s*&&\s*'production'\s*\|\|\s*'preview'\s*\}\}/,
+  )
+  assert.match(workflow, /name: Publish GitHub Release[\s\S]*?if: startsWith\(github\.ref, 'refs\/tags\/v'\)/)
+})
+
 test('release receipt records and verifies platform signing state', () => {
   const receipt = read('scripts/release/create-receipt.mjs')
   const verifier = read('scripts/release/verify-release-evidence.mjs')
