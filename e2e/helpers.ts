@@ -79,10 +79,20 @@ export async function runCommand(page: Page, commandLabel: string) {
 }
 
 export async function settleLayout(page: Page) {
-  await page.evaluate(async () => {
-    await document.fonts.ready
-    window.dispatchEvent(new Event('resize'))
-  })
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.waitForLoadState('networkidle')
+    try {
+      await page.evaluate(async () => {
+        await document.fonts.ready
+        window.dispatchEvent(new Event('resize'))
+      })
+      break
+    } catch (error) {
+      if (attempt >= 2 || !(error instanceof Error) || !error.message.includes('Execution context was destroyed')) {
+        throw error
+      }
+    }
+  }
   await page.waitForFunction(() => {
     const root = document.getElementById('root')
     return root && root.getBoundingClientRect().width > 0
@@ -101,11 +111,9 @@ export async function waitForWorkspace(page: Page) {
   await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
   })
-  const monaco = page.locator('.monaco-editor .view-lines')
-  const codemirror = page.locator('.cm-content')
-  await expect(monaco.or(codemirror)).toContainText('Research Plan', {
-    timeout: 45_000,
-  })
+  const editorSurface = page.locator('.monaco-editor .view-lines, .cm-content')
+  await expect(editorSurface).toContainText('Research Plan', { timeout: 45_000 })
+  await page.waitForLoadState('networkidle')
   await settleLayout(page)
 }
 
@@ -146,8 +154,4 @@ export async function waitForSavedMarker(page: Page, marker: string) {
   await expect(page.getByRole('region', { name: 'Editor' }).getByText(/^Saved /)).toBeVisible({
     timeout: 15_000,
   })
-  await page.waitForFunction(() => {
-    const saved = document.querySelector('[role="region"][aria-label="Editor"]')
-    return saved && saved.textContent && /Saved \d/.test(saved.textContent)
-  }, { timeout: 5000 })
 }

@@ -322,6 +322,15 @@ export function installE2eBridge(): void {
           conflicted_files: hasConflicts ? ['Field Notes.md'] : [],
         }
       }
+      case 'authorize_sensitive_operation': {
+        const body = payload as { operation?: string; scope?: string | null }
+        return {
+          token: 'e2e-authorization-token',
+          operation: String(body.operation ?? ''),
+          scope: body.scope ?? null,
+          expiresAtMs: Date.now() + 60_000,
+        }
+      }
       case 'git_commit_cmd': {
         const body = payload as { files?: string[]; message?: string }
         const files = body.files ?? []

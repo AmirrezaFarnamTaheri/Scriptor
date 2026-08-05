@@ -14,8 +14,13 @@ async function enableCanvasKit(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Installed plugins' })).toBeVisible({
     timeout: 15_000,
   })
-  const installedPlugins = page.locator('.plugin-list').nth(1)
-  await installedPlugins.getByRole('button', { name: /Canvas Kit/ }).click()
+  await page.getByRole('button', { name: /^Canvas Kit .* install$/ }).click()
+  const installedPlugins = page.locator('section.widget-card').filter({
+    has: page.getByRole('heading', { name: 'Installed plugins' }),
+  })
+  const canvasKit = installedPlugins.getByRole('button', { name: /Canvas Kit.*disabled/ })
+  await expect(canvasKit).toBeVisible({ timeout: 15_000 })
+  await canvasKit.click()
   await page.getByRole('button', { name: 'Review and grant for this vault' }).click()
   await page.getByRole('button', { name: 'Enable plugin' }).click()
   await expect(page.getByRole('button', { name: 'Disable plugin' })).toBeVisible()
