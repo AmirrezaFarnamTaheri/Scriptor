@@ -116,6 +116,10 @@ jobs:
           node scripts/release/version.mjs check
           node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --architecture "${{ matrix.architecture }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
 
+      - name: Verify runner architecture matches target
+        shell: pwsh
+        run: node scripts/release/verify-runner-architecture.mjs --expected "${{ matrix.architecture }}"
+
       - name: Describe release packaging scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})"
@@ -268,7 +272,12 @@ jobs:
           node scripts/release/create-receipt.mjs release-artifacts release-evidence
           node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence
 
-      - name: Attest exact release subject set
+      - name: Attest exact release provenance
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-path: release-artifacts/*
+
+      - name: Attest exact release SBOM
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-path: release-artifacts/*
@@ -283,15 +292,15 @@ jobs:
           cat > release-notes.md <<'NOTES'
           ## Verification notice
 
-          These installers are intentionally **unsigned**. Operating systems may show an unknown-publisher warning.
+          These installers are intentionally **unsigned**. Windows may show an unknown-publisher warning and macOS may require explicit approval through Finder or System Settings.
 
           Before running an installer:
 
           1. Download the installer, `SHA256SUMS`, `scriptor.cyclonedx.json`, and `release-receipt.json`.
-          2. Verify the checksum with `sha256sum --check SHA256SUMS` from the directory containing all downloaded assets.
-          3. Verify the GitHub attestation with `gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor`.
+          2. Verify the installer checksum against its line in `SHA256SUMS`. On GNU systems: `sha256sum --check --ignore-missing SHA256SUMS`.
+          3. Verify GitHub provenance and SBOM attestations with `gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor`.
 
-          The receipt binds every published byte to this tag's source commit and records `signed: false` for each platform/architecture target.
+          The receipt binds every published byte to this tag's source commit and records `signed: false` for each platform/architecture target. Full platform-specific checksum commands are documented in `docs/RELEASE-SECURITY.md` at this tag.
           NOTES
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --title "Scriptor $GITHUB_REF_NAME" --notes-file release-notes.md
