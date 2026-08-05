@@ -10,4 +10,8 @@ const verified = assertSigningEvidence(records, {
   channel,
   expectedSourceCommit: process.env.GITHUB_SHA || process.env.SCRIPTOR_SOURCE_COMMIT || undefined,
 })
-console.log(`Signing evidence OK: ${verified.map((record) => `${record.platform}:${record.signatureType}`).join(', ')}`)
+console.log(
+  `Signing status evidence OK: ${verified
+    .map((record) => `${record.platform}/${record.architecture}:${record.signatureType}`)
+    .join(', ')}`,
+)
