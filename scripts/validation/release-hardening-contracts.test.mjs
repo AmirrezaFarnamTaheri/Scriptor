@@ -15,6 +15,13 @@ test('production release signing is fail-closed and publication verifies signing
   assert.doesNotMatch(workflow, /skipping (Linux package signing|macOS signature)/)
   assert.match(read('scripts/release/sign-installers.ps1'), /required for production releases/)
   assert.doesNotMatch(workflow, /skipping (?:Linux package signing|macOS signature\/notarization verification)/i)
+
+  const signWindows = workflow.indexOf('name: Sign and verify Windows production installers')
+  const writeWindowsManifest = workflow.indexOf('name: Write Windows release manifest')
+  const verifyWindowsManifest = workflow.indexOf('name: Verify Windows release manifest')
+  assert.ok(signWindows >= 0, 'Windows signing step is missing')
+  assert.ok(writeWindowsManifest > signWindows, 'Windows manifest must be generated after signing')
+  assert.ok(verifyWindowsManifest > writeWindowsManifest, 'Windows manifest must be verified after generation')
 })
 
 test('release receipt records and verifies platform signing state', () => {
