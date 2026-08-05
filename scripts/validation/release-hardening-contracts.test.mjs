@@ -24,7 +24,7 @@ test('production release signing is fail-closed and publication verifies signing
   assert.ok(verifyWindowsManifest > writeWindowsManifest, 'Windows manifest must be verified after generation')
 })
 
-test('manual release dispatch is preview-only and production remains tag-only', () => {
+test('manual release dispatch is preview-only and production remains tag-push-only', () => {
   const workflow = read('.github/workflows/release.yml')
   const dispatchStart = workflow.indexOf('  workflow_dispatch:')
   const tagStart = workflow.indexOf('  push:', dispatchStart)
@@ -32,11 +32,32 @@ test('manual release dispatch is preview-only and production remains tag-only', 
   const dispatch = workflow.slice(dispatchStart, tagStart)
   assert.doesNotMatch(dispatch, /\bchannel:/)
   assert.doesNotMatch(dispatch, /-\s+production/)
-  assert.match(
-    workflow,
-    /SCRIPTOR_RELEASE_CHANNEL:\s*\$\{\{\s*startsWith\(github\.ref, 'refs\/tags\/v'\)\s*&&\s*'production'\s*\|\|\s*'preview'\s*\}\}/,
-  )
-  assert.match(workflow, /name: Publish GitHub Release[\s\S]*?if: startsWith\(github\.ref, 'refs\/tags\/v'\)/)
+
+  const findLine = (prefix) => {
+    const line = workflow.split(/\r?\n/).find((candidate) => candidate.trimStart().startsWith(prefix))
+    assert.ok(line, `${prefix} is missing`)
+    return line
+  }
+  const assertTagPushGuard = (source, label) => {
+    assert.match(source, /github\.event_name\s*==\s*['"]push['"]/, `${label} must require a push event`)
+    assert.match(source, /startsWith\(github\.ref,\s*['"]refs\/tags\/v['"]\)/, `${label} must require a v* tag`)
+  }
+
+  const runName = findLine('run-name:')
+  const version = findLine('SCRIPTOR_RELEASE_VERSION:')
+  const channel = findLine('SCRIPTOR_RELEASE_CHANNEL:')
+  const publishStart = workflow.indexOf('    name: Publish GitHub Release')
+  assert.ok(publishStart >= 0, 'publish job is missing')
+  const publishIf = workflow.slice(publishStart).split(/\r?\n/).find((line) => line.trimStart().startsWith('if:'))
+  assert.ok(publishIf, 'publish job condition is missing')
+
+  assertTagPushGuard(runName, 'release run name')
+  assertTagPushGuard(version, 'release version selection')
+  assertTagPushGuard(channel, 'release channel selection')
+  assertTagPushGuard(publishIf, 'release publication')
+  assert.match(runName, /Preview/)
+  assert.match(channel, /['"]production['"]/)
+  assert.match(channel, /['"]preview['"]/)
 })
 
 test('release receipt records and verifies platform signing state', () => {
