@@ -29,8 +29,8 @@ jobs:
         shell: bash
         env:
           TARGET_BRANCH: audit/complete-repository-hardening-2026-08-05
-          EXPECTED_HEAD: dd55e598319c349bc4768fad12e2e1b58823abf1
-          EXPECTED_PATCH_SHA256: c8f6099729eb956fbfe1d4bafeefba0d9804e10960f85155c6d7053b0161bfb2
+          EXPECTED_HEAD: 6696d62cf9f667c6c803cbb6a82b5c887ef6d263
+          EXPECTED_PATCH_SHA256: 1cd59085f0ecd64218344d7396587850e426f2639a3cbc49a4c9dad8f8847db2
         run: |
           set -euo pipefail
 
@@ -71,18 +71,11 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
-            .github/workflows/ci.yml \
-            .github/workflows/release.yml \
-            docs/RELEASE-SECURITY.md \
-            e2e/workspace.spec.ts \
-            packages/mcp/src/runtime.ts \
-            scripts/validation/release-hardening-contracts.test.mjs \
-            scripts/validation/rustsec-exceptions.mjs \
-            scripts/validation/rustsec-exceptions.test.mjs \
-            src/components/app/QuickCaptureWorkspaceLayer.tsx \
-            src/components/app/WorkspaceRenameDialogs.tsx \
-            src/e2e/bootstrap.ts \
-            src/hooks/useWorkspaceNoteFactory.ts
+            e2e/frontend-polish-regressions.spec.ts \
+            e2e/git.spec.ts \
+            e2e/graph.spec.ts \
+            e2e/helpers.ts \
+            e2e/screenshots.spec.ts
           test -z "$(git status --short | grep -v '^M  ' || true)"
-          git commit -m 'fix(review): address hardening feedback'
+          git commit -m 'test(e2e): align locators with accessible UI'
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
