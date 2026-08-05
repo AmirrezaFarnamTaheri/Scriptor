@@ -1,5 +1,6 @@
-import type { McpMode } from '@scriptor/core/contracts/mcp'
 import type { CommandResult } from '@scriptor/core/contracts/command'
+import type { ExportProfile } from '@scriptor/core/contracts/export'
+import type { McpMode, McpToolDescriptor } from '@scriptor/core/contracts/mcp'
 
 import { AuditLog } from './audit.ts'
 import { approveDraftPatch, createDraftPatch, type DraftPatch, rejectDraftPatch } from './draft.ts'

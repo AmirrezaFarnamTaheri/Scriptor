@@ -5,6 +5,14 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const ADVISORY_PATTERN = /^RUSTSEC-\d{4}-\d{4}$/
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+function parseIsoDate(value) {
+  if (!ISO_DATE_PATTERN.test(value)) return null
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.valueOf()) || date.toISOString().slice(0, 10) !== value) return null
+  return date
+}
 
 export function parseIgnoredAdvisories(source) {
   const match = source.match(/\bignore\s*=\s*\[([\s\S]*?)\]/)
@@ -30,8 +38,8 @@ export function validateRustSecExceptions({ denySource, ledgerSource, asOf }) {
   const ignored = parseIgnoredAdvisories(denySource)
   const ledger = parseLedger(ledgerSource)
   const failures = []
-  const asOfDate = new Date(`${asOf}T00:00:00Z`)
-  if (Number.isNaN(asOfDate.valueOf())) throw new Error(`invalid review date: ${asOf}`)
+  const asOfDate = parseIsoDate(asOf)
+  if (!asOfDate) throw new Error(`invalid review date: ${asOf}`)
 
   for (const advisory of ignored) {
     const row = ledger.get(advisory)
@@ -43,8 +51,8 @@ export function validateRustSecExceptions({ denySource, ledgerSource, asOf }) {
       if (!row[field]) failures.push(`${advisory}: ${field} is empty`)
     }
     if (!row.upstream.includes(advisory)) failures.push(`${advisory}: upstream link does not identify advisory`)
-    const reviewDate = new Date(`${row.reviewBy}T00:00:00Z`)
-    if (Number.isNaN(reviewDate.valueOf())) {
+    const reviewDate = parseIsoDate(row.reviewBy)
+    if (!reviewDate) {
       failures.push(`${advisory}: invalid Review by date ${row.reviewBy}`)
     } else if (reviewDate < asOfDate) {
       failures.push(`${advisory}: review expired on ${row.reviewBy}`)

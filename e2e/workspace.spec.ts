@@ -184,6 +184,45 @@ test.describe('workspace flows', () => {
     await expect(banner.getByRole('button', { name: 'Keep editing' })).toBeVisible()
   })
 
+  test('reload from disk discards local edits after a hash mismatch', async ({ page }) => {
+    const localMarker = 'Local edit to discard after external change.'
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await appendEditorLine(page, localMarker)
+
+    const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
+    await expect(banner).toBeVisible({ timeout: 15_000 })
+    await banner.getByRole('button', { name: 'Reload from disk' }).click()
+
+    await expect(banner).toBeHidden()
+    await expect(page.locator('.monaco-editor .view-lines')).toContainText('External disk edit.')
+    await expect(page.locator('.monaco-editor .view-lines')).not.toContainText(localMarker)
+    await expect(page.getByLabel('Unsaved changes')).toHaveCount(0)
+  })
+
+  test('keep editing preserves local edits and allows the next save', async ({ page }) => {
+    const localMarker = 'Local edit to preserve after external change.'
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await appendEditorLine(page, localMarker)
+
+    const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
+    await expect(banner).toBeVisible({ timeout: 15_000 })
+    await banner.getByRole('button', { name: 'Keep editing' }).click()
+
+    await expect(banner).toBeHidden()
+    await expect(page.locator('.monaco-editor .view-lines')).toContainText(localMarker)
+    await appendEditorLine(page, 'Follow-up edit triggers the overwrite save.')
+    await waitForSavedMarker(page, localMarker)
+    await expect(page.getByLabel('Unsaved changes')).toHaveCount(0)
+  })
+
   test('corrupted session data falls back to defaults', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:workspace-chrome', 'INVALID_JSON{{{')

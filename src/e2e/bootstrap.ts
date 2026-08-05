@@ -153,7 +153,8 @@ export function installE2eBridge(): void {
         const markdown = String(body.markdown ?? '')
         if (
           window.sessionStorage.getItem('e2e:hash-mismatch') === '1' &&
-          body.expectedContentHash
+          body.expectedContentHash &&
+          !hashMismatchTriggered
         ) {
           hashMismatchTriggered = true
           throw new Error(

@@ -53,8 +53,8 @@ gpg --verify <artifact>.asc <artifact>
 Windows:
 
 ```powershell
-Get-AuthenticodeSignature .\Scriptor*.exe
-signtool verify /pa .\Scriptor*.exe
+Get-AuthenticodeSignature .\Scriptor*.exe, .\Scriptor*.msi
+signtool verify /pa .\Scriptor*.exe .\Scriptor*.msi
 ```
 
 macOS:

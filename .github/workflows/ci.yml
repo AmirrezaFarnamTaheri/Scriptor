@@ -508,6 +508,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
+
       - name: Run functional Playwright suite
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run functional Playwright suite" -FilePath "pnpm" -ArgumentList @("test:e2e") -TimeoutSeconds 1800 -HeartbeatSeconds 20

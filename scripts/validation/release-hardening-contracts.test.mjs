@@ -46,9 +46,10 @@ test('functional and visual Playwright suites are enforced by release and CI', (
 
 test('browser integration suites contain no permanent skips', () => {
   const files = fs.readdirSync(path.join(root, 'e2e')).filter((name) => name.endsWith('.spec.ts'))
+  const permanentAnnotation = /\btest(?:\.[A-Za-z_$][\w$]*)*\.(?:skip|fixme)\b/
   const skipped = files.flatMap((name) => {
     const source = read(`e2e/${name}`)
-    return source.includes('test.skip') ? [name] : []
+    return permanentAnnotation.test(source) ? [name] : []
   })
   assert.deepEqual(skipped, [])
 })
@@ -72,4 +73,44 @@ test('merged audit report records final verification instead of pending status',
   assert.doesNotMatch(report, /verification remains pending/i)
   assert.match(report, /30965142253/)
   assert.match(report, /c3ae10c4886637e4029687cc13cef519bac5f285/)
+})
+
+test('reviewed workspace async flows remain race-free and rejection-safe', () => {
+  const capture = read('src/components/app/QuickCaptureWorkspaceLayer.tsx')
+  assert.match(capture, /workspace\s*\.\s*createNote\(title,\s*body\)/)
+  assert.doesNotMatch(capture, /workspace\.updateDraft\(/)
+  assert.doesNotMatch(capture, /workspace\.saveActiveNoteNow\(/)
+  assert.match(capture, /\.catch\(/)
+
+  const rename = read('src/components/app/WorkspaceRenameDialogs.tsx')
+  assert.match(rename, /workspace\.logActivity\(\s*'error'/)
+  assert.match(rename, /\.catch\(/)
+  assert.doesNotMatch(rename, /void workspace\./)
+})
+
+test('release workflows remain portable and install the complete browser runtime', () => {
+  const release = read('.github/workflows/release.yml')
+  assert.doesNotMatch(release, /\bmapfile\b/)
+  assert.doesNotMatch(release, /echo ".*" >> "\$GITHUB_ENV"[\s\S]*echo ".*" >> "\$GITHUB_ENV"/)
+
+  const ci = read('.github/workflows/ci.yml')
+  assert.match(ci, /Install Playwright FFmpeg runtime/)
+  assert.match(ci, /"playwright", "install", "ffmpeg"/)
+})
+
+test('MCP runtime types and Windows installer verification stay complete', () => {
+  const runtime = read('packages/mcp/src/runtime.ts')
+  assert.match(runtime, /import type \{[^}]*McpToolDescriptor[^}]*\} from/)
+  assert.match(runtime, /import type \{[^}]*ExportProfile[^}]*\} from/)
+
+  const security = read('docs/RELEASE-SECURITY.md')
+  assert.match(security, /\*\.exe.*\*\.msi|\*\.msi.*\*\.exe/s)
+})
+
+test('hash mismatch fixture fails only the first qualifying save', () => {
+  const bootstrap = read('src/e2e/bootstrap.ts')
+  assert.match(
+    bootstrap,
+    /body\.expectedContentHash\s*&&\s*!hashMismatchTriggered|!hashMismatchTriggered\s*&&\s*body\.expectedContentHash/,
+  )
 })

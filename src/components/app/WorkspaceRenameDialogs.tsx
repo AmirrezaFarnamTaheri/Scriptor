@@ -37,6 +37,22 @@ export function WorkspaceRenameDialogs({
   setNotePath,
   closeKnowledgeWorkbench,
 }: WorkspaceRenameDialogsProps) {
+  const runWorkspaceOperation = (
+    operation: string,
+    promise: Promise<unknown>,
+    onSuccess?: () => void,
+  ) => {
+    void promise
+      .then(() => onSuccess?.())
+      .catch((error) =>
+        workspace.logActivity(
+          'error',
+          `${operation} failed`,
+          error instanceof Error ? error.message : String(error),
+        ),
+      )
+  }
+
   return (
     <>
       {tag ? (
@@ -48,13 +64,15 @@ export function WorkspaceRenameDialogs({
             setTag(null)
             workspace.clearLinkRewritePreview()
           }}
-          onPreview={(newTag) => void workspace.previewTagRename(tag, newTag)}
-          onApply={(newTag) => {
-            void workspace.applyTagRename(tag, newTag).then(() => {
+          onPreview={(newTag) =>
+            runWorkspaceOperation('Preview tag rename', workspace.previewTagRename(tag, newTag))
+          }
+          onApply={(newTag) =>
+            runWorkspaceOperation('Apply tag rename', workspace.applyTagRename(tag, newTag), () => {
               setTag(null)
               closeKnowledgeWorkbench()
             })
-          }}
+          }
         />
       ) : null}
 
@@ -69,13 +87,18 @@ export function WorkspaceRenameDialogs({
             workspace.clearLinkRewritePreview()
           }}
           onPreview={(newBlock, updateAnchor) =>
-            void workspace.previewBlockRename(block.path, block.label, newBlock, updateAnchor)
+            runWorkspaceOperation(
+              'Preview block rename',
+              workspace.previewBlockRename(block.path, block.label, newBlock, updateAnchor),
+            )
           }
-          onApply={(newBlock, updateAnchor) => {
-            void workspace
-              .applyBlockRename(block.path, block.label, newBlock, updateAnchor)
-              .then(() => setBlock(null))
-          }}
+          onApply={(newBlock, updateAnchor) =>
+            runWorkspaceOperation(
+              'Apply block rename',
+              workspace.applyBlockRename(block.path, block.label, newBlock, updateAnchor),
+              () => setBlock(null),
+            )
+          }
         />
       ) : null}
 
@@ -90,13 +113,18 @@ export function WorkspaceRenameDialogs({
             workspace.clearLinkRewritePreview()
           }}
           onPreview={(newSection, updateHeading) =>
-            void workspace.previewSectionRename(section.path, section.label, newSection, updateHeading)
+            runWorkspaceOperation(
+              'Preview section rename',
+              workspace.previewSectionRename(section.path, section.label, newSection, updateHeading),
+            )
           }
-          onApply={(newSection, updateHeading) => {
-            void workspace
-              .applySectionRename(section.path, section.label, newSection, updateHeading)
-              .then(() => setSection(null))
-          }}
+          onApply={(newSection, updateHeading) =>
+            runWorkspaceOperation(
+              'Apply section rename',
+              workspace.applySectionRename(section.path, section.label, newSection, updateHeading),
+              () => setSection(null),
+            )
+          }
         />
       ) : null}
 
@@ -111,14 +139,21 @@ export function WorkspaceRenameDialogs({
             workspace.clearRenamePreview()
           }}
           onPreview={(toPath, updateLinks) =>
-            void workspace.previewRename(toPath, updateLinks, notePath ?? undefined)
+            runWorkspaceOperation(
+              'Preview note rename',
+              workspace.previewRename(toPath, updateLinks, notePath ?? undefined),
+            )
           }
-          onApply={(toPath, updateLinks) => {
-            void workspace.applyRename(toPath, updateLinks, notePath ?? undefined).then(() => {
-              setNoteOpen(false)
-              setNotePath(null)
-            })
-          }}
+          onApply={(toPath, updateLinks) =>
+            runWorkspaceOperation(
+              'Apply note rename',
+              workspace.applyRename(toPath, updateLinks, notePath ?? undefined),
+              () => {
+                setNoteOpen(false)
+                setNotePath(null)
+              },
+            )
+          }
         />
       ) : null}
     </>

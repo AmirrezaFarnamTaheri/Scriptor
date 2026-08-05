@@ -31,6 +31,30 @@ export function QuickCaptureWorkspaceLayer({
   workspaceStore,
   onClose,
 }: QuickCaptureWorkspaceLayerProps) {
+  const reportCaptureFailure = (operation: string, error: unknown) => {
+    workspace.logActivity(
+      'error',
+      `${operation} failed`,
+      error instanceof Error ? error.message : String(error),
+    )
+  }
+
+  const createCaptureNote = (
+    operation: string,
+    title: string,
+    body: string,
+    onCreated: () => void,
+  ) => {
+    void workspace
+      .createNote(title, body)
+      .then((createdPath) => {
+        if (!createdPath) return
+        onCreated()
+        onClose()
+      })
+      .catch((error) => reportCaptureFailure(operation, error))
+  }
+
   return (
     <>
       {isOpen ? (
@@ -125,30 +149,31 @@ export function QuickCaptureWorkspaceLayer({
               onCreateInboxNoteFromScratchpad={() => {
                 const body = workspaceStore.quickCapture.scratchpad.body.trim()
                 if (!body) return
-                void (async () => {
-                  await workspace.createNote(`Capture ${new Date().toISOString().slice(0, 10)}`)
-                  workspace.updateDraft(body)
-                  await workspace.saveActiveNoteNow()
-                  workspaceStore.updateQuickCapture((capture) => ({
-                    ...capture,
-                    scratchpad: { kind: 'scratchpad', body: '', updatedAt: new Date().toISOString() },
-                  }))
-                  onClose()
-                })()
+                createCaptureNote(
+                  'Create inbox note from scratchpad',
+                  `Capture ${new Date().toISOString().slice(0, 10)}`,
+                  body,
+                  () =>
+                    workspaceStore.updateQuickCapture((capture) => ({
+                      ...capture,
+                      scratchpad: {
+                        kind: 'scratchpad',
+                        body: '',
+                        updatedAt: new Date().toISOString(),
+                      },
+                    })),
+                )
               }}
               onCreateNoteFromTodo={(id) => {
                 const todo = workspaceStore.quickCapture.todos.find((entry) => entry.id === id)
                 if (!todo) return
-                void (async () => {
-                  await workspace.createNote(todo.text.slice(0, 60))
-                  workspace.updateDraft(`# ${todo.text}\n\n- [ ] ${todo.text}\n`)
-                  await workspace.saveActiveNoteNow()
+                const body = `# ${todo.text}\n\n- [ ] ${todo.text}\n`
+                createCaptureNote('Create note from todo', todo.text.slice(0, 60), body, () =>
                   workspaceStore.updateQuickCapture((capture) => ({
                     ...capture,
                     todos: capture.todos.filter((entry) => entry.id !== id),
-                  }))
-                  onClose()
-                })()
+                  })),
+                )
               }}
             />
           </Suspense>
