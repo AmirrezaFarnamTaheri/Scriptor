@@ -1,0 +1,75 @@
+name: Release Kickoff
+run-name: Create tag and publish VERSION from ${{ github.sha }}
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - VERSION
+
+concurrency:
+  group: release-kickoff
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  tag-and-dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release commit and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Validate synchronized version contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < VERSION)
+          SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check
+
+      - name: Create immutable version tag
+        id: tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < VERSION)
+          tag="v$version"
+          existing_commit=$(git ls-remote origin "refs/tags/$tag^{}" | awk '{print $1}')
+          if [ -z "$existing_commit" ]; then
+            existing_commit=$(git ls-remote origin "refs/tags/$tag" | awk '{print $1}')
+          fi
+          if [ -n "$existing_commit" ] && [ "$existing_commit" != "$GITHUB_SHA" ]; then
+            echo "Tag $tag already points to $existing_commit; refusing to move or reuse it." >&2
+            exit 1
+          fi
+          if [ -z "$existing_commit" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$tag" -m "Scriptor $tag"
+            git push origin "refs/tags/$tag"
+          else
+            echo "Tag $tag already points to this release commit; re-dispatching publication."
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch production workflow on immutable tag
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh workflow run release.yml
+          --ref "${{ steps.tag.outputs.tag }}"
+          -f version="${{ steps.tag.outputs.version }}"
+          -f publish=true
