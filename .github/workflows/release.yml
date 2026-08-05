@@ -4,16 +4,12 @@ run-name: >-
     ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
     (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
     && format('Production {0}', github.ref_name)
-    || format('Preview v{0}', inputs.version || '0.1.1')
+    || format('Preview {0}', github.ref_name)
   }}
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Preview build version; ignored when publishing an existing v* tag
-        required: false
-        default: '0.1.1'
       publish:
         description: Publish only when this workflow is dispatched on an existing v* tag
         required: false
@@ -40,7 +36,7 @@ env:
       ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
       (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
       && github.ref_name
-      || format('v{0}', inputs.version || '0.1.1')
+      || ''
     }}
   SCRIPTOR_RELEASE_CHANNEL: >-
     ${{
@@ -113,6 +109,11 @@ jobs:
       - name: Validate release version and unsigned publication policy
         shell: pwsh
         run: |
+          if ($env:SCRIPTOR_RELEASE_CHANNEL -eq 'preview') {
+            $canonicalVersion = (Get-Content -LiteralPath VERSION -Raw).Trim()
+            $env:SCRIPTOR_RELEASE_VERSION = "v$canonicalVersion"
+            "SCRIPTOR_RELEASE_VERSION=v$canonicalVersion" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+          }
           node scripts/release/version.mjs check
           node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --architecture "${{ matrix.architecture }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
 
