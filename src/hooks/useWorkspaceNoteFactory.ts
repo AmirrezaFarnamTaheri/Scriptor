@@ -189,11 +189,11 @@ export function useWorkspaceNoteFactory({
       const pathBase = vaultConfig.inbox?.new_note_directory?.trim()
       const fileName = defaultNotePath(noteTitle)
       const path = pathBase ? `${pathBase.replace(/\/$/, '')}/${fileName}` : fileName
-      const markdown =
-        initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
 
-      setError(null)
       try {
+        const markdown =
+          initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
+        setError(null)
         await vaultSaveNote(path, markdown)
         await indexerUpdateNote(path)
         await refreshVaultCore()
