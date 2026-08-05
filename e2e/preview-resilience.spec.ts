@@ -38,7 +38,7 @@ test.describe('Markdown preview resilience', () => {
       .getByRole('button', { name: 'Split', exact: true })
       .click()
 
-    const splitPane = page.getByRole('complementary', { name: 'Split Markdown preview' })
+    const splitPane = page.locator('aside[aria-label="Split Markdown preview"]')
     const splitPreview = splitPane.getByRole('article', { name: 'Markdown preview' })
     await expect(splitPreview).toHaveAttribute('data-preview-degraded', 'true', {
       timeout: 10_000,
