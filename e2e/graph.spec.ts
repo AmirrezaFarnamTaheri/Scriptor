@@ -44,6 +44,7 @@ test.describe('Graph panel', () => {
 
     await page.keyboard.press('ArrowDown')
     await expect(announcement).toContainText('Research Plan, 4 connections')
+    await expect(panel.locator('.graph-node-focus-ring')).toHaveCount(1)
     await expect(keyboardSurface).toBeFocused()
   })
 
