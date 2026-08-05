@@ -1,59 +1,87 @@
-# Release signing and notarization
+# Release trust status and downstream signing
 
-Scriptor separates preview packaging from production publication.
+Scriptor separates upstream publication integrity from operating-system publisher signatures.
 
-- Preview builds may be unsigned and are not published automatically.
-- Every `v*` production tag fails closed unless all Windows, macOS, and Linux signing credentials are configured.
-- Production publication accepts only installers accompanied by source-bound platform signing evidence.
+## Upstream policy
 
-## Required production credentials
+Official GitHub Releases are intentionally unsigned:
 
-| Platform | Artifacts | Required secrets |
-|---|---|---|
-| Windows | MSI, NSIS | `WINDOWS_CERTIFICATE`, `WINDOWS_CERTIFICATE_PASSWORD` |
-| macOS | DMG and app bundle | `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID` |
-| Linux | DEB, AppImage | `LINUX_SIGNING_KEY` |
+- no Windows certificate is required;
+- no Apple Developer ID or notarization credential is required;
+- no Linux OpenPGP private key is required;
+- no signing secret is read by the release workflow;
+- previews and production releases use the same explicit unsigned policy;
+- production publication still requires complete checksum, SBOM, receipt, source-identity, exact-subject, and GitHub-attestation evidence.
 
-`APPLE_CERTIFICATE` and `WINDOWS_CERTIFICATE` are base64-encoded certificate files. `LINUX_SIGNING_KEY` is a base64-encoded armored private key. Secrets are imported only into the ephemeral runner environment.
+This avoids the former contradiction in which release creation was nominally supported but every production job stopped before compilation when repository signing secrets were absent.
 
-## Validation sequence
+## Target-status evidence
 
-1. `validate-signing-policy.mjs` verifies all required inputs before a production platform job builds.
-2. The platform-native signing tool signs and verifies every installer.
-3. macOS notarization is stapled and validated.
-4. `write-signing-evidence.mjs` writes a commit-bound record into the platform artifact.
-5. The publication job downloads all platform artifacts and runs `verify-signing-evidence.mjs`.
-6. The verified records are embedded in release receipt schema 3.
-7. SBOM, checksums, receipt, signatures, and the exact installers are published without rebuilding.
+Each build writes `signing-evidence-<platform>-<architecture>.json` using schema 2. The record includes:
+
+- platform and architecture;
+- preview or production channel;
+- `signed`, `notarized`, and `signatureType` values;
+- verifier instructions;
+- exact source commit;
+- creation timestamp.
+
+The official workflow writes `signed: false`, `notarized: false`, and `signatureType: "none"`. The publication verifier requires the complete target matrix:
+
+- Windows `x86_64`;
+- macOS `aarch64`;
+- Linux `x86_64`;
+- Linux `aarch64`.
+
+The verifier rejects duplicates, missing targets, unexpected targets, wrong channels, and source-commit mismatches. Release receipt schema 4 embeds the same normalized records and verifies byte-for-byte agreement with the downloaded artifacts.
+
+## Operating-system behavior
+
+Because upstream installers are unsigned:
+
+- Windows SmartScreen may report an unknown publisher;
+- macOS Gatekeeper may require the user to approve opening the app through System Settings or the Finder context menu;
+- Linux packages rely on the downloaded checksum and GitHub attestation rather than an upstream OpenPGP package signature.
+
+Release notes must state these limitations prominently. The application must never claim an Authenticode signature, Apple notarization, or OpenPGP signature that is not present.
+
+## Downstream distributor signing
+
+A downstream distributor may sign a copied installer using its own certificate or package repository process. That produces different bytes and therefore a different checksum and attestation subject from the upstream GitHub Release.
+
+A downstream distributor must:
+
+1. verify the upstream checksum and GitHub attestation first;
+2. retain the upstream receipt and source commit;
+3. sign only in its controlled distribution environment;
+4. publish new checksums and signature verification instructions under its own identity;
+5. never replace upstream assets in the official Scriptor release.
+
+The evidence schema can represent a correctly signed artifact for independent tooling, but official upstream CI does not import or consume private signing material.
 
 ## Local validation
 
-Preview packaging may omit signing inputs:
+Validate the secret-free policy and target matrix:
 
-```powershell
-$env:SCRIPTOR_RELEASE_CHANNEL = 'preview'
-pnpm --dir apps/desktop build
+```bash
+node scripts/release/validate-signing-policy.mjs \
+  --platform linux \
+  --architecture x86_64 \
+  --channel production
+node --test scripts/release/signing-policy.test.mjs
 ```
 
-A local production candidate must provide the same environment variables as CI and pass:
+Write an unsigned local status record:
 
-```powershell
-$env:SCRIPTOR_RELEASE_CHANNEL = 'production'
-node scripts/release/validate-signing-policy.mjs --platform windows --channel production
-powershell -ExecutionPolicy Bypass -File scripts/release/sign-installers.ps1
+```bash
+node scripts/release/write-signing-evidence.mjs \
+  --platform linux \
+  --architecture x86_64 \
+  --channel production \
+  --signed false \
+  --notarized false \
+  --signature-type none \
+  --verifier "unsigned artifact; verify SHA-256 and GitHub attestation"
 ```
 
-Equivalent macOS and Linux verification must be performed on their native platforms. Production credentials must never be written to files inside the repository.
-
-## Evidence format
-
-Each `signing-evidence-<platform>.json` record includes:
-
-- schema version;
-- platform and release channel;
-- signed and notarized status;
-- signature type and verifier;
-- source commit;
-- creation timestamp.
-
-The production verifier requires one unique record for each supported platform, `signed: true` everywhere, and `notarized: true` for macOS.
+The release verifier remains fail-closed for integrity and completeness even though publisher signing is not a prerequisite.
