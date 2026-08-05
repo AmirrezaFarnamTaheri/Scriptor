@@ -65,8 +65,20 @@ jobs:
 
           git apply --check "$RUNNER_TEMP/hardening.patch"
           git apply "$RUNNER_TEMP/hardening.patch"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs'
+          for (const path of [
+            'crates/cli/src/command_line.rs',
+            'crates/daemon/src/command_gateway/catalog.rs',
+            'docs/security/RUSTSEC-EXCEPTIONS.md',
+            'packages/mcp/src/tool-contracts.ts',
+          ]) {
+            const body = fs.readFileSync(path, 'utf8').replace(/[ \t]+$/gm, '').replace(/\n+$/u, '\n')
+            fs.writeFileSync(path, body)
+          }
+          NODE
 
-          node scripts/release/version.mjs check
+          env -u GITHUB_REF -u GITHUB_REF_NAME -u GITHUB_REF_TYPE node scripts/release/version.mjs check
           node scripts/validation/action-pins.mjs
           node scripts/validation/deep-module-boundaries.mjs
           node scripts/validation/i18n-parity.mjs
