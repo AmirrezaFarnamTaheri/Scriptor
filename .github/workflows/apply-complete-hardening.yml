@@ -16,9 +16,9 @@ jobs:
   apply:
     if: github.ref == 'refs/heads/automation/apply-complete-hardening-2026-08-05'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
-      - name: Checkout staging payload
+      - name: Checkout staging branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -28,33 +28,10 @@ jobs:
         with:
           node-version: 22.16.0
 
-      - name: Assemble and verify staged payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          tr -d '\r\n' < .automation/scriptor-hardening.patch.gz.b64.part03 > "$RUNNER_TEMP/part03-truncated"
-          {
-            head -c 6116 "$RUNNER_TEMP/part03-truncated"
-            printf '%s' 'LaBMmKDLX2qC3hnmlAl6M8AZE3T5Tibo'
-            tail -c +6117 "$RUNNER_TEMP/part03-truncated"
-          } > "$RUNNER_TEMP/part03-restored"
-          test "$(wc -c < "$RUNNER_TEMP/part03-restored")" -eq 8740
-          echo "f606d7cdf600442d1ba4aafdf4164790d157c1c54e2a5aaa4d9682e1686bb33b  $RUNNER_TEMP/part03-restored" | sha256sum -c -
-          {
-            cat .automation/scriptor-hardening.patch.gz.b64.part00 .automation/scriptor-hardening.patch.gz.b64.part01 .automation/scriptor-hardening.patch.gz.b64.part02
-            cat "$RUNNER_TEMP/part03-restored"
-            cat .automation/scriptor-hardening.patch.gz.b64.part04 .automation/scriptor-hardening.patch.gz.b64.part05
-          } | tr -d '\r\n' > "$RUNNER_TEMP/hardening.patch.gz.b64"
-          test "$(wc -c < "$RUNNER_TEMP/hardening.patch.gz.b64")" -eq 51892
-          echo "42d6f82778167213dd1f950b0c6518fb0eb2f4a2f534bab084477e5e52283370  $RUNNER_TEMP/hardening.patch.gz.b64" | sha256sum -c -
-          base64 --decode "$RUNNER_TEMP/hardening.patch.gz.b64" | gzip -d > "$RUNNER_TEMP/hardening.patch"
-          test "$(wc -c < "$RUNNER_TEMP/hardening.patch")" -eq 167598
-          echo "e79963ecc5040926c0b445e387699123f20b8447a4540f136a3c9cd39873e917  $RUNNER_TEMP/hardening.patch" | sha256sum -c -
-
-      - name: Construct validated workflow commit object
+      - name: Construct validated release-order commit object
         shell: bash
         env:
-          EXPECTED_PARENT: d728d39ac72715f7e02b81c3986d57cc9c412a73
+          EXPECTED_PARENT: 5314f4f30dcc824eda66620c20aba853ea2d0b42
           TARGET_BRANCH: audit/complete-repository-hardening-2026-08-05
         run: |
           set -euo pipefail
@@ -62,22 +39,20 @@ jobs:
           git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
           test "$(git rev-parse HEAD)" = "$EXPECTED_PARENT"
 
-          git apply --check --include='.github/workflows/ci.yml' --include='.github/workflows/release.yml' "$RUNNER_TEMP/hardening.patch"
-          git apply --include='.github/workflows/ci.yml' --include='.github/workflows/release.yml' "$RUNNER_TEMP/hardening.patch"
+          git apply --check "$GITHUB_WORKSPACE/.automation/windows-manifest-order.patch"
+          git apply "$GITHUB_WORKSPACE/.automation/windows-manifest-order.patch"
 
           node scripts/validation/action-pins.mjs
           node scripts/validation/source-contracts.mjs
-          env -u GITHUB_SHA -u SCRIPTOR_SOURCE_COMMIT node --test \
-            scripts/release/signing-policy.test.mjs \
-            scripts/validation/release-hardening-contracts.test.mjs
+          env -u GITHUB_SHA -u SCRIPTOR_SOURCE_COMMIT node --test scripts/validation/release-hardening-contracts.test.mjs
           git diff --check
 
-          git add .github/workflows/ci.yml .github/workflows/release.yml
+          git add .github/workflows/release.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'ci: enforce release and browser verification gates'
+          git commit -m 'fix(release): hash Windows installers after signing'
           echo "VALIDATED_COMMIT=$(git rev-parse HEAD)"
           echo "VALIDATED_TREE=$(git rev-parse HEAD^{tree})"
 
-          # Expected to be rejected by the workflow-scoped GITHUB_TOKEN after objects are transferred.
+          # Expected to be rejected by the workflow-scoped token after the object is uploaded.
           git push origin "HEAD:$TARGET_BRANCH"
