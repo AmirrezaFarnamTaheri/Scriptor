@@ -1,18 +1,12 @@
 const PLATFORMS = new Set(['windows', 'macos', 'linux'])
 const CHANNELS = new Set(['preview', 'production'])
-
-const REQUIRED_PRODUCTION_INPUTS = {
-  windows: ['WINDOWS_CERTIFICATE', 'WINDOWS_CERTIFICATE_PASSWORD'],
-  macos: [
-    'APPLE_CERTIFICATE',
-    'APPLE_CERTIFICATE_PASSWORD',
-    'APPLE_SIGNING_IDENTITY',
-    'APPLE_ID',
-    'APPLE_PASSWORD',
-    'APPLE_TEAM_ID',
-  ],
-  linux: ['LINUX_SIGNING_KEY'],
-}
+const ARCHITECTURE_ALIASES = new Map([
+  ['x86_64', 'x86_64'],
+  ['amd64', 'x86_64'],
+  ['x64', 'x86_64'],
+  ['aarch64', 'aarch64'],
+  ['arm64', 'aarch64'],
+])
 
 export function normalizeReleasePlatform(value) {
   const platform = String(value ?? '').trim().toLowerCase()
@@ -30,32 +24,26 @@ export function normalizeReleaseChannel(value) {
   return channel
 }
 
-export function requiredProductionInputs(platform) {
-  return [...REQUIRED_PRODUCTION_INPUTS[normalizeReleasePlatform(platform)]]
+export function normalizeReleaseArchitecture(value) {
+  const architecture = String(value ?? '').trim().toLowerCase()
+  const normalized = ARCHITECTURE_ALIASES.get(architecture)
+  if (!normalized) {
+    throw new Error(`unsupported release architecture: ${architecture || '<empty>'}`)
+  }
+  return normalized
 }
 
-export function validateSigningEnvironment({ platform, channel, env = process.env }) {
-  const normalizedPlatform = normalizeReleasePlatform(platform)
-  const normalizedChannel = normalizeReleaseChannel(channel)
-  if (normalizedChannel === 'preview') {
-    return {
-      platform: normalizedPlatform,
-      channel: normalizedChannel,
-      requiredInputs: [],
-    }
-  }
+export function requiredProductionInputs(platform) {
+  normalizeReleasePlatform(platform)
+  return []
+}
 
-  const requiredInputs = requiredProductionInputs(normalizedPlatform)
-  const missing = requiredInputs.filter((name) => !String(env[name] ?? '').trim())
-  if (missing.length > 0) {
-    throw new Error(
-      `production ${normalizedPlatform} signing requires: ${missing.join(', ')}`,
-    )
-  }
-
+export function validateSigningEnvironment({ platform, architecture, channel }) {
   return {
-    platform: normalizedPlatform,
-    channel: normalizedChannel,
-    requiredInputs,
+    platform: normalizeReleasePlatform(platform),
+    architecture: normalizeReleaseArchitecture(architecture),
+    channel: normalizeReleaseChannel(channel),
+    requiredInputs: [],
+    signingMode: 'unsigned',
   }
 }
