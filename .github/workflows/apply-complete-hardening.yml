@@ -16,19 +16,14 @@ jobs:
     steps:
       - name: Checkout staging payload
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
-      - name: Diagnose staged payload
+      - name: Locate deletion offset
         shell: bash
         run: |
           set -euo pipefail
-          for part in .automation/scriptor-hardening.patch.gz.b64.part*; do
-            normalized="$RUNNER_TEMP/$(basename "$part").normalized"
-            tr -d '\r\n' < "$part" > "$normalized"
-            echo "$(basename "$part") bytes=$(wc -c < "$normalized") sha256=$(sha256sum "$normalized" | cut -d' ' -f1)"
+          tr -d '\r\n' < .automation/scriptor-hardening.patch.gz.b64.part03 > "$RUNNER_TEMP/part03"
+          split -b 512 -d -a 2 "$RUNNER_TEMP/part03" "$RUNNER_TEMP/block-"
+          for block in "$RUNNER_TEMP"/block-*; do
+            echo "$(basename "$block") bytes=$(wc -c < "$block") sha256=$(sha256sum "$block" | cut -d' ' -f1)"
           done
-          cat .automation/scriptor-hardening.patch.gz.b64.part* | tr -d '\r\n' > "$RUNNER_TEMP/hardening.patch.gz.b64"
-          echo "canonical-bytes=$(wc -c < "$RUNNER_TEMP/hardening.patch.gz.b64")"
-          sha256sum "$RUNNER_TEMP/hardening.patch.gz.b64"
           exit 1
