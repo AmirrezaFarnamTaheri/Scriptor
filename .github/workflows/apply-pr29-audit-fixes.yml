@@ -59,8 +59,8 @@ jobs:
             exit 1
           }
 
-          git apply --check ../audit-fixes.patch
-          git apply ../audit-fixes.patch
+          git apply --check --whitespace=fix ../audit-fixes.patch
+          git apply --whitespace=fix ../audit-fixes.patch
           git diff --check
 
           node --experimental-strip-types --test scripts/validation/frontend-polish-contracts.test.mjs
