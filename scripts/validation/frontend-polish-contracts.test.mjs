@@ -29,7 +29,7 @@ test('Git panel state selection covers every owned async state', () => {
   assert.match(hookSource, /const \[isGitStatusLoading, setIsGitStatusLoading\] = useState\(false\)/)
   assert.match(hookSource, /const \[gitStatusError, setGitStatusError\] = useState<string \| null>\(null\)/)
   assert.match(hookSource, /const \[isGitMutationBusy, setIsGitMutationBusy\] = useState\(false\)/)
-  const refreshBlock = hookSource.match(/const refreshGit = useCallback\(async \(\) => \{([\s\S]*?)\n  \}, \[/)?.[1]
+  const refreshBlock = hookSource.match(/const refreshGit = useCallback\(async \(\) => \{([\s\S]*?)\n {2}\}, \[/)?.[1]
   assert.ok(refreshBlock, 'refreshGit implementation must remain inspectable')
   assert.match(refreshBlock, /setIsGitStatusLoading\(true\)/)
   assert.match(refreshBlock, /setGitStatusError\(null\)/)
