@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import { renderMarkdownPreview } from './preview.ts'
+import { applyPreviewPostProcess, combinePreviewWarnings } from './preview-result.ts'
 
 function generateSmall(): string {
   const lines: string[] = ['# Small Document']
@@ -94,6 +95,33 @@ test('large fixture renders without error', () => {
   const elapsed = performance.now() - start
   results.large = { ms: +elapsed.toFixed(2), budget: 0, pass: true }
   assert.ok(html.length > 0, 'rendered output must not be empty')
+})
+
+test('post-process exceptions preserve the core Markdown HTML', () => {
+  const coreHtml = '<h1>Research Plan</h1>'
+  const result = applyPreviewPostProcess(coreHtml, () => {
+    throw new Error('renderer extension crashed')
+  })
+
+  assert.equal(result.html, coreHtml)
+  assert.match(result.warning ?? '', /Preview extension failed/)
+  assert.match(result.warning ?? '', /Showing the core Markdown render/)
+})
+
+test('invalid post-process results preserve the core Markdown HTML', () => {
+  const coreHtml = '<p>Stable preview</p>'
+  const invalidPostProcessor = (() => 42) as unknown as (html: string) => string
+  const result = applyPreviewPostProcess(coreHtml, invalidPostProcessor)
+
+  assert.equal(result.html, coreHtml)
+  assert.match(result.warning ?? '', /non-string/)
+})
+
+test('preview warnings are de-duplicated without dropping distinct failures', () => {
+  assert.equal(
+    combinePreviewWarnings('Extension failed.', 'Extension failed.', 'Mermaid failed.'),
+    'Extension failed. Mermaid failed.',
+  )
 })
 
 process.on('exit', () => {
