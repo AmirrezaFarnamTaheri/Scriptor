@@ -1,20 +1,13 @@
 name: Release
+run-name: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && format('Production {0}', github.ref_name) || format('Preview v{0}', github.event.inputs.version || '0.1.0') }}
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version (e.g. 0.1.0)
+        description: Preview build version; manual runs do not publish
         required: false
         default: '0.1.0'
-      channel:
-        description: Build channel; production requires signing and notarization
-        required: true
-        type: choice
-        default: preview
-        options:
-          - preview
-          - production
   push:
     tags:
       - 'v*'
@@ -31,8 +24,8 @@ defaults:
     working-directory: .
 
 env:
-  SCRIPTOR_RELEASE_VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
-  SCRIPTOR_RELEASE_CHANNEL: ${{ startsWith(github.ref, 'refs/tags/v') && 'production' || github.event.inputs.channel || 'preview' }}
+  SCRIPTOR_RELEASE_VERSION: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
+  SCRIPTOR_RELEASE_CHANNEL: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'production' || 'preview' }}
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   FORCE_COLOR: 1
@@ -324,7 +317,7 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
       id-token: write
