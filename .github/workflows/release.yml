@@ -246,23 +246,50 @@ jobs:
           pattern: scriptor-*-installers
           merge-multiple: true
 
-      - name: Inventory downloaded release assets
+      - name: Separate installer subjects from trust metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p release-evidence
+
+          evidence=(release-artifacts/signing-evidence-*.json)
+          test "${#evidence[@]}" -eq 4
+          mv "${evidence[@]}" release-evidence/
+
+          installers=(release-artifacts/*)
+          msi=(release-artifacts/*.msi)
+          exe=(release-artifacts/*.exe)
+          dmg=(release-artifacts/*.dmg)
+          deb=(release-artifacts/*.deb)
+          appimage=(release-artifacts/*.AppImage)
+          test "${#installers[@]}" -eq 7
+          test "${#msi[@]}" -eq 1
+          test "${#exe[@]}" -eq 1
+          test "${#dmg[@]}" -eq 1
+          test "${#deb[@]}" -eq 2
+          test "${#appimage[@]}" -eq 2
+          test -z "$(find release-artifacts -mindepth 1 -maxdepth 1 -type d -print -quit)"
+
+      - name: Inventory exact installer and metadata sets
         shell: pwsh
         run: |
           $inventoryPath = Join-Path $env:CI_LOG_DIR "publication-inventory.log"
           $lines = @()
-          foreach ($item in @(Get-ChildItem -LiteralPath release-artifacts -File | Sort-Object Name)) {
-            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            $line = "file=$($item.Name) bytes=$($item.Length) sha256=$hash"
-            $lines += $line
-            Write-Host $line
+          foreach ($directory in @("release-artifacts", "release-evidence")) {
+            foreach ($item in @(Get-ChildItem -LiteralPath $directory -File | Sort-Object Name)) {
+              $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              $line = "file=$directory/$($item.Name) bytes=$($item.Length) sha256=$hash"
+              $lines += $line
+              Write-Host $line
+            }
           }
-          if ($lines.Count -eq 0) { throw "No downloaded release assets were found." }
+          if ($lines.Count -ne 11) { throw "Expected 7 installers and 4 trust records; found $($lines.Count) files." }
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
 
       - name: Verify architecture-bound unsigned trust evidence
         shell: bash
-        run: node scripts/release/verify-signing-evidence.mjs release-artifacts "$SCRIPTOR_RELEASE_CHANNEL"
+        run: node scripts/release/verify-signing-evidence.mjs release-evidence "$SCRIPTOR_RELEASE_CHANNEL"
 
       - name: Generate source-bound release evidence
         shell: bash
@@ -272,12 +299,12 @@ jobs:
           node scripts/release/create-receipt.mjs release-artifacts release-evidence
           node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence
 
-      - name: Attest exact release provenance
+      - name: Attest exact installer provenance
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-path: release-artifacts/*
 
-      - name: Attest exact release SBOM
+      - name: Attest exact installer SBOM
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
         with:
           subject-path: release-artifacts/*
@@ -297,10 +324,10 @@ jobs:
           Before running an installer:
 
           1. Download the installer, `SHA256SUMS`, `scriptor.cyclonedx.json`, and `release-receipt.json`.
-          2. Verify the installer checksum against its line in `SHA256SUMS`. On GNU systems: `sha256sum --check --ignore-missing SHA256SUMS`.
+          2. Set `installer` to the downloaded filename and verify only its checksum: `installer="<installer filename>"; grep -F "  $installer" SHA256SUMS | sha256sum --check -`.
           3. Verify GitHub provenance and SBOM attestations with `gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor`.
 
-          The receipt binds every published byte to this tag's source commit and records `signed: false` for each platform/architecture target. Full platform-specific checksum commands are documented in `docs/RELEASE-SECURITY.md` at this tag.
+          The receipt binds every installer byte to this tag's source commit and records `signed: false` for each platform/architecture target. Full platform-specific commands are documented in `docs/RELEASE-SECURITY.md` at this tag.
           NOTES
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --title "Scriptor $GITHUB_REF_NAME" --notes-file release-notes.md
