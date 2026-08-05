@@ -42,11 +42,11 @@ const createdAt = process.env.SOURCE_DATE_EPOCH
   ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString()
   : new Date().toISOString()
 const receipt = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   createdAt,
   version: fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim(),
   source,
-  signing: signing,
+  signing,
   platform: { os: os.platform(), arch: os.arch() },
   tools: {
     node: process.version,
