@@ -29,8 +29,8 @@ jobs:
         shell: bash
         env:
           TARGET_BRANCH: audit/complete-repository-hardening-2026-08-05
-          EXPECTED_HEAD: 2f6b2a3af31bb2b36b9908696e40d7f69ad3338b
-          EXPECTED_PATCH_SHA256: b9557eede3e8375f0cc7e588328c9e80fc77e5a4572e9c83f13bfcc96acb5aea
+          EXPECTED_HEAD: c46ca4af0925e7d5cbd5ba55f12fb7793bbd05d4
+          EXPECTED_PATCH_SHA256: 321075fdbc5a1a42f2aabf2bfb28ab25d1c95031a4a019776ca3723f94e5a694
         run: |
           set -euo pipefail
 
@@ -50,6 +50,19 @@ jobs:
           git apply --check /tmp/pr32-review-fixes.patch
           git apply /tmp/pr32-review-fixes.patch
           git diff --check
+
+          rm -rf node_modules
+          mkdir -p node_modules/@scriptor
+          for package_json in packages/*/package.json packages/plugins/*/package.json; do
+            package_name="$(node -p "require('./${package_json}').name")"
+            case "$package_name" in
+              @scriptor/*)
+                ln -s "../../$(dirname "$package_json")" "node_modules/@scriptor/${package_name#@scriptor/}"
+                ;;
+            esac
+          done
+          node --experimental-strip-types packages/plugin-api/src/validate-runner.ts
+          rm -rf node_modules
 
           env -u GITHUB_REF_NAME node scripts/release/version.mjs check
           node scripts/validation/action-pins.mjs
@@ -71,11 +84,14 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
-            e2e/canvas.spec.ts \
-            e2e/frontend-polish-regressions.spec.ts \
-            e2e/git.spec.ts \
-            e2e/helpers.ts \
-            src/e2e/bootstrap.ts
+            docs/architecture/PLUGIN_SYSTEM.md \
+            packages/plugin-api/catalog.json \
+            packages/plugin-api/src/marketplace.ts \
+            packages/plugin-api/src/validate.ts \
+            packages/plugins/canvas-kit/package.json \
+            packages/plugins/pdf-translate/package.json \
+            packages/plugins/publish-pack/package.json \
+            packages/plugins/vault-lint/package.json
           test -z "$(git status --short | grep -v '^M  ' || true)"
-          git commit -m 'test(e2e): fix remaining Windows flows'
+          git commit -m 'fix(plugins): align marketplace manifest IDs'
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
