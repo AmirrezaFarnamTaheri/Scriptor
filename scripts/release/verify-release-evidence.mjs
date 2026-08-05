@@ -37,12 +37,12 @@ if (receipt.version !== fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim
 if (receipt.source?.sourceCommit !== source.sourceCommit) throw new Error('receipt source commit does not match checkout')
 if (receipt.source?.sourceTreeSha256 !== source.sourceTreeSha256) throw new Error('receipt source tree does not match checkout')
 
-const signing = assertSigningEvidence(collectSigningEvidence(subjectDir), {
+const signing = assertSigningEvidence(collectSigningEvidence(evidenceDir), {
   channel: process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'production',
   expectedSourceCommit: source.sourceCommit,
 })
 if (JSON.stringify(receipt.signing) !== JSON.stringify(signing)) {
-  throw new Error('receipt signing evidence does not match release artifacts')
+  throw new Error('receipt signing evidence does not match release metadata')
 }
 
 const expectedRoot = path.relative(root, subjectDir).replaceAll('\\', '/')
@@ -65,4 +65,4 @@ for (const [relative, item] of expectedSubjects) {
   if (sums.get(relative) !== item.sha256) throw new Error(`SHA256SUMS mismatch: ${relative}`)
 }
 
-console.log(`Release evidence OK: ${expectedSubjects.size} subject(s), source ${source.sourceTreeSha256}.`)
+console.log(`Release evidence OK: ${expectedSubjects.size} installer subject(s), source ${source.sourceTreeSha256}.`)
