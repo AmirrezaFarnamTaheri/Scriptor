@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { RotateCcw } from 'lucide-react'
 
 /**
  * Local error fallback for panel-level ErrorBoundary boundaries.
@@ -60,11 +61,21 @@ const accentBarStyle: CSSProperties = {
   background: 'var(--danger)',
 }
 
+const actionsStyle: CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: 8,
+}
+
 interface PanelErrorFallbackProps {
   /** Human-readable name of the failed surface, e.g. "Graph". */
   title: string
   /** Optional extra guidance shown under the headline. */
   detail?: string
+  /** Reset action injected by ErrorBoundary for recoverable panel failures. */
+  onRetry?: () => void
+  /** Retry button label. */
+  retryLabel?: string
   /** When provided, renders a button that closes/dismisses the failed panel. */
   onDismiss?: () => void
   /** Dismiss button label. */
@@ -80,6 +91,8 @@ interface PanelErrorFallbackProps {
 export function PanelErrorFallback({
   title,
   detail = 'This panel failed to load. The rest of the workspace is still usable.',
+  onRetry,
+  retryLabel = 'Retry',
   onDismiss,
   dismissLabel = 'Close',
   variant = 'overlay',
@@ -90,10 +103,25 @@ export function PanelErrorFallback({
         <span style={accentBarStyle} aria-hidden="true" />
         <p style={titleStyle}>{title} could not be displayed</p>
         <p style={detailStyle}>{detail}</p>
-        {onDismiss ? (
-          <button type="button" className="primary-button" onClick={onDismiss}>
-            {dismissLabel}
-          </button>
+        {onRetry || onDismiss ? (
+          <div style={actionsStyle}>
+            {onRetry ? (
+              <button
+                type="button"
+                className="primary-button"
+                onClick={onRetry}
+                autoFocus
+              >
+                <RotateCcw aria-hidden="true" />
+                {retryLabel}
+              </button>
+            ) : null}
+            {onDismiss ? (
+              <button type="button" className="action-button" onClick={onDismiss}>
+                {dismissLabel}
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>
