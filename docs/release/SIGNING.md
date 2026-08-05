@@ -33,7 +33,7 @@ The official workflow writes `signed: false`, `notarized: false`, and `signature
 - Linux `x86_64`;
 - Linux `aarch64`.
 
-The verifier rejects duplicates, missing targets, unexpected targets, wrong channels, and source-commit mismatches. Release receipt schema 4 embeds the same normalized records and verifies byte-for-byte agreement with the downloaded artifacts.
+The verifier rejects duplicates, missing targets, unexpected targets, wrong channels, and source-commit mismatches. Publication moves the four records into `release-evidence`; receipt schema 4 embeds the same normalized records and verifies byte-for-byte agreement with that metadata. Trust records are not installer checksum or attestation subjects.
 
 ## Operating-system behavior
 
