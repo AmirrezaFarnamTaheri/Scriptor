@@ -1,0 +1,1 @@
+Temporary same-repository staging payload for the independently audited PR #29 fixes. The guarded workflow verifies both payload checksums and the exact target head before applying the patch. This branch is not intended to merge into the target branch.
