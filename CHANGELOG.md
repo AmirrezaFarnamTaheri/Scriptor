@@ -8,8 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Repository hardening (2026-08-05)
 
-- Made production release signing fail closed across Windows, macOS, and Linux and bound native verification results to receipt schema 3.
-- Added source-bound signing evidence, pre-publication verification, and production notarization enforcement.
+- Historical hardening made signing fail closed; the 0.1.1 policy supersedes it with explicit unsigned, architecture-bound status evidence and receipt schema 4.
+- Added source-bound trust-status evidence and pre-publication verification; official 0.1.1 assets are verified by checksums and GitHub attestations.
 - Added dedicated Playwright functional and visual CI gates with retained failure reports.
 - Replaced six explicit E2E skips with deterministic canvas, integrity-warning, and native MCP audit coverage.
 - Added an executable, expiring RustSec exception ledger with ownership, reachability, upstream references, and exit conditions.
@@ -47,7 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Release and governance
 
-- Added canonical `VERSION`, immutable action pins, fixed toolchains/runners, lockfile immutability gates, mandatory production signing/notarization, checksums, CycloneDX SBOM, release receipts, and attestations.
+- Added canonical `VERSION`, immutable action pins, fixed toolchains/runners, lockfile immutability gates, explicit unsigned status, checksums, CycloneDX SBOM, release receipts, and attestations.
 - Corrected AGPL/commercial-license wording and documented contributor relicensing authority.
 - Added current architecture, capability maturity, release security, operations, deep-module, and encryption threat-model documents.
 - Added repository-native version, action, package-boundary, locale, docs, and source-contract validators.
@@ -65,6 +65,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Added a finding-by-finding remediation report, exact verification record, production release checklist, frontend quality standard, CODEOWNERS policy, and canonical-history audit script.
 - Every due-diligence item now has an explicit source remediation, controlled experimental posture, release-environment gate, or canonical-history gate.
+
+## [0.1.0] - 2026-08-06
+
+### Release reliability
+
+- Removed certificate and signing-secret dependencies from official GitHub Releases; installers are explicitly unsigned and release notes disclose unknown-publisher warnings.
+- Unified Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64 packaging under one release owner with exact installer staging.
+- Added architecture-bound trust-status evidence, receipt schema 4, flat SHA-256 checksums, CycloneDX SBOM, and GitHub attestations.
+- Added immutable tag kickoff and safe re-dispatch so a failed publication can recover without moving a tag.
+
+### Editor interface
+
+- Portaled Typography and Insert menus to the viewport so the writing and split-preview surfaces cannot clip them.
+- Added keyboard navigation, Escape/outside-click dismissal, focus restoration, and scroll/resize repositioning.
 
 ## [0.1.0] - 2026-06-27
 
@@ -142,7 +156,7 @@ First public release of Scriptor — a local-first Markdown knowledge workspace 
 ### CI / DevOps
 
 - Cross-platform installers: Windows (MSI, NSIS), macOS (DMG), Linux (DEB, AppImage)
-- GitHub Actions CI and release workflows (historical 0.1.0 posture used optional code signing; current production tags fail closed)
+- GitHub Actions CI and release workflows (0.1.1+ official assets are intentionally unsigned with explicit status evidence, checksums, and attestations)
 - Container smoke image for headless validation
 - Devcontainer configuration (`.devcontainer/`) and Nix flake (`flake.nix`) for reproducible development environments
 - `check:a11y-axe` (`axe dist/index.html --rules wcag2a,wcag2aa,wcag21aa --exit`) added to `check:release` pipeline
