@@ -35,12 +35,13 @@ jobs:
           TARGET_BRANCH: audit/complete-repository-hardening-2026-08-05
         run: |
           set -euo pipefail
+          cp .automation/windows-manifest-order.patch "$RUNNER_TEMP/windows-manifest-order.patch"
           git fetch origin "$TARGET_BRANCH"
           git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
           test "$(git rev-parse HEAD)" = "$EXPECTED_PARENT"
 
-          git apply --check "$GITHUB_WORKSPACE/.automation/windows-manifest-order.patch"
-          git apply "$GITHUB_WORKSPACE/.automation/windows-manifest-order.patch"
+          git apply --check "$RUNNER_TEMP/windows-manifest-order.patch"
+          git apply "$RUNNER_TEMP/windows-manifest-order.patch"
 
           node scripts/validation/action-pins.mjs
           node scripts/validation/source-contracts.mjs
