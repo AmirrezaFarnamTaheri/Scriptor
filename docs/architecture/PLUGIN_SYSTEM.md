@@ -58,10 +58,10 @@ Plugins contribute behavior through slots:
 |---|---|---|
 | `scriptor-citation-tools` | CSL, bibliography, missing citation health checks. | inspector widget, health check, export profile |
 | `scriptor-graph-lens` | Advanced graph filters and note centrality reports. | inspector widget, command |
-| `scriptor-publish-pack` | Publication templates and export profiles. | export profile, renderer extension |
+| `scriptor.publish-pack` | Publication templates and export profiles. | export profile, renderer extension |
 | `scriptor-vault-lint` | Rules for broken links, invalid frontmatter, stale notes. | health check, command |
 | `scriptor-mcp-research` | Read-only research assistant tools. | MCP tool, command |
-| `scriptor-canvas-kit` | Sticky notes, shapes, connectors, and research board templates. | canvas tool, canvas block, template pack |
+| `scriptor.canvas-kit` | Sticky notes, shapes, connectors, and research board templates. | canvas tool, canvas block, template pack |
 
 ## Safety Gates
 
@@ -81,7 +81,7 @@ Plugins contribute behavior through slots:
 | Contribution registry + safe mode | `packages/plugin-api` |
 | Bundled marketplace catalog | `packages/plugin-api/catalog.json`, `src/marketplace.ts` |
 | Remote catalog merge | `loadMarketplaceCatalog` (`VITE_SCRIPTOR_PLUGIN_MARKETPLACE_URL`) |
-| First-party plugins | `scriptor-vault-lint`, `scriptor-canvas-kit`, `scriptor-publish-pack` |
+| First-party plugins | `scriptor-vault-lint`, `scriptor.canvas-kit`, `scriptor.publish-pack` |
 | Plugin panel UI | `src/components/PluginPanel.tsx` |
 | MCP read-only plugin slot | `packages/mcp` |
 

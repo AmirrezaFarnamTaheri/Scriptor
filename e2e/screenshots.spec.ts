@@ -37,7 +37,7 @@ async function waitForMonacoPainted(page: Page) {
 }
 
 async function waitForEditorReady(page: Page) {
-  await expect(page.locator('.tab.active', { hasText: 'Research Plan' })).toBeVisible({
+  await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
   })
   await waitForMonacoPainted(page)

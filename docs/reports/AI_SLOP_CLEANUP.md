@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-05  
 **Scope:** Pull request #29  
-**Status:** independently re-audited and corrected; current-head CI is pending
+**Status:** independently re-audited, corrected, verified, and merged
 
 ## Purpose
 
@@ -43,22 +43,20 @@ All CodeRabbit and Qodo inline threads and top-level review findings were checke
 
 ## Verification status
 
-Current-head GitHub Actions verification is pending. Merge-readiness claims must use the workflow and check suite attached to the pull request's newest commit, not historical run results.
+The final pull-request head `c3ae10c4886637e4029687cc13cef519bac5f285` passed GitHub Actions run `30965142253` with all seven jobs green before merge commit `045213834832d684abe9b88f8e634f89a9e7a20a` landed on `main`.
 
-The following checks completed before the implementation commit was created:
+Verified evidence included:
 
-- focused frontend-polish contracts: 7/7;
+- focused frontend-polish contracts: 8/8;
 - source contracts: 14/14;
 - locale parity and static translation references: 3 locales, 285 keys each;
-- documentation contracts;
-- frontend-quality policy;
-- CSS custom-property policy;
-- GitHub Action pin policy;
-- package-boundary policy;
-- module-size ownership ratchet;
-- TypeScript syntax transpilation for every changed TypeScript/TSX file.
-
-Full dependency-backed lint, build, Rust, container, browser, accessibility, Windows, and performance verification remains pending until the normal CI suite completes on the current head.
+- dependency-backed lint and frontend build;
+- Rust tests and release smoke;
+- container runtime smoke;
+- accessibility and axe audits;
+- TUI and daemon smoke;
+- Windows release and performance gates;
+- documentation, frontend-quality, CSS custom-property, action-pin, package-boundary, and module-size policies.
 
 ## Remaining release-candidate checks
 

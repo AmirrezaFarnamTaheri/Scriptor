@@ -5,6 +5,7 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { getSourceIdentity } from './source-identity.mjs'
 import { collectSubjectFiles } from './release-evidence-utils.mjs'
+import { assertSigningEvidence, collectSigningEvidence } from './signing-evidence.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const subjectDir = path.resolve(process.argv[2] ?? path.join(root, 'dist'))
@@ -33,14 +34,19 @@ const source = getSourceIdentity({
   requireClean: !allowArchive,
   allowArchive,
 })
+const signing = assertSigningEvidence(collectSigningEvidence(subjectDir), {
+  channel: process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'production',
+  expectedSourceCommit: source.sourceCommit,
+})
 const createdAt = process.env.SOURCE_DATE_EPOCH
   ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString()
   : new Date().toISOString()
 const receipt = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   createdAt,
   version: fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim(),
   source,
+  signing: signing,
   platform: { os: os.platform(), arch: os.arch() },
   tools: {
     node: process.version,

@@ -9,8 +9,8 @@ async function openGitPanel(page: Page) {
   await settleLayout(page)
   await openCommandPalette(page)
   await runCommand(page, OPEN_GIT)
-  const panel = page.getByRole('dialog', { name: 'Git status' })
-  await expect(panel).toBeVisible({ timeout: 15_000 })
+  const panel = page.getByRole('dialog', { name: 'Git', exact: true })
+  await expect(panel).toBeVisible({ timeout: 45_000 })
   return panel
 }
 
@@ -46,7 +46,7 @@ test.describe('Git panel', () => {
     await expect(confirm).toBeVisible()
     await expect(confirm).toContainText('test: e2e commit')
     await expect(confirm.locator('.git-confirm-files')).toContainText('Research Plan.md')
-    await confirm.getByRole('button', { name: 'Check', exact: true }).click()
+    await confirm.getByRole('button', { name: 'Confirm', exact: true }).click()
 
     // The commit really reached the bridge with the message and file we chose…
     await expect

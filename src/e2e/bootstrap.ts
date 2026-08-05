@@ -48,6 +48,8 @@ declare global {
     __scriptorE2eMergedConflict?: { path: string; mergedMarkdown: string }
     /** Payload of the most recent `vault_rename_apply` call. */
     __scriptorE2eRenameApply?: { fromPath: string; toPath: string; updateLinks: boolean }
+    /** Serialized canvas documents persisted through the mocked native bridge. */
+    __scriptorE2eCanvasSaves?: string[]
   }
 }
 
@@ -83,6 +85,16 @@ export function installE2eBridge(): void {
   // tests can assert that a commit round trip actually changed something.
   let committed = false
   let conflictsResolved = false
+  let hashMismatchTriggered = false
+  let canvasDocumentJson = JSON.stringify({
+    id: 'canvas-board-default',
+    vaultId: 'screenshot-vault',
+    title: 'Research board',
+    mode: 'edgeless',
+    layers: [{ id: 'layer-main', name: 'Main', visible: true, locked: false, order: 0 }],
+    blocks: [],
+    updatedAt: new Date().toISOString(),
+  })
   // Mock Tauri internals so `isTauriRuntime` returns true
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
     window.__TAURI_INTERNALS__ = {}
@@ -121,12 +133,34 @@ export function installE2eBridge(): void {
             markdown: conflictFixture,
           }
         }
+        if (hashMismatchTriggered && readPath === 'Research Plan.md') {
+          const document = e2eNoteDocument(readPath)
+          return {
+            ...document,
+            metadata: { ...document.metadata, content_hash: 'hash-external-change' },
+            markdown: `${document.markdown}\n\nExternal disk edit.`,
+          }
+        }
         return e2eNoteDocument(readPath)
       }
       case 'vault_save_note': {
-        const body = payload as { path?: string; markdown?: string }
+        const body = payload as {
+          path?: string
+          markdown?: string
+          expectedContentHash?: string | null
+        }
         const path = String(body.path ?? 'Research Plan.md')
         const markdown = String(body.markdown ?? '')
+        if (
+          window.sessionStorage.getItem('e2e:hash-mismatch') === '1' &&
+          body.expectedContentHash &&
+          !hashMismatchTriggered
+        ) {
+          hashMismatchTriggered = true
+          throw new Error(
+            `content hash mismatch: expected ${body.expectedContentHash}, found hash-external-change`,
+          )
+        }
         return e2eSaveNote(path, markdown)
       }
       case 'vault_rename_dry_run': {
@@ -288,6 +322,15 @@ export function installE2eBridge(): void {
           conflicted_files: hasConflicts ? ['Field Notes.md'] : [],
         }
       }
+      case 'authorize_sensitive_operation': {
+        const body = payload as { operation?: string; scope?: string | null }
+        return {
+          token: 'e2e-authorization-token',
+          operation: String(body.operation ?? ''),
+          scope: body.scope ?? null,
+          expiresAtMs: Date.now() + 60_000,
+        }
+      }
       case 'git_commit_cmd': {
         const body = payload as { files?: string[]; message?: string }
         const files = body.files ?? []
@@ -428,21 +471,38 @@ export function installE2eBridge(): void {
       default:
         if (cmd.startsWith('canvas_')) {
           if (cmd === 'canvas_list_documents') {
-            return []
+            const document = JSON.parse(canvasDocumentJson) as {
+              id: string
+              title: string
+              updatedAt: string
+              blocks: unknown[]
+            }
+            return (window.__scriptorE2eCanvasSaves?.length ?? 0) > 0
+              ? [
+                  {
+                    id: document.id,
+                    title: document.title,
+                    updatedAt: document.updatedAt,
+                    blockCount: document.blocks.length,
+                    path: `.scriptor/canvas/${document.id}.json`,
+                  },
+                ]
+              : []
           }
           if (cmd === 'canvas_load_document') {
-            return JSON.stringify({
-              id: 'canvas-board-default',
-              vaultId: 'vault-default',
-              title: 'Research board',
-              mode: 'edgeless',
-              layers: [
-                { id: 'layer-main', name: 'Main', visible: true, locked: false, order: 0 }
-              ],
-              blocks: [],
-              updatedAt: new Date().toISOString()
-            })
+            return canvasDocumentJson
           }
+          if (cmd === 'canvas_save_document') {
+            canvasDocumentJson = String((payload as { sceneJson?: string }).sceneJson ?? canvasDocumentJson)
+            window.__scriptorE2eCanvasSaves = [
+              ...(window.__scriptorE2eCanvasSaves ?? []),
+              canvasDocumentJson,
+            ]
+            const document = JSON.parse(canvasDocumentJson) as { id: string }
+            return `.scriptor/canvas/${document.id}.json`
+          }
+          if (cmd === 'canvas_query_blocks') return []
+          if (cmd === 'canvas_hit_test') return null
           return null
         }
         if (cmd.startsWith('daemon_')) {

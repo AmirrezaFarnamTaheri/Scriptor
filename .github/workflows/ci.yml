@@ -226,6 +226,8 @@ jobs:
           node scripts/validation/i18n-parity.mjs
           node scripts/validation/docs-contracts.mjs
           node scripts/validation/source-contracts.mjs
+          node scripts/validation/rustsec-exceptions.mjs
+          node --test scripts/release/signing-policy.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs
 
       - name: Describe fast validation scope
         shell: pwsh
@@ -471,6 +473,74 @@ jobs:
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
           retention-days: 7
+
+  validate-browser:
+    name: Browser E2E and visual regression
+    needs: supply-chain
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/validate-browser
+      PLAYWRIGHT_CHANNEL: msedge
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Describe browser validation scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Browser E2E and visual regression"
+
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
+
+      - name: Run functional Playwright suite
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run functional Playwright suite" -FilePath "pnpm" -ArgumentList @("test:e2e") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Run visual regression suite
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("test:visual") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Capture browser validation failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Browser E2E and visual regression"
+
+      - name: Finalize browser validation evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status "${{ job.status }}"
+
+      - name: Upload browser reports and evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-evidence-validate-browser-${{ github.run_attempt }}
+          path: |
+            ${{ env.CI_LOG_DIR }}
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 14
 
   release-smoke:
     name: Windows release smoke and performance gates

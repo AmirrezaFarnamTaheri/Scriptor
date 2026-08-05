@@ -25,7 +25,6 @@ import {
   PanelFallback,
   PortalPanel,
   PublishCenter,
-  QuickCapturePanel,
   SettingsPanel,
   SnippetsPanelLazy,
   VaultHealthDashboard,
@@ -43,10 +42,6 @@ import { MobileWorkspaceNav } from './components/shell/MobileWorkspaceNav'
 import { useTextPrompt } from './hooks/useTextPrompt'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
-import { RenameNoteDialog } from './components/RenameNoteDialog'
-import { RenameBlockDialog } from './components/RenameBlockDialog'
-import { RenameSectionDialog } from './components/RenameSectionDialog'
-import { RenameTagDialog } from './components/RenameTagDialog'
 import { CommandPalette } from './components/CommandPalette'
 import { AppToast } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -56,7 +51,8 @@ import { PerfHudOverlay } from './components/PerfHudOverlay'
 import { FrontmatterInspector } from './components/FrontmatterInspector'
 import { CheatsheetPanel } from './components/CheatsheetPanel'
 import { SupportPanel } from './components/SupportPanel'
-import { StickyNotesLayer } from './components/portal/StickyNotesLayer'
+import { QuickCaptureWorkspaceLayer } from './components/app/QuickCaptureWorkspaceLayer'
+import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
 import { WritingTargetsPanel } from './components/WritingTargetsPanel'
 import { recordWritingSession } from './lib/writingTargets'
 import type { KnowledgeWorkbenchTab } from './components/KnowledgeWorkbench'
@@ -1870,127 +1866,14 @@ function App() {
         </ErrorBoundary>
       ) : null}
 
-      {quickCaptureOpen ? (
-        <ErrorBoundary
-          name="quick-capture-panel"
-          fallback={<PanelErrorFallback title="Quick capture" onDismiss={() => setQuickCaptureOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <QuickCapturePanel
-          scratchpad={workspaceStore.quickCapture.scratchpad}
-          todos={workspaceStore.quickCapture.todos}
-          presentation={panelPresentation === 'dock-right' ? 'dock-right' : 'modal'}
-          onClose={() => setQuickCaptureOpen(false)}
-          onScratchpadChange={(body) =>
-            workspaceStore.updateQuickCapture((capture) => ({
-              ...capture,
-              scratchpad: { kind: 'scratchpad', body, updatedAt: new Date().toISOString() },
-            }))
-          }
-          onAddTodo={(text) =>
-            workspaceStore.updateQuickCapture((capture) => ({
-              ...capture,
-              todos: [
-                ...capture.todos,
-                {
-                  id: crypto.randomUUID(),
-                  kind: 'todo',
-                  text,
-                  done: false,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                },
-              ],
-            }))
-          }
-          onToggleTodo={(id) =>
-            workspaceStore.updateQuickCapture((capture) => ({
-              ...capture,
-              todos: capture.todos.map((todo) =>
-                todo.id === id
-                  ? { ...todo, done: !todo.done, updatedAt: new Date().toISOString() }
-                  : todo,
-              ),
-            }))
-          }
-          onUpdateTodo={(id, text) =>
-            workspaceStore.updateQuickCapture((capture) => ({
-              ...capture,
-              todos: capture.todos.map((todo) =>
-                todo.id === id ? { ...todo, text, updatedAt: new Date().toISOString() } : todo,
-              ),
-            }))
-          }
-          onDeleteTodo={(id) =>
-            workspaceStore.updateQuickCapture((capture) => ({
-              ...capture,
-              todos: capture.todos.filter((todo) => todo.id !== id),
-            }))
-          }
-          onAddSticky={() =>
-            workspaceStore.updateQuickCapture((capture) => ({
-              ...capture,
-              stickies: [
-                ...capture.stickies,
-                {
-                  id: crypto.randomUUID(),
-                  kind: 'sticky',
-                  title: 'Sticky',
-                  body: '',
-                  color: '#fef9c3',
-                  x: 80 + capture.stickies.length * 24,
-                  y: 120 + capture.stickies.length * 24,
-                  width: 240,
-                  height: 180,
-                  pinned: false,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                },
-              ],
-            }))
-          }
-          onPromoteScratchpadToNote={
-            workspace.activePath
-              ? () => {
-                  const body = workspaceStore.quickCapture.scratchpad.body.trim()
-                  if (!body) return
-                  workspace.insertSnippet(`\n${body}\n`)
-                  setQuickCaptureOpen(false)
-                }
-              : undefined
-          }
-          onCreateInboxNoteFromScratchpad={() => {
-            const body = workspaceStore.quickCapture.scratchpad.body.trim()
-            if (!body) return
-            void (async () => {
-              await workspace.createNote(`Capture ${new Date().toISOString().slice(0, 10)}`)
-              workspace.updateDraft(body)
-              await workspace.saveActiveNoteNow()
-              workspaceStore.updateQuickCapture((capture) => ({
-                ...capture,
-                scratchpad: { kind: 'scratchpad', body: '', updatedAt: new Date().toISOString() },
-              }))
-              setQuickCaptureOpen(false)
-            })()
-          }}
-          onCreateNoteFromTodo={(id) => {
-            const todo = workspaceStore.quickCapture.todos.find((entry) => entry.id === id)
-            if (!todo) return
-            void (async () => {
-              await workspace.createNote(todo.text.slice(0, 60))
-              workspace.updateDraft(`# ${todo.text}\n\n- [ ] ${todo.text}\n`)
-              await workspace.saveActiveNoteNow()
-              workspaceStore.updateQuickCapture((capture) => ({
-                ...capture,
-                todos: capture.todos.filter((entry) => entry.id !== id),
-              }))
-              setQuickCaptureOpen(false)
-            })()
-          }}
-        />
-        </Suspense>
-        </ErrorBoundary>
-      ) : null}
+      <QuickCaptureWorkspaceLayer
+        isOpen={quickCaptureOpen}
+        stickiesVisible={stickiesVisible}
+        presentation={panelPresentation}
+        workspace={workspace}
+        workspaceStore={workspaceStore}
+        onClose={() => setQuickCaptureOpen(false)}
+      />
 
       {noteHistoryOpen ? (
         <ErrorBoundary
@@ -2011,122 +1894,20 @@ function App() {
         </ErrorBoundary>
       ) : null}
 
-      <StickyNotesLayer
-        stickies={workspaceStore.quickCapture.stickies}
-        visible={stickiesVisible}
-        onUpdate={(note) =>
-          workspaceStore.updateQuickCapture((capture) => ({
-            ...capture,
-            stickies: capture.stickies.map((entry) => (entry.id === note.id ? note : entry)),
-          }))
-        }
-        onDelete={(id) =>
-          workspaceStore.updateQuickCapture((capture) => ({
-            ...capture,
-            stickies: capture.stickies.filter((entry) => entry.id !== id),
-          }))
-        }
+      <WorkspaceRenameDialogs
+        workspace={workspace}
+        tag={tagRenameTag}
+        block={blockRenameTarget}
+        section={sectionRenameTarget}
+        noteOpen={renameOpen}
+        notePath={renameTargetPath}
+        setTag={setTagRenameTag}
+        setBlock={setBlockRenameTarget}
+        setSection={setSectionRenameTarget}
+        setNoteOpen={setRenameOpen}
+        setNotePath={setRenameTargetPath}
+        closeKnowledgeWorkbench={() => setKnowledgeWorkbenchOpen(false)}
       />
-
-      {tagRenameTag && (
-        <RenameTagDialog
-          oldTag={tagRenameTag}
-          preview={workspace.linkRewritePreview}
-          isApplying={workspace.isLinkRewriting}
-          onClose={() => {
-            setTagRenameTag(null)
-            workspace.clearLinkRewritePreview()
-          }}
-          onPreview={(newTag) => void workspace.previewTagRename(tagRenameTag, newTag)}
-          onApply={(newTag) => {
-            void workspace.applyTagRename(tagRenameTag, newTag).then(() => {
-              setTagRenameTag(null)
-              setKnowledgeWorkbenchOpen(false)
-            })
-          }}
-        />
-      )}
-
-      {blockRenameTarget && (
-        <RenameBlockDialog
-          notePath={blockRenameTarget.path}
-          oldBlock={blockRenameTarget.label}
-          preview={workspace.linkRewritePreview}
-          isApplying={workspace.isLinkRewriting}
-          onClose={() => {
-            setBlockRenameTarget(null)
-            workspace.clearLinkRewritePreview()
-          }}
-          onPreview={(newBlock, updateAnchor) =>
-            void workspace.previewBlockRename(
-              blockRenameTarget.path,
-              blockRenameTarget.label,
-              newBlock,
-              updateAnchor,
-            )
-          }
-          onApply={(newBlock, updateAnchor) => {
-            void workspace
-              .applyBlockRename(blockRenameTarget.path, blockRenameTarget.label, newBlock, updateAnchor)
-              .then(() => setBlockRenameTarget(null))
-          }}
-        />
-      )}
-
-      {sectionRenameTarget && (
-        <RenameSectionDialog
-          notePath={sectionRenameTarget.path}
-          oldSection={sectionRenameTarget.label}
-          preview={workspace.linkRewritePreview}
-          isApplying={workspace.isLinkRewriting}
-          onClose={() => {
-            setSectionRenameTarget(null)
-            workspace.clearLinkRewritePreview()
-          }}
-          onPreview={(newSection, updateHeading) =>
-            void workspace.previewSectionRename(
-              sectionRenameTarget.path,
-              sectionRenameTarget.label,
-              newSection,
-              updateHeading,
-            )
-          }
-          onApply={(newSection, updateHeading) => {
-            void workspace
-              .applySectionRename(
-                sectionRenameTarget.path,
-                sectionRenameTarget.label,
-                newSection,
-                updateHeading,
-              )
-              .then(() => setSectionRenameTarget(null))
-          }}
-        />
-      )}
-
-      {renameOpen && (renameTargetPath ?? workspace.activePath) && (
-        <RenameNoteDialog
-          currentPath={renameTargetPath ?? workspace.activePath ?? ''}
-          preview={workspace.renamePreview}
-          isApplying={workspace.isRenaming}
-          onClose={() => {
-            setRenameOpen(false)
-            setRenameTargetPath(null)
-            workspace.clearRenamePreview()
-          }}
-          onPreview={(toPath, updateLinks) =>
-            void workspace.previewRename(toPath, updateLinks, renameTargetPath ?? undefined)
-          }
-          onApply={(toPath, updateLinks) => {
-            void workspace
-              .applyRename(toPath, updateLinks, renameTargetPath ?? undefined)
-              .then(() => {
-                setRenameOpen(false)
-                setRenameTargetPath(null)
-              })
-          }}
-        />
-      )}
 
       {promptRequest ? (
         <TextPromptDialog

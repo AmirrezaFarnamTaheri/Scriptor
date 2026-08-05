@@ -33,16 +33,19 @@ test.describe('Graph panel', () => {
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
     await expect(graphContainer.first()).toBeVisible({ timeout: 5000 })
-    await graphContainer.first().focus()
+    const keyboardSurface = graphContainer.first()
+    await keyboardSurface.focus()
+    await expect(keyboardSurface).toBeFocused()
 
-    await page.keyboard.press('Tab')
-    await page.waitForFunction(() => document.activeElement?.closest('.graph-canvas, [role="application"]') !== null)
+    const announcement = panel.locator('[aria-live="polite"]')
     await page.keyboard.press('ArrowRight')
-    await page.waitForFunction(() => document.activeElement?.closest('.graph-canvas, [role="application"]') !== null)
-    await page.keyboard.press('ArrowDown')
-    await page.waitForFunction(() => document.activeElement?.closest('.graph-canvas, [role="application"]') !== null)
+    await expect(announcement).toContainText('Field Notes, 2 connections')
+    await expect(panel.locator('.graph-node-focus-ring')).toHaveCount(1)
 
-    await expect(panel).toBeVisible({ timeout: 3000 })
+    await page.keyboard.press('ArrowDown')
+    await expect(announcement).toContainText('Research Plan, 4 connections')
+    await expect(panel.locator('.graph-node-focus-ring')).toHaveCount(1)
+    await expect(keyboardSurface).toBeFocused()
   })
 
   test('enter key activates focused node', async ({ page }) => {
@@ -55,12 +58,16 @@ test.describe('Graph panel', () => {
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
     await expect(graphContainer.first()).toBeVisible({ timeout: 5000 })
-    await graphContainer.first().focus()
+    const keyboardSurface = graphContainer.first()
+    await keyboardSurface.focus()
+    await expect(keyboardSurface).toBeFocused()
 
-    await page.keyboard.press('Tab')
-    await page.waitForFunction(() => document.activeElement?.closest('.graph-canvas, [role="application"]') !== null)
+    await page.keyboard.press('ArrowRight')
+    await expect(panel.locator('[aria-live="polite"]')).toContainText('Field Notes, 2 connections')
     await page.keyboard.press('Enter')
-    await expect(panel).toBeVisible({ timeout: 3000 })
+
+    await expect(page.getByRole('tab', { name: 'Field Notes', selected: true })).toBeVisible()
+    await expect(panel.locator('.graph-header')).toContainText('focus Field Notes.md')
   })
 
   test('escape closes graph panel', async ({ page }) => {

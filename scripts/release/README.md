@@ -7,7 +7,7 @@ Release engineering scripts for Scriptor `0.1.0`.
 - [`VERSION`](../../VERSION) is the canonical release version.
 - `node scripts/release/version.mjs check` verifies npm, Cargo, Tauri, and workflow version parity.
 - Built-in self-updating is not shipped. Release scripts must not inject updater configuration or permissions.
-- Production release artifacts are built once, downloaded by the promotion job, signed/verified, checksummed, inventoried in a CycloneDX SBOM, and attested without rebuilding.
+- Production release artifacts fail closed unless every platform credential is present. They are built once, signed and verified on native runners, downloaded by the promotion job, checked against source-bound signing evidence, checksummed, inventoried in a CycloneDX SBOM, receipted, and attested without rebuilding.
 
 ## Main scripts
 
@@ -16,13 +16,16 @@ Release engineering scripts for Scriptor `0.1.0`.
 | `package.ps1` | Local full pre-release pipeline and optional Tauri bundle. |
 | `smoke.ps1` | CLI workflow smoke on the minimal fixture vault. |
 | `perf-gate.ps1` | Enforces scan/search performance budgets. |
-| `sign-installers.ps1` | Authenticode signing for Windows artifacts. |
+| `validate-signing-policy.mjs` | Fails closed when a production platform lacks required credentials. |
+| `sign-installers.ps1` | Authenticode signing and verification for Windows artifacts. |
+| `write-signing-evidence.mjs` | Writes a source-bound platform signing record. |
+| `verify-signing-evidence.mjs` | Requires complete production signatures and macOS notarization. |
 | `verify-bundle.mjs` | Cross-platform post-bundle artifact validation. |
 | `write-manifest.ps1` | Writes SHA-256 artifact metadata. |
 | `version.mjs` | Checks or synchronizes the canonical version. |
 | `source-identity.mjs` | Computes archive diagnostics or canonical commit-bound SHA-256 source identity from Git blobs and modes. |
 | `generate-sbom.mjs` | Generates the CycloneDX source/dependency SBOM. |
-| `create-receipt.mjs` | Creates the exact-subject release receipt and checksums. |
+| `create-receipt.mjs` | Creates receipt schema 3 with exact subjects, checksums, source identity, and signing evidence. |
 | `verify-release-evidence.mjs` | Rejects source, SBOM, checksum, path, or subject-set drift before promotion. |
 
 ## Pinned environment

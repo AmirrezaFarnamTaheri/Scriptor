@@ -164,10 +164,13 @@ test('release evidence binds exact source and rejects unreceipted artifacts', ()
   const sbom = read('scripts/release/generate-sbom.mjs')
   assert.match(receipt, /getSourceIdentity/)
   assert.match(receipt, /collectSubjectFiles/)
+  assert.match(receipt, /collectSigningEvidence/)
+  assert.match(receipt, /schemaVersion:\s*3/)
   assert.match(verifier, /requireGit:\s*true/)
   assert.match(verifier, /requireClean:\s*true/)
   assert.match(verifier, /assertExactSubjectSet/)
   assert.match(verifier, /parseSha256Sums/)
+  assert.match(verifier, /assertSigningEvidence/)
   assert.match(utilities, /unreceipted:/)
   assert.match(utilities, /release subjects may not contain symbolic links/)
   assert.match(sbom, /parsePnpmLockPackages/)
@@ -191,4 +194,24 @@ test('frontend polish regression contracts pass under the pinned Node runtime', 
     0,
     [result.stdout, result.stderr].filter(Boolean).join('\n'),
   )
+})
+
+
+test('release hardening and RustSec ownership contracts pass under the pinned Node runtime', () => {
+  for (const script of [
+    'scripts/validation/release-hardening-contracts.test.mjs',
+    'scripts/validation/rustsec-exceptions.test.mjs',
+    'scripts/release/signing-policy.test.mjs',
+  ]) {
+    const result = spawnSync(process.execPath, ['--test', path.join(root, script)], {
+      cwd: root,
+      encoding: 'utf8',
+    })
+    assert.equal(result.status, 0, [result.stdout, result.stderr].filter(Boolean).join('\n'))
+  }
+  const ledger = spawnSync(process.execPath, ['scripts/validation/rustsec-exceptions.mjs'], {
+    cwd: root,
+    encoding: 'utf8',
+  })
+  assert.equal(ledger.status, 0, [ledger.stdout, ledger.stderr].filter(Boolean).join('\n'))
 })

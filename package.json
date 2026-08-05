@@ -1,6 +1,6 @@
 {
   "name": "scriptor",
-  "description": "Scriptor \u2014 local-first Markdown knowledge workspace",
+  "description": "Scriptor — local-first Markdown knowledge workspace",
   "private": true,
   "pnpm": {
     "overrides": {
@@ -61,7 +61,7 @@
     "release:package": "powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1",
     "release:smoke": "powershell -ExecutionPolicy Bypass -File scripts/release/smoke.ps1",
     "release:perf-gate": "powershell -ExecutionPolicy Bypass -File scripts/release/perf-gate.ps1",
-    "check:release": "pnpm check:contracts && pnpm check:mcp && pnpm check:plugins && pnpm check:canvas && pnpm check:editor && pnpm check:renderer && pnpm check:export && pnpm check:portal && pnpm check:knowledge && pnpm check:merge && pnpm check:citations && pnpm check:headless && pnpm lint && pnpm build && pnpm test:rust && pnpm check:tui && pnpm check:daemon && pnpm check:container && pnpm release:smoke && pnpm release:perf-gate && pnpm bench:canvas && pnpm bench:startup && pnpm bench:idle-memory && pnpm check:a11y && pnpm check:a11y-axe",
+    "check:release": "pnpm check:contracts && pnpm check:mcp && pnpm check:plugins && pnpm check:canvas && pnpm check:editor && pnpm check:renderer && pnpm check:export && pnpm check:portal && pnpm check:knowledge && pnpm check:merge && pnpm check:citations && pnpm check:headless && pnpm lint && pnpm build && pnpm test:rust && pnpm check:tui && pnpm check:daemon && pnpm check:container && pnpm release:smoke && pnpm release:perf-gate && pnpm bench:canvas && pnpm bench:startup && pnpm bench:idle-memory && pnpm check:a11y && pnpm check:a11y-axe && pnpm test:e2e && pnpm test:visual",
     "cli": "cargo run -p scriptor-cli --",
     "bench:vault-scan": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/vault-scan.ps1",
     "bench:search": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/search.ps1",
@@ -99,8 +99,8 @@
     "release:sbom": "node scripts/release/generate-sbom.mjs",
     "release:receipt": "node scripts/release/create-receipt.mjs",
     "release:evidence:verify": "node scripts/release/verify-release-evidence.mjs",
-    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node --test scripts/benchmarks/benchmark-utils.test.mjs scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs",
-    "check:governance": "node scripts/release/version.mjs check && node scripts/validation/action-pins.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/i18n-parity.mjs && node scripts/validation/docs-contracts.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs",
+    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs && node --test scripts/benchmarks/benchmark-utils.test.mjs scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs scripts/release/signing-policy.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs",
+    "check:governance": "node scripts/release/version.mjs check && node scripts/validation/action-pins.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/i18n-parity.mjs && node scripts/validation/docs-contracts.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs",
     "check:rust:product": "cargo check --locked",
     "check:rust:incubating": "cargo check --locked -p scriptor-embeddings -p scriptor-tantivy-indexer -p scriptor-wasm-runtime",
     "test:rust:product": "cargo test --locked --exclude scriptor-desktop",
@@ -109,7 +109,10 @@
     "check:frontend-quality": "node scripts/validation/frontend-quality.mjs && node scripts/validation/css-custom-properties.mjs",
     "check:bundle": "node scripts/validation/bundle-graph.mjs",
     "check:benchmark-contracts": "node --test scripts/benchmarks/benchmark-utils.test.mjs",
-    "check:release-evidence-contracts": "node --test scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs"
+    "check:release-evidence-contracts": "node --test scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs scripts/release/signing-policy.test.mjs",
+    "check:release-signing": "node --test scripts/release/signing-policy.test.mjs",
+    "check:release-hardening": "node --test scripts/validation/release-hardening-contracts.test.mjs",
+    "check:rustsec-exceptions": "node scripts/validation/rustsec-exceptions.mjs"
   },
   "dependencies": {
     "@scriptor/canvas": "workspace:*",

@@ -112,19 +112,6 @@ test.describe('MCP write-approved E2E + audit log', () => {
     expect(approveAudit).toBeDefined()
     expect(approveAudit!.hasApprovedAt).toBe(true)
   })
-
-  test('Rust MCP audit JSONL includes timestamp, tool, success, duration', async ({ page }) => {
-    // The Rust MCP server writes its audit JSONL on the desktop side; this
-    // browser suite mocks Tauri IPC and never starts it, and the `/e2e-audit-check`
-    // endpoint this test used to poll does not exist (the fetch always threw and
-    // the test then only console.logged, claiming coverage it never had).
-    // Skip explicitly so the gap is visible in the report.
-    test.skip(
-      true,
-      'Rust MCP audit JSONL is not reachable from the browser E2E harness — needs a Tauri/integration test.',
-    )
-    void page
-  })
 })
 
 test.describe('MCP write approval gate — denials', () => {

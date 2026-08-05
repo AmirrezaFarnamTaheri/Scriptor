@@ -15,10 +15,14 @@ export interface MarketplaceListing {
 type CatalogEntry = MarketplaceListing
 
 const MANIFEST_LOADERS: Record<string, () => Promise<PluginManifest>> = {
-  'scriptor-vault-lint': async () => (await import('@scriptor/plugin-vault-lint')).vaultLintManifest,
-  'scriptor-canvas-kit': async () => (await import('@scriptor/plugin-canvas-kit')).canvasKitManifest,
-  'scriptor-publish-pack': async () => (await import('@scriptor/plugin-publish-pack')).publishPackManifest,
-  'scriptor-pdf-translate': async () => (await import('@scriptor/plugin-pdf-translate')).pdfTranslateManifest,
+  'scriptor-vault-lint': async () =>
+    (await import('@scriptor/plugin-vault-lint/manifest')).vaultLintManifest,
+  'scriptor.canvas-kit': async () =>
+    (await import('@scriptor/plugin-canvas-kit/manifest')).canvasKitManifest,
+  'scriptor.publish-pack': async () =>
+    (await import('@scriptor/plugin-publish-pack/manifest')).publishPackManifest,
+  'scriptor-pdf-translate': async () =>
+    (await import('@scriptor/plugin-pdf-translate/manifest')).pdfTranslateManifest,
 }
 
 export function listBundledMarketplaceCatalog(): MarketplaceListing[] {

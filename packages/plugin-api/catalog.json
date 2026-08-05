@@ -7,14 +7,14 @@
     "package": "@scriptor/plugin-vault-lint"
   },
   {
-    "id": "scriptor-canvas-kit",
+    "id": "scriptor.canvas-kit",
     "name": "Canvas Kit",
     "version": "0.1.0",
     "description": "Research and planning canvas templates.",
     "package": "@scriptor/plugin-canvas-kit"
   },
   {
-    "id": "scriptor-publish-pack",
+    "id": "scriptor.publish-pack",
     "name": "Publish Pack",
     "version": "0.1.0",
     "description": "Publication export profiles and preview extensions.",

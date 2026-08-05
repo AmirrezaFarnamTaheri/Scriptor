@@ -179,20 +179,21 @@ export function useWorkspaceNoteFactory({
   )
 
   const createNote = useCallback(
-    async (title?: string) => {
+    async (title?: string, initialMarkdown?: string): Promise<string | null> => {
       if (!vault) {
         setError('Open a vault before creating a note.')
-        return
+        return null
       }
 
       const noteTitle = title?.trim() || `Untitled ${new Date().toISOString().slice(0, 10)}`
       const pathBase = vaultConfig.inbox?.new_note_directory?.trim()
       const fileName = defaultNotePath(noteTitle)
       const path = pathBase ? `${pathBase.replace(/\/$/, '')}/${fileName}` : fileName
-      const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null)
 
-      setError(null)
       try {
+        const markdown =
+          initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
+        setError(null)
         await vaultSaveNote(path, markdown)
         await indexerUpdateNote(path)
         await refreshVaultCore()
@@ -201,10 +202,12 @@ export function useWorkspaceNoteFactory({
           setSidebarView('inbox')
         }
         logActivity('success', 'Note created', path)
+        return path
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)
         logActivity('error', 'Failed to create note', message)
+        return null
       }
     },
     [logActivity, openNote, refreshVaultCore, setError, setSidebarView, vault, vaultConfig.inbox],

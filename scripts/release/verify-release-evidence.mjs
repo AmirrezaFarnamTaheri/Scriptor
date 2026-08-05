@@ -7,6 +7,7 @@ import {
   collectSubjectFiles,
   parseSha256Sums,
 } from './release-evidence-utils.mjs'
+import { assertSigningEvidence, collectSigningEvidence } from './signing-evidence.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const subjectDir = path.resolve(process.argv[2] ?? path.join(root, 'release-artifacts'))
@@ -22,7 +23,7 @@ if (!fs.existsSync(subjectDir) || !fs.statSync(subjectDir).isDirectory()) {
 }
 
 const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'))
-if (receipt.schemaVersion !== 2) throw new Error(`unsupported release receipt schema: ${receipt.schemaVersion}`)
+if (receipt.schemaVersion !== 3) throw new Error(`unsupported release receipt schema: ${receipt.schemaVersion}`)
 const source = getSourceIdentity({
   root,
   expectedCommit: process.env.GITHUB_SHA || process.env.SCRIPTOR_SOURCE_COMMIT || undefined,
@@ -35,6 +36,14 @@ if (receipt.version !== fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim
 }
 if (receipt.source?.sourceCommit !== source.sourceCommit) throw new Error('receipt source commit does not match checkout')
 if (receipt.source?.sourceTreeSha256 !== source.sourceTreeSha256) throw new Error('receipt source tree does not match checkout')
+
+const signing = assertSigningEvidence(collectSigningEvidence(subjectDir), {
+  channel: process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'production',
+  expectedSourceCommit: source.sourceCommit,
+})
+if (JSON.stringify(receipt.signing) !== JSON.stringify(signing)) {
+  throw new Error('receipt signing evidence does not match release artifacts')
+}
 
 const expectedRoot = path.relative(root, subjectDir).replaceAll('\\', '/')
 if (receipt.subjectRoot !== expectedRoot) throw new Error(`receipt subject root mismatch: expected ${expectedRoot}, found ${receipt.subjectRoot}`)

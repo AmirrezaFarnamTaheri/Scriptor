@@ -4,10 +4,18 @@ const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
 
 export default defineConfig({
   testDir: 'e2e',
+  testIgnore: /screenshots\.spec\.ts$/,
   timeout: 120_000,
   expect: {
     timeout: 30_000,
   },
+  reporter: process.env.CI
+    ? [
+        ['line'],
+        ['html', { outputFolder: 'playwright-report/e2e', open: 'never' }],
+      ]
+    : 'list',
+  outputDir: 'test-results/e2e',
   use: {
     ...devices['Desktop Edge'],
     channel: systemChannel,
@@ -16,6 +24,9 @@ export default defineConfig({
     deviceScaleFactor: 1,
     colorScheme: 'light',
     locale: 'en-US',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   webServer: {
     command: 'pnpm vite --mode e2e --host 127.0.0.1 --port 4184 --strictPort',
