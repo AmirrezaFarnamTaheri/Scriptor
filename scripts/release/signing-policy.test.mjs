@@ -24,6 +24,21 @@ test('preview and production releases have no signing-secret dependency', () => 
   }
 })
 
+test('runner architecture aliases normalize and mismatches fail before packaging', () => {
+  const script = path.resolve(import.meta.dirname, 'verify-runner-architecture.mjs')
+  const accepted = spawnSync(process.execPath, [script, '--expected', 'x86_64', '--actual', 'x64'], {
+    encoding: 'utf8',
+  })
+  assert.equal(accepted.status, 0, accepted.stderr)
+  assert.match(accepted.stdout, /Runner architecture OK: x86_64/)
+
+  const rejected = spawnSync(process.execPath, [script, '--expected', 'aarch64', '--actual', 'x64'], {
+    encoding: 'utf8',
+  })
+  assert.notEqual(rejected.status, 0)
+  assert.match(rejected.stderr, /runner architecture mismatch/)
+})
+
 test('unsigned production evidence covers every platform and architecture', () => {
   const records = DEFAULT_RELEASE_TARGETS.map((target) => createSigningEvidence({
     ...target,
