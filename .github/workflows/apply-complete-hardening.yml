@@ -90,7 +90,7 @@ jobs:
           node scripts/validation/css-custom-properties.mjs
           node scripts/validation/module-size-ratchet.mjs
           node scripts/validation/rustsec-exceptions.mjs
-          node --test \
+          env -u GITHUB_SHA -u SCRIPTOR_SOURCE_COMMIT node --test \
             scripts/benchmarks/benchmark-utils.test.mjs \
             scripts/release/source-identity.test.mjs \
             scripts/release/release-evidence-utils.test.mjs \
