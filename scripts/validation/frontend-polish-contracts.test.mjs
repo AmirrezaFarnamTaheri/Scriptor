@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { deriveEffectiveGitSelection, selectGitPanelState } from '../../src/lib/gitPanelState.ts'
-import { formatShortcut, matchesShortcut } from '../../src/lib/keyboardShortcuts.ts'
+import { formatShortcut, isValidShortcut, matchesShortcut } from '../../src/lib/keyboardShortcuts.ts'
 
 const READY_STATUS = {
   is_repo: true,
@@ -54,6 +54,11 @@ test('Git selection distinguishes untouched defaults from an explicit empty sele
 })
 
 test('Configured shortcuts match platform modifiers and render truthful labels', () => {
+  assert.equal(isValidShortcut('Ctrl+K'), true)
+  assert.equal(isValidShortcut(' Ctrl + Shift + K '), true)
+  for (const malformed of ['+Ctrl+K', 'Ctrl++K', 'Ctrl+K+']) {
+    assert.equal(isValidShortcut(malformed), false, `${malformed} must be rejected`)
+  }
   assert.equal(formatShortcut('Mod+G', 'MacIntel'), '⌘G')
   assert.equal(formatShortcut('Mod+G', 'Win32'), 'Ctrl+G')
   assert.equal(formatShortcut('Mod+Shift+B', 'MacIntel'), '⌘⇧B')
@@ -107,6 +112,25 @@ test('Git shortcut names and visual tooltips remain accessible', () => {
   assert.match(shortcuts, /run\('open-git', openGit\)/)
   assert.match(shortcuts, /run\('toggle-vault-sidebar', toggleVaultSidebar\)/)
   assert.match(shortcuts, /run\('toggle-inspector', toggleInspector\)/)
+})
+
+test('Global shortcut guards and persistence respect React and editable-target semantics', () => {
+  const appShortcuts = readFileSync(new URL('../../src/hooks/useAppKeyboardShortcuts.ts', import.meta.url), 'utf8')
+  const shortcutStorage = readFileSync(new URL('../../src/hooks/useKeyboardShortcuts.ts', import.meta.url), 'utf8')
+
+  assert.match(appShortcuts, /target instanceof HTMLInputElement/)
+  assert.match(appShortcuts, /target instanceof HTMLTextAreaElement/)
+  assert.match(appShortcuts, /target instanceof HTMLElement && target\.isContentEditable/)
+  assert.doesNotMatch(appShortcuts, /\[contenteditable="true"\]/)
+
+  assert.match(shortcutStorage, /const pendingPersistenceRef = useRef/)
+  assert.match(shortcutStorage, /if \(pendingPersistenceRef\.current !== overrides\) return/)
+  assert.match(shortcutStorage, /pendingPersistenceRef\.current = null\s+saveOverrides\(overrides\)/)
+  assert.doesNotMatch(
+    shortcutStorage,
+    /setOverrides\(\([^)]*\) => \{[\s\S]*?saveOverrides\(/,
+    'React state updater functions must stay side-effect free',
+  )
 })
 
 test('Git error and retry copy is localized in every locale', () => {
