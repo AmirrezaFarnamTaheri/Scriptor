@@ -1,0 +1,90 @@
+name: Deliver PR 32 review fixes
+
+on:
+  push:
+    branches:
+      - automation/pr32-review-fixes-staging
+    paths:
+      - .github/workflows/deliver-pr32-review-fixes.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: deliver-pr32-review-fixes
+  cancel-in-progress: false
+
+jobs:
+  deliver:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout staging payload
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Verify and apply patch to PR branch
+        shell: bash
+        env:
+          TARGET_BRANCH: audit/complete-repository-hardening-2026-08-05
+          EXPECTED_HEAD: dd55e598319c349bc4768fad12e2e1b58823abf1
+          EXPECTED_PATCH_SHA256: c8f6099729eb956fbfe1d4bafeefba0d9804e10960f85155c6d7053b0161bfb2
+        run: |
+          set -euo pipefail
+
+          cat .github/pr32-fix-part-00.b64 \
+              .github/pr32-fix-part-01.b64 \
+              .github/pr32-fix-part-02.b64 \
+              .github/pr32-fix-part-03.b64 \
+            | tr -d '\r\n' > /tmp/pr32-review-fixes.patch.b64
+          base64 --decode /tmp/pr32-review-fixes.patch.b64 > /tmp/pr32-review-fixes.patch
+
+          actual_patch_sha256="$(sha256sum /tmp/pr32-review-fixes.patch | cut -d ' ' -f 1)"
+          test "$actual_patch_sha256" = "$EXPECTED_PATCH_SHA256"
+
+          git fetch origin "$TARGET_BRANCH"
+          actual_head="$(git rev-parse "origin/$TARGET_BRANCH")"
+          test "$actual_head" = "$EXPECTED_HEAD"
+          git checkout -B "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+          git apply --check /tmp/pr32-review-fixes.patch
+          git apply /tmp/pr32-review-fixes.patch
+          git diff --check
+
+          node scripts/release/version.mjs check
+          node scripts/validation/action-pins.mjs
+          node scripts/validation/deep-module-boundaries.mjs
+          node scripts/validation/i18n-parity.mjs
+          node scripts/validation/docs-contracts.mjs
+          node scripts/validation/source-contracts.mjs
+          node scripts/validation/rust-source-contracts.mjs
+          node scripts/validation/authorization-inventory.mjs
+          node scripts/validation/frontend-quality.mjs
+          node scripts/validation/css-custom-properties.mjs
+          node scripts/validation/module-size-ratchet.mjs
+          node scripts/validation/rustsec-exceptions.mjs
+          node --test \
+            scripts/release/signing-policy.test.mjs \
+            scripts/validation/release-hardening-contracts.test.mjs \
+            scripts/validation/rustsec-exceptions.test.mjs
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            .github/workflows/ci.yml \
+            .github/workflows/release.yml \
+            docs/RELEASE-SECURITY.md \
+            e2e/workspace.spec.ts \
+            packages/mcp/src/runtime.ts \
+            scripts/validation/release-hardening-contracts.test.mjs \
+            scripts/validation/rustsec-exceptions.mjs \
+            scripts/validation/rustsec-exceptions.test.mjs \
+            src/components/app/QuickCaptureWorkspaceLayer.tsx \
+            src/components/app/WorkspaceRenameDialogs.tsx \
+            src/e2e/bootstrap.ts \
+            src/hooks/useWorkspaceNoteFactory.ts
+          test -z "$(git status --short | grep -v '^M  ' || true)"
+          git commit -m 'fix(review): address hardening feedback'
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
