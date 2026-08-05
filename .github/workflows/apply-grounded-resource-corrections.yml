@@ -9,13 +9,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-grounded-resource-corrections
+  group: apply-grounded-resource-corrections-v2
   cancel-in-progress: false
 
 jobs:
   apply:
     if: github.event.pull_request.head.ref == 'feat/unified-agentstack-sync-final'
-    runs-on: ubuntu-24.04
+    runs-on: windows-2025
     timeout-minutes: 10
     steps:
       - name: Checkout clean feature branch
@@ -24,7 +24,7 @@ jobs:
           ref: feat/unified-agentstack-sync-final
           fetch-depth: 0
 
-      - name: Materialize checksummed corrections
+      - name: Materialize decoded corrections
         run: node scripts/apply-resource-sync-grounding.mjs
 
       - name: Commit grounded implementation
