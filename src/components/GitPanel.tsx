@@ -6,8 +6,7 @@ import { deriveEffectiveGitSelection, selectGitPanelState } from '../lib/gitPane
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
-import type { WorkspaceGitStatus } from '../hooks/useWorkspaceGit'
-import type { GitChangedFile } from '../types/vault'
+import type { GitChangedFile, GitStatus } from '../types/vault'
 import { useI18n } from '../lib/i18n'
 
 type PendingGitAction =
@@ -36,6 +35,7 @@ const GitFileRow = React.memo(function GitFileRow({
   onPreviewDiff,
   onResolveConflict,
 }: GitFileRowProps) {
+  const { t } = useI18n()
   const checkboxId = useId()
   const isMarkdown = file.path.endsWith('.md')
   const noteLabel = file.path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? file.path
@@ -54,18 +54,18 @@ const GitFileRow = React.memo(function GitFileRow({
             {isMarkdown ? noteLabel : file.path}
             {isMarkdown ? <small className="git-file-path">{file.path}</small> : null}
           </span>
-          <small>{file.conflict ? 'conflict' : file.status}</small>
+          <small>{file.conflict ? t('git.conflict') : file.status}</small>
         </label>
       </div>
       <div className="git-file-row-actions">
         {isMarkdown && onOpenNote ? (
           <button type="button" className="git-note-link" onClick={() => onOpenNote(file.path)}>
-            Open note
+            {t('git.openNote')}
           </button>
         ) : null}
         {isMarkdown && onPreviewDiff ? (
           <button type="button" onClick={() => onPreviewDiff(file.path)}>
-            Preview diff
+            {t('git.previewDiff')}
           </button>
         ) : null}
         {file.conflict && onResolveConflict ? (
@@ -74,7 +74,7 @@ const GitFileRow = React.memo(function GitFileRow({
             className="conflict-resolve-btn"
             onClick={() => onResolveConflict(file.path)}
           >
-            Resolve
+            {t('git.resolve')}
           </button>
         ) : null}
       </div>
@@ -83,7 +83,9 @@ const GitFileRow = React.memo(function GitFileRow({
 })
 
 interface GitPanelProps {
-  status: WorkspaceGitStatus | null
+  status: GitStatus | null
+  statusError: string | null
+  isStatusLoading: boolean
   activePath: string | null
   isBusy: boolean
   presentation?: PanelPresentation
@@ -101,6 +103,8 @@ interface GitPanelProps {
 /** Renders repository status, selection, diff, and confirmation flows for the active vault. */
 export function GitPanel({
   status,
+  statusError,
+  isStatusLoading,
   activePath,
   isBusy,
   presentation = 'modal',
@@ -116,7 +120,7 @@ export function GitPanel({
 }: GitPanelProps) {
   const { t } = useI18n()
   const [messageDraft, setMessageDraft] = useState<{ fingerprint: string; value: string } | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string> | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingGitAction | null>(null)
   const [tab, setTab] = useState<GitTab>('changes')
   const [diffPath, setDiffPath] = useState<string | null>(null)
@@ -127,7 +131,7 @@ export function GitPanel({
     error: string | null
   } | null>(null)
 
-  const panelState = selectGitPanelState(status, isBusy)
+  const panelState = selectGitPanelState(status, statusError, isStatusLoading)
   const changedPaths = useMemo(
     () => status?.changed_files.map((file) => file.path) ?? [],
     [status],
@@ -136,7 +140,7 @@ export function GitPanel({
   const changedFingerprint = changedPaths.join('|')
   const automaticMessage = changedPaths.length > 0
     ? buildAutoCommitMessage(changedPaths)
-    : 'Update vault notes'
+    : t('git.updateVaultNotes')
   const message = messageDraft?.fingerprint === changedFingerprint
     ? messageDraft.value
     : automaticMessage
@@ -156,7 +160,7 @@ export function GitPanel({
 
   const handleToggleSelect = useCallback((path: string, checked: boolean) => {
     setSelected((current) => {
-      const next = new Set(current.size > 0 ? current : defaultSelection)
+      const next = new Set(current ?? defaultSelection)
       if (checked) {
         next.add(path)
       } else {
@@ -191,38 +195,38 @@ export function GitPanel({
             path: requestedPath,
             before: '',
             after: '',
-            error: error instanceof Error ? error.message : 'Could not load diff preview',
+            error: error instanceof Error ? error.message : t('git.couldNotLoadDiff'),
           })
         }
       })
     return () => {
       cancelled = true
     }
-  }, [previewPath, readNoteAtHead, readNoteWorking, tab])
+  }, [previewPath, readNoteAtHead, readNoteWorking, t, tab])
 
   const activeDiffState = diffState?.path === previewPath ? diffState : null
   const diffBefore = activeDiffState?.before ?? ''
   const diffAfter = activeDiffState?.after ?? ''
-  const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? 'Loading diff preview…' : '')
+  const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? t('git.loadingDiff') : '')
   const noteLabel = (path: string) => path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? path
   const commitTemplates = [
-    'Update vault notes',
-    'Draft: refine active note',
-    'Organize knowledge links and tags',
+    t('git.updateVaultNotes'),
+    t('git.draftRefineActiveNote'),
+    t('git.organizeLinksAndTags'),
   ] as const
 
   if (panelState === 'loading') {
     return (
       <UnifiedPanelShell
         title={t('git.title')}
-        subtitle="Checking repository status…"
+        subtitle={t('git.checkingStatus')}
         icon={<GitBranch size={18} />}
         ariaLabel={t('git.status')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
       >
-        <div className="git-skeleton-loading" aria-busy="true" aria-label="Loading git status">
+        <div className="git-skeleton-loading" aria-busy="true" aria-label={t('git.loadingStatus')}>
           <div className="vault-skeleton-folder" />
           <div className="vault-skeleton-row" />
           <div className="vault-skeleton-row" />
@@ -236,7 +240,7 @@ export function GitPanel({
     return (
       <UnifiedPanelShell
         title={t('git.title')}
-        subtitle="Git status unavailable"
+        subtitle={t('git.statusUnavailable')}
         icon={<GitBranch size={18} />}
         ariaLabel={t('git.status')}
         onClose={onClose}
@@ -245,10 +249,10 @@ export function GitPanel({
       >
         <div className="preview-error-state" role="alert">
           <AlertCircle size={24} className="text-danger" />
-          <p>{status?.loadError}</p>
-          <button type="button" className="toolbar-button" onClick={onRefresh}>
+          <p>{statusError}</p>
+          <button type="button" className="toolbar-button" disabled={isStatusLoading} onClick={onRefresh}>
             <RefreshCw size={14} />
-            {t('actions.retry') ?? 'Retry'}
+            {t('actions.retry')}
           </button>
         </div>
       </UnifiedPanelShell>
@@ -288,7 +292,7 @@ export function GitPanel({
       activeTab={tab}
       onTabChange={(next) => setTab(next as GitTab)}
       headerActions={
-        <button type="button" className="toolbar-button" disabled={isBusy} onClick={onRefresh}>
+        <button type="button" className="toolbar-button" disabled={isBusy || isStatusLoading} onClick={onRefresh}>
           {t('actions.refresh')}
         </button>
       }
@@ -321,15 +325,21 @@ export function GitPanel({
           </div>
 
           <div className="git-changes">
-            <strong>{status.clean ? 'Working tree clean' : `${status.changed_files.length} changed file(s)`}</strong>
+            <strong>
+              {status.clean
+                ? t('git.workingTreeClean')
+                : t('git.changedFiles', { count: status.changed_files.length })}
+            </strong>
             {activePath && changedPaths.includes(activePath) ? (
-              <p className="health-subtitle git-active-note">Active note has uncommitted changes: {noteLabel(activePath)}</p>
+              <p className="health-subtitle git-active-note">
+                {t('git.activeNoteChanged', { note: noteLabel(activePath) })}
+              </p>
             ) : null}
             {status.clean ? (
               <div className="git-clean-state">
                 <CheckCircle2 size={32} className="text-success" />
-                <p>Everything up to date. All changes are committed to <code>{status.branch ?? 'HEAD'}</code>.</p>
-                <button type="button" className="toolbar-button" disabled={isBusy} onClick={onRefresh}>
+                <p>{t('git.everythingUpToDate', { branch: status.branch ?? 'HEAD' })}</p>
+                <button type="button" className="toolbar-button" disabled={isBusy || isStatusLoading} onClick={onRefresh}>
                   <RefreshCw size={14} />
                   {t('actions.refresh')}
                 </button>
@@ -361,7 +371,7 @@ export function GitPanel({
                 setPendingAction({
                   kind: 'commit',
                   files: effectiveSelection,
-                  message: message.trim() || 'Update vault notes',
+                  message: message.trim() || t('git.updateVaultNotes'),
                 })
               }}
             >
@@ -387,7 +397,7 @@ export function GitPanel({
           {previewPath ? (
             <>
               <label className="git-diff-picker">
-                <span>Note</span>
+                <span>{t('git.note')}</span>
                 <select value={previewPath} onChange={(event) => setDiffPath(event.target.value)}>
                   {changedPaths
                     .filter((path) => path.endsWith('.md'))
@@ -416,10 +426,10 @@ export function GitPanel({
         <div className="git-confirm-dialog" role="alertdialog" aria-label={t('git.confirmAction')}>
           <p>
             {pendingAction.kind === 'commit'
-              ? t('git.commitSelected') + ` ${pendingAction.files.length} file(s) "${pendingAction.message}"?`
+              ? t('git.commitConfirm', { count: pendingAction.files.length, message: pendingAction.message })
               : pendingAction.kind === 'pull'
-                ? t('git.pull') + '?'
-                : t('git.push') + '?'}
+                ? t('git.pullConfirm')
+                : t('git.pushConfirm')}
           </p>
           {pendingAction.kind === 'commit' ? (
             <ul className="git-confirm-files">
@@ -447,7 +457,7 @@ export function GitPanel({
                 setPendingAction(null)
               }}
             >
-              {t('actions.check')}
+              {t('actions.confirm')}
             </button>
           </div>
         </div>

@@ -25,15 +25,17 @@ Improve panel accessibility, state correctness, shortcut discoverability, and de
 
 ### Shortcuts and tooltips
 
-- Shortcut labels are derived for macOS versus Ctrl-based platforms.
+- Shortcut labels are derived from the same configurable registry used by the global key handler.
+- Git, sidebar, and inspector shortcuts execute the advertised actions and update when overrides change.
 - Visual tooltips are `aria-hidden` when the trigger already has a complete accessible name.
 - Git, command-palette, sidebar, and inspector controls expose shortcut information to assistive technology.
 
 ### Git panel state and row semantics
 
-- `useWorkspaceGit` owns status loading and error information.
+- `useWorkspaceGit` owns status loading and error information without clearing unrelated workspace errors.
+- Status loading, status failure, and mutation busy state are separate, so retries cannot overlap or masquerade as non-repositories.
 - `selectGitPanelState` maps owned data to loading, error, non-repository, or ready presentation.
-- `deriveEffectiveGitSelection` removes selected paths that disappeared during a status refresh before a commit is prepared.
+- `deriveEffectiveGitSelection` removes selected paths that disappeared during a status refresh and preserves an explicit empty selection.
 - Checkbox labels contain no nested buttons; row actions are adjacent controls.
 - Memoized rows receive stable callbacks across selection-only changes.
 
@@ -52,7 +54,8 @@ Improve panel accessibility, state correctness, shortcut discoverability, and de
 
 ## Regression coverage
 
-- `scripts/validation/frontend-polish-contracts.test.mjs` covers Git panel state selection, stale selection removal, row-label semantics, callback structure, MCP tab availability/localization, shortcut names, and visual-tooltip accessibility.
+- `scripts/validation/frontend-polish-contracts.test.mjs` covers Git panel state selection, explicit empty selection, stale selection removal, configured shortcut matching, row-label semantics, MCP tab availability/localization, and translation coverage.
+- `e2e/frontend-polish-regressions.spec.ts` presses the Git, sidebar, and inspector shortcuts, verifies explicit deselection, and exercises Git failure/retry recovery.
 - `scripts/validation/source-contracts.mjs` executes those focused contracts from the mandatory source-validation gate.
 - `e2e/frontend-polish-regressions.spec.ts` adds rendered checks for Git row markup and shortcut accessibility.
 

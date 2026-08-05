@@ -4,9 +4,6 @@ import { gitCommit, gitPull, gitPush, gitStatus } from '../bridge/commands'
 import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
 
-/** Git status plus a status-refresh failure owned by the workspace Git hook. */
-export type WorkspaceGitStatus = GitStatus & { loadError?: string }
-
 interface UseWorkspaceGitOptions {
   vaultId: string | null
   refreshVault: () => Promise<void>
@@ -14,25 +11,9 @@ interface UseWorkspaceGitOptions {
   setError: (message: string | null) => void
 }
 
-function failedGitStatus(loadError: string): WorkspaceGitStatus {
-  return {
-    is_repo: false,
-    branch: null,
-    changed_files: [],
-    clean: true,
-    ahead: 0,
-    behind: 0,
-    has_upstream: false,
-    has_conflicts: false,
-    conflicted_files: [],
-    loadError,
-  }
-}
-
 /**
- * Owns Git status refreshes and user-triggered commit, pull, and push operations.
- * Status loading begins only when a refresh is actually in flight, so a workspace
- * without an open vault cannot remain in a permanent loading presentation.
+ * Owns Git status refresh state separately from user-triggered mutations. Status
+ * failures stay local to the Git surface and never overwrite workspace-wide errors.
  */
 export function useWorkspaceGit({
   refreshVault,
@@ -40,25 +21,26 @@ export function useWorkspaceGit({
   logActivity,
   setError,
 }: UseWorkspaceGitOptions) {
-  const [gitStatusState, setGitStatusState] = useState<WorkspaceGitStatus | null>(null)
-  const [isGitBusy, setIsGitBusy] = useState(false)
+  const [gitStatusState, setGitStatusState] = useState<GitStatus | null>(null)
+  const [gitStatusError, setGitStatusError] = useState<string | null>(null)
+  const [isGitStatusLoading, setIsGitStatusLoading] = useState(false)
+  const [isGitMutationBusy, setIsGitMutationBusy] = useState(false)
 
   const refreshGit = useCallback(async () => {
-    setIsGitBusy(true)
+    setIsGitStatusLoading(true)
+    setGitStatusError(null)
     try {
       const status = await gitStatus()
       setGitStatusState(status)
-      setError(null)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
       console.error('useWorkspaceGit: gitStatus error', caught)
-      setGitStatusState(failedGitStatus(detail))
-      setError(detail)
+      setGitStatusError(detail)
       logActivity('error', 'Git status refresh failed', detail)
     } finally {
-      setIsGitBusy(false)
+      setIsGitStatusLoading(false)
     }
-  }, [logActivity, setError])
+  }, [logActivity])
 
   const commitFiles = useCallback(
     async (files: string[], message: string) => {
@@ -66,7 +48,7 @@ export function useWorkspaceGit({
         setError('This vault is not a Git repository.')
         return
       }
-      setIsGitBusy(true)
+      setIsGitMutationBusy(true)
       setError(null)
       try {
         await gitCommit(files, message)
@@ -77,14 +59,14 @@ export function useWorkspaceGit({
         setError(detail)
         logActivity('error', 'Git commit failed', detail)
       } finally {
-        setIsGitBusy(false)
+        setIsGitMutationBusy(false)
       }
     },
     [gitStatusState, logActivity, refreshGit, setError],
   )
 
   const pullRemote = useCallback(async () => {
-    setIsGitBusy(true)
+    setIsGitMutationBusy(true)
     setError(null)
     try {
       if (!vaultId) throw new Error('No active vault is open.')
@@ -97,12 +79,12 @@ export function useWorkspaceGit({
       setError(detail)
       logActivity('error', 'Git pull failed', detail)
     } finally {
-      setIsGitBusy(false)
+      setIsGitMutationBusy(false)
     }
   }, [logActivity, refreshGit, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
-    setIsGitBusy(true)
+    setIsGitMutationBusy(true)
     setError(null)
     try {
       if (!vaultId) throw new Error('No active vault is open.')
@@ -114,13 +96,15 @@ export function useWorkspaceGit({
       setError(detail)
       logActivity('error', 'Git push failed', detail)
     } finally {
-      setIsGitBusy(false)
+      setIsGitMutationBusy(false)
     }
   }, [logActivity, refreshGit, setError, vaultId])
 
   return {
     gitStatusState,
-    isGitBusy,
+    gitStatusError,
+    isGitStatusLoading,
+    isGitBusy: isGitMutationBusy,
     refreshGit,
     commitFiles,
     pullRemote,

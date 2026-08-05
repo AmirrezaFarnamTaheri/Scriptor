@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import { deriveEffectiveGitSelection, selectGitPanelState } from '../../src/lib/gitPanelState.ts'
+import { formatShortcut, matchesShortcut } from '../../src/lib/keyboardShortcuts.ts'
 
 const READY_STATUS = {
   is_repo: true,
@@ -17,21 +18,27 @@ const READY_STATUS = {
 }
 
 test('Git panel state selection covers every owned async state', () => {
-  assert.equal(selectGitPanelState(null, true), 'loading')
-  assert.equal(selectGitPanelState(null, false), 'not-repository')
-  assert.equal(
-    selectGitPanelState({ ...READY_STATUS, is_repo: false, loadError: 'bridge unavailable' }, false),
-    'error',
-  )
-  assert.equal(selectGitPanelState({ ...READY_STATUS, is_repo: false }, false), 'not-repository')
-  assert.equal(selectGitPanelState(READY_STATUS, false), 'ready')
+  assert.equal(selectGitPanelState(null, null, true), 'loading')
+  assert.equal(selectGitPanelState(null, null, false), 'not-repository')
+  assert.equal(selectGitPanelState(null, 'bridge unavailable', false), 'error')
+  assert.equal(selectGitPanelState(READY_STATUS, 'bridge unavailable', true), 'loading')
+  assert.equal(selectGitPanelState({ ...READY_STATUS, is_repo: false }, null, false), 'not-repository')
+  assert.equal(selectGitPanelState(READY_STATUS, null, false), 'ready')
 
   const hookSource = readFileSync(new URL('../../src/hooks/useWorkspaceGit.ts', import.meta.url), 'utf8')
-  assert.match(hookSource, /const \[isGitBusy, setIsGitBusy\] = useState\(false\)/)
-  assert.match(hookSource, /const refreshGit = useCallback\(async \(\) => \{\s*setIsGitBusy\(true\)/)
+  assert.match(hookSource, /const \[isGitStatusLoading, setIsGitStatusLoading\] = useState\(false\)/)
+  assert.match(hookSource, /const \[gitStatusError, setGitStatusError\] = useState<string \| null>\(null\)/)
+  assert.match(hookSource, /const \[isGitMutationBusy, setIsGitMutationBusy\] = useState\(false\)/)
+  const refreshBlock = hookSource.match(/const refreshGit = useCallback\(async \(\) => \{([\s\S]*?)\n  \}, \[/)?.[1]
+  assert.ok(refreshBlock, 'refreshGit implementation must remain inspectable')
+  assert.match(refreshBlock, /setIsGitStatusLoading\(true\)/)
+  assert.match(refreshBlock, /setGitStatusError\(null\)/)
+  assert.doesNotMatch(refreshBlock, /setError\(/, 'status refresh must not clear or overwrite workspace-wide errors')
 })
 
-test('Git selection drops paths removed by a status refresh', () => {
+test('Git selection distinguishes untouched defaults from an explicit empty selection', () => {
+  assert.deepEqual(deriveEffectiveGitSelection(null, ['active.md', 'other.md'], ['active.md']), ['active.md'])
+  assert.deepEqual(deriveEffectiveGitSelection(new Set(), ['active.md', 'other.md'], ['active.md']), [])
   assert.deepEqual(
     deriveEffectiveGitSelection(
       new Set(['removed.md', 'kept.md']),
@@ -42,7 +49,25 @@ test('Git selection drops paths removed by a status refresh', () => {
   )
   assert.deepEqual(
     deriveEffectiveGitSelection(new Set(['removed.md']), ['new.md'], ['new.md']),
-    ['new.md'],
+    [],
+  )
+})
+
+test('Configured shortcuts match platform modifiers and render truthful labels', () => {
+  assert.equal(formatShortcut('Mod+G', 'MacIntel'), '⌘G')
+  assert.equal(formatShortcut('Mod+G', 'Win32'), 'Ctrl+G')
+  assert.equal(formatShortcut('Mod+Shift+B', 'MacIntel'), '⌘⇧B')
+  assert.equal(
+    matchesShortcut({ key: 'g', metaKey: true, ctrlKey: false, altKey: false, shiftKey: false }, 'Mod+G', 'MacIntel'),
+    true,
+  )
+  assert.equal(
+    matchesShortcut({ key: 'g', metaKey: false, ctrlKey: true, altKey: false, shiftKey: false }, 'Mod+G', 'Win32'),
+    true,
+  )
+  assert.equal(
+    matchesShortcut({ key: 'g', metaKey: false, ctrlKey: false, altKey: true, shiftKey: false }, 'Mod+G', 'Win32'),
+    false,
   )
 })
 
@@ -71,8 +96,44 @@ test('MCP empty states are localized and keep non-tool tabs available', () => {
 test('Git shortcut names and visual tooltips remain accessible', () => {
   const topBar = readFileSync(new URL('../../src/components/shell/AppTopBar.tsx', import.meta.url), 'utf8')
   const chrome = readFileSync(new URL('../../src/components/chrome/WorkspaceChrome.tsx', import.meta.url), 'utf8')
+  const shortcuts = readFileSync(new URL('../../src/hooks/useAppKeyboardShortcuts.ts', import.meta.url), 'utf8')
 
-  assert.match(topBar, /aria-label=\{`\$\{gitTitle\} \(\$\{gitShortcut\}\)`\}/)
+  assert.match(topBar, /aria-label=\{gitShortcut \? `\$\{gitTitle\} \(\$\{gitShortcut\}\)` : gitTitle\}/)
+  assert.match(topBar, /getShortcut\('open-git'/)
+  assert.match(topBar, /getShortcut\('toggle-vault-sidebar'/)
+  assert.match(topBar, /getShortcut\('toggle-inspector'/)
   assert.match(topBar, /className="custom-tooltip" aria-hidden="true"/)
   assert.match(chrome, /className="custom-tooltip" aria-hidden="true"/)
+  assert.match(shortcuts, /run\('open-git', openGit\)/)
+  assert.match(shortcuts, /run\('toggle-vault-sidebar', toggleVaultSidebar\)/)
+  assert.match(shortcuts, /run\('toggle-inspector', toggleInspector\)/)
+})
+
+test('Git error and retry copy is localized in every locale', () => {
+  for (const locale of ['en', 'de', 'fa']) {
+    const data = JSON.parse(
+      readFileSync(new URL(`../../src/lib/i18n/${locale}.json`, import.meta.url), 'utf8'),
+    )
+    assert.equal(typeof data.actions.retry, 'string', `${locale} must define actions.retry`)
+    for (const key of [
+      'checkingStatus',
+      'statusUnavailable',
+      'loadingStatus',
+      'workingTreeClean',
+      'changedFiles',
+      'activeNoteChanged',
+      'everythingUpToDate',
+      'openNote',
+      'previewDiff',
+      'resolve',
+      'note',
+    ]) {
+      assert.equal(typeof data.git[key], 'string', `${locale} must define git.${key}`)
+    }
+  }
+
+  const panel = readFileSync(new URL('../../src/components/GitPanel.tsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(panel, /t\('actions\.retry'\) \?\?/)
+  assert.match(panel, /t\('git\.statusUnavailable'\)/)
+  assert.match(panel, /t\('git\.everythingUpToDate'/)
 })

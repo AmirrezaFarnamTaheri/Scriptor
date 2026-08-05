@@ -2,12 +2,12 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 
 import { selectGitPanelState } from '../src/lib/gitPanelState'
-import type { WorkspaceGitStatus } from '../src/hooks/useWorkspaceGit'
+import type { GitStatus } from '../src/types/vault'
 import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
 
 const OPEN_GIT = 'Open Git panel'
 
-const READY_STATUS: WorkspaceGitStatus = {
+const READY_STATUS: GitStatus = {
   is_repo: true,
   branch: 'main',
   changed_files: [],
@@ -32,11 +32,12 @@ async function openGitPanel(page: Page) {
 
 test.describe('Git panel state selector', () => {
   test('distinguishes loading, idle, error, non-repository, and ready states', () => {
-    expect(selectGitPanelState(null, true)).toBe('loading')
-    expect(selectGitPanelState(null, false)).toBe('not-repository')
-    expect(selectGitPanelState({ ...READY_STATUS, is_repo: false, loadError: 'bridge unavailable' }, false)).toBe('error')
-    expect(selectGitPanelState({ ...READY_STATUS, is_repo: false }, false)).toBe('not-repository')
-    expect(selectGitPanelState(READY_STATUS, false)).toBe('ready')
+    expect(selectGitPanelState(null, null, true)).toBe('loading')
+    expect(selectGitPanelState(null, null, false)).toBe('not-repository')
+    expect(selectGitPanelState(null, 'bridge unavailable', false)).toBe('error')
+    expect(selectGitPanelState(READY_STATUS, 'bridge unavailable', true)).toBe('loading')
+    expect(selectGitPanelState({ ...READY_STATUS, is_repo: false }, null, false)).toBe('not-repository')
+    expect(selectGitPanelState(READY_STATUS, null, false)).toBe('ready')
   })
 })
 
@@ -55,5 +56,49 @@ test.describe('Frontend polish regressions', () => {
     const gitButton = page.getByRole('button', { name: /Git.*(?:⌘G|Ctrl\+G)/i })
     await expect(gitButton).toBeVisible()
     await expect(gitButton.locator('.custom-tooltip')).toHaveAttribute('aria-hidden', 'true')
+
+    await page.keyboard.press('Control+Alt+KeyG')
+    await expect(page.getByRole('dialog', { name: 'Git status' })).toBeVisible()
+  })
+
+  test('configured sidebar and inspector shortcuts execute their advertised actions', async ({ page }) => {
+    await launchApp(page)
+    await settleLayout(page)
+    const workspace = page.locator('.workspace-grid')
+
+    await expect(workspace).toHaveAttribute('data-vault-collapsed', 'false')
+    await page.keyboard.press('Control+Alt+KeyB')
+    await expect(workspace).toHaveAttribute('data-vault-collapsed', 'true')
+
+    await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'false')
+    await page.keyboard.press('Control+Alt+KeyL')
+    await expect(workspace).toHaveAttribute('data-inspector-collapsed', 'true')
+  })
+
+  test('explicitly clearing Git selection leaves commit disabled', async ({ page }) => {
+    const panel = await openGitPanel(page)
+    const checkbox = panel.locator('.git-file-selection input[type="checkbox"]').first()
+    await expect(checkbox).toBeChecked()
+    await checkbox.uncheck()
+    await expect(checkbox).not.toBeChecked()
+    await expect(panel.getByRole('button', { name: 'Commit selected' })).toBeDisabled()
+  })
+
+  test('Git status failure is distinct from non-repository and retry recovers', async ({ page }) => {
+    await page.addInitScript(() => window.sessionStorage.setItem('e2e:git-status-failure', '1'))
+    await launchApp(page)
+    await settleLayout(page)
+    await openCommandPalette(page)
+    await runCommand(page, OPEN_GIT)
+
+    const panel = page.getByRole('dialog', { name: 'Git status' })
+    await expect(panel).toContainText('Git status unavailable')
+    await expect(panel).toContainText('E2E Git bridge unavailable')
+    const retry = panel.getByRole('button', { name: 'Retry' })
+    await expect(retry).toBeEnabled()
+
+    await page.evaluate(() => window.sessionStorage.removeItem('e2e:git-status-failure'))
+    await retry.click()
+    await expect(panel).toContainText(/Working tree|changed file/i)
   })
 })

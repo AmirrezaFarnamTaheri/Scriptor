@@ -5,7 +5,7 @@ Scriptor is an **operate** interface: users open it to write, navigate, inspect,
 ## Direction
 
 - Precise, quiet, luminous, and technical without imitating an IDE.
-- Neutral charcoal/slate surfaces with one restrained teal accent (`#0f766e` light, `#2dd4bf` dark).
+- Neutral charcoal/slate surfaces with one restrained semantic accent.
 - Dense information is separated by hierarchy, rhythm, and dividers rather than nested cards.
 - System sans-serif for UI and system monospace for code and numbers; no remote fonts.
 
@@ -33,13 +33,13 @@ At narrow widths, secondary regions collapse into the mobile workspace navigatio
 
 Authoritative tokens live in `src/index.css` and `src/styles/`. New components must use semantic variables for surfaces, text, borders, focus, danger, warning, success, spacing, radii, and motion. Arbitrary colors and shadows require a documented exception.
 
-| Token scope | Light mode | Dark mode | High contrast |
-|---|---:|---:|---:|
-| Primary accent | `#0f766e` | `#2dd4bf` | `#00ffff` |
-| Primary background | `#f5f7fb` | `#030712` | `#000000` |
-| Secondary surface | `rgba(255, 255, 255, 0.65)` | `rgba(11, 15, 26, 0.6)` | `#000000` |
-| Primary text | `#1e293b` | `#f3f4f6` | `#ffffff` |
-| Focus ring | theme-specific teal | theme-specific teal | yellow |
+| Token role | Runtime variable |
+|---|---|
+| Primary accent | `--primary` |
+| Primary background | `--bg` |
+| Secondary surface | `--surface-muted` |
+| Primary text | `--ink` |
+| Focus ring | `--focus-ring` |
 
 ## Interaction contract
 

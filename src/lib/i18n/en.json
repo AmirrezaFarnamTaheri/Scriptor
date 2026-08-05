@@ -16,7 +16,11 @@
     "refresh": "Refresh",
     "check": "Check",
     "start": "Start",
-    "reset": "Reset"
+    "reset": "Reset",
+    "retry": "Retry",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "confirm": "Confirm"
   },
   "topBar": {
     "openVault": "Open Vault",
@@ -31,7 +35,11 @@
     "switchToHighContrast": "Switch to high-contrast theme",
     "supportScriptor": "Support Scriptor",
     "settings": "Settings",
-    "typeCommandOrSearch": "Type a command or search..."
+    "typeCommandOrSearch": "Type a command or search...",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "expandInspector": "Expand inspector",
+    "collapseInspector": "Collapse inspector"
   },
   "commandPalette": {
     "placeholder": "Type a command or note...",
@@ -221,7 +229,26 @@
     "couldNotLoadDiff": "Could not load diff preview",
     "confirmAction": "Confirm Git action",
     "stagedChanges": "Staged changes",
-    "unstagedChanges": "Unstaged changes"
+    "unstagedChanges": "Unstaged changes",
+    "checkingStatus": "Checking repository status…",
+    "statusUnavailable": "Git status unavailable",
+    "loadingStatus": "Loading Git status",
+    "workingTreeClean": "Working tree clean",
+    "changedFiles": "{{count}} changed file(s)",
+    "activeNoteChanged": "Active note has uncommitted changes: {{note}}",
+    "everythingUpToDate": "Everything up to date. All changes are committed to {{branch}}.",
+    "openNote": "Open note",
+    "previewDiff": "Preview diff",
+    "resolve": "Resolve",
+    "conflict": "conflict",
+    "note": "Note",
+    "updateVaultNotes": "Update vault notes",
+    "draftRefineActiveNote": "Draft: refine active note",
+    "organizeLinksAndTags": "Organize knowledge links and tags",
+    "commitConfirm": "Commit {{count}} file(s) with message “{{message}}”?",
+    "pullConfirm": "Pull from the configured upstream?",
+    "pushConfirm": "Push to the configured upstream?",
+    "repositoryClean": "Repository clean"
   },
   "graph": {
     "title": "Knowledge Graph",
