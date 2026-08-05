@@ -171,15 +171,17 @@ test.describe('workspace flows', () => {
   })
 
   test('hash mismatch shows integrity warning', async ({ page }) => {
-    // The `e2e:hash-mismatch` flag this test sets is not honoured anywhere in
-    // src/ — no fixture ever produces a content-hash mismatch, so the warning
-    // locator could never match. The old body called isVisible() and threw the
-    // result away, leaving a test that asserted nothing about integrity.
-    test.skip(
-      true,
-      'No E2E fixture produces a content-hash mismatch; src/e2e/bootstrap.ts does not implement the e2e:hash-mismatch flag.',
-    )
-    void page
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await appendEditorLine(page, 'Local edit that races an external disk change.')
+
+    const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
+    await expect(banner).toBeVisible({ timeout: 15_000 })
+    await expect(banner.getByRole('button', { name: 'Reload from disk' })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Keep editing' })).toBeVisible()
   })
 
   test('corrupted session data falls back to defaults', async ({ page }) => {

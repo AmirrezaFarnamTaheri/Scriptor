@@ -10,7 +10,9 @@ A production release is blocked until every required item is checked against the
 - [ ] stop if initial editor chunks enter the eager bundle graph or the gzip budget regresses;
 - [ ] stop if destructive-action cancellation/failure leaves disk, tabs, index, or vault state divergent;
 - [ ] stop if a process launch lacks a live per-call inventory entry or its review has expired;
-- [ ] stop if rollback, restore, signing, or observability cannot be demonstrated on the target platform.
+- [ ] stop if rollback, restore, signing, or observability cannot be demonstrated on the target platform;
+- [ ] stop if any RustSec exception review is expired or lacks an owner/exit condition;
+- [ ] stop if Playwright E2E or visual regression is skipped or missing from the exact-head CI matrix.
 
 ## Source freeze
 
@@ -52,6 +54,8 @@ A production release is blocked until every required item is checked against the
 - [ ] Windows installers are Authenticode-signed and verified;
 - [ ] macOS app/DMG are signed, notarized, stapled, and assessed;
 - [ ] Linux packages have detached signatures;
+- [ ] exactly one source-bound signing evidence record exists for Windows, macOS, and Linux;
+- [ ] production signing evidence reports `signed: true` for all platforms and `notarized: true` for macOS;
 - [ ] artifact membership contains no secrets, personal vaults, logs, caches, source maps not intended for release, or dev-only files;
 - [ ] clean install and smoke test pass on every supported OS.
 
@@ -59,7 +63,7 @@ A production release is blocked until every required item is checked against the
 
 - [ ] generate `SHA256SUMS`;
 - [ ] generate CycloneDX SBOM;
-- [ ] generate release receipt with source/toolchain/artifact hashes;
+- [ ] generate release receipt schema 3 with source/toolchain/artifact hashes and verified signing evidence;
 - [ ] generate GitHub/Sigstore attestations;
 - [ ] publish the exact downloaded build artifacts without rebuilding;
 - [ ] verify all consumer instructions in `RELEASE-SECURITY.md` against the published assets;

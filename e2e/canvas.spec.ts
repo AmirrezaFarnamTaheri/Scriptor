@@ -1,26 +1,46 @@
 import { test, expect } from '@playwright/test'
 import type { Locator, Page } from '@playwright/test'
-import { launchApp, settleLayout, openCommandPalette, runCommand } from './helpers'
+import {
+  launchApp,
+  settleLayout,
+  openCommandPalette,
+  runCommand,
+  waitForWorkspace,
+} from './helpers'
 
-/**
- * The canvas has no "add block" control: blocks are created by gestures bound to
- * plugin-contributed canvas tools (`plugins.contributions.canvasTools`), and the
- * E2E fixture loads no plugins and mocks `canvas_load_document` with an empty
- * block list. Every test below that needed an existing block used to hide that
- * behind `if (await addBtn.isVisible().catch(() => false))`, so it passed while
- * asserting nothing. Those are now explicit, visible skips.
- */
-const NO_ADD_BLOCK_REASON =
-  'Canvas blocks can only be created by plugin-contributed tools; the E2E fixture loads no plugins, so there is no way to add a block.'
+async function enableCanvasKit(page: Page): Promise<void> {
+  await waitForWorkspace(page)
+  await page.getByRole('tab', { name: 'Plugins' }).click()
+  await expect(page.getByRole('heading', { name: 'Installed plugins' })).toBeVisible({
+    timeout: 15_000,
+  })
+  const installedPlugins = page.locator('.plugin-list').nth(1)
+  await installedPlugins.getByRole('button', { name: /Canvas Kit/ }).click()
+  await page.getByRole('button', { name: 'Review and grant for this vault' }).click()
+  await page.getByRole('button', { name: 'Enable plugin' }).click()
+  await expect(page.getByRole('button', { name: 'Disable plugin' })).toBeVisible()
+}
 
 async function openCanvas(page: Page): Promise<Locator> {
   await launchApp(page)
+  await enableCanvasKit(page)
   await settleLayout(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open canvas')
   const panel = page.getByRole('dialog', { name: 'Canvas board' })
   await expect(panel).toBeVisible({ timeout: 15_000 })
   return panel
+}
+
+async function addTableBlock(panel: Locator): Promise<Locator> {
+  await panel.getByRole('button', { name: 'Table' }).click()
+  const stage = panel.locator('.canvas-svg')
+  const bounds = await stage.boundingBox()
+  if (!bounds) throw new Error('canvas stage has no bounding box')
+  await stage.click({ position: { x: bounds.width * 0.55, y: bounds.height * 0.5 } })
+  const block = panel.locator('.canvas-block')
+  await expect(block).toHaveCount(1)
+  return block
 }
 
 test.describe('Canvas panel', () => {
@@ -37,8 +57,10 @@ test.describe('Canvas panel', () => {
   })
 
   test('add block creates a new canvas node', async ({ page }) => {
-    test.skip(true, NO_ADD_BLOCK_REASON)
-    void page
+    const panel = await openCanvas(page)
+    const block = await addTableBlock(panel)
+    await expect(block).toHaveAttribute('aria-label', /table:/)
+    await expect(panel.locator('.canvas-header')).toContainText('1 blocks')
   })
 
   test('canvas has accessible toolbar', async ({ page }) => {
@@ -47,13 +69,14 @@ test.describe('Canvas panel', () => {
     await expect(toolbar).toBeVisible()
     await expect(toolbar.getByRole('button', { name: 'Undo' })).toBeVisible()
     await expect(toolbar.getByRole('button', { name: 'Redo' })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Select' })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Ink' })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Table' })).toBeVisible()
     await expect(panel.getByRole('button', { name: 'Close canvas' })).toBeVisible()
   })
 
   test('canvas reports an empty board for the E2E fixture', async ({ page }) => {
     const panel = await openCanvas(page)
-    // `canvas_load_document` is mocked with `blocks: []`; assert the panel says
-    // so rather than probing for nodes that can never exist.
     await expect(panel.locator('.canvas-block')).toHaveCount(0)
     await expect(panel.locator('.canvas-header')).toContainText('0 blocks')
   })
@@ -65,17 +88,40 @@ test.describe('Canvas panel', () => {
   })
 
   test('canvas save persists state', async ({ page }) => {
-    test.skip(true, NO_ADD_BLOCK_REASON)
-    void page
+    const panel = await openCanvas(page)
+    await addTableBlock(panel)
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() => {
+            const latest = window.__scriptorE2eCanvasSaves?.at(-1)
+            if (!latest) return 0
+            return (JSON.parse(latest) as { blocks: unknown[] }).blocks.length
+          }),
+        { timeout: 5000 },
+      )
+      .toBe(1)
+    await expect(panel.getByRole('status')).toContainText('Saved to .scriptor/canvas/')
   })
 
-  test('canvas undo reverts last action', async ({ page }) => {
-    test.skip(true, NO_ADD_BLOCK_REASON)
-    void page
+  test('canvas undo reverts last action and redo restores it', async ({ page }) => {
+    const panel = await openCanvas(page)
+    await addTableBlock(panel)
+    await panel.getByRole('button', { name: 'Undo' }).click()
+    await expect(panel.locator('.canvas-block')).toHaveCount(0)
+    await panel.getByRole('button', { name: 'Redo' }).click()
+    await expect(panel.locator('.canvas-block')).toHaveCount(1)
   })
 
   test('canvas block can be selected', async ({ page }) => {
-    test.skip(true, NO_ADD_BLOCK_REASON)
-    void page
+    const panel = await openCanvas(page)
+    const block = await addTableBlock(panel)
+    await panel.getByRole('button', { name: 'Select' }).click()
+    const stage = panel.locator('.canvas-svg')
+    await stage.click({ position: { x: 8, y: 8 } })
+    await expect(panel.locator('.canvas-block.selected')).toHaveCount(0)
+    await block.click()
+    await expect(block).toHaveClass(/selected/)
+    await expect(panel.getByRole('status')).toContainText('Selected 1 block')
   })
 })

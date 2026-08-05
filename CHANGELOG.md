@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Repository hardening (2026-08-05)
+
+- Made production release signing fail closed across Windows, macOS, and Linux and bound native verification results to receipt schema 3.
+- Added source-bound signing evidence, pre-publication verification, and production notarization enforcement.
+- Added dedicated Playwright functional and visual CI gates with retained failure reports.
+- Replaced six explicit E2E skips with deterministic canvas, integrity-warning, and native MCP audit coverage.
+- Added an executable, expiring RustSec exception ledger with ownership, reachability, upstream references, and exit conditions.
+- Deepened the application shell, MCP tool contracts, CLI command-line model, and daemon command catalog into owned modules with tighter size ratchets.
+- Reconciled historical frontend audit documentation with the final verified and merged state.
+
 ### Audit remediation (2026-08-03)
 
 - Pinned every privileged GitHub Action to an immutable commit and tightened the verified-action inventory.
@@ -132,7 +142,7 @@ First public release of Scriptor — a local-first Markdown knowledge workspace 
 ### CI / DevOps
 
 - Cross-platform installers: Windows (MSI, NSIS), macOS (DMG), Linux (DEB, AppImage)
-- GitHub Actions CI and release workflows with optional code signing
+- GitHub Actions CI and release workflows (historical 0.1.0 posture used optional code signing; current production tags fail closed)
 - Container smoke image for headless validation
 - Devcontainer configuration (`.devcontainer/`) and Nix flake (`flake.nix`) for reproducible development environments
 - `check:a11y-axe` (`axe dist/index.html --rules wcag2a,wcag2aa,wcag21aa --exit`) added to `check:release` pipeline

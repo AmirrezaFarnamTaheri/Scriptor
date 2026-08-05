@@ -30,7 +30,7 @@ pnpm check:knowledge
 pnpm check:merge
 ```
 
-`check:source` covers generated IPC contracts, Rust source/module/process/unsafe policy, native authorization, frontend policy, hotspot ownership, benchmark utilities, and release-evidence utilities. `check:governance` covers version parity, immutable Actions, package boundaries, locale parity, documentation/license contracts, frontend policy, and hotspot ownership.
+`check:source` covers generated IPC contracts, Rust source/module/process/unsafe policy, native authorization, frontend policy, hotspot ownership, benchmark utilities, release signing/evidence contracts, and the RustSec exception ledger. `check:governance` covers version parity, immutable Actions, package boundaries, locale parity, documentation/license contracts, frontend policy, and hotspot ownership.
 
 ## Full engineering gate
 
@@ -77,8 +77,10 @@ Required manual matrix:
 
 - Build installers from the exact audited source commit.
 - Verify Windows Authenticode, macOS Developer ID/notarization/staple, and Linux detached signatures.
-- Generate the SBOM and receipt in the promotion job after all platform artifacts are downloaded.
-- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra subjects, unsafe paths, symlinks, and checksum/SBOM mismatch.
+- Generate platform signing evidence during each packaging job.
+- Run `node scripts/release/verify-signing-evidence.mjs release-artifacts production` before generating the SBOM and receipt.
+- Generate receipt schema 3 in the promotion job after all platform artifacts are downloaded.
+- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra subjects, unsafe paths, symlinks, checksum/SBOM mismatch, incomplete signing evidence, unsigned production artifacts, and missing macOS notarization.
 - Verify GitHub attestations and release-tag lineage.
 - Clean-install each package.
 - Create an external backup, corrupt a copy, prove rejection, and restore on each supported OS.

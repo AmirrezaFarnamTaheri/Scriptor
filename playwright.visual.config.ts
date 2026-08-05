@@ -4,7 +4,7 @@ const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
 
 export default defineConfig({
   testDir: 'e2e',
-  testMatch: /visual-regression\.spec\.ts$/,
+  testMatch: /screenshots\.spec\.ts$/,
   timeout: 120_000,
   expect: {
     timeout: 30_000,
@@ -15,6 +15,12 @@ export default defineConfig({
       threshold: 0.15,
     },
   },
+  reporter: process.env.CI
+    ? [
+        ['line'],
+        ['html', { outputFolder: 'playwright-report/visual', open: 'never' }],
+      ]
+    : 'list',
   outputDir: 'test-results/visual',
   updateSnapshots: process.env.CI ? 'none' : 'missing',
   use: {
@@ -25,6 +31,9 @@ export default defineConfig({
     deviceScaleFactor: 1,
     colorScheme: 'light',
     locale: 'en-US',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+    video: 'retain-on-failure',
   },
   webServer: {
     command: 'pnpm vite build --mode e2e && pnpm vite preview --host 127.0.0.1 --port 4184 --strictPort',

@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { KnowledgeWorkbenchTab } from '../components/KnowledgeWorkbench'
 import type { StatusDockTab } from '../components/StatusDockPanel'
 
-interface RenameTarget {
+export interface RenameTarget {
   path: string
   label: string
 }

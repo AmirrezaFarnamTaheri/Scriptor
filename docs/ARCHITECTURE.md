@@ -24,7 +24,7 @@ The renderer is not an authority boundary. Native operations validate scope, aut
 
 | Plane | Owner | Responsibilities |
 |---|---|---|
-| Product shell | `src/App.tsx`, `src/components/shell/`, `src/hooks/` | workspace composition and presentation state |
+| Product shell | `src/App.tsx`, `src/components/shell/`, `src/components/app/QuickCaptureWorkspaceLayer.tsx`, `src/components/app/WorkspaceRenameDialogs.tsx`, `src/hooks/` | workspace composition, capture/rename workflows, and presentation state |
 | Runtime validation | `src/lib/runtimeSchema.ts`, `src/types/vaultValidators.ts` | parse untrusted bridge/storage payloads |
 | Native adapter | `apps/desktop/src-tauri/src/commands/` | Tauri argument/result mapping only |
 | Authorization | `apps/desktop/src-tauri/src/authorization.rs` | one-time operation/scope grants and native confirmation |
@@ -32,10 +32,10 @@ The renderer is not an authority boundary. Native operations validate scope, aut
 | Index | `crates/indexer/` | SQLite schema/migrations, FTS, backlinks, graph and knowledge queries |
 | Git | `crates/native-git/` | noninteractive status/diff/commit/conflict operations |
 | External tools | `crates/system-bridge/src/process.rs` | executable policy, sanitized env, sandbox, bounds, cancellation, receipts |
-| Daemon transport | `crates/daemon/`, `crates/ipc/` | authenticated local RPC, frame bounds, resynchronizing event delivery, jobs, MCP bridge |
+| Daemon transport | `crates/daemon/`, `crates/ipc/` | authenticated local RPC, frame bounds, resynchronizing event delivery, jobs, MCP bridge; the command catalog is owned separately from dispatch |
 | Observability | `crates/system-bridge/src/observability.rs` | structured, redacted, bounded local tracing |
 | Export | `crates/export-runner/`, `packages/export/` | profiles, preflight, diagrams, Pandoc orchestration |
-| UI packages | `packages/*` | deep modules exposed only through package exports |
+| UI packages | `packages/*` | deep modules exposed only through package exports; MCP tool contracts/catalog are separated from runtime state and dispatch |
 
 ## Primary workflows
 
@@ -90,4 +90,4 @@ SQLite uses WAL, foreign keys, busy timeouts, transactional migrations, FTS, and
 
 ## Known architecture work
 
-The adapter layer retains a large composition root, but deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tests, daemon command support, daemon transport tests, and CLI benchmarks now have focused owners. A source ratchet bounds the six identified hotspots. Further decomposition must proceed by characterized vertical workflows over typed application services, not a big-bang rewrite. See the capability ledger and `docs/REMEDIATION-2026-08-03.md`.
+The adapter layer retains a composition root, but quick capture, rename transactions, deletion, telemetry, shortcuts, sidebar actions, auxiliary workspace data, settings vault configuration, MCP tool contracts, daemon command catalog/support, daemon transport tests, CLI command-line schema, and CLI benchmarks now have focused owners. The source ratchet was tightened after these extractions: `App.tsx` 1,950 lines, MCP runtime 575, daemon command gateway 875, and CLI main 650. Further decomposition must proceed by characterized vertical workflows over typed application services, not a big-bang rewrite. See the capability ledger and `docs/REMEDIATION-2026-08-03.md`.

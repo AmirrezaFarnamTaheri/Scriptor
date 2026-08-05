@@ -4,8 +4,13 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$channel = if ([string]::IsNullOrWhiteSpace($env:SCRIPTOR_RELEASE_CHANNEL)) { 'preview' } else { $env:SCRIPTOR_RELEASE_CHANNEL }
+
 if ([string]::IsNullOrWhiteSpace($env:WINDOWS_CERTIFICATE)) {
-  Write-Host 'WINDOWS_CERTIFICATE not set; skipping Authenticode signing.'
+  if ($channel -eq 'production') {
+    Write-Error 'WINDOWS_CERTIFICATE is required for production releases.'
+  }
+  Write-Host 'WINDOWS_CERTIFICATE not set; preview artifact will remain unsigned.'
   exit 0
 }
 

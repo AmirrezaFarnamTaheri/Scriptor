@@ -3,8 +3,8 @@
 
 [advisories]
 yanked = "warn"
-# Every ignored advisory below is classified as unmaintained and reports
-# "No safe upgrade is available". Upgradeable vulnerabilities remain denied.
+# Every ignored advisory is owned in docs/security/RUSTSEC-EXCEPTIONS.md.
+# Upgradeable vulnerabilities remain denied; expired exception reviews block release.
 ignore = [
     # Tauri's Linux GTK3/WebKit compatibility stack.
     "RUSTSEC-2024-0411",

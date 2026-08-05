@@ -2,12 +2,12 @@
 import { readFileSync } from 'node:fs'
 
 const limits = new Map([
-  ['src/App.tsx', 2150],
+  ['src/App.tsx', 1950],
   ['src/components/SettingsPanel.tsx', 650],
-  ['packages/mcp/src/runtime.ts', 800],
-  ['crates/daemon/src/command_gateway.rs', 1000],
+  ['packages/mcp/src/runtime.ts', 575],
+  ['crates/daemon/src/command_gateway.rs', 875],
   ['crates/daemon/src/transport.rs', 700],
-  ['crates/cli/src/main.rs', 1000],
+  ['crates/cli/src/main.rs', 650],
 ])
 
 const requiredOwners = [
@@ -17,6 +17,11 @@ const requiredOwners = [
   'src/hooks/useVaultSidebarActions.ts',
   'src/hooks/useWorkspaceAuxiliaryData.ts',
   'src/components/VaultConfigSettingsSection.tsx',
+  'src/components/app/QuickCaptureWorkspaceLayer.tsx',
+  'src/components/app/WorkspaceRenameDialogs.tsx',
+  'packages/mcp/src/tool-contracts.ts',
+  'crates/daemon/src/command_gateway/catalog.rs',
+  'crates/cli/src/command_line.rs',
   'packages/mcp/src/runtime-tests.ts',
   'crates/daemon/src/command_gateway/support.rs',
   'crates/daemon/src/transport/tests.rs',
