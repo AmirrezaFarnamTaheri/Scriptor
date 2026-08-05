@@ -1,6 +1,9 @@
 name: Apply complete repository hardening
 
 on:
+  push:
+    branches:
+      - automation/apply-complete-hardening-2026-08-05
   pull_request:
     branches: [main]
 
@@ -13,7 +16,7 @@ concurrency:
 
 jobs:
   apply:
-    if: github.head_ref == 'automation/apply-complete-hardening-2026-08-05'
+    if: github.ref == 'refs/heads/automation/apply-complete-hardening-2026-08-05' || github.head_ref == 'automation/apply-complete-hardening-2026-08-05'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
