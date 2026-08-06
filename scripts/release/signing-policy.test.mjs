@@ -53,7 +53,7 @@ test('unsigned production evidence covers every platform and architecture', () =
   )
 })
 
-test('signed records remain internally consistent without becoming mandatory', () => {
+test('official production evidence rejects signed artifacts', () => {
   const records = DEFAULT_RELEASE_TARGETS.map((target) => createSigningEvidence({
     ...target,
     channel: 'production',
@@ -61,12 +61,9 @@ test('signed records remain internally consistent without becoming mandatory', (
     notarized: target.platform === 'macos',
     verifier: target.platform === 'macos' ? 'codesign and stapler' : 'SHA-256 and GitHub attestation',
   }))
-  assert.doesNotThrow(() => assertSigningEvidence(records, { channel: 'production' }))
   assert.throws(
-    () => assertSigningEvidence(records.map((record) => (
-      record.platform === 'macos' ? { ...record, notarized: false } : record
-    )), { channel: 'production' }),
-    /not notarized/,
+    () => assertSigningEvidence(records, { channel: 'production' }),
+    /official production artifact must be unsigned/,
   )
 })
 
