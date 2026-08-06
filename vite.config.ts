@@ -25,13 +25,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: [
-      '@codemirror/commands',
-      '@codemirror/lang-markdown',
-      '@codemirror/language',
-      '@codemirror/state',
-      '@codemirror/view',
-      'monaco-editor',
-    ],
+    include: ['monaco-editor'],
   },
 })
