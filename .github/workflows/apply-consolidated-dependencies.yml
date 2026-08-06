@@ -1,11 +1,8 @@
 name: Finalize consolidated dependency wave
 
 on:
-  push:
-    branches:
-      - integrate/open-prs-v0.1.1
-    paths:
-      - .github/workflows/apply-consolidated-dependencies.yml
+  pull_request:
+    types: [ready_for_review]
 
 permissions:
   contents: write
@@ -16,6 +13,7 @@ concurrency:
 
 jobs:
   finalize:
+    if: github.event.pull_request.number == 45
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
