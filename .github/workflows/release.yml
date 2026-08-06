@@ -1,77 +1,95 @@
 name: Release
-run-name: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && format('Production {0}', github.ref_name) || format('Preview v{0}', github.event.inputs.version || '0.1.0') }}
+run-name: >-
+  ${{
+    ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
+    (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
+    && format('Production {0}', github.ref_name)
+    || format('Preview {0}', github.ref_name)
+  }}
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: Preview build version; manual runs do not publish
+      publish:
+        description: Publish only when this workflow is dispatched on an existing v* tag
         required: false
-        default: '0.1.0'
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*'
 
 concurrency:
-  group: release-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 defaults:
   run:
     working-directory: .
 
 env:
-  SCRIPTOR_RELEASE_VERSION: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('v{0}', github.event.inputs.version || '0.1.0') }}
-  SCRIPTOR_RELEASE_CHANNEL: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && 'production' || 'preview' }}
+  SCRIPTOR_RELEASE_VERSION: >-
+    ${{
+      ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
+      && github.ref_name
+      || ''
+    }}
+  SCRIPTOR_RELEASE_CHANNEL: >-
+    ${{
+      ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
+      && 'production'
+      || 'preview'
+    }}
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
   FORCE_COLOR: 1
 
 jobs:
   build:
-    name: Package ${{ matrix.platform }} installers
+    name: Package ${{ matrix.platform }}/${{ matrix.architecture }} installers
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-2025
             platform: windows
+            architecture: x86_64
             targets: msi,nsis
-            artifact: scriptor-windows-installers
+            artifact: scriptor-windows-x86_64-installers
           - os: macos-15
             platform: macos
+            architecture: aarch64
             targets: dmg
-            artifact: scriptor-macos-installers
+            artifact: scriptor-macos-aarch64-installers
           - os: ubuntu-22.04
             platform: linux
+            architecture: x86_64
             targets: deb,appimage
-            artifact: scriptor-linux-installers
+            artifact: scriptor-linux-x86_64-installers
+          - os: ubuntu-24.04-arm
+            platform: linux
+            architecture: aarch64
+            targets: deb,appimage
+            artifact: scriptor-linux-aarch64-installers
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     env:
-      CI_LOG_DIR: artifacts/ci-logs/release-${{ matrix.platform }}
+      CI_LOG_DIR: artifacts/ci-logs/release-${{ matrix.platform }}-${{ matrix.architecture }}
+      SCRIPTOR_PLATFORM: ${{ matrix.platform }}
+      SCRIPTOR_ARCHITECTURE: ${{ matrix.architecture }}
     steps:
       - name: Checkout release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Validate release version and signing policy
-        shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
-        run: |
-          node scripts/release/version.mjs check
-          node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
 
       - name: Configure pinned pnpm 10.33.0
         shell: pwsh
@@ -79,11 +97,6 @@ jobs:
           corepack enable
           corepack prepare pnpm@10.33.0 --activate
           pnpm --version
-
-      - name: Configure Node.js 22
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22.16.0
 
       - name: Configure pinned Rust 1.96.0
         shell: pwsh
@@ -93,9 +106,24 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Validate release version and unsigned publication policy
+        shell: pwsh
+        run: |
+          if ($env:SCRIPTOR_RELEASE_CHANNEL -eq 'preview') {
+            $canonicalVersion = (Get-Content -LiteralPath VERSION -Raw).Trim()
+            $env:SCRIPTOR_RELEASE_VERSION = "v$canonicalVersion"
+            "SCRIPTOR_RELEASE_VERSION=v$canonicalVersion" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+          }
+          node scripts/release/version.mjs check
+          node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --architecture "${{ matrix.architecture }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
+
+      - name: Verify runner architecture matches target
+        shell: pwsh
+        run: node scripts/release/verify-runner-architecture.mjs --expected "${{ matrix.architecture }}"
+
       - name: Describe release packaging scope
         shell: pwsh
-        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Release packaging (${{ matrix.platform }})"
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})"
 
       - name: Install Linux packaging dependencies
         if: matrix.platform == 'linux'
@@ -106,210 +134,78 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
-      - name: Import Apple signing certificate
-        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: bash
-        env:
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-        run: |
-          set -euo pipefail
-          echo "::group::Import Apple signing certificate"
-          KEYCHAIN=build.keychain
-          security create-keychain -p actions "$KEYCHAIN"
-          security default-keychain -s "$KEYCHAIN"
-          security unlock-keychain -p actions "$KEYCHAIN"
-          echo "$APPLE_CERTIFICATE" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security import "$RUNNER_TEMP/certificate.p12" -k "$KEYCHAIN" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions "$KEYCHAIN"
-          echo "Signing mode: imported Apple certificate into ephemeral keychain."
-          echo "::endgroup::"
-
-      - name: Configure macOS signing and notarization inputs
-        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: bash
-        env:
-          _APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          _APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          _APPLE_ID: ${{ secrets.APPLE_ID }}
-          _APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          _APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          echo "::group::Configure macOS signing and notarization inputs"
-          {
-            echo "APPLE_SIGNING_IDENTITY=$_APPLE_SIGNING_IDENTITY"
-            echo "APPLE_ID=$_APPLE_ID"
-            echo "APPLE_PASSWORD=$_APPLE_PASSWORD"
-            echo "APPLE_TEAM_ID=$_APPLE_TEAM_ID"
-          } >> "$GITHUB_ENV"
-          echo "Signing mode: Apple Developer ID with notarization."
-          echo "::endgroup::"
-
-      - name: Build Tauri bundles for ${{ matrix.platform }}
+      - name: Build Tauri bundles
         shell: pwsh
         env:
           TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Build Tauri bundles for ${{ matrix.platform }}" -FilePath "pnpm" -ArgumentList @("--dir", "apps/desktop", "build") -TimeoutSeconds 4800 -HeartbeatSeconds 20
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Build Tauri bundles for ${{ matrix.platform }}/${{ matrix.architecture }}" -FilePath "pnpm" -ArgumentList @("--dir", "apps/desktop", "build") -TimeoutSeconds 4800 -HeartbeatSeconds 20
 
       - name: Verify bundle artifacts and expected target coverage
         shell: pwsh
-        env:
-          SCRIPTOR_PLATFORM: ${{ matrix.platform }}
         run: ./scripts/ci/invoke-logged.ps1 -Name "Verify bundle artifacts and expected target coverage" -FilePath "node" -ArgumentList @("scripts/release/verify-bundle.mjs", "${{ matrix.platform }}") -TimeoutSeconds 300
 
-      - name: Sign and verify Windows production installers
-        if: matrix.platform == 'windows' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
+      - name: Record unsigned release trust status
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Sign Windows installers when certificate is configured" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/sign-installers.ps1") -TimeoutSeconds 900
+        run: >-
+          node scripts/release/write-signing-evidence.mjs
+          --platform "${{ matrix.platform }}"
+          --architecture "${{ matrix.architecture }}"
+          --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
+          --signed false
+          --notarized false
+          --signature-type none
+          --verifier "unsigned artifact; verify SHA-256 and GitHub attestation"
 
-      - name: Write Windows release manifest
-        if: matrix.platform == 'windows'
+      - name: Stage distributable release assets only
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Write Windows release manifest" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/write-manifest.ps1") -TimeoutSeconds 300
+        run: >-
+          node scripts/release/stage-release-assets.mjs
+          --platform "${{ matrix.platform }}"
+          --architecture "${{ matrix.architecture }}"
+          --output-dir release-output
 
-      - name: Verify Windows release manifest
-        if: matrix.platform == 'windows'
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Verify Windows release manifest" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/release/verify-manifest.ps1") -TimeoutSeconds 300
-
-      - name: Sign and verify Linux production bundles
-        if: matrix.platform == 'linux' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: bash
-        env:
-          LINUX_SIGNING_KEY: ${{ secrets.LINUX_SIGNING_KEY }}
-        run: |
-          set -euo pipefail
-          key_file="$RUNNER_TEMP/scriptor-linux-signing-key.asc"
-          printf %s "$LINUX_SIGNING_KEY" | base64 --decode > "$key_file"
-          gpg --batch --import "$key_file"
-          bundles=()
-          while IFS= read -r -d '' bundle; do
-            bundles+=("$bundle")
-          done < <(find target/release/bundle -type f \( -name "*.deb" -o -name "*.AppImage" \) -print0)
-          test "${#bundles[@]}" -gt 0
-          for bundle in "${bundles[@]}"; do
-            gpg --batch --yes --armor --detach-sign "$bundle"
-            gpg --verify "$bundle.asc" "$bundle"
-          done
-          gpg --armor --export > target/release/bundle/scriptor-release-public-key.asc
-          rm -f "$key_file"
-
-      - name: Verify macOS production signatures and notarization
-        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: bash
-        env:
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-        run: |
-          set -euo pipefail
-          apps=()
-          while IFS= read -r -d '' app; do
-            apps+=("$app")
-          done < <(find target/release/bundle -type d -name "*.app" -print0)
-          dmgs=()
-          while IFS= read -r -d '' dmg; do
-            dmgs+=("$dmg")
-          done < <(find target/release/bundle -type f -name "*.dmg" -print0)
-          test "${#apps[@]}" -gt 0
-          test "${#dmgs[@]}" -gt 0
-          for app in "${apps[@]}"; do codesign --verify --deep --strict --verbose=2 "$app"; done
-          for dmg in "${dmgs[@]}"; do xcrun stapler validate "$dmg"; done
-
-      - name: Record Windows production signing evidence
-        if: matrix.platform == 'windows' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: pwsh
-        run: node scripts/release/write-signing-evidence.mjs --platform windows --channel production --signed true --notarized false --signature-type authenticode --verifier "signtool verify /pa"
-
-      - name: Record macOS production signing evidence
-        if: matrix.platform == 'macos' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: pwsh
-        run: node scripts/release/write-signing-evidence.mjs --platform macos --channel production --signed true --notarized true --signature-type developer-id --verifier "codesign --verify and xcrun stapler validate"
-
-      - name: Record Linux production signing evidence
-        if: matrix.platform == 'linux' && env.SCRIPTOR_RELEASE_CHANNEL == 'production'
-        shell: pwsh
-        run: node scripts/release/write-signing-evidence.mjs --platform linux --channel production --signed true --notarized false --signature-type openpgp --verifier "gpg --verify"
-
-      - name: Record unsigned preview evidence
-        if: env.SCRIPTOR_RELEASE_CHANNEL == 'preview'
-        shell: pwsh
-        run: node scripts/release/write-signing-evidence.mjs --platform "${{ matrix.platform }}" --channel preview --signed false --notarized false --signature-type none --verifier "preview channel; publication disabled"
-
-      - name: Inventory generated bundles
+      - name: Inventory staged release assets
         if: always()
         shell: pwsh
         run: |
-          $inventoryPath = Join-Path $env:CI_LOG_DIR "bundle-inventory.log"
-          $roots = @("target/release/bundle", "dist/release-manifest.json")
+          $inventoryPath = Join-Path $env:CI_LOG_DIR "release-output-inventory.log"
           $lines = @(
             "platform=${{ matrix.platform }}",
+            "architecture=${{ matrix.architecture }}",
             "targets=${{ matrix.targets }}",
             "version=$env:SCRIPTOR_RELEASE_VERSION",
             "captured_utc=$([DateTimeOffset]::UtcNow.ToString('o'))"
           )
-          foreach ($root in $roots) {
-            if (-not (Test-Path -LiteralPath $root)) {
-              $lines += "missing=$root"
-              continue
-            }
-            foreach ($item in @(Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction SilentlyContinue | Sort-Object FullName)) {
-              $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-              $lines += "file=$($item.FullName) bytes=$($item.Length) sha256=$hash"
-            }
+          foreach ($item in @(Get-ChildItem -LiteralPath release-output -File -ErrorAction SilentlyContinue | Sort-Object Name)) {
+            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            $lines += "file=$($item.Name) bytes=$($item.Length) sha256=$hash"
           }
+          if ($lines.Count -eq 5) { $lines += "warning=no staged release assets found" }
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
           $lines | ForEach-Object { Write-Host $_ }
-          "| Inventory generated bundles | PASS | - | 0 | ``bundle-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Upload Windows installers and manifest
-        if: matrix.platform == 'windows'
+      - name: Upload staged release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.artifact }}
-          path: |
-            target/release/bundle/**/*
-            dist/release-manifest.json
+          path: release-output/*
           if-no-files-found: error
-
-      - name: Upload macOS or Linux installers
-        if: matrix.platform != 'windows'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.artifact }}
-          path: target/release/bundle/**/*
-          if-no-files-found: error
-
-      - name: Clean up Apple signing material
-        if: always() && matrix.platform == 'macos'
-        shell: bash
-        run: |
-          echo "::group::Clean up Apple signing material"
-          rm -f "$RUNNER_TEMP/certificate.p12"
-          security delete-keychain build.keychain 2>/dev/null || true
-          echo "Ephemeral certificate and keychain cleanup complete."
-          echo "::endgroup::"
 
       - name: Capture release packaging failure context
         if: failure()
         shell: pwsh
-        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Release packaging (${{ matrix.platform }})"
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})"
 
       - name: Finalize release packaging evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Release packaging (${{ matrix.platform }})" -Status "${{ job.status }}"
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})" -Status "${{ job.status }}"
 
       - name: Upload release packaging evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ci-evidence-release-${{ matrix.platform }}-${{ github.run_attempt }}
+          name: ci-evidence-release-${{ matrix.platform }}-${{ matrix.architecture }}-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
           retention-days: 14
@@ -317,47 +213,84 @@ jobs:
   publish:
     name: Publish GitHub Release
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v'))
+      }}
     permissions:
       contents: write
       id-token: write
       attestations: write
       artifact-metadata: write
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     env:
       CI_LOG_DIR: artifacts/ci-logs/release-publish
     steps:
       - name: Checkout release metadata
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
       - name: Describe release publication scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "GitHub Release publication"
 
-      - name: Download all installer artifacts
+      - name: Download all staged release assets
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: release-artifacts
+          pattern: scriptor-*-installers
           merge-multiple: true
 
-      - name: Inventory downloaded release artifacts
+      - name: Separate installer subjects from trust metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p release-evidence
+
+          evidence=(release-artifacts/signing-evidence-*.json)
+          test "${#evidence[@]}" -eq 4
+          mv "${evidence[@]}" release-evidence/
+
+          installers=(release-artifacts/*)
+          msi=(release-artifacts/*.msi)
+          exe=(release-artifacts/*.exe)
+          dmg=(release-artifacts/*.dmg)
+          deb=(release-artifacts/*.deb)
+          appimage=(release-artifacts/*.AppImage)
+          test "${#installers[@]}" -eq 7
+          test "${#msi[@]}" -eq 1
+          test "${#exe[@]}" -eq 1
+          test "${#dmg[@]}" -eq 1
+          test "${#deb[@]}" -eq 2
+          test "${#appimage[@]}" -eq 2
+          test -z "$(find release-artifacts -mindepth 1 -maxdepth 1 -type d -print -quit)"
+
+      - name: Inventory exact installer and metadata sets
         shell: pwsh
         run: |
           $inventoryPath = Join-Path $env:CI_LOG_DIR "publication-inventory.log"
           $lines = @()
-          foreach ($item in @(Get-ChildItem -LiteralPath release-artifacts -Recurse -File | Sort-Object FullName)) {
-            $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-            $line = "file=$($item.FullName) bytes=$($item.Length) sha256=$hash"
-            $lines += $line
-            Write-Host $line
+          foreach ($directory in @("release-artifacts", "release-evidence")) {
+            foreach ($item in @(Get-ChildItem -LiteralPath $directory -File | Sort-Object Name)) {
+              $hash = (Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              $line = "file=$directory/$($item.Name) bytes=$($item.Length) sha256=$hash"
+              $lines += $line
+              Write-Host $line
+            }
           }
-          if ($lines.Count -eq 0) { throw "No downloaded release artifacts were found." }
+          if ($lines.Count -ne 11) { throw "Expected 7 installers and 4 trust records; found $($lines.Count) files." }
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
-          "| Inventory downloaded release artifacts | PASS | - | 0 | ``publication-inventory.log`` |" | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
-      - name: Verify fail-closed platform signing evidence
+      - name: Verify architecture-bound unsigned trust evidence
         shell: bash
-        run: node scripts/release/verify-signing-evidence.mjs release-artifacts "$SCRIPTOR_RELEASE_CHANNEL"
+        run: node scripts/release/verify-signing-evidence.mjs release-evidence "$SCRIPTOR_RELEASE_CHANNEL"
 
       - name: Generate source-bound release evidence
         shell: bash
@@ -367,23 +300,43 @@ jobs:
           node scripts/release/create-receipt.mjs release-artifacts release-evidence
           node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence
 
-      - name: Attest release SBOM
+      - name: Attest exact installer provenance
         uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
         with:
-          subject-path: release-artifacts/**/*
+          subject-path: release-artifacts/*
+
+      - name: Attest exact installer SBOM
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1
+        with:
+          subject-path: release-artifacts/*
           sbom-path: release-evidence/scriptor.cyclonedx.json
 
-      - name: Create or update GitHub Release and attach verified installers
+      - name: Create or update GitHub Release and attach verified assets
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "Scriptor $GITHUB_REF_NAME"
+          cat > release-notes.md <<'NOTES'
+          ## Verification notice
+
+          These installers are intentionally **unsigned**. Windows may show an unknown-publisher warning and macOS may require explicit approval through Finder or System Settings.
+
+          Before running an installer:
+
+          1. Download the installer, `SHA256SUMS`, `scriptor.cyclonedx.json`, and `release-receipt.json`.
+          2. Set `installer` to the downloaded filename and verify only its checksum: `installer="<installer filename>"; grep -F "  $installer" SHA256SUMS | sha256sum --check -`.
+          3. Verify GitHub provenance and SBOM attestations with `gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor`.
+
+          The receipt binds every installer byte to this tag's source commit and records `signed: false` for each platform/architecture target. Full platform-specific commands are documented in `docs/RELEASE-SECURITY.md` at this tag.
+          NOTES
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release edit "$GITHUB_REF_NAME" --title "Scriptor $GITHUB_REF_NAME" --notes-file release-notes.md
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "Scriptor $GITHUB_REF_NAME" --notes-file release-notes.md
+          fi
           files=()
-          while IFS= read -r -d '' file; do
-            files+=("$file")
-          done < <(find release-artifacts release-evidence -type f -print0)
+          while IFS= read -r -d '' file; do files+=("$file"); done < <(find release-artifacts release-evidence -type f -print0)
           test "${#files[@]}" -gt 0
           gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
 
