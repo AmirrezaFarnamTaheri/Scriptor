@@ -1,4 +1,4 @@
-name: Apply consolidated dependency wave
+name: Finalize consolidated dependency wave
 
 on:
   push:
@@ -11,13 +11,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: apply-consolidated-dependencies
+  group: finalize-consolidated-dependencies
   cancel-in-progress: true
 
 jobs:
-  apply:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 20
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - name: Checkout integration branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -25,19 +25,19 @@ jobs:
           ref: integrate/open-prs-v0.1.1
           fetch-depth: 0
 
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
       - name: Configure pinned pnpm 10.33.0
         shell: bash
         run: |
           corepack enable
           corepack prepare pnpm@10.33.0 --activate
           pnpm --version
-
-      - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22.16.0
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
       - name: Configure pinned Rust 1.96.0
         shell: bash
@@ -47,7 +47,7 @@ jobs:
           rustc --version
           cargo --version
 
-      - name: Apply dependency manifest updates
+      - name: Apply dependency manifests
         shell: bash
         run: |
           node <<'NODE'
@@ -72,9 +72,9 @@ jobs:
             const source = fs.readFileSync(path, 'utf8')
             if (source.includes(after)) return
             if (!source.includes(before)) {
-              throw new Error(`Expected dependency declaration was not found in ${path}: ${before}`)
+              throw new Error(`Expected text was not found in ${path}: ${before}`)
             }
-            fs.writeFileSync(path, source.replaceAll(before, after))
+            fs.writeFileSync(path, source.split(before).join(after))
           }
 
           replaceRequired(
@@ -99,23 +99,20 @@ jobs:
           )
           NODE
 
-      - name: Regenerate dependency lockfiles
+      - name: Regenerate lockfiles
         shell: bash
         run: |
           pnpm install --lockfile-only
-          cargo metadata --format-version 1 > /dev/null
-          cargo metadata --locked --format-version 1 > /dev/null
+          cargo metadata --format-version 1 > cargo-metadata.json
 
-      - name: Verify requested versions
+      - name: Verify dependency resolution
         shell: bash
         run: |
           node <<'NODE'
           const fs = require('node:fs')
           const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
           const expected = {
-            dependencies: {
-              'lucide-react': '^1.28.0',
-            },
+            dependencies: { 'lucide-react': '^1.28.0' },
             devDependencies: {
               '@playwright/test': '^1.62.1',
               '@types/react': '^19.2.18',
@@ -132,16 +129,22 @@ jobs:
               }
             }
           }
-          NODE
-          grep -F 'reqwest = { version = "0.13", features = ["json"] }' apps/desktop/src-tauri/Cargo.toml
-          grep -F 'resvg = "0.48"' crates/canvas-engine/Cargo.toml
-          grep -F 'zip = "8"' crates/vault/Cargo.toml
-          grep -F 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1' .github/workflows/release.yml
 
-      - name: Commit dependency wave and remove one-shot workflow
+          const metadata = JSON.parse(fs.readFileSync('cargo-metadata.json', 'utf8'))
+          const resolved = new Set(metadata.packages.map((pkg) => `${pkg.name}@${pkg.version}`))
+          for (const target of ['reqwest@0.13.4', 'resvg@0.48.1', 'zip@8.6.0']) {
+            if (!resolved.has(target)) throw new Error(`Cargo resolution is missing ${target}`)
+          }
+          NODE
+          grep -F 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1' .github/workflows/release.yml
+          git diff --check
+
+      - name: Commit dependency wave and remove temporary workflows
         shell: bash
         run: |
-          rm .github/workflows/apply-consolidated-dependencies.yml
+          rm -f cargo-metadata.json
+          rm -f .github/workflows/apply-consolidated-dependencies.yml
+          rm -f .github/workflows/integrate-dependencies.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
