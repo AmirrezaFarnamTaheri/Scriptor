@@ -32,6 +32,19 @@ function menuItems(panel: HTMLElement): HTMLButtonElement[] {
     .filter((item) => !item.disabled)
 }
 
+function adjacentToolbarControl(
+  trigger: HTMLButtonElement,
+  backwards: boolean,
+): HTMLButtonElement | null {
+  const toolbar = trigger.closest<HTMLElement>('[role="toolbar"], .editor-toolbar')
+  if (!toolbar) return null
+  const controls = [...toolbar.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')]
+    .filter((control) => control.getClientRects().length > 0)
+  const triggerIndex = controls.indexOf(trigger)
+  if (triggerIndex < 0) return null
+  return controls[triggerIndex + (backwards ? -1 : 1)] ?? null
+}
+
 /**
  * Renders an editor-toolbar menu into the document body so scroll containers
  * cannot clip it. Positioning mutates only the portal element's fixed-layout
@@ -156,7 +169,11 @@ export function ToolbarPopover({
 
   const handleMenuKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     if (event.key === 'Tab') {
+      event.preventDefault()
+      const trigger = triggerRef.current
+      const focusTarget = trigger ? adjacentToolbarControl(trigger, event.shiftKey) : null
       onClose()
+      window.requestAnimationFrame(() => (focusTarget ?? trigger)?.focus())
       return
     }
     if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return
