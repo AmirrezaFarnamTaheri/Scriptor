@@ -5,7 +5,8 @@ import { join } from 'node:path'
 const host = '127.0.0.1'
 const port = 4173
 const url = `http://${host}:${port}`
-const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
+const isWindows = process.platform === 'win32'
+const pnpm = isWindows ? 'pnpm.cmd' : 'pnpm'
 
 // The `chromedriver` npm package pins a driver version in the lockfile, but the
 // Chrome it has to drive comes from the machine — so any drift between the two
@@ -15,12 +16,12 @@ const pnpm = process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm'
 function runnerChromedriver() {
   const dir = process.env.CHROMEWEBDRIVER
   if (!dir) return null
-  const binary = join(dir, process.platform === 'win32' ? 'chromedriver.exe' : 'chromedriver')
+  const binary = join(dir, isWindows ? 'chromedriver.exe' : 'chromedriver')
   return existsSync(binary) ? binary : null
 }
 
 const run = (args, stdio = 'inherit') =>
-  spawn(pnpm, args, { stdio, windowsHide: true })
+  spawn(pnpm, args, { stdio, windowsHide: true, shell: isWindows })
 
 const exited = (child, label) =>
   new Promise((resolve, reject) => {

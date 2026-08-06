@@ -21,10 +21,19 @@ const socketName = isWindows
 process.chdir(root)
 console.log(`Starting scriptor-daemon on ${socketName}`)
 
+const cargoDir = isWindows
+  ? `${process.env.USERPROFILE || ''}\\.cargo\\bin`
+  : `${process.env.HOME || ''}/.cargo/bin`
+const env = {
+  ...process.env,
+  PATH: cargoDir ? `${cargoDir}${isWindows ? ';' : ':'}${process.env.PATH || ''}` : process.env.PATH,
+}
+
 const daemon = spawn('cargo', ['run', '-p', 'scriptor-daemon', '--', 'serve', '--socket', socketName], {
   cwd: root,
   stdio: 'ignore',
   shell: isWindows,
+  env,
 })
 
 function sleep(ms) {
@@ -32,7 +41,7 @@ function sleep(ms) {
 }
 
 function run(command) {
-  execSync(command, { cwd: root, stdio: 'inherit', shell: isWindows })
+  execSync(command, { cwd: root, stdio: 'inherit', shell: isWindows, env })
 }
 
 try {

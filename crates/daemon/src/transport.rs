@@ -282,7 +282,22 @@ pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoi
     let endpoint = read_endpoint()?;
     verify_endpoint_process(&endpoint)?;
     let name = resolve_name(&endpoint.socket_name)?;
-    let stream = LocalSocketStream::connect(name.borrow()).map_err(IpcError::from)?;
+    let start = std::time::Instant::now();
+    let retry_budget = std::time::Duration::from_millis(500);
+    let stream = loop {
+        match LocalSocketStream::connect(name.borrow()) {
+            Ok(s) => break s,
+            Err(e)
+                if (e.kind() == std::io::ErrorKind::NotFound
+                    || e.kind() == std::io::ErrorKind::WouldBlock
+                    || e.kind() == std::io::ErrorKind::ConnectionRefused)
+                    && start.elapsed() < retry_budget =>
+            {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+            Err(e) => return Err(IpcError::from(e)),
+        }
+    };
     Ok((stream, endpoint))
 }
 
