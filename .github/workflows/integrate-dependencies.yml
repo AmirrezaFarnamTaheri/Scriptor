@@ -1,0 +1,134 @@
+name: Integrate open dependency updates
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-v0.1.1
+    paths:
+      - .github/workflows/integrate-dependencies.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: integrate-open-dependencies-v0.1.1
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout consolidated branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-v0.1.1
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Configure pinned pnpm
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure pinned Rust
+        shell: bash
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Apply dependency intent
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          def replace(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              content = target.read_text()
+              if old not in content:
+                  raise SystemExit(f'missing expected dependency text in {path}: {old}')
+              target.write_text(content.replace(old, new, 1))
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          dependency_updates = {
+              'lucide-react': '^1.28.0',
+          }
+          dev_dependency_updates = {
+              '@types/react': '^19.2.18',
+              '@types/react-dom': '^19.2.4',
+              '@vitejs/plugin-react': '^6.0.5',
+              'globals': '^17.9.0',
+              '@playwright/test': '^1.62.1',
+              'vite': '^8.2.0',
+          }
+          for name, version in dependency_updates.items():
+              if name not in package['dependencies']:
+                  raise SystemExit(f'missing dependency {name}')
+              package['dependencies'][name] = version
+          for name, version in dev_dependency_updates.items():
+              if name not in package['devDependencies']:
+                  raise SystemExit(f'missing dev dependency {name}')
+              package['devDependencies'][name] = version
+          package_path.write_text(json.dumps(package, indent=2, ensure_ascii=False) + '\n')
+
+          replace(
+              '.github/workflows/release.yml',
+              'actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0',
+              'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1',
+          )
+          replace(
+              'apps/desktop/src-tauri/Cargo.toml',
+              'reqwest = { version = "0.12", features = ["json"] }',
+              'reqwest = { version = "0.13", features = ["json"] }',
+          )
+          replace(
+              'crates/canvas-engine/Cargo.toml',
+              'resvg = "0.47"',
+              'resvg = "0.48"',
+          )
+          replace(
+              'crates/vault/Cargo.toml',
+              'zip = "2"',
+              'zip = "8"',
+          )
+          PY
+
+      - name: Regenerate lockfiles narrowly
+        shell: bash
+        run: |
+          pnpm install --lockfile-only
+          cargo update -p reqwest@0.12.28 --precise 0.13.4
+          cargo update -p resvg@0.47.0 --precise 0.48.1
+          cargo update -p zip@2.4.2 --precise 8.6.0
+          git diff --check
+          node scripts/release/version.mjs check
+
+      - name: Commit dependency wave
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/release.yml package.json pnpm-lock.yaml Cargo.lock apps/desktop/src-tauri/Cargo.toml crates/canvas-engine/Cargo.toml crates/vault/Cargo.toml
+          git commit -m "chore(deps): consolidate open dependency updates"
+          git push origin HEAD:integrate/open-prs-v0.1.1
+
+      - name: Verify consolidated dependency graph
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm lint
+          pnpm check:source
+          cargo check --locked
