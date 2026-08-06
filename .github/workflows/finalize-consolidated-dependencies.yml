@@ -1,0 +1,150 @@
+name: Finalize consolidated dependency wave
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-v0.1.1
+    paths:
+      - .github/workflows/finalize-consolidated-dependencies.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-consolidated-dependencies
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-v0.1.1
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned pnpm 10.33.0
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure pinned Rust 1.96.0
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          cargo --version
+
+      - name: Apply exact dependency declarations
+        run: |
+          node <<'NODE'
+          import fs from 'node:fs'
+
+          const packagePath = 'package.json'
+          const manifest = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
+          Object.assign(manifest.dependencies, {
+            'lucide-react': '^1.28.0',
+          })
+          Object.assign(manifest.devDependencies, {
+            '@types/react': '^19.2.18',
+            '@types/react-dom': '^19.2.4',
+            '@vitejs/plugin-react': '^6.0.5',
+            'globals': '^17.9.0',
+            '@playwright/test': '^1.62.1',
+            'vite': '^8.2.0',
+          })
+          fs.writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`)
+
+          const canvasPath = 'crates/canvas-engine/Cargo.toml'
+          const canvas = fs.readFileSync(canvasPath, 'utf8')
+          if (!canvas.includes('resvg = "0.47"')) {
+            throw new Error('Expected resvg 0.47 declaration was not found')
+          }
+          fs.writeFileSync(canvasPath, canvas.replace('resvg = "0.47"', 'resvg = "0.48"'))
+
+          const releasePath = '.github/workflows/release.yml'
+          const oldAttest = 'actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0'
+          const newAttest = 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1'
+          let release = fs.readFileSync(releasePath, 'utf8')
+          const occurrences = release.split(oldAttest).length - 1
+          if (occurrences !== 2) {
+            throw new Error(`Expected exactly two actions/attest v4.1.0 pins, found ${occurrences}`)
+          }
+          release = release.replaceAll(oldAttest, newAttest)
+          fs.writeFileSync(releasePath, release)
+          NODE
+
+      - name: Regenerate npm lockfile minimally
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+
+      - name: Update resvg lock graph exactly
+        run: cargo update -p resvg@0.47.0 --precise 0.48.1
+
+      - name: Verify consolidated dependency versions
+        run: |
+          node <<'NODE'
+          import fs from 'node:fs'
+
+          const manifest = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+          const expected = {
+            dependencies: {
+              'lucide-react': '^1.28.0',
+            },
+            devDependencies: {
+              '@types/react': '^19.2.18',
+              '@types/react-dom': '^19.2.4',
+              '@vitejs/plugin-react': '^6.0.5',
+              'globals': '^17.9.0',
+              '@playwright/test': '^1.62.1',
+              'vite': '^8.2.0',
+            },
+          }
+          for (const [section, entries] of Object.entries(expected)) {
+            for (const [name, version] of Object.entries(entries)) {
+              if (manifest[section]?.[name] !== version) {
+                throw new Error(`${section}.${name} is ${manifest[section]?.[name]}, expected ${version}`)
+              }
+            }
+          }
+
+          const canvas = fs.readFileSync('crates/canvas-engine/Cargo.toml', 'utf8')
+          if (!canvas.includes('resvg = "0.48"') || canvas.includes('resvg = "0.47"')) {
+            throw new Error('Canvas manifest did not converge on resvg 0.48')
+          }
+
+          const lock = fs.readFileSync('Cargo.lock', 'utf8')
+          for (const [name, version] of [['reqwest', '0.13.4'], ['resvg', '0.48.1'], ['zip', '8.6.0']]) {
+            const pattern = new RegExp(`name = "${name}"\\nversion = "${version.replaceAll('.', '\\.') }"`)
+            if (!pattern.test(lock)) throw new Error(`Cargo.lock is missing ${name} ${version}`)
+          }
+          if (/name = "resvg"\nversion = "0\.47\.0"/.test(lock)) {
+            throw new Error('Cargo.lock still contains resvg 0.47.0')
+          }
+
+          const release = fs.readFileSync('.github/workflows/release.yml', 'utf8')
+          const newPin = 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1'
+          if (release.split(newPin).length - 1 !== 2 || release.includes('59d89421af93a897026c735860bf21b6eb4f7b26')) {
+            throw new Error('Release workflow attest pins are not fully updated')
+          }
+          NODE
+
+          pnpm install --frozen-lockfile --ignore-scripts
+          cargo metadata --locked --no-deps --format-version 1 > /dev/null
+
+      - name: Commit finalized dependency wave
+        run: |
+          rm .github/workflows/finalize-consolidated-dependencies.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add package.json pnpm-lock.yaml Cargo.lock crates/canvas-engine/Cargo.toml .github/workflows/release.yml .github/workflows/finalize-consolidated-dependencies.yml
+          git diff --cached --check
+          git commit -m "chore(deps): finalize consolidated dependency wave"
+          git push origin HEAD:integrate/open-prs-v0.1.1
