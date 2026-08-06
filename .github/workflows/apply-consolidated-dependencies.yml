@@ -1,0 +1,139 @@
+name: Apply consolidated dependency wave
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-v0.1.1
+    paths:
+      - .github/workflows/apply-consolidated-dependencies.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-consolidated-dependencies
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-v0.1.1
+          fetch-depth: 0
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Configure pinned Rust 1.96.0
+        shell: bash
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Apply dependency manifest updates
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+
+          const packagePath = 'package.json'
+          const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'))
+          Object.assign(packageJson.dependencies, {
+            'lucide-react': '^1.28.0',
+          })
+          Object.assign(packageJson.devDependencies, {
+            '@playwright/test': '^1.62.1',
+            '@types/react': '^19.2.18',
+            '@types/react-dom': '^19.2.4',
+            '@vitejs/plugin-react': '^6.0.5',
+            globals: '^17.9.0',
+            vite: '^8.2.0',
+          })
+          fs.writeFileSync(packagePath, `${JSON.stringify(packageJson, null, 2)}\n`)
+
+          function replaceRequired(path, before, after) {
+            const source = fs.readFileSync(path, 'utf8')
+            if (source.includes(after)) return
+            if (!source.includes(before)) {
+              throw new Error(`Expected dependency declaration was not found in ${path}: ${before}`)
+            }
+            fs.writeFileSync(path, source.replaceAll(before, after))
+          }
+
+          replaceRequired(
+            'apps/desktop/src-tauri/Cargo.toml',
+            'reqwest = { version = "0.12", features = ["json"] }',
+            'reqwest = { version = "0.13", features = ["json"] }',
+          )
+          replaceRequired(
+            'crates/canvas-engine/Cargo.toml',
+            'resvg = "0.47"',
+            'resvg = "0.48"',
+          )
+          replaceRequired(
+            'crates/vault/Cargo.toml',
+            'zip = "2"',
+            'zip = "8"',
+          )
+          replaceRequired(
+            '.github/workflows/release.yml',
+            'actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0',
+            'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1',
+          )
+          NODE
+
+      - name: Refresh pnpm lockfile
+        shell: bash
+        run: pnpm install --lockfile-only
+
+      - name: Refresh Cargo lockfile
+        shell: bash
+        run: |
+          cargo update -p reqwest@0.12.28 --precise 0.13.4
+          cargo update -p resvg@0.47.0 --precise 0.48.1
+          cargo update -p zip@2.4.2 --precise 8.6.0
+          cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Verify regenerated dependency graphs
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile
+          cargo check --workspace --locked
+
+      - name: Commit consolidated dependency wave
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            .github/workflows/release.yml \
+            apps/desktop/src-tauri/Cargo.toml \
+            crates/canvas-engine/Cargo.toml \
+            crates/vault/Cargo.toml \
+            package.json \
+            pnpm-lock.yaml \
+            Cargo.lock
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'Dependency wave is already applied.'
+            exit 0
+          fi
+          git commit -m 'chore(deps): consolidate open dependency updates'
+          git push origin HEAD:integrate/open-prs-v0.1.1
