@@ -119,7 +119,7 @@
 .resource-target-card ul {
   margin: 0.5rem 0 0;
   padding-left: 1.1rem;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .resource-badge {
