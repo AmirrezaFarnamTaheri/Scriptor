@@ -8,10 +8,39 @@ import {
   waitForWorkspace,
 } from './helpers'
 
+async function enableCanvasKit(page: Page): Promise<void> {
+  await page.getByRole('tab', { name: 'Plugins' }).click()
+  const installedPlugins = page.locator('section.widget-card').filter({
+    has: page.getByRole('heading', { name: 'Installed plugins' }),
+  })
+  await expect(installedPlugins).toBeVisible({ timeout: 15_000 })
+
+  const enabledCanvasKit = installedPlugins.getByRole('button', {
+    name: /Canvas Kit.*enabled/,
+  })
+  if (await enabledCanvasKit.isVisible()) return
+
+  const disabledCanvasKit = installedPlugins.getByRole('button', {
+    name: /Canvas Kit.*disabled/,
+  })
+  await expect(disabledCanvasKit).toBeVisible({ timeout: 15_000 })
+  await disabledCanvasKit.click()
+
+  const grantButton = page.getByRole('button', { name: 'Review and grant for this vault' })
+  await expect(grantButton).toBeEnabled()
+  await grantButton.click()
+
+  const enableButton = page.getByRole('button', { name: 'Enable plugin' })
+  await expect(enableButton).toBeEnabled()
+  await enableButton.click()
+  await expect(page.getByRole('button', { name: 'Disable plugin' })).toBeVisible()
+}
+
 async function openCanvas(page: Page): Promise<Locator> {
   await launchApp(page)
   await waitForWorkspace(page)
   await settleLayout(page)
+  await enableCanvasKit(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open canvas')
   const panel = page.getByRole('dialog', { name: 'Canvas board' })
