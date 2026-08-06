@@ -9,6 +9,7 @@ import {
 } from './helpers'
 
 async function enableCanvasKit(page: Page): Promise<void> {
+  // Bundled manifests are preinstalled in E2E; contributions appear only after consent and activation.
   await page.getByRole('tab', { name: 'Plugins' }).click()
   const installedPlugins = page.locator('section.widget-card').filter({
     has: page.getByRole('heading', { name: 'Installed plugins' }),
