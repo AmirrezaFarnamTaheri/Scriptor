@@ -1,0 +1,131 @@
+name: One-shot dependency consolidation
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-v0.1.1
+    paths:
+      - .github/workflows/dependency-unify-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  consolidate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-v0.1.1
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned pnpm and Rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          rustup toolchain install 1.96.0 --profile minimal
+          rustup default 1.96.0
+          pnpm --version
+          rustc --version
+          cargo --version
+
+      - name: Apply dependency updates and regenerate lockfiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          release = Path('.github/workflows/release.yml')
+          release_text = release.read_text()
+          old_attest = 'actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0'
+          new_attest = 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1'
+          replacements = release_text.count(old_attest)
+          if replacements == 0:
+              raise SystemExit('Expected at least one actions/attest v4.1.0 pin')
+          release.write_text(release_text.replace(old_attest, new_attest))
+
+          package_path = Path('package.json')
+          package = json.loads(package_path.read_text())
+          package['dependencies']['lucide-react'] = '^1.28.0'
+          package['devDependencies']['@types/react'] = '^19.2.18'
+          package['devDependencies']['@types/react-dom'] = '^19.2.4'
+          package['devDependencies']['@vitejs/plugin-react'] = '^6.0.5'
+          package['devDependencies']['globals'] = '^17.9.0'
+          package['devDependencies']['@playwright/test'] = '^1.62.1'
+          package['devDependencies']['vite'] = '^8.2.0'
+          package_path.write_text(json.dumps(package, indent=2, ensure_ascii=False) + '\n')
+
+          cargo_path = Path('crates/canvas-engine/Cargo.toml')
+          cargo_text = cargo_path.read_text()
+          old_resvg = 'resvg = "0.47"'
+          if old_resvg not in cargo_text:
+              raise SystemExit('Expected resvg 0.47 manifest entry')
+          cargo_path.write_text(cargo_text.replace(old_resvg, 'resvg = "0.48"', 1))
+          PY
+
+          pnpm install --lockfile-only
+          cargo update -p resvg --precise 0.48.1
+
+      - name: Validate consolidated dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node scripts/validation/action-pins.mjs
+          pnpm install --frozen-lockfile --ignore-scripts
+          cargo check --locked -p scriptor-canvas-engine
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          package = json.loads(Path('package.json').read_text())
+          expected = {
+              ('dependencies', 'lucide-react'): '^1.28.0',
+              ('devDependencies', '@types/react'): '^19.2.18',
+              ('devDependencies', '@types/react-dom'): '^19.2.4',
+              ('devDependencies', '@vitejs/plugin-react'): '^6.0.5',
+              ('devDependencies', 'globals'): '^17.9.0',
+              ('devDependencies', '@playwright/test'): '^1.62.1',
+              ('devDependencies', 'vite'): '^8.2.0',
+          }
+          for (section, name), version in expected.items():
+              actual = package[section].get(name)
+              if actual != version:
+                  raise SystemExit(f'{name}: expected {version}, found {actual}')
+
+          release = Path('.github/workflows/release.yml').read_text()
+          if 'actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26' in release:
+              raise SystemExit('Old actions/attest v4.1.0 pin remains')
+          if release.count('actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d') < 1:
+              raise SystemExit('New actions/attest v4.2.1 pin missing')
+
+          cargo_toml = Path('crates/canvas-engine/Cargo.toml').read_text()
+          cargo_lock = Path('Cargo.lock').read_text()
+          if 'resvg = "0.48"' not in cargo_toml:
+              raise SystemExit('resvg 0.48 manifest entry missing')
+          if 'name = "resvg"\nversion = "0.48.1"' not in cargo_lock:
+              raise SystemExit('resvg 0.48.1 lock entry missing')
+          PY
+
+      - name: Commit consolidated result and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/dependency-unify-once.yml
+          git add .github/workflows/release.yml package.json pnpm-lock.yaml Cargo.lock crates/canvas-engine/Cargo.toml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(deps): consolidate pending dependency updates'
+          git push origin HEAD:integrate/open-prs-v0.1.1
