@@ -442,7 +442,7 @@ pub fn resource_apply_plan(
             .collect();
         for worker in workers {
             match worker.join() {
-                Ok((operation, Ok(receipt))) => receipts.push(receipt),
+                Ok((_operation, Ok(receipt))) => receipts.push(receipt),
                 Ok((operation, Err(message))) => failures.push(ResourceApplyFailure {
                     operation_id: operation.id,
                     target_id: operation.target_id,
@@ -579,7 +579,7 @@ fn normalized_destination_key(path: &Path) -> String {
     if cfg!(windows) {
         key.to_ascii_lowercase()
     } else {
-        key.into_owned()
+        key
     }
 }
 
