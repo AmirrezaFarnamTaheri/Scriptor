@@ -99,8 +99,14 @@ export function ResourceSyncPanel() {
   }, [nativeAvailable])
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    if (!nativeAvailable) return undefined
+
+    const frame = window.requestAnimationFrame(() => {
+      void refresh()
+    })
+
+    return () => window.cancelAnimationFrame(frame)
+  }, [nativeAvailable, refresh])
 
   const source = useMemo<ResourceInstance | null>(
     () => inventory?.resources.find((resource) => resource.id === selectedSourceId) ?? null,

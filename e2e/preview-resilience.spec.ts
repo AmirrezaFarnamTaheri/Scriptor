@@ -10,7 +10,6 @@ test.describe('Markdown preview resilience', () => {
       window.localStorage.setItem('scriptor:editor-mode', 'monaco')
       window.localStorage.setItem('scriptor:workspace-mode', 'writing')
       window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
-      window.localStorage.setItem('scriptor:split-preview', 'false')
       window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
       window.sessionStorage.setItem('e2e:preview-postprocess-failure', '1')
     }, WORKSPACE_CHROME_PREFS)
@@ -19,6 +18,12 @@ test.describe('Markdown preview resilience', () => {
   })
 
   test('extension failures preserve inspector and split preview content', async ({ page }) => {
+    const editorToolbar = page.locator('.editor-toolbar')
+    const sourceButton = editorToolbar.getByRole('button', { name: 'Source', exact: true })
+    if (await sourceButton.isVisible()) {
+      await sourceButton.click()
+    }
+
     await page.getByRole('tab', { name: 'Preview', exact: true }).click()
 
     const inspectorPreview = page
@@ -33,10 +38,7 @@ test.describe('Markdown preview resilience', () => {
     )
     await expect(inspectorPreview.getByRole('alert')).toHaveCount(0)
 
-    await page
-      .locator('.editor-toolbar')
-      .getByRole('button', { name: 'Split', exact: true })
-      .click()
+    await editorToolbar.getByRole('button', { name: 'Split', exact: true }).click()
 
     const splitPane = page.locator('aside[aria-label="Split Markdown preview"]')
     const splitPreview = splitPane.getByRole('article', { name: 'Markdown preview' })

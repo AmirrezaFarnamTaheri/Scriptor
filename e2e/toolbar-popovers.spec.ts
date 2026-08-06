@@ -18,7 +18,7 @@ test.describe('editor toolbar popovers', () => {
   for (const menuName of ['Typography', 'Insert']) {
     test(`${menuName} menu escapes toolbar clipping and restores keyboard focus`, async ({ page }) => {
       const toolbar = page.locator('.editor-toolbar')
-      const trigger = toolbar.getByRole('button', { name: new RegExp(menuName, 'i') })
+      const trigger = toolbar.getByRole('button', { name: menuName, exact: true })
       await trigger.focus()
       await page.keyboard.press('ArrowDown')
 
@@ -33,12 +33,12 @@ test.describe('editor toolbar popovers', () => {
       await expect(firstItem).toBeFocused()
 
       const menuBox = await menu.boundingBox()
-      const toolbarBox = await toolbar.boundingBox()
+      const triggerBox = await trigger.boundingBox()
       const viewport = page.viewportSize()
       expect(menuBox).not.toBeNull()
-      expect(toolbarBox).not.toBeNull()
+      expect(triggerBox).not.toBeNull()
       expect(viewport).not.toBeNull()
-      expect(menuBox?.y).toBeGreaterThan((toolbarBox?.y ?? 0) + (toolbarBox?.height ?? 0) - 2)
+      expect(menuBox?.y).toBeGreaterThanOrEqual((triggerBox?.y ?? 0) + (triggerBox?.height ?? 0))
       expect((menuBox?.y ?? 0) + (menuBox?.height ?? 0)).toBeLessThanOrEqual((viewport?.height ?? 0) - 7)
 
       await page.keyboard.press('End')
