@@ -156,19 +156,14 @@ export function assertSigningEvidence(
     if (record.channel !== normalizedChannel) {
       throw new Error(`signing evidence channel mismatch for ${key}`)
     }
+    if (normalizedChannel === 'production' && record.signed) {
+      throw new Error(`official production artifact must be unsigned: ${key}`)
+    }
     if (expectedSourceCommit && record.sourceCommit !== expectedSourceCommit) {
       throw new Error(`signing evidence source commit mismatch for ${key}`)
     }
     if (record.signed && record.signatureType !== EXPECTED_SIGNATURE_TYPES[record.platform]) {
       throw new Error(`${key} signature type is invalid`)
-    }
-    if (
-      normalizedChannel === 'production'
-      && record.platform === 'macos'
-      && record.signed
-      && !record.notarized
-    ) {
-      throw new Error('signed production macOS artifact is not notarized')
     }
     byTarget.set(key, record)
   }
