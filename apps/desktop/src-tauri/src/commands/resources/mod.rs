@@ -211,12 +211,22 @@ pub struct ResourceApplyResult {
 }
 
 #[tauri::command]
-pub fn resource_inventory() -> Result<ResourceInventory, String> {
-    collect_inventory()
+pub async fn resource_inventory() -> Result<ResourceInventory, String> {
+    tauri::async_runtime::spawn_blocking(collect_inventory)
+        .await
+        .map_err(|error| format!("resource inventory worker failed: {error}"))?
 }
 
 #[tauri::command]
-pub fn resource_create_plan(request: ResourcePlanRequest) -> Result<ResourceSyncPlan, String> {
+pub async fn resource_create_plan(
+    request: ResourcePlanRequest,
+) -> Result<ResourceSyncPlan, String> {
+    tauri::async_runtime::spawn_blocking(move || create_resource_plan(request))
+        .await
+        .map_err(|error| format!("resource plan worker failed: {error}"))?
+}
+
+fn create_resource_plan(request: ResourcePlanRequest) -> Result<ResourceSyncPlan, String> {
     validate_plan_request(&request)?;
     let inventory = collect_inventory()?;
     let source = inventory
@@ -329,9 +339,15 @@ pub fn resource_create_plan(request: ResourcePlanRequest) -> Result<ResourceSync
 }
 
 #[tauri::command]
-pub fn resource_create_dedup_plan(
+pub async fn resource_create_dedup_plan(
     canonical_instance_id: String,
 ) -> Result<ResourceSyncPlan, String> {
+    tauri::async_runtime::spawn_blocking(move || create_dedup_plan(canonical_instance_id))
+        .await
+        .map_err(|error| format!("resource deduplication worker failed: {error}"))?
+}
+
+fn create_dedup_plan(canonical_instance_id: String) -> Result<ResourceSyncPlan, String> {
     if canonical_instance_id.trim().is_empty() {
         return Err("canonicalInstanceId is required".into());
     }
@@ -399,18 +415,28 @@ pub fn resource_create_dedup_plan(
 }
 
 #[tauri::command]
-pub fn resource_apply_plan(
-    state: tauri::State<AppState>,
+pub async fn resource_apply_plan(
+    state: tauri::State<'_, AppState>,
     plan_id: String,
     authorization_token: String,
     max_parallel: Option<usize>,
 ) -> Result<ResourceApplyResult, String> {
+    validate_apply_request(&plan_id, &authorization_token)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::ResourceSync,
         Some(&plan_id),
     )?;
+    tauri::async_runtime::spawn_blocking(move || apply_resource_plan(plan_id, max_parallel))
+        .await
+        .map_err(|error| format!("resource apply worker failed: {error}"))?
+}
+
+fn apply_resource_plan(
+    plan_id: String,
+    max_parallel: Option<usize>,
+) -> Result<ResourceApplyResult, String> {
     let _apply_guard = lock_apply();
     let stored = take_plan(&plan_id)?;
     let plan = stored.plan;
@@ -473,6 +499,16 @@ pub fn resource_apply_plan(
         receipts,
         failures,
     })
+}
+
+fn validate_apply_request(plan_id: &str, authorization_token: &str) -> Result<(), String> {
+    if plan_id.trim().is_empty() || plan_id.len() > 128 {
+        return Err("planId must be non-empty and bounded".into());
+    }
+    if authorization_token.trim().is_empty() || authorization_token.len() > 4_096 {
+        return Err("authorizationToken must be non-empty and bounded".into());
+    }
+    Ok(())
 }
 
 fn validate_plan_request(request: &ResourcePlanRequest) -> Result<(), String> {
@@ -714,6 +750,15 @@ mod tests {
         changed.expected_destination_hash = Some("changed".into());
         let changed = fingerprint_plan("plan", 1, 2, "inventory", "source-id", &[changed]);
         assert_ne!(original, changed);
+    }
+
+    #[test]
+    fn apply_request_requires_bounded_non_empty_values() {
+        assert!(validate_apply_request("", "token").is_err());
+        assert!(validate_apply_request("plan", "").is_err());
+        assert!(validate_apply_request(&"p".repeat(129), "token").is_err());
+        assert!(validate_apply_request("plan", &"t".repeat(4_097)).is_err());
+        assert!(validate_apply_request("plan", "token").is_ok());
     }
 
     #[test]
