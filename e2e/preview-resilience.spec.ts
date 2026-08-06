@@ -19,9 +19,12 @@ test.describe('Markdown preview resilience', () => {
 
   test('extension failures preserve inspector and split preview content', async ({ page }) => {
     const editorToolbar = page.locator('.editor-toolbar')
+    await expect(editorToolbar).toBeVisible()
     const sourceButton = editorToolbar.getByRole('button', { name: 'Source', exact: true })
-    if (await sourceButton.isVisible()) {
+    await expect(sourceButton).toBeVisible()
+    if ((await sourceButton.getAttribute('aria-pressed')) !== 'true') {
       await sourceButton.click()
+      await expect(sourceButton).toHaveAttribute('aria-pressed', 'true')
     }
 
     await page.getByRole('tab', { name: 'Preview', exact: true }).click()
