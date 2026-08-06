@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - transfer/review-hardening-blobs-20260806
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 permissions:
   contents: write
@@ -17,6 +24,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Materialize and verify reviewed files
         shell: bash
@@ -36,4 +44,5 @@ jobs:
           git add .github/workflows/release.yml scripts/validation/release-hardening-contracts.test.mjs scripts/validation/source-contracts.mjs
           git add -u .scriptor-transfer .github/workflows/materialize-review-blobs.yml
           git commit -m "chore: materialize reviewed blobs"
-          git push origin HEAD:${GITHUB_REF_NAME}
+          target_branch="${GITHUB_HEAD_REF:-$GITHUB_REF_NAME}"
+          git push origin "HEAD:${target_branch}"
