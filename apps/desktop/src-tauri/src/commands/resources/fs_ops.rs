@@ -1,10 +1,16 @@
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+
+#[cfg(windows)]
+use std::os::windows::fs::FileTypeExt;
 
 use scriptor_system_bridge::scriptor_data_dir;
 
 use super::{OperationKind, PlannedOperation, ResourceOperationReceipt};
 use super::discovery::hash_resource_directory;
+
+const MAX_RESOURCE_COPY_DEPTH: usize = 4;
 
 pub fn apply_operation(
     plan_id: &str,
@@ -71,10 +77,15 @@ fn apply_copy(
     fs::create_dir_all(parent)
         .map_err(|error| format!("failed to create {}: {error}", parent.display()))?;
 
-    let staging = parent.join(format!(
-        ".scriptor-staging-{}",
-        operation.id.replace('-', "")
-    ));
+    let staging = staging_path(plan_id, operation)?;
+    if let Some(staging_parent) = staging.parent() {
+        fs::create_dir_all(staging_parent).map_err(|error| {
+            format!(
+                "failed to create staging directory {}: {error}",
+                staging_parent.display()
+            )
+        })?;
+    }
     remove_if_exists(&staging)?;
     if let Err(error) = copy_resource(source, &staging) {
         let _ = remove_if_exists(&staging);
@@ -107,32 +118,47 @@ fn apply_copy(
         None
     };
 
-    if let Err(error) = fs::rename(&staging, destination) {
+    if let Err(error) = move_with_verified_copy(
+        &staging,
+        destination,
+        Some(&operation.expected_source_hash),
+    ) {
+        let recovery = quarantine
+            .as_ref()
+            .map(|path| {
+                restore_quarantine(
+                    path,
+                    destination,
+                    operation.expected_destination_hash.as_deref(),
+                )
+            })
+            .unwrap_or_default();
         let _ = remove_if_exists(&staging);
-        if let Some(quarantine) = &quarantine {
-            let _ = move_with_verified_copy(
-                quarantine,
-                destination,
-                operation.expected_destination_hash.as_deref(),
-            );
-        }
         return Err(format!(
-            "failed to promote staged resource to {}: {error}",
+            "failed to promote staged resource to {}: {error}{recovery}",
             destination.display()
         ));
     }
 
     let final_hash = hash_resource_directory(destination)?;
     if final_hash != operation.expected_source_hash {
-        let _ = remove_if_exists(destination);
-        if let Some(quarantine) = &quarantine {
-            let _ = move_with_verified_copy(
-                quarantine,
-                destination,
-                operation.expected_destination_hash.as_deref(),
-            );
-        }
-        return Err("installed resource failed post-write hash verification".into());
+        let cleanup = remove_if_exists(destination)
+            .err()
+            .map(|error| format!("; failed to remove invalid destination: {error}"))
+            .unwrap_or_default();
+        let recovery = quarantine
+            .as_ref()
+            .map(|path| {
+                restore_quarantine(
+                    path,
+                    destination,
+                    operation.expected_destination_hash.as_deref(),
+                )
+            })
+            .unwrap_or_default();
+        return Err(format!(
+            "installed resource failed post-write hash verification{cleanup}{recovery}"
+        ));
     }
 
     Ok(receipt(
@@ -213,6 +239,20 @@ fn move_with_verified_copy(
 }
 
 fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
+    copy_resource_at_depth(source, destination, 0)
+}
+
+fn copy_resource_at_depth(
+    source: &Path,
+    destination: &Path,
+    depth: usize,
+) -> Result<(), String> {
+    if depth > MAX_RESOURCE_COPY_DEPTH {
+        return Err(format!(
+            "resource exceeds the maximum nesting depth: {}",
+            source.display()
+        ));
+    }
     let metadata = fs::symlink_metadata(source)
         .map_err(|error| format!("failed to inspect {}: {error}", source.display()))?;
     if metadata.file_type().is_symlink() {
@@ -241,6 +281,12 @@ fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
             destination.display()
         )
     })?;
+    fs::set_permissions(destination, metadata.permissions()).map_err(|error| {
+        format!(
+            "failed to preserve directory permissions for {}: {error}",
+            destination.display()
+        )
+    })?;
     for entry in fs::read_dir(source)
         .map_err(|error| format!("failed to read {}: {error}", source.display()))?
     {
@@ -256,7 +302,7 @@ fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
             ));
         }
         if child_metadata.is_dir() {
-            copy_resource(&child_source, &child_destination)?;
+            copy_resource_at_depth(&child_source, &child_destination, depth + 1)?;
         } else if child_metadata.is_file() {
             fs::copy(&child_source, &child_destination).map_err(|error| {
                 format!(
@@ -268,6 +314,38 @@ fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn staging_path(plan_id: &str, operation: &PlannedOperation) -> Result<PathBuf, String> {
+    let base = scriptor_data_dir("Scriptor")
+        .map_err(|error| format!("failed to resolve Scriptor data directory: {error}"))?;
+    let destination_name = Path::new(&operation.destination_path)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("resource");
+    Ok(base
+        .join("resource-staging")
+        .join(plan_id)
+        .join(&operation.target_id)
+        .join(operation.id.replace('-', ""))
+        .join(destination_name))
+}
+
+fn restore_quarantine(
+    quarantine: &Path,
+    destination: &Path,
+    expected_hash: Option<&str>,
+) -> String {
+    match move_with_verified_copy(quarantine, destination, expected_hash) {
+        Ok(()) => format!(
+            "; previous content restored from {}",
+            quarantine.display()
+        ),
+        Err(error) => format!(
+            "; restore failed; previous content remains at {}: {error}",
+            quarantine.display()
+        ),
+    }
 }
 
 fn quarantine_path(plan_id: &str, operation: &PlannedOperation) -> Result<PathBuf, String> {
@@ -286,12 +364,20 @@ fn quarantine_path(plan_id: &str, operation: &PlannedOperation) -> Result<PathBu
 }
 
 fn remove_if_exists(path: &Path) -> Result<(), String> {
-    if !path.exists() {
-        return Ok(());
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == ErrorKind::NotFound => return Ok(()),
+        Err(error) => {
+            return Err(format!("failed to inspect {}: {error}", path.display()));
+        }
+    };
+    let file_type = metadata.file_type();
+    #[cfg(windows)]
+    if file_type.is_symlink_dir() {
+        return fs::remove_dir(path)
+            .map_err(|error| format!("failed to remove {}: {error}", path.display()));
     }
-    let metadata = fs::symlink_metadata(path)
-        .map_err(|error| format!("failed to inspect {}: {error}", path.display()))?;
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+    if metadata.is_dir() && !file_type.is_symlink() {
         fs::remove_dir_all(path)
             .map_err(|error| format!("failed to remove {}: {error}", path.display()))
     } else {
