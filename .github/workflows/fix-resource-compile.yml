@@ -1,0 +1,63 @@
+name: Repair consolidated resource compile
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-v0.1.1
+    paths:
+      - .github/workflows/fix-resource-compile.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-consolidated-resource-compile
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-v0.1.1
+          fetch-depth: 0
+
+      - name: Apply compiler-proven corrections
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('apps/desktop/src-tauri/src/commands/resources/mod.rs')
+          content = path.read_text()
+          replacements = (
+              (
+                  'Ok((operation, Ok(receipt))) => receipts.push(receipt),',
+                  'Ok((_operation, Ok(receipt))) => receipts.push(receipt),',
+              ),
+              (
+                  '        key.into_owned()\n',
+                  '        key\n',
+              ),
+          )
+          for old, new in replacements:
+              if old not in content:
+                  raise SystemExit(f'missing expected compiler-fix target: {old!r}')
+              content = content.replace(old, new, 1)
+          path.write_text(content)
+          PY
+          rm .github/workflows/fix-resource-compile.yml
+          cargo fmt --all -- --check
+          git diff --check
+
+      - name: Commit compile repair
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(desktop): compile resource synchronization"
+          git push origin HEAD:integrate/open-prs-v0.1.1
