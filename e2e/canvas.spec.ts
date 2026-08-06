@@ -16,16 +16,19 @@ async function enableCanvasKit(page: Page): Promise<void> {
   })
   await expect(installedPlugins).toBeVisible({ timeout: 15_000 })
 
-  const enabledCanvasKit = installedPlugins.getByRole('button', {
-    name: /Canvas Kit.*enabled/,
+  const canvasKit = installedPlugins.getByRole('button', {
+    name: /Canvas Kit.*(?:enabled|disabled)/,
   })
-  if (await enabledCanvasKit.isVisible()) return
+  await expect(canvasKit).toBeVisible({ timeout: 15_000 })
+  const accessibleName = await canvasKit.evaluate(
+    (element) => element.getAttribute('aria-label') ?? element.textContent ?? '',
+  )
+  if (/enabled/i.test(accessibleName)) return
+  if (!/disabled/i.test(accessibleName)) {
+    throw new Error(`Canvas Kit has an unexpected state: ${accessibleName}`)
+  }
 
-  const disabledCanvasKit = installedPlugins.getByRole('button', {
-    name: /Canvas Kit.*disabled/,
-  })
-  await expect(disabledCanvasKit).toBeVisible({ timeout: 15_000 })
-  await disabledCanvasKit.click()
+  await canvasKit.click()
 
   const grantButton = page.getByRole('button', { name: 'Review and grant for this vault' })
   await expect(grantButton).toBeEnabled()
