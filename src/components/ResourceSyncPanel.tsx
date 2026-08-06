@@ -88,7 +88,7 @@ export function ResourceSyncPanel() {
             .map((target) => target.id),
         )
         const preserved = new Set([...current].filter((targetId) => valid.has(targetId)))
-        return preserved.size > 0 ? preserved : valid
+        return preserved
       })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not inventory agent resources')
@@ -245,14 +245,15 @@ export function ResourceSyncPanel() {
                         <strong>{target.label}</strong>
                         <span className={`resource-badge ${target.status}`}>{target.status}</span>
                       </div>
-                      <label title={canReceive ? 'Include in the next reviewed plan' : 'This target is inventory-only or not confirmed'}>
+                      <label>
                         <input
                           type="checkbox"
+                          aria-label={`Sync ${target.label}`}
                           checked={selected}
                           disabled={!canReceive}
                           onChange={() => toggleTarget(target.id)}
                         />
-                        Sync
+                        <span aria-hidden="true">Sync</span>
                       </label>
                     </div>
                     <p className="resource-target-support">
