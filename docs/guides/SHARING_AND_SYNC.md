@@ -26,7 +26,7 @@ Synchronization and deduplication always begin with an immutable plan. A plan:
 
 - is bound to the complete inventory fingerprint;
 - includes the expected source and destination fingerprints;
-- expires after ten minutes;
+- expires after the bounded lifetime defined by `PLAN_TTL_MS`;
 - is consumed once;
 - collapses multiple selected products that share one physical destination into one operation;
 - rejects overlapping destinations before mutation; and
