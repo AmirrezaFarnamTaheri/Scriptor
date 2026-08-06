@@ -19,6 +19,12 @@ test.describe('Markdown preview resilience', () => {
   })
 
   test('extension failures preserve inspector and split preview content', async ({ page }) => {
+    const splitToggle = page.getByRole('button', { name: 'Toggle split preview', exact: true })
+    if ((await splitToggle.getAttribute('aria-pressed')) === 'true') {
+      await splitToggle.click()
+    }
+    await expect(page.locator('aside[aria-label="Split Markdown preview"]')).toHaveCount(0)
+
     await page.getByRole('tab', { name: 'Preview', exact: true }).click()
 
     const inspectorPreview = page
