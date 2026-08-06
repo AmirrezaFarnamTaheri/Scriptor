@@ -29,6 +29,7 @@ pub enum SensitiveOperation {
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
+    ResourceSync,
     RestoreBackup,
     RestoreHistory,
 }
@@ -52,6 +53,7 @@ impl SensitiveOperation {
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
+            Self::ResourceSync => "Apply the reviewed agent resource sync plan",
             Self::RestoreBackup => "Replace vault contents from a snapshot",
             Self::RestoreHistory => "Replace a note with a historical revision",
         }
@@ -90,6 +92,9 @@ impl SensitiveOperation {
             Self::PlantUmlExecution => "A local external renderer will process the diagram source.",
             Self::PublishSite => {
                 "External build and publish tools can read vault content and contact remote services."
+            }
+            Self::ResourceSync => {
+                "The approved plan can install or update agent resources across the selected applications. Existing destinations are quarantined before replacement and every result is hash-verified."
             }
             Self::RestoreBackup => {
                 "Current vault content will be replaced. A rollback copy is created before promotion."
@@ -292,6 +297,19 @@ mod tests {
                 &scope.token,
                 SensitiveOperation::GitPush,
                 Some("vault-b")
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn resource_sync_grants_are_plan_scoped() {
+        let broker = AuthorizationBroker::default();
+        let grant = broker.issue(SensitiveOperation::ResourceSync, Some("plan-a".into()));
+        assert!(broker
+            .consume(
+                &grant.token,
+                SensitiveOperation::ResourceSync,
+                Some("plan-b")
             )
             .is_err());
     }

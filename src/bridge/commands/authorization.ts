@@ -19,6 +19,7 @@ export type SensitiveOperation =
   | 'pdf_translation'
   | 'plant_uml_execution'
   | 'publish_site'
+  | 'resource_sync'
   | 'restore_backup'
   | 'restore_history'
 
