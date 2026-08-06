@@ -12,7 +12,7 @@ permissions:
 
 concurrency:
   group: apply-consolidated-dependencies
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply:
@@ -103,19 +103,49 @@ jobs:
         shell: bash
         run: pnpm install --lockfile-only
 
-      - name: Refresh Cargo lockfile
+      - name: Refresh Cargo lockfile from workspace manifests
         shell: bash
         run: |
-          cargo update -p reqwest@0.12.28 --precise 0.13.4
-          cargo update -p resvg@0.47.0 --precise 0.48.1
-          cargo update -p zip@2.4.2 --precise 8.6.0
+          cargo metadata --format-version 1 > /dev/null
           cargo metadata --locked --format-version 1 > /dev/null
 
       - name: Verify regenerated dependency graphs
         shell: bash
         run: |
           pnpm install --frozen-lockfile
-          cargo check --workspace --locked
+          cargo check --locked -p scriptor-canvas-engine -p scriptor-vault
+
+      - name: Verify requested versions
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const packageJson = JSON.parse(fs.readFileSync('package.json', 'utf8'))
+          const expected = {
+            dependencies: {
+              'lucide-react': '^1.28.0',
+            },
+            devDependencies: {
+              '@playwright/test': '^1.62.1',
+              '@types/react': '^19.2.18',
+              '@types/react-dom': '^19.2.4',
+              '@vitejs/plugin-react': '^6.0.5',
+              globals: '^17.9.0',
+              vite: '^8.2.0',
+            },
+          }
+          for (const [section, values] of Object.entries(expected)) {
+            for (const [name, version] of Object.entries(values)) {
+              if (packageJson[section]?.[name] !== version) {
+                throw new Error(`${section}.${name} must be ${version}`)
+              }
+            }
+          }
+          NODE
+          grep -F 'reqwest = { version = "0.13", features = ["json"] }' apps/desktop/src-tauri/Cargo.toml
+          grep -F 'resvg = "0.48"' crates/canvas-engine/Cargo.toml
+          grep -F 'zip = "8"' crates/vault/Cargo.toml
+          grep -F 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1' .github/workflows/release.yml
 
       - name: Commit consolidated dependency wave
         shell: bash
