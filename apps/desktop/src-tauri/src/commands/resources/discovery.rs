@@ -214,11 +214,17 @@ fn probe_target(
     }
 
     let installations: Vec<_> = installations.into_values().collect();
-    let status = if !installations.is_empty() {
+    let has_identity_hash = installations.iter().any(|installation| {
+        installation
+            .sha256
+            .as_deref()
+            .is_some_and(|hash| !hash.trim().is_empty())
+    });
+    let status = if has_identity_hash {
         TargetStatus::Confirmed
     } else if !resources.is_empty() {
         TargetStatus::Configured
-    } else if existing_roots > 0 {
+    } else if !installations.is_empty() || existing_roots > 0 {
         TargetStatus::Partial
     } else {
         TargetStatus::Available
@@ -301,6 +307,9 @@ fn scan_resource_directory(
     for entry in entries.flatten() {
         if *visited >= MAX_RESOURCE_FILES {
             break;
+        }
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
         }
         *visited += 1;
         let path = entry.path();
@@ -577,7 +586,7 @@ pub fn hash_resource_directory(path: &Path) -> Result<String, String> {
 
     let mut files = Vec::new();
     let mut total_bytes = 0u64;
-    collect_resource_files(path, path, &mut files, &mut total_bytes)?;
+    collect_resource_files(path, path, 0, &mut files, &mut total_bytes)?;
     files.sort_by(|left, right| left.0.cmp(&right.0));
     if files.is_empty()
         || !files.iter().any(|(relative, _)| {
@@ -607,9 +616,16 @@ pub fn hash_resource_directory(path: &Path) -> Result<String, String> {
 fn collect_resource_files(
     root: &Path,
     directory: &Path,
+    depth: usize,
     files: &mut Vec<(String, Vec<u8>)>,
     total_bytes: &mut u64,
 ) -> Result<(), String> {
+    if depth > MAX_RESOURCE_SCAN_DEPTH {
+        return Err(format!(
+            "resource exceeds the maximum nesting depth: {}",
+            root.display()
+        ));
+    }
     for entry in fs::read_dir(directory)
         .map_err(|error| format!("failed to read {}: {error}", directory.display()))?
     {
@@ -624,7 +640,7 @@ fn collect_resource_files(
             ));
         }
         if metadata.is_dir() {
-            collect_resource_files(root, &path, files, total_bytes)?;
+            collect_resource_files(root, &path, depth + 1, files, total_bytes)?;
             continue;
         }
         if !metadata.is_file() {
