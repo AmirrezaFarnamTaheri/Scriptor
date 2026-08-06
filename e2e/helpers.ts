@@ -63,19 +63,41 @@ function escapeRegExp(value: string): string {
  * before clicking it.
  */
 export async function runCommand(page: Page, commandLabel: string) {
-  const palette = page.getByRole('dialog', { name: 'Command palette' })
-  await palette.getByRole('searchbox').fill(commandLabel)
-  const option = palette.getByRole('option').first()
-  await expect(
-    option,
-    `command palette had no option for "${commandLabel}"`,
-  ).toBeVisible({ timeout: 5000 })
-  await expect(
-    option,
-    `command palette resolved "${commandLabel}" to a different option`,
-  ).toHaveText(new RegExp(escapeRegExp(commandLabel), 'i'))
-  await option.click()
-  await expect(palette).toBeHidden({ timeout: 5000 })
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    await palette.getByRole('searchbox').fill(commandLabel)
+    const option = palette.getByRole('option').first()
+    await expect(
+      option,
+      `command palette had no option for "${commandLabel}"`,
+    ).toBeVisible({ timeout: 5000 })
+    await expect(
+      option,
+      `command palette resolved "${commandLabel}" to a different option`,
+    ).toHaveText(new RegExp(escapeRegExp(commandLabel), 'i'))
+
+    const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
+    try {
+      await option.click({ timeout: 10_000 })
+    } catch (error) {
+      // Vite can perform one full reload when a lazily imported panel reveals a
+      // dependency that was not in the initial optimizer graph. Retry only when
+      // the document actually changed; ordinary click failures still fail fast.
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+      const currentTimeOrigin = await page
+        .evaluate(() => performance.timeOrigin)
+        .catch(() => navigationTimeOrigin)
+      if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+        await waitForWorkspace(page)
+        await openCommandPalette(page)
+        continue
+      }
+      throw error
+    }
+
+    await expect(palette).toBeHidden({ timeout: 5000 })
+    return
+  }
 }
 
 export async function settleLayout(page: Page) {
