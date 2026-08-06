@@ -1,9 +1,13 @@
 name: One-shot dependency consolidation
 
 on:
-  push:
+  pull_request:
     branches:
-      - integrate/open-prs-v0.1.1
+      - main
+    types:
+      - synchronize
+      - opened
+      - reopened
     paths:
       - .github/workflows/dependency-unify-once.yml
 
