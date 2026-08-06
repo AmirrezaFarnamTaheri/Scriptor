@@ -25,6 +25,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
+    // Only root-resolvable packages belong here; linked workspace dependencies are auto-discovered.
     include: ['monaco-editor'],
   },
 })
