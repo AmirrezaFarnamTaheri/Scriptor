@@ -1,0 +1,39 @@
+name: Materialize reviewed blobs
+
+on:
+  push:
+    branches:
+      - transfer/review-hardening-blobs-20260806
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout transfer branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Materialize and verify reviewed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .scriptor-transfer/release-hardening/part-* | base64 -d > scripts/validation/release-hardening-contracts.test.mjs
+          cat .scriptor-transfer/source-contracts/part-* | base64 -d > scripts/validation/source-contracts.mjs
+          cat .scriptor-transfer/release-yml/part-* | base64 -d > .github/workflows/release.yml
+
+          test "$(git hash-object scripts/validation/release-hardening-contracts.test.mjs)" = c76ee5ac3e3c25b0454d27b7f7c89ff40734d388
+          test "$(git hash-object scripts/validation/source-contracts.mjs)" = 56768e7676768d71ea40532fc28dcf3b944e418f
+          test "$(git hash-object .github/workflows/release.yml)" = c42387d0277cc4477a05ad103061ce8d065287aa
+
+          rm -rf .scriptor-transfer .github/workflows/materialize-review-blobs.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/release.yml scripts/validation/release-hardening-contracts.test.mjs scripts/validation/source-contracts.mjs
+          git add -u .scriptor-transfer .github/workflows/materialize-review-blobs.yml
+          git commit -m "chore: materialize reviewed blobs"
+          git push origin HEAD:${GITHUB_REF_NAME}
