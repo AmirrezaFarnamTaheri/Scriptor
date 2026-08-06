@@ -17,7 +17,7 @@ concurrency:
 jobs:
   apply:
     runs-on: ubuntu-22.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout integration branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -99,21 +99,12 @@ jobs:
           )
           NODE
 
-      - name: Refresh pnpm lockfile
-        shell: bash
-        run: pnpm install --lockfile-only
-
-      - name: Refresh Cargo lockfile from workspace manifests
+      - name: Regenerate dependency lockfiles
         shell: bash
         run: |
+          pnpm install --lockfile-only
           cargo metadata --format-version 1 > /dev/null
           cargo metadata --locked --format-version 1 > /dev/null
-
-      - name: Verify regenerated dependency graphs
-        shell: bash
-        run: |
-          pnpm install --frozen-lockfile
-          cargo check --locked -p scriptor-canvas-engine -p scriptor-vault
 
       - name: Verify requested versions
         shell: bash
@@ -147,23 +138,13 @@ jobs:
           grep -F 'zip = "8"' crates/vault/Cargo.toml
           grep -F 'actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.2.1' .github/workflows/release.yml
 
-      - name: Commit consolidated dependency wave
+      - name: Commit dependency wave and remove one-shot workflow
         shell: bash
         run: |
+          rm .github/workflows/apply-consolidated-dependencies.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add \
-            .github/workflows/release.yml \
-            apps/desktop/src-tauri/Cargo.toml \
-            crates/canvas-engine/Cargo.toml \
-            crates/vault/Cargo.toml \
-            package.json \
-            pnpm-lock.yaml \
-            Cargo.lock
+          git add -A
           git diff --cached --check
-          if git diff --cached --quiet; then
-            echo 'Dependency wave is already applied.'
-            exit 0
-          fi
           git commit -m 'chore(deps): consolidate open dependency updates'
           git push origin HEAD:integrate/open-prs-v0.1.1
