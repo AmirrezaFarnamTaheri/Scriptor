@@ -53,6 +53,8 @@ test.describe('editor toolbar popovers', () => {
       await page.keyboard.press('Tab')
       await expect(menu).toBeHidden()
       await expect(trigger).toHaveAttribute('aria-expanded', 'false')
+      await expect(toolbar.locator('button:focus')).toHaveCount(1)
+      await expect(page.locator('body')).not.toBeFocused()
       await settleLayout(page)
     })
   }
