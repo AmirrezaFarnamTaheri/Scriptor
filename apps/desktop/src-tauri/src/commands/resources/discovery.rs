@@ -630,6 +630,9 @@ fn collect_resource_files(
         .map_err(|error| format!("failed to read {}: {error}", directory.display()))?
     {
         let entry = entry.map_err(|error| format!("failed to read directory entry: {error}"))?;
+        if entry.file_name().to_string_lossy().starts_with('.') {
+            continue;
+        }
         let path = entry.path();
         let metadata = fs::symlink_metadata(&path)
             .map_err(|error| format!("failed to inspect {}: {error}", path.display()))?;
@@ -920,7 +923,8 @@ fn platform_application_candidates(target_id: &str, home: &Path) -> Vec<(String,
             ];
             for (id, identity, relative) in paths {
                 if *id == target_id {
-                    candidates.push(((*identity).to_string(), local_app_data.join(relative)));
+                    candidates.push(((*identity).to_string(), local_app_data.join(relative))
+                );
                 }
             }
         }
