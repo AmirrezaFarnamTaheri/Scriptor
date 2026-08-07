@@ -400,3 +400,43 @@ fn receipt(
         quarantine_path,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resource_hash_ignores_dot_prefixed_metadata() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        fs::write(dir.path().join("SKILL.md"), "---\nname: example\n---\n# Example\n")
+            .expect("write manifest");
+        let before = hash_resource_directory(dir.path()).expect("hash before metadata");
+        fs::write(dir.path().join(".DS_Store"), b"finder metadata").expect("write metadata");
+        let after = hash_resource_directory(dir.path()).expect("hash after metadata");
+        assert_eq!(before, after, "dot-prefixed metadata must not affect resource hashes");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn copy_resource_applies_read_only_directory_permissions_after_children() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = tempfile::tempdir().expect("tempdir");
+        let source = dir.path().join("source");
+        let destination = dir.path().join("destination");
+        fs::create_dir(&source).expect("create source");
+        fs::write(source.join("SKILL.md"), "# Example\n").expect("write child");
+        fs::set_permissions(&source, fs::Permissions::from_mode(0o555)).expect("set source mode");
+
+        copy_resource(&source, &destination).expect("copy read-only directory");
+
+        assert_eq!(
+            fs::metadata(&destination).expect("destination metadata").permissions().mode() & 0o777,
+            0o555,
+        );
+        assert_eq!(
+            fs::read_to_string(destination.join("SKILL.md")).expect("read copied child"),
+            "# Example\n",
+        );
+    }
+}
