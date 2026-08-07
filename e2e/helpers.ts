@@ -125,7 +125,6 @@ export async function settleLayout(page: Page) {
     try {
       await page.evaluate(async () => {
         await document.fonts.ready
-        window.dispatchEvent(new Event('resize'))
       })
       break
     } catch (error) {
