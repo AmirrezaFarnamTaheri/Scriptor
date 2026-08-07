@@ -279,26 +279,30 @@ fn resolve_name(path: &str) -> Result<Name<'_>, IpcError> {
 }
 
 pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
-    let endpoint = read_endpoint()?;
-    verify_endpoint_process(&endpoint)?;
-    let name = resolve_name(&endpoint.socket_name)?;
     let start = std::time::Instant::now();
     let retry_budget = std::time::Duration::from_millis(500);
-    let stream = loop {
+    let retry_interval = std::time::Duration::from_millis(10);
+    loop {
+        let endpoint = read_endpoint()?;
+        verify_endpoint_process(&endpoint)?;
+        let name = resolve_name(&endpoint.socket_name)?;
         match LocalSocketStream::connect(name.borrow()) {
-            Ok(s) => break s,
+            Ok(stream) => return Ok((stream, endpoint)),
             Err(e)
                 if (e.kind() == std::io::ErrorKind::NotFound
                     || e.kind() == std::io::ErrorKind::WouldBlock
                     || e.kind() == std::io::ErrorKind::ConnectionRefused)
                     && start.elapsed() < retry_budget =>
             {
-                std::thread::sleep(std::time::Duration::from_millis(10));
+                let remaining = retry_budget.saturating_sub(start.elapsed());
+                if remaining.is_zero() {
+                    return Err(IpcError::from(e));
+                }
+                std::thread::sleep(retry_interval.min(remaining));
             }
             Err(e) => return Err(IpcError::from(e)),
         }
-    };
-    Ok((stream, endpoint))
+    }
 }
 
 pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
