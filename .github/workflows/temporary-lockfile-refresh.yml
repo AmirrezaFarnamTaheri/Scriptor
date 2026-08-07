@@ -1,0 +1,65 @@
+name: Temporary lockfile refresh
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-v0.1.1
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-lockfile:
+    if: github.repository == 'AmirrezaFarnamTaheri/Scriptor'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-v0.1.1
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: bash
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          test "$(pnpm --version)" = "10.33.0"
+
+      - name: Raise DOMPurify security floor and refresh lockfile
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs')
+          const path = 'package.json'
+          const pkg = JSON.parse(fs.readFileSync(path, 'utf8'))
+          if (pkg.pnpm?.overrides?.dompurify !== '>=3.4.12') {
+            throw new Error(`unexpected DOMPurify override: ${pkg.pnpm?.overrides?.dompurify}`)
+          }
+          pkg.pnpm.overrides.dompurify = '>=3.4.13'
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`)
+          NODE
+          pnpm install --lockfile-only --ignore-scripts
+          pnpm audit --prod
+          ! grep -q 'dompurify@3\.4\.12' pnpm-lock.yaml
+          grep -q "dompurify: '>=3\.4\.13'" pnpm-lock.yaml
+          git diff --check
+          unexpected="$(git diff --name-only | grep -Ev '^(package\.json|pnpm-lock\.yaml)$' || true)"
+          test -z "$unexpected"
+          git diff -- package.json pnpm-lock.yaml
+
+      - name: Commit lockfile repair
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json pnpm-lock.yaml
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(deps): raise DOMPurify security floor'
+          git push origin HEAD:integrate/open-prs-v0.1.1
