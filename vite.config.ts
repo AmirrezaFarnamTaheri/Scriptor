@@ -5,6 +5,11 @@ import react from '@vitejs/plugin-react'
 // https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-esm.md#using-vite
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Linked workspace packages can otherwise resolve a different React copy
+    // from pnpm's virtual store, which breaks hooks in production bundles.
+    dedupe: ['react', 'react-dom'],
+  },
   server: {
     host: '127.0.0.1',
     open: false,
