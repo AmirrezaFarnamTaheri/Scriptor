@@ -4,7 +4,7 @@
   "private": true,
   "pnpm": {
     "overrides": {
-      "dompurify": ">=3.4.12"
+      "dompurify": ">=3.4.13"
     }
   },
   "version": "0.1.1",
