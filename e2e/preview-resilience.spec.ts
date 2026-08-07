@@ -66,3 +66,55 @@ test.describe('Markdown preview resilience', () => {
     await expect(page.getByText(/could not be displayed/i)).toHaveCount(0)
   })
 })
+
+test.describe('Markdown preview worker recovery', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((chromePrefs) => {
+      window.localStorage.setItem('scriptor:app-theme', 'light')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      window.localStorage.setItem('scriptor:editor-mode', 'monaco')
+      window.localStorage.setItem('scriptor:workspace-mode', 'writing')
+      window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
+      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+    }, WORKSPACE_CHROME_PREFS)
+    await page.addInitScript(() => {
+      const NativeWorker = window.Worker
+      const WorkerProxy = function (
+        this: Worker,
+        scriptURL: string | URL,
+        options?: WorkerOptions,
+      ) {
+        if (!String(scriptURL).includes('preview.worker')) {
+          return new NativeWorker(scriptURL, options)
+        }
+        return {
+          onerror: null,
+          onmessage: null,
+          onmessageerror: null,
+          postMessage: () => undefined,
+          terminate: () => undefined,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          dispatchEvent: () => true,
+        } as unknown as Worker
+      }
+      window.Worker = WorkerProxy as unknown as typeof Worker
+    })
+    await page.goto('/', { waitUntil: 'networkidle' })
+    await waitForWorkspace(page)
+  })
+
+  test('falls back to main-thread rendering when the preview worker never responds', async ({ page }) => {
+    const editorToolbar = page.locator('.editor-toolbar')
+    await editorToolbar.getByRole('button', { name: 'Split', exact: true }).click()
+
+    const splitPreview = page
+      .locator('aside[aria-label="Split Markdown preview"]')
+      .getByRole('article', { name: 'Markdown preview' })
+    await expect(splitPreview).toHaveAttribute('aria-busy', 'true')
+    await expect(splitPreview.getByRole('heading', { name: 'Research Plan' })).toBeVisible({
+      timeout: 8_000,
+    })
+    await expect(splitPreview).toHaveAttribute('aria-busy', 'false')
+  })
+})
