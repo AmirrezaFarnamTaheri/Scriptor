@@ -234,7 +234,7 @@ test('vault health dashboard', async ({ page }) => {
   await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
   await page.getByRole('button', { name: 'Close Publish center' }).click()
   await page.locator('.widget-action').getByText('Good').click()
-  const healthDashboard = page.getByRole('dialog', { name: 'Vault health dashboard' })
+  const healthDashboard = page.getByRole('dialog', { name: 'Vault health' })
   await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(800)
   await page.screenshot({ path: shotPath('vault-health'), fullPage: false })
