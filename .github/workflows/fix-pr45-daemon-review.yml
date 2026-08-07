@@ -1,0 +1,100 @@
+name: Validate PR 45 daemon review fix
+
+on:
+  push:
+    branches:
+      - fix/pr45-review-gates
+    paths:
+      - .github/workflows/fix-pr45-daemon-review.yml
+  pull_request:
+    branches:
+      - integrate/open-prs-v0.1.1
+    paths:
+      - .github/workflows/fix-pr45-daemon-review.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-pr45-daemon-review
+  cancel-in-progress: true
+
+jobs:
+  fix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/pr45-review-gates
+          fetch-depth: 0
+
+      - name: Configure pinned Rust 1.96.0
+        shell: bash
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Apply daemon reconnect review fix
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("crates/daemon/src/transport.rs")
+          text = path.read_text()
+          start_marker = "pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {"
+          end_marker = "\npub fn connect_client() -> Result<LocalSocketStream, IpcError> {"
+          start = text.find(start_marker)
+          end = text.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit("authenticated-client function markers missing")
+
+          replacement = "\n".join([
+              start_marker,
+              "    let start = std::time::Instant::now();",
+              "    let retry_budget = std::time::Duration::from_millis(500);",
+              "    loop {",
+              "        let endpoint = read_endpoint()?;",
+              "        verify_endpoint_process(&endpoint)?;",
+              "        let name = resolve_name(&endpoint.socket_name)?;",
+              "        match LocalSocketStream::connect(name.borrow()) {",
+              "            Ok(stream) => return Ok((stream, endpoint)),",
+              "            Err(error)",
+              "                if error.kind() == std::io::ErrorKind::NotFound",
+              "                    || error.kind() == std::io::ErrorKind::WouldBlock",
+              "                    || error.kind() == std::io::ErrorKind::ConnectionRefused =>",
+              "            {",
+              "                let remaining = retry_budget.saturating_sub(start.elapsed());",
+              "                if remaining.is_zero() {",
+              "                    return Err(IpcError::from(error));",
+              "                }",
+              "                std::thread::sleep(std::time::Duration::from_millis(10).min(remaining));",
+              "            }",
+              "            Err(error) => return Err(IpcError::from(error)),",
+              "        }",
+              "    }",
+              "}",
+          ])
+          path.write_text(text[:start] + replacement + text[end:])
+
+      - name: Verify formatting
+        shell: bash
+        run: cargo fmt --all -- --check
+
+      - name: Test daemon transport and runtime
+        shell: bash
+        run: cargo test -p scriptor-daemon --lib --locked
+
+      - name: Commit verified daemon fix
+        shell: bash
+        run: |
+          git rm .github/workflows/fix-pr45-daemon-review.yml
+          git add crates/daemon/src/transport.rs
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(daemon): refresh endpoint across reconnect retries"
+          git push origin HEAD:fix/pr45-review-gates
