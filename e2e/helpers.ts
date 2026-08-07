@@ -42,9 +42,28 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
 }
 
 export async function openCommandPalette(page: Page) {
-  await page.keyboard.press('Control+KeyK')
-  const palette = page.getByRole('dialog', { name: 'Command palette' })
-  await expect(palette).toBeVisible({ timeout: 5000 })
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
+    await page.keyboard.press('Control+KeyK')
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    try {
+      await expect(palette).toBeVisible({ timeout: 5000 })
+      return
+    } catch (error) {
+      // Vite can reload every open page when a parallel test reveals a lazily
+      // optimized dependency. Retry only when this document actually changed;
+      // a missing palette without navigation remains a real test failure.
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+      const currentTimeOrigin = await page
+        .evaluate(() => performance.timeOrigin)
+        .catch(() => navigationTimeOrigin)
+      if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+        await waitForWorkspace(page)
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 function escapeRegExp(value: string): string {
