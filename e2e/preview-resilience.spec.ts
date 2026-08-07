@@ -22,9 +22,9 @@ test.describe('Markdown preview resilience', () => {
     await expect(editorToolbar).toBeVisible()
     const sourceButton = editorToolbar.getByRole('button', { name: 'Source', exact: true })
     await expect(sourceButton).toBeVisible()
-    if ((await sourceButton.getAttribute('aria-pressed')) !== 'true') {
+    if (!(await sourceButton.evaluate((button) => button.classList.contains('active')))) {
       await sourceButton.click()
-      await expect(sourceButton).toHaveAttribute('aria-pressed', 'true')
+      await expect(sourceButton).toHaveClass(/active/)
     }
 
     await page.getByRole('tab', { name: 'Preview', exact: true }).click()
