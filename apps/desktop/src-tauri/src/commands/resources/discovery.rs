@@ -923,8 +923,7 @@ fn platform_application_candidates(target_id: &str, home: &Path) -> Vec<(String,
             ];
             for (id, identity, relative) in paths {
                 if *id == target_id {
-                    candidates.push(((*identity).to_string(), local_app_data.join(relative))
-                );
+                    candidates.push(((*identity).to_string(), local_app_data.join(relative)));
                 }
             }
         }
