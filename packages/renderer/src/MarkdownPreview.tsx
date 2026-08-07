@@ -51,6 +51,7 @@ interface WorkerRenderRequest {
 }
 
 const PREVIEW_DEBOUNCE_MS = 200
+const PREVIEW_WORKER_TIMEOUT_MS = 5_000
 const USE_PREVIEW_WORKER = import.meta.env.VITE_SCREENSHOT_MODE !== 'true'
 
 function renderFailureMessage(error: unknown, fallback: string): string {
@@ -82,6 +83,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     const requestId = useRef(0)
     const workerRef = useRef<Worker | null>(null)
     const workerFallbackRef = useRef<WorkerRenderRequest | null>(null)
+    const workerDeadlineRef = useRef<number | null>(null)
     const debounceTimer = useRef<number | null>(null)
     const contentRef = useRef<HTMLDivElement>(null)
     const postProcessRef = useRef(postProcessHtml)
@@ -102,22 +104,32 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       getContentRoot: () => contentRef.current,
     }))
 
+    const clearWorkerDeadline = useCallback(() => {
+      if (workerDeadlineRef.current === null) return
+      window.clearTimeout(workerDeadlineRef.current)
+      workerDeadlineRef.current = null
+    }, [])
+
     const commitRenderedHtml = useCallback((nextHtml: string) => {
+      clearWorkerDeadline()
+      workerFallbackRef.current = null
       const result = applyPreviewPostProcess(nextHtml, postProcessRef.current)
       postProcessWarningRef.current = result.warning
       setRenderError(null)
       setRenderWarning(result.warning)
       setHtml(result.html)
       setIsRendering(false)
-    }, [])
+    }, [clearWorkerDeadline])
 
     const commitRenderFailure = useCallback((error: unknown, fallback: string) => {
+      clearWorkerDeadline()
+      workerFallbackRef.current = null
       postProcessWarningRef.current = null
       setRenderWarning(null)
       setRenderError(renderFailureMessage(error, fallback))
       setHtml('')
       setIsRendering(false)
-    }, [])
+    }, [clearWorkerDeadline])
 
     useEffect(() => {
       if (!USE_PREVIEW_WORKER) return undefined
@@ -149,7 +161,8 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       worker.onmessage = (
         event: MessageEvent<{ id: number; html?: string; error?: string }>,
       ) => {
-        if (event.data.id !== requestId.current) return
+        const fallback = workerFallbackRef.current
+        if (event.data.id !== requestId.current || fallback?.id !== event.data.id) return
         if (event.data.error) {
           commitRenderFailure(event.data.error, 'Preview rendering failed')
           return
@@ -164,17 +177,19 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       worker.onmessageerror = renderFallback
 
       return () => {
+        clearWorkerDeadline()
         workerFallbackRef.current = null
         worker.terminate()
-        workerRef.current = null
+        if (workerRef.current === worker) workerRef.current = null
       }
-    }, [commitRenderFailure, commitRenderedHtml])
+    }, [clearWorkerDeadline, commitRenderFailure, commitRenderedHtml])
 
     useEffect(() => {
       if (debounceTimer.current) {
         window.clearTimeout(debounceTimer.current)
       }
 
+      clearWorkerDeadline()
       requestId.current += 1
       const currentId = requestId.current
       workerFallbackRef.current = null
@@ -224,6 +239,20 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           workerFallbackRef.current = workerRequest
           try {
             worker.postMessage(workerRequest)
+            workerDeadlineRef.current = window.setTimeout(() => {
+              if (
+                requestId.current !== currentId ||
+                workerFallbackRef.current?.id !== currentId
+              ) {
+                return
+              }
+              workerFallbackRef.current = null
+              if (workerRef.current === worker) {
+                worker.terminate()
+                workerRef.current = null
+              }
+              renderOnMainThread()
+            }, PREVIEW_WORKER_TIMEOUT_MS)
           } catch {
             renderOnMainThread()
           }
@@ -235,6 +264,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           window.clearTimeout(debounceTimer.current)
           debounceTimer.current = null
         }
+        clearWorkerDeadline()
       }
     }, [
       markdown,
@@ -242,6 +272,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       enableBreaks,
       fetchNote,
       postProcessHtml,
+      clearWorkerDeadline,
       commitRenderFailure,
       commitRenderedHtml,
     ])
