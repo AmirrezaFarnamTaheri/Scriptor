@@ -281,12 +281,6 @@ fn copy_resource_at_depth(
             destination.display()
         )
     })?;
-    fs::set_permissions(destination, metadata.permissions()).map_err(|error| {
-        format!(
-            "failed to preserve directory permissions for {}: {error}",
-            destination.display()
-        )
-    })?;
     for entry in fs::read_dir(source)
         .map_err(|error| format!("failed to read {}: {error}", source.display()))?
     {
@@ -313,6 +307,12 @@ fn copy_resource_at_depth(
             })?;
         }
     }
+    fs::set_permissions(destination, metadata.permissions()).map_err(|error| {
+        format!(
+            "failed to preserve directory permissions for {}: {error}",
+            destination.display()
+        )
+    })?;
     Ok(())
 }
 
