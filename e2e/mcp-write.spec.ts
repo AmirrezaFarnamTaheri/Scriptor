@@ -28,7 +28,7 @@ async function runMcpScenario(page: Page, input: McpScenarioInput) {
 
 test.describe('MCP write-approved E2E + audit log', () => {
   test('mcp.proposePatch creates draft, approves, saves note, and writes audit', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     const result = await page.evaluate(async () => {
@@ -45,7 +45,7 @@ test.describe('MCP write-approved E2E + audit log', () => {
   })
 
   test('mcp.proposePatch creates a DraftPatch visible in the draft queue', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     const result = await runMcpScenario(page, {
@@ -75,7 +75,7 @@ test.describe('MCP write-approved E2E + audit log', () => {
   })
 
   test('audit log records proposePatch + approve with required fields', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     const result = await runMcpScenario(page, {
@@ -123,7 +123,7 @@ test.describe('MCP write approval gate — denials', () => {
   ] as const
 
   test('read-only mode denies every write tool and audits the denial', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     const result = await runMcpScenario(page, {
@@ -159,7 +159,7 @@ test.describe('MCP write approval gate — denials', () => {
   })
 
   test('draft mode queues a patch but refuses to approve it', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     const result = await runMcpScenario(page, {
