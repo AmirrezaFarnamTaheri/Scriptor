@@ -11,7 +11,7 @@ test.describe('editor toolbar popovers', () => {
       window.localStorage.setItem('scriptor:workspace-mode', 'writing')
       window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
     }, WORKSPACE_CHROME_PREFS)
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
   })
 
