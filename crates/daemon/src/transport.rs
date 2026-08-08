@@ -167,6 +167,8 @@ pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
     let nonce = generate_nonce()?;
     let pid = std::process::id();
     let hmac = compute_endpoint_hmac(socket_name, pid, &nonce)?;
+    let path = endpoint_file_path()?;
+    let temp_path = path.with_file_name(format!("{ENDPOINT_FILE}.tmp-{pid}-{nonce}"));
     let endpoint = DaemonEndpoint {
         socket_name: socket_name.to_string(),
         pid,
@@ -174,21 +176,46 @@ pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
         hmac: Some(hmac),
     };
     let json = serde_json::to_string_pretty(&endpoint).map_err(|error| IpcError::Codec(error.to_string()))?;
-    let path = endpoint_file_path()?;
 
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut opts = fs::OpenOptions::new();
-        opts.write(true).create(true).truncate(true).mode(0o600);
-        let mut file = opts.open(&path).map_err(IpcError::from)?;
+    let write_result = (|| -> Result<(), IpcError> {
+        #[cfg(unix)]
+        let mut file = {
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut opts = fs::OpenOptions::new();
+            opts.write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(&temp_path)
+                .map_err(IpcError::from)?
+        };
+        #[cfg(not(unix))]
+        let mut file = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temp_path)
+            .map_err(IpcError::from)?;
+
         use std::io::Write;
         file.write_all(json.as_bytes()).map_err(IpcError::from)?;
+        file.sync_all().map_err(IpcError::from)?;
+        drop(file);
+
+        #[cfg(not(unix))]
+        match fs::remove_file(&path) {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(IpcError::from(error)),
+        }
+
+        fs::rename(&temp_path, &path).map_err(IpcError::from)?;
+        Ok(())
+    })();
+
+    if let Err(error) = write_result {
+        let _ = fs::remove_file(&temp_path);
+        return Err(error);
     }
-    #[cfg(not(unix))]
-    {
-        fs::write(&path, json).map_err(IpcError::from)?;
-    }
+
     Ok(endpoint)
 }
 
@@ -278,31 +305,91 @@ fn resolve_name(path: &str) -> Result<Name<'_>, IpcError> {
     }
 }
 
-pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
+fn retryable_endpoint_error(error: &IpcError) -> bool {
+    match error {
+        IpcError::Io(error) => matches!(
+            error.kind(),
+            std::io::ErrorKind::NotFound | std::io::ErrorKind::WouldBlock
+        ),
+        IpcError::Codec(message) => message.starts_with("daemon endpoint stale (pid "),
+        _ => false,
+    }
+}
+
+fn retryable_connect_error(error: &std::io::Error) -> bool {
+    matches!(
+        error.kind(),
+        std::io::ErrorKind::NotFound
+            | std::io::ErrorKind::WouldBlock
+            | std::io::ErrorKind::ConnectionRefused
+    )
+}
+
+fn wait_for_retry(
+    start: std::time::Instant,
+    retry_budget: std::time::Duration,
+    retry_interval: std::time::Duration,
+    error: IpcError,
+) -> Result<(), IpcError> {
+    let remaining = retry_budget.saturating_sub(start.elapsed());
+    if remaining.is_zero() {
+        return Err(error);
+    }
+    std::thread::sleep(retry_interval.min(remaining));
+    Ok(())
+}
+
+fn connect_authenticated_client_inner(
+    mut on_socket_retry: impl FnMut(&DaemonEndpoint),
+) -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
     let start = std::time::Instant::now();
     let retry_budget = std::time::Duration::from_millis(500);
     let retry_interval = std::time::Duration::from_millis(10);
     loop {
-        let endpoint = read_endpoint()?;
-        verify_endpoint_process(&endpoint)?;
+        let endpoint = match read_endpoint() {
+            Ok(endpoint) => endpoint,
+            Err(error) if retryable_endpoint_error(&error) => {
+                wait_for_retry(start, retry_budget, retry_interval, error)?;
+                continue;
+            }
+            Err(error) => return Err(error),
+        };
+
+        if let Err(error) = verify_endpoint_process(&endpoint) {
+            if retryable_endpoint_error(&error) {
+                wait_for_retry(start, retry_budget, retry_interval, error)?;
+                continue;
+            }
+            return Err(error);
+        }
+
         let name = resolve_name(&endpoint.socket_name)?;
         match LocalSocketStream::connect(name.borrow()) {
             Ok(stream) => return Ok((stream, endpoint)),
-            Err(e)
-                if (e.kind() == std::io::ErrorKind::NotFound
-                    || e.kind() == std::io::ErrorKind::WouldBlock
-                    || e.kind() == std::io::ErrorKind::ConnectionRefused)
-                    && start.elapsed() < retry_budget =>
-            {
-                let remaining = retry_budget.saturating_sub(start.elapsed());
-                if remaining.is_zero() {
-                    return Err(IpcError::from(e));
-                }
-                std::thread::sleep(retry_interval.min(remaining));
+            Err(error) if retryable_connect_error(&error) => {
+                on_socket_retry(&endpoint);
+                wait_for_retry(
+                    start,
+                    retry_budget,
+                    retry_interval,
+                    IpcError::from(error),
+                )?;
             }
-            Err(e) => return Err(IpcError::from(e)),
+            Err(error) => return Err(IpcError::from(error)),
         }
     }
+}
+
+pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
+    connect_authenticated_client_inner(|_| {})
+}
+
+/// Observability seam for deterministic reconnect regression tests.
+#[doc(hidden)]
+pub fn connect_authenticated_client_with_retry_observer(
+    on_socket_retry: impl FnMut(&DaemonEndpoint),
+) -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
+    connect_authenticated_client_inner(on_socket_retry)
 }
 
 pub fn connect_client() -> Result<LocalSocketStream, IpcError> {

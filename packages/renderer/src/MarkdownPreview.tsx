@@ -82,6 +82,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     const [renderWarning, setRenderWarning] = useState<string | null>(null)
     const requestId = useRef(0)
     const workerRef = useRef<Worker | null>(null)
+    const workerFactoryRef = useRef<(() => Worker | null) | null>(null)
     const workerFallbackRef = useRef<WorkerRenderRequest | null>(null)
     const workerDeadlineRef = useRef<number | null>(null)
     const debounceTimer = useRef<number | null>(null)
@@ -134,17 +135,6 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     useEffect(() => {
       if (!USE_PREVIEW_WORKER) return undefined
 
-      let worker: Worker
-      try {
-        worker = new Worker(new URL('./preview.worker.ts', import.meta.url), {
-          type: 'module',
-        })
-      } catch {
-        workerRef.current = null
-        return undefined
-      }
-      workerRef.current = worker
-
       const renderFallback = () => {
         const fallback = workerFallbackRef.current
         if (!fallback || fallback.id !== requestId.current) return
@@ -158,29 +148,47 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         }
       }
 
-      worker.onmessage = (
-        event: MessageEvent<{ id: number; html?: string; error?: string }>,
-      ) => {
-        const fallback = workerFallbackRef.current
-        if (event.data.id !== requestId.current || fallback?.id !== event.data.id) return
-        if (event.data.error) {
-          commitRenderFailure(event.data.error, 'Preview rendering failed')
-          return
+      const createWorker = (): Worker | null => {
+        let worker: Worker
+        try {
+          worker = new Worker(new URL('./preview.worker.ts', import.meta.url), {
+            type: 'module',
+          })
+        } catch {
+          workerRef.current = null
+          return null
         }
-        commitRenderedHtml(event.data.html ?? '')
+
+        worker.onmessage = (
+          event: MessageEvent<{ id: number; html?: string; error?: string }>,
+        ) => {
+          const fallback = workerFallbackRef.current
+          if (event.data.id !== requestId.current || fallback?.id !== event.data.id) return
+          if (event.data.error) {
+            commitRenderFailure(event.data.error, 'Preview rendering failed')
+            return
+          }
+          commitRenderedHtml(event.data.html ?? '')
+        }
+
+        worker.onerror = (event) => {
+          event.preventDefault()
+          renderFallback()
+        }
+        worker.onmessageerror = renderFallback
+        workerRef.current = worker
+        return worker
       }
 
-      worker.onerror = (event) => {
-        event.preventDefault()
-        renderFallback()
-      }
-      worker.onmessageerror = renderFallback
+      workerFactoryRef.current = createWorker
+      createWorker()
 
       return () => {
         clearWorkerDeadline()
         workerFallbackRef.current = null
-        worker.terminate()
-        if (workerRef.current === worker) workerRef.current = null
+        workerFactoryRef.current = null
+        workerRef.current?.terminate()
+        workerRef.current = null
       }
     }, [clearWorkerDeadline, commitRenderFailure, commitRenderedHtml])
 
@@ -250,6 +258,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
               if (workerRef.current === worker) {
                 worker.terminate()
                 workerRef.current = null
+                workerFactoryRef.current?.()
               }
               renderOnMainThread()
             }, PREVIEW_WORKER_TIMEOUT_MS)
