@@ -4,7 +4,7 @@ const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
 
 export default defineConfig({
   testDir: 'e2e',
-  testIgnore: /screenshots\.spec\.ts$/,
+  testIgnore: /(?:screenshots|visual-review)\.spec\.ts$/,
   timeout: 120_000,
   expect: {
     timeout: 30_000,
