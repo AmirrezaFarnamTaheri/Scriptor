@@ -76,9 +76,9 @@ async function waitForVisualWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  await expect(page.locator('.markdown-preview h1')).toContainText('Research Plan', {
-    timeout: 30_000,
-  })
+  const preview = page.getByRole('article', { name: 'Markdown preview' })
+  await expect(preview).toBeVisible({ timeout: 30_000 })
+  await expect(preview.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
   await expect(page.locator('.preview-error')).toHaveCount(0)
   await settleLayout(page)
 }
@@ -88,11 +88,24 @@ async function openVisualWorkspace(page: Page) {
   await waitForVisualWorkspace(page)
 }
 
+async function expectFullyInViewport(page: Page, selector: string) {
+  await expect.poll(
+    () => page.locator(selector).evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.top >= 0 && rect.left >= 0 && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth
+    }),
+    { timeout: 10_000 },
+  ).toBe(true)
+}
+
 async function openMobileWorkspace(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForEditorReady(page)
-  await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' })).toBeVisible()
+  const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+  await expect(nav).toBeVisible()
+  await expect(nav).toBeInViewport()
+  await expectFullyInViewport(page, 'nav[aria-label="Mobile workspace navigation"]')
 }
 
 async function installResourceInventoryFixture(page: Page) {
@@ -128,12 +141,15 @@ test.describe('visual review states', () => {
     }, WORKSPACE_CHROME_PREFS)
   })
 
-  test('editor preview-only surface', async ({ page }) => {
+  test('inspector preview mode', async ({ page }) => {
     await openVisualWorkspace(page)
     await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+    const inspector = page.getByRole('complementary', { name: 'Inspector' })
+    await expect(inspector.getByRole('tab', { name: 'Preview', selected: true })).toBeVisible()
     await waitForPreviewReady(page)
+    await expect(inspector).toBeInViewport()
 
-    await expect(page).toHaveScreenshot('visual-editor-preview-only.png', { fullPage: false })
+    await expect(page).toHaveScreenshot('visual-inspector-preview.png', { fullPage: false })
   })
 
   test('dark workspace with split preview', async ({ page }) => {
@@ -196,7 +212,7 @@ test.describe('visual review states', () => {
     const fallback = page.getByRole('alert').filter({ hasText: 'The editor could not be displayed' })
     await expect(fallback).toBeVisible({ timeout: 45_000 })
     await expect(fallback.getByRole('button', { name: 'Retry' })).toBeFocused()
-    await expect(fallback).toHaveScreenshot('visual-editor-recovery.png', {
+    await expect(fallback.locator(':scope > div')).toHaveScreenshot('visual-editor-recovery.png', {
       maxDiffPixelRatio: 0.01,
     })
   })
@@ -206,6 +222,11 @@ test.describe('visual review states', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForVisualWorkspace(page)
 
+    const editor = page.getByRole('region', { name: 'Editor' })
+    await expect(editor).toBeInViewport()
+    await expect.poll(async () => (await editor.boundingBox())?.height ?? 0).toBeGreaterThan(280)
+    await expect(page.getByRole('complementary', { name: 'Vault' })).toBeInViewport()
+
     await expect(page).toHaveScreenshot('visual-workspace-tablet-1024.png', { fullPage: false })
   })
 
@@ -213,6 +234,7 @@ test.describe('visual review states', () => {
     await openMobileWorkspace(page)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-current', 'page')
+    await expect(page.locator('.editor-panel')).toBeInViewport()
 
     await expect(page).toHaveScreenshot('visual-mobile-editor-390.png', { fullPage: false })
   })
@@ -223,6 +245,7 @@ test.describe('visual review states', () => {
     await nav.getByRole('button', { name: 'Vault' }).click()
     await expect(nav.getByRole('button', { name: 'Vault' })).toHaveAttribute('aria-current', 'page')
     await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
+    await expect(page.locator('.vault-panel')).toBeInViewport()
     await settleLayout(page)
 
     await expect(page).toHaveScreenshot('visual-mobile-vault-390.png', { fullPage: false })
@@ -234,6 +257,7 @@ test.describe('visual review states', () => {
     await nav.getByRole('button', { name: 'Lens' }).click()
     await expect(nav.getByRole('button', { name: 'Lens' })).toHaveAttribute('aria-current', 'page')
     await waitForInspectorReady(page)
+    await expect(page.locator('.inspector-panel')).toBeInViewport()
 
     await expect(page).toHaveScreenshot('visual-mobile-inspector-390.png', { fullPage: false })
   })
