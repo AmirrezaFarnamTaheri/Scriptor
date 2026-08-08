@@ -214,7 +214,14 @@ export function CanvasPanel({
 
       <footer className="canvas-footer" role="status">
         <span>{status}</span>
-        {selectedBlockIds.length > 0 ? <code>{selectedBlockIds.join(', ')}</code> : null}
+        {selectedBlockIds.length > 0 ? (
+          <>
+            <span className="sr-only">
+              Selected {selectedBlockIds.length} block{selectedBlockIds.length === 1 ? '' : 's'}
+            </span>
+            <code>{selectedBlockIds.join(', ')}</code>
+          </>
+        ) : null}
         <small className="canvas-cli-hint">CLI: scriptor canvas list · scriptor canvas snapshot</small>
       </footer>
     </div>
