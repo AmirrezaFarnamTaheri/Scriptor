@@ -59,7 +59,16 @@ jobs:
 
       - name: Run visual regression suite
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("test:visual") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=missing") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Require committed visual baselines
+        shell: pwsh
+        run: |
+          $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots
+          if ($changes) {
+            Write-Host $changes
+            throw "Visual baselines were generated. Review and commit them before merging."
+          }
 
       - name: Capture visual review failure context
         if: failure()
@@ -80,5 +89,7 @@ jobs:
             ${{ env.CI_LOG_DIR }}
             playwright-report/visual
             test-results/visual
+            e2e/visual-review.spec.ts-snapshots
+            e2e/screenshots.spec.ts-snapshots
           if-no-files-found: warn
           retention-days: 14
