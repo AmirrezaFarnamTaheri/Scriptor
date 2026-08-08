@@ -1,0 +1,84 @@
+name: Visual review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: visual-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: .
+
+env:
+  FORCE_COLOR: 1
+
+jobs:
+  visual-review:
+    name: Windows visual regression
+    runs-on: windows-2025
+    timeout-minutes: 40
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/visual-review
+      PLAYWRIGHT_CHANNEL: msedge
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Describe visual review scope
+        shell: pwsh
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Visual regression review"
+
+      - name: Install frozen pnpm dependency graph
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
+
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
+
+      - name: Run visual regression suite
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("test:visual") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Capture visual review failure context
+        if: failure()
+        shell: pwsh
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Visual regression review"
+
+      - name: Finalize visual review evidence
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Visual regression review" -Status "${{ job.status }}"
+
+      - name: Upload visual reports and evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: visual-review-${{ github.run_attempt }}
+          path: |
+            ${{ env.CI_LOG_DIR }}
+            playwright-report/visual
+            test-results/visual
+          if-no-files-found: warn
+          retention-days: 14
