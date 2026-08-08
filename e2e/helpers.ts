@@ -37,7 +37,7 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
       window.localStorage.setItem('scriptor:app-theme', theme)
     }
   }, options.theme ?? 'light')
-  await page.goto('/', { waitUntil: 'networkidle' })
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   return page
 }
 
@@ -121,11 +121,14 @@ export async function runCommand(page: Page, commandLabel: string) {
 
 export async function settleLayout(page: Page) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     try {
       await page.evaluate(async () => {
         await document.fonts.ready
         window.dispatchEvent(new Event('resize'))
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        })
       })
       break
     } catch (error) {
