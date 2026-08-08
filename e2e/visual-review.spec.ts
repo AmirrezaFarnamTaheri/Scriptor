@@ -2,6 +2,56 @@ import { expect, test, type Page } from '@playwright/test'
 
 import { settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
+const RESOURCE_INVENTORY_FIXTURE = {
+  generatedAtMs: 1786200000000,
+  fingerprint: 'e2e-resource-inventory',
+  targets: [
+    {
+      id: 'codex',
+      label: 'Codex CLI',
+      kind: 'cli',
+      supportLevel: 'native',
+      status: 'confirmed',
+      evidence: [
+        {
+          kind: 'config_root',
+          path: 'C:/Users/e2e/.codex/skills',
+          exists: true,
+          resourceCount: 1,
+        },
+      ],
+      installations: [
+        {
+          id: 'codex-installation',
+          identityKind: 'executable',
+          path: 'C:/Tools/codex.exe',
+          version: '0.1.0-e2e',
+          sha256: 'codex-e2e-sha256',
+        },
+      ],
+      resourceRoots: ['C:/Users/e2e/.codex/skills'],
+    },
+  ],
+  resources: [
+    {
+      id: 'skill-codex-visual-review',
+      logicalId: 'skill:visual-review',
+      name: 'visual-review',
+      kind: 'skill',
+      targetId: 'codex',
+      scope: 'user',
+      path: 'C:/Users/e2e/.codex/skills/visual-review',
+      manifestPath: 'C:/Users/e2e/.codex/skills/visual-review/SKILL.md',
+      contentHash: '0123456789abcdef0123456789abcdef',
+      managed: true,
+      symlinked: false,
+      valid: true,
+      issues: [],
+    },
+  ],
+  duplicates: [],
+}
+
 async function waitForEditorReady(page: Page) {
   await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
@@ -45,6 +95,23 @@ async function openMobileWorkspace(page: Page) {
   await expect(page.getByRole('navigation', { name: 'Mobile workspace navigation' })).toBeVisible()
 }
 
+async function installResourceInventoryFixture(page: Page) {
+  await page.evaluate((inventory) => {
+    const internals = (window as Window & {
+      __TAURI_INTERNALS__?: {
+        invoke?: (command: string, payload?: unknown, options?: unknown) => Promise<unknown>
+      }
+    }).__TAURI_INTERNALS__
+    if (!internals?.invoke) throw new Error('E2E Tauri invoke bridge is unavailable')
+
+    const originalInvoke = internals.invoke.bind(internals)
+    internals.invoke = async (command, payload, options) => {
+      if (command === 'resource_inventory') return inventory
+      return originalInvoke(command, payload, options)
+    }
+  }, RESOURCE_INVENTORY_FIXTURE)
+}
+
 test.describe('visual review states', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((chromePrefs) => {
@@ -54,6 +121,7 @@ test.describe('visual review states', () => {
       window.localStorage.setItem('scriptor:editor-theme', 'light')
       window.localStorage.setItem('scriptor:headless-engine', 'false')
       window.localStorage.setItem('scriptor:workspace-mode', 'writing')
+      window.localStorage.setItem('scriptor:mobile-pane', 'editor')
       window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
       window.localStorage.setItem('scriptor:split-preview', 'false')
       window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
@@ -97,16 +165,23 @@ test.describe('visual review states', () => {
     })
   }
 
-  test('MCP sharing and sync browser state', async ({ page }) => {
+  test('MCP sharing and sync inventory', async ({ page }) => {
     await openVisualWorkspace(page)
+    await installResourceInventoryFixture(page)
     const mcpButton = page.locator('.top-actions button').filter({ hasText: /MCP|Read-only|Write/i })
     await mcpButton.click()
     const mcpPanel = page.getByRole('dialog', { name: /MCP|automation/i })
     await expect(mcpPanel).toBeVisible()
     await mcpPanel.getByRole('tab', { name: 'Sharing & sync' }).click()
-    await expect(mcpPanel.getByRole('heading', { name: 'Sharing and sync requires the desktop app' })).toBeVisible()
 
-    await expect(mcpPanel).toHaveScreenshot('visual-mcp-sharing-browser.png', {
+    const sharing = mcpPanel.getByRole('region', { name: 'Sharing and sync' })
+    await expect(sharing).toBeVisible()
+    await expect(sharing.getByRole('heading', { name: 'Sharing and sync' })).toBeVisible()
+    await expect(sharing).toContainText('Codex CLI')
+    await expect(sharing).toContainText('visual-review')
+    await settleLayout(page)
+
+    await expect(mcpPanel).toHaveScreenshot('visual-mcp-sharing-inventory.png', {
       maxDiffPixelRatio: 0.01,
     })
   })
