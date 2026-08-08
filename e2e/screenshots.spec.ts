@@ -125,6 +125,8 @@ test.beforeEach(async ({ page }) => {
 
 // ── Screenshot tests ─────────────────────────────────────────────────────────
 
+// Baselines are captured on the pinned Windows CI runner; keep seeded workspace chrome preferences aligned with them.
+
 test('main workspace — light mode', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
