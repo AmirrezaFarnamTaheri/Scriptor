@@ -405,11 +405,16 @@ export function SettingsPanel({
             <div className="settings-grid settings-toggles">
               {(
                 [
+                  ['showTopBar', 'Show top navigation header'],
+                  ['showModeStrip', 'Show workspace mode strip'],
+                  ['showQuickActions', 'Show topbar quick action buttons'],
+                  ['showHistoryControls', 'Show history navigation bar'],
                   ['showFormatToolbar', 'Show format toolbar'],
                   ['showEditorAssist', 'Show editor assist chips'],
                   ['showEditorStatus', 'Show editor status bar'],
                   ['showInspectorHealth', 'Show inspector note health'],
                   ['showWorkspaceFooter', 'Show workspace footer dock'],
+                  ['showStatusBar', 'Show bottom status bar'],
                   ['showLineNumbers', 'Show line numbers'],
                   ['vaultSidebarCollapsed', 'Collapse vault sidebar'],
                   ['inspectorCollapsed', 'Collapse inspector'],

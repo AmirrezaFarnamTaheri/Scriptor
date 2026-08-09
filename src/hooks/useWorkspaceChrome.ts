@@ -9,11 +9,16 @@ export type EditorSurfaceMode = 'source' | 'split' | 'rendered'
 export interface WorkspaceChromePrefs {
   vaultSidebarCollapsed: boolean
   inspectorCollapsed: boolean
+  showTopBar: boolean
+  showModeStrip: boolean
+  showQuickActions: boolean
+  showHistoryControls: boolean
   showFormatToolbar: boolean
   showEditorAssist: boolean
   showEditorStatus: boolean
   showInspectorHealth: boolean
   showWorkspaceFooter: boolean
+  showStatusBar: boolean
   showLineNumbers: boolean
   editorFontSize: number
   editorFontFamily: EditorFontFamilyId
@@ -29,11 +34,16 @@ export interface WorkspaceChromePrefs {
 export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   vaultSidebarCollapsed: false,
   inspectorCollapsed: false,
+  showTopBar: true,
+  showModeStrip: true,
+  showQuickActions: true,
+  showHistoryControls: true,
   showFormatToolbar: true,
   showEditorAssist: true,
   showEditorStatus: true,
   showInspectorHealth: true,
   showWorkspaceFooter: true,
+  showStatusBar: true,
   showLineNumbers: true,
   editorFontSize: 14,
   editorFontFamily: 'jetbrains-mono',

@@ -30,6 +30,7 @@ import type { AppTheme } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
+import type { WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
 
 interface AppTopBarProps {
   vault: VaultDescriptor | null
@@ -64,6 +65,7 @@ interface AppTopBarProps {
   onToggleVaultSidebar: () => void
   inspectorCollapsed: boolean
   onToggleInspector: () => void
+  chrome?: WorkspaceChromePrefs
 }
 
 const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
@@ -107,6 +109,7 @@ export function AppTopBar({
   onToggleVaultSidebar,
   inspectorCollapsed,
   onToggleInspector,
+  chrome,
 }: AppTopBarProps) {
   const { t } = useI18n()
   const { getShortcut } = useKeyboardShortcuts()
@@ -118,6 +121,12 @@ export function AppTopBar({
   const inspectorShortcut = formatShortcut(
     getShortcut('toggle-inspector', getDefaultShortcut('toggle-inspector')),
   )
+
+  if (chrome?.showTopBar === false) return null
+
+  const showHistory = chrome?.showHistoryControls !== false
+  const showModeStrip = chrome?.showModeStrip !== false
+  const showActions = chrome?.showQuickActions !== false
 
   return (
     <header className="topbar surface-glass">
@@ -134,38 +143,42 @@ export function AppTopBar({
         {vault ? <small className="vault-badge">{vault.name}</small> : null}
       </div>
 
-      <div className="history-controls" aria-label="History controls">
-        <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
-          <ChevronRight className="flip" />
-        </IconButton>
-        <IconButton label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
-          <ChevronRight />
-        </IconButton>
-        <button type="button" className="action-button" onClick={onChooseVault}>
-          <FolderOpen />
-          {t('topBar.openVault')}
-        </button>
-        <WorkspaceSwitcher
-          recentVaults={recentVaults}
-          activeVaultPath={activeVaultPath}
-          onOpenVault={onOpenVault}
-          onChooseVault={onChooseVault}
-        />
-      </div>
-
-      <div className="workspace-mode-strip" aria-label="Workspace mode">
-        {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            className={workspaceMode === mode ? 'workspace-mode active' : 'workspace-mode'}
-            aria-pressed={workspaceMode === mode}
-            onClick={() => onWorkspaceModeChange(mode)}
-          >
-            {t(MODE_LABEL_KEYS[mode])}
+      {showHistory ? (
+        <div className="history-controls" aria-label="History controls">
+          <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
+            <ChevronRight className="flip" />
+          </IconButton>
+          <IconButton label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
+            <ChevronRight />
+          </IconButton>
+          <button type="button" className="action-button" onClick={onChooseVault}>
+            <FolderOpen />
+            {t('topBar.openVault')}
           </button>
-        ))}
-      </div>
+          <WorkspaceSwitcher
+            recentVaults={recentVaults}
+            activeVaultPath={activeVaultPath}
+            onOpenVault={onOpenVault}
+            onChooseVault={onChooseVault}
+          />
+        </div>
+      ) : null}
+
+      {showModeStrip ? (
+        <div className="workspace-mode-strip" aria-label="Workspace mode">
+          {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={workspaceMode === mode ? 'workspace-mode active' : 'workspace-mode'}
+              aria-pressed={workspaceMode === mode}
+              onClick={() => onWorkspaceModeChange(mode)}
+            >
+              {t(MODE_LABEL_KEYS[mode])}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <label className="command-search" onClick={onOpenCommandPalette}>
         <Command />
@@ -180,32 +193,36 @@ export function AppTopBar({
       </label>
 
       <div className="top-actions" data-workspace-mode={workspaceMode}>
-        <IconButton
-          label={t('topBar.workbench')}
-          onClick={onOpenKnowledgeWorkbench}
-          className={workspaceMode === 'knowledge' ? 'emphasized' : undefined}
-        >
-          <BookOpenText />
-        </IconButton>
-        <IconButton
-          label={t('topBar.publish')}
-          onClick={onOpenPublishCenter}
-          className={workspaceMode === 'publish' ? 'emphasized' : undefined}
-        >
-          <Globe />
-        </IconButton>
-        <IconButton label={t('topBar.portal')} onClick={onOpenPortal}>
-          <LayoutDashboard />
-        </IconButton>
-        <IconButton label={t('topBar.capture')} onClick={onOpenQuickCapture}>
-          <Zap />
-        </IconButton>
-        <IconButton label={t('topBar.graph')} onClick={onOpenGraph}>
-          <Network />
-        </IconButton>
-        <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
-          <Box />
-        </IconButton>
+        {showActions ? (
+          <>
+            <IconButton
+              label={t('topBar.workbench')}
+              onClick={onOpenKnowledgeWorkbench}
+              className={workspaceMode === 'knowledge' ? 'emphasized' : undefined}
+            >
+              <BookOpenText />
+            </IconButton>
+            <IconButton
+              label={t('topBar.publish')}
+              onClick={onOpenPublishCenter}
+              className={workspaceMode === 'publish' ? 'emphasized' : undefined}
+            >
+              <Globe />
+            </IconButton>
+            <IconButton label={t('topBar.portal')} onClick={onOpenPortal}>
+              <LayoutDashboard />
+            </IconButton>
+            <IconButton label={t('topBar.capture')} onClick={onOpenQuickCapture}>
+              <Zap />
+            </IconButton>
+            <IconButton label={t('topBar.graph')} onClick={onOpenGraph}>
+              <Network />
+            </IconButton>
+            <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
+              <Box />
+            </IconButton>
+          </>
+        ) : null}
 
         <button
           type="button"
