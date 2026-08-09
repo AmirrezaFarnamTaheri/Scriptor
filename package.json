@@ -4,10 +4,10 @@
   "private": true,
   "pnpm": {
     "overrides": {
-      "dompurify": ">=3.4.12"
+      "dompurify": ">=3.4.13"
     }
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {
@@ -24,8 +24,10 @@
     "url": "https://github.com/AmirrezaFarnamTaheri/Scriptor/issues"
   },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build && node scripts/validation/bundle-graph.mjs",
+    "dev": "pnpm desktop:dev",
+    "web:dev": "vite --host 127.0.0.1",
+    "web:build": "tsc -b && vite build && node scripts/validation/bundle-graph.mjs",
+    "build": "pnpm web:build",
     "check:contracts": "tsc -p tsconfig.contracts.json --noEmit",
     "check:mcp": "node --experimental-strip-types packages/mcp/src/validate-runner.ts",
     "mcp:stdio": "node --experimental-strip-types packages/mcp/src/stdio-server.ts",
@@ -52,9 +54,9 @@
     "check:merge": "node --experimental-strip-types src/lib/validate-merge-runner.ts",
     "check:rust": "pnpm check:rust:product && pnpm check:rust:incubating",
     "test:rust": "cargo test --workspace --exclude scriptor-desktop",
-    "prepare:desktop": "powershell -ExecutionPolicy Bypass -File scripts/release/stage-daemon-sidecar.ps1",
+    "prepare:desktop": "node scripts/release/stage-daemon-sidecar.mjs",
     "desktop:dev": "pnpm prepare:desktop && pnpm --dir apps/desktop dev",
-    "desktop:build": "pnpm build && pnpm prepare:desktop && pnpm --dir apps/desktop build",
+    "desktop:build": "pnpm --dir apps/desktop build",
     "icons:regenerate": "pnpm --dir apps/desktop exec tauri icon ../../docs/brand/app-icon.svg -o src-tauri/icons --ios-color \"#0f766e\"",
     "screenshots:capture": "powershell -ExecutionPolicy Bypass -File scripts/screenshots/capture.ps1",
     "screenshots:capture:web": "powershell -ExecutionPolicy Bypass -File scripts/screenshots/capture.ps1 -SkipDesktopBuild",
@@ -99,7 +101,7 @@
     "release:sbom": "node scripts/release/generate-sbom.mjs",
     "release:receipt": "node scripts/release/create-receipt.mjs",
     "release:evidence:verify": "node scripts/release/verify-release-evidence.mjs",
-    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs && node --test scripts/benchmarks/benchmark-utils.test.mjs scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs scripts/release/signing-policy.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs",
+    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/desktop-branding.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs && node --test scripts/benchmarks/benchmark-utils.test.mjs scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs scripts/release/signing-policy.test.mjs scripts/validation/rustsec-exceptions.test.mjs scripts/validation/release-hardening-contracts.test.mjs scripts/validation/resource-sync-contracts.test.mjs",
     "check:governance": "node scripts/release/version.mjs check && node scripts/validation/action-pins.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/i18n-parity.mjs && node scripts/validation/docs-contracts.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs",
     "check:rust:product": "cargo check --locked",
     "check:rust:incubating": "cargo check --locked -p scriptor-embeddings -p scriptor-tantivy-indexer -p scriptor-wasm-runtime",
@@ -112,7 +114,8 @@
     "check:release-evidence-contracts": "node --test scripts/release/source-identity.test.mjs scripts/release/release-evidence-utils.test.mjs scripts/release/sbom-utils.test.mjs scripts/release/signing-policy.test.mjs",
     "check:release-signing": "node --test scripts/release/signing-policy.test.mjs",
     "check:release-hardening": "node --test scripts/validation/release-hardening-contracts.test.mjs",
-    "check:rustsec-exceptions": "node scripts/validation/rustsec-exceptions.mjs"
+    "check:rustsec-exceptions": "node scripts/validation/rustsec-exceptions.mjs",
+    "check:branding": "node scripts/validation/desktop-branding.mjs"
   },
   "dependencies": {
     "@scriptor/canvas": "workspace:*",
@@ -132,7 +135,7 @@
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "citeproc": "^2.4.63",
-    "lucide-react": "^1.27.0",
+    "lucide-react": "^1.28.0",
     "monaco-editor": "^0.56.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -144,16 +147,16 @@
     "@eslint/js": "^10.0.1",
     "@types/d3-force": "^3.0.10",
     "@types/node": "^26.1.2",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.4",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "typescript-eslint": "^8.66.0",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.8.0",
+    "globals": "^17.9.0",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.65.0",
-    "@playwright/test": "^1.62.0",
-    "vite": "^8.1.5"
+    "@vitejs/plugin-react": "^6.0.5",
+    "@playwright/test": "^1.62.1",
+    "vite": "^8.2.0"
   }
 }

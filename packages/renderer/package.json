@@ -1,7 +1,7 @@
 {
   "name": "@scriptor/renderer",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
@@ -15,7 +15,7 @@
     "hast-util-sanitize": "^5.0.2",
     "katex": "^0.18.1",
     "highlight.js": "^11.11.1",
-    "mermaid": "^11.16.0",
+    "mermaid": "^11.16.1",
     "plantuml-encoder": "^1.4.0",
     "rehype-highlight": "^7.0.2",
     "rehype-katex": "^7.0.1",

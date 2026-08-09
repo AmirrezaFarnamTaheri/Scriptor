@@ -1,13 +1,13 @@
 # Verification record
 
-This document defines proof for the current source candidate. A release record must name the exact commit, source-tree hash, command, environment, and artifact set.
+This document defines proof for the current source candidate. A release record must name the exact commit, source-tree hash, command, environment, target architecture, and artifact set.
 
 ## Claim vocabulary
 
 - **Verified:** the stated command executed against this source state and passed.
 - **Statically validated:** source or generated metadata was parsed and checked without compiling or running the full product.
 - **Reviewed:** code and contracts were inspected without executable proof.
-- **Pending:** required proof depends on unavailable tooling, dependencies, credentials, platform, browser, or canonical history.
+- **Pending:** required proof depends on unavailable tooling, dependencies, platform, browser, or canonical history.
 - **Failed:** the stated command executed and did not pass.
 
 ## Repository-native checks
@@ -30,7 +30,7 @@ pnpm check:knowledge
 pnpm check:merge
 ```
 
-`check:source` covers generated IPC contracts, Rust source/module/process/unsafe policy, native authorization, frontend policy, hotspot ownership, benchmark utilities, release signing/evidence contracts, and the RustSec exception ledger. `check:governance` covers version parity, immutable Actions, package boundaries, locale parity, documentation/license contracts, frontend policy, and hotspot ownership.
+`check:source` covers generated IPC contracts, Rust source/module/process/unsafe policy, native authorization, frontend policy, hotspot ownership, benchmark utilities, release trust/evidence contracts, and the RustSec exception ledger. `check:governance` covers version parity, immutable Actions, package boundaries, locale parity, documentation/license contracts, frontend policy, and hotspot ownership.
 
 ## Full engineering gate
 
@@ -65,7 +65,7 @@ pnpm check:a11y-axe
 Required manual matrix:
 
 - 320, 375, 768, 1024, and 1440 CSS-pixel widths;
-- light and dark themes;
+- light, dark, and high-contrast themes;
 - Windows, macOS, and Linux desktop shells;
 - keyboard-only primary workflows;
 - screen-reader smoke test;
@@ -73,19 +73,49 @@ Required manual matrix:
 - reduced-motion mode;
 - empty, loading, error, success, destructive-confirmation, and long-content states.
 
+Toolbar-popover verification must prove that Typography and Insert menus:
+
+- are portaled outside `.editor-toolbar` and its horizontal overflow clipping;
+- remain inside the visual viewport after resize and ancestor scrolling;
+- reposition through bounded DOM style updates without a React render loop;
+- focus the first menu item when opened from the keyboard;
+- support Arrow Up/Down, Home, End, Escape, Tab, and outside-click dismissal;
+- restore focus to the trigger after Escape dismissal.
+
+Visual evidence captures must wait until the rendered preview has settled (the expected preview
+heading is visible and no `.preview-error` is present). Baseline assertions are reserved for stable
+core surfaces; transient/state-review screenshots are attached to the Visual review job instead of
+creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
+with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
+
 ## Release and recovery gate
 
-- Build installers from the exact audited source commit.
-- Verify Windows Authenticode, macOS Developer ID/notarization/staple, and Linux detached signatures.
-- Generate platform signing evidence during each packaging job.
-- Run `node scripts/release/verify-signing-evidence.mjs release-artifacts production` before generating the SBOM and receipt.
-- Generate receipt schema 3 in the promotion job after all platform artifacts are downloaded.
-- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra subjects, unsafe paths, symlinks, checksum/SBOM mismatch, incomplete signing evidence, unsigned production artifacts, and missing macOS notarization.
-- Verify GitHub attestations and release-tag lineage.
-- Clean-install each package.
+- Build every installer from the exact audited tag.
+- Assert that each runner architecture matches its declared target before packaging.
+- Produce Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64 target sets.
+- Transport only installer files and one `signing-evidence-<platform>-<architecture>.json` record per target.
+- Separate publication inputs into exactly seven installers under `release-artifacts` and exactly four trust records under `release-evidence`.
+- Verify that official target records state `signed: false`, `notarized: false`, and `signatureType: "none"`.
+- Run `node scripts/release/verify-signing-evidence.mjs release-evidence production` before generating the receipt.
+- Generate `SHA256SUMS` over the seven installer subjects only and receipt schema 4 with the four normalized trust records embedded.
+- Run `node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence`; the verifier rejects source drift, a dirty checkout, missing or extra installer subjects, unsafe paths, symlinks, checksum/SBOM mismatch, incomplete target status, and target/source identity drift.
+- Verify GitHub provenance and SBOM attestations for every installer plus immutable release-tag lineage.
+- Confirm that release notes disclose unknown-publisher behavior and provide single-installer checksum and attestation commands.
+- Clean-install each package and record operating-system warnings caused by the explicit unsigned policy.
 - Create an external backup, corrupt a copy, prove rejection, and restore on each supported OS.
 - Interrupt restore and MCP mutation flows and prove deterministic recovery.
 - Run startup, idle-memory, index, search, graph, editor, and export performance gates.
+
+## Release workflow invariants
+
+- Manual dispatch defaults to preview and never publishes unless `publish: true` is supplied on an existing `v*` tag.
+- A `VERSION` change on `main` creates an immutable tag only when the version is unused.
+- An existing tag that points to another commit is a hard failure; it is never moved.
+- The kickoff workflow uses `workflow_dispatch` because events emitted with `GITHUB_TOKEN` do not normally trigger another workflow.
+- The unified `Release` workflow is the only GitHub Release owner; the former ARM-specific publication workflow is removed.
+- Architecture-bearing filenames prevent collisions when artifacts are merged for publication.
+- The release upload boundary excludes unpacked bundle internals and CI evidence.
+- Checksums and attestations cover installers, while target trust records remain separately verified release metadata.
 
 ## Canonical history gate
 
@@ -95,43 +125,12 @@ Run from a full canonical clone:
 bash scripts/governance/history-audit.sh . .history-audit
 ```
 
-Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, signed tags, and release lineage from the hosting platform.
+Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, tag lineage, and release lineage from the hosting platform.
 
-## Remediation candidate execution record — 2026-08-03
+## Historical remediation evidence
 
-The following evidence was produced against the source candidate delivered with [`REMEDIATION-2026-08-03.md`](REMEDIATION-2026-08-03.md).
+The 2026-08-03 remediation candidate verified repository-native source, authorization, frontend, release-evidence, package-boundary, locale, documentation, RustSec, and benchmark contracts. Some native build, browser, signing, clean-install, recovery, and full-history checks remained environment-dependent.
 
-### Verified
+The 0.1.1 release work supersedes the former mandatory-signing claim. It does not weaken source or artifact integrity checks: publisher signing is removed as a prerequisite, while exact target identity, checksum, SBOM, receipt, source binding, immutable tags, and GitHub attestations remain fail-closed.
 
-- Version parity: `0.1.0` across 16 package manifests, 16 Cargo manifests, and Tauri configuration.
-- Action policy: five workflow files, 43 external action uses, and seven immutable release identities.
-- Package boundaries: 14 packages and 377 source files with no unexported cross-package import or package cycle.
-- Locale parity: three locales with 256 keys each.
-- Documentation contracts: 15 required documents and referenced repository paths.
-- Source contracts: 13 tests, including lazy editor ownership, canonical 1k benchmark requirements, and exact-source release evidence.
-- Rust lexical/module/process/unsafe policy: 151 Rust files.
-- Native authorization inventory: 19 high-impact command bindings.
-- Frontend policy: 405 production TypeScript/CSS files.
-- CSS custom-property policy: 37 files, 77 declarations, and 894 uses.
-- Hotspot ratchet: six hotspot ceilings and ten extracted domain owners.
-- Note deletion behavior: serialized ordered success, duplicate/cancellation/disk rejection, best-effort post-delete reconciliation, and combined close/rebuild/refresh failures.
-- Utility tests: three benchmark, two source-identity, four release-evidence, and three SBOM lockfile tests.
-- Repository-native behavior runners passed for MCP, plugins, canvas (8 tests), portal (5), export (17), headless (1), citations (7), knowledge (7), and merge/conflict handling (11).
-- JavaScript syntax parsing passed for 33 files. TypeScript/TSX syntax parsing passed for 391 source files with zero parse diagnostics.
-- Static security patterns found no private-key header, common live-token prefix, disabled TLS verification, app-source dynamic execution, permissive CORS, or shell-string process construction.
-- Source identity tests prove canonical Git-blob hashing across line-ending-normalized clean worktrees, large binary blobs, and dirty-tree rejection.
-- New guards were falsified before acceptance: known-bad action pins, process launches, entry-to-editor bundle graphs, undefined CSS tokens, oversized modules, release subject extras, and artifact tampering fail; restored inputs pass. The bundle test uses a generic emitted filename to prove manifest key/source identity matching.
-
-### Pending because this environment lacks the required dependency/toolchain/runtime
-
-- Editor runner stops before tests because the supplied partial dependency tree lacks `style-mod`.
-- Renderer runner stops before tests because the supplied partial dependency tree lacks `bail`.
-- Full TypeScript semantic build stops at absent installed `vite/client` and Node type libraries.
-- ESLint cannot execute because the pinned dependency graph is not installed; its configuration now fails on any warning.
-- Cargo formatting, compilation, Clippy, tests, and `cargo-deny` cannot run because the pinned Rust toolchain is unavailable.
-- Production Vite output, browser accessibility, E2E, visual regression, Tauri packaging, signing/notarization, clean install, restore drills, and platform performance measurements require clean supported runners and credentials.
-- Git-history ownership, hotspot history, signed-tag lineage, and full-history secret scanning require the canonical repository rather than an archive-derived tree.
-
-The release-evidence smoke test uses a temporary Git snapshot only to falsify verifier behavior. It proves pass/tamper/extra/dirty rejection logic; it is not provenance evidence for a canonical release.
-
-A pending item remains a release gate. Static and source-level remediation does not imply a signed production release.
+A passing source-level contract is not by itself proof of a successful public release. The authoritative completion evidence is the exact-head CI matrix plus the production tag workflow and published release assets.

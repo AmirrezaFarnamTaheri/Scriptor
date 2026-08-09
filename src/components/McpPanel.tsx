@@ -8,10 +8,11 @@ import { MCP_RECIPES } from '../lib/mcpRecipes'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useI18n } from '../lib/i18n'
+import { ResourceSyncPanel } from './ResourceSyncPanel'
 
 const MODES: McpMode[] = ['off', 'read-only', 'draft', 'write-approved']
 
-type McpTab = 'recipes' | 'tools' | 'drafts' | 'audit'
+type McpTab = 'recipes' | 'tools' | 'drafts' | 'audit' | 'sharing'
 
 interface McpPanelProps {
   mode: McpMode
@@ -55,7 +56,7 @@ const TABS = [
   { id: 'audit', labelKey: 'mcp.tabAudit' },
 ] as const
 
-/** Renders permission-scoped MCP recipes, tools, drafts, and audit history for the active vault. */
+/** Renders permission-scoped MCP automation plus local resource sharing and sync. */
 export function McpPanel({
   mode,
   tools,
@@ -104,35 +105,42 @@ export function McpPanel({
       presentation={presentation}
       className="mcp-panel knowledge-filters-panel"
       wide
-      tabs={TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) }))}
+      tabs={[
+        ...TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })),
+        { id: 'sharing', label: 'Sharing & sync' },
+      ]}
       activeTab={tab}
       onTabChange={(next) => setTab(next as McpTab)}
-      headerActions={
+      headerActions={tab === 'sharing' ? undefined : (
         <button type="button" className="toolbar-button" onClick={onResetPermissions}>
           {t('mcp.resetVaultMcp')}
         </button>
-      }
+      )}
     >
-      <div className="mcp-mode-row">
-        {MODES.map((entry) => (
-          <button
-            type="button"
-            key={entry}
-            className={mode === entry ? 'toolbar-button active' : 'toolbar-button'}
-            onClick={() => onModeChange(entry)}
-          >
-            {entry}
-          </button>
-        ))}
-        {aiEnabled && activePath && onGenerateDraft ? (
-          <button type="button" className="toolbar-button" onClick={onGenerateDraft}>
-            <Sparkles size={14} />
-            {t('mcp.generateWithAi')}
-          </button>
-        ) : null}
-      </div>
+      {tab !== 'sharing' ? (
+        <div className="mcp-mode-row">
+          {MODES.map((entry) => (
+            <button
+              type="button"
+              key={entry}
+              className={mode === entry ? 'toolbar-button active' : 'toolbar-button'}
+              onClick={() => onModeChange(entry)}
+            >
+              {entry}
+            </button>
+          ))}
+          {aiEnabled && activePath && onGenerateDraft ? (
+            <button type="button" className="toolbar-button" onClick={onGenerateDraft}>
+              <Sparkles size={14} />
+              {t('mcp.generateWithAi')}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
-      {mode === 'off' ? (
+      {tab === 'sharing' ? (
+        <ResourceSyncPanel />
+      ) : mode === 'off' ? (
         <div className="plugin-empty-graphic">
           <Server aria-hidden="true" size={32} className="text-muted" />
           <p>{t('mcp.disabledMessage')}</p>

@@ -37,14 +37,33 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
       window.localStorage.setItem('scriptor:app-theme', theme)
     }
   }, options.theme ?? 'light')
-  await page.goto('/', { waitUntil: 'networkidle' })
+  await page.goto('/', { waitUntil: 'domcontentloaded' })
   return page
 }
 
 export async function openCommandPalette(page: Page) {
-  await page.keyboard.press('Control+KeyK')
-  const palette = page.getByRole('dialog', { name: 'Command palette' })
-  await expect(palette).toBeVisible({ timeout: 5000 })
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
+    await page.keyboard.press('Control+KeyK')
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    try {
+      await expect(palette).toBeVisible({ timeout: 5000 })
+      return
+    } catch (error) {
+      // Vite can reload every open page when a parallel test reveals a lazily
+      // optimized dependency. Retry only when this document actually changed;
+      // a missing palette without navigation remains a real test failure.
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+      const currentTimeOrigin = await page
+        .evaluate(() => performance.timeOrigin)
+        .catch(() => navigationTimeOrigin)
+      if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+        await waitForWorkspace(page)
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 function escapeRegExp(value: string): string {
@@ -63,28 +82,53 @@ function escapeRegExp(value: string): string {
  * before clicking it.
  */
 export async function runCommand(page: Page, commandLabel: string) {
-  const palette = page.getByRole('dialog', { name: 'Command palette' })
-  await palette.getByRole('searchbox').fill(commandLabel)
-  const option = palette.getByRole('option').first()
-  await expect(
-    option,
-    `command palette had no option for "${commandLabel}"`,
-  ).toBeVisible({ timeout: 5000 })
-  await expect(
-    option,
-    `command palette resolved "${commandLabel}" to a different option`,
-  ).toHaveText(new RegExp(escapeRegExp(commandLabel), 'i'))
-  await option.click()
-  await expect(palette).toBeHidden({ timeout: 5000 })
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const palette = page.getByRole('dialog', { name: 'Command palette' })
+    await palette.getByRole('searchbox').fill(commandLabel)
+    const option = palette.getByRole('option').first()
+    await expect(
+      option,
+      `command palette had no option for "${commandLabel}"`,
+    ).toBeVisible({ timeout: 5000 })
+    await expect(
+      option,
+      `command palette resolved "${commandLabel}" to a different option`,
+    ).toHaveText(new RegExp(escapeRegExp(commandLabel), 'i'))
+
+    const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
+    try {
+      await option.click({ timeout: 10_000 })
+    } catch (error) {
+      // Vite can perform one full reload when a lazily imported panel reveals a
+      // dependency that was not in the initial optimizer graph. Retry only when
+      // the document actually changed; ordinary click failures still fail fast.
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+      const currentTimeOrigin = await page
+        .evaluate(() => performance.timeOrigin)
+        .catch(() => navigationTimeOrigin)
+      if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+        await waitForWorkspace(page)
+        await openCommandPalette(page)
+        continue
+      }
+      throw error
+    }
+
+    await expect(palette).toBeHidden({ timeout: 5000 })
+    return
+  }
 }
 
 export async function settleLayout(page: Page) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.waitForLoadState('networkidle')
+    await page.waitForLoadState('domcontentloaded')
     try {
       await page.evaluate(async () => {
         await document.fonts.ready
         window.dispatchEvent(new Event('resize'))
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        })
       })
       break
     } catch (error) {

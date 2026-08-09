@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-canvas-engine"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license.workspace = true
 
@@ -9,7 +9,7 @@ scriptor-vault = { path = "../vault" }
 scriptor-export-runner = { path = "../export-runner" }
 scriptor-system-bridge = { path = "../system-bridge" }
 chrono = { version = "0.4", features = ["serde"] }
-resvg = "0.47"
+resvg = "0.48"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3"

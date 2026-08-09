@@ -6,66 +6,106 @@ import test from 'node:test'
 const root = path.resolve(import.meta.dirname, '../..')
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-test('production release signing is fail-closed and publication verifies signing evidence', () => {
+test('production publication is secret-free, architecture-complete, and stages installers only', () => {
   const workflow = read('.github/workflows/release.yml')
-  assert.match(workflow, /validate-signing-policy\.mjs/)
-  assert.match(workflow, /write-signing-evidence\.mjs/)
-  assert.match(workflow, /verify-signing-evidence\.mjs/)
-  assert.doesNotMatch(workflow, /Signing is optional/)
-  assert.doesNotMatch(workflow, /skipping (Linux package signing|macOS signature)/)
-  assert.match(read('scripts/release/sign-installers.ps1'), /required for production releases/)
-  assert.doesNotMatch(workflow, /skipping (?:Linux package signing|macOS signature\/notarization verification)/i)
+  const signingPolicy = read('scripts/release/signing-policy.mjs')
+  const staging = read('scripts/release/stage-release-assets.mjs')
 
-  const signWindows = workflow.indexOf('name: Sign and verify Windows production installers')
-  const writeWindowsManifest = workflow.indexOf('name: Write Windows release manifest')
-  const verifyWindowsManifest = workflow.indexOf('name: Verify Windows release manifest')
-  assert.ok(signWindows >= 0, 'Windows signing step is missing')
-  assert.ok(writeWindowsManifest > signWindows, 'Windows manifest must be generated after signing')
-  assert.ok(verifyWindowsManifest > writeWindowsManifest, 'Windows manifest must be verified after generation')
+  assert.doesNotMatch(workflow, /\bsecrets\./)
+  assert.doesNotMatch(workflow, /WINDOWS_CERTIFICATE|APPLE_CERTIFICATE|LINUX_SIGNING_KEY/)
+  assert.doesNotMatch(signingPolicy, /WINDOWS_CERTIFICATE|APPLE_CERTIFICATE|LINUX_SIGNING_KEY/)
+  assert.match(signingPolicy, /requiredInputs:\s*\[\]/)
+  assert.match(workflow, /architecture:\s*x86_64/)
+  assert.match(workflow, /architecture:\s*aarch64/)
+  assert.match(workflow, /ubuntu-24\.04-arm/)
+  assert.match(workflow, /verify-runner-architecture\.mjs/)
+  assert.match(workflow, /stage-release-assets\.mjs/)
+  assert.match(staging, /expected exactly one/)
+  assert.doesNotMatch(workflow, /target\/release\/bundle\/\*\*\/\*/)
+  assert.equal(fs.existsSync(path.join(root, '.github/workflows/release-arms.yml')), false)
+  assert.equal(fs.existsSync(path.join(root, '.github/workflows/prepare-release-version.yml')), false)
+  assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
-test('manual release dispatch is preview-only and production remains tag-push-only', () => {
+test('manual release dispatch builds canonical VERSION and production requires an immutable v* tag', () => {
   const workflow = read('.github/workflows/release.yml')
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+  const versionScript = read('scripts/release/version.mjs')
   const dispatchStart = workflow.indexOf('  workflow_dispatch:')
   const tagStart = workflow.indexOf('  push:', dispatchStart)
   assert.ok(dispatchStart >= 0 && tagStart > dispatchStart, 'release workflow dispatch block is missing')
   const dispatch = workflow.slice(dispatchStart, tagStart)
-  assert.doesNotMatch(dispatch, /\bchannel:/)
-  assert.doesNotMatch(dispatch, /-\s+production/)
+  assert.match(dispatch, /publish:/)
+  assert.match(dispatch, /default:\s*false/)
+  assert.doesNotMatch(dispatch, /\bversion:/)
+  assert.match(workflow, /Get-Content -LiteralPath VERSION -Raw/)
+  assert.match(workflow, /SCRIPTOR_RELEASE_VERSION=v\$canonicalVersion/)
 
-  const findLine = (prefix) => {
-    const line = workflow.split(/\r?\n/).find((candidate) => candidate.trimStart().startsWith(prefix))
-    assert.ok(line, `${prefix} is missing`)
-    return line
-  }
-  const assertTagPushGuard = (source, label) => {
-    assert.match(source, /github\.event_name\s*==\s*['"]push['"]/, `${label} must require a push event`)
-    assert.match(source, /startsWith\(github\.ref,\s*['"]refs\/tags\/v['"]\)/, `${label} must require a v* tag`)
-  }
-
-  const runName = findLine('run-name:')
-  const version = findLine('SCRIPTOR_RELEASE_VERSION:')
-  const channel = findLine('SCRIPTOR_RELEASE_CHANNEL:')
-  const publishStart = workflow.indexOf('    name: Publish GitHub Release')
-  assert.ok(publishStart >= 0, 'publish job is missing')
-  const publishIf = workflow.slice(publishStart).split(/\r?\n/).find((line) => line.trimStart().startsWith('if:'))
-  assert.ok(publishIf, 'publish job condition is missing')
-
-  assertTagPushGuard(runName, 'release run name')
-  assertTagPushGuard(version, 'release version selection')
-  assertTagPushGuard(channel, 'release channel selection')
-  assertTagPushGuard(publishIf, 'release publication')
-  assert.match(runName, /Preview/)
-  assert.match(channel, /['"]production['"]/)
-  assert.match(channel, /['"]preview['"]/)
+  const productionGuard = /github\.event_name\s*==\s*'workflow_dispatch'[\s\S]{0,200}?inputs\.publish[\s\S]{0,200}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/
+  assert.match(workflow, productionGuard)
+  assert.match(workflow, /github\.event_name\s*==\s*'push'[\s\S]{0,200}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/)
+  assert.match(kickoff, /git tag -a/)
+  assert.match(kickoff, /gh workflow run release\.yml/)
+  assert.match(kickoff, /--ref "\$\{\{ steps\.tag\.outputs\.tag \}\}"/)
+  assert.doesNotMatch(kickoff, /-f version=/)
+  assert.match(kickoff, /refusing to move or reuse it/)
+  assert.match(versionScript, /const versionTag = \/\^v/)
+  assert.match(versionScript, /versionTag\.test\(refName\)/)
 })
 
-test('release receipt records and verifies platform signing state', () => {
+test('release receipt separates installer subjects from architecture trust metadata', () => {
+  const workflow = read('.github/workflows/release.yml')
   const receipt = read('scripts/release/create-receipt.mjs')
   const verifier = read('scripts/release/verify-release-evidence.mjs')
-  assert.match(receipt, /collectSigningEvidence/)
-  assert.match(receipt, /signing:/)
+  const signing = read('scripts/release/signing-evidence.mjs')
+
+  assert.match(receipt, /schemaVersion:\s*4/)
+  assert.match(verifier, /receipt\.schemaVersion !== 4/)
+  assert.match(receipt, /collectSigningEvidence\(outDir\)/)
+  assert.match(verifier, /collectSigningEvidence\(evidenceDir\)/)
+  assert.match(receipt, /signing,/)
   assert.match(verifier, /assertSigningEvidence/)
+  assert.match(signing, /architecture:/)
+  assert.match(signing, /DEFAULT_RELEASE_TARGETS/)
+  assert.doesNotMatch(signing, /production .* artifact is unsigned/)
+
+  assert.match(workflow, /Separate installer subjects from trust metadata/)
+  assert.match(workflow, /mv "\$\{evidence\[@\]\}" release-evidence\//)
+  assert.match(workflow, /test "\$\{#installers\[@\]\}" -eq 7/)
+  assert.match(workflow, /test "\$\{#evidence\[@\]\}" -eq 4/)
+  assert.match(workflow, /verify-signing-evidence\.mjs release-evidence/)
+  assert.match(workflow, /subject-path:\s*release-artifacts\/\*/)
+  assert.doesNotMatch(workflow, /subject-path:\s*release-evidence/)
+})
+
+test('toolbar popovers escape scroll clipping without a React positioning loop', () => {
+  const portal = read('src/components/ToolbarPopover.tsx')
+  const css = read('src/styles/components/toolbar-popover.css')
+  const appCss = read('src/App.css')
+  const e2e = read('e2e/toolbar-popovers.spec.ts')
+
+  assert.match(portal, /createPortal\(/)
+  assert.match(portal, /document\.body/)
+  assert.match(portal, /addEventListener\('scroll', updatePosition, true\)/)
+  assert.match(portal, /ResizeObserver/)
+  assert.match(portal, /event\.key !== 'Escape'/)
+  assert.match(portal, /event\.key === 'Tab'/)
+  assert.match(portal, /panel\.style\.top/)
+  assert.match(portal, /data-positioned="false"/)
+  assert.doesNotMatch(portal, /\buseState\b|setPosition/)
+  assert.match(css, /position:\s*fixed/)
+  assert.match(css, /z-index:\s*10000/)
+  assert.match(css, /data-positioned='false'/)
+  assert.match(appCss, /toolbar-popover\.css/)
+  assert.match(e2e, /parentElement === document\.body/)
+  assert.match(e2e, /press\('Tab'\)/)
+
+  for (const file of ['src/components/TypographyMenu.tsx', 'src/components/InsertMenu.tsx']) {
+    const source = read(file)
+    assert.match(source, /<ToolbarPopover/)
+    assert.match(source, /aria-controls=/)
+    assert.doesNotMatch(source, /<menu className=/)
+  }
 })
 
 test('functional and visual Playwright suites are enforced by release and CI', () => {
@@ -154,13 +194,14 @@ test('release workflows remain portable and install the complete browser runtime
   assert.match(ci, /"playwright", "install", "ffmpeg"/)
 })
 
-test('MCP runtime types and Windows installer verification stay complete', () => {
+test('MCP runtime types and Windows unsigned verification stay complete', () => {
   const runtime = read('packages/mcp/src/runtime.ts')
   assert.match(runtime, /import type \{[^}]*McpToolDescriptor[^}]*\} from/)
   assert.match(runtime, /import type \{[^}]*ExportProfile[^}]*\} from/)
 
   const security = read('docs/RELEASE-SECURITY.md')
-  assert.match(security, /\*\.exe.*\*\.msi|\*\.msi.*\*\.exe/s)
+  assert.match(security, /Windows.*unknown-publisher|unknown-publisher.*Windows/is)
+  assert.match(security, /seven installer subjects only/i)
 })
 
 test('hash mismatch fixture fails only the first qualifying save', () => {

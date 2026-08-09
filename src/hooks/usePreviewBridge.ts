@@ -30,7 +30,15 @@ export function usePreviewBridge({
       readVaultText: nativeReady ? previewReadVaultText : undefined,
       executeDql: nativeReady ? executeDql : undefined,
       runCodeChunk: nativeReady ? runCodeChunk : undefined,
-      postProcessHtml: previewPostProcess,
+      postProcessHtml: (html: string) => {
+        if (
+          import.meta.env.VITE_E2E_MODE === 'true' &&
+          window.sessionStorage.getItem('e2e:preview-postprocess-failure') === '1'
+        ) {
+          throw new Error('E2E renderer extension failure')
+        }
+        return previewPostProcess(html)
+      },
       renderPlantUmlLocal: nativeReady ? previewPlantUmlLocal : undefined,
     }),
     [

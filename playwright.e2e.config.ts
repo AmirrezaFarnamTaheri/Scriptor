@@ -4,7 +4,7 @@ const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
 
 export default defineConfig({
   testDir: 'e2e',
-  testIgnore: /screenshots\.spec\.ts$/,
+  testIgnore: /(?:screenshots|visual-review)\.spec\.ts$/,
   timeout: 120_000,
   expect: {
     timeout: 30_000,
@@ -29,9 +29,9 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'pnpm vite --mode e2e --host 127.0.0.1 --port 4184 --strictPort',
+    command: 'pnpm vite build --mode e2e && pnpm vite preview --host 127.0.0.1 --port 4184 --strictPort',
     port: 4184,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 })

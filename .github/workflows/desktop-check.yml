@@ -72,6 +72,11 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Compile desktop crate tests examples and build scripts" -FilePath "cargo" -ArgumentList @("check", "-p", "scriptor-desktop", "--all-targets", "--locked") -TimeoutSeconds 2400 -HeartbeatSeconds 20
 
+      - name: Run resource filesystem regression tests
+        if: matrix.platform == 'linux'
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run resource filesystem regression tests" -FilePath "cargo" -ArgumentList @("test", "-p", "scriptor-desktop", "--lib", "--locked", "commands::resources::fs_ops::tests::") -TimeoutSeconds 900 -HeartbeatSeconds 20
+
       - name: Capture desktop compile failure context
         if: failure()
         shell: pwsh

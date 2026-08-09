@@ -2,5 +2,6 @@
 @import './styles/app/workspace.css';
 @import './styles/app/inspector.css';
 @import './styles/app/dock-settings.css';
-@import './styles/app/responsive.css';
 @import './styles/app/features.css';
+@import './styles/app/responsive.css';
+@import './styles/components/toolbar-popover.css';

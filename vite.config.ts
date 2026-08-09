@@ -5,6 +5,15 @@ import react from '@vitejs/plugin-react'
 // https://github.com/microsoft/monaco-editor/blob/main/docs/integrate-esm.md#using-vite
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    // Linked workspace packages can otherwise resolve a different React copy
+    // from pnpm's virtual store, which breaks hooks in production bundles.
+    dedupe: ['react', 'react-dom'],
+  },
+  server: {
+    host: '127.0.0.1',
+    open: false,
+  },
   worker: {
     format: 'es',
   },
@@ -21,13 +30,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: [
-      '@codemirror/commands',
-      '@codemirror/lang-markdown',
-      '@codemirror/language',
-      '@codemirror/state',
-      '@codemirror/view',
-      'monaco-editor',
-    ],
+    // Only root-resolvable packages belong here; linked workspace dependencies are auto-discovered.
+    include: ['monaco-editor'],
   },
 })

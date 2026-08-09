@@ -1,4 +1,11 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react'
 
 import 'katex/dist/katex.min.css'
 import 'highlight.js/styles/github.min.css'
@@ -14,6 +21,11 @@ import { injectPreviewUserCss, loadVaultPreviewCss } from './preview-user-css.ts
 import { preprocessImportsAsync } from './remark-import.ts'
 import { renderMarkdownPipeline, type PreviewPipelineOptions } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
+import {
+  applyPreviewPostProcess,
+  combinePreviewWarnings,
+  previewEnhancementWarning,
+} from './preview-result.ts'
 
 export interface MarkdownPreviewHandle {
   getContentRoot(): HTMLElement | null
@@ -39,7 +51,14 @@ interface WorkerRenderRequest {
 }
 
 const PREVIEW_DEBOUNCE_MS = 200
+const PREVIEW_WORKER_TIMEOUT_MS = 5_000
 const USE_PREVIEW_WORKER = import.meta.env.VITE_SCREENSHOT_MODE !== 'true'
+
+function renderFailureMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) return error.message
+  if (typeof error === 'string' && error.trim()) return error.trim()
+  return fallback
+}
 
 export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreviewProps>(
   function MarkdownPreview(
@@ -60,13 +79,17 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     const [html, setHtml] = useState('')
     const [isRendering, setIsRendering] = useState(false)
     const [renderError, setRenderError] = useState<string | null>(null)
+    const [renderWarning, setRenderWarning] = useState<string | null>(null)
     const requestId = useRef(0)
     const workerRef = useRef<Worker | null>(null)
+    const workerFactoryRef = useRef<(() => Worker | null) | null>(null)
     const workerFallbackRef = useRef<WorkerRenderRequest | null>(null)
+    const workerDeadlineRef = useRef<number | null>(null)
     const debounceTimer = useRef<number | null>(null)
     const contentRef = useRef<HTMLDivElement>(null)
     const postProcessRef = useRef(postProcessHtml)
     postProcessRef.current = postProcessHtml
+    const postProcessWarningRef = useRef<string | null>(null)
     const fetchNoteRef = useRef(fetchNote)
     fetchNoteRef.current = fetchNote
     const readVaultTextRef = useRef(readVaultText)
@@ -82,61 +105,104 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       getContentRoot: () => contentRef.current,
     }))
 
+    const clearWorkerDeadline = useCallback(() => {
+      if (workerDeadlineRef.current === null) return
+      window.clearTimeout(workerDeadlineRef.current)
+      workerDeadlineRef.current = null
+    }, [])
+
+    const commitRenderedHtml = useCallback((nextHtml: string) => {
+      clearWorkerDeadline()
+      workerFallbackRef.current = null
+      const result = applyPreviewPostProcess(nextHtml, postProcessRef.current)
+      postProcessWarningRef.current = result.warning
+      setRenderError(null)
+      setRenderWarning(result.warning)
+      setHtml(result.html)
+      setIsRendering(false)
+    }, [clearWorkerDeadline])
+
+    const commitRenderFailure = useCallback((error: unknown, fallback: string) => {
+      clearWorkerDeadline()
+      workerFallbackRef.current = null
+      postProcessWarningRef.current = null
+      setRenderWarning(null)
+      setRenderError(renderFailureMessage(error, fallback))
+      setHtml('')
+      setIsRendering(false)
+    }, [clearWorkerDeadline])
+
     useEffect(() => {
-      if (!USE_PREVIEW_WORKER) return
+      if (!USE_PREVIEW_WORKER) return undefined
 
-      const worker = new Worker(new URL('./preview.worker.ts', import.meta.url), {
-        type: 'module',
-      })
-      workerRef.current = worker
-
-      worker.onmessage = (
-        event: MessageEvent<{ id: number; html?: string; error?: string }>,
-      ) => {
-        if (event.data.id !== requestId.current) return
-        if (event.data.error) {
-          setRenderError(event.data.error)
-          setHtml('')
-        } else {
-          setRenderError(null)
-          const nextHtml = event.data.html ?? ''
-          setHtml(postProcessRef.current ? postProcessRef.current(nextHtml) : nextHtml)
-        }
-        setIsRendering(false)
-      }
-
-      worker.onerror = () => {
+      const renderFallback = () => {
         const fallback = workerFallbackRef.current
         if (!fallback || fallback.id !== requestId.current) return
         try {
           const fallbackHtml = renderMarkdownPreview(fallback.markdown, fallback.options)
           if (requestId.current !== fallback.id) return
-          setRenderError(null)
-          setHtml(postProcessRef.current ? postProcessRef.current(fallbackHtml) : fallbackHtml)
+          commitRenderedHtml(fallbackHtml)
         } catch (error) {
           if (requestId.current !== fallback.id) return
-          setRenderError(error instanceof Error ? error.message : 'Preview worker failed')
-          setHtml('')
+          commitRenderFailure(error, 'Preview worker and fallback rendering failed')
         }
-        setIsRendering(false)
       }
 
+      const createWorker = (): Worker | null => {
+        let worker: Worker
+        try {
+          worker = new Worker(new URL('./preview.worker.ts', import.meta.url), {
+            type: 'module',
+          })
+        } catch {
+          workerRef.current = null
+          return null
+        }
+
+        worker.onmessage = (
+          event: MessageEvent<{ id: number; html?: string; error?: string }>,
+        ) => {
+          const fallback = workerFallbackRef.current
+          if (event.data.id !== requestId.current || fallback?.id !== event.data.id) return
+          if (event.data.error) {
+            commitRenderFailure(event.data.error, 'Preview rendering failed')
+            return
+          }
+          commitRenderedHtml(event.data.html ?? '')
+        }
+
+        worker.onerror = (event) => {
+          event.preventDefault()
+          renderFallback()
+        }
+        worker.onmessageerror = renderFallback
+        workerRef.current = worker
+        return worker
+      }
+
+      workerFactoryRef.current = createWorker
+      createWorker()
+
       return () => {
+        clearWorkerDeadline()
         workerFallbackRef.current = null
-        worker.terminate()
+        workerFactoryRef.current = null
+        workerRef.current?.terminate()
         workerRef.current = null
       }
-    }, [])
+    }, [clearWorkerDeadline, commitRenderFailure, commitRenderedHtml])
 
     useEffect(() => {
       if (debounceTimer.current) {
         window.clearTimeout(debounceTimer.current)
       }
 
+      clearWorkerDeadline()
       requestId.current += 1
       const currentId = requestId.current
       workerFallbackRef.current = null
       setIsRendering(true)
+      setRenderError(null)
       debounceTimer.current = window.setTimeout(() => {
         void (async () => {
           let prepared = markdown
@@ -156,32 +222,49 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           const options: PreviewPipelineOptions = {}
           if (enableBreaksRef.current) options.enableBreaks = true
 
-          if (!USE_PREVIEW_WORKER) {
+          const renderOnMainThread = () => {
             try {
               const nextHtml = renderMarkdownPreview(prepared, options)
               if (requestId.current !== currentId) return
-              setRenderError(null)
-              setHtml(postProcessRef.current ? postProcessRef.current(nextHtml) : nextHtml)
+              commitRenderedHtml(nextHtml)
             } catch (error) {
               if (requestId.current !== currentId) return
-              setRenderError(error instanceof Error ? error.message : 'Preview rendering failed')
-              setHtml('')
+              commitRenderFailure(error, 'Preview rendering failed')
             }
-            setIsRendering(false)
+          }
+
+          if (!USE_PREVIEW_WORKER) {
+            renderOnMainThread()
             return
           }
 
           const worker = workerRef.current
           if (!worker) {
-            if (requestId.current === currentId) {
-              setRenderError('Preview worker is unavailable')
-              setIsRendering(false)
-            }
+            renderOnMainThread()
             return
           }
           const workerRequest = { id: currentId, markdown: prepared, options }
           workerFallbackRef.current = workerRequest
-          worker.postMessage(workerRequest)
+          try {
+            worker.postMessage(workerRequest)
+            workerDeadlineRef.current = window.setTimeout(() => {
+              if (
+                requestId.current !== currentId ||
+                workerFallbackRef.current?.id !== currentId
+              ) {
+                return
+              }
+              workerFallbackRef.current = null
+              if (workerRef.current === worker) {
+                worker.terminate()
+                workerRef.current = null
+                workerFactoryRef.current?.()
+              }
+              renderOnMainThread()
+            }, PREVIEW_WORKER_TIMEOUT_MS)
+          } catch {
+            renderOnMainThread()
+          }
         })()
       }, PREVIEW_DEBOUNCE_MS)
 
@@ -190,73 +273,144 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           window.clearTimeout(debounceTimer.current)
           debounceTimer.current = null
         }
+        clearWorkerDeadline()
       }
-    }, [markdown, basePath, enableBreaks, fetchNote])
+    }, [
+      markdown,
+      basePath,
+      enableBreaks,
+      fetchNote,
+      postProcessHtml,
+      clearWorkerDeadline,
+      commitRenderFailure,
+      commitRenderedHtml,
+    ])
 
     useEffect(() => {
-      if (!html || !contentRef.current) return
+      const root = contentRef.current
+      if (!html || !root) return undefined
       let cancelled = false
       let detachZoom: (() => void) | undefined
       let detachCopy: (() => void) | undefined
-      const noteFetcher = fetchNoteRef.current
-      void renderMermaidDiagrams(contentRef.current)
-        .then(() =>
-          renderPlantUmlDiagrams(contentRef.current!, (source) =>
-            renderPlantUmlLocalRef.current?.(source) ?? Promise.resolve(null),
-          ),
+
+      const runEnhancement = async (
+        phase: string,
+        action: () => void | Promise<void>,
+        warnings: string[],
+      ) => {
+        if (cancelled) return
+        try {
+          await action()
+        } catch (error) {
+          warnings.push(previewEnhancementWarning(phase, error))
+        }
+      }
+
+      void (async () => {
+        const warnings: string[] = []
+        const noteFetcher = fetchNoteRef.current
+
+        await runEnhancement('Mermaid rendering', () => renderMermaidDiagrams(root), warnings)
+        await runEnhancement(
+          'PlantUML rendering',
+          () =>
+            renderPlantUmlDiagrams(root, (source) =>
+              renderPlantUmlLocalRef.current?.(source) ?? Promise.resolve(null),
+            ),
+          warnings,
         )
-        .then(() =>
-          noteFetcher && contentRef.current
-            ? hydrateWikilinkEmbeds(contentRef.current, {
+        if (noteFetcher) {
+          await runEnhancement(
+            'Embedded-note rendering',
+            () =>
+              hydrateWikilinkEmbeds(root, {
                 fetchNote: noteFetcher,
-                renderMarkdown: (body) => renderMarkdownPipeline(body, { enableBreaks: enableBreaksRef.current }),
-              })
-            : undefined,
+                renderMarkdown: (body) =>
+                  renderMarkdownPipeline(body, { enableBreaks: enableBreaksRef.current }),
+              }),
+            warnings,
+          )
+        }
+        if (executeDql) {
+          await runEnhancement('DQL hydration', () => hydrateDqlBlocks(root, executeDql), warnings)
+        }
+        await runEnhancement(
+          'Preview stylesheet loading',
+          async () => {
+            const css = await loadVaultPreviewCss(
+              (path) => readVaultTextRef.current?.(path) ?? Promise.resolve(null),
+            )
+            if (!cancelled && css) injectPreviewUserCss(root, css)
+          },
+          warnings,
         )
-        .then(() => (executeDql ? hydrateDqlBlocks(contentRef.current!, executeDql) : undefined))
-        .then(() =>
-          loadVaultPreviewCss((path) => readVaultTextRef.current?.(path) ?? Promise.resolve(null)),
+        if (runCodeChunk) {
+          await runEnhancement(
+            'Code-chunk hydration',
+            () => hydrateMpeCodeChunks(root, runCodeChunk),
+            warnings,
+          )
+        }
+        await runEnhancement(
+          'Preview image zoom',
+          () => {
+            detachZoom = attachMediumZoom(root)
+          },
+          warnings,
         )
-        .then((css) => {
-          if (!cancelled && contentRef.current && css) {
-            injectPreviewUserCss(contentRef.current, css)
-          }
-        })
-        .then(() =>
-          runCodeChunk && contentRef.current
-            ? hydrateMpeCodeChunks(contentRef.current, runCodeChunk)
-            : undefined,
+        await runEnhancement(
+          'Preview code-copy controls',
+          () => {
+            detachCopy = attachPreviewCodeCopy(root)
+          },
+          warnings,
         )
-        .then(() => {
-          if (!cancelled && contentRef.current) {
-            detachZoom = attachMediumZoom(contentRef.current)
-            detachCopy = attachPreviewCodeCopy(contentRef.current)
-          }
-        })
-        .catch((error) => {
-          if (!cancelled) {
-            setRenderError(error instanceof Error ? error.message : 'Preview hydration failed')
-          }
-        })
+
+        if (!cancelled) {
+          setRenderWarning(combinePreviewWarnings(postProcessWarningRef.current, ...warnings))
+        }
+      })()
+
       return () => {
         cancelled = true
         detachZoom?.()
         detachCopy?.()
       }
-    }, [html, executeDql, runCodeChunk])
+    }, [
+      html,
+      executeDql,
+      fetchNote,
+      readVaultText,
+      renderPlantUmlLocal,
+      runCodeChunk,
+    ])
 
     return (
-      <article className={className} aria-label="Markdown preview" aria-busy={isRendering}>
+      <article
+        className={className}
+        aria-label="Markdown preview"
+        aria-busy={isRendering}
+        data-preview-degraded={renderWarning ? 'true' : 'false'}
+      >
         {renderError ? (
           <p className="preview-error" role="alert">
             {renderError}
           </p>
-        ) : isRendering && !html ? (
-          <p className="preview-loading" role="status">
-            Rendering preview...
-          </p>
         ) : (
-          <div ref={contentRef} dangerouslySetInnerHTML={{ __html: html }} />
+          <>
+            {renderWarning ? (
+              <p className="preview-warning" role="status" aria-live="polite">
+                {renderWarning}
+              </p>
+            ) : null}
+            {isRendering && !html ? (
+              <p className="preview-loading" role="status">
+                Rendering preview...
+              </p>
+            ) : (
+              <div ref={contentRef} dangerouslySetInnerHTML={{ __html: html }} />
+            )}
+          </>
         )}
       </article>
     )

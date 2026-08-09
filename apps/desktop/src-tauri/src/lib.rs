@@ -33,6 +33,9 @@ use commands::indexer::{
     indexer_list_unresolved_targets, indexer_notes_for_tag, indexer_rebuild, indexer_record_recent_access,
     indexer_resolve_wikilink, indexer_search, indexer_traverse_graph, indexer_update_note,
 };
+use commands::resources::{
+    resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
+};
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft, ai_provider_set_api_key,
     copy_text_to_clipboard, diagnostics_append_event, health_check, plantuml_render, set_headless_engine, system_info,
@@ -216,6 +219,10 @@ pub fn run() {
             daemon_export_job_status,
             daemon_export_cancel,
             daemon_reload_config,
+            resource_inventory,
+            resource_create_plan,
+            resource_create_dedup_plan,
+            resource_apply_plan,
             system_info,
         ])
         .run(tauri::generate_context!())

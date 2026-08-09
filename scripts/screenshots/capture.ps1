@@ -24,8 +24,10 @@ if (Test-Path $snapshotDir) {
     Write-Host "==> Copying visual regression snapshots to $docsDir"
     New-Item -ItemType Directory -Force -Path $docsDir | Out-Null
     Get-ChildItem $snapshotDir -Filter *.png | ForEach-Object {
-        Copy-Item $_.FullName "$docsDir/$($_.Name)" -Force
-        Write-Host "  copied: $($_.Name)"
+        $docName = $_.Name -replace '-(win32|linux|darwin)(?=\.png$)', ''
+        $docPath = Join-Path $docsDir $docName
+        Copy-Item $_.FullName $docPath -Force
+        Write-Host "  copied: $($_.Name) -> $docName"
     }
 }
 

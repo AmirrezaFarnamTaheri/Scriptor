@@ -16,9 +16,6 @@ test.describe('Graph panel', () => {
     await settleLayout(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open graph')
-    await page.waitForFunction(() => {
-      return document.querySelector('svg[role="application"], canvas[role="img"]') !== null
-    }, { timeout: 5000 })
     const svg = page.locator('svg[role="application"], canvas[role="img"]')
     await expect(svg.first()).toBeVisible({ timeout: 5000 })
   })

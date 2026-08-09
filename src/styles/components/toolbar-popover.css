@@ -1,0 +1,43 @@
+.toolbar-menu-popover {
+  position: fixed;
+  z-index: 10000;
+  max-width: calc(100vw - 16px);
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--dialog-bg, var(--bg-elevated));
+  box-shadow: var(--shadow-lg);
+}
+
+.toolbar-menu-popover[data-positioned='false'] {
+  visibility: hidden;
+}
+
+.toolbar-menu-popover li {
+  margin: 0;
+  padding: 0;
+}
+
+.toolbar-menu-popover button {
+  width: 100%;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.toolbar-menu-popover button:hover,
+.toolbar-menu-popover button:focus-visible {
+  background: var(--surface-muted);
+  color: var(--ink-strong);
+}

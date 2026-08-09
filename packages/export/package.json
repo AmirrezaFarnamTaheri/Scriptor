@@ -1,13 +1,13 @@
 {
   "name": "@scriptor/export",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
   },
   "dependencies": {
     "@scriptor/core": "workspace:*",
-    "mermaid": "^11.16.0"
+    "mermaid": "^11.16.1"
   }
 }

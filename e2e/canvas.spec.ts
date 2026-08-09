@@ -9,27 +9,42 @@ import {
 } from './helpers'
 
 async function enableCanvasKit(page: Page): Promise<void> {
-  await waitForWorkspace(page)
+  // Bundled manifests are preinstalled in E2E; contributions appear only after consent and activation.
   await page.getByRole('tab', { name: 'Plugins' }).click()
-  await expect(page.getByRole('heading', { name: 'Installed plugins' })).toBeVisible({
-    timeout: 15_000,
-  })
-  await page.getByRole('button', { name: /^Canvas Kit .* install$/ }).click()
   const installedPlugins = page.locator('section.widget-card').filter({
     has: page.getByRole('heading', { name: 'Installed plugins' }),
   })
-  const canvasKit = installedPlugins.getByRole('button', { name: /Canvas Kit.*disabled/ })
+  await expect(installedPlugins).toBeVisible({ timeout: 15_000 })
+
+  const canvasKit = installedPlugins.getByRole('button', {
+    name: /Canvas Kit.*(?:enabled|disabled)/,
+  })
   await expect(canvasKit).toBeVisible({ timeout: 15_000 })
+  const accessibleName = await canvasKit.evaluate(
+    (element) => element.getAttribute('aria-label') ?? element.textContent ?? '',
+  )
+  if (/enabled/i.test(accessibleName)) return
+  if (!/disabled/i.test(accessibleName)) {
+    throw new Error(`Canvas Kit has an unexpected state: ${accessibleName}`)
+  }
+
   await canvasKit.click()
-  await page.getByRole('button', { name: 'Review and grant for this vault' }).click()
-  await page.getByRole('button', { name: 'Enable plugin' }).click()
+
+  const grantButton = page.getByRole('button', { name: 'Review and grant for this vault' })
+  await expect(grantButton).toBeEnabled()
+  await grantButton.click()
+
+  const enableButton = page.getByRole('button', { name: 'Enable plugin' })
+  await expect(enableButton).toBeEnabled()
+  await enableButton.click()
   await expect(page.getByRole('button', { name: 'Disable plugin' })).toBeVisible()
 }
 
 async function openCanvas(page: Page): Promise<Locator> {
   await launchApp(page)
-  await enableCanvasKit(page)
+  await waitForWorkspace(page)
   await settleLayout(page)
+  await enableCanvasKit(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open canvas')
   const panel = page.getByRole('dialog', { name: 'Canvas board' })
@@ -72,11 +87,11 @@ test.describe('Canvas panel', () => {
     const panel = await openCanvas(page)
     const toolbar = panel.getByRole('toolbar', { name: 'Canvas tools' })
     await expect(toolbar).toBeVisible()
-    await expect(toolbar.getByRole('button', { name: 'Undo' })).toBeVisible()
-    await expect(toolbar.getByRole('button', { name: 'Redo' })).toBeVisible()
-    await expect(toolbar.getByRole('button', { name: 'Select' })).toBeVisible()
-    await expect(toolbar.getByRole('button', { name: 'Ink' })).toBeVisible()
-    await expect(toolbar.getByRole('button', { name: 'Table' })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Undo', exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Redo', exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Select', exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Ink', exact: true })).toBeVisible()
+    await expect(toolbar.getByRole('button', { name: 'Table', exact: true })).toBeVisible()
     await expect(panel.getByRole('button', { name: 'Close canvas' })).toBeVisible()
   })
 
