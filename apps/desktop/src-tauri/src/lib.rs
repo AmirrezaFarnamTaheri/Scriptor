@@ -45,6 +45,7 @@ use commands::indexer::{
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
+use commands::updater::{updater_check, updater_install};
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
     ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event, health_check,
@@ -84,6 +85,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             platform::setup(app)?;
             let handle = app.handle().clone();
@@ -233,6 +235,8 @@ pub fn run() {
             resource_create_dedup_plan,
             resource_apply_plan,
             system_info,
+            updater_check,
+            updater_install,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Scriptor desktop");

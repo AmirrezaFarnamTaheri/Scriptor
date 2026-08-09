@@ -30,6 +30,17 @@
           "scriptor"
         ]
       }
+    },
+    "updater": {
+      "_note": "pubkey MUST be set to a real Ed25519 public key before production deployment. An empty pubkey causes the updater plugin to accept any signature at runtime, which is a security vulnerability. Generate with: tauri signer generate -w ~/.tauri/scriptor.key",
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/AmirrezaFarnamTaheri/Scriptor/releases/download/latest-lts/update-manifest-{{target}}-{{arch}}.json"
+      ],
+      "dialog": false,
+      "windows": {
+        "installMode": "passive"
+      }
     }
   },
   "bundle": {
