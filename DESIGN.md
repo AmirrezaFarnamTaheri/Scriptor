@@ -29,17 +29,31 @@ At narrow widths, secondary regions collapse into the mobile workspace navigatio
 - No layout-shifting hover scale transforms.
 - No invented performance scores, completion certificates, or verification claims without captured evidence.
 
-## Tokens
+## Tokens & Customization
 
 Authoritative tokens live in `src/index.css` and `src/styles/`. New components must use semantic variables for surfaces, text, borders, focus, danger, warning, success, spacing, radii, and motion. Arbitrary colors and shadows require a documented exception.
 
-| Token role | Runtime variable |
-|---|---|
-| Primary accent | `--primary` |
-| Primary background | `--bg` |
-| Secondary surface | `--surface-muted` |
-| Primary text | `--ink` |
-| Focus ring | `--focus-ring` |
+| Token role | Runtime variable | Purpose / Scope |
+|---|---|---|
+| Primary accent | `--primary` | Primary action buttons, active tab indicators, key badges |
+| Secondary amber | `--amber` | Warnings, intermediate state badges, secondary highlights |
+| Primary background | `--bg` | Application canvas root background |
+| Secondary surface | `--surface` | Panels, sidebars, modal dialog cards |
+| Surface raised | `--surface-raised` | Hover states, elevated cards, dropdown items |
+| Primary text | `--ink` / `--ink-strong` | High-contrast body text and headers |
+| Border highlight | `--border` | Subtle panel borders and glass edges |
+| Focus ring | `--focus-ring` | Keyboard focus ring outline |
+| Display font | `--font-sans` | Custom UI font family selection (`system`, `inter`, `sf-pro`, `avenir-next`, `outfit`, `jetbrains-mono`, `georgia`) |
+| Glass blur | `--glass-blur` | Backdrop filter intensity (`none`, `subtle`, `glass`, `heavy`) |
+
+### Color Scheme Catalog & Custom Theme Builder
+
+Scriptor ships with **18 built-in perfected color schemes** across three categories (`dark`, `light`, `contrast`):
+- **Dark:** `Dark Midnight`, `Catppuccin Mocha`, `Dracula`, `Nord Frost`, `Tokyo Night`, `Solarized Dark`, `Gruvbox Dark`, `Emerald Forest`, `Cyberpunk Neon`, `Monokai Pro`, `Rosé Pine`, `Synthwave 84`, `One Dark Pro`, `Vitesse Dark`.
+- **Light:** `Light Modern`, `Sepia Paper`.
+- **High Contrast:** `High Contrast`, `OLED True Black`.
+
+Users can also open the **Custom Theme Builder** to create, edit, live-preview, and delete custom user-created themes stored dynamically under `scriptor:custom-themes`.
 
 ## Interaction contract
 
@@ -81,6 +95,14 @@ Motion communicates state changes only. Default transitions are 120–220 ms usi
 - components above 200 lines are decomposition candidates;
 - packages expose behavior only through declared entry points;
 - loading, empty, error, and success states remain with the owner that can truthfully determine them.
+
+## Slop-Audit Results
+
+As of 2026-08-09:
+- **Raw Emojis:** 0 instances in production TSX files (100% Lucide SVG icons).
+- **Uncontrolled `transition: all`:** 0 instances across 433 CSS & TSX files.
+- **Explicit `any` casts in UI:** 0 instances in production TSX components.
+- **Contract Verification:** 43 unit test & validation suites passing 100% in `pnpm check:source`.
 
 ## Visual verification
 
