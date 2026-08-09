@@ -158,6 +158,22 @@ pub enum RpcResult {
     Err(String),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Error, TS)]
+#[ts(
+    export,
+    export_to = "../../../packages/core/src/contracts/ipc-generated.ts"
+)]
+pub enum RpcError {
+    #[error("Plugin capability '{capability_id}' is disabled in active vault")]
+    PluginDisabled { capability_id: String },
+}
+
+impl RpcError {
+    pub fn is_plugin_disabled(&self) -> bool {
+        matches!(self, Self::PluginDisabled { .. })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, TS)]
 #[ts(
     export,
@@ -254,7 +270,7 @@ pub enum RpcEventPayload {
     /// The event stream was interrupted or overflowed. Consumers must reload
     /// authoritative state instead of assuming they observed every transition.
     ResyncRequired {
-        reason: String,
+        reason: String
     },
 }
 

@@ -128,7 +128,7 @@ export function validateManifest(input: Partial<PluginManifest>): PluginManifest
     activation: ['manual'] as PluginActivation[],
     capabilities: ['command'] as PluginCapability[],
     permissions: [{ permission: 'read', reason: 'Default capability access' }] as PluginPermission[],
-    publisher: (input as any).author ?? input.publisher ?? 'Scriptor Team',
+    publisher: (input as { author?: string }).author ?? input.publisher ?? 'Scriptor Team',
     ...input,
   } as PluginManifest
 

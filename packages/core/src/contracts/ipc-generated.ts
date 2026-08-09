@@ -2,6 +2,8 @@
 
 export type NoteSummary = { path: string, title: string, };
 
+export type RpcError = { "PluginDisabled": { capability_id: string, } };
+
 export type RpcEvent = { payload: RpcEventPayload, };
 
 export type RpcEventPayload = { "ConfigReloaded": { json: string, generation: bigint, } } | { "ResyncRequired": { reason: string, } };
