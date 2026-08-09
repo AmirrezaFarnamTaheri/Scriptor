@@ -41,9 +41,10 @@ pub use activity_log::{
     ActivityLogEntry, DEFAULT_ACTIVITY_LOG_PATH, append_activity_log, read_activity_log,
 };
 pub use config::{
-    DailyNotePlan, ExportOnSaveConfig, GraphGroupRule, SavedView, TrustedBinaries, VaultConfig,
-    WritingTargetsConfig, build_note_markdown, load_vault_config, load_vault_template,
-    plan_daily_note, preview_daily_tokens, save_vault_config,
+    AccessibilityConfig, AutosuggestConfig, CalendarSyncConfig, CustomCallout, DailyNotePlan,
+    ExportOnSaveConfig, FeaturesConfig, GraphGroupRule, LatexConfig, ReadingListConfig, SavedView,
+    TrustedBinaries, VaultConfig, WritingTargetsConfig, build_note_markdown, load_vault_config,
+    load_vault_template, plan_daily_note, preview_daily_tokens, save_vault_config,
 };
 pub use delete::{DeleteNoteOutput, delete_note};
 pub use diagnostics::{redact_json_value, redact_sensitive_text};

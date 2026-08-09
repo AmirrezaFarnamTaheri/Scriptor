@@ -23,9 +23,12 @@ pub enum SensitiveOperation {
     DeleteNote,
     GitPull,
     GitPush,
+    GoogleCalendarAuth,
+    GoogleTaskWrite,
     KeychainDelete,
     ImportVault,
     KeychainWrite,
+    LatexCompilation,
     PdfTranslation,
     PlantUmlExecution,
     PublishSite,
@@ -47,9 +50,12 @@ impl SensitiveOperation {
             Self::DeleteNote => "Delete a note from the current vault",
             Self::GitPull => "Pull remote Git changes",
             Self::GitPush => "Push local Git commits",
+            Self::GoogleCalendarAuth => "Connect your Google account",
+            Self::GoogleTaskWrite => "Modify Google Tasks",
             Self::ImportVault => "Import content into the current vault",
             Self::KeychainDelete => "Delete the saved AI provider credential",
             Self::KeychainWrite => "Store an AI provider credential",
+            Self::LatexCompilation => "Compile a LaTeX document with Tectonic",
             Self::PdfTranslation => "Run the configured PDF translation tool",
             Self::PlantUmlExecution => "Run a local PlantUML renderer",
             Self::PublishSite => "Publish this vault as a site",
@@ -83,6 +89,12 @@ impl SensitiveOperation {
             }
             Self::GitPull => "Remote changes can modify files in the current vault.",
             Self::GitPush => "Local commits will be sent to the configured remote repository.",
+            Self::GoogleCalendarAuth => {
+                "Scriptor will open your browser to sign in to Google and store the resulting access tokens in the operating-system keychain."
+            }
+            Self::GoogleTaskWrite => {
+                "The selected task change will be sent to Google Tasks on your behalf."
+            }
             Self::ImportVault => {
                 "Files from the selected source will be copied and transformed inside the current vault."
             }
@@ -91,6 +103,9 @@ impl SensitiveOperation {
             }
             Self::KeychainWrite => {
                 "The credential will be stored in the operating-system keychain."
+            }
+            Self::LatexCompilation => {
+                "The Tectonic engine will read the selected LaTeX source, write PDF output, and may download TeX packages over the network."
             }
             Self::PdfTranslation => {
                 "An external executable will read the selected PDF and write translated output."

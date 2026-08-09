@@ -125,3 +125,15 @@ export async function indexerListInbox(period?: string): Promise<NoteIndexSummar
   requireNative()
   return invoke<NoteIndexSummary[]>('indexer_list_inbox', { period: period ?? null })
 }
+
+export interface NoteMetaHit {
+  path: string
+  title: string | null
+  modified_at: string | null
+  exists: boolean
+}
+
+export async function indexerBatchNoteMeta(paths: string[]): Promise<NoteMetaHit[]> {
+  requireNative()
+  return invoke<NoteMetaHit[]>('indexer_batch_note_meta', { paths })
+}

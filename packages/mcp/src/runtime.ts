@@ -21,12 +21,15 @@ import {
   assertVaultRelativePath,
   type McpBacklinksInput,
   type McpExportGraphInput,
+  type McpGetGraphNeighborsInput,
   type McpListTagsInput,
+  type McpListTasksFilter,
   type McpOutlineInput,
   type McpProposePatchInput,
   type McpProposeTagPatchInput,
   type McpReadNoteInput,
   type McpRenderMarkdownInput,
+  type McpResolveCitationInput,
   type McpSearchByTagInput,
   type McpSearchInput,
   type McpTraverseGraphInput,
@@ -542,6 +545,95 @@ export class McpRuntime {
         const patch = deleteNoteDraft(payload)
         this.pushDraft(patch)
         return patch
+      }
+      // ------------------------------------------------------------------
+      // Feature 8.4 — mcp.getGraphNeighbors
+      // ------------------------------------------------------------------
+      case 'mcp.getGraphNeighbors': {
+        const payload = input as McpGetGraphNeighborsInput
+        if (typeof payload.path !== 'string' || !payload.path.trim()) {
+          throw new Error('mcp.getGraphNeighbors requires a non-empty "path" string')
+        }
+        assertVaultRelativePath(payload.path)
+        if (!ctx.getGraphNeighbors) {
+          // Fallback: use exportGraph focused on the note
+          if (!ctx.exportGraph) throw new Error('Graph neighbours not available')
+          return ctx.exportGraph(payload.path, assertBoundedInt(payload.depth ?? 1, 1, 3, 'depth'))
+        }
+        return ctx.getGraphNeighbors(payload.path, assertBoundedInt(payload.depth ?? 1, 1, 3, 'depth'))
+      }
+      // ------------------------------------------------------------------
+      // Feature 8.5 — mcp.resolveCitation
+      // ------------------------------------------------------------------
+      case 'mcp.resolveCitation': {
+        const payload = input as McpResolveCitationInput
+        if (typeof payload.key !== 'string' || !payload.key.trim()) {
+          throw new Error('mcp.resolveCitation requires a non-empty "key" string')
+        }
+        if (!ctx.resolveCitation) {
+          throw new Error('Citation resolution is not available')
+        }
+        const entry = await ctx.resolveCitation(payload.key)
+        if (!entry) {
+          throw new Error(`Citation key not found: ${payload.key}`)
+        }
+        return entry
+      }
+      // ------------------------------------------------------------------
+      // Feature 8.6 — mcp.listTasks
+      // ------------------------------------------------------------------
+      case 'mcp.listTasks': {
+        const payload = input as McpListTasksFilter
+        if (!ctx.listTasks) {
+          throw new Error('Task listing is not available')
+        }
+        if (typeof payload?.path === 'string') {
+          assertVaultRelativePath(payload.path)
+        }
+        const limit = payload?.limit !== undefined
+          ? assertBoundedInt(payload.limit, 1, 500, 'limit')
+          : undefined
+        return ctx.listTasks({ ...payload, limit })
+      }
+      // ------------------------------------------------------------------
+      // Feature 8.7 — mcp.semanticSearch
+      // ------------------------------------------------------------------
+      case 'mcp.semanticSearch': {
+        const payload = input as McpSearchInput
+        if (typeof payload.query !== 'string' || !payload.query.trim()) {
+          throw new Error('mcp.semanticSearch requires a non-empty "query" string')
+        }
+        const limit = assertBoundedInt(payload.limit ?? 25, 1, 200, 'limit')
+        if (ctx.semanticSearch) {
+          return ctx.semanticSearch(payload.query, limit)
+        }
+        // Graceful fallback to keyword search
+        return ctx.search(payload.query, limit)
+      }
+      // ------------------------------------------------------------------
+      // Feature 8.8 — mcp.vaultHealth
+      // ------------------------------------------------------------------
+      case 'mcp.vaultHealth': {
+        if (ctx.vaultHealth) {
+          return ctx.vaultHealth()
+        }
+        // Compose from available primitives
+        const [broken, orphans, _deadEnds, unresolved] = await Promise.all([
+          ctx.brokenLinks(),
+          ctx.listOrphans?.() ?? [],
+          ctx.listDeadEnds?.() ?? [],
+          ctx.listUnresolvedTargets?.() ?? [],
+        ])
+        return {
+          broken_links: broken.length,
+          orphan_assets: orphans.length,
+          duplicate_titles: 0,
+          invalid_frontmatter: 0,
+          unresolved_citations: unresolved.length,
+          indexed_notes: 0,
+          total_words: 0,
+          cache_status: 'unknown',
+        }
       }
       default:
         throw new Error(`Unhandled tool: ${toolName}`)

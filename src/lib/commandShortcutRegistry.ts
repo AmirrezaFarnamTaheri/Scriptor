@@ -45,6 +45,14 @@ export const COMMAND_SHORTCUT_REGISTRY: CommandShortcutEntry[] = [
   { id: 'fix-vault-lint', label: 'Fix vault lint issues' },
   { id: 'organize-active-note', label: 'Mark active note organized' },
   { id: 'toggle-perf-hud', label: 'Toggle performance HUD' },
+  { id: 'toggle-distraction-free', label: 'Toggle distraction-free mode', defaultShortcut: 'Mod+Shift+F' },
+  { id: 'toggle-typewriter-mode', label: 'Toggle typewriter / focus mode', defaultShortcut: 'Mod+Shift+Y' },
+  { id: 'open-templates', label: 'New note from template', defaultShortcut: 'Alt+T' },
+  { id: 'toggle-breadcrumbs', label: 'Toggle document breadcrumbs', defaultShortcut: 'Alt+B' },
+  { id: 'open-quick-capture-window', label: 'Open quick capture window' },
+  { id: 'resolve-doi', label: 'Resolve DOI / arXiv / ISBN metadata' },
+  { id: 'summarize-section', label: 'Summarize current section (AI)' },
+  { id: 'export-audit-log', label: 'Export audit log' },
 ]
 
 /** Returns the canonical default shortcut for a registered command, when assigned. */

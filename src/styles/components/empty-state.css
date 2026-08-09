@@ -1,0 +1,61 @@
+/*
+ * empty-state.css — styling for the shared EmptyState component
+ * (src/components/EmptyState.tsx), used across inspector panels, search
+ * results, and any zero-data view. Uses only real design tokens
+ * (--ink, --muted, --border, --surface-raised, --surface-elevated,
+ * --border-strong, --radius-sm, --ease-fast).
+ */
+
+/* ── EmptyState (src/components/EmptyState.tsx) ───────────────────────────── */
+.empty-state-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.empty-state-icon {
+  display: inline-flex;
+  opacity: 0.35;
+  color: var(--ink);
+}
+
+.empty-state-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.empty-state-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.empty-state-desc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  max-width: 220px;
+}
+
+.empty-state-block .action-button {
+  margin-top: 4px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background var(--ease-fast);
+}
+
+.empty-state-block .action-button:hover {
+  background: var(--surface-elevated);
+  border-color: var(--border-strong);
+}

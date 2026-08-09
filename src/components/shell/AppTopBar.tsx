@@ -183,17 +183,18 @@ export function AppTopBar({
         </div>
       ) : null}
 
-      <label className="command-search" onClick={onOpenCommandPalette}>
-        <Command />
-        <span className="kbd" aria-hidden="true">{commandShortcut}</span>
-        <input
-          type="search"
-          placeholder={t('topBar.typeCommandOrSearch')}
-          aria-label={`${t('topBar.typeCommandOrSearch')} (${commandShortcut})`}
-          readOnly
-          onFocus={onOpenCommandPalette}
-        />
-      </label>
+      {/* P0 fix: was a <label> wrapping a readOnly <input> (semantically broken).
+           Now a proper <button> styled to look like a search field. */}
+      <button
+        type="button"
+        className="command-search"
+        onClick={onOpenCommandPalette}
+        aria-label={`Open command palette (${commandShortcut})`}
+      >
+        <Command aria-hidden="true" />
+        <span className="command-search-placeholder">Type a command or search…</span>
+        <kbd className="kbd" aria-hidden="true">{commandShortcut}</kbd>
+      </button>
 
       <div className="top-actions" data-workspace-mode={workspaceMode}>
         {showActions ? (
@@ -276,7 +277,7 @@ export function AppTopBar({
           <Heart />
         </IconButton>
         {onOpenPluginManager ? (
-          <IconButton label="Extension & Color Palette Store" onClick={onOpenPluginManager}>
+          <IconButton label="Extension &amp; Color Palette Store" onClick={onOpenPluginManager}>
             <Palette />
           </IconButton>
         ) : null}

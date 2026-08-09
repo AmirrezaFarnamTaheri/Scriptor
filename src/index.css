@@ -760,17 +760,19 @@
   --space-7: 32px;
   --space-8: 40px;
 
-  --shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 16px 48px rgba(15, 23, 42, 0.12);
+  /* Shadows — theme-adaptive via color-mix so dark themes don't get invisible shadows */
+  --shadow-sm: 0 2px 8px color-mix(in oklch, var(--ink-strong, #0f172a) 5%, transparent);
+  --shadow-md: 0 8px 24px color-mix(in oklch, var(--ink-strong, #0f172a) 9%, transparent);
+  --shadow-lg: 0 16px 48px color-mix(in oklch, var(--ink-strong, #0f172a) 14%, transparent);
 
   --ease-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-soft: 200ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-gentle: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --ease-spring: 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  --font-display: 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
-  --font-body: 'Avenir Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Font stack — Inter loaded as primary cross-platform face; Avenir Next for macOS fallback */
+  --font-display: 'Inter', 'Avenir Next', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Inter', 'Avenir Next', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'SFMono-Regular', 'Cascadia Code', Consolas, monospace;
   --mono: var(--font-mono);
   --accent: var(--primary-strong);
@@ -796,6 +798,9 @@
 
 * {
   box-sizing: border-box;
+  /* Firefox scrollbars — match the webkit custom scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
 body {

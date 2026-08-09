@@ -12,11 +12,21 @@
   animation: fade-rise var(--ease-gentle) both;
 }
 
-.app-toast {
+/* P2: Toast region — multiple toasts stack vertically without overlap. */
+.app-toast-region {
   position: fixed;
   right: 20px;
   bottom: 20px;
   z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.app-toast {
+  pointer-events: auto;
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -27,12 +37,18 @@
   background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: var(--shadow-md);
   color: var(--ink-strong);
+  animation: toast-in 200ms var(--ease-spring) both;
 }
 
-.app-toast p {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.45;
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .obsidian-import-dialog {

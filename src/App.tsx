@@ -43,7 +43,7 @@ import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
 import { PluginManagerCenter } from './components/plugins/PluginManagerCenter'
-import { AppToast } from './components/AppToast'
+import { AppToast, AppToastRegion } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
 import { ConflictResolverModal } from './components/ConflictResolverModal'
@@ -125,6 +125,7 @@ import './styles/components/note-history.css'
 import './styles/components/vault-skeleton.css'
 import './styles/components/command-palette.css'
 import './styles/components/unified-panel.css'
+import './styles/components/empty-state.css'
 import './styles/components/perf-hud.css'
 import './styles/components/conflict-resolver.css'
 import './styles/components/publish-center.css'
@@ -1930,7 +1931,11 @@ function App() {
       ) : null}
 
       {perfHudOpen ? <PerfHudOverlay metrics={perfMetrics.metrics} /> : null}
-      {toastMessage ? <AppToast message={toastMessage} onDismiss={dismissToast} /> : null}
+      {toastMessage ? (
+        <AppToastRegion>
+          <AppToast message={toastMessage} onDismiss={dismissToast} />
+        </AppToastRegion>
+      ) : null}
       {nativeReady ? <UpdateBanner updater={updater} /> : null}
     </main>
   )

@@ -587,3 +587,33 @@ pub fn vault_import_obsidian(
     )
     .map_err(|error| error.to_string())
 }
+
+/// Export the full activity log as a string in the requested format.
+///
+/// `format` accepts `"json"` (default) or `"csv"`.
+#[tauri::command]
+pub fn vault_export_audit_log(
+    state: tauri::State<AppState>,
+    format: Option<String>,
+) -> Result<String, String> {
+    let session = active_session(&state)?;
+    // Read all entries (cap at 10_000 to bound memory).
+    let entries =
+        read_activity_log(&session.root, 10_000).map_err(|error| error.to_string())?;
+
+    match format.as_deref().unwrap_or("json") {
+        "csv" => {
+            let mut out = String::from("id,ts,kind,message,detail\n");
+            for entry in &entries {
+                let detail = entry.detail.as_deref().unwrap_or("").replace('"', "\"\"");
+                let message = entry.message.replace('"', "\"\"");
+                out.push_str(&format!(
+                    "{},{},{},\"{}\",\"{}\"\n",
+                    entry.id, entry.ts, entry.kind, message, detail
+                ));
+            }
+            Ok(out)
+        }
+        _ => serde_json::to_string_pretty(&entries).map_err(|e| e.to_string()),
+    }
+}

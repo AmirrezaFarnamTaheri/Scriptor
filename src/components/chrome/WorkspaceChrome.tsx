@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CheckCircle2, ChevronDown, MoreHorizontal } from 'lucide-react'
+import { ArrowRight, ChevronDown, MoreHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
 /** Renders a compact section heading with an optional local action menu. */
@@ -16,11 +16,12 @@ export function PanelHeader({
 
   return (
     <div className="panel-heading">
-      <button type="button" className="section-title">
+      {/* Use a plain div — this heading is structural, not interactive */}
+      <div className="section-title">
         {icon}
         {title}
-        <ChevronDown />
-      </button>
+        <ChevronDown aria-hidden="true" />
+      </div>
       {menuItems && menuItems.length > 0 ? (
         <div className="panel-menu">
           <IconButton label={`${title} options`} onClick={() => setMenuOpen((open) => !open)}>
@@ -49,31 +50,37 @@ export function PanelHeader({
   )
 }
 
+type HeadingLevel = 2 | 3 | 4
+
 /** Provides the shared heading and optional action treatment for dashboard widgets. */
 export function WidgetCard({
   title,
   action,
   onAction,
   children,
+  headingLevel = 3,
 }: {
   title: string
   action?: string
   onAction?: () => void
   children: ReactNode
+  /** Semantic heading level. Defaults to h3 to avoid broken hierarchy inside panels that already have h2 titles. */
+  headingLevel?: HeadingLevel
 }) {
+  const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
   return (
     <section className="widget-card">
       <header>
-        <h2>{title}</h2>
+        <Heading>{title}</Heading>
         {action ? (
           onAction ? (
             <button type="button" className="widget-action" onClick={onAction}>
-              <CheckCircle2 />
+              <ArrowRight aria-hidden="true" />
               {action}
             </button>
           ) : (
             <span>
-              <CheckCircle2 />
+              <ArrowRight aria-hidden="true" />
               {action}
             </span>
           )

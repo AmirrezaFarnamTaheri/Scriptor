@@ -116,6 +116,65 @@ export interface McpRenderMarkdownInput {
   theme?: 'default' | 'grace'
 }
 
+// ---------------------------------------------------------------------------
+// Feature 8.4 — get_graph_neighbors
+// ---------------------------------------------------------------------------
+export interface McpGetGraphNeighborsInput {
+  path: string
+  /** BFS depth. Default 1. Max 3. */
+  depth?: number
+}
+
+// ---------------------------------------------------------------------------
+// Feature 8.5 — resolve_citation
+// ---------------------------------------------------------------------------
+export interface McpResolveCitationInput {
+  /** BibTeX cite key, e.g. "smith2023". */
+  key: string
+}
+
+export interface BibliographyEntryLike {
+  key: string
+  title: string
+  author?: string
+  year?: string
+  entry_type: string
+  source_path: string
+}
+
+// ---------------------------------------------------------------------------
+// Feature 8.6 — list_tasks
+// ---------------------------------------------------------------------------
+export interface McpListTasksFilter {
+  /** Only tasks from this note path. */
+  path?: string
+  /** 'open' | 'done' | 'all'. Default 'open'. */
+  status?: 'open' | 'done' | 'all'
+  limit?: number
+}
+
+export interface VaultTaskItemLike {
+  path: string
+  line: number
+  text: string
+  checked: boolean
+  due_date: string | null
+}
+
+// ---------------------------------------------------------------------------
+// Feature 8.8 — vault_health
+// ---------------------------------------------------------------------------
+export interface VaultHealthSummaryLike {
+  broken_links: number
+  orphan_assets: number
+  duplicate_titles: number
+  invalid_frontmatter: number
+  unresolved_citations: number
+  indexed_notes: number
+  total_words: number
+  cache_status: string
+}
+
 export interface McpVaultContext {
   search(query: string, limit?: number): Promise<unknown[]>
   readNote(path: string): Promise<{ metadata: { title: string; content_hash: string }; markdown: string }>
@@ -133,6 +192,16 @@ export interface McpVaultContext {
   renameNote?(from: string, to: string, updateLinks?: boolean): Promise<unknown>
   deleteNote?(path: string): Promise<unknown>
   renderMarkdown?(markdown: string, theme?: string): Promise<string>
+  // --- 8.4 ---
+  getGraphNeighbors?(path: string, depth?: number): Promise<GraphQueryOutputLike>
+  // --- 8.5 ---
+  resolveCitation?(key: string): Promise<BibliographyEntryLike | null>
+  // --- 8.6 ---
+  listTasks?(filter?: McpListTasksFilter): Promise<VaultTaskItemLike[]>
+  // --- 8.7 semantic search (when embeddings available) ---
+  semanticSearch?(query: string, limit?: number): Promise<unknown[]>
+  // --- 8.8 ---
+  vaultHealth?(): Promise<VaultHealthSummaryLike>
 }
 
 export const READ_ONLY_TOOLS: McpToolDescriptor[] = [
@@ -207,6 +276,51 @@ export const READ_ONLY_TOOLS: McpToolDescriptor[] = [
     description: 'Render markdown to publication HTML using configured publish themes.',
     modeRequired: 'read-only',
     commandId: 'export.render',
+  },
+  // --- Feature 8.4 ---
+  {
+    name: 'mcp.getGraphNeighbors',
+    description:
+      'Return direct (and optionally deeper) neighbours of a note in the knowledge graph. ' +
+      'Returns nodes + edges up to the requested depth.',
+    modeRequired: 'read-only',
+    commandId: 'graph.neighbors',
+  },
+  // --- Feature 8.5 ---
+  {
+    name: 'mcp.resolveCitation',
+    description:
+      'Look up a BibTeX citation key in the vault bibliography and return its full metadata ' +
+      '(title, authors, year, DOI, source file).',
+    modeRequired: 'read-only',
+    commandId: 'indexer.resolveCitation',
+  },
+  // --- Feature 8.6 ---
+  {
+    name: 'mcp.listTasks',
+    description:
+      'List GFM task items from vault notes. Filterable by note path, open/done status, ' +
+      'and count limit.',
+    modeRequired: 'read-only',
+    commandId: 'indexer.listTasks',
+  },
+  // --- Feature 8.7 ---
+  {
+    name: 'mcp.semanticSearch',
+    description:
+      'Vector-similarity search over vault notes (requires embeddings feature). ' +
+      'Falls back to keyword search when embeddings are unavailable.',
+    modeRequired: 'read-only',
+    commandId: 'indexer.semanticSearch',
+  },
+  // --- Feature 8.8 ---
+  {
+    name: 'mcp.vaultHealth',
+    description:
+      'Return a structured summary of vault health: broken links, orphan assets, ' +
+      'duplicate titles, unresolved citations, indexed note count, and word total.',
+    modeRequired: 'read-only',
+    commandId: 'vault.health',
   },
 ]
 

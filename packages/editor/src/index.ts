@@ -40,6 +40,13 @@ export {
   setEditorAutocompleteContext,
 } from './editor-autocomplete.ts'
 export type { EditorAutocompleteContext } from './editor-autocomplete.ts'
+export {
+  proseAutosuggestExtension,
+  dispatchProseCorpus,
+  buildVaultCorpus,
+  clearProseAutosuggestCache,
+} from './prose-autosuggest.ts'
+export type { ProseAutosuggestOptions, ProseCorpus } from './prose-autosuggest.ts'
 export { spellcheckExtension, setSpellcheckDictionary, loadHunspellDictionary } from './spellcheck.ts'
 export {
   loadHunspellLocale,

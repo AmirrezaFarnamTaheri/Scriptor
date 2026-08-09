@@ -271,3 +271,48 @@ pub fn indexer_list_unresolved_targets(
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     list_unresolved_link_targets(&cache, &session).map_err(|error| error.to_string())
 }
+
+#[derive(serde::Serialize)]
+pub struct NoteMetaHit {
+    pub path: String,
+    pub title: Option<String>,
+    pub modified_at: Option<String>,
+    pub exists: bool,
+}
+
+/// Resolve lightweight metadata (title, modification time, existence) for a
+/// batch of vault-relative note paths. Read-only; unknown or unreadable paths
+/// are reported as non-existent rather than failing the whole batch.
+#[tauri::command]
+pub fn indexer_batch_note_meta(
+    state: tauri::State<AppState>,
+    paths: Vec<String>,
+) -> Result<Vec<NoteMetaHit>, String> {
+    let session = active_session(&state)?;
+    let hits = paths
+        .into_iter()
+        .map(|path| match RelativeVaultPath::parse(&path) {
+            Ok(relative) => match read_note(&session.descriptor.id, &session.root, &relative) {
+                Ok(document) => NoteMetaHit {
+                    path,
+                    title: Some(document.metadata.title),
+                    modified_at: Some(document.metadata.modified_at),
+                    exists: true,
+                },
+                Err(_) => NoteMetaHit {
+                    path,
+                    title: None,
+                    modified_at: None,
+                    exists: false,
+                },
+            },
+            Err(_) => NoteMetaHit {
+                path,
+                title: None,
+                modified_at: None,
+                exists: false,
+            },
+        })
+        .collect();
+    Ok(hits)
+}

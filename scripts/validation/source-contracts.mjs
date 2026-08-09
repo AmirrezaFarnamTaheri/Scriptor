@@ -80,24 +80,20 @@ test('editor engines are loaded only when their editor mode is rendered', () => 
   assert.doesNotMatch(editorIndex, /export\s*\{\s*MarkdownEditor\s*\}\s*from\s*['"]\.\/codemirror['"]/)
 })
 
-test('disabled updater is absent from source manifests and lockfiles', () => {
-  const packageJson = fs.readFileSync(path.join(root, 'package.json'), 'utf8')
-  const pnpmLock = fs.readFileSync(path.join(root, 'pnpm-lock.yaml'), 'utf8')
+test('channel-aware updater is wired consistently across manifests and command surface', () => {
   const desktopCargo = fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8')
   const cargoLock = fs.readFileSync(path.join(root, 'Cargo.lock'), 'utf8')
-  const generatedSchemas = fs
-    .readdirSync(path.join(root, 'apps/desktop/src-tauri/gen/schemas'))
-    .filter((name) => name.endsWith('.json'))
-    .map((name) => fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/gen/schemas', name), 'utf8'))
-    .join('\n')
-  const packageScript = read('scripts/release/package.ps1')
-  assert.equal(packageJson.includes('@tauri-apps/plugin-updater'), false)
-  assert.equal(pnpmLock.includes('@tauri-apps/plugin-updater'), false)
-  assert.equal(desktopCargo.includes('tauri-plugin-updater'), false)
-  assert.equal(cargoLock.includes('name = "tauri-plugin-updater"'), false)
-  assert.equal(generatedSchemas.includes('updater:'), false)
-  assert.equal(fs.existsSync(path.join(root, 'scripts/release/inject-updater-config.mjs')), false)
-  assert.equal(packageScript.includes('updater'), false)
+  const libRs = read('apps/desktop/src-tauri/src/lib.rs')
+  const updaterRs = read('apps/desktop/src-tauri/src/commands/updater.rs')
+  // Manifest + lockfile carry the plugin.
+  assert.equal(desktopCargo.includes('tauri-plugin-updater'), true)
+  assert.equal(cargoLock.includes('name = "tauri-plugin-updater"'), true)
+  // Plugin is registered and both commands are exported and handled.
+  assert.match(libRs, /tauri_plugin_updater::Builder::new\(\)\.build\(\)/)
+  assert.match(libRs, /updater_check/)
+  assert.match(libRs, /updater_install/)
+  assert.match(updaterRs, /pub async fn updater_check/)
+  assert.match(updaterRs, /pub async fn updater_install/)
 })
 
 test('daemon IPC requires the authenticated endpoint nonce on every production connection', () => {

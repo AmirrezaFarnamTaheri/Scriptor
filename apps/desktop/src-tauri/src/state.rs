@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex, MutexGuard, atomic::AtomicU64};
+use std::sync::{
+    Arc, Mutex, MutexGuard,
+    atomic::{AtomicBool, AtomicU64},
+};
 
 use scriptor_export_runner::{ExportCancelSlot, new_cancel_slot};
 use scriptor_vault::{VaultSession, VaultWatcher};
@@ -12,6 +15,8 @@ pub struct AppState {
     pub vault_watcher_generation: Arc<AtomicU64>,
     pub headless_engine: Mutex<bool>,
     pub authorization: AuthorizationBroker,
+    /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
+    pub latex_cancel: Arc<AtomicBool>,
 }
 
 impl Default for AppState {
@@ -29,6 +34,7 @@ impl AppState {
             vault_watcher_generation: Arc::new(AtomicU64::new(0)),
             headless_engine: Mutex::new(false),
             authorization: AuthorizationBroker::default(),
+            latex_cancel: Arc::new(AtomicBool::new(false)),
         }
     }
 }

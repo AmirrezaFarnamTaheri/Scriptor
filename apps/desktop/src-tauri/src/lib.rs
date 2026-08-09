@@ -16,6 +16,7 @@ use commands::canvas::{
     canvas_save_document, canvas_snapshot, canvas_template_dry_run,
 };
 use commands::code_chunk::{code_chunk_run, vault_publish_starlight};
+use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
     daemon_export_run_markdown, daemon_export_run_note, daemon_export_start_note,
@@ -34,8 +35,14 @@ use commands::git::{
     git_show_merge_base_file_cmd, git_status_cmd,
 };
 use commands::history::vault_restore_note_history_revision;
+use commands::google_calendar::{
+    google_calendar_complete_task, google_calendar_create_task, google_calendar_delete_task,
+    google_calendar_disconnect, google_calendar_get_authed_email, google_calendar_list_events,
+    google_calendar_list_tasks, google_calendar_start_auth,
+};
 use commands::indexer::{
-    indexer_apply_filesystem_changes, indexer_backlinks, indexer_evaluate_view,
+    indexer_apply_filesystem_changes, indexer_backlinks, indexer_batch_note_meta,
+    indexer_evaluate_view,
     indexer_execute_dql, indexer_graph, indexer_health_diagnostics, indexer_list_bibliography,
     indexer_list_dead_ends, indexer_list_inbox, indexer_list_note_summaries, indexer_list_orphans,
     indexer_list_recent_files, indexer_list_tags, indexer_list_unresolved_targets,
@@ -63,6 +70,7 @@ use commands::vault::{
     vault_rename_section_dry_run, vault_rename_tag_apply, vault_rename_tag_dry_run,
     vault_save_asset, vault_save_config_cmd, vault_save_note, vault_save_snippets,
     vault_save_workspace_session, vault_scan, vault_textbundle_export,
+    vault_export_audit_log,
 };
 use serde::Serialize;
 use tauri::Emitter;
@@ -150,6 +158,7 @@ pub fn run() {
             indexer_list_note_summaries,
             indexer_list_dead_ends,
             indexer_list_unresolved_targets,
+            indexer_batch_note_meta,
             indexer_evaluate_view,
             vault_list_view_notes,
             indexer_list_bibliography,
@@ -209,6 +218,9 @@ pub fn run() {
             canvas_list_documents,
             code_chunk_run,
             vault_publish_starlight,
+            latex_discover_tectonic,
+            latex_compile,
+            latex_cancel_compile,
             daemon_ping,
             daemon_endpoint,
             daemon_start,
@@ -237,6 +249,15 @@ pub fn run() {
             system_info,
             updater_check,
             updater_install,
+            vault_export_audit_log,
+            google_calendar_start_auth,
+            google_calendar_disconnect,
+            google_calendar_list_events,
+            google_calendar_list_tasks,
+            google_calendar_get_authed_email,
+            google_calendar_create_task,
+            google_calendar_complete_task,
+            google_calendar_delete_task,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Scriptor desktop");
