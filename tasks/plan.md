@@ -1,87 +1,149 @@
-# Implementation Plan: Comprehensive Project Review for Scriptor (Final Master Edition)
+# Implementation Plan: Capability Decoupling & Installable Plugin Feature Architecture
 
 ## Overview
-A complete, deep, detailed, broad, rigorous, holistic, and concrete review of the entire Scriptor codebase (`D:\GitHub\Scriptor`) across governance, Rust core engines (1.96 / 2024 edition), daemon & backend service patterns, TypeScript/React 19 packages & frontend patterns, UI component engineering & de-slop visual systems, AI Slop Cleaner 4-pass protocol, IPC contracts, headless/daemon integration, Playwright E2E Page Object Models & Visual Ralph verdict regression suites (`score >= 90`), accessibility (a11y), performance budgets & measurement workflows, metric-driven iterative optimization (`ce-optimize`), harness meta-optimization (`meta-optimize`), 4-axis codebase navigation (`codenav`), structural hub blast-radius mapping (`codemap`), code topology & SQLite schema graphing (`graphify-code-topology`), Karpathy Engineering Guidelines (`karpathy-guidelines`), Elite Frontend & UI/UX Architecture (`elite-frontend-architect`), Utilitarian Desktop Interface Design System Contract (`interface-design.md`), Multi-Persona Document Review (`ce-doc-review`), Elite QA TDD & Systematic Debugging Mastery (`elite-qa-architect`), Journalistic Press Release Synthesis (`press-release-writer`), Code Review Gates & Multi-Persona Auditing (`ce-code-review`), evaluator-gated benchmarks, agent failure introspection protocols, codebase onboarding guides, C4 Model specifications (`c4-context.md`, `c4-container.md`), Frontend Design DFII evaluation, interactive technical architecture diagrams (`archify`), repository skill surface audit, and release security infrastructure.
+This plan establishes a modular, plugin-first architecture for Scriptor. Core Scriptor is streamlined into a lean, fast Markdown editor & vault kernel, while specialized capabilities (**Spatial Canvas**, **Zotero & CSL Citations**, **Pandoc & Typst Export**, **Interactive Knowledge Graph**, **PDF Translation (`pdf2zh`)**, **MCP Agent Server**, and **Local Semantic Embeddings**) are decoupled into installable, toggleable plugin features. Users can dynamically discover, install, enable, disable, and uninstall capabilities via a native Plugin Management Center UI.
 
-## Master Skill Integration Matrix
-- **`writing-plans` & `planning-and-task-breakdown`**: Bite-sized tasks, 2-5 min step actions, exact file paths, explicit non-placeholder commands & commits, vertical dependency ordering (`tasks/plan.md`, `tasks/todo.md`).
-- **`core-skill-obedience`**: Strict 3-tier priority sequence (Planning $\rightarrow$ Architecture $\rightarrow$ Tech-Stack) + RARV execution loop (`[PRE-ACT]`, `[ACT]`, `[VERIFY]`).
-- **`karpathy-guidelines`**: Think Before Coding, Simplicity First (no single-use abstractions), Surgical Changes (touch only requested lines), Goal-Driven Verification (`step -> verify: command`).
-- **`codebase-onboarding`**: Architecture mapping, key entry points table, [`docs/ONBOARDING.md`](file:///D:/GitHub/Scriptor/docs/ONBOARDING.md), enhanced [`GEMINI.md`](file:///D:/GitHub/Scriptor/GEMINI.md).
-- **`codenav`**: 4-axis navigation protocol (Temporal, Structural/Topological, Semantic, Precision/Literal).
-- **`codemap`**: Project structural tree mapping, `.codemap/config.json`, hub file blast-radius analysis.
-- **`graphify-code-topology`**: AST call-graph topology, SQLite schema ER graphing, foreign key integrity (`PRAGMA foreign_keys = ON`), index coverage.
-- **`architecture-c4-model`**: Level 1 System Context [`docs/architecture/c4-context.md`](file:///D:/GitHub/Scriptor/docs/architecture/c4-context.md) & Level 2 Containers [`docs/architecture/c4-container.md`](file:///D:/GitHub/Scriptor/docs/architecture/c4-container.md) with Mermaid `C4Context` and `C4Container` diagrams.
-- **`interface-design`**: Utilitarian desktop UI design doc `interface-design.md`, density, monospace for data/timestamps, `tabular-nums`, missing states audit.
-- **`ce-doc-review`**: Multi-persona plan/requirements audit (`coherence`, `feasibility`, `product`, `design`, `security`, `scope`, `adversarial`).
-- **`elite-frontend-architect`**: Distinctive visual stance, DFII $\ge 8$, UI/UX Pro Max rules (touch targets $\ge 44\times 44\text{px}$, cursor-pointer, zero emoji icons, stable hover states without layout shift).
-- **`architecture-frontend-design`**: Design Feasibility & Impact Index (DFII $\ge 8$), PRE-ACT UI operator checklist (`cursor-pointer`, touch targets $\ge 44\times 44\text{px}$, visible focus rings).
-- **`ai-slop-cleaner` & `frontend-design-deslop`**: Lock behavior with regression tests first, inventory masking fallbacks, 4-pass cleanup (Pass 1 Dead code, Pass 2 Duplicates, Pass 3 Naming/Errors, Pass 4 Test reinforcement), zero generic AI defaults.
-- **`visual-ralph`**: Visual Ralph loop (Approved reference $\rightarrow$ Visual Verdict `score >= 90` $\rightarrow$ pixel diff overlays).
-- **`ce-optimize`**: Metric-driven iterative optimization scaffolding (`.context/compound-engineering/ce-optimize/`), CP-0 to CP-5 disk checkpoints.
-- **`meta-optimize`**: Outer-loop harness optimization, usage trace analysis, SKILL.md prompt & parameter optimization proposals (`.aris/meta/pending/`).
-- **`elite-qa-architect`**: TDD Iron Law (RED-GREEN-REFACTOR), 4-phase systematic debugging protocol, smart error grouping (infra $\rightarrow$ API $\rightarrow$ logic).
-- **`press-release-writer`**: Journalistic release synthesis, inverted pyramid, 5W1H lead in 25-35 words, factual boilerplate, zero banned marketing fluff.
-- **`ce-code-review`**: Risk-driven reviewer persona roster, P0-P3 severity scale, 0 P0/P1 unmitigated defects gate before task sign-off.
-- **`e2e-testing` & `ecc-e2e-testing`**: Playwright Page Object Model (`e2e/pages/`), `data-testid` locators, `waitForResponse` network timing stability, screenshot/video/trace artifact management, flaky test quarantine (`test.fixme`).
-- **`archify`**: Interactive standalone HTML/SVG technical system architecture (`docs/architecture/scriptor-system-architecture.html`) and IPC dataflow sequence (`docs/architecture/scriptor-ipc-dataflow.html`) diagrams with dark/light theme toggles.
-- **`project-skill-audit` & `find-skills`**: Repository-local surface audit (`AGENTS.md`, `GEMINI.md`) proposing 4 local skills (`scriptor-governance-audit`, `scriptor-rust-ipc-audit`, `scriptor-frontend-quality-audit`, `scriptor-release-security-audit`).
-- **`rust-skills`**: Rust 1.96 / 2024 edition borrowing, `thiserror`/`anyhow` distinction, zero `unwrap()` in production paths, mandatory `// SAFETY:` comments, no async mutex across await.
-- **`ecc-backend-patterns`**: Service/Repository layer separation, batch indexer query optimization (N+1 prevention), background job queueing with cancellation, structured logging.
-- **`frontend-ui-engineering`, `frontend-design`, `$design`**: Component composition, state matrices (loading/empty/error), `DESIGN.md:1-88` token compliance (WCAG 2.2 AA floor, touch targets 44x44px), zero AI slop defaults.
-- **`ecc-frontend-patterns`**: Compound components, custom hooks stability with `useRef` protection against infinite re-fetch loops, memoization (`useMemo`, `useCallback`), list virtualization (`tanstack-virtual`), error boundaries (`ErrorBoundary`).
-- **`agent-skills-performance-optimization` & `performance-goal`**: 5-step Measure-Identify-Fix-Verify-Guard workflow against performance budgets (JS bundle < 200KB, startup < 1500ms, idle RSS < 120MB, search query < 50ms) and `perf-baselines.json`.
-- **`ecc-agent-introspection-debugging`**: 4-phase failure capture & self-debug protocol (Failure Capture $\rightarrow$ Root-Cause Diagnosis $\rightarrow$ Contained Recovery $\rightarrow$ Introspection Report).
+---
 
-## Task List
+## Architecture Decisions
 
-### Phase 1: Governance & Code Base Foundations
-- [ ] Task 1: Governance, Onboarding, Interface Design & Document Review Verification
+1. **Kernel vs. Plugin Capability Boundary:**
+   - **Scriptor Core (Lean Kernel):** Markdown Vault I/O, CodeMirror 6 Editor, Base Indexing & SQLite FTS5, Command Palette, Core IPC Bridge, Settings & Plugin Management Center UI.
+   - **Decoupled Plugin Packages:**
+     - `@scriptor/plugin-canvas`: Infinite spatial canvas, node hit-testing, `.canvas` file handler, canvas tools & block contributions.
+     - `@scriptor/plugin-citations`: Zotero CSL JSON sync, BibTeX extraction, Pandoc citeproc formatting, reference inspector widget.
+     - `@scriptor/plugin-export`: Pandoc PDF/HTML export engine, Typst compiler, Reveal.js slides, TextBundle export, Starlight static site publisher.
+     - `@scriptor/plugin-graph`: Interactive knowledge graph panel, 2D Canvas force-directed layout worker, backlinks & orphan note inspector.
+     - `@scriptor/plugin-pdf-translate`: Layout-preserving scientific PDF translation via `pdf2zh`.
+     - `@scriptor/plugin-mcp`: Model Context Protocol stdio server, patch queue, tool permissions & audit log.
+     - `@scriptor/plugin-embeddings`: Local vector search, semantic embeddings, AI note similarity.
 
-### Checkpoint: Governance
-- [ ] Utilitarian `interface-design.md` published, onboarding docs clean (`docs/ONBOARDING.md`, `GEMINI.md`), multi-persona document review (`ce-doc-review`) passed, version parity clean, action pins verified, deep module boundaries clean, i18n parity 100%, docs contracts valid, `ce-code-review` gate passed (0 P0/P1 findings).
+2. **Dynamic UI Contribution & Extension Engine:**
+   - Extend `packages/plugin-api` (`collectContributions`) to dynamically inject/remove navigation tabs, sidebar panels, command palette actions, inspector widgets, and CodeMirror extensions when plugins are enabled or disabled without requiring full app reloads.
 
-### Phase 2: C4 Architecture & Rust Engine Review
-- [ ] Task 2: IPC Contracts, C4 Architecture, Code Topology & Rust/Daemon Backend Review
+3. **Rust Capability Gating & RPC Error Contracts:**
+   - Update `crates/ipc` and `apps/desktop/src-tauri` handlers to validate plugin enablement state. Invoking an uninstalled or disabled plugin feature returns `RpcError::PluginDisabled { plugin_id, feature_name }`.
 
-### Checkpoint: Rust, C4 & Code Topology Architecture
-- [ ] C4 System Context (`c4-context.md`) and Container (`c4-container.md`) docs written, `ce-doc-review` passed on C4 specs, CodeNav 4-axis navigation, Codemap hub blast-radius, and SQLite schema integrity (`PRAGMA foreign_keys = ON`) verified, `check:contracts` passes, service/repo separation clean, `cargo fmt` clean, `cargo clippy` 0 warnings, `cargo deny` passes, safety comments verified, all unit/integration tests pass, `ce-code-review` gate passed.
+4. **Vault & User Plugin Manifest Persistence:**
+   - Store plugin state in `.scriptor/plugins.json` (per-vault) and `user-settings.json` (global defaults). Enable seamless offline installation from local `.tar.gz` / `.zip` plugin bundles or NPM package registry.
 
-### Phase 3: Frontend Architecture, React Patterns, DFII, Deslop & AI Slop Cleaner Audit
-- [ ] Task 3: Frontend Architecture, Elite Frontend UI/UX, Interface Design, DFII & Deslop Audit
+---
 
-### Checkpoint: Frontend, Deslop & Packages
-- [ ] `interface-design.md` compliance verified, DFII score evaluated ($\ge 8$), PRE-ACT UI operator checklist & UI/UX Pro Max verified, 4-pass AI slop cleanup completed, all package validation scripts pass, hooks stability clean, virtualized lists verified, UI state matrices verified, zero AI slop defaults, ESLint 0 warnings, Vite build clean, bundle graph limits verified, `ce-code-review` gate passed.
+## Task List & Implementation Phases
 
-### Phase 4: System Bridge & Daemon Integration
-- [ ] Task 4: System Bridge, Daemon Integration & Agent Introspection Protocol Verification
+### Phase 1: Plugin Architecture Foundation & Dynamic Contribution Engine
 
-### Checkpoint: Integration & Daemon
-- [ ] TUI smoke clean, daemon smoke clean, authorization inventory 100% matched, container smoke clean, xtask release smoke passes, introspection self-debug template ready, `ce-code-review` gate passed.
+- [ ] **Task 1.1: Core Plugin Contract & Capability Schema Expansion**
+  - **Description:** Expand `@scriptor/core/contracts/plugin` and `packages/plugin-api/src/manifest.ts` to include explicit `capabilityId`, `lazyLoad`, `rustFeatureGate`, and `permissions` attributes in `PluginManifest`.
+  - **Acceptance criteria:**
+    - [ ] `PluginManifest` schema updated with `capabilities` and `rustFeatureGate` fields.
+    - [ ] `pnpm check:contracts` and `pnpm check:plugins` pass.
+  - **Verification:** `pnpm check:contracts && pnpm check:plugins`
+  - **Dependencies:** None
+  - **Files likely touched:** `packages/core/src/contracts/plugin.ts`, `packages/plugin-api/src/manifest.ts`, `packages/plugin-api/src/registry.ts`
 
-### Phase 5: E2E, Visual Ralph Verdict, QA Mastery & Accessibility
-- [ ] Task 5: End-to-End, Visual Ralph Verdict, Elite QA TDD & Accessibility (a11y) Review
+- [ ] **Task 1.2: Dynamic Context Store & Plugin State Provider**
+  - **Description:** Implement `PluginStateContext` in React (`src/context/PluginStateContext.tsx`) to manage active plugin manifests, toggle enablement, and emit contribution updates.
+  - **Acceptance criteria:**
+    - [ ] `PluginStateContext` provides `enabledPluginIds`, `enablePlugin(id)`, `disablePlugin(id)`, `installPlugin(pkg)`.
+    - [ ] Active plugin state persists to `localStorage` and `.scriptor/plugins.json`.
+  - **Verification:** `pnpm test:unit`
+  - **Dependencies:** Task 1.1
+  - **Files likely touched:** `src/context/PluginStateContext.tsx`, `src/bridge/plugin.ts`
 
-### Checkpoint: E2E, Visual Ralph & QA Mastery
-- [ ] TDD Iron Law verified (RED-GREEN-REFACTOR), 4-phase systematic debugging verified, Page Object Model structure clean (`e2e/pages/`), Visual Ralph verdict (`score >= 90`) verified, WCAG 2.2 AA a11y smoke & axe-core pass 0 violations, Playwright E2E suite passes across viewports (320px to 1440px), Playwright visual snapshot tests match, `ce-code-review` gate passed.
+### Checkpoint: Foundation
+- [ ] `pnpm check:plugins` and `pnpm check:contracts` pass cleanly.
 
-### Phase 6: Performance Budget, Measurement, `ce-optimize` & Benchmark Audit
-- [ ] Task 6: Performance Budget, Measurement, `ce-optimize` & Benchmark Audit (`agent-skills-performance-optimization` & `performance-goal`)
+---
 
-### Checkpoint: Performance & Optimization
-- [ ] Evaluator contract verified: Measure-Identify-Fix-Verify-Guard workflow executed, `ce-optimize` disk checkpoints CP-0 to CP-5 verified, Startup < 1500ms, idle memory < 120MB, vault scan & search latency within baselines, canvas & editor latency verified, `ce-code-review` gate passed.
+### Phase 2: Feature Decoupling & Modular Extraction
 
-### Phase 7: Technical Diagrams (`archify`), Skill Surface, Press Release Synthesis & Harness Meta-Optimization (`meta-optimize`)
-- [ ] Task 7: Technical Diagrams (`archify`), Skill Surface, Press Release Synthesis (`press-release-writer`) & Harness Meta-Optimization (`meta-optimize`) Synthesis
+- [ ] **Task 2.1: Extract Spatial Canvas into `@scriptor/plugin-canvas`**
+  - **Description:** Decouple `CanvasPanel.tsx`, `CanvasStage.tsx`, and `useCanvasBoard` into `@scriptor/plugin-canvas`, registering canvas command palette items and `.canvas` file icon handlers via plugin contributions.
+  - **Acceptance criteria:**
+    - [ ] Canvas UI and commands load only when `@scriptor/plugin-canvas` is active.
+    - [ ] Disabling canvas plugin cleanly hides canvas panel & toolbar options.
+  - **Verification:** `pnpm check:canvas && pnpm test:e2e -- e2e/canvas.spec.ts`
+  - **Dependencies:** Task 1.2
+  - **Files likely touched:** `packages/canvas/src/index.ts`, `src/components/CanvasPanel.tsx`, `src/App.tsx`
 
-### Checkpoint: Final Review Complete
-- [ ] Archify diagrams generated (`scriptor-system-architecture.html`, `scriptor-ipc-dataflow.html`), skill surface audited, Press Release synthesis published (`PRESS-RELEASE-AUDIT-SUMMARY.md`), `ce-doc-review` passed on report deliverables, `meta-optimize` harness proposals staged (`.aris/meta/pending/`), SBOM generated, receipt created, evidence verified, comprehensive review report published to `docs/reports/COMPREHENSIVE-PROJECT-REVIEW.md`, final `ce-code-review depth:full` gate passed.
+- [ ] **Task 2.2: Extract Zotero & Citation Engine into `@scriptor/plugin-citations`**
+  - **Description:** Decouple `CitationInspector.tsx`, CSL parsing, and BibTeX extraction into `@scriptor/plugin-citations`.
+  - **Acceptance criteria:**
+    - [ ] Citation inspector widget and citeproc commands load via `contributes.inspectorWidgets`.
+    - [ ] Disabling citation plugin unmounts Zotero sync options.
+  - **Verification:** `pnpm check:citations`
+  - **Dependencies:** Task 1.2
+  - **Files likely touched:** `src/lib/validate-citation-runner.ts`, `src/components/inspector/CitationInspector.tsx`
+
+- [ ] **Task 2.3: Extract Export & Publishing Engine into `@scriptor/plugin-export`**
+  - **Description:** Decouple Pandoc/Typst export options, Reveal.js slides, and Starlight publisher into `@scriptor/plugin-export`.
+  - **Acceptance criteria:**
+    - [ ] Export profiles registered dynamically via `contributes.exportProfiles`.
+    - [ ] Export dialog shows only active plugin profile options.
+  - **Verification:** `pnpm check:export`
+  - **Dependencies:** Task 1.2
+  - **Files likely touched:** `packages/export/src/index.ts`, `src/components/dialogs/ExportDialog.tsx`
+
+- [ ] **Task 2.4: Extract Interactive Knowledge Graph into `@scriptor/plugin-graph`**
+  - **Description:** Decouple `GraphPanel.tsx`, `GraphCanvas.tsx`, and `graph-layout.worker.ts` into `@scriptor/plugin-graph`.
+  - **Acceptance criteria:**
+    - [ ] Graph panel and backlinks view registered dynamically via plugin contributions.
+    - [ ] Disabling graph plugin terminates graph layout WebWorker and frees memory.
+  - **Verification:** `pnpm test:e2e -- e2e/graph.spec.ts`
+  - **Dependencies:** Task 1.2
+  - **Files likely touched:** `src/components/GraphPanel.tsx`, `src/App.tsx`
+
+- [ ] **Task 2.5: Extract MCP Agent Server into `@scriptor/plugin-mcp`**
+  - **Description:** Decouple Model Context Protocol stdio server, patch approval queue, and audit log into `@scriptor/plugin-mcp`.
+  - **Acceptance criteria:**
+    - [ ] MCP tool handlers and patch queue UI load only when MCP plugin is enabled.
+    - [ ] `pnpm check:mcp` verifies read/write permission gating under plugin status.
+  - **Verification:** `pnpm check:mcp && pnpm test:e2e -- e2e/mcp-write.spec.ts`
+  - **Dependencies:** Task 1.2
+  - **Files likely touched:** `packages/mcp/src/index.ts`, `src/components/mcp/McpInspector.tsx`
+
+### Checkpoint: Core Feature Decoupling
+- [ ] Workspace builds cleanly with all 5 feature plugins modularized.
+- [ ] E2E test suites for canvas, graph, export, and MCP pass independently.
+
+---
+
+### Phase 3: Plugin Management Center UI & Dynamic Marketplace
+
+- [ ] **Task 3.1: Build Plugin Management Center UI (`PluginManagerCenter.tsx`)**
+  - **Description:** Build a rich, modern Plugin Management Center modal allowing users to search, inspect, enable, disable, install, and uninstall plugins with toggle switches and resource usage stats.
+  - **Acceptance criteria:**
+    - [ ] Plugin Center lists core & installed plugins with version, author, description, and status.
+    - [ ] Enabling/disabling a plugin dynamically updates sidebar navigation and command palette.
+    - [ ] Accessible touch targets ($\ge 44\text{px}$) and OKLCH design system styling.
+  - **Verification:** `pnpm check:frontend-quality && pnpm check:portal`
+  - **Dependencies:** Tasks 2.1–2.5
+  - **Files likely touched:** `src/components/plugins/PluginManagerCenter.tsx`, `src/components/plugins/PluginCard.tsx`, `src/styles/components/plugin-manager.css`
+
+- [ ] **Task 3.2: Rust RPC Plugin Capability Gating**
+  - **Description:** Add `check_plugin_enabled` middleware in `crates/ipc` and `src-tauri/src/lib.rs` to return `RpcError::PluginDisabled` when an uninstalled/disabled feature API is invoked.
+  - **Acceptance criteria:**
+    - [ ] Disabling `@scriptor/plugin-canvas` causes `canvas_hit_test` IPC to return a clean error without crashing desktop shell.
+  - **Verification:** `cargo test -p scriptor-ipc`
+  - **Dependencies:** Task 3.1
+  - **Files likely touched:** `crates/ipc/src/lib.rs`, `apps/desktop/src-tauri/src/lib.rs`
+
+### Checkpoint: Complete Modular System
+- [ ] End-to-end plugin management flow verified (enable, disable, uninstall, re-enable).
+- [ ] All unit, integration, and E2E suites pass with zero regressions.
+
+---
 
 ## Risks and Mitigations
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| E2E/Visual test environment requirements | Med | Run pre-checks for Playwright dependencies and fallback gracefully with verbose logging. |
-| Benchmark variance due to local OS background processes | Low | Execute benchmarks with baseline comparison scripts and multiple sampling rounds. |
+
+| Risk | Impact | Mitigation Strategy |
+|---|---|---|
+| **Dangling CodeMirror Extensions on Plugin Disable** | High | Implement cleanup callbacks in `PluginRegistry` to unregister CodeMirror view extensions dynamically. |
+| **Orphan IPC Calls to Disabled Rust Modules** | Medium | Implement Rust RPC middleware that returns typed `RpcError::PluginDisabled` responses instead of panicking. |
+| **Bundle Size Overhead from Plugin Loader** | Low | Use Vite dynamic `import()` for lazy-loading plugin UI components on demand. |
+
+---
 
 ## Open Questions
-- None. All verification scripts and validation targets are fully specified in repository configuration.
+- Should plugin enablement be stored per-vault (`.scriptor/plugins.json`) or globally per-user (`user-settings.json`)? *(Recommended default: global defaults with optional per-vault overrides).*
