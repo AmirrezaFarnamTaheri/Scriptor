@@ -16,13 +16,17 @@ on:
         type: boolean
         default: false
       installer_profile:
-        description: Bundled default installer profile preset (complete, scientific, minimal)
+        description: Bundled default installer profile preset (complete, developer, researcher, scientific, writer, minimal, focused)
         required: false
         type: choice
         options:
           - complete
+          - developer
+          - researcher
           - scientific
+          - writer
           - minimal
+          - focused
         default: complete
   push:
     tags:

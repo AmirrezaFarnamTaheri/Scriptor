@@ -80,7 +80,7 @@ export function PluginManagerCenter({ isOpen, onClose }: PluginManagerCenterProp
 
         <div className="plugin-manager-profiles">
           <span className="profiles-label">Installer Profile Preset:</span>
-          {(['minimal', 'scientific', 'complete'] as const).map((profile) => (
+          {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map((profile) => (
             <button
               key={profile}
               type="button"
