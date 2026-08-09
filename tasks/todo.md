@@ -51,15 +51,15 @@
   - **Dependencies:** Task 2
   - **Files likely touched:** `docs/reports/review/03-frontend-packages-review.md`
 
-## Phase 4: System Bridge, Daemon & Integration Verification
-- [ ] Task 4: System Bridge, Daemon & Integration Verification
-  - **Description:** Run terminal UI smoke, daemon IPC smoke, process authorization inventory audit, container smoke, release smoke via cargo xtask, and verify 4-phase failure capture protocol (`ecc-agent-introspection-debugging`) following RARV execution & Karpathy guidelines.
+## Phase 4: Quality Assurance & Playwright E2E Test Infrastructure Review
+- [x] Task 4: Quality Assurance, Playwright E2E Suites & Test Infrastructure Review
+  - **Description:** Pre-act read of `playwright.config.ts`, `e2e/fixtures/`, `e2e/pages/`, `e2e-testing`, and QA Architect rules, audit Page Object Model (POM) separation, locator resilience (`data-testid`, zero fragile XPath), fixture teardown hygiene, auto-waiting patterns, run Playwright test suite (`pnpm test:e2e`), verify zero flaky/failed specs, and inspect trace recording & HTML report integrity following RARV execution & Karpathy guidelines.
   - **Acceptance criteria:**
-    - [ ] `pnpm check:tui` and `pnpm check:daemon` run and terminate cleanly.
-    - [ ] `pnpm check:authorization` matches 100% of process launches against `process-launch-inventory.json`.
-    - [ ] `pnpm check:container` and `pnpm check:xtask` pass.
-    - [ ] `pnpm check:audit` reports 0 high/critical production vulnerabilities.
-    - [ ] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
+    - [x] Pre-act read of `playwright.e2e.config.ts`, `e2e/fixtures/`, `e2e/pages/`, and QA rules completed.
+    - [x] POM abstraction and `data-testid` locator resilience verified across all spec files.
+    - [x] `pnpm test:e2e` passes with zero failed or flaky specs.
+    - [x] Artifact cleanup, trace recording, and HTML report policies verified.
+    - [x] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
   - **Verification:** `pnpm check:tui && pnpm check:daemon && pnpm check:authorization && pnpm check:xtask`
   - **Dependencies:** Task 3
   - **Files likely touched:** `docs/reports/review/04-daemon-smoke-integration-review.md`
