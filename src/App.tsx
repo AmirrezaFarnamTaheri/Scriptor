@@ -40,6 +40,7 @@ import { InspectorRail } from './components/shell/InspectorRail'
 import { WorkspaceStatusFooter } from './components/shell/WorkspaceStatusFooter'
 import { MobileWorkspaceNav } from './components/shell/MobileWorkspaceNav'
 import { useTextPrompt } from './hooks/useTextPrompt'
+import { useNoteDraftStats } from './hooks/useNoteDraftStats'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
@@ -706,15 +707,12 @@ function App() {
     setGraphNodeCount: perfSetGraphNodeCount,
   })
 
-  const draftWordCount = useMemo(() => countWords(workspace.draftMarkdown), [workspace.draftMarkdown])
-  const savedWordCount = workspace.activeNote?.metadata.word_count ?? 0
-  const isNoteDirty = workspace.isNoteDirty
-  const savedReadingMinutes = workspace.activeNote?.metadata.reading_time_minutes ?? 0
-  const draftReadingMinutes =
-    draftWordCount === 0 ? 0 : Math.max(1, Math.floor(draftWordCount / 200))
-  const readingMinutes = isNoteDirty ? draftReadingMinutes : savedReadingMinutes
-  const wordCountDelta = isNoteDirty ? draftWordCount - savedWordCount : 0
-  const charCount = useMemo(() => countCharacters(workspace.draftMarkdown), [workspace.draftMarkdown])
+  const { draftWordCount, savedWordCount, wordCountDelta, charCount, readingMinutes } =
+    useNoteDraftStats({
+      draftMarkdown: workspace.draftMarkdown,
+      activeNote: workspace.activeNote,
+      isNoteDirty: workspace.isNoteDirty,
+    })
   const healthAction = !workspace.health
     ? 'Loading…'
     : workspace.health.broken_links === 0 && workspace.health.unresolved_citations === 0

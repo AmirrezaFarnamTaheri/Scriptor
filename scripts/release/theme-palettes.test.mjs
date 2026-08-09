@@ -3,8 +3,8 @@ import assert from 'node:assert/strict'
 import { COLOR_PALETTE_SCHEMES } from '../../src/brand/palettes.ts'
 
 describe('Color Palette Scheme Catalog Verification', () => {
-  it('defines at least 13 alternative color palette schemes', () => {
-    assert.ok(COLOR_PALETTE_SCHEMES.length >= 13, `Expected at least 13 schemes, got ${COLOR_PALETTE_SCHEMES.length}`)
+  it('defines at least 18 alternative color palette schemes', () => {
+    assert.ok(COLOR_PALETTE_SCHEMES.length >= 18, `Expected at least 18 schemes, got ${COLOR_PALETTE_SCHEMES.length}`)
   })
 
   it('includes core classic and popular developer color schemes', () => {
@@ -23,6 +23,11 @@ describe('Color Palette Scheme Catalog Verification', () => {
       'cyberpunk',
       'monokai',
       'sepia-paper',
+      'rose-pine',
+      'synthwave-84',
+      'one-dark-pro',
+      'vitesse-dark',
+      'oled-black',
     ]
 
     for (const id of expectedIds) {

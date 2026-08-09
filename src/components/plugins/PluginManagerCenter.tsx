@@ -1,4 +1,5 @@
-import { Palette, Blocks } from 'lucide-react'
+import { useState } from 'react'
+import { Palette, Blocks, Plus, Sparkles } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest.ts'
@@ -9,10 +10,11 @@ import {
   type InstallerProfile,
   getProfilePluginIds,
 } from '../../context/plugin-defaults.ts'
-import { COLOR_PALETTE_SCHEMES } from '../../brand/palettes.ts'
-import { useAppTheme, type AppTheme } from '../../hooks/useAppTheme.ts'
+import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes.ts'
+import { useAppTheme, readStoredCustomThemes, type AppTheme } from '../../hooks/useAppTheme.ts'
 import { PluginCard } from './PluginCard.tsx'
 import { ThemeCard } from '../themes/ThemeCard.tsx'
+import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal.tsx'
 import '../../styles/components/plugin-manager.css'
 
 export const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
@@ -61,6 +63,7 @@ export function PluginManagerCenter({
   const [searchQuery, setSearchQuery] = useState('')
   const [activeProfile, setActiveProfile] = useState<InstallerProfile>('complete')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
+  const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
 
   if (!isOpen) return null
 
@@ -72,7 +75,18 @@ export function PluginManagerCenter({
     document.documentElement.dataset.theme = activeTheme
   }
 
-  const filteredPalettes = COLOR_PALETTE_SCHEMES.filter((scheme) => {
+  const customPalettes: ColorPaletteScheme[] = readStoredCustomThemes().map((c) => ({
+    id: c.id,
+    name: c.name,
+    category: c.category,
+    description: 'Custom user-created color palette scheme.',
+    author: 'Custom (You)',
+    colors: c.colors,
+  }))
+
+  const allPalettes = [...COLOR_PALETTE_SCHEMES, ...customPalettes]
+
+  const filteredPalettes = allPalettes.filter((scheme) => {
     const matchesCategory = themeFilterCategory === 'all' || scheme.category === themeFilterCategory
     const matchesSearch =
       scheme.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -109,118 +123,143 @@ export function PluginManagerCenter({
   }
 
   return (
-    <div
-      className="plugin-manager-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Extension & Theme Management Center"
-    >
-      <div className="plugin-manager-modal">
-        <div className="plugin-manager-header">
-          <h2>
-            <Palette /> Extension &amp; Color Scheme Installer Center
-          </h2>
-          <button type="button" className="close-button" onClick={onClose} aria-label="Close modal">
-            ✕
-          </button>
-        </div>
-
-        {/* Primary Tabs — Color Palette Store active by default */}
-        <div className="plugin-manager-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'palettes'}
-            className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
-            onClick={() => setActiveTab('palettes')}
-          >
-            <Palette /> Color Palette Schemes ({COLOR_PALETTE_SCHEMES.length})
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'plugins'}
-            className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
-            onClick={() => setActiveTab('plugins')}
-          >
-            <Blocks /> Feature Plugins &amp; Profiles
-          </button>
-        </div>
-
-        {activeTab === 'plugins' && (
-          <div className="plugin-manager-profiles">
-            <span className="profiles-label">Installer Profile Preset:</span>
-            {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
-              (profile) => (
-                <button
-                  key={profile}
-                  type="button"
-                  className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
-                  onClick={() => applyProfile(profile)}
-                >
-                  {profile.charAt(0).toUpperCase() + profile.slice(1)}
-                </button>
-              ),
-            )}
-            {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+    <>
+      <div
+        className="plugin-manager-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Extension & Theme Management Center"
+      >
+        <div className="plugin-manager-modal">
+          <div className="plugin-manager-header">
+            <h2>
+              <Palette /> Extension &amp; Color Scheme Installer Center
+            </h2>
+            <button type="button" className="close-button" onClick={onClose} aria-label="Close modal">
+              ✕
+            </button>
           </div>
-        )}
 
-        {activeTab === 'palettes' && (
-          <div className="plugin-manager-profiles">
-            <span className="profiles-label">Category Filter:</span>
-            {(['all', 'dark', 'light', 'contrast'] as const).map((cat) => (
+          {/* Primary Tabs — Color Palette Store active by default */}
+          <div className="plugin-manager-tabs" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'palettes'}
+              className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
+              onClick={() => setActiveTab('palettes')}
+            >
+              <Palette /> Color Palette Schemes ({allPalettes.length})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'plugins'}
+              className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
+              onClick={() => setActiveTab('plugins')}
+            >
+              <Blocks /> Feature Plugins &amp; Profiles
+            </button>
+          </div>
+
+          {activeTab === 'plugins' && (
+            <div className="plugin-manager-profiles">
+              <span className="profiles-label">Installer Profile Preset:</span>
+              {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
+                (profile) => (
+                  <button
+                    key={profile}
+                    type="button"
+                    className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
+                    onClick={() => applyProfile(profile)}
+                  >
+                    {profile.charAt(0).toUpperCase() + profile.slice(1)}
+                  </button>
+                ),
+              )}
+              {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+            </div>
+          )}
+
+          {activeTab === 'palettes' && (
+            <div className="plugin-manager-profiles" style={{ justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="profiles-label">Category Filter:</span>
+                {(['all', 'dark', 'light', 'contrast'] as const).map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    className={`profile-btn ${themeFilterCategory === cat ? 'active' : ''}`}
+                    onClick={() => setThemeFilterCategory(cat)}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </button>
+                ))}
+              </div>
               <button
-                key={cat}
                 type="button"
-                className={`profile-btn ${themeFilterCategory === cat ? 'active' : ''}`}
-                onClick={() => setThemeFilterCategory(cat)}
+                className="profile-btn active"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'var(--primary, #38bdf8)',
+                  color: 'var(--bg, #0f172a)',
+                  fontWeight: 700,
+                }}
+                onClick={() => setCustomizerModalOpen(true)}
               >
-                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                <Plus size={14} /> Create Custom Palette
               </button>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
 
-        <div className="plugin-manager-search">
-          <input
-            type="search"
-            placeholder={
-              activeTab === 'palettes'
-                ? 'Search color palette schemes by name or theme style...'
-                : 'Search plugins by name or capability...'
-            }
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="plugin-manager-search">
+            <input
+              type="search"
+              placeholder={
+                activeTab === 'palettes'
+                  ? 'Search color palette schemes by name or theme style...'
+                  : 'Search plugins by name or capability...'
+              }
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {activeTab === 'palettes' ? (
+            <div className="theme-palette-grid">
+              {filteredPalettes.map((scheme) => (
+                <ThemeCard
+                  key={scheme.id}
+                  scheme={scheme}
+                  isActive={activeTheme === scheme.id}
+                  onSelect={handleSelectTheme}
+                  onHoverPreviewStart={handleHoverPreviewStart}
+                  onHoverPreviewEnd={handleHoverPreviewEnd}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="plugin-manager-list">
+              {filteredPlugins.map((plugin) => (
+                <PluginCard
+                  key={plugin.id}
+                  manifest={plugin}
+                  isEnabled={enabledPluginIds.has(plugin.id)}
+                  onToggle={handleTogglePlugin}
+                />
+              ))}
+            </div>
+          )}
         </div>
-
-        {activeTab === 'palettes' ? (
-          <div className="theme-palette-grid">
-            {filteredPalettes.map((scheme) => (
-              <ThemeCard
-                key={scheme.id}
-                scheme={scheme}
-                isActive={activeTheme === scheme.id}
-                onSelect={handleSelectTheme}
-                onHoverPreviewStart={handleHoverPreviewStart}
-                onHoverPreviewEnd={handleHoverPreviewEnd}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="plugin-manager-list">
-            {filteredPlugins.map((plugin) => (
-              <PluginCard
-                key={plugin.id}
-                manifest={plugin}
-                isEnabled={enabledPluginIds.has(plugin.id)}
-                onToggle={handleTogglePlugin}
-              />
-            ))}
-          </div>
-        )}
       </div>
-    </div>
+
+      <ThemeCustomizerModal
+        isOpen={customizerModalOpen}
+        onClose={() => setCustomizerModalOpen(false)}
+        onSelectTheme={handleSelectTheme}
+      />
+    </>
   )
 }
