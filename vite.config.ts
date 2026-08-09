@@ -25,6 +25,14 @@ export default defineConfig({
           if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
             return 'react-vendor'
           }
+          // cytoscape is only needed by GraphPanel — keep it out of the main entry chunk
+          if (id.includes('node_modules/cytoscape')) {
+            return 'cytoscape-vendor'
+          }
+          // KaTeX is only needed when math fences are rendered — defer from entry
+          if (id.includes('node_modules/katex')) {
+            return 'katex-vendor'
+          }
         },
       },
     },
