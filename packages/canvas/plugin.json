@@ -1,0 +1,61 @@
+{
+  "id": "scriptor.canvas",
+  "name": "Spatial Canvas",
+  "version": "0.1.0",
+  "description": "Edgeless visual workspace and spatial note canvas",
+  "publisher": "Scriptor",
+  "capabilityId": "canvas",
+  "rustFeatureGate": "scriptor-canvas-engine",
+  "activation": [
+    "on-startup"
+  ],
+  "capabilities": [
+    "canvas-tool",
+    "canvas-block",
+    "template-pack"
+  ],
+  "permissions": [
+    {
+      "permission": "read",
+      "reason": "Read note contents to render spatial canvas blocks"
+    }
+  ],
+  "contributes": {
+    "canvasTools": [
+      {
+        "id": "select",
+        "label": "Select",
+        "commandId": "canvas.tool.select",
+        "toolKind": "select"
+      },
+      {
+        "id": "sticky",
+        "label": "Sticky Note",
+        "commandId": "canvas.tool.sticky",
+        "toolKind": "place"
+      },
+      {
+        "id": "shape",
+        "label": "Shape",
+        "commandId": "canvas.tool.shape",
+        "toolKind": "shape"
+      },
+      {
+        "id": "draw",
+        "label": "Freehand Draw",
+        "commandId": "canvas.tool.draw",
+        "toolKind": "draw"
+      }
+    ],
+    "templatePacks": [
+      {
+        "id": "research-board",
+        "label": "Research Board"
+      },
+      {
+        "id": "weekly-plan",
+        "label": "Weekly Plan"
+      }
+    ]
+  }
+}
