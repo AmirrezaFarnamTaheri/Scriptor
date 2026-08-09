@@ -1,4 +1,4 @@
-# Capability Decoupling & Installable Plugin Feature Architecture (Batch Refactor Orchestration Plan)
+# Capability Decoupling & Installable Plugin Feature Architecture (Batch Refactor & Migration Plan)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -6,7 +6,30 @@
 
 **Architecture:** Core Scriptor is streamlined into a lean, fast Markdown editor & vault kernel. Higher-level features implement the `@scriptor/core/contracts/plugin` contract, registering UI contributions (commands, renderer extensions, inspector widgets, export profiles, canvas tools/blocks) dynamically with dynamic React context stores (`PluginStateContext`) and Rust RPC middleware gating (`RpcError::PluginDisabled`).
 
-**Tech Stack:** TypeScript, React 19, Vite 8, Tauri 2, Rust 1.96 (2024 Edition), CodeMirror 6, SQLite FTS5, `@scriptor/core`, `@scriptor/plugin-api`.
+**Tech Stack:** TypeScript, React 19, Vite 8, Tauri 2, Rust 1.96 (2024 Edition, `thiserror`, zero `unwrap()` in prod, `// SAFETY:` rationale), CodeMirror 6, SQLite FTS5, `@scriptor/core`, `@scriptor/plugin-api`.
+
+---
+
+## Deprecation & Backward-Compatibility Migration Strategy
+
+Following the **Strangler Pattern** and **Expand/Contract** migration rules:
+
+1. **Strangler Pattern for Legacy Component Exports:**
+   - Legacy component import paths (e.g. `src/components/CanvasPanel.tsx`, `src/components/GraphPanel.tsx`, `src/components/mcp/McpInspector.tsx`) will be preserved as thin backward-compatible adapter wrappers re-exporting from decoupled packages (`@scriptor/plugin-canvas`, `@scriptor/plugin-graph`, `@scriptor/plugin-mcp`).
+   - Emit a one-time dev environment warning (`console.warn('[Scriptor Deprecation] Monolithic import from src/components/... is deprecated. Import from @scriptor/plugin-... instead.')`).
+2. **Expand/Contract Vault Schema Migration:**
+   - **Expand:** Introduce `.scriptor/plugins.json` per-vault plugin state file as a optional additive file. If absent, Scriptor defaults to enabling pre-bundled core plugins (`canvas`, `citations`, `export`, `graph`, `mcp`).
+   - **Migrate:** Auto-generate `.scriptor/plugins.json` on first user interaction with Plugin Management Center.
+   - **Contract:** Legacy un-gated monolithic imports will sunset in Scriptor 0.2.0.
+
+---
+
+## Rust 1.96 / 2024 Edition Safety & Error Discipline (`rust-skills`)
+
+1. **`err-thiserror-lib`**: Use `thiserror::Error` for library error types in `crates/ipc` and `crates/system-bridge`.
+2. **`err-no-unwrap-prod`**: Zero `unwrap()` calls in production RPC handlers or Tauri IPC commands. All conversions use `unwrap_or`, `expect("bug invariant")`, or `?`.
+3. **`unsafe-safety-comment`**: Every unsafe FFI or system call must carry an explicit `// SAFETY:` rationale block.
+4. **`num-overflow-explicit`**: All parameter type casting uses `TryFrom` / `try_into()`.
 
 ---
 
@@ -32,8 +55,8 @@ WAVE 1: DECOUPLED FEATURE EXTRACTION PACKETS (5 Parallel Worker Subagents)
                                          │
                                          ▼
 ===================================================================================
-WAVE 2: UI INTEGRATION & SYNTHESIS PACKETS (Sequential Integration Gate)
-[Packet 2.1: PluginManagerCenter UI] -> [Packet 2.2: Full System Integration Verification]
+WAVE 2: UI INTEGRATION & MIGRATION SYNTHESIS PACKETS (Sequential Integration Gate)
+[Packet 2.1: PluginManagerCenter UI] -> [Packet 2.2: Strangler Adapters & Full E2E Verification]
 ===================================================================================
 ```
 
@@ -124,11 +147,11 @@ WAVE 2: UI INTEGRATION & SYNTHESIS PACKETS (Sequential Integration Gate)
 
 ---
 
-### Wave 2: UI Integration & Synthesis Packets
+### Wave 2: UI Integration & Migration Synthesis Packets
 
 #### Packet 2.1: Build Plugin Management Center UI (`PluginManagerCenter.tsx`)
 - Files: `src/components/plugins/PluginManagerCenter.tsx`, `src/components/plugins/PluginCard.tsx`, `src/styles/components/plugin-manager.css`
 - Validation command: `pnpm check:frontend-quality && pnpm check:portal`
 
-#### Packet 2.2: Full System Integration & Verification Gate
+#### Packet 2.2: Strangler Adapters & Full System Integration Verification Gate
 - Validation command: `pnpm check:source && pnpm test:e2e`
