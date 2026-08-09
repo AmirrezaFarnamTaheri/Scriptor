@@ -7,6 +7,7 @@ import { exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/comm
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
 import type { AppTheme } from '../hooks/useAppTheme'
+import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useVaultBackup } from '../hooks/useVaultBackup'
@@ -390,9 +391,11 @@ export function SettingsPanel({
                   value={theme}
                   onChange={(event) => onThemeChange(event.target.value as AppTheme)}
                 >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="high-contrast">High contrast</option>
+                  {COLOR_PALETTE_SCHEMES.map((scheme) => (
+                    <option key={scheme.id} value={scheme.id}>
+                      {scheme.name} ({scheme.category})
+                    </option>
+                  ))}
                 </select>
               </label>
             ) : null}

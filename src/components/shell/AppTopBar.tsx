@@ -15,6 +15,7 @@ import {
   Network,
   PanelLeft,
   PanelRight,
+  Palette,
   Settings,
   Sun,
   Zap,
@@ -59,6 +60,7 @@ interface AppTopBarProps {
   onOpenMcp: () => void
   onOpenSupport: () => void
   onOpenSettings: () => void
+  onOpenPluginManager?: () => void
   theme: AppTheme
   onToggleTheme: () => void
   vaultSidebarCollapsed: boolean
@@ -103,6 +105,7 @@ export function AppTopBar({
   onOpenMcp,
   onOpenSupport,
   onOpenSettings,
+  onOpenPluginManager,
   theme,
   onToggleTheme,
   vaultSidebarCollapsed,
@@ -272,6 +275,11 @@ export function AppTopBar({
         <IconButton label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
           <Heart />
         </IconButton>
+        {onOpenPluginManager ? (
+          <IconButton label="Extension & Color Palette Store" onClick={onOpenPluginManager}>
+            <Palette />
+          </IconButton>
+        ) : null}
         <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
           <Settings />
         </IconButton>

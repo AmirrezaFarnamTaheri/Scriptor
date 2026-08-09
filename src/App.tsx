@@ -43,6 +43,7 @@ import { useTextPrompt } from './hooks/useTextPrompt'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
+import { PluginManagerCenter } from './components/plugins/PluginManagerCenter'
 import { AppToast } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
@@ -265,7 +266,7 @@ function App() {
   } = perfMetrics
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const commandPalette = useCommandPalette()
-  const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
+  const [pluginManagerOpen, setPluginManagerOpen] = useState(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId)
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
@@ -726,6 +727,7 @@ function App() {
   useEscapeToClose(healthDashboardOpen, () => setHealthDashboardOpen(false))
   useEscapeToClose(mcpPanelOpen, () => setMcpPanelOpen(false))
   useEscapeToClose(settingsOpen, () => setSettingsOpen(false))
+  useEscapeToClose(pluginManagerOpen, () => setPluginManagerOpen(false))
   useEscapeToClose(knowledgeWorkbenchOpen, () => setKnowledgeWorkbenchOpen(false))
   useEscapeToClose(publishCenterOpen, () => setPublishCenterOpen(false))
   useEscapeToClose(snippetsOpen, () => setSnippetsOpen(false))
@@ -809,6 +811,7 @@ function App() {
         setHealthDashboardOpen,
         setMcpPanelOpen,
         setSettingsOpen,
+        setPluginManagerOpen,
         openKnowledgeWorkbench,
         setPublishCenterOpen,
         setCheatsheetOpen,
@@ -1010,6 +1013,7 @@ function App() {
           onOpenMcp={() => setMcpPanelOpen(true)}
           onOpenSupport={() => setSupportOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenPluginManager={() => setPluginManagerOpen(true)}
           theme={theme}
           onToggleTheme={toggleTheme}
           vaultSidebarCollapsed={chrome.vaultSidebarCollapsed}
@@ -1710,6 +1714,13 @@ function App() {
         </Suspense>
         </ErrorBoundary>
       )}
+
+      <PluginManagerCenter
+        isOpen={pluginManagerOpen}
+        onClose={() => setPluginManagerOpen(false)}
+        currentTheme={theme}
+        onThemeChange={setTheme}
+      />
 
       {bibliographyOpen && (
         <ErrorBoundary

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { Palette, Blocks } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest.ts'
@@ -7,10 +7,12 @@ import { mcpPluginManifest } from '@scriptor/mcp'
 import { usePluginState } from '../../context/PluginStateContext.tsx'
 import {
   type InstallerProfile,
-  INSTALLER_PROFILES,
   getProfilePluginIds,
 } from '../../context/plugin-defaults.ts'
+import { COLOR_PALETTE_SCHEMES } from '../../brand/palettes.ts'
+import { useAppTheme, type AppTheme } from '../../hooks/useAppTheme.ts'
 import { PluginCard } from './PluginCard.tsx'
+import { ThemeCard } from '../themes/ThemeCard.tsx'
 import '../../styles/components/plugin-manager.css'
 
 export const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
@@ -32,14 +34,52 @@ export const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
 export interface PluginManagerCenterProps {
   isOpen: boolean
   onClose: () => void
+  currentTheme?: AppTheme
+  onThemeChange?: (theme: AppTheme) => void
 }
 
-export function PluginManagerCenter({ isOpen, onClose }: PluginManagerCenterProps) {
+export function PluginManagerCenter({
+  isOpen,
+  onClose,
+  currentTheme: propTheme,
+  onThemeChange,
+}: PluginManagerCenterProps) {
   const { enabledPluginIds, enablePlugin, disablePlugin } = usePluginState()
+  const { theme: hookTheme, setTheme: hookSetTheme } = useAppTheme()
+
+  const activeTheme = propTheme ?? hookTheme
+  const handleSelectTheme = (nextTheme: AppTheme) => {
+    if (onThemeChange) {
+      onThemeChange(nextTheme)
+    } else {
+      hookSetTheme(nextTheme)
+    }
+  }
+
+  // Active Tab: 'palettes' is ACTIVE BY DEFAULT per user specification
+  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>('palettes')
   const [searchQuery, setSearchQuery] = useState('')
   const [activeProfile, setActiveProfile] = useState<InstallerProfile>('complete')
+  const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
 
   if (!isOpen) return null
+
+  const handleHoverPreviewStart = (previewId: AppTheme) => {
+    document.documentElement.dataset.theme = previewId
+  }
+
+  const handleHoverPreviewEnd = () => {
+    document.documentElement.dataset.theme = activeTheme
+  }
+
+  const filteredPalettes = COLOR_PALETTE_SCHEMES.filter((scheme) => {
+    const matchesCategory = themeFilterCategory === 'all' || scheme.category === themeFilterCategory
+    const matchesSearch =
+      scheme.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      scheme.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      scheme.author.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesCategory && matchesSearch
+  })
 
   const filteredPlugins = BUILTIN_PLUGIN_MANIFESTS.filter(
     (plugin) =>
@@ -47,7 +87,7 @@ export function PluginManagerCenter({ isOpen, onClose }: PluginManagerCenterProp
       plugin.description.toLowerCase().includes(searchQuery.toLowerCase()),
   )
 
-  const handleToggle = (id: string, enable: boolean) => {
+  const handleTogglePlugin = (id: string, enable: boolean) => {
     setActiveProfile('custom')
     if (enable) {
       enablePlugin(id)
@@ -69,48 +109,117 @@ export function PluginManagerCenter({ isOpen, onClose }: PluginManagerCenterProp
   }
 
   return (
-    <div className="plugin-manager-overlay" role="dialog" aria-modal="true" aria-label="Plugin Management Center">
+    <div
+      className="plugin-manager-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Extension & Theme Management Center"
+    >
       <div className="plugin-manager-modal">
         <div className="plugin-manager-header">
-          <h2>Plugin Management Center</h2>
+          <h2>
+            <Palette /> Extension &amp; Color Scheme Installer Center
+          </h2>
           <button type="button" className="close-button" onClick={onClose} aria-label="Close modal">
             ✕
           </button>
         </div>
 
-        <div className="plugin-manager-profiles">
-          <span className="profiles-label">Installer Profile Preset:</span>
-          {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map((profile) => (
-            <button
-              key={profile}
-              type="button"
-              className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
-              onClick={() => applyProfile(profile)}
-            >
-              {profile.charAt(0).toUpperCase() + profile.slice(1)}
-            </button>
-          ))}
-          {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+        {/* Primary Tabs — Color Palette Store active by default */}
+        <div className="plugin-manager-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'palettes'}
+            className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('palettes')}
+          >
+            <Palette /> Color Palette Schemes ({COLOR_PALETTE_SCHEMES.length})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'plugins'}
+            className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
+            onClick={() => setActiveTab('plugins')}
+          >
+            <Blocks /> Feature Plugins &amp; Profiles
+          </button>
         </div>
+
+        {activeTab === 'plugins' && (
+          <div className="plugin-manager-profiles">
+            <span className="profiles-label">Installer Profile Preset:</span>
+            {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
+              (profile) => (
+                <button
+                  key={profile}
+                  type="button"
+                  className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
+                  onClick={() => applyProfile(profile)}
+                >
+                  {profile.charAt(0).toUpperCase() + profile.slice(1)}
+                </button>
+              ),
+            )}
+            {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+          </div>
+        )}
+
+        {activeTab === 'palettes' && (
+          <div className="plugin-manager-profiles">
+            <span className="profiles-label">Category Filter:</span>
+            {(['all', 'dark', 'light', 'contrast'] as const).map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                className={`profile-btn ${themeFilterCategory === cat ? 'active' : ''}`}
+                onClick={() => setThemeFilterCategory(cat)}
+              >
+                {cat.charAt(0).toUpperCase() + cat.slice(1)}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="plugin-manager-search">
           <input
             type="search"
-            placeholder="Search plugins by name or capability..."
+            placeholder={
+              activeTab === 'palettes'
+                ? 'Search color palette schemes by name or theme style...'
+                : 'Search plugins by name or capability...'
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <div className="plugin-manager-list">
-          {filteredPlugins.map((plugin) => (
-            <PluginCard
-              key={plugin.id}
-              manifest={plugin}
-              isEnabled={enabledPluginIds.has(plugin.id)}
-              onToggle={handleToggle}
-            />
-          ))}
-        </div>
+
+        {activeTab === 'palettes' ? (
+          <div className="theme-palette-grid">
+            {filteredPalettes.map((scheme) => (
+              <ThemeCard
+                key={scheme.id}
+                scheme={scheme}
+                isActive={activeTheme === scheme.id}
+                onSelect={handleSelectTheme}
+                onHoverPreviewStart={handleHoverPreviewStart}
+                onHoverPreviewEnd={handleHoverPreviewEnd}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="plugin-manager-list">
+            {filteredPlugins.map((plugin) => (
+              <PluginCard
+                key={plugin.id}
+                manifest={plugin}
+                isEnabled={enabledPluginIds.has(plugin.id)}
+                onToggle={handleTogglePlugin}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
