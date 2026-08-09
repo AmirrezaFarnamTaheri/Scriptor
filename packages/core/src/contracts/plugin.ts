@@ -27,6 +27,8 @@ export interface PluginManifest {
   capabilities: PluginCapability[]
   permissions: PluginPermission[]
   contributes?: PluginContributions
+  capabilityId?: string
+  rustFeatureGate?: string
 }
 
 export interface PluginPermission {

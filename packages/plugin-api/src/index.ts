@@ -7,7 +7,7 @@ export type {
   PluginRuntimePolicy,
 } from '@scriptor/core/contracts/plugin'
 
-export { PLUGIN_API_VERSION, validatePluginManifest, runManifestValidationTests } from './manifest.ts'
+export { PLUGIN_API_VERSION, validatePluginManifest, validateManifest, runManifestValidationTests } from './manifest.ts'
 export type { ManifestValidationResult } from './manifest.ts'
 export {
   PluginRegistry,

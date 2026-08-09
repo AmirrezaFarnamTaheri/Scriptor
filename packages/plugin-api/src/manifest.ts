@@ -113,7 +113,30 @@ export function validatePluginManifest(manifest: PluginManifest): ManifestValida
     errors.push('canvas block contributions require canvas-block capability')
   }
 
+  if (manifest.rustFeatureGate !== undefined && typeof manifest.rustFeatureGate !== 'string') {
+    errors.push('rustFeatureGate must be a string')
+  }
+  if (manifest.capabilityId !== undefined && typeof manifest.capabilityId !== 'string') {
+    errors.push('capabilityId must be a string')
+  }
+
   return { ok: errors.length === 0, errors }
+}
+
+export function validateManifest(input: Partial<PluginManifest>): PluginManifest {
+  const manifest = {
+    activation: ['manual'] as PluginActivation[],
+    capabilities: ['command'] as PluginCapability[],
+    permissions: [{ permission: 'read', reason: 'Default capability access' }] as PluginPermission[],
+    publisher: (input as any).author ?? input.publisher ?? 'Scriptor Team',
+    ...input,
+  } as PluginManifest
+
+  const result = validatePluginManifest(manifest)
+  if (!result.ok) {
+    throw new Error(`Invalid manifest: ${result.errors.join(', ')}`)
+  }
+  return manifest
 }
 
 export function runManifestValidationTests(): string[] {
