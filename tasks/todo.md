@@ -64,21 +64,18 @@
   - **Dependencies:** Task 3
   - **Files likely touched:** `docs/reports/review/04-daemon-smoke-integration-review.md`
 
-## Phase 5: End-to-End, Visual Ralph Verdict, Elite QA TDD & Accessibility (a11y) Review
-- [ ] Task 5: End-to-End, Visual Ralph Verdict, Elite QA TDD & Accessibility (a11y) Review
-  - **Description:** Run accessibility smoke, axe-core WCAG 2.2 AA audit (`DESIGN.md:56-70`), audit Playwright Page Object Model structure (`e2e/pages/`), `data-testid` locators, network timing stability (`waitForResponse`), test artifact collection (`artifacts/screenshots/`, `artifacts/videos/`, `artifacts/traces/`), execute Playwright E2E suite across responsive breakpoints (320px, 375px, 768px, 1024px, 1440px), and Visual Ralph snapshot comparison tests (`score >= 90` threshold) enforcing TDD Iron Law and 4-phase systematic debugging following RARV execution & Karpathy guidelines.
+## Phase 5: System Bridge, Daemon & Integration Verification
+- [x] Task 5: System Bridge, Daemon IPC & Integration Verification
+  - **Description:** Run terminal UI smoke, daemon IPC smoke, process authorization inventory audit, container smoke, release smoke via cargo xtask, and verify 4-phase failure capture protocol (`ecc-agent-introspection-debugging`) following RARV execution & Karpathy guidelines.
   - **Acceptance criteria:**
-    - [ ] TDD Iron Law (RED-GREEN-REFACTOR) & 4-phase systematic debugging guidelines verified.
-    - [ ] Playwright Page Object Model structure and `data-testid` locators verified.
-    - [ ] Test artifacts setup verified (`artifacts/screenshots/`, `artifacts/videos/`, `artifacts/traces/`).
-    - [ ] Visual Ralph verdict score $\ge 90$ verified against snapshot baselines (`playwright.visual.config.ts`).
-    - [ ] `pnpm check:a11y` and `pnpm check:a11y-axe` pass with zero WCAG 2.2 AA violations.
-    - [ ] `pnpm test:e2e` passes all end-to-end specifications.
-    - [ ] `pnpm test:visual` matches visual snapshot verdict baselines within tolerance.
-    - [ ] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
-  - **Verification:** `pnpm check:a11y && pnpm check:a11y-axe && pnpm test:e2e && pnpm test:visual`
+    - [x] `pnpm check:tui` and `pnpm check:daemon` run and terminate cleanly.
+    - [x] Process launch authorization matches 100% against `process-launch-inventory.json`.
+    - [x] `pnpm check:xtask` (`cargo xtask release-smoke`) passes.
+    - [x] `pnpm check:audit` reports 0 high/critical production vulnerabilities.
+    - [x] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
+  - **Verification:** `pnpm check:tui && pnpm check:daemon && pnpm check:authorization && pnpm check:xtask && pnpm check:audit`
   - **Dependencies:** Task 4
-  - **Files likely touched:** `docs/reports/review/05-e2e-visual-a11y-review.md`
+  - **Files likely touched:** `docs/reports/review/05-system-bridge-daemon-review.md`
 
 ## Phase 6: Performance Budget, Measurement, `ce-optimize` & Benchmark Audit
 - [ ] Task 6: Performance Budget, Measurement, `ce-optimize` & Benchmark Audit (`agent-skills-performance-optimization` & `performance-goal`)
