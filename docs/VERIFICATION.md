@@ -82,6 +82,12 @@ Toolbar-popover verification must prove that Typography and Insert menus:
 - support Arrow Up/Down, Home, End, Escape, Tab, and outside-click dismissal;
 - restore focus to the trigger after Escape dismissal.
 
+Visual evidence captures must wait until the rendered preview has settled (the expected preview
+heading is visible and no `.preview-error` is present). Baseline assertions are reserved for stable
+core surfaces; transient/state-review screenshots are attached to the Visual review job instead of
+creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
+with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
+
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.

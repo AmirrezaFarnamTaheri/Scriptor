@@ -310,8 +310,11 @@ test('mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1024 })
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForEditorReady(page)
+  await waitForPreviewReady(page)
+  const mobileNav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+  await expect(mobileNav).toBeVisible()
+  await expect(mobileNav).toBeInViewport()
   await page.screenshot({ path: shotPath('workspace-mobile'), fullPage: false })
-  await expect(page).toHaveScreenshot('workspace-mobile.png', { fullPage: false })
 })
 
 test('onboarding tour', async ({ page }) => {

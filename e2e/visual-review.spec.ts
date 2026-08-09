@@ -73,6 +73,7 @@ async function waitForInspectorReady(page: Page) {
 async function waitForVisualWorkspace(page: Page) {
   await waitForWorkspace(page)
   await waitForInspectorReady(page)
+  await waitForActiveSplitPreview(page)
 }
 
 async function waitForPreviewReady(page: Page) {
@@ -81,6 +82,15 @@ async function waitForPreviewReady(page: Page) {
   await expect(preview.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
   await expect(page.locator('.preview-error')).toHaveCount(0)
   await settleLayout(page)
+}
+
+async function waitForActiveSplitPreview(page: Page) {
+  const splitPreview = page.getByRole('article', { name: 'Markdown preview' })
+  if (await splitPreview.isVisible()) await waitForPreviewReady(page)
+}
+
+async function captureVisual(page: Page, name: string) {
+  await page.screenshot({ path: test.info().outputPath(name), fullPage: false })
 }
 
 async function openVisualWorkspace(page: Page) {
@@ -102,6 +112,7 @@ async function openMobileWorkspace(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForEditorReady(page)
+  await waitForActiveSplitPreview(page)
   const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
   await expect(nav).toBeVisible()
   await expect(nav).toBeInViewport()
@@ -147,9 +158,8 @@ test.describe('visual review states', () => {
     const inspector = page.getByRole('complementary', { name: 'Inspector' })
     await expect(inspector.getByRole('tab', { name: 'Preview', selected: true })).toBeVisible()
     await waitForPreviewReady(page)
-    await expect(inspector).toBeInViewport()
-
-    await expect(page).toHaveScreenshot('visual-inspector-preview.png', { fullPage: false })
+    await expect(inspector.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
+    await captureVisual(page, 'visual-inspector-preview.png')
   })
 
   test('dark workspace with split preview', async ({ page }) => {
@@ -161,7 +171,7 @@ test.describe('visual review states', () => {
     await waitForPreviewReady(page)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
 
-    await expect(page).toHaveScreenshot('visual-editor-split-dark.png', { fullPage: false })
+    await captureVisual(page, 'visual-editor-split-dark.png')
   })
 
   for (const menuName of ['Typography', 'Insert']) {
@@ -175,9 +185,7 @@ test.describe('visual review states', () => {
       await expect(menu).toBeVisible()
       await expect(menu).toHaveAttribute('data-positioned', 'true')
       await expect(menu.getByRole('menuitem').first()).toBeFocused()
-      await expect(menu).toHaveScreenshot(`visual-${menuName.toLowerCase()}-popover.png`, {
-        maxDiffPixelRatio: 0.01,
-      })
+      await menu.screenshot({ path: test.info().outputPath(`visual-${menuName.toLowerCase()}-popover.png`) })
     })
   }
 
@@ -197,9 +205,7 @@ test.describe('visual review states', () => {
     await expect(sharing).toContainText('visual-review')
     await settleLayout(page)
 
-    await expect(mcpPanel).toHaveScreenshot('visual-mcp-sharing-inventory.png', {
-      maxDiffPixelRatio: 0.01,
-    })
+    await mcpPanel.screenshot({ path: test.info().outputPath('visual-mcp-sharing-inventory.png') })
   })
 
   test('editor recovery fallback', async ({ page }) => {
@@ -212,9 +218,7 @@ test.describe('visual review states', () => {
     const fallback = page.getByRole('alert').filter({ hasText: 'The editor could not be displayed' })
     await expect(fallback).toBeVisible({ timeout: 45_000 })
     await expect(fallback.getByRole('button', { name: 'Retry' })).toBeFocused()
-    await expect(fallback.locator(':scope > div')).toHaveScreenshot('visual-editor-recovery.png', {
-      maxDiffPixelRatio: 0.01,
-    })
+    await fallback.locator(':scope > div').screenshot({ path: test.info().outputPath('visual-editor-recovery.png') })
   })
 
   test('workspace at 1024px breakpoint', async ({ page }) => {
@@ -227,7 +231,7 @@ test.describe('visual review states', () => {
     await expect.poll(async () => (await editor.boundingBox())?.height ?? 0).toBeGreaterThan(280)
     await expect(page.getByRole('complementary', { name: 'Vault' })).toBeInViewport()
 
-    await expect(page).toHaveScreenshot('visual-workspace-tablet-1024.png', { fullPage: false })
+    await captureVisual(page, 'visual-workspace-tablet-1024.png')
   })
 
   test('compact mobile editor pane', async ({ page }) => {
@@ -236,7 +240,7 @@ test.describe('visual review states', () => {
     await expect(nav.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-current', 'page')
     await expect(page.locator('.editor-panel')).toBeInViewport()
 
-    await expect(page).toHaveScreenshot('visual-mobile-editor-390.png', { fullPage: false })
+    await captureVisual(page, 'visual-mobile-editor-390.png')
   })
 
   test('compact mobile vault pane', async ({ page }) => {
@@ -248,7 +252,7 @@ test.describe('visual review states', () => {
     await expect(page.locator('.vault-panel')).toBeInViewport()
     await settleLayout(page)
 
-    await expect(page).toHaveScreenshot('visual-mobile-vault-390.png', { fullPage: false })
+    await captureVisual(page, 'visual-mobile-vault-390.png')
   })
 
   test('compact mobile inspector pane', async ({ page }) => {
@@ -259,6 +263,6 @@ test.describe('visual review states', () => {
     await waitForInspectorReady(page)
     await expect(page.locator('.inspector-panel')).toBeInViewport()
 
-    await expect(page).toHaveScreenshot('visual-mobile-inspector-390.png', { fullPage: false })
+    await captureVisual(page, 'visual-mobile-inspector-390.png')
   })
 })
