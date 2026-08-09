@@ -1,8 +1,8 @@
-# Capability Decoupling & Installable Plugin Feature Architecture (Batch Refactor & Migration Plan)
+# Capability Decoupling & Installable Plugin Feature Architecture (Comprehensive TDD Plan)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Decouple Scriptor's heavy and specialized capabilities (Spatial Canvas, Zotero & CSL Citations, Pandoc & Typst Export, Interactive Knowledge Graph, MCP Agent Server) into installable, toggleable plugin features managed via a native Plugin Management Center UI.
+**Goal:** Decouple Scriptor's heavy and specialized capabilities (Spatial Canvas, Zotero & CSL Citations, Pandoc & Typst Export, Interactive Knowledge Graph, MCP Agent Server, PDF Translation) into installable, toggleable plugin features managed via a native Plugin Management Center UI.
 
 **Architecture:** Core Scriptor is streamlined into a lean, fast Markdown editor & vault kernel. Higher-level features implement the `@scriptor/core/contracts/plugin` contract, registering UI contributions (commands, renderer extensions, inspector widgets, export profiles, canvas tools/blocks) dynamically with dynamic React context stores (`PluginStateContext`) and Rust RPC middleware gating (`RpcError::PluginDisabled`).
 
@@ -10,26 +10,115 @@
 
 ---
 
-## Deprecation & Backward-Compatibility Migration Strategy
+## Complete API Contract & Contribution Specification
 
-Following the **Strangler Pattern** and **Expand/Contract** migration rules:
+### 1. `PluginManifest` and `PluginContributions` (`packages/core/src/contracts/plugin.ts`)
 
-1. **Strangler Pattern for Legacy Component Exports:**
-   - Legacy component import paths (e.g. `src/components/CanvasPanel.tsx`, `src/components/GraphPanel.tsx`, `src/components/mcp/McpInspector.tsx`) will be preserved as thin backward-compatible adapter wrappers re-exporting from decoupled packages (`@scriptor/plugin-canvas`, `@scriptor/plugin-graph`, `@scriptor/plugin-mcp`).
-   - Emit a one-time dev environment warning (`console.warn('[Scriptor Deprecation] Monolithic import from src/components/... is deprecated. Import from @scriptor/plugin-... instead.')`).
-2. **Expand/Contract Vault Schema Migration:**
-   - **Expand:** Introduce `.scriptor/plugins.json` per-vault plugin state file as a optional additive file. If absent, Scriptor defaults to enabling pre-bundled core plugins (`canvas`, `citations`, `export`, `graph`, `mcp`).
-   - **Migrate:** Auto-generate `.scriptor/plugins.json` on first user interaction with Plugin Management Center.
-   - **Contract:** Legacy un-gated monolithic imports will sunset in Scriptor 0.2.0.
+```typescript
+export interface PluginPermissions {
+  filesystem?: string[]
+  network?: string[]
+  subprocess?: string[]
+}
 
----
+export interface PluginCommandContribution {
+  id: string
+  title: string
+  category?: string
+  shortcut?: string
+}
 
-## Rust 1.96 / 2024 Edition Safety & Error Discipline (`rust-skills`)
+export interface RendererExtensionContribution {
+  id: string
+  name: string
+  type: 'syntax' | 'postprocess' | 'style'
+}
 
-1. **`err-thiserror-lib`**: Use `thiserror::Error` for library error types in `crates/ipc` and `crates/system-bridge`.
-2. **`err-no-unwrap-prod`**: Zero `unwrap()` calls in production RPC handlers or Tauri IPC commands. All conversions use `unwrap_or`, `expect("bug invariant")`, or `?`.
-3. **`unsafe-safety-comment`**: Every unsafe FFI or system call must carry an explicit `// SAFETY:` rationale block.
-4. **`num-overflow-explicit`**: All parameter type casting uses `TryFrom` / `try_into()`.
+export interface InspectorWidgetContribution {
+  id: string
+  title: string
+  location: 'sidebar' | 'inspector' | 'bottom'
+}
+
+export interface ExportProfileContribution {
+  id: string
+  name: string
+  format: 'pdf' | 'html' | 'markdown' | 'typst' | 'textbundle'
+}
+
+export interface McpToolContribution {
+  name: string
+  description: string
+  readOnly: boolean
+}
+
+export interface VaultHealthCheckContribution {
+  id: string
+  name: string
+}
+
+export interface TemplatePackContribution {
+  id: string
+  name: string
+}
+
+export interface CanvasToolContribution {
+  id: string
+  label: string
+}
+
+export interface CanvasBlockContribution {
+  type: string
+  label: string
+}
+
+export interface PluginContributions {
+  commands?: PluginCommandContribution[]
+  rendererExtensions?: RendererExtensionContribution[]
+  inspectorWidgets?: InspectorWidgetContribution[]
+  exportProfiles?: ExportProfileContribution[]
+  mcpTools?: McpToolContribution[]
+  vaultHealthChecks?: VaultHealthCheckContribution[]
+  templatePacks?: TemplatePackContribution[]
+  canvasTools?: CanvasToolContribution[]
+  canvasBlocks?: CanvasBlockContribution[]
+}
+
+export interface PluginManifest {
+  id: string
+  name: string
+  version: string
+  description: string
+  author: string
+  license?: string
+  main?: string
+  capabilityId?: string
+  rustFeatureGate?: string
+  permissions?: PluginPermissions
+  contributes?: PluginContributions
+}
+```
+
+### 2. Vault Manifest Persistence Schema (`.scriptor/plugins.json`)
+
+```json
+{
+  "schemaVersion": 1,
+  "enabledPlugins": [
+    "scriptor.canvas",
+    "scriptor.citations",
+    "scriptor.export",
+    "scriptor.graph",
+    "scriptor.mcp"
+  ],
+  "disabledPlugins": [],
+  "settings": {
+    "scriptor.pdf-translate": {
+      "autoDownloadBinary": false
+    }
+  }
+}
+```
 
 ---
 
@@ -79,22 +168,51 @@ WAVE 2: UI INTEGRATION & MIGRATION SYNTHESIS PACKETS (Sequential Integration Gat
 
 ---
 
-## Work Packets & Task Execution Detail
+## Detailed Step-by-Step Task Breakdown
 
 ### Wave 0: Foundation Packets
 
 #### Packet 0.1: Expand Core Plugin Contract Schema
 
 **Files:**
-- Modify: `packages/core/src/contracts/plugin.ts:1-80`
-- Modify: `packages/plugin-api/src/manifest.ts:1-60`
+- Modify: `packages/core/src/contracts/plugin.ts`
+- Modify: `packages/plugin-api/src/manifest.ts`
 - Test: `packages/plugin-api/src/manifest.test.ts`
 
-- [ ] **Step 1: Write failing test** (`packages/plugin-api/src/manifest.test.ts`)
-- [ ] **Step 2: Verify test fails** (`node --experimental-strip-types packages/plugin-api/src/manifest.test.ts`)
-- [ ] **Step 3: Implement minimal code** (`plugin.ts`, `manifest.ts`)
-- [ ] **Step 4: Verify test passes** (`pnpm check:contracts && pnpm check:plugins`)
-- [ ] **Step 5: Commit** (`git commit -m "feat(plugin): expand PluginManifest contract with rustFeatureGate and capabilityId"`)
+- [ ] **Step 1: Write failing test (`packages/plugin-api/src/manifest.test.ts`)**
+```typescript
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
+import { validateManifest } from './manifest.ts'
+
+test('validateManifest accepts rustFeatureGate and capabilityId attributes', () => {
+  const manifest = validateManifest({
+    id: 'scriptor.canvas',
+    name: 'Spatial Canvas',
+    version: '0.1.0',
+    description: 'Edgeless visual canvas',
+    author: 'Scriptor Team',
+    rustFeatureGate: 'scriptor-canvas-engine',
+    capabilityId: 'canvas',
+  })
+  assert.equal(manifest.rustFeatureGate, 'scriptor-canvas-engine')
+  assert.equal(manifest.capabilityId, 'canvas')
+})
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+Run: `node --experimental-strip-types packages/plugin-api/src/manifest.test.ts`
+Expected: FAIL with property `rustFeatureGate` or `capabilityId` not recognized.
+
+- [ ] **Step 3: Implement minimal code in `plugin.ts` and `manifest.ts`**
+Add `capabilityId?: string` and `rustFeatureGate?: string` to `PluginManifest` in `packages/core/src/contracts/plugin.ts` and parse them in `packages/plugin-api/src/manifest.ts`.
+
+- [ ] **Step 4: Run test to verify it passes**
+Run: `node --experimental-strip-types packages/plugin-api/src/manifest.test.ts && pnpm check:contracts && pnpm check:plugins`
+Expected: PASS
+
+- [ ] **Step 5: Commit**
+Run: `git add packages/core/src/contracts/plugin.ts packages/plugin-api/src/manifest.ts packages/plugin-api/src/manifest.test.ts && git commit -m "feat(plugin): expand PluginManifest contract with rustFeatureGate and capabilityId"`
 
 #### Packet 0.2: Implement Dynamic Plugin State Context & Storage Adapter
 
@@ -103,8 +221,8 @@ WAVE 2: UI INTEGRATION & MIGRATION SYNTHESIS PACKETS (Sequential Integration Gat
 - Create: `src/context/PluginStateContext.test.tsx`
 - Modify: `src/bridge/plugin.ts`
 
-- [ ] **Step 1: Write failing test** (`src/context/PluginStateContext.test.tsx`)
-- [ ] **Step 2: Verify test fails** (`pnpm check:portal`)
+- [ ] **Step 1: Write failing test (`src/context/PluginStateContext.test.tsx`)**
+- [ ] **Step 2: Run test to verify it fails** (`pnpm check:portal`)
 - [ ] **Step 3: Implement minimal code** (`PluginStateContext.tsx`, `src/bridge/plugin.ts`)
 - [ ] **Step 4: Verify test passes** (`node --experimental-strip-types src/context/PluginStateContext.test.tsx`)
 - [ ] **Step 5: Commit** (`git commit -m "feat(plugin): add PluginStateContext store for dynamic plugin enablement"`)
@@ -112,10 +230,10 @@ WAVE 2: UI INTEGRATION & MIGRATION SYNTHESIS PACKETS (Sequential Integration Gat
 #### Packet 0.3: Implement Rust RPC Plugin Disabled Error Variant
 
 **Files:**
-- Modify: `crates/ipc/src/lib.rs:80-120`
+- Modify: `crates/ipc/src/lib.rs`
 - Test: `crates/ipc/tests/rpc_test.rs`
 
-- [ ] **Step 1: Write failing test** (`crates/ipc/tests/rpc_test.rs`)
+- [ ] **Step 1: Write failing test (`crates/ipc/tests/rpc_test.rs`)**
 - [ ] **Step 2: Verify test fails** (`cargo test -p scriptor-ipc --test rpc_test`)
 - [ ] **Step 3: Implement minimal code** (`crates/ipc/src/lib.rs`)
 - [ ] **Step 4: Verify test passes** (`cargo test -p scriptor-ipc --test rpc_test`)
