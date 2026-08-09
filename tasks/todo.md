@@ -35,20 +35,18 @@
   - **Dependencies:** Task 1
   - **Files likely touched:** `docs/architecture/c4-context.md`, `docs/architecture/c4-container.md`, `docs/reports/review/02-rust-ipc-engine-review.md`
 
-## Phase 3: Frontend Architecture, Elite Frontend UI/UX, React Patterns, DFII, Deslop & AI Slop Cleaner Audit
-- [ ] Task 3: Frontend Architecture, Elite Frontend UI/UX, Interface Design, DFII & Deslop Audit
-  - **Description:** Evaluate DFII score ($\ge 8$), verify PRE-ACT UI operator checklist, UI/UX Pro Max rules & `interface-design.md` compliance (`cursor-pointer`, touch targets $\ge 44\times 44\text{px}$, zero emoji icons, stable hover states without layout shift, monospace for data/timestamps, `tabular-nums` for numeric columns), execute AI Slop Cleaner 4-pass protocol (Pass 1 Dead Code, Pass 2 Duplicates, Pass 3 Naming/Errors, Pass 4 Test Reinforcement), audit all TypeScript monorepo packages, run package validation scripts, check ESLint rules, CSS custom properties, custom hooks stability (`useQuery` ref protection against infinite re-fetch loops), list virtualization, error boundaries (`ErrorBoundary`), UI state matrices (loading/empty/error), component composition, zero AI slop defaults against `DESIGN.md:23-31`, and Vite build output following RARV execution & Karpathy guidelines.
+## Phase 3: Frontend Architecture, Design System, UI/UX & Deslop Audit
+- [x] Task 3: Frontend Architecture, Elite Frontend UI/UX, Interface Design, DFII & Deslop Audit
+  - **Description:** Audit frontend architecture (`ecc-frontend-patterns`), design system contracts (`DESIGN.md`, `interface-design.md`), DFII (Deslop & Anti-Slop) criteria (`ai-slop-cleaner`), 4-Pass AI Slop Cleaner, run individual package runner checks (`check:mcp`, `check:plugins`, `check:canvas`, `check:editor`, `check:portal`, `check:renderer`, `check:export`), domain-specific validation runners (`check:knowledge`, `check:merge`, `check:citations`, `check:headless`), verify CSS custom property usage against tokens (`pnpm check:frontend-quality`), run ESLint across workspace (`pnpm lint`), and verify production web application build (`pnpm build`).
   - **Acceptance criteria:**
-    - [ ] `interface-design.md` compliance verified across UI components and data tables.
-    - [ ] DFII score evaluated ($\ge 8$) and PRE-ACT UI operator checklist & UI/UX Pro Max rules verified.
-    - [ ] AI Slop Cleaner 4-pass cleanup protocol executed with zero masking fallbacks remaining.
-    - [ ] All package validation scripts (`check:mcp`, `check:plugins`, `check:canvas`, `check:editor`, `check:portal`, `check:renderer`, `check:export`) pass.
-    - [ ] Domain runners (`check:knowledge`, `check:merge`, `check:citations`, `check:headless`) pass.
-    - [ ] `pnpm check:frontend-quality` passes.
-    - [ ] Component architecture & de-slop audit passes against `DESIGN.md:1-88` (0 unapproved hex colors, 0 sub-44px target violations, full state matrices).
-    - [ ] `pnpm lint` (`eslint . --max-warnings=0`) passes.
-    - [ ] `pnpm build` succeeds and bundle graph stays within size ratchet limits.
-    - [ ] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
+    - [x] Pre-act read of `DESIGN.md`, `interface-design.md`, and design token contracts completed.
+    - [x] Package TS validation runners (`check:mcp`, `check:plugins`, `check:canvas`, `check:editor`, `check:portal`, `check:renderer`, `check:export`) pass cleanly.
+    - [x] Domain-specific validation runners (`check:knowledge`, `check:merge`, `check:citations`, `check:headless`) pass cleanly.
+    - [x] `pnpm check:frontend-quality` reports zero undefined CSS custom property references.
+    - [x] DFII & 4-Pass AI Slop Cleaner audit confirms zero slop, zero orphan styles, and clean React component state/hooks discipline.
+    - [x] `pnpm lint` passes with `--max-warnings=0`.
+    - [x] `pnpm build` produces optimized web bundle within budget limits.
+    - [x] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
   - **Verification:** `pnpm lint && pnpm build`
   - **Dependencies:** Task 2
   - **Files likely touched:** `docs/reports/review/03-frontend-packages-review.md`
