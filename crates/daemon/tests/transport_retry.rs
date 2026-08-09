@@ -27,7 +27,8 @@ fn test_socket_name() -> (String, Option<tempfile::TempDir>) {
 
 fn resolve_name(path: &str) -> Name<'_> {
     if cfg!(windows) {
-        path.to_ns_name::<GenericNamespaced>().expect("resolve socket name")
+        path.to_ns_name::<GenericNamespaced>()
+            .expect("resolve socket name")
     } else {
         Path::new(path)
             .to_fs_name::<GenericFilePath>()

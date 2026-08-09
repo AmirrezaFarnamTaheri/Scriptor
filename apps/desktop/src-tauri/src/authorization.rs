@@ -78,14 +78,20 @@ impl SensitiveOperation {
                 "A background process will be started for this application session."
             }
             Self::DeleteBackup => "This removes a local recovery snapshot and cannot be undone.",
-            Self::DeleteNote => "The selected note will be deleted from disk and cannot be undone outside recovery/history tools.",
+            Self::DeleteNote => {
+                "The selected note will be deleted from disk and cannot be undone outside recovery/history tools."
+            }
             Self::GitPull => "Remote changes can modify files in the current vault.",
             Self::GitPush => "Local commits will be sent to the configured remote repository.",
             Self::ImportVault => {
                 "Files from the selected source will be copied and transformed inside the current vault."
             }
-            Self::KeychainDelete => "The credential will be removed from the operating-system keychain.",
-            Self::KeychainWrite => "The credential will be stored in the operating-system keychain.",
+            Self::KeychainDelete => {
+                "The credential will be removed from the operating-system keychain."
+            }
+            Self::KeychainWrite => {
+                "The credential will be stored in the operating-system keychain."
+            }
             Self::PdfTranslation => {
                 "An external executable will read the selected PDF and write translated output."
             }
@@ -148,7 +154,11 @@ impl AuthorizationBroker {
         }
     }
 
-    pub fn issue(&self, operation: SensitiveOperation, scope: Option<String>) -> AuthorizationGrant {
+    pub fn issue(
+        &self,
+        operation: SensitiveOperation,
+        scope: Option<String>,
+    ) -> AuthorizationGrant {
         let now = Self::now_ms();
         let expires_at_ms = now.saturating_add(GRANT_TTL.as_millis() as u64);
         let token = Uuid::new_v4().to_string();
@@ -263,54 +273,52 @@ mod tests {
         let broker = AuthorizationBroker::default();
         let grant = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
 
-        assert!(broker
-            .consume(
-                &grant.token,
-                SensitiveOperation::GitPush,
-                Some("vault-a")
-            )
-            .is_ok());
-        assert!(broker
-            .consume(
-                &grant.token,
-                SensitiveOperation::GitPush,
-                Some("vault-a")
-            )
-            .is_err());
+        assert!(
+            broker
+                .consume(&grant.token, SensitiveOperation::GitPush, Some("vault-a"))
+                .is_ok()
+        );
+        assert!(
+            broker
+                .consume(&grant.token, SensitiveOperation::GitPush, Some("vault-a"))
+                .is_err()
+        );
     }
 
     #[test]
     fn grants_reject_wrong_operation_or_scope() {
         let broker = AuthorizationBroker::default();
         let operation = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
-        assert!(broker
-            .consume(
-                &operation.token,
-                SensitiveOperation::GitPull,
-                Some("vault-a")
-            )
-            .is_err());
+        assert!(
+            broker
+                .consume(
+                    &operation.token,
+                    SensitiveOperation::GitPull,
+                    Some("vault-a")
+                )
+                .is_err()
+        );
 
         let scope = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
-        assert!(broker
-            .consume(
-                &scope.token,
-                SensitiveOperation::GitPush,
-                Some("vault-b")
-            )
-            .is_err());
+        assert!(
+            broker
+                .consume(&scope.token, SensitiveOperation::GitPush, Some("vault-b"))
+                .is_err()
+        );
     }
 
     #[test]
     fn resource_sync_grants_are_plan_scoped() {
         let broker = AuthorizationBroker::default();
         let grant = broker.issue(SensitiveOperation::ResourceSync, Some("plan-a".into()));
-        assert!(broker
-            .consume(
-                &grant.token,
-                SensitiveOperation::ResourceSync,
-                Some("plan-b")
-            )
-            .is_err());
+        assert!(
+            broker
+                .consume(
+                    &grant.token,
+                    SensitiveOperation::ResourceSync,
+                    Some("plan-b")
+                )
+                .is_err()
+        );
     }
 }

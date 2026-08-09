@@ -1,4 +1,4 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -31,13 +31,19 @@ impl EmbeddingStore {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn: Mutex::new(conn), dimension })
+        Ok(Self {
+            conn: Mutex::new(conn),
+            dimension,
+        })
     }
 
     pub fn open_in_memory(dimension: usize) -> Result<Self, EmbeddingError> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn: Mutex::new(conn), dimension })
+        Ok(Self {
+            conn: Mutex::new(conn),
+            dimension,
+        })
     }
 
     pub fn dimension(&self) -> usize {
@@ -53,7 +59,10 @@ impl EmbeddingStore {
         }
 
         let bytes = vector_to_bytes(vector);
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         conn.execute(
             "INSERT OR REPLACE INTO embeddings (id, vector, dimension, updated_at)
              VALUES (?1, ?2, ?3, unixepoch())",
@@ -62,7 +71,11 @@ impl EmbeddingStore {
         Ok(())
     }
 
-    pub fn query_nearest(&self, vector: &[f32], k: usize) -> Result<Vec<(String, f32)>, EmbeddingError> {
+    pub fn query_nearest(
+        &self,
+        vector: &[f32],
+        k: usize,
+    ) -> Result<Vec<(String, f32)>, EmbeddingError> {
         if vector.len() != self.dimension {
             return Err(EmbeddingError::DimensionMismatch {
                 expected: self.dimension,
@@ -70,7 +83,10 @@ impl EmbeddingStore {
             });
         }
 
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT id, vector FROM embeddings WHERE dimension = ?1")?;
         let rows = stmt.query_map(params![self.dimension as i64], |row| {
             let id: String = row.get(0)?;
@@ -92,13 +108,19 @@ impl EmbeddingStore {
     }
 
     pub fn delete_embedding(&self, id: &str) -> Result<(), EmbeddingError> {
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         conn.execute("DELETE FROM embeddings WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     pub fn count(&self) -> Result<usize, EmbeddingError> {
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
         Ok(count as usize)
     }
@@ -130,11 +152,7 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         norm_b += b[i] * b[i];
     }
     let denom = norm_a.sqrt() * norm_b.sqrt();
-    if denom == 0.0 {
-        0.0
-    } else {
-        dot / denom
-    }
+    if denom == 0.0 { 0.0 } else { dot / denom }
 }
 
 #[cfg(test)]

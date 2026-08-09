@@ -1,13 +1,13 @@
 use scriptor_vault::{
-    metadata_from_markdown, read_note, scan_vault_for_index, NoteDocument, ScannedEntryKind, VaultSession,
-    MAX_INDEXED_NOTE_BYTES,
+    MAX_INDEXED_NOTE_BYTES, NoteDocument, ScannedEntryKind, VaultSession, metadata_from_markdown,
+    read_note, scan_vault_for_index,
 };
 
 use crate::bibliography::sync_vault_bibliography;
 use crate::citation::register_bibliography_keys;
-use crate::db::{default_cache_path, IndexCache};
+use crate::db::{IndexCache, default_cache_path};
 use crate::error::IndexerError;
-use crate::health::{build_health_report, CacheStatus, VaultHealthReport};
+use crate::health::{CacheStatus, VaultHealthReport, build_health_report};
 use crate::links::{replace_note_links, resolve_link_targets};
 use crate::notes::{note_needs_reindex, remove_note_from_index, session_cache_path, upsert_note};
 
@@ -52,7 +52,10 @@ pub struct RebuildProgressReport {
     pub event_index: u32,
 }
 
-pub fn rebuild_index(session: &VaultSession, bibliography_keys: &[&str]) -> Result<RebuildSummary, IndexerError> {
+pub fn rebuild_index(
+    session: &VaultSession,
+    bibliography_keys: &[&str],
+) -> Result<RebuildSummary, IndexerError> {
     rebuild_index_with_progress(session, bibliography_keys, |_| ())
 }
 
@@ -149,7 +152,12 @@ pub fn rebuild_index_with_progress(
         health,
     };
 
-    emit("complete", notes_total, notes_total, RebuildStatus::Complete);
+    emit(
+        "complete",
+        notes_total,
+        notes_total,
+        RebuildStatus::Complete,
+    );
 
     Ok(summary)
 }

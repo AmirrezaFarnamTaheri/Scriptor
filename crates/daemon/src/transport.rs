@@ -3,22 +3,22 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use scriptor_ipc::{
-    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, RateLimiter, IpcError, RpcMethod,
-    RpcPayload, RpcRequest, RpcResponse, RpcResult, ServerMessage,
-};
-use scriptor_system_bridge::scriptor_data_dir;
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Name};
+use scriptor_ipc::{
+    IpcError, RateLimiter, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult,
+    ServerMessage, fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame,
+};
+use scriptor_system_bridge::scriptor_data_dir;
 use serde::{Deserialize, Serialize};
 
 use scriptor_export_runner::run_export_job;
 use scriptor_indexer::rebuild_index;
 
-use crate::locks::lock_recover;
 use crate::command_gateway;
 use crate::events::EventHub;
 use crate::handler::DaemonState;
+use crate::locks::lock_recover;
 use crate::watcher::restart_vault_watcher;
 
 const SOCKET_BASENAME: &str = "scriptor-core";
@@ -40,14 +40,16 @@ pub fn default_socket_name() -> Result<String, IpcError> {
     if cfg!(windows) {
         Ok(SOCKET_BASENAME.to_string())
     } else {
-        let data_dir = scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
+        let data_dir =
+            scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
         let socket_path = data_dir.join(format!("{SOCKET_BASENAME}.sock"));
         Ok(socket_path.display().to_string())
     }
 }
 
 pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
-    let data_dir = scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
+    let data_dir =
+        scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
     Ok(data_dir.join(ENDPOINT_FILE))
 }
 
@@ -103,12 +105,16 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+    a.iter()
+        .zip(b.iter())
+        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+        == 0
 }
 
 fn endpoint_hmac_key() -> Result<String, IpcError> {
-    let data_dir = scriptor_data_dir("scriptor")
-        .map_err(|error| IpcError::Codec(format!("cannot resolve daemon data directory: {error}")))?;
+    let data_dir = scriptor_data_dir("scriptor").map_err(|error| {
+        IpcError::Codec(format!("cannot resolve daemon data directory: {error}"))
+    })?;
     let key_path = data_dir.join(".endpoint-hmac-key");
     match fs::read_to_string(&key_path) {
         Ok(existing) => {
@@ -132,7 +138,10 @@ fn endpoint_hmac_key() -> Result<String, IpcError> {
     let opened = {
         use std::os::unix::fs::OpenOptionsExt;
         let mut opts = fs::OpenOptions::new();
-        opts.write(true).create_new(true).mode(0o600).open(&key_path)
+        opts.write(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(&key_path)
     };
     #[cfg(not(unix))]
     let opened = fs::OpenOptions::new()
@@ -175,7 +184,8 @@ pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
         nonce: Some(nonce),
         hmac: Some(hmac),
     };
-    let json = serde_json::to_string_pretty(&endpoint).map_err(|error| IpcError::Codec(error.to_string()))?;
+    let json = serde_json::to_string_pretty(&endpoint)
+        .map_err(|error| IpcError::Codec(error.to_string()))?;
 
     let write_result = (|| -> Result<(), IpcError> {
         #[cfg(unix)]
@@ -233,7 +243,9 @@ pub fn read_endpoint() -> Result<DaemonEndpoint, IpcError> {
     };
     let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce)?;
     if !constant_time_eq(hmac.as_bytes(), expected_hmac.as_bytes()) {
-        return Err(IpcError::Codec("endpoint HMAC mismatch; file may be tampered".into()));
+        return Err(IpcError::Codec(
+            "endpoint HMAC mismatch; file may be tampered".into(),
+        ));
     }
 
     Ok(endpoint)
@@ -368,12 +380,7 @@ fn connect_authenticated_client_inner(
             Ok(stream) => return Ok((stream, endpoint)),
             Err(error) if retryable_connect_error(&error) => {
                 on_socket_retry(&endpoint);
-                wait_for_retry(
-                    start,
-                    retry_budget,
-                    retry_interval,
-                    IpcError::from(error),
-                )?;
+                wait_for_retry(start, retry_budget, retry_interval, IpcError::from(error))?;
             }
             Err(error) => return Err(IpcError::from(error)),
         }
@@ -411,9 +418,10 @@ impl Drop for ConnectionSlot {
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
     if !cfg!(windows)
-        && let Some(parent) = Path::new(&resolved).parent() {
-            fs::create_dir_all(parent).map_err(IpcError::from)?;
-        }
+        && let Some(parent) = Path::new(&resolved).parent()
+    {
+        fs::create_dir_all(parent).map_err(IpcError::from)?;
+    }
     let name = resolve_name(&resolved)?;
     let listener = ListenerOptions::new()
         .name(name.borrow())
@@ -487,16 +495,17 @@ pub fn handle_connection(
     let mut limiter = RateLimiter::per_second(MAX_RPC_PER_CONNECTION_PER_SEC);
 
     const MAX_EVENTS_PER_DRAIN: usize = 32;
-    let drain_events = |stream: &mut LocalSocketStream,
-                        event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
-        for _ in 0..MAX_EVENTS_PER_DRAIN {
-            let Ok(event) = event_rx.try_recv() else {
-                break;
-            };
-            write_frame(stream, &ServerMessage::Event(event))?;
-        }
-        Ok::<(), IpcError>(())
-    };
+    let drain_events =
+        |stream: &mut LocalSocketStream,
+         event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
+            for _ in 0..MAX_EVENTS_PER_DRAIN {
+                let Ok(event) = event_rx.try_recv() else {
+                    break;
+                };
+                write_frame(stream, &ServerMessage::Event(event))?;
+            }
+            Ok::<(), IpcError>(())
+        };
 
     loop {
         drain_events(&mut stream, &event_rx)?;
@@ -568,14 +577,17 @@ fn dispatch_request(
         RpcMethod::RebuildIndex => dispatch_rebuild_sync(state, id),
         RpcMethod::OpenVault { .. } => {
             let response = lock_recover(state).handle(request);
-            if matches!(response.result, RpcResult::Ok(RpcPayload::VaultOpened { .. }))
-                && let Err(error) = restart_vault_watcher(state) {
-                    tracing::warn!(
-                        target: "scriptor_daemon::transport",
-                        %error,
-                        "vault watcher failed to restart after OpenVault",
-                    );
-                }
+            if matches!(
+                response.result,
+                RpcResult::Ok(RpcPayload::VaultOpened { .. })
+            ) && let Err(error) = restart_vault_watcher(state)
+            {
+                tracing::warn!(
+                    target: "scriptor_daemon::transport",
+                    %error,
+                    "vault watcher failed to restart after OpenVault",
+                );
+            }
             response
         }
         _ => lock_recover(state).handle(request),
@@ -614,7 +626,9 @@ fn dispatch_invoke_outside_lock(
             match input {
                 Ok(input) => run_export_job(input)
                     .map_err(|error| error.to_string())
-                    .and_then(|output| serde_json::to_string(&output).map_err(|error| error.to_string())),
+                    .and_then(|output| {
+                        serde_json::to_string(&output).map_err(|error| error.to_string())
+                    }),
                 Err(error) => Err(error),
             }
         }
@@ -627,16 +641,16 @@ fn dispatch_invoke_outside_lock(
                     None => {
                         return RpcResponse {
                             id,
-                            result: RpcResult::Err(
-                                "no vault is open; call OpenVault first".into(),
-                            ),
+                            result: RpcResult::Err("no vault is open; call OpenVault first".into()),
                         };
                     }
                 }
             };
             rebuild_index(&session, &[])
                 .map_err(|error| error.to_string())
-                .and_then(|summary| serde_json::to_string(&summary).map_err(|error| error.to_string()))
+                .and_then(|summary| {
+                    serde_json::to_string(&summary).map_err(|error| error.to_string())
+                })
         }
         "vault_open" => match require_invoke_str(&payload, "root_path") {
             Ok(root_path) => {
@@ -644,10 +658,12 @@ fn dispatch_invoke_outside_lock(
                     let mut guard = lock_recover(state);
                     match guard.open_vault_invoke(root_path) {
                         Ok(output) => output,
-                        Err(error) => return RpcResponse {
-                            id,
-                            result: RpcResult::Err(error),
-                        },
+                        Err(error) => {
+                            return RpcResponse {
+                                id,
+                                result: RpcResult::Err(error),
+                            };
+                        }
                     }
                 };
                 if let Err(error) = restart_vault_watcher(state) {
@@ -660,7 +676,7 @@ fn dispatch_invoke_outside_lock(
                 serde_json::to_string(&output).map_err(|error| error.to_string())
             }
             Err(error) => Err(error),
-        }
+        },
         other => Err(format!("unsupported outside-lock invoke command: {other}")),
     };
 
@@ -684,18 +700,23 @@ fn require_invoke_str(payload: &serde_json::Value, key: &str) -> Result<String, 
         .ok_or_else(|| format!("missing or invalid string field: {key}"))
 }
 
-fn dispatch_export_sync(state: &Arc<Mutex<DaemonState>>, id: u64, method: &RpcMethod) -> RpcResponse {
-    let prepared = lock_recover(state)
-        .prepare_export_input(method);
+fn dispatch_export_sync(
+    state: &Arc<Mutex<DaemonState>>,
+    id: u64,
+    method: &RpcMethod,
+) -> RpcResponse {
+    let prepared = lock_recover(state).prepare_export_input(method);
     let result = match prepared {
         Ok(input) => match run_export_job(input) {
             Ok(output) => {
                 let json = match serde_json::to_string(&output) {
                     Ok(json) => json,
-                    Err(error) => return RpcResponse {
-                        id,
-                        result: RpcResult::Err(error.to_string()),
-                    },
+                    Err(error) => {
+                        return RpcResponse {
+                            id,
+                            result: RpcResult::Err(error.to_string()),
+                        };
+                    }
                 };
                 RpcResult::Ok(RpcPayload::ExportResult { json })
             }

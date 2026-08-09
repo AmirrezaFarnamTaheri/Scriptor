@@ -77,6 +77,8 @@ impl OllamaClient {
                 }
             }
         }
-        Err(last_err.unwrap_or_else(|| crate::error::EmbeddingError::Ollama("retry exhausted with no error".into())))
+        Err(last_err.unwrap_or_else(|| {
+            crate::error::EmbeddingError::Ollama("retry exhausted with no error".into())
+        }))
     }
 }

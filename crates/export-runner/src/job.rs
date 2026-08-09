@@ -9,8 +9,8 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::args::{build_pandoc_args, ExportFormat};
-use crate::cancel::{wait_for_child, ExportCancelSlot};
+use crate::args::{ExportFormat, build_pandoc_args};
+use crate::cancel::{ExportCancelSlot, wait_for_child};
 use crate::error::ExportError;
 use crate::log::{log_entry_from_output, write_export_log};
 use crate::pandoc::discover_pandoc_with_trusted_hash;
@@ -60,9 +60,7 @@ pub fn run_export_job_with_cancel(
     progress: Option<ExportProgressCallback>,
 ) -> Result<ExportJobOutput, ExportError> {
     let format = ExportFormat::parse(&input.format)?;
-    let pandoc = match discover_pandoc_with_trusted_hash(
-        input.trusted_pandoc_hash.as_deref(),
-    ) {
+    let pandoc = match discover_pandoc_with_trusted_hash(input.trusted_pandoc_hash.as_deref()) {
         Ok(found) => found,
         Err(_) if input.dry_run => crate::pandoc::PandocDiscovery {
             path: "pandoc".into(),
@@ -81,9 +79,10 @@ pub fn run_export_job_with_cancel(
     let artifact_name = format!("{}.{}", input.source_stem, format.extension());
     let artifact_path = output_dir.join(&artifact_name);
     match artifact_path.strip_prefix(&output_dir) {
-        Ok(relative) if !relative.components().any(|component| {
-            matches!(component, std::path::Component::ParentDir)
-        }) => {}
+        Ok(relative)
+            if !relative
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir)) => {}
         _ => return Err(ExportError::InvalidOutput(artifact_path)),
     }
 
@@ -210,9 +209,7 @@ pub fn run_export_job_with_cancel(
             dry_run: false,
         };
         let _ = write_export_log(&vault_root, &log_entry_from_output(&failure_output, false));
-        return Err(ExportError::Process(format!(
-            "pandoc failed: {stderr}"
-        )));
+        return Err(ExportError::Process(format!("pandoc failed: {stderr}")));
     }
 
     validate_export_artifact(&artifact_path, format)?;

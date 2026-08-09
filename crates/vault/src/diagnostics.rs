@@ -6,15 +6,20 @@ use serde_json::Value;
 static BEARER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)Bearer\s+\S+").expect("valid bearer regex"));
 static API_KEY_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*\S+").expect("valid api key regex")
+    Regex::new(r"(?i)(api[_-]?key|token|secret|password)\s*[:=]\s*\S+")
+        .expect("valid api key regex")
 });
 static SK_KEY_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"sk-[A-Za-z0-9]{8,}").expect("valid sk key regex"));
 
 pub fn redact_sensitive_text(input: &str) -> String {
     let mut output = input.to_string();
-    output = BEARER_RE.replace_all(&output, "Bearer [REDACTED]").into_owned();
-    output = API_KEY_RE.replace_all(&output, "$1=[REDACTED]").into_owned();
+    output = BEARER_RE
+        .replace_all(&output, "Bearer [REDACTED]")
+        .into_owned();
+    output = API_KEY_RE
+        .replace_all(&output, "$1=[REDACTED]")
+        .into_owned();
     output = SK_KEY_RE.replace_all(&output, "sk-[REDACTED]").into_owned();
     output
 }

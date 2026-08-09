@@ -3,41 +3,42 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use chrono::NaiveDate;
+use scriptor_canvas_engine::{
+    CanvasPoint, CanvasRect, SnapshotFormat, apply_template, apply_template_dry_run,
+    document_to_json, hit_test, list_documents, list_templates, load_document, parse_document_json,
+    query_blocks_in_bounds, render_svg, restore_template_checkpoint, save_document, write_snapshot,
+};
 use scriptor_export_runner::{
-    default_export_directory, discover_pandoc, run_export_job, ExportJobInput, ExportJobOutput,
+    ExportJobInput, ExportJobOutput, default_export_directory, discover_pandoc, run_export_job,
 };
 use scriptor_indexer::{
-    backlinks_for_path, evaluate_view_filter_json, execute_dql_query, health_diagnostics_json,
-    health_report_json, incremental_note_index_with_cache, incremental_notes_index_with_cache,
-    list_bibliography_entries, list_dead_end_notes, list_inbox_notes, list_note_summaries,
-    list_orphan_notes, list_recent_files, list_unresolved_link_targets, list_vault_tags,
-    list_view_notes, notes_for_tag, open_cache_for_session, parse_note_markdown, query_focused_graph,
-    rebuild_index, record_recent_access, resolve_wikilink_target_with_aliases, search_notes,
-    traverse_graph, InboxPeriod, ViewNoteHit,
+    InboxPeriod, ViewNoteHit, backlinks_for_path, evaluate_view_filter_json, execute_dql_query,
+    health_diagnostics_json, health_report_json, incremental_note_index_with_cache,
+    incremental_notes_index_with_cache, list_bibliography_entries, list_dead_end_notes,
+    list_inbox_notes, list_note_summaries, list_orphan_notes, list_recent_files,
+    list_unresolved_link_targets, list_vault_tags, list_view_notes, notes_for_tag,
+    open_cache_for_session, parse_note_markdown, query_focused_graph, rebuild_index,
+    record_recent_access, resolve_wikilink_target_with_aliases, search_notes, traverse_graph,
 };
 use scriptor_native_git::{
     git_commit_selected, git_pull, git_push, git_resolve_conflict, git_show_head_file, git_status,
     read_conflict_markers,
 };
-use scriptor_canvas_engine::{
-    apply_template, apply_template_dry_run, document_to_json, hit_test, list_documents, list_templates,
-    load_document, parse_document_json, query_blocks_in_bounds, render_svg, restore_template_checkpoint,
-    save_document, write_snapshot, CanvasPoint, CanvasRect, SnapshotFormat,
-};
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use scriptor_vault::{
+    ActivityLogEntry, RULE_MISSING_HEADING, RULE_STALE_DEFINITIONS, RelativeVaultPath,
+    SaveNoteOptions, StatsHistoryEntry, VaultConfig, VaultSnippet, WorkspaceSession,
     append_activity_log, append_stats_history, block_rename_apply, block_rename_dry_run,
-    build_note_markdown, delete_note, export_text_bundle, lint_vault_fix, list_note_history, list_recent_notes,
-    load_vault_config, load_vault_snippets, load_vault_template, plan_daily_note, read_activity_log,
-    read_note, read_note_history_revision, read_stats_history, read_workspace_session, record_recent_note,
-    rename_apply_staged, rename_dry_run, rollback_save_note, save_note, save_note_with_options,
-    save_vault_config, save_vault_snippets, scan_vault, scan_vault_with_roots, section_rename_apply,
-    section_rename_dry_run, set_frontmatter_field, tag_rename_apply, tag_rename_dry_run,
-    write_workspace_session, ActivityLogEntry, RelativeVaultPath, SaveNoteOptions, StatsHistoryEntry,
-    VaultConfig, VaultSnippet, WorkspaceSession, RULE_MISSING_HEADING, RULE_STALE_DEFINITIONS,
+    build_note_markdown, delete_note, export_text_bundle, lint_vault_fix, list_note_history,
+    list_recent_notes, load_vault_config, load_vault_snippets, load_vault_template,
+    plan_daily_note, read_activity_log, read_note, read_note_history_revision, read_stats_history,
+    read_workspace_session, record_recent_note, rename_apply_staged, rename_dry_run,
+    rollback_save_note, save_note, save_note_with_options, save_vault_config, save_vault_snippets,
+    scan_vault, scan_vault_with_roots, section_rename_apply, section_rename_dry_run,
+    set_frontmatter_field, tag_rename_apply, tag_rename_dry_run, write_workspace_session,
 };
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::handler::DaemonState;
@@ -60,7 +61,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let relative_path = require_str(payload, "relative_path")?;
             let bytes = require_bytes(payload, "bytes")?;
-            let relative = RelativeVaultPath::parse(&relative_path).map_err(|error| error.to_string())?;
+            let relative =
+                RelativeVaultPath::parse(&relative_path).map_err(|error| error.to_string())?;
             let absolute: PathBuf = session
                 .root
                 .resolve_relative(&relative)
@@ -74,20 +76,32 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         "vault_scan" => {
             let session = state.require_session()?;
             let config = load_vault_config(session.root.root()).unwrap_or_default();
-            to_value(scan_vault_with_roots(&session.root, &config.extra_roots).map_err(|e| e.to_string())?)
+            to_value(
+                scan_vault_with_roots(&session.root, &config.extra_roots)
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "vault_read_note" => {
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-            to_value(read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?)
+            to_value(
+                read_note(&session.descriptor.id, &session.root, &relative)
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "vault_save_note" => {
             let path = require_str(payload, "path")?;
             let markdown = require_str(payload, "markdown")?;
             let expected_content_hash = optional_str(payload, "expected_content_hash");
             let dry_run = optional_bool(payload, "dry_run").unwrap_or(false);
-            to_value(cmd_save_note(state, &path, &markdown, expected_content_hash.as_deref(), dry_run)?)
+            to_value(cmd_save_note(
+                state,
+                &path,
+                &markdown,
+                expected_content_hash.as_deref(),
+                dry_run,
+            )?)
         }
         "vault_list_recent_notes" => {
             let session = state.require_session()?;
@@ -229,11 +243,16 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 RULE_MISSING_HEADING.to_string(),
                 RULE_STALE_DEFINITIONS.to_string(),
             ];
-            let output =
-                lint_vault_fix(&session.descriptor.id, &session.root, &rules).map_err(|e| e.to_string())?;
+            let output = lint_vault_fix(&session.descriptor.id, &session.root, &rules)
+                .map_err(|e| e.to_string())?;
             if !output.fixed_paths.is_empty() {
-                incremental_notes_index_with_cache(session, state.require_cache()?, &output.fixed_paths, &[])
-                    .map_err(|e| e.to_string())?;
+                incremental_notes_index_with_cache(
+                    session,
+                    state.require_cache()?,
+                    &output.fixed_paths,
+                    &[],
+                )
+                .map_err(|e| e.to_string())?;
             }
             to_value(output)
         }
@@ -256,8 +275,12 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let template_path = require_str(payload, "template_path")?;
             let config = load_vault_config(session.root.root()).map_err(|e| e.to_string())?;
             to_value(
-                load_vault_template(session.root.root(), &config.templates_directory, &template_path)
-                    .map_err(|e| e.to_string())?,
+                load_vault_template(
+                    session.root.root(),
+                    &config.templates_directory,
+                    &template_path,
+                )
+                .map_err(|e| e.to_string())?,
             )
         }
         "vault_build_note_markdown" => {
@@ -297,10 +320,10 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let field = require_str(payload, "field")?;
             let value_str = require_str(payload, "value")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-            let document =
-                read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-            let markdown =
-                set_frontmatter_field(&document.markdown, &field, &value_str).map_err(|e| e.to_string())?;
+            let document = read_note(&session.descriptor.id, &session.root, &relative)
+                .map_err(|e| e.to_string())?;
+            let markdown = set_frontmatter_field(&document.markdown, &field, &value_str)
+                .map_err(|e| e.to_string())?;
             let _saved = save_note(
                 &session.descriptor.id,
                 &session.root,
@@ -324,7 +347,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let note_path = require_str(payload, "note_path")?;
             let output_path = require_str(payload, "output_path")?;
-            let relative = RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
+            let relative =
+                RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
             to_value(
                 export_text_bundle(
                     &session.descriptor.id,
@@ -356,12 +380,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 .as_deref()
                 .unwrap_or(scriptor_vault::DEFAULT_STATS_HISTORY_PATH);
             to_value(
-                append_stats_history(
-                    &session.root,
-                    path,
-                    StatsHistoryEntry { date, words },
-                )
-                .map_err(|e| e.to_string())?,
+                append_stats_history(&session.root, path, StatsHistoryEntry { date, words })
+                    .map_err(|e| e.to_string())?,
             )
         }
         "vault_read_activity_log" => {
@@ -407,35 +427,47 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let revision_id = require_str(payload, "revisionId")?;
-            Ok(json!(read_note_history_revision(&session.root, &path, &revision_id).map_err(|e| e.to_string())?))
+            Ok(json!(
+                read_note_history_revision(&session.root, &path, &revision_id)
+                    .map_err(|e| e.to_string())?
+            ))
         }
         "vault_restore_note_history_revision" => {
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let revision_id = require_str(payload, "revisionId")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|e| e.to_string())?;
-            let markdown =
-                read_note_history_revision(&session.root, &path, &revision_id).map_err(|e| e.to_string())?;
-            to_value(save_note_with_options(
-                &session.descriptor.id,
-                &session.root,
-                &relative,
-                &markdown,
-                None,
-                SaveNoteOptions { dry_run: false },
+            let markdown = read_note_history_revision(&session.root, &path, &revision_id)
+                .map_err(|e| e.to_string())?;
+            to_value(
+                save_note_with_options(
+                    &session.descriptor.id,
+                    &session.root,
+                    &relative,
+                    &markdown,
+                    None,
+                    SaveNoteOptions { dry_run: false },
+                )
+                .map_err(|e| e.to_string())?,
             )
-            .map_err(|e| e.to_string())?)
         }
         "vault_health" => {
             let session = state.require_session()?;
             let cache = state.require_cache()?;
-            Ok(json!(health_report_json(cache, session).map_err(|e| e.to_string())?))
+            Ok(json!(
+                health_report_json(cache, session).map_err(|e| e.to_string())?
+            ))
         }
         "indexer_rebuild" => to_value(cmd_indexer_rebuild(state)?),
         "indexer_update_note" => {
             let path = require_str(payload, "path")?;
-            incremental_note_index_with_cache(state.require_session()?, state.require_cache()?, &path, &[])
-                .map_err(|e| e.to_string())?;
+            incremental_note_index_with_cache(
+                state.require_session()?,
+                state.require_cache()?,
+                &path,
+                &[],
+            )
+            .map_err(|e| e.to_string())?;
             Ok(json!(true))
         }
         "indexer_apply_filesystem_changes" => {
@@ -455,7 +487,10 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let cache = state.require_cache()?;
             let query = require_str(payload, "query")?;
             let limit = optional_u32(payload, "limit").unwrap_or(25);
-            to_value(search_notes(cache, &session.descriptor.id, &query, limit).map_err(|e| e.to_string())?)
+            to_value(
+                search_notes(cache, &session.descriptor.id, &query, limit)
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "indexer_list_tags" => {
             let session = state.require_session()?;
@@ -493,8 +528,12 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         "indexer_list_inbox" => {
             let session = state.require_session()?;
             let cache = state.require_cache()?;
-            let period = InboxPeriod::parse(optional_str(payload, "period").as_deref().unwrap_or("all"));
-            to_value(list_inbox_notes(cache, &session.descriptor.id, period).map_err(|e| e.to_string())?)
+            let period =
+                InboxPeriod::parse(optional_str(payload, "period").as_deref().unwrap_or("all"));
+            to_value(
+                list_inbox_notes(cache, &session.descriptor.id, period)
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "indexer_list_note_summaries" => {
             let session = state.require_session()?;
@@ -516,9 +555,12 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let filter_json = require_str(payload, "filter_json")?;
             let path = require_str(payload, "path")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-            let document =
-                read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-            to_value(evaluate_view_filter_json(&filter_json, &document.metadata).map_err(|e| e.to_string())?)
+            let document = read_note(&session.descriptor.id, &session.root, &relative)
+                .map_err(|e| e.to_string())?;
+            to_value(
+                evaluate_view_filter_json(&filter_json, &document.metadata)
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "indexer_list_bibliography" => {
             state.require_session()?;
@@ -564,12 +606,14 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         "indexer_health_diagnostics" => {
             let session = state.require_session()?;
             let cache = state.require_cache()?;
-            Ok(json!(health_diagnostics_json(cache, session).map_err(|e| e.to_string())?))
+            Ok(json!(
+                health_diagnostics_json(cache, session).map_err(|e| e.to_string())?
+            ))
         }
         "export_discover" => to_value(discover_pandoc().map_err(|e| e.to_string())?),
-        "export_run_note" | "export_run_markdown" => {
-            Err(format!("command {command} must be dispatched outside the daemon state lock"))
-        }
+        "export_run_note" | "export_run_markdown" => Err(format!(
+            "command {command} must be dispatched outside the daemon state lock"
+        )),
         "export_start_note" => {
             let note_path = require_str(payload, "note_path")?;
             let format = require_str(payload, "format")?;
@@ -626,7 +670,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let files: Vec<String> = require_deserialize(payload, "files")?;
             let message = require_str(payload, "message")?;
             to_value(
-                git_commit_selected(session.root.root(), &files, &message).map_err(|e| e.to_string())?,
+                git_commit_selected(session.root.root(), &files, &message)
+                    .map_err(|e| e.to_string())?,
             )
         }
         "git_pull_cmd" => {
@@ -642,7 +687,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let path = require_str(payload, "path")?;
             let strategy = require_str(payload, "strategy")?;
             to_value(
-                git_resolve_conflict(session.root.root(), &path, &strategy).map_err(|e| e.to_string())?,
+                git_resolve_conflict(session.root.root(), &path, &strategy)
+                    .map_err(|e| e.to_string())?,
             )
         }
         "git_read_conflict_markers_cmd" => {
@@ -659,9 +705,17 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-            let resolved = session.root.resolve_relative(&relative).map_err(|error| error.to_string())?;
-            let rel_str = resolved.strip_prefix(session.root.root()).unwrap_or(&resolved);
-            to_value(git_show_head_file(session.root.root(), &rel_str.to_string_lossy()).map_err(|e| e.to_string())?)
+            let resolved = session
+                .root
+                .resolve_relative(&relative)
+                .map_err(|error| error.to_string())?;
+            let rel_str = resolved
+                .strip_prefix(session.root.root())
+                .unwrap_or(&resolved);
+            to_value(
+                git_show_head_file(session.root.root(), &rel_str.to_string_lossy())
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "plantuml_render" => to_value(cmd_plantuml_render(payload)?),
         "canvas_hit_test" => {
@@ -680,7 +734,10 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let scene_json = require_str(payload, "scene_json")?;
             let template_id = require_str(payload, "template_id")?;
             let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
-            to_value(apply_template_dry_run(&document, &template_id).map_err(|error| error.to_string())?)
+            to_value(
+                apply_template_dry_run(&document, &template_id)
+                    .map_err(|error| error.to_string())?,
+            )
         }
         "canvas_apply_template" => {
             let session = state.require_session()?;
@@ -697,7 +754,9 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let patch_id = require_str(payload, "patch_id")?;
             let document = restore_template_checkpoint(session.root.root(), &patch_id)
                 .map_err(|error| error.to_string())?;
-            Ok(json!(document_to_json(&document).map_err(|error| error.to_string())?))
+            Ok(json!(
+                document_to_json(&document).map_err(|error| error.to_string())?
+            ))
         }
         "canvas_query_blocks" => {
             let scene_json = require_str(payload, "scene_json")?;
@@ -706,7 +765,12 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let width = require_f64(payload, "width")?;
             let height = require_f64(payload, "height")?;
             let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
-            let bounds = CanvasRect { x, y, width, height };
+            let bounds = CanvasRect {
+                x,
+                y,
+                width,
+                height,
+            };
             let ids: Vec<String> = query_blocks_in_bounds(&document, bounds, None)
                 .into_iter()
                 .map(|block| block.id)
@@ -727,27 +791,26 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 other => return Err(format!("unsupported snapshot format: {other}")),
             };
             to_value(
-                write_snapshot(
-                    &document,
-                    Path::new(&output_path),
-                    snapshot_format,
-                    dry_run,
-                )
-                .map_err(|error| error.to_string())?,
+                write_snapshot(&document, Path::new(&output_path), snapshot_format, dry_run)
+                    .map_err(|error| error.to_string())?,
             )
         }
         "canvas_save_document" => {
             let session = state.require_session()?;
             let scene_json = require_str(payload, "scene_json")?;
             let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
-            let path = save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
+            let path =
+                save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
             Ok(json!(path.display().to_string()))
         }
         "canvas_load_document" => {
             let session = state.require_session()?;
             let canvas_id = require_str(payload, "canvas_id")?;
-            let document = load_document(session.root.root(), &canvas_id).map_err(|error| error.to_string())?;
-            Ok(json!(document_to_json(&document).map_err(|error| error.to_string())?))
+            let document = load_document(session.root.root(), &canvas_id)
+                .map_err(|error| error.to_string())?;
+            Ok(json!(
+                document_to_json(&document).map_err(|error| error.to_string())?
+            ))
         }
         "canvas_list_documents" => {
             let session = state.require_session()?;
@@ -757,7 +820,11 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
     }
 }
 
-pub fn prepare_export_run(state: &DaemonState, command: &str, payload: &Value) -> Result<ExportJobInput, String> {
+pub fn prepare_export_run(
+    state: &DaemonState,
+    command: &str,
+    payload: &Value,
+) -> Result<ExportJobInput, String> {
     match command {
         "export_run_note" => {
             let note_path = require_str(payload, "note_path")?;
@@ -799,7 +866,11 @@ pub fn prepare_export_run(state: &DaemonState, command: &str, payload: &Value) -
     }
 }
 
-pub fn run_export_command(state: &DaemonState, command: &str, payload: &Value) -> Result<ExportJobOutput, String> {
+pub fn run_export_command(
+    state: &DaemonState,
+    command: &str,
+    payload: &Value,
+) -> Result<ExportJobOutput, String> {
     let input = prepare_export_run(state, command, payload)?;
     run_export_job(input).map_err(|error| error.to_string())
 }

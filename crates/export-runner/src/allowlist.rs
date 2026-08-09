@@ -47,7 +47,10 @@ fn validate_flag_token(arg: &str) -> Result<bool, ExportError> {
     if ALLOWED_BOOL_FLAGS.iter().any(|flag| flag == &arg) {
         return Ok(false);
     }
-    if ALLOWED_EQ_PREFIXES.iter().any(|prefix| arg.starts_with(prefix)) {
+    if ALLOWED_EQ_PREFIXES
+        .iter()
+        .any(|prefix| arg.starts_with(prefix))
+    {
         return Ok(false);
     }
     if ALLOWED_VALUE_FLAGS.iter().any(|flag| flag == &arg) {

@@ -1,11 +1,14 @@
 use std::fs;
 use std::path::PathBuf;
 
-use scriptor_indexer::{build_health_diagnostics, open_cache_for_session, rebuild_index, IndexerError};
+use scriptor_indexer::{
+    IndexerError, build_health_diagnostics, open_cache_for_session, rebuild_index,
+};
 use scriptor_vault::open_vault;
 
 fn knowledge_edge_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/test-fixtures/vaults/knowledge-edge-cases")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/test-fixtures/vaults/knowledge-edge-cases")
 }
 
 #[test]
@@ -17,14 +20,18 @@ fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError
 
     assert!(diagnostics.summary.duplicate_titles >= 1);
     assert!(diagnostics.summary.broken_links >= 1);
-    assert!(diagnostics
-        .issues
-        .iter()
-        .any(|issue| issue.kind == "duplicate_title"));
-    assert!(diagnostics
-        .issues
-        .iter()
-        .any(|issue| issue.kind == "broken_link"));
+    assert!(
+        diagnostics
+            .issues
+            .iter()
+            .any(|issue| issue.kind == "duplicate_title")
+    );
+    assert!(
+        diagnostics
+            .issues
+            .iter()
+            .any(|issue| issue.kind == "broken_link")
+    );
     Ok(())
 }
 
@@ -64,9 +71,11 @@ fn slow_export_metric_reads_logs() -> Result<(), IndexerError> {
     let cache = open_cache_for_session(&session)?;
     let diagnostics = build_health_diagnostics(&cache, &session)?;
     assert_eq!(diagnostics.summary.slow_exports, 1);
-    assert!(diagnostics
-        .issues
-        .iter()
-        .any(|issue| issue.kind == "slow_export"));
+    assert!(
+        diagnostics
+            .issues
+            .iter()
+            .any(|issue| issue.kind == "slow_export")
+    );
     Ok(())
 }

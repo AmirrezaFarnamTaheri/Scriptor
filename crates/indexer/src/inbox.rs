@@ -56,7 +56,10 @@ fn parse_timestamp(raw: &str) -> Option<DateTime<Utc>> {
         .map(|parsed| parsed.with_timezone(&Utc))
 }
 
-pub fn list_note_summaries(cache: &IndexCache, vault_id: &str) -> Result<Vec<NoteIndexSummary>, IndexerError> {
+pub fn list_note_summaries(
+    cache: &IndexCache,
+    vault_id: &str,
+) -> Result<Vec<NoteIndexSummary>, IndexerError> {
     let conn = cache.connection()?;
     let mut statement = conn.prepare(
         "SELECT path, title, modified_at, note_type, organized, archived, tags_json
@@ -197,7 +200,10 @@ mod tests {
 
     #[test]
     fn unparseable_timestamps_are_not_dropped() {
-        let kept = filter_inbox_notes(vec![summary("weird.md", "not-a-timestamp")], InboxPeriod::Week);
+        let kept = filter_inbox_notes(
+            vec![summary("weird.md", "not-a-timestamp")],
+            InboxPeriod::Week,
+        );
         assert_eq!(kept.len(), 1);
     }
 }

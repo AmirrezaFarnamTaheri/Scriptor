@@ -1,14 +1,15 @@
 use scriptor_indexer::{
+    BacklinkHit, BibliographyEntry, DqlResultRow, GraphQueryOutput, GraphTraverseStep,
+    IncrementalIndexSummary, KnowledgeNoteSummary, NoteIndexSummary, RebuildSummary, RecentFileHit,
+    SearchHit, TagSummary, TaggedNote, UnresolvedLinkTarget, WikilinkResolution,
     backlinks_for_path, evaluate_view_filter_json, execute_dql_query, health_diagnostics_json,
-    incremental_note_index, incremental_notes_index, list_bibliography_entries, list_dead_end_notes,
-    list_inbox_notes, list_note_summaries, list_orphan_notes, list_recent_files, list_unresolved_link_targets,
-    list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown, query_focused_graph,
-    rebuild_index, record_recent_access, resolve_wikilink_target_with_aliases, search_notes, traverse_graph,
-    BacklinkHit, BibliographyEntry, DqlResultRow, GraphQueryOutput, GraphTraverseStep, IncrementalIndexSummary,
-    KnowledgeNoteSummary, NoteIndexSummary, RecentFileHit, RebuildSummary, SearchHit, TagSummary, TaggedNote,
-    UnresolvedLinkTarget, WikilinkResolution,
+    incremental_note_index, incremental_notes_index, list_bibliography_entries,
+    list_dead_end_notes, list_inbox_notes, list_note_summaries, list_orphan_notes,
+    list_recent_files, list_unresolved_link_targets, list_vault_tags, notes_for_tag,
+    open_cache_for_session, parse_note_markdown, query_focused_graph, rebuild_index,
+    record_recent_access, resolve_wikilink_target_with_aliases, search_notes, traverse_graph,
 };
-use scriptor_vault::{load_vault_config, read_note, scan_vault, RelativeVaultPath};
+use scriptor_vault::{RelativeVaultPath, load_vault_config, read_note, scan_vault};
 
 use crate::AppState;
 use crate::state::{active_session, use_headless_engine};
@@ -64,7 +65,10 @@ pub fn indexer_search(
 }
 
 #[tauri::command]
-pub fn indexer_backlinks(state: tauri::State<AppState>, path: String) -> Result<Vec<BacklinkHit>, String> {
+pub fn indexer_backlinks(
+    state: tauri::State<AppState>,
+    path: String,
+) -> Result<Vec<BacklinkHit>, String> {
     if use_headless_engine(&state) {
         let json = bridge_backlinks(path)?;
         return parse_daemon_json(&json);
@@ -98,7 +102,10 @@ pub fn indexer_graph(
 }
 
 #[tauri::command]
-pub fn indexer_execute_dql(state: tauri::State<AppState>, query: String) -> Result<Vec<DqlResultRow>, String> {
+pub fn indexer_execute_dql(
+    state: tauri::State<AppState>,
+    query: String,
+) -> Result<Vec<DqlResultRow>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     execute_dql_query(&cache, &session, &query).map_err(|error| error.to_string())
@@ -133,14 +140,19 @@ pub fn indexer_list_tags(state: tauri::State<AppState>) -> Result<Vec<TagSummary
 }
 
 #[tauri::command]
-pub fn indexer_notes_for_tag(state: tauri::State<AppState>, tag: String) -> Result<Vec<TaggedNote>, String> {
+pub fn indexer_notes_for_tag(
+    state: tauri::State<AppState>,
+    tag: String,
+) -> Result<Vec<TaggedNote>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     notes_for_tag(&cache, &session.descriptor.id, &tag).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn indexer_list_note_summaries(state: tauri::State<AppState>) -> Result<Vec<NoteIndexSummary>, String> {
+pub fn indexer_list_note_summaries(
+    state: tauri::State<AppState>,
+) -> Result<Vec<NoteIndexSummary>, String> {
     if use_headless_engine(&state) {
         let json = bridge_list_note_summaries()?;
         return parse_daemon_json(&json);
@@ -151,7 +163,10 @@ pub fn indexer_list_note_summaries(state: tauri::State<AppState>) -> Result<Vec<
 }
 
 #[tauri::command]
-pub fn indexer_list_inbox(state: tauri::State<AppState>, period: Option<String>) -> Result<Vec<NoteIndexSummary>, String> {
+pub fn indexer_list_inbox(
+    state: tauri::State<AppState>,
+    period: Option<String>,
+) -> Result<Vec<NoteIndexSummary>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let period = scriptor_indexer::InboxPeriod::parse(period.as_deref().unwrap_or("all"));
@@ -159,14 +174,19 @@ pub fn indexer_list_inbox(state: tauri::State<AppState>, period: Option<String>)
 }
 
 #[tauri::command]
-pub fn indexer_list_bibliography(state: tauri::State<AppState>) -> Result<Vec<BibliographyEntry>, String> {
+pub fn indexer_list_bibliography(
+    state: tauri::State<AppState>,
+) -> Result<Vec<BibliographyEntry>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     list_bibliography_entries(&cache).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn indexer_resolve_wikilink(state: tauri::State<AppState>, target: String) -> Result<WikilinkResolution, String> {
+pub fn indexer_resolve_wikilink(
+    state: tauri::State<AppState>,
+    target: String,
+) -> Result<WikilinkResolution, String> {
     let session = active_session(&state)?;
     let scanned = scan_vault(&session.root).map_err(|error| error.to_string())?;
     let mut note_paths = Vec::new();
@@ -176,12 +196,12 @@ pub fn indexer_resolve_wikilink(state: tauri::State<AppState>, target: String) -
             continue;
         }
         note_paths.push(entry.path.clone());
-        if let Ok(relative) = RelativeVaultPath::parse(&entry.path) {
-            if let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative) {
-                let parsed = parse_note_markdown(&entry.path, &document.markdown);
-                if !parsed.aliases.is_empty() {
-                    aliases_by_path.insert(entry.path, parsed.aliases);
-                }
+        if let Ok(relative) = RelativeVaultPath::parse(&entry.path)
+            && let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative)
+        {
+            let parsed = parse_note_markdown(&entry.path, &document.markdown);
+            if !parsed.aliases.is_empty() {
+                aliases_by_path.insert(entry.path, parsed.aliases);
             }
         }
     }
@@ -203,21 +223,28 @@ pub fn indexer_list_recent_files(
 }
 
 #[tauri::command]
-pub fn indexer_record_recent_access(state: tauri::State<AppState>, path: String) -> Result<(), String> {
+pub fn indexer_record_recent_access(
+    state: tauri::State<AppState>,
+    path: String,
+) -> Result<(), String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     record_recent_access(&cache, &path).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn indexer_list_orphans(state: tauri::State<AppState>) -> Result<Vec<KnowledgeNoteSummary>, String> {
+pub fn indexer_list_orphans(
+    state: tauri::State<AppState>,
+) -> Result<Vec<KnowledgeNoteSummary>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     list_orphan_notes(&cache, &session).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn indexer_list_dead_ends(state: tauri::State<AppState>) -> Result<Vec<KnowledgeNoteSummary>, String> {
+pub fn indexer_list_dead_ends(
+    state: tauri::State<AppState>,
+) -> Result<Vec<KnowledgeNoteSummary>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     list_dead_end_notes(&cache, &session).map_err(|error| error.to_string())
@@ -231,7 +258,8 @@ pub fn indexer_evaluate_view(
 ) -> Result<bool, String> {
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-    let document = read_note(&session.descriptor.id, &session.root, &relative).map_err(|error| error.to_string())?;
+    let document = read_note(&session.descriptor.id, &session.root, &relative)
+        .map_err(|error| error.to_string())?;
     evaluate_view_filter_json(&filter_json, &document.metadata).map_err(|error| error.to_string())
 }
 

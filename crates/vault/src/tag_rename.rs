@@ -4,7 +4,9 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::error::VaultError;
-use crate::link_rewrite::{join_frontmatter, split_frontmatter, LinkRewriteApplyOutput, LinkRewritePreview};
+use crate::link_rewrite::{
+    LinkRewriteApplyOutput, LinkRewritePreview, join_frontmatter, split_frontmatter,
+};
 use crate::note::read_note;
 use crate::path::VaultRoot;
 use crate::scan::list_notes;
@@ -154,7 +156,10 @@ fn rewrite_frontmatter_tags(
                 return line.to_string();
             }
 
-            if let Some(inner) = value.strip_prefix('[').and_then(|rest| rest.strip_suffix(']')) {
+            if let Some(inner) = value
+                .strip_prefix('[')
+                .and_then(|rest| rest.strip_suffix(']'))
+            {
                 let remapped = rewrite_tag_value_list(inner, old_root, new_root, edits);
                 return format!("{indent}{key}: [{remapped}]");
             }
@@ -277,7 +282,8 @@ mod tests {
 
     #[test]
     fn does_not_rewrite_list_items_under_other_keys() {
-        let input = "---\naliases:\n  - project\n  - project/alpha\ntitle: Something\n---\n\n# Body\n";
+        let input =
+            "---\naliases:\n  - project\n  - project/alpha\ntitle: Something\n---\n\n# Body\n";
         let (updated, edits) = rewrite_tags_in_markdown("project", "archive", input);
         assert_eq!(edits, 0, "aliases must not be treated as tags");
         assert_eq!(updated, input);
@@ -285,7 +291,8 @@ mod tests {
 
     #[test]
     fn rewrites_only_the_tags_key_when_both_are_present() {
-        let input = "---\naliases:\n  - project\ntags:\n  - project\n  - project/alpha\n---\n\n# Body\n";
+        let input =
+            "---\naliases:\n  - project\ntags:\n  - project\n  - project/alpha\n---\n\n# Body\n";
         let (updated, edits) = rewrite_tags_in_markdown("project", "archive", input);
         assert_eq!(edits, 2);
         assert!(updated.contains("aliases:\n  - project\n"));
@@ -324,8 +331,9 @@ mod tests {
         .expect("write note");
 
         let session = open_vault(dir.path()).expect("open vault");
-        let preview = tag_rename_dry_run(&session.descriptor.id, &session.root, "project", "archive")
-            .expect("dry run");
+        let preview =
+            tag_rename_dry_run(&session.descriptor.id, &session.root, "project", "archive")
+                .expect("dry run");
         assert_eq!(preview.edits, 1);
         assert_eq!(preview.affected_files, vec!["note.md".to_string()]);
 
@@ -348,7 +356,10 @@ mod tests {
         let input = "---\r\ntags:\r\n  - project\r\n---\r\n\r\n# Body\r\n";
         let (updated, edits) = rewrite_tags_in_markdown("project", "archive", input);
         assert_eq!(edits, 1);
-        assert_eq!(updated, "---\r\ntags:\r\n  - archive\r\n---\r\n\r\n# Body\r\n");
+        assert_eq!(
+            updated,
+            "---\r\ntags:\r\n  - archive\r\n---\r\n\r\n# Body\r\n"
+        );
     }
 
     #[test]
@@ -371,7 +382,11 @@ mod tests {
         }
     }
 
-    fn naive_rewrite_tags_in_markdown(old_tag: &str, new_tag: &str, markdown: &str) -> (String, u32) {
+    fn naive_rewrite_tags_in_markdown(
+        old_tag: &str,
+        new_tag: &str,
+        markdown: &str,
+    ) -> (String, u32) {
         let style = crate::text::LineStyle::detect(markdown);
         let normalized = crate::text::to_lf(markdown);
         let mut edits = 0u32;
@@ -385,7 +400,12 @@ mod tests {
                     if let Some(stripped) = rest.strip_prefix('#') {
                         let tag_end = stripped
                             .char_indices()
-                            .find(|(_, ch)| !ch.is_ascii_alphanumeric() && *ch != '_' && *ch != '/' && *ch != '-')
+                            .find(|(_, ch)| {
+                                !ch.is_ascii_alphanumeric()
+                                    && *ch != '_'
+                                    && *ch != '/'
+                                    && *ch != '-'
+                            })
                             .map(|(offset, _)| offset)
                             .unwrap_or(stripped.len());
                         let tag = &stripped[..tag_end];
@@ -434,7 +454,10 @@ mod tests {
             for (old_tag, new_tag) in pairs {
                 let optimized = rewrite_tags_in_markdown(old_tag, new_tag, input);
                 let naive = naive_rewrite_tags_in_markdown(old_tag, new_tag, input);
-                assert_eq!(optimized, naive, "mismatch for {old_tag} -> {new_tag} in {input:?}");
+                assert_eq!(
+                    optimized, naive,
+                    "mismatch for {old_tag} -> {new_tag} in {input:?}"
+                );
             }
         }
     }

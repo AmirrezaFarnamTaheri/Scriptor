@@ -103,7 +103,10 @@ fn execute_single_clause(
     let trimmed = query.trim();
     let lower = trimmed.to_ascii_lowercase();
 
-    if let Some(tag) = lower.strip_prefix("path has #").or_else(|| lower.strip_prefix("path has ")) {
+    if let Some(tag) = lower
+        .strip_prefix("path has #")
+        .or_else(|| lower.strip_prefix("path has "))
+    {
         let tag = tag.trim_start_matches('#');
         return notes_for_tag(cache, &session.descriptor.id, tag).map(|notes| {
             notes
@@ -133,7 +136,9 @@ fn execute_single_clause(
         return links_to(cache, &session.descriptor.id, &target);
     }
 
-    Err(IndexerError::InvalidQuery(format!("unsupported DQL: {query}")))
+    Err(IndexerError::InvalidQuery(format!(
+        "unsupported DQL: {query}"
+    )))
 }
 
 fn extract_links_to_target(query: &str) -> Option<String> {
@@ -202,7 +207,8 @@ fn split_compound(query: &str, op: &str) -> Vec<String> {
 }
 
 fn intersect_rows(left: Vec<DqlResultRow>, right: Vec<DqlResultRow>) -> Vec<DqlResultRow> {
-    let right_paths: std::collections::BTreeSet<_> = right.iter().map(|row| row.path.clone()).collect();
+    let right_paths: std::collections::BTreeSet<_> =
+        right.iter().map(|row| row.path.clone()).collect();
     left.into_iter()
         .filter(|row| right_paths.contains(&row.path))
         .collect()
@@ -248,7 +254,11 @@ fn extract_regex_after(input: &str, prefix: &str) -> Option<String> {
     None
 }
 
-fn title_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
+fn title_contains(
+    cache: &IndexCache,
+    vault_id: &str,
+    needle: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
     let pattern = format!("%{needle}%");
     let conn = cache.connection()?;
     let mut statement = conn.prepare(
@@ -264,7 +274,11 @@ fn title_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Ve
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-fn body_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
+fn body_contains(
+    cache: &IndexCache,
+    vault_id: &str,
+    needle: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
     Ok(search_notes(cache, vault_id, needle, 200)?
         .into_iter()
         .map(|hit| DqlResultRow {
@@ -275,7 +289,11 @@ fn body_contains(cache: &IndexCache, vault_id: &str, needle: &str) -> Result<Vec
         .collect())
 }
 
-fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
+fn path_matches(
+    cache: &IndexCache,
+    vault_id: &str,
+    pattern: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
     let re = regex::RegexBuilder::new(pattern)
         .size_limit(1 << 20)
         .dfa_size_limit(1 << 20)
@@ -285,9 +303,8 @@ fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec
     // Two bounds, because the regex is applied in Rust rather than in SQL: the
     // SQL LIMIT caps how many rows are ever materialised and matched against a
     // user-supplied pattern, and the result cap matches the sibling clauses.
-    let mut statement = conn.prepare(
-        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2",
-    )?;
+    let mut statement =
+        conn.prepare("SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2")?;
     let rows = statement.query_map(params![vault_id, PATH_MATCH_SCAN_LIMIT], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
@@ -302,7 +319,11 @@ fn path_matches(cache: &IndexCache, vault_id: &str, pattern: &str) -> Result<Vec
         .collect())
 }
 
-fn links_to(cache: &IndexCache, vault_id: &str, target: &str) -> Result<Vec<DqlResultRow>, IndexerError> {
+fn links_to(
+    cache: &IndexCache,
+    vault_id: &str,
+    target: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
     let pattern = format!("%{target}%");
     let conn = cache.connection()?;
     let mut statement = conn.prepare(
@@ -414,7 +435,8 @@ mod tests {
     }
 
     #[test]
-    fn pathological_regex_returns_error_instead_of_exploding() -> Result<(), Box<dyn std::error::Error>> {
+    fn pathological_regex_returns_error_instead_of_exploding()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempfile::tempdir()?;
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
         let result = path_matches(&cache, "vault-test", "(?:(?:(?:a{100}){100}){100}){100}");

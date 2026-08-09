@@ -1,8 +1,8 @@
 use std::fs;
 use std::path::Path;
 
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use aes_gcm::aead::Aead;
+use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use thiserror::Error;
 use zeroize::Zeroize;
@@ -199,17 +199,23 @@ impl VaultEncryption {
         fs::write(&tmp_path, &encrypted).map_err(|e| EncryptionError::io(&tmp_path, e))?;
         {
             let f = fs::File::open(&tmp_path).map_err(|e| EncryptionError::io(&tmp_path, e))?;
-            f.sync_all().map_err(|e| EncryptionError::io(&tmp_path, e))?;
+            f.sync_all()
+                .map_err(|e| EncryptionError::io(&tmp_path, e))?;
         }
         fs::rename(&tmp_path, &enc_path).map_err(|e| EncryptionError::io(&enc_path, e))?;
         fs::remove_file(note_path).map_err(|e| EncryptionError::io(note_path, e))?;
         Ok(())
     }
 
-    pub fn decrypt_note(&self, note_path: &Path, key: &DerivedKey) -> Result<String, EncryptionError> {
+    pub fn decrypt_note(
+        &self,
+        note_path: &Path,
+        key: &DerivedKey,
+    ) -> Result<String, EncryptionError> {
         let data = fs::read(note_path).map_err(|e| EncryptionError::io(note_path, e))?;
         let decrypted = self.decrypt_data(&data, key.as_bytes())?;
-        String::from_utf8(decrypted).map_err(|_| EncryptionError::Decrypt("decrypted data is not valid UTF-8".into()))
+        String::from_utf8(decrypted)
+            .map_err(|_| EncryptionError::Decrypt("decrypted data is not valid UTF-8".into()))
     }
 }
 
@@ -312,8 +318,8 @@ impl EncryptedHeader {
 
 #[allow(deprecated)]
 fn aes_gcm_encrypt(key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| EncryptionError::Encrypt(e.to_string()))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|e| EncryptionError::Encrypt(e.to_string()))?;
     let nonce = Nonce::from_slice(nonce);
     cipher
         .encrypt(nonce, plaintext)
@@ -321,9 +327,13 @@ fn aes_gcm_encrypt(key: &[u8], nonce: &[u8], plaintext: &[u8]) -> Result<Vec<u8>
 }
 
 #[allow(deprecated)]
-fn aes_gcm_decrypt(key: &[u8], nonce: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, EncryptionError> {
-    let cipher = Aes256Gcm::new_from_slice(key)
-        .map_err(|e| EncryptionError::Decrypt(e.to_string()))?;
+fn aes_gcm_decrypt(
+    key: &[u8],
+    nonce: &[u8],
+    ciphertext: &[u8],
+) -> Result<Vec<u8>, EncryptionError> {
+    let cipher =
+        Aes256Gcm::new_from_slice(key).map_err(|e| EncryptionError::Decrypt(e.to_string()))?;
     let nonce = Nonce::from_slice(nonce);
     cipher
         .decrypt(nonce, ciphertext)
@@ -385,7 +395,10 @@ mod tests {
         let mut key = key;
         let slice: &mut [u8; 32] = key.as_bytes_mut();
         slice.fill(0);
-        assert!(key.as_bytes().iter().all(|&b| b == 0), "key should be zeroizable");
+        assert!(
+            key.as_bytes().iter().all(|&b| b == 0),
+            "key should be zeroizable"
+        );
     }
 
     #[test]
@@ -483,7 +496,9 @@ mod tests {
     fn passphrase_roundtrip_succeeds() {
         let enc = VaultEncryption::new();
         let data = b"passphrase protected note";
-        let encrypted = enc.encrypt_data_with_passphrase(data, "correct horse").unwrap();
+        let encrypted = enc
+            .encrypt_data_with_passphrase(data, "correct horse")
+            .unwrap();
         let decrypted = enc
             .decrypt_data_with_passphrase(&encrypted, "correct horse")
             .unwrap();
@@ -499,13 +514,18 @@ mod tests {
         let error = enc
             .decrypt_data_with_passphrase(&encrypted, "battery staple")
             .expect_err("wrong passphrase must fail");
-        assert!(matches!(error, EncryptionError::InvalidPassphrase), "{error}");
+        assert!(
+            matches!(error, EncryptionError::InvalidPassphrase),
+            "{error}"
+        );
     }
 
     #[test]
     fn header_records_the_salt_actually_used_for_derivation() {
         let enc = VaultEncryption::new();
-        let encrypted = enc.encrypt_data_with_passphrase(b"payload", "pass").unwrap();
+        let encrypted = enc
+            .encrypt_data_with_passphrase(b"payload", "pass")
+            .unwrap();
         let header = enc.read_header(&encrypted).unwrap();
         assert!(
             header.salt.iter().any(|&byte| byte != 0),
@@ -515,7 +535,8 @@ mod tests {
         // which the recorded key id confirms.
         let key = enc.derive_key("pass", &header.salt).unwrap();
         assert_eq!(key_id_for(key.as_bytes()), header.key_id);
-        let decrypted = aes_gcm_decrypt(key.as_bytes(), &header.nonce, &encrypted[HEADER_LEN..]).unwrap();
+        let decrypted =
+            aes_gcm_decrypt(key.as_bytes(), &header.nonce, &encrypted[HEADER_LEN..]).unwrap();
         assert_eq!(decrypted, b"payload");
     }
 
@@ -541,14 +562,19 @@ mod tests {
         let error = enc
             .decrypt_data_with_passphrase(&encrypted, "anything")
             .expect_err("raw-key payload is not passphrase decryptable");
-        assert!(matches!(error, EncryptionError::InvalidFormat(_)), "{error}");
+        assert!(
+            matches!(error, EncryptionError::InvalidFormat(_)),
+            "{error}"
+        );
     }
 
     #[test]
     fn passphrase_payload_still_decrypts_with_the_derived_raw_key() {
         // The header layout is unchanged, so the raw-key path keeps working.
         let enc = VaultEncryption::new();
-        let encrypted = enc.encrypt_data_with_passphrase(b"both paths", "pass").unwrap();
+        let encrypted = enc
+            .encrypt_data_with_passphrase(b"both paths", "pass")
+            .unwrap();
         let header = enc.read_header(&encrypted).unwrap();
         let key = enc.derive_key("pass", &header.salt).unwrap();
         assert_eq!(

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::scene::{
-    is_block_selectable, CanvasBlock, CanvasBlockKind, CanvasDocument, CanvasPoint, CanvasRect,
+    CanvasBlock, CanvasBlockKind, CanvasDocument, CanvasPoint, CanvasRect, is_block_selectable,
 };
 
 fn block_kind_label(kind: &CanvasBlockKind) -> &'static str {
@@ -32,7 +32,7 @@ pub fn hit_test(document: &CanvasDocument, point: CanvasPoint) -> Option<HitTest
         .filter(|block| is_block_selectable(document, block) && block.bounds.contains(point))
         .collect();
 
-    candidates.sort_by(|left, right| right.z_index.cmp(&left.z_index));
+    candidates.sort_by_key(|right| std::cmp::Reverse(right.z_index));
 
     candidates.first().map(|block| HitTestResult {
         block_id: block.id.clone(),
@@ -68,7 +68,7 @@ pub fn query_blocks_in_bounds(
         .cloned()
         .collect();
 
-    blocks.sort_by(|left, right| right.z_index.cmp(&left.z_index));
+    blocks.sort_by_key(|right| std::cmp::Reverse(right.z_index));
     blocks
 }
 
@@ -146,14 +146,7 @@ mod tests {
     #[test]
     fn hit_test_prefers_highest_z_index() {
         let document = overlap_fixture();
-        let hit = hit_test(
-            &document,
-            CanvasPoint {
-                x: 100.0,
-                y: 100.0,
-            },
-        )
-        .expect("hit");
+        let hit = hit_test(&document, CanvasPoint { x: 100.0, y: 100.0 }).expect("hit");
         assert_eq!(hit.block_id, "block-high");
     }
 
@@ -161,14 +154,7 @@ mod tests {
     fn locked_layer_blocks_are_not_selectable() {
         let mut document = overlap_fixture();
         document.layers[1].locked = true;
-        let hit = hit_test(
-            &document,
-            CanvasPoint {
-                x: 100.0,
-                y: 100.0,
-            },
-        )
-        .expect("hit");
+        let hit = hit_test(&document, CanvasPoint { x: 100.0, y: 100.0 }).expect("hit");
         assert_eq!(hit.block_id, "block-low");
     }
 }

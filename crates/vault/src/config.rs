@@ -288,7 +288,10 @@ pub fn save_vault_config(vault_root: &Path, config: &VaultConfig) -> Result<(), 
     Ok(())
 }
 
-pub fn plan_daily_note(vault_root: &Path, date: Option<NaiveDate>) -> Result<DailyNotePlan, VaultError> {
+pub fn plan_daily_note(
+    vault_root: &Path,
+    date: Option<NaiveDate>,
+) -> Result<DailyNotePlan, VaultError> {
     let config = load_vault_config(vault_root)?;
     let date = date.unwrap_or_else(|| Local::now().date_naive());
     let stem = apply_date_tokens(&config.daily_note.filename_format, date);
@@ -319,7 +322,11 @@ pub fn plan_daily_note(vault_root: &Path, date: Option<NaiveDate>) -> Result<Dai
     })
 }
 
-pub fn load_vault_template(vault_root: &Path, templates_directory: &str, template_rel: &str) -> Result<String, VaultError> {
+pub fn load_vault_template(
+    vault_root: &Path,
+    templates_directory: &str,
+    template_rel: &str,
+) -> Result<String, VaultError> {
     let trimmed = template_rel.trim_start_matches('/');
     let raw = if trimmed.contains('/') {
         trimmed.to_string()
@@ -343,7 +350,11 @@ pub fn load_vault_template(vault_root: &Path, templates_directory: &str, templat
     fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))
 }
 
-pub fn build_note_markdown(title: &str, note_type: Option<&str>, template_body: Option<&str>) -> String {
+pub fn build_note_markdown(
+    title: &str,
+    note_type: Option<&str>,
+    template_body: Option<&str>,
+) -> String {
     let mut frontmatter = String::from("---\n");
     if let Some(kind) = note_type.filter(|value| !value.is_empty() && *value != "Type") {
         frontmatter.push_str(&format!("type: {kind}\n"));
@@ -388,7 +399,10 @@ mod tests {
     #[test]
     fn default_config_uses_daily_folder() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        let plan = plan_daily_note(dir.path(), Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap()))?;
+        let plan = plan_daily_note(
+            dir.path(),
+            Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap()),
+        )?;
         assert_eq!(plan.path, "daily/2026-06-20.md");
         assert!(plan.markdown.contains("# 2026-06-20"));
         Ok(())
@@ -413,7 +427,11 @@ mod tests {
         assert_eq!(body, "# Meeting\n");
         let body = load_vault_template(dir.path(), ".scriptor/templates", "/meeting.md")?;
         assert_eq!(body, "# Meeting\n");
-        let body = load_vault_template(dir.path(), ".scriptor/templates", ".scriptor/templates/meeting.md")?;
+        let body = load_vault_template(
+            dir.path(),
+            ".scriptor/templates",
+            ".scriptor/templates/meeting.md",
+        )?;
         assert_eq!(body, "# Meeting\n");
         Ok(())
     }
@@ -446,7 +464,10 @@ mod tests {
             ..VaultConfig::default()
         };
         save_vault_config(dir.path(), &config)?;
-        let plan = plan_daily_note(dir.path(), Some(NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()))?;
+        let plan = plan_daily_note(
+            dir.path(),
+            Some(NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()),
+        )?;
         assert_eq!(plan.path, "journal/2026-01-05.md");
         assert_eq!(plan.title, "Journal 2026-01-05");
         Ok(())

@@ -18,19 +18,19 @@
   - **Files likely touched:** `interface-design.md`, `docs/reports/review/01-governance-contracts-review.md`
 
 ## Phase 2: Rust Crates, C4 Architecture, Code Topology & IPC Engine Review
-- [ ] Task 2: IPC Contracts, C4 Architecture, 4-Axis CodeNav, Code Topology & Rust Crates Review
+- [x] Task 2: IPC Contracts, C4 Architecture, 4-Axis CodeNav, Code Topology & Rust Crates Review
   - **Description:** Generate C4 System Context (`c4-context.md`) and C4 Container (`c4-container.md`) specifications, run `ce-doc-review` on C4 docs, audit Rust workspace using CodeNav 4-axis navigation (Temporal, Structural, Semantic, Precision), Codemap hub blast-radius analysis, and `graphify-code-topology` (AST call graph, SQLite schema ER graphing, foreign key integrity `PRAGMA foreign_keys = ON`, index coverage), verify Rust-to-TS IPC contract generation, format checks, Clippy lints, Cargo Deny safety, backend service/repository separation (`ecc-backend-patterns`), `thiserror`/`anyhow` distinction, `unsafe` safety comments (`unsafe-safety-comment`), zero unwrap in production (`err-no-unwrap-prod`), no Tokio mutex across await (`async-no-lock-await`), and rust test suite execution following RARV execution & Karpathy guidelines.
   - **Acceptance criteria:**
-    - [ ] `docs/architecture/c4-context.md` and `docs/architecture/c4-container.md` written with Mermaid C4 diagrams.
-    - [ ] `ce-doc-review` passes multi-persona audit on C4 specs.
-    - [ ] CodeNav 4-axis navigation, Codemap hub impact analysis, and SQLite schema integrity (`PRAGMA foreign_keys = ON`) verified.
-    - [ ] `pnpm check:contracts` and `pnpm check:ts-rs` pass.
-    - [ ] Rust safety & unwrap audit passes (0 unwrap in prod paths, 100% `// SAFETY:` coverage).
-    - [ ] `cargo fmt --all --check` reports zero formatting diffs.
-    - [ ] `cargo clippy --workspace --all-targets -- -D warnings` reports zero warnings.
-    - [ ] `pnpm check:deny` passes zero advisory or license violations.
-    - [ ] `pnpm test:rust` passes all unit and integration tests.
-    - [ ] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
+    - [x] `docs/architecture/c4-context.md` and `docs/architecture/c4-container.md` written with Mermaid C4 diagrams.
+    - [x] `ce-doc-review` passes multi-persona audit on C4 specs.
+    - [x] CodeNav 4-axis navigation, Codemap hub impact analysis, and SQLite schema integrity (`PRAGMA foreign_keys = ON`) verified.
+    - [x] `pnpm check:contracts` and `pnpm check:ts-rs` pass.
+    - [x] Rust safety & unwrap audit passes (0 unwrap in prod paths, 100% `// SAFETY:` coverage).
+    - [x] `cargo fmt --all --check` reports zero formatting diffs.
+    - [x] `cargo clippy --workspace --all-targets -- -D warnings` reports zero warnings.
+    - [x] `pnpm check:deny` passes zero advisory or license violations.
+    - [x] `pnpm test:rust` passes all unit and integration tests.
+    - [x] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
   - **Verification:** `pnpm check:contracts && pnpm test:rust && pnpm check:deny`
   - **Dependencies:** Task 1
   - **Files likely touched:** `docs/architecture/c4-context.md`, `docs/architecture/c4-container.md`, `docs/reports/review/02-rust-ipc-engine-review.md`

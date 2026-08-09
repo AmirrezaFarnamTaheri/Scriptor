@@ -1,9 +1,12 @@
-use scriptor_daemon::mcp_stdio::{run_mcp_stdio, McpStdioOptions};
-use scriptor_daemon::transport;
 use clap::{Parser, Subcommand};
+use scriptor_daemon::mcp_stdio::{McpStdioOptions, run_mcp_stdio};
+use scriptor_daemon::transport;
 
 #[derive(Debug, Parser)]
-#[command(name = "scriptor-daemon", about = "Headless Scriptor vault engine over local IPC")]
+#[command(
+    name = "scriptor-daemon",
+    about = "Headless Scriptor vault engine over local IPC"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

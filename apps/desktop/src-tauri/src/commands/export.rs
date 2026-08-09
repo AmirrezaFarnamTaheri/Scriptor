@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
 
-use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::AppState;
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{active_session, use_headless_engine};
 
 use super::daemon::{
@@ -180,6 +180,7 @@ fn build_export_job_input(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build_export_job_from_markdown(
     session: &VaultSession,
     note_path: &str,

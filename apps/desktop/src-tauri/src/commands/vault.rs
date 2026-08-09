@@ -21,9 +21,9 @@ use scriptor_vault::{
 };
 use tauri::AppHandle;
 
-use crate::authorization::{require_sensitive_operation, SensitiveOperation};
-use crate::state::{active_session, lock_recover, use_headless_engine};
 use crate::AppState;
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
+use crate::state::{active_session, lock_recover, use_headless_engine};
 
 use super::daemon::{
     bridge_health_report, bridge_reload_config, bridge_rename_apply, bridge_save_note,

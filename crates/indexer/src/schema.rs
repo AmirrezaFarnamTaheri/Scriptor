@@ -72,7 +72,6 @@ pub const MIGRATE_V2_TO_V3: &[(&str, &str)] = &[
     ),
 ];
 
-
 pub const CREATE_INDEXES: &str = "
 CREATE INDEX IF NOT EXISTS idx_notes_vault_path ON notes(vault_id, path);
 CREATE INDEX IF NOT EXISTS idx_notes_vault_title ON notes(vault_id, title);

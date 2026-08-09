@@ -1,11 +1,11 @@
-use scriptor_vault::{note_id, read_note, scan_vault, ScannedEntryKind, VaultSession};
+use scriptor_vault::{ScannedEntryKind, VaultSession, note_id, read_note, scan_vault};
 
-use crate::citation::{validate_citations, CitationValidationSummary};
-use crate::db::{integrity_check_ok, orphaned_note_count, read_schema_version, IndexCache};
+use crate::citation::{CitationValidationSummary, validate_citations};
+use crate::db::{IndexCache, integrity_check_ok, orphaned_note_count, read_schema_version};
 use crate::error::IndexerError;
 use crate::links::count_links;
 use crate::notes::{indexed_note_count, total_word_count};
-use crate::parse::{parse_note_markdown, ParsedLinkKind};
+use crate::parse::{ParsedLinkKind, parse_note_markdown};
 use crate::schema::SCHEMA_VERSION;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
@@ -44,7 +44,10 @@ pub struct VaultHealthDiagnostics {
     pub issues: Vec<HealthIssue>,
 }
 
-pub fn build_health_report(cache: &IndexCache, session: &VaultSession) -> Result<VaultHealthReport, IndexerError> {
+pub fn build_health_report(
+    cache: &IndexCache,
+    session: &VaultSession,
+) -> Result<VaultHealthReport, IndexerError> {
     Ok(build_health_diagnostics(cache, session)?.summary)
 }
 
@@ -151,21 +154,19 @@ pub fn build_health_diagnostics(
         }
     }
 
-    let duplicate_titles = title_paths
-        .values()
-        .filter(|paths| paths.len() > 1)
-        .count() as u32;
+    let duplicate_titles = title_paths.values().filter(|paths| paths.len() > 1).count() as u32;
     let indexed = indexed_note_count(cache, &session.descriptor.id)?;
     let total_words = total_word_count(cache, &session.descriptor.id)?;
     append_foam_lint_diagnostics(session, &mut issues)?;
     append_cache_diagnostics(cache, session, &note_paths, indexed, &mut issues)?;
     append_slow_export_diagnostics(session, &mut issues)?;
-    let cache_status = if indexed == note_paths.len() as u32 && !issues.iter().any(|issue| {
-        matches!(
-            issue.kind.as_str(),
-            "stale_cache" | "corrupt_cache" | "cache_missing"
-        )
-    }) {
+    let cache_status = if indexed == note_paths.len() as u32
+        && !issues.iter().any(|issue| {
+            matches!(
+                issue.kind.as_str(),
+                "stale_cache" | "corrupt_cache" | "cache_missing"
+            )
+        }) {
         CacheStatus::Fresh
     } else {
         CacheStatus::Stale
@@ -220,16 +221,15 @@ fn append_cache_diagnostics(
     }
 
     if let Some(version) = read_schema_version(&conn)?
-        && version != SCHEMA_VERSION {
-            issues.push(HealthIssue {
-                kind: "stale_cache".into(),
-                path: cache_rel.clone(),
-                detail: format!(
-                    "schema v{version} != expected v{SCHEMA_VERSION}; rebuild recommended"
-                ),
-                line: None,
-            });
-        }
+        && version != SCHEMA_VERSION
+    {
+        issues.push(HealthIssue {
+            kind: "stale_cache".into(),
+            path: cache_rel.clone(),
+            detail: format!("schema v{version} != expected v{SCHEMA_VERSION}; rebuild recommended"),
+            line: None,
+        });
+    }
 
     let note_count = note_paths.len() as u32;
     if indexed < note_count {
@@ -278,7 +278,7 @@ fn append_foam_lint_diagnostics(
     session: &VaultSession,
     issues: &mut Vec<HealthIssue>,
 ) -> Result<(), IndexerError> {
-    use scriptor_vault::{lint_vault, RULE_MISSING_HEADING, RULE_STALE_DEFINITIONS};
+    use scriptor_vault::{RULE_MISSING_HEADING, RULE_STALE_DEFINITIONS, lint_vault};
 
     let rules = vec![
         RULE_MISSING_HEADING.to_string(),
@@ -323,12 +323,18 @@ fn asset_is_referenced(
     Ok(false)
 }
 
-pub fn health_report_json(cache: &IndexCache, session: &VaultSession) -> Result<String, IndexerError> {
+pub fn health_report_json(
+    cache: &IndexCache,
+    session: &VaultSession,
+) -> Result<String, IndexerError> {
     let report = build_health_report(cache, session)?;
     Ok(serde_json::to_string_pretty(&report)?)
 }
 
-pub fn health_diagnostics_json(cache: &IndexCache, session: &VaultSession) -> Result<String, IndexerError> {
+pub fn health_diagnostics_json(
+    cache: &IndexCache,
+    session: &VaultSession,
+) -> Result<String, IndexerError> {
     let diagnostics = build_health_diagnostics(cache, session)?;
     Ok(serde_json::to_string_pretty(&diagnostics)?)
 }

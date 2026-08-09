@@ -81,7 +81,11 @@ pub fn note_hash(cache: &IndexCache, note_id: &str) -> Result<Option<String>, In
     Ok(None)
 }
 
-pub fn note_needs_reindex(cache: &IndexCache, metadata: &NoteMetadata, markdown: &str) -> Result<bool, IndexerError> {
+pub fn note_needs_reindex(
+    cache: &IndexCache,
+    metadata: &NoteMetadata,
+    markdown: &str,
+) -> Result<bool, IndexerError> {
     let current_hash = content_hash(markdown);
     Ok(match note_hash(cache, &metadata.id)? {
         Some(previous) => previous != current_hash,
@@ -158,8 +162,14 @@ pub fn remove_note_from_index(
 
     let conn = cache.connection()?;
     let tx = conn.unchecked_transaction()?;
-    tx.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
-    tx.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_key])?;
+    tx.execute(
+        "DELETE FROM links WHERE from_note_id = ?1",
+        params![note_key],
+    )?;
+    tx.execute(
+        "DELETE FROM citation_refs WHERE note_id = ?1",
+        params![note_key],
+    )?;
     tx.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
     tx.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
     tx.commit()?;
@@ -173,8 +183,8 @@ pub fn session_cache_path(session: &VaultSession) -> std::path::PathBuf {
 #[cfg(test)]
 mod remove_tests {
     use super::*;
-    use scriptor_vault::{note_id, RelativeVaultPath};
     use crate::db::IndexCache;
+    use scriptor_vault::{RelativeVaultPath, note_id};
     use tempfile::tempdir;
 
     #[test]
@@ -193,11 +203,7 @@ mod remove_tests {
             pending_reindex_paths: Vec::new(),
         };
 
-        upsert_note(
-            &cache,
-            &sample_metadata("notes/a.md", 10),
-            "# A",
-        )?;
+        upsert_note(&cache, &sample_metadata("notes/a.md", 10), "# A")?;
         assert!(remove_note_from_index(&cache, &session, "notes/a.md")?);
         assert!(load_note_metadata(&cache, "vault-test", "notes/a.md")?.is_none());
         Ok(())
@@ -205,10 +211,7 @@ mod remove_tests {
 
     fn sample_metadata(path: &str, words: u32) -> NoteMetadata {
         NoteMetadata {
-            id: note_id(
-                "vault-test",
-                &RelativeVaultPath::parse(path).expect("path"),
-            ),
+            id: note_id("vault-test", &RelativeVaultPath::parse(path).expect("path")),
             vault_id: "vault-test".into(),
             path: path.into(),
             title: path.into(),

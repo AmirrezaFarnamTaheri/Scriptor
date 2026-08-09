@@ -46,7 +46,11 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
         };
 
         if index > 0 {
-            let join = if tokens[index - 1].or_after { "OR" } else { "AND" };
+            let join = if tokens[index - 1].or_after {
+                "OR"
+            } else {
+                "AND"
+            };
             clause = format!("{join} {clause}");
         }
 
@@ -151,7 +155,7 @@ mod tests {
     use super::*;
     use crate::db::IndexCache;
     use crate::notes::upsert_note;
-    use scriptor_vault::{metadata_from_markdown, RelativeVaultPath};
+    use scriptor_vault::{RelativeVaultPath, metadata_from_markdown};
     use tempfile::tempdir;
 
     #[test]
@@ -173,14 +177,16 @@ mod tests {
     #[test]
     fn quotes_terms_so_fts_operators_are_literal() {
         assert_eq!(build_fts_query("a("), Some("\"a(\"*".into()));
-        assert_eq!(build_fts_query("body:secret"), Some("\"body:secret\"*".into()));
+        assert_eq!(
+            build_fts_query("body:secret"),
+            Some("\"body:secret\"*".into())
+        );
         // Embedded quotes are escaped by doubling inside the phrase.
         assert_eq!(build_fts_query("say\"hi"), Some("\"say\"\"hi\"*".into()));
     }
 
     #[test]
-    fn search_with_fts_metacharacters_does_not_error(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn search_with_fts_metacharacters_does_not_error() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
 
@@ -192,8 +198,12 @@ mod tests {
 
         let other = RelativeVaultPath::parse("Other.md")?;
         let other_markdown = "# Other\n\nkeep this secret safe\n";
-        let other_metadata =
-            metadata_from_markdown("vault-test", &other, other_markdown, "2026-01-01T00:00:00Z".into());
+        let other_metadata = metadata_from_markdown(
+            "vault-test",
+            &other,
+            other_markdown,
+            "2026-01-01T00:00:00Z".into(),
+        );
         upsert_note(&cache, &other_metadata, other_markdown)?;
 
         // Would previously be parsed as MATCH syntax (unbalanced paren / column filter).
@@ -219,7 +229,8 @@ mod tests {
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
         let path = RelativeVaultPath::parse("Research Plan.md")?;
         let markdown = "# Research Plan\n\nEvaluate knowledge structure.\n";
-        let metadata = metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
+        let metadata =
+            metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
 
         upsert_note(&cache, &metadata, markdown)?;
 

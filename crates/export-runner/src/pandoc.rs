@@ -48,7 +48,10 @@ pub fn verify_binary_hash(
 ) -> Result<Option<String>, ExportError> {
     let computed = sha256_file(binary_path)?;
 
-    log::info!("{label} SHA-256: {computed} (path: {})", binary_path.display());
+    log::info!(
+        "{label} SHA-256: {computed} (path: {})",
+        binary_path.display()
+    );
 
     if let Some(expected) = expected_hash {
         let normalized = expected.trim().to_ascii_lowercase();
@@ -111,7 +114,11 @@ fn bundled_pandoc_paths() -> Vec<PathBuf> {
         let trimmed = dir.trim();
         if !trimmed.is_empty() {
             let base = PathBuf::from(trimmed);
-            paths.push(base.join(if cfg!(windows) { "pandoc.exe" } else { "pandoc" }));
+            paths.push(base.join(if cfg!(windows) {
+                "pandoc.exe"
+            } else {
+                "pandoc"
+            }));
         }
     }
     paths

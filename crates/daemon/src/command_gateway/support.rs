@@ -27,19 +27,19 @@ pub(super) fn cmd_save_note(
     if !dry_run
         && let Err(error) =
             incremental_note_index_with_cache(session, state.require_cache()?, path, &[])
-        {
-            if let Err(rollback_error) = rollback_save_note(
-                &session.descriptor.id,
-                &session.root,
-                &note_path,
-                output.previous_content_hash.as_deref(),
-            ) {
-                return Err(format!(
-                    "index update failed: {error}; disk rollback failed: {rollback_error}"
-                ));
-            }
-            return Err(error.to_string());
+    {
+        if let Err(rollback_error) = rollback_save_note(
+            &session.descriptor.id,
+            &session.root,
+            &note_path,
+            output.previous_content_hash.as_deref(),
+        ) {
+            return Err(format!(
+                "index update failed: {error}; disk rollback failed: {rollback_error}"
+            ));
         }
+        return Err(error.to_string());
+    }
     Ok(output)
 }
 
@@ -60,9 +60,12 @@ pub(super) fn cmd_rename_apply(
         update_links,
     )
     .map_err(|error| error.to_string())?;
-    if let Err(error) =
-        incremental_notes_index_with_cache(session, state.require_cache()?, &output.affected_files, &[])
-    {
+    if let Err(error) = incremental_notes_index_with_cache(
+        session,
+        state.require_cache()?,
+        &output.affected_files,
+        &[],
+    ) {
         let _ = staged.abort();
         return Err(error.to_string());
     }
@@ -81,12 +84,13 @@ pub(super) fn cmd_resolve_wikilink(state: &DaemonState, target: &str) -> Result<
         }
         note_paths.push(entry.path.clone());
         if let Ok(relative) = RelativeVaultPath::parse(&entry.path)
-            && let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative) {
-                let parsed = parse_note_markdown(&entry.path, &document.markdown);
-                if !parsed.aliases.is_empty() {
-                    aliases_by_path.insert(entry.path, parsed.aliases);
-                }
+            && let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative)
+        {
+            let parsed = parse_note_markdown(&entry.path, &document.markdown);
+            if !parsed.aliases.is_empty() {
+                aliases_by_path.insert(entry.path, parsed.aliases);
             }
+        }
     }
     to_value(resolve_wikilink_target_with_aliases(
         &note_paths,
@@ -106,7 +110,8 @@ pub(super) fn build_export_note_input(
 ) -> Result<ExportJobInput, String> {
     let session = state.require_session()?;
     let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
-    let note = read_note(&session.descriptor.id, &session.root, &relative).map_err(|error| error.to_string())?;
+    let note = read_note(&session.descriptor.id, &session.root, &relative)
+        .map_err(|error| error.to_string())?;
     let stem = note_path
         .trim_end_matches(".md")
         .rsplit('/')
@@ -114,7 +119,8 @@ pub(super) fn build_export_note_input(
         .unwrap_or("note");
     let output_directory = match output_subdirectory {
         Some(subdir) => {
-            let _validated = RelativeVaultPath::parse(subdir).map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+            let _validated = RelativeVaultPath::parse(subdir)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
             session.root.root().join(subdir)
         }
         None => default_export_directory(session.root.root()),
@@ -148,7 +154,8 @@ pub(super) fn build_export_markdown_input(
 ) -> Result<ExportJobInput, String> {
     let session = state.require_session()?;
     let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
-    let note = read_note(&session.descriptor.id, &session.root, &relative).map_err(|error| error.to_string())?;
+    let note = read_note(&session.descriptor.id, &session.root, &relative)
+        .map_err(|error| error.to_string())?;
     let stem = note_path
         .trim_end_matches(".md")
         .rsplit('/')
@@ -156,7 +163,8 @@ pub(super) fn build_export_markdown_input(
         .unwrap_or("note");
     let output_directory = match output_subdirectory {
         Some(subdir) => {
-            let _validated = RelativeVaultPath::parse(subdir).map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+            let _validated = RelativeVaultPath::parse(subdir)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
             session.root.root().join(subdir)
         }
         None => default_export_directory(session.root.root()),
@@ -182,7 +190,10 @@ pub(super) struct PdfTranslateOutput {
     output_path: String,
 }
 
-pub(super) fn cmd_pdf_translate(state: &DaemonState, payload: &Value) -> Result<PdfTranslateOutput, String> {
+pub(super) fn cmd_pdf_translate(
+    state: &DaemonState,
+    payload: &Value,
+) -> Result<PdfTranslateOutput, String> {
     let session = state.require_session()?;
     let input_path = require_str(payload, "input_path")?;
     let relative = RelativeVaultPath::parse(&input_path)
@@ -253,9 +264,12 @@ pub(super) struct PlantUmlRenderOutput {
 }
 
 pub(super) fn environment_opt_in(name: &str) -> bool {
-    std::env::var(name)
-        .ok()
-        .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+    std::env::var(name).ok().is_some_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes"
+        )
+    })
 }
 
 pub(super) fn cmd_plantuml_render(payload: &Value) -> Result<PlantUmlRenderOutput, String> {
@@ -408,20 +422,28 @@ pub(super) fn require_bytes(payload: &Value, key: &str) -> Result<Vec<u8>, Strin
                 .as_u64()
                 .and_then(|byte| u8::try_from(byte).ok())
                 .ok_or_else(|| {
-                    format!("invalid byte at index {index} in field {key}: expected integer 0..=255")
+                    format!(
+                        "invalid byte at index {index} in field {key}: expected integer 0..=255"
+                    )
                 })
         })
         .collect()
 }
 
-pub(super) fn require_deserialize<T: serde::de::DeserializeOwned>(payload: &Value, key: &str) -> Result<T, String> {
+pub(super) fn require_deserialize<T: serde::de::DeserializeOwned>(
+    payload: &Value,
+    key: &str,
+) -> Result<T, String> {
     payload
         .get(key)
         .ok_or_else(|| format!("missing field: {key}"))
         .and_then(|value| serde_json::from_value(value.clone()).map_err(|error| error.to_string()))
 }
 
-pub(super) fn optional_deserialize<T: serde::de::DeserializeOwned>(payload: &Value, key: &str) -> Option<T> {
+pub(super) fn optional_deserialize<T: serde::de::DeserializeOwned>(
+    payload: &Value,
+    key: &str,
+) -> Option<T> {
     payload
         .get(key)
         .and_then(|value| serde_json::from_value(value.clone()).ok())

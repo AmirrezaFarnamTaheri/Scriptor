@@ -71,12 +71,7 @@ impl McpMutationAuditRecord {
         }
     }
 
-    pub fn outcome(
-        intent: &Self,
-        success: bool,
-        detail: Option<String>,
-        duration_ms: u64,
-    ) -> Self {
+    pub fn outcome(intent: &Self, success: bool, detail: Option<String>, duration_ms: u64) -> Self {
         Self {
             id: intent.id.clone(),
             phase: "outcome".into(),
@@ -126,7 +121,8 @@ pub fn append_mcp_mutation(
         .open(&absolute)
         .map_err(|source| VaultError::io(&absolute, source))?;
     writeln!(file, "{line}").map_err(|source| VaultError::io(&absolute, source))?;
-    file.flush().map_err(|source| VaultError::io(&absolute, source))?;
+    file.flush()
+        .map_err(|source| VaultError::io(&absolute, source))?;
     file.sync_data()
         .map_err(|source| VaultError::io(&absolute, source))?;
     Ok(())
@@ -186,7 +182,9 @@ pub fn reconcile_pending_mcp_mutations(root: &VaultRoot) -> Result<usize, VaultE
             McpMutationAuditRecord::outcome(
                 &intent,
                 false,
-                Some("recovered after interruption; mutation outcome requires reconciliation".into()),
+                Some(
+                    "recovered after interruption; mutation outcome requires reconciliation".into(),
+                ),
                 0,
             ),
         )?;
@@ -207,7 +205,9 @@ fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
     file.seek(SeekFrom::Start(start))
         .map_err(|source| VaultError::io(path, source))?;
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().collect::<Result<_, _>>()
+    let lines: Vec<String> = reader
+        .lines()
+        .collect::<Result<_, _>>()
         .map_err(|source| VaultError::io(path, source))?;
     for line in lines.into_iter().rev() {
         if let Ok(record) = serde_json::from_str::<McpMutationAuditRecord>(&line)
@@ -263,7 +263,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>> {
+    fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>>
+    {
         let dir = tempdir()?;
         let root = VaultRoot::open(dir.path())?;
         let intent = McpMutationAuditRecord::intent(
@@ -274,7 +275,10 @@ mod tests {
             Some("path=alpha.md".into()),
         );
         append_mcp_mutation(&root, intent.clone())?;
-        append_mcp_mutation(&root, McpMutationAuditRecord::outcome(&intent, true, None, 4))?;
+        append_mcp_mutation(
+            &root,
+            McpMutationAuditRecord::outcome(&intent, true, None, 4),
+        )?;
 
         let records = read_mcp_audit_tail(&root, 1)?;
         assert_eq!(records.len(), 1);

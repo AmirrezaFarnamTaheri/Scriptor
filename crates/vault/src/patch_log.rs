@@ -48,14 +48,23 @@ pub fn write_rename_patch_log(
     Ok(log)
 }
 
-pub fn backup_note_content(root: &VaultRoot, absolute: &Path, relative_path: &str) -> Result<String, VaultError> {
+pub fn backup_note_content(
+    root: &VaultRoot,
+    absolute: &Path,
+    relative_path: &str,
+) -> Result<String, VaultError> {
     if !absolute.is_file() {
         return Ok(String::new());
     }
-    let content = fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
+    let content =
+        fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
     let digest = Sha256::digest(relative_path.as_bytes());
     let name = format!("{}.md", hex::encode(&digest[..8]));
-    let backup_dir = root.root().join(".scriptor").join("recovery").join("rename");
+    let backup_dir = root
+        .root()
+        .join(".scriptor")
+        .join("recovery")
+        .join("rename");
     fs::create_dir_all(&backup_dir).map_err(|source| VaultError::io(&backup_dir, source))?;
     let backup_path = backup_dir.join(name);
     atomic_write(&backup_path, content.as_bytes())?;

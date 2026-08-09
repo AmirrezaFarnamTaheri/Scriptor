@@ -2,8 +2,8 @@ use std::fs;
 use std::path::PathBuf;
 
 use scriptor_vault::{
-    open_vault, read_note, save_note, save_note_with_options, scan_vault, scan_vault_for_index, RelativeVaultPath,
-    SaveNoteOptions, ScannedEntryKind, VaultError,
+    RelativeVaultPath, SaveNoteOptions, ScannedEntryKind, VaultError, open_vault, read_note,
+    save_note, save_note_with_options, scan_vault_for_index,
 };
 use tempfile::TempDir;
 
@@ -23,7 +23,10 @@ fn copied_fixture() -> (TempDir, PathBuf) {
 fn opens_minimal_fixture_vault() -> Result<(), VaultError> {
     let (_dir, root) = copied_fixture();
     let session = open_vault(root)?;
-    assert_eq!(session.descriptor.status, scriptor_vault::VaultStatus::Ready);
+    assert_eq!(
+        session.descriptor.status,
+        scriptor_vault::VaultStatus::Ready
+    );
     Ok(())
 }
 
@@ -124,6 +127,11 @@ fn save_creates_recovery_backup_before_overwrite() -> Result<(), VaultError> {
 
     let recovery_dir = session.root.root().join(".scriptor").join("recovery");
     assert!(recovery_dir.exists());
-    assert!(std::fs::read_dir(&recovery_dir).ok().and_then(|mut dir| dir.next()).is_some());
+    assert!(
+        std::fs::read_dir(&recovery_dir)
+            .ok()
+            .and_then(|mut dir| dir.next())
+            .is_some()
+    );
     Ok(())
 }

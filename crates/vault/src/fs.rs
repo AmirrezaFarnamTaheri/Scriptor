@@ -15,8 +15,8 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let temp_path = parent.join(temp_name);
 
     let write_result = (|| -> Result<(), VaultError> {
-        let mut file = fs::File::create(&temp_path)
-            .map_err(|source| VaultError::io(&temp_path, source))?;
+        let mut file =
+            fs::File::create(&temp_path).map_err(|source| VaultError::io(&temp_path, source))?;
         // `File::create` yields 0644 (minus umask), so replacing a note the user
         // had chmod'ed to 0600 would silently make it world-readable. Carry the
         // destination's own mode over to the replacement before it is exposed.
@@ -117,10 +117,7 @@ pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize,
             if !entry.file_type().is_dir() {
                 return true;
             }
-            !entry
-                .file_name()
-                .to_string_lossy()
-                .starts_with('.')
+            !entry.file_name().to_string_lossy().starts_with('.')
         });
 
     for entry in walker.flatten() {

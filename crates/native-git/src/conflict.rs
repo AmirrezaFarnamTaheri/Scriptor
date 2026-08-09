@@ -14,7 +14,9 @@ pub struct GitConflictResolveOutput {
 
 fn validate_conflict_path(repo_root: &Path, path: &str) -> Result<std::path::PathBuf, GitError> {
     if path.contains('\0') || path.contains('\n') || path.contains('\r') {
-        return Err(GitError::Command(format!("invalid path characters: {path}")));
+        return Err(GitError::Command(format!(
+            "invalid path characters: {path}"
+        )));
     }
     // Reject only real parent-directory components. A substring check on ".."
     // also rejected legitimate names such as `notes..md` or `v1..2/report.md`.
@@ -22,7 +24,9 @@ fn validate_conflict_path(repo_root: &Path, path: &str) -> Result<std::path::Pat
         .components()
         .any(|component| matches!(component, std::path::Component::ParentDir))
     {
-        return Err(GitError::Command(format!("path traversal not allowed: {path}")));
+        return Err(GitError::Command(format!(
+            "path traversal not allowed: {path}"
+        )));
     }
     let file_path = repo_root.join(path);
     let canonical_root = repo_root
@@ -33,12 +37,16 @@ fn validate_conflict_path(repo_root: &Path, path: &str) -> Result<std::path::Pat
             .canonicalize()
             .map_err(|e| GitError::Command(format!("cannot canonicalize file path: {e}")))?;
         if !canonical_file.starts_with(&canonical_root) {
-            return Err(GitError::Command(format!("path escapes repository root: {path}")));
+            return Err(GitError::Command(format!(
+                "path escapes repository root: {path}"
+            )));
         }
     } else {
         let normalized = normalize_path_components(&file_path);
         if !normalized.starts_with(&canonical_root) {
-            return Err(GitError::Command(format!("path escapes repository root: {path}")));
+            return Err(GitError::Command(format!(
+                "path escapes repository root: {path}"
+            )));
         }
     }
     Ok(file_path)
@@ -48,7 +56,9 @@ fn normalize_path_components(path: &std::path::Path) -> std::path::PathBuf {
     let mut output = std::path::PathBuf::new();
     for component in path.components() {
         match component {
-            std::path::Component::ParentDir => { output.pop(); }
+            std::path::Component::ParentDir => {
+                output.pop();
+            }
             std::path::Component::CurDir => {}
             std::path::Component::Normal(part) => output.push(part),
             std::path::Component::RootDir => output.push(std::path::MAIN_SEPARATOR_STR),
@@ -77,10 +87,16 @@ pub fn git_resolve_conflict(
 
     let file_path = validate_conflict_path(repo_root, path)?;
     if !file_path.exists() {
-        return Err(GitError::Command(format!("conflicted file not found: {path}")));
+        return Err(GitError::Command(format!(
+            "conflicted file not found: {path}"
+        )));
     }
 
-    let stage_flag = if strategy == "ours" { "--ours" } else { "--theirs" };
+    let stage_flag = if strategy == "ours" {
+        "--ours"
+    } else {
+        "--theirs"
+    };
     run_git(repo_root, &["checkout", stage_flag, "--", path])?;
     run_git(repo_root, &["add", "--", path])?;
 
@@ -102,7 +118,9 @@ pub fn git_apply_merged_conflict(
 
     let file_path = validate_conflict_path(repo_root, path)?;
     if !file_path.exists() {
-        return Err(GitError::Command(format!("conflicted file not found: {path}")));
+        return Err(GitError::Command(format!(
+            "conflicted file not found: {path}"
+        )));
     }
 
     fs::write(&file_path, merged_markdown).map_err(GitError::Io)?;
@@ -166,7 +184,12 @@ mod tests {
     fn accepts_filenames_containing_a_literal_double_dot() {
         let dir = tempdir().expect("tempdir");
         let root = dir.path().canonicalize().expect("canonicalize");
-        for name in ["notes..md", "v1..2/report.md", "..leading.md", "trailing..md"] {
+        for name in [
+            "notes..md",
+            "v1..2/report.md",
+            "..leading.md",
+            "trailing..md",
+        ] {
             validate_conflict_path(&root, name)
                 .unwrap_or_else(|error| panic!("{name} should be accepted: {error}"));
         }

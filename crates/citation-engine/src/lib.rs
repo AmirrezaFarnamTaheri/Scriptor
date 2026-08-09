@@ -38,27 +38,30 @@ impl CitationEngine {
     }
 
     pub fn from_biblatex_str(content: &str) -> Result<Self, CitationError> {
-        let library = from_biblatex_str(content)
-            .map_err(|e| CitationError::Parse(format!("{e:?}")))?;
+        let library =
+            from_biblatex_str(content).map_err(|e| CitationError::Parse(format!("{e:?}")))?;
 
         Ok(Self { library })
     }
 
     pub fn render_citation(&self, key: &str, style: &str) -> Result<String, CitationError> {
-        let entry = self.library.get(key).ok_or_else(|| {
-            CitationError::KeyNotFound(key.to_string())
-        })?;
+        let entry = self
+            .library
+            .get(key)
+            .ok_or_else(|| CitationError::KeyNotFound(key.to_string()))?;
 
         Ok(format_citation(entry, style))
     }
 
-    pub fn render_bibliography(&self, keys: &[String], style: &str) -> Result<String, CitationError> {
+    pub fn render_bibliography(
+        &self,
+        keys: &[String],
+        style: &str,
+    ) -> Result<String, CitationError> {
         let entries: Vec<&Entry> = if keys.is_empty() {
             self.library.iter().collect()
         } else {
-            keys.iter()
-                .filter_map(|k| self.library.get(k))
-                .collect()
+            keys.iter().filter_map(|k| self.library.get(k)).collect()
         };
 
         let mut output = String::new();
@@ -78,12 +81,7 @@ impl CitationEngine {
         let title = entry.title().map(|t| t.to_string());
         let authors = entry
             .authors()
-            .map(|people| {
-                people
-                    .iter()
-                    .map(|p| p.name_first(false, false))
-                    .collect()
-            })
+            .map(|people| people.iter().map(|p| p.name_first(false, false)).collect())
             .unwrap_or_default();
         let year = entry.date().map(|d| d.year.to_string());
 

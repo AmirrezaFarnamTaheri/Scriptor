@@ -2,7 +2,7 @@
 
 use std::io::Cursor;
 
-use crate::{decode_request, read_frame, read_frame_resyncing, IpcError, MAX_FRAME_BYTES};
+use crate::{IpcError, MAX_FRAME_BYTES, decode_request, read_frame, read_frame_resyncing};
 
 /// Exercises decode/read paths on arbitrary bytes. Must not panic.
 pub fn exercise_read_path(data: &[u8]) {
@@ -21,7 +21,10 @@ impl Rng {
     }
 
     fn next_u32(&mut self) -> u32 {
-        self.0 = self.0.wrapping_mul(6_364_136_223_847_679_361).wrapping_add(1);
+        self.0 = self
+            .0
+            .wrapping_mul(6_364_136_223_847_679_361)
+            .wrapping_add(1);
         (self.0 >> 32) as u32
     }
 

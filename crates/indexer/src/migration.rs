@@ -1,7 +1,7 @@
-use crate::db::{read_schema_version, IndexCache};
+use crate::db::{IndexCache, read_schema_version};
 use crate::error::IndexerError;
 use crate::schema::{
-    apply_schema, CREATE_INDEXES, CREATE_RECENT_ACCESS, MIGRATE_V2_TO_V3, SCHEMA_VERSION,
+    CREATE_INDEXES, CREATE_RECENT_ACCESS, MIGRATE_V2_TO_V3, SCHEMA_VERSION, apply_schema,
 };
 
 /// Apply versioned migrations or return `SchemaRebuildRequired` when unsafe to migrate in place.
@@ -159,7 +159,10 @@ mod tests {
             |row| row.get(0),
         )?;
         assert_eq!(version, SCHEMA_VERSION.to_string());
-        connection.execute("INSERT INTO recent_access(path, opened_at) VALUES ('a.md', 'now')", [])?;
+        connection.execute(
+            "INSERT INTO recent_access(path, opened_at) VALUES ('a.md', 'now')",
+            [],
+        )?;
         Ok(())
     }
 
@@ -202,7 +205,10 @@ CREATE TABLE IF NOT EXISTS notes (
 
         let columns = column_names(&connection)?;
         for expected in ["note_type", "organized", "archived"] {
-            assert!(columns.iter().any(|column| column == expected), "missing {expected}");
+            assert!(
+                columns.iter().any(|column| column == expected),
+                "missing {expected}"
+            );
         }
         assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
         Ok(())
@@ -219,7 +225,10 @@ CREATE TABLE IF NOT EXISTS notes (
 
         let columns = column_names(&connection)?;
         for expected in ["note_type", "organized", "archived"] {
-            assert!(columns.iter().any(|column| column == expected), "missing {expected}");
+            assert!(
+                columns.iter().any(|column| column == expected),
+                "missing {expected}"
+            );
         }
         assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
         Ok(())
@@ -233,7 +242,10 @@ CREATE TABLE IF NOT EXISTS notes (
         connection.execute_batch("DROP TABLE notes")?;
 
         let result = migrate_cache(&connection);
-        assert!(result.is_err(), "expected the migration to surface the failure");
+        assert!(
+            result.is_err(),
+            "expected the migration to surface the failure"
+        );
         assert_eq!(read_schema_version(&connection)?, Some(2));
         Ok(())
     }
@@ -284,7 +296,10 @@ CREATE TABLE IF NOT EXISTS notes (
             "idx_links_vault_to_note",
             "idx_links_vault_to_path",
         ] {
-            assert!(names.iter().any(|name| name == expected), "missing {expected}");
+            assert!(
+                names.iter().any(|name| name == expected),
+                "missing {expected}"
+            );
         }
         Ok(())
     }
@@ -298,8 +313,10 @@ CREATE TABLE IF NOT EXISTS notes (
             ["vault", "note.md"],
             |row| row.get(3),
         )?;
-        assert!(plan.contains("idx_notes_vault_path"), "unexpected plan: {plan}");
+        assert!(
+            plan.contains("idx_notes_vault_path"),
+            "unexpected plan: {plan}"
+        );
         Ok(())
     }
-
 }

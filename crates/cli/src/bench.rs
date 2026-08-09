@@ -32,7 +32,10 @@ pub(super) struct BenchSearchReport {
     pub(super) within_budget: bool,
 }
 
-pub(super) fn bench_scan(path: &PathBuf, iterations: u32) -> Result<BenchScanReport, Box<dyn std::error::Error>> {
+pub(super) fn bench_scan(
+    path: &PathBuf,
+    iterations: u32,
+) -> Result<BenchScanReport, Box<dyn std::error::Error>> {
     if iterations == 0 {
         return Err("benchmark iterations must be greater than zero".into());
     }

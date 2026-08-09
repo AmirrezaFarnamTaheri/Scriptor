@@ -114,7 +114,10 @@ pub fn code_chunk_run(
     ));
     std::fs::write(&script_path, code.as_bytes()).map_err(|error| error.to_string())?;
 
-    let mut args = prefix_args.into_iter().map(String::from).collect::<Vec<_>>();
+    let mut args = prefix_args
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<_>>();
     args.push(script_path.display().to_string());
     let result = run_process(
         ProcessSpec::new(binary)

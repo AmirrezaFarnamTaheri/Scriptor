@@ -1,12 +1,14 @@
-use scriptor_system_bridge::{detect_system_info, keychain_delete, keychain_get, keychain_set, SystemInfo};
-use serde::{Deserialize, Serialize};
+use scriptor_system_bridge::{
+    SystemInfo, detect_system_info, keychain_delete, keychain_get, keychain_set,
+};
 use scriptor_vault::{redact_json_value, redact_sensitive_text};
+use serde::{Deserialize, Serialize};
 
-use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::AppState;
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::state::{active_session, set_headless_engine as set_headless_engine_flag};
 
-use super::media::{render_plantuml_svg, PlantUmlRenderOutput};
+use super::media::{PlantUmlRenderOutput, render_plantuml_svg};
 
 #[tauri::command]
 pub fn set_headless_engine(state: tauri::State<AppState>, enabled: bool) -> Result<(), String> {
@@ -212,11 +214,7 @@ pub fn diagnostics_append_event(
     detail_json: Option<String>,
 ) -> Result<(), String> {
     let session = active_session(&state)?;
-    let diagnostics_dir = session
-        .root
-        .root()
-        .join(".scriptor")
-        .join("diagnostics");
+    let diagnostics_dir = session.root.root().join(".scriptor").join("diagnostics");
     std::fs::create_dir_all(&diagnostics_dir).map_err(|error| error.to_string())?;
 
     let timestamp_secs = std::time::SystemTime::now()

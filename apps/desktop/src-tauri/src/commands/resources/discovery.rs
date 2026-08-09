@@ -3,9 +3,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use scriptor_system_bridge::{ProcessSpec, hash_file, run_process};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use scriptor_system_bridge::{ProcessSpec, hash_file, run_process};
 
 use super::catalog::{TargetDefinition, target_catalog};
 use super::{
@@ -154,13 +154,7 @@ fn probe_target(
         });
         installations.insert(
             display.clone(),
-            installation(
-                definition.id,
-                "application",
-                display,
-                None,
-                Some(sha256),
-            ),
+            installation(definition.id, "application", display, None, Some(sha256)),
         );
     }
 
@@ -172,15 +166,17 @@ fn probe_target(
             version: extension.version.clone(),
             sha256: extension.sha256.clone(),
         });
-        installations.entry(extension.path.clone()).or_insert_with(|| {
-            installation(
-                definition.id,
-                "extension",
-                extension.path,
-                extension.version,
-                extension.sha256,
-            )
-        });
+        installations
+            .entry(extension.path.clone())
+            .or_insert_with(|| {
+                installation(
+                    definition.id,
+                    "extension",
+                    extension.path,
+                    extension.version,
+                    extension.sha256,
+                )
+            });
     }
 
     let mut resources = Vec::new();
@@ -337,10 +333,12 @@ fn scan_resource_directory(
             }
             continue;
         }
-        if depth == 0 && metadata.is_file() && is_instruction_file(&path) {
-            if let Some(instance) = read_resource(target_id, scope, root, &path, "instruction") {
-                resources.push(instance);
-            }
+        if depth == 0
+            && metadata.is_file()
+            && is_instruction_file(&path)
+            && let Some(instance) = read_resource(target_id, scope, root, &path, "instruction")
+        {
+            resources.push(instance);
         }
     }
 }
@@ -399,8 +397,7 @@ fn read_resource(
     }
     let logical_id = format!("{kind}:{normalized_name}");
     let canonical = fs::canonicalize(resource_path).unwrap_or_else(|_| resource_path.to_path_buf());
-    let canonical_manifest =
-        fs::canonicalize(manifest).unwrap_or_else(|_| manifest.to_path_buf());
+    let canonical_manifest = fs::canonicalize(manifest).unwrap_or_else(|_| manifest.to_path_buf());
     let managed = is_agentstack_managed(resource_path, root, &content);
     if kind == "skill" {
         if declared_skill_name.is_none() {
@@ -415,9 +412,7 @@ fn read_resource(
         if !is_valid_skill_name(&name) {
             issues.push("skill name is not a valid lowercase hyphenated identifier".to_string());
         }
-        let directory_name = resource_path
-            .file_name()
-            .and_then(|value| value.to_str());
+        let directory_name = resource_path.file_name().and_then(|value| value.to_str());
         if directory_name != Some(normalized_name.as_str()) {
             issues.push("skill name does not match its parent directory".to_string());
         }
@@ -753,9 +748,12 @@ fn normalize_identifier(value: &str) -> String {
 fn is_valid_skill_name(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 64
-        && value
-            .split('-')
-            .all(|segment| !segment.is_empty() && segment.chars().all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit()))
+        && value.split('-').all(|segment| {
+            !segment.is_empty()
+                && segment
+                    .chars()
+                    .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit())
+        })
 }
 
 fn first_version_line(stdout: &str, stderr: &str) -> Option<String> {
@@ -887,7 +885,10 @@ fn discover_extensions(extension_ids: &[&str], home: &Path) -> Vec<DiscoveredExt
 fn extension_search_roots(home: &Path) -> Vec<(&'static str, PathBuf)> {
     vec![
         ("Visual Studio Code", home.join(".vscode/extensions")),
-        ("Visual Studio Code Insiders", home.join(".vscode-insiders/extensions")),
+        (
+            "Visual Studio Code Insiders",
+            home.join(".vscode-insiders/extensions"),
+        ),
         ("Cursor", home.join(".cursor/extensions")),
         ("Windsurf", home.join(".windsurf/extensions")),
         ("Trae", home.join(".trae/extensions")),
@@ -900,11 +901,27 @@ fn platform_application_candidates(target_id: &str, home: &Path) -> Vec<(String,
     #[cfg(target_os = "macos")]
     {
         let paths: &[(&str, &str, &str)] = &[
-            ("vscode", "visual-studio-code-app", "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"),
-            ("cursor", "cursor-app", "/Applications/Cursor.app/Contents/Resources/app/bin/cursor"),
-            ("windsurf", "windsurf-app", "/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf"),
+            (
+                "vscode",
+                "visual-studio-code-app",
+                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code",
+            ),
+            (
+                "cursor",
+                "cursor-app",
+                "/Applications/Cursor.app/Contents/Resources/app/bin/cursor",
+            ),
+            (
+                "windsurf",
+                "windsurf-app",
+                "/Applications/Windsurf.app/Contents/Resources/app/bin/windsurf",
+            ),
             ("zed", "zed-app", "/Applications/Zed.app/Contents/MacOS/zed"),
-            ("kiro", "kiro-app", "/Applications/Kiro.app/Contents/Resources/app/bin/kiro"),
+            (
+                "kiro",
+                "kiro-app",
+                "/Applications/Kiro.app/Contents/Resources/app/bin/kiro",
+            ),
         ];
         for (id, identity, path) in paths {
             if *id == target_id {
@@ -916,7 +933,11 @@ fn platform_application_candidates(target_id: &str, home: &Path) -> Vec<(String,
     {
         if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA").map(PathBuf::from) {
             let paths: &[(&str, &str, &str)] = &[
-                ("vscode", "Microsoft.VisualStudioCode", "Programs/Microsoft VS Code/Code.exe"),
+                (
+                    "vscode",
+                    "Microsoft.VisualStudioCode",
+                    "Programs/Microsoft VS Code/Code.exe",
+                ),
                 ("cursor", "Cursor", "Programs/cursor/Cursor.exe"),
                 ("windsurf", "Windsurf", "Programs/Windsurf/Windsurf.exe"),
                 ("kiro", "Kiro", "Programs/Kiro/Kiro.exe"),
@@ -999,8 +1020,16 @@ mod tests {
         assert!(groups.iter().any(|group| {
             group.kind == DuplicateKind::Redundant && group.instance_ids == vec!["a", "b"]
         }));
-        assert!(groups.iter().any(|group| group.kind == DuplicateKind::ExactMirror));
-        assert!(groups.iter().any(|group| group.kind == DuplicateKind::Diverged));
+        assert!(
+            groups
+                .iter()
+                .any(|group| group.kind == DuplicateKind::ExactMirror)
+        );
+        assert!(
+            groups
+                .iter()
+                .any(|group| group.kind == DuplicateKind::Diverged)
+        );
         assert!(groups.iter().all(|group| !group.automatic_removal_allowed));
     }
 

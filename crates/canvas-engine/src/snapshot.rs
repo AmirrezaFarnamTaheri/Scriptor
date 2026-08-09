@@ -57,7 +57,10 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             "#64748b",
         );
         let block_id = xml_escape(&block.id);
-        let label = block.content_ref.clone().unwrap_or_else(|| block.id.clone());
+        let label = block
+            .content_ref
+            .clone()
+            .unwrap_or_else(|| block.id.clone());
 
         match block.kind {
             CanvasBlockKind::Connector => {
@@ -110,7 +113,10 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
         }
 
         if block.shape_kind == Some(CanvasShapeKind::Freehand)
-            || block.stroke_points.as_ref().is_some_and(|points| points.len() >= 2)
+            || block
+                .stroke_points
+                .as_ref()
+                .is_some_and(|points| points.len() >= 2)
         {
             let points = block.stroke_points.clone().unwrap_or_default();
             if points.len() >= 2 {
@@ -210,7 +216,8 @@ pub fn write_snapshot(
                 });
             }
             let svg = render_svg(document, Some(viewport));
-            let handle = crate::snapshot_raster::write_png_from_svg_async(svg, output_path.to_path_buf());
+            let handle =
+                crate::snapshot_raster::write_png_from_svg_async(svg, output_path.to_path_buf());
             handle
                 .join()
                 .map_err(|_| CanvasError::ExportFailed("png worker thread panicked".into()))??;
@@ -292,8 +299,16 @@ fn scene_bounds(document: &CanvasDocument) -> CanvasRect {
         max_y = max_y.max(block.bounds.y + block.bounds.height);
     }
 
-    let x = if min_x.is_finite() { min_x.floor() } else { 0.0 };
-    let y = if min_y.is_finite() { min_y.floor() } else { 0.0 };
+    let x = if min_x.is_finite() {
+        min_x.floor()
+    } else {
+        0.0
+    };
+    let y = if min_y.is_finite() {
+        min_y.floor()
+    } else {
+        0.0
+    };
 
     CanvasRect {
         x,
@@ -316,9 +331,9 @@ fn xml_escape(value: &str) -> String {
 /// safe default so canvas JSON can never inject SVG attributes.
 fn sanitize_color(value: &str, fallback: &str) -> String {
     let trimmed = value.trim();
-    let hex_ok = trimmed
-        .strip_prefix('#')
-        .is_some_and(|rest| (3..=8).contains(&rest.len()) && rest.chars().all(|c| c.is_ascii_hexdigit()));
+    let hex_ok = trimmed.strip_prefix('#').is_some_and(|rest| {
+        (3..=8).contains(&rest.len()) && rest.chars().all(|c| c.is_ascii_hexdigit())
+    });
     let name_ok = !trimmed.is_empty()
         && trimmed.len() <= 32
         && trimmed.chars().all(|c| c.is_ascii_alphabetic());
@@ -349,7 +364,11 @@ mod tests {
     #[test]
     fn svg_escapes_hostile_style_and_id() {
         let mut document = empty_document("vault", "Board");
-        let layer_id = document.layers.first().map(|layer| layer.id.clone()).unwrap_or_else(|| "layer".into());
+        let layer_id = document
+            .layers
+            .first()
+            .map(|layer| layer.id.clone())
+            .unwrap_or_else(|| "layer".into());
         document.blocks.push(CanvasBlock {
             id: r#"a"/><script>alert(1)</script>"#.into(),
             kind: CanvasBlockKind::Markdown,
@@ -376,8 +395,14 @@ mod tests {
         });
 
         let svg = render_svg(&document, None);
-        assert!(!svg.contains("<script>"), "script tag must not survive: {svg}");
-        assert!(!svg.contains(r#"" onload="#), "attribute breakout must not survive: {svg}");
+        assert!(
+            !svg.contains("<script>"),
+            "script tag must not survive: {svg}"
+        );
+        assert!(
+            !svg.contains(r#"" onload="#),
+            "attribute breakout must not survive: {svg}"
+        );
         // Hostile colors fall back to safe defaults.
         assert!(svg.contains(r##"fill="#ffffff""##));
         assert!(svg.contains(r##"stroke="#64748b""##));
@@ -469,7 +494,8 @@ mod tests {
         );
         document.blocks.push(block);
 
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-huge-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-huge-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&temp).expect("temp");
         let output = temp.join("board.svg");
         let result = write_snapshot(&document, &output, SnapshotFormat::Svg, false)
@@ -483,7 +509,10 @@ mod tests {
     #[test]
     fn clamp_dimension_bounds_every_input() {
         assert_eq!(clamp_dimension(f64::NAN, 320.0), 320.0);
-        assert_eq!(clamp_dimension(f64::INFINITY, 320.0), MAX_SNAPSHOT_DIMENSION);
+        assert_eq!(
+            clamp_dimension(f64::INFINITY, 320.0),
+            MAX_SNAPSHOT_DIMENSION
+        );
         assert_eq!(clamp_dimension(f64::NEG_INFINITY, 320.0), 320.0);
         assert_eq!(clamp_dimension(-5.0, 320.0), 320.0);
         assert_eq!(clamp_dimension(1e12, 320.0), MAX_SNAPSHOT_DIMENSION);
@@ -506,7 +535,8 @@ mod tests {
         let preview = apply_template_dry_run(&document, "weekly-plan").expect("preview");
         let mut merged = document;
         merged.blocks = preview.blocks_added;
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-png-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-png-{}", uuid::Uuid::new_v4()));
         let output = temp.join("board.png");
         let result = write_snapshot(&merged, &output, SnapshotFormat::Png, true).expect("dry-run");
         assert!(result.dry_run);

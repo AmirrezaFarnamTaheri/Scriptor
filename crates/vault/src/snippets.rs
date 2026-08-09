@@ -30,9 +30,10 @@ pub fn save_vault_snippets(vault_root: &Path, snippets: &[VaultSnippet]) -> Resu
     let catalog = VaultSnippetCatalog {
         snippets: snippets.to_vec(),
     };
-    let raw = serde_json::to_string_pretty(&catalog).map_err(|error| VaultError::InvalidConfig {
-        message: format!("failed to encode snippets catalog: {error}"),
-    })?;
+    let raw =
+        serde_json::to_string_pretty(&catalog).map_err(|error| VaultError::InvalidConfig {
+            message: format!("failed to encode snippets catalog: {error}"),
+        })?;
     atomic_write(&path, raw.as_bytes())?;
     Ok(())
 }
@@ -44,11 +45,10 @@ pub fn load_vault_snippets(vault_root: &Path) -> Result<Vec<VaultSnippet>, Vault
     }
 
     let raw = fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))?;
-    let catalog: VaultSnippetCatalog = serde_json::from_str(&raw).map_err(|error| {
-        VaultError::InvalidConfig {
+    let catalog: VaultSnippetCatalog =
+        serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
             message: format!("invalid snippets catalog at {DEFAULT_SNIPPETS_PATH}: {error}"),
-        }
-    })?;
+        })?;
 
     let mut snippets = Vec::new();
     for entry in catalog.snippets {

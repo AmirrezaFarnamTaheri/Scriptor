@@ -2,30 +2,32 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-use scriptor_export_runner::{
-    default_export_directory, discover_pandoc, run_export_job, ExportJobInput,
-};
+use clap::Parser;
 use scriptor_canvas_engine::{
-    apply_template_dry_run, bench_hit_test_frame, bench_snapshot_render, hit_test,
-    list_documents as canvas_list_stored, load_document as canvas_load_stored, load_document_file,
-    list_templates, save_document as canvas_save_stored, query_blocks_in_bounds, write_snapshot, CanvasPoint,
-    SnapshotFormat,
+    CanvasPoint, SnapshotFormat, apply_template_dry_run, bench_hit_test_frame,
+    bench_snapshot_render, hit_test, list_documents as canvas_list_stored, list_templates,
+    load_document as canvas_load_stored, load_document_file, query_blocks_in_bounds,
+    save_document as canvas_save_stored, write_snapshot,
+};
+use scriptor_daemon::rpc_call;
+use scriptor_export_runner::{
+    ExportJobInput, default_export_directory, discover_pandoc, run_export_job,
 };
 use scriptor_indexer::{
     backlinks_for_path, health_diagnostics_json, health_report_json, open_cache_for_session,
     query_focused_graph, rebuild_index, search_notes, traverse_graph,
 };
-use scriptor_native_git::{git_commit_selected, git_pull, git_push, git_resolve_conflict, git_status};
-use scriptor_vault::{
-    export_text_bundle, format_lint_text, lint_vault, lint_vault_fix, load_vault_config, normalize_rule_filter,
-    open_vault, open_vault_output, read_note, rename_apply, rename_dry_run, save_note_with_options,
-    scan_vault, SaveNoteOptions,
-    scan_vault_with_roots, RelativeVaultPath, ScannedEntryKind,
-};
-use scriptor_daemon::rpc_call;
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult};
+use scriptor_native_git::{
+    git_commit_selected, git_pull, git_push, git_resolve_conflict, git_status,
+};
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
-use clap::Parser;
+use scriptor_vault::{
+    RelativeVaultPath, SaveNoteOptions, ScannedEntryKind, export_text_bundle, format_lint_text,
+    lint_vault, lint_vault_fix, load_vault_config, normalize_rule_filter, open_vault,
+    open_vault_output, read_note, rename_apply, rename_dry_run, save_note_with_options, scan_vault,
+    scan_vault_with_roots,
+};
 use serde::Serialize;
 
 use command_line::{Cli, Commands, DaemonCommands};
@@ -37,8 +39,8 @@ mod tui;
 const VAULT_SCAN_BUDGET_MS: u128 = 1500;
 const SEARCH_BUDGET_MS: u128 = 100;
 
-mod command_line;
 mod bench;
+mod command_line;
 use bench::*;
 
 fn print_rpc_response(response: &RpcResponse) -> Result<(), Box<dyn std::error::Error>> {
@@ -68,7 +70,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let session = open_vault(&path)?;
             let document = load_document_file(&file)?;
             let saved = canvas_save_stored(session.root.root(), &document)?;
-            println!("{}", serde_json::to_string_pretty(&saved.display().to_string())?);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&saved.display().to_string())?
+            );
         }
         Commands::CanvasLoadDocument { path, id } => {
             let session = open_vault(&path)?;
@@ -77,7 +82,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::Open { path } => {
             let session = open_vault(&path)?;
-            println!("{}", serde_json::to_string_pretty(&open_vault_output(&session))?);
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&open_vault_output(&session))?
+            );
         }
         Commands::Scan { path } => {
             let session = open_vault(&path)?;
@@ -90,7 +98,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let document = read_note(&session.descriptor.id, &session.root, &relative)?;
             println!("{}", serde_json::to_string_pretty(&document)?);
         }
-        Commands::Tui { path, smoke_test, in_process } => {
+        Commands::Tui {
+            path,
+            smoke_test,
+            in_process,
+        } => {
             let in_process = cli.in_process || in_process;
             if smoke_test {
                 tui::smoke_test(path, !in_process)?;
@@ -111,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let endpoint = scriptor_daemon::read_endpoint()?;
                 println!("{}", serde_json::to_string_pretty(&endpoint)?);
             }
-        }
+        },
         Commands::RebuildIndex { path } => {
             if cli.in_process {
                 daemon_client::warn_in_process_deprecated();
@@ -158,7 +170,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Commands::Lint { path, fix, rules, format } => {
+        Commands::Lint {
+            path,
+            fix,
+            rules,
+            format,
+        } => {
             let session = open_vault(&path)?;
             let active_rules = normalize_rule_filter(&rules)?;
             if fix {
@@ -199,10 +216,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&hits)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest::new(6, RpcMethod::SearchNotes {
-                    query: query.clone(),
-                    limit,
-                }))?;
+                let response = rpc_call(RpcRequest::new(
+                    6,
+                    RpcMethod::SearchNotes {
+                        query: query.clone(),
+                        limit,
+                    },
+                ))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::SearchHits { hits }) => {
                         println!("{}", serde_json::to_string_pretty(&hits)?);
@@ -222,7 +242,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&hits)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest::new(7, RpcMethod::Backlinks { path: note.clone() }))?;
+                let response = rpc_call(RpcRequest::new(
+                    7,
+                    RpcMethod::Backlinks { path: note.clone() },
+                ))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::Backlinks { json, .. }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),
@@ -240,10 +263,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("{}", serde_json::to_string_pretty(&graph)?);
             } else {
                 daemon_client::ensure_vault_open(&path)?;
-                let response = rpc_call(RpcRequest::new(8, RpcMethod::GraphSummary {
-                    path: note.clone(),
-                    depth,
-                }))?;
+                let response = rpc_call(RpcRequest::new(
+                    8,
+                    RpcMethod::GraphSummary {
+                        path: note.clone(),
+                        depth,
+                    },
+                ))?;
                 match response.result {
                     RpcResult::Ok(RpcPayload::GraphSummary { json }) => println!("{json}"),
                     RpcResult::Err(message) => return Err(message.into()),
@@ -251,7 +277,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Commands::Grep { path, pattern, limit } => {
+        Commands::Grep {
+            path,
+            pattern,
+            limit,
+        } => {
             let session = open_vault(&path)?;
             let regex = regex::Regex::new(&pattern)?;
             let mut hits = Vec::new();
@@ -293,7 +323,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .collect();
             println!("{}", serde_json::to_string_pretty(&outline)?);
         }
-        Commands::Note { path, file, title, body, dry_run } => {
+        Commands::Note {
+            path,
+            file,
+            title,
+            body,
+            dry_run,
+        } => {
             let session = open_vault(&path)?;
             let relative = RelativeVaultPath::parse(&file)?;
             let heading = title.unwrap_or_else(|| {
@@ -317,7 +353,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::TraverseGraph { path, note, depth } => {
             if !cli.in_process {
                 return Err(
-                    "traverse-graph has no daemon RPC yet; pass --in-process for this command".into(),
+                    "traverse-graph has no daemon RPC yet; pass --in-process for this command"
+                        .into(),
                 );
             }
             daemon_client::warn_in_process_deprecated();
@@ -330,7 +367,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::TextBundleExport { path, note, output } => {
             let session = open_vault(&path)?;
             let relative = RelativeVaultPath::parse(&note)?;
-            let exported = export_text_bundle(&session.descriptor.id, &session.root, &relative, &output)?;
+            let exported =
+                export_text_bundle(&session.descriptor.id, &session.root, &relative, &output)?;
             println!("{}", serde_json::to_string_pretty(&exported)?);
         }
         Commands::Publish { path, output } => {
@@ -344,7 +382,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if entry.kind != ScannedEntryKind::Note {
                     continue;
                 }
-                let source = session.root.root().join(entry.path.replace('/', std::path::MAIN_SEPARATOR_STR));
+                let source = session
+                    .root
+                    .root()
+                    .join(entry.path.replace('/', std::path::MAIN_SEPARATOR_STR));
                 let target = docs_dir.join(entry.path.replace('/', std::path::MAIN_SEPARATOR_STR));
                 if let Some(parent) = target.parent() {
                     fs::create_dir_all(parent)?;
@@ -369,7 +410,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }))?
             );
         }
-        Commands::GitResolveConflict { path, file, strategy } => {
+        Commands::GitResolveConflict {
+            path,
+            file,
+            strategy,
+        } => {
             let resolved = git_resolve_conflict(&path, &file, &strategy)?;
             println!("{}", serde_json::to_string_pretty(&resolved)?);
         }
@@ -416,14 +461,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 std::process::exit(1);
             }
         }
-        Commands::BenchSearch { path, query, iterations } => {
+        Commands::BenchSearch {
+            path,
+            query,
+            iterations,
+        } => {
             let report = bench_search(&path, &query, iterations)?;
             println!("{}", serde_json::to_string_pretty(&report)?);
             if !report.within_budget {
                 std::process::exit(1);
             }
         }
-        Commands::GenerateVault { output, count, prefix } => {
+        Commands::GenerateVault {
+            output,
+            count,
+            prefix,
+        } => {
             let summary = generate_vault(&output, count, &prefix)?;
             println!("{}", serde_json::to_string_pretty(&summary)?);
         }
@@ -482,7 +535,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let session = open_vault(&path)?;
             let relative = RelativeVaultPath::parse(&note)?;
             let document = read_note(&session.descriptor.id, &session.root, &relative)?;
-            let stem = note.trim_end_matches(".md").rsplit('/').next().unwrap_or("note");
+            let stem = note
+                .trim_end_matches(".md")
+                .rsplit('/')
+                .next()
+                .unwrap_or("note");
             let output_directory = match output_subdir {
                 Some(subdir) => session.root.root().join(subdir),
                 None => default_export_directory(session.root.root()),
@@ -518,7 +575,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Commands::GitCommit { path, message, file } => {
+        Commands::GitCommit {
+            path,
+            message,
+            file,
+        } => {
             let output = git_commit_selected(&path, &file, &message)?;
             println!("{}", serde_json::to_string_pretty(&output)?);
         }

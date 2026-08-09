@@ -180,13 +180,14 @@ fn expand_selected_paths(repo_root: &Path, files: &[String]) -> Result<Vec<Strin
 fn repository_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
     let path = run_git(repo_root, &["rev-parse", "--git-path", "index"])?;
     let path = PathBuf::from(path);
-    Ok(if path.is_absolute() { path } else { repo_root.join(path) })
+    Ok(if path.is_absolute() {
+        path
+    } else {
+        repo_root.join(path)
+    })
 }
 
-fn reset_committed_paths_in_real_index(
-    repo_root: &Path,
-    paths: &[String],
-) -> Result<(), GitError> {
+fn reset_committed_paths_in_real_index(repo_root: &Path, paths: &[String]) -> Result<(), GitError> {
     let mut args = vec![
         "--literal-pathspecs".to_string(),
         "reset".to_string(),
@@ -222,15 +223,22 @@ fn format_result<T>(result: &Result<T, GitError>) -> String {
 
 fn validate_selected_path(path: &str) -> Result<(), GitError> {
     if path.is_empty() || path.contains('\0') {
-        return Err(GitError::Command("selected path is empty or contains NUL".into()));
+        return Err(GitError::Command(
+            "selected path is empty or contains NUL".into(),
+        ));
     }
     let parsed = Path::new(path);
     if parsed.is_absolute()
-        || parsed
-            .components()
-            .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+        || parsed.components().any(|component| {
+            matches!(
+                component,
+                Component::ParentDir | Component::RootDir | Component::Prefix(_)
+            )
+        })
     {
-        return Err(GitError::Command(format!("selected path escapes repository: {path}")));
+        return Err(GitError::Command(format!(
+            "selected path escapes repository: {path}"
+        )));
     }
     Ok(())
 }
@@ -241,10 +249,7 @@ fn temporary_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    Ok(PathBuf::from(git_dir).join(format!(
-        "scriptor-index-{}-{nonce}",
-        std::process::id()
-    )))
+    Ok(PathBuf::from(git_dir).join(format!("scriptor-index-{}-{nonce}", std::process::id())))
 }
 
 struct TemporaryIndex {
@@ -294,10 +299,7 @@ fn is_git_repo(repo_root: &Path) -> Result<bool, GitError> {
 }
 
 fn current_branch(repo_root: &Path) -> Result<String, GitError> {
-    run_git(
-        repo_root,
-        &["rev-parse", "--abbrev-ref", "HEAD"],
-    )
+    run_git(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])
 }
 
 pub(crate) fn run_git(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
@@ -377,7 +379,10 @@ fn split_rename(rest: &str) -> Option<(&str, &str)> {
     };
     let offset = rest[search_from..].find(RENAME_SEPARATOR)?;
     let split_at = search_from + offset;
-    Some((&rest[..split_at], &rest[split_at + RENAME_SEPARATOR.len()..]))
+    Some((
+        &rest[..split_at],
+        &rest[split_at + RENAME_SEPARATOR.len()..],
+    ))
 }
 
 /// Byte index of the quote that closes the one at index 0, honouring backslash escapes.
@@ -494,8 +499,14 @@ fn read_sync_counts(repo_root: &Path) -> (u32, u32, bool) {
 /// the right field counts commits only reachable from upstream (behind).
 fn parse_sync_counts(output: &str) -> (u32, u32) {
     let mut parts = output.split('\t');
-    let ahead = parts.next().and_then(|value| value.trim().parse().ok()).unwrap_or(0);
-    let behind = parts.next().and_then(|value| value.trim().parse().ok()).unwrap_or(0);
+    let ahead = parts
+        .next()
+        .and_then(|value| value.trim().parse().ok())
+        .unwrap_or(0);
+    let behind = parts
+        .next()
+        .and_then(|value| value.trim().parse().ok())
+        .unwrap_or(0);
     (ahead, behind)
 }
 
@@ -527,17 +538,15 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
             let merge_head = run_git(repo_root, &["rev-parse", "-q", "MERGE_HEAD"]).ok();
             let head = run_git(repo_root, &["rev-parse", "HEAD"]).ok();
             if let (Some(merge_head), Some(head)) = (merge_head, head)
-                && let Ok(base) = run_git(
-                    repo_root,
-                    &["merge-base", &head, &merge_head],
-                ) {
-                    let spec = format!("{base}:{normalized}");
-                    return match run_git(repo_root, &["show", &spec]) {
-                        Ok(content) => Ok(Some(content)),
-                        Err(GitError::Command(_)) => Ok(None),
-                        Err(error) => Err(error),
-                    };
-                }
+                && let Ok(base) = run_git(repo_root, &["merge-base", &head, &merge_head])
+            {
+                let spec = format!("{base}:{normalized}");
+                return match run_git(repo_root, &["show", &spec]) {
+                    Ok(content) => Ok(Some(content)),
+                    Err(GitError::Command(_)) => Ok(None),
+                    Err(error) => Err(error),
+                };
+            }
             Ok(None)
         }
         Err(error) => Err(error),
@@ -552,7 +561,10 @@ mod tests {
     use tempfile::tempdir;
 
     fn configure_git_identity(repo: &Path) -> Result<(), Box<dyn std::error::Error>> {
-        for (key, value) in [("user.name", "Scriptor Test"), ("user.email", "scriptor@test.local")] {
+        for (key, value) in [
+            ("user.name", "Scriptor Test"),
+            ("user.email", "scriptor@test.local"),
+        ] {
             let output = Command::new("git")
                 .current_dir(repo)
                 .args(["config", key, value])
@@ -689,7 +701,8 @@ mod tests {
     }
 
     #[test]
-    fn reports_unicode_and_renamed_paths_from_a_real_repo() -> Result<(), Box<dyn std::error::Error>> {
+    fn reports_unicode_and_renamed_paths_from_a_real_repo() -> Result<(), Box<dyn std::error::Error>>
+    {
         let dir = tempdir()?;
         Command::new("git")
             .args(["init", dir.path().to_str().unwrap()])
@@ -781,7 +794,8 @@ mod tests {
     }
 
     #[test]
-    fn selected_commit_preserves_unrelated_staging_and_cleans_selected_path() -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_preserves_unrelated_staging_and_cleans_selected_path()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         Command::new("git")
             .args(["init", dir.path().to_str().unwrap()])
@@ -801,10 +815,8 @@ mod tests {
             .current_dir(dir.path())
             .args(["add", "--", "unrelated.md"])
             .output()?;
-        let unrelated_stage_before = run_git(
-            dir.path(),
-            &["ls-files", "--stage", "--", "unrelated.md"],
-        )?;
+        let unrelated_stage_before =
+            run_git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"])?;
 
         let output = git_commit_selected(dir.path(), &["selected.md".into()], "selected only")?;
 
@@ -827,8 +839,11 @@ mod tests {
             "unrelated.md"
         );
         assert!(
-            run_git(dir.path(), &["status", "--porcelain=1", "--", "selected.md"])?
-                .is_empty(),
+            run_git(
+                dir.path(),
+                &["status", "--porcelain=1", "--", "selected.md"]
+            )?
+            .is_empty(),
             "committed selection must be clean in both index and worktree"
         );
         Ok(())
@@ -858,8 +873,7 @@ mod tests {
     }
 
     #[test]
-    fn selected_commit_expands_renames_to_both_paths(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_expands_renames_to_both_paths() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         Command::new("git")
             .args(["init", dir.path().to_str().unwrap()])
@@ -880,16 +894,18 @@ mod tests {
 
         assert!(output.files_committed.iter().any(|path| path == "new.md"));
         assert!(run_git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
-        assert_eq!(run_git(dir.path(), &["show", "HEAD:new.md"] )?, "# Renamed");
+        assert_eq!(run_git(dir.path(), &["show", "HEAD:new.md"])?, "# Renamed");
         assert!(run_git(dir.path(), &["show", "HEAD:old.md"]).is_err());
         Ok(())
     }
 
     #[test]
-    fn selected_commit_treats_pathspec_metacharacters_literally(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_treats_pathspec_metacharacters_literally()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        Command::new("git").args(["init", dir.path().to_str().unwrap()]).output()?;
+        Command::new("git")
+            .args(["init", dir.path().to_str().unwrap()])
+            .output()?;
         configure_git_identity(dir.path())?;
         let literal = if cfg!(windows) {
             "glob_literal[1].md"
@@ -897,12 +913,14 @@ mod tests {
             ":(glob)literal[1].md"
         };
         fs::write(dir.path().join(literal), "# Literal\n")?;
-        Command::new("git").current_dir(dir.path()).args(["add", "."]).output()?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
         git_commit(dir.path(), "initial")?;
         fs::write(dir.path().join(literal), "# Changed\n")?;
         let output = git_commit_selected(dir.path(), &[literal.into()], "literal path")?;
         assert_eq!(output.files_committed, vec![literal]);
         Ok(())
     }
-
 }

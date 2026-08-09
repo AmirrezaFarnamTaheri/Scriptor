@@ -12,17 +12,20 @@ pub mod pandoc;
 pub mod theme;
 pub mod validate;
 
-pub use cancel::{cancel_active_export, new_cancel_slot, ExportCancelSlot};
+pub use cancel::{ExportCancelSlot, cancel_active_export, new_cancel_slot};
 
 pub use args::ExportFormat;
 pub use error::ExportError;
 pub use job::{
-    default_export_directory, run_export_job, run_export_job_with_cancel, ExportJobInput, ExportJobOutput,
-    ExportProgressCallback,
+    ExportJobInput, ExportJobOutput, ExportProgressCallback, default_export_directory,
+    run_export_job, run_export_job_with_cancel,
 };
 pub use log::{
-    count_slow_exports, export_logs_dir, log_entry_from_output, read_export_logs, write_export_log,
-    ExportJobLogEntry, SLOW_EXPORT_THRESHOLD_MS,
+    ExportJobLogEntry, SLOW_EXPORT_THRESHOLD_MS, count_slow_exports, export_logs_dir,
+    log_entry_from_output, read_export_logs, write_export_log,
 };
-pub use validate::{validate_export_artifact, ArtifactValidation};
-pub use pandoc::{discover_pandoc, discover_pandoc_with_trusted_hash, sha256_file, verify_binary_hash, PandocDiscovery};
+pub use pandoc::{
+    PandocDiscovery, discover_pandoc, discover_pandoc_with_trusted_hash, sha256_file,
+    verify_binary_hash,
+};
+pub use validate::{ArtifactValidation, validate_export_artifact};

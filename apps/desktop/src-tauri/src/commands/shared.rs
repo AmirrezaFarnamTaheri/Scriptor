@@ -1,8 +1,8 @@
 use std::sync::atomic::Ordering;
 
+use scriptor_vault::{VaultSession, VaultWatchBatch, VaultWatchEvent, VaultWatcher};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
-use scriptor_vault::{VaultSession, VaultWatchBatch, VaultWatchEvent, VaultWatcher};
 
 use crate::AppState;
 use crate::state::lock_recover;

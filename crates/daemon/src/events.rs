@@ -89,8 +89,7 @@ impl EventHub {
         }
 
         if !remove.is_empty() {
-            lock_recover(&self.subscribers)
-                .retain(|subscriber| !remove.contains(&subscriber.id));
+            lock_recover(&self.subscribers).retain(|subscriber| !remove.contains(&subscriber.id));
         }
     }
 

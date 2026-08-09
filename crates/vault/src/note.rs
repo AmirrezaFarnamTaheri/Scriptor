@@ -44,7 +44,8 @@ pub fn read_note(
         return Err(VaultError::NoteNotFound(path.to_string()));
     }
 
-    let markdown = fs::read_to_string(&absolute).map_err(|source| VaultError::io(&absolute, source))?;
+    let markdown =
+        fs::read_to_string(&absolute).map_err(|source| VaultError::io(&absolute, source))?;
     let metadata = metadata_from_markdown(vault_id, path, &markdown, modified_at(&absolute)?);
 
     Ok(NoteDocument { metadata, markdown })
