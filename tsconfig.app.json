@@ -23,5 +23,5 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
-  "exclude": ["src/lib/validate-citation-runner.ts", "src/lib/validate-knowledge-runner.ts", "src/lib/validate-headless-runner.ts", "src/lib/validate-merge-runner.ts", "src/controllers/validate-delete-note-controller.ts"]
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/lib/validate-citation-runner.ts", "src/lib/validate-knowledge-runner.ts", "src/lib/validate-headless-runner.ts", "src/lib/validate-merge-runner.ts", "src/controllers/validate-delete-note-controller.ts"]
 }

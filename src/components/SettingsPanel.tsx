@@ -7,15 +7,10 @@ import { exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/comm
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
 import type { AppTheme } from '../hooks/useAppTheme'
-import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useVaultBackup } from '../hooks/useVaultBackup'
 import type {
-  GlassBlurIntensity,
-  UiBorderRadius,
-  UiDensity,
-  UiFontFamily,
   WorkspaceChromePrefs,
 } from '../hooks/useWorkspaceChrome'
 import {
@@ -23,7 +18,6 @@ import {
   type WorkspaceLayout,
 } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
-import { EDITOR_FONT_FAMILIES } from '../brand/support'
 import type { PandocDiscovery, VaultConfig } from '../types/vault'
 import type { SystemInfoSnapshot } from '../types/system'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
@@ -392,6 +386,7 @@ export function SettingsPanel({
           <AppearanceSettingsSection
             workspaceChrome={workspaceChrome}
             onPatchWorkspaceChrome={onPatchWorkspaceChrome}
+            onResetWorkspaceChrome={onResetWorkspaceChrome}
             theme={theme}
             onThemeChange={onThemeChange}
             onReplayOnboarding={onReplayOnboarding}

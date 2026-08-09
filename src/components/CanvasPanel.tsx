@@ -29,7 +29,7 @@ export function CanvasPanel({
   onOpenNote,
 }: CanvasPanelProps) {
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       console.info(
         `[Decoupling Notice] CanvasPanel rendered via strangler adapter for capability "${canvasPluginManifest.capabilityId ?? 'canvas'}" (${canvasPluginManifest.id}). Core rendering provided by @scriptor/canvas (@scriptor/plugin-canvas).`,
       )

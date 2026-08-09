@@ -1,52 +1,53 @@
-import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_ENABLED_PLUGINS,
   INSTALLER_PROFILES,
   getProfilePluginIds,
-} from './plugin-defaults.ts'
+} from './plugin-defaults'
 
-test('DEFAULT_ENABLED_PLUGINS includes complete decoupled plugins set', () => {
-  assert.ok(DEFAULT_ENABLED_PLUGINS.has('scriptor.canvas'))
-  assert.ok(DEFAULT_ENABLED_PLUGINS.has('scriptor.citations'))
-  assert.ok(DEFAULT_ENABLED_PLUGINS.has('scriptor.export'))
-  assert.ok(DEFAULT_ENABLED_PLUGINS.has('scriptor.graph'))
-  assert.ok(DEFAULT_ENABLED_PLUGINS.has('scriptor.mcp'))
-})
+describe('PluginStateContext', () => {
+  it('DEFAULT_ENABLED_PLUGINS includes complete decoupled plugins set', () => {
+    expect(DEFAULT_ENABLED_PLUGINS.has('scriptor.canvas')).toBe(true)
+    expect(DEFAULT_ENABLED_PLUGINS.has('scriptor.citations')).toBe(true)
+    expect(DEFAULT_ENABLED_PLUGINS.has('scriptor.export')).toBe(true)
+    expect(DEFAULT_ENABLED_PLUGINS.has('scriptor.graph')).toBe(true)
+    expect(DEFAULT_ENABLED_PLUGINS.has('scriptor.mcp')).toBe(true)
+  })
 
-test('installer profiles define correct plugin subsets', () => {
-  const focused = getProfilePluginIds('focused')
-  assert.equal(focused.size, 0)
+  it('installer profiles define correct plugin subsets', () => {
+    const focused = getProfilePluginIds('focused')
+    expect(focused.size).toBe(0)
 
-  const minimal = getProfilePluginIds('minimal')
-  assert.equal(minimal.size, 1)
-  assert.ok(minimal.has('scriptor.export'))
+    const minimal = getProfilePluginIds('minimal')
+    expect(minimal.size).toBe(1)
+    expect(minimal.has('scriptor.export')).toBe(true)
 
-  const writer = getProfilePluginIds('writer')
-  assert.equal(writer.size, 2)
-  assert.ok(writer.has('scriptor.export'))
-  assert.ok(writer.has('scriptor.canvas'))
+    const writer = getProfilePluginIds('writer')
+    expect(writer.size).toBe(2)
+    expect(writer.has('scriptor.export')).toBe(true)
+    expect(writer.has('scriptor.canvas')).toBe(true)
 
-  const scientific = getProfilePluginIds('scientific')
-  assert.equal(scientific.size, 3)
-  assert.ok(scientific.has('scriptor.export'))
-  assert.ok(scientific.has('scriptor.citations'))
-  assert.ok(scientific.has('scriptor.graph'))
+    const scientific = getProfilePluginIds('scientific')
+    expect(scientific.size).toBe(3)
+    expect(scientific.has('scriptor.export')).toBe(true)
+    expect(scientific.has('scriptor.citations')).toBe(true)
+    expect(scientific.has('scriptor.graph')).toBe(true)
 
-  const researcher = getProfilePluginIds('researcher')
-  assert.equal(researcher.size, 3)
-  assert.ok(researcher.has('scriptor.export'))
-  assert.ok(researcher.has('scriptor.graph'))
-  assert.ok(researcher.has('scriptor.mcp'))
+    const researcher = getProfilePluginIds('researcher')
+    expect(researcher.size).toBe(3)
+    expect(researcher.has('scriptor.export')).toBe(true)
+    expect(researcher.has('scriptor.graph')).toBe(true)
+    expect(researcher.has('scriptor.mcp')).toBe(true)
 
-  const developer = getProfilePluginIds('developer')
-  assert.equal(developer.size, 4)
-  assert.ok(developer.has('scriptor.export'))
-  assert.ok(developer.has('scriptor.graph'))
-  assert.ok(developer.has('scriptor.canvas'))
-  assert.ok(developer.has('scriptor.mcp'))
+    const developer = getProfilePluginIds('developer')
+    expect(developer.size).toBe(4)
+    expect(developer.has('scriptor.export')).toBe(true)
+    expect(developer.has('scriptor.graph')).toBe(true)
+    expect(developer.has('scriptor.canvas')).toBe(true)
+    expect(developer.has('scriptor.mcp')).toBe(true)
 
-  const complete = getProfilePluginIds('complete')
-  assert.equal(complete.size, 5)
-  assert.equal(complete.size, INSTALLER_PROFILES.complete.length)
+    const complete = getProfilePluginIds('complete')
+    expect(complete.size).toBe(5)
+    expect(complete.size).toBe(INSTALLER_PROFILES.complete.length)
+  })
 })

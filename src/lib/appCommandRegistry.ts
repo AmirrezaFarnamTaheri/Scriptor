@@ -45,6 +45,7 @@ export type AppCommandId =
   | 'toggle-hibernate-watcher'
   | 'toggle-hibernate-git'
   | 'toggle-hibernate-spellcheck'
+  | 'open-plugin-manager'
 
 export interface AppCommandDefinition {
   id: AppCommandId

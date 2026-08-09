@@ -77,6 +77,8 @@
   padding: 20px 24px;
   overflow-y: auto;
 }
+
+.plugin-manager-profiles {
   display: flex;
   align-items: center;
   gap: 10px;

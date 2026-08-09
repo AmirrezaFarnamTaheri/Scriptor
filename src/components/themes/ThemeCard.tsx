@@ -1,4 +1,3 @@
-import React from 'react'
 import type { ColorPaletteScheme } from '../../brand/palettes'
 import type { AppTheme } from '../../hooks/useAppTheme'
 import '../../styles/components/theme-card.css'

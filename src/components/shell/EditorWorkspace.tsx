@@ -17,13 +17,10 @@ import {
   ListTree,
   MoreHorizontal,
   PanelRight,
-  Pin,
-  RotateCcw,
   Rows,
   Sparkles,
   Table,
   Target,
-  X,
 } from 'lucide-react'
 import {
   type EditorAutocompleteContext,

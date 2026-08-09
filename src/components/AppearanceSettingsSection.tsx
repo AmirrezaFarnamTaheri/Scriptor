@@ -12,6 +12,7 @@ import type {
 export interface AppearanceSettingsSectionProps {
   workspaceChrome: WorkspaceChromePrefs
   onPatchWorkspaceChrome: (patch: Partial<WorkspaceChromePrefs>) => void
+  onResetWorkspaceChrome?: () => void
   theme?: AppTheme
   onThemeChange?: (theme: AppTheme) => void
   onReplayOnboarding?: () => void
@@ -20,6 +21,7 @@ export interface AppearanceSettingsSectionProps {
 export function AppearanceSettingsSection({
   workspaceChrome,
   onPatchWorkspaceChrome,
+  onResetWorkspaceChrome,
   theme,
   onThemeChange,
   onReplayOnboarding,
@@ -95,6 +97,11 @@ export function AppearanceSettingsSection({
       {onReplayOnboarding ? (
         <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
           Replay product tour
+        </button>
+      ) : null}
+      {onResetWorkspaceChrome ? (
+        <button type="button" className="toolbar-button" onClick={onResetWorkspaceChrome}>
+          Reset appearance defaults
         </button>
       ) : null}
       <p className="health-subtitle">Fine-tune sidebars, toolbars, typography, and panel stats.</p>

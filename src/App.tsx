@@ -1,7 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
 import {
-  countCharacters,
-  countWords,
   type MarkdownEditorHandle,
   type TocEntry,
   loadHunspellLocale,
@@ -267,6 +265,7 @@ function App() {
   } = perfMetrics
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const commandPalette = useCommandPalette()
+  const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginManagerOpen, setPluginManagerOpen] = useState(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId)
@@ -707,11 +706,12 @@ function App() {
     setGraphNodeCount: perfSetGraphNodeCount,
   })
 
-  const { draftWordCount, savedWordCount, wordCountDelta, charCount, readingMinutes } =
+  const isNoteDirty = workspace.isNoteDirty
+  const { draftWordCount, wordCountDelta, charCount, readingMinutes } =
     useNoteDraftStats({
       draftMarkdown: workspace.draftMarkdown,
       activeNote: workspace.activeNote,
-      isNoteDirty: workspace.isNoteDirty,
+      isNoteDirty,
     })
   const healthAction = !workspace.health
     ? 'Loading…'

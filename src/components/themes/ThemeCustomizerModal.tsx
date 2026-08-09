@@ -2,14 +2,12 @@ import { useState, useEffect } from 'react'
 import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye } from 'lucide-react'
 import {
   COLOR_PALETTE_SCHEMES,
-  type ColorPaletteScheme,
-} from '../../brand/palettes.ts'
+} from '../../brand/palettes'
 import {
   readStoredCustomThemes,
-  applyCustomPaletteToElement,
   type CustomColorPalette,
   type AppTheme,
-} from '../../hooks/useAppTheme.ts'
+} from '../../hooks/useAppTheme'
 import '../../styles/components/theme-customizer.css'
 
 export interface ThemeCustomizerModalProps {

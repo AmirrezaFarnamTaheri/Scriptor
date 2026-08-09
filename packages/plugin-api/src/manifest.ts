@@ -1,4 +1,5 @@
 import type {
+  PluginActivation,
   PluginCapability,
   PluginManifest,
   PluginPermission,

@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { countWords, countCharacters } from '@scriptor/core/utils/countWords'
-import type { NoteWithMetadata } from '@scriptor/core/types'
+import { countWords, countCharacters } from '@scriptor/editor'
+import type { NoteDocument } from '../types/vault'
 
 export interface UseNoteDraftStatsOptions {
   draftMarkdown: string
-  activeNote: NoteWithMetadata | null
+  activeNote: NoteDocument | null
   isNoteDirty: boolean
 }
 

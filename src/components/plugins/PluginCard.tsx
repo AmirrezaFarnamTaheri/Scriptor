@@ -1,4 +1,3 @@
-import React from 'react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 
 export interface PluginCardProps {

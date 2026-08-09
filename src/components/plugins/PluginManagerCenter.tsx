@@ -1,20 +1,20 @@
 import { useState } from 'react'
-import { Palette, Blocks, Plus, Sparkles } from 'lucide-react'
+import { Palette, Blocks, Plus } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
-import { citationsPluginManifest } from '../inspector/citation-plugin-manifest.ts'
+import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
 import { exportPluginManifest } from '@scriptor/export'
 import { mcpPluginManifest } from '@scriptor/mcp'
-import { usePluginState } from '../../context/PluginStateContext.tsx'
+import { usePluginState } from '../../context/PluginStateContext'
 import {
   type InstallerProfile,
   getProfilePluginIds,
-} from '../../context/plugin-defaults.ts'
-import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes.ts'
-import { useAppTheme, readStoredCustomThemes, type AppTheme } from '../../hooks/useAppTheme.ts'
-import { PluginCard } from './PluginCard.tsx'
-import { ThemeCard } from '../themes/ThemeCard.tsx'
-import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal.tsx'
+} from '../../context/plugin-defaults'
+import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes'
+import { useAppTheme, readStoredCustomThemes, type AppTheme } from '../../hooks/useAppTheme'
+import { PluginCard } from './PluginCard'
+import { ThemeCard } from '../themes/ThemeCard'
+import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
 
 export const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
@@ -29,6 +29,9 @@ export const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
     publisher: 'Scriptor Team',
     capabilityId: 'graph',
     rustFeatureGate: 'scriptor-graph-engine',
+    activation: ['on-startup'],
+    capabilities: ['renderer-extension'],
+    permissions: [{ permission: 'read', reason: 'Access graph links' }],
   },
   mcpPluginManifest,
 ]
