@@ -75,6 +75,10 @@ interface GraphPanelProps {
   fullVault: boolean
   hibernated?: boolean
   onToggleHibernate?: () => void
+  enabled?: boolean
+  pluginEnabled?: boolean
+  isPluginEnabled?: (capabilityId: string) => boolean
+  enabledPlugins?: string[]
 }
 
 const VIEW_WIDTH = 720
@@ -94,6 +98,10 @@ export function GraphPanel({
   fullVault,
   hibernated = false,
   onToggleHibernate,
+  enabled,
+  pluginEnabled,
+  isPluginEnabled,
+  enabledPlugins,
 }: GraphPanelProps) {
   const { t } = useI18n()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
@@ -108,6 +116,13 @@ export function GraphPanel({
   } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
 
+  const isGraphEnabled =
+    enabled ??
+    pluginEnabled ??
+    (isPluginEnabled ? (isPluginEnabled('graph') || isPluginEnabled('scriptor.graph')) : undefined) ??
+    (enabledPlugins ? (enabledPlugins.includes('graph') || enabledPlugins.includes('scriptor.graph')) : undefined) ??
+    true
+
   useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true })
 
@@ -121,7 +136,7 @@ export function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
-    if (!graph || hibernated) return
+    if (!graph || hibernated || !isGraphEnabled) return
     const requestedGraph = graph
     const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = (event: MessageEvent) => {
@@ -139,9 +154,11 @@ export function GraphPanel({
       edges: graph.edges,
       width: VIEW_WIDTH,
       height: VIEW_HEIGHT,
+      capabilityId: 'graph',
+      enabled: isGraphEnabled,
     })
     return () => worker.terminate()
-  }, [graph, hibernated])
+  }, [graph, hibernated, isGraphEnabled])
 
   const workerLayout = !hibernated && workerState?.graph === graph ? workerState.layout : null
   const workerLoading = Boolean(graph && !hibernated && workerState?.graph !== graph)
