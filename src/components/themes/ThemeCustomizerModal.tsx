@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useLayoutEffect } from 'react'
 import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye } from 'lucide-react'
 import {
   COLOR_PALETTE_SCHEMES,
@@ -35,18 +35,21 @@ export function ThemeCustomizerModal({
   const [customThemes, setCustomThemes] = useState<CustomColorPalette[]>(() =>
     readStoredCustomThemes(),
   )
-
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('My Custom Theme')
   const [category, setCategory] = useState<'dark' | 'light' | 'contrast'>('dark')
   const [colors, setColors] = useState(DEFAULT_CUSTOM_COLORS)
   const [baseSchemeId, setBaseSchemeId] = useState<string>('dark')
 
-  useEffect(() => {
+  // useLayoutEffect is the correct pattern here: localStorage read must sync before
+  // first paint on re-open to prevent stale custom-theme list flash.
+  useLayoutEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCustomThemes(readStoredCustomThemes())
     }
   }, [isOpen])
+
 
   if (!isOpen) return null
 

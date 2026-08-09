@@ -1,18 +1,11 @@
 import { BookOpen, AlertTriangle, CheckCircle2, RefreshCw, Plus, Lock } from 'lucide-react'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import {
-  CITATION_PLUGIN_CAPABILITY_ID,
   CITATION_PLUGIN_ID,
-  citationsPluginManifest,
   isCitationsPluginEnabled,
 } from './citation-plugin-manifest.ts'
 
-export {
-  CITATION_PLUGIN_CAPABILITY_ID,
-  CITATION_PLUGIN_ID,
-  citationsPluginManifest,
-  isCitationsPluginEnabled,
-}
+
 
 export interface CitationInspectorProps {
   isEnabled?: boolean

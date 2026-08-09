@@ -55,7 +55,7 @@ export function GitPanel({
     setPendingAction,
     tab,
     setTab,
-    diffPath,
+    diffPath: _diffPath,
     setDiffPath,
     previewPath,
     diffBefore,

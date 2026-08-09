@@ -17,7 +17,7 @@ import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
 
-export const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
+const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
   citationsPluginManifest,
   exportPluginManifest,

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 import { savePluginState, loadPluginState } from '../bridge/plugin.ts'
 import { DEFAULT_ENABLED_PLUGINS } from './plugin-defaults.ts'
-export { DEFAULT_ENABLED_PLUGINS }
+
 
 export interface PluginStateContextType {
   enabledPluginIds: Set<string>
@@ -10,6 +10,7 @@ export interface PluginStateContextType {
   isPluginEnabled: (id: string) => boolean
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const PluginStateContext = createContext<PluginStateContextType | undefined>(undefined)
 
 export interface PluginStateProviderProps {
@@ -70,6 +71,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
   return React.createElement(PluginStateContext.Provider, { value }, children)
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePluginState(): PluginStateContextType {
   const context = useContext(PluginStateContext)
   if (!context) {
