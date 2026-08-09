@@ -1,18 +1,18 @@
 # Task List: Scriptor Comprehensive Project Review (Final Master Edition)
 
 ## Phase 1: Governance, Interface Design & Repository Contracts
-- [ ] Task 1: Governance, Onboarding, Interface Design & Document Review Verification
+- [x] Task 1: Governance, Onboarding, Interface Design & Document Review Verification
   - **Description:** Publish `interface-design.md`, run multi-persona document review (`ce-doc-review`), run version alignment, action pin linting, module boundary checks, i18n parity, docs contracts, onboarding guide verification (`docs/ONBOARDING.md`, `GEMINI.md`), and source contract verification scripts following RARV execution & Karpathy guidelines.
   - **Acceptance criteria:**
-    - [ ] `interface-design.md` published detailing utilitarian desktop UI design system contract.
-    - [ ] `ce-doc-review` passes multi-persona document audit on planning and onboarding docs.
-    - [ ] `docs/ONBOARDING.md` and `GEMINI.md` are valid and up to date.
-    - [ ] `pnpm version:check` passes with zero version mismatches.
-    - [ ] `pnpm lint:actions` passes with zero unpinned GitHub actions.
-    - [ ] `pnpm lint:boundaries` passes with zero cross-boundary violations.
-    - [ ] `pnpm check:i18n` passes with 100% key parity.
-    - [ ] `pnpm check:docs` and `pnpm check:source` pass cleanly.
-    - [ ] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
+    - [x] `interface-design.md` published detailing utilitarian desktop UI design system contract.
+    - [x] `ce-doc-review` passes multi-persona document audit on planning and onboarding docs.
+    - [x] `docs/ONBOARDING.md` and `GEMINI.md` are valid and up to date.
+    - [x] `pnpm version:check` passes with zero version mismatches.
+    - [x] `pnpm lint:actions` passes with zero unpinned GitHub actions.
+    - [x] `pnpm lint:boundaries` passes with zero cross-boundary violations.
+    - [x] `pnpm check:i18n` passes with 100% key parity.
+    - [x] `pnpm check:docs` and `pnpm check:source` pass cleanly.
+    - [x] `ce-code-review` gate passes with 0 P0/P1 unmitigated findings.
   - **Verification:** `pnpm check:governance`
   - **Dependencies:** None
   - **Files likely touched:** `interface-design.md`, `docs/reports/review/01-governance-contracts-review.md`
