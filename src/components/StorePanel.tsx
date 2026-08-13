@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Cpu,
   FlaskConical,
+  LayoutTemplate,
   Lock,
   Package,
   ShieldAlert,
@@ -35,13 +36,15 @@ import type { McpToolDescriptor } from '@scriptor/core/contracts/mcp'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { contributionLabels, summarizePluginContributions } from '../lib/pluginContributions'
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
+import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
+import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-type StoreTab = 'plugins' | 'mcp' | 'features'
+type StoreTab = 'plugins' | 'mcp' | 'features' | 'layouts'
 
 export interface FeatureFlagEntry {
   key: string
@@ -77,13 +80,18 @@ interface StorePanelProps {
   onRevokeConsent: (pluginId: string) => void
   onInstallMarketplace: (pluginId: string) => void
   // --- MCP tab ---
-  mcpMode: McpMode
-  mcpTools: McpToolDescriptor[]
-  mcpAuditLog: McpAuditEntry[]
-  onSetMcpMode: (mode: McpMode) => void
+  // Optional: hosts that do not own MCP state (e.g. the inspector rail) render
+  // the tab in its empty, read-only state rather than not at all.
+  mcpMode?: McpMode
+  mcpTools?: McpToolDescriptor[]
+  mcpAuditLog?: McpAuditEntry[]
+  onSetMcpMode?: (mode: McpMode) => void
   // --- Features tab ---
-  featureFlags: FeatureFlagEntry[]
-  onToggleFeature: (key: string, enabled: boolean) => void
+  featureFlags?: FeatureFlagEntry[]
+  onToggleFeature?: (key: string, enabled: boolean) => void
+  // --- Layouts tab ---
+  activeLayoutPresetId?: string | null
+  onApplyLayoutPreset?: (preset: LayoutPreset) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -95,28 +103,42 @@ function TabButton({
   onClick,
   icon,
   label,
+  id,
+  controls,
 }: {
   active: boolean
   onClick: () => void
   icon: React.ReactNode
   label: string
+  /** DOM id so the panel can point back at its own tab. */
+  id: string
+  /** DOM id of the panel this tab reveals. */
+  controls: string
 }) {
   return (
     <button
+      type="button"
+      id={id}
+      role="tab"
+      aria-selected={active}
+      aria-controls={controls}
+      // Roving tabindex: only the selected tab is in the tab order, so Tab
+      // enters and leaves the tablist once and arrows move between tabs.
+      tabIndex={active ? 0 : -1}
       onClick={onClick}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: 6,
         padding: '6px 14px',
-        borderRadius: 6,
+        borderRadius: 'var(--radius-sm)',
         border: 'none',
         cursor: 'pointer',
         fontWeight: active ? 600 : 400,
-        background: active ? 'var(--color-accent, #6366f1)' : 'transparent',
-        color: active ? '#fff' : 'var(--color-text-muted, #888)',
-        fontSize: 13,
-        transition: 'all 0.15s ease',
+        background: active ? 'var(--accent)' : 'transparent',
+        color: active ? 'var(--bg)' : 'var(--text-muted)',
+        fontSize: 'var(--text-sm)',
+        transition: 'background var(--ease-fast), color var(--ease-fast)',
       }}
     >
       {icon}
@@ -141,40 +163,58 @@ function McpTab({
   mcpTools,
   mcpAuditLog,
   onSetMcpMode,
-}: Pick<StorePanelProps, 'mcpMode' | 'mcpTools' | 'mcpAuditLog' | 'onSetMcpMode'>) {
+}: Required<Pick<StorePanelProps, 'mcpMode' | 'mcpTools' | 'mcpAuditLog' | 'onSetMcpMode'>>) {
   const [showAudit, setShowAudit] = useState(false)
+  const interactive = onSetMcpMode !== noopSetMcpMode
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {!interactive ? (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+          MCP controls are unavailable in this surface. Open the dedicated MCP panel to change mode.
+        </p>
+      ) : null}
       {/* Mode selector */}
       <section>
-        <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-muted)' }}>
+        <h3
+          id="mcp-mode-label"
+          style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}
+        >
           MCP Mode
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div
+          role="radiogroup"
+          aria-labelledby="mcp-mode-label"
+          style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+        >
           {MCP_MODES.map((m) => (
             <button
               key={m.value}
+              type="button"
+              role="radio"
+              aria-checked={mcpMode === m.value}
+              disabled={!interactive}
               onClick={() => onSetMcpMode(m.value)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 10,
                 padding: '8px 12px',
-                borderRadius: 8,
+                borderRadius: 'var(--radius-sm)',
                 border: '1px solid',
-                borderColor: mcpMode === m.value ? 'var(--color-accent, #6366f1)' : 'var(--color-border, #333)',
-                background: mcpMode === m.value ? 'rgba(99,102,241,0.12)' : 'transparent',
-                cursor: 'pointer',
+                borderColor: mcpMode === m.value ? 'var(--accent)' : 'var(--border)',
+                background: mcpMode === m.value ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
+                cursor: interactive ? 'pointer' : 'not-allowed',
+                opacity: interactive ? 1 : 0.6,
                 textAlign: 'left',
               }}
             >
               {mcpMode === m.value
-                ? <Check size={14} color="var(--color-accent, #6366f1)" />
+                ? <Check size={14} color="var(--accent)" />
                 : <div style={{ width: 14 }} />}
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{m.label}</div>
-                <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{m.description}</div>
+                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{m.label}</div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{m.description}</div>
               </div>
             </button>
           ))}
@@ -184,7 +224,7 @@ function McpTab({
       {/* Tool list */}
       {mcpMode !== 'off' && (
         <section>
-          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-muted)' }}>
+          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
             Available Tools ({mcpTools.length})
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
@@ -196,9 +236,9 @@ function McpTab({
                   alignItems: 'center',
                   gap: 8,
                   padding: '5px 8px',
-                  borderRadius: 6,
-                  background: 'var(--color-surface-raised, rgba(255,255,255,0.04))',
-                  fontSize: 12,
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--surface-raised)',
+                  fontSize: 'var(--text-sm)',
                 }}
               >
                 <Cpu size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
@@ -215,6 +255,8 @@ function McpTab({
       {/* Audit log */}
       <section>
         <button
+          type="button"
+          aria-expanded={showAudit}
           onClick={() => setShowAudit((s) => !s)}
           style={{
             display: 'flex',
@@ -223,12 +265,12 @@ function McpTab({
             background: 'none',
             border: 'none',
             cursor: 'pointer',
-            color: 'var(--color-text-muted)',
-            fontSize: 12,
+            color: 'var(--text-muted)',
+            fontSize: 'var(--text-sm)',
             padding: 0,
           }}
         >
-          <ChevronRight size={12} style={{ transform: showAudit ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s' }} />
+          <ChevronRight size={12} style={{ transform: showAudit ? 'rotate(90deg)' : 'none', transition: 'transform var(--ease-fast)' }} />
           Audit Log ({mcpAuditLog.length} entries)
         </button>
         {showAudit && (
@@ -239,18 +281,22 @@ function McpTab({
                 style={{
                   display: 'flex',
                   gap: 8,
-                  fontSize: 11,
+                  fontSize: 'var(--text-xs)',
                   padding: '3px 6px',
-                  borderRadius: 4,
+                  borderRadius: 'var(--radius-sm)',
                   background: entry.outcome === 'denied'
-                    ? 'rgba(239,68,68,0.1)'
+                    ? 'color-mix(in srgb, var(--danger) 12%, transparent)'
                     : entry.outcome === 'failed'
-                    ? 'rgba(249,115,22,0.1)'
-                    : 'var(--color-surface-raised, rgba(255,255,255,0.03))',
+                    ? 'color-mix(in srgb, var(--warning) 12%, transparent)'
+                    : 'var(--surface-raised)',
                 }}
               >
                 <span style={{
-                  color: entry.outcome === 'denied' ? '#ef4444' : entry.outcome === 'failed' ? '#f97316' : '#22c55e',
+                  color: entry.outcome === 'denied'
+                    ? 'var(--danger)'
+                    : entry.outcome === 'failed'
+                    ? 'var(--warning)'
+                    : 'var(--success)',
                   fontWeight: 600,
                   minWidth: 50,
                 }}>
@@ -273,13 +319,25 @@ function McpTab({
 function FeaturesTab({
   featureFlags,
   onToggleFeature,
-}: Pick<StorePanelProps, 'featureFlags' | 'onToggleFeature'>) {
+}: Required<Pick<StorePanelProps, 'featureFlags' | 'onToggleFeature'>>) {
+  const interactive = onToggleFeature !== noopToggleFeature
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <p style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 4 }}>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>
         Feature flags let you opt-in to experimental or optional capabilities without reinstalling.
         Changes take effect immediately unless marked <em>requires restart</em>.
       </p>
+      {!interactive ? (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+          Feature toggles are read-only in this surface.
+        </p>
+      ) : null}
+      {featureFlags.length === 0 ? (
+        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+          No feature flags are available.
+        </p>
+      ) : null}
       {featureFlags.map((flag) => (
         <div
           key={flag.key}
@@ -288,30 +346,40 @@ function FeaturesTab({
             alignItems: 'center',
             gap: 12,
             padding: '10px 12px',
-            borderRadius: 8,
-            border: '1px solid var(--color-border, #333)',
-            background: flag.enabled ? 'rgba(99,102,241,0.06)' : 'transparent',
+            borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border)',
+            background: flag.enabled ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
           }}
         >
           <button
+            type="button"
+            disabled={!interactive}
             onClick={() => onToggleFeature(flag.key, !flag.enabled)}
             aria-label={`Toggle ${flag.label}`}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex' }}
+            aria-pressed={flag.enabled}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: interactive ? 'pointer' : 'not-allowed',
+              opacity: interactive ? 1 : 0.5,
+              padding: 0,
+              display: 'flex',
+            }}
           >
             {flag.enabled
-              ? <ToggleRight size={22} color="var(--color-accent, #6366f1)" />
-              : <ToggleLeft size={22} color="var(--color-text-muted, #666)" />}
+              ? <ToggleRight size={22} color="var(--accent)" />
+              : <ToggleLeft size={22} color="var(--text-muted)" />}
           </button>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
               {flag.label}
               {flag.requiresRestart && (
-                <span style={{ fontSize: 10, background: 'rgba(249,115,22,0.2)', color: '#f97316', borderRadius: 4, padding: '1px 5px' }}>
+                <span style={{ fontSize: 'var(--text-xs)', background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', borderRadius: 'var(--radius-sm)', padding: '1px 5px' }}>
                   restart
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
+            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
               {flag.description}
             </div>
           </div>
@@ -322,8 +390,100 @@ function FeaturesTab({
 }
 
 // ---------------------------------------------------------------------------
+// Layouts Tab
+// ---------------------------------------------------------------------------
+
+function LayoutsTab({
+  activeLayoutPresetId,
+  onApplyLayoutPreset,
+}: Pick<StorePanelProps, 'activeLayoutPresetId' | 'onApplyLayoutPreset'>) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>
+        Alternate workspace layout templates. Applying one reconfigures the current
+        workspace mode — split preview, stickies, and graph depth — in a single click.
+      </p>
+      {LAYOUT_PRESETS.map((preset) => {
+        const active = preset.id === activeLayoutPresetId
+        return (
+          <div
+            key={preset.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              padding: '10px 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid',
+              borderColor: active ? 'var(--accent)' : 'var(--border)',
+              background: active ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
+            }}
+          >
+            <LayoutTemplate size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{preset.name}</div>
+              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+                {preset.description}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => onApplyLayoutPreset?.(preset)}
+              disabled={!onApplyLayoutPreset || active}
+              aria-label={`Apply ${preset.name} layout`}
+              aria-current={active ? 'true' : undefined}
+              style={{
+                fontSize: 'var(--text-xs)',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--accent)',
+                background: active ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
+                color: 'var(--accent)',
+                cursor: !onApplyLayoutPreset || active ? 'default' : 'pointer',
+                opacity: !onApplyLayoutPreset ? 0.4 : 1,
+              }}
+            >
+              {active ? 'Active' : 'Apply'}
+            </button>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Plugins Tab (extracted from PluginPanel inline logic)
 // ---------------------------------------------------------------------------
+
+/**
+ * Required (non-optional) manifest permissions, i.e. the set that
+ * `PluginRegistry.canEnable` insists on before a plugin may run.
+ */
+function requiredPermissions(plugin: LoadedPlugin): Array<PluginRuntimePolicy['grantedPermissions'][number]> {
+  return plugin.manifest.permissions.filter((entry) => !entry.optional).map((entry) => entry.permission)
+}
+
+/**
+ * Mirrors `PluginRegistry.canEnable`: every required permission must be granted
+ * and, when the plugin touches vault content, the active vault must be in the
+ * consent's allowlist. Without this the Enable toggle is a no-op, because
+ * `registry.setEnabled` silently returns false when consent is missing.
+ */
+function hasRequiredConsent(
+  plugin: LoadedPlugin,
+  policy: PluginRuntimePolicy | null,
+  activeVaultId: string | null,
+): boolean {
+  if (!policy) return false
+  const required = requiredPermissions(plugin)
+  if (!required.every((permission) => policy.grantedPermissions.includes(permission))) return false
+  const needsVault = required.some(
+    (permission) => permission === 'read' || permission === 'write-approved',
+  )
+  if (needsVault && (!activeVaultId || !policy.allowedVaultIds.includes(activeVaultId))) return false
+  return true
+}
 
 function PluginsTab({
   plugins,
@@ -331,8 +491,11 @@ function PluginsTab({
   healthDiagnostics,
   marketplaceCatalog,
   pluginPolicies,
+  activeVaultId,
   onToggleSafeMode,
   onTogglePlugin,
+  onReviewConsent,
+  onRevokeConsent,
   onInstallMarketplace,
 }: Pick<
   StorePanelProps,
@@ -341,8 +504,11 @@ function PluginsTab({
   | 'healthDiagnostics'
   | 'marketplaceCatalog'
   | 'pluginPolicies'
+  | 'activeVaultId'
   | 'onToggleSafeMode'
   | 'onTogglePlugin'
+  | 'onReviewConsent'
+  | 'onRevokeConsent'
   | 'onInstallMarketplace'
 >) {
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
@@ -357,26 +523,34 @@ function PluginsTab({
           alignItems: 'center',
           gap: 10,
           padding: '8px 12px',
-          borderRadius: 8,
-          background: safeMode ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.06)',
+          borderRadius: 'var(--radius-sm)',
+          background: safeMode
+            ? 'color-mix(in srgb, var(--danger) 10%, transparent)'
+            : 'color-mix(in srgb, var(--success) 8%, transparent)',
           border: '1px solid',
-          borderColor: safeMode ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.2)',
+          borderColor: safeMode
+            ? 'color-mix(in srgb, var(--danger) 30%, transparent)'
+            : 'color-mix(in srgb, var(--success) 22%, transparent)',
         }}
       >
-        {safeMode ? <ShieldAlert size={16} color="#ef4444" /> : <ShieldCheck size={16} color="#22c55e" />}
-        <span style={{ flex: 1, fontSize: 12 }}>
+        {safeMode
+          ? <ShieldAlert size={16} color="var(--danger)" />
+          : <ShieldCheck size={16} color="var(--success)" />}
+        <span style={{ flex: 1, fontSize: 'var(--text-sm)' }}>
           {safeMode ? 'Safe mode — all plugins disabled' : 'Plugins active'}
         </span>
         <button
+          type="button"
           onClick={() => onToggleSafeMode(!safeMode)}
+          aria-pressed={safeMode}
           style={{
-            fontSize: 11,
+            fontSize: 'var(--text-xs)',
             background: 'none',
             border: '1px solid currentColor',
-            borderRadius: 4,
+            borderRadius: 'var(--radius-sm)',
             padding: '2px 8px',
             cursor: 'pointer',
-            color: safeMode ? '#ef4444' : '#22c55e',
+            color: safeMode ? 'var(--danger)' : 'var(--success)',
           }}
         >
           {safeMode ? 'Disable' : 'Enable'} safe mode
@@ -386,7 +560,7 @@ function PluginsTab({
       {/* Installed plugins */}
       {plugins.length > 0 && (
         <section>
-          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-muted)' }}>
+          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
             Installed ({plugins.length})
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -394,71 +568,200 @@ function PluginsTab({
               const policy = pluginPolicies[plugin.manifest.id] ?? null
               const summary = summarizePluginContributions(plugin)
               const labels = contributionLabels(summary)
+              const required = requiredPermissions(plugin)
+              const consented = hasRequiredConsent(plugin, policy, activeVaultId)
+              const canGrant = Boolean(activeVaultId) && !safeMode
+              const consentHintId = `store-plugin-consent-${plugin.manifest.id}`
               return (
                 <div
                   key={plugin.manifest.id}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid var(--color-border, #333)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
+                    flexDirection: 'column',
+                    gap: 8,
                   }}
                 >
-                  <Box size={16} style={{ marginTop: 2, flexShrink: 0, opacity: 0.7 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      {plugin.manifest.name}
-                      <span style={{ fontSize: 11, opacity: 0.5, marginLeft: 6 }}>
-                        v{plugin.manifest.version}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <Box size={16} style={{ marginTop: 2, flexShrink: 0, opacity: 0.7 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                        {plugin.manifest.name}
+                        <span style={{ fontSize: 'var(--text-xs)', opacity: 0.5, marginLeft: 6 }}>
+                          v{plugin.manifest.version}
+                        </span>
+                      </div>
+                      {plugin.manifest.description && (
+                        <div style={{ fontSize: 'var(--text-xs)', opacity: 0.6, marginTop: 2 }}>
+                          {plugin.manifest.description}
+                        </div>
+                      )}
+                      {labels.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                          {labels.map((label) => (
+                            <span
+                              key={label}
+                              style={{
+                                fontSize: 'var(--text-xs)',
+                                background: 'var(--surface-raised)',
+                                borderRadius: 'var(--radius-sm)',
+                                padding: '1px 5px',
+                                opacity: 0.8,
+                              }}
+                            >
+                              {label}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {consented ? (
+                        <Lock size={12} style={{ opacity: 0.5 }} />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => onTogglePlugin(plugin.manifest.id, !plugin.enabled)}
+                        disabled={safeMode || (!plugin.enabled && !consented)}
+                        aria-pressed={plugin.enabled}
+                        aria-describedby={consented ? undefined : consentHintId}
+                        style={{
+                          fontSize: 'var(--text-xs)',
+                          padding: '2px 8px',
+                          borderRadius: 'var(--radius-sm)',
+                          border: '1px solid var(--border)',
+                          background: plugin.enabled ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
+                          cursor: safeMode || (!plugin.enabled && !consented) ? 'not-allowed' : 'pointer',
+                          opacity: safeMode || (!plugin.enabled && !consented) ? 0.4 : 1,
+                          color: plugin.enabled ? 'var(--accent)' : 'inherit',
+                        }}
+                      >
+                        {plugin.enabled ? 'Enabled' : 'Enable'}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/*
+                    Consent review. PluginRegistry.setEnabled refuses to enable a
+                    plugin whose required permissions were not granted for the active
+                    vault, so the store must expose the grant/revoke path itself --
+                    otherwise the Enable toggle above can never turn on. None of the
+                    buttons below carry aria-pressed, so the row still exposes exactly
+                    one aria-pressed control (the Enable toggle) for e2e activation.
+                  */}
+                  <section
+                    aria-label={`Permissions for ${plugin.manifest.name}`}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 6,
+                      paddingTop: 8,
+                      borderTop: '1px solid var(--border)',
+                    }}
+                  >
+                    <div
+                      id={consentHintId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 'var(--text-xs)',
+                        color: consented ? 'var(--text-muted)' : 'var(--warning)',
+                      }}
+                    >
+                      {consented
+                        ? <ShieldCheck size={12} aria-hidden="true" />
+                        : <ShieldAlert size={12} aria-hidden="true" />}
+                      <span>
+                        {consented
+                          ? 'Permissions reviewed for this vault'
+                          : activeVaultId
+                            ? 'Permission review required before enabling'
+                            : 'Open a vault before granting plugin access'}
                       </span>
                     </div>
-                    {plugin.manifest.description && (
-                      <div style={{ fontSize: 11, opacity: 0.6, marginTop: 2 }}>
-                        {plugin.manifest.description}
-                      </div>
-                    )}
-                    {labels.length > 0 && (
-                      <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
-                        {labels.map((label) => (
-                          <span
-                            key={label}
+                    {plugin.manifest.permissions.length > 0 ? (
+                      <ul
+                        style={{
+                          listStyle: 'none',
+                          margin: 0,
+                          padding: 0,
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 4,
+                        }}
+                      >
+                        {plugin.manifest.permissions.map((entry) => (
+                          <li
+                            key={entry.permission}
+                            title={entry.reason}
                             style={{
-                              fontSize: 10,
-                              background: 'var(--color-surface-raised, rgba(255,255,255,0.07))',
-                              borderRadius: 4,
+                              fontSize: 'var(--text-xs)',
+                              background: 'var(--surface-raised)',
+                              borderRadius: 'var(--radius-sm)',
                               padding: '1px 5px',
                               opacity: 0.8,
                             }}
                           >
-                            {label}
-                          </span>
+                            {entry.permission}
+                            {entry.optional ? ' (optional)' : ''}
+                          </li>
                         ))}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    {policy ? (
-                      <Lock size={12} style={{ opacity: 0.5 }} />
+                      </ul>
                     ) : null}
-                    <button
-                      onClick={() => onTogglePlugin(plugin.manifest.id, !plugin.enabled)}
-                      disabled={safeMode}
-                      style={{
-                        fontSize: 11,
-                        padding: '2px 8px',
-                        borderRadius: 4,
-                        border: '1px solid var(--color-border, #444)',
-                        background: plugin.enabled ? 'rgba(99,102,241,0.15)' : 'transparent',
-                        cursor: safeMode ? 'not-allowed' : 'pointer',
-                        opacity: safeMode ? 0.4 : 1,
-                        color: plugin.enabled ? 'var(--color-accent, #6366f1)' : 'inherit',
-                      }}
-                    >
-                      {plugin.enabled ? 'Enabled' : 'Enable'}
-                    </button>
-                  </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {consented ? null : (
+                        <button
+                          type="button"
+                          disabled={!canGrant}
+                          onClick={() => {
+                            // Grant, then activate. Both callbacks mutate the same
+                            // registry instance synchronously, so setEnabled observes
+                            // the consent recorded one statement earlier.
+                            onReviewConsent(
+                              plugin.manifest.id,
+                              plugin.manifest.permissions.map((entry) => entry.permission),
+                              activeVaultId ? [activeVaultId] : [],
+                            )
+                            if (required.length === 0 || activeVaultId) {
+                              onTogglePlugin(plugin.manifest.id, true)
+                            }
+                          }}
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            padding: '3px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--accent)',
+                            background: 'transparent',
+                            color: 'var(--accent)',
+                            cursor: canGrant ? 'pointer' : 'not-allowed',
+                            opacity: canGrant ? 1 : 0.4,
+                          }}
+                        >
+                          Review and grant for this vault
+                        </button>
+                      )}
+                      {policy ? (
+                        <button
+                          type="button"
+                          onClick={() => onRevokeConsent(plugin.manifest.id)}
+                          style={{
+                            fontSize: 'var(--text-xs)',
+                            padding: '3px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            border: '1px solid var(--border)',
+                            background: 'transparent',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Revoke access
+                        </button>
+                      ) : null}
+                    </div>
+                  </section>
                 </div>
               )
             })}
@@ -468,7 +771,7 @@ function PluginsTab({
 
       {/* Lint summary */}
       {lintSummary && lintSummary.total > 0 && (
-        <div style={{ fontSize: 11, color: '#f97316', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <TimerReset size={12} />
           {lintSummary.total} vault health issue{lintSummary.total !== 1 ? 's' : ''}
         </div>
@@ -477,7 +780,7 @@ function PluginsTab({
       {/* Marketplace */}
       {marketplaceCatalog.length > 0 && (
         <section>
-          <h3 style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: 'var(--color-text-muted)' }}>
+          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
             Available ({marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length})
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -488,8 +791,8 @@ function PluginsTab({
                   key={catalog.id}
                   style={{
                     padding: '10px 12px',
-                    borderRadius: 8,
-                    border: '1px solid var(--color-border, #333)',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
@@ -497,18 +800,20 @@ function PluginsTab({
                 >
                   <Package size={16} style={{ flexShrink: 0, opacity: 0.6 }} />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{catalog.name}</div>
-                    <div style={{ fontSize: 11, opacity: 0.6 }}>{catalog.description}</div>
+                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{catalog.name}</div>
+                    <div style={{ fontSize: 'var(--text-xs)', opacity: 0.6 }}>{catalog.description}</div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => onInstallMarketplace(catalog.id)}
+                    aria-label={`Install ${catalog.name}`}
                     style={{
-                      fontSize: 11,
+                      fontSize: 'var(--text-xs)',
                       padding: '3px 10px',
-                      borderRadius: 4,
-                      border: '1px solid var(--color-accent, #6366f1)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--accent)',
                       background: 'transparent',
-                      color: 'var(--color-accent, #6366f1)',
+                      color: 'var(--accent)',
                       cursor: 'pointer',
                     }}
                   >
@@ -527,8 +832,47 @@ function PluginsTab({
 // StorePanel
 // ---------------------------------------------------------------------------
 
+/** Tab order used for both rendering and Arrow-key navigation. */
+const STORE_TABS: Array<{ id: StoreTab; label: string; icon: React.ReactNode }> = [
+  { id: 'plugins', label: 'Plugins', icon: <Box size={13} /> },
+  { id: 'mcp', label: 'MCP', icon: <Cpu size={13} /> },
+  { id: 'features', label: 'Features', icon: <FlaskConical size={13} /> },
+  { id: 'layouts', label: 'Layouts', icon: <LayoutTemplate size={13} /> },
+]
+
+const tabId = (tab: StoreTab) => `store-tab-${tab}`
+const panelId = (tab: StoreTab) => `store-panel-${tab}`
+
+// Stable empty fallbacks for hosts that do not own MCP / feature-flag state.
+// Module-level constants keep the tab props referentially stable across renders.
+const EMPTY_MCP_TOOLS: McpToolDescriptor[] = []
+const EMPTY_MCP_AUDIT: McpAuditEntry[] = []
+const EMPTY_FEATURE_FLAGS: FeatureFlagEntry[] = []
+const noopSetMcpMode = () => {}
+const noopToggleFeature = () => {}
+
 export function StorePanel(props: StorePanelProps) {
   const [activeTab, setActiveTab] = useState<StoreTab>('plugins')
+
+  /**
+   * APG tablist keyboard model: Left/Right wrap around, Home/End jump to the
+   * ends. Selection follows focus, which is correct here because switching a
+   * tab has no side effects beyond rendering its panel.
+   */
+  function handleTabKeyDown(e: React.KeyboardEvent) {
+    const current = STORE_TABS.findIndex((t) => t.id === activeTab)
+    let next = -1
+    if (e.key === 'ArrowRight') next = (current + 1) % STORE_TABS.length
+    else if (e.key === 'ArrowLeft') next = (current - 1 + STORE_TABS.length) % STORE_TABS.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = STORE_TABS.length - 1
+    if (next === -1) return
+    e.preventDefault()
+    const target = STORE_TABS[next]
+    if (target === undefined) return
+    setActiveTab(target.id)
+    document.getElementById(tabId(target.id))?.focus()
+  }
 
   return (
     <div
@@ -542,60 +886,74 @@ export function StorePanel(props: StorePanelProps) {
     >
       {/* Tab bar */}
       <div
+        role="tablist"
+        aria-label="Store sections"
+        onKeyDown={handleTabKeyDown}
         style={{
           display: 'flex',
           gap: 4,
           padding: '8px 12px',
-          borderBottom: '1px solid var(--color-border, #2a2a2a)',
+          borderBottom: '1px solid var(--border)',
           flexShrink: 0,
         }}
       >
-        <TabButton
-          active={activeTab === 'plugins'}
-          onClick={() => setActiveTab('plugins')}
-          icon={<Box size={13} />}
-          label="Plugins"
-        />
-        <TabButton
-          active={activeTab === 'mcp'}
-          onClick={() => setActiveTab('mcp')}
-          icon={<Cpu size={13} />}
-          label="MCP"
-        />
-        <TabButton
-          active={activeTab === 'features'}
-          onClick={() => setActiveTab('features')}
-          icon={<FlaskConical size={13} />}
-          label="Features"
-        />
+        {STORE_TABS.map((tab) => (
+          <TabButton
+            key={tab.id}
+            id={tabId(tab.id)}
+            controls={panelId(tab.id)}
+            active={activeTab === tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            icon={tab.icon}
+            label={tab.label}
+          />
+        ))}
       </div>
 
       {/* Tab content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+      <div
+        id={panelId(activeTab)}
+        role="tabpanel"
+        aria-labelledby={tabId(activeTab)}
+        tabIndex={-1}
+        style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}
+      >
         {activeTab === 'plugins' && (
-          <PluginsTab
-            plugins={props.plugins}
-            safeMode={props.safeMode}
-            healthDiagnostics={props.healthDiagnostics}
-            marketplaceCatalog={props.marketplaceCatalog}
-            pluginPolicies={props.pluginPolicies}
-            onToggleSafeMode={props.onToggleSafeMode}
-            onTogglePlugin={props.onTogglePlugin}
-            onInstallMarketplace={props.onInstallMarketplace}
-          />
+          <>
+            <h2 style={{ fontSize: 'var(--text-lg)', margin: '0 0 12px' }}>Plugin marketplace</h2>
+            <PluginsTab
+              plugins={props.plugins}
+              safeMode={props.safeMode}
+              healthDiagnostics={props.healthDiagnostics}
+              marketplaceCatalog={props.marketplaceCatalog}
+              pluginPolicies={props.pluginPolicies}
+              activeVaultId={props.activeVaultId}
+              onToggleSafeMode={props.onToggleSafeMode}
+              onTogglePlugin={props.onTogglePlugin}
+              onReviewConsent={props.onReviewConsent}
+              onRevokeConsent={props.onRevokeConsent}
+              onInstallMarketplace={props.onInstallMarketplace}
+            />
+          </>
         )}
         {activeTab === 'mcp' && (
           <McpTab
-            mcpMode={props.mcpMode}
-            mcpTools={props.mcpTools}
-            mcpAuditLog={props.mcpAuditLog}
-            onSetMcpMode={props.onSetMcpMode}
+            mcpMode={props.mcpMode ?? 'off'}
+            mcpTools={props.mcpTools ?? EMPTY_MCP_TOOLS}
+            mcpAuditLog={props.mcpAuditLog ?? EMPTY_MCP_AUDIT}
+            onSetMcpMode={props.onSetMcpMode ?? noopSetMcpMode}
           />
         )}
         {activeTab === 'features' && (
           <FeaturesTab
-            featureFlags={props.featureFlags}
-            onToggleFeature={props.onToggleFeature}
+            featureFlags={props.featureFlags ?? EMPTY_FEATURE_FLAGS}
+            onToggleFeature={props.onToggleFeature ?? noopToggleFeature}
+          />
+        )}
+        {activeTab === 'layouts' && (
+          <LayoutsTab
+            activeLayoutPresetId={props.activeLayoutPresetId}
+            onApplyLayoutPreset={props.onApplyLayoutPreset}
           />
         )}
       </div>
