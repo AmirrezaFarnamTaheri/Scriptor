@@ -90,6 +90,13 @@ export function installE2eBridge(): void {
   let committed = false
   let conflictsResolved = false
   let hashMismatchTriggered = false
+  const enabledPluginIds = new Set([
+    'scriptor.export',
+    'scriptor.citations',
+    'scriptor.graph',
+    'scriptor.canvas',
+    'scriptor.mcp',
+  ])
   let canvasDocumentJson = JSON.stringify({
     id: 'canvas-board-default',
     vaultId: 'screenshot-vault',
@@ -115,6 +122,21 @@ export function installE2eBridge(): void {
           })
         }
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
+      case 'plugin_state_get':
+        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [] }
+      case 'plugin_state_set_enabled': {
+        const body = payload as { capabilityId?: string; enabled?: boolean }
+        const capabilityId = String(body.capabilityId ?? '')
+        if (body.enabled) enabledPluginIds.add(capabilityId)
+        else enabledPluginIds.delete(capabilityId)
+        return undefined
+      }
+      case 'plugin_state_migrate_legacy': {
+        const body = payload as { enabledPluginIds?: string[] }
+        enabledPluginIds.clear()
+        for (const capabilityId of body.enabledPluginIds ?? []) enabledPluginIds.add(capabilityId)
+        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [] }
+      }
       case 'vault_read_note': {
         const readPath = String((payload as { path?: string }).path ?? 'Research Plan.md')
         const conflictFixture = readPath === 'Field Notes.md' ? activeConflictFixture() : null
