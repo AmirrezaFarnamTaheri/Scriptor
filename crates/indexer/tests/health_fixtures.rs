@@ -1,6 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
-use std::sync::{Mutex, OnceLock};
+use std::path::{Path, PathBuf};
 
 use scriptor_indexer::{
     IndexerError, build_health_diagnostics, open_cache_for_session, rebuild_index,
@@ -12,15 +11,55 @@ fn knowledge_edge_root() -> PathBuf {
         .join("../../packages/test-fixtures/vaults/knowledge-edge-cases")
 }
 
-fn fixture_lock() -> std::sync::MutexGuard<'static, ()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(())).lock().expect("fixture lock")
+fn copy_fixture(source: &Path, destination: &Path) -> Result<(), IndexerError> {
+    fs::create_dir_all(destination).map_err(|source_error| IndexerError::Io {
+        path: destination.to_path_buf(),
+        source: source_error,
+    })?;
+
+    for entry in fs::read_dir(source).map_err(|source_error| IndexerError::Io {
+        path: source.to_path_buf(),
+        source: source_error,
+    })? {
+        let entry = entry.map_err(|source_error| IndexerError::Io {
+            path: source.to_path_buf(),
+            source: source_error,
+        })?;
+        let source_path = entry.path();
+        let destination_path = destination.join(entry.file_name());
+        if entry
+            .file_type()
+            .map_err(|source_error| IndexerError::Io {
+                path: source_path.clone(),
+                source: source_error,
+            })?
+            .is_dir()
+        {
+            copy_fixture(&source_path, &destination_path)?;
+        } else {
+            fs::copy(&source_path, &destination_path).map_err(|source_error| IndexerError::Io {
+                path: source_path,
+                source: source_error,
+            })?;
+        }
+    }
+
+    Ok(())
+}
+
+fn isolated_knowledge_edge_fixture() -> Result<tempfile::TempDir, IndexerError> {
+    let fixture = tempfile::tempdir().map_err(|source| IndexerError::Io {
+        path: std::env::temp_dir(),
+        source,
+    })?;
+    copy_fixture(&knowledge_edge_root(), fixture.path())?;
+    Ok(fixture)
 }
 
 #[test]
 fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError> {
-    let _lock = fixture_lock();
-    let session = open_vault(knowledge_edge_root()).map_err(IndexerError::from)?;
+    let fixture = isolated_knowledge_edge_fixture()?;
+    let session = open_vault(fixture.path().to_path_buf()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
     let diagnostics = build_health_diagnostics(&cache, &session)?;
@@ -44,8 +83,8 @@ fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError
 
 #[test]
 fn health_reports_alias_vault_search_targets() -> Result<(), IndexerError> {
-    let _lock = fixture_lock();
-    let session = open_vault(knowledge_edge_root()).map_err(IndexerError::from)?;
+    let fixture = isolated_knowledge_edge_fixture()?;
+    let session = open_vault(fixture.path().to_path_buf()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
     let diagnostics = build_health_diagnostics(&cache, &session)?;
