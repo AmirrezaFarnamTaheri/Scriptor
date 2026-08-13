@@ -124,11 +124,6 @@ fn bundled_pandoc_paths() -> Vec<PathBuf> {
     paths
 }
 
-#[allow(dead_code)]
-fn probe_pandoc(path: &Path) -> Result<PandocDiscovery, ExportError> {
-    probe_pandoc_with_hash(path, None)
-}
-
 fn probe_pandoc_with_hash(
     path: &Path,
     trusted_hash: Option<&str>,

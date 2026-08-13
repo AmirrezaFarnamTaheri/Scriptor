@@ -9,6 +9,7 @@ pub mod error;
 pub mod job;
 pub mod log;
 pub mod pandoc;
+pub mod sealed;
 pub mod theme;
 pub mod validate;
 
@@ -28,4 +29,5 @@ pub use pandoc::{
     PandocDiscovery, discover_pandoc, discover_pandoc_with_trusted_hash, sha256_file,
     verify_binary_hash,
 };
+pub use sealed::{RedactSecretsMode, SealedContentError, check_or_redact, contains_sealed_span};
 pub use validate::{ArtifactValidation, validate_export_artifact};

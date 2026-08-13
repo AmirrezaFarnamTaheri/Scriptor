@@ -34,6 +34,11 @@ pub struct ExportJobInput {
     pub preserve_temp_on_failure: bool,
     #[serde(default)]
     pub trusted_pandoc_hash: Option<String>,
+    /// I-3 interlock: how to handle sealed spans in the source markdown.
+    /// `false` (default) → refuse with an error.
+    /// `true`  → replace sealed spans with `[redacted]` before export.
+    #[serde(default)]
+    pub redact_secrets: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -92,8 +97,18 @@ pub fn run_export_job_with_cancel(
         source,
     })?;
     let source_path = temp_dir.join(format!("{}.md", Uuid::new_v4()));
+    // I-3: check for sealed content before handing markdown to pandoc.
+    let seal_mode = if input.redact_secrets {
+        crate::sealed::RedactSecretsMode::Redact
+    } else {
+        crate::sealed::RedactSecretsMode::Refuse
+    };
+    let safe_markdown =
+        crate::sealed::check_or_redact(&input.source_markdown, seal_mode, &input.source_stem)
+            .map_err(|e| ExportError::SealedContent(e.to_string()))?;
+
     let (processed_markdown, _diagram_assets) =
-        crate::diagram_preprocess::preprocess_diagrams(&input.source_markdown, &temp_dir)?;
+        crate::diagram_preprocess::preprocess_diagrams(&safe_markdown, &temp_dir)?;
     fs::write(&source_path, &processed_markdown).map_err(|source| ExportError::Io {
         path: source_path.clone(),
         source,
@@ -255,6 +270,7 @@ mod tests {
             job_id: None,
             preserve_temp_on_failure: false,
             trusted_pandoc_hash: None,
+            redact_secrets: false,
         });
 
         assert!(result.is_ok(), "expected dry-run ok: {result:?}");
