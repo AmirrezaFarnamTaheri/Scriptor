@@ -53,6 +53,11 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
       - name: Describe vault publication scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Vault export and Pages artifact packaging"
@@ -100,7 +105,9 @@ jobs:
       - name: Finalize vault export evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Vault export and Pages artifact packaging" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Vault export and Pages artifact packaging" -Status $env:JOB_STATUS
 
       - name: Upload vault export evidence
         if: always()
@@ -167,7 +174,9 @@ jobs:
       - name: Finalize Pages deployment evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Pages deployment" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Pages deployment" -Status $env:JOB_STATUS
 
       - name: Upload Pages deployment evidence
         if: always()

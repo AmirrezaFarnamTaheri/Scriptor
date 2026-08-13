@@ -16,6 +16,7 @@ const approvedPins = new Map([
   ['actions/attest@v4.2.1', '508db95dd578ae2727ebd6217d5ba78e4fbda05d'],
   ['actions/upload-pages-artifact@v5.0.0', 'fc324d3547104276b827a68afc52ff2a11cc49c9'],
   ['actions/deploy-pages@v5.0.0', 'cd2ce8fcbc39b97be8ca5fce6e763baed58fa128'],
+  ['Swatinem/rust-cache@v2.9.2', '6323deb102c322ba6fcbdcafc7e3dddab59af2b6'],
 ]);
 
 const failures = [];

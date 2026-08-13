@@ -134,6 +134,12 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+          key: ${{ matrix.platform }}
+
       - name: Validate release version and unsigned publication policy
         shell: pwsh
         run: |
@@ -227,7 +233,9 @@ jobs:
       - name: Finalize release packaging evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})" -Status $env:JOB_STATUS
 
       - name: Upload release packaging evidence
         if: always()
@@ -376,7 +384,9 @@ jobs:
       - name: Finalize release publication evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Release publication" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Release publication" -Status $env:JOB_STATUS
 
       - name: Upload release publication evidence
         if: always()
@@ -470,7 +480,9 @@ jobs:
       - name: Finalize update-manifest evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "LTS update manifest publication" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "LTS update manifest publication" -Status $env:JOB_STATUS
 
       - name: Upload update-manifest evidence
         if: always()
