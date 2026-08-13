@@ -1040,6 +1040,9 @@ function App() {
 
   return (
     <main className="app-shell" aria-label={BRAND_WORKSPACE_LABEL} data-workspace-mode={workspaceMode}>
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {workspace.status === 'ready' ? 'Workspace ready' : `Workspace ${workspace.status}`}
+      </div>
       <div className="app-chrome">
         <AppTopBar
           vault={workspace.vault}
