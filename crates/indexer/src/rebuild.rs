@@ -10,6 +10,7 @@ use crate::error::IndexerError;
 use crate::health::{CacheStatus, VaultHealthReport, build_health_report};
 use crate::links::{replace_note_links, resolve_link_targets};
 use crate::notes::{note_needs_reindex, remove_note_from_index, session_cache_path, upsert_note};
+use crate::tasks::sync_note_tasks_from_markdown;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct RebuildSummary {
@@ -128,6 +129,12 @@ pub fn rebuild_index_with_progress(
             skipped_notes += 1;
         } else {
             upsert_note(&cache, &note.metadata, &note.markdown)?;
+            sync_note_tasks_from_markdown(
+                &cache,
+                &session.descriptor.id,
+                &entry.path,
+                &note.markdown,
+            )?;
             links_written += replace_note_links(&cache, session, &entry.path, &note.markdown)?;
             indexed_notes += 1;
         }
@@ -245,6 +252,7 @@ fn apply_note_index_change(
     }
 
     upsert_note(cache, &note.metadata, &note.markdown)?;
+    sync_note_tasks_from_markdown(cache, &session.descriptor.id, path, &note.markdown)?;
     replace_note_links(cache, session, path, &note.markdown)?;
     Ok(NoteIndexAction::Updated)
 }
@@ -256,7 +264,8 @@ pub fn open_cache_for_session(session: &VaultSession) -> Result<IndexCache, Inde
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scriptor_vault::{open_vault, save_note};
+    use crate::{TaskFilter, query_tasks};
+    use scriptor_vault::{RelativeVaultPath, open_vault, save_note};
     use tempfile::tempdir;
 
     #[test]
@@ -281,6 +290,34 @@ mod tests {
 
         let second = incremental_notes_index(&session, &[path.to_string()], &[])?;
         assert_eq!(second.removed, 1);
+
+        Ok(())
+    }
+
+    #[test]
+    fn incremental_notes_index_syncs_task_rows_from_markdown() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        std::fs::create_dir_all(dir.path().join("notes")).expect("notes dir");
+        let session = open_vault(dir.path())?;
+        let path = "notes/tasks.md";
+        let relative = RelativeVaultPath::parse(path)?;
+
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &relative,
+            "- [ ] Ship release 📅 2026-08-20\n",
+            None,
+        )?;
+
+        let summary = incremental_notes_index(&session, &[path.to_string()], &[])?;
+        assert_eq!(summary.updated, 1);
+
+        let cache = open_cache_for_session(&session)?;
+        let rows = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].title, "Ship release");
+        assert_eq!(rows[0].due_at.as_deref(), Some("2026-08-20"));
 
         Ok(())
     }

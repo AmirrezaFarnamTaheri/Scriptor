@@ -5,12 +5,16 @@ members = [
   "crates/vault",
   "crates/indexer",
   "crates/export-runner",
+  "crates/publish-runner",
   "crates/native-git",
   "crates/system-bridge",
   "crates/canvas-engine",
   "crates/ipc",
   "crates/daemon",
   "crates/cli",
+  "crates/capture",
+  "crates/annotations",
+  "crates/extractor",
   "crates/embeddings",
   "crates/tantivy-indexer",
   "crates/wasm-runtime",
@@ -25,19 +29,23 @@ default-members = [
   "crates/vault",
   "crates/indexer",
   "crates/export-runner",
+  "crates/publish-runner",
   "crates/native-git",
   "crates/system-bridge",
   "crates/canvas-engine",
   "crates/ipc",
   "crates/daemon",
   "crates/cli",
+  "crates/capture",
+  "crates/annotations",
+  "crates/extractor",
   "crates/xtask",
   "apps/desktop/src-tauri",
 ]
 
 [workspace.metadata.scriptor.capabilities]
 product = [
-  "citation-engine", "vault", "indexer", "export-runner", "native-git",
+  "citation-engine", "vault", "indexer", "export-runner", "publish-runner", "native-git",
   "system-bridge", "canvas-engine", "ipc", "daemon", "cli", "desktop",
 ]
 incubating = ["embeddings", "tantivy-indexer", "wasm-runtime"]
@@ -49,3 +57,10 @@ license = "AGPL-3.0-or-later"
 # Pin the upstream security-only fix until the next crates.io release.
 [patch.crates-io]
 citationberg = { git = "https://github.com/typst/citationberg", rev = "06a591e2f237d25e1dfdedac3f3d1494c496c52d" }
+
+[workspace.dependencies]
+# Unified chrono dependency — fixes the pre-existing `clock`/`local-offset`
+# feature conflict between scriptor-daemon and scriptor-cli (W3-9).
+# Each crate that uses chrono should inherit this via `chrono.workspace = true`
+# or pin at least 0.4.38 so the feature set is consistent.
+chrono = { version = "0.4.38", features = ["clock", "serde"] }

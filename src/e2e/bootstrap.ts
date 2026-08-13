@@ -9,10 +9,14 @@ import {
 } from '../screenshot/fixture.ts'
 import {
   e2eNoteDocument,
+  e2eKanbanBoard,
+  e2eKanbanMoveCard,
+  e2eQueryTasks,
   e2eRenameApply,
   e2eRenameDryRun,
   e2eSaveNote,
   e2eSearchNotes,
+  e2eUpdateTask,
 } from './state.ts'
 import { installE2eMcpHarness } from './mcp.harness.ts'
 
@@ -255,6 +259,37 @@ export function installE2eBridge(): void {
       }
       case 'indexer_update_note':
         return true
+      case 'indexer_query_tasks':
+        return e2eQueryTasks()
+      case 'indexer_update_task': {
+        if (window.sessionStorage.getItem('e2e:task-update-failure') === '1') {
+          throw new Error('E2E task write unavailable')
+        }
+        const body = payload as { taskId?: string; status?: string; dueAt?: string | null }
+        e2eUpdateTask(String(body.taskId ?? ''), { status: body.status, dueAt: body.dueAt })
+        return undefined
+      }
+      case 'indexer_kanban_move_card': {
+        const body = payload as { notePath?: string; line?: number; toColumn?: string; newStatus?: string }
+        const move = () => e2eKanbanMoveCard(
+          String(body.notePath ?? ''),
+          Number(body.line),
+          String(body.toColumn ?? ''),
+          String(body.newStatus ?? ' '),
+        )
+        if (window.sessionStorage.getItem('e2e:kanban-move-delay') === '1') {
+          return new Promise<void>((resolve) => {
+            window.setTimeout(() => {
+              move()
+              resolve()
+            }, 150)
+          })
+        }
+        move()
+        return undefined
+      }
+      case 'indexer_kanban_board':
+        return e2eKanbanBoard(String((payload as { notePath?: string }).notePath ?? ''))
       case 'indexer_record_recent_access':
         return undefined
       case 'indexer_resolve_wikilink': {
@@ -422,6 +457,12 @@ export function installE2eBridge(): void {
       }
       case 'vault_read_note_history_revision':
         return '# Previous revision\n'
+      case 'reader_read_document':
+        return Array.from(new TextEncoder().encode('%PDF-1.4\n%Scriptor E2E fixture\n'))
+      case 'reader_load_annotations':
+        return []
+      case 'reader_save_annotations':
+        return undefined
       case 'vault_list_note_history':
         return [
           {

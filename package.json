@@ -2,11 +2,6 @@
   "name": "scriptor",
   "description": "Scriptor — local-first Markdown knowledge workspace",
   "private": true,
-  "pnpm": {
-    "overrides": {
-      "dompurify": ">=3.4.13"
-    }
-  },
   "version": "0.1.1",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
@@ -49,9 +44,11 @@
     "check:deny": "cargo deny check",
     "check:audit": "pnpm audit --prod",
     "check:citations": "node --experimental-strip-types src/lib/validate-citation-runner.ts",
+    "check:safe-external-url": "node --experimental-strip-types src/lib/validate-safe-external-url-runner.ts",
     "check:zotero": "pnpm --dir packages/zotero-connector check:zotero",
     "check:knowledge": "node --experimental-strip-types src/lib/validate-knowledge-runner.ts",
     "check:merge": "node --experimental-strip-types src/lib/validate-merge-runner.ts",
+    "check:palette-score": "node --experimental-strip-types src/lib/validate-palette-score-runner.ts",
     "check:rust": "pnpm check:rust:product && pnpm check:rust:incubating",
     "test:rust": "cargo test --workspace --exclude scriptor-desktop",
     "prepare:desktop": "node scripts/release/stage-daemon-sidecar.mjs",
@@ -118,6 +115,8 @@
     "check:branding": "node scripts/validation/desktop-branding.mjs"
   },
   "dependencies": {
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@monaco-editor/react": "^4.7.0",
     "@scriptor/canvas": "workspace:*",
     "@scriptor/core": "workspace:*",
     "@scriptor/editor": "workspace:*",
@@ -125,38 +124,41 @@
     "@scriptor/mcp": "workspace:*",
     "@scriptor/plugin-api": "workspace:*",
     "@scriptor/plugin-canvas-kit": "workspace:*",
+    "@scriptor/plugin-pdf-translate": "workspace:*",
     "@scriptor/plugin-publish-pack": "workspace:*",
     "@scriptor/plugin-vault-lint": "workspace:*",
-    "@scriptor/plugin-pdf-translate": "workspace:*",
     "@scriptor/portal": "workspace:*",
     "@scriptor/renderer": "workspace:*",
-    "@codemirror/theme-one-dark": "^6.1.3",
-    "@monaco-editor/react": "^4.7.0",
+    "@scriptor/template-engine": "workspace:*",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.7.2",
+    "chart.js": "^4.4.8",
     "citeproc": "^2.4.63",
+    "d3-force": "^3.0.0",
+    "epubjs": "^0.3.93",
+    "immer": "^11.1.16",
     "lucide-react": "^1.28.0",
     "monaco-editor": "^0.56.0",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "chart.js": "^4.4.8",
-    "d3-force": "^3.0.0"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@axe-core/cli": "^4.10.2",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.62.1",
     "@types/d3-force": "^3.0.10",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "typescript-eslint": "^8.66.0",
+    "@vitejs/plugin-react": "^6.0.5",
     "eslint": "^10.8.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.9.0",
     "typescript": "~6.0.2",
-    "@vitejs/plugin-react": "^6.0.5",
-    "@playwright/test": "^1.62.1",
+    "typescript-eslint": "^8.66.0",
     "vite": "^8.2.0"
   }
 }

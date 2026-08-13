@@ -39,6 +39,9 @@ export interface PaletteCommandContext {
   setStatusDockTab: (tab: StatusDockTab) => void
   setGraphOpen: (open: boolean) => void
   setCanvasOpen: (open: boolean) => void
+  setReaderOpen?: (open: boolean) => void
+  setTasksOpen?: (open: boolean) => void
+  setKanbanOpen?: (open: boolean) => void
   setGitPanelOpen: (open: boolean) => void
   setHealthDashboardOpen: (open: boolean) => void
   setMcpPanelOpen: (open: boolean) => void
@@ -98,6 +101,9 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     setStatusDockTab,
     setGraphOpen,
     setCanvasOpen,
+    setReaderOpen,
+    setTasksOpen,
+    setKanbanOpen,
     setGitPanelOpen,
     setHealthDashboardOpen,
     setMcpPanelOpen,
@@ -207,6 +213,30 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
       },
     },
     { id: 'open-canvas', label: 'Open canvas', shortcut: 'Alt+C', run: () => setCanvasOpen(true) },
+    ...(setReaderOpen
+      ? [{
+          id: 'open-reader',
+          label: 'Open reader',
+          keywords: ['pdf', 'epub', 'document'],
+          run: () => setReaderOpen(true),
+        } satisfies AppCommandDefinition]
+      : []),
+    ...(setTasksOpen
+      ? [{
+          id: 'open-tasks',
+          label: 'Open tasks panel',
+          keywords: ['todo', 'checkboxes', 'agenda'],
+          run: () => setTasksOpen(true),
+        } satisfies AppCommandDefinition]
+      : []),
+    ...(setKanbanOpen
+      ? [{
+          id: 'open-kanban',
+          label: 'Open kanban board',
+          keywords: ['board', 'columns', 'cards'],
+          run: () => setKanbanOpen(true),
+        } satisfies AppCommandDefinition]
+      : []),
     { id: 'open-git', label: 'Open Git panel', run: () => setGitPanelOpen(true) },
     { id: 'open-health', label: 'Open vault health', run: () => setHealthDashboardOpen(true) },
     { id: 'open-mcp', label: 'Open MCP panel', run: () => setMcpPanelOpen(true) },

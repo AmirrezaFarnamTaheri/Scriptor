@@ -9,6 +9,9 @@ export const GraphPanel = lazy(() =>
 export const GitPanel = lazy(() =>
   import('../GitPanel').then((module) => ({ default: module.GitPanel })),
 )
+export const KanbanPanel = lazy(() =>
+  import('../KanbanPanel').then((module) => ({ default: module.KanbanPanel })),
+)
 export const McpPanel = lazy(() =>
   import('../McpPanel').then((module) => ({ default: module.McpPanel })),
 )
@@ -38,6 +41,9 @@ export const BibliographyPanel = lazy(() =>
 )
 export const SnippetsPanelLazy = lazy(() =>
   import('../SnippetsPanel').then((module) => ({ default: module.SnippetsPanel })),
+)
+export const TaskPanel = lazy(() =>
+  import('../TaskPanel').then((module) => ({ default: module.TaskPanel })),
 )
 
 export function PanelFallback() {

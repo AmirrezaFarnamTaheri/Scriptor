@@ -1,4 +1,5 @@
 import type { NoteDocument, SearchHit } from '../types/vault'
+import type { KanbanBoardRow, TaskRow } from '../bridge/commands/indexer'
 import { SCREENSHOT_SCAN, SCREENSHOT_VAULT, screenshotNoteDocument } from '../screenshot/fixture.ts'
 
 const noteBodies = new Map<string, string>()
@@ -7,6 +8,114 @@ for (const entry of SCREENSHOT_SCAN) {
   if (entry.kind === 'note') {
     noteBodies.set(entry.path, screenshotNoteDocument(entry.path).markdown)
   }
+}
+
+const statusToCheckbox: Record<string, string> = {
+  open: ' ',
+  'in-progress': '/',
+  done: 'x',
+  cancelled: '-',
+  forwarded: '>',
+}
+
+const checkboxToStatus: Record<string, string> = {
+  ' ': 'open',
+  '/': 'in-progress',
+  x: 'done',
+  '-': 'cancelled',
+  '>': 'forwarded',
+}
+
+function taskFromMarkdown(path: string, line: string, lineNumber: number): TaskRow | null {
+  const match = /^- \[([- /x>])\] (.*?)(?: (?:📅 |due: )(\d{4}-\d{2}-\d{2}))?$/.exec(line)
+  if (!match) return null
+  const [, checkbox, title, dueAt] = match
+  return {
+    id: `${path}:${lineNumber}`,
+    vaultId: SCREENSHOT_VAULT.id,
+    sourceNoteId: path,
+    line: lineNumber,
+    title,
+    status: checkboxToStatus[checkbox] ?? 'open',
+    priority: title === 'Collect sources' ? 1 : 0,
+    dueAt: dueAt ?? null,
+    scheduledAt: null,
+    startAt: null,
+    rrule: null,
+    fieldStyle: 'emoji',
+    tags: path === 'Research Plan.md' ? ['research'] : ['release'],
+    createdAt: '2026-06-20T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+  }
+}
+
+/** Read task rows from the fixture Markdown at query time, never from a side cache. */
+export function e2eQueryTasks(): TaskRow[] {
+  const rows: TaskRow[] = []
+  for (const [path, markdown] of noteBodies) {
+    markdown.split('\n').forEach((line, lineNumber) => {
+      const task = taskFromMarkdown(path, line, lineNumber)
+      if (task) rows.push(task)
+    })
+  }
+  return rows
+}
+
+/** Rewrite the matching Markdown task and let subsequent queries re-parse it. */
+export function e2eUpdateTask(taskId: string, patch: { status?: string; dueAt?: string | null }): void {
+  const task = e2eQueryTasks().find((row) => row.id === taskId)
+  if (!task || !task.sourceNoteId) throw new Error(`E2E task not found: ${taskId}`)
+  const lines = (noteBodies.get(task.sourceNoteId) ?? '').split('\n')
+  const status = patch.status ?? task.status
+  const dueAt = patch.dueAt === undefined ? task.dueAt : patch.dueAt
+  lines[task.line] = `- [${statusToCheckbox[status] ?? ' '}] ${task.title}${dueAt ? ` due: ${dueAt}` : ''}`
+  noteBodies.set(task.sourceNoteId, lines.join('\n'))
+}
+
+function kanbanColumns(markdown: string): KanbanBoardRow['columns'] {
+  const columns: KanbanBoardRow['columns'] = []
+  let column: KanbanBoardRow['columns'][number] | null = null
+  markdown.split('\n').forEach((line, lineNumber) => {
+    const heading = /^## (.+)$/.exec(line)
+    if (heading) {
+      column = { name: heading[1], cards: [] }
+      columns.push(column)
+      return
+    }
+    const card = /^- \[([- /x>])\] (.+)$/.exec(line)
+    if (card && column) {
+      column.cards.push({
+        text: card[2],
+        status: card[1],
+        line: lineNumber,
+        archived: card[1] === 'x',
+      })
+    }
+  })
+  return columns
+}
+
+/** Parse the board afresh from its Markdown source, matching the native contract. */
+export function e2eKanbanBoard(notePath: string): KanbanBoardRow | null {
+  const markdown = noteBodies.get(notePath)
+  if (!markdown?.includes('kanban-plugin: basic')) return null
+  return { sourcePath: notePath, columns: kanbanColumns(markdown) }
+}
+
+/** Move a card by rewriting its source Markdown, then rely on a fresh parse. */
+export function e2eKanbanMoveCard(notePath: string, line: number, toColumn: string, newStatus: string): void {
+  const lines = (noteBodies.get(notePath) ?? '').split('\n')
+  const card = lines[line]
+  if (!/^\s*- \[[- /x>]\] /.test(card)) throw new Error(`E2E kanban card not found at ${notePath}:${line}`)
+  const destination = lines.findIndex((value) => value === `## ${toColumn}`)
+  if (destination < 0) throw new Error(`E2E kanban column not found: ${toColumn}`)
+  const text = card.replace(/^\s*- \[[- /x>]\] /, '')
+  lines.splice(line, 1)
+  const adjustedDestination = line < destination ? destination - 1 : destination
+  let insertAt = adjustedDestination + 1
+  while (insertAt < lines.length && !lines[insertAt].startsWith('## ')) insertAt += 1
+  lines.splice(insertAt, 0, `- [${newStatus}] ${text}`)
+  noteBodies.set(notePath, lines.join('\n'))
 }
 
 function contentHash(markdown: string): string {

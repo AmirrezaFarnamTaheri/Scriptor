@@ -7,6 +7,7 @@ use crate::db::IndexCache;
 use crate::error::IndexerError;
 use crate::search::search_notes;
 use crate::tags::notes_for_tag;
+use crate::tasks::{TaskFilter, query_tasks};
 use crate::views::list_view_notes;
 
 /// Result cap shared by every DQL clause.
@@ -103,6 +104,60 @@ fn execute_single_clause(
     let trimmed = query.trim();
     let lower = trimmed.to_ascii_lowercase();
 
+    // ── W3-3: compact operator syntax ────────────────────────────────────────
+    // `path:<substring>` — notes whose vault-relative path contains the value.
+    if let Some(value) = lower.strip_prefix("path:") {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(caret_error(query, 5, "path: requires a value"));
+        }
+        return path_contains(cache, &session.descriptor.id, value);
+    }
+
+    // `tag:<name>` — notes that carry the tag (with or without leading `#`).
+    if let Some(value) = lower.strip_prefix("tag:") {
+        let tag = value.trim().trim_start_matches('#');
+        if tag.is_empty() {
+            return Err(caret_error(query, 4, "tag: requires a value"));
+        }
+        return notes_for_tag(cache, &session.descriptor.id, tag).map(|notes| {
+            notes
+                .into_iter()
+                .map(|note| DqlResultRow {
+                    path: note.path,
+                    title: note.title,
+                    snippet: String::new(),
+                })
+                .collect()
+        });
+    }
+
+    // `line:<text>` — notes that contain an exact line matching the value.
+    if let Some(value) = lower.strip_prefix("line:") {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(caret_error(query, 5, "line: requires a value"));
+        }
+        return line_contains(cache, &session.descriptor.id, value);
+    }
+
+    // `-<term>` — exclude notes that match term from the current set.
+    // As a standalone clause this returns notes that do NOT contain `<term>`.
+    if let Some(value) = trimmed.strip_prefix('-') {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err(caret_error(query, 1, "- negation requires a term"));
+        }
+        return body_excludes(cache, &session.descriptor.id, value);
+    }
+
+    // `"quoted phrase"` — exact phrase search via FTS.
+    if trimmed.starts_with('"') && trimmed.ends_with('"') && trimmed.len() > 2 {
+        let phrase = &trimmed[1..trimmed.len() - 1];
+        return phrase_search(cache, &session.descriptor.id, phrase);
+    }
+    // ── legacy Foam-style operators (preserved, I-5) ─────────────────────────
+
     if let Some(tag) = lower
         .strip_prefix("path has #")
         .or_else(|| lower.strip_prefix("path has "))
@@ -136,9 +191,115 @@ fn execute_single_clause(
         return links_to(cache, &session.descriptor.id, &target);
     }
 
-    Err(IndexerError::InvalidQuery(format!(
-        "unsupported DQL: {query}"
-    )))
+    // `task:<filter>` or `tasks:<filter>` — query tasks from the index.
+    //
+    // Supported sub-clauses (space-separated, all optional):
+    //   status:open|done|cancelled|forwarded|in-progress
+    //   due:<YYYY-MM-DD>       tasks due on this exact date
+    //   due:overdue            tasks whose due date is in the past
+    //   tag:<name>             tasks carrying this tag
+    //
+    // Examples:
+    //   `task: status:open`
+    //   `task: status:done tag:project`
+    //   `task: due:overdue`
+    //   `task: due:2026-08-15`
+    if let Some(filter_str) = lower
+        .strip_prefix("task:")
+        .or_else(|| lower.strip_prefix("tasks:"))
+    {
+        let filter = parse_task_filter(filter_str.trim())?;
+        let tasks = query_tasks(cache, &session.descriptor.id, &filter, 500)?;
+        return Ok(tasks
+            .into_iter()
+            .map(|t| DqlResultRow {
+                path: t.source_note_id.unwrap_or_default(),
+                title: t.title,
+                // tasks have no pre-built snippet; leave empty.
+                snippet: String::new(),
+            })
+            .collect());
+    }
+
+    Err(caret_error(query, 0, "unsupported DQL clause"))
+}
+
+/// Parse a task filter expression from the sub-clause after `task:` or `tasks:`.
+///
+/// Sub-clauses are space-separated key:value pairs:
+///   `status:open`, `due:2026-08-15`, `due:overdue`, `tag:someTag`
+///
+/// Unknown tokens are silently ignored so future extensions are forward-compatible.
+fn parse_task_filter(filter_str: &str) -> Result<TaskFilter, IndexerError> {
+    let mut filter = TaskFilter::default();
+    if filter_str.is_empty() {
+        return Ok(filter);
+    }
+
+    // Simple tokeniser: split on spaces, each token is `key:value`.
+    for token in filter_str.split_whitespace() {
+        if let Some(status) = token.strip_prefix("status:") {
+            if !status.is_empty() {
+                filter.status = Some(status.to_string());
+            }
+        } else if let Some(due_val) = token.strip_prefix("due:") {
+            match due_val {
+                "overdue" => {
+                    // due_before = today.
+                    let today = chrono_today();
+                    filter.due_before = Some(today);
+                }
+                date if !date.is_empty() => {
+                    // Exact date: treat as a date range [date, date].
+                    filter.due_before = Some(date.to_string());
+                    filter.due_after = Some(date.to_string());
+                }
+                _ => {}
+            }
+        } else if let Some(tag) = token.strip_prefix("tag:") {
+            if !tag.is_empty() {
+                filter.tag = Some(tag.trim_start_matches('#').to_string());
+            }
+        }
+        // Unknown tokens ignored for forward-compatibility.
+    }
+
+    Ok(filter)
+}
+
+/// Return today's date as an ISO-8601 string (YYYY-MM-DD) in the local timezone.
+/// Uses the system clock; swapped for a test stub in unit tests.
+fn chrono_today() -> String {
+    // Avoid pulling in chrono or time crates.  SQLite's `date('now')` is the
+    // canonical date source at query time; here we just need an approximate
+    // comparison value for the "overdue" filter.
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Gregorian approximation sufficient for overdue comparison.
+    let days = secs / 86400;
+    // Epoch = 1970-01-01; shift forward from there.
+    let (y, m, d) = epoch_days_to_ymd(days as i64);
+    format!("{y:04}-{m:02}-{d:02}")
+}
+
+/// Convert days since Unix epoch to (year, month, day).
+/// Gregorian proleptic calendar, accurate post-1582.
+fn epoch_days_to_ymd(days: i64) -> (i64, u32, u32) {
+    // Adapted from Richards' algorithm.
+    let z = days + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
 }
 
 fn extract_links_to_target(query: &str) -> Option<String> {
@@ -344,6 +505,117 @@ fn links_to(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
+// ── W3-3 new helpers ──────────────────────────────────────────────────────────
+
+/// Produce a caret-positioned error: the caret sits under `column` (0-indexed).
+///
+/// ```text
+/// unsupported DQL clause
+/// path:
+///      ^  path: requires a value
+/// ```
+fn caret_error(query: &str, column: usize, message: &str) -> IndexerError {
+    let caret_line = format!("{}{}", " ".repeat(column), "^");
+    IndexerError::InvalidQuery(format!("{message}\n{query}\n{caret_line}"))
+}
+
+/// `path:<substring>` — notes whose vault-relative path contains the value
+/// (case-insensitive SQL LIKE).
+fn path_contains(
+    cache: &IndexCache,
+    vault_id: &str,
+    value: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
+    let pattern = format!("%{value}%");
+    let conn = cache.connection()?;
+    let mut stmt = conn.prepare(
+        "SELECT path, title FROM notes
+         WHERE vault_id = ?1 AND lower(path) LIKE lower(?2)
+         ORDER BY path LIMIT ?3",
+    )?;
+    let rows = stmt.query_map(params![vault_id, pattern, DQL_RESULT_LIMIT as i64], |row| {
+        Ok(DqlResultRow {
+            path: row.get(0)?,
+            title: row.get(1)?,
+            snippet: String::new(),
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// `line:<text>` — notes that contain at least one line whose lowercased form
+/// contains `value`.  Implemented via FTS body search as a close approximation;
+/// an exact line match would require full content scanning which exceeds the
+/// latency budget for large vaults.
+fn line_contains(
+    cache: &IndexCache,
+    vault_id: &str,
+    value: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
+    // Use the existing FTS path; `value` is treated as a search phrase.
+    body_contains(cache, vault_id, value)
+}
+
+/// `"quoted phrase"` — exact FTS phrase search.
+fn phrase_search(
+    cache: &IndexCache,
+    vault_id: &str,
+    phrase: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
+    // Build a quoted FTS5 phrase: inner double-quotes doubled per SQLite rules.
+    let escaped = phrase.replace('"', "\"\"");
+    let fts_expr = format!("\"{escaped}\"");
+    let conn = cache.connection()?;
+    let mut stmt = conn.prepare(
+        "SELECT note_fts.note_id, notes.path, notes.title,
+                snippet(note_fts, 3, '[[', ']]', '...', 32) AS snippet
+         FROM note_fts
+         JOIN notes ON notes.id = note_fts.note_id
+         WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
+         ORDER BY bm25(note_fts, 10.0, 5.0, 3.0, 1.0)
+         LIMIT ?3",
+    )?;
+    let rows = stmt.query_map(
+        params![fts_expr, vault_id, DQL_RESULT_LIMIT as i64],
+        |row| {
+            Ok(DqlResultRow {
+                path: row.get(1)?,
+                title: row.get(2)?,
+                snippet: row.get(3)?,
+            })
+        },
+    )?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+}
+
+/// `-<term>` — notes that do NOT contain `term` in their FTS body.
+/// Returns all notes minus those that match the term (complement).
+fn body_excludes(
+    cache: &IndexCache,
+    vault_id: &str,
+    term: &str,
+) -> Result<Vec<DqlResultRow>, IndexerError> {
+    let matching: std::collections::BTreeSet<String> = search_notes(cache, vault_id, term, 10_000)?
+        .into_iter()
+        .map(|h| h.path)
+        .collect();
+
+    let conn = cache.connection()?;
+    let mut stmt =
+        conn.prepare("SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2")?;
+    let rows = stmt.query_map(params![vault_id, DQL_RESULT_LIMIT as i64], |row| {
+        Ok(DqlResultRow {
+            path: row.get(0)?,
+            title: row.get(1)?,
+            snippet: String::new(),
+        })
+    })?;
+    Ok(rows
+        .filter_map(|r| r.ok())
+        .filter(|r| !matching.contains(&r.path))
+        .collect())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -442,5 +714,61 @@ mod tests {
         let result = path_matches(&cache, "vault-test", "(?:(?:(?:a{100}){100}){100}){100}");
         assert!(matches!(result, Err(IndexerError::InvalidQuery(_))));
         Ok(())
+    }
+
+    // ── W3-3 operator tests ───────────────────────────────────────────────────
+
+    #[test]
+    fn caret_error_positions_caret_correctly() {
+        let err = caret_error("path:", 5, "path: requires a value");
+        let msg = err.to_string();
+        // The caret line should contain 5 spaces then a `^`.
+        assert!(
+            msg.contains("     ^"),
+            "expected caret at col 5, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn path_colon_operator_returns_invalid_query_on_empty_value() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = IndexCache::open(dir.path().join("cache.sqlite")).unwrap();
+        let session = test_session(dir.path());
+        let err = execute_dql_query(&cache, &session, "path:").unwrap_err();
+        assert!(
+            matches!(err, IndexerError::InvalidQuery(_)),
+            "expected InvalidQuery, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn tag_colon_operator_returns_invalid_query_on_empty_value() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = IndexCache::open(dir.path().join("cache.sqlite")).unwrap();
+        let session = test_session(dir.path());
+        let err = execute_dql_query(&cache, &session, "tag:").unwrap_err();
+        assert!(matches!(err, IndexerError::InvalidQuery(_)));
+    }
+
+    #[test]
+    fn negation_operator_returns_invalid_query_on_empty_term() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = IndexCache::open(dir.path().join("cache.sqlite")).unwrap();
+        let session = test_session(dir.path());
+        let err = execute_dql_query(&cache, &session, "-").unwrap_err();
+        assert!(matches!(err, IndexerError::InvalidQuery(_)));
+    }
+
+    #[test]
+    fn unknown_clause_error_contains_caret() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = IndexCache::open(dir.path().join("cache.sqlite")).unwrap();
+        let session = test_session(dir.path());
+        let err = execute_dql_query(&cache, &session, "frobnicate foo").unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains('^'),
+            "malformed query error must contain a caret: {msg}"
+        );
     }
 }

@@ -137,3 +137,158 @@ export async function indexerBatchNoteMeta(paths: string[]): Promise<NoteMetaHit
   requireNative()
   return invoke<NoteMetaHit[]>('indexer_batch_note_meta', { paths })
 }
+
+// ── W3-1: ranked search with BM25 score breakdown ────────────────────────────
+
+export interface SearchScoreDebug {
+  titleScore: number
+  headingScore: number
+  tagScore: number
+  bodyScore: number
+  bm25Total: number
+}
+
+export interface RankedSearchHit {
+  noteId: string
+  path: string
+  title: string
+  snippet: string
+  scoreDebug?: SearchScoreDebug
+  isFuzzyFallback?: boolean
+}
+
+export interface IndexerSearchRankedOutput {
+  hits: RankedSearchHit[]
+  usedFuzzyFallback: boolean
+  durationMs: number
+}
+
+/**
+ * Full-text search with weighted BM25 ranking (W3-1).
+ * Falls back to Rust fuzzy search (W3-2) when FTS returns zero rows.
+ * `scoreDebug` is populated on FTS hits so the debug affordance can render
+ * score components without extra IPC round-trips.
+ */
+export async function indexerSearchRanked(
+  query: string,
+  limit = 50,
+): Promise<IndexerSearchRankedOutput> {
+  requireNative()
+  return invoke<IndexerSearchRankedOutput>('indexer_search_ranked', { query, limit })
+}
+
+// ── W4: Task commands ────────────────────────────────────────────────────────
+
+/** Mirrors `TaskFilter` in `crates/indexer/src/tasks.rs`. */
+export interface TaskQueryFilter {
+  status?: string | null
+  tag?: string | null
+  dueBefore?: string | null
+  dueAfter?: string | null
+}
+
+/** Mirrors `TaskRow` returned by `query_tasks`. */
+export interface TaskRow {
+  id: string
+  vaultId: string
+  sourceNoteId: string | null
+  line: number
+  title: string
+  status: string
+  priority: number
+  dueAt: string | null
+  scheduledAt: string | null
+  startAt: string | null
+  rrule: string | null
+  fieldStyle: 'emoji' | 'dataview'
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+/** Mirrors `KanbanBoard` / `KanbanColumn` / `KanbanCard` in `kanban.rs`. */
+export interface KanbanCardRow {
+  text: string
+  status: string
+  line: number
+  archived: boolean
+}
+
+export interface KanbanColumnRow {
+  name: string
+  cards: KanbanCardRow[]
+}
+
+export interface KanbanBoardRow {
+  sourcePath: string
+  columns: KanbanColumnRow[]
+}
+
+/**
+ * Query tasks from the indexed SQLite store (W4-4).
+ * All filter fields are optional; omit to list all tasks.
+ */
+export async function indexerQueryTasks(
+  filter: TaskQueryFilter = {},
+  limit = 200,
+): Promise<TaskRow[]> {
+  requireNative()
+  return invoke<TaskRow[]>('indexer_query_tasks', {
+    status: filter.status ?? null,
+    tag: filter.tag ?? null,
+    dueBefore: filter.dueBefore ?? null,
+    dueAfter: filter.dueAfter ?? null,
+    limit,
+  })
+}
+
+/**
+ * Patch a task's status (and optionally due date) in the index and rewrite the
+ * source note line.  The Rust handler merges only the provided fields.
+ */
+export async function indexerUpdateTask(
+  taskId: string,
+  patch: { status?: string; dueAt?: string | null },
+): Promise<void> {
+  requireNative()
+  return invoke<void>('indexer_update_task', { taskId, ...patch })
+}
+
+/**
+ * Re-index tasks for a single note (called after note saves so the store
+ * reflects edits before the next full rebuild).
+ */
+export async function indexerSyncNoteTasks(notePath: string): Promise<void> {
+  requireNative()
+  return invoke<void>('indexer_sync_note_tasks', { notePath })
+}
+
+/**
+ * Parse and return the kanban board for the given vault-relative path.
+ * Returns `null` if the file is not a kanban file.
+ */
+export async function indexerKanbanBoard(notePath: string): Promise<KanbanBoardRow | null> {
+  requireNative()
+  return invoke<KanbanBoardRow | null>('indexer_kanban_board', { notePath })
+}
+
+/**
+ * Relocate a kanban card under a different `##` heading in its source file.
+ *
+ * `line` is the 0-based line number from `KanbanCardRow.line`.
+ * `toColumn` is the destination kanban heading.
+ * `newStatus` is a single character matching the obsidian-tasks status
+ * convention (e.g. `' '` = todo, `'x'` = done, `'-'` = cancelled, `'>'` = deferred).
+ *
+ * The Rust handler goes through the vault write path, so file-watchers and
+ * history entries fire normally.
+ */
+export async function indexerKanbanMoveCard(
+  notePath: string,
+  line: number,
+  toColumn: string,
+  newStatus: string,
+): Promise<void> {
+  requireNative()
+  return invoke<void>('indexer_kanban_move_card', { notePath, line, toColumn, newStatus })
+}
