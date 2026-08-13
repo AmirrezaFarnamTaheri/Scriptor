@@ -3,6 +3,7 @@
 # See https://pnpm.io/settings
 overrides:
   dompurify: ">=3.4.13"
+  "@xmldom/xmldom": ">=0.8.13"
 
 packages:
   - "apps/*"
