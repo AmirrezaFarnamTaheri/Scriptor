@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
+use std::sync::{Mutex, OnceLock};
 
 use scriptor_indexer::{
     IndexerError, build_health_diagnostics, open_cache_for_session, rebuild_index,
@@ -11,8 +12,14 @@ fn knowledge_edge_root() -> PathBuf {
         .join("../../packages/test-fixtures/vaults/knowledge-edge-cases")
 }
 
+fn fixture_lock() -> std::sync::MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(())).lock().expect("fixture lock")
+}
+
 #[test]
 fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError> {
+    let _lock = fixture_lock();
     let session = open_vault(knowledge_edge_root()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
@@ -37,6 +44,7 @@ fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError
 
 #[test]
 fn health_reports_alias_vault_search_targets() -> Result<(), IndexerError> {
+    let _lock = fixture_lock();
     let session = open_vault(knowledge_edge_root()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
