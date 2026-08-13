@@ -5,10 +5,12 @@ import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'l
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
+import type { McpMode, McpToolDescriptor } from '@scriptor/core/contracts/mcp'
+import type { LayoutPreset } from '../../lib/workspace/layoutPresets'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import { EmptyState } from '../EmptyState'
 import { ReferencesPreviewPanel } from '../ReferencesPreviewPanel'
-import { PluginPanel } from '../PluginPanel'
+import { StorePanel, type FeatureFlagEntry, type McpAuditEntry } from '../StorePanel'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import { NoteQualityCard } from '../inspector/NoteQualityCard'
@@ -64,6 +66,20 @@ interface InspectorRailProps {
   onOpenKnowledgeWorkbench: () => void
   onOpenPublishCenter: () => void
   onOpenGraph: () => void
+  /**
+   * Optional store surfaces beyond plugins. When omitted, StorePanel still
+   * renders its MCP / Features / Layouts tabs in an empty, read-only state.
+   */
+  store?: {
+    mcpMode?: McpMode
+    mcpTools?: McpToolDescriptor[]
+    mcpAuditLog?: McpAuditEntry[]
+    onSetMcpMode?: (mode: McpMode) => void
+    featureFlags?: FeatureFlagEntry[]
+    onToggleFeature?: (key: string, enabled: boolean) => void
+    activeLayoutPresetId?: string | null
+    onApplyLayoutPreset?: (preset: LayoutPreset) => void
+  }
   plugins: {
     plugins: LoadedPlugin[]
     templatePacks: TemplatePackContribution[]
@@ -122,6 +138,7 @@ export function InspectorRail({
   onOpenPublishCenter,
   onOpenGraph,
   plugins,
+  store,
 }: InspectorRailProps) {
   const presetConfig = useMemo(
     () => INSPECTOR_PRESETS.find((entry) => entry.id === inspectorPreset) ?? INSPECTOR_PRESETS[0],
@@ -468,7 +485,7 @@ export function InspectorRail({
               />
             }
           >
-            <PluginPanel
+            <StorePanel
               plugins={plugins.plugins}
               templatePacks={plugins.templatePacks}
               safeMode={plugins.safeMode}
@@ -481,6 +498,14 @@ export function InspectorRail({
               onReviewConsent={plugins.onReviewConsent}
               onRevokeConsent={plugins.onRevokeConsent}
               onInstallMarketplace={plugins.onInstallMarketplace}
+              mcpMode={store?.mcpMode}
+              mcpTools={store?.mcpTools}
+              mcpAuditLog={store?.mcpAuditLog}
+              onSetMcpMode={store?.onSetMcpMode}
+              featureFlags={store?.featureFlags}
+              onToggleFeature={store?.onToggleFeature}
+              activeLayoutPresetId={store?.activeLayoutPresetId}
+              onApplyLayoutPreset={store?.onApplyLayoutPreset}
             />
           </ErrorBoundary>
         ) : null}

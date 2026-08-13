@@ -17,6 +17,9 @@ interface UseAppKeyboardShortcutsOptions {
   openCanvas: () => void
   openKnowledgeWorkbench: () => void
   openGit: () => void
+  openReader?: () => void
+  openTasks?: () => void
+  openKanban?: () => void
   toggleVaultSidebar: () => void
   toggleInspector: () => void
 }
@@ -43,6 +46,9 @@ export function useAppKeyboardShortcuts({
   openCanvas,
   openKnowledgeWorkbench,
   openGit,
+  openReader,
+  openTasks,
+  openKanban,
   toggleVaultSidebar,
   toggleInspector,
 }: UseAppKeyboardShortcutsOptions): void {
@@ -73,6 +79,9 @@ export function useAppKeyboardShortcuts({
       if (run('open-canvas', openCanvas)) return
       if (run('reopen-closed-tab', reopenClosedTab)) return
       if (run('open-git', openGit)) return
+      if (openReader && run('open-reader', openReader)) return
+      if (openTasks && run('open-tasks', openTasks)) return
+      if (openKanban && run('open-kanban', openKanban)) return
       if (run('toggle-vault-sidebar', toggleVaultSidebar)) return
       run('toggle-inspector', toggleInspector)
     }
@@ -87,10 +96,13 @@ export function useAppKeyboardShortcuts({
     loadGraph,
     openCanvas,
     openGit,
+    openKanban,
     openGraph,
     openKnowledgeWorkbench,
     openNoteHistory,
+    openReader,
     openSnippets,
+    openTasks,
     reopenClosedTab,
     setSidebarView,
     toggleInspector,

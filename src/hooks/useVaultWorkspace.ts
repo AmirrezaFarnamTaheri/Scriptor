@@ -32,7 +32,7 @@ import { createActivityEntry, type ActivityEntry } from './useActivityLog'
 import { useWorkspaceKnowledge } from './useWorkspaceKnowledge'
 import { useWorkspaceGit } from './useWorkspaceGit'
 import { useWorkspaceExport } from './useWorkspaceExport'
-import { useWorkspaceSearch } from './useWorkspaceSearch'
+import { useSearchStore } from './useSearchStore'
 import { useWorkspaceDiagnostics } from './useWorkspaceDiagnostics'
 import { useWorkspaceEditor } from './useWorkspaceEditor'
 import { useWorkspaceRename } from './useWorkspaceRename'
@@ -162,7 +162,7 @@ export function useVaultWorkspace(options?: {
     runSearch,
     setVaultSearchQuery,
     clearSearch,
-  } = useWorkspaceSearch({ onSearchComplete, onSearchTiming })
+  } = useSearchStore({ onSearchComplete, onSearchTiming })
 
   const noteCount = useMemo(() => entries.filter((entry) => entry.kind === 'note').length, [entries])
 

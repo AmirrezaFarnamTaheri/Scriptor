@@ -89,6 +89,15 @@ export function usePluginRegistry(activeVaultId: string | null) {
             registry.register(manifest)
           }
         }
+        // PluginRegistry ingests consents once, in its constructor, which runs
+        // before these manifests exist. Re-apply stored grants for plugins that
+        // have no in-memory policy yet, otherwise `canEnable` keeps refusing to
+        // activate a plugin the user already reviewed and `setEnabled` fails
+        // silently. Policies already held in memory win over storage.
+        for (const [pluginId, consent] of Object.entries(readInitialPolicies())) {
+          if (!registry.has(pluginId) || registry.getConsent(pluginId)) continue
+          registry.setConsent(pluginId, consent)
+        }
         setManifestsReady(true)
         bump()
       })

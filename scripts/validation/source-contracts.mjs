@@ -108,7 +108,7 @@ test('daemon IPC requires the authenticated endpoint nonce on every production c
   assert.match(client, /subscribe\.endpoint_nonce\s*=\s*endpoint\.nonce/)
   assert.match(client, /connect_event_stream\(\)/)
   assert.match(client, /RpcEventPayload::ResyncRequired/)
-  assert.match(ipc, /ResyncRequired\s*\{\s*reason:\s*String\s*\}/)
+  assert.match(ipc, /ResyncRequired\s*\{\s*reason:\s*String\s*,?\s*\}/)
   assert.match(desktop, /daemon:resync-required/)
   assert.match(windowsClient, /request\.endpoint_nonce\s*=\s*endpoint\.nonce/)
 })

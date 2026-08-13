@@ -2,6 +2,10 @@
  * UpdateBanner styles.
  * Anchored to the bottom of the viewport, layered above the app chrome but
  * below any modal/overlay.  Disappears when the banner is not rendered.
+ *
+ * All colours, sizes and easings resolve to the tokens declared in
+ * `src/index.css` / `src/styles/tokens/components.css`, so the banner tracks
+ * the active `[data-theme]` instead of falling back to hardcoded hexes.
  */
 
 .update-banner {
@@ -9,21 +13,22 @@
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: var(--z-update-banner, 900);
+  /* Above app chrome, below modals/overlays. No z-index token scale exists yet. */
+  z-index: 900;
 
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-3, 0.75rem);
-  padding: var(--space-2, 0.5rem) var(--space-4, 1rem);
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
 
-  background: var(--color-surface-overlay, #1e1e2e);
-  border-top: 1px solid var(--color-border-accent, #7c7cf0);
-  color: var(--color-text-primary, #cdd6f4);
-  font-size: var(--font-size-sm, 0.8125rem);
+  background: var(--bg-elevated);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--text);
+  font-size: var(--text-sm);
 
   /* Slide up when it appears */
-  animation: update-banner-enter 220ms ease-out both;
+  animation: update-banner-enter var(--ease-spring) both;
 }
 
 @keyframes update-banner-enter {
@@ -31,27 +36,33 @@
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .update-banner {
+    animation: none;
+  }
+}
+
 .update-banner__content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1, 0.25rem);
+  gap: var(--space-1);
   min-width: 0;
 }
 
 .update-banner__title {
   font-weight: 600;
-  color: var(--color-accent, #cba6f7);
+  color: var(--accent);
 }
 
 .update-banner__sub {
-  color: var(--color-text-muted, #a6adc8);
+  color: var(--text-muted);
 }
 
 .update-banner__notes-toggle {
-  margin-left: var(--space-2, 0.5rem);
+  margin-inline-start: var(--space-2);
   background: none;
   border: none;
-  color: var(--color-link, #89b4fa);
+  color: var(--accent);
   cursor: pointer;
   padding: 0;
   font: inherit;
@@ -59,37 +70,42 @@
 }
 
 .update-banner__notes {
-  margin-top: var(--space-2, 0.5rem);
+  margin-top: var(--space-2);
   max-height: 8rem;
   overflow-y: auto;
   white-space: pre-wrap;
-  font-size: var(--font-size-xs, 0.75rem);
-  color: var(--color-text-muted, #a6adc8);
-  background: var(--color-surface-sunken, #181825);
-  border-radius: var(--radius-sm, 4px);
-  padding: var(--space-2, 0.5rem);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
 }
 
 .update-banner__error {
-  color: var(--color-error, #f38ba8);
-  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--danger);
+  font-size: var(--text-xs);
 }
 
 .update-banner__actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2, 0.5rem);
+  gap: var(--space-2);
   flex-shrink: 0;
 }
 
 .update-banner__btn {
-  padding: var(--space-1, 0.25rem) var(--space-3, 0.75rem);
-  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
   cursor: pointer;
-  font-size: var(--font-size-sm, 0.8125rem);
+  font-size: var(--text-sm);
   font-weight: 500;
-  transition: background 150ms ease, opacity 150ms ease;
+  transition: background var(--ease-fast), opacity var(--ease-fast);
+}
+
+.update-banner__btn:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 2px;
 }
 
 .update-banner__btn:disabled {
@@ -98,20 +114,26 @@
 }
 
 .update-banner__btn--install {
-  background: var(--color-accent, #cba6f7);
-  color: var(--color-surface-overlay, #1e1e2e);
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .update-banner__btn--install:hover:not(:disabled) {
-  background: var(--color-accent-hover, #d5b8fa);
+  background: var(--primary-strong);
 }
 
 .update-banner__btn--dismiss {
   background: transparent;
-  color: var(--color-text-muted, #a6adc8);
-  border-color: var(--color-border, #45475a);
+  color: var(--text-muted);
+  border-color: var(--border);
 }
 
 .update-banner__btn--dismiss:hover:not(:disabled) {
-  background: var(--color-surface-raised, #313244);
+  background: var(--surface-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .update-banner__btn {
+    transition: none;
+  }
 }

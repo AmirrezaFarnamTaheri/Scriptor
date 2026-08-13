@@ -47,6 +47,16 @@
   gap: 8px;
 }
 
+.unified-panel-header-actions > .icon-button,
+.unified-panel-header-actions > .toolbar-button,
+.unified-panel-header-actions > .action-button {
+  min-height: 44px;
+}
+
+.unified-panel-header-actions > .icon-button {
+  width: 44px;
+}
+
 .unified-panel-tabs {
   display: flex;
   flex-wrap: wrap;

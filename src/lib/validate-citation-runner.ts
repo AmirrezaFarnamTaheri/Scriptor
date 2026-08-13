@@ -62,7 +62,7 @@ test('validates citations plugin capability manifest structure', () => {
   assert.equal(citationsPluginManifest.capabilityId, CITATION_PLUGIN_CAPABILITY_ID)
   assert.equal(citationsPluginManifest.rustFeatureGate, 'scriptor-citations-engine')
   assert.ok(citationsPluginManifest.contributes?.inspectorWidgets?.some((w) => w.id === 'citation-inspector'))
-  assert.ok(citationsPluginManifest.contributes?.commands?.some((c) => c.id === 'citations.insert'))
+  assert.ok(citationsPluginManifest.contributes?.commands?.some((c) => c.commandId === 'citations.insert'))
 })
 
 test('checks citations plugin enablement correctly', () => {
