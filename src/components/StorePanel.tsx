@@ -8,9 +8,7 @@
  *  2. MCP       — MCP server mode, tool list, audit log
  *  3. Features  — feature flags (LaTeX, Calendar, Reading List, etc.)
  *
- * This component wraps the existing PluginPanel logic while adding MCP
- * and Feature tabs. PluginPanel is preserved for backwards-compat; callers
- * can migrate to StorePanel progressively.
+ * This is the canonical inspector store surface for plugins, MCP, and layouts.
  */
 
 import { useState } from 'react'
@@ -453,7 +451,7 @@ function LayoutsTab({
 }
 
 // ---------------------------------------------------------------------------
-// Plugins Tab (extracted from PluginPanel inline logic)
+// Plugins tab
 // ---------------------------------------------------------------------------
 
 /**

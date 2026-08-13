@@ -4,7 +4,7 @@
  * Additive only (I-9). No Scriptor-operated server is ever required (I-4):
  * providers are user-supplied keys or local models only.
  *
- * All AI writes go through McpDraftDiffEditor before touching the vault (I-2).
+ * All AI writes go through the MCP draft editor before touching the vault (I-2).
  * Sealed spans are excluded from context assembly (I-3).
  */
 

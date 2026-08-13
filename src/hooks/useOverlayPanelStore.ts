@@ -2,7 +2,7 @@
  * useOverlayPanelStore
  *
  * Single source of truth for all boolean panel-open flags that were previously
- * scattered across `useAppOverlayState`. Each flag is a discrete panel or
+ * scattered across the app shell. Each flag is a discrete panel or
  * floating UI element. Rename dialogs and conflict state live in their own
  * stores (useRenameDialogStore, useConflictStore).
  *
