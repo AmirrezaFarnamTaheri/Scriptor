@@ -207,6 +207,7 @@ mod tests {
                 job_id: None,
                 preserve_temp_on_failure: false,
                 trusted_pandoc_hash: None,
+                redact_secrets: false,
             })
             .expect("start");
 

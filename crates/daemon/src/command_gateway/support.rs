@@ -137,6 +137,7 @@ pub(super) fn build_export_note_input(
         job_id,
         preserve_temp_on_failure: false,
         trusted_pandoc_hash: None,
+        redact_secrets: false,
     })
 }
 
@@ -181,6 +182,7 @@ pub(super) fn build_export_markdown_input(
         job_id,
         preserve_temp_on_failure: false,
         trusted_pandoc_hash: None,
+        redact_secrets: false,
     })
 }
 

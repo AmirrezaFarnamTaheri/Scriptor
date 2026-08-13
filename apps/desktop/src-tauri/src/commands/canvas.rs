@@ -7,7 +7,9 @@ use scriptor_canvas_engine::{
 
 use crate::state::{AppState, active_session};
 
-fn require_canvas_capability(state: &tauri::State<AppState>) -> Result<scriptor_vault::VaultSession, String> {
+fn require_canvas_capability(
+    state: &tauri::State<AppState>,
+) -> Result<scriptor_vault::VaultSession, String> {
     let session = active_session(state)?;
     let plugin_state = scriptor_vault::load_plugin_state(session.root.root())
         .map_err(|error| error.to_string())?;

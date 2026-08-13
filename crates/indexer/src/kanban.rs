@@ -275,7 +275,10 @@ fn column_ranges(markdown: &str) -> Vec<ColumnRange> {
     let headings: Vec<(String, usize)> = lines
         .iter()
         .enumerate()
-        .filter_map(|(index, line)| line.strip_prefix("## ").map(|name| (name.trim().to_string(), index)))
+        .filter_map(|(index, line)| {
+            line.strip_prefix("## ")
+                .map(|name| (name.trim().to_string(), index))
+        })
         .collect();
 
     headings
@@ -453,9 +456,11 @@ kanban-plugin: basic
     #[test]
     fn move_card_rejects_unknown_destination_column() {
         let error = move_card_in_markdown(SAMPLE, 6, "Review", 'x').unwrap_err();
-        assert!(error
-            .to_string()
-            .contains("destination column \"Review\" was not found"));
+        assert!(
+            error
+                .to_string()
+                .contains("destination column \"Review\" was not found")
+        );
     }
 
     #[test]

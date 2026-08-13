@@ -3,7 +3,11 @@
 //! This file deliberately lives under `.scriptor/` instead of browser storage so
 //! native and daemon callers enforce the same decision for an active vault.
 
-use std::{collections::{BTreeMap, BTreeSet}, fs, path::{Path, PathBuf}};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -56,23 +60,37 @@ impl PluginState {
 
     pub fn validate(&self) -> Result<(), VaultError> {
         if self.schema_version != PLUGIN_STATE_SCHEMA_VERSION {
-            return Err(VaultError::InvalidConfig { message: format!(
-                "unsupported plugin state schemaVersion {}", self.schema_version
-            )});
+            return Err(VaultError::InvalidConfig {
+                message: format!(
+                    "unsupported plugin state schemaVersion {}",
+                    self.schema_version
+                ),
+            });
         }
-        for id in self.enabled_plugins.iter().chain(self.disabled_plugins.iter()).chain(self.settings.keys()) {
+        for id in self
+            .enabled_plugins
+            .iter()
+            .chain(self.disabled_plugins.iter())
+            .chain(self.settings.keys())
+        {
             validate_capability_id(id)?;
         }
-        if let Some(id) = self.enabled_plugins.intersection(&self.disabled_plugins).next() {
-            return Err(VaultError::InvalidConfig { message: format!(
-                "plugin capability '{id}' is both enabled and disabled"
-            )});
+        if let Some(id) = self
+            .enabled_plugins
+            .intersection(&self.disabled_plugins)
+            .next()
+        {
+            return Err(VaultError::InvalidConfig {
+                message: format!("plugin capability '{id}' is both enabled and disabled"),
+            });
         }
         for (id, setting) in &self.settings {
             if contains_secret_key(setting) {
-                return Err(VaultError::InvalidConfig { message: format!(
-                    "plugin settings for '{id}' contain a prohibited secret-shaped key"
-                )});
+                return Err(VaultError::InvalidConfig {
+                    message: format!(
+                        "plugin settings for '{id}' contain a prohibited secret-shaped key"
+                    ),
+                });
             }
         }
         Ok(())
@@ -85,11 +103,14 @@ pub fn plugin_state_path(vault_root: &Path) -> PathBuf {
 
 pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
     let path = plugin_state_path(vault_root);
-    if !path.exists() { return Ok(PluginState::default()); }
+    if !path.exists() {
+        return Ok(PluginState::default());
+    }
     let raw = fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))?;
-    let state: PluginState = serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
-        message: format!("invalid plugin state at {}: {error}", path.display()),
-    })?;
+    let state: PluginState =
+        serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
+            message: format!("invalid plugin state at {}: {error}", path.display()),
+        })?;
     state.validate()?;
     Ok(state)
 }
@@ -104,10 +125,18 @@ pub fn save_plugin_state(vault_root: &Path, state: &PluginState) -> Result<(), V
 }
 
 fn validate_capability_id(id: &str) -> Result<(), VaultError> {
-    let valid = id.strip_prefix("scriptor.")
-        .is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'));
-    if valid { Ok(()) } else {
-        Err(VaultError::InvalidConfig { message: format!("invalid plugin capability id: {id}") })
+    let valid = id.strip_prefix("scriptor.").is_some_and(|rest| {
+        !rest.is_empty()
+            && rest
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+    });
+    if valid {
+        Ok(())
+    } else {
+        Err(VaultError::InvalidConfig {
+            message: format!("invalid plugin capability id: {id}"),
+        })
     }
 }
 
@@ -115,7 +144,11 @@ fn contains_secret_key(value: &Value) -> bool {
     match value {
         Value::Object(map) => map.iter().any(|(key, child)| {
             let normalized = key.to_ascii_lowercase();
-            normalized.contains("secret") || normalized.contains("token") || normalized.contains("password") || normalized.contains("api_key") || contains_secret_key(child)
+            normalized.contains("secret")
+                || normalized.contains("token")
+                || normalized.contains("password")
+                || normalized.contains("api_key")
+                || contains_secret_key(child)
         }),
         Value::Array(values) => values.iter().any(contains_secret_key),
         _ => false,
@@ -130,16 +163,30 @@ mod tests {
     fn state_is_atomic_and_vault_scoped() {
         let first = tempfile::tempdir().unwrap();
         let second = tempfile::tempdir().unwrap();
-        let state = PluginState { disabled_plugins: ["scriptor.graph".into()].into_iter().collect(), ..Default::default() };
+        let state = PluginState {
+            disabled_plugins: ["scriptor.graph".into()].into_iter().collect(),
+            ..Default::default()
+        };
         save_plugin_state(first.path(), &state).unwrap();
-        assert!(!load_plugin_state(first.path()).unwrap().is_enabled("scriptor.graph"));
-        assert!(load_plugin_state(second.path()).unwrap().is_enabled("scriptor.graph"));
+        assert!(
+            !load_plugin_state(first.path())
+                .unwrap()
+                .is_enabled("scriptor.graph")
+        );
+        assert!(
+            load_plugin_state(second.path())
+                .unwrap()
+                .is_enabled("scriptor.graph")
+        );
     }
 
     #[test]
     fn rejects_secret_shaped_settings_and_invalid_ids() {
         let mut state = PluginState::default();
-        state.settings.insert("scriptor.graph".into(), serde_json::json!({"apiToken":"no"}));
+        state.settings.insert(
+            "scriptor.graph".into(),
+            serde_json::json!({"apiToken":"no"}),
+        );
         assert!(state.validate().is_err());
         state.settings.clear();
         state.disabled_plugins.insert("graph".into());

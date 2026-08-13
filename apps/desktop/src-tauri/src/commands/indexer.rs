@@ -6,9 +6,9 @@ use scriptor_indexer::{
     health_diagnostics_json, incremental_note_index, incremental_notes_index,
     list_bibliography_entries, list_dead_end_notes, list_inbox_notes, list_note_summaries,
     list_orphan_notes, list_recent_files, list_unresolved_link_targets, list_vault_tags,
-    load_note_metadata, move_card_in_markdown, notes_for_tag, open_cache_for_session,
-    parse_kanban, parse_note_markdown, query_focused_graph, query_tasks, rebuild_index,
-    record_recent_access, resolve_wikilink_target_with_aliases, rewrite_task_markdown, search_notes,
+    load_note_metadata, move_card_in_markdown, notes_for_tag, open_cache_for_session, parse_kanban,
+    parse_note_markdown, query_focused_graph, query_tasks, rebuild_index, record_recent_access,
+    resolve_wikilink_target_with_aliases, rewrite_task_markdown, search_notes,
     sync_note_tasks_from_markdown, task_by_id, traverse_graph,
 };
 use scriptor_vault::{
@@ -382,7 +382,12 @@ pub fn indexer_update_task(
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
     let document =
         read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-    ensure_note_matches_index_hash(&cache, &session.descriptor.id, &note_path, &document.markdown)?;
+    ensure_note_matches_index_hash(
+        &cache,
+        &session.descriptor.id,
+        &note_path,
+        &document.markdown,
+    )?;
 
     let rewritten = rewrite_task_markdown(
         &document.markdown,
@@ -468,7 +473,12 @@ pub fn indexer_kanban_move_card(
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
     let document =
         read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-    ensure_note_matches_index_hash(&cache, &session.descriptor.id, &note_path, &document.markdown)?;
+    ensure_note_matches_index_hash(
+        &cache,
+        &session.descriptor.id,
+        &note_path,
+        &document.markdown,
+    )?;
     let new_markdown = move_card_in_markdown(&document.markdown, line, &to_column, status_char)
         .map_err(|e| e.to_string())?;
 
@@ -494,7 +504,9 @@ fn ensure_note_matches_index_hash(
 ) -> Result<(), String> {
     let indexed = load_note_metadata(cache, vault_id, note_path)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("note {note_path} is not indexed; save or rebuild the index first"))?;
+        .ok_or_else(|| {
+            format!("note {note_path} is not indexed; save or rebuild the index first")
+        })?;
     let current_hash = scriptor_indexer::content_hash(markdown);
     if indexed.content_hash != current_hash {
         return Err(format!(

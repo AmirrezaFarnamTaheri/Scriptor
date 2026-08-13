@@ -9,7 +9,6 @@ const HEADING: Style = Style::new().add_modifier(Modifier::BOLD);
 const EMPHASIS: Style = Style::new().add_modifier(Modifier::ITALIC);
 const STRONG: Style = Style::new().add_modifier(Modifier::BOLD);
 
-#[allow(dead_code)]
 const CODE: Style = Style::new().fg(Color::Cyan);
 const LINK: Style = Style::new().fg(Color::LightBlue);
 const MUTED: Style = Style::new().fg(Color::DarkGray);

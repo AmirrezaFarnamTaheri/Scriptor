@@ -196,7 +196,8 @@ fn scan_candidates(
 
         // Glob filtering.
         if let Some(inc) = include_set
-            && !inc.is_match(&rel) {
+            && !inc.is_match(&rel)
+        {
             continue;
         }
         if exclude_set.is_match(&rel) {
@@ -272,9 +273,9 @@ fn build_include_set(patterns: &[String]) -> Result<Option<globset::GlobSet>, Pu
     for p in patterns {
         builder.add(Glob::new(p)?);
     }
-    Ok(Some(builder.build().map_err(|e| {
-        PublishError::GlobPattern(e)
-    })?))
+    Ok(Some(
+        builder.build().map_err(|e| PublishError::GlobPattern(e))?,
+    ))
 }
 
 fn build_exclude_set(patterns: &[String]) -> Result<globset::GlobSet, PublishError> {
@@ -282,9 +283,7 @@ fn build_exclude_set(patterns: &[String]) -> Result<globset::GlobSet, PublishErr
     for p in patterns {
         builder.add(Glob::new(p)?);
     }
-    builder
-        .build()
-        .map_err(PublishError::GlobPattern)
+    builder.build().map_err(PublishError::GlobPattern)
 }
 
 /// Convert an absolute path to a vault-relative POSIX path string.

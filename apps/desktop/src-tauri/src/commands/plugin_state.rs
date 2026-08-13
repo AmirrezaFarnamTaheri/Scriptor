@@ -1,7 +1,9 @@
 use crate::state::{AppState, active_session};
 
 #[tauri::command]
-pub fn plugin_state_get(state: tauri::State<AppState>) -> Result<scriptor_vault::PluginState, String> {
+pub fn plugin_state_get(
+    state: tauri::State<AppState>,
+) -> Result<scriptor_vault::PluginState, String> {
     let session = active_session(&state)?;
     scriptor_vault::load_plugin_state(session.root.root()).map_err(|error| error.to_string())
 }
@@ -39,14 +41,26 @@ pub fn plugin_state_migrate_legacy(
     if plugin_state.migration.is_some() {
         return Ok(plugin_state);
     }
-    let legacy_enabled = enabled_plugin_ids.into_iter().collect::<std::collections::BTreeSet<_>>();
-    for capability_id in ["scriptor.export", "scriptor.canvas", "scriptor.graph", "scriptor.mcp", "scriptor.citations"] {
+    let legacy_enabled = enabled_plugin_ids
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    for capability_id in [
+        "scriptor.export",
+        "scriptor.canvas",
+        "scriptor.graph",
+        "scriptor.mcp",
+        "scriptor.citations",
+    ] {
         if legacy_enabled.contains(capability_id) {
             plugin_state.disabled_plugins.remove(capability_id);
-            plugin_state.enabled_plugins.insert(capability_id.to_string());
+            plugin_state
+                .enabled_plugins
+                .insert(capability_id.to_string());
         } else {
             plugin_state.enabled_plugins.remove(capability_id);
-            plugin_state.disabled_plugins.insert(capability_id.to_string());
+            plugin_state
+                .disabled_plugins
+                .insert(capability_id.to_string());
         }
     }
     plugin_state.migration = Some(scriptor_vault::PluginStateMigration {

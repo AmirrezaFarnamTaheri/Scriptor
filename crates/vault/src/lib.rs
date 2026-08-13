@@ -20,9 +20,9 @@ pub mod note;
 pub mod note_history;
 pub mod open;
 pub mod patch_log;
-pub mod plugin_state;
 pub mod path;
 pub mod permissions;
+pub mod plugin_state;
 pub mod recent;
 pub mod rename;
 pub mod rename_transaction;
@@ -86,11 +86,14 @@ pub use open::{
     OpenVaultOutput, VaultDescriptor, VaultSession, VaultStatus, open_vault, open_vault_output,
 };
 pub use patch_log::{RenamePatchLog, collect_rename_backups, write_rename_patch_log};
-pub use plugin_state::{PLUGIN_STATE_FILE, PLUGIN_STATE_SCHEMA_VERSION, PluginState, PluginStateMigration, load_plugin_state, plugin_state_path, save_plugin_state};
 pub use path::{RelativeVaultPath, VaultRoot};
 pub use permissions::{
     PermissionContext, PermissionError, PermissionOutcome, SCRIPTOR_URI_READONLY_COMMANDS,
     SensitiveOperation, check_permission,
+};
+pub use plugin_state::{
+    PLUGIN_STATE_FILE, PLUGIN_STATE_SCHEMA_VERSION, PluginState, PluginStateMigration,
+    load_plugin_state, plugin_state_path, save_plugin_state,
 };
 pub use recent::{RecentNoteEntry, list_recent_notes, record_recent_note};
 pub use rename::{

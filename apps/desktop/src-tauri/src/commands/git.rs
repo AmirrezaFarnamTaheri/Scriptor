@@ -1,7 +1,8 @@
 use scriptor_native_git::{
     GitCommitOutput, GitConflictResolveOutput, GitPullOutput, GitPushOutput, GitStatus,
-    git_apply_merged_conflict, git_commit_selected, git_pull, git_push, git_resolve_conflict,
-    git_show_head_file, git_show_merge_base_file, git_status, read_conflict_markers,
+    PullStrategy, git_apply_merged_conflict, git_commit_selected, git_pull, git_push,
+    git_resolve_conflict, git_show_head_file, git_show_merge_base_file, git_status,
+    read_conflict_markers,
 };
 use scriptor_vault::RelativeVaultPath;
 
@@ -44,7 +45,7 @@ pub fn git_pull_cmd(
         SensitiveOperation::GitPull,
         Some(&session.descriptor.id),
     )?;
-    git_pull(session.root.root()).map_err(|error| error.to_string())
+    git_pull(session.root.root(), PullStrategy::FastForward).map_err(|error| error.to_string())
 }
 
 #[tauri::command]

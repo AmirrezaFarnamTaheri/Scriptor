@@ -9,8 +9,8 @@ use scriptor_indexer::{
 };
 use scriptor_vault::{
     McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions, VaultSession, append_mcp_mutation,
-    build_note_markdown, load_vault_config, open_vault, read_note, reconcile_pending_mcp_mutations,
-    save_note_with_options, set_frontmatter_field, load_plugin_state,
+    build_note_markdown, load_plugin_state, load_vault_config, open_vault, read_note,
+    reconcile_pending_mcp_mutations, save_note_with_options, set_frontmatter_field,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};

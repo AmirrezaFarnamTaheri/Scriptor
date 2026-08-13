@@ -145,12 +145,13 @@ fn extract_title(document: &Html) -> String {
     // Prefer og:title
     let og_title_sel = Selector::parse("meta[property='og:title']").unwrap();
     if let Some(el) = document.select(&og_title_sel).next()
-        && let Some(t) = el.value().attr("content") {
-            let t = t.trim();
-            if !t.is_empty() {
-                return t.to_string();
-            }
+        && let Some(t) = el.value().attr("content")
+    {
+        let t = t.trim();
+        if !t.is_empty() {
+            return t.to_string();
         }
+    }
     // Fall back to <title>
     let title_sel = Selector::parse("title").unwrap();
     document

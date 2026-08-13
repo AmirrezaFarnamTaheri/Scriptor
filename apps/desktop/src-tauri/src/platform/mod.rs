@@ -75,9 +75,9 @@ fn setup_deep_links(app: &mut tauri::App) -> tauri::Result<()> {
     {
         use tauri_plugin_deep_link::DeepLinkExt;
         let handle = app.handle().clone();
-        app.deep_link().register("scriptor").map_err(|error| {
-            tauri::Error::Io(std::io::Error::other(error.to_string()))
-        })?;
+        app.deep_link()
+            .register("scriptor")
+            .map_err(|error| tauri::Error::Io(std::io::Error::other(error.to_string())))?;
         let _ = app.deep_link().on_open_url(move |event| {
             for url in event.urls() {
                 let _ = handle.emit(

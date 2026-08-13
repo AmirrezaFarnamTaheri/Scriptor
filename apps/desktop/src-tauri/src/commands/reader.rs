@@ -1,8 +1,8 @@
 use scriptor_vault::RelativeVaultPath;
 use serde::{Deserialize, Serialize};
 
-use crate::state::active_session;
 use crate::AppState;
+use crate::state::active_session;
 
 const ANNOTATIONS_PATH: &str = ".scriptor/reader/annotations.json";
 const MAX_DOCUMENT_BYTES: u64 = 128 * 1024 * 1024;

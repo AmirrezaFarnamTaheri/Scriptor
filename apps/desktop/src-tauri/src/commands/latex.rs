@@ -61,15 +61,66 @@ fn find_on_path() -> Option<PathBuf> {
     None
 }
 
+/// Whether `path`'s file name is a recognized Tectonic executable. Guards
+/// against a caller pointing `tectonic_path` at an arbitrary binary: the
+/// compile authorization scope covers only the input document, so the
+/// executable that actually runs must be Tectonic and nothing else.
+fn is_tectonic_binary(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .map(|name| {
+            let lower = name.to_ascii_lowercase();
+            tectonic_binary_names()
+                .iter()
+                .any(|candidate| lower == *candidate)
+        })
+        .unwrap_or(false)
+}
+
 /// Resolve a usable Tectonic binary from an explicit config path or `PATH`.
+/// An explicit path is honored only when it both exists and is named
+/// `tectonic`/`tectonic.exe`; otherwise resolution falls back to `PATH`.
 fn resolve_tectonic(config_path: Option<&str>) -> Option<PathBuf> {
     if let Some(raw) = config_path.map(str::trim).filter(|value| !value.is_empty()) {
         let candidate = PathBuf::from(raw);
-        if candidate.is_file() {
+        if candidate.is_file() && is_tectonic_binary(&candidate) {
             return Some(candidate);
         }
     }
     find_on_path()
+}
+
+/// Engine flags the frontend is permitted to forward. Anything outside this
+/// allow-list is rejected so an approved "compile" cannot be repurposed to
+/// change the output target, input, or engine behavior beyond what consent
+/// covered. Value-bearing flags (`--flag value`) are accepted as their own
+/// argument; the value that follows is not interpreted as a flag.
+const ALLOWED_EXTRA_FLAGS: &[&str] = &[
+    "--keep-logs",
+    "--keep-intermediates",
+    "--synctex",
+    "--chatter",
+    "--print",
+];
+
+/// Validate caller-supplied extra flags against {@link ALLOWED_EXTRA_FLAGS}.
+/// Returns the trimmed, non-empty flags on success or the first offending
+/// token on rejection.
+fn sanitize_extra_flags(flags: Vec<String>) -> Result<Vec<String>, String> {
+    let mut accepted = Vec::with_capacity(flags.len());
+    for flag in flags {
+        let trimmed = flag.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        // Compare only the flag name, not any `=value` suffix.
+        let name = trimmed.split('=').next().unwrap_or(trimmed);
+        if !ALLOWED_EXTRA_FLAGS.contains(&name) {
+            return Err(format!("unsupported LaTeX engine flag: {trimmed}"));
+        }
+        accepted.push(trimmed.to_string());
+    }
+    Ok(accepted)
 }
 
 /// Discover the Tectonic engine. Tries the configured path first, then `PATH`.
@@ -127,7 +178,8 @@ pub fn latex_compile(
     }
 
     let binary = resolve_tectonic(tectonic_path.as_deref()).ok_or_else(|| {
-        "Tectonic was not found. Install it or set the LaTeX engine path in vault settings.".to_string()
+        "Tectonic was not found. Install it or set the LaTeX engine path in vault settings."
+            .to_string()
     })?;
 
     let output = PathBuf::from(&output_dir);
@@ -140,9 +192,12 @@ pub fn latex_compile(
         "--outdir".to_string(),
         output.display().to_string(),
     ];
-    args.extend(extra_flags.into_iter().filter(|flag| !flag.trim().is_empty()));
+    args.extend(sanitize_extra_flags(extra_flags)?);
 
-    let work_dir = input.parent().map(Path::to_path_buf).unwrap_or(output.clone());
+    let work_dir = input
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or(output.clone());
 
     let receipt = run_process(
         ProcessSpec::new(binary.as_os_str())
@@ -177,7 +232,10 @@ mod tests {
 
     #[test]
     fn derives_pdf_path_from_source_stem() {
-        let out = derive_output_path(Path::new("/vault/paper.tex"), Path::new("/vault/.scriptor/latex"));
+        let out = derive_output_path(
+            Path::new("/vault/paper.tex"),
+            Path::new("/vault/.scriptor/latex"),
+        );
         assert!(out.ends_with("paper.pdf"));
     }
 

@@ -46,7 +46,10 @@ pub enum UpdateCheckResult {
     /// Already on the latest version.
     UpToDate { version: String },
     /// Not a supported update channel (alpha/beta).
-    ChannelSkipped { channel: BuildChannel, version: String },
+    ChannelSkipped {
+        channel: BuildChannel,
+        version: String,
+    },
 }
 
 // ---------------------------------------------------------------------------

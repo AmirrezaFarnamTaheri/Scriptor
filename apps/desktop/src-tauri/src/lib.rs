@@ -51,11 +51,13 @@ use commands::indexer::{
     indexer_update_note, indexer_update_task,
 };
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
+use commands::plugin_state::{
+    plugin_state_get, plugin_state_migrate_legacy, plugin_state_set_enabled,
+};
+use commands::reader::{reader_load_annotations, reader_read_document, reader_save_annotations};
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
-use commands::reader::{reader_load_annotations, reader_read_document, reader_save_annotations};
-use commands::plugin_state::{plugin_state_get, plugin_state_migrate_legacy, plugin_state_set_enabled};
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
     ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event, health_check,

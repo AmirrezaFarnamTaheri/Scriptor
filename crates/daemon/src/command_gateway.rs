@@ -21,8 +21,8 @@ use scriptor_indexer::{
     record_recent_access, resolve_wikilink_target_with_aliases, search_notes, traverse_graph,
 };
 use scriptor_native_git::{
-    git_commit_selected, git_pull, git_push, git_resolve_conflict, git_show_head_file, git_status,
-    read_conflict_markers,
+    PullStrategy, git_commit_selected, git_pull, git_push, git_resolve_conflict,
+    git_show_head_file, git_status, read_conflict_markers,
 };
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use scriptor_vault::{
@@ -676,7 +676,10 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "git_pull_cmd" => {
             let session = state.require_session()?;
-            to_value(git_pull(session.root.root()).map_err(|e| e.to_string())?)
+            to_value(
+                git_pull(session.root.root(), PullStrategy::FastForward)
+                    .map_err(|e| e.to_string())?,
+            )
         }
         "git_push_cmd" => {
             let session = state.require_session()?;

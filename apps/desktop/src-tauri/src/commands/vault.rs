@@ -598,8 +598,7 @@ pub fn vault_export_audit_log(
 ) -> Result<String, String> {
     let session = active_session(&state)?;
     // Read all entries (cap at 10_000 to bound memory).
-    let entries =
-        read_activity_log(&session.root, 10_000).map_err(|error| error.to_string())?;
+    let entries = read_activity_log(&session.root, 10_000).map_err(|error| error.to_string())?;
 
     match format.as_deref().unwrap_or("json") {
         "csv" => {

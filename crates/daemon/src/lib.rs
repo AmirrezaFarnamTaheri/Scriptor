@@ -1,5 +1,5 @@
-pub mod client;
 pub mod capabilities;
+pub mod client;
 pub mod command_gateway;
 pub mod events;
 pub mod export_job;

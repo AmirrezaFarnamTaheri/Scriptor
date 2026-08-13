@@ -137,8 +137,7 @@ fn require_tokens() -> Result<StoredTokens, String> {
 
 /// URL-safe base64 without padding (RFC 4648 §5), used for the PKCE challenge.
 fn base64url_encode(bytes: &[u8]) -> String {
-    const ALPHABET: &[u8; 64] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
     let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
     for chunk in bytes.chunks(3) {
         let b0 = chunk[0] as u32;
@@ -248,12 +247,13 @@ fn percent_decode(value: &str) -> String {
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Ok(byte) = u8::from_str_radix(&value[i + 1..i + 3], 16) {
-                out.push(byte);
-                i += 3;
-                continue;
-            }
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
+            && let Ok(byte) = u8::from_str_radix(&value[i + 1..i + 3], 16)
+        {
+            out.push(byte);
+            i += 3;
+            continue;
         }
         out.push(bytes[i]);
         i += 1;
@@ -262,13 +262,16 @@ fn percent_decode(value: &str) -> String {
 }
 
 /// Block on the loopback listener until the redirect arrives, returning the
-/// captured authorization `code`. Verifies the `state` echo.
+/// captured authorization `code`. Verifies the `state` echo before declaring
+/// success. The deadline is enforced on `accept()` itself via non-blocking
+/// polling, so an abandoned consent (tab closed, no redirect) times out and
+/// releases the worker thread and bound port instead of blocking forever.
 fn capture_authorization_code(
     listener: &TcpListener,
     expected_state: &str,
 ) -> Result<String, String> {
     listener
-        .set_nonblocking(false)
+        .set_nonblocking(true)
         .map_err(|error| error.to_string())?;
     let deadline = SystemTime::now() + Duration::from_secs(AUTH_CAPTURE_TIMEOUT_SECS);
 
@@ -276,10 +279,18 @@ fn capture_authorization_code(
         if SystemTime::now() >= deadline {
             return Err("timed out waiting for Google authorization".into());
         }
-        let (mut stream, _addr) = listener.accept().map_err(|error| error.to_string())?;
-        stream
-            .set_read_timeout(Some(Duration::from_secs(10)))
-            .ok();
+        let (mut stream, _addr) = match listener.accept() {
+            Ok(accepted) => accepted,
+            Err(ref error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(Duration::from_millis(200));
+                continue;
+            }
+            Err(error) => return Err(error.to_string()),
+        };
+        // The accepted stream inherits non-blocking mode; restore blocking so
+        // the short-lived read/write below behaves synchronously.
+        stream.set_nonblocking(false).ok();
+        stream.set_read_timeout(Some(Duration::from_secs(10))).ok();
 
         let mut buffer = [0u8; 4096];
         let read = stream.read(&mut buffer).unwrap_or(0);
@@ -290,9 +301,23 @@ fn capture_authorization_code(
         let request_line = request.lines().next().unwrap_or("");
         let (code, state) = parse_redirect_query(request_line);
 
-        let body = "<html><body style=\"font-family:sans-serif;padding:2rem\">\
-            <h2>Scriptor is now connected to Google.</h2>\
-            <p>You can close this tab and return to the app.</p></body></html>";
+        // Validate the state echo before composing the response so a bad
+        // `state` yields an error page rather than the success page.
+        let state_ok = state.as_deref() == Some(expected_state);
+        let has_code = code
+            .as_deref()
+            .map(|value| !value.is_empty())
+            .unwrap_or(false);
+
+        let body = if state_ok && has_code {
+            "<html><body style=\"font-family:sans-serif;padding:2rem\">\
+                <h2>Scriptor is now connected to Google.</h2>\
+                <p>You can close this tab and return to the app.</p></body></html>"
+        } else {
+            "<html><body style=\"font-family:sans-serif;padding:2rem\">\
+                <h2>Authorization could not be completed.</h2>\
+                <p>Please close this tab and try connecting again from the app.</p></body></html>"
+        };
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
             body.len(),
@@ -301,15 +326,14 @@ fn capture_authorization_code(
         let _ = stream.write_all(response.as_bytes());
         let _ = stream.flush();
 
-        match code {
-            Some(code) if !code.is_empty() => {
-                if state.as_deref() != Some(expected_state) {
-                    return Err("Google authorization state mismatch (possible CSRF)".into());
-                }
-                return Ok(code);
-            }
-            _ => continue,
+        if !state_ok {
+            return Err("Google authorization state mismatch (possible CSRF)".into());
         }
+        if has_code {
+            return Ok(code.unwrap_or_default());
+        }
+        // Neither a usable code nor a state failure: keep waiting for the real
+        // redirect (e.g. a favicon probe hit the loopback first).
     }
 }
 
@@ -336,6 +360,26 @@ fn http_client() -> Result<reqwest::blocking::Client, String> {
         .map_err(|error| format!("failed to initialize Google HTTP client: {error}"))
 }
 
+/// Read a bounded slice of a failed response body so error messages carry the
+/// provider's diagnostic (e.g. `invalid_grant`) without risking an unbounded
+/// read. Returns a placeholder when the body is empty or unreadable.
+fn bounded_error_body(response: reqwest::blocking::Response) -> String {
+    const MAX_ERROR_BODY: usize = 512;
+    match response.text() {
+        Ok(body) => {
+            let trimmed = body.trim();
+            if trimmed.is_empty() {
+                "<empty response body>".to_string()
+            } else if trimmed.len() > MAX_ERROR_BODY {
+                format!("{}…", &trimmed[..MAX_ERROR_BODY])
+            } else {
+                trimmed.to_string()
+            }
+        }
+        Err(_) => "<unreadable response body>".to_string(),
+    }
+}
+
 fn exchange_code_for_tokens(
     client: &reqwest::blocking::Client,
     client_id: &str,
@@ -355,9 +399,10 @@ fn exchange_code_for_tokens(
         .send()
         .map_err(|error| format!("Google token exchange failed: {error}"))?;
     if !response.status().is_success() {
+        let status = response.status();
         return Err(format!(
-            "Google token exchange failed ({})",
-            response.status()
+            "Google token exchange failed ({status}): {}",
+            bounded_error_body(response)
         ));
     }
     response
@@ -372,7 +417,11 @@ fn fetch_email(client: &reqwest::blocking::Client, access_token: &str) -> Result
         .send()
         .map_err(|error| format!("failed to fetch Google account email: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("failed to fetch Google account email ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "failed to fetch Google account email ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     let info = response
         .json::<UserInfoResponse>()
@@ -401,7 +450,11 @@ fn refresh_if_needed(client: &reqwest::blocking::Client) -> Result<String, Strin
         .send()
         .map_err(|error| format!("Google token refresh failed: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("Google token refresh failed ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "Google token refresh failed ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     let refreshed = response
         .json::<TokenResponse>()
@@ -519,8 +572,13 @@ fn map_event(event: GcalEvent, calendar_id: &str) -> CalendarEvent {
 /// Returns the datetime string and whether it is an all-day date.
 fn resolve_datetime(value: Option<EventDateTime>) -> (String, bool) {
     match value {
-        Some(EventDateTime { date_time: Some(dt), .. }) => (dt, false),
-        Some(EventDateTime { date: Some(date), .. }) => (date, true),
+        Some(EventDateTime {
+            date_time: Some(dt),
+            ..
+        }) => (dt, false),
+        Some(EventDateTime {
+            date: Some(date), ..
+        }) => (date, true),
         _ => (String::new(), false),
     }
 }
@@ -606,13 +664,13 @@ pub fn google_calendar_start_auth(
 /// Best-effort token revocation followed by clearing the keychain entry.
 #[tauri::command]
 pub fn google_calendar_disconnect() -> Result<(), String> {
-    if let Ok(Some(tokens)) = load_tokens() {
-        if let Ok(client) = http_client() {
-            let _ = client
-                .post(REVOKE_ENDPOINT)
-                .form(&[("token", tokens.access_token.as_str())])
-                .send();
-        }
+    if let Ok(Some(tokens)) = load_tokens()
+        && let Ok(client) = http_client()
+    {
+        let _ = client
+            .post(REVOKE_ENDPOINT)
+            .form(&[("token", tokens.access_token.as_str())])
+            .send();
     }
     keychain_delete(TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
 }
@@ -647,7 +705,11 @@ pub fn google_calendar_list_events(
         .send()
         .map_err(|error| format!("failed to list Google Calendar events: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("failed to list Google Calendar events ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "failed to list Google Calendar events ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     let list = response
         .json::<GcalEventList>()
@@ -674,12 +736,21 @@ pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask
         .send()
         .map_err(|error| format!("failed to list Google Tasks: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("failed to list Google Tasks ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "failed to list Google Tasks ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     let list = response
         .json::<GTaskList>()
         .map_err(|error| format!("Google returned an invalid tasks response: {error}"))?;
-    Ok(list.items.unwrap_or_default().into_iter().map(map_task).collect())
+    Ok(list
+        .items
+        .unwrap_or_default()
+        .into_iter()
+        .map(map_task)
+        .collect())
 }
 
 /// Return the authenticated Google account email.
@@ -728,7 +799,11 @@ pub fn google_calendar_create_task(
         .send()
         .map_err(|error| format!("failed to create Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("failed to create Google Task ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "failed to create Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     let task = response
         .json::<GTask>()
@@ -765,7 +840,11 @@ pub fn google_calendar_complete_task(
         .send()
         .map_err(|error| format!("failed to complete Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("failed to complete Google Task ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "failed to complete Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     Ok(())
 }
@@ -798,7 +877,11 @@ pub fn google_calendar_delete_task(
         .send()
         .map_err(|error| format!("failed to delete Google Task: {error}"))?;
     if !response.status().is_success() {
-        return Err(format!("failed to delete Google Task ({})", response.status()));
+        let status = response.status();
+        return Err(format!(
+            "failed to delete Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
     }
     Ok(())
 }

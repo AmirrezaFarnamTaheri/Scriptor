@@ -17,7 +17,10 @@ scriptor-canvas-engine = { path = "../canvas-engine" }
 scriptor-indexer = { path = "../indexer" }
 scriptor-native-git = { path = "../native-git" }
 scriptor-vault = { path = "../vault" }
+scriptor-capture = { path = "../capture" }
+chrono = { workspace = true }
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
 crossterm = "0.29"
 ratatui = "0.30.2"
 regex = "1"

@@ -114,8 +114,7 @@ impl KeySession {
     /// Any existing session (expired or not) is replaced.
     pub fn unlock(&self, passphrase: &str, salt: &[u8; 16]) -> Result<SessionInfo, SessionError> {
         let enc = crate::encryption::VaultEncryption::new();
-        let derived = enc
-            .derive_key(passphrase, salt)?;
+        let derived = enc.derive_key(passphrase, salt)?;
 
         let mut key = [0u8; 32];
         key.copy_from_slice(derived.as_bytes());

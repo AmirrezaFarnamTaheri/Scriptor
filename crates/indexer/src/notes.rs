@@ -191,10 +191,7 @@ pub fn remove_note_from_index(
          )",
         params![path],
     )?;
-    tx.execute(
-        "DELETE FROM tasks WHERE source_note_id = ?1",
-        params![path],
-    )?;
+    tx.execute("DELETE FROM tasks WHERE source_note_id = ?1", params![path])?;
     tx.execute(
         "DELETE FROM links WHERE from_note_id = ?1",
         params![note_key],

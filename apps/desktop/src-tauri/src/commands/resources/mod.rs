@@ -756,8 +756,14 @@ mod tests {
             expected_destination_hash: Some("before".into()),
             summary: "update".into(),
         };
-        let original =
-            fingerprint_plan("plan", 1, 2, "inventory", "source-id", std::slice::from_ref(&operation));
+        let original = fingerprint_plan(
+            "plan",
+            1,
+            2,
+            "inventory",
+            "source-id",
+            std::slice::from_ref(&operation),
+        );
         let mut changed = operation;
         changed.expected_destination_hash = Some("changed".into());
         let changed = fingerprint_plan("plan", 1, 2, "inventory", "source-id", &[changed]);

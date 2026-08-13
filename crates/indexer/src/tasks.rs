@@ -783,7 +783,9 @@ fn rewrite_due_annotation(
         preferred_due_style(&task.field_style)
     };
 
-    if find_due_range(&updated).is_none() && let Some(value) = due_at {
+    if find_due_range(&updated).is_none()
+        && let Some(value) = due_at
+    {
         updated = format!("{} {}", updated.trim_end(), due_token(value, style));
     }
 
