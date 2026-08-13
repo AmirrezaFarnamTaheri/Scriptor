@@ -12,4 +12,6 @@ pub enum EmbeddingError {
     DimensionMismatch { expected: usize, actual: usize },
     #[error("ollama error: {0}")]
     Ollama(String),
+    #[error("provider error: {0}")]
+    Provider(String),
 }

@@ -4,9 +4,60 @@ use std::sync::Mutex;
 
 pub mod error;
 pub mod ollama_client;
+pub mod provider;
 
 pub use error::EmbeddingError;
 pub use ollama_client::OllamaClient;
+pub use provider::{EmbedProvider, OllamaProvider, OpenAiProvider};
+
+// ── Typed record ──────────────────────────────────────────────────────────────
+
+/// A fully typed embedding record returned from semantic search.
+///
+/// The `id` is the note's vault-relative path (e.g. `"Projects/Alpha.md"`).
+/// Callers overlay BM25 keyword results with these by `note_path`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EmbeddingRecord {
+    /// Vault-relative note path — the join key for BM25 results.
+    pub note_path: String,
+    /// Cosine similarity in [0, 1].
+    pub score: f32,
+}
+
+// ── NoteEmbedder ──────────────────────────────────────────────────────────────
+
+/// High-level helper: embeds note text via a provider and persists in the store.
+///
+/// - Callers must strip sealed spans before passing `text` (I-3).
+/// - The `note_path` is the vault-relative path and serves as the embedding ID.
+pub struct NoteEmbedder<P: EmbedProvider> {
+    pub store: EmbeddingStore,
+    pub provider: P,
+}
+
+impl<P: EmbedProvider> NoteEmbedder<P> {
+    /// Embed `text` and upsert into the store keyed by `note_path`.
+    pub fn index_note(&self, note_path: &str, text: &str) -> Result<(), EmbeddingError> {
+        let vec = self.provider.embed_single(text)?;
+        self.store.upsert_embedding(note_path, &vec)
+    }
+
+    /// Remove the embedding for a deleted or renamed note.
+    pub fn remove_note(&self, note_path: &str) -> Result<(), EmbeddingError> {
+        self.store.delete_embedding(note_path)
+    }
+
+    /// Return the top-k nearest notes for a query string.
+    /// Returned records are sorted by descending cosine similarity.
+    pub fn search(&self, query: &str, k: usize) -> Result<Vec<EmbeddingRecord>, EmbeddingError> {
+        let vec = self.provider.embed_single(query)?;
+        let raw = self.store.query_nearest(&vec, k)?;
+        Ok(raw
+            .into_iter()
+            .map(|(note_path, score)| EmbeddingRecord { note_path, score })
+            .collect())
+    }
+}
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS embeddings (
