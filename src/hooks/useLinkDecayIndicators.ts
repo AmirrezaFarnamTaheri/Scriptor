@@ -125,6 +125,9 @@ export function useLinkDecayIndicators(config: DecayIndicatorConfig = {}): Decay
           .slice(0, limit)
 
         setIndicators(sorted)
+        // Clear any error from a previous attempt, so a recovered refresh does
+        // not leave a stale message rendered next to a 'ready' status.
+        setError(undefined)
         setStatus('ready')
       } catch (err) {
         if (cancelled) return

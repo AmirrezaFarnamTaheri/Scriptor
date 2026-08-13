@@ -25,7 +25,7 @@
  *  ```
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 
 import { indexerBatchNoteMeta } from '../bridge/commands/indexer.ts'
 
@@ -101,6 +101,9 @@ function ageDays(iso: string | null): number | null {
   return ms / 86_400_000
 }
 
+/** Separator that cannot occur in a vault-relative path, so the key is unambiguous. */
+const LINK_KEY_SEPARATOR = '\u0000'
+
 // ---------------------------------------------------------------------------
 // Hook
 // ---------------------------------------------------------------------------
@@ -111,19 +114,36 @@ export function useLinkDecay({
   refreshOnFocus = true,
 }: LinkDecayOptions): LinkDecayResult {
   const thresholds: DecayThresholds = { ...DEFAULT_DECAY_THRESHOLDS, ...thresholdOverrides }
+  const { aging, stale, decayed } = thresholds
 
   const [decayMap, setDecayMap] = useState<Map<string, LinkDecayEntry>>(new Map())
   const [loading, setLoading] = useState(false)
 
+  // `links` is a fresh array on most renders, so the fetch keys off a joined
+  // string instead. Depending on the array identity would re-run the effect on
+  // every render and refetch the whole batch in a loop.
+  const linksKey = links.join(LINK_KEY_SEPARATOR)
+  const targets = useMemo(
+    () => (linksKey.length === 0 ? [] : linksKey.split(LINK_KEY_SEPARATOR)),
+    [linksKey],
+  )
+
+  // Monotonic request id: only the newest in-flight batch is allowed to publish,
+  // so a slow response for an old note can never overwrite a newer one.
+  const requestIdRef = useRef(0)
+
   const fetchDecay = useCallback(async () => {
-    if (links.length === 0) {
+    const requestId = ++requestIdRef.current
+    if (targets.length === 0) {
       setDecayMap(new Map())
+      setLoading(false)
       return
     }
     setLoading(true)
     try {
       // Batch fetch note metadata from indexer
-      const results = await indexerBatchNoteMeta(links)
+      const results = await indexerBatchNoteMeta(targets)
+      if (requestId !== requestIdRef.current) return
 
       const next = new Map<string, LinkDecayEntry>()
       for (const r of results) {
@@ -133,15 +153,16 @@ export function useLinkDecay({
           title: r.title,
           modifiedAt: r.modified_at,
           ageDays: days,
-          tier: r.exists ? computeTier(days, thresholds) : 'unknown',
+          tier: r.exists ? computeTier(days, { aging, stale, decayed }) : 'unknown',
           broken: !r.exists,
         })
       }
       setDecayMap(next)
     } catch {
+      if (requestId !== requestIdRef.current) return
       // In browser / non-native mode: create unknown entries for all links
       const fallback = new Map<string, LinkDecayEntry>()
-      for (const path of links) {
+      for (const path of targets) {
         fallback.set(path, {
           path,
           title: null,
@@ -153,11 +174,11 @@ export function useLinkDecay({
       }
       setDecayMap(fallback)
     } finally {
-      setLoading(false)
+      if (requestId === requestIdRef.current) setLoading(false)
     }
-  }, [links, thresholds.aging, thresholds.stale, thresholds.decayed]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [aging, stale, decayed, targets])
 
-  // Initial fetch + when links change
+  // Initial fetch + whenever the set of outbound links actually changes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- async loader sets loading before first await
     void fetchDecay()

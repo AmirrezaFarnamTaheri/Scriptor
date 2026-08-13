@@ -6,15 +6,9 @@ import { AuditLog } from './audit.ts'
 import { approveDraftPatch, createDraftPatch, type DraftPatch, rejectDraftPatch } from './draft.ts'
 import { extractOutline } from './outline.ts'
 import { modeAllowsTool } from './permissions.ts'
+import { applyApprovedDraft, approvedDraftCommandId } from './draft-approval.ts'
 import { applyTagPatch } from './tag-patch.ts'
-import {
-  createNoteDraft,
-  deleteNoteDraft,
-  moveNoteDraft,
-  type McpCreateNoteInput,
-  type McpDeleteNoteInput,
-  type McpMoveNoteInput,
-} from './note-writes.ts'
+import { dispatchWriteTool } from './write-dispatch.ts'
 import {
   allMcpTools,
   assertBoundedInt,
@@ -266,71 +260,20 @@ export class McpRuntime {
     }
 
     const patch = this.drafts[index]
-    let output: unknown
-
-    switch (patch.operation) {
-      case 'delete': {
-        if (!this.context?.deleteNote) {
-          return {
-            ok: false,
-            requestId,
-            error: {
-              code: 'mcp.delete_unavailable',
-              message: 'Delete bridge is not available',
-              recoverable: true,
-            },
-          }
-        }
-        output = await this.context.deleteNote(patch.notePath)
-        break
-      }
-      case 'move': {
-        if (!this.context?.renameNote || !patch.sourcePath) {
-          return {
-            ok: false,
-            requestId,
-            error: {
-              code: 'mcp.rename_unavailable',
-              message: 'Rename bridge is not available for move drafts',
-              recoverable: true,
-            },
-          }
-        }
-        output = await this.context.renameNote(patch.sourcePath, patch.notePath, true)
-        break
-      }
-      case 'create':
-      case 'patch':
-      default: {
-        if (!this.context?.saveNote) {
-          return {
-            ok: false,
-            requestId,
-            error: {
-              code: 'mcp.save_unavailable',
-              message: 'Save bridge is not available',
-              recoverable: true,
-            },
-          }
-        }
-        output = await this.context.saveNote(
-          patch.notePath,
-          patch.proposedMarkdown,
-          patch.baseContentHash,
-        )
-        break
-      }
+    const applied = await applyApprovedDraft(patch, this.context)
+    if (!applied.ok) {
+      return { ok: false, requestId, error: applied.error }
     }
 
     this.drafts[index] = approveDraftPatch(patch)
     this.audit.append({
       toolName: 'mcp.proposePatch',
       mode: this.mode,
-      commandId: patch.operation === 'delete' ? 'note.delete' : patch.operation === 'move' ? 'note.rename' : 'note.save',
+      commandId: approvedDraftCommandId(patch),
       outcome: 'allowed',
       approvedAt: new Date().toISOString(),
     })
-    return { ok: true, requestId, output }
+    return { ok: true, requestId, output: applied.output }
   }
 
   rejectDraft(patchId: string): boolean {
@@ -466,85 +409,20 @@ export class McpRuntime {
         }
         return ctx.renderMarkdown(payload.markdown, payload.theme)
       }
-      case 'mcp.proposePatch': {
-        const payload = input as McpProposePatchInput
-        if (typeof payload.path !== 'string' || !payload.path.trim()) {
-          throw new Error('mcp.proposePatch requires a non-empty "path" string')
-        }
-        assertVaultRelativePath(payload.path)
-        if (typeof payload.proposedMarkdown !== 'string') {
-          throw new Error('mcp.proposePatch requires a "proposedMarkdown" string')
-        }
-        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
-          throw new Error('mcp.proposePatch requires a non-empty "summary" string')
-        }
-        const patch = this.proposePatch(payload)
-        if (!patch) {
-          throw new Error('Draft patches require draft or write-approved mode')
-        }
-        return patch
-      }
-      case 'mcp.proposeTagPatch': {
-        const payload = input as McpProposeTagPatchInput
-        if (typeof payload.path !== 'string' || !payload.path.trim()) {
-          throw new Error('mcp.proposeTagPatch requires a non-empty "path" string')
-        }
-        assertVaultRelativePath(payload.path)
-        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
-          throw new Error('mcp.proposeTagPatch requires a non-empty "summary" string')
-        }
-        const patch = await this.proposeTagPatch(payload)
-        if (!patch) {
-          throw new Error('Tag patches require draft or write-approved mode')
-        }
-        return patch
-      }
-      case 'mcp.createNote': {
-        const payload = input as McpCreateNoteInput
-        if (typeof payload.path !== 'string' || !payload.path.trim()) {
-          throw new Error('mcp.createNote requires a non-empty "path" string')
-        }
-        assertVaultRelativePath(payload.path)
-        if (typeof payload.markdown !== 'string') {
-          throw new Error('mcp.createNote requires a "markdown" string')
-        }
-        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
-          throw new Error('mcp.createNote requires a non-empty "summary" string')
-        }
-        const patch = createNoteDraft(payload)
-        this.pushDraft(patch)
-        return patch
-      }
-      case 'mcp.moveNote': {
-        const payload = input as McpMoveNoteInput
-        if (typeof payload.from !== 'string' || !payload.from.trim()) {
-          throw new Error('mcp.moveNote requires a non-empty "from" string')
-        }
-        assertVaultRelativePath(payload.from, 'from')
-        if (typeof payload.to !== 'string' || !payload.to.trim()) {
-          throw new Error('mcp.moveNote requires a non-empty "to" string')
-        }
-        assertVaultRelativePath(payload.to, 'to')
-        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
-          throw new Error('mcp.moveNote requires a non-empty "summary" string')
-        }
-        const note = await ctx.readNote(payload.from)
-        const patch = moveNoteDraft(payload, note.markdown, note.metadata.content_hash)
-        this.pushDraft(patch)
-        return patch
-      }
+      case 'mcp.proposePatch':
+      case 'mcp.proposeTagPatch':
+      case 'mcp.createNote':
+      case 'mcp.moveNote':
       case 'mcp.deleteNote': {
-        const payload = input as McpDeleteNoteInput
-        if (typeof payload.path !== 'string' || !payload.path.trim()) {
-          throw new Error('mcp.deleteNote requires a non-empty "path" string')
+        const result = await dispatchWriteTool(toolName, input, ctx, {
+          proposePatch: (payload) => this.proposePatch(payload),
+          proposeTagPatch: (payload) => this.proposeTagPatch(payload),
+          pushDraft: (patch) => this.pushDraft(patch),
+        })
+        if (!result.handled) {
+          throw new Error(`Unhandled tool: ${toolName}`)
         }
-        assertVaultRelativePath(payload.path)
-        if (typeof payload.summary !== 'string' || !payload.summary.trim()) {
-          throw new Error('mcp.deleteNote requires a non-empty "summary" string')
-        }
-        const patch = deleteNoteDraft(payload)
-        this.pushDraft(patch)
-        return patch
+        return result.output
       }
       // ------------------------------------------------------------------
       // Feature 8.4 — mcp.getGraphNeighbors

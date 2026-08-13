@@ -478,3 +478,44 @@ export interface GitPullOutput {
 export interface GitPushOutput {
   message: string
 }
+
+// ── Publish plan types (W1-6 / W1-7) ────────────────────────────────────────
+
+/** A single note eligible for publishing. Mirrors Rust `PublishCandidate`. */
+export interface PublishCandidate {
+  /** Vault-relative POSIX path (forward slashes, no leading slash). */
+  rel_path: string
+  /** SHA-256 hex of the note's raw bytes at planning time. */
+  content_hash: string
+}
+
+/**
+ * Four-bucket publish diff. Mirrors Rust `PublishPlan`.
+ * Returned by `plan_publish_cmd` before any write occurs.
+ */
+export interface PublishPlan {
+  /** Present in vault, absent from bucket → will be uploaded. */
+  new_items: PublishCandidate[]
+  /** Present in both, hash differs → will be updated. */
+  changed: PublishCandidate[]
+  /** Present in both, hash identical → no action. */
+  unchanged: PublishCandidate[]
+  /** Present in bucket but absent from vault → candidate for deletion. */
+  orphaned: string[]
+}
+
+/**
+ * Request to apply a previously reviewed publish plan.
+ * The user must have seen the plan before this is issued.
+ */
+export interface PublishApplyInput {
+  /** Absolute path to the vault root. */
+  vault_root: string
+  /** The plan the user reviewed and approved. */
+  plan: PublishPlan
+  /**
+   * Orphaned paths the user explicitly checked for deletion.
+   * Empty means "leave orphans in place".
+   */
+  delete_orphans: string[]
+}

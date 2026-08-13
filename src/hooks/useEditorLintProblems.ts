@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { lintMarkdownDocument, type EditorLintMessage } from '@scriptor/editor'
+import { lintMarkdownDocument, type EditorLintMessage } from '@scriptor/editor/pure'
 
 interface LintState {
   markdown: string

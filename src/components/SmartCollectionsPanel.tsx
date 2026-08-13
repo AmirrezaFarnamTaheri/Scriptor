@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Database, Play, Plus, Trash2 } from 'lucide-react'
 
-import { indexerExecuteDql } from '../bridge/commands'
+import {
+  indexerSearchRanked,
+  type RankedSearchHit,
+} from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import {
   loadVaultPresetJson,
@@ -65,7 +68,11 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   const [collections, setCollections] = useState<SmartCollection[]>(() => loadCollections())
   const [activeId, setActiveId] = useState(collections[0]?.id ?? '')
   const [results, setResults] = useState<KnowledgeNoteSummary[]>([])
+  // W3-1: ranked hits stored separately so the score debug affordance can render.
+  const [rankedHits, setRankedHits] = useState<RankedSearchHit[]>([])
   const [status, setStatus] = useState('Select a collection to run its DQL query.')
+  const [durationMs, setDurationMs] = useState<number | null>(null)
+  const [usedFuzzy, setUsedFuzzy] = useState(false)
   const [draftLabel, setDraftLabel] = useState('')
   const [draftQuery, setDraftQuery] = useState('path has #tag')
 
@@ -89,22 +96,29 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
       if (!canQuery) {
         setStatus('Open a vault in the desktop app to run DQL collections.')
         setResults([])
+        setRankedHits([])
         return
       }
       setStatus(`Running "${collection.label}"…`)
       try {
-        const rows = await indexerExecuteDql(collection.query)
-        const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
-          path: row.path,
-          title: row.title,
+        // W3-1: use ranked search so results are BM25-ordered.
+        const out = await indexerSearchRanked(collection.query)
+        const mapped: KnowledgeNoteSummary[] = out.hits.map((hit) => ({
+          path: hit.path,
+          title: hit.title,
           inbound_links: 0,
           outbound_links: 0,
         }))
         setResults(mapped)
-        setStatus(`${mapped.length} note(s) matched "${collection.label}".`)
+        setRankedHits(out.hits)
+        setDurationMs(out.durationMs)
+        setUsedFuzzy(out.usedFuzzyFallback)
+        const suffix = out.usedFuzzyFallback ? ' (fuzzy fallback)' : ''
+        setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${out.durationMs}ms${suffix}.`)
       } catch (error) {
         setResults([])
-        setStatus(error instanceof Error ? error.message : 'DQL query failed')
+        setRankedHits([])
+        setStatus(error instanceof Error ? error.message : 'Search failed')
       }
     },
     [canQuery],
@@ -114,22 +128,27 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
     if (!canQuery || !activeCollection) return
     let cancelled = false
     const requestedCollection = activeCollection
-    void indexerExecuteDql(requestedCollection.query)
-      .then((rows) => {
+    void indexerSearchRanked(requestedCollection.query)
+      .then((out) => {
         if (cancelled) return
-        const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
-          path: row.path,
-          title: row.title,
+        const mapped: KnowledgeNoteSummary[] = out.hits.map((hit) => ({
+          path: hit.path,
+          title: hit.title,
           inbound_links: 0,
           outbound_links: 0,
         }))
         setResults(mapped)
-        setStatus(`${mapped.length} note(s) matched "${requestedCollection.label}".`)
+        setRankedHits(out.hits)
+        setDurationMs(out.durationMs)
+        setUsedFuzzy(out.usedFuzzyFallback)
+        const suffix = out.usedFuzzyFallback ? ' (fuzzy fallback)' : ''
+        setStatus(`${mapped.length} note(s) matched "${requestedCollection.label}" in ${out.durationMs}ms${suffix}.`)
       })
       .catch((error: unknown) => {
         if (cancelled) return
         setResults([])
-        setStatus(error instanceof Error ? error.message : 'DQL query failed')
+        setRankedHits([])
+        setStatus(error instanceof Error ? error.message : 'Search failed')
       })
     return () => {
       cancelled = true
@@ -210,7 +229,38 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
                   Refresh
                 </button>
               </div>
-              {embedded ? null : <p className="health-subtitle">{status}</p>}
+              {embedded ? null : (
+                <p className="health-subtitle">
+                  {status}
+                  {/* W3-1: score debug affordance — shows BM25 column breakdown */}
+                  {durationMs !== null && !usedFuzzy && rankedHits.length > 0 && (
+                    <details className="search-score-debug" style={{ display: 'inline', marginLeft: '0.5rem' }}>
+                      <summary style={{ cursor: 'pointer', fontSize: '0.75em', opacity: 0.6 }}>score debug</summary>
+                      <table className="score-debug-table" style={{ fontSize: '0.7em', borderCollapse: 'collapse', marginTop: '0.25rem' }}>
+                        <thead>
+                          <tr>
+                            <th>title</th><th>headings</th><th>tags</th><th>body</th><th>total</th><th>path</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {rankedHits.slice(0, 10).map((hit) =>
+                            hit.scoreDebug ? (
+                              <tr key={hit.path}>
+                                <td>{hit.scoreDebug.titleScore.toFixed(3)}</td>
+                                <td>{hit.scoreDebug.headingScore.toFixed(3)}</td>
+                                <td>{hit.scoreDebug.tagScore.toFixed(3)}</td>
+                                <td>{hit.scoreDebug.bodyScore.toFixed(3)}</td>
+                                <td><strong>{hit.scoreDebug.bm25Total.toFixed(3)}</strong></td>
+                                <td style={{ maxWidth: '16rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hit.path}</td>
+                              </tr>
+                            ) : null
+                          )}
+                        </tbody>
+                      </table>
+                    </details>
+                  )}
+                </p>
+              )}
               {results.length === 0 ? (
                 <p className="empty-state">No notes matched this collection.</p>
               ) : (

@@ -19,12 +19,11 @@
  *  ```
  */
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { ProseCorpus } from '@scriptor/editor'
-import { buildVaultCorpus } from '@scriptor/editor'
+import { buildVaultCorpus } from '@scriptor/editor/pure'
 import { indexerSearch } from '../bridge/commands/indexer'
 import type { SearchHit } from '../types/vault'
-
 export interface ProseAutosuggestConfig {
   /** Path to the current vault root. Used for vault corpus refresh. */
   vaultPath: string | null
@@ -36,14 +35,19 @@ export interface ProseAutosuggestConfig {
   maxVaultTerms?: number
 }
 
-/** Tiny debounce — avoids importing lodash for a single use. */
-function debounce<T extends unknown[]>(fn: (...args: T) => void, delay: number) {
-  let timer: ReturnType<typeof setTimeout>
-  return (...args: T) => {
-    clearTimeout(timer)
-    timer = setTimeout(() => fn(...args), delay)
-  }
+/** Tokens mined from a note path: folder and file-name words, lowercased. */
+function pathTerms(paths: string[]): string[] {
+  return paths.flatMap((p) =>
+    p
+      .replace(/\\/g, '/')
+      .split('/')
+      .flatMap((seg) => seg.replace(/\.md$/, '').match(/[A-Za-z][a-z]{2,}/g) ?? [])
+      .map((w) => w.toLowerCase()),
+  )
 }
+
+/** Separator that cannot occur in a note path, keeping the memo key unambiguous. */
+const TAB_KEY_SEPARATOR = '\u0000'
 
 export function useProseAutosuggest(config: ProseAutosuggestConfig) {
   const {
@@ -55,45 +59,56 @@ export function useProseAutosuggest(config: ProseAutosuggestConfig) {
 
   /** Callback set by the editor once it mounts. */
   const setCorpusRef = useRef<((corpus: ProseCorpus) => void) | null>(null)
+  /** Pending debounce timer, cleared on unmount so no work runs after teardown. */
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Monotonic id so only the newest refresh may publish a corpus. */
+  const requestIdRef = useRef(0)
+
+  // `openTabPaths` defaults to a fresh array each render, so callers key off the
+  // joined string instead of the array identity.
+  const tabsKey = openTabPaths.join(TAB_KEY_SEPARATOR)
 
   // ---------------------------------------------------------------------------
   // Vault corpus refresh (debounced)
   // ---------------------------------------------------------------------------
 
-  const refreshVaultCorpus = useMemo(
-    () =>
-      debounce(
-        async (
-          setCorpus: (corpus: ProseCorpus) => void,
-          _vaultPath: string,
-          tabPaths: string[],
-        ) => {
-          if (!setCorpus) return
-
+  const refreshVaultCorpus = useCallback(
+    (setCorpus: (corpus: ProseCorpus) => void) => {
+      if (timerRef.current !== null) clearTimeout(timerRef.current)
+      const requestId = ++requestIdRef.current
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null
+        void (async () => {
           try {
             // Empty query returns the most-recently-indexed hits (broad vocabulary sample).
             const results: SearchHit[] = await indexerSearch('', 200).catch(() => [])
+            // A newer refresh (or unmount) superseded this one: drop the result.
+            if (requestId !== requestIdRef.current) return
 
             const vaultContents = results.map((r) => `${r.title} ${r.snippet}`)
-            const vaultTerms = buildVaultCorpus(vaultContents, maxVaultTerms)
-
-            // Build open-tab terms from tab file paths (word tokens from folder/file names).
-            const openTabTerms = tabPaths.flatMap((p) =>
-              p
-                .replace(/\\/g, '/')
-                .split('/')
-                .flatMap((seg) => seg.replace(/\.md$/, '').match(/[A-Za-z][a-z]{2,}/g) ?? [])
-                .map((w) => w.toLowerCase()),
-            )
-
-            setCorpus({ vaultTerms, openTabTerms })
+            setCorpus({
+              vaultTerms: buildVaultCorpus(vaultContents, maxVaultTerms),
+              openTabTerms: pathTerms(tabsKey.length === 0 ? [] : tabsKey.split(TAB_KEY_SEPARATOR)),
+            })
           } catch {
             // Non-fatal — autosuggest degrades to current-doc only
           }
-        },
-        corpusRefreshDebounce,
-      ),
-    [corpusRefreshDebounce, maxVaultTerms],
+        })()
+      }, corpusRefreshDebounce)
+    },
+    [corpusRefreshDebounce, maxVaultTerms, tabsKey],
+  )
+
+  // Cancel any pending refresh on unmount and invalidate in-flight requests.
+  useEffect(
+    () => () => {
+      requestIdRef.current++
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current)
+        timerRef.current = null
+      }
+    },
+    [],
   )
 
   // ---------------------------------------------------------------------------
@@ -103,11 +118,9 @@ export function useProseAutosuggest(config: ProseAutosuggestConfig) {
   const attachCorpusSetter = useCallback(
     (setter: (corpus: ProseCorpus) => void) => {
       setCorpusRef.current = setter
-      if (vaultPath) {
-        refreshVaultCorpus(setter, vaultPath, openTabPaths)
-      }
+      if (vaultPath) refreshVaultCorpus(setter)
     },
-    [vaultPath, openTabPaths, refreshVaultCorpus],
+    [vaultPath, refreshVaultCorpus],
   )
 
   // ---------------------------------------------------------------------------
@@ -116,11 +129,8 @@ export function useProseAutosuggest(config: ProseAutosuggestConfig) {
 
   useEffect(() => {
     const setCorpus = setCorpusRef.current
-    if (setCorpus && vaultPath) {
-      refreshVaultCorpus(setCorpus, vaultPath, openTabPaths)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vaultPath, openTabPaths.join(','), refreshVaultCorpus])
+    if (setCorpus && vaultPath) refreshVaultCorpus(setCorpus)
+  }, [vaultPath, refreshVaultCorpus])
 
   return { attachCorpusSetter }
 }

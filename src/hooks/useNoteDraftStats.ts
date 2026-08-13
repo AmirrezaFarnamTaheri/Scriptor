@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { countWords, countCharacters } from '@scriptor/editor'
+import { countWords, countCharacters } from '@scriptor/editor/pure'
 import type { NoteDocument } from '../types/vault'
 
 export interface UseNoteDraftStatsOptions {

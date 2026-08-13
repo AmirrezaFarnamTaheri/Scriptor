@@ -28,6 +28,7 @@ import { formatShortcut } from '../../lib/keyboardShortcuts'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme } from '../../hooks/useAppTheme'
+import { getNextTheme, THEME_DISPLAY_NAMES } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
@@ -124,6 +125,19 @@ export function AppTopBar({
   const inspectorShortcut = formatShortcut(
     getShortcut('toggle-inspector', getDefaultShortcut('toggle-inspector')),
   )
+
+  // The theme control advertises the theme its next click will apply, so the
+  // accessible name has to be derived from the real cycle rather than a fixed
+  // light/dark/high-contrast ternary.
+  const nextTheme = getNextTheme(theme)
+  const themeToggleLabel =
+    nextTheme === 'light'
+      ? t('topBar.switchToLight')
+      : nextTheme === 'dark'
+        ? t('topBar.switchToDark')
+        : nextTheme === 'high-contrast'
+          ? t('topBar.switchToHighContrast')
+          : t('topBar.switchToTheme', { theme: THEME_DISPLAY_NAMES[nextTheme] ?? nextTheme })
 
   if (chrome?.showTopBar === false) return null
 
@@ -254,16 +268,7 @@ export function AppTopBar({
           </span>
         </button>
 
-        <IconButton
-          label={
-            theme === 'high-contrast'
-              ? t('topBar.switchToLight')
-              : theme === 'dark'
-                ? t('topBar.switchToHighContrast')
-                : t('topBar.switchToDark')
-          }
-          onClick={onToggleTheme}
-        >
+        <IconButton label={themeToggleLabel} onClick={onToggleTheme}>
           {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
         <IconButton

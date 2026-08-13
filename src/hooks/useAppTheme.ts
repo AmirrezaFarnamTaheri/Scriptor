@@ -107,7 +107,38 @@ function readStoredTheme(): AppTheme {
   return 'dark'
 }
 
-const THEME_CYCLE: AppTheme[] = ['light', 'dark', 'catppuccin', 'dracula', 'nord', 'tokyo-night', 'high-contrast']
+/**
+ * Order the top-bar theme control walks through. Exported so the control can
+ * advertise the theme its next click will actually apply — the label used to be
+ * hardcoded to a three-theme cycle and lied once the cycle grew.
+ */
+export const THEME_CYCLE: AppTheme[] = [
+  'light',
+  'dark',
+  'catppuccin',
+  'dracula',
+  'nord',
+  'tokyo-night',
+  'high-contrast',
+]
+
+/**
+ * Human-readable names for the palettes in `THEME_CYCLE` that have no
+ * dedicated locale string. These are proper nouns, so they are not translated.
+ */
+export const THEME_DISPLAY_NAMES: Record<string, string> = {
+  catppuccin: 'Catppuccin',
+  dracula: 'Dracula',
+  nord: 'Nord',
+  'tokyo-night': 'Tokyo Night',
+}
+
+/** Theme `toggleTheme()` will select when the current theme is `current`. */
+export function getNextTheme(current: AppTheme): AppTheme {
+  const index = THEME_CYCLE.indexOf(current)
+  if (index === -1) return THEME_CYCLE[0]
+  return THEME_CYCLE[(index + 1) % THEME_CYCLE.length]
+}
 
 export function useAppTheme() {
   const [theme, setThemeState] = useState<AppTheme>(() => readStoredTheme())
@@ -131,11 +162,7 @@ export function useAppTheme() {
   }, [theme])
 
   const toggleTheme = useCallback(() => {
-    setThemeState((current) => {
-      const index = THEME_CYCLE.indexOf(current)
-      if (index === -1) return THEME_CYCLE[0]
-      return THEME_CYCLE[(index + 1) % THEME_CYCLE.length]
-    })
+    setThemeState((current) => getNextTheme(current))
   }, [])
 
   const setTheme = useCallback((next: AppTheme) => {

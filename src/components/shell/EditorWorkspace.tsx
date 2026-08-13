@@ -32,18 +32,19 @@ import {
   Target,
   Terminal,
 } from 'lucide-react'
-import {
-  type EditorAutocompleteContext,
-  type EditorTransformAction,
-  type EditorThemeId,
-  type MarkdownEditorHandle,
-  type MarkdownEditorProps,
-  type SnippetCatalogEntry,
-  type SnippetVariableContext,
-  type TocEntry,
-  type TypographyAction,
+import type {
+  EditorAutocompleteContext,
+  EditorThemeId,
+  MarkdownEditorHandle,
+  MarkdownEditorProps,
+  SnippetCatalogEntry,
+  SnippetVariableContext,
+  TocEntry,
+  TypographyAction,
 } from '@scriptor/editor'
 import type { MonacoCompletionContext } from '../../lib/monaco-completions'
+
+type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
 
 import { InlineEditorAssist } from '../editor/InlineEditorAssist'
 import { EditorTabBar } from './EditorTabBar'
@@ -125,7 +126,7 @@ interface EditorWorkspaceProps {
   languageTool: boolean
   setLanguageTool: (updater: (value: boolean) => boolean) => void
   stickiesVisible: boolean
-  setStickiesVisible: (updater: (value: boolean) => boolean) => void
+  setStickiesVisible: (value: boolean) => void
   splitPreview: boolean
   setSplitPreview: (updater: (value: boolean) => boolean) => void
   showSplitPreview: boolean
@@ -376,7 +377,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             title={stickiesVisible ? 'Hide stickies' : 'Show stickies'}
             aria-label={stickiesVisible ? 'Hide stickies' : 'Show stickies'}
             aria-pressed={stickiesVisible}
-            onClick={() => setStickiesVisible((value) => !value)}
+            onClick={() => setStickiesVisible(!stickiesVisible)}
             className={stickiesVisible ? 'active' : undefined}
           >
             <StickyNote size={16} />

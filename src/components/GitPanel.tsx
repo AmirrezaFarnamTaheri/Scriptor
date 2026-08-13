@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import { GitFileRow } from './git/GitFileRow'
@@ -7,6 +8,7 @@ import { useGitPanelState, type GitTab } from '../hooks/useGitPanelState'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import type { GitStatus } from '../types/vault'
 import { useI18n } from '../lib/i18n'
+import { evaluate } from '@scriptor/template-engine'
 
 export interface GitPanelProps {
   status: GitStatus | null
@@ -73,11 +75,35 @@ export function GitPanel({
   })
 
   const noteLabel = (path: string) => path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? path
-  const commitTemplates = [
+
+  // W2-4: commit-message templates rendered via the template-engine.
+  // Raw template strings may use {{date}}, {{numFiles}}, {{files}}.
+  const RAW_COMMIT_TEMPLATES = [
     t('git.updateVaultNotes'),
     t('git.draftRefineActiveNote'),
     t('git.organizeLinksAndTags'),
-  ] as const
+  ]
+  const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
+
+  useEffect(() => {
+    const today = new Date().toISOString().slice(0, 10)
+    const numFiles = effectiveSelection.length
+    const files = effectiveSelection.map(noteLabel).join(', ')
+    const ctx = { date: today, numFiles: String(numFiles), files }
+
+    let cancelled = false
+    Promise.all(
+      RAW_COMMIT_TEMPLATES.map(tpl =>
+        evaluate(tpl, { context: ctx })
+          .then(({ text }) => text)
+          .catch(() => tpl),
+      ),
+    ).then(resolved => {
+      if (!cancelled) setCommitTemplates(resolved)
+    })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveSelection.length, effectiveSelection.join(',')])
 
   if (panelState === 'loading') {
     return (

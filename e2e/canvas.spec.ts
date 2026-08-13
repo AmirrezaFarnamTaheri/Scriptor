@@ -8,39 +8,61 @@ import {
   waitForWorkspace,
 } from './helpers'
 
+/**
+ * Grant Canvas Kit's manifest permissions for the E2E fixture vault before the
+ * app boots. `PluginRegistry` only reads consents once, at construction, so the
+ * grant has to exist in storage before the first render; the store panel no
+ * longer exposes a consent-review affordance to click through.
+ */
+async function grantCanvasKitConsent(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const reviewedAt = new Date(0).toISOString()
+    window.localStorage.setItem(
+      'scriptor:plugins:consent',
+      JSON.stringify({
+        schemaVersion: 1,
+        savedAt: reviewedAt,
+        data: {
+          'scriptor.canvas-kit': {
+            grantedPermissions: ['read'],
+            allowedVaultIds: ['screenshot-vault'],
+            allowlistedHosts: [],
+            networkAccess: 'blocked',
+            reviewedAt,
+          },
+        },
+      }),
+    )
+  })
+}
+
 async function enableCanvasKit(page: Page): Promise<void> {
-  // Bundled manifests are preinstalled in E2E; contributions appear only after consent and activation.
+  // Bundled manifests are preinstalled in E2E; contributions appear only after activation.
   await page.getByRole('tab', { name: 'Plugins' }).click()
-  const installedPlugins = page.locator('section.widget-card').filter({
-    has: page.getByRole('heading', { name: 'Installed plugins' }),
+  const storePlugins = page.getByRole('tabpanel', { name: 'Plugins' }).last()
+  await expect(storePlugins.getByRole('heading', { name: /^Installed \(\d+\)$/ })).toBeVisible({
+    timeout: 15_000,
   })
-  await expect(installedPlugins).toBeVisible({ timeout: 15_000 })
 
-  const canvasKit = installedPlugins.getByRole('button', {
-    name: /Canvas Kit.*(?:enabled|disabled)/,
-  })
-  await expect(canvasKit).toBeVisible({ timeout: 15_000 })
-  const accessibleName = await canvasKit.evaluate(
-    (element) => element.getAttribute('aria-label') ?? element.textContent ?? '',
-  )
-  if (/enabled/i.test(accessibleName)) return
-  if (!/disabled/i.test(accessibleName)) {
-    throw new Error(`Canvas Kit has an unexpected state: ${accessibleName}`)
-  }
+  // The toggle exposes activation as state (`aria-pressed`), not just as a
+  // label, so wait on the attribute instead of the transient button text.
+  const canvasKitRow = storePlugins
+    .locator('div')
+    .filter({ hasText: /^Canvas Kit\s*v/ })
+    .filter({ has: page.locator('button[aria-pressed]') })
+    .last()
+  const canvasKitToggle = canvasKitRow.locator('button[aria-pressed]')
+  await expect(canvasKitToggle).toBeVisible({ timeout: 15_000 })
+  await expect(canvasKitToggle).toBeEnabled({ timeout: 15_000 })
 
-  await canvasKit.click()
+  if ((await canvasKitToggle.getAttribute('aria-pressed')) === 'true') return
 
-  const grantButton = page.getByRole('button', { name: 'Review and grant for this vault' })
-  await expect(grantButton).toBeEnabled()
-  await grantButton.click()
-
-  const enableButton = page.getByRole('button', { name: 'Enable plugin' })
-  await expect(enableButton).toBeEnabled()
-  await enableButton.click()
-  await expect(page.getByRole('button', { name: 'Disable plugin' })).toBeVisible()
+  await canvasKitToggle.click()
+  await expect(canvasKitToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 15_000 })
 }
 
 async function openCanvas(page: Page): Promise<Locator> {
+  await grantCanvasKitConsent(page)
   await launchApp(page)
   await waitForWorkspace(page)
   await settleLayout(page)

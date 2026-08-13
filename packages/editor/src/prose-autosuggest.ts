@@ -19,6 +19,8 @@ import { autocompletion, type Completion, type CompletionContext, type Completio
 import { StateEffect, StateField } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
+import { extractBigrams, extractWords } from './prose-mining.ts'
+
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
@@ -106,47 +108,9 @@ function recordAccepted(term: string): void {
 }
 
 // ---------------------------------------------------------------------------
-// Text mining helpers
+// Text mining helpers — live in prose-mining.ts so callers that only need
+// corpus building do not pull in the CodeMirror runtime.
 // ---------------------------------------------------------------------------
-
-// Strip code blocks, frontmatter, wikilinks, URLs, and citation markers so we
-// don't suggest "garbage" tokens.
-function sanitizeForMining(text: string): string {
-  return text
-    .replace(/^---[\s\S]*?---\n?/m, ' ')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`[^`]+`/g, ' ')
-    .replace(/\[\[[^\]]*\]\]/g, ' ')
-    .replace(/\[@[^\]]*\]/g, ' ')
-    .replace(/#[\w/-]+/g, ' ')
-    .replace(/https?:\/\/\S+/g, ' ')
-}
-
-// Extract unique lowercased words from text (≥ minLen chars, alpha-only).
-function extractWords(text: string, minLen = 4): string[] {
-  const words = new Set<string>()
-  for (const m of sanitizeForMining(text).matchAll(/\b([A-Za-z][a-z]{2,})\b/g)) {
-    const w = m[1]?.toLowerCase() ?? ''
-    if (w.length >= minLen) words.add(w)
-  }
-  return Array.from(words)
-}
-
-// Extract up to `limit` bigrams (2-word phrases) from the current doc.
-function extractBigrams(text: string, limit: number): string[] {
-  const sanitized = sanitizeForMining(text)
-  const tokens = sanitized.match(/\b[A-Za-z][a-z]{2,}\b/g) ?? []
-  const freqMap = new Map<string, number>()
-  for (let i = 0; i < tokens.length - 1; i++) {
-    const bigram = `${tokens[i]?.toLowerCase()} ${tokens[i + 1]?.toLowerCase()}`
-    freqMap.set(bigram, (freqMap.get(bigram) ?? 0) + 1)
-  }
-  return Array.from(freqMap.entries())
-    .filter(([, count]) => count >= 2)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([bigram]) => bigram)
-}
 
 // ---------------------------------------------------------------------------
 // Guard: don't complete inside structural markers
@@ -305,23 +269,9 @@ export function dispatchProseCorpus(view: EditorView, corpus: ProseCorpus): void
 
 /**
  * Extract word/term corpus from a collection of note contents.
- * Use this to build `vaultTerms` from indexed note summaries or full text.
- *
- * @param contents  Array of raw Markdown strings from vault notes.
- * @param limit     Max terms to return (sorted by cross-document frequency).
+ * Re-exported from the CodeMirror-free `prose-mining.ts`.
  */
-export function buildVaultCorpus(contents: string[], limit = 500): string[] {
-  const freq = new Map<string, number>()
-  for (const text of contents) {
-    for (const word of extractWords(text)) {
-      freq.set(word, (freq.get(word) ?? 0) + 1)
-    }
-  }
-  return Array.from(freq.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, limit)
-    .map(([word]) => word)
-}
+export { buildVaultCorpus } from './prose-mining.ts'
 
 /**
  * Clear the accepted-word LRU cache stored in sessionStorage.

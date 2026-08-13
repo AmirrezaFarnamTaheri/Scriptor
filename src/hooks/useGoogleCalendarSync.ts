@@ -37,6 +37,7 @@ import {
   type CalendarEvent,
   type GoogleTask,
 } from '../bridge/commands/google_calendar.ts'
+import { safeExternalUrl } from '../lib/safeExternalUrl.ts'
 
 // ---------------------------------------------------------------------------
 // Types (aligned with Google Calendar API v3 + Tasks API v1 shapes)
@@ -100,8 +101,6 @@ export interface GoogleCalendarSyncResult {
   completeTask: (taskId: string) => Promise<void>
   /** Delete a Google Task */
   deleteTask: (taskId: string) => Promise<void>
-  /** Map of event.id → vault note path for linked notes */
-  eventNoteLinks: Map<string, string>
   /** Pull today's events as a formatted block for quick-capture */
   todayAgendaMarkdown: () => string
 }
@@ -109,6 +108,9 @@ export interface GoogleCalendarSyncResult {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Lookahead window applied when no calendar config is present yet. */
+const DEFAULT_LOOKAHEAD_DAYS = 7
 
 function eventsToday(events: CalendarEvent[]): CalendarEvent[] {
   const today = new Date().toISOString().slice(0, 10)
@@ -137,15 +139,23 @@ export function useGoogleCalendarSync({
   const [tasks, setTasks] = useState<GoogleTask[]>([])
   const [error, setError] = useState<string | null>(null)
   const [authedEmail, setAuthedEmail] = useState<string | null>(null)
-  const [eventNoteLinks] = useState<Map<string, string>>(new Map())
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // `config` is typically rebuilt on every parent render, so every callback and
+  // effect below keys off its primitive fields instead. Depending on the object
+  // identity would tear down and re-create the refresh interval on each render.
+  const enabled = config?.enabled ?? false
+  const clientId = config?.google_client_id ?? null
+  const calendarId = config?.google_calendar_id ?? 'primary'
+  const taskListId = config?.google_task_list_id ?? '@default'
+  const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
 
   // ---------------------------------------------------------------------------
   // Auth
   // ---------------------------------------------------------------------------
 
   const startAuth = useCallback(async () => {
-    if (!config?.google_client_id) {
+    if (!clientId) {
       setError('Google OAuth client ID not configured. Set it in Settings → Calendar.')
       return
     }
@@ -153,9 +163,9 @@ export function useGoogleCalendarSync({
     setError(null)
     try {
       const email = await googleCalendarStartAuth({
-        clientId: config.google_client_id,
-        calendarId: config.google_calendar_id ?? 'primary',
-        taskListId: config.google_task_list_id ?? '@default',
+        clientId,
+        calendarId,
+        taskListId,
       })
       setAuthedEmail(email)
       setStatus('synced')
@@ -163,7 +173,7 @@ export function useGoogleCalendarSync({
       setError(err instanceof Error ? err.message : String(err))
       setStatus('error')
     }
-  }, [config])
+  }, [clientId, calendarId, taskListId])
 
   const disconnect = useCallback(async () => {
     try {
@@ -183,16 +193,13 @@ export function useGoogleCalendarSync({
   // ---------------------------------------------------------------------------
 
   const refresh = useCallback(async () => {
-    if (!config?.enabled) return
+    if (!enabled) return
     setStatus('syncing')
     setError(null)
     try {
       const [evtsRaw, tasksRaw, email] = await Promise.all([
-        googleCalendarListEvents(
-          config.google_calendar_id ?? 'primary',
-          config.lookahead_days,
-        ),
-        googleCalendarListTasks(config.google_task_list_id ?? '@default'),
+        googleCalendarListEvents(calendarId, lookaheadDays),
+        googleCalendarListTasks(taskListId),
         googleCalendarGetAuthedEmail(),
       ])
       setEvents(evtsRaw)
@@ -209,20 +216,23 @@ export function useGoogleCalendarSync({
         setStatus('error')
       }
     }
-  }, [config])
+  }, [enabled, calendarId, taskListId, lookaheadDays])
 
   // Initial sync + interval refresh
   useEffect(() => {
-    if (!config?.enabled) return
+    if (!enabled) return
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial sync kick-off; refresh() transitions status as an external-system sync
     void refresh()
     if (refreshIntervalSeconds > 0) {
       intervalRef.current = setInterval(() => void refresh(), refreshIntervalSeconds * 1000)
     }
     return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+        intervalRef.current = null
+      }
     }
-  }, [config?.enabled, refresh, refreshIntervalSeconds])
+  }, [enabled, refresh, refreshIntervalSeconds])
 
   // ---------------------------------------------------------------------------
   // Task mutations
@@ -230,7 +240,6 @@ export function useGoogleCalendarSync({
 
   const pushTask = useCallback(
     async (task: { title: string; notes?: string; due?: string }): Promise<GoogleTask | null> => {
-      const taskListId = config?.google_task_list_id ?? '@default'
       try {
         const created = await googleCalendarCreateTask({
           taskListId,
@@ -244,12 +253,11 @@ export function useGoogleCalendarSync({
         return null
       }
     },
-    [config?.google_task_list_id],
+    [taskListId],
   )
 
   const completeTask = useCallback(
     async (taskId: string) => {
-      const taskListId = config?.google_task_list_id ?? '@default'
       try {
         await googleCalendarCompleteTask(taskListId, taskId)
         setTasks((prev) =>
@@ -263,12 +271,11 @@ export function useGoogleCalendarSync({
         // ignore; UI will re-sync on next refresh
       }
     },
-    [config?.google_task_list_id],
+    [taskListId],
   )
 
   const deleteTask = useCallback(
     async (taskId: string) => {
-      const taskListId = config?.google_task_list_id ?? '@default'
       try {
         await googleCalendarDeleteTask(taskListId, taskId)
         setTasks((prev) => prev.filter((t) => t.id !== taskId))
@@ -276,7 +283,7 @@ export function useGoogleCalendarSync({
         // ignore
       }
     },
-    [config?.google_task_list_id],
+    [taskListId],
   )
 
   // ---------------------------------------------------------------------------
@@ -289,7 +296,10 @@ export function useGoogleCalendarSync({
     const lines = [`## Today, ${new Date().toLocaleDateString()}\n`]
     for (const evt of today) {
       const time = evt.allDay ? 'All day' : `${formatTime(evt.start)} – ${formatTime(evt.end)}`
-      lines.push(`- **${evt.summary}** — ${time}${evt.location ? ` @ ${evt.location}` : ''}${evt.meetingLink ? ` [Join](${evt.meetingLink})` : ''}`)
+      // Provider-supplied link: only https/http survives, so a `javascript:` or
+      // `data:` payload can never reach the rendered Markdown.
+      const joinUrl = safeExternalUrl(evt.meetingLink)
+      lines.push(`- **${evt.summary}** — ${time}${evt.location ? ` @ ${evt.location}` : ''}${joinUrl ? ` [Join](${joinUrl})` : ''}`)
     }
     return lines.join('\n')
   }, [events])
@@ -306,7 +316,6 @@ export function useGoogleCalendarSync({
     pushTask,
     completeTask,
     deleteTask,
-    eventNoteLinks,
     todayAgendaMarkdown,
   }
 }

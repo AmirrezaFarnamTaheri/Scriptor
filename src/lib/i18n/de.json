@@ -33,6 +33,7 @@
     "switchToLight": "Zum hellen Thema wechseln",
     "switchToDark": "Zum dunklen Thema wechseln",
     "switchToHighContrast": "Zum Hochkontrast-Thema wechseln",
+    "switchToTheme": "Zum Thema {{theme}} wechseln",
     "supportScriptor": "Scriptor unterstützen",
     "settings": "Einstellungen",
     "typeCommandOrSearch": "Befehl oder Suche eingeben...",

@@ -39,6 +39,7 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
+    if (filtered.length === 0) return
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setActiveIdx((i) => Math.min(i + 1, filtered.length - 1))
@@ -51,6 +52,11 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
       if (chosen !== undefined) onSelect(chosen.value)
     }
   }
+
+  /** Stable DOM id per option so the search box can point at the active one. */
+  const optionId = (index: number) => `template-picker-option-${index}`
+  const activeOptionId =
+    filtered.length > 0 && activeIdx < filtered.length ? optionId(activeIdx) : undefined
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Choose template">
@@ -70,15 +76,25 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
           onChange={(e) => setQuery(e.target.value)}
           autoFocus
           aria-label="Filter templates"
+          role="combobox"
+          aria-expanded
+          aria-controls="template-picker-listbox"
+          aria-activedescendant={activeOptionId}
         />
 
-        <ol className="template-picker__list" role="listbox" aria-label="Templates">
+        <ol
+          id="template-picker-listbox"
+          className="template-picker__list"
+          role="listbox"
+          aria-label="Templates"
+        >
           {filtered.length === 0 ? (
             <li className="template-picker__empty">No templates match.</li>
           ) : (
             filtered.map((opt, i) => (
               <li
                 key={opt.label}
+                id={optionId(i)}
                 role="option"
                 aria-selected={i === activeIdx}
                 className={[
