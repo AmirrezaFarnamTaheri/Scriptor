@@ -908,8 +908,8 @@ recovery candidate and must not be merged or released solely because focused pac
 ### Verification update — 2026-08-13
 
 - `pnpm test:e2e -- --workers=1`: **71 passed**.
-- `pnpm test:visual -- --workers=1`: **27 passed, 1 initially failed**; the plugin-marketplace
-  heading failure was corrected in `dfc791d`, and the focused plugin visual test passes.
+- `pnpm test:visual -- --workers=1`: **28 passed** after the plugin-marketplace heading fix in
+  `dfc791d`.
 - `pnpm check:a11y`: **passed** after `0980de2` added the workspace live status region.
 - `pnpm check:a11y-axe`: local execution remains blocked by the missing lockfile chromedriver
   executable/postinstall artifact; this is recorded as environment evidence, not a passing gate.
