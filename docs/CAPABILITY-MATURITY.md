@@ -8,6 +8,9 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | SQLite/FTS indexing and search | Supported | `crates/indexer/` | Included |
 | Backlinks/knowledge/graph | Supported, bounded | `crates/indexer/src/knowledge.rs`, `graph.rs` | Included |
 | Desktop workspace | Supported | `src/`, `apps/desktop/` | Included |
+| Vault PDF/EPUB reader with annotations | Experimental | `src/components/reader/`, `apps/desktop/src-tauri/src/commands/reader.rs`, `.scriptor/reader/annotations.json` | Local desktop only; requires full browser/accessibility and release-gate proof before support claim |
+| Markdown-backed task editing | Experimental | `crates/indexer/src/tasks.rs`, `src/components/TaskPanel.tsx` | Updates source Markdown through the vault write path; requires clean-environment end-to-end proof before support claim |
+| Obsidian-style Markdown Kanban | Experimental | `crates/indexer/src/kanban.rs`, `src/components/KanbanPanel.tsx` | Card moves relocate source text under `##` headings; requires compatibility and browser-flow proof before support claim |
 | CodeMirror Markdown editor | Default supported editor | `packages/editor/src/codemirror.tsx` | Included |
 | Monaco editor | Advanced/lazy compatibility editor | `src/components/shell/EditorWorkspace.tsx` | Included, non-default |
 | Git operations/conflict UI | Supported | `crates/native-git/`, `src/components/GitPanel.tsx` | Included |
