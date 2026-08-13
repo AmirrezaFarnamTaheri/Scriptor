@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Edgeless visual workspace and spatial note canvas",
   "publisher": "Scriptor",
-  "capabilityId": "canvas",
+  "capabilityId": "scriptor.canvas",
   "rustFeatureGate": "scriptor-canvas-engine",
   "activation": [
     "on-startup"

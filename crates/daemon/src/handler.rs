@@ -11,7 +11,7 @@ use scriptor_ipc::{
 };
 use scriptor_native_git::git_status;
 use scriptor_vault::{
-    RelativeVaultPath, SaveNoteOptions, VaultSession, VaultWatcher, load_vault_config, open_vault,
+    PluginState, RelativeVaultPath, SaveNoteOptions, VaultSession, VaultWatcher, load_plugin_state, load_vault_config, open_vault,
     read_note, rename_apply_staged, rollback_save_note, save_note_with_options,
 };
 
@@ -29,6 +29,7 @@ pub struct DaemonState {
     pub(crate) vault_watcher: Option<VaultWatcher>,
     pub(crate) watcher_generation: u64,
     pub(crate) endpoint_nonce: Option<String>,
+    pub(crate) plugin_state: PluginState,
 }
 
 impl DaemonState {
@@ -70,6 +71,9 @@ impl DaemonState {
 
     pub fn handle(&mut self, request: RpcRequest) -> RpcResponse {
         let id = request.id;
+        if let Err(error) = crate::capabilities::enforce(&self.plugin_state, &request.method) {
+            return RpcResponse { id, result: RpcResult::Error(error) };
+        }
         let result = match request.method {
             RpcMethod::Ping => Ok(RpcPayload::Pong {
                 version: env!("CARGO_PKG_VERSION").to_string(),
@@ -203,6 +207,7 @@ impl DaemonState {
         self.index_cache = None;
         self.session = None;
         let mut session = open_vault(PathBuf::from(path)).map_err(|error| error.to_string())?;
+        self.plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
         let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
         if !session.pending_reindex_paths.is_empty() {
             let paths = session.pending_reindex_paths.clone();
@@ -527,6 +532,7 @@ impl DaemonState {
             job_id,
             preserve_temp_on_failure: false,
             trusted_pandoc_hash: None,
+            redact_secrets: false,
         })
     }
 
@@ -568,6 +574,7 @@ impl DaemonState {
             job_id,
             preserve_temp_on_failure: false,
             trusted_pandoc_hash: None,
+            redact_secrets: false,
         })
     }
 }

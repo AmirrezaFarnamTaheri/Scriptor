@@ -3,6 +3,7 @@ import { MoonStar, Power, X } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { usePluginState } from '../context/PluginStateContext.tsx'
 import { loadVaultPresetJson, saveVaultPresetJson, VAULT_GRAPH_PRESETS_PATH } from '../lib/vaultPresets'
 import type { GraphQueryOutput } from '../types/vault'
 import { GraphCanvas, type CanvasNode } from './GraphCanvas'
@@ -75,10 +76,6 @@ interface GraphPanelProps {
   fullVault: boolean
   hibernated?: boolean
   onToggleHibernate?: () => void
-  enabled?: boolean
-  pluginEnabled?: boolean
-  isPluginEnabled?: (capabilityId: string) => boolean
-  enabledPlugins?: string[]
 }
 
 const VIEW_WIDTH = 720
@@ -98,12 +95,9 @@ export function GraphPanel({
   fullVault,
   hibernated = false,
   onToggleHibernate,
-  enabled,
-  pluginEnabled,
-  isPluginEnabled,
-  enabledPlugins,
 }: GraphPanelProps) {
   const { t } = useI18n()
+  const { isPluginEnabled } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
@@ -116,12 +110,7 @@ export function GraphPanel({
   } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
 
-  const isGraphEnabled =
-    enabled ??
-    pluginEnabled ??
-    (isPluginEnabled ? (isPluginEnabled('graph') || isPluginEnabled('scriptor.graph')) : undefined) ??
-    (enabledPlugins ? (enabledPlugins.includes('graph') || enabledPlugins.includes('scriptor.graph')) : undefined) ??
-    true
+  const isGraphEnabled = isPluginEnabled('scriptor.graph')
 
   useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true })
@@ -154,8 +143,6 @@ export function GraphPanel({
       edges: graph.edges,
       width: VIEW_WIDTH,
       height: VIEW_HEIGHT,
-      capabilityId: 'graph',
-      enabled: isGraphEnabled,
     })
     return () => worker.terminate()
   }, [graph, hibernated, isGraphEnabled])
@@ -251,6 +238,20 @@ export function GraphPanel({
     },
     [focusedNodeId, layout, adjacency, nodeById, announce, onSelectNode, onClose],
   )
+
+  if (!isGraphEnabled) {
+    return (
+      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+        <header className="graph-header">
+          <h2>{t('graph.title')}</h2>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        <p className="empty-state" role="alert">Graph is disabled for this vault.</p>
+      </div>
+    )
+  }
 
   if (hibernated) {
     return (

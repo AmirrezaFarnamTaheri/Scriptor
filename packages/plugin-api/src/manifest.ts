@@ -119,6 +119,8 @@ export function validatePluginManifest(manifest: PluginManifest): ManifestValida
   }
   if (manifest.capabilityId !== undefined && typeof manifest.capabilityId !== 'string') {
     errors.push('capabilityId must be a string')
+  } else if (manifest.capabilityId !== undefined && !/^scriptor\.[a-z0-9-]+$/.test(manifest.capabilityId)) {
+    errors.push('capabilityId must be a canonical scriptor.* identifier')
   }
 
   return { ok: errors.length === 0, errors }

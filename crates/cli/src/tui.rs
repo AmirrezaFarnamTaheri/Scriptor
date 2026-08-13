@@ -146,6 +146,7 @@ impl TuiApp {
                 Ok(())
             }
             RpcResult::Ok(_) => Err("daemon returned unexpected payload for OpenVault".into()),
+            RpcResult::Error(error) => Err(error.to_string().into()),
             RpcResult::Err(message) => Err(message.into()),
         }
     }

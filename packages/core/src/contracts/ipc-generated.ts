@@ -16,7 +16,7 @@ export type RpcRequest = { id: bigint, method: RpcMethod, endpoint_nonce?: strin
 
 export type RpcResponse = { id: bigint, result: RpcResult, };
 
-export type RpcResult = { "Ok": RpcPayload } | { "Err": string };
+export type RpcResult = { "Ok": RpcPayload } | { "Error": RpcError } | { "Err": string };
 
 export type SearchHit = { path: string, title: string, snippet: string, };
 

@@ -564,6 +564,11 @@ fn dispatch_request(
     event_hub: &Arc<EventHub>,
 ) -> RpcResponse {
     let id = request.id;
+    // Outside-lock work (notably synchronous export) must pass the same vault
+    // authority check before it prepares a job or releases the daemon lock.
+    if let Err(error) = crate::capabilities::enforce(&lock_recover(state).plugin_state, &request.method) {
+        return RpcResponse { id, result: RpcResult::Error(error) };
+    }
     let response = match request.method {
         RpcMethod::Invoke {
             command,

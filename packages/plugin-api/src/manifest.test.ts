@@ -10,8 +10,8 @@ test('validateManifest accepts rustFeatureGate and capabilityId attributes', () 
     description: 'Edgeless visual canvas',
     author: 'Scriptor Team',
     rustFeatureGate: 'scriptor-canvas-engine',
-    capabilityId: 'canvas',
+    capabilityId: 'scriptor.canvas',
   })
   assert.equal(manifest.rustFeatureGate, 'scriptor-canvas-engine')
-  assert.equal(manifest.capabilityId, 'canvas')
+  assert.equal(manifest.capabilityId, 'scriptor.canvas')
 })

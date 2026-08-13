@@ -1,7 +1,7 @@
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 
 export const MCP_PLUGIN_ID = 'scriptor.mcp'
-export const MCP_PLUGIN_CAPABILITY_ID = 'mcp-tool'
+export const MCP_PLUGIN_CAPABILITY_ID = 'scriptor.mcp'
 
 export const mcpPluginManifest: PluginManifest = {
   id: MCP_PLUGIN_ID,

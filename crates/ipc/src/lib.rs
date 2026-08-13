@@ -155,6 +155,9 @@ pub struct RpcResponse {
 )]
 pub enum RpcResult {
     Ok(RpcPayload),
+    /// Structured errors added without changing the legacy string error wire
+    /// variant. New callers must prefer this variant for actionable failures.
+    Error(RpcError),
     Err(String),
 }
 
@@ -270,7 +273,7 @@ pub enum RpcEventPayload {
     /// The event stream was interrupted or overflowed. Consumers must reload
     /// authoritative state instead of assuming they observed every transition.
     ResyncRequired {
-        reason: String
+        reason: String,
     },
 }
 

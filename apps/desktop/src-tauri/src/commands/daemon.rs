@@ -28,6 +28,7 @@ pub(crate) fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
         rpc_call(RpcRequest::new(next_rpc_id(), method)).map_err(|error| error.to_string())?;
     match response.result {
         RpcResult::Ok(payload) => Ok(payload),
+        RpcResult::Error(error) => Err(error.to_string()),
         RpcResult::Err(message) => Err(message),
     }
 }

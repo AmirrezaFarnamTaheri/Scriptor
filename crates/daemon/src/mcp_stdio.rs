@@ -10,7 +10,7 @@ use scriptor_indexer::{
 use scriptor_vault::{
     McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions, VaultSession, append_mcp_mutation,
     build_note_markdown, load_vault_config, open_vault, read_note, reconcile_pending_mcp_mutations,
-    save_note_with_options, set_frontmatter_field,
+    save_note_with_options, set_frontmatter_field, load_plugin_state,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -156,6 +156,10 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
 
 pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
     let session = open_vault(&options.vault_path).map_err(|error| error.to_string())?;
+    let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
+    if !plugin_state.is_enabled("scriptor.mcp") {
+        return Err("Plugin capability 'scriptor.mcp' is disabled in active vault".into());
+    }
     reconcile_pending_mcp_mutations(&session.root).map_err(|error| error.to_string())?;
     let index_cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let mut state = McpStdioState {

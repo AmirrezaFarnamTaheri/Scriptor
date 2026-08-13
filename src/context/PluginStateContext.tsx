@@ -38,7 +38,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
       if (prev.has(id)) return prev
       const next = new Set(prev)
       next.add(id)
-      savePluginState(next).catch(() => {})
+      savePluginState(next, id).catch(() => {})
       return next
     })
   }, [])
@@ -48,7 +48,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
       if (!prev.has(id)) return prev
       const next = new Set(prev)
       next.delete(id)
-      savePluginState(next).catch(() => {})
+      savePluginState(next, id).catch(() => {})
       return next
     })
   }, [])

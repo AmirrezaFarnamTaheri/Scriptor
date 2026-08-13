@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "Multi-format publishing and document export engine for Pandoc, Typst, PDF, and HTML",
   "publisher": "Scriptor",
-  "capabilityId": "export",
+  "capabilityId": "scriptor.export",
   "rustFeatureGate": "scriptor-export-runner",
   "activation": [
     "on-startup"

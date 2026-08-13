@@ -4,7 +4,7 @@ use scriptor_export_runner::{
     ExportJobInput, ExportJobOutput, ExportProgressCallback, PandocDiscovery, cancel_active_export,
     default_export_directory, discover_pandoc, run_export_job_with_cancel,
 };
-use scriptor_vault::{RelativeVaultPath, VaultSession, read_note};
+use scriptor_vault::{RelativeVaultPath, VaultSession, load_plugin_state, read_note};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 use uuid::Uuid;
@@ -18,6 +18,13 @@ use super::daemon::{
     bridge_export_run_note, bridge_export_start_note,
 };
 use super::shared::parse_daemon_json;
+
+fn require_export_capability(state: &tauri::State<AppState>) -> Result<(), String> {
+    let session = active_session(state)?;
+    let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
+    if plugin_state.is_enabled("scriptor.export") { Ok(()) }
+    else { Err("Plugin capability 'scriptor.export' is disabled in active vault".into()) }
+}
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ExportJobStarted {
@@ -177,6 +184,7 @@ fn build_export_job_input(
         job_id,
         preserve_temp_on_failure: false,
         trusted_pandoc_hash,
+        redact_secrets: false,
     })
 }
 
@@ -218,6 +226,7 @@ fn build_export_job_from_markdown(
         job_id,
         preserve_temp_on_failure: false,
         trusted_pandoc_hash,
+        redact_secrets: false,
     })
 }
 
@@ -235,6 +244,7 @@ pub fn export_run_note(
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
 ) -> Result<ExportJobOutput, String> {
+    require_export_capability(&state)?;
     if use_headless_engine(&state) {
         let json = bridge_export_run_note(
             note_path,
@@ -270,6 +280,7 @@ pub fn export_run_markdown(
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
 ) -> Result<ExportJobOutput, String> {
+    require_export_capability(&state)?;
     if use_headless_engine(&state) {
         let json = bridge_export_run_markdown(
             note_path,
@@ -306,6 +317,7 @@ pub async fn export_start_note(
     extra_pandoc_args: Option<Vec<String>>,
     output_subdirectory: Option<String>,
 ) -> Result<ExportJobStarted, String> {
+    require_export_capability(&state)?;
     let job_id = Uuid::new_v4().to_string();
     let started = ExportJobStarted {
         job_id: job_id.clone(),
@@ -418,6 +430,7 @@ pub async fn export_start_note(
 
 #[tauri::command]
 pub fn export_cancel(state: tauri::State<AppState>) -> Result<bool, String> {
+    require_export_capability(&state)?;
     if use_headless_engine(&state) {
         bridge_export_cancel(None)?;
         return Ok(true);

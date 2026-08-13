@@ -21,18 +21,11 @@ interface LayoutRequest {
   width: number
   height: number
   iterations?: number
-  capabilityId?: string
-  enabled?: boolean
 }
 
 self.onmessage = (event: MessageEvent<LayoutRequest>) => {
   try {
-    const { nodes, edges, width, height, iterations = 120, capabilityId = 'graph', enabled = true } = event.data
-
-    if (!enabled || (capabilityId !== 'graph' && capabilityId !== 'scriptor.graph')) {
-      self.postMessage({ type: 'error', message: 'Graph plugin capability (scriptor.graph) is disabled.' })
-      return
-    }
+    const { nodes, edges, width, height, iterations = 120 } = event.data
 
     if (nodes.length === 0) {
       self.postMessage({ type: 'done', nodes: [] })
