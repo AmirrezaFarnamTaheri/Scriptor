@@ -904,3 +904,18 @@ deletion/reachability review, documentation and screenshot review, full clean-cl
 execution, cross-platform visual baseline approval, native capability migration/restart checks,
 and remote CI/release-artifact verification. Until those are evidenced, this branch remains a
 recovery candidate and must not be merged or released solely because focused packets are green.
+
+### Verification update — 2026-08-13
+
+- `pnpm test:e2e -- --workers=1`: **71 passed**.
+- `pnpm test:visual -- --workers=1`: **27 passed, 1 initially failed**; the plugin-marketplace
+  heading failure was corrected in `dfc791d`, and the focused plugin visual test passes.
+- `pnpm check:a11y`: **passed** after `0980de2` added the workspace live status region.
+- `pnpm check:a11y-axe`: local execution remains blocked by the missing lockfile chromedriver
+  executable/postinstall artifact; this is recorded as environment evidence, not a passing gate.
+- Governance, source, contracts, TypeScript build, Rust formatting, and locked workspace check all
+  pass locally after `fe21160`.
+
+The 155 remaining worktree paths are still mixed across documentation screenshots, fixture databases,
+historical deletions, editor/CLI refactors, and release evidence. They are not treated as finalized
+until each is assigned to a packet and its generated/binary provenance is reviewed.
