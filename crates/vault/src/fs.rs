@@ -81,6 +81,56 @@ fn sync_parent_directory(_parent: &Path) -> Result<(), VaultError> {
     Ok(())
 }
 
+// ── Conflict sidecar (W1-3) ───────────────────────────────────────────────────
+
+/// Write `conflict_content` (text containing `<<<<<<<` markers) as a
+/// **sidecar file** named `<stem>.conflicted.md` alongside `original_path`.
+///
+/// # Derivation rules
+/// | original | sidecar |
+/// |---|---|
+/// | `notes/foo.md` | `notes/foo.conflicted.md` |
+/// | `archive/index.md` | `archive/index.conflicted.md` |
+/// | `bare` (no extension) | `bare.conflicted.md` |
+///
+/// The sidecar is written atomically (temp-file + rename) via
+/// [`atomic_write`]. If the sidecar already exists it is **overwritten**
+/// (the user resolved and deleted it, then a new conflict was introduced).
+///
+/// # Errors
+/// Returns [`VaultError`] when:
+/// - `original_path` has no parent directory.
+/// - `original_path` contains a `..` component.
+/// - The underlying `atomic_write` fails.
+pub fn write_conflicted_sidecar(
+    original_path: &Path,
+    conflict_content: &str,
+) -> Result<std::path::PathBuf, VaultError> {
+    // Safety: reject path traversal.
+    if original_path
+        .components()
+        .any(|c| matches!(c, std::path::Component::ParentDir))
+    {
+        return Err(VaultError::InvalidRelativePath(
+            original_path.display().to_string(),
+        ));
+    }
+
+    let parent = original_path
+        .parent()
+        .ok_or_else(|| VaultError::InvalidRelativePath(original_path.display().to_string()))?;
+
+    // Build sidecar name: strip last extension, append ".conflicted.md".
+    let stem = original_path
+        .file_stem()
+        .unwrap_or(original_path.as_os_str());
+    let sidecar_name = format!("{}.conflicted.md", stem.to_string_lossy());
+    let sidecar_path = parent.join(&sidecar_name);
+
+    atomic_write(&sidecar_path, conflict_content.as_bytes())?;
+    Ok(sidecar_path)
+}
+
 /// Suffix used for transient in-progress temp files created during atomic writes.
 pub const ATOMIC_TEMP_SUFFIX: &str = ".tmp";
 /// Prefix shared by both in-progress and failed-write temp files.
@@ -302,5 +352,32 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let removed = cleanup_stale_temp_files(dir.path(), Duration::from_secs(0)).unwrap();
         assert_eq!(removed, 0);
+    }
+
+    // ── write_conflicted_sidecar (W1-3) ──────────────────────────────────────
+
+    #[test]
+    fn conflicted_sidecar_written_alongside_original() {
+        let dir = tempfile::tempdir().unwrap();
+        let original = dir.path().join("notes").join("foo.md");
+        std::fs::create_dir_all(original.parent().unwrap()).unwrap();
+        std::fs::write(&original, "clean content").unwrap();
+
+        let markers =
+            "<<<<<<< ours\nour line\n||||||| base\nbase\n=======\ntheir line\n>>>>>>> theirs\n";
+        let sidecar = write_conflicted_sidecar(&original, markers).unwrap();
+
+        assert_eq!(sidecar, dir.path().join("notes").join("foo.conflicted.md"));
+        assert_eq!(std::fs::read_to_string(&sidecar).unwrap(), markers);
+        // Original must be untouched.
+        assert_eq!(std::fs::read_to_string(&original).unwrap(), "clean content");
+    }
+
+    #[test]
+    fn conflicted_sidecar_rejects_path_traversal() {
+        let dir = tempfile::tempdir().unwrap();
+        let evil = dir.path().join("..").join("escape.md");
+        let result = write_conflicted_sidecar(&evil, "content");
+        assert!(result.is_err(), "expected Err for path containing ..");
     }
 }

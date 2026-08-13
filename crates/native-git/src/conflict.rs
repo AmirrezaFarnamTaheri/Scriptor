@@ -4,12 +4,128 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::error::GitError;
-use crate::status::git_status;
+use crate::merge3::{ConflictPolicy, merge3};
+use crate::status::{git_show_merge_base_file, git_status};
+// W2-9 (W1-3 hookup): write conflicted sidecar alongside the conflicted file.
+use vault::write_conflicted_sidecar;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GitConflictResolveOutput {
     pub path: String,
     pub strategy: String,
+}
+
+// ── W1-2: Auto-merge command ─────────────────────────────────────────────────
+
+/// Input for `git_automerge_conflict_cmd`.
+///
+/// The three-way merge is performed purely in Rust (no external merge tool).
+/// `policy` is the tiebreaker when the algorithm cannot cleanly merge a hunk:
+/// - `"ours"` / `"theirs"` → accept the chosen side automatically.
+/// - `"diff3"` (default) → emit conflict markers for the user to review.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AutoMergeInput {
+    pub repo_root: String,
+    pub path: String,
+    /// Tiebreaker policy: `"ours"`, `"theirs"`, or `"diff3"` (default).
+    #[serde(default = "default_policy")]
+    pub policy: String,
+}
+
+fn default_policy() -> String {
+    "diff3".into()
+}
+
+/// Outcome of `git_automerge_conflict_cmd`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "outcome", rename_all = "snake_case")]
+pub enum AutoMergeOutcome {
+    /// No conflict markers remain; `merged` is the final file content.
+    Clean { merged: String },
+    /// One or more hunks could not be resolved; `merged` contains the diff3
+    /// conflict markers for the `ConflictResolverModal` to render.
+    Conflicted {
+        merged: String,
+        conflict_count: usize,
+    },
+}
+
+/// Attempt a three-way merge of a conflicted file using the repo's three stages.
+///
+/// Reads `base` from the merge-base, `ours` and `theirs` from the respective
+/// git object stores using `git show`, then applies `merge3` with the chosen
+/// policy. Writes the result back to disk and stages it (via `git add`) only
+/// when the merge is clean. If conflicts remain, the file is left unchanged
+/// and the caller is expected to show the `ConflictResolverModal`.
+pub fn git_automerge_conflict_cmd(
+    repo_root: &Path,
+    input: &AutoMergeInput,
+) -> Result<AutoMergeOutcome, GitError> {
+    let status = git_status(repo_root)?;
+    if !status.is_repo {
+        return Err(GitError::NotARepository(repo_root.display().to_string()));
+    }
+
+    let file_path = validate_conflict_path(repo_root, &input.path)?;
+    if !file_path.exists() {
+        return Err(GitError::Command(format!(
+            "conflicted file not found: {}",
+            input.path
+        )));
+    }
+
+    let base = git_show_merge_base_file(repo_root, &input.path)
+        .ok()
+        .flatten()
+        .unwrap_or_default();
+    // Stage :2 = ours (HEAD side), :3 = theirs (MERGE_HEAD side).
+    // git_show_stage returns a plain String (empty on missing stage).
+    let ours = git_show_stage(repo_root, &input.path, 2);
+    let theirs = git_show_stage(repo_root, &input.path, 3);
+
+    // For auto-merge we use ConflictPolicy::Error so merge3 returns Err when
+    // conflicts exist, giving us the conflict-marker text in GitError::MergeConflict.
+    // Ours/Theirs policies resolve all hunks eagerly (no markers in output).
+    let policy = match input.policy.as_str() {
+        "ours" => ConflictPolicy::Ours,
+        "theirs" => ConflictPolicy::Theirs,
+        _ => ConflictPolicy::Error, // diff3: preserve markers for UI
+    };
+
+    match merge3(&base, &ours, &theirs, policy, None) {
+        Ok(merge_output) => {
+            // Clean merge — write and stage.
+            fs::write(&file_path, &merge_output.merged).map_err(GitError::Io)?;
+            run_git(repo_root, &["add", "--", &input.path])?;
+            Ok(AutoMergeOutcome::Clean {
+                merged: merge_output.merged,
+            })
+        }
+        Err(GitError::MergeConflict { conflict_text }) => {
+            // Conflicts remain; count the markers so the UI knows how many.
+            let conflict_count = conflict_text
+                .lines()
+                .filter(|l| l.starts_with("<<<<<<<"))
+                .count();
+
+            // W2-9 (W1-3 hookup): write a .conflicted.md sidecar atomically so
+            // the conflict-marker text is never silently lost. A failure here is
+            // non-fatal — we log a warning and continue so the UI still gets the
+            // conflict information.
+            if let Err(sidecar_err) = write_conflicted_sidecar(&file_path, &conflict_text) {
+                eprintln!(
+                    "[native-git] warning: could not write .conflicted.md sidecar for {:?}: {sidecar_err}",
+                    input.path
+                );
+            }
+
+            Ok(AutoMergeOutcome::Conflicted {
+                merged: conflict_text,
+                conflict_count,
+            })
+        }
+        Err(other) => Err(other),
+    }
 }
 
 fn validate_conflict_path(repo_root: &Path, path: &str) -> Result<std::path::PathBuf, GitError> {
@@ -173,6 +289,16 @@ fn run_git(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
         ));
     }
     Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+}
+
+/// Read a file from the git index at the given stage (1=base, 2=ours, 3=theirs).
+///
+/// Returns `Ok("")` when the stage does not exist (e.g. the file was added on
+/// one side only), so callers can treat an absent ancestor as an empty string.
+fn git_show_stage(repo_root: &Path, path: &str, stage: u8) -> String {
+    let normalized = path.replace('\\', "/");
+    let spec = format!(":{stage}:{normalized}");
+    run_git(repo_root, &["show", &spec]).unwrap_or_default()
 }
 
 #[cfg(test)]
