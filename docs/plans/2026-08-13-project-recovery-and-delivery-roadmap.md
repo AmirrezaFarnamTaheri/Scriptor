@@ -916,6 +916,8 @@ recovery candidate and must not be merged or released solely because focused pac
 - Governance, source, contracts, TypeScript build, Rust formatting, and locked workspace check all
   pass locally after `fe21160`.
 
-The 155 remaining worktree paths are still mixed across documentation screenshots, fixture databases,
-historical deletions, editor/CLI refactors, and release evidence. They are not treated as finalized
-until each is assigned to a packet and its generated/binary provenance is reviewed.
+The remaining worktree paths are now limited to 19 deferred deletions without sufficient reachability
+evidence plus inventory/freeze reports and research artifacts. Proven supersessions and the design-only
+mobile retirement were committed in `6ccc6bf`; generated screenshots and fixture databases were restored
+to their tracked baselines. Deferred deletions remain uncommitted until import/reachability evidence is
+available.
