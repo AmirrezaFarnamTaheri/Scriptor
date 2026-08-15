@@ -80,20 +80,17 @@ test('editor engines are loaded only when their editor mode is rendered', () => 
   assert.doesNotMatch(editorIndex, /export\s*\{\s*MarkdownEditor\s*\}\s*from\s*['"]\.\/codemirror['"]/)
 })
 
-test('channel-aware updater is wired consistently across manifests and command surface', () => {
+test('built-in self updater stays disabled until signed updates are supported', () => {
   const desktopCargo = fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8')
-  const cargoLock = fs.readFileSync(path.join(root, 'Cargo.lock'), 'utf8')
   const libRs = read('apps/desktop/src-tauri/src/lib.rs')
-  const updaterRs = read('apps/desktop/src-tauri/src/commands/updater.rs')
-  // Manifest + lockfile carry the plugin.
-  assert.equal(desktopCargo.includes('tauri-plugin-updater'), true)
-  assert.equal(cargoLock.includes('name = "tauri-plugin-updater"'), true)
-  // Plugin is registered and both commands are exported and handled.
-  assert.match(libRs, /tauri_plugin_updater::Builder::new\(\)\.build\(\)/)
-  assert.match(libRs, /updater_check/)
-  assert.match(libRs, /updater_install/)
-  assert.match(updaterRs, /pub async fn updater_check/)
-  assert.match(updaterRs, /pub async fn updater_install/)
+  const tauriConfig = read('apps/desktop/src-tauri/tauri.conf.json')
+  const capability = read('apps/desktop/src-tauri/capabilities/default.json')
+  assert.equal(desktopCargo.includes('tauri-plugin-updater'), false)
+  assert.equal(libRs.includes('tauri_plugin_updater'), false)
+  assert.equal(libRs.includes('updater_check'), false)
+  assert.equal(libRs.includes('updater_install'), false)
+  assert.equal(tauriConfig.includes('"updater"'), false)
+  assert.equal(capability.includes('updater:'), false)
 })
 
 test('daemon IPC requires the authenticated endpoint nonce on every production connection', () => {

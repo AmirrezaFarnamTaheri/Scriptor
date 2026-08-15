@@ -63,7 +63,6 @@ use commands::system::{
     ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event, health_check,
     plantuml_render, set_headless_engine, system_info,
 };
-use commands::updater::{updater_check, updater_install};
 use commands::vault::{
     vault_append_activity_log, vault_append_stats_history, vault_build_note_markdown,
     vault_delete_note, vault_detect_obsidian, vault_export_audit_log, vault_frontmatter_set,
@@ -98,7 +97,6 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             platform::setup(app)?;
             let handle = app.handle().clone();
@@ -252,8 +250,6 @@ pub fn run() {
             resource_create_dedup_plan,
             resource_apply_plan,
             system_info,
-            updater_check,
-            updater_install,
             vault_export_audit_log,
             google_calendar_start_auth,
             google_calendar_disconnect,

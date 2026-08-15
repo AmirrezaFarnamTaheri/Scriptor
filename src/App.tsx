@@ -79,8 +79,6 @@ import { useHeadlessEngine } from './hooks/useHeadlessEngine'
 import { usePreviewBridge } from './hooks/usePreviewBridge'
 import { useScreenshotAutoOpen } from './screenshot/useScreenshotAutoOpen'
 import { useResizablePanel } from './hooks/useResizablePanel'
-import { useUpdater } from './hooks/useUpdater'
-import { UpdateBanner } from './components/UpdateBanner'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
 import { useWorkspaceMode, usePersistedMobilePane, type WorkspaceMode } from './hooks/useWorkspaceMode'
@@ -307,7 +305,6 @@ function App() {
   const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const commandPalette = useCommandPalette()
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
-  const updater = useUpdater()
   const [pluginManagerOpen, setPluginManagerOpen] = useState(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId)
@@ -1939,7 +1936,6 @@ function App() {
           <AppToast message={toastMessage} onDismiss={dismissToast} />
         </AppToastRegion>
       ) : null}
-      {nativeReady ? <UpdateBanner updater={updater} /> : null}
     </main>
   )
 }

@@ -15,5 +15,4 @@ pub mod reader;
 pub mod resources;
 pub mod shared;
 pub mod system;
-pub mod updater;
 pub mod vault;
