@@ -1,7 +1,18 @@
-use super::*;
+//! Benchmark and fixture-generation helpers for the CLI bench-* commands.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::time::Instant;
+
+use scriptor_indexer::{open_cache_for_session, rebuild_index, search_notes};
+use scriptor_vault::{ScannedEntryKind, open_vault, scan_vault};
+use serde::Serialize;
+
+const VAULT_SCAN_BUDGET_MS: u128 = 1500;
+const SEARCH_BUDGET_MS: u128 = 100;
 
 #[derive(Debug, Serialize)]
-pub(super) struct BenchScanReport {
+pub(crate) struct BenchScanReport {
     scenario: &'static str,
     vault_path: String,
     iterations: u32,
@@ -12,11 +23,11 @@ pub(super) struct BenchScanReport {
     p95_ms: u64,
     max_ms: u64,
     budget_ms: u128,
-    pub(super) within_budget: bool,
+    pub(crate) within_budget: bool,
 }
 
 #[derive(Debug, Serialize)]
-pub(super) struct BenchSearchReport {
+pub(crate) struct BenchSearchReport {
     scenario: &'static str,
     vault_path: String,
     query: String,
@@ -29,10 +40,13 @@ pub(super) struct BenchSearchReport {
     p95_ms: u64,
     max_ms: u64,
     budget_ms: u128,
-    pub(super) within_budget: bool,
+    pub(crate) within_budget: bool,
 }
 
-pub(super) fn bench_scan(path: &PathBuf, iterations: u32) -> Result<BenchScanReport, Box<dyn std::error::Error>> {
+pub(crate) fn bench_scan(
+    path: &PathBuf,
+    iterations: u32,
+) -> Result<BenchScanReport, Box<dyn std::error::Error>> {
     if iterations == 0 {
         return Err("benchmark iterations must be greater than zero".into());
     }
@@ -67,7 +81,7 @@ pub(super) fn bench_scan(path: &PathBuf, iterations: u32) -> Result<BenchScanRep
     })
 }
 
-pub(super) fn bench_search(
+pub(crate) fn bench_search(
     path: &PathBuf,
     query: &str,
     iterations: u32,
@@ -139,13 +153,13 @@ fn percentile(sorted: &[u64], percentile: f64) -> u64 {
 }
 
 #[derive(Debug, Serialize)]
-pub(super) struct GenerateVaultSummary {
+pub(crate) struct GenerateVaultSummary {
     output: String,
     note_count: u32,
     prefix: String,
 }
 
-pub(super) fn generate_vault(
+pub(crate) fn generate_vault(
     output: &Path,
     count: u32,
     prefix: &str,

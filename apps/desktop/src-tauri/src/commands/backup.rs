@@ -57,10 +57,10 @@ fn backup_root(
     }
     fs::create_dir_all(&configured)
         .map_err(|error| format!("Cannot create backup root: {error}"))?;
-    let canonical = fs::canonicalize(&configured)
-        .map_err(|error| format!("Invalid backup root: {error}"))?;
-    let canonical_vault = fs::canonicalize(vault_root)
-        .map_err(|error| format!("Invalid vault root: {error}"))?;
+    let canonical =
+        fs::canonicalize(&configured).map_err(|error| format!("Invalid backup root: {error}"))?;
+    let canonical_vault =
+        fs::canonicalize(vault_root).map_err(|error| format!("Invalid vault root: {error}"))?;
     if canonical.starts_with(&canonical_vault) || canonical_vault.starts_with(&canonical) {
         return Err(
             "Disaster-recovery backups must not be stored inside or above the active vault".into(),
@@ -90,8 +90,8 @@ fn confined_backup_dir(root: &Path, name: &str) -> Result<PathBuf, String> {
     let canonical_root =
         fs::canonicalize(root).map_err(|error| format!("Invalid backup root: {error}"))?;
     let candidate = canonical_root.join(name);
-    let metadata = fs::symlink_metadata(&candidate)
-        .map_err(|_| format!("Backup not found: {name}"))?;
+    let metadata =
+        fs::symlink_metadata(&candidate).map_err(|_| format!("Backup not found: {name}"))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err("Backup identifier does not reference a regular directory".into());
     }
@@ -290,9 +290,7 @@ fn clear_persistent_vault_content(root: &Path) -> Result<(), String> {
             continue;
         }
         if name == ".scriptor" && file_type.is_dir() {
-            for metadata_entry in
-                fs::read_dir(entry.path()).map_err(|error| error.to_string())?
-            {
+            for metadata_entry in fs::read_dir(entry.path()).map_err(|error| error.to_string())? {
                 let metadata_entry = metadata_entry.map_err(|error| error.to_string())?;
                 let relative = Path::new(".scriptor").join(metadata_entry.file_name());
                 if should_skip_backup_path(&relative) {
@@ -337,10 +335,7 @@ fn dir_size(path: &Path) -> Result<u64, String> {
         if file_type.is_dir() {
             total += dir_size(&entry.path())?;
         } else if file_type.is_file() {
-            total += entry
-                .metadata()
-                .map_err(|error| error.to_string())?
-                .len();
+            total += entry.metadata().map_err(|error| error.to_string())?.len();
         }
     }
     Ok(total)
@@ -508,8 +503,7 @@ pub fn vault_restore_backup(
         let _ = fs::remove_file(staged.join(MANIFEST_FILE));
         ignored.clear();
         copy_tree(vault_root, &rollback, Path::new(""), &mut ignored)?;
-        fs::write(transaction.join("state"), "promoting")
-            .map_err(|error| error.to_string())?;
+        fs::write(transaction.join("state"), "promoting").map_err(|error| error.to_string())?;
         clear_persistent_vault_content(vault_root)?;
         ignored.clear();
         if let Err(promote_error) = copy_tree(&staged, vault_root, Path::new(""), &mut ignored) {
@@ -526,8 +520,7 @@ pub fn vault_restore_backup(
                 )),
             };
         }
-        fs::write(transaction.join("state"), "complete")
-            .map_err(|error| error.to_string())?;
+        fs::write(transaction.join("state"), "complete").map_err(|error| error.to_string())?;
         Ok(())
     })();
 
@@ -547,9 +540,7 @@ mod tests {
 
     #[test]
     fn backup_names_are_opaque() {
-        assert!(
-            validate_backup_name("vault-backup-a1b2c3d4e5f6-20260712-120000-42").is_ok()
-        );
+        assert!(validate_backup_name("vault-backup-a1b2c3d4e5f6-20260712-120000-42").is_ok());
         assert!(validate_backup_name("../outside").is_err());
         assert!(validate_backup_name("vault-backup-a/b").is_err());
         assert!(validate_backup_name("C:\\outside").is_err());
@@ -614,9 +605,6 @@ mod tests {
         };
         write_manifest(directory.path(), &manifest).expect("manifest");
         let verified = read_and_verify_manifest(directory.path()).expect("portable manifest");
-        assert_eq!(
-            verified.source_vault_root,
-            "/old-machine/original-vault"
-        );
+        assert_eq!(verified.source_vault_root, "/old-machine/original-vault");
     }
 }

@@ -7,6 +7,7 @@ const port = 4173
 const url = `http://${host}:${port}`
 const isWindows = process.platform === 'win32'
 const pnpm = isWindows ? 'pnpm.cmd' : 'pnpm'
+const vite = join(process.cwd(), 'node_modules', '.bin', isWindows ? 'vite.cmd' : 'vite')
 
 // The `chromedriver` npm package pins a driver version in the lockfile, but the
 // Chrome it has to drive comes from the machine — so any drift between the two
@@ -47,7 +48,11 @@ async function waitForReady() {
   throw new Error(`Vite preview did not become ready at ${url}`)
 }
 
-const preview = run(['exec', 'vite', 'preview', '--host', host, '--port', String(port), '--strictPort'])
+const preview = spawn(vite, ['preview', '--host', host, '--port', String(port), '--strictPort'], {
+  stdio: 'inherit',
+  windowsHide: true,
+  shell: isWindows,
+})
 let previewExited = false
 preview.once('exit', () => {
   previewExited = true

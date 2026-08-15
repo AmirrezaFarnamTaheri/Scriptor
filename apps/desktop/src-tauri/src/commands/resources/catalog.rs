@@ -19,12 +19,14 @@ pub enum SupportLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(dead_code)]
 pub enum ResourceRootRole {
     Primary,
     Compatibility,
 }
 
 impl ResourceRootRole {
+    #[allow(dead_code)]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Primary => "primary",
@@ -34,6 +36,7 @@ impl ResourceRootRole {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct ResourceRootDefinition {
     pub relative_path: &'static str,
     pub scope: &'static str,
@@ -41,6 +44,7 @@ pub struct ResourceRootDefinition {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct TargetDefinition {
     pub id: &'static str,
     pub label: &'static str,
@@ -192,7 +196,9 @@ pub fn target_catalog() -> Vec<TargetDefinition> {
             NO_EXTENSIONS,
             COPILOT_ROOTS,
             "Writes personal skills to ~/.copilot/skills and inventories the documented ~/.agents/skills compatibility root.",
-            Some("https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills"),
+            Some(
+                "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills",
+            ),
         ),
         target(
             "cursor",

@@ -15,9 +15,27 @@ on:
         required: false
         type: boolean
         default: false
+      installer_profile:
+        description: Bundled default installer profile preset (complete, developer, researcher, scientific, writer, minimal, focused)
+        required: false
+        type: choice
+        options:
+          - complete
+          - developer
+          - researcher
+          - scientific
+          - writer
+          - minimal
+          - focused
+        default: complete
   push:
     tags:
-      - 'v*'
+      # LTS releases: v1.2.3
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      # Beta pre-releases: v1.2.3-beta.*
+      - 'v*-beta.*'
+      # Alpha pre-releases: v1.2.3-alpha.*
+      - 'v*-alpha.*'
 
 concurrency:
   group: release-${{ github.ref }}
@@ -44,6 +62,16 @@ env:
       (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
       && 'production'
       || 'preview'
+    }}
+  # Build channel derived from the tag's pre-release segment.
+  # v1.2.3         → lts
+  # v1.2.3-beta.*  → beta
+  # v1.2.3-alpha.* → alpha
+  SCRIPTOR_BUILD_CHANNEL: >-
+    ${{
+      contains(github.ref_name, '-alpha.') && 'alpha'
+      || contains(github.ref_name, '-beta.') && 'beta'
+      || 'lts'
     }}
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: full
@@ -105,6 +133,12 @@ jobs:
           rustup default 1.96.0
           rustc --version
           cargo --version
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+          key: ${{ matrix.platform }}
 
       - name: Validate release version and unsigned publication policy
         shell: pwsh
@@ -199,7 +233,9 @@ jobs:
       - name: Finalize release packaging evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Release packaging (${{ matrix.platform }}/${{ matrix.architecture }})" -Status $env:JOB_STATUS
 
       - name: Upload release packaging evidence
         if: always()
@@ -348,13 +384,111 @@ jobs:
       - name: Finalize release publication evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Release publication" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Release publication" -Status $env:JOB_STATUS
 
       - name: Upload release publication evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ci-evidence-release-publish-${{ github.run_attempt }}
+          path: ${{ env.CI_LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
+
+  publish-update-manifests:
+    name: Publish LTS update manifests
+    needs: publish
+    # Only run for LTS tags — no pre-release segment in the version.
+    # Beta/alpha builds publish their GitHub Release but never update the
+    # rolling `latest-lts` endpoint that installed clients poll.
+    if: >-
+      ${{
+        (
+          (github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
+          (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v'))
+        ) &&
+        !contains(github.ref_name, '-beta.') &&
+        !contains(github.ref_name, '-alpha.')
+      }}
+    permissions:
+      contents: write
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/publish-update-manifests
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Download all staged release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: release-artifacts
+          pattern: scriptor-*-installers
+          merge-multiple: true
+
+      - name: Generate per-platform update manifests
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/release/generate-update-manifests.mjs \
+            --version "$GITHUB_REF_NAME" \
+            --assets-dir release-artifacts \
+            --out-dir update-manifests
+
+      - name: Configure git identity for tag push
+        shell: bash
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Publish manifests to rolling latest-lts release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Create or reset the rolling tag that client apps poll.
+          LATEST_TAG="latest-lts"
+          if gh release view "$LATEST_TAG" > /dev/null 2>&1; then
+            gh release edit "$LATEST_TAG" \
+              --title "LTS Update Endpoint (${GITHUB_REF_NAME})" \
+              --notes "Tauri updater endpoint for LTS builds. Points to ${GITHUB_REF_NAME}." \
+              --tag "$LATEST_TAG"
+          else
+            gh release create "$LATEST_TAG" \
+              --title "LTS Update Endpoint (${GITHUB_REF_NAME})" \
+              --notes "Tauri updater endpoint for LTS builds. Points to ${GITHUB_REF_NAME}." \
+              --prerelease
+          fi
+          # Force-push the rolling tag so the release endpoint always points to
+          # the most recent LTS commit. Identity configured in the preceding step.
+          git tag -f "$LATEST_TAG"
+          git push origin "$LATEST_TAG" --force
+          # Upload manifests; --clobber replaces the previous version's files.
+          gh release upload "$LATEST_TAG" update-manifests/*.json --clobber
+
+      - name: Finalize update-manifest evidence
+        if: always()
+        shell: pwsh
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "LTS update manifest publication" -Status $env:JOB_STATUS
+
+      - name: Upload update-manifest evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-evidence-update-manifests-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
           retention-days: 14

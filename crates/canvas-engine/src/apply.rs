@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::CanvasError;
-use crate::scene::{document_to_json, parse_document_json, CanvasDocument};
-use crate::templates::{apply_template_dry_run, TemplateApplyPreview};
+use crate::scene::{CanvasDocument, document_to_json, parse_document_json};
+use crate::templates::{TemplateApplyPreview, apply_template_dry_run};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -60,8 +60,8 @@ pub fn restore_template_checkpoint(
         path: file.clone(),
         source,
     })?;
-    let checkpoint: TemplateUndoCheckpoint =
-        serde_json::from_str(&raw).map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
+    let checkpoint: TemplateUndoCheckpoint = serde_json::from_str(&raw)
+        .map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
     parse_document_json(&checkpoint.previous_document_json)
         .map_err(|error| CanvasError::InvalidDocument(error.to_string()))
 }
@@ -186,7 +186,8 @@ mod tests {
 
     #[test]
     fn apply_then_restore_round_trips() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-apply-rt-{}", Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-apply-rt-{}", Uuid::new_v4()));
         fs::create_dir_all(&temp).expect("temp");
 
         let document = empty_document("vault-1", "Board");

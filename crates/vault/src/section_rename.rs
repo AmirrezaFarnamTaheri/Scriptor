@@ -4,7 +4,10 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::error::VaultError;
-use crate::link_rewrite::{join_frontmatter, note_target_matches, split_frontmatter, LinkRewriteApplyOutput, LinkRewritePreview};
+use crate::link_rewrite::{
+    LinkRewriteApplyOutput, LinkRewritePreview, join_frontmatter, note_target_matches,
+    split_frontmatter,
+};
 use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
@@ -15,10 +18,12 @@ static HEADING_RE: LazyLock<Regex> =
 static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex")
 });
-static SELF_WIKILINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]").expect("valid self wikilink regex"));
+static SELF_WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[\[#([^\]|]+)(?:\|([^\]]+))?\]\]").expect("valid self wikilink regex")
+});
 static MARKDOWN_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)").expect("valid md link regex")
+    Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)")
+        .expect("valid md link regex")
 });
 
 fn normalize_section_label(label: &str) -> Result<String, VaultError> {
@@ -79,7 +84,10 @@ fn rewrite_heading_lines(
                 return line.to_string();
             };
             let level = capture.get(1).map(|value| value.as_str()).unwrap_or("#");
-            let text = capture.get(2).map(|value| value.as_str().trim()).unwrap_or("");
+            let text = capture
+                .get(2)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             if text != old_heading {
                 return line.to_string();
             }
@@ -99,7 +107,10 @@ fn rewrite_block_anchor_lines(
     anchor
         .replace_all(markdown, |capture: &regex::Captures| {
             *edits += 1;
-            let tail = capture.name("tail").map(|value| value.as_str()).unwrap_or("");
+            let tail = capture
+                .name("tail")
+                .map(|value| value.as_str())
+                .unwrap_or("");
             format!("^{new_block}{tail}")
         })
         .into_owned()
@@ -117,8 +128,14 @@ pub fn rewrite_section_links_in_markdown(
 
     let step_one = WIKILINK_RE
         .replace_all(markdown, |capture: &regex::Captures| {
-            let target = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
-            let section = capture.get(2).map(|value| value.as_str().trim()).unwrap_or("");
+            let target = capture
+                .get(1)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
+            let section = capture
+                .get(2)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             let alias = capture.get(3).map(|value| value.as_str());
 
             if section.is_empty() || section != old_section {
@@ -138,7 +155,10 @@ pub fn rewrite_section_links_in_markdown(
 
     let step_two = SELF_WIKILINK_RE
         .replace_all(&step_one, |capture: &regex::Captures| {
-            let section = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
+            let section = capture
+                .get(1)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             let alias = capture.get(2).map(|value| value.as_str());
             if source_path.as_str() != target_path.as_str() || section != old_section {
                 return capture.get(0).unwrap().as_str().to_string();
@@ -153,8 +173,14 @@ pub fn rewrite_section_links_in_markdown(
 
     let updated = MARKDOWN_LINK_RE
         .replace_all(&step_two, |capture: &regex::Captures| {
-            let label = capture.name("label").map(|value| value.as_str()).unwrap_or("");
-            let url = capture.name("url").map(|value| value.as_str().trim()).unwrap_or("");
+            let label = capture
+                .name("label")
+                .map(|value| value.as_str())
+                .unwrap_or("");
+            let url = capture
+                .name("url")
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             let section = capture.name("section").map(|value| value.as_str().trim());
             let Some(section_value) = section else {
                 return capture.get(0).unwrap().as_str().to_string();
@@ -395,7 +421,14 @@ pub fn block_rename_apply(
     new_block: &str,
     update_anchor: bool,
 ) -> Result<LinkRewriteApplyOutput, VaultError> {
-    let preview = block_rename_dry_run(vault_id, root, note_path, old_block, new_block, update_anchor)?;
+    let preview = block_rename_dry_run(
+        vault_id,
+        root,
+        note_path,
+        old_block,
+        new_block,
+        update_anchor,
+    )?;
     let old_id = normalize_block_id(old_block)?;
     let new_id = normalize_block_id(new_block)?;
     let target_title = read_note(vault_id, root, note_path)?.metadata.title;
@@ -482,13 +515,23 @@ mod tests {
 
         let session = open_vault(dir.path()).expect("open vault");
         let target = RelativeVaultPath::parse("Target.md").expect("path");
-        block_rename_apply(&session.descriptor.id, &session.root, &target, "a", "x", true)
-            .expect("rename block");
+        block_rename_apply(
+            &session.descriptor.id,
+            &session.root,
+            &target,
+            "a",
+            "x",
+            true,
+        )
+        .expect("rename block");
 
         let updated = std::fs::read_to_string(dir.path().join("Target.md")).expect("read");
         assert!(updated.contains("One. ^x"), "got: {updated}");
         assert!(updated.contains("Two. ^ab"), "^ab was clobbered: {updated}");
-        assert!(updated.contains("Three. ^a-b"), "^a-b was clobbered: {updated}");
+        assert!(
+            updated.contains("Three. ^a-b"),
+            "^a-b was clobbered: {updated}"
+        );
     }
 
     #[test]
@@ -522,8 +565,12 @@ mod tests {
 
     #[test]
     fn heading_rename_preserves_crlf_and_trailing_newline() {
-        let (updated, edits) =
-            apply_source_note_heading_update("# Note\r\n\r\n## Old\r\n\r\nBody\r\n", "Old", "New", true);
+        let (updated, edits) = apply_source_note_heading_update(
+            "# Note\r\n\r\n## Old\r\n\r\nBody\r\n",
+            "Old",
+            "New",
+            true,
+        );
         assert_eq!(edits, 1);
         assert_eq!(updated, "# Note\r\n\r\n## New\r\n\r\nBody\r\n");
 

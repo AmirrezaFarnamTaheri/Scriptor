@@ -1,3 +1,10 @@
+# Dependency pins. Moved here from the package.json "pnpm" field, which pnpm 10.x
+# no longer reads (it warns "The 'pnpm' field in package.json is no longer read").
+# See https://pnpm.io/settings
+overrides:
+  dompurify: ">=3.4.13"
+  "@xmldom/xmldom": ">=0.8.13"
+
 packages:
   - "apps/*"
   - "packages/*"

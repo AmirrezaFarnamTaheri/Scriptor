@@ -80,24 +80,17 @@ test('editor engines are loaded only when their editor mode is rendered', () => 
   assert.doesNotMatch(editorIndex, /export\s*\{\s*MarkdownEditor\s*\}\s*from\s*['"]\.\/codemirror['"]/)
 })
 
-test('disabled updater is absent from source manifests and lockfiles', () => {
-  const packageJson = fs.readFileSync(path.join(root, 'package.json'), 'utf8')
-  const pnpmLock = fs.readFileSync(path.join(root, 'pnpm-lock.yaml'), 'utf8')
+test('built-in self updater stays disabled until signed updates are supported', () => {
   const desktopCargo = fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/Cargo.toml'), 'utf8')
-  const cargoLock = fs.readFileSync(path.join(root, 'Cargo.lock'), 'utf8')
-  const generatedSchemas = fs
-    .readdirSync(path.join(root, 'apps/desktop/src-tauri/gen/schemas'))
-    .filter((name) => name.endsWith('.json'))
-    .map((name) => fs.readFileSync(path.join(root, 'apps/desktop/src-tauri/gen/schemas', name), 'utf8'))
-    .join('\n')
-  const packageScript = read('scripts/release/package.ps1')
-  assert.equal(packageJson.includes('@tauri-apps/plugin-updater'), false)
-  assert.equal(pnpmLock.includes('@tauri-apps/plugin-updater'), false)
+  const libRs = read('apps/desktop/src-tauri/src/lib.rs')
+  const tauriConfig = read('apps/desktop/src-tauri/tauri.conf.json')
+  const capability = read('apps/desktop/src-tauri/capabilities/default.json')
   assert.equal(desktopCargo.includes('tauri-plugin-updater'), false)
-  assert.equal(cargoLock.includes('name = "tauri-plugin-updater"'), false)
-  assert.equal(generatedSchemas.includes('updater:'), false)
-  assert.equal(fs.existsSync(path.join(root, 'scripts/release/inject-updater-config.mjs')), false)
-  assert.equal(packageScript.includes('updater'), false)
+  assert.equal(libRs.includes('tauri_plugin_updater'), false)
+  assert.equal(libRs.includes('updater_check'), false)
+  assert.equal(libRs.includes('updater_install'), false)
+  assert.equal(tauriConfig.includes('"updater"'), false)
+  assert.equal(capability.includes('updater:'), false)
 })
 
 test('daemon IPC requires the authenticated endpoint nonce on every production connection', () => {
@@ -112,7 +105,7 @@ test('daemon IPC requires the authenticated endpoint nonce on every production c
   assert.match(client, /subscribe\.endpoint_nonce\s*=\s*endpoint\.nonce/)
   assert.match(client, /connect_event_stream\(\)/)
   assert.match(client, /RpcEventPayload::ResyncRequired/)
-  assert.match(ipc, /ResyncRequired\s*\{\s*reason:\s*String\s*\}/)
+  assert.match(ipc, /ResyncRequired\s*\{\s*reason:\s*String\s*,?\s*\}/)
   assert.match(desktop, /daemon:resync-required/)
   assert.match(windowsClient, /request\.endpoint_nonce\s*=\s*endpoint\.nonce/)
 })

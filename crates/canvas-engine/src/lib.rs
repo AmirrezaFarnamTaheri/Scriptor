@@ -9,25 +9,25 @@ pub mod snapshot_raster;
 pub mod store;
 pub mod templates;
 
-pub use apply::{apply_template, restore_template_checkpoint, TemplateApplyOutput, TemplateUndoCheckpoint};
+pub use apply::{
+    TemplateApplyOutput, TemplateUndoCheckpoint, apply_template, restore_template_checkpoint,
+};
 
 pub use error::CanvasError;
-pub use hit_test::{hit_test, query_blocks_in_bounds, HitTestResult};
+pub use hit_test::{HitTestResult, hit_test, query_blocks_in_bounds};
 pub use scene::{
-    parse_document_json, document_to_json, CanvasBlock, CanvasBlockKind, CanvasDocument,
-    CanvasLayer, CanvasMode, CanvasPoint, CanvasRect, CanvasTemplate,
+    CanvasBlock, CanvasBlockKind, CanvasDocument, CanvasLayer, CanvasMode, CanvasPoint, CanvasRect,
+    CanvasTemplate, document_to_json, parse_document_json,
 };
 pub use snapshot::{
-    render_svg, write_snapshot, SnapshotFormat, SnapshotOutput, MAX_SNAPSHOT_DIMENSION,
+    MAX_SNAPSHOT_DIMENSION, SnapshotFormat, SnapshotOutput, render_svg, write_snapshot,
 };
 pub use snapshot_raster::{write_png_from_svg, write_png_from_svg_async};
 pub use store::{
-    canvas_boards_dir, list_documents, list_documents_reporting_skipped, load_document,
-    save_document, CanvasDocumentSummary,
+    CanvasDocumentSummary, canvas_boards_dir, list_documents, list_documents_reporting_skipped,
+    load_document, save_document,
 };
-pub use templates::{
-    apply_template_dry_run, empty_document, list_templates, TemplateApplyPreview,
-};
+pub use templates::{TemplateApplyPreview, apply_template_dry_run, empty_document, list_templates};
 
 const SNAPSHOT_BUDGET_MS: u128 = 500;
 
@@ -41,7 +41,10 @@ pub struct CanvasSnapshotBenchReport {
     pub within_budget: bool,
 }
 
-pub fn bench_snapshot_render(document: &CanvasDocument, iterations: u32) -> CanvasSnapshotBenchReport {
+pub fn bench_snapshot_render(
+    document: &CanvasDocument,
+    iterations: u32,
+) -> CanvasSnapshotBenchReport {
     let started = Instant::now();
     for _ in 0..iterations {
         let _ = render_svg(document, None);

@@ -2,12 +2,12 @@ use std::io::{self, Read, Write};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use interprocess::ConnectWaitMode;
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{ConnectOptions, GenericNamespaced};
-use interprocess::ConnectWaitMode;
 use scriptor_ipc::{
-    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcRequest,
-    RpcResponse, ServerMessage,
+    IpcError, RpcRequest, RpcResponse, ServerMessage, fuzz_corpus::is_expected_disconnect,
+    read_frame_resyncing, write_frame,
 };
 
 use crate::transport::read_endpoint;
@@ -183,11 +183,7 @@ mod tests {
     #[test]
     fn zero_read_is_retried_without_losing_partial_progress() {
         let mut reader = ScriptedReader {
-            reads: VecDeque::from([
-                Ok(vec![1, 2]),
-                Ok(Vec::new()),
-                Ok(vec![3, 4]),
-            ]),
+            reads: VecDeque::from([Ok(vec![1, 2]), Ok(Vec::new()), Ok(vec![3, 4])]),
         };
         let mut io = DeadlineIo::new(&mut reader, Instant::now() + Duration::from_secs(1));
         let mut buffer = [0u8; 4];

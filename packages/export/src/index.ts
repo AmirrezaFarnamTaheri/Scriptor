@@ -1,3 +1,9 @@
+import type { PluginContributions, PluginManifest } from '@scriptor/core/contracts/plugin'
+import exportManifestJson from '../plugin.json' with { type: 'json' }
+
+export const exportPluginManifest: PluginManifest = exportManifestJson as PluginManifest
+export const exportPluginContributions: PluginContributions = exportManifestJson.contributes as PluginContributions
+
 export {
   DEFAULT_EXPORT_PROFILES,
   findExportProfile,

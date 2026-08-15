@@ -9,8 +9,8 @@ use std::time::Instant;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::args::{build_pandoc_args, ExportFormat};
-use crate::cancel::{wait_for_child, ExportCancelSlot};
+use crate::args::{ExportFormat, build_pandoc_args};
+use crate::cancel::{ExportCancelSlot, wait_for_child};
 use crate::error::ExportError;
 use crate::log::{log_entry_from_output, write_export_log};
 use crate::pandoc::discover_pandoc_with_trusted_hash;
@@ -34,6 +34,11 @@ pub struct ExportJobInput {
     pub preserve_temp_on_failure: bool,
     #[serde(default)]
     pub trusted_pandoc_hash: Option<String>,
+    /// I-3 interlock: how to handle sealed spans in the source markdown.
+    /// `false` (default) → refuse with an error.
+    /// `true`  → replace sealed spans with `[redacted]` before export.
+    #[serde(default)]
+    pub redact_secrets: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -60,9 +65,7 @@ pub fn run_export_job_with_cancel(
     progress: Option<ExportProgressCallback>,
 ) -> Result<ExportJobOutput, ExportError> {
     let format = ExportFormat::parse(&input.format)?;
-    let pandoc = match discover_pandoc_with_trusted_hash(
-        input.trusted_pandoc_hash.as_deref(),
-    ) {
+    let pandoc = match discover_pandoc_with_trusted_hash(input.trusted_pandoc_hash.as_deref()) {
         Ok(found) => found,
         Err(_) if input.dry_run => crate::pandoc::PandocDiscovery {
             path: "pandoc".into(),
@@ -81,9 +84,10 @@ pub fn run_export_job_with_cancel(
     let artifact_name = format!("{}.{}", input.source_stem, format.extension());
     let artifact_path = output_dir.join(&artifact_name);
     match artifact_path.strip_prefix(&output_dir) {
-        Ok(relative) if !relative.components().any(|component| {
-            matches!(component, std::path::Component::ParentDir)
-        }) => {}
+        Ok(relative)
+            if !relative
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir)) => {}
         _ => return Err(ExportError::InvalidOutput(artifact_path)),
     }
 
@@ -93,8 +97,18 @@ pub fn run_export_job_with_cancel(
         source,
     })?;
     let source_path = temp_dir.join(format!("{}.md", Uuid::new_v4()));
+    // I-3: check for sealed content before handing markdown to pandoc.
+    let seal_mode = if input.redact_secrets {
+        crate::sealed::RedactSecretsMode::Redact
+    } else {
+        crate::sealed::RedactSecretsMode::Refuse
+    };
+    let safe_markdown =
+        crate::sealed::check_or_redact(&input.source_markdown, seal_mode, &input.source_stem)
+            .map_err(|e| ExportError::SealedContent(e.to_string()))?;
+
     let (processed_markdown, _diagram_assets) =
-        crate::diagram_preprocess::preprocess_diagrams(&input.source_markdown, &temp_dir)?;
+        crate::diagram_preprocess::preprocess_diagrams(&safe_markdown, &temp_dir)?;
     fs::write(&source_path, &processed_markdown).map_err(|source| ExportError::Io {
         path: source_path.clone(),
         source,
@@ -210,9 +224,7 @@ pub fn run_export_job_with_cancel(
             dry_run: false,
         };
         let _ = write_export_log(&vault_root, &log_entry_from_output(&failure_output, false));
-        return Err(ExportError::Process(format!(
-            "pandoc failed: {stderr}"
-        )));
+        return Err(ExportError::Process(format!("pandoc failed: {stderr}")));
     }
 
     validate_export_artifact(&artifact_path, format)?;
@@ -258,6 +270,7 @@ mod tests {
             job_id: None,
             preserve_temp_on_failure: false,
             trusted_pandoc_hash: None,
+            redact_secrets: false,
         });
 
         assert!(result.is_ok(), "expected dry-run ok: {result:?}");

@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::CanvasError;
-use crate::scene::{document_to_json, parse_document_json, CanvasDocument};
+use crate::scene::{CanvasDocument, document_to_json, parse_document_json};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +28,8 @@ pub fn save_document(vault_root: &Path, document: &CanvasDocument) -> Result<Pat
     })?;
 
     let path = dir.join(board_file_name(&document.id)?);
-    let json = document_to_json(document).map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
+    let json = document_to_json(document)
+        .map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
     scriptor_vault::atomic_write(&path, json.as_bytes()).map_err(|error| CanvasError::IoWrite {
         path: path.clone(),
         source: std::io::Error::other(error.to_string()),
@@ -177,7 +178,8 @@ mod tests {
 
     #[test]
     fn round_trip_save_and_load() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-store-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-store-{}", uuid::Uuid::new_v4()));
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(&temp).expect("temp");
 
@@ -221,7 +223,11 @@ mod tests {
         let mut unique = names.clone();
         unique.sort();
         unique.dedup();
-        assert_eq!(unique.len(), names.len(), "encoding must be injective: {names:?}");
+        assert_eq!(
+            unique.len(),
+            names.len(),
+            "encoding must be injective: {names:?}"
+        );
     }
 
     #[test]
@@ -243,13 +249,17 @@ mod tests {
 
     #[test]
     fn similar_ids_do_not_overwrite_each_other() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-collide-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-collide-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&temp).expect("temp");
 
         save_document(&temp, &document_with_id("my board", "Spaced")).expect("save spaced");
         save_document(&temp, &document_with_id("my-board", "Hyphenated")).expect("save hyphenated");
 
-        assert_eq!(load_document(&temp, "my board").expect("load").title, "Spaced");
+        assert_eq!(
+            load_document(&temp, "my board").expect("load").title,
+            "Spaced"
+        );
         assert_eq!(
             load_document(&temp, "my-board").expect("load").title,
             "Hyphenated"
@@ -260,7 +270,8 @@ mod tests {
 
     #[test]
     fn legacy_file_name_still_loads() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-legacy-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-legacy-{}", uuid::Uuid::new_v4()));
         let dir = canvas_boards_dir(&temp);
         fs::create_dir_all(&dir).expect("temp");
 
@@ -269,14 +280,18 @@ mod tests {
         let json = document_to_json(&document).expect("json");
         fs::write(dir.join("my-board.canvas.json"), json).expect("write legacy");
 
-        assert_eq!(load_document(&temp, "my board").expect("load").title, "Legacy");
+        assert_eq!(
+            load_document(&temp, "my board").expect("load").title,
+            "Legacy"
+        );
 
         let _ = fs::remove_dir_all(&temp);
     }
 
     #[test]
     fn corrupt_board_is_skipped_not_fatal() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-corrupt-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-corrupt-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&temp).expect("temp");
         save_document(&temp, &document_with_id("good-board", "Good")).expect("save");
         fs::write(

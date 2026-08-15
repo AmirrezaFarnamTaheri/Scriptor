@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-import { TYPOGRAPHY_ACTIONS, type TypographyAction } from '@scriptor/editor'
+import { TYPOGRAPHY_ACTIONS, type TypographyAction } from '@scriptor/editor/pure'
 import { ToolbarPopover } from './ToolbarPopover'
 
 const LABELS: Record<TypographyAction, string> = {

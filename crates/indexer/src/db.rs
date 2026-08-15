@@ -32,7 +32,8 @@ impl IndexCache {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, IndexerError> {
         let path = path.as_ref().to_path_buf();
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|_| IndexerError::CachePath(path.display().to_string()))?;
+            std::fs::create_dir_all(parent)
+                .map_err(|_| IndexerError::CachePath(path.display().to_string()))?;
         }
 
         {
@@ -46,9 +47,8 @@ impl IndexCache {
             }
         }
 
-        let manager = SqliteConnectionManager::file(&path).with_init(|connection| {
-            apply_connection_pragmas(connection)
-        });
+        let manager = SqliteConnectionManager::file(&path)
+            .with_init(|connection| apply_connection_pragmas(connection));
         let pool = Pool::builder()
             .max_size(DEFAULT_POOL_SIZE)
             .build(manager)
@@ -102,7 +102,8 @@ pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, Index
         return Ok(None);
     }
 
-    let mut statement = connection.prepare("SELECT value FROM cache_meta WHERE key = 'schema_version'")?;
+    let mut statement =
+        connection.prepare("SELECT value FROM cache_meta WHERE key = 'schema_version'")?;
     let mut rows = statement.query([])?;
     if let Some(row) = rows.next()? {
         let value: String = row.get(0)?;

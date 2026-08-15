@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use scriptor_indexer::{
-    rebuild_index_with_progress, RebuildProgressReport, RebuildStatus, RebuildSummary,
+    RebuildProgressReport, RebuildStatus, RebuildSummary, rebuild_index_with_progress,
 };
 use scriptor_vault::VaultSession;
 

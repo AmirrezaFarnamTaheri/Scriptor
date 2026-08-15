@@ -64,8 +64,10 @@ pub fn parse_note_markdown(path: &str, markdown: &str) -> ParsedNote {
     let headings = extract_headings(&body);
     let citation_keys = crate::citations::extract_pandoc_citations(&body);
     let note_type = extract_frontmatter_scalar(&_frontmatter, &["type"]);
-    let organized = extract_frontmatter_bool(&_frontmatter, &["_organized", "organized"]).unwrap_or(false);
-    let archived = extract_frontmatter_bool(&_frontmatter, &["_archived", "archived"]).unwrap_or(false);
+    let organized =
+        extract_frontmatter_bool(&_frontmatter, &["_organized", "organized"]).unwrap_or(false);
+    let archived =
+        extract_frontmatter_bool(&_frontmatter, &["_archived", "archived"]).unwrap_or(false);
     let template_body = extract_frontmatter_block(&_frontmatter, "template");
 
     ParsedNote {
@@ -161,12 +163,8 @@ fn extract_frontmatter_scalar(frontmatter: &str, keys: &[&str]) -> Option<String
 }
 
 fn extract_frontmatter_bool(frontmatter: &str, keys: &[&str]) -> Option<bool> {
-    extract_frontmatter_scalar(frontmatter, keys).map(|value| {
-        matches!(
-            value.to_lowercase().as_str(),
-            "true" | "yes" | "1"
-        )
-    })
+    extract_frontmatter_scalar(frontmatter, keys)
+        .map(|value| matches!(value.to_lowercase().as_str(), "true" | "yes" | "1"))
 }
 
 fn extract_frontmatter_block(frontmatter: &str, key: &str) -> Option<String> {
@@ -187,7 +185,11 @@ fn extract_frontmatter_block(frontmatter: &str, key: &str) -> Option<String> {
                 body.push(next.trim_start());
             }
             let joined = body.join("\n").trim().to_string();
-            return if joined.is_empty() { None } else { Some(joined) };
+            return if joined.is_empty() {
+                None
+            } else {
+                Some(joined)
+            };
         }
         if !inline.is_empty() {
             return Some(inline.to_string());
@@ -208,7 +210,11 @@ fn extract_aliases(frontmatter: &str) -> Vec<String> {
         };
         let value = rest.trim();
         if value.starts_with('[') && value.ends_with(']') {
-            for part in value.trim_start_matches('[').trim_end_matches(']').split(',') {
+            for part in value
+                .trim_start_matches('[')
+                .trim_end_matches(']')
+                .split(',')
+            {
                 let alias = part.trim().trim_matches('"').trim_matches('\'');
                 if !alias.is_empty() {
                     aliases.push(alias.to_string());
@@ -247,7 +253,10 @@ fn extract_tags(body: &str) -> Vec<String> {
 
 fn extract_headings(body: &str) -> Vec<String> {
     body.lines()
-        .filter_map(|line| line.strip_prefix("# ").map(|value| value.trim().to_string()))
+        .filter_map(|line| {
+            line.strip_prefix("# ")
+                .map(|value| value.trim().to_string())
+        })
         .filter(|value| !value.is_empty())
         .collect()
 }
@@ -259,7 +268,10 @@ fn extract_links(body: &str) -> Vec<ParsedLink> {
         let line_number = (index + 1) as u32;
 
         for capture in WIKILINK_RE.captures_iter(line) {
-            let target = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
+            let target = capture
+                .get(1)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             let label = capture
                 .get(2)
                 .map(|value| value.as_str().trim())
@@ -276,8 +288,16 @@ fn extract_links(body: &str) -> Vec<ParsedLink> {
         }
 
         for capture in MARKDOWN_LINK_RE.captures_iter(line) {
-            let label = capture.get(1).map(|value| value.as_str()).unwrap_or("").to_string();
-            let target = capture.get(2).map(|value| value.as_str()).unwrap_or("").to_string();
+            let label = capture
+                .get(1)
+                .map(|value| value.as_str())
+                .unwrap_or("")
+                .to_string();
+            let target = capture
+                .get(2)
+                .map(|value| value.as_str())
+                .unwrap_or("")
+                .to_string();
             let kind = if target.starts_with("http://") || target.starts_with("https://") {
                 ParsedLinkKind::External
             } else if target.ends_with(".png")
@@ -308,12 +328,18 @@ mod tests {
 
     #[test]
     fn parses_fixture_links_and_tags() {
-        let markdown = include_str!("../../../packages/test-fixtures/vaults/minimal/Research Plan.md");
+        let markdown =
+            include_str!("../../../packages/test-fixtures/vaults/minimal/Research Plan.md");
         let parsed = parse_note_markdown("Research Plan.md", markdown);
 
         assert_eq!(parsed.title, "Research Plan");
         assert_eq!(parsed.links.len(), 2);
-        assert!(parsed.links.iter().all(|link| link.kind == ParsedLinkKind::Wikilink));
+        assert!(
+            parsed
+                .links
+                .iter()
+                .all(|link| link.kind == ParsedLinkKind::Wikilink)
+        );
     }
 
     #[test]

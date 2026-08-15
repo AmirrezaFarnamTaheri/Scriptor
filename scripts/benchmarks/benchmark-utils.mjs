@@ -21,10 +21,11 @@ export function parseBenchmarkReport(name, output) {
   if (typeof report !== 'object' || report === null || Array.isArray(report)) {
     throw new Error(`benchmark report for ${name} must be an object`)
   }
-  if (typeof report.mean_ms !== 'number' || !Number.isFinite(report.mean_ms)) {
+  const mean_ms = typeof report.mean_ms === 'number' ? report.mean_ms : report.meanMs
+  if (typeof mean_ms !== 'number' || !Number.isFinite(mean_ms)) {
     throw new Error(`benchmark report for ${name} has no finite mean_ms`)
   }
-  return report
+  return { ...report, mean_ms }
 }
 
 export function hashDirectory(root) {

@@ -3,6 +3,12 @@ import { test } from 'node:test'
 
 import { extractPandocCitationKeys } from './citationExtract.ts'
 import { bibliographyEntryToCslItem, mapBibliographyEntryType } from './bibliographyToCsl.ts'
+import {
+  CITATION_PLUGIN_CAPABILITY_ID,
+  CITATION_PLUGIN_ID,
+  citationsPluginManifest,
+  isCitationsPluginEnabled,
+} from '../components/inspector/citation-plugin-manifest.ts'
 
 test('extracts multiple bracket citations', () => {
   assert.deepEqual(extractPandocCitationKeys('Blah blah [@doe99; @smith2000; @smith2004].'), [
@@ -51,3 +57,17 @@ test('builds CSL JSON items from bibliography rows', () => {
   assert.deepEqual(item.issued, { 'date-parts': [[2024]] })
 })
 
+test('validates citations plugin capability manifest structure', () => {
+  assert.equal(citationsPluginManifest.id, CITATION_PLUGIN_ID)
+  assert.equal(citationsPluginManifest.capabilityId, CITATION_PLUGIN_CAPABILITY_ID)
+  assert.equal(citationsPluginManifest.rustFeatureGate, 'scriptor-citations-engine')
+  assert.ok(citationsPluginManifest.contributes?.inspectorWidgets?.some((w) => w.id === 'citation-inspector'))
+  assert.ok(citationsPluginManifest.contributes?.commands?.some((c) => c.commandId === 'citations.insert'))
+})
+
+test('checks citations plugin enablement correctly', () => {
+  assert.equal(isCitationsPluginEnabled(['scriptor.citations']), true)
+  assert.equal(isCitationsPluginEnabled(['citations']), true)
+  assert.equal(isCitationsPluginEnabled(['scriptor.canvas']), false)
+  assert.equal(isCitationsPluginEnabled([]), false)
+})

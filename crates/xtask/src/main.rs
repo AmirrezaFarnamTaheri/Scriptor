@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
 use std::process::Command;
 
@@ -124,10 +124,7 @@ fn perf_gate() -> Result<()> {
 }
 
 fn container_smoke() -> Result<()> {
-    run(
-        "docker",
-        &["build", "-t", "scriptor-smoke", "."],
-    )?;
+    run("docker", &["build", "-t", "scriptor-smoke", "."])?;
 
     #[cfg(windows)]
     let (shell_cmd, shell_arg) = ("cmd", "/C");
@@ -155,8 +152,7 @@ struct Baselines {
 }
 
 fn load_baselines() -> Result<Baselines> {
-    let raw = std::fs::read_to_string("perf-baselines.json")
-        .context("read perf-baselines.json")?;
+    let raw = std::fs::read_to_string("perf-baselines.json").context("read perf-baselines.json")?;
     let v: serde_json::Value = serde_json::from_str(&raw).context("parse perf-baselines.json")?;
     Ok(Baselines {
         vault_scan_1k_ms: v["vault_scan_1k_ms"].as_f64().unwrap_or(500.0),
@@ -167,9 +163,10 @@ fn load_baselines() -> Result<Baselines> {
 fn parse_mean_ms(output: &str) -> Result<f64> {
     for line in output.lines() {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(line)
-            && let Some(m) = v.get("mean_ms").and_then(|v| v.as_f64()) {
-                return Ok(m);
-            }
+            && let Some(m) = v.get("mean_ms").and_then(|v| v.as_f64())
+        {
+            return Ok(m);
+        }
     }
     bail!("could not parse mean_ms from benchmark output")
 }
@@ -177,9 +174,7 @@ fn parse_mean_ms(output: &str) -> Result<f64> {
 fn check_threshold(name: &str, measured: f64, baseline: f64) -> Result<()> {
     let limit = baseline * 1.15;
     if measured > limit {
-        bail!(
-            "{name} regression: {measured:.1}ms exceeds baseline {baseline:.1}ms (>15%)"
-        );
+        bail!("{name} regression: {measured:.1}ms exceeds baseline {baseline:.1}ms (>15%)");
     }
     println!("  {name}: {measured:.1}ms (baseline {baseline:.1}ms) OK");
     Ok(())

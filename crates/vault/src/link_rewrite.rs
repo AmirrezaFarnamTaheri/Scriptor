@@ -28,7 +28,11 @@ pub struct RenameLinkTarget {
 }
 
 impl RenameLinkTarget {
-    pub fn from_note_path(path: &RelativeVaultPath, title: &str, all_note_paths: &[String]) -> Self {
+    pub fn from_note_path(
+        path: &RelativeVaultPath,
+        title: &str,
+        all_note_paths: &[String],
+    ) -> Self {
         let path_str = path.as_str();
         let stem = path_str.trim_end_matches(".md");
         let basename = stem.rsplit('/').next().unwrap_or(stem).to_string();
@@ -42,10 +46,12 @@ impl RenameLinkTarget {
     }
 
     pub fn replacement_identifier(&self, link_target: &str, to: &RenameLinkTarget) -> String {
-        if let (Some(from_dir), Some(to_dir)) = (&self.directory_identifier, &to.directory_identifier)
-            && link_target.eq_ignore_ascii_case(from_dir) {
-                return to_dir.clone();
-            }
+        if let (Some(from_dir), Some(to_dir)) =
+            (&self.directory_identifier, &to.directory_identifier)
+            && link_target.eq_ignore_ascii_case(from_dir)
+        {
+            return to_dir.clone();
+        }
         if link_target.eq_ignore_ascii_case(&self.title)
             || link_target.eq_ignore_ascii_case(&self.basename)
             || link_target == self.path
@@ -170,10 +176,12 @@ pub fn note_target_matches(
         || directory_identifier.is_some_and(|id| trimmed.eq_ignore_ascii_case(id))
 }
 
-static WIKILINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex"));
+static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[\[([^\]|#]*)(?:#([^\]|]+))?(?:\|([^\]]+))?\]\]").expect("valid wikilink regex")
+});
 static MARKDOWN_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)").expect("valid markdown link regex")
+    Regex::new(r"\[(?P<label>[^\]]*)\]\((?P<url>[^)#]+)(?:#(?P<section>[^)]+))?\)")
+        .expect("valid markdown link regex")
 });
 static REFERENCE_DEF_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?m)^\[(?P<label>[^\]]+)\]:\s*(?P<url>[^\s#]+)(?:#[^\s]+)?\s*$")
@@ -192,13 +200,17 @@ pub fn rewrite_note_rename_links(
 
     let step_one = wikilink
         .replace_all(markdown, |capture: &regex::Captures| {
-            let target = capture.get(1).map(|value| value.as_str().trim()).unwrap_or("");
+            let target = capture
+                .get(1)
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             let section = capture.get(2).map(|value| value.as_str());
             let alias = capture.get(3).map(|value| value.as_str());
 
             if !note_target_matches(
                 target,
-                &RelativeVaultPath::parse(&from.path).unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
+                &RelativeVaultPath::parse(&from.path)
+                    .unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
                 &from.title,
                 from.directory_identifier.as_deref(),
             ) {
@@ -220,13 +232,20 @@ pub fn rewrite_note_rename_links(
 
     let step_two = markdown_link
         .replace_all(&step_one, |capture: &regex::Captures| {
-            let label = capture.name("label").map(|value| value.as_str()).unwrap_or("");
-            let url = capture.name("url").map(|value| value.as_str().trim()).unwrap_or("");
+            let label = capture
+                .name("label")
+                .map(|value| value.as_str())
+                .unwrap_or("");
+            let url = capture
+                .name("url")
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
             let section = capture.name("section").map(|value| value.as_str());
 
             if !note_target_matches(
                 url,
-                &RelativeVaultPath::parse(&from.path).unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
+                &RelativeVaultPath::parse(&from.path)
+                    .unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
                 &from.title,
                 from.directory_identifier.as_deref(),
             ) && url != from.path
@@ -245,12 +264,19 @@ pub fn rewrite_note_rename_links(
 
     let updated = reference_def
         .replace_all(&step_two, |capture: &regex::Captures| {
-            let label = capture.name("label").map(|value| value.as_str()).unwrap_or("");
-            let url = capture.name("url").map(|value| value.as_str().trim()).unwrap_or("");
+            let label = capture
+                .name("label")
+                .map(|value| value.as_str())
+                .unwrap_or("");
+            let url = capture
+                .name("url")
+                .map(|value| value.as_str().trim())
+                .unwrap_or("");
 
             if !note_target_matches(
                 url,
-                &RelativeVaultPath::parse(&from.path).unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
+                &RelativeVaultPath::parse(&from.path)
+                    .unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
                 &from.title,
                 from.directory_identifier.as_deref(),
             ) && url != from.path
@@ -348,6 +374,9 @@ mod tests {
     #[test]
     fn computes_shortest_directory_identifier() {
         let dirs = vec!["zoo/bar".into(), "zoo/baz".into()];
-        assert_eq!(shortest_identifier("zoo/bar", &dirs).as_deref(), Some("bar"));
+        assert_eq!(
+            shortest_identifier("zoo/bar", &dirs).as_deref(),
+            Some("bar")
+        );
     }
 }

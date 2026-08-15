@@ -1,14 +1,31 @@
 use scriptor_canvas_engine::{
-    apply_template, apply_template_dry_run, document_to_json, hit_test, list_documents, list_templates, load_document,
-    parse_document_json, query_blocks_in_bounds, render_svg, restore_template_checkpoint, save_document,
-    write_snapshot, CanvasDocumentSummary, CanvasPoint, CanvasRect, HitTestResult, SnapshotFormat,
-    TemplateApplyOutput, TemplateApplyPreview,
+    CanvasDocumentSummary, CanvasPoint, CanvasRect, HitTestResult, SnapshotFormat,
+    TemplateApplyOutput, TemplateApplyPreview, apply_template, apply_template_dry_run,
+    document_to_json, hit_test, list_documents, list_templates, load_document, parse_document_json,
+    query_blocks_in_bounds, render_svg, restore_template_checkpoint, save_document, write_snapshot,
 };
 
-use crate::state::{active_session, AppState};
+use crate::state::{AppState, active_session};
+
+fn require_canvas_capability(
+    state: &tauri::State<AppState>,
+) -> Result<scriptor_vault::VaultSession, String> {
+    let session = active_session(state)?;
+    let plugin_state = scriptor_vault::load_plugin_state(session.root.root())
+        .map_err(|error| error.to_string())?;
+    if plugin_state.is_enabled("scriptor.canvas") {
+        Ok(session)
+    } else {
+        Err("Plugin capability 'scriptor.canvas' is disabled in active vault".into())
+    }
+}
 
 #[tauri::command]
-pub fn canvas_hit_test(scene_json: String, x: f64, y: f64) -> Result<Option<HitTestResult>, String> {
+pub fn canvas_hit_test(
+    scene_json: String,
+    x: f64,
+    y: f64,
+) -> Result<Option<HitTestResult>, String> {
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     Ok(hit_test(&document, CanvasPoint { x, y }))
 }
@@ -20,7 +37,10 @@ pub fn canvas_render_svg(scene_json: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn canvas_template_dry_run(scene_json: String, template_id: String) -> Result<TemplateApplyPreview, String> {
+pub fn canvas_template_dry_run(
+    scene_json: String,
+    template_id: String,
+) -> Result<TemplateApplyPreview, String> {
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     apply_template_dry_run(&document, &template_id).map_err(|error| error.to_string())
 }
@@ -31,15 +51,19 @@ pub fn canvas_apply_template(
     scene_json: String,
     template_id: String,
 ) -> Result<TemplateApplyOutput, String> {
-    let session = active_session(&state)?;
+    let session = require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     apply_template(session.root.root(), &document, &template_id).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn canvas_restore_template(state: tauri::State<AppState>, patch_id: String) -> Result<String, String> {
-    let session = active_session(&state)?;
-    let document = restore_template_checkpoint(session.root.root(), &patch_id).map_err(|error| error.to_string())?;
+pub fn canvas_restore_template(
+    state: tauri::State<AppState>,
+    patch_id: String,
+) -> Result<String, String> {
+    let session = require_canvas_capability(&state)?;
+    let document = restore_template_checkpoint(session.root.root(), &patch_id)
+        .map_err(|error| error.to_string())?;
     document_to_json(&document).map_err(|error| error.to_string())
 }
 
@@ -77,7 +101,7 @@ pub fn canvas_snapshot(
     output_path: String,
     dry_run: bool,
 ) -> Result<scriptor_canvas_engine::SnapshotOutput, String> {
-    let session = active_session(&state)?;
+    let session = require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     let snapshot_format = match format.as_str() {
         "svg" => SnapshotFormat::Svg,
@@ -94,31 +118,40 @@ pub fn canvas_snapshot(
         .root
         .resolve_relative(&relative)
         .map_err(|error| error.to_string())?;
-    if !dry_run
-        && let Some(parent) = resolved.parent() {
-            std::fs::create_dir_all(parent)
-                .map_err(|error| format!("failed to create snapshot directory: {error}"))?;
-        }
-    write_snapshot(&document, &resolved, snapshot_format, dry_run).map_err(|error| error.to_string())
+    if !dry_run && let Some(parent) = resolved.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("failed to create snapshot directory: {error}"))?;
+    }
+    write_snapshot(&document, &resolved, snapshot_format, dry_run)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn canvas_save_document(state: tauri::State<AppState>, scene_json: String) -> Result<String, String> {
-    let session = active_session(&state)?;
+pub fn canvas_save_document(
+    state: tauri::State<AppState>,
+    scene_json: String,
+) -> Result<String, String> {
+    let session = require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     let path = save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
     Ok(path.display().to_string())
 }
 
 #[tauri::command]
-pub fn canvas_load_document(state: tauri::State<AppState>, canvas_id: String) -> Result<String, String> {
-    let session = active_session(&state)?;
-    let document = load_document(session.root.root(), &canvas_id).map_err(|error| error.to_string())?;
+pub fn canvas_load_document(
+    state: tauri::State<AppState>,
+    canvas_id: String,
+) -> Result<String, String> {
+    let session = require_canvas_capability(&state)?;
+    let document =
+        load_document(session.root.root(), &canvas_id).map_err(|error| error.to_string())?;
     document_to_json(&document).map_err(|error| error.to_string())
 }
 
 #[tauri::command]
-pub fn canvas_list_documents(state: tauri::State<AppState>) -> Result<Vec<CanvasDocumentSummary>, String> {
-    let session = active_session(&state)?;
+pub fn canvas_list_documents(
+    state: tauri::State<AppState>,
+) -> Result<Vec<CanvasDocumentSummary>, String> {
+    let session = require_canvas_capability(&state)?;
     list_documents(session.root.root()).map_err(|error| error.to_string())
 }

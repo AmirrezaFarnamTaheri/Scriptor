@@ -1,4 +1,4 @@
-import type { RenameTarget } from '../../hooks/useAppOverlayState'
+import type { RenameTarget } from '../../hooks/useRenameDialogStore'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 import { RenameBlockDialog } from '../RenameBlockDialog'
 import { RenameNoteDialog } from '../RenameNoteDialog'

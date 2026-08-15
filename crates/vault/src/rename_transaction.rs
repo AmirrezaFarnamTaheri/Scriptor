@@ -52,13 +52,16 @@ fn manifest_path(root: &VaultRoot) -> PathBuf {
     scriptor_meta_dir(root).join(TXN_MANIFEST)
 }
 
-pub fn recover_pending_rename_transactions(root: &VaultRoot) -> Result<RenameRecoveryOutcome, VaultError> {
+pub fn recover_pending_rename_transactions(
+    root: &VaultRoot,
+) -> Result<RenameRecoveryOutcome, VaultError> {
     let manifest_file = manifest_path(root);
     if !manifest_file.is_file() {
         return Ok(RenameRecoveryOutcome::default());
     }
 
-    let data = fs::read_to_string(&manifest_file).map_err(|source| VaultError::io(&manifest_file, source))?;
+    let data = fs::read_to_string(&manifest_file)
+        .map_err(|source| VaultError::io(&manifest_file, source))?;
     let txn: RenameTransactionManifest = match serde_json::from_str(&data) {
         Ok(value) => value,
         Err(_) => {
@@ -113,7 +116,10 @@ fn build_reindex_paths(txn: &RenameTransactionManifest) -> Vec<String> {
 /// notes may already have been rewritten to point at a filename that was never
 /// created. Restoring their backups — not just the source note — is what makes
 /// a partially-applied rename recoverable.
-fn recover_staged_transaction(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<(), VaultError> {
+fn recover_staged_transaction(
+    root: &VaultRoot,
+    txn: &RenameTransactionManifest,
+) -> Result<(), VaultError> {
     restore_affected_backups(root, txn)?;
 
     let from = RelativeVaultPath::parse(&txn.from_path)?;
@@ -126,13 +132,17 @@ fn recover_staged_transaction(root: &VaultRoot, txn: &RenameTransactionManifest)
         if let Some(parent) = from_abs.parent() {
             fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
         }
-        fs::rename(&source_backup, &from_abs).map_err(|source| VaultError::io(&from_abs, source))?;
+        fs::rename(&source_backup, &from_abs)
+            .map_err(|source| VaultError::io(&from_abs, source))?;
     }
 
     Ok(())
 }
 
-fn restore_affected_backups(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<(), VaultError> {
+fn restore_affected_backups(
+    root: &VaultRoot,
+    txn: &RenameTransactionManifest,
+) -> Result<(), VaultError> {
     for (note_path, backup_rel) in &txn.affected_backups {
         let note_abs = root.resolve_relative(&RelativeVaultPath::parse(note_path)?)?;
         let backup_abs = root.root().join(backup_rel);
@@ -147,12 +157,18 @@ fn restore_affected_backups(root: &VaultRoot, txn: &RenameTransactionManifest) -
     Ok(())
 }
 
-fn rollback_link_writes(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<(), VaultError> {
+fn rollback_link_writes(
+    root: &VaultRoot,
+    txn: &RenameTransactionManifest,
+) -> Result<(), VaultError> {
     restore_affected_backups(root, txn)?;
     cleanup_transaction(root, txn)
 }
 
-fn rollback_file_move_and_link_writes(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<(), VaultError> {
+fn rollback_file_move_and_link_writes(
+    root: &VaultRoot,
+    txn: &RenameTransactionManifest,
+) -> Result<(), VaultError> {
     let from = RelativeVaultPath::parse(&txn.from_path)?;
     let to = RelativeVaultPath::parse(&txn.to_path)?;
     let from_abs = root.resolve_relative(&from)?;
@@ -195,7 +211,8 @@ impl StagedRenameTransaction {
 
         let dir = txn_dir(root);
         fs::create_dir_all(&dir).map_err(|source| VaultError::io(&dir, source))?;
-        fs::create_dir_all(scriptor_meta_dir(root)).map_err(|source| VaultError::io(scriptor_meta_dir(root), source))?;
+        fs::create_dir_all(scriptor_meta_dir(root))
+            .map_err(|source| VaultError::io(scriptor_meta_dir(root), source))?;
 
         let source_backup = backup_file(root, &dir, from_path.as_str())?;
         let mut affected_backups = BTreeMap::new();
@@ -241,7 +258,9 @@ impl StagedRenameTransaction {
                 cleanup_transaction(&self.root, &self.manifest)
             }
             RenamePhase::LinkWritesDone => rollback_link_writes(&self.root, &self.manifest),
-            RenamePhase::FileMoveDone => rollback_file_move_and_link_writes(&self.root, &self.manifest),
+            RenamePhase::FileMoveDone => {
+                rollback_file_move_and_link_writes(&self.root, &self.manifest)
+            }
         }
     }
 }
@@ -263,7 +282,10 @@ fn backup_file(root: &VaultRoot, dir: &Path, relative_path: &str) -> Result<Stri
     Ok(format!(".scriptor/{TXN_DIR_NAME}/{backup_name}.bak"))
 }
 
-fn write_manifest(root: &VaultRoot, manifest: &RenameTransactionManifest) -> Result<(), VaultError> {
+fn write_manifest(
+    root: &VaultRoot,
+    manifest: &RenameTransactionManifest,
+) -> Result<(), VaultError> {
     let path = manifest_path(root);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
@@ -273,7 +295,10 @@ fn write_manifest(root: &VaultRoot, manifest: &RenameTransactionManifest) -> Res
     Ok(())
 }
 
-fn cleanup_transaction(root: &VaultRoot, txn: &RenameTransactionManifest) -> Result<(), VaultError> {
+fn cleanup_transaction(
+    root: &VaultRoot,
+    txn: &RenameTransactionManifest,
+) -> Result<(), VaultError> {
     let _ = fs::remove_file(root.root().join(&txn.source_backup));
     for backup in txn.affected_backups.values() {
         let _ = fs::remove_file(root.root().join(backup));
@@ -284,9 +309,9 @@ fn cleanup_transaction(root: &VaultRoot, txn: &RenameTransactionManifest) -> Res
         && fs::read_dir(&dir)
             .map(|mut entries| entries.next().is_none())
             .unwrap_or(false)
-        {
-            let _ = fs::remove_dir(&dir);
-        }
+    {
+        let _ = fs::remove_dir(&dir);
+    }
     Ok(())
 }
 
@@ -304,7 +329,8 @@ mod tests {
 
         let from = RelativeVaultPath::parse("Note.md").unwrap();
         let to = RelativeVaultPath::parse("Renamed.md").unwrap();
-        let staged = StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into()]).unwrap();
+        let staged =
+            StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into()]).unwrap();
 
         let manifest = manifest_path(&session.root);
         assert!(manifest.is_file());
@@ -321,7 +347,8 @@ mod tests {
 
         let from = RelativeVaultPath::parse("Note.md").unwrap();
         let to = RelativeVaultPath::parse("Renamed.md").unwrap();
-        let staged = StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into()]).unwrap();
+        let staged =
+            StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into()]).unwrap();
 
         let from_abs = session.root.resolve_relative(&from).unwrap();
         std::fs::remove_file(&from_abs).unwrap();
@@ -342,8 +369,13 @@ mod tests {
 
         let from = RelativeVaultPath::parse("Note.md").unwrap();
         let to = RelativeVaultPath::parse("Renamed.md").unwrap();
-        let mut staged =
-            StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into(), "Other.md".into()]).unwrap();
+        let mut staged = StagedRenameTransaction::begin(
+            &session.root,
+            &from,
+            &to,
+            &["Note.md".into(), "Other.md".into()],
+        )
+        .unwrap();
         staged.record_phase(RenamePhase::LinkWritesDone).unwrap();
 
         std::fs::rename(
@@ -370,12 +402,20 @@ mod tests {
 
         let from = RelativeVaultPath::parse("Note.md").unwrap();
         let to = RelativeVaultPath::parse("Renamed.md").unwrap();
-        let mut staged =
-            StagedRenameTransaction::begin(&session.root, &from, &to, &["Note.md".into(), "Other.md".into()]).unwrap();
+        let mut staged = StagedRenameTransaction::begin(
+            &session.root,
+            &from,
+            &to,
+            &["Note.md".into(), "Other.md".into()],
+        )
+        .unwrap();
         staged.record_phase(RenamePhase::LinkWritesDone).unwrap();
 
         std::fs::write(
-            session.root.resolve_relative(&RelativeVaultPath::parse("Other.md").unwrap()).unwrap(),
+            session
+                .root
+                .resolve_relative(&RelativeVaultPath::parse("Other.md").unwrap())
+                .unwrap(),
             "# Other\n\n[[Renamed]]\n",
         )
         .unwrap();

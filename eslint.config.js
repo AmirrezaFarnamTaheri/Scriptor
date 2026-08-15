@@ -16,6 +16,7 @@ export default defineConfig([
     'test-results',
     'playwright-report',
     'coverage',
+    'public/reader/vendor',
   ]),
   {
     files: ['**/*.{js,mjs,cjs}'],

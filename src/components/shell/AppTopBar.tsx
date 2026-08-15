@@ -15,6 +15,7 @@ import {
   Network,
   PanelLeft,
   PanelRight,
+  Palette,
   Settings,
   Sun,
   Zap,
@@ -27,9 +28,11 @@ import { formatShortcut } from '../../lib/keyboardShortcuts'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme } from '../../hooks/useAppTheme'
+import { getNextTheme, THEME_DISPLAY_NAMES } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
+import type { WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
 
 interface AppTopBarProps {
   vault: VaultDescriptor | null
@@ -58,12 +61,14 @@ interface AppTopBarProps {
   onOpenMcp: () => void
   onOpenSupport: () => void
   onOpenSettings: () => void
+  onOpenPluginManager?: () => void
   theme: AppTheme
   onToggleTheme: () => void
   vaultSidebarCollapsed: boolean
   onToggleVaultSidebar: () => void
   inspectorCollapsed: boolean
   onToggleInspector: () => void
+  chrome?: WorkspaceChromePrefs
 }
 
 const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
@@ -101,12 +106,14 @@ export function AppTopBar({
   onOpenMcp,
   onOpenSupport,
   onOpenSettings,
+  onOpenPluginManager,
   theme,
   onToggleTheme,
   vaultSidebarCollapsed,
   onToggleVaultSidebar,
   inspectorCollapsed,
   onToggleInspector,
+  chrome,
 }: AppTopBarProps) {
   const { t } = useI18n()
   const { getShortcut } = useKeyboardShortcuts()
@@ -118,6 +125,25 @@ export function AppTopBar({
   const inspectorShortcut = formatShortcut(
     getShortcut('toggle-inspector', getDefaultShortcut('toggle-inspector')),
   )
+
+  // The theme control advertises the theme its next click will apply, so the
+  // accessible name has to be derived from the real cycle rather than a fixed
+  // light/dark/high-contrast ternary.
+  const nextTheme = getNextTheme(theme)
+  const themeToggleLabel =
+    nextTheme === 'light'
+      ? t('topBar.switchToLight')
+      : nextTheme === 'dark'
+        ? t('topBar.switchToDark')
+        : nextTheme === 'high-contrast'
+          ? t('topBar.switchToHighContrast')
+          : t('topBar.switchToTheme', { theme: THEME_DISPLAY_NAMES[nextTheme] ?? nextTheme })
+
+  if (chrome?.showTopBar === false) return null
+
+  const showHistory = chrome?.showHistoryControls !== false
+  const showModeStrip = chrome?.showModeStrip !== false
+  const showActions = chrome?.showQuickActions !== false
 
   return (
     <header className="topbar surface-glass">
@@ -134,78 +160,87 @@ export function AppTopBar({
         {vault ? <small className="vault-badge">{vault.name}</small> : null}
       </div>
 
-      <div className="history-controls" aria-label="History controls">
-        <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
-          <ChevronRight className="flip" />
-        </IconButton>
-        <IconButton label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
-          <ChevronRight />
-        </IconButton>
-        <button type="button" className="action-button" onClick={onChooseVault}>
-          <FolderOpen />
-          {t('topBar.openVault')}
-        </button>
-        <WorkspaceSwitcher
-          recentVaults={recentVaults}
-          activeVaultPath={activeVaultPath}
-          onOpenVault={onOpenVault}
-          onChooseVault={onChooseVault}
-        />
-      </div>
-
-      <div className="workspace-mode-strip" aria-label="Workspace mode">
-        {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
-          <button
-            key={mode}
-            type="button"
-            className={workspaceMode === mode ? 'workspace-mode active' : 'workspace-mode'}
-            aria-pressed={workspaceMode === mode}
-            onClick={() => onWorkspaceModeChange(mode)}
-          >
-            {t(MODE_LABEL_KEYS[mode])}
+      {showHistory ? (
+        <div className="history-controls" aria-label="History controls">
+          <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
+            <ChevronRight className="flip" />
+          </IconButton>
+          <IconButton label={t('actions.forward')} disabled={!canNavigateForward} onClick={onNavigateForward}>
+            <ChevronRight />
+          </IconButton>
+          <button type="button" className="action-button" onClick={onChooseVault}>
+            <FolderOpen />
+            {t('topBar.openVault')}
           </button>
-        ))}
-      </div>
+          <WorkspaceSwitcher
+            recentVaults={recentVaults}
+            activeVaultPath={activeVaultPath}
+            onOpenVault={onOpenVault}
+            onChooseVault={onChooseVault}
+          />
+        </div>
+      ) : null}
 
-      <label className="command-search" onClick={onOpenCommandPalette}>
-        <Command />
-        <span className="kbd" aria-hidden="true">{commandShortcut}</span>
-        <input
-          type="search"
-          placeholder={t('topBar.typeCommandOrSearch')}
-          aria-label={`${t('topBar.typeCommandOrSearch')} (${commandShortcut})`}
-          readOnly
-          onFocus={onOpenCommandPalette}
-        />
-      </label>
+      {showModeStrip ? (
+        <div className="workspace-mode-strip" aria-label="Workspace mode">
+          {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              className={workspaceMode === mode ? 'workspace-mode active' : 'workspace-mode'}
+              aria-pressed={workspaceMode === mode}
+              onClick={() => onWorkspaceModeChange(mode)}
+            >
+              {t(MODE_LABEL_KEYS[mode])}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {/* P0 fix: was a <label> wrapping a readOnly <input> (semantically broken).
+           Now a proper <button> styled to look like a search field. */}
+      <button
+        type="button"
+        className="command-search"
+        onClick={onOpenCommandPalette}
+        aria-label={`Open command palette (${commandShortcut})`}
+      >
+        <Command aria-hidden="true" />
+        <span className="command-search-placeholder">Type a command or search…</span>
+        <kbd className="kbd" aria-hidden="true">{commandShortcut}</kbd>
+      </button>
 
       <div className="top-actions" data-workspace-mode={workspaceMode}>
-        <IconButton
-          label={t('topBar.workbench')}
-          onClick={onOpenKnowledgeWorkbench}
-          className={workspaceMode === 'knowledge' ? 'emphasized' : undefined}
-        >
-          <BookOpenText />
-        </IconButton>
-        <IconButton
-          label={t('topBar.publish')}
-          onClick={onOpenPublishCenter}
-          className={workspaceMode === 'publish' ? 'emphasized' : undefined}
-        >
-          <Globe />
-        </IconButton>
-        <IconButton label={t('topBar.portal')} onClick={onOpenPortal}>
-          <LayoutDashboard />
-        </IconButton>
-        <IconButton label={t('topBar.capture')} onClick={onOpenQuickCapture}>
-          <Zap />
-        </IconButton>
-        <IconButton label={t('topBar.graph')} onClick={onOpenGraph}>
-          <Network />
-        </IconButton>
-        <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
-          <Box />
-        </IconButton>
+        {showActions ? (
+          <>
+            <IconButton
+              label={t('topBar.workbench')}
+              onClick={onOpenKnowledgeWorkbench}
+              className={workspaceMode === 'knowledge' ? 'emphasized' : undefined}
+            >
+              <BookOpenText />
+            </IconButton>
+            <IconButton
+              label={t('topBar.publish')}
+              onClick={onOpenPublishCenter}
+              className={workspaceMode === 'publish' ? 'emphasized' : undefined}
+            >
+              <Globe />
+            </IconButton>
+            <IconButton label={t('topBar.portal')} onClick={onOpenPortal}>
+              <LayoutDashboard />
+            </IconButton>
+            <IconButton label={t('topBar.capture')} onClick={onOpenQuickCapture}>
+              <Zap />
+            </IconButton>
+            <IconButton label={t('topBar.graph')} onClick={onOpenGraph}>
+              <Network />
+            </IconButton>
+            <IconButton label={t('topBar.canvas')} onClick={onOpenCanvas}>
+              <Box />
+            </IconButton>
+          </>
+        ) : null}
 
         <button
           type="button"
@@ -233,16 +268,7 @@ export function AppTopBar({
           </span>
         </button>
 
-        <IconButton
-          label={
-            theme === 'high-contrast'
-              ? t('topBar.switchToLight')
-              : theme === 'dark'
-                ? t('topBar.switchToHighContrast')
-                : t('topBar.switchToDark')
-          }
-          onClick={onToggleTheme}
-        >
+        <IconButton label={themeToggleLabel} onClick={onToggleTheme}>
           {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
         </IconButton>
         <IconButton
@@ -255,6 +281,11 @@ export function AppTopBar({
         <IconButton label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
           <Heart />
         </IconButton>
+        {onOpenPluginManager ? (
+          <IconButton label="Extension &amp; Color Palette Store" onClick={onOpenPluginManager}>
+            <Palette />
+          </IconButton>
+        ) : null}
         <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
           <Settings />
         </IconButton>

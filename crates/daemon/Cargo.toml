@@ -20,7 +20,7 @@ scriptor-native-git = { path = "../native-git" }
 scriptor-vault = { path = "../vault" }
 scriptor-canvas-engine = { path = "../canvas-engine" }
 ammonia = "4"
-chrono = { version = "0.4", features = ["clock"] }
+chrono = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 getrandom = "0.4"
 hex = "0.4"

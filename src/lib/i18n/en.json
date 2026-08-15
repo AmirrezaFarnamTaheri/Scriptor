@@ -33,6 +33,7 @@
     "switchToLight": "Switch to light theme",
     "switchToDark": "Switch to dark theme",
     "switchToHighContrast": "Switch to high-contrast theme",
+    "switchToTheme": "Switch to {{theme}} theme",
     "supportScriptor": "Support Scriptor",
     "settings": "Settings",
     "typeCommandOrSearch": "Type a command or search...",

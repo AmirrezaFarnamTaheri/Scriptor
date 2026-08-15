@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Experimental workspace workflows (2026-08-13)
+
+- Added a vault-tree Reader for local PDF and EPUB files. Documents are opened through the native vault boundary, render with bundled viewer assets, and keep annotations in the vault's `.scriptor/reader/annotations.json` sidecar.
+- Added Markdown-backed task updates and a Kanban surface. Task status and due-date edits update their source note; moving a card physically relocates it beneath the destination `##` heading so the file remains compatible with Obsidian-style boards.
+- Made Reader, Tasks, and Kanban reachable from the command palette before assigning any default keyboard shortcuts. Pending and failed mutations remain visible and do not claim success before the source note is saved and the native write completes.
+- Hardened Rust dependency caching in GitHub Actions so failed jobs do not publish partial cache state, and the supply-chain job installs its pinned `cargo-deny` version rather than trusting a cached binary.
+
 ### Repository hardening (2026-08-05)
 
 - Historical hardening made signing fail closed; the 0.1.1 policy supersedes it with explicit unsigned, architecture-bound status evidence and receipt schema 4.

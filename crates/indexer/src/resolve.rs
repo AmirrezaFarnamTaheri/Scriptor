@@ -105,7 +105,11 @@ impl WikilinkIndex {
     }
 
     fn resolve_basename(&self, normalized: &str) -> Option<WikilinkResolution> {
-        let basename = normalized.rsplit('/').next().unwrap_or(normalized).to_lowercase();
+        let basename = normalized
+            .rsplit('/')
+            .next()
+            .unwrap_or(normalized)
+            .to_lowercase();
         self.by_basename.get(&basename).cloned().map(finalize)
     }
 
@@ -179,10 +183,7 @@ mod tests {
 
     #[test]
     fn resolves_unique_basename() {
-        let paths = vec![
-            "Research Plan.md".into(),
-            "daily/2026-06-20.md".into(),
-        ];
+        let paths = vec!["Research Plan.md".into(), "daily/2026-06-20.md".into()];
         let resolution = resolve_wikilink_target(&paths, "Research Plan");
         assert_eq!(resolution.kind, WikilinkResolutionKind::Resolved);
         assert_eq!(resolution.path.as_deref(), Some("Research Plan.md"));

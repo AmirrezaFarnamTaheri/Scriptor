@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { ChevronDown, Plus } from 'lucide-react'
 
-import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor'
+import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor/pure'
 import { ToolbarPopover } from './ToolbarPopover'
 
 interface InsertMenuProps {

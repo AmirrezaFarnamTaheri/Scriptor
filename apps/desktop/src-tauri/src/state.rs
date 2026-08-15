@@ -1,6 +1,9 @@
-use std::sync::{Arc, Mutex, MutexGuard, atomic::AtomicU64};
+use std::sync::{
+    Arc, Mutex, MutexGuard,
+    atomic::{AtomicBool, AtomicU64},
+};
 
-use scriptor_export_runner::{new_cancel_slot, ExportCancelSlot};
+use scriptor_export_runner::{ExportCancelSlot, new_cancel_slot};
 use scriptor_vault::{VaultSession, VaultWatcher};
 
 use crate::authorization::AuthorizationBroker;
@@ -12,6 +15,14 @@ pub struct AppState {
     pub vault_watcher_generation: Arc<AtomicU64>,
     pub headless_engine: Mutex<bool>,
     pub authorization: AuthorizationBroker,
+    /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
+    pub latex_cancel: Arc<AtomicBool>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AppState {
@@ -23,6 +34,7 @@ impl AppState {
             vault_watcher_generation: Arc::new(AtomicU64::new(0)),
             headless_engine: Mutex::new(false),
             authorization: AuthorizationBroker::default(),
+            latex_cancel: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -40,7 +52,6 @@ pub fn active_session(state: &tauri::State<AppState>) -> Result<VaultSession, St
         .clone()
         .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())
 }
-
 
 pub fn lock_recover<'a, T>(mutex: &'a Mutex<T>, name: &str) -> MutexGuard<'a, T> {
     match mutex.lock() {

@@ -145,9 +145,12 @@ fn scan_directory(
                 .path()
                 .map(Path::to_path_buf)
                 .unwrap_or_else(|| directory.to_path_buf());
-            VaultError::io(path, error.into_io_error().unwrap_or_else(|| {
-                std::io::Error::other("failed to enumerate vault entry")
-            }))
+            VaultError::io(
+                path,
+                error
+                    .into_io_error()
+                    .unwrap_or_else(|| std::io::Error::other("failed to enumerate vault entry")),
+            )
         })?;
         let absolute = entry.path();
         if absolute == directory && path_prefix.is_empty() {
@@ -198,9 +201,8 @@ fn scan_directory(
         } else {
             ScannedEntryKind::Asset
         };
-        let should_capture = is_note
-            && options.include_note_content
-            && metadata.len() <= options.max_note_bytes;
+        let should_capture =
+            is_note && options.include_note_content && metadata.len() <= options.max_note_bytes;
         let content = if should_capture {
             let bytes = fs::read(absolute).map_err(|source| VaultError::io(absolute, source))?;
             Some(String::from_utf8_lossy(&bytes).into_owned())
@@ -292,7 +294,11 @@ mod tests {
         std::fs::write(tmp.path().join("note.md"), "# Note").unwrap();
         let root = VaultRoot::open(tmp.path()).unwrap();
         let entries = scan_vault(&root).unwrap();
-        assert!(entries.iter().all(|entry| !entry.path.starts_with(".scriptor")));
+        assert!(
+            entries
+                .iter()
+                .all(|entry| !entry.path.starts_with(".scriptor"))
+        );
     }
 
     #[test]

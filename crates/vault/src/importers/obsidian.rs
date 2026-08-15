@@ -48,9 +48,8 @@ pub struct ImportResult {
 const OBSIDIAN_DIR: &str = ".obsidian";
 
 const ATTACHMENT_EXTENSIONS: &[&str] = &[
-    "png", "jpg", "jpeg", "gif", "bmp", "svg", "webp", "ico",
-    "pdf", "mp3", "mp4", "wav", "ogg", "webm", "mov",
-    "zip", "tar", "gz",
+    "png", "jpg", "jpeg", "gif", "bmp", "svg", "webp", "ico", "pdf", "mp3", "mp4", "wav", "ogg",
+    "webm", "mov", "zip", "tar", "gz",
 ];
 
 pub fn detect_obsidian_vault(path: &Path) -> bool {
@@ -185,12 +184,9 @@ fn import_attachment(
         })?;
     let dest = attachments_dir.join(file_name);
 
-    fs::create_dir_all(
-        dest.parent()
-            .ok_or_else(|| VaultError::InvalidConfig {
-                message: "Cannot determine parent directory".to_string(),
-            })?,
-    )
+    fs::create_dir_all(dest.parent().ok_or_else(|| VaultError::InvalidConfig {
+        message: "Cannot determine parent directory".to_string(),
+    })?)
     .map_err(|source_err| VaultError::io(dest.parent().unwrap(), source_err))?;
 
     fs::copy(&source, &dest).map_err(|source_err| VaultError::io(&source, source_err))?;
@@ -209,35 +205,39 @@ fn convert_obsidian_syntax(markdown: &str) -> String {
 }
 
 fn convert_embed_wikilinks(markdown: &str) -> String {
-    EMBED_WIKILINK_RE.replace_all(markdown, |caps: &regex::Captures| {
-        let target = &caps[1];
-        if let Some((name, _heading)) = target.split_once('#') {
-            format!("[[{name}]]")
-        } else {
-            format!("[[{target}]]")
-        }
-    })
-    .into_owned()
+    EMBED_WIKILINK_RE
+        .replace_all(markdown, |caps: &regex::Captures| {
+            let target = &caps[1];
+            if let Some((name, _heading)) = target.split_once('#') {
+                format!("[[{name}]]")
+            } else {
+                format!("[[{target}]]")
+            }
+        })
+        .into_owned()
 }
 
 fn convert_wikilinks(markdown: &str) -> String {
-    WIKILINK_RE.replace_all(markdown, |caps: &regex::Captures| {
-        let target = &caps[1];
-        let display = caps.get(2).map(|m| m.as_str()).unwrap_or(target);
+    WIKILINK_RE
+        .replace_all(markdown, |caps: &regex::Captures| {
+            let target = &caps[1];
+            let display = caps.get(2).map(|m| m.as_str()).unwrap_or(target);
 
-        if target.contains('.') && !target.contains('#') {
-            let filename = target.rsplit('/').next().unwrap_or(target);
-            format!("![{display}](<_{filename}>)")
-        } else {
-            let clean_target = target.split('#').next().unwrap_or(target);
-            format!("[{display}](<_{clean_target}>)")
-        }
-    })
-    .into_owned()
+            if target.contains('.') && !target.contains('#') {
+                let filename = target.rsplit('/').next().unwrap_or(target);
+                format!("![{display}](<_{filename}>)")
+            } else {
+                let clean_target = target.split('#').next().unwrap_or(target);
+                format!("[{display}](<_{clean_target}>)")
+            }
+        })
+        .into_owned()
 }
 
 fn convert_highlights(markdown: &str) -> String {
-    HIGHLIGHT_RE.replace_all(markdown, "<mark>$1</mark>").into_owned()
+    HIGHLIGHT_RE
+        .replace_all(markdown, "<mark>$1</mark>")
+        .into_owned()
 }
 
 fn convert_callouts(markdown: &str) -> String {
@@ -290,10 +290,11 @@ fn convert_callouts(markdown: &str) -> String {
 
 fn strip_frontmatter(markdown: &str) -> String {
     if markdown.starts_with("---")
-        && let Some(end) = markdown[3..].find("\n---") {
-            let after = &markdown[end + 7..];
-            return after.trim_start_matches('\n').to_string();
-        }
+        && let Some(end) = markdown[3..].find("\n---")
+    {
+        let after = &markdown[end + 7..];
+        return after.trim_start_matches('\n').to_string();
+    }
     markdown.to_string()
 }
 
@@ -338,7 +339,10 @@ mod tests {
     #[test]
     fn test_convert_highlights() {
         let input = "This is ==highlighted== text";
-        assert_eq!(convert_highlights(input), "This is <mark>highlighted</mark> text");
+        assert_eq!(
+            convert_highlights(input),
+            "This is <mark>highlighted</mark> text"
+        );
     }
 
     #[test]
@@ -398,7 +402,10 @@ mod tests {
     fn test_convert_multiple_highlights() {
         let input = "==first== and ==second== and ==third==";
         let result = convert_highlights(input);
-        assert_eq!(result, "<mark>first</mark> and <mark>second</mark> and <mark>third</mark>");
+        assert_eq!(
+            result,
+            "<mark>first</mark> and <mark>second</mark> and <mark>third</mark>"
+        );
     }
 
     #[test]
@@ -410,7 +417,10 @@ mod tests {
     #[test]
     fn test_convert_callouts_important() {
         let input = "> [!important]\n> Critical section";
-        assert_eq!(convert_callouts(input), "> [!IMPORTANT]\n> Critical section");
+        assert_eq!(
+            convert_callouts(input),
+            "> [!IMPORTANT]\n> Critical section"
+        );
     }
 
     #[test]
@@ -487,8 +497,7 @@ mod tests {
         let vault_tmp = tempfile::tempdir().unwrap();
         let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
         let options = ImportObsidianOptions::default();
-        let result =
-            import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        let result = import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
         assert_eq!(result.notes_imported, 0);
         assert_eq!(result.attachments_imported, 0);
         assert_eq!(result.skipped_files, 0);
@@ -505,8 +514,7 @@ mod tests {
         let vault_tmp = tempfile::tempdir().unwrap();
         let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
         let options = ImportObsidianOptions::default();
-        let result =
-            import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        let result = import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
         assert_eq!(result.notes_imported, 1);
         assert_eq!(result.attachments_imported, 1);
     }
@@ -524,8 +532,7 @@ mod tests {
             import_attachments: false,
             ..Default::default()
         };
-        let result =
-            import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
+        let result = import_obsidian_vault("test-vault", &root, tmp.path(), &options).unwrap();
         assert_eq!(result.notes_imported, 1);
         assert_eq!(result.attachments_imported, 0);
         assert_eq!(result.skipped_files, 1);

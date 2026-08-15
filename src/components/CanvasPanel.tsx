@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { CanvasBlock } from '@scriptor/core/contracts/canvas'
 import type { CanvasToolContribution, TemplatePackContribution } from '@scriptor/core/contracts/plugin'
-import { sceneBounds } from '@scriptor/canvas'
+import { canvasPluginManifest, sceneBounds } from '@scriptor/canvas'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useCanvasBoard } from '../hooks/useCanvasBoard'
@@ -28,6 +28,13 @@ export function CanvasPanel({
   onClose,
   onOpenNote,
 }: CanvasPanelProps) {
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.info(
+        `[Decoupling Notice] CanvasPanel rendered via strangler adapter for capability "${canvasPluginManifest.capabilityId ?? 'canvas'}" (${canvasPluginManifest.id}). Core rendering provided by @scriptor/canvas (@scriptor/plugin-canvas).`,
+      )
+    }
+  }, [])
   const {
     document,
     boards,

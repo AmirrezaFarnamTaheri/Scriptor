@@ -47,6 +47,16 @@
   gap: 8px;
 }
 
+.unified-panel-header-actions > .icon-button,
+.unified-panel-header-actions > .toolbar-button,
+.unified-panel-header-actions > .action-button {
+  min-height: 44px;
+}
+
+.unified-panel-header-actions > .icon-button {
+  width: 44px;
+}
+
 .unified-panel-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -106,19 +116,22 @@
   -webkit-backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
-  will-change: opacity;
-  animation: dock-fade-in 200ms var(--ease-soft);
+  will-change: opacity, transform;
+  animation: dock-slide-in 220ms var(--ease-spring) both;
 }
 
 body:has(.unified-panel-docked) .workspace-grid {
   padding-right: min(480px, 92vw);
 }
 
-@keyframes dock-fade-in {
+/* P1 fix: Panel now slides in from the right instead of a bare opacity flash. */
+@keyframes dock-slide-in {
   from {
-    opacity: 0.6;
+    opacity: 0;
+    transform: translateX(24px);
   }
   to {
     opacity: 1;
+    transform: translateX(0);
   }
 }

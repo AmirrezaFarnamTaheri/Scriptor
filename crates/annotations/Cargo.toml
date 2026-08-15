@@ -1,0 +1,19 @@
+[package]
+name = "scriptor-annotations"
+version = "0.1.1"
+edition = "2024"
+license.workspace = true
+description = "Two-stage annotation anchoring for Scriptor (W3-7): exact byte-offset → fuzzy-quote fallback → orphaned"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+# Serialisation for Selector / AnchorJson round-trips
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "2"
+
+[dev-dependencies]

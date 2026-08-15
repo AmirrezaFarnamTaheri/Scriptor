@@ -91,10 +91,10 @@ pub struct CanvasBlock {
     pub content_ref: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<CanvasStyle>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub locked: Option<bool>,
-  #[serde(default, skip_serializing_if = "Option::is_none")]
-  pub stroke_points: Option<Vec<CanvasPoint>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub locked: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stroke_points: Option<Vec<CanvasPoint>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

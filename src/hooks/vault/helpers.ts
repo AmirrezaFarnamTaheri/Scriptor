@@ -17,9 +17,15 @@ export const DEFAULT_VAULT_CONFIG_SNIPPET = {
   extra_roots: [] as string[],
 }
 
+export function isReaderDocumentPath(path: string): boolean {
+  return /\.(pdf|epub)$/i.test(path)
+}
+
 export function buildVaultSections(entries: ScannedEntry[]): VaultSection[] {
-  const notes = entries.filter((entry) => entry.kind === 'note')
-  return buildVaultSectionsFromPaths(notes.map((note) => note.path))
+  const visibleEntries = entries.filter(
+    (entry) => entry.kind === 'note' || (entry.kind === 'asset' && isReaderDocumentPath(entry.path)),
+  )
+  return buildVaultSectionsFromPaths(visibleEntries.map((entry) => entry.path))
 }
 
 export function buildVaultSectionsFromPaths(paths: string[]): VaultSection[] {

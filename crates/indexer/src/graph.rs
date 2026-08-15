@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use rusqlite::{params, params_from_iter, types::Value};
 use serde::{Deserialize, Serialize};
 
-use scriptor_vault::{note_id, VaultSession};
+use scriptor_vault::{VaultSession, note_id};
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
@@ -304,9 +304,8 @@ fn load_note_by_id(
     id: &str,
 ) -> Result<Option<NoteRow>, IndexerError> {
     let conn = cache.connection()?;
-    let mut statement = conn.prepare(
-        "SELECT id, path, title FROM notes WHERE vault_id = ?1 AND id = ?2 LIMIT 1",
-    )?;
+    let mut statement =
+        conn.prepare("SELECT id, path, title FROM notes WHERE vault_id = ?1 AND id = ?2 LIMIT 1")?;
     let mut rows = statement.query(params![vault_id, id])?;
     let Some(row) = rows.next()? else {
         return Ok(None);
@@ -349,7 +348,7 @@ fn load_neighbor_links(
     if frontier.is_empty() {
         return Ok(Vec::new());
     }
-    let placeholders = std::iter::repeat("?").take(frontier.len())
+    let placeholders = std::iter::repeat_n("?", frontier.len())
         .collect::<Vec<_>>()
         .join(",");
     let sql = format!(
@@ -408,12 +407,11 @@ fn load_note_tags(
     if note_ids.is_empty() {
         return Ok(HashMap::new());
     }
-    let placeholders = std::iter::repeat("?").take(note_ids.len())
+    let placeholders = std::iter::repeat_n("?", note_ids.len())
         .collect::<Vec<_>>()
         .join(",");
-    let sql = format!(
-        "SELECT id, tags_json FROM notes WHERE vault_id = ? AND id IN ({placeholders})"
-    );
+    let sql =
+        format!("SELECT id, tags_json FROM notes WHERE vault_id = ? AND id IN ({placeholders})");
     let mut values = Vec::with_capacity(1 + note_ids.len());
     values.push(Value::Text(vault_id.to_string()));
     values.extend(note_ids.iter().cloned().map(Value::Text));
@@ -463,7 +461,8 @@ mod tests {
 
         let session = open_vault(dir.path())?;
         rebuild_index(&session, &[])?;
-        let cache = crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
+        let cache =
+            crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
 
         let graph = query_focused_graph(&cache, &session, Some("Research Plan.md"), 1, &[])?;
         assert!(graph.nodes.len() >= 2);
@@ -472,7 +471,8 @@ mod tests {
     }
 
     #[test]
-    fn traversal_preserves_bfs_depth_parent_and_stable_order() -> Result<(), Box<dyn std::error::Error>> {
+    fn traversal_preserves_bfs_depth_parent_and_stable_order()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         fs::write(dir.path().join("a.md"), "# A\n\n[[b]]\n")?;
         fs::write(dir.path().join("b.md"), "# B\n\n[[c]]\n[[d]]\n")?;
@@ -481,7 +481,8 @@ mod tests {
 
         let session = open_vault(dir.path())?;
         rebuild_index(&session, &[])?;
-        let cache = crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
+        let cache =
+            crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
 
         let steps = traverse_graph(&cache, &session, "a.md", 3)?;
         let summary: Vec<_> = steps
@@ -502,14 +503,16 @@ mod tests {
     }
 
     #[test]
-    fn traversal_respects_depth_and_returns_empty_for_missing_focus() -> Result<(), Box<dyn std::error::Error>> {
+    fn traversal_respects_depth_and_returns_empty_for_missing_focus()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         fs::write(dir.path().join("a.md"), "# A\n\n[[b]]\n")?;
         fs::write(dir.path().join("b.md"), "# B\n\n[[c]]\n")?;
         fs::write(dir.path().join("c.md"), "# C\n")?;
         let session = open_vault(dir.path())?;
         rebuild_index(&session, &[])?;
-        let cache = crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
+        let cache =
+            crate::db::IndexCache::open(crate::db::default_cache_path(session.root.root()))?;
 
         let steps = traverse_graph(&cache, &session, "a.md", 1)?;
         assert!(steps.iter().all(|step| step.depth <= 1));

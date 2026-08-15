@@ -1,0 +1,145 @@
+<!doctype html>
+<!--
+  epub-viewer.html — W3-8
+  Sandboxed epub.js viewer. Same postMessage protocol as pdf-viewer.html.
+
+  EPUB position is encoded as a CFI (Canonical Fragment Identifier) string.
+
+  inbound:  LOAD_BYTES | GOTO (position = CFI | 'prev' | 'next') | ZOOM | HIGHLIGHT
+  outbound: READY | POSITION (CFI) | SELECTION | SELECTION_CLEAR | ERROR
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EPUB Viewer — Scriptor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      background: #111827;
+      color: #e2e8f0;
+      font-family: system-ui, sans-serif;
+      overflow: hidden;
+    }
+    #epub-area {
+      width: 100%;
+      height: 100%;
+    }
+    #status {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      padding: 2rem;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  </style>
+</head>
+<body>
+  <div id="epub-area"></div>
+  <p id="status">Waiting for document…</p>
+
+  <script src="/reader/vendor/epub.min.js"></script>
+
+  <script>
+    const parentOrigin = window.location.origin
+    if (typeof window.ePub !== 'function') {
+      parent.postMessage({ type: 'ERROR', message: 'Local EPUB renderer failed to load' }, parentOrigin)
+    } else {
+      parent.postMessage({ type: 'READY' }, parentOrigin)
+    }
+
+    const status = document.getElementById('status')
+    let book = null
+    let rendition = null
+
+    // ── Load ─────────────────────────────────────────────────────────────────
+
+    function loadDocument(bytes) {
+      if (book) book.destroy()
+      status.textContent = 'Loading EPUB…'
+
+      try {
+        book = ePub(bytes.buffer ?? bytes)
+        rendition = book.renderTo('epub-area', {
+          width: '100%',
+          height: '100%',
+          flow: 'paginated',
+        })
+
+        rendition.display().then(() => {
+          status.remove()
+          parent.postMessage({ type: 'POSITION', position: rendition.currentLocation()?.start?.cfi ?? '' }, parentOrigin)
+          parent.postMessage({ type: 'LOADED' }, parentOrigin)
+        })
+
+        rendition.on('locationChanged', (loc) => {
+          parent.postMessage({ type: 'POSITION', position: loc?.start?.cfi ?? '' }, parentOrigin)
+        })
+
+        rendition.on('selected', (cfiRange, contents) => {
+          const quote = contents.window.getSelection()?.toString().trim() ?? ''
+          if (!quote) {
+            parent.postMessage({ type: 'SELECTION_CLEAR' }, parentOrigin)
+            return
+          }
+          parent.postMessage({ type: 'SELECTION', anchor: cfiRange, quote }, parentOrigin)
+        })
+
+        rendition.on('unselected', () => {
+          parent.postMessage({ type: 'SELECTION_CLEAR' }, parentOrigin)
+        })
+      } catch (err) {
+        parent.postMessage({ type: 'ERROR', message: err.message }, parentOrigin)
+      }
+    }
+
+    // ── Highlight ─────────────────────────────────────────────────────────────
+
+    function applyHighlight(annotation) {
+      if (!rendition) return
+      try {
+        rendition.annotations.highlight(
+          annotation.anchor,
+          {},
+          null,
+          'hl',
+          { fill: annotation.color, 'fill-opacity': '0.3', 'mix-blend-mode': 'multiply' },
+        )
+      } catch {
+        // Anchor may be stale; the two-stage fallback is handled Rust-side.
+      }
+    }
+
+    // ── Message handler ───────────────────────────────────────────────────────
+
+    window.addEventListener('message', (e) => {
+      const msg = e.data
+      if (!msg?.type) return
+      switch (msg.type) {
+        case 'LOAD_BYTES':
+          loadDocument(new Uint8Array(msg.bytes))
+          break
+        case 'GOTO':
+          if (!rendition) break
+          if (msg.position === 'prev') rendition.prev()
+          else if (msg.position === 'next') rendition.next()
+          else rendition.display(msg.position)
+          break
+        case 'ZOOM': {
+          if (!rendition) break
+          const cur = parseFloat(rendition.themes.fontSize() || '100%')
+          const next = Math.max(60, Math.min(200, cur + (msg.delta ?? 0) * 100))
+          rendition.themes.fontSize(`${next}%`)
+          break
+        }
+        case 'HIGHLIGHT':
+          applyHighlight(msg.annotation)
+          break
+      }
+    })
+  </script>
+</body>
+</html>

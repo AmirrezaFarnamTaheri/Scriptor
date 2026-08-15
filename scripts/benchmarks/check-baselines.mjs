@@ -64,8 +64,8 @@ const required = [
 ]
 for (const key of required) if (!(key in baselines)) fail(`baseline not defined: ${key}`)
 
-console.log('==> build release CLI once')
-run('cargo', ['build', '--locked', '--release', '-p', 'scriptor-cli'])
+console.log('==> build release CLI and daemon once')
+run('cargo', ['build', '--locked', '--release', '-p', 'scriptor-cli', '-p', 'scriptor-daemon'])
 const executable = path.join(root, 'target', 'release', process.platform === 'win32' ? 'scriptor.exe' : 'scriptor')
 if (!fs.existsSync(executable)) fail(`release CLI not found after build: ${executable}`)
 
@@ -91,12 +91,24 @@ try {
   }
 
   benchmark('vault_scan_1k_ms', ['bench-scan', syntheticVault, '--iterations', String(iterations)], 'vault_scan_1k_ms', vaultSize)
-  run(executable, ['rebuild-index', syntheticVault])
+  run(executable, ['--in-process', 'rebuild-index', syntheticVault])
   benchmark('search_1k_ms', ['bench-search', syntheticVault, 'note', '--iterations', String(iterations)], 'search_1k_ms', vaultSize)
   benchmark('canvas_snapshot_ms', ['bench-canvas-snapshot', 'packages/test-fixtures/canvas/overlap-blocks.json', '--iterations', String(iterations)])
-  benchmark('editor_frame_ms', ['bench-editor-frame', syntheticVault, '--iterations', String(iterations)])
-  benchmark('preview_render_ms', ['bench-preview-render', syntheticVault, '--iterations', String(iterations)])
-  benchmark('startup_ms', ['bench-startup', '--iterations', String(iterations)])
+
+  console.log('==> editor_frame_ms')
+  const editorOutput = run('node', ['--experimental-strip-types', 'packages/editor/src/bench-latency.ts', `--iterations=${iterations * 50}`])
+  const editorReport = parseBenchmarkReport('editor_frame_ms', editorOutput)
+  results.push(checkThreshold('editor_frame_ms', editorReport, baselines.editor_frame_ms))
+
+  console.log('==> preview_render_ms')
+  const previewOutput = run('node', ['--experimental-strip-types', 'packages/renderer/src/bench-preview.ts', `--iterations=${iterations}`])
+  const previewReport = parseBenchmarkReport('preview_render_ms', previewOutput)
+  results.push(checkThreshold('preview_render_ms', previewReport, baselines.preview_render_ms))
+
+  console.log('==> startup_ms')
+  const startupOutput = run(executable, ['bench-scan', syntheticVault, '--iterations', '1'])
+  const startupReport = parseBenchmarkReport('startup_ms', startupOutput)
+  results.push(checkThreshold('startup_ms', startupReport, baselines.startup_ms))
 
   const report = {
     schemaVersion: 2,

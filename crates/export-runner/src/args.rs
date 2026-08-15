@@ -112,7 +112,11 @@ mod tests {
             &[],
         )
         .expect("args");
-        assert!(!args.iter().any(|arg| arg.contains('&') || arg.contains('|')));
+        assert!(
+            !args
+                .iter()
+                .any(|arg| arg.contains('&') || arg.contains('|'))
+        );
         assert!(args.contains(&"-o".to_string()));
         assert!(args.contains(&PathBuf::from("out.html").display().to_string()));
     }

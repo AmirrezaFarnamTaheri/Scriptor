@@ -59,6 +59,14 @@ The renderer is not an authority boundary. Native operations validate scope, aut
 
 `crates/native-git/src/status.rs` creates an isolated temporary index seeded from `HEAD`, stages literal requested paths, creates the commit tree, updates the branch, and leaves the user’s original index unchanged.
 
+### Read vault documents
+
+The Reader accepts only vault-relative PDF and EPUB paths at the native boundary. Native code resolves and confines each path before returning document bytes; the renderer uses bundled PDF/EPUB viewer assets and stores annotations atomically in the vault sidecar. Reader activation is command-palette-first, with no default shortcut claim.
+
+### Update tasks and Kanban cards
+
+Tasks are indexed from Markdown and changes write back to the originating note through the canonical vault save path before the native mutation runs. Kanban is an alternate Markdown view: moving a card rewrites the source file by relocating the complete card line under the requested `##` heading, then refreshes the index. Both paths reject stale or invalid source state instead of silently applying an optimistic UI-only change.
+
 ### External process
 
 All supported launches pass through the process broker. Policy includes canonical executable resolution, optional binary hash, trusted workspace, environment allowlist, network policy, time/output limits, process group/job cancellation, and structured outcome. No command is assembled through a shell string.

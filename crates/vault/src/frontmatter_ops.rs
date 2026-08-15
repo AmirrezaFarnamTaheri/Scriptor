@@ -19,7 +19,11 @@ pub fn get_frontmatter_field(markdown: &str, field: &str) -> Option<String> {
     parse_field(&fm, field)
 }
 
-pub fn set_frontmatter_field(markdown: &str, field: &str, value: &str) -> Result<String, VaultError> {
+pub fn set_frontmatter_field(
+    markdown: &str,
+    field: &str,
+    value: &str,
+) -> Result<String, VaultError> {
     let (frontmatter, body) = split_frontmatter(markdown);
     let mut lines: Vec<String> = frontmatter
         .as_deref()
@@ -56,7 +60,11 @@ pub fn delete_frontmatter_field(markdown: &str, field: &str) -> Result<String, V
         .filter(|line| !key_re.is_match(line))
         .map(str::to_string)
         .collect();
-    let joined = if lines.is_empty() { None } else { Some(lines.join("\n")) };
+    let joined = if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    };
     Ok(join_frontmatter(joined.as_deref(), &body))
 }
 
@@ -65,7 +73,9 @@ fn parse_field(frontmatter: &str, field: &str) -> Option<String> {
     let key_re = Regex::new(&key_pattern).expect("valid field regex");
     for line in frontmatter.lines() {
         if let Some(caps) = key_re.captures(line) {
-            return caps.get(1).map(|value| value.as_str().trim().trim_matches('"').to_string());
+            return caps
+                .get(1)
+                .map(|value| value.as_str().trim().trim_matches('"').to_string());
         }
     }
     None
@@ -79,6 +89,9 @@ mod tests {
     fn sets_and_reads_frontmatter_field() {
         let source = "# Title\n";
         let updated = set_frontmatter_field(source, "status", "draft").unwrap();
-        assert_eq!(get_frontmatter_field(&updated, "status"), Some("draft".into()));
+        assert_eq!(
+            get_frontmatter_field(&updated, "status"),
+            Some("draft".into())
+        );
     }
 }

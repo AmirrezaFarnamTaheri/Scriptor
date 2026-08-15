@@ -19,7 +19,10 @@ pub struct ActivityLogEntry {
     pub detail: Option<String>,
 }
 
-pub fn read_activity_log(root: &VaultRoot, limit: usize) -> Result<Vec<ActivityLogEntry>, VaultError> {
+pub fn read_activity_log(
+    root: &VaultRoot,
+    limit: usize,
+) -> Result<Vec<ActivityLogEntry>, VaultError> {
     let absolute = root.root().join(DEFAULT_ACTIVITY_LOG_PATH);
     if !absolute.exists() {
         return Ok(Vec::new());

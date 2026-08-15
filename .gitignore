@@ -13,6 +13,11 @@ target/
 /release-artifacts/
 /release-evidence/
 /release-output/
+# Local smoke-test directories produced by generate-update-manifests dry runs
+/release-artifacts-test/
+/release-manifests-test/
+# CI-generated update manifests (only live inside the publish-update-manifests job)
+/update-manifests/
 
 # Vite / TypeScript
 *.local

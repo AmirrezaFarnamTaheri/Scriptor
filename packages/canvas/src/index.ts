@@ -5,7 +5,13 @@ import type {
   CanvasRect,
 } from '@scriptor/core/contracts/canvas'
 
+import type { PluginContributions, PluginManifest } from '@scriptor/core/contracts/plugin'
+import canvasManifestJson from '../plugin.json' with { type: 'json' }
 import { blocksForTemplate, type CanvasTemplateId } from './templates.ts'
+
+export const canvasPluginManifest: PluginManifest = canvasManifestJson as PluginManifest
+export const canvasPluginContributions: PluginContributions = canvasManifestJson.contributes as PluginContributions
+export const canvasContributions = canvasPluginContributions
 
 export const CANVAS_TEMPLATE_IDS = ['research-board', 'weekly-plan'] as const satisfies readonly CanvasTemplateId[]
 

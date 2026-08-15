@@ -7,18 +7,24 @@ pub fn scriptor_data_dir(app_name: &str) -> Result<PathBuf, BridgeError> {
         std::env::var("APPDATA")
             .map(PathBuf::from)
             .or_else(|_| std::env::var("USERPROFILE").map(PathBuf::from))
-            .map_err(|_| BridgeError::Unsupported("could not resolve Windows app data directory".into()))?
+            .map_err(|_| {
+                BridgeError::Unsupported("could not resolve Windows app data directory".into())
+            })?
     } else if cfg!(target_os = "macos") {
         std::env::var("HOME")
             .map(|home| PathBuf::from(home).join("Library/Application Support"))
-            .map_err(|_| BridgeError::Unsupported("could not resolve macOS app data directory".into()))?
+            .map_err(|_| {
+                BridgeError::Unsupported("could not resolve macOS app data directory".into())
+            })?
     } else {
         std::env::var("XDG_DATA_HOME")
             .map(PathBuf::from)
             .or_else(|_| {
                 std::env::var("HOME")
                     .map(|home| PathBuf::from(home).join(".local/share"))
-                    .map_err(|_| BridgeError::Unsupported("could not resolve Linux data directory".into()))
+                    .map_err(|_| {
+                        BridgeError::Unsupported("could not resolve Linux data directory".into())
+                    })
             })?
     };
 

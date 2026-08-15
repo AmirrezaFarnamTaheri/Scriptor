@@ -88,6 +88,30 @@ core surfaces; transient/state-review screenshots are attached to the Visual rev
 creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
+## 2026-08-13 experimental workspace evidence
+
+The following is implementation evidence for the Reader, Markdown-backed Tasks, and Kanban
+workflows. These surfaces remain **Experimental** in the capability ledger until the complete UI
+and release gates pass from a clean environment.
+
+| Workflow boundary | Evidence command | Observed result | Remaining proof |
+|---|---|---|---|
+| Reader native path confinement and annotation restart persistence | `cargo test -p scriptor-desktop reader --lib` | Passed: 2 tests | Desktop-shell PDF/EPUB rendering, keyboard-only and 200% zoom matrix |
+| Task parsing, source Markdown updates, and index refresh | `cargo test -p scriptor-indexer -- --nocapture` | Passed: 103 tests | Clean-environment browser mutation/retry proof |
+| Reader/Task/Kanban bridge and UI contracts | `node --experimental-strip-types --test scripts/validation/task-kanban-reader-contracts.test.mjs` | Passed | Full Playwright workflow against the configured web server |
+| Type, lint, and package contracts | `pnpm exec tsc -b --pretty false`; `pnpm lint`; `pnpm check:contracts` | Passed in the working-tree validation run | Repeat after the worktree is isolated for release |
+
+The intended normal path is: open a PDF/EPUB from the vault tree or command palette; open Tasks
+or Kanban from the palette; save an edited note before a task/card mutation; then let the native
+write and index refresh complete. A failed save or rejected native mutation leaves the source
+unchanged and surfaces an error for retry. Do not assign a default shortcut until the command
+palette flow has passed the keyboard-only matrix.
+
+The previously attempted targeted Playwright run could not provide this proof in the current
+environment because its configured `vite` web-server command was unavailable. Treat that as an
+environment-level blocker, not a passing end-to-end result; restore the pinned dependencies and
+run `pnpm test:e2e -- --grep "Reader|Task|Kanban" --workers=1` before graduation.
+
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.

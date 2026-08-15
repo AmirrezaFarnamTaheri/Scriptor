@@ -122,10 +122,11 @@ impl<'de> Deserialize<'de> for ViewFilterNode {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let value = serde_json::Value::deserialize(deserializer)?;
         if let serde_json::Value::Object(map) = &value
-            && (map.contains_key("all") || map.contains_key("any")) {
-                let group: ViewFilter = serde_json::from_value(value).map_err(de::Error::custom)?;
-                return Ok(ViewFilterNode::Group(group));
-            }
+            && (map.contains_key("all") || map.contains_key("any"))
+        {
+            let group: ViewFilter = serde_json::from_value(value).map_err(de::Error::custom)?;
+            return Ok(ViewFilterNode::Group(group));
+        }
         let condition: ViewFilterCondition =
             serde_json::from_value(value).map_err(de::Error::custom)?;
         Ok(ViewFilterNode::Condition(condition))
@@ -134,8 +135,12 @@ impl<'de> Deserialize<'de> for ViewFilterNode {
 
 pub fn evaluate_view_filter(filter: &ViewFilter, note: &ViewNoteMetadata<'_>) -> bool {
     match filter {
-        ViewFilter::All(nodes) => nodes.iter().all(|node| evaluate_view_filter_node(node, note)),
-        ViewFilter::Any(nodes) => nodes.iter().any(|node| evaluate_view_filter_node(node, note)),
+        ViewFilter::All(nodes) => nodes
+            .iter()
+            .all(|node| evaluate_view_filter_node(node, note)),
+        ViewFilter::Any(nodes) => nodes
+            .iter()
+            .any(|node| evaluate_view_filter_node(node, note)),
     }
 }
 
@@ -146,7 +151,10 @@ fn evaluate_view_filter_node(node: &ViewFilterNode, note: &ViewNoteMetadata<'_>)
     }
 }
 
-fn evaluate_view_filter_condition(condition: &ViewFilterCondition, note: &ViewNoteMetadata<'_>) -> bool {
+fn evaluate_view_filter_condition(
+    condition: &ViewFilterCondition,
+    note: &ViewNoteMetadata<'_>,
+) -> bool {
     match condition.op {
         ViewFilterOp::PathMatches => {
             let Some(raw) = json_scalar(&condition.value) else {
@@ -178,7 +186,9 @@ fn evaluate_view_filter_condition(condition: &ViewFilterCondition, note: &ViewNo
             let Some(raw) = json_scalar(&condition.value) else {
                 return false;
             };
-            note.note_type.map(|value| value.eq_ignore_ascii_case(&raw)).unwrap_or(false)
+            note.note_type
+                .map(|value| value.eq_ignore_ascii_case(&raw))
+                .unwrap_or(false)
         }
         ViewFilterOp::OrganizedIs => {
             let Some(raw) = json_scalar(&condition.value) else {
@@ -188,9 +198,7 @@ fn evaluate_view_filter_condition(condition: &ViewFilterCondition, note: &ViewNo
             note.organized == expected
         }
         ViewFilterOp::InInbox => {
-            !note.archived
-                && note.note_type != Some("Type")
-                && !note.organized
+            !note.archived && note.note_type != Some("Type") && !note.organized
         }
     }
 }
@@ -335,7 +343,12 @@ mod tests {
         }))
         .unwrap();
         let tags = Vec::new();
-        let note = sample_note("daily/2026-06-20.md", "Daily plan", &tags, "2026-06-20T12:00:00Z");
+        let note = sample_note(
+            "daily/2026-06-20.md",
+            "Daily plan",
+            &tags,
+            "2026-06-20T12:00:00Z",
+        );
         assert!(evaluate_view_filter(&filter, &note));
     }
 
@@ -381,7 +394,12 @@ mod tests {
         // `days` comes from vault-authored view JSON. Before clamping, chrono's
         // Duration::days panicked past its millisecond range, and values above
         // i64::MAX wrapped negative and inverted the filter.
-        for days in [u64::MAX, i64::MAX as u64, 1_000_000_000_000_000, 100_000_000] {
+        for days in [
+            u64::MAX,
+            i64::MAX as u64,
+            1_000_000_000_000_000,
+            100_000_000,
+        ] {
             assert!(
                 modified_within_days("2026-06-20T12:00:00Z", days),
                 "an absurd window should behave as unbounded, not panic (days={days})"
@@ -392,10 +410,7 @@ mod tests {
     #[test]
     fn modified_within_days_still_excludes_older_notes() {
         assert!(!modified_within_days("2000-01-01T00:00:00Z", 7));
-        assert!(modified_within_days(
-            &Utc::now().to_rfc3339(),
-            7
-        ));
+        assert!(modified_within_days(&Utc::now().to_rfc3339(), 7));
     }
 
     #[test]

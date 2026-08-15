@@ -3,22 +3,12 @@ import type { Extension } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 
 import { checkLanguageTool } from './language-tool.ts'
+import { languageToolSettings } from './language-tool-config.ts'
 
-let endpoint = 'https://api.languagetool.org/v2/check'
-let language = 'en-US'
-let enabled = false
-
-export function configureLanguageTool(options: {
-  enabled?: boolean
-  endpoint?: string
-  language?: string
-}): void {
-  if (options.enabled != null) enabled = options.enabled
-  if (options.endpoint) endpoint = options.endpoint
-  if (options.language) language = options.language
-}
+export { configureLanguageTool } from './language-tool-config.ts'
 
 async function languageToolDiagnostics(view: EditorView): Promise<Diagnostic[]> {
+  const { enabled, endpoint, language } = languageToolSettings()
   if (!enabled) return []
   const text = view.state.doc.toString()
   if (!text.trim()) return []

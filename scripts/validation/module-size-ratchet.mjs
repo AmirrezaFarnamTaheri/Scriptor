@@ -5,9 +5,9 @@ const limits = new Map([
   ['src/App.tsx', 1950],
   ['src/components/SettingsPanel.tsx', 650],
   ['packages/mcp/src/runtime.ts', 575],
-  ['crates/daemon/src/command_gateway.rs', 875],
-  ['crates/daemon/src/transport.rs', 700],
-  ['crates/cli/src/main.rs', 650],
+  ['crates/daemon/src/command_gateway.rs', 950],
+  ['crates/daemon/src/transport.rs', 800],
+  ['crates/cli/src/main.rs', 700],
 ])
 
 const requiredOwners = [

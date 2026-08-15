@@ -46,7 +46,9 @@ fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), Expor
             "absolute path not allowed for file reference arg: {path}"
         )));
     }
-    let canonical_root = vault_root.canonicalize().unwrap_or_else(|_| vault_root.to_path_buf());
+    let canonical_root = vault_root
+        .canonicalize()
+        .unwrap_or_else(|_| vault_root.to_path_buf());
     let candidate = canonical_root.join(p);
     let normalized = normalize_theme_path(&candidate);
     if !normalized.starts_with(&canonical_root) {
@@ -84,7 +86,9 @@ fn normalize_theme_path(path: &Path) -> std::path::PathBuf {
     let mut output = std::path::PathBuf::new();
     for component in path.components() {
         match component {
-            std::path::Component::ParentDir => { output.pop(); }
+            std::path::Component::ParentDir => {
+                output.pop();
+            }
             std::path::Component::CurDir => {}
             std::path::Component::Normal(part) => output.push(part),
             std::path::Component::RootDir => output.push(std::path::MAIN_SEPARATOR_STR),
@@ -128,10 +132,7 @@ pub fn resolve_extra_args(
             let candidate = resolve_vault_relative(vault_root, output_dir, path);
             let absolute = if candidate.exists() {
                 candidate
-            } else if path
-                .file_name()
-                .is_some_and(|name| name == "apa-lite.csl")
-            {
+            } else if path.file_name().is_some_and(|name| name == "apa-lite.csl") {
                 materialize_default_csl(output_dir)?
             } else {
                 candidate
@@ -167,10 +168,7 @@ mod tests {
         let resolved = resolve_extra_args(
             &dir,
             &dir,
-            &[
-                "--embed-resources".into(),
-                "--css=export-theme.css".into(),
-            ],
+            &["--embed-resources".into(), "--css=export-theme.css".into()],
         )
         .expect("resolve args");
 
@@ -258,7 +256,8 @@ mod tests {
     #[test]
     fn rejects_symlinked_file_reference_escaping_vault() {
         let vault = std::env::temp_dir().join(format!("scriptor-vault-{}", uuid::Uuid::new_v4()));
-        let outside = std::env::temp_dir().join(format!("scriptor-outside-{}", uuid::Uuid::new_v4()));
+        let outside =
+            std::env::temp_dir().join(format!("scriptor-outside-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&vault).expect("vault dir");
         fs::create_dir_all(&outside).expect("outside dir");
         let secret = outside.join("secret.bib");

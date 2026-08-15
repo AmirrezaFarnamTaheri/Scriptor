@@ -33,6 +33,7 @@
     "switchToLight": "تغییر به تم روشن",
     "switchToDark": "تغییر به تم تاریک",
     "switchToHighContrast": "تغییر به تم با کنتراست بالا",
+    "switchToTheme": "تغییر به تم {{theme}}",
     "supportScriptor": "حمایت از اسکریپتور",
     "settings": "تنظیمات",
     "typeCommandOrSearch": "دستور یا جستجو تایپ کنید...",

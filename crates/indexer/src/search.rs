@@ -46,7 +46,11 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
         };
 
         if index > 0 {
-            let join = if tokens[index - 1].or_after { "OR" } else { "AND" };
+            let join = if tokens[index - 1].or_after {
+                "OR"
+            } else {
+                "AND"
+            };
             clause = format!("{join} {clause}");
         }
 
@@ -124,13 +128,19 @@ pub fn search_notes(
     };
 
     let conn = cache.connection()?;
+    // v5 weighted BM25 — column order: title(10), headings(5), tags(3), body(1).
+    // `bm25()` is negated (more relevant = more negative) so ORDER BY ascending
+    // gives highest-relevance first.
+    // snippet() column-index 3 = body (0=note_id UNINDEXED, 1=title, 2=headings, 3=tags, 4=body
+    // — but note_id is UNINDEXED so FTS column indices start at 0 for title).
+    // Correct snippet column: title=0, headings=1, tags=2, body=3.
     let mut statement = conn.prepare(
         "SELECT note_fts.note_id, notes.path, notes.title,
-                snippet(note_fts, 1, '[[', ']]', '...', 32) AS snippet
+                snippet(note_fts, 3, '[[', ']]', '...', 32) AS snippet
          FROM note_fts
          JOIN notes ON notes.id = note_fts.note_id
          WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
-         ORDER BY bm25(note_fts)
+         ORDER BY bm25(note_fts, 10.0, 5.0, 3.0, 1.0)
          LIMIT ?3",
     )?;
 
@@ -151,7 +161,7 @@ mod tests {
     use super::*;
     use crate::db::IndexCache;
     use crate::notes::upsert_note;
-    use scriptor_vault::{metadata_from_markdown, RelativeVaultPath};
+    use scriptor_vault::{RelativeVaultPath, metadata_from_markdown};
     use tempfile::tempdir;
 
     #[test]
@@ -173,14 +183,16 @@ mod tests {
     #[test]
     fn quotes_terms_so_fts_operators_are_literal() {
         assert_eq!(build_fts_query("a("), Some("\"a(\"*".into()));
-        assert_eq!(build_fts_query("body:secret"), Some("\"body:secret\"*".into()));
+        assert_eq!(
+            build_fts_query("body:secret"),
+            Some("\"body:secret\"*".into())
+        );
         // Embedded quotes are escaped by doubling inside the phrase.
         assert_eq!(build_fts_query("say\"hi"), Some("\"say\"\"hi\"*".into()));
     }
 
     #[test]
-    fn search_with_fts_metacharacters_does_not_error(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn search_with_fts_metacharacters_does_not_error() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
 
@@ -192,8 +204,12 @@ mod tests {
 
         let other = RelativeVaultPath::parse("Other.md")?;
         let other_markdown = "# Other\n\nkeep this secret safe\n";
-        let other_metadata =
-            metadata_from_markdown("vault-test", &other, other_markdown, "2026-01-01T00:00:00Z".into());
+        let other_metadata = metadata_from_markdown(
+            "vault-test",
+            &other,
+            other_markdown,
+            "2026-01-01T00:00:00Z".into(),
+        );
         upsert_note(&cache, &other_metadata, other_markdown)?;
 
         // Would previously be parsed as MATCH syntax (unbalanced paren / column filter).
@@ -219,7 +235,8 @@ mod tests {
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
         let path = RelativeVaultPath::parse("Research Plan.md")?;
         let markdown = "# Research Plan\n\nEvaluate knowledge structure.\n";
-        let metadata = metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
+        let metadata =
+            metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
 
         upsert_note(&cache, &metadata, markdown)?;
 

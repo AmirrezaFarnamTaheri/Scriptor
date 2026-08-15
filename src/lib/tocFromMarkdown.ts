@@ -1,4 +1,5 @@
-import { headingToId, type TocEntry } from '@scriptor/editor'
+import type { TocEntry } from '@scriptor/editor'
+import { headingToId } from '@scriptor/editor/pure'
 
 /** Lightweight heading TOC from raw markdown (no editor state required). */
 export function generateTocFromMarkdown(markdown: string): TocEntry[] {

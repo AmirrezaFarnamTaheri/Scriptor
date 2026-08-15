@@ -69,7 +69,9 @@ jobs:
       - name: Finalize source snapshot evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Source snapshot and provenance" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Source snapshot and provenance" -Status $env:JOB_STATUS
 
       - name: Upload source snapshot evidence
         if: always()
@@ -112,6 +114,12 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+          cache-bin: false
+
       - name: Describe supply-chain scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Supply-chain and lockfile audit"
@@ -132,7 +140,7 @@ jobs:
 
       - name: Install pinned cargo-deny 0.20.2
         shell: pwsh
-        run: cargo install cargo-deny --locked --version 0.20.2
+        run: cargo install cargo-deny --locked --version 0.20.2 --force
 
       - name: Record cargo-deny version
         shell: pwsh
@@ -181,7 +189,9 @@ jobs:
       - name: Finalize supply-chain evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Supply-chain and lockfile audit" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Supply-chain and lockfile audit" -Status $env:JOB_STATUS
 
       - name: Upload supply-chain evidence
         if: always()
@@ -307,7 +317,9 @@ jobs:
       - name: Finalize fast validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, and lint" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, and lint" -Status $env:JOB_STATUS
 
       - name: Upload fast validation evidence
         if: always()
@@ -355,6 +367,11 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
       - name: Describe Rust validation scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
@@ -379,7 +396,9 @@ jobs:
       - name: Finalize Rust validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Rust workspace tests and release smoke" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Rust workspace tests and release smoke" -Status $env:JOB_STATUS
 
       - name: Upload Rust validation evidence
         if: always()
@@ -423,6 +442,11 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
       - name: Describe frontend validation scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke"
@@ -463,7 +487,9 @@ jobs:
       - name: Finalize frontend validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke" -Status $env:JOB_STATUS
 
       - name: Upload frontend validation evidence
         if: always()
@@ -528,7 +554,9 @@ jobs:
       - name: Finalize browser validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status $env:JOB_STATUS
 
       - name: Upload browser reports and evidence
         if: always()
@@ -575,6 +603,11 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
       - name: Describe Windows release scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Windows release smoke and performance gates"
@@ -611,7 +644,9 @@ jobs:
       - name: Finalize Windows release evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Windows release smoke and performance gates" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Windows release smoke and performance gates" -Status $env:JOB_STATUS
 
       - name: Upload Windows release evidence
         if: always()
@@ -653,7 +688,9 @@ jobs:
       - name: Finalize container evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Container image build and runtime smoke" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Container image build and runtime smoke" -Status $env:JOB_STATUS
 
       - name: Upload container evidence
         if: always()

@@ -1,0 +1,13 @@
+{
+  "name": "@scriptor/template-engine",
+  "private": true,
+  "version": "0.1.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./parse": "./src/parse.ts",
+    "./eval": "./src/eval.ts",
+    "./filters": "./src/filters.ts",
+    "./variables": "./src/variables.ts"
+  }
+}

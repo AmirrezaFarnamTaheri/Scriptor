@@ -11,12 +11,13 @@ import { distractionFreeExtension, setDistractionFreeClass } from './distraction
 import { findReplaceExtension } from './find-replace.ts'
 import { markdownLintExtension } from './markdown-lint.ts'
 import { pasteHandlerExtension, setPasteImageHandler } from './paste-handler.ts'
-import { typewriterExtension } from './typewriter.ts'
+import { typewriterExtension, focusDimExtension } from './typewriter.ts'
 import {
   dispatchEditorAutocompleteContext,
   editorAutocompleteExtension,
   type EditorAutocompleteContext,
 } from './editor-autocomplete.ts'
+import { proseAutosuggestExtension, dispatchProseCorpus, type ProseCorpus } from './prose-autosuggest.ts'
 import { frontmatterGutterExtension } from './frontmatter-gutter.ts'
 import {
   dispatchSnippetCatalog,
@@ -40,6 +41,8 @@ import {
 } from './vim-mode.ts'
 import { taskToggleClickExtension } from './task-toggle.ts'
 import { wysiwygDecorationExtension } from './wysiwyg-decorations.ts'
+import { wikilinkHoverTooltip, type WikilinkPreviewResolver } from './wikilink-hover-tooltip.ts'
+import { wikilinkDecorationExtension } from './wikilink-decorations.ts'
 import {
   editorThemeCompartment,
   editorThemeExtension,
@@ -58,7 +61,9 @@ const spellcheckCompartment = new Compartment()
 const languageToolCompartment = new Compartment()
 const wysiwygCompartment = new Compartment()
 const typewriterCompartment = new Compartment()
+const focusDimCompartment = new Compartment()
 const lineNumbersCompartment = new Compartment()
+const wikilinkHoverCompartment = new Compartment()
 const themeCompartment = editorThemeCompartment()
 
 class CodeMirrorAdapter implements EditorAdapter {
@@ -81,11 +86,13 @@ class CodeMirrorAdapter implements EditorAdapter {
       ...snippetExtension(),
       ...snippetAutocompleteExtension(options.snippetContext),
       editorAutocompleteExtension(),
+      ...proseAutosuggestExtension({ minPrefix: 3, maxSuggestions: 8 }),
       findReplaceExtension(),
       autoPairExtension(),
       pasteHandlerExtension(),
       markdownLintExtension(),
       taskToggleClickExtension(),
+      wikilinkDecorationExtension(),
       history(),
       scriptorMarkdownExtension(),
       syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
@@ -95,8 +102,14 @@ class CodeMirrorAdapter implements EditorAdapter {
       spellcheckCompartment.of(options.spellcheck ? spellcheckExtension() : []),
       wysiwygCompartment.of(options.wysiwyg ? wysiwygDecorationExtension() : []),
       typewriterCompartment.of(typewriterExtension(options.typewriter ?? false)),
+      focusDimCompartment.of(focusDimExtension(options.focusDim ?? false)),
       distractionFreeExtension(options.distractionFree ?? false),
       languageToolCompartment.of(options.languageTool ? languageToolLintExtension() : []),
+      wikilinkHoverCompartment.of(
+        options.wikilinkPreviewResolver
+          ? wikilinkHoverTooltip(options.wikilinkPreviewResolver)
+          : [],
+      ),
       EditorView.lineWrapping,
       EditorView.theme({
         '&': {
@@ -181,6 +194,10 @@ class CodeMirrorAdapter implements EditorAdapter {
     dispatchEditorAutocompleteContext(this.view, context)
   }
 
+  setProseCorpus(corpus: ProseCorpus): void {
+    dispatchProseCorpus(this.view, corpus)
+  }
+
   setVimMode(enabled: boolean): void {
     setVimModeEnabled(this.view, enabled)
   }
@@ -207,6 +224,20 @@ class CodeMirrorAdapter implements EditorAdapter {
   setTypewriter(enabled: boolean): void {
     this.view.dispatch({
       effects: typewriterCompartment.reconfigure(typewriterExtension(enabled)),
+    })
+  }
+
+  setFocusDim(enabled: boolean): void {
+    this.view.dispatch({
+      effects: focusDimCompartment.reconfigure(focusDimExtension(enabled)),
+    })
+  }
+
+  setWikilinkPreviewResolver(resolver: WikilinkPreviewResolver | null): void {
+    this.view.dispatch({
+      effects: wikilinkHoverCompartment.reconfigure(
+        resolver ? wikilinkHoverTooltip(resolver) : [],
+      ),
     })
   }
 
@@ -313,6 +344,7 @@ export interface MarkdownEditorHandle {
   setLanguageTool(enabled: boolean): void
   setWysiwyg(enabled: boolean): void
   setTypewriter(enabled: boolean): void
+  setFocusDim(enabled: boolean): void
   setEditorTheme(theme: EditorThemeId): void
 }
 
@@ -336,6 +368,7 @@ export interface MarkdownEditorProps {
   languageTool?: boolean
   wysiwyg?: boolean
   typewriter?: boolean
+  focusDim?: boolean
   distractionFree?: boolean
   showLineNumbers?: boolean
   editorTheme?: EditorThemeId
@@ -363,6 +396,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     languageTool = false,
     wysiwyg = false,
     typewriter = false,
+    focusDim = false,
     distractionFree = false,
     showLineNumbers = true,
     editorTheme = 'light',
@@ -407,6 +441,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     setLanguageTool: (enabled) => adapterRef.current?.setLanguageTool(enabled),
     setWysiwyg: (enabled) => adapterRef.current?.setWysiwyg(enabled),
     setTypewriter: (enabled) => adapterRef.current?.setTypewriter(enabled),
+    setFocusDim: (enabled) => adapterRef.current?.setFocusDim(enabled),
     setEditorTheme: (theme) => adapterRef.current?.setEditorTheme(theme),
   }))
 
@@ -428,6 +463,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
       languageTool,
       wysiwyg,
       typewriter,
+      focusDim,
       distractionFree,
       showLineNumbers,
       editorTheme,
@@ -499,6 +535,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   useEffect(() => {
     adapterRef.current?.setTypewriter(typewriter)
   }, [typewriter])
+
+  useEffect(() => {
+    adapterRef.current?.setFocusDim(focusDim)
+  }, [focusDim])
 
   useEffect(() => {
     adapterRef.current?.setShowLineNumbers(showLineNumbers)

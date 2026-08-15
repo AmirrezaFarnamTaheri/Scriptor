@@ -10,4 +10,8 @@ pub enum GitError {
     Command(String),
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),
+    /// Three-way merge produced conflict markers. `conflict_text` is the full
+    /// file content with `<<<<<<<` / `=======` / `>>>>>>>` markers included.
+    #[error("merge conflict in file")]
+    MergeConflict { conflict_text: String },
 }

@@ -1,0 +1,165 @@
+/* ============================================================
+ * Scriptor Design Token System — Tier 1: Primitive Values
+ * F-1 of the Seven Clusters program plan.
+ *
+ * RULES (binding):
+ *  - Primitives are raw values only: no semantic meaning.
+ *  - Never reference another primitive variable here.
+ *  - Tier-2 (semantic) and Tier-3 (component) MUST NOT be
+ *    defined in this file.
+ *  - Add new primitives at the bottom of the relevant group.
+ * ============================================================ */
+
+:root {
+  /* ── Colour palette ──────────────────────────────────────── */
+  --p-color-white: #ffffff;
+  --p-color-black: #000000;
+
+  /* Neutral (surface) ramp — 50 lightest → 950 darkest */
+  --p-color-neutral-50:  #f8f9fa;
+  --p-color-neutral-100: #f1f3f5;
+  --p-color-neutral-150: #eaecef;
+  --p-color-neutral-200: #dee2e6;
+  --p-color-neutral-300: #ced4da;
+  --p-color-neutral-400: #adb5bd;
+  --p-color-neutral-500: #868e96;
+  --p-color-neutral-600: #495057;
+  --p-color-neutral-700: #343a40;
+  --p-color-neutral-750: #2b3035;
+  --p-color-neutral-800: #212529;
+  --p-color-neutral-850: #1a1d20;
+  --p-color-neutral-900: #141618;
+  --p-color-neutral-950: #0d0f10;
+
+  /* Brand (accent) — blue-indigo */
+  --p-color-brand-100: #dbe4ff;
+  --p-color-brand-200: #bac8ff;
+  --p-color-brand-300: #91a7ff;
+  --p-color-brand-400: #748ffc;
+  --p-color-brand-500: #5c7cfa;
+  --p-color-brand-600: #4c6ef5;
+  --p-color-brand-700: #4263eb;
+  --p-color-brand-800: #3b5bdb;
+  --p-color-brand-900: #364fc7;
+
+  /* Status */
+  --p-color-red-400:    #ff6b6b;
+  --p-color-red-500:    #fa5252;
+  --p-color-red-600:    #f03e3e;
+  --p-color-amber-400:  #ffd43b;
+  --p-color-amber-500:  #fcc419;
+  --p-color-amber-600:  #f59f00;
+  --p-color-green-400:  #69db7c;
+  --p-color-green-500:  #51cf66;
+  --p-color-green-600:  #40c057;
+  --p-color-teal-400:   #38d9a9;
+  --p-color-teal-500:   #20c997;
+  --p-color-violet-400: #cc5de8;
+  --p-color-violet-500: #be4bdb;
+
+  /* ── Spacing scale (rem) ────────────────────────────────── */
+  --p-space-0:   0;
+  --p-space-1:   0.0625rem;  /*  1px */
+  --p-space-2:   0.125rem;   /*  2px */
+  --p-space-4:   0.25rem;    /*  4px */
+  --p-space-6:   0.375rem;   /*  6px */
+  --p-space-8:   0.5rem;     /*  8px */
+  --p-space-10:  0.625rem;   /* 10px */
+  --p-space-12:  0.75rem;    /* 12px */
+  --p-space-16:  1rem;       /* 16px */
+  --p-space-20:  1.25rem;    /* 20px */
+  --p-space-24:  1.5rem;     /* 24px */
+  --p-space-32:  2rem;       /* 32px */
+  --p-space-40:  2.5rem;     /* 40px */
+  --p-space-48:  3rem;       /* 48px */
+  --p-space-64:  4rem;       /* 64px */
+  --p-space-80:  5rem;       /* 80px */
+  --p-space-96:  6rem;       /* 96px */
+  --p-space-128: 8rem;       /* 128px */
+
+  /* ── Font families ──────────────────────────────────────── */
+  --p-font-sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --p-font-mono:  ui-monospace, 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+  --p-font-serif: 'Georgia', 'Times New Roman', serif;
+
+  /* ── Font sizes (rem) ───────────────────────────────────── */
+  --p-text-2xs:  0.625rem;   /* 10px */
+  --p-text-xs:   0.6875rem;  /* 11px */
+  --p-text-sm:   0.75rem;    /* 12px */
+  --p-text-base: 0.875rem;   /* 14px */
+  --p-text-md:   1rem;       /* 16px */
+  --p-text-lg:   1.125rem;   /* 18px */
+  --p-text-xl:   1.25rem;    /* 20px */
+  --p-text-2xl:  1.5rem;     /* 24px */
+  --p-text-3xl:  1.875rem;   /* 30px */
+  --p-text-4xl:  2.25rem;    /* 36px */
+
+  /* ── Font weights ───────────────────────────────────────── */
+  --p-weight-normal:   400;
+  --p-weight-medium:   500;
+  --p-weight-semibold: 600;
+  --p-weight-bold:     700;
+
+  /* ── Line heights ───────────────────────────────────────── */
+  --p-leading-tight:  1.25;
+  --p-leading-snug:   1.375;
+  --p-leading-normal: 1.5;
+  --p-leading-relaxed: 1.625;
+  --p-leading-loose:  2;
+
+  /* ── Border radius ──────────────────────────────────────── */
+  --p-radius-none: 0;
+  --p-radius-sm:   2px;
+  --p-radius-md:   4px;
+  --p-radius-lg:   6px;
+  --p-radius-xl:   8px;
+  --p-radius-2xl:  12px;
+  --p-radius-3xl:  16px;
+  --p-radius-full: 9999px;
+
+  /* ── Shadows ────────────────────────────────────────────── */
+  --p-shadow-xs:  0 1px 2px rgba(0,0,0,0.10);
+  --p-shadow-sm:  0 1px 3px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.08);
+  --p-shadow-md:  0 4px 6px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
+  --p-shadow-lg:  0 10px 15px rgba(0,0,0,0.12), 0 4px 6px rgba(0,0,0,0.08);
+  --p-shadow-xl:  0 20px 25px rgba(0,0,0,0.15), 0 10px 10px rgba(0,0,0,0.06);
+  --p-shadow-2xl: 0 25px 50px rgba(0,0,0,0.25);
+
+  /* ── Z-index scale ──────────────────────────────────────── */
+  --p-z-below:   -1;
+  --p-z-base:     0;
+  --p-z-raised:  10;
+  --p-z-overlay: 20;
+  --p-z-dropdown: 40;
+  --p-z-sticky:   60;
+  --p-z-modal:   120;
+  --p-z-toast:   200;
+  --p-z-tooltip: 250;
+
+  /* ── Transition durations ───────────────────────────────── */
+  --p-duration-instant: 0ms;
+  --p-duration-fast:    80ms;
+  --p-duration-base:    150ms;
+  --p-duration-slow:    250ms;
+  --p-duration-slower:  400ms;
+
+  /* ── Easing curves ──────────────────────────────────────── */
+  --p-ease-linear:    linear;
+  --p-ease-in:        cubic-bezier(0.4, 0, 1, 1);
+  --p-ease-out:       cubic-bezier(0, 0, 0.2, 1);
+  --p-ease-in-out:    cubic-bezier(0.4, 0, 0.2, 1);
+  --p-ease-spring:    cubic-bezier(0.34, 1.56, 0.64, 1);
+  --p-ease-bounce:    cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+  /* ── Opacity scale ──────────────────────────────────────── */
+  --p-opacity-0:   0;
+  --p-opacity-5:   0.05;
+  --p-opacity-10:  0.10;
+  --p-opacity-20:  0.20;
+  --p-opacity-30:  0.30;
+  --p-opacity-50:  0.50;
+  --p-opacity-70:  0.70;
+  --p-opacity-80:  0.80;
+  --p-opacity-90:  0.90;
+  --p-opacity-100: 1;
+}

@@ -9,6 +9,9 @@ export type AppCommandId =
   | 'fix-vault-lint'
   | 'open-graph'
   | 'open-canvas'
+  | 'open-reader'
+  | 'open-tasks'
+  | 'open-kanban'
   | 'open-git'
   | 'open-health'
   | 'open-mcp'
@@ -45,6 +48,7 @@ export type AppCommandId =
   | 'toggle-hibernate-watcher'
   | 'toggle-hibernate-git'
   | 'toggle-hibernate-spellcheck'
+  | 'open-plugin-manager'
 
 export interface AppCommandDefinition {
   id: AppCommandId

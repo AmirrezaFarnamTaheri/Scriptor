@@ -1,6 +1,8 @@
 import type { StateCommand } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
+import type { TypographyAction } from './typography-actions.ts'
+
 export type TransformText = (text: string) => string
 
 function delimit(delimiter: string): (text: string) => string[] {
@@ -117,23 +119,8 @@ export const italicsToQuotes: StateCommand = transformSelectedText((text) =>
   text.replace(/\*([^*]+)\*/g, '"$1"').replace(/_([^_]+)_/g, '"$1"'),
 )
 
-export const TYPOGRAPHY_ACTIONS = [
-  'zapGremlins',
-  'stripDuplicateSpaces',
-  'removeLineBreaks',
-  'straightenQuotes',
-  'toDoubleQuotes',
-  'doubleQuotesToSingle',
-  'singleQuotesToDouble',
-  'addSpacesAroundEmdashes',
-  'removeSpacesAroundEmdashes',
-  'toTitleCase',
-  'toSentenceCase',
-  'quotesToItalics',
-  'italicsToQuotes',
-] as const
-
-export type TypographyAction = (typeof TYPOGRAPHY_ACTIONS)[number]
+export { TYPOGRAPHY_ACTIONS } from './typography-actions.ts'
+export type { TypographyAction } from './typography-actions.ts'
 
 export function applyTypographyAction(view: EditorView, action: TypographyAction, locale = 'en'): void {
   const commands: Record<TypographyAction, StateCommand> = {

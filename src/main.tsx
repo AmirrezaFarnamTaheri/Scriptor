@@ -5,12 +5,13 @@ import { AccessibilitySemantics } from './components/AccessibilitySemantics'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
+import { PluginStateProvider } from './context/PluginStateContext.tsx'
 
 function applyInitialTheme() {
   const stored = window.localStorage.getItem('scriptor:app-theme')
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   document.documentElement.dataset.theme =
-    stored === 'dark' || stored === 'light' || stored === 'high-contrast'
+    stored && typeof stored === 'string'
       ? stored
       : prefersDark
         ? 'dark'
@@ -33,11 +34,13 @@ async function mountApp() {
     <ErrorBoundary name="app-root">
       <AccessibilitySemantics />
       <I18nProvider>
-        {fixtureMode ? <App /> : (
-          <StrictMode>
-            <App />
-          </StrictMode>
-        )}
+        <PluginStateProvider>
+          {fixtureMode ? <App /> : (
+            <StrictMode>
+              <App />
+            </StrictMode>
+          )}
+        </PluginStateProvider>
       </I18nProvider>
     </ErrorBoundary>
   )

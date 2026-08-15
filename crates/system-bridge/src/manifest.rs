@@ -33,12 +33,18 @@ pub fn hash_bytes(bytes: &[u8]) -> String {
     hex::encode(digest)
 }
 
-pub fn verify_manifest(manifest: &ReleaseManifest, base_dir: impl AsRef<Path>) -> Result<(), BridgeError> {
+pub fn verify_manifest(
+    manifest: &ReleaseManifest,
+    base_dir: impl AsRef<Path>,
+) -> Result<(), BridgeError> {
     let base = base_dir.as_ref();
     for entry in &manifest.artifacts {
         let path = base.join(&entry.path);
         if !path.is_file() {
-            return Err(BridgeError::Unsupported(format!("missing artifact: {}", entry.path)));
+            return Err(BridgeError::Unsupported(format!(
+                "missing artifact: {}",
+                entry.path
+            )));
         }
         let metadata = fs::metadata(&path).map_err(|source| BridgeError::Io {
             path: path.clone(),
@@ -69,10 +75,11 @@ pub fn read_manifest(path: impl AsRef<Path>) -> Result<ReleaseManifest, BridgeEr
         source,
     })?;
     let mut json = String::new();
-    file.read_to_string(&mut json).map_err(|source| BridgeError::Io {
-        path: path.as_ref().to_path_buf(),
-        source,
-    })?;
+    file.read_to_string(&mut json)
+        .map_err(|source| BridgeError::Io {
+            path: path.as_ref().to_path_buf(),
+            source,
+        })?;
     serde_json::from_str(&json).map_err(|error| BridgeError::Unsupported(error.to_string()))
 }
 

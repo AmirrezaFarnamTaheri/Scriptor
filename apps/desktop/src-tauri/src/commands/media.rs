@@ -17,12 +17,19 @@ pub struct PlantUmlRenderOutput {
 }
 
 fn environment_opt_in(name: &str) -> bool {
-    std::env::var(name)
-        .ok()
-        .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+    std::env::var(name).ok().is_some_and(|value| {
+        matches!(
+            value.trim().to_ascii_lowercase().as_str(),
+            "1" | "true" | "yes"
+        )
+    })
 }
 
-fn run_candidate(program: &str, args: Vec<String>, input: &Path) -> Result<(String, String), String> {
+fn run_candidate(
+    program: &str,
+    args: Vec<String>,
+    input: &Path,
+) -> Result<(String, String), String> {
     let receipt = run_process(
         ProcessSpec::new(program)
             .args(args)
@@ -46,25 +53,29 @@ fn run_candidate(program: &str, args: Vec<String>, input: &Path) -> Result<(Stri
 }
 
 fn run_plantuml(input: &Path) -> Result<(String, String), String> {
-    if let Ok(path) = std::env::var("PLANTUML_BIN") {
-        if !path.trim().is_empty() {
-            return run_candidate(&path, vec!["-tsvg".into(), input.display().to_string()], input);
-        }
+    if let Ok(path) = std::env::var("PLANTUML_BIN")
+        && !path.trim().is_empty()
+    {
+        return run_candidate(
+            &path,
+            vec!["-tsvg".into(), input.display().to_string()],
+            input,
+        );
     }
 
-    if let Ok(jar) = std::env::var("PLANTUML_JAR") {
-        if !jar.trim().is_empty() {
-            return run_candidate(
-                "java",
-                vec![
-                    "-jar".into(),
-                    jar,
-                    "-tsvg".into(),
-                    input.display().to_string(),
-                ],
-                input,
-            );
-        }
+    if let Ok(jar) = std::env::var("PLANTUML_JAR")
+        && !jar.trim().is_empty()
+    {
+        return run_candidate(
+            "java",
+            vec![
+                "-jar".into(),
+                jar,
+                "-tsvg".into(),
+                input.display().to_string(),
+            ],
+            input,
+        );
     }
 
     run_candidate(
@@ -88,9 +99,15 @@ pub fn render_plantuml_svg(source: &str) -> Result<PlantUmlRenderOutput, String>
     Ok(PlantUmlRenderOutput { svg, engine })
 }
 
-pub fn save_vault_asset(root: &VaultRoot, relative_path: &str, bytes: &[u8]) -> Result<String, String> {
+pub fn save_vault_asset(
+    root: &VaultRoot,
+    relative_path: &str,
+    bytes: &[u8],
+) -> Result<String, String> {
     let relative = RelativeVaultPath::parse(relative_path).map_err(|error| error.to_string())?;
-    let absolute: PathBuf = root.resolve_relative(&relative).map_err(|error| error.to_string())?;
+    let absolute: PathBuf = root
+        .resolve_relative(&relative)
+        .map_err(|error| error.to_string())?;
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }

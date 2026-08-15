@@ -9,8 +9,8 @@ use serde::Serialize;
 use tauri::Manager;
 use tauri::path::BaseDirectory;
 
-use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 use crate::AppState;
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 
 static RPC_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -28,6 +28,7 @@ pub(crate) fn daemon_rpc(method: RpcMethod) -> Result<RpcPayload, String> {
         rpc_call(RpcRequest::new(next_rpc_id(), method)).map_err(|error| error.to_string())?;
     match response.result {
         RpcResult::Ok(payload) => Ok(payload),
+        RpcResult::Error(error) => Err(error.to_string()),
         RpcResult::Err(message) => Err(message),
     }
 }
@@ -49,15 +50,15 @@ fn resolve_daemon_binary(app: &tauri::AppHandle) -> std::path::PathBuf {
         "scriptor-daemon".to_string(),
     ];
     for candidate in candidates {
-        if let Ok(resource) = app.path().resolve(&candidate, BaseDirectory::Resource) {
-            if resource.is_file() {
-                return resource;
-            }
+        if let Ok(resource) = app.path().resolve(&candidate, BaseDirectory::Resource)
+            && resource.is_file()
+        {
+            return resource;
         }
     }
     #[cfg(windows)]
     {
-        return std::path::PathBuf::from("scriptor-daemon.exe");
+        std::path::PathBuf::from("scriptor-daemon.exe")
     }
     #[cfg(not(windows))]
     {

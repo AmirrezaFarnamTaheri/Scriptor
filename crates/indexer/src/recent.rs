@@ -26,11 +26,13 @@ pub fn record_recent_access(cache: &IndexCache, path: &str) -> Result<(), Indexe
     Ok(())
 }
 
-pub fn list_recent_files(cache: &IndexCache, limit: u32) -> Result<Vec<RecentFileHit>, IndexerError> {
+pub fn list_recent_files(
+    cache: &IndexCache,
+    limit: u32,
+) -> Result<Vec<RecentFileHit>, IndexerError> {
     let conn = cache.connection()?;
-    let mut statement = conn.prepare(
-        "SELECT path, opened_at FROM recent_access ORDER BY opened_at DESC LIMIT ?1",
-    )?;
+    let mut statement =
+        conn.prepare("SELECT path, opened_at FROM recent_access ORDER BY opened_at DESC LIMIT ?1")?;
     let rows = statement.query_map(params![limit.max(1)], |row| {
         Ok(RecentFileHit {
             path: row.get(0)?,

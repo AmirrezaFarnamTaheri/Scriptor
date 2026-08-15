@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
@@ -77,7 +77,10 @@ pub(crate) fn validate_citations_on(
     )?;
 
     let transaction = connection.unchecked_transaction()?;
-    transaction.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_id])?;
+    transaction.execute(
+        "DELETE FROM citation_refs WHERE note_id = ?1",
+        params![note_id],
+    )?;
 
     {
         let mut insert = transaction.prepare(
@@ -136,7 +139,10 @@ fn known_bibliography_keys(
     Ok(found)
 }
 
-pub(crate) fn bibliography_contains_public(cache: &IndexCache, key: &str) -> Result<bool, IndexerError> {
+pub(crate) fn bibliography_contains_public(
+    cache: &IndexCache,
+    key: &str,
+) -> Result<bool, IndexerError> {
     let connection = cache.connection()?;
     let count: i64 = connection.query_row(
         "SELECT COUNT(*) FROM cache_meta WHERE key = ?1",
@@ -163,9 +169,18 @@ mod tests {
         register_bibliography_keys_on(&connection, &["known"]).expect("register keys");
 
         let citations = vec![
-            ParsedCitation { key: "known".into(), line: 3 },
-            ParsedCitation { key: "known".into(), line: 3 },
-            ParsedCitation { key: "missing".into(), line: 3 },
+            ParsedCitation {
+                key: "known".into(),
+                line: 3,
+            },
+            ParsedCitation {
+                key: "known".into(),
+                line: 3,
+            },
+            ParsedCitation {
+                key: "missing".into(),
+                line: 3,
+            },
         ];
 
         let summary = validate_citations_on(&connection, "note", &citations).expect("validate");
@@ -174,7 +189,11 @@ mod tests {
         assert_eq!(summary.unresolved, 1);
 
         let stored: i64 = connection
-            .query_row("SELECT COUNT(*) FROM citation_refs WHERE note_id = 'note'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM citation_refs WHERE note_id = 'note'",
+                [],
+                |row| row.get(0),
+            )
             .expect("count");
         assert_eq!(stored, 3);
     }
@@ -183,15 +202,25 @@ mod tests {
     fn revalidating_replaces_rather_than_accumulates() {
         let connection = cache_connection();
         let citations = vec![
-            ParsedCitation { key: "a".into(), line: 1 },
-            ParsedCitation { key: "a".into(), line: 1 },
+            ParsedCitation {
+                key: "a".into(),
+                line: 1,
+            },
+            ParsedCitation {
+                key: "a".into(),
+                line: 1,
+            },
         ];
 
         validate_citations_on(&connection, "note", &citations).expect("first pass");
         validate_citations_on(&connection, "note", &citations).expect("second pass");
 
         let stored: i64 = connection
-            .query_row("SELECT COUNT(*) FROM citation_refs WHERE note_id = 'note'", [], |row| row.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM citation_refs WHERE note_id = 'note'",
+                [],
+                |row| row.get(0),
+            )
             .expect("count");
         assert_eq!(stored, 2);
     }
@@ -201,9 +230,14 @@ mod tests {
         // Exhaust all but one pooled connection; validation must still succeed.
         let temp = tempfile::tempdir().expect("tempdir");
         let cache = IndexCache::open(temp.path().join("index.sqlite")).expect("open cache");
-        let held: Vec<_> = (0..7).map(|_| cache.connection().expect("checkout")).collect();
+        let held: Vec<_> = (0..7)
+            .map(|_| cache.connection().expect("checkout"))
+            .collect();
 
-        let citations = vec![ParsedCitation { key: "a".into(), line: 1 }];
+        let citations = vec![ParsedCitation {
+            key: "a".into(),
+            line: 1,
+        }];
         let summary = validate_citations(&cache, "note", &citations).expect("validate");
         assert_eq!(summary.unresolved, 1);
         drop(held);

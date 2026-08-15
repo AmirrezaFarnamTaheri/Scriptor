@@ -10,6 +10,6 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["packages/core/src/**/*.ts"]
+  "include": ["packages/core/src/**/*.ts"],
+  "exclude": ["packages/core/src/**/*.test.ts"]
 }
-

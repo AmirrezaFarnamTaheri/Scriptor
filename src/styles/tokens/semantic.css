@@ -1,0 +1,168 @@
+/* ============================================================
+ * Scriptor Design Token System — Tier 2: Semantic Tokens
+ * F-1 of the Seven Clusters program plan.
+ *
+ * RULES (binding):
+ *  - Every value MUST reference a Tier-1 primitive var.
+ *  - Never use raw values (hex, px, numbers) here.
+ *  - Theme overrides live in :root[data-theme="light"] blocks
+ *    inside this file — not in primitives.css or components.css.
+ *  - Semantic tokens are the contract between design and code.
+ *    Add new tokens at the bottom of their group.
+ * ============================================================ */
+
+/* ── Default (dark) theme ─────────────────────────────────── */
+:root {
+  /* ── Surfaces ─────────────────────────────────────── */
+  --color-bg-base:        var(--p-color-neutral-900);
+  --color-bg-raised:      var(--p-color-neutral-850);
+  --color-bg-overlay:     var(--p-color-neutral-800);
+  --color-bg-sunken:      var(--p-color-neutral-950);
+  --color-bg-panel:       var(--p-color-neutral-850);
+  --color-bg-hover:       var(--p-color-neutral-750);
+  --color-bg-active:      var(--p-color-neutral-700);
+  --color-bg-selected:    rgba(92, 124, 250, 0.18); /* brand-500 @ 18 % */
+  --color-bg-code:        var(--p-color-neutral-800);
+  --color-bg-tooltip:     var(--p-color-neutral-700);
+
+  /* ── Borders ──────────────────────────────────────── */
+  --color-border-default:   var(--p-color-neutral-700);
+  --color-border-strong:    var(--p-color-neutral-600);
+  --color-border-subtle:    var(--p-color-neutral-800);
+  --color-border-focus:     var(--p-color-brand-500);
+
+  /* ── Text ─────────────────────────────────────────── */
+  --color-text-default:   var(--p-color-neutral-100);
+  --color-text-secondary: var(--p-color-neutral-400);
+  --color-text-disabled:  var(--p-color-neutral-600);
+  --color-text-inverse:   var(--p-color-neutral-900);
+  --color-text-code:      var(--p-color-teal-400);
+  --color-text-link:      var(--p-color-brand-400);
+  --color-text-link-hover: var(--p-color-brand-300);
+  --color-text-placeholder: var(--p-color-neutral-500);
+
+  /* ── Brand / accent ───────────────────────────────── */
+  --color-accent-default:   var(--p-color-brand-500);
+  --color-accent-hover:     var(--p-color-brand-400);
+  --color-accent-active:    var(--p-color-brand-600);
+  --color-accent-subtle:    rgba(92, 124, 250, 0.12);
+  --color-accent-muted:     var(--p-color-brand-900);
+
+  /* ── Status ───────────────────────────────────────── */
+  --color-status-success:     var(--p-color-green-500);
+  --color-status-success-bg:  rgba(81, 207, 102, 0.10);
+  --color-status-warning:     var(--p-color-amber-500);
+  --color-status-warning-bg:  rgba(252, 196, 25, 0.10);
+  --color-status-error:       var(--p-color-red-500);
+  --color-status-error-bg:    rgba(250, 82, 82, 0.10);
+  --color-status-info:        var(--p-color-brand-400);
+  --color-status-info-bg:     rgba(92, 124, 250, 0.10);
+
+  /* ── Editor-specific ──────────────────────────────── */
+  --color-editor-selection:    rgba(92, 124, 250, 0.25);
+  --color-editor-cursor:       var(--p-color-brand-400);
+  --color-editor-line-number:  var(--p-color-neutral-600);
+  --color-editor-gutter:       var(--p-color-neutral-850);
+  --color-editor-active-line:  rgba(255,255,255,0.03);
+  --color-editor-search-match: rgba(252, 196, 25, 0.30);
+
+  /* ── Scrollbar ─────────────────────────────────────── */
+  --color-scrollbar-track:  transparent;
+  --color-scrollbar-thumb:  var(--p-color-neutral-700);
+  --color-scrollbar-thumb-hover: var(--p-color-neutral-600);
+
+  /* ── Semantic spacing ─────────────────────────────── */
+  --space-inline-xs:  var(--p-space-4);
+  --space-inline-sm:  var(--p-space-8);
+  --space-inline-md:  var(--p-space-12);
+  --space-inline-lg:  var(--p-space-16);
+  --space-stack-xs:   var(--p-space-4);
+  --space-stack-sm:   var(--p-space-8);
+  --space-stack-md:   var(--p-space-16);
+  --space-stack-lg:   var(--p-space-24);
+  --space-stack-xl:   var(--p-space-32);
+
+  /* ── Semantic typography ───────────────────────────── */
+  --text-body:        var(--p-text-base);
+  --text-small:       var(--p-text-sm);
+  --text-tiny:        var(--p-text-xs);
+  --text-heading-sm:  var(--p-text-md);
+  --text-heading-md:  var(--p-text-xl);
+  --text-heading-lg:  var(--p-text-2xl);
+  --text-mono:        var(--p-text-sm);
+
+  /* ── Motion ────────────────────────────────────────── */
+  --motion-fade:        opacity var(--p-duration-base) var(--p-ease-out);
+  --motion-slide:       transform var(--p-duration-base) var(--p-ease-out);
+  --motion-expand:      all var(--p-duration-slow) var(--p-ease-in-out);
+  --motion-spring:      transform var(--p-duration-slow) var(--p-ease-spring);
+}
+
+/* ── Light theme overrides ─────────────────────────────────── */
+:root[data-theme="light"] {
+  /* Surfaces */
+  --color-bg-base:       var(--p-color-white);
+  --color-bg-raised:     var(--p-color-neutral-50);
+  --color-bg-overlay:    var(--p-color-neutral-100);
+  --color-bg-sunken:     var(--p-color-neutral-150);
+  --color-bg-panel:      var(--p-color-neutral-50);
+  --color-bg-hover:      var(--p-color-neutral-100);
+  --color-bg-active:     var(--p-color-neutral-200);
+  --color-bg-selected:   rgba(92, 124, 250, 0.10);
+  --color-bg-code:       var(--p-color-neutral-100);
+  --color-bg-tooltip:    var(--p-color-neutral-800);
+
+  /* Borders */
+  --color-border-default: var(--p-color-neutral-200);
+  --color-border-strong:  var(--p-color-neutral-300);
+  --color-border-subtle:  var(--p-color-neutral-150);
+
+  /* Text */
+  --color-text-default:   var(--p-color-neutral-800);
+  --color-text-secondary: var(--p-color-neutral-600);
+  --color-text-disabled:  var(--p-color-neutral-400);
+  --color-text-inverse:   var(--p-color-neutral-50);
+  --color-text-code:      var(--p-color-teal-500);
+  --color-text-link:      var(--p-color-brand-700);
+  --color-text-link-hover: var(--p-color-brand-800);
+  --color-text-placeholder: var(--p-color-neutral-400);
+
+  /* Brand */
+  --color-accent-subtle:  rgba(66, 99, 235, 0.10);
+  --color-accent-muted:   var(--p-color-brand-100);
+
+  /* Editor */
+  --color-editor-gutter:      var(--p-color-neutral-50);
+  --color-editor-active-line: rgba(0,0,0,0.025);
+  --color-editor-line-number: var(--p-color-neutral-400);
+
+  /* Scrollbar */
+  --color-scrollbar-thumb:       var(--p-color-neutral-300);
+  --color-scrollbar-thumb-hover: var(--p-color-neutral-400);
+}
+
+/* ── Sepia / warm reader theme ─────────────────────────────── */
+:root[data-theme="sepia"] {
+  --color-bg-base:        #f5f0e8;
+  --color-bg-raised:      #f0ead8;
+  --color-bg-overlay:     #ede5d2;
+  --color-bg-sunken:      #f8f4ec;
+  --color-bg-panel:       #f0ead8;
+  --color-bg-hover:       #e8dfcc;
+  --color-bg-active:      #ddd3bc;
+  --color-bg-selected:    rgba(180, 120, 60, 0.12);
+  --color-bg-code:        #ede5d2;
+  --color-border-default: #c8b99a;
+  --color-border-strong:  #b0a080;
+  --color-border-subtle:  #ddd3bc;
+  --color-text-default:   #3d2b1f;
+  --color-text-secondary: #6b5040;
+  --color-text-disabled:  #a08060;
+  --color-text-code:      #5a7a50;
+  --color-text-link:      #8b4513;
+  --color-text-link-hover: #6b2d0e;
+  --color-text-placeholder: #9a8060;
+  --color-accent-default: #8b6914;
+  --color-accent-hover:   #7a5c10;
+  --color-accent-subtle:  rgba(139, 105, 20, 0.10);
+}

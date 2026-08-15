@@ -1,6 +1,6 @@
 import { BookOpen, X } from 'lucide-react'
 
-import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor'
+import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor/pure'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 
 interface CheatsheetPanelProps {

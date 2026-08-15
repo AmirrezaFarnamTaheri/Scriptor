@@ -610,3 +610,14 @@ body.is-split-resizing .editor-preview-pane {
     height: calc(100% - 48px);
   }
 }
+
+/* Toolbar separator — 1 px visual divider between format-group sections.
+   Replaces the empty <span /> that relied on flex gap alone. */
+.toolbar-separator {
+  display: block;
+  width: 1px;
+  align-self: stretch;
+  margin-block: 4px;
+  background: var(--border);
+  pointer-events: none;
+}

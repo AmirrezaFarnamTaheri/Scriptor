@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use scriptor_export_runner::{
-    cancel_active_export, new_cancel_slot, run_export_job_with_cancel, ExportCancelSlot,
-    ExportJobInput, ExportJobOutput, ExportProgressCallback,
+    ExportCancelSlot, ExportJobInput, ExportJobOutput, ExportProgressCallback,
+    cancel_active_export, new_cancel_slot, run_export_job_with_cancel,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -151,9 +151,10 @@ impl ExportJobRunner {
             return Ok(false);
         }
         if let Some(expected) = job_id
-            && active.job_id != expected {
-                return Ok(false);
-            }
+            && active.job_id != expected
+        {
+            return Ok(false);
+        }
         drop(active);
 
         let cancelled = cancel_active_export(&self.cancel_slot).is_some();
@@ -206,6 +207,7 @@ mod tests {
                 job_id: None,
                 preserve_temp_on_failure: false,
                 trusted_pandoc_hash: None,
+                redact_secrets: false,
             })
             .expect("start");
 
@@ -213,7 +215,11 @@ mod tests {
         let report = runner.progress_snapshot();
         assert_eq!(report.job_id, job_id);
         assert_eq!(report.status, ExportJobState::Complete);
-        assert!(report.event_index >= 3, "expected >=3 progress events, got {}", report.event_index);
+        assert!(
+            report.event_index >= 3,
+            "expected >=3 progress events, got {}",
+            report.event_index
+        );
         assert!(report.result_json.is_some());
     }
 

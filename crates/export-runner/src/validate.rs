@@ -10,7 +10,10 @@ pub struct ArtifactValidation {
     pub format: String,
 }
 
-pub fn validate_export_artifact(path: &Path, format: ExportFormat) -> Result<ArtifactValidation, ExportError> {
+pub fn validate_export_artifact(
+    path: &Path,
+    format: ExportFormat,
+) -> Result<ArtifactValidation, ExportError> {
     let metadata = fs::metadata(path).map_err(|source| ExportError::Io {
         path: path.to_path_buf(),
         source,

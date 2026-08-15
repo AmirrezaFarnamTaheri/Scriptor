@@ -13,8 +13,9 @@ use crate::write::save_note;
 
 static DEFINITION_LINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]:\s*(.+)$").expect("valid definition regex"));
-static WIKILINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex"));
+static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex")
+});
 
 pub const RULE_MISSING_HEADING: &str = "missing-heading";
 pub const RULE_STALE_DEFINITIONS: &str = "stale-definitions";
@@ -249,7 +250,11 @@ fn check_missing_heading(path: &str, markdown: &str) -> Vec<LintIssue> {
 
     let (frontmatter, _body) = split_frontmatter(markdown);
     let line = if frontmatter.is_some() {
-        frontmatter.as_ref().map(|fm| fm.lines().count()).unwrap_or(0) + 3
+        frontmatter
+            .as_ref()
+            .map(|fm| fm.lines().count())
+            .unwrap_or(0)
+            + 3
     } else {
         1
     };
@@ -279,7 +284,11 @@ fn missing_heading_edit(path: &str, markdown: &str) -> Option<TextEdit> {
     let body_lines: Vec<&str> = body.lines().collect();
     let blank_after_frontmatter = body_lines.first().is_some_and(|line| line.is_empty());
     let padding_start = if frontmatter.is_some() { "\n" } else { "" };
-    let padding_end = if blank_after_frontmatter { "\n" } else { "\n\n" };
+    let padding_end = if blank_after_frontmatter {
+        "\n"
+    } else {
+        "\n\n"
+    };
     let new_text = format!("{padding_start}# {title}{padding_end}");
 
     Some(TextEdit {
@@ -497,7 +506,9 @@ fn apply_text_edits(markdown: &str, edits: &[TextEdit]) -> String {
             }
             merged.push_str(&suffix);
         }
-        lines = crate::text::split_lines(&merged).map(str::to_string).collect();
+        lines = crate::text::split_lines(&merged)
+            .map(str::to_string)
+            .collect();
     }
 
     let mut output = lines.join("\n");
