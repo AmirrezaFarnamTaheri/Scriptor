@@ -47,7 +47,7 @@ test.describe('Theme switching', () => {
       window.localStorage.setItem('scriptor:app-theme', 'high-contrast')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'high-contrast')
   })
 
@@ -56,9 +56,9 @@ test.describe('Theme switching', () => {
       window.localStorage.setItem('scriptor:app-theme', 'dark')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   })
 
@@ -78,7 +78,7 @@ test.describe('Theme switching', () => {
     expect(after).not.toBe(before)
     expect(after).toBe('catppuccin')
 
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(root).toHaveAttribute('data-theme', 'catppuccin')
   })
 })

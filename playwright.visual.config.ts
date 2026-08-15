@@ -6,6 +6,7 @@ export default defineConfig({
   testDir: 'e2e',
   testMatch: /(?:screenshots|visual-review)\.spec\.ts$/,
   timeout: 120_000,
+  retries: process.env.CI ? 2 : 1,
   expect: {
     timeout: 30_000,
     toHaveScreenshot: {

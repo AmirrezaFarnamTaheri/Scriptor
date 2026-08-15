@@ -13,7 +13,7 @@ test.describe('workspace error recovery', () => {
       window.sessionStorage.setItem('e2e:editor-render-failure', '1')
     }, WORKSPACE_CHROME_PREFS)
 
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
 
     const fallback = page.getByRole('alert').filter({ hasText: 'The editor could not be displayed' })
