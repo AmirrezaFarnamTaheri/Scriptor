@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### CI stabilization (2026-08-16)
+
+- Synced the verified action-pin lock to `actions/attest@v4.2.2` so the release workflow's pinned attestation identity matches the lock instead of failing the action-pin policy.
+- Made the governance-contract CI step fail fast by running it under `bash` with `set -euo pipefail`; the previous `pwsh` block continued past a failing validator and reported success.
+- Excluded the incubating engines (`scriptor-embeddings`, `scriptor-tantivy-indexer`, `scriptor-wasm-runtime`) from `xtask release-smoke` so the cold workspace build no longer exceeds the hosted-runner memory ceiling; the shipped product surface is unchanged.
+
 ### Experimental workspace workflows (2026-08-13)
 
 - Added a vault-tree Reader for local PDF and EPUB files. Documents are opened through the native vault boundary, render with bundled viewer assets, and keep annotations in the vault's `.scriptor/reader/annotations.json` sidecar.

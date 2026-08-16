@@ -74,16 +74,26 @@ fn pnpm(args: &[&str]) -> Result<()> {
 }
 
 fn release_smoke() -> Result<()> {
-    // Cap parallelism at 2 codegen units: a cold workspace build that includes
-    // the heavy indexer/HTML crates (tantivy, html5ever/scraper, ammonia,
-    // reqwest, rusqlite) peaks well past the 16GB hosted-runner budget at the
-    // default job count, and the runner is shut down mid-compile. Slower but
-    // it completes and lets rust-cache persist artifacts for later runs.
+    // Cap parallelism at 2 codegen units and exclude the incubating engines:
+    // a cold workspace build that includes the heavy indexer/HTML crates
+    // (tantivy, html5ever/scraper, ammonia, reqwest, rusqlite) peaks well past
+    // the 16GB hosted-runner budget at the default job count, and the runner
+    // is shut down mid-compile. The incubating crates (embeddings,
+    // tantivy-indexer, wasm-runtime) are not shipped product members and no
+    // remaining crate depends on them, so excluding them shrinks the smoke
+    // graph to the release surface without losing product coverage. Slower
+    // but it completes and lets rust-cache persist artifacts for later runs.
     cargo(&[
         "build",
         "--workspace",
         "--exclude",
         "scriptor-desktop",
+        "--exclude",
+        "scriptor-embeddings",
+        "--exclude",
+        "scriptor-tantivy-indexer",
+        "--exclude",
+        "scriptor-wasm-runtime",
         "--jobs",
         "2",
     ])?;
@@ -92,6 +102,12 @@ fn release_smoke() -> Result<()> {
         "--workspace",
         "--exclude",
         "scriptor-desktop",
+        "--exclude",
+        "scriptor-embeddings",
+        "--exclude",
+        "scriptor-tantivy-indexer",
+        "--exclude",
+        "scriptor-wasm-runtime",
         "--jobs",
         "2",
     ])?;

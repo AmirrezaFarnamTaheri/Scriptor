@@ -228,8 +228,9 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Validate repository governance contracts
-        shell: pwsh
+        shell: bash
         run: |
+          set -euo pipefail
           node scripts/release/version.mjs check
           node scripts/validation/action-pins.mjs
           node scripts/validation/deep-module-boundaries.mjs
