@@ -111,16 +111,21 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       workerDeadlineRef.current = null
     }, [])
 
-    const commitRenderedHtml = useCallback((nextHtml: string) => {
-      clearWorkerDeadline()
-      workerFallbackRef.current = null
-      const result = applyPreviewPostProcess(nextHtml, postProcessRef.current)
-      postProcessWarningRef.current = result.warning
-      setRenderError(null)
-      setRenderWarning(result.warning)
-      setHtml(result.html)
-      setIsRendering(false)
-    }, [clearWorkerDeadline])
+    const commitRenderedHtml = useCallback(
+      (nextHtml: string, fallbackWarning?: string | null) => {
+        clearWorkerDeadline()
+        workerFallbackRef.current = null
+        const result = applyPreviewPostProcess(nextHtml, postProcessRef.current)
+        const combined =
+          [fallbackWarning, result.warning].filter(Boolean).join('; ') || null
+        postProcessWarningRef.current = combined
+        setRenderError(null)
+        setRenderWarning(combined)
+        setHtml(result.html)
+        setIsRendering(false)
+      },
+      [clearWorkerDeadline],
+    )
 
     const commitRenderFailure = useCallback((error: unknown, fallback: string) => {
       clearWorkerDeadline()
@@ -141,7 +146,10 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         try {
           const fallbackHtml = renderMarkdownPreview(fallback.markdown, fallback.options)
           if (requestId.current !== fallback.id) return
-          commitRenderedHtml(fallbackHtml)
+          commitRenderedHtml(
+            fallbackHtml,
+            'Showing core Markdown preview (worker error)',
+          )
         } catch (error) {
           if (requestId.current !== fallback.id) return
           commitRenderFailure(error, 'Preview worker and fallback rendering failed')
@@ -222,11 +230,11 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           const options: PreviewPipelineOptions = {}
           if (enableBreaksRef.current) options.enableBreaks = true
 
-          const renderOnMainThread = () => {
+          const renderOnMainThread = (fallbackWarning?: string | null) => {
             try {
               const nextHtml = renderMarkdownPreview(prepared, options)
               if (requestId.current !== currentId) return
-              commitRenderedHtml(nextHtml)
+              commitRenderedHtml(nextHtml, fallbackWarning)
             } catch (error) {
               if (requestId.current !== currentId) return
               commitRenderFailure(error, 'Preview rendering failed')
@@ -260,10 +268,10 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
                 workerRef.current = null
                 workerFactoryRef.current?.()
               }
-              renderOnMainThread()
+              renderOnMainThread('Showing core Markdown preview (worker timed out)')
             }, PREVIEW_WORKER_TIMEOUT_MS)
           } catch {
-            renderOnMainThread()
+            renderOnMainThread('Showing core Markdown preview (worker unavailable)')
           }
         })()
       }, PREVIEW_DEBOUNCE_MS)

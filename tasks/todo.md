@@ -22,10 +22,10 @@
 - [x] **Checkpoint 2:** Contract Parity & Deduplication Verified (`pnpm run check:contracts` + 13 runners)
 
 ## Phase 3: QA Architecture, TDD & P0 Defect Closure
-- [ ] **Task 3.1:** Fix Kanban Keyboard Move & Markdown AST Write-Back (Red-Green-Refactor)
-- [ ] **Task 3.2:** Fix Markdown Preview Worker Timeout Fallback Degradation Warning Flag
+- [x] **Task 3.1:** Fix Kanban Keyboard Move & Markdown AST Write-Back (Red-Green-Refactor)
+- [x] **Task 3.2:** Fix Markdown Preview Worker Timeout Fallback Degradation Warning Flag
 - [x] **Task 3.3:** Fix `tsconfig.contracts.json` Composite Mapping
-- [ ] **Checkpoint 3:** P0 Defects Resolved & Playwright Tests Passing (`npx playwright test e2e/frontend-polish-regressions.spec.ts e2e/preview-resilience.spec.ts`)
+- [x] **Checkpoint 3:** P0 Defects Resolved & Playwright Tests Passing (`npx playwright test e2e/frontend-polish-regressions.spec.ts e2e/preview-resilience.spec.ts`)
 
 ## Phase 4: Frontend Hotspot Decomposition & Design Polish
 - [ ] **Task 4.1:** Extract `useWorkspaceNavigationController.ts` from `src/App.tsx` (~300 LOC reduction)
