@@ -68,3 +68,6 @@ export { normalizeSnippetCatalog, parseSnippetCatalogJson } from './snippet-cata
 export type { SnippetCatalogEntry } from './snippet-catalog.ts'
 
 export { normalizeMarkdown, roundTripEqual } from './roundtrip.ts'
+
+export { generateTocFromMarkdown, findTocEntryById } from './pure/toc.ts'
+export type { TocEntry } from './pure/toc.ts'

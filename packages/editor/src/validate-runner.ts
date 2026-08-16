@@ -433,3 +433,53 @@ test('move-section targets siblings, skipping child headings', () => {
   assert.deepEqual(sectionRange(entries, 1, 60), { from: 20, to: 40 })
   assert.deepEqual(sectionRange(entries, 2, 60), { from: 40, to: 60 })
 })
+
+import { generateTocFromMarkdown } from './pure/toc.ts'
+
+test('generateTocFromMarkdown parses heading hierarchy, rendered level, and anchor ids', () => {
+  const markdown = [
+    '# Heading 1',
+    'Some intro paragraph',
+    '```',
+    '# Not a heading in code fence',
+    '```',
+    '## Subheading [link]',
+    '### Code `test`',
+    '# Second Heading',
+  ].join('\n')
+
+  const toc = generateTocFromMarkdown(markdown)
+  assert.equal(toc.length, 4)
+  assert.deepEqual(toc[0], {
+    line: 1,
+    pos: 0,
+    text: 'Heading 1',
+    level: 1,
+    renderedLevel: '1',
+    id: 'heading-1',
+  })
+  assert.deepEqual(toc[1], {
+    line: 6,
+    pos: 0,
+    text: 'Subheading [link]',
+    level: 2,
+    renderedLevel: '1.1',
+    id: 'subheading-link',
+  })
+  assert.deepEqual(toc[2], {
+    line: 7,
+    pos: 0,
+    text: 'Code `test`',
+    level: 3,
+    renderedLevel: '1.1.1',
+    id: 'code-test',
+  })
+  assert.deepEqual(toc[3], {
+    line: 8,
+    pos: 0,
+    text: 'Second Heading',
+    level: 1,
+    renderedLevel: '2',
+    id: 'second-heading',
+  })
+})
