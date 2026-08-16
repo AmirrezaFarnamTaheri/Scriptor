@@ -386,7 +386,7 @@ jobs:
 
       - name: Run xtask release smoke
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 900
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 1800
 
       - name: Capture Rust validation failure context
         if: failure()

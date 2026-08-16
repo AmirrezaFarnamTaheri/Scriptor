@@ -74,8 +74,27 @@ fn pnpm(args: &[&str]) -> Result<()> {
 }
 
 fn release_smoke() -> Result<()> {
-    cargo(&["build", "--workspace", "--exclude", "scriptor-desktop"])?;
-    cargo(&["test", "--workspace", "--exclude", "scriptor-desktop"])?;
+    // Cap parallelism at 2 codegen units: a cold workspace build that includes
+    // the heavy indexer/HTML crates (tantivy, html5ever/scraper, ammonia,
+    // reqwest, rusqlite) peaks well past the 16GB hosted-runner budget at the
+    // default job count, and the runner is shut down mid-compile. Slower but
+    // it completes and lets rust-cache persist artifacts for later runs.
+    cargo(&[
+        "build",
+        "--workspace",
+        "--exclude",
+        "scriptor-desktop",
+        "--jobs",
+        "2",
+    ])?;
+    cargo(&[
+        "test",
+        "--workspace",
+        "--exclude",
+        "scriptor-desktop",
+        "--jobs",
+        "2",
+    ])?;
     pnpm(&["build"])?;
     println!("Release smoke passed.");
     Ok(())
