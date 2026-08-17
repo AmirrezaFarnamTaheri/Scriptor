@@ -39,7 +39,6 @@ function readLayouts(): Record<WorkspaceMode, WorkspaceLayout> {
     schemaVersion: 1,
     fallback: { ...DEFAULT_WORKSPACE_LAYOUTS },
     validate: validateLayouts,
-    migrate: validateLayouts,
   })
 }
 

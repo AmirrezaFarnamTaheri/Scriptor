@@ -650,7 +650,12 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               onPointerCancel={onSplitHandlePointerCancel}
               onDoubleClick={onSplitHandleDoubleClick}
             />
-            <aside className="editor-preview-pane" aria-label="Split Markdown preview" ref={splitPreviewScrollRef}>
+            <aside
+              className="editor-preview-pane"
+              aria-label="Split Markdown preview"
+              ref={splitPreviewScrollRef}
+              tabIndex={0}
+            >
               <ErrorBoundary
                 name="split-markdown-preview"
                 resetKeys={[activePath]}

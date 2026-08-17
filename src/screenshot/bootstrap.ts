@@ -125,7 +125,7 @@ export function installScreenshotBridge(): void {
         return {
           os: 'Windows',
           arch: 'x86_64',
-          app_version: '0.1.0',
+          app_version: '1.0.0',
           rust_version: 'screenshot',
           pandoc_version: null,
         }
@@ -135,7 +135,7 @@ export function installScreenshotBridge(): void {
         return 'ok'
       default:
         if (cmd.startsWith('daemon_')) {
-          return cmd === 'daemon_ping' ? { version: '0.1.0-screenshot' } : null
+          return cmd === 'daemon_ping' ? { version: '1.0.0-screenshot' } : null
         }
         return null
     }

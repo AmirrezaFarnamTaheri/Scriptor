@@ -285,7 +285,7 @@ function McpTab({
                   background: entry.outcome === 'denied'
                     ? 'color-mix(in srgb, var(--danger) 12%, transparent)'
                     : entry.outcome === 'failed'
-                    ? 'color-mix(in srgb, var(--warning) 12%, transparent)'
+                    ? 'color-mix(in srgb, var(--color-status-warning) 12%, transparent)'
                     : 'var(--surface-raised)',
                 }}
               >
@@ -293,7 +293,7 @@ function McpTab({
                   color: entry.outcome === 'denied'
                     ? 'var(--danger)'
                     : entry.outcome === 'failed'
-                    ? 'var(--warning)'
+                    ? 'var(--color-status-warning)'
                     : 'var(--success)',
                   fontWeight: 600,
                   minWidth: 50,
@@ -372,7 +372,7 @@ function FeaturesTab({
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
               {flag.label}
               {flag.requiresRestart && (
-                <span style={{ fontSize: 'var(--text-xs)', background: 'color-mix(in srgb, var(--warning) 20%, transparent)', color: 'var(--warning)', borderRadius: 'var(--radius-sm)', padding: '1px 5px' }}>
+                <span style={{ fontSize: 'var(--text-xs)', background: 'color-mix(in srgb, var(--color-status-warning) 20%, transparent)', color: 'var(--color-status-warning)', borderRadius: 'var(--radius-sm)', padding: '1px 5px' }}>
                   restart
                 </span>
               )}
@@ -666,7 +666,7 @@ function PluginsTab({
                         alignItems: 'center',
                         gap: 6,
                         fontSize: 'var(--text-xs)',
-                        color: consented ? 'var(--text-muted)' : 'var(--warning)',
+                        color: consented ? 'var(--text-muted)' : 'var(--color-status-warning)',
                       }}
                     >
                       {consented
@@ -769,7 +769,7 @@ function PluginsTab({
 
       {/* Lint summary */}
       {lintSummary && lintSummary.total > 0 && (
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--warning)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-status-warning)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <TimerReset size={12} />
           {lintSummary.total} vault health issue{lintSummary.total !== 1 ? 's' : ''}
         </div>

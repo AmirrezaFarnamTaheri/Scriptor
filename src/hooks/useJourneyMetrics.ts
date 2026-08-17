@@ -48,7 +48,6 @@ function readSnapshot(): JourneySnapshot {
     schemaVersion: 1,
     fallback: { ...EMPTY, panelOpens: {} },
     validate: validateSnapshot,
-    migrate: validateSnapshot,
   })
 }
 

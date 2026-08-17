@@ -1,14 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
-import type { MarkdownEditorHandle, TocEntry } from '@scriptor/editor'
-import {
-  configureLanguageTool,
-  loadHunspellLocale,
-  setActiveHunspellLocale,
-} from '@scriptor/editor/pure'
-import { applyRendererExtensions, type MarkdownPreviewHandle } from '@scriptor/renderer'
+import { applyRendererExtensions } from '@scriptor/renderer'
 
-import { useEditorLintProblems } from './hooks/useEditorLintProblems'
-import { plantumlRender, indexerSearch } from './bridge/commands'
+import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
@@ -27,7 +20,6 @@ import { parseSimpleFrontmatter } from './lib/frontmatter'
 import { OnboardingTour } from './components/OnboardingTour'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
-import { generateTocFromMarkdown } from './lib/tocFromMarkdown'
 import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { AppTopBar } from './components/shell/AppTopBar'
 import { EditorWorkspace } from './components/shell/EditorWorkspace'
@@ -68,10 +60,6 @@ import { usePluginRegistry } from './hooks/usePluginRegistry'
 import { useVaultWorkspace } from './hooks/useVaultWorkspace'
 import { useWorkspaceStore } from './hooks/useWorkspaceStore'
 import { usePortalShortcuts } from './hooks/usePortalShortcuts'
-import { useEditorPreviewScrollSync } from './hooks/useEditorPreviewScrollSync'
-import { useOverlayPanelStore } from './hooks/useOverlayPanelStore'
-import { useRenameDialogStore } from './hooks/useRenameDialogStore'
-import { useConflictStore } from './hooks/useConflictStore'
 import { useEditorPreferences } from './hooks/useEditorPreferences'
 import { useAppToast } from './hooks/useAppToast'
 import { useAppTheme } from './hooks/useAppTheme'
@@ -81,7 +69,7 @@ import { useScreenshotAutoOpen } from './screenshot/useScreenshotAutoOpen'
 import { useResizablePanel } from './hooks/useResizablePanel'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
-import { useWorkspaceMode, usePersistedMobilePane, type WorkspaceMode } from './hooks/useWorkspaceMode'
+import { useWorkspaceMode, type WorkspaceMode } from './hooks/useWorkspaceMode'
 import { useWorkspaceChrome } from './hooks/useWorkspaceChrome'
 import {
   DEFAULT_WORKSPACE_LAYOUTS,
@@ -93,6 +81,9 @@ import { WorkspacePanelResizer } from './components/app/WorkspaceGridPrimitives'
 import { workspaceGridStyle } from './components/app/workspaceGridStyle'
 import { WorkspaceRuntimeBanners } from './components/app/WorkspaceRuntimeBanners'
 import { useDeleteNoteController } from './hooks/useDeleteNoteController'
+import { useWorkspaceNavigationController } from './controllers/useWorkspaceNavigationController'
+import { useEditorOrchestrationController } from './controllers/useEditorOrchestrationController'
+import { usePanelSurfaceController } from './controllers/usePanelSurfaceController'
 import { useWorkspaceAuxiliaryData } from './hooks/useWorkspaceAuxiliaryData'
 import { useAppJourneyTelemetry } from './hooks/useAppJourneyTelemetry'
 import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
@@ -105,8 +96,6 @@ import {
   gitResolveConflict,
   gitShowHeadFile,
   indexerApplyFilesystemChanges,
-  indexerExecuteDql,
-  indexerResolveWikilink,
   vaultReadNote,
   vaultSaveNote,
   vaultSaveConfig,
@@ -116,7 +105,6 @@ import {
 } from './bridge/commands'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
-import { readInspectorPreset, writeInspectorPreset, type InspectorPreset } from './lib/inspectorPresets'
 import { useI18n } from './lib/i18n'
 import './styles/tokens/primitives.css'
 import './styles/tokens/semantic.css'
@@ -142,9 +130,25 @@ import './styles/motion.css'
 
 function App() {
   const { t } = useI18n()
+  const { theme, toggleTheme, setTheme } = useAppTheme()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
-  // ── Overlay panel store (boolean panel flags, mode, tab selectors) ────────
-  const overlayPanels = useOverlayPanelStore(initialWorkspaceLayout.showStickies)
+  const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
+  const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
+  const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
+  const onboarding = useOnboarding()
+  const { presentation: panelPresentation, setPresentation: setPanelPresentation } = usePanelPresentation()
+  const journey = useJourneyMetrics()
+  const {
+    markVaultOpen: journeyMarkVaultOpen,
+    markIndexRebuild: journeyMarkIndexRebuild,
+    markExport: journeyMarkExport,
+    recordPanelOpen: journeyRecordPanelOpen,
+  } = journey
+
+  // ── Surface and Navigation Controllers ──────────────────────────────────────
+  const panelSurfaces = usePanelSurfaceController({
+    showStickiesInitial: initialWorkspaceLayout.showStickies,
+  })
   const {
     activeMode,
     bibliographyOpen,
@@ -173,88 +177,64 @@ function App() {
     writingTargetsOpen,
     setActiveMode,
     setKnowledgeWorkbenchTab,
-    setPanel,
     setStatusDockTab,
-  } = overlayPanels
-  const setBibliographyOpen = useCallback((v: boolean) => setPanel('bibliographyOpen', v), [setPanel])
-  const setCanvasOpen = useCallback((v: boolean) => setPanel('canvasOpen', v), [setPanel])
-  const setCheatsheetOpen = useCallback((v: boolean) => setPanel('cheatsheetOpen', v), [setPanel])
-  const setFrontmatterOpen = useCallback((v: boolean) => setPanel('frontmatterOpen', v), [setPanel])
-  const setGitPanelOpen = useCallback((v: boolean) => setPanel('gitPanelOpen', v), [setPanel])
-  const setGraphOpen = useCallback((v: boolean) => setPanel('graphOpen', v), [setPanel])
-  const setHealthDashboardOpen = useCallback((v: boolean) => setPanel('healthDashboardOpen', v), [setPanel])
-  const setKanbanOpen = useCallback((v: boolean) => setPanel('kanbanOpen', v), [setPanel])
-  const setKnowledgeWorkbenchOpen = useCallback((v: boolean) => setPanel('knowledgeWorkbenchOpen', v), [setPanel])
-  const setMcpPanelOpen = useCallback((v: boolean) => setPanel('mcpPanelOpen', v), [setPanel])
-  const setNoteHistoryOpen = useCallback((v: boolean) => setPanel('noteHistoryOpen', v), [setPanel])
-  const setPortalOpen = useCallback((v: boolean) => setPanel('portalOpen', v), [setPanel])
-  const setPublishCenterOpen = useCallback((v: boolean) => setPanel('publishCenterOpen', v), [setPanel])
-  const setQuickCaptureOpen = useCallback((v: boolean) => setPanel('quickCaptureOpen', v), [setPanel])
-  const setReaderOpen = useCallback((v: boolean) => setPanel('readerOpen', v), [setPanel])
-  const setSettingsOpen = useCallback((v: boolean) => setPanel('settingsOpen', v), [setPanel])
-  const setSnippetsOpen = useCallback((v: boolean) => setPanel('snippetsOpen', v), [setPanel])
-  const setStickiesVisible = useCallback((v: boolean) => setPanel('stickiesVisible', v), [setPanel])
-  const setSupportOpen = useCallback((v: boolean) => setPanel('supportOpen', v), [setPanel])
-  const setTasksOpen = useCallback((v: boolean) => setPanel('tasksOpen', v), [setPanel])
-  const setTocOpen = useCallback((v: boolean | ((open: boolean) => boolean)) => setPanel('tocOpen', v), [setPanel])
-  const setWritingTargetsOpen = useCallback((v: boolean) => setPanel('writingTargetsOpen', v), [setPanel])
-  // readerFilePath: local state (file path distinct from the open/close boolean)
-  const [readerFilePath, setReaderFilePath] = useState<string | null>(null)
+    setBibliographyOpen,
+    setCanvasOpen,
+    setCheatsheetOpen,
+    setFrontmatterOpen,
+    setGitPanelOpen,
+    setGraphOpen,
+    setHealthDashboardOpen,
+    setKanbanOpen,
+    setKnowledgeWorkbenchOpen,
+    setMcpPanelOpen,
+    setNoteHistoryOpen,
+    setPortalOpen,
+    setPublishCenterOpen,
+    setQuickCaptureOpen,
+    setReaderOpen,
+    setSettingsOpen,
+    setSnippetsOpen,
+    setStickiesVisible,
+    setSupportOpen,
+    setTasksOpen,
+    setTocOpen,
+    setWritingTargetsOpen,
+    renameOpen,
+    renameTargetPath,
+    tagRenameTag,
+    sectionRenameTarget,
+    blockRenameTarget,
+    setRenameOpen,
+    setRenameTargetPath,
+    setTagRenameTag,
+    setSectionRenameTarget,
+    setBlockRenameTarget,
+    conflictPath,
+    setConflictPath,
+  } = panelSurfaces
 
-  // ── Rename dialog store ────────────────────────────────────────────────────
-  const renameDialogs = useRenameDialogStore()
-  const renameOpen = renameDialogs.noteRenameOpen
-  const renameTargetPath = renameDialogs.noteRenamePath
-  const tagRenameTag = renameDialogs.tagRenameTag
-  const sectionRenameTarget = renameDialogs.sectionRenameTarget
-  const blockRenameTarget = renameDialogs.blockRenameTarget
-  const setRenameOpen = (v: boolean) => { if (!v) renameDialogs.closeNoteRename() }
-  const setRenameTargetPath = (path: string | null) => {
-    if (path) renameDialogs.openNoteRename(path)
-    else renameDialogs.closeNoteRename()
-  }
-  const setTagRenameTag = (tag: string | null) => {
-    if (tag) renameDialogs.openTagRename(tag)
-    else renameDialogs.closeTagRename()
-  }
-  const setSectionRenameTarget = (target: { path: string; label: string } | null) => {
-    if (target) renameDialogs.openSectionRename(target)
-    else renameDialogs.closeSectionRename()
-  }
-  const setBlockRenameTarget = (target: { path: string; label: string } | null) => {
-    if (target) renameDialogs.openBlockRename(target)
-    else renameDialogs.closeBlockRename()
-  }
-
-  // ── Conflict store ─────────────────────────────────────────────────────────
-  const conflictStore = useConflictStore()
-  const conflictPath = conflictStore.conflictPath
-  const setConflictPath = (path: string | null) => {
-    if (path === null) conflictStore.closeConflict()
-    else conflictStore.openConflict({ path, source: conflictStore.conflictSource })
-  }
-  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({})
-  const [graphDepth, setGraphDepth] = useState(initialWorkspaceLayout.graphDepth)
-  const [graphFullVault, setGraphFullVault] = useState(false)
-  const { mobilePane, setMobilePane } = usePersistedMobilePane('editor')
-  const { theme, toggleTheme, setTheme } = useAppTheme()
-  const onboarding = useOnboarding()
-  const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
-  const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
-  const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
-  const journey = useJourneyMetrics()
+  const nav = useWorkspaceNavigationController({
+    initialGraphDepth: initialWorkspaceLayout.graphDepth,
+  })
   const {
-    markVaultOpen: journeyMarkVaultOpen,
-    markIndexRebuild: journeyMarkIndexRebuild,
-    markExport: journeyMarkExport,
-    recordPanelOpen: journeyRecordPanelOpen,
-  } = journey
-  const { presentation: panelPresentation, setPresentation: setPanelPresentation } = usePanelPresentation()
-  const [inspectorPreset, setInspectorPreset] = useState<InspectorPreset>(() => readInspectorPreset())
-  const editorRef = useRef<MarkdownEditorHandle | null>(null)
-  const previewRef = useRef<MarkdownPreviewHandle | null>(null)
-  const inspectorPanelRef = useRef<HTMLElement | null>(null)
-  const splitPreviewScrollRef = useRef<HTMLElement | null>(null)
+    collapsedFolders,
+    setCollapsedFolders,
+    graphDepth,
+    setGraphDepth,
+    graphFullVault,
+    setGraphFullVault,
+    mobilePane,
+    setMobilePane,
+    inspectorPreset,
+    setInspectorPreset,
+    readerFilePath,
+    setReaderFilePath,
+    pluginManagerOpen,
+    setPluginManagerOpen,
+    perfHudOpen,
+    setPerfHudOpen,
+  } = nav
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const workspaceGridRef = useRef<HTMLElement | null>(null)
   const {
@@ -292,9 +272,6 @@ function App() {
     wysiwyg,
   } = useEditorPreferences(theme, initialWorkspaceLayout)
   const { toastMessage, showToast, dismissToast } = useAppToast()
-  const [perfHudOpen, setPerfHudOpen] = useState(
-    () => window.localStorage.getItem('scriptor:perf-hud') === 'true',
-  )
   const perfMetrics = usePerfMetrics()
   const {
     markVaultOpenStart: perfMarkVaultOpenStart,
@@ -302,10 +279,8 @@ function App() {
     setWorkspaceCounts: perfSetWorkspaceCounts,
     setGraphNodeCount: perfSetGraphNodeCount,
   } = perfMetrics
-  const [visibleEditorLine, setVisibleEditorLine] = useState(1)
   const commandPalette = useCommandPalette()
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
-  const [pluginManagerOpen, setPluginManagerOpen] = useState(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId)
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
@@ -363,34 +338,7 @@ function App() {
       rememberRecentVault(workspace.vault.root_path)
     }
   }, [rememberRecentVault, workspace.vault?.root_path])
-  const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph, activeNote } = workspace
-
-  useEffect(() => {
-    if (spellcheck && !hibernateSpellcheck) {
-      setActiveHunspellLocale(spellcheckLocale)
-      void loadHunspellLocale(spellcheckLocale)
-    }
-  }, [spellcheck, spellcheckLocale, hibernateSpellcheck])
-
-  useEffect(() => {
-    configureLanguageTool({ endpoint: languageToolEndpoint })
-  }, [languageToolEndpoint])
-
-  const snippetContext = useMemo(() => {
-    if (!workspaceActivePath) {
-      return undefined
-    }
-    const segments = workspaceActivePath.split('/')
-    const filename = segments[segments.length - 1] ?? workspaceActivePath
-    const directory = segments.slice(0, -1).join('/')
-    const extension = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : ''
-    return {
-      filename,
-      directory,
-      extension,
-      title: activeNote?.metadata.title ?? filename.replace(/\.md$/i, ''),
-    }
-  }, [workspaceActivePath, activeNote?.metadata.title])
+  const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph } = workspace
   const { refreshHealth, fixVaultLint, exportWithProfile } = workspace
   const pluginCommandRuntime = useMemo(
     () => ({
@@ -456,21 +404,6 @@ function App() {
     conflictPath,
     settingsOpen,
   })
-  const editorLintMessages = useEditorLintProblems(workspace.draftMarkdown, Boolean(workspace.activePath))
-  const totalProblemCount = workspace.problemCount + editorLintMessages.length
-  const previewPlantUmlLocal = useCallback(
-    async (source: string) => {
-      if (!nativeReady) return null
-      try {
-        const { svg } = await plantumlRender(source)
-        return svg
-      } catch {
-        return null
-      }
-    },
-    [nativeReady],
-  )
-
   // Auto-open last vault or default cache vault on startup
   useEffect(() => {
     if (!nativeReady || workspace.vault || workspace.status !== 'idle') return
@@ -539,68 +472,43 @@ function App() {
     (chrome.editorSurfaceMode === 'rendered' || activeMode === 'preview') &&
     Boolean(workspace.activePath) &&
     !showSplitPreview
-  const scrollSyncEnabled = showSplitPreview || showInspectorPreview
-  const scrollContainerRef = showSplitPreview ? splitPreviewScrollRef : inspectorPanelRef
-  const { handleEditorLine: syncEditorLine } = useEditorPreviewScrollSync({
-    enabled: scrollSyncEnabled,
+
+  const editorOrchestration = useEditorOrchestrationController({
+    activePath: workspace.activePath,
+    draftMarkdown: workspace.draftMarkdown,
+    activeTitle: workspace.activeNote?.metadata.title,
+    activeTags: workspace.activeNote?.metadata.tags,
+    vaultTags,
+    entries: workspace.entries,
+    bibliography,
+    spellcheck,
+    spellcheckLocale,
+    hibernateSpellcheck,
+    languageToolEndpoint,
+    nativeReady,
+    showSplitPreview,
+    showInspectorPreview,
+    baseProblemCount: workspace.problemCount,
+  })
+  const {
     editorRef,
     previewRef,
-    scrollContainerRef,
-  })
+    inspectorPanelRef,
+    splitPreviewScrollRef,
+    scrollSyncEnabled,
+    visibleEditorLine,
+    handleEditorLine,
+    tocEntries,
+    editorAutocompleteContext,
+    monacoCompletionContext,
+    snippetContext,
+    editorLintMessages,
+    totalProblemCount,
+    executeDql,
+    previewFetchNote,
+    previewPlantUmlLocal,
+  } = editorOrchestration
 
-  const handleEditorLine = (line: number) => {
-    setVisibleEditorLine(line)
-    syncEditorLine(line)
-  }
-
-  const tocEntries = useMemo<TocEntry[]>(() => {
-    if (!workspace.activePath) return []
-    return generateTocFromMarkdown(workspace.draftMarkdown)
-  }, [workspace.activePath, workspace.draftMarkdown])
-
-  const editorAutocompleteContext = useMemo(
-    () => ({
-      notePaths: workspace.entries.filter((entry) => entry.kind === 'note').map((entry) => entry.path),
-      tags: [...new Set([...(workspace.activeNote?.metadata.tags ?? []), ...vaultTags])],
-      headings: tocEntries.map((entry) => entry.text.replace(/\{#([^}]+)\}/, '').trim()),
-      bibliographyKeys: bibliographyRaw.map((entry) => entry.key),
-    }),
-    [bibliographyRaw, tocEntries, vaultTags, workspace.activeNote?.metadata.tags, workspace.entries],
-  )
-
-  const monacoCompletionContext = useMemo(
-    () => ({
-      notePaths: editorAutocompleteContext.notePaths,
-      tags: editorAutocompleteContext.tags,
-      headings: editorAutocompleteContext.headings,
-    }),
-    [editorAutocompleteContext],
-  )
-
-  const executeDql = useCallback((query: string) => indexerExecuteDql(query), [])
-  const previewFetchNote = useCallback(
-    async (target: string): Promise<string | null> => {
-      if (!nativeReady) return null
-      const trimmed = target.trim()
-      if (!trimmed) return null
-      try {
-        const doc = await vaultReadNote(trimmed)
-        return doc.markdown
-      } catch {
-        try {
-          const resolved = await indexerResolveWikilink(trimmed)
-          if (resolved.path) {
-            const doc = await vaultReadNote(resolved.path)
-            return doc.markdown
-          }
-        } catch {
-          return null
-        }
-      }
-      return null
-    },
-    [nativeReady],
-  )
   const previewReadVaultText = useCallback(
     async (path: string): Promise<string | null> => {
       if (!nativeReady) return null
@@ -714,6 +622,7 @@ function App() {
     [
       resetLayout,
       setDistractionFree,
+      setGraphDepth,
       setSplitPreview,
       setStickiesVisible,
       workspaceMode,
@@ -927,7 +836,9 @@ function App() {
       setPublishCenterOpen,
       setMcpPanelOpen,
       setNoteHistoryOpen,
+      setPerfHudOpen,
       setPortalOpen,
+      setPluginManagerOpen,
       setQuickCaptureOpen,
       setReaderOpen,
       setSettingsOpen,
@@ -1320,7 +1231,6 @@ function App() {
           inspectorPreset={inspectorPreset}
           onInspectorPresetChange={(preset) => {
             setInspectorPreset(preset)
-            writeInspectorPreset(preset)
           }}
           showInspectorHealth={chrome.showInspectorHealth}
           onOpenKnowledgeWorkbench={() => openKnowledgeWorkbench('repair')}

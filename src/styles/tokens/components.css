@@ -127,16 +127,4 @@
   --comp-scrollbar-thumb-hover: var(--color-scrollbar-thumb-hover);
   --comp-scrollbar-radius:     var(--p-radius-full);
 
-  /* ── Legacy aliases (kept for backwards compat) ──────── */
-  /* Resolved to component tokens — remove when all consumers are migrated. */
-  --scriptor-shell-sticky-z:   var(--comp-shell-sticky-z);
-  --scriptor-modal-z:          var(--comp-modal-z);
-  --scriptor-vault-row-height: var(--comp-vault-row-height);
-  --scriptor-tab-height:       var(--comp-tab-height);
-  --scriptor-inspector-width:  var(--comp-inspector-width);
-  --scriptor-vault-width:      var(--comp-vault-width);
-  --scriptor-editor-min-height: var(--comp-editor-min-height);
-  --scriptor-footer-height:    var(--comp-footer-height);
-  --scriptor-topbar-height:    var(--comp-topbar-height);
-  --warning:                   var(--color-status-warning);
 }

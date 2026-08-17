@@ -8,6 +8,7 @@
 @import '../components/plugins.css';
 @import '../components/benchmarks.css';
 @import '../components/canvas-cli.css';
+@import '../components/buttons.css';
 
 .compact-list button small {
   margin-left: auto;
@@ -116,7 +117,7 @@
 }
 
 .health-checklist li[data-severity='warning'] strong {
-  color: var(--warning, #d97706);
+  color: var(--color-status-warning, #d97706);
 }
 
 .health-plugin-widget {

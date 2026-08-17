@@ -84,6 +84,8 @@ export function ReaderPanel({
 }: ReaderPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null)
   const [webviewReady, setWebviewReady] = useState(false)
+  const [hasUnsavedAnnotations, setHasUnsavedAnnotations] = useState(false)
+  const [closeWarning, setCloseWarning] = useState(false)
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -112,14 +114,27 @@ export function ReaderPanel({
       saveAnnotations: saveReaderAnnotations,
       onPersisted: (annotation) => onAnnotationCreate?.(annotation as ReaderAnnotation),
       onError: (cause) => setError(`Could not save annotation: ${messageFor(cause)}`),
+      onPendingChange: (pending) => {
+        setHasUnsavedAnnotations(pending)
+        if (!pending) setCloseWarning(false)
+      },
     }),
     [onAnnotationCreate, setError],
   )
 
-  useEffect(() => {
-    annotationSaveQueue.reset()
-    return () => annotationSaveQueue.reset()
-  }, [annotationSaveQueue, filePath])
+  useEffect(() => () => annotationSaveQueue.reset(), [annotationSaveQueue])
+
+  const handleClose = useCallback(() => {
+    if (annotationSaveQueue.hasPending()) {
+      setCloseWarning(true)
+      return
+    }
+    onClose()
+  }, [annotationSaveQueue, onClose])
+
+  const retryAnnotationSave = useCallback(() => {
+    if (annotationSaveQueue.retry()) setError(null)
+  }, [annotationSaveQueue, setError])
 
   // ── File I/O ───────────────────────────────────────────────────────────────
   const fileState = useReaderFile(filePath, vaultRoot)
@@ -258,7 +273,7 @@ export function ReaderPanel({
       subtitle={fileLabel}
       icon={<BookOpen size={18} />}
       ariaLabel="Document reader"
-      onClose={onClose}
+      onClose={handleClose}
       presentation={presentation}
       wide
       className="reader-panel"
@@ -309,6 +324,11 @@ export function ReaderPanel({
         onKeyDown={handleKeyDown}
         tabIndex={-1}
       >
+        {closeWarning && (
+          <p className="reader-panel__save-warning" role="status">
+            Annotations are still saving. Retry a failed save or wait before closing the reader.
+          </p>
+        )}
         {/* Loading skeleton */}
         {isLoading && (
           <div className="reader-panel__loading" role="status" aria-label="Loading document">
@@ -321,6 +341,9 @@ export function ReaderPanel({
           <div className="reader-panel__error" role="alert">
             <X size={20} />
             <p>{error}</p>
+            {hasUnsavedAnnotations && (
+              <button type="button" onClick={retryAnnotationSave}>Retry annotation save</button>
+            )}
           </div>
         )}
 

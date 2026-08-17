@@ -48,7 +48,6 @@ function loadSettings(): VaultBackupSettings {
     schemaVersion: 1,
     fallback: DEFAULT_SETTINGS,
     validate: validateSettings,
-    migrate: validateSettings,
   })
 }
 

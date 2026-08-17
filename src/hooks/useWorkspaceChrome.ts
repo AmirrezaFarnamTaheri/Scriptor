@@ -80,7 +80,6 @@ function readChrome(): WorkspaceChromePrefs {
     schemaVersion: 1,
     fallback: { ...DEFAULT_WORKSPACE_CHROME },
     validate: validateChrome,
-    migrate: validateChrome,
   })
 }
 

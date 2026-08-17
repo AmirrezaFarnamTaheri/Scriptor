@@ -49,7 +49,6 @@ function loadCollections(): SmartCollection[] {
     schemaVersion: 1,
     fallback: DEFAULT_COLLECTIONS,
     validate: validateCollections,
-    migrate: validateCollections,
   })
 }
 

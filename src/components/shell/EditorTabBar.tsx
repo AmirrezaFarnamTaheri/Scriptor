@@ -33,23 +33,26 @@ export function EditorTabBar({
   return (
     <div className="tabs-row" role="tablist" aria-label="Open notes">
       {canReopenClosedTab && onReopenClosedTab ? (
-        <button
-          type="button"
-          className="tab-reopen"
-          onClick={onReopenClosedTab}
-          aria-label="Reopen closed tab"
-          title="Reopen closed tab"
-        >
-          <RotateCcw aria-hidden="true" />
-        </button>
+        <span role="presentation">
+          <button
+            type="button"
+            className="tab-reopen"
+            onClick={onReopenClosedTab}
+            aria-label="Reopen closed tab"
+            title="Reopen closed tab"
+          >
+            <RotateCcw aria-hidden="true" />
+          </button>
+        </span>
       ) : null}
       {openTabs.length === 0 ? (
-        <span className="empty-tab">No note open</span>
+        <span className="empty-tab" role="presentation">No note open</span>
       ) : (
         openTabs.map((tab, tabIndex) => (
           <div
             className={`tab-item${tab.path === activePath ? ' active' : ''}${tab.path === activePath && isNoteDirty ? ' tab-dirty' : ''}${tab.pinned ? ' tab-pinned' : ''}`}
             key={tab.path}
+            role="presentation"
           >
             <button
               type="button"

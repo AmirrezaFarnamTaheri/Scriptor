@@ -57,7 +57,6 @@ function loadPresets(): SavedViewPreset[] {
     schemaVersion: 1,
     fallback: defaultPresets(),
     validate: validatePresets,
-    migrate: validatePresets,
   })
 }
 

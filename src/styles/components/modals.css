@@ -3,7 +3,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: var(--scriptor-modal-z, 40);
+  z-index: var(--comp-modal-z, 40);
   display: grid;
   place-items: center;
   background: var(--overlay);

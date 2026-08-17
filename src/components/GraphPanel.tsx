@@ -42,7 +42,6 @@ function loadGraphPresets(): GraphPreset[] {
     schemaVersion: 1,
     fallback: defaultGraphPresets(),
     validate: validateGraphPresets,
-    migrate: validateGraphPresets,
   })
 }
 

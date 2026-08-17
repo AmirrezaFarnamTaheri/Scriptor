@@ -11,7 +11,6 @@ interface ReadOptions<T> {
   schemaVersion: number
   fallback: T
   validate: (value: unknown) => T
-  migrate?: (legacy: unknown, fromVersion: number) => T
 }
 
 export function readVersionedStorage<T>({
@@ -19,7 +18,6 @@ export function readVersionedStorage<T>({
   schemaVersion,
   fallback,
   validate,
-  migrate,
 }: ReadOptions<T>): T {
   const raw = localStorage.getItem(key)
   if (!raw) return fallback
@@ -27,21 +25,12 @@ export function readVersionedStorage<T>({
     const parsed = parseJsonUnknown(raw, `localStorage ${key}`)
     const record = expectRecord(parsed, `localStorage ${key}`)
     if (typeof record.schemaVersion === 'number' && 'data' in record) {
-      if (record.schemaVersion === schemaVersion) {
-        return validate(record.data)
+      if (record.schemaVersion !== schemaVersion) {
+        throw new Error(`unsupported schema version ${record.schemaVersion}`)
       }
-      if (migrate) {
-        const migrated = migrate(record.data, record.schemaVersion)
-        writeVersionedStorage(key, schemaVersion, migrated)
-        return migrated
-      }
-      throw new Error(`unsupported schema version ${record.schemaVersion}`)
+      return validate(record.data)
     }
-
-    // Pre-envelope data is schema version 0.
-    const migrated = migrate ? migrate(parsed, 0) : validate(parsed)
-    writeVersionedStorage(key, schemaVersion, migrated)
-    return migrated
+    throw new Error('storage value is missing the current schema envelope')
   } catch (error) {
     quarantineStorageValue(key, raw, error)
     return fallback
