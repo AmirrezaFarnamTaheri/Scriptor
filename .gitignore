@@ -79,6 +79,7 @@ Desktop.ini
 # Local tooling
 .impeccable/
 .cursor/
+.serena/
 
 # Tauri: staged daemon sidecar (built locally; .gitkeep tracked)
 apps/desktop/src-tauri/binaries/*

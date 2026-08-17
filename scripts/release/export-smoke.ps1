@@ -43,7 +43,15 @@ if (-not $pandoc) {
 
 foreach ($format in @("html", "docx", "pdf")) {
     Write-Host "==> Export $format"
-    $json = Invoke-ScriptorCli export $VaultPath --note $Note --format $format
+    $exportArgs = @("export", $VaultPath, "--note", $Note, "--format", $format)
+    if ($format -eq "pdf" -and -not (Get-Command pdflatex -ErrorAction SilentlyContinue)) {
+        if (Get-Command tectonic -ErrorAction SilentlyContinue) {
+            $exportArgs += "--extra-arg=--pdf-engine=tectonic"
+        } else {
+            throw "PDF export smoke requires pdflatex or tectonic on PATH."
+        }
+    }
+    $json = Invoke-ScriptorCli @exportArgs
     $artifact = ($json | ConvertFrom-Json).artifact_path
     if (-not (Test-Path -LiteralPath $artifact -PathType Leaf)) {
         throw "Expected artifact missing: $artifact"

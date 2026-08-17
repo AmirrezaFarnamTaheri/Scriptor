@@ -200,7 +200,7 @@ jobs:
           name: ci-evidence-supply-chain-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-fast:
     name: Contracts, automation, and lint
@@ -329,7 +329,7 @@ jobs:
           name: ci-evidence-validate-fast-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-rust:
     name: Contracts, automation, lint, and Rust tests
@@ -377,9 +377,13 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
 
-      - name: Test Rust transport and runtime crates
+      - name: Clippy workspace checks
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust transport and runtime crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "-p", "scriptor-ipc", "-p", "scriptor-daemon", "-p", "scriptor-cli") -TimeoutSeconds 1800
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Clippy workspace checks" -FilePath "cargo" -ArgumentList @("clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings") -TimeoutSeconds 1200
+
+      - name: Test Rust workspace crates
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Test supported Rust crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "--workspace", "--exclude", "scriptor-desktop", "--exclude", "scriptor-embeddings", "--exclude", "scriptor-tantivy-indexer", "--exclude", "scriptor-wasm-runtime", "--jobs", "2") -TimeoutSeconds 1800
 
       - name: Verify generated ts-rs bindings
         shell: pwsh
@@ -408,7 +412,7 @@ jobs:
           name: ci-evidence-validate-rust-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-frontend:
     name: Frontend, accessibility, TUI, and daemon smoke
@@ -499,7 +503,7 @@ jobs:
           name: ci-evidence-validate-frontend-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-browser:
     name: Browser E2E and visual regression
@@ -656,7 +660,7 @@ jobs:
           name: ci-evidence-release-smoke-windows-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   container-smoke:
     name: Container image build and runtime smoke
@@ -700,4 +704,4 @@ jobs:
           name: ci-evidence-container-smoke-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30

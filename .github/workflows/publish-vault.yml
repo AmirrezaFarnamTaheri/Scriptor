@@ -1,12 +1,12 @@
 name: Publish Vault
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/test-fixtures/vaults/minimal/**'
-      - 'scripts/ci/**'
-      - '.github/workflows/publish-vault.yml'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type PUBLISH to deploy the reviewed vault artifact
+        required: true
+        type: string
 
 concurrency:
   group: publish-vault-${{ github.ref }}
@@ -123,7 +123,7 @@ jobs:
     needs: export-and-deploy
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
+    if: inputs.confirmation == 'PUBLISH'
     permissions:
       contents: read
       pages: write

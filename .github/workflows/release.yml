@@ -1,8 +1,7 @@
 name: Release
 run-name: >-
   ${{
-    ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
-    (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
+    (inputs.publish && startsWith(github.ref, 'refs/tags/v'))
     && format('Production {0}', github.ref_name)
     || format('Preview {0}', github.ref_name)
   }}
@@ -28,15 +27,6 @@ on:
           - minimal
           - focused
         default: complete
-  push:
-    tags:
-      # LTS releases: v1.2.3
-      - 'v[0-9]+.[0-9]+.[0-9]+'
-      # Beta pre-releases: v1.2.3-beta.*
-      - 'v*-beta.*'
-      # Alpha pre-releases: v1.2.3-alpha.*
-      - 'v*-alpha.*'
-
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -51,15 +41,13 @@ defaults:
 env:
   SCRIPTOR_RELEASE_VERSION: >-
     ${{
-      ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
+      (inputs.publish && startsWith(github.ref, 'refs/tags/v'))
       && github.ref_name
       || ''
     }}
   SCRIPTOR_RELEASE_CHANNEL: >-
     ${{
-      ((github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v')))
+      (inputs.publish && startsWith(github.ref, 'refs/tags/v'))
       && 'production'
       || 'preview'
     }}
@@ -251,8 +239,7 @@ jobs:
     needs: build
     if: >-
       ${{
-        (github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
-        (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v'))
+        inputs.publish && startsWith(github.ref, 'refs/tags/v')
       }}
     permissions:
       contents: write
@@ -260,6 +247,7 @@ jobs:
       attestations: write
       artifact-metadata: write
     runs-on: ubuntu-24.04
+    environment: release-production
     timeout-minutes: 30
     env:
       CI_LOG_DIR: artifacts/ci-logs/release-publish
@@ -400,21 +388,17 @@ jobs:
   publish-update-manifests:
     name: Publish LTS update manifests
     needs: publish
-    # Only run for LTS tags — no pre-release segment in the version.
-    # Beta/alpha builds publish their GitHub Release but never update the
-    # rolling `latest-lts` endpoint that installed clients poll.
+    # Only run for manually approved LTS tags — no pre-release segment.
     if: >-
       ${{
-        (
-          (github.event_name == 'push' && github.actor != 'github-actions[bot]' && startsWith(github.ref, 'refs/tags/v')) ||
-          (github.event_name == 'workflow_dispatch' && inputs.publish && startsWith(github.ref, 'refs/tags/v'))
-        ) &&
+        inputs.publish && startsWith(github.ref, 'refs/tags/v') &&
         !contains(github.ref_name, '-beta.') &&
         !contains(github.ref_name, '-alpha.')
       }}
     permissions:
       contents: write
     runs-on: ubuntu-24.04
+    environment: release-production
     timeout-minutes: 15
     env:
       CI_LOG_DIR: artifacts/ci-logs/publish-update-manifests
@@ -445,37 +429,14 @@ jobs:
             --assets-dir release-artifacts \
             --out-dir update-manifests
 
-      - name: Configure git identity for tag push
-        shell: bash
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Publish manifests to rolling latest-lts release
+      - name: Attach manifests to the immutable version release
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # Create or reset the rolling tag that client apps poll.
-          LATEST_TAG="latest-lts"
-          if gh release view "$LATEST_TAG" > /dev/null 2>&1; then
-            gh release edit "$LATEST_TAG" \
-              --title "LTS Update Endpoint (${GITHUB_REF_NAME})" \
-              --notes "Tauri updater endpoint for LTS builds. Points to ${GITHUB_REF_NAME}." \
-              --tag "$LATEST_TAG"
-          else
-            gh release create "$LATEST_TAG" \
-              --title "LTS Update Endpoint (${GITHUB_REF_NAME})" \
-              --notes "Tauri updater endpoint for LTS builds. Points to ${GITHUB_REF_NAME}." \
-              --prerelease
-          fi
-          # Force-push the rolling tag so the release endpoint always points to
-          # the most recent LTS commit. Identity configured in the preceding step.
-          git tag -f "$LATEST_TAG"
-          git push origin "$LATEST_TAG" --force
-          # Upload manifests; --clobber replaces the previous version's files.
-          gh release upload "$LATEST_TAG" update-manifests/*.json --clobber
+          gh release view "$GITHUB_REF_NAME" >/dev/null
+          gh release upload "$GITHUB_REF_NAME" update-manifests/*.json --clobber
 
       - name: Finalize update-manifest evidence
         if: always()

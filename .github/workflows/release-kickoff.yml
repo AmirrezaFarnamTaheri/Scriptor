@@ -2,11 +2,12 @@ name: Release Kickoff
 run-name: Create tag and publish VERSION from ${{ github.sha }}
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - VERSION
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Exact VERSION value to tag and publish (for example 1.0.0)
+        required: true
+        type: string
 
 concurrency:
   group: release-kickoff
@@ -18,6 +19,7 @@ permissions:
 
 jobs:
   tag-and-dispatch:
+    environment: release-production
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -36,6 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           version=$(tr -d '[:space:]' < VERSION)
+          test "$version" = "${{ inputs.version }}"
           SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check
 
       - name: Create immutable version tag

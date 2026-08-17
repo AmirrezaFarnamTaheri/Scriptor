@@ -99,6 +99,10 @@ function Start-NativeProcessCapture {
     }
 
     $process = Start-Process @startParameters
+    # Retain the native handle before a short-lived process exits. Without
+    # touching Handle, Start-Process can leave ExitCode unset on Windows even
+    # after HasExited becomes true.
+    $null = $process.Handle
     [pscustomobject]@{
         Process        = $process
         ResolvedFile   = $resolvedFile
@@ -267,6 +271,10 @@ function Invoke-BoundedProcess {
         while ($true) {
             $process.Refresh()
             if ($process.HasExited) {
+                # Start-Process can report HasExited before its asynchronous
+                # bookkeeping has populated ExitCode. This bounded call returns
+                # immediately for an exited process and completes that handoff.
+                [void]$process.WaitForExit(5000)
                 break
             }
 

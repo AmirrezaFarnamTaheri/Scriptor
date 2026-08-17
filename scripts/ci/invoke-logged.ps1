@@ -99,6 +99,8 @@ try {
     while ($true) {
         $process.Refresh()
         if ($process.HasExited) {
+            # Ensure Start-Process has finalized the native exit-code handle.
+            [void]$process.WaitForExit(5000)
             break
         }
 

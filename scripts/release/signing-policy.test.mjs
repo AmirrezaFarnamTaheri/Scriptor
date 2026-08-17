@@ -91,7 +91,7 @@ test('signing evidence collection rejects duplicate targets', () => {
 
 function stagingFixture(platform, architecture, files) {
   const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-stage-'))
-  fs.writeFileSync(path.join(fixtureRoot, 'VERSION'), '0.1.1\n')
+  fs.writeFileSync(path.join(fixtureRoot, 'VERSION'), '1.0.0\n')
   const scripts = path.join(fixtureRoot, 'scripts/release')
   fs.mkdirSync(scripts, { recursive: true })
   for (const name of [
@@ -135,8 +135,8 @@ test('release staging excludes unpacked bundle internals and gives assets unique
   assert.equal(result.status, 0, result.stderr)
   const staged = fs.readdirSync(path.join(fixtureRoot, 'release-output')).sort()
   assert.deepEqual(staged, [
-    'scriptor-0.1.1-linux-x86_64.AppImage',
-    'scriptor-0.1.1-linux-x86_64.deb',
+    'scriptor-1.0.0-linux-x86_64.AppImage',
+    'scriptor-1.0.0-linux-x86_64.deb',
     'signing-evidence-linux-x86_64.json',
   ])
 })

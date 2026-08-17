@@ -8,7 +8,7 @@
  * Usage:
  *   node fetch-github-release-asset.mjs \
  *     --repo  AmirrezaFarnamTaheri/Scriptor \
- *     --tag   latest                          \  # or a specific tag e.g. v0.1.1
+ *     --tag   latest                          \  # or a specific tag e.g. v1.0.0
  *     --asset scriptor-daemon-windows-x86_64.exe \
  *     --out   apps/desktop/src-tauri/binaries/scriptor-daemon.exe
  *

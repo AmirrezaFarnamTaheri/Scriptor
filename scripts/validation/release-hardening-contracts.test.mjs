@@ -32,18 +32,25 @@ test('manual release dispatch builds canonical VERSION and production requires a
   const kickoff = read('.github/workflows/release-kickoff.yml')
   const versionScript = read('scripts/release/version.mjs')
   const dispatchStart = workflow.indexOf('  workflow_dispatch:')
-  const tagStart = workflow.indexOf('  push:', dispatchStart)
-  assert.ok(dispatchStart >= 0 && tagStart > dispatchStart, 'release workflow dispatch block is missing')
-  const dispatch = workflow.slice(dispatchStart, tagStart)
+  const concurrencyStart = workflow.indexOf('concurrency:', dispatchStart)
+  assert.ok(
+    dispatchStart >= 0 && concurrencyStart > dispatchStart,
+    'release workflow dispatch block is missing',
+  )
+  const dispatch = workflow.slice(dispatchStart, concurrencyStart)
   assert.match(dispatch, /publish:/)
   assert.match(dispatch, /default:\s*false/)
   assert.doesNotMatch(dispatch, /\bversion:/)
   assert.match(workflow, /Get-Content -LiteralPath VERSION -Raw/)
   assert.match(workflow, /SCRIPTOR_RELEASE_VERSION=v\$canonicalVersion/)
 
-  const productionGuard = /github\.event_name\s*==\s*'workflow_dispatch'[\s\S]{0,200}?inputs\.publish[\s\S]{0,200}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/
+  const productionGuard = /inputs\.publish[\s\S]{0,120}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/
   assert.match(workflow, productionGuard)
-  assert.match(workflow, /github\.event_name\s*==\s*'push'[\s\S]{0,200}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/)
+  assert.doesNotMatch(workflow, /\n\s+push:\s*\n/)
+  assert.match(workflow, /environment:\s*release-production/)
+  assert.match(kickoff, /workflow_dispatch:/)
+  assert.doesNotMatch(kickoff, /\n\s+push:\s*\n/)
+  assert.match(kickoff, /environment:\s*release-production/)
   assert.match(kickoff, /git tag -a/)
   assert.match(kickoff, /gh workflow run release\.yml/)
   assert.match(kickoff, /--ref "\$\{\{ steps\.tag\.outputs\.tag \}\}"/)
@@ -143,12 +150,11 @@ test('every ignored RustSec advisory has an owned, dated exception record', () =
   }
 })
 
-test('merged audit report records final verification instead of pending status', () => {
-  const report = read('docs/reports/AI_SLOP_CLEANUP.md')
-  assert.doesNotMatch(report, /current-head CI is pending/i)
-  assert.doesNotMatch(report, /verification remains pending/i)
-  assert.match(report, /30965142253/)
-  assert.match(report, /c3ae10c4886637e4029687cc13cef519bac5f285/)
+test('v1 baseline excludes superseded audit packets', () => {
+  assert.equal(fs.existsSync(path.join(root, 'docs/reports/AI_SLOP_CLEANUP.md')), false)
+  const baseline = read('docs/FINAL-REMEDIATION-REPORT.md')
+  assert.match(baseline, /one current source, API, and persisted-state schema/i)
+  assert.match(baseline, /exact source head/i)
 })
 
 test('reviewed workspace async flows remain race-free and rejection-safe', () => {
