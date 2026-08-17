@@ -24,7 +24,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   {
     id: 'scriptor.graph',
     name: 'Interactive Knowledge Graph',
-    version: '0.1.0',
+    version: '1.0.0',
     description: 'Vault link topology and Cytoscape force-directed layout rendering',
     publisher: 'Scriptor Team',
     capabilityId: 'graph',

@@ -54,7 +54,7 @@ impl WasmPluginRuntime {
         let plugin = self.get_plugin(plugin_idx)?;
         plugin.capabilities.check("read_notes")?;
         // Stub: in a real runtime, this calls into the WASM guest
-        Err(WasmRuntimeError::Runtime(
+        Err(WasmRuntimeError::NotImplemented(
             "WASM runtime stub — compile with wasmtime-backend for execution".into(),
         ))
     }
@@ -68,7 +68,7 @@ impl WasmPluginRuntime {
     ) -> Result<(), WasmRuntimeError> {
         let plugin = self.get_plugin(plugin_idx)?;
         plugin.capabilities.check("write_notes")?;
-        Err(WasmRuntimeError::Runtime(
+        Err(WasmRuntimeError::NotImplemented(
             "WASM runtime stub — compile with wasmtime-backend for execution".into(),
         ))
     }
@@ -82,7 +82,7 @@ impl WasmPluginRuntime {
     ) -> Result<String, WasmRuntimeError> {
         let plugin = self.get_plugin(plugin_idx)?;
         plugin.capabilities.check("search")?;
-        Err(WasmRuntimeError::Runtime(
+        Err(WasmRuntimeError::NotImplemented(
             "WASM runtime stub — compile with wasmtime-backend for execution".into(),
         ))
     }
@@ -193,13 +193,13 @@ mod tests {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::full_access();
         let idx = runtime.load_plugin("full", &minimal_wasm(), caps).unwrap();
-        // All capability checks pass; stub returns Runtime error (not CapabilityDenied)
+        // All capability checks pass; stub returns NotImplemented error (not CapabilityDenied)
         let read_err = runtime.host_read_note(idx, "a.md").unwrap_err();
-        assert!(matches!(read_err, WasmRuntimeError::Runtime(_)));
+        assert!(matches!(read_err, WasmRuntimeError::NotImplemented(_)));
         let write_err = runtime.host_write_note(idx, "a.md", "x").unwrap_err();
-        assert!(matches!(write_err, WasmRuntimeError::Runtime(_)));
+        assert!(matches!(write_err, WasmRuntimeError::NotImplemented(_)));
         let search_err = runtime.host_search(idx, "q", 5).unwrap_err();
-        assert!(matches!(search_err, WasmRuntimeError::Runtime(_)));
+        assert!(matches!(search_err, WasmRuntimeError::NotImplemented(_)));
     }
 
     #[test]

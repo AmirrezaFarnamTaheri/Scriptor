@@ -3,11 +3,11 @@ use std::path::PathBuf;
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
+use crate::hash::path_hash;
 use crate::path::VaultRoot;
 
 pub const DEFAULT_NOTE_HISTORY_DIR: &str = ".scriptor/history";
@@ -29,7 +29,7 @@ struct NoteHistoryManifest {
 }
 
 fn history_key(relative_path: &str) -> String {
-    hex::encode(Sha256::digest(relative_path.as_bytes()))
+    path_hash(relative_path)
 }
 
 fn history_dir(root: &VaultRoot, relative_path: &str) -> PathBuf {

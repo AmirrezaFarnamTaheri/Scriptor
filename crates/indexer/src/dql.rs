@@ -35,21 +35,20 @@ pub fn execute_dql_query(
         return Ok(Vec::new());
     }
 
-    if trimmed.starts_with('{') {
-        return view_filter_to_rows(cache, session, trimmed);
-    }
-
-    if contains_compound(trimmed, " and ") {
+    let mut rows = if trimmed.starts_with('{') {
+        view_filter_to_rows(cache, session, trimmed)?
+    } else if contains_compound(trimmed, " and ") {
         let parts = split_compound(trimmed, " and ");
-        return intersect_many(cache, session, &parts);
-    }
-
-    if contains_compound(trimmed, " or ") {
+        intersect_many(cache, session, &parts)?
+    } else if contains_compound(trimmed, " or ") {
         let parts = split_compound(trimmed, " or ");
-        return union_many(cache, session, &parts);
-    }
+        union_many(cache, session, &parts)?
+    } else {
+        execute_single_clause(cache, session, trimmed)?
+    };
 
-    execute_single_clause(cache, session, trimmed)
+    rows.truncate(DQL_RESULT_LIMIT);
+    Ok(rows)
 }
 
 fn view_filter_to_rows(
@@ -256,10 +255,10 @@ fn parse_task_filter(filter_str: &str) -> Result<TaskFilter, IndexerError> {
                 }
                 _ => {}
             }
-        } else if let Some(tag) = token.strip_prefix("tag:") {
-            if !tag.is_empty() {
-                filter.tag = Some(tag.trim_start_matches('#').to_string());
-            }
+        } else if let Some(tag) = token.strip_prefix("tag:")
+            && !tag.is_empty()
+        {
+            filter.tag = Some(tag.trim_start_matches('#').to_string());
         }
         // Unknown tokens ignored for forward-compatibility.
     }

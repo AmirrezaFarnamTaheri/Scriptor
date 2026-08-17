@@ -1,7 +1,7 @@
 {
   "name": "@scriptor/plugin-hello-world",
   "private": true,
-  "version": "0.1.1",
+  "version": "1.0.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

@@ -2,9 +2,11 @@ use crate::db::{IndexCache, read_schema_version};
 use crate::error::IndexerError;
 use crate::schema::{
     CREATE_ANNOTATIONS, CREATE_BLOCKS, CREATE_FTS_V5, CREATE_INDEXES, CREATE_RECENT_ACCESS,
-    CREATE_SRS_CARDS, CREATE_SRS_REVIEWS, CREATE_TASK_TAGS, CREATE_TASKS, MIGRATE_V2_TO_V3,
-    MIGRATE_V7_TO_V8_TASKS, SCHEMA_VERSION, apply_schema,
+    CREATE_TASK_TAGS, CREATE_TASKS, MIGRATE_V2_TO_V3, MIGRATE_V7_TO_V8_TASKS, SCHEMA_VERSION,
+    apply_schema,
 };
+#[cfg(feature = "srs")]
+use crate::schema::{CREATE_SRS_CARDS, CREATE_SRS_REVIEWS};
 
 /// Optional progress callback used during v5 reindex (which forces a full FTS rebuild).
 /// Called with `(indexed_notes, total_notes)`. Pass `None` to suppress progress.
@@ -78,8 +80,11 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
     if current == 6 && SCHEMA_VERSION >= 7 {
         let transaction = connection.unchecked_transaction()?;
         transaction.execute_batch(CREATE_ANNOTATIONS)?;
-        transaction.execute_batch(CREATE_SRS_CARDS)?;
-        transaction.execute_batch(CREATE_SRS_REVIEWS)?;
+        #[cfg(feature = "srs")]
+        {
+            transaction.execute_batch(CREATE_SRS_CARDS)?;
+            transaction.execute_batch(CREATE_SRS_REVIEWS)?;
+        }
         stamp_schema_version(&transaction, 7)?;
         transaction.commit()?;
         current = 7;
@@ -530,6 +535,7 @@ CREATE TABLE IF NOT EXISTS notes (
         Ok(connection)
     }
 
+    #[cfg(feature = "srs")]
     #[test]
     fn migration_v6_to_v7_creates_annotations_and_srs_tables() -> Result<(), IndexerError> {
         let connection = open_v6_cache()?;

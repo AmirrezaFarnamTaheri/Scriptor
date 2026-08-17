@@ -95,7 +95,7 @@ mod tests {
         fs::write(&artifact, b"scriptor-test-payload").expect("write");
         let hash = hash_file(&artifact).expect("hash");
         let manifest = ReleaseManifest {
-            version: "0.1.0".into(),
+            version: "1.0.0".into(),
             artifacts: vec![ReleaseManifestEntry {
                 path: "app.exe".into(),
                 sha256: hash,

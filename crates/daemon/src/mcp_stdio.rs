@@ -271,6 +271,13 @@ fn invoke_tool(
     tool_name: &str,
     arguments: Option<Value>,
 ) -> Result<Value, String> {
+    // Capability decisions are vault-backed and can change while this stdio
+    // process is alive. Re-check each request rather than trusting startup.
+    let plugin_state =
+        load_plugin_state(state.session.root.root()).map_err(|error| error.to_string())?;
+    if !plugin_state.is_enabled("scriptor.mcp") {
+        return Err("Plugin capability 'scriptor.mcp' is disabled in active vault".into());
+    }
     let args = arguments.unwrap_or(json!({}));
     match tool_name {
         "mcp.search" => {
@@ -816,6 +823,31 @@ mod tests {
 
         let note = fs::read_to_string(dir.path().join("alpha.md")).expect("read note");
         assert!(note.contains("Patched body"));
+    }
+
+    #[test]
+    fn mcp_rechecks_capability_for_each_tool_invocation() {
+        let dir = tempdir().expect("tempdir");
+        fs::write(dir.path().join("alpha.md"), "# Alpha\n").expect("write note");
+        let session = open_vault(dir.path().display().to_string()).expect("open vault");
+        let index_cache = open_cache_for_session(&session).expect("open cache");
+        let mut state = McpStdioState {
+            session,
+            trust_stdio: false,
+            index_cache,
+        };
+        let mut plugin_state = scriptor_vault::PluginState::default();
+        plugin_state.disabled_plugins.insert("scriptor.mcp".into());
+        scriptor_vault::save_plugin_state(state.session.root.root(), &plugin_state)
+            .expect("disable mcp");
+
+        let error = invoke_tool(
+            &mut state,
+            "mcp.readNote",
+            Some(json!({ "path": "alpha.md" })),
+        )
+        .expect_err("disabled MCP must reject a request in an existing session");
+        assert!(error.contains("scriptor.mcp"));
     }
 
     #[test]

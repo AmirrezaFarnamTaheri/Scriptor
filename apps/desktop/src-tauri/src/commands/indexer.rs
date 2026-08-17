@@ -25,6 +25,19 @@ use super::daemon::{
 };
 use super::shared::parse_daemon_json;
 
+fn require_graph_capability(
+    state: &tauri::State<AppState>,
+) -> Result<scriptor_vault::VaultSession, String> {
+    let session = active_session(state)?;
+    let plugin_state = scriptor_vault::load_plugin_state(session.root.root())
+        .map_err(|error| error.to_string())?;
+    if plugin_state.is_enabled("scriptor.graph") {
+        Ok(session)
+    } else {
+        Err("Plugin capability 'scriptor.graph' is disabled in active vault".into())
+    }
+}
+
 #[tauri::command]
 pub fn indexer_rebuild(state: tauri::State<AppState>) -> Result<RebuildSummary, String> {
     if use_headless_engine(&state) {
@@ -89,11 +102,11 @@ pub fn indexer_graph(
     focus_path: Option<String>,
     depth: Option<u32>,
 ) -> Result<GraphQueryOutput, String> {
+    let session = require_graph_capability(&state)?;
     if use_headless_engine(&state) {
         let json = bridge_graph(focus_path, depth.unwrap_or(1))?;
         return parse_daemon_json(&json);
     }
-    let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let config = load_vault_config(session.root.root()).unwrap_or_default();
     query_focused_graph(
@@ -122,7 +135,7 @@ pub fn indexer_traverse_graph(
     focus_path: String,
     depth: u32,
 ) -> Result<Vec<GraphTraverseStep>, String> {
-    let session = active_session(&state)?;
+    let session = require_graph_capability(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     traverse_graph(&cache, &session, &focus_path, depth).map_err(|error| error.to_string())
 }

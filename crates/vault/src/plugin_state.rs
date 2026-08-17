@@ -18,7 +18,7 @@ pub const PLUGIN_STATE_SCHEMA_VERSION: u32 = 1;
 pub const PLUGIN_STATE_FILE: &str = "plugins.json";
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct PluginState {
     pub schema_version: u32,
     #[serde(default)]
@@ -27,28 +27,15 @@ pub struct PluginState {
     pub disabled_plugins: BTreeSet<String>,
     #[serde(default)]
     pub settings: BTreeMap<String, Value>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub migration: Option<PluginStateMigration>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginStateMigration {
-    pub source: String,
-    pub completed_at: String,
 }
 
 impl Default for PluginState {
     fn default() -> Self {
         Self {
             schema_version: PLUGIN_STATE_SCHEMA_VERSION,
-            // Compatibility policy: existing built-ins remain available until a
-            // vault writes an explicit decision. Unknown capabilities still fail
-            // closed in the daemon map.
             enabled_plugins: BTreeSet::new(),
             disabled_plugins: BTreeSet::new(),
             settings: BTreeMap::new(),
-            migration: None,
         }
     }
 }
@@ -191,5 +178,19 @@ mod tests {
         state.settings.clear();
         state.disabled_plugins.insert("graph".into());
         assert!(state.validate().is_err());
+    }
+
+    #[test]
+    fn malformed_state_is_rejected_without_resetting_the_file() {
+        let vault = tempfile::tempdir().unwrap();
+        let path = plugin_state_path(vault.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, b"{\"schemaVersion\":1,\"enabledPlugins\":[").unwrap();
+        let error = load_plugin_state(vault.path()).unwrap_err().to_string();
+        assert!(error.contains("invalid plugin state"));
+        assert_eq!(
+            std::fs::read_to_string(path).unwrap(),
+            "{\"schemaVersion\":1,\"enabledPlugins\":["
+        );
     }
 }

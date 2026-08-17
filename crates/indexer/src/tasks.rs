@@ -227,10 +227,10 @@ fn extract_dataview_fields(text: &str) -> (String, ExtractedFields) {
     // Priority via `[priority:: N]`.
     let mut pri_str: Option<String> = None;
     clean = remove_dataview_field(&clean, "priority", &mut pri_str);
-    if let Some(p) = pri_str {
-        if let Ok(n) = p.trim().parse::<i64>() {
-            priority = n;
-        }
+    if let Some(p) = pri_str
+        && let Ok(n) = p.trim().parse::<i64>()
+    {
+        priority = n;
     }
 
     (
@@ -850,15 +850,7 @@ fn compact_task_spacing(line: &str) -> String {
     let trimmed = line.trim_start();
     let indent_len = line.len() - trimmed.len();
     let indent = &line[..indent_len];
-    let collapsed = trimmed
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .replace("[ ]", "[ ]")
-        .replace("[x]", "[x]")
-        .replace("[-]", "[-]")
-        .replace("[>]", "[>]")
-        .replace("[/]", "[/]");
+    let collapsed = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
     format!("{indent}{collapsed}")
 }
 

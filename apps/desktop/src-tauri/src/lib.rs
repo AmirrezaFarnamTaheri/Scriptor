@@ -51,9 +51,7 @@ use commands::indexer::{
     indexer_update_note, indexer_update_task,
 };
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
-use commands::plugin_state::{
-    plugin_state_get, plugin_state_migrate_legacy, plugin_state_set_enabled,
-};
+use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
 use commands::reader::{reader_load_annotations, reader_read_document, reader_save_annotations};
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
@@ -272,7 +270,6 @@ pub fn run() {
             reader_save_annotations,
             plugin_state_get,
             plugin_state_set_enabled,
-            plugin_state_migrate_legacy,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Scriptor desktop");

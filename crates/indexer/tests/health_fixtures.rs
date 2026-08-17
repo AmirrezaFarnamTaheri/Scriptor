@@ -59,7 +59,7 @@ fn isolated_knowledge_edge_fixture() -> Result<tempfile::TempDir, IndexerError> 
 #[test]
 fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError> {
     let fixture = isolated_knowledge_edge_fixture()?;
-    let session = open_vault(fixture.path().to_path_buf()).map_err(IndexerError::from)?;
+    let session = open_vault(fixture.path()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
     let diagnostics = build_health_diagnostics(&cache, &session)?;
@@ -84,7 +84,7 @@ fn health_reports_duplicate_titles_and_broken_links() -> Result<(), IndexerError
 #[test]
 fn health_reports_alias_vault_search_targets() -> Result<(), IndexerError> {
     let fixture = isolated_knowledge_edge_fixture()?;
-    let session = open_vault(fixture.path().to_path_buf()).map_err(IndexerError::from)?;
+    let session = open_vault(fixture.path()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
     let diagnostics = build_health_diagnostics(&cache, &session)?;

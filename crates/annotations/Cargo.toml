@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-annotations"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2024"
 license.workspace = true
 description = "Two-stage annotation anchoring for Scriptor (W3-7): exact byte-offset → fuzzy-quote fallback → orphaned"

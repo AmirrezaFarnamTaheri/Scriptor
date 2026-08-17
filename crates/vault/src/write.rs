@@ -2,10 +2,10 @@ use std::fs;
 use std::path::Path;
 
 use crate::fs::atomic_write;
+use crate::hash::path_hash;
 use crate::note_history::append_note_history;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
 use crate::note::{NoteMetadata, metadata_from_markdown, read_note};
@@ -142,8 +142,8 @@ pub fn save_note_with_options(
 }
 
 fn recovery_backup_path(root: &VaultRoot, relative_path: &str) -> std::path::PathBuf {
-    let digest = Sha256::digest(relative_path.as_bytes());
-    let name = format!("{}.md", hex::encode(&digest[..8]));
+    let hash = path_hash(relative_path);
+    let name = format!("{}.md", &hash[..16]);
     root.root().join(".scriptor").join("recovery").join(name)
 }
 
@@ -298,6 +298,43 @@ mod tests {
         let restored = read_note(&session.descriptor.id, &session.root, &path).unwrap();
         assert_eq!(restored.metadata.content_hash, first.metadata.content_hash);
         assert!(restored.markdown.contains("# One"));
+    }
+
+    #[test]
+    fn rollback_save_note_rejects_noncanonical_recovery_backup() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("legacy.md").unwrap();
+        let first = save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Original\n",
+            None,
+        )
+        .unwrap();
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Changed\n",
+            None,
+        )
+        .unwrap();
+
+        let current = recovery_backup_path(&session.root, path.as_str());
+        let noncanonical = current.with_file_name(format!("{}.md", &path_hash(path.as_str())[..8]));
+        fs::rename(&current, &noncanonical).unwrap();
+
+        assert!(
+            rollback_save_note(
+                &session.descriptor.id,
+                &session.root,
+                &path,
+                Some(first.metadata.content_hash.as_str()),
+            )
+            .is_err()
+        );
     }
 
     #[test]

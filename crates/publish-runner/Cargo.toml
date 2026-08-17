@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-publish-runner"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2024"
 license.workspace = true
 
@@ -11,10 +11,8 @@ path = "src/lib.rs"
 scriptor-vault = { path = "../vault" }
 chrono = { workspace = true }
 globset = "0.4"
-hex = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-sha2 = "0.10"
 thiserror = "2"
 tracing = "0.1"
 walkdir = "2"

@@ -26,7 +26,21 @@ pub fn capability_for_command(command: &str) -> Option<&'static str> {
         | "export_start_note"
         | "export_start_markdown"
         | "export_cancel" => Some("scriptor.export"),
-        "canvas_create" | "canvas_update" | "canvas_snapshot" => Some("scriptor.canvas"),
+        // Keep this exhaustive with `command_gateway::catalog::COMMAND_IDS`.
+        // Capability disablement applies to the whole Canvas surface, not only
+        // to its mutating commands: otherwise an untrusted client can still
+        // invoke an unreviewed Canvas entry point directly over daemon IPC.
+        "canvas_hit_test"
+        | "canvas_render_svg"
+        | "canvas_template_dry_run"
+        | "canvas_apply_template"
+        | "canvas_restore_template"
+        | "canvas_query_blocks"
+        | "canvas_list_templates"
+        | "canvas_snapshot"
+        | "canvas_save_document"
+        | "canvas_load_document"
+        | "canvas_list_documents" => Some("scriptor.canvas"),
         _ => None,
     }
 }
@@ -66,5 +80,25 @@ mod tests {
             }),
             Err(RpcError::PluginDisabled { capability_id }) if capability_id == "scriptor.export"
         ));
+    }
+
+    #[test]
+    fn disabled_canvas_rejects_every_catalog_command() {
+        let state = PluginState {
+            disabled_plugins: ["scriptor.canvas".into()].into_iter().collect(),
+            ..Default::default()
+        };
+        for command in crate::command_gateway::list_commands()
+            .into_iter()
+            .filter(|command| command.starts_with("canvas_"))
+        {
+            assert!(
+                matches!(
+                    enforce(&state, &RpcMethod::Invoke { command: command.into(), payload_json: "{}".into() }),
+                    Err(RpcError::PluginDisabled { capability_id }) if capability_id == "scriptor.canvas"
+                ),
+                "{command} must be capability-gated"
+            );
+        }
     }
 }

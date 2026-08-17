@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { buildLineDiff, diffDraftLines, summarizeDiff } from './diff.ts'
+import { buildLineDiff, summarizeDiff } from './diff.ts'
 
 test('buildLineDiff identifies line changes and unchanged context', () => {
   const before = '# Heading\nold line\nfooter'
@@ -32,4 +32,10 @@ test('summarizeDiff counts additions and deletions accurately', () => {
   assert.equal(summary.added, 2)
   assert.equal(summary.removed, 1)
   assert.equal(summary.changed, 1)
+})
+
+test('buildLineDiff keeps duplicate-line edits minimal', () => {
+  const diff = buildLineDiff('A\nB', 'B\nB\nA\nB')
+  assert.deepEqual(diff.filter((line) => line.kind === 'remove'), [])
+  assert.equal(diff.filter((line) => line.kind === 'add').length, 2)
 })

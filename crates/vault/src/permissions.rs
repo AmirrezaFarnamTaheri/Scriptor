@@ -92,6 +92,7 @@ impl fmt::Display for SensitiveOperation {
 
 /// The outcome of a permission check.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[must_use = "permission outcomes must be checked to ensure security gates are enforced"]
 pub enum PermissionOutcome {
     /// The operation is allowed.
     Allowed,

@@ -1557,6 +1557,7 @@ dependencies = [
  "block-buffer 0.12.1",
  "const-oid",
  "crypto-common 0.2.2",
+ "ctutils",
 ]
 
 [[package]]
@@ -2704,7 +2705,7 @@ version = "0.12.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b5f8eb2ad728638ea2c7d47a21db23b7b58a72ed6a38256b8a1849f15fbbdf7"
 dependencies = [
- "hmac",
+ "hmac 0.12.1",
 ]
 
 [[package]]
@@ -2714,6 +2715,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c49c37c09c17a53d937dfbb742eb3a961d65a994e6bcdcf37e7399d0cc8ab5e"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "hmac"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6303bc9732ae41b04cb554b844a762b4115a61bfaa81e3e83050991eeb56863f"
+dependencies = [
+ "digest 0.11.3",
 ]
 
 [[package]]
@@ -4873,18 +4883,6 @@ dependencies = [
 
 [[package]]
 name = "pulldown-cmark"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
-dependencies = [
- "bitflags 2.13.1",
- "memchr",
- "pulldown-cmark-escape",
- "unicase",
-]
-
-[[package]]
-name = "pulldown-cmark"
 version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9f068eba8e7071c5f9511831b44f32c740d5adf574e990f946ddb53db2f314e"
@@ -5677,7 +5675,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-annotations"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -5686,7 +5684,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-canvas-engine"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "resvg",
@@ -5703,7 +5701,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-capture"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "ammonia",
  "htmd",
@@ -5719,7 +5717,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-citation-engine"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "hayagriva",
  "serde",
@@ -5728,13 +5726,13 @@ dependencies = [
 
 [[package]]
 name = "scriptor-cli"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "clap",
  "clap_complete",
  "crossterm",
- "pulldown-cmark 0.13.4",
+ "pulldown-cmark",
  "ratatui",
  "regex",
  "scriptor-canvas-engine",
@@ -5754,16 +5752,17 @@ dependencies = [
 
 [[package]]
 name = "scriptor-daemon"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "ammonia",
  "chrono",
  "clap",
  "getrandom 0.4.3",
  "hex",
+ "hmac 0.13.0",
  "interprocess",
  "postcard",
- "pulldown-cmark 0.13.4",
+ "pulldown-cmark",
  "scriptor-canvas-engine",
  "scriptor-export-runner",
  "scriptor-indexer",
@@ -5774,6 +5773,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.11.0",
+ "subtle",
  "tempfile",
  "tracing",
  "uuid",
@@ -5781,7 +5781,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-desktop"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "arboard",
  "chrono",
@@ -5811,7 +5811,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-embeddings"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "reqwest",
  "rusqlite",
@@ -5822,7 +5822,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-export-runner"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "hex",
@@ -5837,9 +5837,9 @@ dependencies = [
 
 [[package]]
 name = "scriptor-extractor"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
- "pulldown-cmark 0.12.2",
+ "pulldown-cmark",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -5847,7 +5847,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-indexer"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "hex",
@@ -5868,7 +5868,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-ipc"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "postcard",
  "serde",
@@ -5878,7 +5878,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-native-git"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "diffy",
  "scriptor-vault",
@@ -5890,15 +5890,13 @@ dependencies = [
 
 [[package]]
 name = "scriptor-publish-runner"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "chrono",
  "globset",
- "hex",
  "scriptor-vault",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
@@ -5907,7 +5905,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-system-bridge"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "hex",
  "keyring",
@@ -5921,7 +5919,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-tantivy-indexer"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "tantivy",
  "tempfile",
@@ -5930,7 +5928,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-vault"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -5956,7 +5954,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-wasm-runtime"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -5964,7 +5962,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-xtask"
-version = "0.1.1"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "clap",

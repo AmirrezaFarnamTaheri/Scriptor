@@ -17,7 +17,7 @@
 //! | `hint-b64`  | Base-64 of a short UTF-8 *hint* (≤ 64 bytes before encode). |
 //!              |   Tells the user *what* is encrypted; never the plaintext.  |
 //! | `payload-b64` | Base-64 of the binary `crates/vault/src/crypto.rs` V2    |
-//!              |   envelope (`encrypt_v2_with_passphrase`).                   |
+//!              |   envelope (`encrypt_with_passphrase`).                      |
 //!
 //! ## Invariants
 //!
@@ -37,7 +37,7 @@ use std::fmt;
 use base64::{Engine as _, engine::general_purpose::STANDARD as B64};
 use zeroize::Zeroize;
 
-use crate::crypto::{decrypt_any_with_passphrase, encrypt_v2_with_passphrase};
+use crate::crypto::{decrypt_with_passphrase, encrypt_with_passphrase};
 use crate::encryption::EncryptionError;
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ pub struct InlineSpan {
     /// Decoded hint bytes.  UTF-8 is not validated after decode — display with
     /// `String::from_utf8_lossy`.
     pub hint: Vec<u8>,
-    /// Decoded binary envelope (V2 format from `crypto::encrypt_v2_with_passphrase`).
+    /// Decoded current binary envelope.
     pub payload: Vec<u8>,
     /// Byte range `[start, end)` of the entire marker in the source string,
     /// including the `%%` delimiters.  Useful for callers that splice spans
@@ -131,7 +131,7 @@ impl InlineSpan {
 /// secret.  Truncated to [`MAX_HINT_BYTES`] silently.
 ///
 /// # Errors
-/// Propagates [`EncryptionError`] from `crypto::encrypt_v2_with_passphrase`.
+/// Propagates [`EncryptionError`] from `crypto::encrypt_with_passphrase`.
 pub fn encrypt(plaintext: &[u8], passphrase: &str, hint: &str) -> Result<String, EncryptionError> {
     let hint_bytes = hint.as_bytes();
     let hint_bytes = if hint_bytes.len() > MAX_HINT_BYTES {
@@ -140,7 +140,7 @@ pub fn encrypt(plaintext: &[u8], passphrase: &str, hint: &str) -> Result<String,
         hint_bytes
     };
 
-    let payload = encrypt_v2_with_passphrase(plaintext, passphrase)?;
+    let payload = encrypt_with_passphrase(plaintext, passphrase)?;
     let hint_b64 = B64.encode(hint_bytes);
     let payload_b64 = B64.encode(&payload);
 
@@ -214,7 +214,7 @@ impl fmt::Debug for DecryptedGuard {
 /// - [`EncryptionError::InvalidPassphrase`] — wrong passphrase.
 /// - [`EncryptionError::InvalidFormat`] — payload corrupted.
 pub fn decrypt(span: &InlineSpan, passphrase: &str) -> Result<DecryptedGuard, EncryptionError> {
-    let plaintext = decrypt_any_with_passphrase(&span.payload, passphrase)?;
+    let plaintext = decrypt_with_passphrase(&span.payload, passphrase)?;
     Ok(DecryptedGuard::new(plaintext))
 }
 

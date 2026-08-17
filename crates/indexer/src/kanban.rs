@@ -96,7 +96,7 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
                     &mut columns,
                     name,
                     is_archive,
-                    current_cards.drain(..).collect(),
+                    std::mem::take(&mut current_cards),
                 );
             }
             let trimmed = col_name.trim().to_string();
@@ -105,10 +105,10 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
             continue;
         }
 
-        if let Some((_, is_archive)) = &current_column {
-            if let Some(card) = parse_card_line(line, line_idx, *is_archive) {
-                current_cards.push(card);
-            }
+        if let Some((_, is_archive)) = &current_column
+            && let Some(card) = parse_card_line(line, line_idx, *is_archive)
+        {
+            current_cards.push(card);
         }
     }
 

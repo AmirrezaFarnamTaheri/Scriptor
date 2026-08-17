@@ -27,8 +27,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use globset::{Glob, GlobSetBuilder};
+use scriptor_vault::content_hash_bytes;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use walkdir::WalkDir;
 
 use crate::error::PublishError;
@@ -225,7 +225,7 @@ fn scan_candidates(
             }
         }
 
-        let content_hash = hex::encode(Sha256::digest(&bytes));
+        let content_hash = content_hash_bytes(&bytes);
         out.push(PublishCandidate {
             rel_path: rel,
             content_hash,
@@ -273,9 +273,7 @@ fn build_include_set(patterns: &[String]) -> Result<Option<globset::GlobSet>, Pu
     for p in patterns {
         builder.add(Glob::new(p)?);
     }
-    Ok(Some(
-        builder.build().map_err(|e| PublishError::GlobPattern(e))?,
-    ))
+    Ok(Some(builder.build().map_err(PublishError::GlobPattern)?))
 }
 
 fn build_exclude_set(patterns: &[String]) -> Result<globset::GlobSet, PublishError> {
@@ -421,5 +419,27 @@ mod tests {
             "---\npublish: yes\n---\nbody\n"
         ));
         assert!(!frontmatter_has_publish_true("no frontmatter at all\n"));
+    }
+
+    #[test]
+    fn distinct_invalid_utf8_notes_have_distinct_publish_hashes() {
+        let tmp = TempDir::new().unwrap();
+        fs::write(
+            tmp.path().join("first.md"),
+            b"---\npublish: true\n---\nbody\xff",
+        )
+        .unwrap();
+        fs::write(
+            tmp.path().join("second.md"),
+            b"---\npublish: true\n---\nbody\xfe",
+        )
+        .unwrap();
+
+        let plan = plan_publish(tmp.path(), &BucketState::default(), &Default::default()).unwrap();
+        assert_eq!(plan.new_items.len(), 2);
+        assert_ne!(
+            plan.new_items[0].content_hash,
+            plan.new_items[1].content_hash
+        );
     }
 }

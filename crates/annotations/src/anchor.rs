@@ -94,13 +94,13 @@ fn reanchor_text_range(
 
     // ── Stage 2: fuzzy-quote search ──────────────────────────────────────────
     let quote_trimmed = trim_to_bytes(&sel.quote, MAX_QUOTE_BYTES);
-    if !quote_trimmed.is_empty() {
-        if let Some(new_range) = fuzzy_search(body, start, quote_trimmed) {
-            return Ok(AnchorOutcome::Relocated {
-                old_range: sel.range,
-                new_range,
-            });
-        }
+    if !quote_trimmed.is_empty()
+        && let Some(new_range) = fuzzy_search(body, start, quote_trimmed)
+    {
+        return Ok(AnchorOutcome::Relocated {
+            old_range: sel.range,
+            new_range,
+        });
     }
 
     // ── Stage 3: orphaned ────────────────────────────────────────────────────

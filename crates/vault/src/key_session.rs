@@ -90,6 +90,12 @@ pub struct KeySession {
     ttl: Duration,
 }
 
+fn lock_recover<T: ?Sized>(mutex: &std::sync::Mutex<T>) -> std::sync::MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 impl KeySession {
     /// Create a new, locked session with the default TTL.
     pub fn new() -> Self {
@@ -127,7 +133,7 @@ impl KeySession {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        *self.inner.lock().unwrap() = Some(inner);
+        *lock_recover(&self.inner) = Some(inner);
         Ok(SessionInfo {
             ttl_secs: remaining.as_secs(),
             expires_at_unix,
@@ -143,7 +149,7 @@ impl KeySession {
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        *self.inner.lock().unwrap() = Some(inner);
+        *lock_recover(&self.inner) = Some(inner);
         SessionInfo {
             ttl_secs: remaining.as_secs(),
             expires_at_unix,
@@ -156,12 +162,12 @@ impl KeySession {
     pub fn lock(&self) {
         // Dropping the `Option<SessionInner>` triggers `SessionInner::drop`,
         // which zeroizes the key.
-        *self.inner.lock().unwrap() = None;
+        *lock_recover(&self.inner) = None;
     }
 
     /// Return `true` if an active (non-expired) session exists.
     pub fn is_active(&self) -> bool {
-        match self.inner.lock().unwrap().as_ref() {
+        match lock_recover(&self.inner).as_ref() {
             Some(inner) => !inner.is_expired(),
             None => false,
         }
@@ -178,7 +184,7 @@ impl KeySession {
     where
         F: FnOnce(&[u8; 32]) -> R,
     {
-        let mut guard = self.inner.lock().unwrap();
+        let mut guard = lock_recover(&self.inner);
         match guard.as_ref() {
             None => Err(SessionError::NoSession),
             Some(inner) if inner.is_expired() => {
@@ -192,7 +198,7 @@ impl KeySession {
 
     /// Return a snapshot of the current session state (no key material).
     pub fn status(&self) -> SessionStatus {
-        match self.inner.lock().unwrap().as_ref() {
+        match lock_recover(&self.inner).as_ref() {
             None => SessionStatus::Locked,
             Some(inner) if inner.is_expired() => SessionStatus::Expired,
             Some(inner) => SessionStatus::Active {

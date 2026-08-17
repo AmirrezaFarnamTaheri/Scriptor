@@ -3,10 +3,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
+use crate::hash::path_hash;
 use crate::path::{RelativeVaultPath, VaultRoot};
 
 const TXN_DIR_NAME: &str = "rename-txn";
@@ -276,7 +276,7 @@ fn backup_file(root: &VaultRoot, dir: &Path, relative_path: &str) -> Result<Stri
     // `a__b.md`, so a rename touching both wrote one note's contents into the
     // other's backup and rollback restored the wrong file. A hash of the full
     // path cannot collide that way.
-    let backup_name = hex::encode(Sha256::digest(relative_path.as_bytes()));
+    let backup_name = path_hash(relative_path);
     let backup_abs = dir.join(format!("{backup_name}.bak"));
     fs::copy(&source, &backup_abs).map_err(|source| VaultError::io(&backup_abs, source))?;
     Ok(format!(".scriptor/{TXN_DIR_NAME}/{backup_name}.bak"))

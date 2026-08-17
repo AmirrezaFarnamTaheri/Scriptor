@@ -1,4 +1,4 @@
-//! Versioned envelope encryption with `decrypt_any` dispatch (W1-9).
+//! Current V1 envelope encryption.
 //!
 //! # Envelope format
 //!
@@ -8,20 +8,16 @@
 //!
 //! | Version byte | Algorithm | Nonce | Notes |
 //! |---|---|---|---|
-//! | `1` (`V1`) | AES-256-GCM | 12 B | Legacy; must remain readable forever |
-//! | `2` (`V2`) | XChaCha20-Poly1305 | 24 B | New default for all writes |
+//! | `2` | XChaCha20-Poly1305 | 24 B | Current V1 product envelope |
 //!
 //! # Rules (binding)
-//! - V1 payloads are **always** readable; the V1 code path is never removed.
-//! - New writes use V2 (`XChaCha20-Poly1305`) by default.
-//! - [`decrypt_any`] reads the version byte and dispatches without the caller
-//!   needing to know which algorithm was used.
+//! - Every write and read uses XChaCha20-Poly1305 envelope version `2`.
+//! - Other envelope versions are rejected before decryption.
 //! - The ASCII inline marker (`%%scriptor-enc:v2:<hint-b64>:<payload-b64>%%`)
-//!   lives in `inline_encrypt.rs` (W5-7) and uses this module's `V2` path.
+//!   lives in `inline_encrypt.rs` and uses this module's sole envelope path.
 
 use chacha20poly1305::aead::Aead;
 use chacha20poly1305::{KeyInit, XChaCha20Poly1305, XNonce};
-use serde::{Deserialize, Serialize};
 use zeroize::Zeroize;
 
 use crate::encryption::EncryptionError;
@@ -31,10 +27,8 @@ use crate::encryption::EncryptionError;
 const MAGIC: &[u8; 4] = b"SENC";
 
 /// Version byte stored in the envelope header.
-const VERSION_V1: u8 = 1;
 const VERSION_V2: u8 = 2;
 
-const ALGORITHM_AES256GCM: u8 = 1;
 const ALGORITHM_XCHACHA20POLY1305: u8 = 2;
 
 const KDF_ARGON2ID: u8 = 1;
@@ -42,38 +36,19 @@ const SALT_LEN: usize = 16;
 const KEY_ID_LEN: usize = 4;
 const TAG_LEN: usize = 16;
 
-const V1_NONCE_LEN: usize = 12;
 const V2_NONCE_LEN: usize = 24; // XChaCha20 uses a 192-bit nonce
 
-// Header length varies by version because the nonce length differs.
-const V1_HEADER_LEN: usize = 4 + 1 + 1 + 1 + SALT_LEN + V1_NONCE_LEN + KEY_ID_LEN;
 const V2_HEADER_LEN: usize = 4 + 1 + 1 + 1 + SALT_LEN + V2_NONCE_LEN + KEY_ID_LEN;
-
-// ── EnvelopeVersion ───────────────────────────────────────────────────────────
-
-/// Which algorithm version an encrypted envelope uses.
-///
-/// Returned by [`EnvelopeHeader::version`] so callers can make version-aware
-/// decisions without parsing the full header.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum EnvelopeVersion {
-    /// AES-256-GCM, 12-byte nonce. Legacy; read-only from new code.
-    V1,
-    /// XChaCha20-Poly1305, 24-byte nonce. Current default for new writes.
-    V2,
-}
 
 // ── Parsed header ─────────────────────────────────────────────────────────────
 
 /// Parsed envelope header without the ciphertext.
 #[derive(Debug, Clone)]
 pub struct EnvelopeHeader {
-    pub version: EnvelopeVersion,
-    /// Raw algorithm byte (1 = AES-GCM, 2 = XChaCha20-Poly1305).
+    /// The current XChaCha20-Poly1305 algorithm byte.
     pub algorithm: u8,
     pub salt: [u8; SALT_LEN],
-    /// Variable-length nonce (12 B for V1, 24 B for V2).
+    /// XChaCha20-Poly1305 nonce (24 bytes).
     pub nonce: Vec<u8>,
     pub key_id: [u8; KEY_ID_LEN],
     /// Byte offset at which the ciphertext (+tag) begins.
@@ -90,41 +65,18 @@ impl EnvelopeHeader {
             return Err(EncryptionError::InvalidFormat("bad magic bytes".into()));
         }
 
-        let (version, algorithm, nonce_len, header_len) = match data[4] {
-            VERSION_V1 => {
-                if data[5] != ALGORITHM_AES256GCM {
-                    return Err(EncryptionError::UnsupportedAlgorithm(format!(
-                        "V1 algorithm byte {}",
-                        data[5]
-                    )));
-                }
-                (
-                    EnvelopeVersion::V1,
-                    ALGORITHM_AES256GCM,
-                    V1_NONCE_LEN,
-                    V1_HEADER_LEN,
-                )
-            }
-            VERSION_V2 => {
-                if data[5] != ALGORITHM_XCHACHA20POLY1305 {
-                    return Err(EncryptionError::UnsupportedAlgorithm(format!(
-                        "V2 algorithm byte {}",
-                        data[5]
-                    )));
-                }
-                (
-                    EnvelopeVersion::V2,
-                    ALGORITHM_XCHACHA20POLY1305,
-                    V2_NONCE_LEN,
-                    V2_HEADER_LEN,
-                )
-            }
-            v => {
-                return Err(EncryptionError::InvalidFormat(format!(
-                    "unsupported envelope version {v}"
-                )));
-            }
-        };
+        if data[4] != VERSION_V2 {
+            return Err(EncryptionError::InvalidFormat(format!(
+                "unsupported envelope version {}",
+                data[4]
+            )));
+        }
+        if data[5] != ALGORITHM_XCHACHA20POLY1305 {
+            return Err(EncryptionError::UnsupportedAlgorithm(format!(
+                "algorithm byte {}",
+                data[5]
+            )));
+        }
 
         if data[6] != KDF_ARGON2ID {
             return Err(EncryptionError::UnsupportedAlgorithm(format!(
@@ -133,7 +85,7 @@ impl EnvelopeHeader {
             )));
         }
 
-        if data.len() < header_len + TAG_LEN {
+        if data.len() < V2_HEADER_LEN + TAG_LEN {
             return Err(EncryptionError::InvalidFormat(
                 "payload too short for header + tag".into(),
             ));
@@ -141,7 +93,7 @@ impl EnvelopeHeader {
 
         let salt_start = 7;
         let nonce_start = salt_start + SALT_LEN;
-        let key_id_start = nonce_start + nonce_len;
+        let key_id_start = nonce_start + V2_NONCE_LEN;
 
         let mut salt = [0u8; SALT_LEN];
         salt.copy_from_slice(&data[salt_start..nonce_start]);
@@ -149,48 +101,29 @@ impl EnvelopeHeader {
         let nonce = data[nonce_start..key_id_start].to_vec();
 
         let mut key_id = [0u8; KEY_ID_LEN];
-        key_id.copy_from_slice(&data[key_id_start..header_len]);
+        key_id.copy_from_slice(&data[key_id_start..V2_HEADER_LEN]);
 
         Ok(EnvelopeHeader {
-            version,
-            algorithm,
+            algorithm: ALGORITHM_XCHACHA20POLY1305,
             salt,
             nonce,
             key_id,
-            header_len,
+            header_len: V2_HEADER_LEN,
         })
     }
 }
 
-// ── decrypt_any ───────────────────────────────────────────────────────────────
-
-/// Decrypt an envelope produced by either V1 or V2, using a raw 32-byte key.
-///
-/// Dispatches on the version byte in the envelope header. V1 payloads are
-/// decrypted with AES-256-GCM; V2 payloads with XChaCha20-Poly1305.
-///
-/// # Invariant
-/// V1 support is **permanent**. Do not remove the V1 branch.
-pub fn decrypt_any(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EncryptionError> {
+/// Decrypt the current XChaCha20-Poly1305 envelope using a raw 32-byte key.
+pub fn decrypt(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EncryptionError> {
     let header = EnvelopeHeader::parse(data)?;
-    match header.version {
-        EnvelopeVersion::V1 => {
-            // Delegate to the existing V1 path in encryption.rs.
-            let enc = crate::encryption::VaultEncryption::new();
-            enc.decrypt_data(data, key)
-        }
-        EnvelopeVersion::V2 => xchacha20_decrypt(key, &header.nonce, &data[header.header_len..]),
-    }
+    xchacha20_decrypt(key, &header.nonce, &data[header.header_len..])
 }
 
 /// Decrypt a V2 (XChaCha20-Poly1305) envelope produced by a passphrase.
 ///
 /// Re-derives the key from the salt stored in the envelope header. Fails
 /// cleanly for a wrong passphrase.
-pub fn decrypt_any_with_passphrase(
-    data: &[u8],
-    passphrase: &str,
-) -> Result<Vec<u8>, EncryptionError> {
+pub fn decrypt_with_passphrase(data: &[u8], passphrase: &str) -> Result<Vec<u8>, EncryptionError> {
     let header = EnvelopeHeader::parse(data)?;
     if header.salt.iter().all(|&b| b == 0) {
         return Err(EncryptionError::InvalidFormat(
@@ -198,46 +131,34 @@ pub fn decrypt_any_with_passphrase(
         ));
     }
 
-    match header.version {
-        EnvelopeVersion::V1 => {
-            let enc = crate::encryption::VaultEncryption::new();
-            enc.decrypt_data_with_passphrase(data, passphrase)
-        }
-        EnvelopeVersion::V2 => {
-            let enc = crate::encryption::VaultEncryption::new();
-            let key = enc.derive_key(passphrase, &header.salt)?;
-            if key_id_for(key.as_bytes()) != header.key_id {
-                return Err(EncryptionError::InvalidPassphrase);
-            }
-            xchacha20_decrypt(key.as_bytes(), &header.nonce, &data[header.header_len..])
-                .map_err(|_| EncryptionError::InvalidPassphrase)
-        }
+    let enc = crate::encryption::VaultEncryption::new();
+    let key = enc.derive_key(passphrase, &header.salt)?;
+    if key_id_for(key.as_bytes()) != header.key_id {
+        return Err(EncryptionError::InvalidPassphrase);
     }
+    xchacha20_decrypt(key.as_bytes(), &header.nonce, &data[header.header_len..])
+        .map_err(|_| EncryptionError::InvalidPassphrase)
 }
 
 // ── V2 encrypt ────────────────────────────────────────────────────────────────
 
 /// Encrypt `data` with a raw 32-byte key using XChaCha20-Poly1305 (V2).
 ///
-/// New writes should use this function; V1 writes are only for backward
-/// compatibility tests.
-pub fn encrypt_v2(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EncryptionError> {
-    encrypt_v2_with_header(data, key, &[0u8; SALT_LEN], &[0u8; KEY_ID_LEN])
+/// All raw-key writes use this current envelope.
+pub fn encrypt(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EncryptionError> {
+    encrypt_with_header(data, key, &[0u8; SALT_LEN], &[0u8; KEY_ID_LEN])
 }
 
 /// Encrypt `data` with a passphrase using XChaCha20-Poly1305 (V2).
-pub fn encrypt_v2_with_passphrase(
-    data: &[u8],
-    passphrase: &str,
-) -> Result<Vec<u8>, EncryptionError> {
+pub fn encrypt_with_passphrase(data: &[u8], passphrase: &str) -> Result<Vec<u8>, EncryptionError> {
     let enc = crate::encryption::VaultEncryption::new();
     let salt = generate_salt()?;
     let key = enc.derive_key(passphrase, &salt)?;
     let kid = key_id_for(key.as_bytes());
-    encrypt_v2_with_header(data, key.as_bytes(), &salt, &kid)
+    encrypt_with_header(data, key.as_bytes(), &salt, &kid)
 }
 
-fn encrypt_v2_with_header(
+fn encrypt_with_header(
     data: &[u8],
     key: &[u8; 32],
     salt: &[u8; SALT_LEN],
@@ -326,25 +247,22 @@ fn _zeroize_check() {
 mod tests {
     use super::*;
 
-    // ── V2 encrypt/decrypt ────────────────────────────────────────────────────
-
     #[test]
-    fn v2_encrypt_decrypt_roundtrip_raw_key() {
+    fn encrypt_decrypt_roundtrip_raw_key() {
         let key = [0x42u8; 32];
         let data = b"XChaCha20-Poly1305 roundtrip";
-        let encrypted = encrypt_v2(data, &key).unwrap();
-        // Header must not be confused with V1.
+        let encrypted = encrypt(data, &key).unwrap();
         assert_eq!(&encrypted[..4], b"SENC");
-        assert_eq!(encrypted[4], 2, "expected V2 version byte");
-        let decrypted = decrypt_any(&encrypted, &key).unwrap();
+        assert_eq!(encrypted[4], VERSION_V2);
+        let decrypted = decrypt(&encrypted, &key).unwrap();
         assert_eq!(decrypted, data);
     }
 
     #[test]
-    fn v2_nonces_are_unique() {
+    fn nonces_are_unique() {
         let key = [1u8; 32];
-        let e1 = encrypt_v2(b"x", &key).unwrap();
-        let e2 = encrypt_v2(b"x", &key).unwrap();
+        let e1 = encrypt(b"x", &key).unwrap();
+        let e2 = encrypt(b"x", &key).unwrap();
         // Nonce starts at byte 7 + SALT_LEN = 23, length 24.
         let n1 = &e1[23..47];
         let n2 = &e2[23..47];
@@ -352,45 +270,35 @@ mod tests {
     }
 
     #[test]
-    fn v2_passphrase_roundtrip() {
-        let data = b"encrypted with passphrase v2";
-        let enc = encrypt_v2_with_passphrase(data, "correct horse").unwrap();
-        let dec = decrypt_any_with_passphrase(&enc, "correct horse").unwrap();
+    fn passphrase_roundtrip() {
+        let data = b"encrypted with passphrase";
+        let enc = encrypt_with_passphrase(data, "correct horse").unwrap();
+        let dec = decrypt_with_passphrase(&enc, "correct horse").unwrap();
         assert_eq!(dec, data);
     }
 
     #[test]
-    fn v2_wrong_passphrase_fails_cleanly() {
-        let enc = encrypt_v2_with_passphrase(b"secret", "right").unwrap();
-        let err =
-            decrypt_any_with_passphrase(&enc, "wrong").expect_err("wrong passphrase must fail");
+    fn wrong_passphrase_fails_cleanly() {
+        let enc = encrypt_with_passphrase(b"secret", "right").unwrap();
+        let err = decrypt_with_passphrase(&enc, "wrong").expect_err("wrong passphrase must fail");
         assert!(matches!(err, EncryptionError::InvalidPassphrase), "{err}");
     }
 
-    // ── decrypt_any dispatches to V1 ──────────────────────────────────────────
-
     #[test]
-    fn decrypt_any_reads_v1_payload() {
-        // Produce a V1 ciphertext using the existing VaultEncryption API.
+    fn decrypt_rejects_obsolete_envelope() {
         let enc_v1 = crate::encryption::VaultEncryption::new();
         let key = [0xABu8; 32];
-        let data = b"legacy V1 payload";
-        let v1_blob = enc_v1.encrypt_data(data, &key).unwrap();
-        assert_eq!(v1_blob[4], 1, "must be V1");
-
-        // decrypt_any must read it without the caller specifying a version.
-        let decrypted = decrypt_any(&v1_blob, &key).unwrap();
-        assert_eq!(decrypted, data);
+        let obsolete_blob = enc_v1.encrypt_data(b"obsolete payload", &key).unwrap();
+        assert!(decrypt(&obsolete_blob, &key).is_err());
     }
 
     // ── EnvelopeHeader::parse ─────────────────────────────────────────────────
 
     #[test]
-    fn parse_v2_header_fields() {
+    fn parse_current_header_fields() {
         let key = [7u8; 32];
-        let blob = encrypt_v2(b"header test", &key).unwrap();
+        let blob = encrypt(b"header test", &key).unwrap();
         let header = EnvelopeHeader::parse(&blob).unwrap();
-        assert_eq!(header.version, EnvelopeVersion::V2);
         assert_eq!(header.algorithm, ALGORITHM_XCHACHA20POLY1305);
         assert_eq!(header.nonce.len(), V2_NONCE_LEN);
         assert_eq!(header.header_len, V2_HEADER_LEN);
@@ -411,14 +319,12 @@ mod tests {
         assert!(EnvelopeHeader::parse(&blob).is_err());
     }
 
-    // ── V2 tamper detection ───────────────────────────────────────────────────
-
     #[test]
-    fn v2_tampered_ciphertext_rejected() {
+    fn tampered_ciphertext_rejected() {
         let key = [0x33u8; 32];
-        let mut blob = encrypt_v2(b"authentic", &key).unwrap();
+        let mut blob = encrypt(b"authentic", &key).unwrap();
         let last = blob.len() - 1;
         blob[last] ^= 0xFF;
-        assert!(decrypt_any(&blob, &key).is_err());
+        assert!(decrypt(&blob, &key).is_err());
     }
 }

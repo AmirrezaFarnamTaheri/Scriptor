@@ -2,10 +2,10 @@ use std::fs;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
+use crate::hash::path_hash;
 use crate::path::VaultRoot;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -58,8 +58,8 @@ pub fn backup_note_content(
     }
     let content =
         fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
-    let digest = Sha256::digest(relative_path.as_bytes());
-    let name = format!("{}.md", hex::encode(&digest[..8]));
+    let hash = path_hash(relative_path);
+    let name = format!("{}.md", &hash[..16]);
     let backup_dir = root
         .root()
         .join(".scriptor")

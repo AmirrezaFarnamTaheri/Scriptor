@@ -128,7 +128,7 @@ impl Default for NoteTypesConfig {
 /// A named, persisted snapshot of graph filter state.
 ///
 /// Mirrors the frontend `SavedGraphView` (`src/types/vault.ts`). Every field
-/// carries a serde default so a partially-written or legacy entry degrades
+/// carries a serde default so a partially-written entry degrades
 /// gracefully instead of failing the entire `VaultConfig` deserialization, and
 /// a config written by the frontend round-trips losslessly through Rust.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

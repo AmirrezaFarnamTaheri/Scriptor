@@ -234,7 +234,8 @@ fn build_export_job_from_markdown(
 }
 
 #[tauri::command]
-pub fn export_discover() -> Result<PandocDiscovery, String> {
+pub fn export_discover(state: tauri::State<AppState>) -> Result<PandocDiscovery, String> {
+    require_export_capability(&state)?;
     discover_pandoc().map_err(|error| error.to_string())
 }
 

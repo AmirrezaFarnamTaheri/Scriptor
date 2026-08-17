@@ -52,8 +52,7 @@ pub use config::{
     load_vault_template, plan_daily_note, preview_daily_tokens, save_vault_config,
 };
 pub use crypto::{
-    EnvelopeHeader, EnvelopeVersion, decrypt_any, decrypt_any_with_passphrase, encrypt_v2,
-    encrypt_v2_with_passphrase,
+    EnvelopeHeader, decrypt, decrypt_with_passphrase, encrypt, encrypt_with_passphrase,
 };
 pub use delete::{DeleteNoteOutput, delete_note};
 pub use diagnostics::{redact_json_value, redact_sensitive_text};
@@ -63,7 +62,7 @@ pub use frontmatter_ops::{
     FrontmatterFieldOutput, delete_frontmatter_field, get_frontmatter_field, set_frontmatter_field,
 };
 pub use fs::{atomic_write, write_conflicted_sidecar};
-pub use hash::{content_hash, reading_time_minutes, word_count};
+pub use hash::{content_hash, content_hash_bytes, reading_time_minutes, word_count};
 pub use link_rewrite::{
     LinkRewriteApplyOutput, LinkRewritePreview, RenameLinkTarget, directory_identifier_for_path,
     is_directory_index_path, rewrite_note_rename_links,
@@ -92,8 +91,8 @@ pub use permissions::{
     SensitiveOperation, check_permission,
 };
 pub use plugin_state::{
-    PLUGIN_STATE_FILE, PLUGIN_STATE_SCHEMA_VERSION, PluginState, PluginStateMigration,
-    load_plugin_state, plugin_state_path, save_plugin_state,
+    PLUGIN_STATE_FILE, PLUGIN_STATE_SCHEMA_VERSION, PluginState, load_plugin_state,
+    plugin_state_path, save_plugin_state,
 };
 pub use recent::{RecentNoteEntry, list_recent_notes, record_recent_note};
 pub use rename::{

@@ -22,25 +22,33 @@ fn require_canvas_capability(
 
 #[tauri::command]
 pub fn canvas_hit_test(
+    state: tauri::State<AppState>,
     scene_json: String,
     x: f64,
     y: f64,
 ) -> Result<Option<HitTestResult>, String> {
+    require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     Ok(hit_test(&document, CanvasPoint { x, y }))
 }
 
 #[tauri::command]
-pub fn canvas_render_svg(scene_json: String) -> Result<String, String> {
+pub fn canvas_render_svg(
+    state: tauri::State<AppState>,
+    scene_json: String,
+) -> Result<String, String> {
+    require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     Ok(render_svg(&document, None))
 }
 
 #[tauri::command]
 pub fn canvas_template_dry_run(
+    state: tauri::State<AppState>,
     scene_json: String,
     template_id: String,
 ) -> Result<TemplateApplyPreview, String> {
+    require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     apply_template_dry_run(&document, &template_id).map_err(|error| error.to_string())
 }
@@ -69,12 +77,14 @@ pub fn canvas_restore_template(
 
 #[tauri::command]
 pub fn canvas_query_blocks(
+    state: tauri::State<AppState>,
     scene_json: String,
     x: f64,
     y: f64,
     width: f64,
     height: f64,
 ) -> Result<Vec<String>, String> {
+    require_canvas_capability(&state)?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
     let bounds = CanvasRect {
         x,
@@ -89,7 +99,10 @@ pub fn canvas_query_blocks(
 }
 
 #[tauri::command]
-pub fn canvas_list_templates() -> Result<Vec<scriptor_canvas_engine::CanvasTemplate>, String> {
+pub fn canvas_list_templates(
+    state: tauri::State<AppState>,
+) -> Result<Vec<scriptor_canvas_engine::CanvasTemplate>, String> {
+    require_canvas_capability(&state)?;
     Ok(list_templates())
 }
 

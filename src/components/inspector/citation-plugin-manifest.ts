@@ -6,7 +6,7 @@ export const CITATION_PLUGIN_ID = 'scriptor.citations'
 export const citationsPluginManifest: PluginManifest = {
   id: CITATION_PLUGIN_ID,
   name: 'Zotero & CSL Citations',
-  version: '0.1.0',
+  version: '1.0.0',
   description: 'Zotero library synchronization, CSL citation formatting, and bibliography inspector',
   publisher: 'Scriptor Team',
   capabilityId: CITATION_PLUGIN_CAPABILITY_ID,

@@ -5,7 +5,7 @@ import type {
   PluginPermission,
 } from '@scriptor/core/contracts/plugin'
 
-export const PLUGIN_API_VERSION = '0.1.0'
+export const PLUGIN_API_VERSION = '1.0.0'
 
 const VALID_CAPABILITIES = new Set<PluginCapability>([
   'command',
@@ -28,14 +28,8 @@ const BLOCKED_PERMISSIONS = new Set<PluginPermission['permission']>([
 const ID_PATTERN = /^[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*$/
 const MAX_ID_LENGTH = 64
 
-function isCompatibleApiVersion(version: string): boolean {
-  const [major, minor] = version.split('.')
-  const [expectedMajor, expectedMinor] = PLUGIN_API_VERSION.split('.')
-  if (major !== expectedMajor) return false
-  // Semver treats 0.x minor bumps as breaking, so require the minor to match
-  // while the API is still pre-1.0.
-  if (major === '0') return minor === expectedMinor
-  return true
+function isCurrentApiVersion(version: string): boolean {
+  return version === PLUGIN_API_VERSION
 }
 
 function asArray<T>(value: readonly T[] | undefined): readonly T[] {
@@ -70,8 +64,8 @@ export function validatePluginManifest(manifest: PluginManifest): ManifestValida
   if (permissions.length === 0) errors.push('plugin permissions are required')
 
   const apiVersion = manifest.apiVersion ?? PLUGIN_API_VERSION
-  if (!isCompatibleApiVersion(apiVersion)) {
-    errors.push(`plugin apiVersion ${apiVersion} is incompatible with host ${PLUGIN_API_VERSION}`)
+  if (!isCurrentApiVersion(apiVersion)) {
+    errors.push(`plugin apiVersion must equal host ${PLUGIN_API_VERSION}; received ${apiVersion}`)
   }
 
   for (const capability of capabilities) {
@@ -148,7 +142,7 @@ export function runManifestValidationTests(): string[] {
   const valid: PluginManifest = {
     id: 'scriptor.sample',
     name: 'Sample',
-    version: '0.1.0',
+    version: '1.0.0',
     publisher: 'Scriptor',
     description: 'Sample plugin',
     activation: ['manual'],
@@ -178,7 +172,7 @@ export function runManifestValidationTests(): string[] {
   const canvasKit: PluginManifest = {
     id: 'scriptor.canvas-kit',
     name: 'Canvas Kit',
-    version: '0.1.0',
+    version: '1.0.0',
     publisher: 'Scriptor',
     description: 'Built-in canvas templates.',
     activation: ['on-startup'],
@@ -230,8 +224,8 @@ export function runManifestValidationTests(): string[] {
   const publishPack: PluginManifest = {
     id: 'scriptor.publish-pack',
     name: 'Publish Pack',
-    version: '0.1.0',
-    apiVersion: '0.1.0',
+    version: '1.0.0',
+    apiVersion: '1.0.0',
     publisher: 'Scriptor',
     description: 'Sample renderer and export contributions.',
     activation: ['on-vault-open'],
@@ -282,9 +276,13 @@ export function runManifestValidationTests(): string[] {
     failures.push('non-array capability/permission fields must not throw')
   }
 
-  const minorBreaking: PluginManifest = { ...valid, id: 'scriptor.newer-minor', apiVersion: '0.2.0' }
-  if (validatePluginManifest(minorBreaking).ok) {
-    failures.push('0.x minor apiVersion mismatch should fail validation')
+  const differentContract: PluginManifest = {
+    ...valid,
+    id: 'scriptor.different-contract',
+    apiVersion: '1.0.1',
+  }
+  if (validatePluginManifest(differentContract).ok) {
+    failures.push('non-current apiVersion should fail validation')
   }
 
   for (const badId of ['bad..id', '.leading', 'trailing.', 'UPPER.case', `a${'b'.repeat(80)}`]) {

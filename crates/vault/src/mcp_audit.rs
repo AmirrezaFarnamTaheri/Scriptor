@@ -91,6 +91,30 @@ impl McpMutationAuditRecord {
             record_hash: None,
         }
     }
+
+    /// Records a crash-visible terminal state without asserting whether the
+    /// underlying mutation reached the filesystem. Consumers must reconcile
+    /// this state rather than treating it as a completed failure.
+    pub fn interrupted(intent: &Self, detail: impl Into<String>) -> Self {
+        Self {
+            id: intent.id.clone(),
+            phase: "outcome".into(),
+            tool_name: intent.tool_name.clone(),
+            mode: intent.mode.clone(),
+            command_id: intent.command_id.clone(),
+            requested_at: intent.requested_at.clone(),
+            approved_at: intent.approved_at.clone(),
+            outcome: "interrupted".into(),
+            note_path: intent.note_path.clone(),
+            detail: Some(detail.into()),
+            input_summary: intent.input_summary.clone(),
+            success: None,
+            duration_ms: None,
+            idempotency_key: intent.idempotency_key.clone(),
+            previous_hash: None,
+            record_hash: None,
+        }
+    }
 }
 
 pub fn append_mcp_mutation(
@@ -179,13 +203,9 @@ pub fn reconcile_pending_mcp_mutations(root: &VaultRoot) -> Result<usize, VaultE
     for intent in pending.into_values() {
         append_mcp_mutation(
             root,
-            McpMutationAuditRecord::outcome(
+            McpMutationAuditRecord::interrupted(
                 &intent,
-                false,
-                Some(
-                    "recovered after interruption; mutation outcome requires reconciliation".into(),
-                ),
-                0,
+                "recovered after interruption; mutation outcome requires reconciliation",
             ),
         )?;
     }
@@ -307,6 +327,8 @@ mod tests {
         assert_eq!(reconcile_pending_mcp_mutations(&root)?, 0);
         let content = fs::read_to_string(root.root().join(DEFAULT_MCP_AUDIT_PATH))?;
         assert!(content.contains("recovered after interruption"));
+        assert!(content.contains("\"outcome\":\"interrupted\""));
+        assert!(!content.contains("\"success\":false"));
         Ok(())
     }
 }

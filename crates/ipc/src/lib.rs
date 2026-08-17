@@ -155,7 +155,7 @@ pub struct RpcResponse {
 )]
 pub enum RpcResult {
     Ok(RpcPayload),
-    /// Structured errors added without changing the legacy string error wire
+    /// Structured errors sent over the current typed error wire.
     /// variant. New callers must prefer this variant for actionable failures.
     Error(RpcError),
     Err(String),

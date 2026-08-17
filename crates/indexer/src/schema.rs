@@ -200,6 +200,7 @@ CREATE INDEX IF NOT EXISTS idx_annotations_vault ON annotations(vault_id);
 ///
 /// Each card is derived from a `"question"` annotation; `due_at` is
 /// recomputed by the SM-2 algorithm after each review.
+#[cfg(feature = "srs")]
 pub const CREATE_SRS_CARDS: &str = "
 CREATE TABLE IF NOT EXISTS srs_cards (
   id TEXT PRIMARY KEY,
@@ -215,6 +216,7 @@ CREATE INDEX IF NOT EXISTS idx_srs_cards_due ON srs_cards(due_at);
 ";
 
 /// v7 — review log for SRS cards (one row per user review session).
+#[cfg(feature = "srs")]
 pub const CREATE_SRS_REVIEWS: &str = "
 CREATE TABLE IF NOT EXISTS srs_reviews (
   id TEXT PRIMARY KEY,
@@ -288,8 +290,11 @@ pub fn apply_schema(connection: &rusqlite::Connection) -> rusqlite::Result<()> {
     connection.execute_batch(CREATE_TASK_TAGS)?;
     // v7 additions.
     connection.execute_batch(CREATE_ANNOTATIONS)?;
-    connection.execute_batch(CREATE_SRS_CARDS)?;
-    connection.execute_batch(CREATE_SRS_REVIEWS)?;
+    #[cfg(feature = "srs")]
+    {
+        connection.execute_batch(CREATE_SRS_CARDS)?;
+        connection.execute_batch(CREATE_SRS_REVIEWS)?;
+    }
     // v8 additions.
     connection.execute_batch(CREATE_BLOCKS)?;
     connection.execute(

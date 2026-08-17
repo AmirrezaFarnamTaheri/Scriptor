@@ -52,6 +52,7 @@ incubating = ["embeddings", "tantivy-indexer", "wasm-runtime"]
 
 [workspace.package]
 license = "AGPL-3.0-or-later"
+rust-version = "1.96"
 
 # citationberg 0.7.0 was published with vulnerable quick-xml 0.38.x.
 # Pin the upstream security-only fix until the next crates.io release.

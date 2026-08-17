@@ -6,7 +6,7 @@ use clap_complete::Shell;
 /// Process exit codes emitted by the `scriptor` binary.
 ///
 /// This mapping is a stable CLI contract; codes are never reused or reassigned
-/// without a deprecation period.
+/// without an explicit new-product contract.
 ///
 /// | Code | Meaning |
 /// |------|---------|

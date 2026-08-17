@@ -68,108 +68,53 @@ fn compute_endpoint_hmac(socket_name: &str, pid: u32, nonce: &str) -> Result<Str
 }
 
 fn hmac_sha256_simple(message: &str) -> Result<[u8; 32], IpcError> {
-    use sha2::{Digest, Sha256};
+    use hmac::{Hmac, KeyInit, Mac};
+    use sha2::Sha256;
+
+    type HmacSha256 = Hmac<Sha256>;
 
     let key = endpoint_hmac_key()?;
-    let mut key_bytes = [0u8; 32];
-    let key_src = key.as_bytes();
-    let copy_len = key_src.len().min(32);
-    key_bytes[..copy_len].copy_from_slice(&key_src[..copy_len]);
-
-    let mut ipad = [0x36u8; 64];
-    let mut opad = [0x5cu8; 64];
-    for i in 0..32 {
-        ipad[i] ^= key_bytes[i];
-        opad[i] ^= key_bytes[i];
-    }
-
-    let mut inner = Sha256::new();
-    inner.update(ipad);
-    inner.update(message.as_bytes());
-    let inner_hash = inner.finalize();
-
-    let mut outer = Sha256::new();
-    outer.update(opad);
-    outer.update(inner_hash);
-    let result = outer.finalize();
+    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
+        .map_err(|e| IpcError::Codec(format!("invalid HMAC key length: {e}")))?;
+    mac.update(message.as_bytes());
+    let result = mac.finalize().into_bytes();
 
     let mut out = [0u8; 32];
     out.copy_from_slice(&result);
     Ok(out)
 }
 
-/// Constant-time byte comparison so HMAC verification does not leak match
-/// prefixes through timing. Length mismatch returns early, which only reveals
-/// the length (fixed at 64 hex chars for valid endpoints).
+/// Constant-time HMAC comparison; length mismatch only reveals the fixed endpoint digest length.
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
     if a.len() != b.len() {
         return false;
     }
-    a.iter()
-        .zip(b.iter())
-        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
-        == 0
+    a.ct_eq(b).into()
 }
 
+const KEYCHAIN_ACCOUNT: &str = "daemon-endpoint-hmac-key";
+
 fn endpoint_hmac_key() -> Result<String, IpcError> {
-    let data_dir = scriptor_data_dir("scriptor").map_err(|error| {
-        IpcError::Codec(format!("cannot resolve daemon data directory: {error}"))
-    })?;
-    let key_path = data_dir.join(".endpoint-hmac-key");
-    match fs::read_to_string(&key_path) {
-        Ok(existing) => {
-            let trimmed = existing.trim().to_string();
-            if trimmed.is_empty() {
-                return Err(IpcError::Codec(format!(
-                    "daemon endpoint HMAC key is empty: {}",
-                    key_path.display()
-                )));
-            }
-            return Ok(trimmed);
+    use scriptor_system_bridge::{keychain_get, keychain_set};
+
+    // The OS keychain is the sole durable authority for daemon authentication.
+    match keychain_get(KEYCHAIN_ACCOUNT) {
+        Ok(Some(key)) if !key.trim().is_empty() => return Ok(key.trim().to_string()),
+        Ok(_) => {}
+        Err(err) => {
+            return Err(IpcError::Codec(format!(
+                "daemon keychain unavailable: {err}"
+            )));
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(IpcError::from(error)),
     }
 
-    fs::create_dir_all(&data_dir).map_err(IpcError::from)?;
+    // Generate and store the current key through the keychain API.
     let nonce = generate_nonce()?;
-
-    #[cfg(unix)]
-    let opened = {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut opts = fs::OpenOptions::new();
-        opts.write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(&key_path)
-    };
-    #[cfg(not(unix))]
-    let opened = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&key_path);
-
-    match opened {
-        Ok(mut file) => {
-            use std::io::Write;
-            file.write_all(nonce.as_bytes()).map_err(IpcError::from)?;
-            file.sync_all().map_err(IpcError::from)?;
-            Ok(nonce)
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            let existing = fs::read_to_string(&key_path).map_err(IpcError::from)?;
-            let trimmed = existing.trim().to_string();
-            if trimmed.is_empty() {
-                Err(IpcError::Codec(format!(
-                    "daemon endpoint HMAC key is empty after concurrent creation: {}",
-                    key_path.display()
-                )))
-            } else {
-                Ok(trimmed)
-            }
-        }
-        Err(error) => Err(IpcError::from(error)),
-    }
+    keychain_set(KEYCHAIN_ACCOUNT, &nonce).map_err(|err| {
+        IpcError::Codec(format!("cannot store daemon HMAC key in keychain: {err}"))
+    })?;
+    Ok(nonce)
 }
 
 pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
