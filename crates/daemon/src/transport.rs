@@ -93,11 +93,25 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     a.ct_eq(b).into()
 }
 
+#[cfg(not(test))]
 const KEYCHAIN_ACCOUNT: &str = "daemon-endpoint-hmac-key";
-#[cfg(debug_assertions)]
+#[cfg(all(debug_assertions, not(test)))]
 const TEST_HMAC_KEY_ENV: &str = "SCRIPTOR_TEST_DAEMON_HMAC_KEY";
 
 fn endpoint_hmac_key() -> Result<String, IpcError> {
+    #[cfg(test)]
+    {
+        Ok("scriptor-daemon-transport-test-key-0001".to_string())
+    }
+
+    #[cfg(not(test))]
+    {
+        endpoint_hmac_key_runtime()
+    }
+}
+
+#[cfg(not(test))]
+fn endpoint_hmac_key_runtime() -> Result<String, IpcError> {
     use scriptor_system_bridge::{keychain_get, keychain_set};
 
     // Headless debug-only integration tests cannot rely on a desktop secret-service daemon.
