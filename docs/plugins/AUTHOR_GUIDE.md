@@ -35,7 +35,7 @@ export const myManifest: PluginManifest = {
 | `id` | `string` | Yes | Unique plugin identifier. See [naming rules](#7-plugin-id-naming-rules). |
 | `name` | `string` | Yes | Human-readable display name. |
 | `version` | `string` | Yes | Semver version string. |
-| `apiVersion` | `string` | No | Plugin API version. Defaults to host version. See [API compatibility](#8-api-version-compatibility). |
+| `apiVersion` | `string` | No | Plugin API version. Defaults to the current host version. See [the V1 API contract](#8-v1-api-contract). |
 | `publisher` | `string` | Yes | Author or organization name. |
 | `description` | `string` | Yes | Short description of what the plugin does. |
 | `activation` | `PluginActivation[]` | Yes | When the plugin loads. |
@@ -374,7 +374,7 @@ packages/plugins/hello-world/
 {
   "name": "@scriptor/plugin-hello-world",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -394,7 +394,7 @@ import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 export const helloWorldManifest: PluginManifest = {
   id: 'hello-world',
   name: 'Hello World',
-  version: '0.1.0',
+  version: '1.0.0',
   publisher: 'Example',
   description: 'Minimal example plugin that registers a greeting command.',
   activation: ['manual'],
@@ -476,24 +476,23 @@ Convention: prefix with your org name (e.g. `scriptor.*`, `acme.*`) to avoid col
 
 ---
 
-## 8. API Version Compatibility
+## 8. V1 API contract
 
-The current plugin API version is **0.1.0**.
+The current plugin API version is **1.0.0**.
 
 - If `apiVersion` is omitted, it defaults to the host version.
-- Compatibility is checked by **major version**: `0.x.x` is compatible with `0.y.y`.
-- A plugin with `apiVersion: '1.0.0'` would be incompatible with the current `0.1.0` host.
+- The API version must exactly equal `1.0.0`.
+- Other version values are rejected. The host does not load compatibility adapters.
 
 ```ts
-// Compatible — same major version (0)
-apiVersion: '0.1.0'
-apiVersion: '0.2.0'
+// Valid — exact current contract
+apiVersion: '1.0.0'
 
-// Incompatible — different major version
-apiVersion: '1.0.0'  // ❌ fails validation
+// Invalid — not the current contract
+apiVersion: '1.0.1'  // ❌ fails validation
 ```
 
-When the API reaches `1.0.0`, plugins built for `0.x` will need updates.
+New product versions publish their own exact plugin contract.
 
 ---
 
@@ -555,7 +554,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.markmap",
   "name": "Markmap Renderer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Render markdown headings as a mind map in preview.",
   "activation": ["on-vault-open"],
@@ -575,7 +574,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme-latex-export",
   "name": "LaTeX Export",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Export notes as LaTeX documents.",
   "activation": ["manual"],
@@ -595,7 +594,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.mcp-search",
   "name": "MCP Search",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Expose vault search as an MCP tool.",
   "activation": ["on-startup"],
@@ -618,7 +617,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.outliner",
   "name": "Note Outliner",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Show a heading outline in the inspector.",
   "activation": ["on-vault-open"],
@@ -638,7 +637,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.frontmatter-lint",
   "name": "Frontmatter Lint",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Check for missing or invalid YAML frontmatter.",
   "activation": ["on-vault-open"],
@@ -659,7 +658,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.canvas-shapes",
   "name": "Canvas Shapes",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Extra shape tools for the canvas.",
   "activation": ["on-startup"],
@@ -680,7 +679,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.kanban",
   "name": "Kanban Block",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Kanban board block for canvas mode.",
   "activation": ["on-vault-open"],
@@ -700,7 +699,7 @@ If any test fails, the command exits with code 1 and prints the failure reasons.
 {
   "id": "acme.templates",
   "name": "Starter Templates",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "publisher": "Acme",
   "description": "Document and canvas starter templates.",
   "activation": ["on-startup"],

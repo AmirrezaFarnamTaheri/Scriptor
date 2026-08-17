@@ -13,7 +13,7 @@
 | [`RELEASE-SECURITY.md`](RELEASE-SECURITY.md) | signing, SBOM, provenance, consumer verification |
 | [`ENCRYPTION-THREAT-MODEL.md`](ENCRYPTION-THREAT-MODEL.md) | experimental encryption decision gate |
 | [`OPERATIONS.md`](OPERATIONS.md) | tracing, correlation, health and incidents |
-| [`FINAL-REMEDIATION-REPORT.md`](FINAL-REMEDIATION-REPORT.md) | disposition and proof boundary for all 38 diligence findings |
+| [`FINAL-REMEDIATION-REPORT.md`](FINAL-REMEDIATION-REPORT.md) | current v1 product, schema, and release baseline |
 | [`VERIFICATION.md`](VERIFICATION.md) | executed, static, pending, release, and history proof gates |
 | [`RELEASE-CHECKLIST.md`](RELEASE-CHECKLIST.md) | production go/no-go checklist |
 

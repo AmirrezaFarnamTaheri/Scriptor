@@ -1,6 +1,10 @@
 # Scriptor Capabilities
 
-Shipped product surfaces and release validation for **v0.1.0**.
+Visual references for capability-gated surfaces are maintained in the [visual review gallery](./VISUAL-REVIEW.md),
+including [Graph](assets/screenshots/graph.png), [Canvas](assets/screenshots/canvas.png), [MCP](assets/screenshots/mcp-panel.png),
+and [Plugins](assets/screenshots/plugins.png). Screenshots illustrate UI state only; native authorization and vault state remain authoritative.
+
+Shipped product surfaces and release validation for **v1.0.0**.
 
 ## What you can do
 

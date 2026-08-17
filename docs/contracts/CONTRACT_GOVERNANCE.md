@@ -1,39 +1,20 @@
-# Contract Governance
+# V1 contract governance
 
-Contracts are the durable interface between Scriptor's renderer, native modules, CLI, MCP tools, plugins, and tests.
+Contracts are the exact interface between Scriptor's renderer, native modules, CLI, MCP tools, plugins, and tests.
 
-## Contract lifecycle
+## V1 rules
 
-| Status | Meaning |
+- Every command has one stable identifier, owner, permission level, typed input/output, typed error codes, audit behavior, and mutation/rollback statement.
+- Rust implementations and TypeScript contracts change together in one packet. Native code cannot invent behavior absent from the contract.
+- A v1 contract accepts only its declared schema. Unknown, renamed, and obsolete fields are rejected at the boundary; no compatibility adapters are shipped.
+- Any intentional contract break is a new product version and requires a replacement contract, behavioral tests, source-contract coverage, docs, changelog baseline update, and release verification.
+
+## Required review
+
+| Contract area | Required owners |
 |---|---|
-| Shipped | Implemented in Rust + TypeScript; used by desktop, CLI, and validation runners. |
-| Experimental | Usable behind a feature flag or first-party plugin. |
-| Deprecated | Replacement exists; remove at next major version. |
-
-Core contracts in `packages/core/src/contracts/` are **Shipped** as of v0.1.
-
-## Required fields for commands
-
-- Stable command id.
-- Owner and permission level.
-- Typed input and typed output.
-- Error codes with recoverability.
-- Audit behavior for MCP, AI, or plugin callers.
-- Rollback strategy or explicit no-mutation note.
-- Fixture examples.
-
-## Compatibility rules
-
-- Additive optional fields are allowed on minor releases.
-- Removing or renaming fields requires a migration note in `COMMAND_CATALOG.md`.
-- Native Rust implementations cannot invent behavior absent from the TypeScript contract.
-
-## Review Gates
-
-| Contract Area | Required Owners |
-|---|---|
-| Vault, note, path, save | Core Contracts, Vault Kernel, Native Platform. |
-| Search/cache/graph | Core Contracts, Indexing And Search, Knowledge Graph. |
-| Export/preview | Core Contracts, Publication, Native Platform. |
-| Canvas | Core Contracts, Canvas Experience, Native Platform. |
-| MCP/plugin | Core Contracts, Automation And AI, affected capability owner. |
+| Vault, note, path, save | Core Contracts, Vault Kernel, Native Platform |
+| Search, cache, graph | Core Contracts, Indexing and Search, Knowledge Graph |
+| Export, preview | Core Contracts, Publication, Native Platform |
+| Canvas | Core Contracts, Canvas Experience, Native Platform |
+| MCP, plugin | Core Contracts, Automation and AI, affected capability owner |
