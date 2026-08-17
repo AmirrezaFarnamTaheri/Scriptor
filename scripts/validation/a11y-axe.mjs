@@ -6,8 +6,8 @@ const host = '127.0.0.1'
 const port = 4173
 const url = `http://${host}:${port}`
 const isWindows = process.platform === 'win32'
-const pnpm = isWindows ? 'pnpm.cmd' : 'pnpm'
-const vite = join(process.cwd(), 'node_modules', '.bin', isWindows ? 'vite.cmd' : 'vite')
+const vite = join(process.cwd(), 'node_modules', 'vite', 'bin', 'vite.js')
+const axeCli = join(process.cwd(), 'node_modules', '@axe-core', 'cli', 'dist', 'src', 'bin', 'cli.js')
 
 // The `chromedriver` npm package pins a driver version in the lockfile, but the
 // Chrome it has to drive comes from the machine — so any drift between the two
@@ -21,8 +21,8 @@ function runnerChromedriver() {
   return existsSync(binary) ? binary : null
 }
 
-const run = (args, stdio = 'inherit') =>
-  spawn(pnpm, args, { stdio, windowsHide: true, shell: isWindows })
+const runNode = (script, args, stdio = 'inherit') =>
+  spawn(process.execPath, [script, ...args], { stdio, windowsHide: true })
 
 const exited = (child, label) =>
   new Promise((resolve, reject) => {
@@ -48,11 +48,10 @@ async function waitForReady() {
   throw new Error(`Vite preview did not become ready at ${url}`)
 }
 
-const preview = spawn(vite, ['preview', '--host', host, '--port', String(port), '--strictPort'], {
-  stdio: 'inherit',
-  windowsHide: true,
-  shell: isWindows,
-})
+const build = runNode(vite, ['build'])
+await exited(build, 'Vite production build')
+
+const preview = runNode(vite, ['preview', '--host', host, '--port', String(port), '--strictPort'])
 let previewExited = false
 preview.once('exit', () => {
   previewExited = true
@@ -73,9 +72,7 @@ try {
     )
   }
 
-  const axe = run([
-    'exec',
-    'axe',
+  const axe = runNode(axeCli, [
     url,
     '--tags',
     'wcag2a,wcag2aa,wcag21aa',

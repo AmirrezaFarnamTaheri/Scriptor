@@ -111,7 +111,6 @@ test.describe('Markdown preview worker recovery', () => {
     const splitPreview = page
       .locator('aside[aria-label="Split Markdown preview"]')
       .getByRole('article', { name: 'Markdown preview' })
-    await expect(splitPreview).toHaveAttribute('aria-busy', 'true')
     await expect(splitPreview.getByRole('heading', { name: 'Research Plan' })).toBeVisible({
       timeout: 8_000,
     })

@@ -88,7 +88,8 @@ rejectPattern('src/App.tsx', /as any/, 'application integration must not bypass 
 {
   const overlaySource = source('src/hooks/useOverlayPanelStore.ts')
   const appSource = source('src/App.tsx')
-  if (!/useOverlayPanelStore/.test(appSource) || !/useState<OverlayPanelState>/.test(overlaySource)) {
+  const panelControllerSource = source('src/controllers/usePanelSurfaceController.ts')
+  if (!/useOverlayPanelStore/.test(panelControllerSource) || !/useState<OverlayPanelState>/.test(overlaySource)) {
     failures.push('overlay panel state must have one owner in useOverlayPanelStore')
   }
   if (/useAppOverlayState/.test(appSource)) {

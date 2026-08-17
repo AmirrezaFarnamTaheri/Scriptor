@@ -45,7 +45,6 @@ async function waitForEditorReady(page: Page) {
 
 async function waitForInspectorReady(page: Page) {
   await expect(page.getByRole('heading', { name: 'Note Health' })).toBeVisible({ timeout: 45_000 })
-  await expect(page.locator('.job-progress').getByText('100%')).toBeVisible({ timeout: 45_000 })
   await expect(page.locator('.widget-action')).toHaveText('Good', { timeout: 45_000 })
   await expect(page.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
 }
@@ -58,6 +57,8 @@ async function waitForFullWorkspace(page: Page) {
   await waitForVaultSidebarReady(page)
   await waitForEditorReady(page)
   await waitForInspectorReady(page)
+  await expect(page.locator('.job-progress')).toHaveAttribute('aria-label', 'Building graph 100%', { timeout: 45_000 })
+  await expect(page.locator('.job-progress strong')).toHaveText('Index ready')
   await settleLayout(page)
 }
 

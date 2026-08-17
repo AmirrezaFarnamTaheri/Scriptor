@@ -160,7 +160,22 @@ export async function waitForWorkspace(page: Page) {
     timeout: 30_000,
   })
   const editorSurface = page.locator('.monaco-editor .view-lines, .cm-content')
-  await expect(editorSurface).toContainText('Research Plan', { timeout: 45_000 })
+  // Monaco may have an empty virtualized view while its model is already
+  // authoritative (especially when another panel is opening). Poll the
+  // model first, then retain the DOM assertion as a rendering sanity check.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const editor = (window as Window & {
+            __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
+          }).__scriptorE2eEditor
+          return editor?.getModel?.()?.getValue?.() ?? ''
+        }),
+      { timeout: 45_000 },
+    )
+    .toContain('Research Plan')
+  await expect(editorSurface).toBeVisible({ timeout: 15_000 })
   await settleLayout(page)
 }
 

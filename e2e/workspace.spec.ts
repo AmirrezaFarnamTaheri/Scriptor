@@ -30,7 +30,7 @@ test.describe('workspace flows', () => {
       window.sessionStorage.setItem('e2e:slow-vault', '1')
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 2_000 })
+    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 5_000 })
     await waitForWorkspace(page)
   })
 

@@ -1,12 +1,14 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
+const serverPort = Number(process.env.SCRIPTOR_VISUAL_PORT ?? 4184)
 
 export default defineConfig({
   testDir: 'e2e',
   testMatch: /(?:screenshots|visual-review)\.spec\.ts$/,
   timeout: 120_000,
-  retries: process.env.CI ? 2 : 1,
+  // A changed visual baseline needs explicit review, never retry masking.
+  retries: 0,
   expect: {
     timeout: 30_000,
     toHaveScreenshot: {
@@ -27,7 +29,7 @@ export default defineConfig({
   use: {
     ...devices['Desktop Edge'],
     channel: systemChannel,
-    baseURL: 'http://127.0.0.1:4184',
+    baseURL: `http://127.0.0.1:${serverPort}`,
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1,
     colorScheme: 'light',
@@ -37,8 +39,8 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: 'node_modules\\.bin\\vite.cmd build --mode e2e && node_modules\\.bin\\vite.cmd preview --host 127.0.0.1 --port 4184 --strictPort',
-    port: 4184,
+    command: `node_modules\\.bin\\vite.cmd build --mode e2e && node_modules\\.bin\\vite.cmd preview --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    port: serverPort,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
   },

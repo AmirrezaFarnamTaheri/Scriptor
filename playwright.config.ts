@@ -19,7 +19,7 @@ export default defineConfig({
     locale: 'en-US',
   },
   webServer: {
-    command: 'npx vite build --mode e2e && npx vite preview --host 127.0.0.1 --port 4173 --strictPort',
+    command: 'pnpm exec vite build --mode e2e && pnpm exec vite preview --host 127.0.0.1 --port 4173 --strictPort',
     port: 4173,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
