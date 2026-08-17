@@ -38,6 +38,21 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
     }
   }, options.theme ?? 'light')
   await page.goto('/', { waitUntil: 'domcontentloaded' })
+  const workspace = page.getByRole('main', { name: 'Scriptor workspace' })
+  try {
+    await expect(workspace).toBeVisible({ timeout: 15_000 })
+  } catch (firstBootError) {
+    // A heavily loaded Windows browser worker can occasionally commit the
+    // navigation while leaving the preview document blank. One explicit reload
+    // is safe because the E2E bridge is deterministic; a reproducible boot
+    // failure still fails on the second assertion.
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    try {
+      await expect(workspace).toBeVisible({ timeout: 30_000 })
+    } catch {
+      throw firstBootError
+    }
+  }
   return page
 }
 
