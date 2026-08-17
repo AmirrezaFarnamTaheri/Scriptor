@@ -26,6 +26,7 @@ const cargoDir = isWindows
 const env = {
   ...process.env,
   PATH: cargoDir ? `${cargoDir}${isWindows ? ';' : ':'}${process.env.PATH || ''}` : process.env.PATH,
+  SCRIPTOR_TEST_DAEMON_HMAC_KEY: crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', ''),
 }
 
 const executableSuffix = isWindows ? '.exe' : ''

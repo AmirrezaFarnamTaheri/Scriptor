@@ -94,9 +94,20 @@ fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
 }
 
 const KEYCHAIN_ACCOUNT: &str = "daemon-endpoint-hmac-key";
+#[cfg(debug_assertions)]
+const TEST_HMAC_KEY_ENV: &str = "SCRIPTOR_TEST_DAEMON_HMAC_KEY";
 
 fn endpoint_hmac_key() -> Result<String, IpcError> {
     use scriptor_system_bridge::{keychain_get, keychain_set};
+
+    // Headless debug-only integration tests cannot rely on a desktop secret-service daemon.
+    // Release builds never compile this override and always use the operating-system keychain.
+    #[cfg(debug_assertions)]
+    if let Ok(key) = std::env::var(TEST_HMAC_KEY_ENV)
+        && key.len() >= 32
+    {
+        return Ok(key);
+    }
 
     // The OS keychain is the sole durable authority for daemon authentication.
     match keychain_get(KEYCHAIN_ACCOUNT) {
