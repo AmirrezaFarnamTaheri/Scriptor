@@ -397,6 +397,8 @@ jobs:
 
       - name: Run xtask release smoke
         shell: pwsh
+        env:
+          SCRIPTOR_TEST_DAEMON_HMAC_KEY: ci-release-smoke-${{ github.run_id }}-${{ github.run_attempt }}-scriptor
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 1800
 
       - name: Capture Rust validation failure context

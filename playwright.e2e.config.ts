@@ -9,6 +9,10 @@ export default defineConfig({
   timeout: 120_000,
   // Release-gating runs must expose flakes rather than retry them into green.
   retries: 0,
+  // Keep lazy panel imports within deterministic resource budgets on hosted
+  // Windows runners. Unbounded worker fan-out can starve chunk evaluation and
+  // leave otherwise healthy panels suspended behind their loading fallback.
+  workers: process.env.CI ? 2 : undefined,
   expect: {
     timeout: 30_000,
   },
