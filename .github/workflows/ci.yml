@@ -387,6 +387,8 @@ jobs:
 
       - name: Test Rust workspace crates
         shell: pwsh
+        env:
+          SCRIPTOR_TEST_DAEMON_HMAC_KEY: ci-transport-tests-${{ github.run_id }}-${{ github.run_attempt }}-scriptor
         run: ./scripts/ci/invoke-logged.ps1 -Name "Test supported Rust crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "--workspace", "--exclude", "scriptor-desktop", "--exclude", "scriptor-embeddings", "--exclude", "scriptor-tantivy-indexer", "--exclude", "scriptor-wasm-runtime", "--jobs", "2") -TimeoutSeconds 1800
 
       - name: Verify generated ts-rs bindings
