@@ -1,10 +1,10 @@
 use scriptor_vault::{
-    read_note, read_note_history_revision, save_note_with_options, RelativeVaultPath,
-    SaveNoteOptions, SaveNoteOutput,
+    RelativeVaultPath, SaveNoteOptions, SaveNoteOutput, read_note, read_note_history_revision,
+    save_note_with_options,
 };
 
-use crate::authorization::{require_sensitive_operation, SensitiveOperation};
-use crate::state::{active_session, AppState};
+use crate::authorization::{SensitiveOperation, require_sensitive_operation};
+use crate::state::{AppState, active_session};
 
 /// Restore a historical revision only if the note has not changed since this
 /// command observed its current content hash. A concurrent save between the

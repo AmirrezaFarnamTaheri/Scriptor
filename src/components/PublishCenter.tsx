@@ -6,9 +6,10 @@ import type { DqlResultRow, CodeChunkRunResult } from '@scriptor/renderer'
 
 import { ExportPreflightPreview } from './ExportPreflightPreview'
 import { ExportPrintPreview } from './ExportPrintPreview'
+import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { supportsPrintPagePreview } from '@scriptor/export'
-import type { ExportJobOutput, ExportJobRecord } from '../types/vault'
+import type { ExportJobOutput, ExportJobRecord, PublishPlan } from '../types/vault'
 
 interface PublishCenterProps {
   activePath: string | null
@@ -26,10 +27,21 @@ interface PublishCenterProps {
   exportResult: ExportJobOutput | null
   isExporting: boolean
   nativeReady: boolean
+  /** Publish plan returned by plan_publish_cmd — null until the user initiates a plan. */
+  publishPlan?: PublishPlan | null
+  /** True while publish_apply_cmd is running. */
+  applyingPlan?: boolean
+  /** Whether the plan was built with requireFrontmatterOptIn = true (default). */
+  publishRequireOptIn?: boolean
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
   onCancelExport: () => void
-  onPublishStarlight: () => void
+  /** Initiates the read-only plan_publish_cmd scan. */
+  onPlanStarlight: () => void
+  /** Discards the current plan and re-runs plan_publish_cmd. */
+  onReplanStarlight?: () => void
+  /** Applies the reviewed plan with the given selection and orphan deletions. */
+  onApplyPlan?: (selectedPaths: string[], deleteOrphans: string[]) => void
 }
 
 function formatStatus(entry: ExportJobRecord): string {
@@ -50,11 +62,19 @@ export function PublishCenter({
   exportResult,
   isExporting,
   nativeReady,
+  publishPlan = null,
+  applyingPlan = false,
+  publishRequireOptIn = true,
   onClose,
   onExport,
   onCancelExport,
-  onPublishStarlight,
+  onPlanStarlight,
+  onReplanStarlight,
+  onApplyPlan,
 }: PublishCenterProps) {
+  const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
+  const handleApplyPlan = onApplyPlan ?? (() => {})
+
   const subtitle = useMemo(() => {
     if (!activePath) return 'Open a note to export or publish.'
     if (isExporting) return `Exporting ${activePath}…`
@@ -148,17 +168,29 @@ export function PublishCenter({
             <Globe size={16} />
             Site publishing
           </h3>
-          <p className="health-subtitle">
-            Build a Starlight documentation site from your vault notes.
-          </p>
-          <button
-            type="button"
-            className="primary-button"
-            disabled={!nativeReady}
-            onClick={onPublishStarlight}
-          >
-            Publish Starlight site
-          </button>
+          {publishPlan != null ? (
+            <PublishDiffView
+              plan={publishPlan}
+              requireFrontmatterOptIn={publishRequireOptIn}
+              onApply={handleApplyPlan}
+              onReplan={handleReplanStarlight}
+              applying={applyingPlan}
+            />
+          ) : (
+            <>
+              <p className="health-subtitle">
+                Build a Starlight documentation site from your vault notes.
+              </p>
+              <button
+                type="button"
+                className="primary-button"
+                disabled={!nativeReady}
+                onClick={onPlanStarlight}
+              >
+                Plan Starlight publish
+              </button>
+            </>
+          )}
         </section>
 
         <section className="publish-center-section publish-center-history">

@@ -19,6 +19,7 @@ export function WorkspaceSwitcher({
     <div className="workspace-switcher" aria-label="Recent vaults">
       <span>Workspaces</span>
       <select
+        aria-label="Recent vault"
         value={activeVaultPath ?? ''}
         onChange={(event) => {
           const value = event.target.value

@@ -1,13 +1,16 @@
 import type { RefObject } from 'react'
 import { useMemo } from 'react'
-import { Archive, FileText, Pencil, Tags } from 'lucide-react'
+import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
 import type { LoadedPlugin, PluginRuntimePolicy } from '@scriptor/plugin-api'
 import type { TemplatePackContribution } from '@scriptor/core/contracts/plugin'
+import type { McpMode, McpToolDescriptor } from '@scriptor/core/contracts/mcp'
+import type { LayoutPreset } from '../../lib/workspace/layoutPresets'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
+import { EmptyState } from '../EmptyState'
 import { ReferencesPreviewPanel } from '../ReferencesPreviewPanel'
-import { PluginPanel } from '../PluginPanel'
+import { StorePanel, type FeatureFlagEntry, type McpAuditEntry } from '../StorePanel'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import { NoteQualityCard } from '../inspector/NoteQualityCard'
@@ -63,6 +66,20 @@ interface InspectorRailProps {
   onOpenKnowledgeWorkbench: () => void
   onOpenPublishCenter: () => void
   onOpenGraph: () => void
+  /**
+   * Optional store surfaces beyond plugins. When omitted, StorePanel still
+   * renders its MCP / Features / Layouts tabs in an empty, read-only state.
+   */
+  store?: {
+    mcpMode?: McpMode
+    mcpTools?: McpToolDescriptor[]
+    mcpAuditLog?: McpAuditEntry[]
+    onSetMcpMode?: (mode: McpMode) => void
+    featureFlags?: FeatureFlagEntry[]
+    onToggleFeature?: (key: string, enabled: boolean) => void
+    activeLayoutPresetId?: string | null
+    onApplyLayoutPreset?: (preset: LayoutPreset) => void
+  }
   plugins: {
     plugins: LoadedPlugin[]
     templatePacks: TemplatePackContribution[]
@@ -121,6 +138,7 @@ export function InspectorRail({
   onOpenPublishCenter,
   onOpenGraph,
   plugins,
+  store,
 }: InspectorRailProps) {
   const presetConfig = useMemo(
     () => INSPECTOR_PRESETS.find((entry) => entry.id === inspectorPreset) ?? INSPECTOR_PRESETS[0],
@@ -130,21 +148,25 @@ export function InspectorRail({
 
   return (
     <aside className="inspector-panel" aria-label="Inspector" ref={railRef}>
+      {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
       <div className="inspector-tabs" role="tablist" aria-label="Inspector mode">
         {(['inspector', 'preview', 'plugins'] as const).map((mode) => (
           <button
             type="button"
-            className={activeMode === mode ? 'active' : ''}
-            onClick={() => onModeChange(mode)}
+            key={mode}
+            id={`inspector-tab-${mode}`}
             role="tab"
             aria-selected={activeMode === mode}
-            key={mode}
+            aria-controls={`inspector-panel-${mode}`}
+            className={activeMode === mode ? 'active' : ''}
+            onClick={() => onModeChange(mode)}
           >
             {mode[0].toUpperCase() + mode.slice(1)}
           </button>
         ))}
       </div>
 
+      {/* ── Preset row ──────────────────────────────────────────────────────── */}
       <div className="inspector-preset-row" aria-label="Inspector layout preset">
         {INSPECTOR_PRESETS.map((entry) => (
           <button
@@ -152,6 +174,7 @@ export function InspectorRail({
             type="button"
             className={inspectorPreset === entry.id ? 'active' : undefined}
             title={entry.description}
+            aria-pressed={inspectorPreset === entry.id}
             onClick={() => onInspectorPresetChange(entry.id)}
           >
             {entry.label}
@@ -159,17 +182,18 @@ export function InspectorRail({
         ))}
       </div>
 
+      {/* ── Shared health card (visible in all modes) ───────────────────────── */}
       {showInspectorHealth ? (
-      <WidgetCard title="Note Health" action={healthAction} onAction={onOpenHealthDashboard}>
-        <div className="metric-grid">
-          {healthMetrics.map(([label, value]) => (
-            <div className="metric" key={label}>
-              <span>{label}</span>
-              <strong>{value}</strong>
-            </div>
-          ))}
-        </div>
-      </WidgetCard>
+        <WidgetCard title="Note Health" action={healthAction} onAction={onOpenHealthDashboard}>
+          <div className="metric-grid">
+            {healthMetrics.map(([label, value]) => (
+              <div className="metric" key={label}>
+                <span>{label}</span>
+                <strong>{value}</strong>
+              </div>
+            ))}
+          </div>
+        </WidgetCard>
       ) : null}
 
       {presetConfig.showQuality ? (
@@ -187,263 +211,305 @@ export function InspectorRail({
         />
       ) : null}
 
-      {activeMode === 'preview' ? (
-        <>
-          <PreviewQABar
-            activePath={activePath}
-            isNoteDirty={isNoteDirty}
-            missingCitations={missingCitations}
-            onOpenPublish={onOpenPublishCenter}
-          />
-          {splitPreview ? (
-            <p className="preview-sync-hint" role="status">
-              Split preview is open beside the editor with scroll sync.
-            </p>
-          ) : (
-            <>
-              <p className="preview-sync-hint" role="status">
-                Scroll sync is active between editor and preview.
-              </p>
-              <WidgetCard title="Preview">
-                {activePath ? (
-                  <ErrorBoundary
-                    name="inspector-markdown-preview"
-                    resetKeys={[activePath]}
-                    fallback={
-                      <PanelErrorFallback
-                        variant="inline"
-                        title="The preview"
-                        detail="Rendering this note failed — a Markdown extension or plugin renderer may have thrown. Switching notes will retry."
-                      />
-                    }
-                  >
-                  <MarkdownPreview
-                    ref={previewRef}
-                    markdown={draftMarkdown}
-                    className="markdown-preview"
-                    basePath={activePath}
-                    fetchNote={previewProps.fetchNote}
-                    readVaultText={previewProps.readVaultText}
-                    executeDql={previewProps.executeDql}
-                    runCodeChunk={previewProps.runCodeChunk}
-                    postProcessHtml={previewProps.postProcessHtml}
-                    renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
-                  />
-                  </ErrorBoundary>
-                ) : (
-                  <p className="empty-state">Open a note to preview Markdown.</p>
-                )}
-              </WidgetCard>
-            </>
-          )}
-          {presetConfig.showCitations ? (
-            <ReferencesPreviewPanel
-              citationKeys={citationRows}
-              bibliography={bibliography}
-              onInsertBlock={(block) => insertSnippet(block)}
+      {/* ── Panel regions — each gets role="tabpanel" ────────────────────────── */}
+
+      {/* PREVIEW panel */}
+      <div
+        id="inspector-panel-preview"
+        role="tabpanel"
+        aria-labelledby="inspector-tab-preview"
+        hidden={activeMode !== 'preview'}
+      >
+        {activeMode === 'preview' ? (
+          <>
+            <PreviewQABar
+              activePath={activePath}
+              isNoteDirty={isNoteDirty}
+              missingCitations={missingCitations}
+              onOpenPublish={onOpenPublishCenter}
             />
-          ) : null}
-        </>
-      ) : activeMode !== 'plugins' ? (
-        <>
-          {presetConfig.showOutline ? (
-          <WidgetCard title="Outline">
-            <div className="compact-list">
-              {inspectorOutline.length === 0 ? (
-                <p className="empty-state">No headings yet.</p>
-              ) : (
-                inspectorOutline.map((heading) => (
-                  <div className="outline-row" key={`${heading.line}:${heading.label}`}>
-                    <button type="button" onClick={() => jumpToOutlineHeading(heading)}>
-                      <FileText />
-                      <span>{heading.label}</span>
-                      <small>H{heading.level}</small>
-                    </button>
-                    {activePath ? (
-                      <button
-                        type="button"
-                        className="icon-button"
-                        aria-label={`Rename section ${heading.label}`}
-                        onClick={() => onRenameSection(heading.label)}
-                      >
-                        <Pencil size={14} />
+            {splitPreview ? (
+              <p className="preview-sync-hint" role="status">
+                Split preview is open beside the editor with scroll sync.
+              </p>
+            ) : (
+              <>
+                <p className="preview-sync-hint" role="status">
+                  Scroll sync is active between editor and preview.
+                </p>
+                <WidgetCard title="Preview">
+                  {activePath ? (
+                    <ErrorBoundary
+                      name="inspector-markdown-preview"
+                      resetKeys={[activePath]}
+                      fallback={
+                        <PanelErrorFallback
+                          variant="inline"
+                          title="The preview"
+                          detail="Rendering this note failed — a Markdown extension or plugin renderer may have thrown. Switching notes will retry."
+                        />
+                      }
+                    >
+                      <MarkdownPreview
+                        ref={previewRef}
+                        markdown={draftMarkdown}
+                        className="markdown-preview"
+                        basePath={activePath}
+                        fetchNote={previewProps.fetchNote}
+                        readVaultText={previewProps.readVaultText}
+                        executeDql={previewProps.executeDql}
+                        runCodeChunk={previewProps.runCodeChunk}
+                        postProcessHtml={previewProps.postProcessHtml}
+                        renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
+                      />
+                    </ErrorBoundary>
+                  ) : (
+                    <EmptyState
+                      icon={<FileText />}
+                      title="No note open"
+                      description="Open a note to preview Markdown."
+                    />
+                  )}
+                </WidgetCard>
+              </>
+            )}
+            {presetConfig.showCitations ? (
+              <ReferencesPreviewPanel
+                citationKeys={citationRows}
+                bibliography={bibliography}
+                onInsertBlock={(block) => insertSnippet(block)}
+              />
+            ) : null}
+          </>
+        ) : null}
+      </div>
+
+      {/* INSPECTOR panel */}
+      <div
+        id="inspector-panel-inspector"
+        role="tabpanel"
+        aria-labelledby="inspector-tab-inspector"
+        hidden={activeMode !== 'inspector'}
+      >
+        {activeMode === 'inspector' ? (
+          <>
+            {presetConfig.showOutline ? (
+              <WidgetCard title="Outline">
+                <div className="compact-list">
+                  {inspectorOutline.length === 0 ? (
+                    <EmptyState icon={<Hash />} title="No headings yet" description="Add headings to build an outline." />
+                  ) : (
+                    inspectorOutline.map((heading) => (
+                      <div className="outline-row" key={`${heading.line}:${heading.label}`}>
+                        <button type="button" onClick={() => jumpToOutlineHeading(heading)}>
+                          <FileText />
+                          <span>{heading.label}</span>
+                          <small>H{heading.level}</small>
+                        </button>
+                        {activePath ? (
+                          <button
+                            type="button"
+                            className="icon-button"
+                            aria-label={`Rename section ${heading.label}`}
+                            onClick={() => onRenameSection(heading.label)}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        ) : null}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </WidgetCard>
+            ) : null}
+
+            {presetConfig.showLinks ? (
+              <WidgetCard title="Outgoing Links">
+                <div className="compact-list">
+                  {inspectorLinks.length === 0 ? (
+                    <EmptyState icon={<Link2 />} title="No wikilinks" description="Add [[wikilinks]] to connect notes." />
+                  ) : (
+                    inspectorLinks.map((row) => {
+                      const blockMatch = row.match(/#\^([^\]]+)$/)
+                      return (
+                        <div className="outline-row" key={row}>
+                          <button type="button" onClick={() => openWikilinkTarget(row)}>
+                            <FileText />
+                            <span>{row}</span>
+                          </button>
+                          {blockMatch && activePath && onRenameBlock ? (
+                            <button
+                              type="button"
+                              className="icon-button"
+                              aria-label={`Rename block ${blockMatch[1]}`}
+                              onClick={() => onRenameBlock(blockMatch[1])}
+                            >
+                              <Pencil size={14} />
+                            </button>
+                          ) : null}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              </WidgetCard>
+            ) : null}
+
+            {presetConfig.showBacklinks ? (
+              <WidgetCard title="Backlinks">
+                <div className="compact-list">
+                  {backlinks.length === 0 ? (
+                    <EmptyState icon={<BookOpen />} title="No backlinks yet" description="Other notes can link here with [[wikilinks]]." />
+                  ) : (
+                    backlinks.map((hit) => (
+                      <button type="button" key={`${hit.from_path}:${hit.line}`} onClick={() => openNote(hit.from_path)}>
+                        <FileText />
+                        <span>{hit.from_title}</span>
+                        <small>L{hit.line}</small>
                       </button>
-                    ) : null}
-                  </div>
-                ))
-              )}
-            </div>
-          </WidgetCard>
-          ) : null}
+                    ))
+                  )}
+                </div>
+              </WidgetCard>
+            ) : null}
 
-          {presetConfig.showLinks ? (
-          <WidgetCard title="Outgoing Links">
-            <div className="compact-list">
-              {inspectorLinks.length === 0 ? (
-                <p className="empty-state">No wikilinks in this note.</p>
-              ) : (
-                inspectorLinks.map((row) => {
-                  const blockMatch = row.match(/#\^([^\]]+)$/)
-                  return (
-                  <div className="outline-row" key={row}>
-                    <button type="button" onClick={() => openWikilinkTarget(row)}>
-                      <FileText />
-                      <span>{row}</span>
-                    </button>
-                    {blockMatch && activePath && onRenameBlock ? (
-                      <button
-                        type="button"
-                        className="icon-button"
-                        aria-label={`Rename block ${blockMatch[1]}`}
-                        onClick={() => onRenameBlock(blockMatch[1])}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                    ) : null}
-                  </div>
-                  )
-                })
-              )}
-            </div>
-          </WidgetCard>
-          ) : null}
+            {presetConfig.showCitations ? (
+              <WidgetCard title="Citations">
+                <div className="compact-list">
+                  {citationRows.length === 0 ? (
+                    <EmptyState icon={<Quote />} title="No citations" description="Add [@citekey] references to track citations." />
+                  ) : (
+                    citationRows.map((key) => {
+                      const resolved = bibliographyKeys.has(key)
+                      const entry = bibliography.find((row) => row.key === key)
+                      return (
+                        <button
+                          type="button"
+                          key={key}
+                          className={resolved ? 'resolved' : 'unresolved'}
+                          onClick={() => {
+                            insertSnippet(`[@${key}] `)
+                            logActivity(
+                              resolved ? 'success' : 'error',
+                              resolved ? 'Citation resolved' : 'Unresolved citation',
+                              entry?.title ?? key,
+                            )
+                          }}
+                        >
+                          <Tags />
+                          <span>{key}</span>
+                          <small>
+                            {resolved
+                              ? entry
+                                ? `${formatInline(entry)} · ${formatBibliography(entry)}`
+                                : 'in bibliography'
+                              : 'missing'}
+                          </small>
+                        </button>
+                      )
+                    })
+                  )}
+                </div>
+              </WidgetCard>
+            ) : null}
 
-          {presetConfig.showBacklinks ? (
-          <WidgetCard title="Backlinks">
-            <div className="compact-list">
-              {backlinks.length === 0 ? (
-                <p className="empty-state">No backlinks yet.</p>
-              ) : (
-                backlinks.map((hit) => (
-                  <button type="button" key={`${hit.from_path}:${hit.line}`} onClick={() => openNote(hit.from_path)}>
-                    <FileText />
-                    <span>{hit.from_title}</span>
-                    <small>L{hit.line}</small>
-                  </button>
-                ))
-              )}
-            </div>
-          </WidgetCard>
-          ) : null}
-
-          {presetConfig.showCitations ? (
-          <WidgetCard title="Citations">
-            <div className="compact-list">
-              {citationRows.length === 0 ? (
-                <p className="empty-state">No citations in this note.</p>
-              ) : (
-                citationRows.map((key) => {
-                  const resolved = bibliographyKeys.has(key)
-                  const entry = bibliography.find((row) => row.key === key)
-                  return (
+            {presetConfig.showExportQuick ? (
+              <WidgetCard title="Publishing">
+                <p className="health-subtitle">Use the publish center for profiles, dry runs, and export history.</p>
+                <button type="button" className="primary-button" onClick={onOpenPublishCenter}>
+                  Open publish center
+                </button>
+              </WidgetCard>
+            ) : (
+              <WidgetCard title="Export Profiles">
+                <div className="export-grid">
+                  {exportProfiles.map((profile) => (
                     <button
                       type="button"
-                      key={key}
-                      className={resolved ? 'resolved' : 'unresolved'}
+                      key={profile.id}
+                      disabled={!activePath || isExporting}
                       onClick={() => {
-                        insertSnippet(`[@${key}] `)
-                        logActivity(
-                          resolved ? 'success' : 'error',
-                          resolved ? 'Citation resolved' : 'Unresolved citation',
-                          entry?.title ?? key,
-                        )
+                        setStatusDockToJobs()
+                        void exportWithProfile(profile.id)
                       }}
                     >
-                      <Tags />
-                      <span>{key}</span>
-                      <small>
-                        {resolved
-                          ? entry
-                            ? `${formatInline(entry)} · ${formatBibliography(entry)}`
-                            : 'in bibliography'
-                          : 'missing'}
-                      </small>
+                      <Archive />
+                      {profile.label}
                     </button>
-                  )
-                })
-              )}
-            </div>
-          </WidgetCard>
-          ) : null}
-
-          {presetConfig.showExportQuick ? (
-          <WidgetCard title="Publishing">
-            <p className="health-subtitle">Use the publish center for profiles, dry runs, and export history.</p>
-            <button type="button" className="primary-button" onClick={onOpenPublishCenter}>
-              Open publish center
-            </button>
-          </WidgetCard>
-          ) : (
-          <WidgetCard title="Export Profiles">
-            <div className="export-grid">
-              {exportProfiles.map((profile) => (
+                  ))}
+                </div>
                 <button
                   type="button"
-                  key={profile.id}
+                  className="primary-button"
                   disabled={!activePath || isExporting}
                   onClick={() => {
                     setStatusDockToJobs()
-                    void exportWithProfile(profile.id)
+                    void exportWithProfile('html-standalone', true)
                   }}
                 >
-                  <Archive />
-                  {profile.label}
+                  {isExporting ? 'Exporting...' : 'Preview export command'}
                 </button>
-              ))}
-            </div>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!activePath || isExporting}
-              onClick={() => {
-                setStatusDockToJobs()
-                void exportWithProfile('html-standalone', true)
-              }}
-            >
-              {isExporting ? 'Exporting...' : 'Preview export command'}
-            </button>
-            {isExporting ? (
-              <button type="button" className="toolbar-button" onClick={() => void cancelExport()}>
-                Cancel export
-              </button>
-            ) : null}
-            {exportResult ? (
-              <p className="export-result" role="status">
-                {exportResult.dry_run
-                  ? `Dry run: ${exportResult.command.join(' ')}`
-                  : `Exported to ${exportResult.artifact_path}`}
-              </p>
-            ) : null}
-          </WidgetCard>
-          )}
-        </>
-      ) : (
-        <ErrorBoundary
-          name="plugin-panel"
-          fallback={
-            <PanelErrorFallback
-              variant="inline"
-              title="The plugins panel"
-              detail="A plugin contribution failed to render. Enabling safe mode from Settings disables third-party plugins."
+                {isExporting ? (
+                  <button type="button" className="toolbar-button" onClick={() => void cancelExport()}>
+                    Cancel export
+                  </button>
+                ) : null}
+                {exportResult ? (
+                  <p className="export-result" role="status">
+                    {exportResult.dry_run
+                      ? `Dry run: ${exportResult.command.join(' ')}`
+                      : `Exported to ${exportResult.artifact_path}`}
+                  </p>
+                ) : null}
+              </WidgetCard>
+            )}
+          </>
+        ) : null}
+      </div>
+
+      {/* PLUGINS panel */}
+      <div
+        id="inspector-panel-plugins"
+        role="tabpanel"
+        aria-labelledby="inspector-tab-plugins"
+        hidden={activeMode !== 'plugins'}
+      >
+        {activeMode === 'plugins' ? (
+          <ErrorBoundary
+            name="plugin-panel"
+            fallback={
+              <PanelErrorFallback
+                variant="inline"
+                title="The plugins panel"
+                detail="A plugin contribution failed to render. Enabling safe mode from Settings disables third-party plugins."
+              />
+            }
+          >
+            <StorePanel
+              plugins={plugins.plugins}
+              templatePacks={plugins.templatePacks}
+              safeMode={plugins.safeMode}
+              healthDiagnostics={plugins.healthDiagnostics}
+              marketplaceCatalog={plugins.marketplaceCatalog}
+              activeVaultId={plugins.activeVaultId}
+              pluginPolicies={plugins.pluginPolicies}
+              onToggleSafeMode={plugins.onToggleSafeMode}
+              onTogglePlugin={plugins.onTogglePlugin}
+              onReviewConsent={plugins.onReviewConsent}
+              onRevokeConsent={plugins.onRevokeConsent}
+              onInstallMarketplace={plugins.onInstallMarketplace}
+              mcpMode={store?.mcpMode}
+              mcpTools={store?.mcpTools}
+              mcpAuditLog={store?.mcpAuditLog}
+              onSetMcpMode={store?.onSetMcpMode}
+              featureFlags={store?.featureFlags}
+              onToggleFeature={store?.onToggleFeature}
+              activeLayoutPresetId={store?.activeLayoutPresetId}
+              onApplyLayoutPreset={store?.onApplyLayoutPreset}
             />
-          }
-        >
-        <PluginPanel
-          plugins={plugins.plugins}
-          templatePacks={plugins.templatePacks}
-          safeMode={plugins.safeMode}
-          healthDiagnostics={plugins.healthDiagnostics}
-          marketplaceCatalog={plugins.marketplaceCatalog}
-          activeVaultId={plugins.activeVaultId}
-          pluginPolicies={plugins.pluginPolicies}
-          onToggleSafeMode={plugins.onToggleSafeMode}
-          onTogglePlugin={plugins.onTogglePlugin}
-          onReviewConsent={plugins.onReviewConsent}
-          onRevokeConsent={plugins.onRevokeConsent}
-          onInstallMarketplace={plugins.onInstallMarketplace}
-        />
-        </ErrorBoundary>
-      )}
+          </ErrorBoundary>
+        ) : null}
+      </div>
     </aside>
   )
 }

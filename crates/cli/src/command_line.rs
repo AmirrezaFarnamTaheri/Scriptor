@@ -1,9 +1,37 @@
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
+use clap_complete::Shell;
+
+/// Process exit codes emitted by the `scriptor` binary.
+///
+/// This mapping is a stable CLI contract; codes are never reused or reassigned
+/// without an explicit new-product contract.
+///
+/// | Code | Meaning |
+/// |------|---------|
+/// | 0    | Success |
+/// | 1    | General runtime error (I/O, vault, daemon, RPC failure) |
+/// | 2    | Usage error (reserved for clap argument parsing) |
+/// | 3    | Lint findings present (`scriptor lint`) |
+/// | 4    | Performance budget exceeded (`scriptor bench-*`) |
+/// | 5    | Environment check failed (`scriptor doctor`) |
+pub(crate) mod exit_code {
+    /// Lint reported at least one issue.
+    pub(crate) const LINT_ISSUES: i32 = 3;
+    /// A benchmark exceeded its CI latency budget.
+    pub(crate) const BUDGET_EXCEEDED: i32 = 4;
+    /// One or more environment probes failed.
+    pub(crate) const DOCTOR_FAILED: i32 = 5;
+}
 
 #[derive(Debug, Parser)]
-#[command(name = "scriptor", about = "Scriptor command-line interface")]
+#[command(
+    name = "scriptor",
+    version,
+    about = "Scriptor command-line interface",
+    after_help = "Exit codes: 0 success, 1 error, 2 usage, 3 lint issues, 4 budget exceeded, 5 doctor failure."
+)]
 pub(crate) struct Cli {
     #[arg(
         long,
@@ -11,6 +39,13 @@ pub(crate) struct Cli {
         help = "Use deprecated in-process indexer (default routes index/search/health through daemon)"
     )]
     pub(crate) in_process: bool,
+    #[arg(
+        long,
+        visible_alias = "no-prompt",
+        global = true,
+        help = "Never read stdin, prompt, or page output (for non-interactive/agent callers)"
+    )]
+    pub(crate) no_interactive: bool,
     #[command(subcommand)]
     pub(crate) command: Commands,
 }
@@ -341,6 +376,40 @@ pub(crate) enum Commands {
         file: PathBuf,
         #[arg(long, default_value_t = 20)]
         iterations: u32,
+    },
+    /// Generate a shell completion script on stdout.
+    Completions {
+        #[arg(value_name = "SHELL")]
+        shell: Shell,
+    },
+    /// Probe the local environment and report readiness diagnostics.
+    Doctor {
+        #[arg(value_name = "PATH")]
+        path: Option<PathBuf>,
+    },
+    /// Clip a URL and save it as a Markdown note in the vault.
+    ///
+    /// Fetches the page, sanitizes it, extracts the article body, converts to
+    /// Markdown, and writes through the vault's single write path (I-1).
+    /// Gated by `SensitiveOperation::WebClip` (F-4).
+    ///
+    /// Exit code 0 on success; 1 on fetch/extraction/write failure.
+    Clip {
+        /// URL to clip.
+        #[arg(value_name = "URL")]
+        url: String,
+        /// Vault root path.
+        #[arg(long, short, value_name = "PATH")]
+        path: PathBuf,
+        /// Vault-relative output folder (default: 00-inbox).
+        #[arg(long, short, value_name = "FOLDER", default_value = "00-inbox")]
+        folder: String,
+        /// Output filename template (supports {{date}}, {{title}}).
+        #[arg(long, value_name = "TEMPLATE", default_value = "{{date}}-{{title}}.md")]
+        filename: String,
+        /// Print the generated Markdown to stdout instead of writing it.
+        #[arg(long)]
+        dry_run: bool,
     },
 }
 

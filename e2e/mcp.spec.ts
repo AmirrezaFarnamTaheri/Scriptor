@@ -2,7 +2,11 @@ import { expect, test } from '@playwright/test'
 
 test.describe('MCP write-approved', () => {
   test('write-approved mode allows proposePatch invoke', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    await page.waitForFunction(() => typeof window.__scriptorE2eMcpWriteApproved === 'function', null, {
+      timeout: 30_000,
+    })
 
     const result = await page.evaluate(async () => {
       if (!window.__scriptorE2eMcpWriteApproved) {

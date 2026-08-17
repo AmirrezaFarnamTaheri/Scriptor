@@ -1,24 +1,27 @@
 {
   "name": "@scriptor/editor",
   "private": true,
-  "version": "0.1.1",
+  "version": "1.0.0",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./codemirror": "./src/codemirror-entry.ts"
+    "./pure": "./src/pure.ts",
+    "./codemirror": "./src/codemirror-entry.ts",
+    "./lint/rules": "./src/lint/rules/index.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.10.4",
-    "@codemirror/lang-markdown": "^6.5.1",
+    "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/language": "^6.12.4",
     "@codemirror/lint": "^6.9.7",
     "@codemirror/search": "^6.7.1",
     "@codemirror/state": "^6.7.1",
-    "@codemirror/view": "^6.43.7",
+    "@codemirror/view": "^6.43.8",
     "@lezer/highlight": "^1.2.1",
     "@lezer/markdown": "^1.7.2",
-    "@replit/codemirror-vim": "^6.4.0"
+    "@replit/codemirror-vim": "^6.4.0",
+    "@scriptor/template-engine": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0",

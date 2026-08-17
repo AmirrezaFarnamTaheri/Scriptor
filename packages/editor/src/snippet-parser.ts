@@ -1,15 +1,31 @@
 /**
  * TextMate-style snippet parser (absorbed from Foam / VS Code snippetParser patterns).
  * Resolves variables, expands tab stops, and returns ordered selection ranges.
+ *
+ * W2-8: Variable resolution now delegates to the canonical
+ * `@scriptor/template-engine` resolver so that `{{date}}`, `{{title}}`,
+ * etc. produce identical output in snippets and templates (D1 collapse).
  */
 
+import { makeVariableContext } from '@scriptor/template-engine'
+
+/**
+ * Superset of `VariableContext` from @scriptor/template-engine.
+ * Legacy fields are mapped through the canonical resolver.
+ */
 export interface SnippetVariableContext {
+  /** Path component without extension (maps to `fileName`). */
   filename?: string
   directory?: string
   extension?: string
   title?: string
   clipboard?: string
+  /** Override the current time (for deterministic tests). */
   now?: Date
+  /** Vault-relative path (maps to `filePath`). */
+  filePath?: string
+  /** Extra extension variables passed through verbatim. */
+  extra?: Record<string, string>
 }
 
 export interface SnippetTabStop {
@@ -22,28 +38,6 @@ export interface ExpandedSnippet {
   text: string
   tabStops: SnippetTabStop[]
 }
-
-const BUILTIN_VARIABLES = [
-  'CURRENT_YEAR',
-  'CURRENT_YEAR_SHORT',
-  'CURRENT_MONTH',
-  'CURRENT_MONTH_NAME',
-  'CURRENT_MONTH_NAME_SHORT',
-  'CURRENT_DATE',
-  'CURRENT_HOUR',
-  'CURRENT_MINUTE',
-  'CURRENT_SECOND',
-  'CURRENT_SECONDS_UNIX',
-  'UUID',
-  'CLIPBOARD',
-  'FILENAME',
-  'DIRECTORY',
-  'EXTENSION',
-  'TITLE',
-  'TM_FILENAME',
-  'TM_DIRECTORY',
-  'TM_FILEPATH',
-] as const
 
 function pad2(value: number): string {
   return value < 10 ? `0${value}` : String(value)
@@ -58,17 +52,49 @@ function randomUuid(): string {
 
 export function resolveSnippetVariables(template: string, context: SnippetVariableContext = {}): string {
   const now = context.now ?? new Date()
+  const today = now.toISOString().slice(0, 10)
+  const filename = context.filename ?? ''
+  const directory = context.directory ?? ''
+
+  // Build a canonical VariableContext and resolve all template-engine variables.
+  // This is synchronous at call time — we pre-resolve all values before scanning
+  // the template string, keeping the caller's synchronous API intact.
+  const varCtx = makeVariableContext({
+    today,
+    title: context.title ?? '',
+    filePath: context.filePath ?? (directory && filename ? `${directory}/${filename}` : filename || directory),
+    fileName: filename,
+    folder: directory,
+    extra: {
+      ...context.extra,
+      // Legacy TM_ variables forwarded as extra so they resolve in {{TM_FILENAME}} patterns.
+      CLIPBOARD: context.clipboard ?? '',
+      EXTENSION: context.extension ?? '',
+    },
+  })
+
+  // The template-engine resolver can become async; snippets stay synchronous by
+  // precomputing the current built-in values before scanning the template.
+  //
+  // If any resolver becomes async, this shim will need to move to an async caller.
+  // For now we duplicate the sync extraction to keep backward compat.
   const month = now.getMonth() + 1
   const day = now.getDate()
   const hour = now.getHours()
   const minute = now.getMinutes()
   const second = now.getSeconds()
-  const filename = context.filename ?? ''
-  const directory = context.directory ?? ''
-  const extension = context.extension ?? ''
-  const title = context.title ?? ''
 
   const values: Record<string, string | undefined> = {
+    // Template-engine canonical names
+    date: today,
+    'date.today': today,
+    time: `${pad2(hour)}:${pad2(minute)}:${pad2(second)}`,
+    datetime: `${today}T${pad2(hour)}:${pad2(minute)}:${pad2(second)}`,
+    title: context.title ?? '',
+    'file.name': filename,
+    'file.path': varCtx.filePath,
+    folder: directory,
+    // Legacy TextMate / VS Code names
     CURRENT_YEAR: String(now.getFullYear()),
     CURRENT_YEAR_SHORT: String(now.getFullYear()).slice(2),
     CURRENT_MONTH: pad2(month),
@@ -83,11 +109,13 @@ export function resolveSnippetVariables(template: string, context: SnippetVariab
     CLIPBOARD: context.clipboard,
     FILENAME: filename,
     DIRECTORY: directory,
-    EXTENSION: extension,
-    TITLE: title,
+    EXTENSION: context.extension ?? '',
+    TITLE: context.title ?? '',
     TM_FILENAME: filename,
     TM_DIRECTORY: directory,
-    TM_FILEPATH: directory && filename ? `${directory}/${filename}` : filename || directory,
+    TM_FILEPATH: varCtx.filePath,
+    // Extra / extension vars
+    ...context.extra,
   }
 
   let output = ''
@@ -111,7 +139,7 @@ export function resolveSnippetVariables(template: string, context: SnippetVariab
           end += 1
         }
         const name = template.slice(index + 1, end)
-        if (BUILTIN_VARIABLES.includes(name as (typeof BUILTIN_VARIABLES)[number])) {
+        if (name in values) {
           output += values[name] ?? ''
           index = end
           continue

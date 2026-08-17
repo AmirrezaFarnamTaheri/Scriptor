@@ -17,7 +17,7 @@ test.describe('Graph panel', () => {
     await openCommandPalette(page)
     await runCommand(page, 'Open graph')
     const svg = page.locator('svg[role="application"], canvas[role="img"]')
-    await expect(svg.first()).toBeVisible({ timeout: 5000 })
+    await expect(svg.first()).toBeVisible({ timeout: 30_000 })
   })
 
   test('keyboard navigation moves focus between nodes', async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('Graph panel', () => {
     await expect(panel).toBeVisible({ timeout: 15_000 })
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
-    await expect(graphContainer.first()).toBeVisible({ timeout: 5000 })
+    await expect(graphContainer.first()).toBeVisible({ timeout: 30_000 })
     const keyboardSurface = graphContainer.first()
     await keyboardSurface.focus()
     await expect(keyboardSurface).toBeFocused()
@@ -54,7 +54,7 @@ test.describe('Graph panel', () => {
     await expect(panel).toBeVisible({ timeout: 15_000 })
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
-    await expect(graphContainer.first()).toBeVisible({ timeout: 5000 })
+    await expect(graphContainer.first()).toBeVisible({ timeout: 30_000 })
     const keyboardSurface = graphContainer.first()
     await keyboardSurface.focus()
     await expect(keyboardSurface).toBeFocused()

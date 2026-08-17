@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, memo } from 'react'
-import { FileText } from 'lucide-react'
+import { BookOpen, FileText } from 'lucide-react'
 
 const ROW_HEIGHT = 32
 const OVERSCAN = 5
@@ -10,6 +10,7 @@ interface VirtualNoteListProps {
   onOpenNote: (path: string) => void
   onRenameNote: (path: string) => void
   onDeleteNote?: (path: string) => void
+  readerDocumentPaths?: Set<string>
 }
 
 function VirtualNoteListImpl({
@@ -18,6 +19,7 @@ function VirtualNoteListImpl({
   onOpenNote,
   onRenameNote,
   onDeleteNote,
+  readerDocumentPaths,
 }: VirtualNoteListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [viewportHeight, setViewportHeight] = useState(320)
@@ -49,6 +51,7 @@ function VirtualNoteListImpl({
       >
         {visiblePaths.map((path, index) => {
           const absoluteIndex = startIndex + index
+          const isReaderDocument = readerDocumentPaths?.has(path) ?? false
           return (
             <li
               key={path}
@@ -66,6 +69,7 @@ function VirtualNoteListImpl({
                 onClick={() => onOpenNote(path)}
                 onContextMenu={(event) => {
                   event.preventDefault()
+                  if (isReaderDocument) return
                   if (event.shiftKey && onDeleteNote) {
                     onDeleteNote(path)
                     return
@@ -73,7 +77,7 @@ function VirtualNoteListImpl({
                   onRenameNote(path)
                 }}
               >
-                <FileText />
+                {isReaderDocument ? <BookOpen /> : <FileText />}
                 <span className="truncate">{path.split('/').pop()}</span>
               </button>
             </li>

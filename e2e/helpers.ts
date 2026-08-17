@@ -38,16 +38,35 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
     }
   }, options.theme ?? 'light')
   await page.goto('/', { waitUntil: 'domcontentloaded' })
+  const workspace = page.getByRole('main', { name: 'Scriptor workspace' })
+  try {
+    await expect(workspace).toBeVisible({ timeout: 15_000 })
+  } catch (firstBootError) {
+    // A heavily loaded Windows browser worker can occasionally commit the
+    // navigation while leaving the preview document blank. One explicit reload
+    // is safe because the E2E bridge is deterministic; a reproducible boot
+    // failure still fails on the second assertion.
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    try {
+      await expect(workspace).toBeVisible({ timeout: 30_000 })
+    } catch {
+      throw firstBootError
+    }
+  }
   return page
 }
 
 export async function openCommandPalette(page: Page) {
+  // Opening the palette before the workspace finishes booting drops the global
+  // keyboard handler. This is especially visible on a cold CI worker where the
+  // first Vite dependency optimization can outlast a root-size-only layout wait.
+  await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible({ timeout: 15_000 })
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
     await page.keyboard.press('Control+KeyK')
     const palette = page.getByRole('dialog', { name: 'Command palette' })
     try {
-      await expect(palette).toBeVisible({ timeout: 5000 })
+      await expect(palette).toBeVisible({ timeout: 10_000 })
       return
     } catch (error) {
       // Vite can reload every open page when a parallel test reveals a lazily
@@ -156,7 +175,22 @@ export async function waitForWorkspace(page: Page) {
     timeout: 30_000,
   })
   const editorSurface = page.locator('.monaco-editor .view-lines, .cm-content')
-  await expect(editorSurface).toContainText('Research Plan', { timeout: 45_000 })
+  // Monaco may have an empty virtualized view while its model is already
+  // authoritative (especially when another panel is opening). Poll the
+  // model first, then retain the DOM assertion as a rendering sanity check.
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() => {
+          const editor = (window as Window & {
+            __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
+          }).__scriptorE2eEditor
+          return editor?.getModel?.()?.getValue?.() ?? ''
+        }),
+      { timeout: 45_000 },
+    )
+    .toContain('Research Plan')
+  await expect(editorSurface).toBeVisible({ timeout: 15_000 })
   await settleLayout(page)
 }
 

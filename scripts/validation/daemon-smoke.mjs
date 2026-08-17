@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from 'node:child_process'
-import { execSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname, resolve } from 'node:path'
@@ -27,12 +26,32 @@ const cargoDir = isWindows
 const env = {
   ...process.env,
   PATH: cargoDir ? `${cargoDir}${isWindows ? ';' : ':'}${process.env.PATH || ''}` : process.env.PATH,
+  SCRIPTOR_TEST_DAEMON_HMAC_KEY: crypto.randomUUID().replaceAll('-', '') + crypto.randomUUID().replaceAll('-', ''),
 }
 
-const daemon = spawn('cargo', ['run', '-p', 'scriptor-daemon', '--', 'serve', '--socket', socketName], {
+const executableSuffix = isWindows ? '.exe' : ''
+const cliBinary = join(root, 'target', 'debug', `scriptor${executableSuffix}`)
+const daemonBinary = join(root, 'target', 'debug', `scriptor-daemon${executableSuffix}`)
+
+function run(command, args, { quiet = false, timeout = 120_000 } = {}) {
+  const result = spawnSync(command, args, {
+    cwd: root,
+    env,
+    shell: false,
+    stdio: quiet ? 'ignore' : 'inherit',
+    timeout,
+  })
+  return result.status === 0
+}
+
+if (!run('cargo', ['build', '--locked', '-p', 'scriptor-cli', '-p', 'scriptor-daemon'])) {
+  throw new Error('failed to build daemon smoke binaries')
+}
+
+const daemon = spawn(daemonBinary, ['serve', '--socket', socketName], {
   cwd: root,
   stdio: 'ignore',
-  shell: isWindows,
+  shell: false,
   env,
 })
 
@@ -40,16 +59,27 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-function run(command) {
-  execSync(command, { cwd: root, stdio: 'inherit', shell: isWindows, env })
-}
-
 try {
-  await sleep(4000)
+  const readinessDeadline = Date.now() + 60_000
+  let ready = false
+  while (Date.now() < readinessDeadline && daemon.exitCode === null) {
+    if (run(cliBinary, ['daemon', 'ping'], { quiet: true, timeout: 10_000 })) {
+      ready = true
+      break
+    }
+    await sleep(500)
+  }
+  if (!ready) {
+    throw new Error('daemon did not become ready within 60 seconds')
+  }
   console.log('Pinging daemon')
-  run('cargo run -p scriptor-cli -- daemon ping')
+  if (!run(cliBinary, ['daemon', 'ping'])) {
+    throw new Error('daemon ping failed after readiness')
+  }
   console.log(`Running TUI smoke via daemon against ${vault}`)
-  run(`cargo run -p scriptor-cli -- tui ${vault} --smoke-test`)
+  if (!run(cliBinary, ['tui', vault, '--smoke-test'])) {
+    throw new Error('TUI smoke failed')
+  }
 } finally {
   if (!daemon.killed) {
     daemon.kill('SIGTERM')

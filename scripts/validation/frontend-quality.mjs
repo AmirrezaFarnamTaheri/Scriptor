@@ -86,15 +86,14 @@ requirePattern('src/components/shell/EditorWorkspace.tsx', /type MarkdownPreview
 rejectPattern('src/App.tsx', /as any/, 'application integration must not bypass action types')
 
 {
-  const overlaySource = source('src/hooks/useAppOverlayState.ts')
+  const overlaySource = source('src/hooks/useOverlayPanelStore.ts')
   const appSource = source('src/App.tsx')
-  const overlayStateNames = [...overlaySource.matchAll(/const \[([A-Za-z_$][\w$]*),\s*set[A-Za-z_$][\w$]*\]\s*=\s*useState/g)]
-    .map((match) => match[1])
-  for (const stateName of overlayStateNames) {
-    const duplicateDeclaration = new RegExp(`const \\[${stateName}\\b`)
-    if (duplicateDeclaration.test(appSource)) {
-      failures.push(`src/App.tsx: overlay state ${stateName} must have one owner in useAppOverlayState`)
-    }
+  const panelControllerSource = source('src/controllers/usePanelSurfaceController.ts')
+  if (!/useOverlayPanelStore/.test(panelControllerSource) || !/useState<OverlayPanelState>/.test(overlaySource)) {
+    failures.push('overlay panel state must have one owner in useOverlayPanelStore')
+  }
+  if (/useAppOverlayState/.test(appSource)) {
+    failures.push('src/App.tsx: retired useAppOverlayState must not be referenced')
   }
 }
 requirePattern('src/App.tsx', /useEditorPreferences\(theme(?:,\s*initialWorkspaceLayout)?\)/, 'editor defaults must follow the application theme')

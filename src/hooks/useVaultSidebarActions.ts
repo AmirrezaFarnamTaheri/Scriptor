@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 
 import { isMarkdownFile } from '../lib/importVaultFiles'
+import { isReaderDocumentPath } from './vault/helpers'
 
 interface UseVaultSidebarActionsOptions {
   nativeReady: boolean
@@ -13,6 +14,7 @@ interface UseVaultSidebarActionsOptions {
   createDailyNoteForOffset: (offset: number) => Promise<unknown> | unknown
   organizeNote: (path: string) => Promise<unknown> | unknown
   openNote: (path: string) => Promise<unknown> | unknown
+  openReaderDocument: (path: string) => void
   refreshVault: () => Promise<unknown> | unknown
   importDroppedFiles: (
     files: FileList,
@@ -38,6 +40,7 @@ export function useVaultSidebarActions({
   createDailyNoteForOffset,
   organizeNote,
   openNote,
+  openReaderDocument,
   refreshVault,
   importDroppedFiles,
   deleteNote,
@@ -75,7 +78,13 @@ export function useVaultSidebarActions({
     [createDailyNoteForOffset],
   )
   const handleOrganizeNote = useCallback((path: string) => void organizeNote(path), [organizeNote])
-  const handleOpenNote = useCallback((path: string) => void openNote(path), [openNote])
+  const handleOpenNote = useCallback((path: string) => {
+    if (isReaderDocumentPath(path)) {
+      openReaderDocument(path)
+      return
+    }
+    void openNote(path)
+  }, [openNote, openReaderDocument])
   const handleRenameNote = useCallback((path: string) => openRename(path), [openRename])
   const handleDeleteNote = useCallback((path: string) => void deleteNote(path), [deleteNote])
   const handleImportFiles = useCallback(

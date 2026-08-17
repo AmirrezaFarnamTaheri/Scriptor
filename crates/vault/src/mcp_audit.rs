@@ -71,12 +71,7 @@ impl McpMutationAuditRecord {
         }
     }
 
-    pub fn outcome(
-        intent: &Self,
-        success: bool,
-        detail: Option<String>,
-        duration_ms: u64,
-    ) -> Self {
+    pub fn outcome(intent: &Self, success: bool, detail: Option<String>, duration_ms: u64) -> Self {
         Self {
             id: intent.id.clone(),
             phase: "outcome".into(),
@@ -91,6 +86,30 @@ impl McpMutationAuditRecord {
             input_summary: intent.input_summary.clone(),
             success: Some(success),
             duration_ms: Some(duration_ms),
+            idempotency_key: intent.idempotency_key.clone(),
+            previous_hash: None,
+            record_hash: None,
+        }
+    }
+
+    /// Records a crash-visible terminal state without asserting whether the
+    /// underlying mutation reached the filesystem. Consumers must reconcile
+    /// this state rather than treating it as a completed failure.
+    pub fn interrupted(intent: &Self, detail: impl Into<String>) -> Self {
+        Self {
+            id: intent.id.clone(),
+            phase: "outcome".into(),
+            tool_name: intent.tool_name.clone(),
+            mode: intent.mode.clone(),
+            command_id: intent.command_id.clone(),
+            requested_at: intent.requested_at.clone(),
+            approved_at: intent.approved_at.clone(),
+            outcome: "interrupted".into(),
+            note_path: intent.note_path.clone(),
+            detail: Some(detail.into()),
+            input_summary: intent.input_summary.clone(),
+            success: None,
+            duration_ms: None,
             idempotency_key: intent.idempotency_key.clone(),
             previous_hash: None,
             record_hash: None,
@@ -126,7 +145,8 @@ pub fn append_mcp_mutation(
         .open(&absolute)
         .map_err(|source| VaultError::io(&absolute, source))?;
     writeln!(file, "{line}").map_err(|source| VaultError::io(&absolute, source))?;
-    file.flush().map_err(|source| VaultError::io(&absolute, source))?;
+    file.flush()
+        .map_err(|source| VaultError::io(&absolute, source))?;
     file.sync_data()
         .map_err(|source| VaultError::io(&absolute, source))?;
     Ok(())
@@ -183,11 +203,9 @@ pub fn reconcile_pending_mcp_mutations(root: &VaultRoot) -> Result<usize, VaultE
     for intent in pending.into_values() {
         append_mcp_mutation(
             root,
-            McpMutationAuditRecord::outcome(
+            McpMutationAuditRecord::interrupted(
                 &intent,
-                false,
-                Some("recovered after interruption; mutation outcome requires reconciliation".into()),
-                0,
+                "recovered after interruption; mutation outcome requires reconciliation",
             ),
         )?;
     }
@@ -207,7 +225,9 @@ fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
     file.seek(SeekFrom::Start(start))
         .map_err(|source| VaultError::io(path, source))?;
     let reader = BufReader::new(file);
-    let lines: Vec<String> = reader.lines().collect::<Result<_, _>>()
+    let lines: Vec<String> = reader
+        .lines()
+        .collect::<Result<_, _>>()
         .map_err(|source| VaultError::io(path, source))?;
     for line in lines.into_iter().rev() {
         if let Ok(record) = serde_json::from_str::<McpMutationAuditRecord>(&line)
@@ -263,7 +283,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>> {
+    fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>>
+    {
         let dir = tempdir()?;
         let root = VaultRoot::open(dir.path())?;
         let intent = McpMutationAuditRecord::intent(
@@ -274,7 +295,10 @@ mod tests {
             Some("path=alpha.md".into()),
         );
         append_mcp_mutation(&root, intent.clone())?;
-        append_mcp_mutation(&root, McpMutationAuditRecord::outcome(&intent, true, None, 4))?;
+        append_mcp_mutation(
+            &root,
+            McpMutationAuditRecord::outcome(&intent, true, None, 4),
+        )?;
 
         let records = read_mcp_audit_tail(&root, 1)?;
         assert_eq!(records.len(), 1);
@@ -303,6 +327,8 @@ mod tests {
         assert_eq!(reconcile_pending_mcp_mutations(&root)?, 0);
         let content = fs::read_to_string(root.root().join(DEFAULT_MCP_AUDIT_PATH))?;
         assert!(content.contains("recovered after interruption"));
+        assert!(content.contains("\"outcome\":\"interrupted\""));
+        assert!(!content.contains("\"success\":false"));
         Ok(())
     }
 }

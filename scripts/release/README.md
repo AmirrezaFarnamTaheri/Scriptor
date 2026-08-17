@@ -22,12 +22,13 @@ Release engineering scripts for Scriptor.
 | `verify-signing-evidence.mjs` | Requires the complete supported target matrix and rejects status drift. |
 | `verify-bundle.mjs` | Cross-platform post-bundle artifact validation. |
 | `stage-release-assets.mjs` | Copies only distributable installers and target-status records into transport artifacts. |
-| `write-manifest.ps1` | Writes Windows installer SHA-256 metadata for local compatibility checks. |
+| `write-manifest.ps1` | Writes Windows installer SHA-256 metadata for local verification. |
 | `version.mjs` | Checks or synchronizes the canonical version. |
 | `source-identity.mjs` | Computes archive diagnostics or canonical commit-bound SHA-256 source identity from Git blobs and modes. |
 | `generate-sbom.mjs` | Generates the CycloneDX source/dependency SBOM. |
 | `create-receipt.mjs` | Creates receipt schema 4 with exact installer subjects, checksums, source identity, and target status from the evidence directory. |
 | `verify-release-evidence.mjs` | Rejects source, SBOM, checksum, status, path, or installer-subject drift before publication. |
+| `review-binaries.ps1` | Creates a source-bound SHA-256 manifest for the CLI and daemon release binaries without publishing anything. |
 
 ## Pinned environment
 
@@ -76,12 +77,19 @@ node scripts/release/stage-release-assets.mjs \
 ## Production workflow
 
 1. Merge a reviewed change whose synchronized `VERSION` differs from the prior release.
-2. `Release Kickoff` validates parity and creates `v<VERSION>` without moving any existing tag.
-3. Kickoff dispatches `Release` on that tag because ordinary tag-push recursion from `GITHUB_TOKEN` is suppressed by GitHub.
+2. A release operator manually dispatches `Release Kickoff`, enters the exact `VERSION`, and passes the protected `release-production` environment review.
+3. `Release Kickoff` validates parity, creates `v<VERSION>` without moving any existing tag, and dispatches `Release` on that immutable tag.
 4. The unified matrix packages Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64.
-5. Publication proves exactly seven installers and four trust records, separates them, verifies the target matrix, generates evidence, attests only installers, and creates or updates one GitHub Release.
+5. The protected publication job proves exactly seven installers and four trust records, separates them, verifies the target matrix, generates evidence, attests only installers, and creates or updates one GitHub Release.
+
+Production release and Pages workflows are manual-only. Update manifests are attached to the immutable version release; the workflows never create or force-move a rolling tag.
 
 The release is blocked by missing artifacts, target-status drift, source drift, checksum/SBOM/receipt mismatch, unreceipted installer files, or attestation failure. It is not blocked by absent signing certificates because official upstream artifacts make no publisher-signature claim.
+
+The non-publishing `Release Binary Review` workflow exercises the frozen source contracts and
+creates a review artifact for the release CLI and daemon binaries. It does not build desktop
+installers, create tags or releases, or upload production installers; installer validation remains
+the responsibility of the protected production release workflow.
 
 ## Related documents
 

@@ -10,6 +10,14 @@ const ALLOWED_BOOL_FLAGS: &[&str] = &[
     "--self-contained",
 ];
 
+// These fixed values select supported local PDF engines without allowing a
+// caller-controlled executable path.
+const ALLOWED_PDF_ENGINE_FLAGS: &[&str] = &[
+    "--pdf-engine=pdflatex",
+    "--pdf-engine=tectonic",
+    "--pdf-engine=xelatex",
+];
+
 const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--css=",
     "--bibliography=",
@@ -47,7 +55,13 @@ fn validate_flag_token(arg: &str) -> Result<bool, ExportError> {
     if ALLOWED_BOOL_FLAGS.iter().any(|flag| flag == &arg) {
         return Ok(false);
     }
-    if ALLOWED_EQ_PREFIXES.iter().any(|prefix| arg.starts_with(prefix)) {
+    if ALLOWED_PDF_ENGINE_FLAGS.iter().any(|flag| flag == &arg) {
+        return Ok(false);
+    }
+    if ALLOWED_EQ_PREFIXES
+        .iter()
+        .any(|prefix| arg.starts_with(prefix))
+    {
         return Ok(false);
     }
     if ALLOWED_VALUE_FLAGS.iter().any(|flag| flag == &arg) {
@@ -120,5 +134,11 @@ mod tests {
             "--standalone".into(),
         ])
         .expect("profile args");
+    }
+
+    #[test]
+    fn allows_only_named_pdf_engines() {
+        validate_extra_args(&["--pdf-engine=tectonic".into()]).expect("supported PDF engine");
+        assert!(validate_extra_args(&["--pdf-engine=C:/tools/custom.exe".into()]).is_err());
     }
 }

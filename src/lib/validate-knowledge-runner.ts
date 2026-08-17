@@ -27,22 +27,24 @@ test('isInboxEntry excludes organized, archived, and type definitions', () => {
 test('filterInboxEntries sorts newest first and respects period', () => {
   // Dates are relative to now so the period filter stays deterministic over
   // time; a hardcoded fixture ages out of the rolling window and breaks.
-  const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
-  const notes = [
-    summary({ path: 'old.md', title: 'Old', modified_at: daysAgo(60) }),
-    summary({ path: 'new.md', title: 'New', modified_at: daysAgo(2) }),
-    summary({ path: 'done.md', title: 'Done', organized: true, modified_at: daysAgo(1) }),
-  ]
+  // Freeze Date.now first so the relative fixtures are anchored to the mocked
+  // clock rather than the real wall clock at test time.
   const originalNow = Date.now
   Date.now = () => Date.parse('2026-06-23T12:00:00.000Z')
   try {
+    const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString()
+    const notes = [
+      summary({ path: 'old.md', title: 'Old', modified_at: daysAgo(60) }),
+      summary({ path: 'new.md', title: 'New', modified_at: daysAgo(2) }),
+      summary({ path: 'done.md', title: 'Done', organized: true, modified_at: daysAgo(1) }),
+    ]
     const week = filterInboxEntries(notes, 'week')
     assert.deepEqual(week.map((note) => note.path), ['new.md'])
+    const all = filterInboxEntries(notes, 'all')
+    assert.deepEqual(all.map((note) => note.path), ['new.md', 'old.md'])
   } finally {
     Date.now = originalNow
   }
-  const all = filterInboxEntries(notes, 'all')
-  assert.deepEqual(all.map((note) => note.path), ['new.md', 'old.md'])
 })
 
 test('nextInboxEntryAfter returns the following inbox row', () => {

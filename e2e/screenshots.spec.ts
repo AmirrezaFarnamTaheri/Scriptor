@@ -45,7 +45,6 @@ async function waitForEditorReady(page: Page) {
 
 async function waitForInspectorReady(page: Page) {
   await expect(page.getByRole('heading', { name: 'Note Health' })).toBeVisible({ timeout: 45_000 })
-  await expect(page.locator('.job-progress').getByText('100%')).toBeVisible({ timeout: 45_000 })
   await expect(page.locator('.widget-action')).toHaveText('Good', { timeout: 45_000 })
   await expect(page.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
 }
@@ -58,6 +57,8 @@ async function waitForFullWorkspace(page: Page) {
   await waitForVaultSidebarReady(page)
   await waitForEditorReady(page)
   await waitForInspectorReady(page)
+  await expect(page.locator('.job-progress')).toHaveAttribute('aria-label', 'Building graph 100%', { timeout: 45_000 })
+  await expect(page.locator('.job-progress strong')).toHaveText('Index ready')
   await settleLayout(page)
 }
 
@@ -82,6 +83,22 @@ async function waitForSettingsReady(page: Page) {
   // than pinning a literal that breaks on every Pandoc/app version bump.
   await expect(dialog.getByText(/^\d+\.\d+(\.\d+)*$/).first()).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(500)
+}
+
+async function openCommandPaletteForShot(page: Page) {
+  // The palette trigger lives in the topbar and is re-rendered while the
+  // workspace hydrates; assert it is actually actionable before clicking, then
+  // wait for the dialog *and* its searchbox so downstream interactions never
+  // race the mount animation.
+  const trigger = page.getByRole('button', { name: /Open command palette/i })
+  await expect(trigger).toBeVisible({ timeout: 30_000 })
+  await expect(trigger).toBeEnabled({ timeout: 30_000 })
+  await trigger.click()
+  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  await expect(palette).toBeVisible({ timeout: 30_000 })
+  const searchbox = palette.getByRole('searchbox')
+  await expect(searchbox).toBeVisible({ timeout: 30_000 })
+  return palette
 }
 
 async function ensureCleanStatusDock(page: Page) {
@@ -160,9 +177,8 @@ test('editor with split preview', async ({ page }) => {
 test('command palette', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.getByLabel('Command or search').click()
-  await expect(page.getByRole('dialog', { name: 'Command palette' })).toBeVisible()
-  await page.waitForTimeout(500)
+  await openCommandPaletteForShot(page)
+  await settleLayout(page)
   await page.screenshot({ path: shotPath('command-palette'), fullPage: false })
   await expect(page).toHaveScreenshot('command-palette.png', { fullPage: false })
 })
@@ -279,14 +295,15 @@ test('conflict resolver modal', async ({ page }) => {
 test('note history panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.getByLabel('Command or search').click()
-  const palette = page.getByRole('dialog', { name: 'Command palette' })
+  const palette = await openCommandPaletteForShot(page)
   await palette.getByRole('searchbox').fill('Note history')
-  await palette.getByRole('option', { name: 'Note history timeline' }).click()
+  const historyOption = palette.getByRole('option', { name: 'Note history timeline' })
+  await expect(historyOption).toBeVisible({ timeout: 15_000 })
+  await historyOption.click()
   const historyPanel = page.getByRole('dialog', { name: 'Note history' })
   await expect(historyPanel).toBeVisible()
   await expect(historyPanel.getByText(/words/)).toBeVisible()
-  await page.waitForTimeout(500)
+  await settleLayout(page)
   await page.screenshot({ path: shotPath('note-history'), fullPage: false })
   await expect(page).toHaveScreenshot('note-history.png', { fullPage: false })
 })

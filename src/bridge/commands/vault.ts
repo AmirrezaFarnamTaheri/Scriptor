@@ -414,3 +414,12 @@ export async function vaultImportObsidian(
     authorizationToken,
   })
 }
+
+/**
+ * Export the vault audit log as a string.
+ * @param format  'json' (default) or 'csv'
+ */
+export async function vaultExportAuditLog(format: 'json' | 'csv' = 'json'): Promise<string> {
+  requireNative()
+  return invoke<string>('vault_export_audit_log', { format })
+}

@@ -8,21 +8,29 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 |---|---|---|---|
 | workspace-light.png | Reviewed light workspace baseline | 130 KB | Docs + baseline mirror |
 | workspace-dark.png | Reviewed dark workspace baseline | 59 KB | Docs + baseline mirror |
+| workspace-tablet.png | 1024px workspace breakpoint capture | 139 KB | VISUAL-REVIEW |
 | editor-preview.png | Reviewed split editor/preview baseline | 201 KB | Docs + baseline mirror |
 | command-palette.png | Reviewed command palette baseline | 182 KB | Docs + baseline mirror |
 | graph.png | Reviewed graph baseline | 96 KB | Docs + baseline mirror |
-| canvas.png | Spatial canvas board for visual note arrangement | 163 KB | — |
-| git-panel.png | Version control status, commit, pull/push | 109 KB | — |
+| canvas.png | Spatial canvas board for visual note arrangement | 100 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| git-panel.png | Version control status, commit, pull/push | 103 KB | VISUAL-REVIEW, STORE-MIGRATION |
 | mcp-panel.png | Reviewed MCP panel baseline | 246 KB | Docs + baseline mirror |
-| settings.png | Runtime config, vault config, appearance, diagnostics | 208 KB | — |
+| settings.png | Runtime config, vault config, appearance, diagnostics | 130 KB | VISUAL-REVIEW, STORE-MIGRATION |
 | publish-center.png | Reviewed publish-center baseline | 147 KB | Docs + baseline mirror |
-| vault-health.png | Vault health dashboard with lint and health scores | 190 KB | — |
-| knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 188 KB | — |
-| conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 91 KB | — |
-| note-history.png | Revision timeline with restore capability | 172 KB | — |
-| keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 208 KB | — |
-| onboarding-tour.png | First-run product tour experience | 164 KB | — |
-| plugins.png | Plugin marketplace discovery and management | 179 KB | — |
+| vault-health.png | Vault health dashboard with lint and health scores | 100 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
+| knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 140 KB | VISUAL-REVIEW |
+| conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 88 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| note-history.png | Revision timeline with restore capability | 134 KB | VISUAL-REVIEW |
+| keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 119 KB | VISUAL-REVIEW |
+| onboarding-tour.png | First-run product tour experience | 132 KB | VISUAL-REVIEW |
+| plugins.png | Plugin marketplace discovery and management | 81 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| inspector-preview.png | Inspector preview mode with editor/preview controls | 123 KB | VISUAL-REVIEW |
+| editor-recovery.png | Editor recovery fallback state | 8 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
+| mcp-sharing-inventory.png | MCP sharing and resource inventory view | 68 KB | VISUAL-REVIEW |
+| toolbar-typography.png | Typography toolbar popover | 12 KB | VISUAL-REVIEW |
+| toolbar-insert.png | Insert toolbar popover | 11 KB | VISUAL-REVIEW |
+| mobile-inspector.png | 390px mobile inspector pane | 53 KB | VISUAL-REVIEW |
+| mobile-vault.png | 390px mobile vault pane | 75 KB | VISUAL-REVIEW |
 
 ### Freshness and acceptance
 

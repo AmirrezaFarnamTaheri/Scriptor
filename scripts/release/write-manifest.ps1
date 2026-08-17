@@ -11,7 +11,7 @@ if ([string]::IsNullOrWhiteSpace($Version)) {
   $Version = $env:SCRIPTOR_RELEASE_VERSION
 }
 if ([string]::IsNullOrWhiteSpace($Version)) {
-  $Version = "0.1.0"
+  $Version = "1.0.0"
 }
 if ($Version -match '^v') {
   $Version = $Version.Substring(1)

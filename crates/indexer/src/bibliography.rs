@@ -6,20 +6,22 @@ use regex::Regex;
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
-use scriptor_vault::{scan_vault, ScannedEntryKind, VaultSession};
+use scriptor_vault::{ScannedEntryKind, VaultSession, scan_vault};
 
 use crate::citation::register_bibliography_keys_on;
 use crate::db::IndexCache;
 use crate::error::IndexerError;
 
-static ENTRY_START_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"@([A-Za-z]+)\s*\{\s*([^,\s]+)\s*,"#).expect("valid bib entry regex"));
+static ENTRY_START_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"@([A-Za-z]+)\s*\{\s*([^,\s]+)\s*,"#).expect("valid bib entry regex")
+});
 static TITLE_FIELD_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"title\s*=\s*\{([^}]*)\}"#).expect("valid title regex"));
 static AUTHOR_FIELD_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"author\s*=\s*\{([^}]*)\}"#).expect("valid author regex"));
-static YEAR_FIELD_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"year\s*=\s*(?:\{([^}]*)\}|(\d{4}))"#).expect("valid year regex"));
+static YEAR_FIELD_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"year\s*=\s*(?:\{([^}]*)\}|(\d{4}))"#).expect("valid year regex")
+});
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BibliographyEntry {
@@ -84,9 +86,12 @@ pub fn sync_vault_bibliography(
     Ok(entries)
 }
 
-pub fn list_bibliography_entries(cache: &IndexCache) -> Result<Vec<BibliographyEntry>, IndexerError> {
+pub fn list_bibliography_entries(
+    cache: &IndexCache,
+) -> Result<Vec<BibliographyEntry>, IndexerError> {
     let conn = cache.connection()?;
-    let mut statement = conn.prepare("SELECT value FROM cache_meta WHERE key LIKE 'bibmeta:%' ORDER BY key")?;
+    let mut statement =
+        conn.prepare("SELECT value FROM cache_meta WHERE key LIKE 'bibmeta:%' ORDER BY key")?;
     let rows = statement.query_map([], |row| {
         let payload: String = row.get(0)?;
         Ok(payload)
@@ -165,7 +170,11 @@ fn normalize_bib_value(value: &str) -> String {
 
 pub fn default_bibliography_paths(vault_root: &Path) -> Vec<String> {
     let mut paths = Vec::new();
-    for candidate in ["references.bib", "bibliography.bib", ".scriptor/references.bib"] {
+    for candidate in [
+        "references.bib",
+        "bibliography.bib",
+        ".scriptor/references.bib",
+    ] {
         if vault_root.join(candidate).exists() {
             paths.push(candidate.to_string());
         }

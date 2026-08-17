@@ -154,8 +154,12 @@ fn svg_from_run(success: bool, stderr: &str, output_path: &Path) -> Result<Strin
     if !success {
         return Err(format!("renderer exited non-zero: {stderr}"));
     }
-    fs::read_to_string(output_path)
-        .map_err(|error| format!("renderer produced no readable SVG at {}: {error}", output_path.display()))
+    fs::read_to_string(output_path).map_err(|error| {
+        format!(
+            "renderer produced no readable SVG at {}: {error}",
+            output_path.display()
+        )
+    })
 }
 
 /// Render a PlantUML diagram source to SVG using the `plantuml` CLI.
@@ -277,7 +281,10 @@ pub(crate) fn run_plantuml_engine_with(
 
 fn validate_binary_path(binary: &Path, env_var: &str) -> Result<(), String> {
     if !binary.exists() {
-        return Err(format!("{env_var} path does not exist: {}", binary.display()));
+        return Err(format!(
+            "{env_var} path does not exist: {}",
+            binary.display()
+        ));
     }
     if binary.is_dir() {
         return Err(format!(
@@ -381,7 +388,10 @@ mod tests {
 
         let svg = rendered.expect("success path must be reachable");
         assert!(svg.contains("id=\"real\""));
-        assert!(!output_path.exists(), "cleanup still happens after the read");
+        assert!(
+            !output_path.exists(),
+            "cleanup still happens after the read"
+        );
     }
 
     /// Reading after cleanup is exactly the bug that was fixed: assert the
@@ -411,7 +421,11 @@ mod tests {
             Err(io::Error::new(io::ErrorKind::NotFound, "no such binary")),
             &dir.path().join("diagram.svg"),
         );
-        assert!(result.expect_err("spawn failure").contains("no such binary"));
+        assert!(
+            result
+                .expect_err("spawn failure")
+                .contains("no such binary")
+        );
     }
 
     #[test]

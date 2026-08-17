@@ -2,6 +2,8 @@
 
 export type NoteSummary = { path: string, title: string, };
 
+export type RpcError = { "PluginDisabled": { capability_id: string, } };
+
 export type RpcEvent = { payload: RpcEventPayload, };
 
 export type RpcEventPayload = { "ConfigReloaded": { json: string, generation: bigint, } } | { "ResyncRequired": { reason: string, } };
@@ -14,7 +16,7 @@ export type RpcRequest = { id: bigint, method: RpcMethod, endpoint_nonce?: strin
 
 export type RpcResponse = { id: bigint, result: RpcResult, };
 
-export type RpcResult = { "Ok": RpcPayload } | { "Err": string };
+export type RpcResult = { "Ok": RpcPayload } | { "Error": RpcError } | { "Err": string };
 
 export type SearchHit = { path: string, title: string, snippet: string, };
 

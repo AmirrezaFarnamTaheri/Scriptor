@@ -11,7 +11,10 @@ pub struct DeleteNoteOutput {
     pub deleted: bool,
 }
 
-pub fn delete_note(root: &VaultRoot, path: &RelativeVaultPath) -> Result<DeleteNoteOutput, VaultError> {
+pub fn delete_note(
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+) -> Result<DeleteNoteOutput, VaultError> {
     let absolute = root.resolve_relative(path)?;
     if !absolute.is_file() {
         return Err(VaultError::NoteNotFound(path.to_string()));

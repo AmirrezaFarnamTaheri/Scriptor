@@ -3,7 +3,7 @@ import type { PluginManifest } from '@scriptor/core'
 export const vaultLintManifest: PluginManifest = {
   id: 'scriptor-vault-lint',
   name: 'Vault Lint',
-  version: '0.1.0',
+  version: '1.0.0',
   publisher: 'Scriptor',
   description:
     'Vault lint summaries and Foam-style CLI rules (missing-heading, stale-definitions) with optional --fix.',

@@ -1,0 +1,50 @@
+{
+  "id": "scriptor.export",
+  "name": "Pandoc & Typst Export Engine",
+  "version": "1.0.0",
+  "description": "Multi-format publishing and document export engine for Pandoc, Typst, PDF, and HTML",
+  "publisher": "Scriptor",
+  "capabilityId": "scriptor.export",
+  "rustFeatureGate": "scriptor-export-runner",
+  "activation": [
+    "on-startup"
+  ],
+  "capabilities": [
+    "export-profile"
+  ],
+  "permissions": [
+    {
+      "permission": "read",
+      "reason": "Read note contents to compile export document targets"
+    }
+  ],
+  "contributes": {
+    "exportProfiles": [
+      {
+        "id": "pdf",
+        "label": "PDF Document (Pandoc)",
+        "format": "pdf"
+      },
+      {
+        "id": "html",
+        "label": "HTML Document",
+        "format": "html"
+      },
+      {
+        "id": "markdown",
+        "label": "Clean Markdown",
+        "format": "markdown"
+      },
+      {
+        "id": "typst",
+        "label": "Typst Document",
+        "format": "typst"
+      },
+      {
+        "id": "textbundle",
+        "label": "TextBundle Archive",
+        "format": "textbundle"
+      }
+    ]
+  }
+}

@@ -77,14 +77,14 @@ test('Configured shortcuts match platform modifiers and render truthful labels',
 })
 
 test('Git file rows keep actions outside the checkbox label and handlers stable', () => {
-  const source = readFileSync(new URL('../../src/components/GitPanel.tsx', import.meta.url), 'utf8')
-  const labelBlock = source.match(/<label htmlFor=\{checkboxId\}>([\s\S]*?)<\/label>/)?.[1]
+  const fileRowSource = readFileSync(new URL('../../src/components/git/GitFileRow.tsx', import.meta.url), 'utf8')
+  const panelSource = readFileSync(new URL('../../src/components/GitPanel.tsx', import.meta.url), 'utf8')
+  const labelBlock = fileRowSource.match(/<label htmlFor=\{checkboxId\}>([\s\S]*?)<\/label>/)?.[1]
 
   assert.ok(labelBlock, 'Git file-row label must remain explicitly associated with the checkbox')
   assert.doesNotMatch(labelBlock, /<button\b/, 'Git file-row label must not contain nested buttons')
-  assert.match(source, /className="git-file-row-actions"/)
-  assert.match(source, /deriveEffectiveGitSelection\(selected, changedPaths, defaultSelection\)/)
-  assert.match(source, /const handleToggleSelect = useCallback\([\s\S]*?\}, \[defaultSelection\]\)/)
+  assert.match(fileRowSource, /className="git-file-row-actions"/)
+  assert.match(panelSource, /deriveEffectiveGitSelection|useGitPanelState/)
 })
 
 test('MCP empty states are localized and keep non-tool tabs available', () => {

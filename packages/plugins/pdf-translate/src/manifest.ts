@@ -3,7 +3,7 @@ import type { PluginManifest } from '@scriptor/core'
 export const pdfTranslateManifest: PluginManifest = {
   id: 'scriptor-pdf-translate',
   name: 'PDF Translate',
-  version: '0.1.0',
+  version: '1.0.0',
   publisher: 'Scriptor',
   description: 'Scientific PDF translation via pdf2zh while preserving layout, formulas, and figures.',
   activation: ['manual'],

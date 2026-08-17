@@ -3,11 +3,11 @@ use std::path::PathBuf;
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
+use crate::hash::path_hash;
 use crate::path::VaultRoot;
 
 pub const DEFAULT_NOTE_HISTORY_DIR: &str = ".scriptor/history";
@@ -29,7 +29,7 @@ struct NoteHistoryManifest {
 }
 
 fn history_key(relative_path: &str) -> String {
-    hex::encode(Sha256::digest(relative_path.as_bytes()))
+    path_hash(relative_path)
 }
 
 fn history_dir(root: &VaultRoot, relative_path: &str) -> PathBuf {
@@ -42,11 +42,16 @@ fn manifest_path(root: &VaultRoot, relative_path: &str) -> PathBuf {
     history_dir(root, relative_path).join("manifest.json")
 }
 
-fn revision_path(root: &VaultRoot, relative_path: &str, revision_id: &str) -> Result<PathBuf, VaultError> {
+fn revision_path(
+    root: &VaultRoot,
+    relative_path: &str,
+    revision_id: &str,
+) -> Result<PathBuf, VaultError> {
     // Revision ids are always generated as UUIDs (see append_note_history); reject
     // anything else so a caller-supplied id can never traverse out of the history dir.
-    let parsed = Uuid::parse_str(revision_id)
-        .map_err(|_| VaultError::InvalidRelativePath(format!("invalid revision id: {revision_id}")))?;
+    let parsed = Uuid::parse_str(revision_id).map_err(|_| {
+        VaultError::InvalidRelativePath(format!("invalid revision id: {revision_id}"))
+    })?;
     Ok(history_dir(root, relative_path).join(format!("{parsed}.md")))
 }
 
@@ -60,12 +65,16 @@ fn preview_line(markdown: &str) -> String {
         .collect()
 }
 
-pub fn list_note_history(root: &VaultRoot, note_path: &str) -> Result<Vec<NoteHistoryEntry>, VaultError> {
+pub fn list_note_history(
+    root: &VaultRoot,
+    note_path: &str,
+) -> Result<Vec<NoteHistoryEntry>, VaultError> {
     let manifest_path = manifest_path(root, note_path);
     if !manifest_path.is_file() {
         return Ok(Vec::new());
     }
-    let raw = fs::read_to_string(&manifest_path).map_err(|source| VaultError::io(&manifest_path, source))?;
+    let raw = fs::read_to_string(&manifest_path)
+        .map_err(|source| VaultError::io(&manifest_path, source))?;
     let manifest: NoteHistoryManifest = serde_json::from_str(&raw).map_err(VaultError::from)?;
     Ok(manifest.revisions)
 }
@@ -101,8 +110,8 @@ pub fn append_note_history(
 
     let manifest_file = manifest_path(root, note_path);
     let mut manifest = if manifest_file.is_file() {
-        let raw =
-            fs::read_to_string(&manifest_file).map_err(|source| VaultError::io(&manifest_file, source))?;
+        let raw = fs::read_to_string(&manifest_file)
+            .map_err(|source| VaultError::io(&manifest_file, source))?;
         serde_json::from_str(&raw).unwrap_or(NoteHistoryManifest {
             note_path: note_path.to_string(),
             revisions: Vec::new(),
@@ -153,7 +162,8 @@ mod tests {
         let history = list_note_history(&session.root, "note.md").expect("list");
         assert_eq!(history.len(), 2);
         assert_eq!(history[0].content_hash, "hash-two");
-        let body = read_note_history_revision(&session.root, "note.md", &history[1].id).expect("read");
+        let body =
+            read_note_history_revision(&session.root, "note.md", &history[1].id).expect("read");
         assert!(body.contains("# One"));
     }
 

@@ -42,7 +42,7 @@ Examples:
 
 ## Implemented Tauri surface (desktop v1.x)
 
-Draft dotted names above map to snake_case `invoke` commands and event channels in `apps/desktop/src-tauri`. This table tracks what ships today; migrate toward dotted names when contracts stabilize.
+Dotted command names map to snake_case `invoke` commands and event channels in `apps/desktop/src-tauri`. This table is the current shipped command contract.
 
 | Surface | Kind | Owner | Notes |
 |---|---|---|---|
@@ -117,4 +117,3 @@ Use when adding a new command or RPC method:
 - Has audit behavior when invoked by MCP or AI.
 - Has rollback note or explicit no-mutation declaration.
 - Has fixture, smoke script, or unit test coverage.
-

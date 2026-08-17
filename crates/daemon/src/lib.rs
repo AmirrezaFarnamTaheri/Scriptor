@@ -1,11 +1,12 @@
-pub mod command_gateway;
-pub mod mcp_stdio;
+pub mod capabilities;
 pub mod client;
+pub mod command_gateway;
 pub mod events;
 pub mod export_job;
 pub mod handler;
 pub mod index_job;
 pub mod locks;
+pub mod mcp_stdio;
 pub mod transport;
 pub mod watcher;
 #[cfg(windows)]
@@ -15,11 +16,11 @@ use std::time::Duration;
 
 use scriptor_ipc::{IpcError, RpcEvent, RpcRequest, RpcResponse};
 
-pub use client::{register_rpc_event_handler, reset_rpc_session, DaemonRpcClient};
+pub use client::{DaemonRpcClient, register_rpc_event_handler, reset_rpc_session};
 pub use handler::DaemonState;
 pub use transport::{
-    connect_client, default_socket_name, endpoint_file_path, read_endpoint, remove_endpoint_file,
-    serve_forever, write_endpoint, DaemonEndpoint,
+    DaemonEndpoint, connect_client, default_socket_name, endpoint_file_path, read_endpoint,
+    remove_endpoint_file, serve_forever, write_endpoint,
 };
 
 /// Public process-wide RPC facade.
@@ -60,10 +61,7 @@ impl SharedRpcClient {
         client::shared_rpc_client().reset();
     }
 
-    pub fn register_event_handler(
-        &self,
-        handler: impl Fn(RpcEvent) + Send + Sync + 'static,
-    ) {
+    pub fn register_event_handler(&self, handler: impl Fn(RpcEvent) + Send + Sync + 'static) {
         client::shared_rpc_client().register_event_handler(handler);
     }
 }
@@ -81,10 +79,7 @@ mod tests {
     #[test]
     fn shared_facade_rejects_zero_timeout_without_connecting() {
         let error = shared_rpc_client()
-            .call_with_timeout(
-                RpcRequest::new(1, RpcMethod::Ping),
-                Duration::ZERO,
-            )
+            .call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), Duration::ZERO)
             .expect_err("zero timeout must fail before endpoint lookup");
         assert!(matches!(
             error,

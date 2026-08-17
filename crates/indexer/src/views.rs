@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use scriptor_vault::{evaluate_view_filter, NoteMetadata, ViewFilter, ViewNoteMetadata, VaultSession};
+use scriptor_vault::{
+    NoteMetadata, VaultSession, ViewFilter, ViewNoteMetadata, evaluate_view_filter,
+};
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
@@ -12,9 +14,13 @@ pub struct ViewNoteHit {
     pub title: String,
 }
 
-pub fn evaluate_view_filter_json(filter_json: &str, note: &NoteMetadata) -> Result<bool, IndexerError> {
-    let filter: ViewFilter = serde_json::from_str(filter_json)
-        .map_err(|error| IndexerError::InvalidQuery(format!("invalid view filter JSON: {error}")))?;
+pub fn evaluate_view_filter_json(
+    filter_json: &str,
+    note: &NoteMetadata,
+) -> Result<bool, IndexerError> {
+    let filter: ViewFilter = serde_json::from_str(filter_json).map_err(|error| {
+        IndexerError::InvalidQuery(format!("invalid view filter JSON: {error}"))
+    })?;
     Ok(evaluate_view_filter(&filter, &ViewNoteMetadata::from(note)))
 }
 
@@ -23,8 +29,9 @@ pub fn list_view_notes(
     session: &VaultSession,
     filter_json: &str,
 ) -> Result<Vec<ViewNoteHit>, IndexerError> {
-    let filter: ViewFilter = serde_json::from_str(filter_json)
-        .map_err(|error| IndexerError::InvalidQuery(format!("invalid view filter JSON: {error}")))?;
+    let filter: ViewFilter = serde_json::from_str(filter_json).map_err(|error| {
+        IndexerError::InvalidQuery(format!("invalid view filter JSON: {error}"))
+    })?;
 
     let conn = cache.connection()?;
     let mut statement = conn.prepare(
@@ -71,7 +78,11 @@ pub fn list_view_notes(
     Ok(hits)
 }
 
-pub fn note_metadata_matches_view(markdown_path: &str, markdown: &str, filter: &ViewFilter) -> bool {
+pub fn note_metadata_matches_view(
+    markdown_path: &str,
+    markdown: &str,
+    filter: &ViewFilter,
+) -> bool {
     let parsed = parse_note_markdown(markdown_path, markdown);
     let metadata = ViewNoteMetadata {
         path: markdown_path,
@@ -88,8 +99,8 @@ pub fn note_metadata_matches_view(markdown_path: &str, markdown: &str, filter: &
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scriptor_vault::{open_vault, ViewFilterOp};
     use chrono::Utc;
+    use scriptor_vault::{ViewFilterOp, open_vault};
     use tempfile::tempdir;
 
     #[test]

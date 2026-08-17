@@ -59,6 +59,7 @@ interface VaultSidebarProps {
   onDeleteNote?: (path: string) => void
   onImportFiles?: (files: FileList) => Promise<string[]>
   recentNotes?: Array<{ path: string; title: string }>
+  readerDocumentPaths?: Set<string>
 }
 
 function VaultSidebarImpl({
@@ -95,6 +96,7 @@ function VaultSidebarImpl({
   onDeleteNote,
   onImportFiles,
   recentNotes = [],
+  readerDocumentPaths,
 }: VaultSidebarProps) {
   const [dropActive, setDropActive] = useState(false)
 
@@ -283,6 +285,7 @@ function VaultSidebarImpl({
                     onOpenNote={onOpenNote}
                     onRenameNote={onRenameNote}
                     onDeleteNote={onDeleteNote}
+                    readerDocumentPaths={readerDocumentPaths}
                   />
                 ) : null}
               </section>

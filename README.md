@@ -1,7 +1,7 @@
 # Scriptor
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.0-0f766e.svg)](VERSION)
 [![CI](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
 
 **A local-first Markdown workspace for serious writing and research.** Scriptor combines a Tauri desktop shell, a Rust vault/indexing kernel, a React workspace, Git-aware editing, citations, graph navigation, publishing, canvas tools, and permissioned automation while keeping Markdown files portable on disk.
@@ -9,7 +9,7 @@
 
 ## Current release posture
 
-Version `0.1.0` is an early production candidate. Core writing, vault, indexing, knowledge, Git, export, daemon, and desktop surfaces are implemented. Experimental capabilities are identified in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md); encryption, WASM plugins, local embeddings, mobile, and Tantivy are not marketed as shipped security or platform guarantees.
+Version `1.0.0` is an early production candidate. Core writing, vault, indexing, knowledge, Git, export, daemon, and desktop surfaces are implemented. Experimental capabilities are identified in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md); encryption, WASM plugins, local embeddings, mobile, and Tantivy are not marketed as shipped security or platform guarantees.
 
 ## Principles
 
@@ -113,7 +113,7 @@ Verification instructions: [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md
 - [`SECURITY.md`](SECURITY.md) — threat boundaries and vulnerability reporting
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — development and verification workflow
 - [`CHANGELOG.md`](CHANGELOG.md) — release history
-- [`docs/FINAL-REMEDIATION-REPORT.md`](docs/FINAL-REMEDIATION-REPORT.md) — closure status for all due-diligence findings
+- [`docs/FINAL-REMEDIATION-REPORT.md`](docs/FINAL-REMEDIATION-REPORT.md) — current v1 product and release baseline
 - [`docs/VERIFICATION.md`](docs/VERIFICATION.md) — exact proof boundaries and required commands
 - [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) — production go/no-go checklist
 

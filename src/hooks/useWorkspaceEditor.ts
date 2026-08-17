@@ -1,7 +1,7 @@
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 import { findExportProfile } from '@scriptor/export'
 import type { EditorTransformAction, TypographyAction } from '@scriptor/editor'
-import { generateLinkReferenceDefinitions } from '@scriptor/editor'
+import { generateLinkReferenceDefinitions } from '@scriptor/editor/pure'
 import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject, type RefObject } from 'react'
 
 import {
@@ -17,6 +17,7 @@ import {
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { importVaultFiles } from '../lib/importVaultFiles'
 import { isContentHashMismatchError } from '../lib/vaultErrors'
+import { coordinateNoteMutation } from '../lib/workspace/coordinateNoteMutation'
 import type {
   ExternalChangeConflict,
   NoteDocument,
@@ -311,7 +312,7 @@ export function useWorkspaceEditor({
 
   const performSave = useCallback(
     async (markdown: string) => {
-      if (!activePath || !activeNote) return
+      if (!activePath || !activeNote) return false
 
       setIsSaving(true)
       setError(null)
@@ -326,6 +327,8 @@ export function useWorkspaceEditor({
         setExternalChangeConflict(null)
         setActiveNote({ metadata: saved.metadata, markdown })
         setDraftMarkdown(markdown)
+        activeNoteRef.current = { metadata: saved.metadata, markdown }
+        draftMarkdownRef.current = markdown
         setOpenTabs((tabs) =>
           tabs.map((tab) =>
             tab.path === activePath
@@ -347,6 +350,7 @@ export function useWorkspaceEditor({
             void exportStartNote(activePath, profile.id, false)
           }
         }
+        return true
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : String(caught)
         if (isContentHashMismatchError(message)) {
@@ -368,13 +372,16 @@ export function useWorkspaceEditor({
         } else {
           setError(message)
         }
+        return false
       } finally {
         setIsSaving(false)
       }
     },
     [
       activeNote,
+      activeNoteRef,
       activePath,
+      draftMarkdownRef,
       exportProfilesRef,
       loadBacklinks,
       logActivity,
@@ -426,13 +433,30 @@ export function useWorkspaceEditor({
   )
 
   const saveActiveNoteNow = useCallback(async () => {
-    if (!activePath || !activeNote) return
+    if (!activePath || !activeNote) return false
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
     }
-    await performSave(draftMarkdownRef.current)
+    return performSave(draftMarkdownRef.current)
   }, [activeNote, activePath, draftMarkdownRef, performSave])
+
+  const runNoteMutation = useCallback(
+    async (sourcePath: string, runMutation: () => Promise<void>) => {
+      const note = activeNoteRef.current
+      if (sourcePath === activePathRef.current && isSavingRef.current) {
+        return false
+      }
+      return coordinateNoteMutation({
+        sourcePath,
+        activePath: activePathRef.current,
+        isDirty: Boolean(note && draftMarkdownRef.current !== note.markdown),
+        saveActiveNote: saveActiveNoteNow,
+        runMutation,
+      })
+    },
+    [activeNoteRef, activePathRef, draftMarkdownRef, isSavingRef, saveActiveNoteNow],
+  )
 
   const updateDraft = useCallback(
     (markdown: string) => {
@@ -555,6 +579,7 @@ export function useWorkspaceEditor({
     applyEditorTransform,
     applyEditorTypography,
     saveActiveNoteNow,
+    runNoteMutation,
     reloadActiveNoteFromDisk,
     keepEditingAfterExternalChange,
     syncActiveNoteContent,

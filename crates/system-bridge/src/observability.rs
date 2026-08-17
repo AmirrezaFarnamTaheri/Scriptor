@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, atomic::{AtomicU64, Ordering}};
+use std::sync::{
+    Mutex,
+    atomic::{AtomicU64, Ordering},
+};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde_json::{Value, json};
@@ -52,7 +55,9 @@ fn log_path(component: &str) -> PathBuf {
         .or_else(|| std::env::var_os("USERPROFILE"))
         .map(PathBuf::from)
         .unwrap_or_else(std::env::temp_dir);
-    home.join(".scriptor").join("logs").join(format!("{component}.jsonl"))
+    home.join(".scriptor")
+        .join("logs")
+        .join(format!("{component}.jsonl"))
 }
 
 fn configured_level() -> Level {
@@ -196,12 +201,22 @@ impl Visit for JsonVisitor {
 }
 
 fn redact_sensitive_fields(value: &mut Value) {
-    let sensitive = ["password", "secret", "token", "authorization", "api_key", "content"];
+    let sensitive = [
+        "password",
+        "secret",
+        "token",
+        "authorization",
+        "api_key",
+        "content",
+    ];
     let Some(fields) = value.get_mut("fields").and_then(Value::as_object_mut) else {
         return;
     };
     for (key, field_value) in fields.iter_mut() {
-        if sensitive.iter().any(|needle| key.to_ascii_lowercase().contains(needle)) {
+        if sensitive
+            .iter()
+            .any(|needle| key.to_ascii_lowercase().contains(needle))
+        {
             *field_value = Value::String("[REDACTED]".into());
         }
     }

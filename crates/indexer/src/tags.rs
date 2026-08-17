@@ -18,7 +18,10 @@ pub struct TaggedNote {
     pub title: String,
 }
 
-pub fn list_vault_tags(cache: &IndexCache, vault_id: &str) -> Result<Vec<TagSummary>, IndexerError> {
+pub fn list_vault_tags(
+    cache: &IndexCache,
+    vault_id: &str,
+) -> Result<Vec<TagSummary>, IndexerError> {
     let conn = cache.connection()?;
     let mut statement = conn.prepare("SELECT tags_json FROM notes WHERE vault_id = ?1")?;
 
@@ -74,7 +77,7 @@ mod tests {
     use super::*;
     use crate::db::IndexCache;
     use crate::notes::upsert_note;
-    use scriptor_vault::{metadata_from_markdown, RelativeVaultPath};
+    use scriptor_vault::{RelativeVaultPath, metadata_from_markdown};
     use tempfile::tempdir;
 
     #[test]
@@ -88,7 +91,12 @@ mod tests {
             ("Beta.md", "# Beta\n\n#research\n"),
         ] {
             let relative = RelativeVaultPath::parse(path)?;
-            let metadata = metadata_from_markdown(vault_id, &relative, markdown, "2026-01-01T00:00:00Z".into());
+            let metadata = metadata_from_markdown(
+                vault_id,
+                &relative,
+                markdown,
+                "2026-01-01T00:00:00Z".into(),
+            );
             upsert_note(&cache, &metadata, markdown)?;
         }
 

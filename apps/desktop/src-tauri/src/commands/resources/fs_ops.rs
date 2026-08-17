@@ -7,8 +7,8 @@ use std::os::windows::fs::FileTypeExt;
 
 use scriptor_system_bridge::scriptor_data_dir;
 
-use super::{OperationKind, PlannedOperation, ResourceOperationReceipt};
 use super::discovery::hash_resource_directory;
+use super::{OperationKind, PlannedOperation, ResourceOperationReceipt};
 
 const MAX_RESOURCE_COPY_DEPTH: usize = 4;
 
@@ -118,11 +118,9 @@ fn apply_copy(
         None
     };
 
-    if let Err(error) = move_with_verified_copy(
-        &staging,
-        destination,
-        Some(&operation.expected_source_hash),
-    ) {
+    if let Err(error) =
+        move_with_verified_copy(&staging, destination, Some(&operation.expected_source_hash))
+    {
         let recovery = quarantine
             .as_ref()
             .map(|path| {
@@ -185,11 +183,7 @@ fn quarantine_duplicate(
             .map_err(|error| format!("failed to create {}: {error}", parent.display()))?;
     }
     remove_if_exists(&quarantine)?;
-    move_with_verified_copy(
-        source,
-        &quarantine,
-        Some(&operation.expected_source_hash),
-    )?;
+    move_with_verified_copy(source, &quarantine, Some(&operation.expected_source_hash))?;
     if source.exists() {
         return Err(format!(
             "duplicate remained after quarantine: {}",
@@ -242,11 +236,7 @@ fn copy_resource(source: &Path, destination: &Path) -> Result<(), String> {
     copy_resource_at_depth(source, destination, 0)
 }
 
-fn copy_resource_at_depth(
-    source: &Path,
-    destination: &Path,
-    depth: usize,
-) -> Result<(), String> {
+fn copy_resource_at_depth(source: &Path, destination: &Path, depth: usize) -> Result<(), String> {
     if depth > MAX_RESOURCE_COPY_DEPTH {
         return Err(format!(
             "resource exceeds the maximum nesting depth: {}",
@@ -337,10 +327,7 @@ fn restore_quarantine(
     expected_hash: Option<&str>,
 ) -> String {
     match move_with_verified_copy(quarantine, destination, expected_hash) {
-        Ok(()) => format!(
-            "; previous content restored from {}",
-            quarantine.display()
-        ),
+        Ok(()) => format!("; previous content restored from {}", quarantine.display()),
         Err(error) => format!(
             "; restore failed; previous content remains at {}: {error}",
             quarantine.display()
@@ -408,12 +395,18 @@ mod tests {
     #[test]
     fn resource_hash_ignores_dot_prefixed_metadata() {
         let dir = tempfile::tempdir().expect("tempdir");
-        fs::write(dir.path().join("SKILL.md"), "---\nname: example\n---\n# Example\n")
-            .expect("write manifest");
+        fs::write(
+            dir.path().join("SKILL.md"),
+            "---\nname: example\n---\n# Example\n",
+        )
+        .expect("write manifest");
         let before = hash_resource_directory(dir.path()).expect("hash before metadata");
         fs::write(dir.path().join(".DS_Store"), b"finder metadata").expect("write metadata");
         let after = hash_resource_directory(dir.path()).expect("hash after metadata");
-        assert_eq!(before, after, "dot-prefixed metadata must not affect resource hashes");
+        assert_eq!(
+            before, after,
+            "dot-prefixed metadata must not affect resource hashes"
+        );
     }
 
     #[cfg(unix)]
@@ -431,7 +424,11 @@ mod tests {
         copy_resource(&source, &destination).expect("copy read-only directory");
 
         assert_eq!(
-            fs::metadata(&destination).expect("destination metadata").permissions().mode() & 0o777,
+            fs::metadata(&destination)
+                .expect("destination metadata")
+                .permissions()
+                .mode()
+                & 0o777,
             0o555,
         );
         assert_eq!(

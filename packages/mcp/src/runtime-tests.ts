@@ -168,5 +168,33 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
     failures.push('draft accumulation should be capped at 100')
   }
 
+  // Test tool not found
+  const unknownTool = await runtime.invoke('mcp.nonExistentTool', {})
+  if (unknownTool.ok) failures.push('invoke should fail on unknown tool')
+
+  // Test mode off returns no tools
+  const offRuntime = new McpRuntime('off', null)
+  if (offRuntime.listTools().length !== 0) failures.push('off runtime should list zero tools')
+
+  // Test draft reject
+  const rejectTestRuntime = new McpRuntime('draft', {
+    async search() { return [] },
+    async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
+    async backlinks() { return [] },
+    async brokenLinks() { return [] },
+  })
+  const toReject = await rejectTestRuntime.invoke('mcp.proposePatch', {
+    path: 'reject-me.md',
+    proposedMarkdown: '# Reject',
+    summary: 'reject',
+  })
+  if (toReject.ok) {
+    const draftId = (toReject.output as DraftPatch).id
+    const rejected = rejectTestRuntime.rejectDraft(draftId)
+    if (!rejected) failures.push('rejectDraft should succeed')
+  } else {
+    failures.push('draft proposePatch before reject should succeed')
+  }
+
   return failures
 }

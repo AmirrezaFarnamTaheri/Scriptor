@@ -1,0 +1,151 @@
+/* ============================================================
+ * Scriptor 8-State Interactive Button Matrix (WCAG 2.2 AA)
+ * Hallmark · component: button · genre: modern-minimal · theme: teal-ink
+ * states: default · hover · focus · active · disabled · loading · error · success
+ * contrast: pass (WCAG 2.2 AA)
+ * ============================================================ */
+
+.btn,
+.button,
+.toolbar-button,
+.status-button,
+.panel-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  position: relative;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: var(--text-sm, 13px);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  border-radius: var(--radius-sm, 8px);
+  border: 1px solid var(--border, rgba(148, 163, 184, 0.2));
+  background: var(--surface, rgba(255, 255, 255, 0.65));
+  color: var(--ink, #1e293b);
+  cursor: pointer;
+  padding: 6px 12px;
+  min-height: 32px;
+  min-width: 32px;
+  user-select: none;
+  transition:
+    background-color var(--ease-fast, 150ms ease),
+    border-color var(--ease-fast, 150ms ease),
+    box-shadow var(--ease-fast, 150ms ease),
+    color var(--ease-fast, 150ms ease),
+    transform var(--ease-fast, 150ms ease);
+}
+
+/* ── 1. Hover State ─────────────────────────────────────────── */
+.btn:hover:not(:disabled),
+.btn.is-hover,
+.button:hover:not(:disabled),
+.toolbar-button:hover:not(:disabled),
+.status-button:hover:not(:disabled) {
+  background: var(--surface-hover, rgba(15, 23, 42, 0.06));
+  border-color: var(--border-strong, rgba(100, 116, 139, 0.3));
+  color: var(--ink-strong, #0f172a);
+}
+
+/* ── 2. Focus-Visible State ─────────────────────────────────── */
+.btn:focus-visible,
+.btn.is-focus,
+.button:focus-visible,
+.toolbar-button:focus-visible,
+.status-button:focus-visible {
+  outline: var(--focus-outline, 2px solid var(--primary-strong, #0f766e));
+  outline-offset: 2px;
+  box-shadow: var(--focus-ring, 0 0 0 3px rgba(15, 118, 110, 0.25));
+}
+
+/* ── 3. Active / Pressed State ──────────────────────────────── */
+.btn:active:not(:disabled),
+.btn.is-active,
+.button:active:not(:disabled),
+.toolbar-button:active:not(:disabled),
+.status-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  background: var(--selected, rgba(13, 148, 136, 0.1));
+}
+
+/* ── 4. Disabled State ──────────────────────────────────────── */
+.btn:disabled,
+.btn.is-disabled,
+.button:disabled,
+.toolbar-button:disabled,
+.status-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+  box-shadow: none;
+  transform: none;
+}
+
+/* ── 5. Loading State ───────────────────────────────────────── */
+.btn[data-state='loading'],
+.btn.is-loading {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+.btn[data-state='loading']::after,
+.btn.is-loading::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--ink-strong, currentColor);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin 0.6s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── 6. Error State ─────────────────────────────────────────── */
+.btn[data-state='error'],
+.btn.is-error {
+  border-color: var(--danger, #dc2626);
+  background: color-mix(in oklch, var(--danger, #dc2626) 12%, transparent);
+  color: var(--danger, #dc2626);
+}
+
+/* ── 7. Success State ───────────────────────────────────────── */
+.btn[data-state='success'],
+.btn.is-success {
+  border-color: var(--success, #047857);
+  background: color-mix(in oklch, var(--success, #047857) 12%, transparent);
+  color: var(--success, #047857);
+}
+
+/* ── Primary Button Variant ─────────────────────────────────── */
+.btn-primary,
+.button-primary {
+  background: var(--primary, #0f766e);
+  border-color: var(--primary-strong, #0f766e);
+  color: #ffffff;
+}
+.btn-primary:hover:not(:disabled),
+.button-primary:hover:not(:disabled) {
+  background: var(--primary-strong, #0d9488);
+  border-color: var(--primary-strong, #0d9488);
+  color: #ffffff;
+}
+
+/* ── Coarse Pointer / Touch Hit Targets (WCAG 2.2 AA) ──────── */
+@media (pointer: coarse) {
+  .btn,
+  .button,
+  .toolbar-button,
+  .status-button,
+  .panel-action-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 10px 16px;
+  }
+}

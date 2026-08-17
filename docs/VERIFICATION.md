@@ -88,6 +88,46 @@ core surfaces; transient/state-review screenshots are attached to the Visual rev
 creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
+## Current local candidate evidence — 2026-08-17
+
+The final candidate tree has fresh local proof. These receipts are local candidate evidence; the
+authoritative exact-head record remains the CI run produced after the candidate is committed and
+pushed.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Functional browser suite | Passed 71/71 with zero retries | `pnpm test:e2e` |
+| Visual regression suite | 28 tests passed; `vault-health` baseline reviewed and intentionally refreshed for the four-note/520-word fixture | `pnpm test:visual` |
+| Static accessibility smoke | Passed | `pnpm check:a11y` |
+| Axe browser audit | Passed with zero violations | `pnpm check:a11y-axe` with Chrome/Chromedriver 151.0.7922.138 |
+| Rust workspace | Passed formatting, warning-zero Clippy, and the full workspace test graph | `cargo fmt --check`; `cargo clippy --locked --workspace --all-targets -- -D warnings`; `cargo test --locked --workspace --jobs 2` |
+| Cargo deny | Passed advisories, bans, licenses, and sources | pinned `cargo-deny 0.20.2 check` |
+| Release smoke and performance | Passed | `pnpm release:smoke`; `pnpm release:perf-gate` (1k-note scan mean 41 ms; 1500 ms budget) |
+| Production dependency audit | Pending external service | `pnpm audit --prod` exhausted retries after registry `ECONNRESET`; no vulnerability verdict was produced |
+
+Visual assets reviewed by this pass are catalogued in [`VISUAL-REVIEW.md`](./VISUAL-REVIEW.md).
+
+## 2026-08-13 experimental workspace evidence
+
+The following is implementation evidence for the Reader, Markdown-backed Tasks, and Kanban
+workflows. These surfaces remain **Experimental** in the capability ledger until the complete UI
+and release gates pass from a clean environment.
+
+| Workflow boundary | Evidence command | Observed result | Remaining proof |
+|---|---|---|---|
+| Reader native path confinement and annotation restart persistence | `cargo test -p scriptor-desktop reader --lib` | Passed: 2 tests | Desktop-shell PDF/EPUB rendering, keyboard-only and 200% zoom matrix |
+| Task parsing, source Markdown updates, and index refresh | `cargo test -p scriptor-indexer -- --nocapture` | Passed: 103 tests | Clean-environment browser mutation/retry proof |
+| Reader/Task/Kanban bridge and UI contracts | `node --experimental-strip-types --test scripts/validation/task-kanban-reader-contracts.test.mjs` | Passed | Full Playwright workflow against the configured web server |
+| Type, lint, and package contracts | `pnpm exec tsc -b --pretty false`; `pnpm lint`; `pnpm check:contracts` | Passed in the working-tree validation run | Repeat after the worktree is isolated for release |
+
+The intended normal path is: open a PDF/EPUB from the vault tree or command palette; open Tasks
+or Kanban from the palette; save an edited note before a task/card mutation; then let the native
+write and index refresh complete. A failed save or rejected native mutation leaves the source
+unchanged and surfaces an error for retry. Do not assign a default shortcut until the command
+palette flow has passed the keyboard-only matrix.
+
+The pinned Vite/Playwright server is required for the browser gate. Record the exact-head result in the release receipt before promotion.
+
 ## Release and recovery gate
 
 - Build every installer from the exact audited tag.
@@ -109,9 +149,11 @@ with the platform suffix removed; regenerate them with `scripts/screenshots/capt
 ## Release workflow invariants
 
 - Manual dispatch defaults to preview and never publishes unless `publish: true` is supplied on an existing `v*` tag.
-- A `VERSION` change on `main` creates an immutable tag only when the version is unused.
+- A release operator manually dispatches `Release Kickoff` through the protected `release-production` environment; a `VERSION` change alone never creates a tag.
 - An existing tag that points to another commit is a hard failure; it is never moved.
-- The kickoff workflow uses `workflow_dispatch` because events emitted with `GITHUB_TOKEN` do not normally trigger another workflow.
+- The kickoff workflow requires the exact `VERSION`, creates only an unused immutable tag, and explicitly dispatches the release workflow on that tag.
+- Production publication and Pages deployment are gated by the protected `release-production` and `github-pages` environments respectively.
+- Update manifests attach to the immutable version release; no mutable rolling tag is created or force-pushed.
 - The unified `Release` workflow is the only GitHub Release owner; the former ARM-specific publication workflow is removed.
 - Architecture-bearing filenames prevent collisions when artifacts are merged for publication.
 - The release upload boundary excludes unpacked bundle internals and CI evidence.
@@ -127,10 +169,4 @@ bash scripts/governance/history-audit.sh . .history-audit
 
 Also run an approved full-history secret scanner and capture branch protection, required reviews, environment protection, tag lineage, and release lineage from the hosting platform.
 
-## Historical remediation evidence
-
-The 2026-08-03 remediation candidate verified repository-native source, authorization, frontend, release-evidence, package-boundary, locale, documentation, RustSec, and benchmark contracts. Some native build, browser, signing, clean-install, recovery, and full-history checks remained environment-dependent.
-
-The 0.1.1 release work supersedes the former mandatory-signing claim. It does not weaken source or artifact integrity checks: publisher signing is removed as a prerequisite, while exact target identity, checksum, SBOM, receipt, source binding, immutable tags, and GitHub attestations remain fail-closed.
-
-A passing source-level contract is not by itself proof of a successful public release. The authoritative completion evidence is the exact-head CI matrix plus the production tag workflow and published release assets.
+A passing source-level contract is not proof of a public release. The authoritative completion evidence is the exact-head CI matrix plus the production tag workflow and published release assets.

@@ -2,13 +2,13 @@ use std::fs;
 use std::path::Path;
 
 use crate::fs::atomic_write;
+use crate::hash::path_hash;
 use crate::note_history::append_note_history;
 
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
-use crate::note::{metadata_from_markdown, read_note, NoteMetadata};
+use crate::note::{NoteMetadata, metadata_from_markdown, read_note};
 use crate::path::{RelativeVaultPath, VaultRoot};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -51,16 +51,17 @@ pub fn save_note_with_options(
     options: SaveNoteOptions,
 ) -> Result<SaveNoteOutput, VaultError> {
     if let Some(expected) = expected_content_hash
-        && root.resolve_relative(path)?.exists() {
-            let existing = read_note(vault_id, root, path)?;
-            if existing.metadata.content_hash != expected {
-                return Err(VaultError::HashMismatch {
-                    path: path.to_string(),
-                    expected: expected.to_string(),
-                    found: existing.metadata.content_hash,
-                });
-            }
+        && root.resolve_relative(path)?.exists()
+    {
+        let existing = read_note(vault_id, root, path)?;
+        if existing.metadata.content_hash != expected {
+            return Err(VaultError::HashMismatch {
+                path: path.to_string(),
+                expected: expected.to_string(),
+                found: existing.metadata.content_hash,
+            });
         }
+    }
 
     let absolute = root.resolve_relative(path)?;
     let previous_content_hash = if absolute.exists() {
@@ -81,12 +82,7 @@ pub fn save_note_with_options(
             chrono::DateTime::<chrono::Utc>::from(modified_system).to_rfc3339(),
         )
     } else {
-        metadata_from_markdown(
-            vault_id,
-            path,
-            markdown,
-            chrono::Utc::now().to_rfc3339(),
-        )
+        metadata_from_markdown(vault_id, path, markdown, chrono::Utc::now().to_rfc3339())
     };
 
     if options.dry_run {
@@ -109,18 +105,19 @@ pub fn save_note_with_options(
                 path.as_str(),
                 &existing.markdown,
                 &existing.metadata.content_hash,
-            ) {
-                // History is a best-effort safety net; the primary save must still
-                // succeed. Surface the failure via structured tracing so the daemon
-                // telemetry (and operators) can see it, rather than swallowing it.
-                tracing::warn!(
-                    target: "scriptor_vault::write",
-                    vault_id,
-                    note_path = %path.as_str(),
-                    error = %error,
-                    "failed to append note history before overwrite; save continues",
-                );
-            }
+            )
+        {
+            // History is a best-effort safety net; the primary save must still
+            // succeed. Surface the failure via structured tracing so the daemon
+            // telemetry (and operators) can see it, rather than swallowing it.
+            tracing::warn!(
+                target: "scriptor_vault::write",
+                vault_id,
+                note_path = %path.as_str(),
+                error = %error,
+                "failed to append note history before overwrite; save continues",
+            );
+        }
     }
 
     atomic_write(&absolute, markdown.as_bytes())?;
@@ -145,12 +142,16 @@ pub fn save_note_with_options(
 }
 
 fn recovery_backup_path(root: &VaultRoot, relative_path: &str) -> std::path::PathBuf {
-    let digest = Sha256::digest(relative_path.as_bytes());
-    let name = format!("{}.md", hex::encode(&digest[..8]));
+    let hash = path_hash(relative_path);
+    let name = format!("{}.md", &hash[..16]);
     root.root().join(".scriptor").join("recovery").join(name)
 }
 
-fn backup_for_recovery(root: &VaultRoot, absolute: &Path, relative_path: &str) -> Result<(), VaultError> {
+fn backup_for_recovery(
+    root: &VaultRoot,
+    absolute: &Path,
+    relative_path: &str,
+) -> Result<(), VaultError> {
     // Read bytes, not a String: a note that is not valid UTF-8 must still be
     // saveable, and the backup must be a faithful copy either way.
     let content = fs::read(absolute).map_err(|source| VaultError::io(absolute, source))?;
@@ -245,8 +246,22 @@ mod tests {
         let dir = tempdir().unwrap();
         let session = open_vault(dir.path()).unwrap();
         let path = RelativeVaultPath::parse("note.md").unwrap();
-        save_note(&session.descriptor.id, &session.root, &path, "# One\n", None).unwrap();
-        save_note(&session.descriptor.id, &session.root, &path, "# Two\n", None).unwrap();
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# One\n",
+            None,
+        )
+        .unwrap();
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Two\n",
+            None,
+        )
+        .unwrap();
         let recovery_dir = dir.path().join(".scriptor/recovery");
         assert!(recovery_dir.exists());
         assert!(fs::read_dir(recovery_dir).unwrap().count() >= 1);
@@ -257,7 +272,14 @@ mod tests {
         let dir = tempdir().unwrap();
         let session = open_vault(dir.path()).unwrap();
         let path = RelativeVaultPath::parse("note.md").unwrap();
-        let first = save_note(&session.descriptor.id, &session.root, &path, "# One\n\nBody\n", None).unwrap();
+        let first = save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# One\n\nBody\n",
+            None,
+        )
+        .unwrap();
         save_note(
             &session.descriptor.id,
             &session.root,
@@ -279,11 +301,55 @@ mod tests {
     }
 
     #[test]
+    fn rollback_save_note_rejects_noncanonical_recovery_backup() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("legacy.md").unwrap();
+        let first = save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Original\n",
+            None,
+        )
+        .unwrap();
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Changed\n",
+            None,
+        )
+        .unwrap();
+
+        let current = recovery_backup_path(&session.root, path.as_str());
+        let noncanonical = current.with_file_name(format!("{}.md", &path_hash(path.as_str())[..8]));
+        fs::rename(&current, &noncanonical).unwrap();
+
+        assert!(
+            rollback_save_note(
+                &session.descriptor.id,
+                &session.root,
+                &path,
+                Some(first.metadata.content_hash.as_str()),
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
     fn rollback_save_note_removes_new_file() {
         let dir = tempdir().unwrap();
         let session = open_vault(dir.path()).unwrap();
         let path = RelativeVaultPath::parse("new.md").unwrap();
-        save_note(&session.descriptor.id, &session.root, &path, "# New\n", None).unwrap();
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# New\n",
+            None,
+        )
+        .unwrap();
         assert!(dir.path().join("new.md").exists());
         rollback_save_note(&session.descriptor.id, &session.root, &path, None).unwrap();
         assert!(!dir.path().join("new.md").exists());

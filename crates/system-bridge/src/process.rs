@@ -159,10 +159,12 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
     configure_process_group(&mut command);
 
     let started = Instant::now();
-    let mut child = command.spawn().map_err(|source| BridgeError::ProcessSpawn {
-        program: resolved.clone(),
-        source,
-    })?;
+    let mut child = command
+        .spawn()
+        .map_err(|source| BridgeError::ProcessSpawn {
+            program: resolved.clone(),
+            source,
+        })?;
     let stdout = child
         .stdout
         .take()
@@ -182,10 +184,13 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
 
     let mut timed_out = false;
     let status = loop {
-        if let Some(status) = child.try_wait().map_err(|source| BridgeError::ProcessWait {
-            program: resolved.clone(),
-            source,
-        })? {
+        if let Some(status) = child
+            .try_wait()
+            .map_err(|source| BridgeError::ProcessWait {
+                program: resolved.clone(),
+                source,
+            })?
+        {
             break status;
         }
         if started.elapsed() >= spec.timeout {
@@ -199,16 +204,18 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         thread::sleep(POLL_INTERVAL);
     };
 
-    let (stdout, stdout_truncated) = stdout_reader
-        .join()
-        .map_err(|_| BridgeError::ProcessPolicy {
-            message: "stdout reader thread panicked".into(),
-        })??;
-    let (stderr, stderr_truncated) = stderr_reader
-        .join()
-        .map_err(|_| BridgeError::ProcessPolicy {
-            message: "stderr reader thread panicked".into(),
-        })??;
+    let (stdout, stdout_truncated) =
+        stdout_reader
+            .join()
+            .map_err(|_| BridgeError::ProcessPolicy {
+                message: "stdout reader thread panicked".into(),
+            })??;
+    let (stderr, stderr_truncated) =
+        stderr_reader
+            .join()
+            .map_err(|_| BridgeError::ProcessPolicy {
+                message: "stderr reader thread panicked".into(),
+            })??;
 
     let receipt = ProcessReceipt {
         program: Path::new(&spec.program).display().to_string(),
@@ -268,7 +275,9 @@ fn resolve_executable(program: &OsStr, current_dir: Option<&Path>) -> Result<Pat
         let candidate = if candidate.is_absolute() {
             candidate
         } else {
-            current_dir.unwrap_or_else(|| Path::new(".")).join(candidate)
+            current_dir
+                .unwrap_or_else(|| Path::new("."))
+                .join(candidate)
         };
         return std::fs::canonicalize(&candidate).map_err(|source| BridgeError::Io {
             path: candidate,
@@ -290,7 +299,10 @@ fn resolve_executable(program: &OsStr, current_dir: Option<&Path>) -> Result<Pat
         }
     }
     Err(BridgeError::ProcessPolicy {
-        message: format!("external executable not found: {}", Path::new(program).display()),
+        message: format!(
+            "external executable not found: {}",
+            Path::new(program).display()
+        ),
     })
 }
 
@@ -301,14 +313,14 @@ fn executable_names(program: &OsStr) -> Vec<OsString> {
         if path.extension().is_some() {
             return vec![program.to_os_string()];
         }
-        return [".exe", ".cmd", ".bat", ".com"]
+        [".exe", ".cmd", ".bat", ".com"]
             .into_iter()
             .map(|extension| {
                 let mut name = program.to_os_string();
                 name.push(extension);
                 name
             })
-            .collect();
+            .collect()
     }
     #[cfg(not(windows))]
     {
@@ -321,7 +333,9 @@ fn read_bounded(mut reader: impl Read, limit: usize) -> Result<(Vec<u8>, bool), 
     let mut buffer = [0u8; 8192];
     let mut truncated = false;
     loop {
-        let read = reader.read(&mut buffer).map_err(|source| BridgeError::ProcessRead { source })?;
+        let read = reader
+            .read(&mut buffer)
+            .map_err(|source| BridgeError::ProcessRead { source })?;
         if read == 0 {
             break;
         }
@@ -416,7 +430,11 @@ fn sandboxed_command(spec: &ProcessSpec, resolved: &Path) -> Result<Command, Bri
             "/proc",
         ]);
         if let Some(current_dir) = spec.current_dir.as_deref() {
-            command.args(["--bind", &current_dir.display().to_string(), &current_dir.display().to_string()]);
+            command.args([
+                "--bind",
+                &current_dir.display().to_string(),
+                &current_dir.display().to_string(),
+            ]);
             command.args(["--chdir", &current_dir.display().to_string()]);
         }
         command.arg("--").arg(resolved).args(&spec.args);
@@ -426,14 +444,20 @@ fn sandboxed_command(spec: &ProcessSpec, resolved: &Path) -> Result<Command, Bri
     #[cfg(target_os = "macos")]
     {
         let sandbox_exec = resolve_executable(OsStr::new("sandbox-exec"), None)?;
-        let current_dir = spec.current_dir.as_deref().unwrap_or_else(|| Path::new("/tmp"));
+        let current_dir = spec
+            .current_dir
+            .as_deref()
+            .unwrap_or_else(|| Path::new("/tmp"));
         let writable_subpath = escape_sandbox_profile_string(current_dir.as_os_str());
         let profile = format!(
             "(version 1) (deny default) (allow process*) (allow file-read*) (allow file-write* (subpath \"{}\")) (deny network*)",
             writable_subpath
         );
         let mut command = Command::new(sandbox_exec);
-        command.args(["-p", &profile]).arg(resolved).args(&spec.args);
+        command
+            .args(["-p", &profile])
+            .arg(resolved)
+            .args(&spec.args);
         return Ok(command);
     }
 
@@ -490,7 +514,10 @@ mod tests {
         let spec = ProcessSpec::new("sh")
             .args(["-c", "sleep 5"])
             .timeout(Duration::from_millis(50));
-        assert!(matches!(run_process(spec), Err(BridgeError::ProcessTimeout { .. })));
+        assert!(matches!(
+            run_process(spec),
+            Err(BridgeError::ProcessTimeout { .. })
+        ));
     }
 
     #[test]

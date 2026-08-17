@@ -1,7 +1,7 @@
 /* First-run onboarding tour */
 
 .onboarding-backdrop {
-  z-index: var(--scriptor-modal-z, 120);
+  z-index: var(--comp-modal-z, 120);
 }
 
 .onboarding-tour {

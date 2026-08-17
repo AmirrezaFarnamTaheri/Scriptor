@@ -1,6 +1,6 @@
 use rusqlite::params;
-use serde::{Deserialize, Serialize};
 use scriptor_vault::VaultSession;
+use serde::{Deserialize, Serialize};
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
@@ -21,7 +21,10 @@ pub struct UnresolvedLinkTarget {
     pub referencing_paths: Vec<String>,
 }
 
-pub fn list_orphan_notes(cache: &IndexCache, session: &VaultSession) -> Result<Vec<KnowledgeNoteSummary>, IndexerError> {
+pub fn list_orphan_notes(
+    cache: &IndexCache,
+    session: &VaultSession,
+) -> Result<Vec<KnowledgeNoteSummary>, IndexerError> {
     let summaries = note_link_summaries(cache, session)?;
     Ok(summaries
         .into_iter()
@@ -29,7 +32,10 @@ pub fn list_orphan_notes(cache: &IndexCache, session: &VaultSession) -> Result<V
         .collect())
 }
 
-pub fn list_dead_end_notes(cache: &IndexCache, session: &VaultSession) -> Result<Vec<KnowledgeNoteSummary>, IndexerError> {
+pub fn list_dead_end_notes(
+    cache: &IndexCache,
+    session: &VaultSession,
+) -> Result<Vec<KnowledgeNoteSummary>, IndexerError> {
     let summaries = note_link_summaries(cache, session)?;
     Ok(summaries
         .into_iter()
@@ -111,7 +117,8 @@ fn note_link_summaries(
             outbound_links: u32::try_from(row.get::<_, i64>(3)?).unwrap_or(u32::MAX),
         })
     })?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(IndexerError::from)
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(IndexerError::from)
 }
 
 #[cfg(test)]
@@ -143,7 +150,13 @@ mod tests {
              FROM notes n WHERE n.vault_id='v' ORDER BY n.path",
         )?;
         let rows = statement
-            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?, row.get::<_, i64>(2)?)))?
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            })?
             .collect::<Result<Vec<_>, _>>()?;
         assert_eq!(rows, vec![("a.md".into(), 0, 1), ("b.md".into(), 1, 0)]);
         Ok(())

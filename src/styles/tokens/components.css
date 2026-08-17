@@ -1,13 +1,130 @@
-/* Scriptor component design tokens — layout, density, and panel chrome */
+/* ============================================================
+ * Scriptor Design Token System — Tier 3: Component Tokens
+ * F-1 of the Seven Clusters program plan.
+ *
+ * RULES (binding):
+ *  - Every value MUST reference a Tier-2 semantic var (or
+ *    another Tier-3 component var if composing).
+ *  - Never use raw values or Tier-1 primitives here.
+ *  - Component tokens are consumed by components; they hold
+ *    no opinion about which semantic shade is "correct" —
+ *    that is the theme's responsibility via Tier-2.
+ * ============================================================ */
 
 :root {
-  --scriptor-shell-sticky-z: 20;
-  --scriptor-modal-z: 120;
-  --scriptor-vault-row-height: 32px;
-  --scriptor-tab-height: 36px;
-  --scriptor-inspector-width: min(360px, 34vw);
-  --scriptor-vault-width: min(320px, 30vw);
-  --scriptor-editor-min-height: 240px;
-  --scriptor-footer-height: 40px;
-  --scriptor-topbar-height: 52px;
+  /* ── Shell chrome ────────────────────────────────────── */
+  --comp-shell-sticky-z:    var(--p-z-sticky);
+  --comp-topbar-height:     52px;
+  --comp-topbar-bg:         var(--color-bg-panel);
+  --comp-topbar-border:     var(--color-border-default);
+  --comp-footer-height:     40px;
+  --comp-footer-bg:         var(--color-bg-panel);
+  --comp-footer-border:     var(--color-border-default);
+
+  /* ── Panels ──────────────────────────────────────────── */
+  --comp-vault-width:         min(320px, 30vw);
+  --comp-vault-bg:            var(--color-bg-panel);
+  --comp-vault-border:        var(--color-border-default);
+  --comp-inspector-width:     min(360px, 34vw);
+  --comp-inspector-bg:        var(--color-bg-panel);
+  --comp-inspector-border:    var(--color-border-default);
+  --comp-vault-row-height:    32px;
+
+  /* ── Editor ──────────────────────────────────────────── */
+  --comp-editor-min-height:  240px;
+  --comp-editor-bg:          var(--color-bg-base);
+  --comp-editor-font:        var(--p-font-mono);
+  --comp-editor-font-size:   var(--text-body);
+  --comp-editor-line-height: var(--p-leading-relaxed);
+  --comp-editor-selection:   var(--color-editor-selection);
+  --comp-editor-cursor:      var(--color-editor-cursor);
+
+  /* ── Tabs ────────────────────────────────────────────── */
+  --comp-tab-height:          36px;
+  --comp-tab-bg:              var(--color-bg-panel);
+  --comp-tab-bg-active:       var(--color-bg-base);
+  --comp-tab-border:          var(--color-border-default);
+  --comp-tab-text:            var(--color-text-secondary);
+  --comp-tab-text-active:     var(--color-text-default);
+  --comp-tab-text-size:       var(--text-small);
+
+  /* ── Command palette ─────────────────────────────────── */
+  --comp-palette-bg:          var(--color-bg-overlay);
+  --comp-palette-border:      var(--color-border-strong);
+  --comp-palette-shadow:      var(--p-shadow-2xl);
+  --comp-palette-radius:      var(--p-radius-xl);
+  --comp-palette-width:       min(640px, 90vw);
+  --comp-palette-max-height:  min(480px, 70vh);
+  --comp-palette-item-height: 36px;
+  --comp-palette-item-hover:  var(--color-bg-hover);
+  --comp-palette-item-active: var(--color-bg-selected);
+
+  /* ── Modals ──────────────────────────────────────────── */
+  --comp-modal-z:             var(--p-z-modal);
+  --comp-modal-bg:            var(--color-bg-raised);
+  --comp-modal-border:        var(--color-border-default);
+  --comp-modal-shadow:        var(--p-shadow-2xl);
+  --comp-modal-radius:        var(--p-radius-2xl);
+  --comp-modal-backdrop:      rgba(0, 0, 0, 0.55);
+
+  /* ── Toasts / notifications ──────────────────────────── */
+  --comp-toast-z:             var(--p-z-toast);
+  --comp-toast-bg:            var(--color-bg-overlay);
+  --comp-toast-border:        var(--color-border-default);
+  --comp-toast-shadow:        var(--p-shadow-lg);
+  --comp-toast-radius:        var(--p-radius-lg);
+  --comp-toast-width:         min(360px, 90vw);
+
+  /* ── Buttons ──────────────────────────────────────────── */
+  --comp-btn-font-size:       var(--text-small);
+  --comp-btn-font-weight:     var(--p-weight-medium);
+  --comp-btn-radius:          var(--p-radius-md);
+  --comp-btn-height-sm:       24px;
+  --comp-btn-height-md:       32px;
+  --comp-btn-height-lg:       40px;
+  --comp-btn-primary-bg:      var(--color-accent-default);
+  --comp-btn-primary-text:    var(--p-color-white);
+  --comp-btn-primary-hover:   var(--color-accent-hover);
+  --comp-btn-ghost-hover:     var(--color-bg-hover);
+  --comp-btn-ghost-text:      var(--color-text-secondary);
+
+  /* ── Inputs ──────────────────────────────────────────── */
+  --comp-input-height:        32px;
+  --comp-input-bg:            var(--color-bg-sunken);
+  --comp-input-border:        var(--color-border-default);
+  --comp-input-border-focus:  var(--color-border-focus);
+  --comp-input-radius:        var(--p-radius-md);
+  --comp-input-font-size:     var(--text-body);
+  --comp-input-placeholder:   var(--color-text-placeholder);
+
+  /* ── Menus / dropdowns ───────────────────────────────── */
+  --comp-menu-bg:             var(--color-bg-overlay);
+  --comp-menu-border:         var(--color-border-default);
+  --comp-menu-shadow:         var(--p-shadow-lg);
+  --comp-menu-radius:         var(--p-radius-lg);
+  --comp-menu-item-height:    28px;
+  --comp-menu-item-hover:     var(--color-bg-hover);
+
+  /* ── Tags / badges ───────────────────────────────────── */
+  --comp-tag-bg:             var(--color-accent-subtle);
+  --comp-tag-text:           var(--color-accent-default);
+  --comp-tag-radius:         var(--p-radius-full);
+  --comp-tag-font-size:      var(--text-tiny);
+  --comp-tag-font-weight:    var(--p-weight-medium);
+
+  /* ── Tooltips ─────────────────────────────────────────── */
+  --comp-tooltip-z:          var(--p-z-tooltip);
+  --comp-tooltip-bg:         var(--color-bg-tooltip);
+  --comp-tooltip-text:       var(--color-text-default);
+  --comp-tooltip-radius:     var(--p-radius-sm);
+  --comp-tooltip-font-size:  var(--text-tiny);
+  --comp-tooltip-shadow:     var(--p-shadow-md);
+
+  /* ── Scrollbars ──────────────────────────────────────── */
+  --comp-scrollbar-width:      4px;
+  --comp-scrollbar-track:      var(--color-scrollbar-track);
+  --comp-scrollbar-thumb:      var(--color-scrollbar-thumb);
+  --comp-scrollbar-thumb-hover: var(--color-scrollbar-thumb-hover);
+  --comp-scrollbar-radius:     var(--p-radius-full);
+
 }

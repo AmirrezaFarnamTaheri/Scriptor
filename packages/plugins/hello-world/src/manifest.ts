@@ -3,7 +3,7 @@ import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 export const helloWorldManifest: PluginManifest = {
   id: 'hello-world',
   name: 'Hello World',
-  version: '0.1.0',
+  version: '1.0.0',
   publisher: 'Example',
   description: 'Minimal example plugin that registers a greeting command.',
   activation: ['manual'],

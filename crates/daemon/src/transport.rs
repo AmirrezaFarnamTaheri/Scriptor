@@ -3,22 +3,22 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use scriptor_ipc::{
-    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, RateLimiter, IpcError, RpcMethod,
-    RpcPayload, RpcRequest, RpcResponse, RpcResult, ServerMessage,
-};
-use scriptor_system_bridge::scriptor_data_dir;
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Name};
+use scriptor_ipc::{
+    IpcError, RateLimiter, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult,
+    ServerMessage, fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame,
+};
+use scriptor_system_bridge::scriptor_data_dir;
 use serde::{Deserialize, Serialize};
 
 use scriptor_export_runner::run_export_job;
 use scriptor_indexer::rebuild_index;
 
-use crate::locks::lock_recover;
 use crate::command_gateway;
 use crate::events::EventHub;
 use crate::handler::DaemonState;
+use crate::locks::lock_recover;
 use crate::watcher::restart_vault_watcher;
 
 const SOCKET_BASENAME: &str = "scriptor-core";
@@ -40,14 +40,16 @@ pub fn default_socket_name() -> Result<String, IpcError> {
     if cfg!(windows) {
         Ok(SOCKET_BASENAME.to_string())
     } else {
-        let data_dir = scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
+        let data_dir =
+            scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
         let socket_path = data_dir.join(format!("{SOCKET_BASENAME}.sock"));
         Ok(socket_path.display().to_string())
     }
 }
 
 pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
-    let data_dir = scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
+    let data_dir =
+        scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
     Ok(data_dir.join(ENDPOINT_FILE))
 }
 
@@ -66,101 +68,78 @@ fn compute_endpoint_hmac(socket_name: &str, pid: u32, nonce: &str) -> Result<Str
 }
 
 fn hmac_sha256_simple(message: &str) -> Result<[u8; 32], IpcError> {
-    use sha2::{Digest, Sha256};
+    use hmac::{Hmac, KeyInit, Mac};
+    use sha2::Sha256;
+
+    type HmacSha256 = Hmac<Sha256>;
 
     let key = endpoint_hmac_key()?;
-    let mut key_bytes = [0u8; 32];
-    let key_src = key.as_bytes();
-    let copy_len = key_src.len().min(32);
-    key_bytes[..copy_len].copy_from_slice(&key_src[..copy_len]);
-
-    let mut ipad = [0x36u8; 64];
-    let mut opad = [0x5cu8; 64];
-    for i in 0..32 {
-        ipad[i] ^= key_bytes[i];
-        opad[i] ^= key_bytes[i];
-    }
-
-    let mut inner = Sha256::new();
-    inner.update(ipad);
-    inner.update(message.as_bytes());
-    let inner_hash = inner.finalize();
-
-    let mut outer = Sha256::new();
-    outer.update(opad);
-    outer.update(inner_hash);
-    let result = outer.finalize();
+    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
+        .map_err(|e| IpcError::Codec(format!("invalid HMAC key length: {e}")))?;
+    mac.update(message.as_bytes());
+    let result = mac.finalize().into_bytes();
 
     let mut out = [0u8; 32];
     out.copy_from_slice(&result);
     Ok(out)
 }
 
-/// Constant-time byte comparison so HMAC verification does not leak match
-/// prefixes through timing. Length mismatch returns early, which only reveals
-/// the length (fixed at 64 hex chars for valid endpoints).
+/// Constant-time HMAC comparison; length mismatch only reveals the fixed endpoint digest length.
 fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    use subtle::ConstantTimeEq;
     if a.len() != b.len() {
         return false;
     }
-    a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+    a.ct_eq(b).into()
 }
 
+#[cfg(not(test))]
+const KEYCHAIN_ACCOUNT: &str = "daemon-endpoint-hmac-key";
+#[cfg(all(debug_assertions, not(test)))]
+const TEST_HMAC_KEY_ENV: &str = "SCRIPTOR_TEST_DAEMON_HMAC_KEY";
+
 fn endpoint_hmac_key() -> Result<String, IpcError> {
-    let data_dir = scriptor_data_dir("scriptor")
-        .map_err(|error| IpcError::Codec(format!("cannot resolve daemon data directory: {error}")))?;
-    let key_path = data_dir.join(".endpoint-hmac-key");
-    match fs::read_to_string(&key_path) {
-        Ok(existing) => {
-            let trimmed = existing.trim().to_string();
-            if trimmed.is_empty() {
-                return Err(IpcError::Codec(format!(
-                    "daemon endpoint HMAC key is empty: {}",
-                    key_path.display()
-                )));
-            }
-            return Ok(trimmed);
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(IpcError::from(error)),
+    #[cfg(test)]
+    {
+        Ok("scriptor-daemon-transport-test-key-0001".to_string())
     }
 
-    fs::create_dir_all(&data_dir).map_err(IpcError::from)?;
+    #[cfg(not(test))]
+    {
+        endpoint_hmac_key_runtime()
+    }
+}
+
+#[cfg(not(test))]
+fn endpoint_hmac_key_runtime() -> Result<String, IpcError> {
+    use scriptor_system_bridge::{keychain_get, keychain_set};
+
+    // Headless debug-only integration tests cannot rely on a desktop secret-service daemon.
+    // Release builds never compile this override and always use the operating-system keychain.
+    #[cfg(debug_assertions)]
+    if let Ok(key) = std::env::var(TEST_HMAC_KEY_ENV)
+        && key.len() >= 32
+    {
+        return Ok(key);
+    }
+
+    // The OS keychain is the sole durable authority for daemon authentication.
+    match keychain_get(KEYCHAIN_ACCOUNT) {
+        Ok(Some(key)) if !key.trim().is_empty() => return Ok(key.trim().to_string()),
+        Ok(_) => {}
+        Err(err) => {
+            return Err(IpcError::Codec(format!(
+                "daemon keychain unavailable: {err}"
+            )));
+        }
+    }
+
+    // Generate and store the current key through the keychain API.
     let nonce = generate_nonce()?;
-
-    #[cfg(unix)]
-    let opened = {
-        use std::os::unix::fs::OpenOptionsExt;
-        let mut opts = fs::OpenOptions::new();
-        opts.write(true).create_new(true).mode(0o600).open(&key_path)
-    };
-    #[cfg(not(unix))]
-    let opened = fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(&key_path);
-
-    match opened {
-        Ok(mut file) => {
-            use std::io::Write;
-            file.write_all(nonce.as_bytes()).map_err(IpcError::from)?;
-            file.sync_all().map_err(IpcError::from)?;
-            Ok(nonce)
-        }
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
-            let existing = fs::read_to_string(&key_path).map_err(IpcError::from)?;
-            let trimmed = existing.trim().to_string();
-            if trimmed.is_empty() {
-                Err(IpcError::Codec(format!(
-                    "daemon endpoint HMAC key is empty after concurrent creation: {}",
-                    key_path.display()
-                )))
-            } else {
-                Ok(trimmed)
-            }
-        }
-        Err(error) => Err(IpcError::from(error)),
-    }
+    keychain_set(KEYCHAIN_ACCOUNT, &nonce).map_err(|err| {
+        IpcError::Codec(format!("cannot store daemon HMAC key in keychain: {err}"))
+    })?;
+    Ok(nonce)
 }
 
 pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
@@ -175,7 +154,8 @@ pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
         nonce: Some(nonce),
         hmac: Some(hmac),
     };
-    let json = serde_json::to_string_pretty(&endpoint).map_err(|error| IpcError::Codec(error.to_string()))?;
+    let json = serde_json::to_string_pretty(&endpoint)
+        .map_err(|error| IpcError::Codec(error.to_string()))?;
 
     let write_result = (|| -> Result<(), IpcError> {
         #[cfg(unix)]
@@ -233,7 +213,9 @@ pub fn read_endpoint() -> Result<DaemonEndpoint, IpcError> {
     };
     let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce)?;
     if !constant_time_eq(hmac.as_bytes(), expected_hmac.as_bytes()) {
-        return Err(IpcError::Codec("endpoint HMAC mismatch; file may be tampered".into()));
+        return Err(IpcError::Codec(
+            "endpoint HMAC mismatch; file may be tampered".into(),
+        ));
     }
 
     Ok(endpoint)
@@ -368,12 +350,7 @@ fn connect_authenticated_client_inner(
             Ok(stream) => return Ok((stream, endpoint)),
             Err(error) if retryable_connect_error(&error) => {
                 on_socket_retry(&endpoint);
-                wait_for_retry(
-                    start,
-                    retry_budget,
-                    retry_interval,
-                    IpcError::from(error),
-                )?;
+                wait_for_retry(start, retry_budget, retry_interval, IpcError::from(error))?;
             }
             Err(error) => return Err(IpcError::from(error)),
         }
@@ -411,9 +388,10 @@ impl Drop for ConnectionSlot {
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
     if !cfg!(windows)
-        && let Some(parent) = Path::new(&resolved).parent() {
-            fs::create_dir_all(parent).map_err(IpcError::from)?;
-        }
+        && let Some(parent) = Path::new(&resolved).parent()
+    {
+        fs::create_dir_all(parent).map_err(IpcError::from)?;
+    }
     let name = resolve_name(&resolved)?;
     let listener = ListenerOptions::new()
         .name(name.borrow())
@@ -487,16 +465,17 @@ pub fn handle_connection(
     let mut limiter = RateLimiter::per_second(MAX_RPC_PER_CONNECTION_PER_SEC);
 
     const MAX_EVENTS_PER_DRAIN: usize = 32;
-    let drain_events = |stream: &mut LocalSocketStream,
-                        event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
-        for _ in 0..MAX_EVENTS_PER_DRAIN {
-            let Ok(event) = event_rx.try_recv() else {
-                break;
-            };
-            write_frame(stream, &ServerMessage::Event(event))?;
-        }
-        Ok::<(), IpcError>(())
-    };
+    let drain_events =
+        |stream: &mut LocalSocketStream,
+         event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
+            for _ in 0..MAX_EVENTS_PER_DRAIN {
+                let Ok(event) = event_rx.try_recv() else {
+                    break;
+                };
+                write_frame(stream, &ServerMessage::Event(event))?;
+            }
+            Ok::<(), IpcError>(())
+        };
 
     loop {
         drain_events(&mut stream, &event_rx)?;
@@ -555,6 +534,16 @@ fn dispatch_request(
     event_hub: &Arc<EventHub>,
 ) -> RpcResponse {
     let id = request.id;
+    // Outside-lock work (notably synchronous export) must pass the same vault
+    // authority check before it prepares a job or releases the daemon lock.
+    if let Err(error) =
+        crate::capabilities::enforce(&lock_recover(state).plugin_state, &request.method)
+    {
+        return RpcResponse {
+            id,
+            result: RpcResult::Error(error),
+        };
+    }
     let response = match request.method {
         RpcMethod::Invoke {
             command,
@@ -568,14 +557,17 @@ fn dispatch_request(
         RpcMethod::RebuildIndex => dispatch_rebuild_sync(state, id),
         RpcMethod::OpenVault { .. } => {
             let response = lock_recover(state).handle(request);
-            if matches!(response.result, RpcResult::Ok(RpcPayload::VaultOpened { .. }))
-                && let Err(error) = restart_vault_watcher(state) {
-                    tracing::warn!(
-                        target: "scriptor_daemon::transport",
-                        %error,
-                        "vault watcher failed to restart after OpenVault",
-                    );
-                }
+            if matches!(
+                response.result,
+                RpcResult::Ok(RpcPayload::VaultOpened { .. })
+            ) && let Err(error) = restart_vault_watcher(state)
+            {
+                tracing::warn!(
+                    target: "scriptor_daemon::transport",
+                    %error,
+                    "vault watcher failed to restart after OpenVault",
+                );
+            }
             response
         }
         _ => lock_recover(state).handle(request),
@@ -614,7 +606,9 @@ fn dispatch_invoke_outside_lock(
             match input {
                 Ok(input) => run_export_job(input)
                     .map_err(|error| error.to_string())
-                    .and_then(|output| serde_json::to_string(&output).map_err(|error| error.to_string())),
+                    .and_then(|output| {
+                        serde_json::to_string(&output).map_err(|error| error.to_string())
+                    }),
                 Err(error) => Err(error),
             }
         }
@@ -627,16 +621,16 @@ fn dispatch_invoke_outside_lock(
                     None => {
                         return RpcResponse {
                             id,
-                            result: RpcResult::Err(
-                                "no vault is open; call OpenVault first".into(),
-                            ),
+                            result: RpcResult::Err("no vault is open; call OpenVault first".into()),
                         };
                     }
                 }
             };
             rebuild_index(&session, &[])
                 .map_err(|error| error.to_string())
-                .and_then(|summary| serde_json::to_string(&summary).map_err(|error| error.to_string()))
+                .and_then(|summary| {
+                    serde_json::to_string(&summary).map_err(|error| error.to_string())
+                })
         }
         "vault_open" => match require_invoke_str(&payload, "root_path") {
             Ok(root_path) => {
@@ -644,10 +638,12 @@ fn dispatch_invoke_outside_lock(
                     let mut guard = lock_recover(state);
                     match guard.open_vault_invoke(root_path) {
                         Ok(output) => output,
-                        Err(error) => return RpcResponse {
-                            id,
-                            result: RpcResult::Err(error),
-                        },
+                        Err(error) => {
+                            return RpcResponse {
+                                id,
+                                result: RpcResult::Err(error),
+                            };
+                        }
                     }
                 };
                 if let Err(error) = restart_vault_watcher(state) {
@@ -660,7 +656,7 @@ fn dispatch_invoke_outside_lock(
                 serde_json::to_string(&output).map_err(|error| error.to_string())
             }
             Err(error) => Err(error),
-        }
+        },
         other => Err(format!("unsupported outside-lock invoke command: {other}")),
     };
 
@@ -684,18 +680,23 @@ fn require_invoke_str(payload: &serde_json::Value, key: &str) -> Result<String, 
         .ok_or_else(|| format!("missing or invalid string field: {key}"))
 }
 
-fn dispatch_export_sync(state: &Arc<Mutex<DaemonState>>, id: u64, method: &RpcMethod) -> RpcResponse {
-    let prepared = lock_recover(state)
-        .prepare_export_input(method);
+fn dispatch_export_sync(
+    state: &Arc<Mutex<DaemonState>>,
+    id: u64,
+    method: &RpcMethod,
+) -> RpcResponse {
+    let prepared = lock_recover(state).prepare_export_input(method);
     let result = match prepared {
         Ok(input) => match run_export_job(input) {
             Ok(output) => {
                 let json = match serde_json::to_string(&output) {
                     Ok(json) => json,
-                    Err(error) => return RpcResponse {
-                        id,
-                        result: RpcResult::Err(error.to_string()),
-                    },
+                    Err(error) => {
+                        return RpcResponse {
+                            id,
+                            result: RpcResult::Err(error.to_string()),
+                        };
+                    }
                 };
                 RpcResult::Ok(RpcPayload::ExportResult { json })
             }

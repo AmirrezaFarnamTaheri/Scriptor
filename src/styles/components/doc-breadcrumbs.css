@@ -1,0 +1,61 @@
+/* ===== Document Breadcrumbs ===== */
+
+.doc-breadcrumbs {
+  align-items: center;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--text-xs);
+  gap: 0;
+  min-height: 1.75rem;
+  overflow: hidden;
+  padding: 0 var(--space-4);
+}
+
+.doc-breadcrumbs__item {
+  align-items: center;
+  display: flex;
+}
+
+.doc-breadcrumbs__sep {
+  color: var(--muted);
+  margin: 0 var(--space-1);
+  user-select: none;
+}
+
+.doc-breadcrumbs__crumb {
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  max-width: 200px;
+  overflow: hidden;
+  padding: var(--space-1) var(--space-1);
+  text-overflow: ellipsis;
+  transition: color var(--ease-fast), background var(--ease-fast);
+  white-space: nowrap;
+}
+
+.doc-breadcrumbs__crumb:last-of-type {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.doc-breadcrumbs__crumb:hover {
+  background: var(--surface-hover);
+  color: var(--accent);
+}
+
+.doc-breadcrumbs__crumb:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-breadcrumbs__crumb {
+    transition: none;
+  }
+}

@@ -15,13 +15,19 @@ pub struct RecentNoteEntry {
     pub opened_at: String,
 }
 
-pub fn list_recent_notes(root: &VaultRoot, limit: usize) -> Result<Vec<RecentNoteEntry>, VaultError> {
+pub fn list_recent_notes(
+    root: &VaultRoot,
+    limit: usize,
+) -> Result<Vec<RecentNoteEntry>, VaultError> {
     let entries = read_recent_file(root)?;
     let capped = limit.min(MAX_RECENT);
     Ok(entries.into_iter().take(capped).collect())
 }
 
-pub fn record_recent_note(root: &VaultRoot, path: &str) -> Result<Vec<RecentNoteEntry>, VaultError> {
+pub fn record_recent_note(
+    root: &VaultRoot,
+    path: &str,
+) -> Result<Vec<RecentNoteEntry>, VaultError> {
     let mut entries = read_recent_file(root)?;
     entries.retain(|entry| entry.path != path);
     entries.insert(

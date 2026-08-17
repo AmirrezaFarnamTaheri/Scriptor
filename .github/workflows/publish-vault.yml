@@ -1,12 +1,12 @@
 name: Publish Vault
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'packages/test-fixtures/vaults/minimal/**'
-      - 'scripts/ci/**'
-      - '.github/workflows/publish-vault.yml'
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type PUBLISH to deploy the reviewed vault artifact
+        required: true
+        type: string
 
 concurrency:
   group: publish-vault-${{ github.ref }}
@@ -52,6 +52,11 @@ jobs:
           rustup default 1.96.0
           rustc --version
           cargo --version
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
 
       - name: Describe vault publication scope
         shell: pwsh
@@ -100,7 +105,9 @@ jobs:
       - name: Finalize vault export evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Vault export and Pages artifact packaging" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Vault export and Pages artifact packaging" -Status $env:JOB_STATUS
 
       - name: Upload vault export evidence
         if: always()
@@ -116,7 +123,7 @@ jobs:
     needs: export-and-deploy
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    if: github.ref == 'refs/heads/main'
+    if: inputs.confirmation == 'PUBLISH'
     permissions:
       contents: read
       pages: write
@@ -167,7 +174,9 @@ jobs:
       - name: Finalize Pages deployment evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Pages deployment" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "GitHub Pages deployment" -Status $env:JOB_STATUS
 
       - name: Upload Pages deployment evidence
         if: always()

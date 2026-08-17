@@ -27,7 +27,10 @@ fn resolve_history_path(root: &VaultRoot, relative_path: &str) -> Result<PathBuf
     root.resolve_relative(&relative)
 }
 
-pub fn read_stats_history(root: &VaultRoot, relative_path: &str) -> Result<Vec<StatsHistoryEntry>, VaultError> {
+pub fn read_stats_history(
+    root: &VaultRoot,
+    relative_path: &str,
+) -> Result<Vec<StatsHistoryEntry>, VaultError> {
     let absolute = resolve_history_path(root, relative_path)?;
     if !absolute.exists() {
         return Ok(Vec::new());
@@ -98,7 +101,12 @@ mod tests {
         let victim = outside.path().join("victim.txt");
         std::fs::write(&victim, "do not clobber").unwrap();
 
-        for hostile in ["../victim.txt", "../../etc/passwd", "/etc/passwd", "a/../../b"] {
+        for hostile in [
+            "../victim.txt",
+            "../../etc/passwd",
+            "/etc/passwd",
+            "a/../../b",
+        ] {
             let entry = StatsHistoryEntry {
                 date: "2026-07-26".into(),
                 words: 1,

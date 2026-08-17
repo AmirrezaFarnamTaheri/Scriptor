@@ -3,6 +3,7 @@ import { MoonStar, Power, X } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { usePluginState } from '../context/PluginStateContext.tsx'
 import { loadVaultPresetJson, saveVaultPresetJson, VAULT_GRAPH_PRESETS_PATH } from '../lib/vaultPresets'
 import type { GraphQueryOutput } from '../types/vault'
 import { GraphCanvas, type CanvasNode } from './GraphCanvas'
@@ -41,7 +42,6 @@ function loadGraphPresets(): GraphPreset[] {
     schemaVersion: 1,
     fallback: defaultGraphPresets(),
     validate: validateGraphPresets,
-    migrate: validateGraphPresets,
   })
 }
 
@@ -96,6 +96,7 @@ export function GraphPanel({
   onToggleHibernate,
 }: GraphPanelProps) {
   const { t } = useI18n()
+  const { isPluginEnabled } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
@@ -107,6 +108,8 @@ export function GraphPanel({
     layout: CanvasNode[] | null
   } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
+
+  const isGraphEnabled = isPluginEnabled('scriptor.graph')
 
   useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true })
@@ -121,7 +124,7 @@ export function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
-    if (!graph || hibernated) return
+    if (!graph || hibernated || !isGraphEnabled) return
     const requestedGraph = graph
     const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = (event: MessageEvent) => {
@@ -141,7 +144,7 @@ export function GraphPanel({
       height: VIEW_HEIGHT,
     })
     return () => worker.terminate()
-  }, [graph, hibernated])
+  }, [graph, hibernated, isGraphEnabled])
 
   const workerLayout = !hibernated && workerState?.graph === graph ? workerState.layout : null
   const workerLoading = Boolean(graph && !hibernated && workerState?.graph !== graph)
@@ -234,6 +237,20 @@ export function GraphPanel({
     },
     [focusedNodeId, layout, adjacency, nodeById, announce, onSelectNode, onClose],
   )
+
+  if (!isGraphEnabled) {
+    return (
+      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+        <header className="graph-header">
+          <h2>{t('graph.title')}</h2>
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
+            <X aria-hidden="true" />
+          </button>
+        </header>
+        <p className="empty-state" role="alert">Graph is disabled for this vault.</p>
+      </div>
+    )
+  }
 
   if (hibernated) {
     return (

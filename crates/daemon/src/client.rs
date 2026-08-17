@@ -8,8 +8,8 @@ use std::time::{Duration, Instant};
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{GenericFilePath, GenericNamespaced};
 use scriptor_ipc::{
-    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame, IpcError, RpcEvent,
-    RpcEventPayload, RpcMethod, RpcRequest, RpcResponse, ServerMessage,
+    IpcError, RpcEvent, RpcEventPayload, RpcMethod, RpcRequest, RpcResponse, ServerMessage,
+    fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame,
 };
 
 use crate::locks::lock_recover;
@@ -147,7 +147,11 @@ fn connect_client_with_timeout(
     let stream = loop {
         match LocalSocketStream::connect(name.clone()) {
             Ok(s) => break s,
-            Err(e) if e.kind() == io::ErrorKind::NotFound || e.kind() == io::ErrorKind::WouldBlock || e.kind() == io::ErrorKind::ConnectionRefused => {
+            Err(e)
+                if e.kind() == io::ErrorKind::NotFound
+                    || e.kind() == io::ErrorKind::WouldBlock
+                    || e.kind() == io::ErrorKind::ConnectionRefused =>
+            {
                 if start.elapsed() >= retry_budget {
                     return Err(IpcError::Io(e));
                 }
@@ -345,12 +349,14 @@ impl ClientInner {
 
         let mut guard = lock_recover(&self.stream);
         if guard.is_none() {
-            let remaining = deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
-                IpcError::Io(io::Error::new(
-                    io::ErrorKind::TimedOut,
-                    "RPC connection deadline exceeded",
-                ))
-            })?;
+            let remaining = deadline
+                .checked_duration_since(Instant::now())
+                .ok_or_else(|| {
+                    IpcError::Io(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "RPC connection deadline exceeded",
+                    ))
+                })?;
             if remaining.is_zero() {
                 return Err(IpcError::Io(io::Error::new(
                     io::ErrorKind::TimedOut,
@@ -441,12 +447,14 @@ impl ClientInner {
         deadline: Instant,
         timeout: Duration,
     ) -> Result<RpcResponse, IpcError> {
-        let remaining = deadline.checked_duration_since(Instant::now()).ok_or_else(|| {
-            IpcError::Io(io::Error::new(
-                io::ErrorKind::TimedOut,
-                "RPC I/O deadline exceeded",
-            ))
-        })?;
+        let remaining = deadline
+            .checked_duration_since(Instant::now())
+            .ok_or_else(|| {
+                IpcError::Io(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "RPC I/O deadline exceeded",
+                ))
+            })?;
         if remaining.is_zero() {
             return Err(IpcError::Io(io::Error::new(
                 io::ErrorKind::TimedOut,
@@ -654,10 +662,7 @@ mod tests {
     fn zero_duration_call_is_rejected_before_connecting() {
         let client = DaemonRpcClient::new();
         let error = client
-            .call_with_timeout(
-                RpcRequest::new(1, RpcMethod::Ping),
-                Duration::ZERO,
-            )
+            .call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), Duration::ZERO)
             .expect_err("zero timeout must fail");
         assert!(is_read_timeout(&error));
     }

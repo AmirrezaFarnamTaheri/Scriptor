@@ -192,6 +192,26 @@ export interface DailyNotePlan {
   markdown: string
 }
 
+/** A named, persisted snapshot of graph filter state. */
+export interface SavedGraphView {
+  /** Unique ID (nanoid). */
+  id: string
+  /** Display name shown in the saved views list. */
+  name: string
+  /** ISO timestamp when the view was saved. */
+  created_at: string
+  /** Filter: tag prefix constraints (ANDed). */
+  tags?: string[]
+  /** Filter: focus path (start node). */
+  focus_path?: string | null
+  /** Filter: graph depth. */
+  depth?: number
+  /** Filter: only show notes modified within this many days. */
+  modified_within_days?: number | null
+  /** Filter: only show cluster IDs. */
+  cluster_ids?: string[]
+}
+
 export interface VaultConfig {
   daily_note: {
     directory: string
@@ -229,6 +249,92 @@ export interface VaultConfig {
   mcp?: {
     mode: 'off' | 'read-only' | 'draft' | 'write-approved'
     disabled?: boolean
+  }
+  saved_views?: SavedGraphView[]
+  /** LaTeX / Tectonic compile settings */
+  latex?: {
+    enabled: boolean
+    /** Path to tectonic binary; null = auto-discover from PATH */
+    tectonic_path: string | null
+    /** Output directory for compiled PDFs, relative to vault root */
+    output_directory: string
+    /** Extra tectonic flags e.g. ["--keep-logs"] */
+    extra_flags: string[]
+    /** Auto-compile on save for .tex files */
+    compile_on_save: boolean
+  }
+  /** Google Calendar & Tasks sync */
+  calendar_sync?: {
+    enabled: boolean
+    /** Google OAuth2 client ID (public; secret stored in OS keychain) */
+    google_client_id: string | null
+    /** Primary calendar ID to sync with; null = primary calendar */
+    google_calendar_id: string | null
+    /** Which task list to sync; null = @default */
+    google_task_list_id: string | null
+    /** Max days ahead to fetch events */
+    lookahead_days: number
+    /** Show events as tasks in the task panel */
+    show_events_in_tasks: boolean
+    /** Auto-extract vault tasks and push to Google Tasks */
+    push_vault_tasks: boolean
+    /** Inbox note path for quick-captured events */
+    capture_note_path: string | null
+  }
+  /** Autosuggest / autocomplete tuning */
+  autosuggest?: {
+    enabled: boolean
+    /** Minimum characters before suggestions fire */
+    min_chars: number
+    /** Max suggestions shown */
+    max_results: number
+    /** Include suggestions from all vault notes (cross-document) */
+    cross_document: boolean
+    /** Include wiki-link targets as suggestions */
+    wikilinks: boolean
+    /** Include tags as suggestions */
+    tags: boolean
+    /** Include headings as suggestions */
+    headings: boolean
+    /** Debounce delay in ms */
+    debounce_ms: number
+  }
+  /** User-defined callout/admonition types */
+  custom_callouts?: Array<{
+    id: string
+    label: string
+    accent_color: string
+    icon?: string
+    description?: string
+  }>
+  /** Reading list metadata (statuses stored in note frontmatter via this index) */
+  reading_list?: {
+    enabled: boolean
+    /** Frontmatter key used for reading status */
+    status_key: string
+  }
+  /** Accessibility preferences */
+  accessibility?: {
+    reduced_motion: boolean
+    high_contrast: boolean
+    /** Font size scale factor (1.0 = default) */
+    font_scale: number
+    /** Enable ARIA live regions for editor events */
+    live_regions: boolean
+    /** Focus outline style */
+    focus_outline: 'default' | 'strong' | 'custom'
+    /** Custom focus outline color (CSS value) */
+    focus_outline_color?: string
+  }
+  /** Feature flags: modules that can be enabled/disabled per-vault */
+  features?: {
+    latex: boolean
+    calendar: boolean
+    reading_list: boolean
+    relationship_matrix: boolean
+    automation_recorder: boolean
+    link_decay: boolean
+    footnote_manager: boolean
   }
 }
 
@@ -371,4 +477,45 @@ export interface GitPullOutput {
 
 export interface GitPushOutput {
   message: string
+}
+
+// ── Publish plan types (W1-6 / W1-7) ────────────────────────────────────────
+
+/** A single note eligible for publishing. Mirrors Rust `PublishCandidate`. */
+export interface PublishCandidate {
+  /** Vault-relative POSIX path (forward slashes, no leading slash). */
+  rel_path: string
+  /** SHA-256 hex of the note's raw bytes at planning time. */
+  content_hash: string
+}
+
+/**
+ * Four-bucket publish diff. Mirrors Rust `PublishPlan`.
+ * Returned by `plan_publish_cmd` before any write occurs.
+ */
+export interface PublishPlan {
+  /** Present in vault, absent from bucket → will be uploaded. */
+  new_items: PublishCandidate[]
+  /** Present in both, hash differs → will be updated. */
+  changed: PublishCandidate[]
+  /** Present in both, hash identical → no action. */
+  unchanged: PublishCandidate[]
+  /** Present in bucket but absent from vault → candidate for deletion. */
+  orphaned: string[]
+}
+
+/**
+ * Request to apply a previously reviewed publish plan.
+ * The user must have seen the plan before this is issued.
+ */
+export interface PublishApplyInput {
+  /** Absolute path to the vault root. */
+  vault_root: string
+  /** The plan the user reviewed and approved. */
+  plan: PublishPlan
+  /**
+   * Orphaned paths the user explicitly checked for deletion.
+   * Empty means "leave orphans in place".
+   */
+  delete_orphans: string[]
 }

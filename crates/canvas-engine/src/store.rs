@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::CanvasError;
-use crate::scene::{document_to_json, parse_document_json, CanvasDocument};
+use crate::scene::{CanvasDocument, document_to_json, parse_document_json};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +28,8 @@ pub fn save_document(vault_root: &Path, document: &CanvasDocument) -> Result<Pat
     })?;
 
     let path = dir.join(board_file_name(&document.id)?);
-    let json = document_to_json(document).map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
+    let json = document_to_json(document)
+        .map_err(|error| CanvasError::InvalidDocument(error.to_string()))?;
     scriptor_vault::atomic_write(&path, json.as_bytes()).map_err(|error| CanvasError::IoWrite {
         path: path.clone(),
         source: std::io::Error::other(error.to_string()),
@@ -39,15 +40,6 @@ pub fn save_document(vault_root: &Path, document: &CanvasDocument) -> Result<Pat
 pub fn load_document(vault_root: &Path, canvas_id: &str) -> Result<CanvasDocument, CanvasError> {
     let dir = canvas_boards_dir(vault_root);
     let path = dir.join(board_file_name(canvas_id)?);
-    // Boards saved by an older build used the lossy `sanitize_id` name. Resolve
-    // it when the canonical name is absent so nothing already on disk is
-    // orphaned by the encoding change.
-    let path = if path.exists() {
-        path
-    } else {
-        let legacy = dir.join(format!("{}.canvas.json", legacy_sanitize_id(canvas_id)));
-        if legacy.exists() { legacy } else { path }
-    };
     let raw = fs::read_to_string(&path).map_err(|source| CanvasError::IoRead { path, source })?;
     parse_document_json(&raw).map_err(|error| CanvasError::InvalidDocument(error.to_string()))
 }
@@ -156,20 +148,6 @@ fn encode_id(canvas_id: &str) -> Result<String, CanvasError> {
     Ok(encoded)
 }
 
-/// The historical, lossy mapping. Kept only to resolve boards that were saved
-/// before the encoding above landed.
-fn legacy_sanitize_id(id: &str) -> String {
-    id.chars()
-        .map(|ch| {
-            if ch.is_ascii_alphanumeric() || ch == '-' || ch == '_' {
-                ch
-            } else {
-                '-'
-            }
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,7 +155,8 @@ mod tests {
 
     #[test]
     fn round_trip_save_and_load() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-store-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-store-{}", uuid::Uuid::new_v4()));
         let _ = fs::remove_dir_all(&temp);
         fs::create_dir_all(&temp).expect("temp");
 
@@ -196,17 +175,12 @@ mod tests {
     }
 
     #[test]
-    fn plain_ids_keep_their_historical_file_name() {
-        // Backward compatibility: UUIDs and slugs must not be re-encoded.
+    fn plain_ids_use_canonical_file_names() {
         assert_eq!(
             board_file_name("2f7c9b3a-0e1d-4a55-9d2a-6b1c8e4f0a11").unwrap(),
             "2f7c9b3a-0e1d-4a55-9d2a-6b1c8e4f0a11.canvas.json"
         );
         assert_eq!(board_file_name("my-board").unwrap(), "my-board.canvas.json");
-        assert_eq!(
-            board_file_name("my-board").unwrap(),
-            format!("{}.canvas.json", legacy_sanitize_id("my-board"))
-        );
     }
 
     #[test]
@@ -221,7 +195,11 @@ mod tests {
         let mut unique = names.clone();
         unique.sort();
         unique.dedup();
-        assert_eq!(unique.len(), names.len(), "encoding must be injective: {names:?}");
+        assert_eq!(
+            unique.len(),
+            names.len(),
+            "encoding must be injective: {names:?}"
+        );
     }
 
     #[test]
@@ -243,13 +221,17 @@ mod tests {
 
     #[test]
     fn similar_ids_do_not_overwrite_each_other() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-collide-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-collide-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&temp).expect("temp");
 
         save_document(&temp, &document_with_id("my board", "Spaced")).expect("save spaced");
         save_document(&temp, &document_with_id("my-board", "Hyphenated")).expect("save hyphenated");
 
-        assert_eq!(load_document(&temp, "my board").expect("load").title, "Spaced");
+        assert_eq!(
+            load_document(&temp, "my board").expect("load").title,
+            "Spaced"
+        );
         assert_eq!(
             load_document(&temp, "my-board").expect("load").title,
             "Hyphenated"
@@ -259,24 +241,27 @@ mod tests {
     }
 
     #[test]
-    fn legacy_file_name_still_loads() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-legacy-{}", uuid::Uuid::new_v4()));
+    fn noncanonical_file_name_is_rejected() {
+        let temp = std::env::temp_dir().join(format!(
+            "scriptor-canvas-canonical-{}",
+            uuid::Uuid::new_v4()
+        ));
         let dir = canvas_boards_dir(&temp);
         fs::create_dir_all(&dir).expect("temp");
 
-        // Simulate a board written by the old lossy scheme.
         let document = document_with_id("my board", "Legacy");
         let json = document_to_json(&document).expect("json");
-        fs::write(dir.join("my-board.canvas.json"), json).expect("write legacy");
+        fs::write(dir.join("my-board.canvas.json"), json).expect("write noncanonical");
 
-        assert_eq!(load_document(&temp, "my board").expect("load").title, "Legacy");
+        assert!(load_document(&temp, "my board").is_err());
 
         let _ = fs::remove_dir_all(&temp);
     }
 
     #[test]
     fn corrupt_board_is_skipped_not_fatal() {
-        let temp = std::env::temp_dir().join(format!("scriptor-canvas-corrupt-{}", uuid::Uuid::new_v4()));
+        let temp =
+            std::env::temp_dir().join(format!("scriptor-canvas-corrupt-{}", uuid::Uuid::new_v4()));
         fs::create_dir_all(&temp).expect("temp");
         save_document(&temp, &document_with_id("good-board", "Good")).expect("save");
         fs::write(

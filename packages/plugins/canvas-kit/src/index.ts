@@ -5,7 +5,7 @@ import { canvasTemplateCatalog } from '@scriptor/canvas'
 export const canvasKitManifest: PluginManifest = {
   id: 'scriptor.canvas-kit',
   name: 'Canvas Kit',
-  version: '0.1.0',
+  version: '1.0.0',
   publisher: 'Scriptor',
   description: 'Built-in canvas templates and board tools.',
   activation: ['on-startup'],

@@ -10,23 +10,79 @@ import type { AppTheme } from '../hooks/useAppTheme'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useVaultBackup } from '../hooks/useVaultBackup'
-import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
+import type {
+  WorkspaceChromePrefs,
+} from '../hooks/useWorkspaceChrome'
 import {
   DEFAULT_WORKSPACE_LAYOUTS,
   type WorkspaceLayout,
 } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
-import { EDITOR_FONT_FAMILIES } from '../brand/support'
+import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { PandocDiscovery, VaultConfig } from '../types/vault'
 import type { SystemInfoSnapshot } from '../types/system'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { VaultConfigSettingsSection } from './VaultConfigSettingsSection'
+import { AppearanceSettingsSection } from './AppearanceSettingsSection'
 import { AiProviderSettings } from './AiProviderSettings'
 import { DaemonOpsPanel } from './DaemonOpsPanel'
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { VaultBackupSettings } from './VaultBackupSettings'
-import { SUPPORTED_LOCALES } from '@scriptor/editor'
+import { SUPPORTED_LOCALES } from '@scriptor/editor/pure'
+
+function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): boolean {
+  if (!a) return false
+  return (
+    a.splitPreview === b.splitPreview &&
+    a.showStickies === b.showStickies &&
+    a.graphDepth === b.graphDepth &&
+    a.distractionFree === b.distractionFree
+  )
+}
+
+/**
+ * Layout template gallery. Applying a preset routes through the existing
+ * workspace-layout save path, so no new persistence surface is introduced.
+ */
+function LayoutPresetGallery({
+  current,
+  onApply,
+}: {
+  current: WorkspaceLayout | undefined
+  onApply: (preset: LayoutPreset) => void
+}) {
+  return (
+    <div className="settings-layout-presets">
+      <h4 className="settings-subheading">Layout templates</h4>
+      <p className="health-subtitle">
+        Apply a template to reconfigure this mode&apos;s split preview, stickies, and graph depth in one click.
+      </p>
+      <ul className="layout-preset-list">
+        {LAYOUT_PRESETS.map((preset) => {
+          const active = matchesLayout(current, preset.layout)
+          return (
+            <li key={preset.id} className="layout-preset-item">
+              <div className="layout-preset-copy">
+                <strong>{preset.name}</strong>
+                <span className="health-subtitle">{preset.description}</span>
+              </div>
+              <button
+                type="button"
+                className="toolbar-button"
+                aria-label={`Apply ${preset.name} layout template`}
+                aria-pressed={active}
+                onClick={() => onApply(preset)}
+              >
+                {active ? 'Active' : 'Apply'}
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
 
 interface SettingsPanelProps {
   vaultOpen: boolean
@@ -376,135 +432,23 @@ export function SettingsPanel({
               <button type="button" className="toolbar-button" onClick={() => onResetWorkspaceLayout(workspaceMode)}>
                 Reset {workspaceMode} layout
               </button>
+              <LayoutPresetGallery
+                current={workspaceLayouts[workspaceMode]}
+                onApply={(preset) => onSaveWorkspaceLayout(workspaceMode, preset.layout)}
+              />
             </>
           ) : null}
         </div>
 
         {workspaceChrome && onPatchWorkspaceChrome ? (
-          <div className="settings-section">
-            <h3>Appearance &amp; layout</h3>
-            {onThemeChange ? (
-              <label className="settings-field">
-                <span>Color theme</span>
-                <select
-                  value={theme}
-                  onChange={(event) => onThemeChange(event.target.value as AppTheme)}
-                >
-                  <option value="light">Light</option>
-                  <option value="dark">Dark</option>
-                  <option value="high-contrast">High contrast</option>
-                </select>
-              </label>
-            ) : null}
-            {onReplayOnboarding ? (
-              <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
-                Replay product tour
-              </button>
-            ) : null}
-            <p className="health-subtitle">Fine-tune sidebars, toolbars, typography, and panel stats.</p>
-            <div className="settings-grid settings-toggles">
-              {(
-                [
-                  ['showFormatToolbar', 'Show format toolbar'],
-                  ['showEditorAssist', 'Show editor assist chips'],
-                  ['showEditorStatus', 'Show editor status bar'],
-                  ['showInspectorHealth', 'Show inspector note health'],
-                  ['showWorkspaceFooter', 'Show workspace footer dock'],
-                  ['showLineNumbers', 'Show line numbers'],
-                  ['vaultSidebarCollapsed', 'Collapse vault sidebar'],
-                  ['inspectorCollapsed', 'Collapse inspector'],
-                  ['layoutLocked', 'Lock Workspace Layout'],
-                ] as const
-              ).map(([key, label]) => (
-                <label className="diagnostics-opt-in" key={key}>
-                  <input
-                    type="checkbox"
-                    checked={workspaceChrome[key]}
-                    onChange={(event) => onPatchWorkspaceChrome({ [key]: event.target.checked })}
-                  />
-                  <span>{label}</span>
-                </label>
-              ))}
-            </div>
-            <label className="settings-field">
-              Editor font size (px)
-              <input
-                type="number"
-                min={11}
-                max={24}
-                value={workspaceChrome.editorFontSize}
-                onChange={(event) => onPatchWorkspaceChrome({ editorFontSize: Number(event.target.value) })}
-              />
-            </label>
-            <label className="settings-field">
-              Editor font family
-              <select
-                value={workspaceChrome.editorFontFamily}
-                onChange={(event) =>
-                  onPatchWorkspaceChrome({
-                    editorFontFamily: event.target.value as WorkspaceChromePrefs['editorFontFamily'],
-                  })
-                }
-              >
-                {EDITOR_FONT_FAMILIES.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="settings-field">
-              Editor line height
-              <input
-                type="number"
-                min={1.2}
-                max={2.2}
-                step={0.05}
-                value={workspaceChrome.editorLineHeight}
-                onChange={(event) => onPatchWorkspaceChrome({ editorLineHeight: Number(event.target.value) })}
-              />
-            </label>
-            <label className="settings-field">
-              Editor padding (px)
-              <input
-                type="number"
-                min={0}
-                max={48}
-                value={workspaceChrome.editorPaddingPx}
-                onChange={(event) => onPatchWorkspaceChrome({ editorPaddingPx: Number(event.target.value) })}
-              />
-            </label>
-            <label className="settings-field">
-              Preview max width (ch)
-              <input
-                type="number"
-                min={48}
-                max={120}
-                value={workspaceChrome.previewMaxWidthCh}
-                onChange={(event) => onPatchWorkspaceChrome({ previewMaxWidthCh: Number(event.target.value) })}
-              />
-            </label>
-            <label className="settings-field">
-              Default editor view
-              <select
-                value={workspaceChrome.editorSurfaceMode}
-                onChange={(event) =>
-                  onPatchWorkspaceChrome({
-                    editorSurfaceMode: event.target.value as WorkspaceChromePrefs['editorSurfaceMode'],
-                  })
-                }
-              >
-                <option value="source">Source only</option>
-                <option value="split">Split (source + preview)</option>
-                <option value="rendered">Rendered preview (inspector)</option>
-              </select>
-            </label>
-            {onResetWorkspaceChrome ? (
-              <button type="button" className="toolbar-button" onClick={onResetWorkspaceChrome}>
-                Reset appearance defaults
-              </button>
-            ) : null}
-          </div>
+          <AppearanceSettingsSection
+            workspaceChrome={workspaceChrome}
+            onPatchWorkspaceChrome={onPatchWorkspaceChrome}
+            onResetWorkspaceChrome={onResetWorkspaceChrome}
+            theme={theme}
+            onThemeChange={onThemeChange}
+            onReplayOnboarding={onReplayOnboarding}
+          />
         ) : null}
 
         <div className="settings-section">

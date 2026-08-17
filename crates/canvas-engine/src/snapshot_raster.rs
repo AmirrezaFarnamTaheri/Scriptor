@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use std::thread::JoinHandle;
+use std::time::Duration;
 
 use resvg::usvg::{self, Transform};
 use scriptor_export_runner::discover_pandoc;
@@ -47,7 +47,11 @@ fn render_tree_to_png(svg: &str, output_path: &Path) -> Result<(), CanvasError> 
     let mut pixmap = Pixmap::new(width, height)
         .ok_or_else(|| CanvasError::ExportFailed("invalid png dimensions".into()))?;
 
-    resvg::render(&tree, Transform::from_scale(scale, scale), &mut pixmap.as_mut());
+    resvg::render(
+        &tree,
+        Transform::from_scale(scale, scale),
+        &mut pixmap.as_mut(),
+    );
     pixmap
         .save_png(output_path)
         .map_err(|error| CanvasError::ExportFailed(format!("png write failed: {error}")))?;
@@ -111,7 +115,10 @@ pub fn write_pdf_from_svg(svg: &str, output_path: &Path) -> Result<(), CanvasErr
                 std::env::var("SCRIPTOR_ALLOW_UNSANDBOXED_EXTERNAL_TOOLS")
                     .ok()
                     .is_some_and(|value| {
-                        matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true" | "yes")
+                        matches!(
+                            value.trim().to_ascii_lowercase().as_str(),
+                            "1" | "true" | "yes"
+                        )
                     }),
             )
             .expected_sha256(std::env::var("SCRIPTOR_PANDOC_SHA256").ok()),
@@ -154,7 +161,10 @@ mod tests {
         assert!((width as f32 / height as f32 - 2.0).abs() < 0.01);
         // The allocation this implies stays bounded.
         let bytes = u64::from(width) * u64::from(height) * 4;
-        assert!(bytes < 2 * 1024 * 1024 * 1024, "allocation {bytes} too large");
+        assert!(
+            bytes < 2 * 1024 * 1024 * 1024,
+            "allocation {bytes} too large"
+        );
     }
 
     #[test]

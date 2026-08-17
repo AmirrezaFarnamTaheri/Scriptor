@@ -37,7 +37,6 @@ function loadOverrides(): Record<string, string | null> {
     schemaVersion: 1,
     fallback: emptyOverrides(),
     validate: validateOverrides,
-    migrate: validateOverrides,
   })
 }
 

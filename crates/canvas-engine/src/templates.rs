@@ -46,7 +46,10 @@ pub fn apply_template_dry_run(
             .unwrap_or(0)
             + 1
             + index as i32;
-        patch_log.push(format!("add block {new_id} ({:?}) at z={}", cloned.kind, cloned.z_index));
+        patch_log.push(format!(
+            "add block {new_id} ({:?}) at z={}",
+            cloned.kind, cloned.z_index
+        ));
         blocks_added.push(cloned);
     }
 

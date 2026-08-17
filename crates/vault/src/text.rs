@@ -82,7 +82,11 @@ mod tests {
     fn round_trips_through_normalization() {
         for input in ["a\r\nb\r\n", "a\nb\n", "a\nb", "a\r\nb", "", "\r\n\r\n"] {
             let style = LineStyle::detect(input);
-            assert_eq!(style.restore(&to_lf(input)), input, "round trip for {input:?}");
+            assert_eq!(
+                style.restore(&to_lf(input)),
+                input,
+                "round trip for {input:?}"
+            );
         }
     }
 

@@ -1,18 +1,19 @@
 use std::path::PathBuf;
 
-use scriptor_export_runner::{default_export_directory, ExportJobInput};
+use scriptor_export_runner::{ExportJobInput, default_export_directory};
 use scriptor_indexer::{
-    backlinks_for_path, health_diagnostics_json, health_report_json, incremental_note_index_with_cache,
-    incremental_notes_index_with_cache, list_note_summaries, open_cache_for_session, query_focused_graph,
-    rebuild_index, search_notes, IndexCache,
+    IndexCache, backlinks_for_path, health_diagnostics_json, health_report_json,
+    incremental_note_index_with_cache, incremental_notes_index_with_cache, list_note_summaries,
+    open_cache_for_session, query_focused_graph, rebuild_index, search_notes,
 };
 use scriptor_ipc::{
     NoteSummary, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult, SearchHit,
 };
 use scriptor_native_git::git_status;
 use scriptor_vault::{
-    load_vault_config, open_vault, read_note, rename_apply_staged, rollback_save_note, save_note_with_options,
-    RelativeVaultPath, SaveNoteOptions, VaultSession, VaultWatcher,
+    PluginState, RelativeVaultPath, SaveNoteOptions, VaultSession, VaultWatcher, load_plugin_state,
+    load_vault_config, open_vault, read_note, rename_apply_staged, rollback_save_note,
+    save_note_with_options,
 };
 
 use crate::command_gateway;
@@ -29,6 +30,7 @@ pub struct DaemonState {
     pub(crate) vault_watcher: Option<VaultWatcher>,
     pub(crate) watcher_generation: u64,
     pub(crate) endpoint_nonce: Option<String>,
+    pub(crate) plugin_state: PluginState,
 }
 
 impl DaemonState {
@@ -47,7 +49,8 @@ impl DaemonState {
     #[cfg(test)]
     pub fn refresh_index_cache(&mut self) -> Result<(), String> {
         let session = self.require_session()?.clone();
-        self.index_cache = Some(open_cache_for_session(&session).map_err(|error| error.to_string())?);
+        self.index_cache =
+            Some(open_cache_for_session(&session).map_err(|error| error.to_string())?);
         Ok(())
     }
 
@@ -69,6 +72,12 @@ impl DaemonState {
 
     pub fn handle(&mut self, request: RpcRequest) -> RpcResponse {
         let id = request.id;
+        if let Err(error) = crate::capabilities::enforce(&self.plugin_state, &request.method) {
+            return RpcResponse {
+                id,
+                result: RpcResult::Error(error),
+            };
+        }
         let result = match request.method {
             RpcMethod::Ping => Ok(RpcPayload::Pong {
                 version: env!("CARGO_PKG_VERSION").to_string(),
@@ -102,7 +111,13 @@ impl DaemonState {
                 dry_run,
                 extra_pandoc_args,
                 output_subdirectory,
-            } => self.export_start_note(note_path, format, dry_run, extra_pandoc_args, output_subdirectory),
+            } => self.export_start_note(
+                note_path,
+                format,
+                dry_run,
+                extra_pandoc_args,
+                output_subdirectory,
+            ),
             RpcMethod::ExportStartMarkdown {
                 note_path,
                 source_markdown,
@@ -124,14 +139,19 @@ impl DaemonState {
                 Err("export run RPC must be dispatched outside the daemon state lock".into())
             }
             RpcMethod::IndexRebuildStatus => self.index_rebuild_status(),
-            RpcMethod::SubscribeEvents => Err("SubscribeEvents must be handled by the transport layer".into()),
+            RpcMethod::SubscribeEvents => {
+                Err("SubscribeEvents must be handled by the transport layer".into())
+            }
             RpcMethod::ListCommands => {
                 match serde_json::to_string(&command_gateway::list_commands()) {
                     Ok(json) => Ok(RpcPayload::Json { json }),
                     Err(error) => Err(error.to_string()),
                 }
             }
-            RpcMethod::Invoke { command, payload_json } => {
+            RpcMethod::Invoke {
+                command,
+                payload_json,
+            } => {
                 if command_gateway::is_outside_lock_command(&command) {
                     Err(format!(
                         "command {command} must be dispatched outside the daemon state lock"
@@ -183,11 +203,16 @@ impl DaemonState {
         })
     }
 
-    pub(crate) fn open_vault_invoke(&mut self, path: String) -> Result<scriptor_vault::OpenVaultOutput, String> {
+    pub(crate) fn open_vault_invoke(
+        &mut self,
+        path: String,
+    ) -> Result<scriptor_vault::OpenVaultOutput, String> {
         self.index_rebuild.wait();
         self.index_cache = None;
         self.session = None;
         let mut session = open_vault(PathBuf::from(path)).map_err(|error| error.to_string())?;
+        self.plugin_state =
+            load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
         let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
         if !session.pending_reindex_paths.is_empty() {
             let paths = session.pending_reindex_paths.clone();
@@ -293,8 +318,7 @@ impl DaemonState {
     fn backlinks(&self, path: String) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let hits = backlinks_for_path(cache, session, &path)
-            .map_err(|error| error.to_string())?;
+        let hits = backlinks_for_path(cache, session, &path).map_err(|error| error.to_string())?;
         let json = serde_json::to_string(&hits).map_err(|error| error.to_string())?;
         Ok(RpcPayload::Backlinks { path, json })
     }
@@ -302,14 +326,8 @@ impl DaemonState {
     fn graph_summary(&self, path: Option<String>, depth: u32) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
-        let graph = query_focused_graph(
-            cache,
-            session,
-            path.as_deref(),
-            depth.max(1),
-            &[],
-        )
-        .map_err(|error| error.to_string())?;
+        let graph = query_focused_graph(cache, session, path.as_deref(), depth.max(1), &[])
+            .map_err(|error| error.to_string())?;
         let json = serde_json::to_string(&graph).map_err(|error| error.to_string())?;
         Ok(RpcPayload::GraphSummary { json })
     }
@@ -333,19 +351,21 @@ impl DaemonState {
         )
         .map_err(|error| error.to_string())?;
         if !dry_run
-            && let Err(error) = incremental_note_index_with_cache(session, self.require_cache()?, &path, &[]) {
-                if let Err(rollback_error) = rollback_save_note(
-                    &session.descriptor.id,
-                    &session.root,
-                    &note_path,
-                    output.previous_content_hash.as_deref(),
-                ) {
-                    return Err(format!(
-                        "index update failed: {error}; disk rollback failed: {rollback_error}"
-                    ));
-                }
-                return Err(error.to_string());
+            && let Err(error) =
+                incremental_note_index_with_cache(session, self.require_cache()?, &path, &[])
+        {
+            if let Err(rollback_error) = rollback_save_note(
+                &session.descriptor.id,
+                &session.root,
+                &note_path,
+                output.previous_content_hash.as_deref(),
+            ) {
+                return Err(format!(
+                    "index update failed: {error}; disk rollback failed: {rollback_error}"
+                ));
             }
+            return Err(error.to_string());
+        }
         let json = serde_json::to_string(&output).map_err(|error| error.to_string())?;
         Ok(RpcPayload::NoteSaved { json })
     }
@@ -374,9 +394,12 @@ impl DaemonState {
             update_links,
         )
         .map_err(|error| error.to_string())?;
-        if let Err(error) =
-            incremental_notes_index_with_cache(session, self.require_cache()?, &output.affected_files, &[])
-        {
+        if let Err(error) = incremental_notes_index_with_cache(
+            session,
+            self.require_cache()?,
+            &output.affected_files,
+            &[],
+        ) {
             let _ = staged.abort();
             return Err(error.to_string());
         }
@@ -496,7 +519,8 @@ impl DaemonState {
             .unwrap_or("note");
         let output_directory = match output_subdirectory {
             Some(subdir) => {
-                let _validated = RelativeVaultPath::parse(subdir).map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+                let _validated = RelativeVaultPath::parse(subdir)
+                    .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
                 session.root.root().join(subdir)
             }
             None => default_export_directory(session.root.root()),
@@ -513,6 +537,7 @@ impl DaemonState {
             job_id,
             preserve_temp_on_failure: false,
             trusted_pandoc_hash: None,
+            redact_secrets: false,
         })
     }
 
@@ -536,7 +561,8 @@ impl DaemonState {
             .unwrap_or("note");
         let output_directory = match output_subdirectory {
             Some(subdir) => {
-                let _validated = RelativeVaultPath::parse(subdir).map_err(|error| format!("invalid output_subdirectory: {error}"))?;
+                let _validated = RelativeVaultPath::parse(subdir)
+                    .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
                 session.root.root().join(subdir)
             }
             None => default_export_directory(session.root.root()),
@@ -553,6 +579,7 @@ impl DaemonState {
             job_id,
             preserve_temp_on_failure: false,
             trusted_pandoc_hash: None,
+            redact_secrets: false,
         })
     }
 }
@@ -578,10 +605,16 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        let open = state.handle(RpcRequest::new(2, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
-        assert!(matches!(open.result, RpcResult::Ok(RpcPayload::VaultOpened { .. })));
+        let open = state.handle(RpcRequest::new(
+            2,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
+        assert!(matches!(
+            open.result,
+            RpcResult::Ok(RpcPayload::VaultOpened { .. })
+        ));
         state.wait_index_rebuild();
 
         let list = state.handle(RpcRequest::new(3, RpcMethod::ListNotes));
@@ -596,18 +629,27 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        state.handle(RpcRequest::new(40, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
+        state.handle(RpcRequest::new(
+            40,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
         state.wait_index_rebuild();
 
         let baseline = state.index_cache().expect("session cache").clone();
         for offset in 0..100 {
-            let response = state.handle(RpcRequest::new(100 + offset, RpcMethod::SearchNotes {
-                query: "Alpha".into(),
-                limit: 5,
-            }));
-            assert!(matches!(response.result, RpcResult::Ok(RpcPayload::SearchHits { .. })));
+            let response = state.handle(RpcRequest::new(
+                100 + offset,
+                RpcMethod::SearchNotes {
+                    query: "Alpha".into(),
+                    limit: 5,
+                },
+            ));
+            assert!(matches!(
+                response.result,
+                RpcResult::Ok(RpcPayload::SearchHits { .. })
+            ));
         }
 
         let after = state.index_cache().expect("session cache");
@@ -625,9 +667,12 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        state.handle(RpcRequest::new(20, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
+        state.handle(RpcRequest::new(
+            20,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
         state.wait_index_rebuild();
 
         let cache_path = default_cache_path(dir.path());
@@ -657,17 +702,24 @@ mod tests {
         }
         state.refresh_index_cache().expect("refresh index cache");
 
-        let save = state.handle(RpcRequest::new(21, RpcMethod::SaveNote {
-            path: "alpha.md".into(),
-            markdown: "# Alpha\n\nUpdated body\n".into(),
-            expected_content_hash: None,
-            dry_run: false,
-        }));
+        let save = state.handle(RpcRequest::new(
+            21,
+            RpcMethod::SaveNote {
+                path: "alpha.md".into(),
+                markdown: "# Alpha\n\nUpdated body\n".into(),
+                expected_content_hash: None,
+                dry_run: false,
+            },
+        ));
         assert!(matches!(save.result, RpcResult::Err(_)));
 
         let session = state.session().expect("session");
-        let document = read_note(&session.descriptor.id, &session.root, &RelativeVaultPath::parse("alpha.md").unwrap())
-            .expect("read note");
+        let document = read_note(
+            &session.descriptor.id,
+            &session.root,
+            &RelativeVaultPath::parse("alpha.md").unwrap(),
+        )
+        .expect("read note");
         assert!(
             document.markdown.contains("Body"),
             "disk should roll back to pre-save content, got: {}",
@@ -700,18 +752,27 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        let open = state.handle(RpcRequest::new(4, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
-        assert!(matches!(open.result, RpcResult::Ok(RpcPayload::VaultOpened { .. })));
+        let open = state.handle(RpcRequest::new(
+            4,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
+        assert!(matches!(
+            open.result,
+            RpcResult::Ok(RpcPayload::VaultOpened { .. })
+        ));
         state.wait_index_rebuild();
 
-        let save = state.handle(RpcRequest::new(5, RpcMethod::SaveNote {
-            path: "alpha.md".into(),
-            markdown: "# Alpha\n\nUpdated body\n".into(),
-            expected_content_hash: None,
-            dry_run: false,
-        }));
+        let save = state.handle(RpcRequest::new(
+            5,
+            RpcMethod::SaveNote {
+                path: "alpha.md".into(),
+                markdown: "# Alpha\n\nUpdated body\n".into(),
+                expected_content_hash: None,
+                dry_run: false,
+            },
+        ));
         match save.result {
             RpcResult::Ok(RpcPayload::NoteSaved { json }) => assert!(json.contains("content_hash")),
             other => panic!("unexpected response: {other:?}"),
@@ -723,16 +784,22 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        state.handle(RpcRequest::new(6, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
+        state.handle(RpcRequest::new(
+            6,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
         state.wait_index_rebuild();
 
-        let rename = state.handle(RpcRequest::new(7, RpcMethod::RenameNoteApply {
-            from_path: "alpha.md".into(),
-            to_path: "beta.md".into(),
-            update_links: false,
-        }));
+        let rename = state.handle(RpcRequest::new(
+            7,
+            RpcMethod::RenameNoteApply {
+                from_path: "alpha.md".into(),
+                to_path: "beta.md".into(),
+                update_links: false,
+            },
+        ));
         match rename.result {
             RpcResult::Ok(RpcPayload::RenameApplied { json }) => assert!(json.contains("beta.md")),
             other => panic!("unexpected response: {other:?}"),
@@ -746,18 +813,24 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        state.handle(RpcRequest::new(8, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
+        state.handle(RpcRequest::new(
+            8,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
         state.wait_index_rebuild();
 
-        let export = state.handle(RpcRequest::new(9, RpcMethod::ExportStartNote {
-            note_path: "alpha.md".into(),
-            format: "html".into(),
-            dry_run: true,
-            extra_pandoc_args: vec![],
-            output_subdirectory: None,
-        }));
+        let export = state.handle(RpcRequest::new(
+            9,
+            RpcMethod::ExportStartNote {
+                note_path: "alpha.md".into(),
+                format: "html".into(),
+                dry_run: true,
+                extra_pandoc_args: vec![],
+                output_subdirectory: None,
+            },
+        ));
         match export.result {
             RpcResult::Ok(RpcPayload::ExportStarted { job_id }) => assert!(!job_id.is_empty()),
             RpcResult::Err(message) if message.contains("pandoc") => {}
@@ -773,21 +846,30 @@ mod tests {
         let dir = tempdir().expect("tempdir");
         std::fs::write(dir.path().join("alpha.md"), "# Alpha\n\nBody\n").expect("write");
         let mut state = DaemonState::default();
-        state.handle(RpcRequest::new(12, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
+        state.handle(RpcRequest::new(
+            12,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
         state.wait_index_rebuild();
 
         let started = std::time::Instant::now();
-        let response = state.handle(RpcRequest::new(13, RpcMethod::ExportStartNote {
-            note_path: "alpha.md".into(),
-            format: "html".into(),
-            dry_run: true,
-            extra_pandoc_args: vec![],
-            output_subdirectory: None,
-        }));
+        let response = state.handle(RpcRequest::new(
+            13,
+            RpcMethod::ExportStartNote {
+                note_path: "alpha.md".into(),
+                format: "html".into(),
+                dry_run: true,
+                extra_pandoc_args: vec![],
+                output_subdirectory: None,
+            },
+        ));
         assert!(started.elapsed().as_millis() < 200);
-        assert!(matches!(response.result, RpcResult::Ok(RpcPayload::ExportStarted { .. })));
+        assert!(matches!(
+            response.result,
+            RpcResult::Ok(RpcPayload::ExportStarted { .. })
+        ));
         state.wait_export_job();
     }
 
@@ -803,10 +885,16 @@ mod tests {
         }
 
         let mut state = DaemonState::default();
-        let open = state.handle(RpcRequest::new(10, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
-        assert!(matches!(open.result, RpcResult::Ok(RpcPayload::VaultOpened { .. })));
+        let open = state.handle(RpcRequest::new(
+            10,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
+        assert!(matches!(
+            open.result,
+            RpcResult::Ok(RpcPayload::VaultOpened { .. })
+        ));
 
         let mut max_events = 0u32;
         for _ in 0..200 {
@@ -817,7 +905,10 @@ mod tests {
                         serde_json::from_str(&json).expect("progress json");
                     max_events = max_events.max(report.event_index);
                     if report.status == scriptor_indexer::RebuildStatus::Complete {
-                        assert!(max_events >= 3, "expected >=3 progress events, got {max_events}");
+                        assert!(
+                            max_events >= 3,
+                            "expected >=3 progress events, got {max_events}"
+                        );
                         return;
                     }
                 }
@@ -848,27 +939,44 @@ mod tests {
         }
 
         let mut state = DaemonState::default();
-        let open = state.handle(RpcRequest::new(70, RpcMethod::OpenVault {
-            path: dir.path().display().to_string(),
-        }));
-        assert!(matches!(open.result, RpcResult::Ok(RpcPayload::VaultOpened { .. })));
+        let open = state.handle(RpcRequest::new(
+            70,
+            RpcMethod::OpenVault {
+                path: dir.path().display().to_string(),
+            },
+        ));
+        assert!(matches!(
+            open.result,
+            RpcResult::Ok(RpcPayload::VaultOpened { .. })
+        ));
 
         let mut latencies = Vec::new();
         let deadline = Instant::now() + std::time::Duration::from_secs(15);
         while Instant::now() < deadline {
             let start = Instant::now();
-            let response = state.handle(RpcRequest::new(80 + latencies.len() as u64, RpcMethod::Ping));
-            assert!(matches!(response.result, RpcResult::Ok(RpcPayload::Pong { .. })));
+            let response = state.handle(RpcRequest::new(
+                80 + latencies.len() as u64,
+                RpcMethod::Ping,
+            ));
+            assert!(matches!(
+                response.result,
+                RpcResult::Ok(RpcPayload::Pong { .. })
+            ));
             latencies.push(start.elapsed());
             std::thread::sleep(std::time::Duration::from_millis(2));
 
             if latencies.len() % 10 == 0 {
-                let status = state.handle(RpcRequest::new(200 + latencies.len() as u64, RpcMethod::IndexRebuildStatus));
+                let status = state.handle(RpcRequest::new(
+                    200 + latencies.len() as u64,
+                    RpcMethod::IndexRebuildStatus,
+                ));
                 if let RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) = status.result
                     && let Ok(report) = serde_json::from_str::<RebuildProgressReport>(&json)
-                        && report.status == RebuildStatus::Complete && latencies.len() >= MIN_PINGS {
-                            break;
-                        }
+                    && report.status == RebuildStatus::Complete
+                    && latencies.len() >= MIN_PINGS
+                {
+                    break;
+                }
             }
         }
 

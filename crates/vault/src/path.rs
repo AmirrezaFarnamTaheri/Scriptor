@@ -74,9 +74,11 @@ impl VaultRoot {
     }
 
     pub fn resolve_relative(&self, relative: &RelativeVaultPath) -> Result<PathBuf, VaultError> {
-        let candidate = self
-            .root
-            .join(relative.as_str().replace('/', std::path::MAIN_SEPARATOR_STR));
+        let candidate = self.root.join(
+            relative
+                .as_str()
+                .replace('/', std::path::MAIN_SEPARATOR_STR),
+        );
         let normalized = normalize_components(&candidate);
 
         if !normalized.starts_with(&self.root) {

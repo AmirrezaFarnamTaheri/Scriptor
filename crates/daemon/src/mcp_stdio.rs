@@ -1,19 +1,19 @@
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 
-
 use scriptor_indexer::{
-    backlinks_for_path, execute_dql_query, list_dead_end_notes, list_inbox_notes, list_orphan_notes,
-    list_unresolved_link_targets, list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown,
-    query_focused_graph, search_notes, traverse_graph, IndexCache, InboxPeriod, MAX_GRAPH_DEPTH,
+    InboxPeriod, IndexCache, MAX_GRAPH_DEPTH, backlinks_for_path, execute_dql_query,
+    list_dead_end_notes, list_inbox_notes, list_orphan_notes, list_unresolved_link_targets,
+    list_vault_tags, notes_for_tag, open_cache_for_session, parse_note_markdown,
+    query_focused_graph, search_notes, traverse_graph,
 };
 use scriptor_vault::{
-    append_mcp_mutation, build_note_markdown, load_vault_config, open_vault, read_note,
+    McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions, VaultSession, append_mcp_mutation,
+    build_note_markdown, load_plugin_state, load_vault_config, open_vault, read_note,
     reconcile_pending_mcp_mutations, save_note_with_options, set_frontmatter_field,
-    McpMutationAuditRecord, RelativeVaultPath, SaveNoteOptions, VaultSession,
 };
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -59,8 +59,16 @@ struct McpStdioState {
 }
 
 const READ_TOOLS: &[(&str, &str, &str)] = &[
-    ("mcp.search", "Search indexed notes in the open vault.", "mcp.search"),
-    ("mcp.readNote", "Read a note path from the open vault.", "note.read"),
+    (
+        "mcp.search",
+        "Search indexed notes in the open vault.",
+        "mcp.search",
+    ),
+    (
+        "mcp.readNote",
+        "Read a note path from the open vault.",
+        "note.read",
+    ),
     (
         "mcp.inspectBacklinks",
         "List inbound links for a note path.",
@@ -81,7 +89,11 @@ const READ_TOOLS: &[(&str, &str, &str)] = &[
         "Return heading outline for a note path.",
         "mcp.inspectOutline",
     ),
-    ("mcp.listTags", "List indexed tags with usage counts.", "mcp.listTags"),
+    (
+        "mcp.listTags",
+        "List indexed tags with usage counts.",
+        "mcp.listTags",
+    ),
     (
         "mcp.searchByTag",
         "List notes tagged with a hashtag.",
@@ -144,6 +156,10 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
 
 pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
     let session = open_vault(&options.vault_path).map_err(|error| error.to_string())?;
+    let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
+    if !plugin_state.is_enabled("scriptor.mcp") {
+        return Err("Plugin capability 'scriptor.mcp' is disabled in active vault".into());
+    }
     reconcile_pending_mcp_mutations(&session.root).map_err(|error| error.to_string())?;
     let index_cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let mut state = McpStdioState {
@@ -193,7 +209,11 @@ fn handle_request(state: &mut McpStdioState, request: McpRequest) -> McpResponse
             if name.is_empty() {
                 return error_response(request.id, "invalid_params", "Tool name is required");
             }
-            match invoke_tool(state, &name, request.params.and_then(|params| params.arguments)) {
+            match invoke_tool(
+                state,
+                &name,
+                request.params.and_then(|params| params.arguments),
+            ) {
                 Ok(output) => McpResponse {
                     id: request.id,
                     result: Some(json!({ "output": output })),
@@ -202,7 +222,11 @@ fn handle_request(state: &mut McpStdioState, request: McpRequest) -> McpResponse
                 Err(message) => error_response(request.id, "invoke_failed", &message),
             }
         }
-        other => error_response(request.id, "method_not_found", &format!("Unsupported method: {other}")),
+        other => error_response(
+            request.id,
+            "method_not_found",
+            &format!("Unsupported method: {other}"),
+        ),
     }
 }
 
@@ -242,7 +266,18 @@ fn list_tools(trust_stdio: bool) -> Vec<Value> {
     tools
 }
 
-fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Value>) -> Result<Value, String> {
+fn invoke_tool(
+    state: &mut McpStdioState,
+    tool_name: &str,
+    arguments: Option<Value>,
+) -> Result<Value, String> {
+    // Capability decisions are vault-backed and can change while this stdio
+    // process is alive. Re-check each request rather than trusting startup.
+    let plugin_state =
+        load_plugin_state(state.session.root.root()).map_err(|error| error.to_string())?;
+    if !plugin_state.is_enabled("scriptor.mcp") {
+        return Err("Plugin capability 'scriptor.mcp' is disabled in active vault".into());
+    }
     let args = arguments.unwrap_or(json!({}));
     match tool_name {
         "mcp.search" => {
@@ -277,12 +312,8 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("path too long (max 4096 chars)".into());
             }
             let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
-            let note = read_note(
-                &state.session.descriptor.id,
-                &state.session.root,
-                &relative,
-            )
-            .map_err(|error| error.to_string())?;
+            let note = read_note(&state.session.descriptor.id, &state.session.root, &relative)
+                .map_err(|error| error.to_string())?;
             Ok(serde_json::to_value(note).map_err(|error| error.to_string())?)
         }
         "mcp.inspectBacklinks" => {
@@ -305,7 +336,8 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
             Ok(serde_json::to_value(targets).map_err(|error| error.to_string())?)
         }
         "mcp.inspectExportProfiles" => {
-            let config = load_vault_config(state.session.root.root()).map_err(|error| error.to_string())?;
+            let config =
+                load_vault_config(state.session.root.root()).map_err(|error| error.to_string())?;
             Ok(json!({
                 "profiles": [],
                 "export_on_save": config.export.export_on_save,
@@ -322,12 +354,8 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
                 return Err("path must not be empty".into());
             }
             let relative = RelativeVaultPath::parse(path).map_err(|error| error.to_string())?;
-            let note = read_note(
-                &state.session.descriptor.id,
-                &state.session.root,
-                &relative,
-            )
-            .map_err(|error| error.to_string())?;
+            let note = read_note(&state.session.descriptor.id, &state.session.root, &relative)
+                .map_err(|error| error.to_string())?;
             let parsed = parse_note_markdown(path, &note.markdown);
             Ok(json!({
                 "path": path,
@@ -380,7 +408,8 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
         }
         "mcp.inspectGraphSummary" => {
             let cache = &state.index_cache;
-            let orphans = list_orphan_notes(cache, &state.session).map_err(|error| error.to_string())?;
+            let orphans =
+                list_orphan_notes(cache, &state.session).map_err(|error| error.to_string())?;
             let dead_ends =
                 list_dead_end_notes(cache, &state.session).map_err(|error| error.to_string())?;
             let unresolved = list_unresolved_link_targets(cache, &state.session)
@@ -458,13 +487,13 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
             Ok(serde_json::to_value(rows).map_err(|error| error.to_string())?)
         }
         "mcp.listInbox" => {
-            let period = args
-                .get("period")
-                .and_then(Value::as_str)
-                .unwrap_or("all");
+            let period = args.get("period").and_then(Value::as_str).unwrap_or("all");
             let valid_periods = ["all", "today", "yesterday", "week", "month"];
             if !valid_periods.contains(&period) {
-                return Err(format!("invalid period: {period}. valid: {:?}", valid_periods));
+                return Err(format!(
+                    "invalid period: {period}. valid: {:?}",
+                    valid_periods
+                ));
             }
             let limit = args.get("limit").and_then(Value::as_u64).unwrap_or(50) as usize;
             if limit > 10000 {
@@ -547,7 +576,14 @@ fn invoke_tool(state: &mut McpStdioState, tool_name: &str, arguments: Option<Val
             if markdown.len() > 10_000_000 {
                 return Err("markdown too long (max 10MB)".into());
             }
-            write_note_with_audit(state, "mcp.createNote", "note.create", path, &markdown, None)
+            write_note_with_audit(
+                state,
+                "mcp.createNote",
+                "note.create",
+                path,
+                &markdown,
+                None,
+            )
         }
         "mcp.updateFrontmatter" => {
             if !state.trust_stdio {
@@ -666,25 +702,21 @@ fn update_frontmatter_with_audit(
     );
     append_mcp_mutation(&state.session.root, intent.clone()).map_err(|error| error.to_string())?;
 
-    let result = read_note(
-        &state.session.descriptor.id,
-        &state.session.root,
-        &relative,
-    )
-    .map_err(|error| error.to_string())
-    .and_then(|note_doc| {
-        let updated_markdown =
-            set_frontmatter_field(&note_doc.markdown, field, value).map_err(|error| error.to_string())?;
-        save_note_with_options(
-            &state.session.descriptor.id,
-            &state.session.root,
-            &relative,
-            &updated_markdown,
-            None,
-            SaveNoteOptions { dry_run: false },
-        )
+    let result = read_note(&state.session.descriptor.id, &state.session.root, &relative)
         .map_err(|error| error.to_string())
-    });
+        .and_then(|note_doc| {
+            let updated_markdown = set_frontmatter_field(&note_doc.markdown, field, value)
+                .map_err(|error| error.to_string())?;
+            save_note_with_options(
+                &state.session.descriptor.id,
+                &state.session.root,
+                &relative,
+                &updated_markdown,
+                None,
+                SaveNoteOptions { dry_run: false },
+            )
+            .map_err(|error| error.to_string())
+        });
 
     let duration_ms = start.elapsed().as_millis() as u64;
     let detail = result.as_ref().err().cloned();
@@ -715,7 +747,7 @@ fn update_frontmatter_with_audit(
 }
 
 fn render_markdown_html(markdown: &str) -> String {
-    use pulldown_cmark::{html, Options, Parser};
+    use pulldown_cmark::{Options, Parser, html};
 
     let mut html_output = String::new();
     let parser = Parser::new_ext(markdown, Options::all());
@@ -791,6 +823,31 @@ mod tests {
 
         let note = fs::read_to_string(dir.path().join("alpha.md")).expect("read note");
         assert!(note.contains("Patched body"));
+    }
+
+    #[test]
+    fn mcp_rechecks_capability_for_each_tool_invocation() {
+        let dir = tempdir().expect("tempdir");
+        fs::write(dir.path().join("alpha.md"), "# Alpha\n").expect("write note");
+        let session = open_vault(dir.path().display().to_string()).expect("open vault");
+        let index_cache = open_cache_for_session(&session).expect("open cache");
+        let mut state = McpStdioState {
+            session,
+            trust_stdio: false,
+            index_cache,
+        };
+        let mut plugin_state = scriptor_vault::PluginState::default();
+        plugin_state.disabled_plugins.insert("scriptor.mcp".into());
+        scriptor_vault::save_plugin_state(state.session.root.root(), &plugin_state)
+            .expect("disable mcp");
+
+        let error = invoke_tool(
+            &mut state,
+            "mcp.readNote",
+            Some(json!({ "path": "alpha.md" })),
+        )
+        .expect_err("disabled MCP must reject a request in an existing session");
+        assert!(error.contains("scriptor.mcp"));
     }
 
     #[test]

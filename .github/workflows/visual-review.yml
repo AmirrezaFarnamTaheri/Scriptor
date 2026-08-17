@@ -78,7 +78,9 @@ jobs:
       - name: Finalize visual review evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Visual regression review" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Visual regression review" -Status $env:JOB_STATUS
 
       - name: Upload visual reports and evidence
         if: always()

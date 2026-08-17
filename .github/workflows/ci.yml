@@ -69,7 +69,9 @@ jobs:
       - name: Finalize source snapshot evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Source snapshot and provenance" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Source snapshot and provenance" -Status $env:JOB_STATUS
 
       - name: Upload source snapshot evidence
         if: always()
@@ -112,6 +114,12 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+          cache-bin: false
+
       - name: Describe supply-chain scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Supply-chain and lockfile audit"
@@ -132,7 +140,7 @@ jobs:
 
       - name: Install pinned cargo-deny 0.20.2
         shell: pwsh
-        run: cargo install cargo-deny --locked --version 0.20.2
+        run: cargo install cargo-deny --locked --version 0.20.2 --force
 
       - name: Record cargo-deny version
         shell: pwsh
@@ -181,7 +189,9 @@ jobs:
       - name: Finalize supply-chain evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Supply-chain and lockfile audit" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Supply-chain and lockfile audit" -Status $env:JOB_STATUS
 
       - name: Upload supply-chain evidence
         if: always()
@@ -190,7 +200,7 @@ jobs:
           name: ci-evidence-supply-chain-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-fast:
     name: Contracts, automation, and lint
@@ -218,8 +228,9 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Validate repository governance contracts
-        shell: pwsh
+        shell: bash
         run: |
+          set -euo pipefail
           node scripts/release/version.mjs check
           node scripts/validation/action-pins.mjs
           node scripts/validation/deep-module-boundaries.mjs
@@ -307,7 +318,9 @@ jobs:
       - name: Finalize fast validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, and lint" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Contracts, automation, and lint" -Status $env:JOB_STATUS
 
       - name: Upload fast validation evidence
         if: always()
@@ -316,7 +329,7 @@ jobs:
           name: ci-evidence-validate-fast-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-rust:
     name: Contracts, automation, lint, and Rust tests
@@ -355,13 +368,28 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
       - name: Describe Rust validation scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
 
-      - name: Test Rust transport and runtime crates
+      - name: Install Linux desktop system dependencies
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Test Rust transport and runtime crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "-p", "scriptor-ipc", "-p", "scriptor-daemon", "-p", "scriptor-cli") -TimeoutSeconds 1800
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux desktop system dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf") -TimeoutSeconds 900
+
+      - name: Clippy workspace checks
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Clippy workspace checks" -FilePath "cargo" -ArgumentList @("clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings") -TimeoutSeconds 1200
+
+      - name: Test Rust workspace crates
+        shell: pwsh
+        env:
+          SCRIPTOR_TEST_DAEMON_HMAC_KEY: ci-transport-tests-${{ github.run_id }}-${{ github.run_attempt }}-scriptor
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Test supported Rust crates" -FilePath "cargo" -ArgumentList @("test", "--locked", "--workspace", "--exclude", "scriptor-desktop", "--exclude", "scriptor-embeddings", "--exclude", "scriptor-tantivy-indexer", "--exclude", "scriptor-wasm-runtime", "--jobs", "2") -TimeoutSeconds 1800
 
       - name: Verify generated ts-rs bindings
         shell: pwsh
@@ -369,7 +397,9 @@ jobs:
 
       - name: Run xtask release smoke
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 900
+        env:
+          SCRIPTOR_TEST_DAEMON_HMAC_KEY: ci-release-smoke-${{ github.run_id }}-${{ github.run_attempt }}-scriptor
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Run xtask release smoke" -FilePath "cargo" -ArgumentList @("xtask", "release-smoke") -TimeoutSeconds 1800
 
       - name: Capture Rust validation failure context
         if: failure()
@@ -379,7 +409,9 @@ jobs:
       - name: Finalize Rust validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Rust workspace tests and release smoke" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Rust workspace tests and release smoke" -Status $env:JOB_STATUS
 
       - name: Upload Rust validation evidence
         if: always()
@@ -388,7 +420,7 @@ jobs:
           name: ci-evidence-validate-rust-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-frontend:
     name: Frontend, accessibility, TUI, and daemon smoke
@@ -422,6 +454,11 @@ jobs:
           rustup default 1.96.0
           rustc --version
           cargo --version
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
 
       - name: Describe frontend validation scope
         shell: pwsh
@@ -463,7 +500,9 @@ jobs:
       - name: Finalize frontend validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Frontend, accessibility, TUI, and daemon smoke" -Status $env:JOB_STATUS
 
       - name: Upload frontend validation evidence
         if: always()
@@ -472,7 +511,7 @@ jobs:
           name: ci-evidence-validate-frontend-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   validate-browser:
     name: Browser E2E and visual regression
@@ -528,7 +567,9 @@ jobs:
       - name: Finalize browser validation evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status $env:JOB_STATUS
 
       - name: Upload browser reports and evidence
         if: always()
@@ -575,6 +616,11 @@ jobs:
           rustc --version
           cargo --version
 
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
       - name: Describe Windows release scope
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Windows release smoke and performance gates"
@@ -611,7 +657,9 @@ jobs:
       - name: Finalize Windows release evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Windows release smoke and performance gates" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Windows release smoke and performance gates" -Status $env:JOB_STATUS
 
       - name: Upload Windows release evidence
         if: always()
@@ -620,7 +668,7 @@ jobs:
           name: ci-evidence-release-smoke-windows-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30
 
   container-smoke:
     name: Container image build and runtime smoke
@@ -653,7 +701,9 @@ jobs:
       - name: Finalize container evidence
         if: always()
         shell: pwsh
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Container image build and runtime smoke" -Status "${{ job.status }}"
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Container image build and runtime smoke" -Status $env:JOB_STATUS
 
       - name: Upload container evidence
         if: always()
@@ -662,4 +712,4 @@ jobs:
           name: ci-evidence-container-smoke-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
           if-no-files-found: warn
-          retention-days: 7
+          retention-days: 30

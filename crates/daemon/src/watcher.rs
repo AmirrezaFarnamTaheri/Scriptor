@@ -29,11 +29,7 @@ pub fn restart_vault_watcher(state: &Arc<Mutex<DaemonState>>) -> Result<(), Stri
     Ok(())
 }
 
-fn apply_watch_batch(
-    state: &Arc<Mutex<DaemonState>>,
-    generation: u64,
-    batch: VaultWatchBatch,
-) {
+fn apply_watch_batch(state: &Arc<Mutex<DaemonState>>, generation: u64, batch: VaultWatchBatch) {
     let (session, cache) = {
         let guard = lock_recover(state);
         if guard.watcher_generation != generation {

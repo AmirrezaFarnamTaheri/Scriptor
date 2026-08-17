@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use tantivy::collector::TopDocs;
 use tantivy::doc;
 use tantivy::query::QueryParser;
-use tantivy::schema::{Schema, Value, STORED, STRING, TEXT};
+use tantivy::schema::{STORED, STRING, Schema, TEXT, Value};
 use tantivy::{Index, IndexReader, IndexWriter, ReloadPolicy};
 
 pub mod error;

@@ -24,4 +24,6 @@ pub enum ExportError {
         #[source]
         source: std::io::Error,
     },
+    #[error("sealed content detected — re-run with redact_secrets: true to export anyway: {0}")]
+    SealedContent(String),
 }

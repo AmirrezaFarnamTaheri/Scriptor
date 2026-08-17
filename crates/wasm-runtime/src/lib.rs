@@ -54,7 +54,7 @@ impl WasmPluginRuntime {
         let plugin = self.get_plugin(plugin_idx)?;
         plugin.capabilities.check("read_notes")?;
         // Stub: in a real runtime, this calls into the WASM guest
-        Err(WasmRuntimeError::Runtime(
+        Err(WasmRuntimeError::NotImplemented(
             "WASM runtime stub — compile with wasmtime-backend for execution".into(),
         ))
     }
@@ -68,7 +68,7 @@ impl WasmPluginRuntime {
     ) -> Result<(), WasmRuntimeError> {
         let plugin = self.get_plugin(plugin_idx)?;
         plugin.capabilities.check("write_notes")?;
-        Err(WasmRuntimeError::Runtime(
+        Err(WasmRuntimeError::NotImplemented(
             "WASM runtime stub — compile with wasmtime-backend for execution".into(),
         ))
     }
@@ -82,7 +82,7 @@ impl WasmPluginRuntime {
     ) -> Result<String, WasmRuntimeError> {
         let plugin = self.get_plugin(plugin_idx)?;
         plugin.capabilities.check("search")?;
-        Err(WasmRuntimeError::Runtime(
+        Err(WasmRuntimeError::NotImplemented(
             "WASM runtime stub — compile with wasmtime-backend for execution".into(),
         ))
     }
@@ -140,7 +140,9 @@ mod tests {
     fn load_plugin_succeeds() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::read_only();
-        let idx = runtime.load_plugin("test-plugin", &minimal_wasm(), caps).unwrap();
+        let idx = runtime
+            .load_plugin("test-plugin", &minimal_wasm(), caps)
+            .unwrap();
         assert_eq!(idx, 0);
         assert_eq!(runtime.plugin_count(), 1);
     }
@@ -157,7 +159,9 @@ mod tests {
     fn capability_denied_for_ungranted_host_fn() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::default();
-        let idx = runtime.load_plugin("restricted", &minimal_wasm(), caps).unwrap();
+        let idx = runtime
+            .load_plugin("restricted", &minimal_wasm(), caps)
+            .unwrap();
         let err = runtime.host_read_note(idx, "notes/test.md");
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
     }
@@ -166,7 +170,9 @@ mod tests {
     fn write_notes_requires_write_capability() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::read_only();
-        let idx = runtime.load_plugin("reader", &minimal_wasm(), caps).unwrap();
+        let idx = runtime
+            .load_plugin("reader", &minimal_wasm(), caps)
+            .unwrap();
         let err = runtime.host_write_note(idx, "a.md", "content");
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
     }
@@ -175,7 +181,9 @@ mod tests {
     fn search_requires_search_capability() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::default();
-        let idx = runtime.load_plugin("nosrch", &minimal_wasm(), caps).unwrap();
+        let idx = runtime
+            .load_plugin("nosrch", &minimal_wasm(), caps)
+            .unwrap();
         let err = runtime.host_search(idx, "query", 10);
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
     }
@@ -185,13 +193,13 @@ mod tests {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::full_access();
         let idx = runtime.load_plugin("full", &minimal_wasm(), caps).unwrap();
-        // All capability checks pass; stub returns Runtime error (not CapabilityDenied)
+        // All capability checks pass; stub returns NotImplemented error (not CapabilityDenied)
         let read_err = runtime.host_read_note(idx, "a.md").unwrap_err();
-        assert!(matches!(read_err, WasmRuntimeError::Runtime(_)));
+        assert!(matches!(read_err, WasmRuntimeError::NotImplemented(_)));
         let write_err = runtime.host_write_note(idx, "a.md", "x").unwrap_err();
-        assert!(matches!(write_err, WasmRuntimeError::Runtime(_)));
+        assert!(matches!(write_err, WasmRuntimeError::NotImplemented(_)));
         let search_err = runtime.host_search(idx, "q", 5).unwrap_err();
-        assert!(matches!(search_err, WasmRuntimeError::Runtime(_)));
+        assert!(matches!(search_err, WasmRuntimeError::NotImplemented(_)));
     }
 
     #[test]
@@ -206,7 +214,9 @@ mod tests {
     fn host_log_always_succeeds() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::default();
-        let idx = runtime.load_plugin("logger", &minimal_wasm(), caps).unwrap();
+        let idx = runtime
+            .load_plugin("logger", &minimal_wasm(), caps)
+            .unwrap();
         runtime.host_log(idx, "info", "hello").unwrap();
     }
 
@@ -221,7 +231,9 @@ mod tests {
     fn load_multiple_plugins() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::default();
-        runtime.load_plugin("a", &minimal_wasm(), caps.clone()).unwrap();
+        runtime
+            .load_plugin("a", &minimal_wasm(), caps.clone())
+            .unwrap();
         runtime.load_plugin("b", &minimal_wasm(), caps).unwrap();
         assert_eq!(runtime.plugin_count(), 2);
     }
@@ -259,8 +271,14 @@ mod tests {
     fn canvas_capability_enforced() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::read_only();
-        let idx = runtime.load_plugin("no-canvas", &minimal_wasm(), caps).unwrap();
-        let err = runtime.get_plugin(idx).unwrap().capabilities.check("canvas");
+        let idx = runtime
+            .load_plugin("no-canvas", &minimal_wasm(), caps)
+            .unwrap();
+        let err = runtime
+            .get_plugin(idx)
+            .unwrap()
+            .capabilities
+            .check("canvas");
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
     }
 
@@ -268,8 +286,14 @@ mod tests {
     fn export_capability_enforced() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::read_only();
-        let idx = runtime.load_plugin("no-export", &minimal_wasm(), caps).unwrap();
-        let err = runtime.get_plugin(idx).unwrap().capabilities.check("export");
+        let idx = runtime
+            .load_plugin("no-export", &minimal_wasm(), caps)
+            .unwrap();
+        let err = runtime
+            .get_plugin(idx)
+            .unwrap()
+            .capabilities
+            .check("export");
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
     }
 }

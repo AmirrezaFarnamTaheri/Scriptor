@@ -17,8 +17,8 @@ const HEALTH_SUMMARY: VaultHealthReport = {
   duplicate_titles: 0,
   invalid_frontmatter: 0,
   unresolved_citations: 0,
-  indexed_notes: 3,
-  total_words: 420,
+  indexed_notes: 4,
+  total_words: 520,
   slow_exports: 0,
   cache_status: 'fresh',
 }
@@ -41,9 +41,9 @@ Uses a bibliography citation [@smith2024].
 
 ## Outline
 
-1. Collect sources
-2. Draft methodology
-3. Synthesize findings
+- [ ] Collect sources due: 2026-06-30
+- [/] Draft methodology
+- [ ] Synthesize findings
 `,
   'Field Notes.md': `# Field Notes
 
@@ -57,12 +57,28 @@ Qualitative synthesis with structured coding.
 
 See [[Research Plan]] for scope.
 `,
+  'Sprint Board.md': `---
+kanban-plugin: basic
+---
+
+## Todo
+- [ ] Draft release notes
+
+## Doing
+- [/] Verify panel mounts
+
+## Done
+- [x] Wire palette command
+`,
 }
 
 export const SCREENSHOT_SCAN: ScannedEntry[] = [
   { path: 'Research Plan.md', kind: 'note', size_bytes: 240, modified_at: '2026-06-20T10:00:00Z' },
   { path: 'Field Notes.md', kind: 'note', size_bytes: 180, modified_at: '2026-06-21T10:00:00Z' },
   { path: 'Methodology.md', kind: 'note', size_bytes: 160, modified_at: '2026-06-22T10:00:00Z' },
+  { path: 'Sprint Board.md', kind: 'note', size_bytes: 220, modified_at: '2026-06-23T10:00:00Z' },
+  { path: 'Research Paper.pdf', kind: 'asset', size_bytes: 4096, modified_at: '2026-06-18T10:00:00Z' },
+  { path: 'Book Draft.epub', kind: 'asset', size_bytes: 6144, modified_at: '2026-06-17T10:00:00Z' },
   { path: 'references.bib', kind: 'asset', size_bytes: 120, modified_at: '2026-06-19T10:00:00Z' },
 ]
 
@@ -90,7 +106,7 @@ export function screenshotNoteDocument(path: string): NoteDocument {
 
 export function screenshotRebuildSummary(): RebuildSummary {
   return {
-    indexed_notes: 3,
+    indexed_notes: 4,
     skipped_notes: 0,
     links_written: 4,
     cache_status: 'fresh',

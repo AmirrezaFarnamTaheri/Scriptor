@@ -125,15 +125,226 @@ impl Default for NoteTypesConfig {
     }
 }
 
+/// A named, persisted snapshot of graph filter state.
+///
+/// Mirrors the frontend `SavedGraphView` (`src/types/vault.ts`). Every field
+/// carries a serde default so a partially-written entry degrades
+/// gracefully instead of failing the entire `VaultConfig` deserialization, and
+/// a config written by the frontend round-trips losslessly through Rust.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SavedView {
-    pub name: String,
-    pub query: String,
     #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus_path: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub depth: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub modified_within_days: Option<u32>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cluster_ids: Vec<String>,
+}
+
+/// Tectonic-backed LaTeX compilation settings. Mirrors `latex?` in `VaultConfig` (TS).
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct LatexConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub tectonic_path: Option<String>,
+    #[serde(default = "default_latex_output_directory")]
+    pub output_directory: String,
+    #[serde(default)]
+    pub extra_flags: Vec<String>,
+    #[serde(default)]
+    pub compile_on_save: bool,
+}
+
+fn default_latex_output_directory() -> String {
+    ".scriptor/latex".into()
+}
+
+/// Google Calendar / Tasks sync settings. Mirrors `calendar_sync?` in TS.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CalendarSyncConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub google_client_id: Option<String>,
+    #[serde(default)]
+    pub google_calendar_id: Option<String>,
+    #[serde(default)]
+    pub google_task_list_id: Option<String>,
+    #[serde(default = "default_calendar_lookahead_days")]
+    pub lookahead_days: u32,
+    #[serde(default)]
+    pub show_events_in_tasks: bool,
+    #[serde(default)]
+    pub push_vault_tasks: bool,
+    #[serde(default)]
+    pub capture_note_path: Option<String>,
+}
+
+fn default_calendar_lookahead_days() -> u32 {
+    14
+}
+
+/// Prose / wikilink autosuggest tuning. Mirrors `autosuggest?` in TS.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct AutosuggestConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_autosuggest_min_chars")]
+    pub min_chars: u32,
+    #[serde(default = "default_autosuggest_max_results")]
+    pub max_results: u32,
+    #[serde(default = "default_true")]
+    pub cross_document: bool,
+    #[serde(default = "default_true")]
+    pub wikilinks: bool,
+    #[serde(default = "default_true")]
+    pub tags: bool,
+    #[serde(default = "default_true")]
+    pub headings: bool,
+    #[serde(default = "default_autosuggest_debounce_ms")]
+    pub debounce_ms: u32,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_autosuggest_min_chars() -> u32 {
+    2
+}
+
+fn default_autosuggest_max_results() -> u32 {
+    8
+}
+
+fn default_autosuggest_debounce_ms() -> u32 {
+    120
+}
+
+impl Default for AutosuggestConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            min_chars: default_autosuggest_min_chars(),
+            max_results: default_autosuggest_max_results(),
+            cross_document: true,
+            wikilinks: true,
+            tags: true,
+            headings: true,
+            debounce_ms: default_autosuggest_debounce_ms(),
+        }
+    }
+}
+
+/// A user-defined callout type. Mirrors an entry of `custom_callouts?` in TS.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomCallout {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub accent_color: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub icon: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
+/// Reading-list workflow settings. Mirrors `reading_list?` in TS.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ReadingListConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_reading_list_status_key")]
+    pub status_key: String,
+}
+
+fn default_reading_list_status_key() -> String {
+    "status".into()
+}
+
+impl Default for ReadingListConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            status_key: default_reading_list_status_key(),
+        }
+    }
+}
+
+/// Accessibility preferences. Mirrors `accessibility?` in TS.
+///
+/// `font_scale` is a float, so this struct (and therefore `VaultConfig`) derives
+/// `PartialEq` but not `Eq`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AccessibilityConfig {
+    #[serde(default)]
+    pub reduced_motion: bool,
+    #[serde(default)]
+    pub high_contrast: bool,
+    #[serde(default = "default_font_scale")]
+    pub font_scale: f32,
+    #[serde(default = "default_true")]
+    pub live_regions: bool,
+    #[serde(default = "default_focus_outline")]
+    pub focus_outline: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub focus_outline_color: Option<String>,
+}
+
+fn default_font_scale() -> f32 {
+    1.0
+}
+
+fn default_focus_outline() -> String {
+    "default".into()
+}
+
+impl Default for AccessibilityConfig {
+    fn default() -> Self {
+        Self {
+            reduced_motion: false,
+            high_contrast: false,
+            font_scale: default_font_scale(),
+            live_regions: true,
+            focus_outline: default_focus_outline(),
+            focus_outline_color: None,
+        }
+    }
+}
+
+/// Per-vault feature flags. Mirrors `features?` in TS.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FeaturesConfig {
+    #[serde(default)]
+    pub latex: bool,
+    #[serde(default)]
+    pub calendar: bool,
+    #[serde(default)]
+    pub reading_list: bool,
+    #[serde(default)]
+    pub relationship_matrix: bool,
+    #[serde(default)]
+    pub automation_recorder: bool,
+    #[serde(default)]
+    pub link_decay: bool,
+    #[serde(default)]
+    pub footnote_manager: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct VaultConfig {
     #[serde(default)]
     pub daily_note: DailyNoteConfig,
@@ -161,6 +372,20 @@ pub struct VaultConfig {
     pub saved_views: Vec<SavedView>,
     #[serde(default)]
     pub trusted_binaries: Option<TrustedBinaries>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latex: Option<LatexConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub calendar_sync: Option<CalendarSyncConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub autosuggest: Option<AutosuggestConfig>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub custom_callouts: Vec<CustomCallout>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reading_list: Option<ReadingListConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub accessibility: Option<AccessibilityConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub features: Option<FeaturesConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -258,6 +483,13 @@ impl Default for VaultConfig {
             note_types: NoteTypesConfig::default(),
             saved_views: Vec::new(),
             trusted_binaries: None,
+            latex: None,
+            calendar_sync: None,
+            autosuggest: None,
+            custom_callouts: Vec::new(),
+            reading_list: None,
+            accessibility: None,
+            features: None,
         }
     }
 }
@@ -288,7 +520,10 @@ pub fn save_vault_config(vault_root: &Path, config: &VaultConfig) -> Result<(), 
     Ok(())
 }
 
-pub fn plan_daily_note(vault_root: &Path, date: Option<NaiveDate>) -> Result<DailyNotePlan, VaultError> {
+pub fn plan_daily_note(
+    vault_root: &Path,
+    date: Option<NaiveDate>,
+) -> Result<DailyNotePlan, VaultError> {
     let config = load_vault_config(vault_root)?;
     let date = date.unwrap_or_else(|| Local::now().date_naive());
     let stem = apply_date_tokens(&config.daily_note.filename_format, date);
@@ -319,7 +554,11 @@ pub fn plan_daily_note(vault_root: &Path, date: Option<NaiveDate>) -> Result<Dai
     })
 }
 
-pub fn load_vault_template(vault_root: &Path, templates_directory: &str, template_rel: &str) -> Result<String, VaultError> {
+pub fn load_vault_template(
+    vault_root: &Path,
+    templates_directory: &str,
+    template_rel: &str,
+) -> Result<String, VaultError> {
     let trimmed = template_rel.trim_start_matches('/');
     let raw = if trimmed.contains('/') {
         trimmed.to_string()
@@ -343,7 +582,11 @@ pub fn load_vault_template(vault_root: &Path, templates_directory: &str, templat
     fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))
 }
 
-pub fn build_note_markdown(title: &str, note_type: Option<&str>, template_body: Option<&str>) -> String {
+pub fn build_note_markdown(
+    title: &str,
+    note_type: Option<&str>,
+    template_body: Option<&str>,
+) -> String {
     let mut frontmatter = String::from("---\n");
     if let Some(kind) = note_type.filter(|value| !value.is_empty() && *value != "Type") {
         frontmatter.push_str(&format!("type: {kind}\n"));
@@ -388,7 +631,10 @@ mod tests {
     #[test]
     fn default_config_uses_daily_folder() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
-        let plan = plan_daily_note(dir.path(), Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap()))?;
+        let plan = plan_daily_note(
+            dir.path(),
+            Some(NaiveDate::from_ymd_opt(2026, 6, 20).unwrap()),
+        )?;
         assert_eq!(plan.path, "daily/2026-06-20.md");
         assert!(plan.markdown.contains("# 2026-06-20"));
         Ok(())
@@ -413,7 +659,11 @@ mod tests {
         assert_eq!(body, "# Meeting\n");
         let body = load_vault_template(dir.path(), ".scriptor/templates", "/meeting.md")?;
         assert_eq!(body, "# Meeting\n");
-        let body = load_vault_template(dir.path(), ".scriptor/templates", ".scriptor/templates/meeting.md")?;
+        let body = load_vault_template(
+            dir.path(),
+            ".scriptor/templates",
+            ".scriptor/templates/meeting.md",
+        )?;
         assert_eq!(body, "# Meeting\n");
         Ok(())
     }
@@ -446,7 +696,10 @@ mod tests {
             ..VaultConfig::default()
         };
         save_vault_config(dir.path(), &config)?;
-        let plan = plan_daily_note(dir.path(), Some(NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()))?;
+        let plan = plan_daily_note(
+            dir.path(),
+            Some(NaiveDate::from_ymd_opt(2026, 1, 5).unwrap()),
+        )?;
         assert_eq!(plan.path, "journal/2026-01-05.md");
         assert_eq!(plan.title, "Journal 2026-01-05");
         Ok(())

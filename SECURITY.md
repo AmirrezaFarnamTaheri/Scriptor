@@ -20,7 +20,7 @@ Only the current tagged release and current `main` branch receive security fixes
 
 - **Renderer:** treated as untrusted relative to native filesystem, keychain, process, backup, Git, network, and publish authority.
 - **Tauri commands:** classified by operation; sensitive commands require a fresh one-time scoped grant issued after native user confirmation.
-- **Daemon/IPC:** same-user local endpoint with HMAC-protected endpoint metadata, a per-endpoint nonce required on every request and event subscription, typed/versioned messages, bounded frames/queues, automatic authenticated resubscription, and explicit state resynchronization after an interrupted event stream.
+- **Daemon/IPC:** same-user local endpoint with HMAC-protected endpoint metadata, a per-endpoint nonce required on every request and event subscription, typed/versioned messages, bounded frames/queues, automatic authenticated resubscription, and explicit state resynchronization after an interrupted event stream. Note that on Windows, local TCP/named pipe endpoint security relies on HMAC-SHA256 bearer token authentication stored in user-scoped `%LOCALAPPDATA%` (or OS Credential Manager) rather than Unix socket filesystem permissions.
 - **MCP:** explicit tools, durable intent/outcome audit records, idempotency keys, bounded logs, and recovery of pending intents.
 - **External tools/code chunks:** launched through the process broker with executable resolution, environment sanitization, network policy, time/output bounds, process-tree cancellation, and receipts.
 - **Plugins:** current runtime is restricted/manifest-first; permission consent, signed third-party distribution, and isolated execution remain graduation requirements.

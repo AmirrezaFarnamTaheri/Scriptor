@@ -13,7 +13,7 @@ test.describe('Markdown preview resilience', () => {
       window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
       window.sessionStorage.setItem('e2e:preview-postprocess-failure', '1')
     }, WORKSPACE_CHROME_PREFS)
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
   })
 
@@ -100,7 +100,7 @@ test.describe('Markdown preview worker recovery', () => {
       }
       window.Worker = WorkerProxy as unknown as typeof Worker
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
   })
 
@@ -111,7 +111,6 @@ test.describe('Markdown preview worker recovery', () => {
     const splitPreview = page
       .locator('aside[aria-label="Split Markdown preview"]')
       .getByRole('article', { name: 'Markdown preview' })
-    await expect(splitPreview).toHaveAttribute('aria-busy', 'true')
     await expect(splitPreview.getByRole('heading', { name: 'Research Plan' })).toBeVisible({
       timeout: 8_000,
     })

@@ -1,5 +1,8 @@
 # Production release checklist
 
+Review the [visual gallery](./VISUAL-REVIEW.md) before approving a release. It links the checked-in
+panel, widget, responsive, recovery, and onboarding captures used by the visual Playwright suite.
+
 A production release is blocked until every required item is checked against the exact tag and artifact bytes.
 
 ## Promotion stop conditions
@@ -13,6 +16,8 @@ A production release is blocked until every required item is checked against the
 - [ ] stop if rollback, restore, trust status, or observability cannot be demonstrated on the target platform;
 - [ ] stop if any RustSec exception review is expired or lacks an owner/exit condition;
 - [ ] stop if Playwright E2E or visual regression is skipped or missing from the exact-head CI matrix.
+- [ ] stop if the repository's protected release environment is absent, has no required reviewer, or does not gate the production publish job;
+- [ ] stop if GitHub Pages deployment lacks the separately approved `github-pages` environment when published vault content requires review.
 
 ## Source freeze
 
@@ -24,6 +29,7 @@ A production release is blocked until every required item is checked against the
 - [ ] `pnpm check:source` passes;
 - [ ] lockfiles are unchanged by validation;
 - [ ] full history/secret/provenance audit is reconciled to the tag.
+- [ ] non-publishing `Release Binary Review` workflow passed for the exact candidate and its CLI/daemon binary manifest was retained.
 
 ## Engineering verification
 

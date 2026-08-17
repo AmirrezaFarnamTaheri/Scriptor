@@ -7,50 +7,72 @@ pub use state::AppState;
 
 use authorization::authorize_sensitive_operation;
 
-use commands::backup::{vault_create_backup, vault_delete_backup, vault_list_backups, vault_restore_backup};
+use commands::backup::{
+    vault_create_backup, vault_delete_backup, vault_list_backups, vault_restore_backup,
+};
 use commands::canvas::{
-    canvas_apply_template, canvas_hit_test, canvas_list_documents, canvas_list_templates, canvas_load_document,
-    canvas_query_blocks, canvas_render_svg, canvas_restore_template, canvas_save_document, canvas_snapshot,
-    canvas_template_dry_run,
+    canvas_apply_template, canvas_hit_test, canvas_list_documents, canvas_list_templates,
+    canvas_load_document, canvas_query_blocks, canvas_render_svg, canvas_restore_template,
+    canvas_save_document, canvas_snapshot, canvas_template_dry_run,
 };
 use commands::code_chunk::{code_chunk_run, vault_publish_starlight};
 use commands::daemon::{
-    daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status, daemon_export_run_markdown,
-    daemon_export_run_note, daemon_export_start_note, daemon_git_status, daemon_graph, daemon_health_diagnostics,
-    daemon_health_report, daemon_list_note_summaries, daemon_open_vault, daemon_ping, daemon_rebuild_index,
-    daemon_reload_config, daemon_rename_apply, daemon_save_note, daemon_search, daemon_start, daemon_update_note_index,
+    daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
+    daemon_export_run_markdown, daemon_export_run_note, daemon_export_start_note,
+    daemon_git_status, daemon_graph, daemon_health_diagnostics, daemon_health_report,
+    daemon_list_note_summaries, daemon_open_vault, daemon_ping, daemon_rebuild_index,
+    daemon_reload_config, daemon_rename_apply, daemon_save_note, daemon_search, daemon_start,
+    daemon_update_note_index,
 };
-use commands::export::{export_cancel, export_discover, export_run_markdown, export_run_note, export_start_note, pdf_translate};
+use commands::embeddings::{embeddings_index_note, embeddings_remove_note, embeddings_search};
+use commands::export::{
+    export_cancel, export_discover, export_run_markdown, export_run_note, export_start_note,
+    pdf_translate,
+};
 use commands::git::{
-    git_apply_merged_conflict_cmd, git_commit_cmd, git_pull_cmd, git_push_cmd, git_read_conflict_markers_cmd,
-    git_resolve_conflict_cmd, git_show_head_file_cmd, git_show_merge_base_file_cmd, git_status_cmd,
+    git_apply_merged_conflict_cmd, git_commit_cmd, git_pull_cmd, git_push_cmd,
+    git_read_conflict_markers_cmd, git_resolve_conflict_cmd, git_show_head_file_cmd,
+    git_show_merge_base_file_cmd, git_status_cmd,
+};
+use commands::google_calendar::{
+    google_calendar_complete_task, google_calendar_create_task, google_calendar_delete_task,
+    google_calendar_disconnect, google_calendar_get_authed_email, google_calendar_list_events,
+    google_calendar_list_tasks, google_calendar_start_auth,
 };
 use commands::history::vault_restore_note_history_revision;
 use commands::indexer::{
-    indexer_apply_filesystem_changes, indexer_backlinks, indexer_evaluate_view, indexer_execute_dql,
-    indexer_graph, indexer_health_diagnostics, indexer_list_bibliography, indexer_list_dead_ends, indexer_list_inbox,
-    indexer_list_note_summaries, indexer_list_orphans, indexer_list_recent_files, indexer_list_tags,
-    indexer_list_unresolved_targets, indexer_notes_for_tag, indexer_rebuild, indexer_record_recent_access,
-    indexer_resolve_wikilink, indexer_search, indexer_traverse_graph, indexer_update_note,
+    indexer_apply_filesystem_changes, indexer_backlinks, indexer_batch_note_meta,
+    indexer_evaluate_view, indexer_execute_dql, indexer_graph, indexer_health_diagnostics,
+    indexer_kanban_board, indexer_kanban_move_card, indexer_list_bibliography,
+    indexer_list_dead_ends, indexer_list_inbox, indexer_list_note_summaries, indexer_list_orphans,
+    indexer_list_recent_files, indexer_list_tags, indexer_list_unresolved_targets,
+    indexer_notes_for_tag, indexer_query_tasks, indexer_rebuild, indexer_record_recent_access,
+    indexer_resolve_wikilink, indexer_search, indexer_sync_note_tasks, indexer_traverse_graph,
+    indexer_update_note, indexer_update_task,
 };
+use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
+use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
+use commands::reader::{reader_load_annotations, reader_read_document, reader_save_annotations};
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
 use commands::system::{
-    ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft, ai_provider_set_api_key,
-    copy_text_to_clipboard, diagnostics_append_event, health_check, plantuml_render, set_headless_engine, system_info,
+    ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
+    ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event, health_check,
+    plantuml_render, set_headless_engine, system_info,
 };
 use commands::vault::{
     vault_append_activity_log, vault_append_stats_history, vault_build_note_markdown,
-    vault_delete_note, vault_detect_obsidian, vault_frontmatter_set, vault_import_obsidian,
-    vault_lint_fix, vault_list_recent_notes, vault_list_view_notes, vault_load_config,
-    vault_load_snippets, vault_load_template, vault_open, vault_plan_daily_note, vault_read_activity_log,
-    vault_read_note, vault_read_stats_history, vault_read_workspace_session, vault_record_recent_note,
-    vault_rename_apply, vault_rename_block_apply, vault_rename_block_dry_run, vault_rename_dry_run,
-    vault_rename_section_apply, vault_rename_section_dry_run, vault_rename_tag_apply, vault_rename_tag_dry_run,
-    vault_save_asset, vault_save_config_cmd, vault_save_note, vault_save_snippets,
-    vault_save_workspace_session, vault_scan, vault_textbundle_export, vault_health, vault_list_note_history,
-    vault_read_note_history_revision,
+    vault_delete_note, vault_detect_obsidian, vault_export_audit_log, vault_frontmatter_set,
+    vault_health, vault_import_obsidian, vault_lint_fix, vault_list_note_history,
+    vault_list_recent_notes, vault_list_view_notes, vault_load_config, vault_load_snippets,
+    vault_load_template, vault_open, vault_plan_daily_note, vault_read_activity_log,
+    vault_read_note, vault_read_note_history_revision, vault_read_stats_history,
+    vault_read_workspace_session, vault_record_recent_note, vault_rename_apply,
+    vault_rename_block_apply, vault_rename_block_dry_run, vault_rename_dry_run,
+    vault_rename_section_apply, vault_rename_section_dry_run, vault_rename_tag_apply,
+    vault_rename_tag_dry_run, vault_save_asset, vault_save_config_cmd, vault_save_note,
+    vault_save_snippets, vault_save_workspace_session, vault_scan, vault_textbundle_export,
 };
 use serde::Serialize;
 use tauri::Emitter;
@@ -76,20 +98,18 @@ pub fn run() {
         .setup(|app| {
             platform::setup(app)?;
             let handle = app.handle().clone();
-            scriptor_daemon::register_rpc_event_handler(move |event| {
-                match event.payload {
-                    scriptor_ipc::RpcEventPayload::ConfigReloaded { json, generation } => {
-                        let _ = handle.emit(
-                            "daemon:config-reloaded",
-                            DaemonConfigReloadedEvent { json, generation },
-                        );
-                    }
-                    scriptor_ipc::RpcEventPayload::ResyncRequired { reason } => {
-                        let _ = handle.emit(
-                            "daemon:resync-required",
-                            DaemonResyncRequiredEvent { reason },
-                        );
-                    }
+            scriptor_daemon::register_rpc_event_handler(move |event| match event.payload {
+                scriptor_ipc::RpcEventPayload::ConfigReloaded { json, generation } => {
+                    let _ = handle.emit(
+                        "daemon:config-reloaded",
+                        DaemonConfigReloadedEvent { json, generation },
+                    );
+                }
+                scriptor_ipc::RpcEventPayload::ResyncRequired { reason } => {
+                    let _ = handle.emit(
+                        "daemon:resync-required",
+                        DaemonResyncRequiredEvent { reason },
+                    );
                 }
             });
             Ok(())
@@ -139,6 +159,7 @@ pub fn run() {
             indexer_list_note_summaries,
             indexer_list_dead_ends,
             indexer_list_unresolved_targets,
+            indexer_batch_note_meta,
             indexer_evaluate_view,
             vault_list_view_notes,
             indexer_list_bibliography,
@@ -198,6 +219,9 @@ pub fn run() {
             canvas_list_documents,
             code_chunk_run,
             vault_publish_starlight,
+            latex_discover_tectonic,
+            latex_compile,
+            latex_cancel_compile,
             daemon_ping,
             daemon_endpoint,
             daemon_start,
@@ -224,6 +248,28 @@ pub fn run() {
             resource_create_dedup_plan,
             resource_apply_plan,
             system_info,
+            vault_export_audit_log,
+            google_calendar_start_auth,
+            google_calendar_disconnect,
+            google_calendar_list_events,
+            google_calendar_list_tasks,
+            google_calendar_get_authed_email,
+            google_calendar_create_task,
+            google_calendar_complete_task,
+            google_calendar_delete_task,
+            indexer_query_tasks,
+            indexer_update_task,
+            indexer_sync_note_tasks,
+            indexer_kanban_board,
+            indexer_kanban_move_card,
+            embeddings_index_note,
+            embeddings_remove_note,
+            embeddings_search,
+            reader_read_document,
+            reader_load_annotations,
+            reader_save_annotations,
+            plugin_state_get,
+            plugin_state_set_enabled,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Scriptor desktop");

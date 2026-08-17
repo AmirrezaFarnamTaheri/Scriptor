@@ -8,8 +8,11 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | SQLite/FTS indexing and search | Supported | `crates/indexer/` | Included |
 | Backlinks/knowledge/graph | Supported, bounded | `crates/indexer/src/knowledge.rs`, `graph.rs` | Included |
 | Desktop workspace | Supported | `src/`, `apps/desktop/` | Included |
+| Vault PDF/EPUB reader with annotations | Experimental | `src/components/reader/`, `apps/desktop/src-tauri/src/commands/reader.rs`, `.scriptor/reader/annotations.json` | Local desktop only; requires full browser/accessibility and release-gate proof before support claim |
+| Markdown-backed task editing | Experimental | `crates/indexer/src/tasks.rs`, `src/components/TaskPanel.tsx` | Updates source Markdown through the vault write path; requires clean-environment end-to-end proof before support claim |
+| Markdown Kanban | Experimental | `crates/indexer/src/kanban.rs`, `src/components/KanbanPanel.tsx` | Card moves relocate source text under `##` headings; requires browser-flow proof before support claim |
 | CodeMirror Markdown editor | Default supported editor | `packages/editor/src/codemirror.tsx` | Included |
-| Monaco editor | Advanced/lazy compatibility editor | `src/components/shell/EditorWorkspace.tsx` | Included, non-default |
+| Monaco editor | Advanced/lazy editor | `src/components/shell/EditorWorkspace.tsx` | Included, non-default |
 | Git operations/conflict UI | Supported | `crates/native-git/`, `src/components/GitPanel.tsx` | Included |
 | Export/Pandoc profiles | Supported with external-tool policy | `crates/export-runner/`, `packages/export/` | Included; Pandoc separate |
 | Canvas | Supported | `crates/canvas-engine/`, `packages/canvas/` | Included |
@@ -33,7 +36,7 @@ This ledger is authoritative for support claims. “Implemented” means source 
 A capability moves to Supported only when all are present:
 
 1. named owner and support window;
-2. stable public contract and migration policy;
+2. stable public contract and current-schema policy;
 3. positive, negative, restart, cancellation, and recovery tests;
 4. authorization/privacy model;
 5. bounded performance evidence;

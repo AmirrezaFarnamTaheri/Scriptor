@@ -70,7 +70,10 @@ pub fn wait_for_child(
         match wait_result {
             Ok(Some(status)) => {
                 let mut guard = lock_recover(slot);
-                if guard.as_ref().is_some_and(|running| running.job_id == job_id) {
+                if guard
+                    .as_ref()
+                    .is_some_and(|running| running.job_id == job_id)
+                {
                     guard.take();
                 }
                 return Ok(status);
@@ -78,7 +81,10 @@ pub fn wait_for_child(
             Ok(None) => thread::sleep(Duration::from_millis(50)),
             Err(source) => {
                 let mut guard = lock_recover(slot);
-                if guard.as_ref().is_some_and(|running| running.job_id == job_id) {
+                if guard
+                    .as_ref()
+                    .is_some_and(|running| running.job_id == job_id)
+                {
                     guard.take();
                 }
                 return Err(ExportError::Io {
@@ -130,7 +136,11 @@ mod tests {
             // PROCESS_BROKER_EXCEPTION(export-cancel-test-unix)
             Command::new("true")
         };
-        command.stdout(Stdio::null()).stderr(Stdio::null()).spawn().ok()
+        command
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok()
     }
 
     #[test]

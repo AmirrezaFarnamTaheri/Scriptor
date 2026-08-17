@@ -1,6 +1,8 @@
 import { syntaxTree } from '@codemirror/language'
 import { EditorState, StateField } from '@codemirror/state'
 
+import { headingToId as slugifyHeading } from './heading-id.ts'
+
 export interface TocEntry {
   line: number
   pos: number
@@ -29,21 +31,7 @@ function headingLevel(nodeName: string): number {
 }
 
 export function headingToId(heading: string): string {
-  const pandoc = heading.match(/\{#([^}]+)\}\s*$/)
-  if (pandoc) return pandoc[1]
-  const anchor = heading.match(/<a\s+name="([^"]+)"/i)
-  if (anchor) return anchor[1]
-  const stripped = heading
-    .replace(/<[^>]+>/g, '')
-    .replace(/\[[^\]]*\]\([^)]*\)/g, '')
-    .replace(/[*_`~]/g, '')
-    .replace(/\{#([^}]+)\}/g, '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/^-+|-+$/g, '')
-  return stripped || 'section'
+  return slugifyHeading(heading)
 }
 
 export function generateToc(state: EditorState): TocEntry[] {

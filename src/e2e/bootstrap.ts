@@ -9,10 +9,14 @@ import {
 } from '../screenshot/fixture.ts'
 import {
   e2eNoteDocument,
+  e2eKanbanBoard,
+  e2eKanbanMoveCard,
+  e2eQueryTasks,
   e2eRenameApply,
   e2eRenameDryRun,
   e2eSaveNote,
   e2eSearchNotes,
+  e2eUpdateTask,
 } from './state.ts'
 import { installE2eMcpHarness } from './mcp.harness.ts'
 
@@ -86,6 +90,13 @@ export function installE2eBridge(): void {
   let committed = false
   let conflictsResolved = false
   let hashMismatchTriggered = false
+  const enabledPluginIds = new Set([
+    'scriptor.export',
+    'scriptor.citations',
+    'scriptor.graph',
+    'scriptor.canvas',
+    'scriptor.mcp',
+  ])
   let canvasDocumentJson = JSON.stringify({
     id: 'canvas-board-default',
     vaultId: 'screenshot-vault',
@@ -106,11 +117,20 @@ export function installE2eBridge(): void {
           return new Promise((resolve) => {
             window.setTimeout(
               () => resolve({ vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }),
-              900,
+              2500,
             )
           })
         }
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
+      case 'plugin_state_get':
+        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [] }
+      case 'plugin_state_set_enabled': {
+        const body = payload as { capabilityId?: string; enabled?: boolean }
+        const capabilityId = String(body.capabilityId ?? '')
+        if (body.enabled) enabledPluginIds.add(capabilityId)
+        else enabledPluginIds.delete(capabilityId)
+        return undefined
+      }
       case 'vault_read_note': {
         const readPath = String((payload as { path?: string }).path ?? 'Research Plan.md')
         const conflictFixture = readPath === 'Field Notes.md' ? activeConflictFixture() : null
@@ -194,14 +214,14 @@ export function installE2eBridge(): void {
       case 'vault_scan':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise<typeof SCREENSHOT_SCAN>((resolve) => {
-            window.setTimeout(() => resolve(SCREENSHOT_SCAN), 900)
+          window.setTimeout(() => resolve(SCREENSHOT_SCAN), 2500)
           })
         }
         return SCREENSHOT_SCAN
       case 'indexer_rebuild':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise((resolve) => {
-            window.setTimeout(() => resolve(screenshotRebuildSummary()), 900)
+          window.setTimeout(() => resolve(screenshotRebuildSummary()), 2500)
           })
         }
         return screenshotRebuildSummary()
@@ -212,7 +232,7 @@ export function installE2eBridge(): void {
       case 'indexer_list_note_summaries':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise((resolve) => {
-            window.setTimeout(() => {
+          window.setTimeout(() => {
               resolve(
                 SCREENSHOT_SCAN.filter((entry) => entry.kind === 'note').map((entry) => {
                   const doc = e2eNoteDocument(entry.path)
@@ -227,7 +247,7 @@ export function installE2eBridge(): void {
                   }
                 }),
               )
-            }, 900)
+          }, 2500)
           })
         }
         return SCREENSHOT_SCAN.filter((entry) => entry.kind === 'note').map((entry) => {
@@ -255,6 +275,37 @@ export function installE2eBridge(): void {
       }
       case 'indexer_update_note':
         return true
+      case 'indexer_query_tasks':
+        return e2eQueryTasks()
+      case 'indexer_update_task': {
+        if (window.sessionStorage.getItem('e2e:task-update-failure') === '1') {
+          throw new Error('E2E task write unavailable')
+        }
+        const body = payload as { taskId?: string; status?: string; dueAt?: string | null }
+        e2eUpdateTask(String(body.taskId ?? ''), { status: body.status, dueAt: body.dueAt })
+        return undefined
+      }
+      case 'indexer_kanban_move_card': {
+        const body = payload as { notePath?: string; line?: number; toColumn?: string; newStatus?: string }
+        const move = () => e2eKanbanMoveCard(
+          String(body.notePath ?? ''),
+          Number(body.line),
+          String(body.toColumn ?? ''),
+          String(body.newStatus ?? ' '),
+        )
+        if (window.sessionStorage.getItem('e2e:kanban-move-delay') === '1') {
+          return new Promise<void>((resolve) => {
+            window.setTimeout(() => {
+              move()
+              resolve()
+            }, 500)
+          })
+        }
+        move()
+        return undefined
+      }
+      case 'indexer_kanban_board':
+        return e2eKanbanBoard(String((payload as { notePath?: string }).notePath ?? ''))
       case 'indexer_record_recent_access':
         return undefined
       case 'indexer_resolve_wikilink': {
@@ -383,7 +434,7 @@ export function installE2eBridge(): void {
         return {
           os: 'Windows',
           arch: 'x86_64',
-          app_version: '0.1.0',
+          app_version: '1.0.0',
           rust_version: 'e2e',
           pandoc_version: '3.1.11',
         }
@@ -422,6 +473,12 @@ export function installE2eBridge(): void {
       }
       case 'vault_read_note_history_revision':
         return '# Previous revision\n'
+      case 'reader_read_document':
+        return Array.from(new TextEncoder().encode('%PDF-1.4\n%Scriptor E2E fixture\n'))
+      case 'reader_load_annotations':
+        return []
+      case 'reader_save_annotations':
+        return undefined
       case 'vault_list_note_history':
         return [
           {
@@ -506,7 +563,7 @@ export function installE2eBridge(): void {
           return null
         }
         if (cmd.startsWith('daemon_')) {
-          return cmd === 'daemon_ping' ? { version: '0.1.0-e2e' } : null
+          return cmd === 'daemon_ping' ? { version: '1.0.0-e2e' } : null
         }
         return null
     }

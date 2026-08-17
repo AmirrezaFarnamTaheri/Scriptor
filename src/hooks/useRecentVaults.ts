@@ -12,7 +12,6 @@ export function useRecentVaults() {
       schemaVersion: 1,
       fallback: [],
       validate: (value) => expectStringArray(value, 'recent vaults').slice(0, 12),
-      migrate: (value) => expectStringArray(value, 'recent vaults').slice(0, 12),
     }),
   )
 

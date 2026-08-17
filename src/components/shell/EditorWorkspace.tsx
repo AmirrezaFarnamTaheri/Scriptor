@@ -1,44 +1,53 @@
 import { lazy, Suspense, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
 import {
+  AlignCenter,
   Archive,
   ArrowDownToLine,
   ArrowUpToLine,
   Bold,
+  BookOpen,
   CheckCircle2,
+  Code2,
   Columns,
+  Eye,
   FileBox,
   FileText,
+  Focus,
   FolderOpen,
   Heading1,
   Heading2,
   Heading3,
   Italic,
+  Languages,
   Link,
   ListTree,
   MoreHorizontal,
+  Palette,
   PanelRight,
-  Pin,
-  RotateCcw,
   Rows,
   Sparkles,
+  SpellCheck,
+  StickyNote,
   Table,
   Target,
-  X,
+  Terminal,
 } from 'lucide-react'
-import {
-  type EditorAutocompleteContext,
-  type EditorTransformAction,
-  type EditorThemeId,
-  type MarkdownEditorHandle,
-  type MarkdownEditorProps,
-  type SnippetCatalogEntry,
-  type SnippetVariableContext,
-  type TocEntry,
-  type TypographyAction,
+import type {
+  EditorAutocompleteContext,
+  EditorThemeId,
+  MarkdownEditorHandle,
+  MarkdownEditorProps,
+  SnippetCatalogEntry,
+  SnippetVariableContext,
+  TocEntry,
+  TypographyAction,
 } from '@scriptor/editor'
 import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 
+type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
+
 import { InlineEditorAssist } from '../editor/InlineEditorAssist'
+import { EditorTabBar } from './EditorTabBar'
 import { ExternalChangeBanner } from '../ExternalChangeBanner'
 import { TocSidebar } from '../TocSidebar'
 import { TypographyMenu } from '../TypographyMenu'
@@ -117,7 +126,7 @@ interface EditorWorkspaceProps {
   languageTool: boolean
   setLanguageTool: (updater: (value: boolean) => boolean) => void
   stickiesVisible: boolean
-  setStickiesVisible: (updater: (value: boolean) => boolean) => void
+  setStickiesVisible: (value: boolean) => void
   splitPreview: boolean
   setSplitPreview: (updater: (value: boolean) => boolean) => void
   showSplitPreview: boolean
@@ -274,86 +283,17 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
 
   return (
     <section className="editor-panel" aria-label="Editor">
-      <div className="tabs-row" role="tablist" aria-label="Open notes">
-        {canReopenClosedTab && onReopenClosedTab ? (
-          <button
-            type="button"
-            className="tab-reopen"
-            onClick={onReopenClosedTab}
-            aria-label="Reopen closed tab"
-            title="Reopen closed tab"
-          >
-            <RotateCcw aria-hidden="true" />
-          </button>
-        ) : null}
-        {openTabs.length === 0 ? (
-          <span className="empty-tab">No note open</span>
-        ) : (
-          openTabs.map((tab, tabIndex) => (
-            <div
-              className={`tab-item${tab.path === activePath ? ' active' : ''}${tab.path === activePath && isNoteDirty ? ' tab-dirty' : ''}${tab.pinned ? ' tab-pinned' : ''}`}
-              key={tab.path}
-            >
-              <button
-                type="button"
-                className="tab tab-main"
-                role="tab"
-                aria-selected={tab.path === activePath}
-                tabIndex={tab.path === activePath ? 0 : -1}
-                onClick={() => onOpenTab(tab.path)}
-                onKeyDown={(event) => {
-                  let targetIndex = tabIndex
-                  if (event.key === 'ArrowLeft') targetIndex = (tabIndex - 1 + openTabs.length) % openTabs.length
-                  else if (event.key === 'ArrowRight') targetIndex = (tabIndex + 1) % openTabs.length
-                  else if (event.key === 'Home') targetIndex = 0
-                  else if (event.key === 'End') targetIndex = openTabs.length - 1
-                  else return
-                  event.preventDefault()
-                  const target = openTabs[targetIndex]
-                  onOpenTab(target.path)
-                  requestAnimationFrame(() => {
-                    const tabButtons = event.currentTarget
-                      .closest('[role="tablist"]')
-                      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-                    tabButtons?.[targetIndex]?.focus()
-                  })
-                }}
-              >
-                <FileText aria-hidden="true" />
-                <span className="tab-title">{tab.title}</span>
-                {inboxPaths?.has(tab.path) ? (
-                  <span className="tab-lifecycle inbox" title="In inbox">
-                    inbox
-                  </span>
-                ) : null}
-                {tab.path === activePath && isNoteDirty ? (
-                  <span className="tab-dirty-dot" aria-label="Unsaved changes" title="Unsaved changes" />
-                ) : null}
-              </button>
-              {onTogglePinTab ? (
-                <button
-                  type="button"
-                  className={`tab-icon-button tab-pin${tab.pinned ? ' active' : ''}`}
-                  aria-label={tab.pinned ? `Unpin ${tab.title}` : `Pin ${tab.title}`}
-                  title={tab.pinned ? 'Unpin tab' : 'Pin tab'}
-                  onClick={() => onTogglePinTab(tab.path)}
-                >
-                  <Pin aria-hidden="true" />
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="tab-icon-button tab-close"
-                aria-label={`Close ${tab.title}`}
-                title="Close tab"
-                onClick={() => onCloseTab(tab.path)}
-              >
-                <X aria-hidden="true" />
-              </button>
-            </div>
-          ))
-        )}
-      </div>
+      <EditorTabBar
+        activePath={activePath}
+        openTabs={openTabs}
+        isNoteDirty={isNoteDirty}
+        inboxPaths={inboxPaths}
+        canReopenClosedTab={canReopenClosedTab}
+        onReopenClosedTab={onReopenClosedTab}
+        onTogglePinTab={onTogglePinTab}
+        onOpenTab={onOpenTab}
+        onCloseTab={onCloseTab}
+      />
       {showFormatToolbar ? (
       <div className="editor-toolbar-wrapper">
         <div className="format-row editor-toolbar" aria-label="Markdown tools">
@@ -429,65 +369,133 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           <button type="button" title="Writing Targets" onClick={onOpenWritingTargets}>
             <Target />
           </button>
-          <button type="button" onClick={onOpenCheatsheet}>
-            Cheatsheet
+          <button type="button" title="Markdown cheatsheet" aria-label="Markdown cheatsheet" onClick={onOpenCheatsheet}>
+            <BookOpen size={16} />
           </button>
-          <button type="button" onClick={() => setStickiesVisible((value) => !value)} className={stickiesVisible ? 'active' : undefined}>
-            Stickies
+          <button
+            type="button"
+            title={stickiesVisible ? 'Hide stickies' : 'Show stickies'}
+            aria-label={stickiesVisible ? 'Hide stickies' : 'Show stickies'}
+            aria-pressed={stickiesVisible}
+            onClick={() => setStickiesVisible(!stickiesVisible)}
+            className={stickiesVisible ? 'active' : undefined}
+          >
+            <StickyNote size={16} />
           </button>
         </div>
 
         <div className="format-group" aria-label="Editor mode">
-          <button type="button" onClick={() => setVimMode((value) => !value)} className={vimMode ? 'active' : undefined} disabled={editorMode === 'monaco'}>
-            Vim
+          <button
+            type="button"
+            title={vimMode ? 'Disable Vim keybindings' : 'Enable Vim keybindings'}
+            aria-label={vimMode ? 'Disable Vim keybindings' : 'Enable Vim keybindings'}
+            aria-pressed={vimMode}
+            onClick={() => setVimMode((value) => !value)}
+            className={vimMode ? 'active' : undefined}
+            disabled={editorMode === 'monaco'}
+          >
+            <Terminal size={16} />
           </button>
-        <button type="button" onClick={toggleEditorMode} className={editorMode === 'monaco' ? 'active' : undefined} title="Toggle Monaco editor">
-          Monaco
-        </button>
-        <button type="button" onClick={toggleEditorTheme} className={editorTheme === 'dark' ? 'active' : undefined} title="Toggle editor theme">
-          Theme
-        </button>
-        <button type="button" onClick={() => setSpellcheck((value) => !value)} className={spellcheck ? 'active' : undefined}>
-          Spell
-        </button>
-        <button type="button" onClick={() => setWysiwyg((value) => !value)} className={wysiwyg ? 'active' : undefined}>
-          WYSIWYG
-        </button>
-        <button type="button" onClick={() => setTypewriter((value) => !value)} className={typewriter ? 'active' : undefined}>
-          Typewriter
-        </button>
-        <button type="button" onClick={() => setDistractionFree((value) => !value)} className={distractionFree ? 'active' : undefined}>
-          Focus
-        </button>
-        <button type="button" onClick={() => setLanguageTool((value) => !value)} className={languageTool ? 'active' : undefined}>
-          LT
-        </button>
-        <button type="button" onClick={renameActiveNote} disabled={!activePath}>
-          <Archive />
-        </button>
-        <button
-          type="button"
-          disabled={!activePath}
-          onClick={() => {
-            insertSnippet('> [!ai] Summarize the section above.')
-          }}
-        >
-          <Sparkles />
-        </button>
-        <span />
-        <button
-          type="button"
-          className={splitPreview ? 'active' : ''}
-          disabled={!activePath}
-          title="Toggle split preview"
-          aria-pressed={splitPreview}
-          onClick={() => setSplitPreview((value) => !value)}
-        >
-          <PanelRight />
-        </button>
-        <button type="button" disabled={!activePath} title="Insert horizontal rule" onClick={() => insertSnippet('\n---\n')}>
-          <MoreHorizontal />
-        </button>
+          <button
+            type="button"
+            title="Toggle Monaco editor"
+            aria-label={editorMode === 'monaco' ? 'Switch to CodeMirror editor' : 'Switch to Monaco editor'}
+            aria-pressed={editorMode === 'monaco'}
+            onClick={toggleEditorMode}
+            className={editorMode === 'monaco' ? 'active' : undefined}
+          >
+            <Code2 size={16} />
+          </button>
+          <button
+            type="button"
+            title="Toggle editor theme"
+            aria-label={editorTheme === 'dark' ? 'Switch to light editor theme' : 'Switch to dark editor theme'}
+            aria-pressed={editorTheme === 'dark'}
+            onClick={toggleEditorTheme}
+            className={editorTheme === 'dark' ? 'active' : undefined}
+          >
+            <Palette size={16} />
+          </button>
+          <button
+            type="button"
+            title={spellcheck ? 'Disable spellcheck' : 'Enable spellcheck'}
+            aria-label={spellcheck ? 'Disable spellcheck' : 'Enable spellcheck'}
+            aria-pressed={spellcheck}
+            onClick={() => setSpellcheck((value) => !value)}
+            className={spellcheck ? 'active' : undefined}
+          >
+            <SpellCheck size={16} />
+          </button>
+          <button
+            type="button"
+            title={wysiwyg ? 'Disable WYSIWYG mode' : 'Enable WYSIWYG mode'}
+            aria-label={wysiwyg ? 'Disable WYSIWYG mode' : 'Enable WYSIWYG mode'}
+            aria-pressed={wysiwyg}
+            onClick={() => setWysiwyg((value) => !value)}
+            className={wysiwyg ? 'active' : undefined}
+          >
+            <Eye size={16} />
+          </button>
+          <button
+            type="button"
+            title={typewriter ? 'Disable typewriter mode' : 'Enable typewriter mode'}
+            aria-label={typewriter ? 'Disable typewriter mode' : 'Enable typewriter mode'}
+            aria-pressed={typewriter}
+            onClick={() => setTypewriter((value) => !value)}
+            className={typewriter ? 'active' : undefined}
+          >
+            <AlignCenter size={16} />
+          </button>
+          <button
+            type="button"
+            title={distractionFree ? 'Exit focus mode' : 'Enter focus mode'}
+            aria-label={distractionFree ? 'Exit focus mode' : 'Enter focus mode'}
+            aria-pressed={distractionFree}
+            onClick={() => setDistractionFree((value) => !value)}
+            className={distractionFree ? 'active' : undefined}
+          >
+            <Focus size={16} />
+          </button>
+          <button
+            type="button"
+            title={languageTool ? 'Disable LanguageTool' : 'Enable LanguageTool'}
+            aria-label={languageTool ? 'Disable LanguageTool grammar check' : 'Enable LanguageTool grammar check'}
+            aria-pressed={languageTool}
+            onClick={() => setLanguageTool((value) => !value)}
+            className={languageTool ? 'active' : undefined}
+          >
+            <Languages size={16} />
+          </button>
+          <button type="button" onClick={renameActiveNote} disabled={!activePath} title="Rename / move note" aria-label="Rename or move note">
+            <Archive />
+          </button>
+          <button
+            type="button"
+            disabled={!activePath}
+            title="Insert AI summarize callout"
+            aria-label="Insert AI summarize callout"
+            onClick={() => {
+              insertSnippet('> [!ai] Summarize the section above.')
+            }}
+          >
+            <Sparkles />
+          </button>
+          {/* Separator: CSS gap handles spacing — no empty span */}
+          <span className="toolbar-separator" aria-hidden="true" />
+          <button
+            type="button"
+            className={splitPreview ? 'active' : ''}
+            disabled={!activePath}
+            title="Toggle split preview"
+            aria-label={splitPreview ? 'Close split preview' : 'Open split preview'}
+            aria-pressed={splitPreview}
+            onClick={() => setSplitPreview((value) => !value)}
+          >
+            <PanelRight />
+          </button>
+          <button type="button" disabled={!activePath} title="Insert horizontal rule" aria-label="Insert horizontal rule" onClick={() => insertSnippet('\n---\n')}>
+            <MoreHorizontal />
+          </button>
         </div>
 
         {showEditorAssist ? (
@@ -642,7 +650,12 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               onPointerCancel={onSplitHandlePointerCancel}
               onDoubleClick={onSplitHandleDoubleClick}
             />
-            <aside className="editor-preview-pane" aria-label="Split Markdown preview" ref={splitPreviewScrollRef}>
+            <aside
+              className="editor-preview-pane"
+              aria-label="Split Markdown preview"
+              ref={splitPreviewScrollRef}
+              tabIndex={0}
+            >
               <ErrorBoundary
                 name="split-markdown-preview"
                 resetKeys={[activePath]}

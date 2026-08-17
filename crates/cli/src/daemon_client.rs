@@ -4,7 +4,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use scriptor_daemon::{
-    read_endpoint, reset_rpc_session, rpc_call, shared_rpc_client, DaemonEndpoint,
+    DaemonEndpoint, read_endpoint, reset_rpc_session, rpc_call, shared_rpc_client,
 };
 use scriptor_ipc::{RpcMethod, RpcPayload, RpcRequest, RpcResult};
 
@@ -41,7 +41,11 @@ pub fn resolve_daemon_binary() -> PathBuf {
                 "../../scriptor-daemon.exe",
             ]
         } else {
-            ["scriptor-daemon", "../scriptor-daemon", "../../scriptor-daemon"]
+            [
+                "scriptor-daemon",
+                "../scriptor-daemon",
+                "../../scriptor-daemon",
+            ]
         };
         for candidate in candidates {
             let path = parent.join(candidate);
@@ -60,8 +64,8 @@ pub fn resolve_daemon_binary() -> PathBuf {
 
 /// Perform one ping within a caller-supplied whole-RPC budget.
 fn daemon_ping_with_timeout(timeout: Duration) -> Result<String, Box<dyn std::error::Error>> {
-    let response = shared_rpc_client()
-        .call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), timeout)?;
+    let response =
+        shared_rpc_client().call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), timeout)?;
     match response.result {
         RpcResult::Ok(RpcPayload::Pong { version }) => Ok(version),
         RpcResult::Err(message) => Err(message.into()),
@@ -209,10 +213,7 @@ fn recover_existing_daemon(
 
     eprintln!(
         "warning: authenticated daemon endpoint {} (pid {}) remained unavailable; probing socket ownership with one replacement bind; initial ping error: {}; last ping error: {}",
-        endpoint.socket_name,
-        endpoint.pid,
-        initial_error,
-        last_error,
+        endpoint.socket_name, endpoint.pid, initial_error, last_error,
     );
     Ok(None)
 }
@@ -357,7 +358,8 @@ mod tests {
 
     #[test]
     fn daemon_serve_command_applies_isolated_socket_override() {
-        let command = daemon_serve_command(Path::new("scriptor-daemon"), Some("scriptor-smoke-123"));
+        let command =
+            daemon_serve_command(Path::new("scriptor-daemon"), Some("scriptor-smoke-123"));
         let args = command
             .get_args()
             .map(|value| value.to_string_lossy().into_owned())

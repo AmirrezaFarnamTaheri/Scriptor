@@ -47,7 +47,10 @@ pub fn read_workspace_session(root: &VaultRoot) -> Result<WorkspaceSession, Vaul
     serde_json::from_str(&raw).map_err(VaultError::from)
 }
 
-pub fn write_workspace_session(root: &VaultRoot, session: &WorkspaceSession) -> Result<(), VaultError> {
+pub fn write_workspace_session(
+    root: &VaultRoot,
+    session: &WorkspaceSession,
+) -> Result<(), VaultError> {
     let absolute = root.root().join(DEFAULT_WORKSPACE_SESSION_PATH);
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;

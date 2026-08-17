@@ -9,19 +9,26 @@ const HEADING: Style = Style::new().add_modifier(Modifier::BOLD);
 const EMPHASIS: Style = Style::new().add_modifier(Modifier::ITALIC);
 const STRONG: Style = Style::new().add_modifier(Modifier::BOLD);
 
-#[allow(dead_code)]
 const CODE: Style = Style::new().fg(Color::Cyan);
 const LINK: Style = Style::new().fg(Color::LightBlue);
 const MUTED: Style = Style::new().fg(Color::DarkGray);
 const BLOCKQUOTE: Style = Style::new().fg(Color::Gray);
 
-pub fn render_markdown_lines(markdown: &str, width: usize, max_lines: usize, scroll: usize) -> Vec<Line<'static>> {
+pub fn render_markdown_lines(
+    markdown: &str,
+    width: usize,
+    max_lines: usize,
+    scroll: usize,
+) -> Vec<Line<'static>> {
     if width < 8 {
         return vec![Line::from("Preview too narrow.")];
     }
 
     let mut lines: Vec<Line<'static>> = Vec::new();
-    let parser = Parser::new_ext(markdown, Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TABLES);
+    let parser = Parser::new_ext(
+        markdown,
+        Options::ENABLE_STRIKETHROUGH | Options::ENABLE_TABLES,
+    );
     let mut current: Vec<Span<'static>> = Vec::new();
     let mut list_depth = 0usize;
     let mut in_code_block = false;

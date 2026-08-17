@@ -2,7 +2,7 @@ use std::path::{Component, Path};
 use std::time::Duration;
 
 use notify_debouncer_mini::notify::{RecommendedWatcher, RecursiveMode};
-use notify_debouncer_mini::{new_debouncer, Debouncer, DebouncedEvent};
+use notify_debouncer_mini::{DebouncedEvent, Debouncer, new_debouncer};
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
@@ -31,28 +31,31 @@ impl VaultWatcher {
         mut on_batch: impl FnMut(VaultWatchBatch) + Send + 'static,
     ) -> Result<Self, VaultError> {
         let root_path = root.root().to_path_buf();
-        let mut debouncer = new_debouncer(Duration::from_millis(debounce_ms), move |result: Result<Vec<DebouncedEvent>, notify_debouncer_mini::notify::Error>| {
-            let events = match result {
-                Ok(events) => events,
-                Err(error) => {
-                    on_batch(VaultWatchBatch::RescanRequired {
-                        reason: error.to_string(),
-                    });
-                    return;
+        let mut debouncer = new_debouncer(
+            Duration::from_millis(debounce_ms),
+            move |result: Result<Vec<DebouncedEvent>, notify_debouncer_mini::notify::Error>| {
+                let events = match result {
+                    Ok(events) => events,
+                    Err(error) => {
+                        on_batch(VaultWatchBatch::RescanRequired {
+                            reason: error.to_string(),
+                        });
+                        return;
+                    }
+                };
+
+                let batch: Vec<_> = events
+                    .into_iter()
+                    .filter_map(|DebouncedEvent { path, .. }| {
+                        parse_watch_path(&root_path, path.as_path())
+                    })
+                    .collect();
+
+                if !batch.is_empty() {
+                    on_batch(VaultWatchBatch::Events(batch));
                 }
-            };
-
-            let batch: Vec<_> = events
-                .into_iter()
-                .filter_map(|DebouncedEvent { path, .. }| {
-                    parse_watch_path(&root_path, path.as_path())
-                })
-                .collect();
-
-            if !batch.is_empty() {
-                on_batch(VaultWatchBatch::Events(batch));
-            }
-        })
+            },
+        )
         .map_err(|error| VaultError::InvalidConfig {
             message: error.to_string(),
         })?;

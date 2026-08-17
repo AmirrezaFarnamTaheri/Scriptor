@@ -1,12 +1,63 @@
-use rusqlite::{params, Connection};
+use rusqlite::{Connection, params};
 use std::path::Path;
 use std::sync::Mutex;
 
 pub mod error;
 pub mod ollama_client;
+pub mod provider;
 
 pub use error::EmbeddingError;
 pub use ollama_client::OllamaClient;
+pub use provider::{EmbedProvider, OllamaProvider, OpenAiProvider};
+
+// ── Typed record ──────────────────────────────────────────────────────────────
+
+/// A fully typed embedding record returned from semantic search.
+///
+/// The `id` is the note's vault-relative path (e.g. `"Projects/Alpha.md"`).
+/// Callers overlay BM25 keyword results with these by `note_path`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct EmbeddingRecord {
+    /// Vault-relative note path — the join key for BM25 results.
+    pub note_path: String,
+    /// Cosine similarity in [0, 1].
+    pub score: f32,
+}
+
+// ── NoteEmbedder ──────────────────────────────────────────────────────────────
+
+/// High-level helper: embeds note text via a provider and persists in the store.
+///
+/// - Callers must strip sealed spans before passing `text` (I-3).
+/// - The `note_path` is the vault-relative path and serves as the embedding ID.
+pub struct NoteEmbedder<P: EmbedProvider> {
+    pub store: EmbeddingStore,
+    pub provider: P,
+}
+
+impl<P: EmbedProvider> NoteEmbedder<P> {
+    /// Embed `text` and upsert into the store keyed by `note_path`.
+    pub fn index_note(&self, note_path: &str, text: &str) -> Result<(), EmbeddingError> {
+        let vec = self.provider.embed_single(text)?;
+        self.store.upsert_embedding(note_path, &vec)
+    }
+
+    /// Remove the embedding for a deleted or renamed note.
+    pub fn remove_note(&self, note_path: &str) -> Result<(), EmbeddingError> {
+        self.store.delete_embedding(note_path)
+    }
+
+    /// Return the top-k nearest notes for a query string.
+    /// Returned records are sorted by descending cosine similarity.
+    pub fn search(&self, query: &str, k: usize) -> Result<Vec<EmbeddingRecord>, EmbeddingError> {
+        let vec = self.provider.embed_single(query)?;
+        let raw = self.store.query_nearest(&vec, k)?;
+        Ok(raw
+            .into_iter()
+            .map(|(note_path, score)| EmbeddingRecord { note_path, score })
+            .collect())
+    }
+}
 
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS embeddings (
@@ -31,13 +82,19 @@ impl EmbeddingStore {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn: Mutex::new(conn), dimension })
+        Ok(Self {
+            conn: Mutex::new(conn),
+            dimension,
+        })
     }
 
     pub fn open_in_memory(dimension: usize) -> Result<Self, EmbeddingError> {
         let conn = Connection::open_in_memory()?;
         conn.execute_batch(SCHEMA)?;
-        Ok(Self { conn: Mutex::new(conn), dimension })
+        Ok(Self {
+            conn: Mutex::new(conn),
+            dimension,
+        })
     }
 
     pub fn dimension(&self) -> usize {
@@ -53,7 +110,10 @@ impl EmbeddingStore {
         }
 
         let bytes = vector_to_bytes(vector);
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         conn.execute(
             "INSERT OR REPLACE INTO embeddings (id, vector, dimension, updated_at)
              VALUES (?1, ?2, ?3, unixepoch())",
@@ -62,7 +122,11 @@ impl EmbeddingStore {
         Ok(())
     }
 
-    pub fn query_nearest(&self, vector: &[f32], k: usize) -> Result<Vec<(String, f32)>, EmbeddingError> {
+    pub fn query_nearest(
+        &self,
+        vector: &[f32],
+        k: usize,
+    ) -> Result<Vec<(String, f32)>, EmbeddingError> {
         if vector.len() != self.dimension {
             return Err(EmbeddingError::DimensionMismatch {
                 expected: self.dimension,
@@ -70,7 +134,10 @@ impl EmbeddingStore {
             });
         }
 
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT id, vector FROM embeddings WHERE dimension = ?1")?;
         let rows = stmt.query_map(params![self.dimension as i64], |row| {
             let id: String = row.get(0)?;
@@ -92,13 +159,19 @@ impl EmbeddingStore {
     }
 
     pub fn delete_embedding(&self, id: &str) -> Result<(), EmbeddingError> {
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         conn.execute("DELETE FROM embeddings WHERE id = ?1", params![id])?;
         Ok(())
     }
 
     pub fn count(&self) -> Result<usize, EmbeddingError> {
-        let conn = self.conn.lock().map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM embeddings", [], |row| row.get(0))?;
         Ok(count as usize)
     }
@@ -130,11 +203,7 @@ fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
         norm_b += b[i] * b[i];
     }
     let denom = norm_a.sqrt() * norm_b.sqrt();
-    if denom == 0.0 {
-        0.0
-    } else {
-        dot / denom
-    }
+    if denom == 0.0 { 0.0 } else { dot / denom }
 }
 
 #[cfg(test)]

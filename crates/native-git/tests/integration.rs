@@ -1,7 +1,7 @@
 use std::fs;
 use std::process::Command;
 
-use scriptor_native_git::{git_commit_selected, git_status, GitError};
+use scriptor_native_git::{GitError, git_commit_selected, git_status};
 
 fn run_git(repo: &std::path::Path, args: &[&str]) -> Result<String, GitError> {
     let output = Command::new("git")

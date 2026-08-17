@@ -13,7 +13,9 @@ use uuid::Uuid;
 use crate::AppState;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
 pub use catalog::{SupportLevel, TargetKind};
-use discovery::{collect_inventory, current_home_dir, hash_resource_directory, resolve_root, target_by_id};
+use discovery::{
+    collect_inventory, current_home_dir, hash_resource_directory, resolve_root, target_by_id,
+};
 
 static PLAN_STORE: OnceLock<Mutex<HashMap<String, StoredPlan>>> = OnceLock::new();
 const MAX_TARGETS_PER_PLAN: usize = 32;
@@ -24,6 +26,7 @@ static APPLY_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[allow(dead_code)]
 pub enum TargetStatus {
     Confirmed,
     Configured,
@@ -33,7 +36,11 @@ pub enum TargetStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "kind", rename_all = "snake_case", rename_all_fields = "camelCase")]
+#[serde(
+    tag = "kind",
+    rename_all = "snake_case",
+    rename_all_fields = "camelCase"
+)]
 pub enum ResourceEvidence {
     Executable {
         candidate: String,
@@ -442,16 +449,16 @@ fn apply_resource_plan(
     let plan = stored.plan;
     let current_inventory = collect_inventory()?;
     if current_inventory.fingerprint != plan.inventory_fingerprint {
-        return Err("resource inventory changed after plan approval; rescan and review a new plan".into());
+        return Err(
+            "resource inventory changed after plan approval; rescan and review a new plan".into(),
+        );
     }
     validate_non_overlapping_operations(&plan.operations)?;
     for operation in &plan.operations {
         fs_ops::revalidate_operation(operation)?;
     }
 
-    let concurrency = max_parallel
-        .unwrap_or(3)
-        .clamp(1, MAX_PARALLEL_OPERATIONS);
+    let concurrency = max_parallel.unwrap_or(3).clamp(1, MAX_PARALLEL_OPERATIONS);
     let mut receipts = Vec::new();
     let mut failures = Vec::new();
     for chunk in plan.operations.chunks(concurrency) {
@@ -599,7 +606,12 @@ fn fingerprint_plan(
         material.push('\0');
         material.push_str(&operation.expected_source_hash);
         material.push('\0');
-        material.push_str(operation.expected_destination_hash.as_deref().unwrap_or("<absent>"));
+        material.push_str(
+            operation
+                .expected_destination_hash
+                .as_deref()
+                .unwrap_or("<absent>"),
+        );
         material.push('\n');
     }
     hex::encode(Sha256::digest(material.as_bytes()))
@@ -637,14 +649,13 @@ fn store_plan(plan: ResourceSyncPlan) {
     let now = now_ms();
     let mut store = lock_plan_store();
     store.retain(|_, stored| stored.expires_at_ms > now);
-    if store.len() >= MAX_STORED_PLANS {
-        if let Some(oldest_id) = store
+    if store.len() >= MAX_STORED_PLANS
+        && let Some(oldest_id) = store
             .iter()
             .min_by_key(|(_, stored)| stored.expires_at_ms)
             .map(|(id, _)| id.clone())
-        {
-            store.remove(&oldest_id);
-        }
+    {
+        store.remove(&oldest_id);
     }
     store.insert(
         plan.id.clone(),
@@ -729,7 +740,7 @@ mod tests {
             expected_destination_hash: None,
             summary: "install".into(),
         };
-        assert!(validate_non_overlapping_operations(&[operation.clone()]).is_ok());
+        assert!(validate_non_overlapping_operations(std::slice::from_ref(&operation)).is_ok());
         assert!(validate_non_overlapping_operations(&[operation.clone(), operation]).is_err());
     }
 
@@ -745,7 +756,14 @@ mod tests {
             expected_destination_hash: Some("before".into()),
             summary: "update".into(),
         };
-        let original = fingerprint_plan("plan", 1, 2, "inventory", "source-id", &[operation.clone()]);
+        let original = fingerprint_plan(
+            "plan",
+            1,
+            2,
+            "inventory",
+            "source-id",
+            std::slice::from_ref(&operation),
+        );
         let mut changed = operation;
         changed.expected_destination_hash = Some("changed".into());
         let changed = fingerprint_plan("plan", 1, 2, "inventory", "source-id", &[changed]);
@@ -763,6 +781,9 @@ mod tests {
 
     #[test]
     fn parallelism_is_bounded() {
-        assert_eq!(usize::MAX.clamp(1, MAX_PARALLEL_OPERATIONS), MAX_PARALLEL_OPERATIONS);
+        assert_eq!(
+            usize::MAX.clamp(1, MAX_PARALLEL_OPERATIONS),
+            MAX_PARALLEL_OPERATIONS
+        );
     }
 }

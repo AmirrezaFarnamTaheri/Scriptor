@@ -2,11 +2,13 @@ use std::fs;
 use std::path::PathBuf;
 
 use scriptor_indexer::{
-    backlinks_for_path, build_health_diagnostics, list_recent_files, list_unresolved_link_targets, open_cache_for_session,
-    parse_note_markdown, query_focused_graph, rebuild_index, record_recent_access, resolve_wikilink_target_with_aliases,
-    search_notes, IndexerError,
+    IndexerError, backlinks_for_path, build_health_diagnostics, list_recent_files,
+    list_unresolved_link_targets, open_cache_for_session, parse_note_markdown, query_focused_graph,
+    rebuild_index, record_recent_access, resolve_wikilink_target_with_aliases, search_notes,
 };
-use scriptor_vault::{open_vault, read_note, rename_apply, save_note, RelativeVaultPath, VaultError};
+use scriptor_vault::{
+    RelativeVaultPath, VaultError, open_vault, read_note, rename_apply, save_note,
+};
 use tempfile::TempDir;
 
 fn copied_fixture() -> (TempDir, PathBuf) {
@@ -71,8 +73,11 @@ fn linked_fixture() -> (TempDir, PathBuf) {
         "# Research Plan\n\n- [[Field Notes]]\n",
     )
     .expect("write research");
-    fs::write(root.join("Field Notes.md"), "# Field Notes\n\nBack to [[Research Plan]].\n")
-        .expect("write field notes");
+    fs::write(
+        root.join("Field Notes.md"),
+        "# Field Notes\n\nBack to [[Research Plan]].\n",
+    )
+    .expect("write field notes");
     (dir, root)
 }
 
@@ -116,31 +121,37 @@ fn graph_query_returns_neighbors() -> Result<(), IndexerError> {
 }
 
 fn knowledge_edge_fixture_root() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/test-fixtures/vaults/knowledge-edge-cases")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/test-fixtures/vaults/knowledge-edge-cases")
 }
 
 #[test]
 fn search_relevance_fixture_cases() -> Result<(), IndexerError> {
-  let minimal = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/test-fixtures/vaults/minimal");
-  let session = open_vault(minimal).map_err(IndexerError::from)?;
-  rebuild_index(&session, &[])?;
-  let cache = open_cache_for_session(&session)?;
-  let hits = search_notes(&cache, &session.descriptor.id, "research", 10)?;
-  assert!(hits.iter().any(|hit| hit.path == "Research Plan.md"));
+    let minimal = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/test-fixtures/vaults/minimal");
+    let session = open_vault(minimal).map_err(IndexerError::from)?;
+    rebuild_index(&session, &[])?;
+    let cache = open_cache_for_session(&session)?;
+    let hits = search_notes(&cache, &session.descriptor.id, "research", 10)?;
+    assert!(hits.iter().any(|hit| hit.path == "Research Plan.md"));
 
-  let (_dir, linked_root) = linked_fixture();
-  let linked_session = open_vault(linked_root).map_err(IndexerError::from)?;
-  rebuild_index(&linked_session, &[])?;
-  let linked_cache = open_cache_for_session(&linked_session)?;
-  let field_hits = search_notes(&linked_cache, &linked_session.descriptor.id, "Field", 10)?;
-  assert!(field_hits.iter().any(|hit| hit.path.ends_with("Field Notes.md")));
+    let (_dir, linked_root) = linked_fixture();
+    let linked_session = open_vault(linked_root).map_err(IndexerError::from)?;
+    rebuild_index(&linked_session, &[])?;
+    let linked_cache = open_cache_for_session(&linked_session)?;
+    let field_hits = search_notes(&linked_cache, &linked_session.descriptor.id, "Field", 10)?;
+    assert!(
+        field_hits
+            .iter()
+            .any(|hit| hit.path.ends_with("Field Notes.md"))
+    );
 
-  let edge_session = open_vault(knowledge_edge_fixture_root()).map_err(IndexerError::from)?;
-  rebuild_index(&edge_session, &[])?;
-  let edge_cache = open_cache_for_session(&edge_session)?;
-  let alias_hits = search_notes(&edge_cache, &edge_session.descriptor.id, "alias", 10)?;
-  assert!(alias_hits.iter().any(|hit| hit.path == "Alias Target.md"));
-  Ok(())
+    let edge_session = open_vault(knowledge_edge_fixture_root()).map_err(IndexerError::from)?;
+    rebuild_index(&edge_session, &[])?;
+    let edge_cache = open_cache_for_session(&edge_session)?;
+    let alias_hits = search_notes(&edge_cache, &edge_session.descriptor.id, "alias", 10)?;
+    assert!(alias_hits.iter().any(|hit| hit.path == "Alias Target.md"));
+    Ok(())
 }
 
 #[test]
@@ -155,14 +166,18 @@ fn resolves_wikilink_via_frontmatter_alias() -> Result<(), IndexerError> {
         }
         paths.push(entry.path.clone());
         let relative = RelativeVaultPath::parse(&entry.path).map_err(IndexerError::from)?;
-        let document = read_note(&session.descriptor.id, &session.root, &relative).map_err(IndexerError::from)?;
+        let document = read_note(&session.descriptor.id, &session.root, &relative)
+            .map_err(IndexerError::from)?;
         let parsed = parse_note_markdown(&entry.path, &document.markdown);
         if !parsed.aliases.is_empty() {
             aliases.insert(entry.path, parsed.aliases);
         }
     }
     let resolution = resolve_wikilink_target_with_aliases(&paths, &aliases, "Friendly Name");
-    assert_eq!(resolution.kind, scriptor_indexer::WikilinkResolutionKind::Resolved);
+    assert_eq!(
+        resolution.kind,
+        scriptor_indexer::WikilinkResolutionKind::Resolved
+    );
     assert_eq!(resolution.path.as_deref(), Some("Alias Target.md"));
     Ok(())
 }
@@ -200,13 +215,7 @@ fn rename_updates_inbound_wikilinks() -> Result<(), VaultError> {
     let session = open_vault(root)?;
     let from = RelativeVaultPath::parse("Field Notes.md")?;
     let to = RelativeVaultPath::parse("Updated Field Notes.md")?;
-    rename_apply(
-        &session.descriptor.id,
-        &session.root,
-        &from,
-        &to,
-        true,
-    )?;
+    rename_apply(&session.descriptor.id, &session.root, &from, &to, true)?;
 
     let research = read_note(
         &session.descriptor.id,
@@ -226,6 +235,9 @@ fn recent_files_index_roundtrip() -> Result<(), IndexerError> {
     record_recent_access(&cache, "Research Plan.md")?;
     record_recent_access(&cache, "Field Notes.md")?;
     let recent = list_recent_files(&cache, 5)?;
-    assert_eq!(recent.first().map(|hit| hit.path.as_str()), Some("Field Notes.md"));
+    assert_eq!(
+        recent.first().map(|hit| hit.path.as_str()),
+        Some("Field Notes.md")
+    );
     Ok(())
 }

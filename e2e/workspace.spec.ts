@@ -30,7 +30,7 @@ test.describe('workspace flows', () => {
       window.sessionStorage.setItem('e2e:slow-vault', '1')
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 2_000 })
+    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 5_000 })
     await waitForWorkspace(page)
   })
 
@@ -41,17 +41,17 @@ test.describe('workspace flows', () => {
         window.sessionStorage.setItem('e2e:onboarding-cleared', '1')
       }
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     const tour = page.getByRole('dialog', { name: 'Product tour' })
     await expect(tour).toBeVisible()
     await tour.getByRole('button', { name: 'Skip tour' }).click()
     await expect(tour).toBeHidden()
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('dialog', { name: 'Product tour' })).toBeHidden()
   })
 
   test('workspace session persists open tabs', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     await page.evaluate(() => {
@@ -69,7 +69,7 @@ test.describe('workspace flows', () => {
       return tabs !== null
     }, { timeout: 5000 })
 
-    await page.reload({ waitUntil: 'networkidle' })
+    await page.reload({ waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
     await expect(page.locator('.tabs-row .tab')).toHaveCount(2, { timeout: 10_000 })
   })
@@ -79,12 +79,12 @@ test.describe('workspace flows', () => {
       window.localStorage.setItem('scriptor:app-theme', 'high-contrast')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'high-contrast')
   })
 
   test('note history panel lists revisions and restores', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     await page.keyboard.press('Control+KeyK')
@@ -102,7 +102,7 @@ test.describe('workspace flows', () => {
   })
 
   test('save note, search hit, and export HTML dry-run', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     await appendEditorLine(page, E2E_SEARCH_MARKER)
@@ -137,7 +137,7 @@ test.describe('workspace flows', () => {
   })
 
   test('performance HUD toggle shows metrics overlay', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     await page.keyboard.press('Control+KeyK')
@@ -152,7 +152,7 @@ test.describe('workspace flows', () => {
   })
 
   test('insert footnote command adds reference marker', async ({ page }) => {
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
 
     await page.keyboard.press('Control+KeyK')
@@ -228,7 +228,7 @@ test.describe('workspace flows', () => {
       window.localStorage.setItem('scriptor:workspace-chrome', 'INVALID_JSON{{{')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
     const root = page.locator('#root')
     await expect(root).toBeVisible()
@@ -239,7 +239,7 @@ test.describe('workspace flows', () => {
       window.localStorage.removeItem('scriptor:workspace-chrome')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     })
-    await page.goto('/', { waitUntil: 'networkidle' })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
     await waitForWorkspace(page)
     await expect(page.locator('#root')).toBeVisible()
   })

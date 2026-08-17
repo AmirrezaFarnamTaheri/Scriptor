@@ -16,7 +16,7 @@ const declared = new Set()
 const usages = []
 for (const file of cssFiles) {
   const source = fs.readFileSync(file, 'utf8')
-  for (const match of source.matchAll(/(^|[;{]\s*)(--[A-Za-z0-9_-]+)\s*:/gm)) declared.add(match[2])
+  for (const match of source.matchAll(/(^\s*|[;{]\s*)(--[A-Za-z0-9_-]+)\s*:/gm)) declared.add(match[2])
   for (const match of source.matchAll(/var\(\s*(--[A-Za-z0-9_-]+)(\s*,[^)]*)?\)/g)) {
     usages.push({ file, name: match[1], hasFallback: Boolean(match[2]), index: match.index })
   }

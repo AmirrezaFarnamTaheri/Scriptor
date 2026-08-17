@@ -35,10 +35,7 @@ pub fn write_export_log(vault_root: &Path, entry: &ExportJobLogEntry) -> Result<
     let payload = serde_json::to_string_pretty(entry).map_err(|error| {
         ExportError::Process(format!("failed to serialize export log: {error}"))
     })?;
-    fs::write(&file, payload).map_err(|source| ExportError::Io {
-        path: file,
-        source,
-    })?;
+    fs::write(&file, payload).map_err(|source| ExportError::Io { path: file, source })?;
     prune_export_logs(vault_root, MAX_EXPORT_LOG_FILES);
     Ok(())
 }
@@ -92,7 +89,10 @@ fn log_files_newest_first(
     Ok(files)
 }
 
-pub fn read_export_logs(vault_root: &Path, limit: usize) -> Result<Vec<ExportJobLogEntry>, ExportError> {
+pub fn read_export_logs(
+    vault_root: &Path,
+    limit: usize,
+) -> Result<Vec<ExportJobLogEntry>, ExportError> {
     let dir = export_logs_dir(vault_root);
     if !dir.exists() {
         return Ok(Vec::new());
@@ -175,8 +175,11 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let root = dir.path();
         for index in 0..10 {
-            write_export_log(root, &entry(&format!("job-{index}"), "2025-01-01T00:00:00Z"))
-                .expect("write");
+            write_export_log(
+                root,
+                &entry(&format!("job-{index}"), "2025-01-01T00:00:00Z"),
+            )
+            .expect("write");
         }
         assert_eq!(read_export_logs(root, 3).expect("read").len(), 3);
     }
@@ -186,8 +189,11 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let root = dir.path();
         for index in 0..12 {
-            write_export_log(root, &entry(&format!("job-{index}"), "2025-01-01T00:00:00Z"))
-                .expect("write");
+            write_export_log(
+                root,
+                &entry(&format!("job-{index}"), "2025-01-01T00:00:00Z"),
+            )
+            .expect("write");
         }
         assert_eq!(count_log_files(root), 12);
 
@@ -201,8 +207,11 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         let root = dir.path();
         for index in 0..(MAX_EXPORT_LOG_FILES + 10) {
-            write_export_log(root, &entry(&format!("job-{index:04}"), "2025-01-01T00:00:00Z"))
-                .expect("write");
+            write_export_log(
+                root,
+                &entry(&format!("job-{index:04}"), "2025-01-01T00:00:00Z"),
+            )
+            .expect("write");
         }
         assert!(
             count_log_files(root) <= MAX_EXPORT_LOG_FILES,
