@@ -157,6 +157,18 @@ test('v1 baseline excludes superseded audit packets', () => {
   assert.match(baseline, /exact source head/i)
 })
 
+test('binary review uses the declared Cargo binary names', () => {
+  const reviewScript = read('scripts/release/review-binaries.ps1')
+  const cliManifest = read('crates/cli/Cargo.toml')
+  const daemonManifest = read('crates/daemon/Cargo.toml')
+
+  assert.match(cliManifest, /\[\[bin\]\][\s\S]*?name\s*=\s*"scriptor"/)
+  assert.match(daemonManifest, /\[\[bin\]\][\s\S]*?name\s*=\s*"scriptor-daemon"/)
+  assert.match(reviewScript, /target\/release\/scriptor\$suffix/)
+  assert.match(reviewScript, /target\/release\/scriptor-daemon\$suffix/)
+  assert.doesNotMatch(reviewScript, /target\/release\/scriptor-cli\$suffix/)
+})
+
 test('reviewed workspace async flows remain race-free and rejection-safe', () => {
   const capture = read('src/components/app/QuickCaptureWorkspaceLayer.tsx')
   assert.match(

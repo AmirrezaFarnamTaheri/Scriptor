@@ -10,7 +10,7 @@ New-Item -ItemType Directory -Force -Path $outputPath | Out-Null
 
 $suffix = if ($IsWindows) { '.exe' } else { '' }
 $targets = @(
-  (Join-Path $root "target/release/scriptor-cli$suffix"),
+  (Join-Path $root "target/release/scriptor$suffix"),
   (Join-Path $root "target/release/scriptor-daemon$suffix")
 )
 $records = foreach ($target in $targets) {
