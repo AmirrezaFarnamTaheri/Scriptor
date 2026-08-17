@@ -377,6 +377,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Rust workspace tests and release smoke"
 
+      - name: Install Linux desktop system dependencies
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux desktop system dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf") -TimeoutSeconds 900
+
       - name: Clippy workspace checks
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Clippy workspace checks" -FilePath "cargo" -ArgumentList @("clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings") -TimeoutSeconds 1200
