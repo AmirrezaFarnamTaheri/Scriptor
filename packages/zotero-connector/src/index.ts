@@ -1,5 +1,7 @@
 const ZOTERO_API_BASE = 'https://api.zotero.org'
 
+type FetchLike = typeof globalThis.fetch
+
 export interface ZoteroCollection {
   key: string
   name: string
@@ -30,48 +32,70 @@ interface ZoteroApiCollection {
   data: ZoteroCollection
 }
 
+/**
+ * Read-only Zotero Web API v3 connector.
+ *
+ * Credentials are always sent only to Zotero's fixed HTTPS API origin. Tests
+ * inject a fetch implementation rather than changing the credential origin.
+ */
 export class ZoteroConnector {
-  private baseUrl: string
-  private apiKey: string
+  private apiKey = ''
   private userId: string | null = null
+  private readonly fetchImpl: FetchLike
 
-  constructor() {
-    this.baseUrl = ZOTERO_API_BASE
-    this.apiKey = ''
+  constructor(fetchImpl: FetchLike = globalThis.fetch) {
+    this.fetchImpl = fetchImpl
   }
 
-  async connect(url: string, apiKey: string): Promise<void> {
-    this.baseUrl = url.replace(/\/+$/, '')
-    this.apiKey = apiKey
+  async connect(apiKey: string): Promise<void> {
+    const key = apiKey.trim()
+    if (!key) throw new Error('Zotero API key is required')
 
-    const response = await this.fetch('/keys/current')
+    // Verify the key at the API's unscoped current-key endpoint before
+    // retaining it as connected state.
+    this.apiKey = ''
+    this.userId = null
+    const response = await this.request('/keys/current', undefined, key, false)
     if (!response.ok) {
       throw new Error(`Zotero authentication failed: ${response.status} ${response.statusText}`)
     }
-    const data = (await response.json()) as { userID?: number; id?: number }
-    this.userId = String(data.userID ?? data.id ?? '')
-    if (!this.userId) {
+    const data = (await response.json()) as { userID?: number }
+    if (!Number.isSafeInteger(data.userID) || (data.userID ?? 0) <= 0) {
       throw new Error('Could not determine Zotero user ID')
     }
+    this.apiKey = key
+    this.userId = String(data.userID)
+  }
+
+  disconnect(): void {
+    this.apiKey = ''
+    this.userId = null
   }
 
   private ensureConnected(): string {
-    if (!this.userId) {
+    if (!this.userId || !this.apiKey) {
       throw new Error('Not connected. Call connect() first.')
     }
     return this.userId
   }
 
-  private async fetch(path: string, params?: Record<string, string>): Promise<Response> {
-    const url = new URL(`/users/${this.userId ?? '0'}${path}`, this.baseUrl)
-    if (params) {
-      for (const [key, value] of Object.entries(params)) {
-        url.searchParams.set(key, value)
-      }
+  private async request(
+    path: string,
+    params?: Record<string, string>,
+    apiKey = this.apiKey,
+    userScoped = true,
+  ): Promise<Response> {
+    const requestPath = userScoped ? `/users/${this.ensureConnected()}${path}` : path
+    const url = new URL(requestPath, ZOTERO_API_BASE)
+    if (url.origin !== ZOTERO_API_BASE) {
+      throw new Error('Refusing to send Zotero credentials outside the official API origin')
     }
-    return globalThis.fetch(url.toString(), {
+    if (params) {
+      for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value)
+    }
+    return this.fetchImpl(url.toString(), {
       headers: {
-        'Zotero-API-Key': this.apiKey,
+        'Zotero-API-Key': apiKey,
         'Zotero-API-Version': '3',
       },
     })
@@ -84,10 +108,8 @@ export class ZoteroConnector {
     const limit = 100
 
     for (;;) {
-      const response = await this.fetch('/collections', { start: String(start), limit: String(limit) })
-      if (!response.ok) {
-        throw new Error(`Failed to list collections: ${response.status}`)
-      }
+      const response = await this.request('/collections', { start: String(start), limit: String(limit) })
+      if (!response.ok) throw new Error(`Failed to list collections: ${response.status}`)
       const data = (await response.json()) as ZoteroApiCollection[]
       for (const item of data) {
         allCollections.push({
@@ -113,14 +135,12 @@ export class ZoteroConnector {
     const seen = new Set<string>()
 
     for (;;) {
-      const response = await this.fetch(path, {
+      const response = await this.request(path, {
         itemType: '-attachment || note',
         start: String(start),
         limit: String(limit),
       })
-      if (!response.ok) {
-        throw new Error(`Failed to list items: ${response.status}`)
-      }
+      if (!response.ok) throw new Error(`Failed to list items: ${response.status}`)
       const data = (await response.json()) as ZoteroApiItem[]
       for (const item of data) {
         if (item.data.itemType !== 'attachment' && item.data.itemType !== 'note' && !seen.has(item.key)) {
@@ -138,32 +158,8 @@ export class ZoteroConnector {
   async exportBibTeX(collectionId?: string): Promise<string> {
     this.ensureConnected()
     const path = collectionId ? `/collections/${collectionId}/items` : '/items'
-    const response = await this.fetch(path, { format: 'bibtex', itemType: '-attachment || note' })
-    if (!response.ok) {
-      throw new Error(`Failed to export BibTeX: ${response.status}`)
-    }
+    const response = await this.request(path, { format: 'bibtex', itemType: '-attachment || note' })
+    if (!response.ok) throw new Error(`Failed to export BibTeX: ${response.status}`)
     return response.text()
-  }
-
-  async importToVault(vaultPath: string, bibtex: string): Promise<void> {
-    const fs = await import('node:fs')
-    const path = await import('node:path')
-    const targetDir = vaultPath
-    const targetFile = path.join(targetDir, 'references.bib')
-
-    await fs.promises.mkdir(targetDir, { recursive: true })
-
-    let existing = ''
-    try {
-      existing = await fs.promises.readFile(targetFile, 'utf-8')
-    } catch {
-      // File doesn't exist yet
-    }
-
-    if (existing.trim() && !existing.endsWith('\n')) {
-      existing += '\n'
-    }
-
-    await fs.promises.writeFile(targetFile, existing + bibtex, 'utf-8')
   }
 }

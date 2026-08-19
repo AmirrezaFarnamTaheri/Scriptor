@@ -21,8 +21,8 @@ scriptor-ipc = { path = "../../../crates/ipc" }
 scriptor-system-bridge = { path = "../../../crates/system-bridge" }
 scriptor-indexer = { path = "../../../crates/indexer" }
 scriptor-native-git = { path = "../../../crates/native-git" }
+scriptor-publish-runner = { path = "../../../crates/publish-runner" }
 scriptor-vault = { path = "../../../crates/vault" }
-scriptor-embeddings = { path = "../../../crates/embeddings" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }

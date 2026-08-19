@@ -20,7 +20,7 @@ export const mcpPluginManifest: PluginManifest = {
   description: 'Local stdio & HTTP MCP server exposing safe Markdown knowledge tools to AI agents',
   publisher: 'Scriptor Team',
   capabilityId: MCP_PLUGIN_CAPABILITY_ID,
-  rustFeatureGate: 'scriptor-mcp-server',
+  rustFeatureGate: 'scriptor-daemon',
   activation: ['on-startup'],
   capabilities: ['mcp-tool'],
   permissions: [

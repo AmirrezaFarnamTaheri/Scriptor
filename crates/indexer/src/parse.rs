@@ -47,6 +47,10 @@ pub struct ParsedNote {
     pub archived: bool,
     #[serde(default)]
     pub template_body: Option<String>,
+    /// Body text after stripping YAML frontmatter. Use this for FTS indexing
+    /// to avoid exposing frontmatter content (e.g. tag values) in snippets.
+    #[serde(default)]
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -83,6 +87,7 @@ pub fn parse_note_markdown(path: &str, markdown: &str) -> ParsedNote {
         organized,
         archived,
         template_body,
+        body,
     }
 }
 

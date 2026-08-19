@@ -8,6 +8,11 @@ export async function healthCheck(): Promise<string> {
   return invoke<string>('health_check')
 }
 
+export async function setHeadlessEngineMode(enabled: boolean): Promise<void> {
+  requireNative()
+  await invoke('set_headless_engine', { enabled })
+}
+
 export async function diagnosticsAppendEvent(
   eventType: string,
   message: string,

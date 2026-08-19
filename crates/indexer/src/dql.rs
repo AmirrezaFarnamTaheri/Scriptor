@@ -567,11 +567,11 @@ fn phrase_search(
     let conn = cache.connection()?;
     let mut stmt = conn.prepare(
         "SELECT note_fts.note_id, notes.path, notes.title,
-                snippet(note_fts, 3, '[[', ']]', '...', 32) AS snippet
+                snippet(note_fts, 4, '[[', ']]', '...', 32) AS snippet
          FROM note_fts
          JOIN notes ON notes.id = note_fts.note_id
          WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
-         ORDER BY bm25(note_fts, 10.0, 5.0, 3.0, 1.0)
+         ORDER BY bm25(note_fts, 0.0, 10.0, 5.0, 3.0, 1.0)
          LIMIT ?3",
     )?;
     let rows = stmt.query_map(

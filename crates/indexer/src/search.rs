@@ -128,19 +128,18 @@ pub fn search_notes(
     };
 
     let conn = cache.connection()?;
-    // v5 weighted BM25 — column order: title(10), headings(5), tags(3), body(1).
-    // `bm25()` is negated (more relevant = more negative) so ORDER BY ascending
+    // v5 FTS column order is note_id(UNINDEXED), title, headings, tags, body.
+    // FTS5 column indices and bm25() weights still include UNINDEXED columns,
+    // so note_id receives a zero weight and body is snippet column 4.
+    // `bm25()` is negated (more relevant = more negative) so ascending order
     // gives highest-relevance first.
-    // snippet() column-index 3 = body (0=note_id UNINDEXED, 1=title, 2=headings, 3=tags, 4=body
-    // — but note_id is UNINDEXED so FTS column indices start at 0 for title).
-    // Correct snippet column: title=0, headings=1, tags=2, body=3.
     let mut statement = conn.prepare(
         "SELECT note_fts.note_id, notes.path, notes.title,
-                snippet(note_fts, 3, '[[', ']]', '...', 32) AS snippet
+                snippet(note_fts, 4, '[[', ']]', '...', 32) AS snippet
          FROM note_fts
          JOIN notes ON notes.id = note_fts.note_id
          WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
-         ORDER BY bm25(note_fts, 10.0, 5.0, 3.0, 1.0)
+         ORDER BY bm25(note_fts, 0.0, 10.0, 5.0, 3.0, 1.0)
          LIMIT ?3",
     )?;
 
@@ -243,6 +242,24 @@ mod tests {
         let hits = search_notes(&cache, "vault-test", "knowledge", 10)?;
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].title, "Research Plan");
+        Ok(())
+    }
+
+    #[test]
+    fn body_search_returns_a_body_snippet() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let path = RelativeVaultPath::parse("Snippet.md")?;
+        let markdown = "---\ntags: [metadata-only]\n---\n# Snippet\n\nBodyneedle lives in the prose.\n";
+        let metadata =
+            metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
+
+        upsert_note(&cache, &metadata, markdown)?;
+
+        let hits = search_notes(&cache, "vault-test", "bodyneedle", 10)?;
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].snippet.contains("[[Bodyneedle]]"), "{}", hits[0].snippet);
+        assert!(!hits[0].snippet.contains("metadata-only"));
         Ok(())
     }
 }

@@ -1,10 +1,9 @@
-import { invoke } from '@tauri-apps/api/core'
-
 import { copyTextToClipboard } from '@scriptor/portal'
+import { copyTextToClipboard as nativeCopyTextToClipboard } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
 async function nativeCopy(text: string): Promise<void> {
-  await invoke('copy_text_to_clipboard', { text })
+  await nativeCopyTextToClipboard(text)
 }
 
 /** Copy plain text via web clipboard or Tauri native command. */

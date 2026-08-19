@@ -21,5 +21,31 @@ const licenseNotice = fs.readFileSync(path.join(root, 'LICENSE'), 'utf8').slice(
 if (!licenseNotice.includes('SPDX-License-Identifier: AGPL-3.0-or-later')) failures.push('LICENSE: missing SPDX identifier');
 if (/Non-commercial use|Commercial use requires/i.test(licenseNotice)) failures.push('LICENSE: contains a restriction incompatible with the AGPL grant');
 if (!fs.existsSync(path.join(root, '.github/CODEOWNERS'))) failures.push('governance: missing .github/CODEOWNERS');
+
+// Root product/security documents must match the implemented upstream release trust policy.
+// Official GitHub Release installers are intentionally unsigned; integrity is established by
+// exact target-status records, checksums, SBOM, receipt, source identity, and GitHub attestations.
+const releaseTruthDocs = ['README.md', 'PRODUCT.md', 'SECURITY.md'];
+const releaseTruth = Object.fromEntries(
+  releaseTruthDocs.map((rel) => [rel, fs.readFileSync(path.join(root, rel), 'utf8')]),
+);
+for (const [rel, source] of Object.entries(releaseTruth)) {
+  if (!/unsigned/i.test(source) || !/attest/i.test(source)) {
+    failures.push(`${rel}: must state the unsigned-but-attested upstream release policy`);
+  }
+}
+const contradictoryReleaseClaims = [
+  /Windows installers are Authenticode-signed/i,
+  /macOS bundles are Developer ID-signed and notarized/i,
+  /Linux packages have detached OpenPGP signatures/i,
+  /Production artifacts require platform signatures/i,
+  /unsigned production release channels\./i,
+  /reproducible, signed, attributable releases/i,
+];
+for (const [rel, source] of Object.entries(releaseTruth)) {
+  for (const pattern of contradictoryReleaseClaims) {
+    if (pattern.test(source)) failures.push(`${rel}: contradicts the upstream unsigned release policy (${pattern})`);
+  }
+}
 if (failures.length) { console.error(failures.join('\n')); process.exit(1); }
 console.log(`Documentation contracts OK: ${docs.length} required documents and referenced repository paths.`);

@@ -5742,6 +5742,7 @@ dependencies = [
  "scriptor-indexer",
  "scriptor-ipc",
  "scriptor-native-git",
+ "scriptor-publish-runner",
  "scriptor-system-bridge",
  "scriptor-vault",
  "serde",
@@ -5789,11 +5790,11 @@ dependencies = [
  "reqwest",
  "scriptor-canvas-engine",
  "scriptor-daemon",
- "scriptor-embeddings",
  "scriptor-export-runner",
  "scriptor-indexer",
  "scriptor-ipc",
  "scriptor-native-git",
+ "scriptor-publish-runner",
  "scriptor-system-bridge",
  "scriptor-vault",
  "serde",
@@ -5892,15 +5893,12 @@ dependencies = [
 name = "scriptor-publish-runner"
 version = "1.0.0"
 dependencies = [
- "chrono",
  "globset",
  "scriptor-vault",
  "serde",
  "serde_json",
  "tempfile",
  "thiserror 2.0.20",
- "tracing",
- "walkdir",
 ]
 
 [[package]]
