@@ -17,7 +17,7 @@ htmd        = "0.1"           # HTML → Markdown converter
 
 # HTTP client — feature-gated async; capture always runs in a blocking context
 # via `tokio::task::spawn_blocking` so we use the blocking API.
-ureq        = { version = "2", features = ["charset", "gzip"] }
+ureq        = { version = "3", features = ["charset", "gzip"] }
 
 # Error handling
 thiserror   = "2"
