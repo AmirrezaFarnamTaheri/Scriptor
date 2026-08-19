@@ -286,6 +286,7 @@ function App() {
   const [publishPlan, setPublishPlan] = useState<PublishPlan | null>(null)
   const [publishOutputPath, setPublishOutputPath] = useState<string | null>(null)
   const [publishApplying, setPublishApplying] = useState(false)
+  const publishApplyingRef = useRef(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId)
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
@@ -578,12 +579,14 @@ function App() {
   }, [promptText, setPublishCenterOpen, showToast])
 
   const applyStarlightPlan = useCallback(async (selectedPaths: string[], deleteOrphans: string[]) => {
-    if (!publishPlan || !publishOutputPath || publishApplying) return
+    if (!publishPlan || !publishOutputPath || publishApplyingRef.current) return
+    publishApplyingRef.current = true
     const candidates = [...publishPlan.new_items, ...publishPlan.changed]
     const byPath = new Map(candidates.map((candidate) => [candidate.rel_path, candidate]))
     const toWrite = selectedPaths.map((path) => byPath.get(path)).filter((candidate) => candidate != null)
     if (toWrite.length !== selectedPaths.length) {
       showToast('The publish selection no longer matches the reviewed plan. Replan before applying.')
+      publishApplyingRef.current = false
       return
     }
     setPublishApplying(true)
@@ -597,8 +600,9 @@ function App() {
       showToast(error instanceof Error ? error.message : String(error))
     } finally {
       setPublishApplying(false)
+      publishApplyingRef.current = false
     }
-  }, [publishApplying, publishOutputPath, publishPlan, showToast])
+  }, [publishOutputPath, publishPlan, showToast])
 
   const openKnowledgeWorkbench = useCallback((tab: KnowledgeWorkbenchTab = 'repair') => {
     setKnowledgeWorkbenchTab(tab)

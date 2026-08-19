@@ -260,6 +260,14 @@ mod tests {
         assert_eq!(hits.len(), 1);
         assert!(hits[0].snippet.contains("[[Bodyneedle]]"), "{}", hits[0].snippet);
         assert!(!hits[0].snippet.contains("metadata-only"));
+
+        // Frontmatter-only terms must not surface through body FTS search.
+        let frontmatter_hits = search_notes(&cache, "vault-test", "metadata-only", 10)?;
+        assert!(
+            frontmatter_hits.is_empty(),
+            "FTS body must not index frontmatter; got {} hit(s)",
+            frontmatter_hits.len()
+        );
         Ok(())
     }
 }

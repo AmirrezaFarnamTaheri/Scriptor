@@ -470,4 +470,98 @@ mod tests {
         assert!(publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default()).is_err());
         assert!(out.path().join("user-file.md").exists());
     }
+
+    #[test]
+    fn apply_rejects_writing_over_unmanaged_destination() {
+        let vault = TempDir::new().unwrap();
+        let out = TempDir::new().unwrap();
+        vault_note(vault.path(), "note.md", &opted_in("opted in"));
+        let candidate = reviewed_candidate(vault.path(), "note.md");
+        fs::write(out.path().join("note.md"), b"unmanaged existing file").unwrap();
+        let sink = LocalDirSink::new(out.path()).unwrap();
+        let input = PublishApplyInput {
+            to_write: vec![candidate],
+            to_delete: vec![],
+        };
+
+        let error = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &BucketState::default(),
+            &Default::default(),
+        )
+        .expect_err("writing over an unmanaged existing file must be rejected");
+
+        assert!(
+            matches!(
+                error,
+                PublishError::InvalidSelection { ref reason, .. }
+                if reason.contains("destination exists but is not managed by Scriptor publish state")
+            ),
+            "unexpected error: {error:?}"
+        );
+        assert_eq!(
+            fs::read_to_string(out.path().join("note.md")).unwrap(),
+            "unmanaged existing file"
+        );
+    }
+
+    #[test]
+    fn apply_source_unchanged_drift_repair_paths() {
+        let vault = TempDir::new().unwrap();
+        let out = TempDir::new().unwrap();
+        let note_content = opted_in("Hello!");
+        vault_note(vault.path(), "hello.md", &note_content);
+        let note_hash = content_hash_bytes(note_content.as_bytes());
+
+        // 1. When both source and managed output are unchanged, apply is rejected.
+        fs::write(out.path().join("hello.md"), &note_content).unwrap();
+        let mut prior = BucketState::default();
+        prior.entries.insert("hello.md".into(), note_hash.clone());
+        let sink = LocalDirSink::new(out.path()).unwrap();
+        let candidate = PublishCandidate {
+            rel_path: "hello.md".into(),
+            content_hash: note_hash.clone(),
+        };
+        let input = PublishApplyInput {
+            to_write: vec![candidate.clone()],
+            to_delete: vec![],
+        };
+
+        let error = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &prior,
+            &Default::default(),
+        )
+        .expect_err("unchanged source and managed output must reject apply");
+
+        assert!(
+            matches!(
+                error,
+                PublishError::InvalidSelection { ref reason, .. }
+                if reason.contains("path is unchanged in both source and managed output")
+            ),
+            "unexpected error: {error:?}"
+        );
+
+        // 2. When managed output drifts (is modified), reviewed apply repairs it.
+        fs::write(out.path().join("hello.md"), b"drifted output").unwrap();
+        let result = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &prior,
+            &Default::default(),
+        )
+        .unwrap();
+
+        assert_eq!(result.written, vec!["hello.md"]);
+        assert_eq!(
+            fs::read_to_string(out.path().join("hello.md")).unwrap(),
+            note_content
+        );
+    }
 }

@@ -183,4 +183,64 @@ mod tests {
         let queue = GitQueue::new(root.clone());
         assert_eq!(queue.repo_root, root);
     }
+
+    #[test]
+    fn queue_bounded_submission_handles_backpressure_beyond_capacity() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::{Arc, Barrier};
+
+        let dir = tempdir().unwrap();
+        let queue = Arc::new(GitQueue::new(dir.path().to_path_buf()));
+        let total_tasks = 80usize; // > MAX_PENDING_GIT_OPERATIONS (64)
+
+        let gate = Arc::new(Barrier::new(2));
+        let gate_worker = Arc::clone(&gate);
+
+        let completed_count = Arc::new(AtomicUsize::new(0));
+        let mut join_handles = Vec::with_capacity(total_tasks);
+
+        // Spawn first task that waits on the gate, temporarily holding the queue worker
+        let queue_clone = Arc::clone(&queue);
+        let completed_clone = Arc::clone(&completed_count);
+        join_handles.push(thread::spawn(move || {
+            queue_clone
+                .enqueue(move |_root| {
+                    gate_worker.wait();
+                    completed_clone.fetch_add(1, Ordering::SeqCst);
+                    Ok::<usize, GitError>(0)
+                })
+                .unwrap()
+        }));
+
+        // Spawn remaining tasks (1..80) from separate threads to contend and fill the 64-slot channel
+        for i in 1..total_tasks {
+            let queue_clone = Arc::clone(&queue);
+            let completed_clone = Arc::clone(&completed_count);
+            join_handles.push(thread::spawn(move || {
+                queue_clone
+                    .enqueue(move |_root| {
+                        completed_clone.fetch_add(1, Ordering::SeqCst);
+                        Ok::<usize, GitError>(i)
+                    })
+                    .unwrap()
+            }));
+        }
+
+        // Give submitter threads time to submit and exercise channel backpressure
+        thread::sleep(std::time::Duration::from_millis(50));
+
+        // Release the first task so the worker can resume and drain all enqueued tasks
+        gate.wait();
+
+        // Join all threads and collect results
+        let mut results = Vec::with_capacity(total_tasks);
+        for handle in join_handles {
+            results.push(handle.join().expect("submitter thread panicked"));
+        }
+
+        results.sort_unstable();
+        let expected: Vec<usize> = (0..total_tasks).collect();
+        assert_eq!(results, expected);
+        assert_eq!(completed_count.load(Ordering::SeqCst), total_tasks);
+    }
 }

@@ -88,9 +88,9 @@ core surfaces; transient/state-review screenshots are attached to the Visual rev
 creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
-## ZIP-derived improvement candidate evidence — 2026-08-19
+## Exploratory ZIP-derived candidate output — 2026-08-19
 
-This section records checks executed against the improved working tree reconstructed from the provided `Scriptor-lite.zip`. The environment has Node.js `v22.16.0` but no Cargo/Rust toolchain, pnpm installation, workspace `node_modules`, PowerShell, or production browser build. Therefore the evidence below is deliberately split between executable dependency-free proof and pending clean-environment gates. It is **not** a release-readiness claim.
+This section records exploratory baseline checks executed against the working tree reconstructed from the unhashed `Scriptor-lite.zip` artifact during workspace triage. Because the input archive did not record an immutable cryptographic hash, and the inspection environment had Node.js `v22.16.0` without a local Cargo/Rust toolchain, pnpm installation, workspace `node_modules`, PowerShell, or production browser build, this output is retained as informational exploratory notes only. It is **not** auditable candidate evidence or a release-readiness claim. Clean CI environments enforce all repository gates.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
