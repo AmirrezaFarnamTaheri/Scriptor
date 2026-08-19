@@ -1,49 +1,46 @@
 # C4 Model Specification: Level 1 System Context for Scriptor
 
-> **Specification Standard:** C4 Model Level 1 System Context (`architecture-c4-model`) for Scriptor (`D:\GitHub\Scriptor`).
+**Status:** current implementation context for Scriptor `1.0.0` plus the Unreleased hardening in this tree. Experimental and design-only surfaces are governed by [`../CAPABILITY-MATURITY.md`](../CAPABILITY-MATURITY.md).
 
-## 1. System Overview
+## System overview
 
-**Scriptor** is a local-first, privacy-focused Markdown knowledge and writing workspace for desktop users. It combines long-form Markdown note editing, interactive canvas research, citation management, full-text search indexing, and automated Git synchronization into a desktop application shell.
+Scriptor is a local-first desktop Markdown knowledge and writing workspace. Markdown on the user's filesystem is authoritative; SQLite indexes and generated publish/export artifacts are derived state.
 
----
+## Personas
 
-## 2. Personas & Stakeholders
-
-| Persona | Role & Primary Goal | Key Workflows |
+| Persona | Primary goal | Implemented workflows |
 |---|---|---|
-| **Academic Researcher** | Manages citations, literature notes, and paper drafts. | Zotero reference sync, PDF annotation, bibtex/CSL citation generation. |
-| **Technical Writer** | Authors structured documentation, API guides, and Markdown books. | Split editor preview, canvas diagramming, automated Git commits. |
-| **Knowledge Worker** | Builds a personal knowledge graph (PKM) from daily notes and web clips. | Vault indexing, full-text search, bidirectional link traversal. |
+| Researcher | Write and organize literature notes and drafts | Markdown editing, local bibliography/citation inspection, PDF/EPUB reading and annotations, graph/search |
+| Technical writer | Produce structured documentation | Editor/preview, export profiles, Git workflows, reviewed local Starlight publishing |
+| Knowledge worker | Maintain a portable personal knowledge base | Vault indexing, full-text search, backlinks/graph, tasks/Kanban, capture |
 
----
-
-## 3. External System Dependencies & Trust Boundaries
+## System context
 
 ```mermaid
 C4Context
-    title System Context Diagram for Scriptor
+    title Scriptor system context
 
-    Person(user, "User / Author", "Writes notes, organizes knowledge, and builds research canvases.")
+    Person(user, "User / Author", "Owns the local vault and explicitly authorizes privileged actions.")
+    System(scriptor, "Scriptor", "Local-first Tauri desktop workspace with CLI/TUI, daemon and MCP extension surfaces.")
 
-    System(scriptor, "Scriptor App", "Local-first desktop workspace for Markdown editing, research, and indexing.")
+    System_Ext(git_remote, "Git Remote", "Optional user-configured Git hosting reached by the native Git subsystem.")
+    System_Ext(ai_provider, "AI Provider", "Optional user-approved HTTPS text-generation endpoint; credentials remain native.")
+    System_Ext(google, "Google Calendar / Tasks APIs", "Optional OAuth2 PKCE integration with tokens stored in the OS keychain.")
+    System_Ext(export_tools, "Local Export Toolchain", "User-installed Pandoc/Typst/related local binaries used by explicit export flows.")
 
-    System_Ext(zotero, "Zotero / Citation Engines", "External reference manager providing CSL JSON and BibTeX libraries.")
-    System_Ext(git_remotes, "Git Remote Hosts", "GitHub / GitLab / Gitea servers for background vault backup.")
-    System_Ext(pdf_engine, "PDF Rendering Subsystem", "Local headless PDF compilation and export engine.")
-    System_Ext(llm_provider, "Local / Remote LLM Provider", "Optional AI assistant for text completion, tagging, and summary.")
-
-    Rel(user, scriptor, "Uses UI for writing and research", "Tauri 2 / React 19 UI")
-    Rel(scriptor, zotero, "Syncs references & collections", "IPC / HTTP API")
-    Rel(scriptor, git_remotes, "Pushes/pulls vault commits", "SSH / HTTPS / Native Git")
-    Rel(scriptor, pdf_engine, "Generates formatted PDF exports", "Headless Chromium / Typst")
-    Rel(scriptor, llm_provider, "Queries semantic completions", "Local Ollama / OpenRouter")
+    Rel(user, scriptor, "Writes, searches, reviews and authorizes actions", "Native desktop UI / CLI")
+    Rel(scriptor, git_remote, "Push / pull when explicitly invoked", "system git over user-configured HTTPS/SSH")
+    Rel(scriptor, ai_provider, "Sends an approved draft request", "native HTTPS")
+    Rel(scriptor, google, "OAuth/connect, calendar reads, task mutations", "OAuth2 PKCE + HTTPS")
+    Rel(scriptor, export_tools, "Runs approved local export operations", "bounded subprocess execution / documented broker exception")
 ```
 
----
+The repository contains a read-only Zotero Web API connector package, but it is **not composed into the shipped desktop/CLI/daemon runtime** and therefore is not represented as a live external-system relationship.
 
-## 4. Trust Boundaries & Security Model
+## Trust boundaries
 
-1. **Local Vault Boundary:** Vault files (`.md`, `.canvas`, images) are stored strictly as plain text on the local filesystem (`D:\GitHub\Scriptor` or user vaults). No vault data is sent to external servers without explicit user invocation.
-2. **Process Launch Isolation:** System commands and external tools are launched through `crates/system-bridge` with explicit authorization inventory checks against `scripts/validation/process-launch-inventory.json`.
-3. **Network Isolation:** Third-party integrations (Zotero, Git remotes, LLMs) use authenticated nonces and encrypted local storage for credentials.
+1. **Local vault:** Markdown and user assets remain authoritative on disk. Derived indexes and publish output are rebuildable.
+2. **Renderer/native boundary:** the renderer is not trusted with filesystem, keychain, Git, network, process, backup, or publish authority. Native code revalidates paths, payloads and sensitive grants.
+3. **Daemon boundary:** CLI/TUI and daemon MCP use the typed `scriptor-ipc` local protocol with authenticated endpoint metadata, nonce checks and bounded framing. This is distinct from Tauri renderer IPC.
+4. **External processes:** supported launches use the process broker unless a narrowly documented broker exception owns equivalent bounds and policy.
+5. **External network:** Git, AI and Google integrations are opt-in and use integration-specific authentication. There is no ambient network fallback.

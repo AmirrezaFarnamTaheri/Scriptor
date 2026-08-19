@@ -138,45 +138,6 @@ export async function indexerBatchNoteMeta(paths: string[]): Promise<NoteMetaHit
   return invoke<NoteMetaHit[]>('indexer_batch_note_meta', { paths })
 }
 
-// ── W3-1: ranked search with BM25 score breakdown ────────────────────────────
-
-export interface SearchScoreDebug {
-  titleScore: number
-  headingScore: number
-  tagScore: number
-  bodyScore: number
-  bm25Total: number
-}
-
-export interface RankedSearchHit {
-  noteId: string
-  path: string
-  title: string
-  snippet: string
-  scoreDebug?: SearchScoreDebug
-  isFuzzyFallback?: boolean
-}
-
-export interface IndexerSearchRankedOutput {
-  hits: RankedSearchHit[]
-  usedFuzzyFallback: boolean
-  durationMs: number
-}
-
-/**
- * Full-text search with weighted BM25 ranking (W3-1).
- * Falls back to Rust fuzzy search (W3-2) when FTS returns zero rows.
- * `scoreDebug` is populated on FTS hits so the debug affordance can render
- * score components without extra IPC round-trips.
- */
-export async function indexerSearchRanked(
-  query: string,
-  limit = 50,
-): Promise<IndexerSearchRankedOutput> {
-  requireNative()
-  return invoke<IndexerSearchRankedOutput>('indexer_search_ranked', { query, limit })
-}
-
 // ── W4: Task commands ────────────────────────────────────────────────────────
 
 /** Mirrors `TaskFilter` in `crates/indexer/src/tasks.rs`. */

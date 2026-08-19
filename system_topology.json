@@ -1,0 +1,4273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "metadata": {
+    "repository": "Scriptor",
+    "repository_url": "https://github.com/AmirrezaFarnamTaheri/Scriptor",
+    "branch": "main",
+    "analyzed_at": "2026-08-18T15:10:00Z",
+    "primary_languages": [
+      "Rust",
+      "TypeScript",
+      "React",
+      "SQLite",
+      "CSS"
+    ],
+    "toolchain": {
+      "node": ">=22.12.0",
+      "pnpm": "10.33.0",
+      "rust": "1.96.0",
+      "desktop_shell": "Tauri 2"
+    },
+    "entry_points": [
+      "src/main.tsx",
+      "apps/desktop/src-tauri/src/main.rs",
+      "apps/desktop/src-tauri/src/lib.rs",
+      "crates/daemon/src/main.rs",
+      "crates/cli/src/main.rs",
+      "packages/mcp/src/stdio-server.ts",
+      "crates/xtask/src/main.rs",
+      "scripts/ci/export-vault.mjs"
+    ],
+    "analysis_base": {
+      "worktree_head": "bb3caaed42f2eec6eb731cec5bd58d9e12f1764b",
+      "tracking_branch": "main",
+      "main_commit": "36738609c00d4422a63ca833be380d00f5362aac",
+      "note": "Analysis performed on the working tree checked out at D:/GitHub/Scriptor (HEAD bb3caaed42f2). The local `main` branch (36738609c00d) is the requested tracking branch and is the merge-base of the checked-out tree; every file citation below was verified directly against the working tree source on the analyzed date."
+    },
+    "notes": "Local-first Markdown knowledge workspace: Tauri 2 desktop shell, Rust vault/indexing kernel, React renderer, authenticated local daemon RPC (length-prefixed postcard frames over Windows named pipe / Unix socket, HMAC endpoint auth), two MCP servers, and permissioned external integrations (Google Calendar/Tasks, OpenAI-compatible AI provider, Ollama, Zotero, Pandoc/Tectonic/PlantUML/PDF-translator/code-runtime subprocesses). Node citations list concrete symbols; edge payload_type names real DTOs/envelopes; flow steps cite exact file:line locations."
+  },
+  "nodes": [
+    {
+      "id": "renderer",
+      "name": "React Renderer",
+      "type": "gateway",
+      "layer": "presentation",
+      "description": "Single-page React workspace (Vite + Tauri webview). Mounts the app, applies theme, installs E2E/screenshot bridges, and renders the shell, panels, knowledge workbench and command palette. All native work is invoked through the typed bridge layer.",
+      "file_citations": [
+        {
+          "file": "src/main.tsx",
+          "symbols": [
+            "mountApp",
+            "applyInitialTheme"
+          ]
+        },
+        {
+          "file": "src/App.tsx",
+          "symbols": [
+            "App"
+          ]
+        },
+        {
+          "file": "src/bridge/native.ts",
+          "symbols": [
+            "nativeInvoke",
+            "requireNative"
+          ]
+        },
+        {
+          "file": "src/bridge/platform.ts",
+          "symbols": [
+            "isTauriRuntime",
+            "isNativeBridgeAvailable"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "VITE_E2E_MODE",
+          "VITE_SCREENSHOT_MODE"
+        ]
+      }
+    },
+    {
+      "id": "desktop-shell",
+      "name": "Tauri Desktop Shell (native adapter + authorization broker)",
+      "type": "gateway",
+      "layer": "infrastructure",
+      "description": "Rust Tauri 2 host: registers ~170 invoke commands, owns AppState (vault session, watcher, export cancel slot, headless-engine flag, authorization broker), starts the daemon sidecar, registers tray/deep-link platform actions, and forwards daemon RPC events to the webview. Every sensitive native operation requires a one-time grant from the authorization broker.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/lib.rs",
+          "symbols": [
+            "run",
+            "DaemonConfigReloadedEvent"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/state.rs",
+          "symbols": [
+            "AppState",
+            "active_session"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/authorization.rs",
+          "symbols": [
+            "AuthorizationBroker",
+            "authorize_sensitive_operation",
+            "require_sensitive_operation",
+            "SensitiveOperation"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/commands/mod.rs",
+          "symbols": []
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/platform/mod.rs",
+          "symbols": [
+            "setup",
+            "setup_tray",
+            "setup_deep_links"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "SCRIPTOR_DAEMON_BIN"
+        ]
+      }
+    },
+    {
+      "id": "daemon",
+      "name": "Headless Daemon (local RPC server)",
+      "type": "gateway",
+      "layer": "infrastructure",
+      "description": "`scriptor-daemon serve`: authenticates local clients via HMAC endpoint file, serves length-prefixed postcard RPC frames over a Windows named pipe (`scriptor-core`) or Unix socket, enforces rate limits (60 RPC/s/connection, 32 concurrent connections), executes typed RpcMethods plus a JSON command catalog, and runs background index/export jobs.",
+      "file_citations": [
+        {
+          "file": "crates/daemon/src/main.rs",
+          "symbols": [
+            "main",
+            "Cli"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/transport.rs",
+          "symbols": [
+            "serve_forever",
+            "handle_connection",
+            "dispatch_request",
+            "write_endpoint",
+            "read_endpoint",
+            "connect_authenticated_client"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/handler.rs",
+          "symbols": [
+            "DaemonState",
+            "handle"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/command_gateway.rs",
+          "symbols": [
+            "dispatch"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/command_gateway/catalog.rs",
+          "symbols": [
+            "COMMAND_CATALOG",
+            "list_commands"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [
+          "local socket 'scriptor-core' (Windows named pipe / Unix socket)"
+        ],
+        "env_dependencies": [
+          "SCRIPTOR_LOG_DIR",
+          "SCRIPTOR_TEST_DAEMON_HMAC_KEY"
+        ]
+      }
+    },
+    {
+      "id": "cli",
+      "name": "scriptor CLI",
+      "type": "gateway",
+      "layer": "application",
+      "description": "Rust command-line entrypoint: open/scan/read/search/lint/graph/git/publish/tui/daemon subcommands. Routes index/search/health through the daemon by default, or runs in-process with `--in-process`. Also serves as the vault context binary for the TypeScript MCP server.",
+      "file_citations": [
+        {
+          "file": "crates/cli/src/main.rs",
+          "symbols": [
+            "main"
+          ]
+        },
+        {
+          "file": "crates/cli/src/command_line.rs",
+          "symbols": [
+            "Cli",
+            "Commands",
+            "exit_code"
+          ]
+        },
+        {
+          "file": "crates/cli/src/commands/mod.rs",
+          "symbols": [
+            "dispatch",
+            "print_rpc_response"
+          ]
+        },
+        {
+          "file": "crates/cli/src/daemon_client.rs",
+          "symbols": [
+            "daemon_ping"
+          ]
+        },
+        {
+          "file": "crates/cli/src/tui.rs",
+          "symbols": [
+            "run_tui"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "mcp-ts-stdio",
+      "name": "TypeScript MCP Server (stdio)",
+      "type": "gateway",
+      "layer": "application",
+      "description": "MCP server implemented in TypeScript with four permission modes (off/read-only/draft/write-approved). Talks to the vault by shelling out to the `scriptor` CLI (search/read/backlinks/health-diagnostics) when no in-process context is bound; keeps an audit log and draft-patch queue.",
+      "file_citations": [
+        {
+          "file": "packages/mcp/src/stdio-server.ts",
+          "symbols": [
+            "parseMcpMode",
+            "runMcpStdioServer"
+          ]
+        },
+        {
+          "file": "packages/mcp/src/stdio.ts",
+          "symbols": [
+            "runMcpStdioServer"
+          ]
+        },
+        {
+          "file": "packages/mcp/src/runtime.ts",
+          "symbols": [
+            "McpRuntime",
+            "invoke",
+            "listTools"
+          ]
+        },
+        {
+          "file": "packages/mcp/src/server.ts",
+          "symbols": [
+            "handleMcpRequest",
+            "jsonRpcResult"
+          ]
+        },
+        {
+          "file": "packages/mcp/src/cli-vault-context.ts",
+          "symbols": [
+            "createCliVaultContext",
+            "runCliJson"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "SCRIPTOR_MCP_MODE",
+          "SCRIPTOR_VAULT",
+          "SCRIPTOR_CLI"
+        ]
+      }
+    },
+    {
+      "id": "mcp-rust-stdio",
+      "name": "Rust Daemon MCP Server (stdio)",
+      "type": "gateway",
+      "layer": "application",
+      "description": "`scriptor-daemon mcp-stdio --vault <path> [--trust-stdio]`: serves MCP tools over stdio JSON-RPC from the Rust kernel. 15 read tools (search, readNote, inspectBacklinks, inspectGraphSummary, traverseGraph, exportGraph, renderMarkdown, executeDql, listInbox, ...) and 3 write tools (proposePatch, createNote, updateFrontmatter) that write only with `--trust-stdio`. Reconciles pending MCP mutations on startup.",
+      "file_citations": [
+        {
+          "file": "crates/daemon/src/mcp_stdio.rs",
+          "symbols": [
+            "run_mcp_stdio",
+            "handle_request",
+            "READ_TOOLS",
+            "WRITE_TOOLS"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/main.rs",
+          "symbols": [
+            "Commands::McpStdio"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "xtask",
+      "name": "xtask (release/CI orchestration)",
+      "type": "service",
+      "layer": "infrastructure",
+      "description": "Cargo xtask binary used by the release gate (`cargo xtask release-smoke`) for pre-release verification. Development harness, not part of the runtime data path.",
+      "file_citations": [
+        {
+          "file": "crates/xtask/src/main.rs",
+          "symbols": [
+            "main"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "headless-export-ci",
+      "name": "Headless export script (CI)",
+      "type": "worker",
+      "layer": "infrastructure",
+      "description": "Node script that exports a vault headlessly in CI (`pnpm export:headless`), exercising the export pipeline without the desktop shell.",
+      "file_citations": [
+        {
+          "file": "scripts/ci/export-vault.mjs",
+          "symbols": []
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "workspace-hooks",
+      "name": "Frontend Workspace Orchestration",
+      "type": "service",
+      "layer": "application",
+      "description": "React hooks that own the workspace state machine: open vault (idle → opening → indexing → ready), config merge, activity log, filesystem-event hydration, session persistence, Git/export/knowledge sub-workspaces.",
+      "file_citations": [
+        {
+          "file": "src/hooks/useVaultWorkspace.ts",
+          "symbols": [
+            "useVaultWorkspace",
+            "mergeLoadedVaultConfig"
+          ]
+        },
+        {
+          "file": "src/hooks/useWorkspaceFilesystemSync.ts",
+          "symbols": [
+            "useWorkspaceFilesystemSync"
+          ]
+        },
+        {
+          "file": "src/hooks/useWorkspaceSession.ts",
+          "symbols": [
+            "useWorkspaceSession",
+            "persist"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "editor",
+      "name": "CodeMirror Markdown Editor",
+      "type": "service",
+      "layer": "application",
+      "description": "@scriptor/editor package: CodeMirror 6 editor with wikilink decorations, frontmatter gutter, task toggles, tables, snippets, typography transforms, vim mode, spellcheck/LanguageTool and round-trip validation.",
+      "file_citations": [
+        {
+          "file": "packages/editor/src/index.ts",
+          "symbols": [
+            "createCodemirrorEditor"
+          ]
+        },
+        {
+          "file": "packages/editor/src/codemirror-entry.ts",
+          "symbols": [
+            "CodemirrorEditor"
+          ]
+        },
+        {
+          "file": "packages/editor/src/wikilink-decorations.ts",
+          "symbols": []
+        },
+        {
+          "file": "packages/editor/src/snippets.ts",
+          "symbols": []
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "preview",
+      "name": "Markdown Preview Pipeline",
+      "type": "service",
+      "layer": "application",
+      "description": "@scriptor/renderer package: renders Markdown to HTML with KaTeX, Mermaid/PlantUML diagram placeholders, citation spans, safe external URL handling and editor/preview scroll sync.",
+      "file_citations": [
+        {
+          "file": "packages/renderer/src/index.ts",
+          "symbols": [
+            "renderMarkdownPreview",
+            "renderMarkdownPipeline"
+          ]
+        },
+        {
+          "file": "packages/renderer/src/pipeline.ts",
+          "symbols": [
+            "renderMarkdownPipeline"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "knowledge-ui",
+      "name": "Knowledge Workbench",
+      "type": "service",
+      "layer": "application",
+      "description": "Panels for orphans, dead ends, unresolved link targets, tags, inbox, saved views and DQL execution over the derived index.",
+      "file_citations": [
+        {
+          "file": "src/components/KnowledgeWorkbench.tsx",
+          "symbols": [
+            "KnowledgeWorkbench"
+          ]
+        },
+        {
+          "file": "src/components/KnowledgeFiltersPanel.tsx",
+          "symbols": []
+        },
+        {
+          "file": "src/components/TagBrowserPanel.tsx",
+          "symbols": []
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "graph-ui",
+      "name": "Knowledge Graph Visualization",
+      "type": "service",
+      "layer": "application",
+      "description": "Cytoscape graph canvas fed by `indexerGraph`/`indexerTraverseGraph`; d3-force layout runs in a Web Worker; panels expose focused graph, backlinks and BFS traversal results.",
+      "file_citations": [
+        {
+          "file": "src/components/GraphCanvas.tsx",
+          "symbols": [
+            "GraphCanvas"
+          ]
+        },
+        {
+          "file": "src/components/GraphPanel.tsx",
+          "symbols": [
+            "GraphPanel"
+          ]
+        },
+        {
+          "file": "src/workers/graph-layout.worker.ts",
+          "symbols": [
+            "forceSimulation",
+            "forceLink"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "canvas-ui",
+      "name": "Canvas Board UI",
+      "type": "service",
+      "layer": "application",
+      "description": "@scriptor/canvas package plus CanvasPanel: CRDT-style canvas ops, template application, hit-testing and SVG rasterization off the main thread.",
+      "file_citations": [
+        {
+          "file": "packages/canvas/src/index.ts",
+          "symbols": [
+            "applyCanvasOps"
+          ]
+        },
+        {
+          "file": "packages/canvas/src/crdt-sync.ts",
+          "symbols": [
+            "CanvasCrdtOp",
+            "readOps",
+            "writeOps"
+          ]
+        },
+        {
+          "file": "src/components/CanvasPanel.tsx",
+          "symbols": [
+            "CanvasPanel"
+          ]
+        },
+        {
+          "file": "src/workers/canvas-render.worker.ts",
+          "symbols": [
+            "onmessage"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "publish-ui",
+      "name": "Publish Center",
+      "type": "service",
+      "layer": "application",
+      "description": "Diff-review UI around the four-bucket publish plan (new/changed/unchanged/orphaned); user approves a subset before `publish_apply` runs.",
+      "file_citations": [
+        {
+          "file": "src/components/PublishCenter.tsx",
+          "symbols": [
+            "PublishCenter"
+          ]
+        },
+        {
+          "file": "src/components/PublishDiffView.tsx",
+          "symbols": [
+            "PublishDiffView"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "git-ui",
+      "name": "Git Panel",
+      "type": "service",
+      "layer": "application",
+      "description": "Status/diff/commit/pull/push UI with conflict-resolution modal and isolated-index commit previews.",
+      "file_citations": [
+        {
+          "file": "src/components/GitPanel.tsx",
+          "symbols": [
+            "GitPanel"
+          ]
+        },
+        {
+          "file": "src/components/GitDiffPreview.tsx",
+          "symbols": [
+            "GitDiffPreview"
+          ]
+        },
+        {
+          "file": "src/hooks/useWorkspaceGit.ts",
+          "symbols": [
+            "useWorkspaceGit"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "reader-ui",
+      "name": "PDF/EPUB Reader",
+      "type": "service",
+      "layer": "application",
+      "description": "Bundled viewers (`public/reader/*.html`) load vault-confined PDF/EPUB bytes returned by the native reader command; annotations persist in `.scriptor/reader/annotations.json`.",
+      "file_citations": [
+        {
+          "file": "src/bridge/reader.ts",
+          "symbols": [
+            "readReaderDocument",
+            "loadReaderAnnotations",
+            "saveReaderAnnotations"
+          ]
+        },
+        {
+          "file": "public/reader/pdf-viewer.html",
+          "symbols": []
+        },
+        {
+          "file": "public/reader/epub-viewer.html",
+          "symbols": []
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/commands/reader.rs",
+          "symbols": [
+            "reader_read_document",
+            "document_path",
+            "AnnotationStore"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "export-ui",
+      "name": "Export UI Package",
+      "type": "service",
+      "layer": "application",
+      "description": "@scriptor/export package: profile resolution, preflight previews, citation args, diagram export helpers and plugin-contributed profiles.",
+      "file_citations": [
+        {
+          "file": "packages/export/src/index.ts",
+          "symbols": []
+        },
+        {
+          "file": "packages/export/src/vault-export.ts",
+          "symbols": []
+        },
+        {
+          "file": "packages/export/src/preflight-preview.ts",
+          "symbols": []
+        },
+        {
+          "file": "src/hooks/useWorkspaceExport.ts",
+          "symbols": [
+            "useWorkspaceExport"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "citation-ui",
+      "name": "Citation Rendering (citeproc)",
+      "type": "service",
+      "layer": "application",
+      "description": "Frontend citation formatting: runs CSL styles (citeproc JS) in a Web Worker, formats bibliographies, and validates citations through the indexer.",
+      "file_citations": [
+        {
+          "file": "src/lib/citeprocClient.ts",
+          "symbols": []
+        },
+        {
+          "file": "src/workers/citeproc.worker.ts",
+          "symbols": [
+            "formatEntries",
+            "stripHtml"
+          ]
+        },
+        {
+          "file": "src/lib/bibliographyToCsl.ts",
+          "symbols": [
+            "bibliographyEntriesToCslItems"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "mcp-ui-runtime",
+      "name": "In-App MCP Runtime",
+      "type": "service",
+      "layer": "application",
+      "description": "Embeds @scriptor/mcp runtime in the renderer: MCP panel, draft patches, audit log, tool permissions gated by vault config `mcp.mode` (`off | read-only | draft | write-approved`).",
+      "file_citations": [
+        {
+          "file": "src/hooks/useMcpRuntime.ts",
+          "symbols": [
+            "useMcpRuntime",
+            "normalizeMcpMode"
+          ]
+        },
+        {
+          "file": "src/components/McpPanel.tsx",
+          "symbols": [
+            "McpPanel"
+          ]
+        },
+        {
+          "file": "packages/mcp/src/runtime.ts",
+          "symbols": [
+            "McpRuntime"
+          ]
+        },
+        {
+          "file": "packages/mcp/src/draft.ts",
+          "symbols": [
+            "createDraftPatch",
+            "approveDraftPatch",
+            "rejectDraftPatch"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "portal-storage",
+      "name": "Portal & Quick Capture Storage",
+      "type": "service",
+      "layer": "application",
+      "description": "@scriptor/portal package: quick-capture clipboard flow, portal items, workspace bundle persistence (localStorage + vault file).",
+      "file_citations": [
+        {
+          "file": "packages/portal/src/index.ts",
+          "symbols": []
+        },
+        {
+          "file": "packages/portal/src/storage.ts",
+          "symbols": [
+            "loadGlobalWorkspace",
+            "saveGlobalWorkspace"
+          ]
+        },
+        {
+          "file": "packages/portal/src/clipboard.ts",
+          "symbols": []
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "plugin-manager",
+      "name": "Plugin Manager",
+      "type": "service",
+      "layer": "application",
+      "description": "Plugin state (enabled/disabled capabilities persisted in vault), plugin registry, sandboxed contribution evaluation, marketplace and WASM plugin host.",
+      "file_citations": [
+        {
+          "file": "src/context/PluginStateContext.tsx",
+          "symbols": [
+            "PluginStateProvider"
+          ]
+        },
+        {
+          "file": "packages/plugin-api/src/registry.ts",
+          "symbols": [
+            "PluginRegistry"
+          ]
+        },
+        {
+          "file": "packages/plugin-api/src/sandbox.ts",
+          "symbols": []
+        },
+        {
+          "file": "packages/plugin-api/src/wasm-host.ts",
+          "symbols": []
+        },
+        {
+          "file": "crates/vault/src/plugin_state.rs",
+          "symbols": [
+            "load_plugin_state",
+            "save_plugin_state",
+            "PLUGIN_STATE_FILE"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "core-contracts",
+      "name": "Shared TypeScript Contracts",
+      "type": "service",
+      "layer": "application",
+      "description": "@scriptor/core package: hand-written and `ts-rs`-generated TypeScript contracts for IPC, canvas, export, graph, notes, plugins and vault payloads; every bridge response is runtime-validated against these before use.",
+      "file_citations": [
+        {
+          "file": "packages/core/src/index.ts",
+          "symbols": []
+        },
+        {
+          "file": "packages/core/src/contracts/ipc-generated.ts",
+          "symbols": [
+            "RpcRequest",
+            "RpcMethod",
+            "RpcPayload"
+          ]
+        },
+        {
+          "file": "packages/core/src/contracts/vault.ts",
+          "symbols": []
+        },
+        {
+          "file": "src/lib/runtimeSchema.ts",
+          "symbols": [
+            "parseJsonUnknown",
+            "expectRecord",
+            "expectString"
+          ]
+        },
+        {
+          "file": "src/types/vaultValidators.ts",
+          "symbols": [
+            "parseVaultConfig",
+            "parseSearchHits"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "vault-kernel",
+      "name": "Vault Kernel",
+      "type": "service",
+      "layer": "domain",
+      "description": "Path-safety, scanning, note IO, atomic writes, optimistic-concurrency hash checks, renames with rollback, lint, crypto/encryption, config, snippets, textbundle, note history and crash-visible mutation audit (intent/outcome). Defines `RelativeVaultPath`/`VaultRoot` so nothing escapes the vault.",
+      "file_citations": [
+        {
+          "file": "crates/vault/src/lib.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/vault/src/open.rs",
+          "symbols": [
+            "open_vault",
+            "open_vault_output",
+            "VaultSession"
+          ]
+        },
+        {
+          "file": "crates/vault/src/scan.rs",
+          "symbols": [
+            "scan_vault",
+            "scan_vault_with_roots",
+            "MAX_SCAN_ENTRIES"
+          ]
+        },
+        {
+          "file": "crates/vault/src/write.rs",
+          "symbols": [
+            "save_note",
+            "save_note_with_options",
+            "SaveNoteOutput"
+          ]
+        },
+        {
+          "file": "crates/vault/src/delete.rs",
+          "symbols": [
+            "delete_note"
+          ]
+        },
+        {
+          "file": "crates/vault/src/rename.rs",
+          "symbols": [
+            "rename_apply",
+            "rename_apply_staged"
+          ]
+        },
+        {
+          "file": "crates/vault/src/fs.rs",
+          "symbols": [
+            "atomic_write"
+          ]
+        },
+        {
+          "file": "crates/vault/src/path.rs",
+          "symbols": [
+            "RelativeVaultPath",
+            "VaultRoot"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "indexer",
+      "name": "Index / Search / Graph Kernel",
+      "type": "service",
+      "layer": "domain",
+      "description": "Derived cache over the vault: Markdown parsing (shared `extractor` headings), incremental indexing, SQLite persistence, FTS5 search (diacritic folding, weighted BM25), backlinks, focused graph + BFS traversal, DQL, Kanban parse/move, task extraction/sync, bibliography and citation validation, health reports.",
+      "file_citations": [
+        {
+          "file": "crates/indexer/src/lib.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/indexer/src/rebuild.rs",
+          "symbols": [
+            "rebuild_index",
+            "rebuild_index_with_progress",
+            "incremental_notes_index",
+            "incremental_notes_index_with_cache"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/search.rs",
+          "symbols": [
+            "search_notes",
+            "build_fts_query",
+            "SearchHit"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/graph.rs",
+          "symbols": [
+            "query_focused_graph",
+            "traverse_graph",
+            "GraphQueryOutput"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/kanban.rs",
+          "symbols": [
+            "move_card_in_markdown",
+            "parse_kanban"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/tasks.rs",
+          "symbols": [
+            "sync_note_tasks",
+            "query_tasks",
+            "sync_note_tasks_from_markdown"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/dql.rs",
+          "symbols": [
+            "execute_dql_query"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/parse.rs",
+          "symbols": [
+            "parse_note_markdown"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "native-git",
+      "name": "Native Git Adapter",
+      "type": "service",
+      "layer": "domain",
+      "description": "Noninteractive git plumbing: status, isolated temporary-index commit (user index untouched), pull/push with strategy, conflict resolution with merge3, and a serializing GitQueue.",
+      "file_citations": [
+        {
+          "file": "crates/native-git/src/lib.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/native-git/src/status.rs",
+          "symbols": [
+            "git_status",
+            "git_commit_selected"
+          ]
+        },
+        {
+          "file": "crates/native-git/src/sync.rs",
+          "symbols": [
+            "git_pull",
+            "git_push",
+            "PullStrategy"
+          ]
+        },
+        {
+          "file": "crates/native-git/src/conflict.rs",
+          "symbols": [
+            "git_resolve_conflict",
+            "read_conflict_markers"
+          ]
+        },
+        {
+          "file": "crates/native-git/src/merge3.rs",
+          "symbols": [
+            "merge3"
+          ]
+        },
+        {
+          "file": "crates/native-git/src/queue.rs",
+          "symbols": [
+            "GitQueue",
+            "QueuedOp"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "export-runner",
+      "name": "Export Runner",
+      "type": "service",
+      "layer": "domain",
+      "description": "Pandoc discovery (hash-verified), explicit argument mapping (no shell strings), isolated export jobs with cancel slots and progress callbacks, diagram rendering, sealed-content redaction, artifact validation and bounded export logs.",
+      "file_citations": [
+        {
+          "file": "crates/export-runner/src/lib.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/export-runner/src/job.rs",
+          "symbols": [
+            "ExportJobInput",
+            "run_export_job",
+            "run_export_job_with_cancel",
+            "default_export_directory"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/pandoc.rs",
+          "symbols": [
+            "discover_pandoc",
+            "discover_pandoc_with_trusted_hash",
+            "verify_binary_hash"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/args.rs",
+          "symbols": [
+            "ExportFormat"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/diagram.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/export-runner/src/validate.rs",
+          "symbols": [
+            "validate_export_artifact"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/log.rs",
+          "symbols": [
+            "write_export_log",
+            "read_export_logs"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "publish-runner",
+      "name": "Publish Runner",
+      "type": "service",
+      "layer": "domain",
+      "description": "Frontmatter-gated publish planning: scans eligible notes (`publish: true`), diffs against prior bucket state into new/changed/unchanged/orphaned, then applies the approved subset and writes `.publish-state.json`.",
+      "file_citations": [
+        {
+          "file": "crates/publish-runner/src/lib.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/publish-runner/src/plan.rs",
+          "symbols": [
+            "plan_publish",
+            "PublishPlan",
+            "PublishCandidate",
+            "BucketState"
+          ]
+        },
+        {
+          "file": "crates/publish-runner/src/compile.rs",
+          "symbols": [
+            "publish_apply",
+            "PublishApplyInput",
+            "PublishApplyOutput"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "canvas-engine",
+      "name": "Canvas Scene Engine",
+      "type": "service",
+      "layer": "domain",
+      "description": "Native canvas scene model with typed blocks/layers, spatial hit-testing, template application with undo checkpoints, SVG/PNG/PDF snapshots and vault-bound document store.",
+      "file_citations": [
+        {
+          "file": "crates/canvas-engine/src/lib.rs",
+          "symbols": [
+            "load_document_file",
+            "bench_snapshot_render"
+          ]
+        },
+        {
+          "file": "crates/canvas-engine/src/scene.rs",
+          "symbols": [
+            "CanvasDocument",
+            "parse_document_json",
+            "document_to_json"
+          ]
+        },
+        {
+          "file": "crates/canvas-engine/src/apply.rs",
+          "symbols": [
+            "apply_template",
+            "restore_template_checkpoint"
+          ]
+        },
+        {
+          "file": "crates/canvas-engine/src/hit_test.rs",
+          "symbols": [
+            "hit_test",
+            "query_blocks_in_bounds"
+          ]
+        },
+        {
+          "file": "crates/canvas-engine/src/snapshot.rs",
+          "symbols": [
+            "render_svg",
+            "write_snapshot"
+          ]
+        },
+        {
+          "file": "crates/canvas-engine/src/store.rs",
+          "symbols": [
+            "save_document",
+            "load_document",
+            "canvas_boards_dir"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "citation-engine",
+      "name": "BibTeX/CSL Citation Engine",
+      "type": "service",
+      "layer": "domain",
+      "description": "Standalone kernel wrapping `hayagriva` BibTeX parsing; renders inline citations and bibliographies in APA/MLA/IEEE/Chicago/Harvard styles. Currently consumed as a library module; the runtime citation-validation path lives in the indexer + frontend citeproc worker.",
+      "file_citations": [
+        {
+          "file": "crates/citation-engine/src/lib.rs",
+          "symbols": [
+            "CitationEngine",
+            "render_citation",
+            "render_bibliography",
+            "entry_info"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "system-bridge",
+      "name": "System Bridge (process broker, keychain, observability)",
+      "type": "service",
+      "layer": "domain",
+      "description": "Cross-cutting native services: canonical executable resolution, optional SHA-256 pinning, sandboxed commands with network policy, process-tree kill/cancel, bounded output capture and structured receipts; OS keychain (service `scriptor`); bounded redacted JSONL tracing; platform/system info.",
+      "file_citations": [
+        {
+          "file": "crates/system-bridge/src/lib.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/system-bridge/src/process.rs",
+          "symbols": [
+            "run_process",
+            "ProcessSpec",
+            "ProcessReceipt",
+            "resolve_executable",
+            "sandboxed_command",
+            "configure_minimal_environment"
+          ]
+        },
+        {
+          "file": "crates/system-bridge/src/keychain.rs",
+          "symbols": [
+            "keychain_set",
+            "keychain_get",
+            "keychain_delete"
+          ]
+        },
+        {
+          "file": "crates/system-bridge/src/observability.rs",
+          "symbols": [
+            "init_observability",
+            "JsonSubscriber"
+          ]
+        },
+        {
+          "file": "crates/system-bridge/src/platform.rs",
+          "symbols": [
+            "detect_system_info"
+          ]
+        },
+        {
+          "file": "crates/system-bridge/src/paths.rs",
+          "symbols": [
+            "scriptor_data_dir",
+            "vault_scriptor_meta_dir"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "SCRIPTOR_LOG_DIR"
+        ]
+      }
+    },
+    {
+      "id": "capture",
+      "name": "Web Clip Capture",
+      "type": "service",
+      "layer": "domain",
+      "description": "fetch → sanitize → extract → Markdown pipeline for URL clipping (CLI `clip` command). Pure Rust; gated behind web-clip authorization at call sites.",
+      "file_citations": [
+        {
+          "file": "crates/capture/src/lib.rs",
+          "symbols": [
+            "capture_url",
+            "CaptureOptions",
+            "CaptureError"
+          ]
+        },
+        {
+          "file": "crates/capture/src/fetch.rs",
+          "symbols": [
+            "FetchOptions"
+          ]
+        },
+        {
+          "file": "crates/capture/src/extract.rs",
+          "symbols": [
+            "ExtractedContent"
+          ]
+        },
+        {
+          "file": "crates/capture/src/to_markdown.rs",
+          "symbols": [
+            "to_markdown"
+          ]
+        },
+        {
+          "file": "crates/cli/src/commands/clip.rs",
+          "symbols": [
+            "run_clip"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "extractor",
+      "name": "Markdown Heading Extractor",
+      "type": "service",
+      "layer": "domain",
+      "description": "Single implementation of Markdown → heading tree (pulldown-cmark), shared by the indexer and exported for CLI/canvas consumers.",
+      "file_citations": [
+        {
+          "file": "crates/extractor/src/lib.rs",
+          "symbols": [
+            "extract_headings",
+            "HeadingNode"
+          ]
+        },
+        {
+          "file": "crates/extractor/src/extractor.rs",
+          "symbols": []
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "annotations",
+      "name": "Annotation Anchoring",
+      "type": "service",
+      "layer": "domain",
+      "description": "Two-stage annotation re-anchoring (exact bytes → fuzzy quote with edit distance) for text ranges; PDF page + quote and EPUB CFI selectors are opaque locators.",
+      "file_citations": [
+        {
+          "file": "crates/annotations/src/lib.rs",
+          "symbols": [
+            "reanchor",
+            "AnchorOutcome"
+          ]
+        },
+        {
+          "file": "crates/annotations/src/anchor.rs",
+          "symbols": []
+        },
+        {
+          "file": "crates/annotations/src/selector.rs",
+          "symbols": [
+            "Selector",
+            "TextRangeSelector",
+            "PdfQuoteSelector",
+            "EpubCfiSelector"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "ipc",
+      "name": "IPC Envelope Protocol (postcard frames)",
+      "type": "service",
+      "layer": "infrastructure",
+      "description": "Length-prefixed postcard frames with magic `ARCL` and a 2 MiB bound; typed `RpcRequest`/`RpcResponse`/`RpcEvent` envelope and rate limiter. Generates TypeScript contracts via ts-rs.",
+      "file_citations": [
+        {
+          "file": "crates/ipc/src/lib.rs",
+          "symbols": [
+            "RpcRequest",
+            "RpcMethod",
+            "RpcResponse",
+            "RpcPayload",
+            "RpcEvent",
+            "ServerMessage",
+            "encode_frame",
+            "read_frame_resyncing"
+          ]
+        },
+        {
+          "file": "crates/ipc/src/rate_limit.rs",
+          "symbols": [
+            "RateLimiter"
+          ]
+        },
+        {
+          "file": "packages/core/src/contracts/ipc-generated.ts",
+          "symbols": [
+            "RpcRequest",
+            "RpcMethod",
+            "RpcPayload"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "embeddings",
+      "name": "Semantic Embeddings (incubating)",
+      "type": "service",
+      "layer": "domain",
+      "description": "Note embedder with OpenAI-compatible and Ollama providers; cosine-similarity search results joined to BM25 hits by note path. Not shipped as a security/platform guarantee.",
+      "file_citations": [
+        {
+          "file": "crates/embeddings/src/lib.rs",
+          "symbols": [
+            "NoteEmbedder",
+            "EmbeddingRecord"
+          ]
+        },
+        {
+          "file": "crates/embeddings/src/provider.rs",
+          "symbols": [
+            "EmbedProvider",
+            "OllamaProvider",
+            "OpenAiProvider"
+          ]
+        },
+        {
+          "file": "crates/embeddings/src/ollama_client.rs",
+          "symbols": [
+            "OllamaClient"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "tantivy-indexer",
+      "name": "Tantivy FTS Index (incubating)",
+      "type": "service",
+      "layer": "domain",
+      "description": "Alternative full-text index implemented with Tantivy (schema, writer, top-docs search). Incubating; the default product path uses SQLite FTS5.",
+      "file_citations": [
+        {
+          "file": "crates/tantivy-indexer/src/lib.rs",
+          "symbols": [
+            "TantivyIndex",
+            "SearchHit"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "wasm-runtime",
+      "name": "WASM Plugin Runtime (incubating)",
+      "type": "service",
+      "layer": "domain",
+      "description": "Stub/wasmtime WASM plugin executor with capability grants; compiles without the wasmtime backend for CI.",
+      "file_citations": [
+        {
+          "file": "crates/wasm-runtime/src/lib.rs",
+          "symbols": [
+            "WasmPluginRuntime",
+            "PluginInstance"
+          ]
+        },
+        {
+          "file": "crates/wasm-runtime/src/capabilities.rs",
+          "symbols": [
+            "PluginCapabilities"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "sqlite-index",
+      "name": "SQLite Derived Index",
+      "type": "database",
+      "layer": "persistence",
+      "description": "`.scriptor/cache/index.sqlite`, schema version 8: notes, links, FTS5 (title/headings/tags/body with diacritic folding + weighted rank), citation_refs, tasks/task_tags, annotations/srs, blocks embeddings. WAL mode, foreign keys, busy timeout, r2d2 pool (8 connections), migration train v5→v8.",
+      "file_citations": [
+        {
+          "file": "crates/indexer/src/db.rs",
+          "symbols": [
+            "IndexCache",
+            "open",
+            "default_cache_path",
+            "apply_connection_pragmas"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/schema.rs",
+          "symbols": [
+            "SCHEMA_VERSION",
+            "apply_schema",
+            "CREATE_FTS_V5",
+            "CREATE_LINKS",
+            "CREATE_NOTES"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/migration.rs",
+          "symbols": [
+            "migrate_cache"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "vault-fs",
+      "name": "Vault Markdown Files (source of truth)",
+      "type": "database",
+      "layer": "persistence",
+      "description": "The user's Markdown files on disk, plus vault assets. All access is confined through `RelativeVaultPath` resolution (no symlink/traversal escape) and writes are atomic (temp + rename + fsync).",
+      "file_citations": [
+        {
+          "file": "crates/vault/src/path.rs",
+          "symbols": [
+            "RelativeVaultPath",
+            "VaultRoot"
+          ]
+        },
+        {
+          "file": "crates/vault/src/fs.rs",
+          "symbols": [
+            "atomic_write",
+            "write_conflicted_sidecar"
+          ]
+        },
+        {
+          "file": "crates/vault/src/note.rs",
+          "symbols": [
+            "read_note",
+            "NoteDocument",
+            "metadata_from_markdown"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "vault-meta",
+      "name": ".scriptor Metadata Store",
+      "type": "database",
+      "layer": "persistence",
+      "description": "Vault-bound metadata: config.json, audit/mcp-mutations.jsonl (hash-chained intent/outcome), patch logs, rename transaction manifests, note history revisions, activity log, stats history, workspace session, snippets, saved views, plugin state, reader annotations.",
+      "file_citations": [
+        {
+          "file": "crates/vault/src/config.rs",
+          "symbols": [
+            "load_vault_config",
+            "save_vault_config",
+            "DEFAULT_CONFIG_PATH"
+          ]
+        },
+        {
+          "file": "crates/vault/src/mcp_audit.rs",
+          "symbols": [
+            "append_mcp_mutation",
+            "reconcile_pending_mcp_mutations",
+            "McpMutationAuditRecord"
+          ]
+        },
+        {
+          "file": "crates/vault/src/note_history.rs",
+          "symbols": [
+            "append_note_history",
+            "list_note_history",
+            "restore_note_history_revision"
+          ]
+        },
+        {
+          "file": "crates/vault/src/patch_log.rs",
+          "symbols": [
+            "write_rename_patch_log",
+            "RenamePatchLog"
+          ]
+        },
+        {
+          "file": "crates/vault/src/rename_transaction.rs",
+          "symbols": [
+            "StagedRenameTransaction",
+            "recover_pending_rename_transactions"
+          ]
+        },
+        {
+          "file": "crates/vault/src/activity_log.rs",
+          "symbols": [
+            "append_activity_log",
+            "read_activity_log"
+          ]
+        },
+        {
+          "file": "crates/vault/src/workspace_session.rs",
+          "symbols": [
+            "read_workspace_session",
+            "write_workspace_session"
+          ]
+        },
+        {
+          "file": "crates/vault/src/plugin_state.rs",
+          "symbols": [
+            "load_plugin_state",
+            "save_plugin_state"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/commands/reader.rs",
+          "symbols": [
+            "ANNOTATIONS_PATH",
+            "AnnotationStore"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "os-keychain",
+      "name": "OS Keychain",
+      "type": "database",
+      "layer": "persistence",
+      "description": "Operating-system keyring (service `scriptor`): AI provider API keys, Google OAuth token bundle, daemon endpoint HMAC key, encryption key sessions.",
+      "file_citations": [
+        {
+          "file": "crates/system-bridge/src/keychain.rs",
+          "symbols": [
+            "keychain_set",
+            "keychain_get",
+            "keychain_delete"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/commands/system.rs",
+          "symbols": [
+            "AI_PROVIDER_KEYCHAIN_ACCOUNT"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+          "symbols": [
+            "TOKEN_KEYCHAIN_ACCOUNT"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/transport.rs",
+          "symbols": [
+            "KEYCHAIN_ACCOUNT",
+            "endpoint_hmac_key_runtime"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "logs",
+      "name": "Bounded JSONL Logs",
+      "type": "database",
+      "layer": "persistence",
+      "description": "Structured, redacted, size-rotated JSONL tracing (`~/.scriptor/logs/<component>.jsonl`, 5 MB × 5 segments) plus bounded export logs and audit tails.",
+      "file_citations": [
+        {
+          "file": "crates/system-bridge/src/observability.rs",
+          "symbols": [
+            "init_observability",
+            "log_path",
+            "rotate_if_needed"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/log.rs",
+          "symbols": [
+            "write_export_log",
+            "export_logs_dir"
+          ]
+        },
+        {
+          "file": "crates/vault/src/mcp_audit.rs",
+          "symbols": [
+            "DEFAULT_MCP_AUDIT_MAX_BYTES",
+            "read_mcp_audit_tail"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "SCRIPTOR_LOG_DIR"
+        ]
+      }
+    },
+    {
+      "id": "backup-store",
+      "name": "Backup Snapshots + Manifests",
+      "type": "database",
+      "layer": "persistence",
+      "description": "Local fast-recovery snapshots under `.scriptor/snapshots` or external disaster-recovery backups in a vault-bound directory; every backup carries a versioned SHA-256 manifest; restore verifies path/size/hash/vault-binding before promotion and journals the restore.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/backup.rs",
+          "symbols": [
+            "vault_create_backup",
+            "vault_restore_backup",
+            "BackupManifest",
+            "backup_root",
+            "validate_backup_name"
+          ]
+        },
+        {
+          "file": "src/bridge/commands/vault.ts",
+          "symbols": [
+            "vaultCreateBackup",
+            "vaultRestoreBackup"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "event-hub",
+      "name": "Daemon Event Hub (bounded queue)",
+      "type": "queue",
+      "layer": "infrastructure",
+      "description": "Bounded (128) nonblocking fan-out of `RpcEvent`s. Slow/disconnected subscribers are disconnected and must resubscribe; overflow increments dropped_events and forces `ResyncRequired` recovery.",
+      "file_citations": [
+        {
+          "file": "crates/daemon/src/events.rs",
+          "symbols": [
+            "EventHub",
+            "register",
+            "broadcast",
+            "broadcast_config_reloaded",
+            "SUBSCRIBER_QUEUE_CAPACITY"
+          ]
+        },
+        {
+          "file": "crates/ipc/src/lib.rs",
+          "symbols": [
+            "RpcEvent",
+            "RpcEventPayload::ResyncRequired"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "vault-watcher",
+      "name": "Filesystem Watcher",
+      "type": "worker",
+      "layer": "infrastructure",
+      "description": "Recursive notify watcher with 300 ms debounce producing `VaultWatchBatch::Events` or `RescanRequired` on event loss; filters `.scriptor/` and non-Markdown files.",
+      "file_citations": [
+        {
+          "file": "crates/vault/src/watch.rs",
+          "symbols": [
+            "VaultWatcher",
+            "start",
+            "parse_watch_path",
+            "VaultWatchBatch"
+          ]
+        },
+        {
+          "file": "crates/daemon/src/watcher.rs",
+          "symbols": [
+            "restart_vault_watcher",
+            "apply_watch_batch",
+            "apply_incremental_batch",
+            "WATCH_DEBOUNCE_MS"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "export-job",
+      "name": "Export Job Runner (worker thread)",
+      "type": "worker",
+      "layer": "infrastructure",
+      "description": "Daemon-owned export thread with cancel slot, progress report (idle/running/complete/failed/cancelled) and event_index counters; exports run outside the state lock.",
+      "file_citations": [
+        {
+          "file": "crates/daemon/src/export_job.rs",
+          "symbols": [
+            "ExportJobRunner",
+            "start",
+            "ExportJobState",
+            "ExportProgressReport"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/cancel.rs",
+          "symbols": [
+            "ExportCancelSlot",
+            "cancel_active_export"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "index-job",
+      "name": "Index Rebuild Job (worker thread)",
+      "type": "worker",
+      "layer": "infrastructure",
+      "description": "Daemon-owned full-rebuild thread with progress report (queued/running/…/failed) and phase snapshots; spawn-once, wait on completion, watches panics.",
+      "file_citations": [
+        {
+          "file": "crates/daemon/src/index_job.rs",
+          "symbols": [
+            "IndexRebuildJob",
+            "spawn",
+            "wait",
+            "RebuildProgressReport"
+          ]
+        },
+        {
+          "file": "crates/indexer/src/rebuild.rs",
+          "symbols": [
+            "rebuild_index_with_progress",
+            "RebuildProgressReport"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "git-queue",
+      "name": "Git Serialization Queue",
+      "type": "queue",
+      "layer": "infrastructure",
+      "description": "Serializes git operations per repo so concurrent status/commit/pull cannot interleave index or lock files.",
+      "file_citations": [
+        {
+          "file": "crates/native-git/src/queue.rs",
+          "symbols": [
+            "GitQueue",
+            "QueuedOp"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "web-workers",
+      "name": "Frontend Web Workers",
+      "type": "worker",
+      "layer": "application",
+      "description": "Off-main-thread compute: citeproc CSL formatting, d3-force graph layout, canvas SVG → PNG rasterization.",
+      "file_citations": [
+        {
+          "file": "src/workers/citeproc.worker.ts",
+          "symbols": [
+            "formatEntries"
+          ]
+        },
+        {
+          "file": "src/workers/graph-layout.worker.ts",
+          "symbols": [
+            "forceSimulation",
+            "forceLink"
+          ]
+        },
+        {
+          "file": "src/workers/canvas-render.worker.ts",
+          "symbols": [
+            "onmessage"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "google-api",
+      "name": "Google Calendar / Tasks API",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "OAuth2 PKCE loopback flow into accounts.google.com; Calendar API v3 and Tasks API v1 over HTTPS; tokens refreshed transparently and persisted in the keychain.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+          "symbols": [
+            "google_calendar_start_auth",
+            "google_calendar_list_events",
+            "google_calendar_list_tasks",
+            "google_calendar_create_task",
+            "google_calendar_complete_task",
+            "AUTH_ENDPOINT",
+            "TOKEN_ENDPOINT"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [
+          "ephemeral loopback TCP (OAuth redirect)"
+        ],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "ai-provider",
+      "name": "OpenAI-Compatible AI Provider",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Draft-completion endpoint for AI assistance; API key in keychain (`ai.openai-compatible.api_key`), 30 s request timeout, network access gated by `AiNetworkRequest` authorization.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/system.rs",
+          "symbols": [
+            "ai_provider_propose_draft",
+            "ai_provider_set_api_key",
+            "ai_provider_has_api_key",
+            "AI_PROVIDER_KEYCHAIN_ACCOUNT",
+            "AI_REQUEST_TIMEOUT_SECS"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [
+          "443 (HTTPS)"
+        ],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "ollama",
+      "name": "Local Ollama (embeddings)",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Local embedding endpoint used by the incubating embeddings crate.",
+      "file_citations": [
+        {
+          "file": "crates/embeddings/src/ollama_client.rs",
+          "symbols": [
+            "OllamaClient"
+          ]
+        },
+        {
+          "file": "crates/embeddings/src/provider.rs",
+          "symbols": [
+            "OllamaProvider"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [
+          "11434 (default Ollama HTTP)"
+        ],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "pandoc",
+      "name": "Pandoc",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Document conversion engine discovered on PATH (optionally pinned by SHA-256); driven with explicit args, no shell strings.",
+      "file_citations": [
+        {
+          "file": "crates/export-runner/src/pandoc.rs",
+          "symbols": [
+            "discover_pandoc",
+            "discover_pandoc_with_trusted_hash"
+          ]
+        },
+        {
+          "file": "crates/export-runner/src/args.rs",
+          "symbols": [
+            "ExportFormat"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "tectonic",
+      "name": "Tectonic (LaTeX engine)",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Self-contained TeX/LaTeX compiler with outbound-network allowance for package downloads; 180 s timeout, bounded output.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/latex.rs",
+          "symbols": [
+            "latex_compile",
+            "latex_cancel_compile",
+            "tectonic_binary_names",
+            "find_on_path"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "plantuml",
+      "name": "PlantUML renderer",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Local PlantUML renderer producing SVG; network denied unless explicitly opted in; optional hash pin `SCRIPTOR_PLANTUML_SHA256`.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/media.rs",
+          "symbols": [
+            "render_plantuml_svg",
+            "run_candidate"
+          ]
+        },
+        {
+          "file": "apps/desktop/src-tauri/src/commands/system.rs",
+          "symbols": [
+            "plantuml_render"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "SCRIPTOR_PLANTUML_SHA256",
+          "SCRIPTOR_ALLOW_UNSANDBOXED_EXTERNAL_TOOLS"
+        ]
+      }
+    },
+    {
+      "id": "pdf-translator",
+      "name": "PDF translation tool",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Configured external executable that reads a vault PDF and writes translated output; gated by PdfTranslation authorization.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/export.rs",
+          "symbols": [
+            "pdf_translate"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "code-runner",
+      "name": "Code execution runtimes (opt-in)",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Runtimes spawned for code chunks: powershell/pwsh, python, node, sh/bash, cmd. Denied by default; enabled by `SCRIPTOR_ALLOW_CODE_EXECUTION` (and `SCRIPTOR_ALLOW_UNSANDBOXED_CODE_EXECUTION` without sandbox). 30 s timeout.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/code_chunk.rs",
+          "symbols": [
+            "code_chunk_run",
+            "allowed_runner",
+            "CODE_EXECUTION_OPT_IN",
+            "UNSANDBOXED_CODE_EXECUTION_OPT_IN"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": [
+          "SCRIPTOR_ALLOW_CODE_EXECUTION",
+          "SCRIPTOR_ALLOW_UNSANDBOXED_CODE_EXECUTION"
+        ]
+      }
+    },
+    {
+      "id": "zotero-api",
+      "name": "Zotero Web API",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Zotero connector package: collection/item sync against `api.zotero.org` with an API key.",
+      "file_citations": [
+        {
+          "file": "packages/zotero-connector/src/index.ts",
+          "symbols": [
+            "ZoteroConnector",
+            "ZOTERO_API_BASE"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [
+          "443 (HTTPS)"
+        ],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "git-remote",
+      "name": "Remote Git repository (origin)",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "Upstream/downstream git remote used by pull/push over the native git adapter.",
+      "file_citations": [
+        {
+          "file": "crates/native-git/src/sync.rs",
+          "symbols": [
+            "git_pull",
+            "git_push",
+            "PullStrategy"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [
+          "SSH/HTTPS (git)"
+        ],
+        "env_dependencies": []
+      }
+    },
+    {
+      "id": "starlight-sitegen",
+      "name": "Starlight site generator",
+      "type": "external",
+      "layer": "infrastructure",
+      "description": "External site generator run by the publish flow to produce a static site from the approved bucket of notes.",
+      "file_citations": [
+        {
+          "file": "apps/desktop/src-tauri/src/commands/code_chunk.rs",
+          "symbols": [
+            "vault_publish_starlight"
+          ]
+        },
+        {
+          "file": "crates/publish-runner/src/compile.rs",
+          "symbols": [
+            "SiteTemplate",
+            "LocalDirSink"
+          ]
+        }
+      ],
+      "runtime_config": {
+        "ports": [],
+        "env_dependencies": []
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e01",
+      "source": "renderer",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (invoke)",
+      "payload_type": "Typed command DTO (per src/bridge/commands/*)",
+      "description": "All native functionality is invoked through the typed bridge: vaultOpen, vaultSaveNote, indexerSearch, gitCommit, exportRunNote, daemonStart, readerReadDocument, googleCalendarStartAuth etc.",
+      "file_citations": [
+        "src/bridge/native.ts:14",
+        "src/bridge/commands/index.ts",
+        "src/bridge/canvas.ts",
+        "src/bridge/reader.ts"
+      ]
+    },
+    {
+      "id": "e02",
+      "source": "desktop-shell",
+      "target": "renderer",
+      "type": "async_event",
+      "protocol": "Tauri event bus (listen)",
+      "payload_type": "VaultFilesystemChangedEvent | DaemonConfigReloadedEvent | DaemonResyncRequiredEvent | ExportJobStarted/Progress/Finished/Failed",
+      "description": "Native → webview events: filesystem changes, daemon config reload / resync-required, export job progress, platform actions (tray quick-capture).",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/lib.rs",
+        "apps/desktop/src-tauri/src/commands/shared.rs:50",
+        "apps/desktop/src-tauri/src/commands/export.rs",
+        "src/bridge/vaultEvents.ts:18",
+        "src/bridge/daemonEvents.ts:23",
+        "src/bridge/exportEvents.ts"
+      ]
+    },
+    {
+      "id": "e03",
+      "source": "renderer",
+      "target": "core-contracts",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "TS types & runtime validators",
+      "description": "Renderer imports typed contracts and validates every bridge payload from `unknown` through runtimeSchema/vaultValidators.",
+      "file_citations": [
+        "src/lib/runtimeSchema.ts",
+        "src/types/vaultValidators.ts",
+        "packages/core/src/contracts/ipc-generated.ts"
+      ]
+    },
+    {
+      "id": "e04",
+      "source": "renderer",
+      "target": "workspace-hooks",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Hooks API",
+      "description": "App mounts the workspace hook graph (session, filesystem sync, git, export, knowledge, editor).",
+      "file_citations": [
+        "src/App.tsx",
+        "src/hooks/useVaultWorkspace.ts:102"
+      ]
+    },
+    {
+      "id": "e05",
+      "source": "renderer",
+      "target": "editor",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Editor API",
+      "description": "EditorWorkspace renders the CodeMirror editor package.",
+      "file_citations": [
+        "src/components/shell/EditorWorkspace.tsx",
+        "packages/editor/src/index.ts"
+      ]
+    },
+    {
+      "id": "e06",
+      "source": "renderer",
+      "target": "preview",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Preview API",
+      "description": "Preview pane renders Markdown through @scriptor/renderer pipeline.",
+      "file_citations": [
+        "src/components/shell/EditorWorkspace.tsx",
+        "packages/renderer/src/index.ts"
+      ]
+    },
+    {
+      "id": "e07",
+      "source": "renderer",
+      "target": "graph-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Graph panel API",
+      "description": "GraphPanel/GraphCanvas render focused graph data.",
+      "file_citations": [
+        "src/components/GraphPanel.tsx",
+        "src/components/GraphCanvas.tsx"
+      ]
+    },
+    {
+      "id": "e08",
+      "source": "renderer",
+      "target": "canvas-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Canvas API",
+      "description": "CanvasPanel drives @scriptor/canvas operations and native canvas-engine previews.",
+      "file_citations": [
+        "src/components/CanvasPanel.tsx",
+        "packages/canvas/src/index.ts"
+      ]
+    },
+    {
+      "id": "e09",
+      "source": "renderer",
+      "target": "knowledge-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Workbench API",
+      "description": "KnowledgeWorkbench surfaces orphans/dead-ends/DQL panels.",
+      "file_citations": [
+        "src/components/KnowledgeWorkbench.tsx"
+      ]
+    },
+    {
+      "id": "e10",
+      "source": "renderer",
+      "target": "publish-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Publish API",
+      "description": "PublishCenter/PublishDiffView present the four-bucket plan.",
+      "file_citations": [
+        "src/components/PublishCenter.tsx",
+        "src/components/PublishDiffView.tsx"
+      ]
+    },
+    {
+      "id": "e11",
+      "source": "renderer",
+      "target": "git-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Git panel API",
+      "description": "GitPanel shows status/diff and drives commits/push/pull.",
+      "file_citations": [
+        "src/components/GitPanel.tsx"
+      ]
+    },
+    {
+      "id": "e12",
+      "source": "renderer",
+      "target": "reader-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Reader API",
+      "description": "Reader surfaces load confined PDF/EPUB bytes and annotation records.",
+      "file_citations": [
+        "src/bridge/reader.ts:9"
+      ]
+    },
+    {
+      "id": "e13",
+      "source": "renderer",
+      "target": "export-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Export profiles API",
+      "description": "Renderer uses @scriptor/export for profile/preflight helpers.",
+      "file_citations": [
+        "packages/export/src/index.ts"
+      ]
+    },
+    {
+      "id": "e14",
+      "source": "renderer",
+      "target": "citation-ui",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "CSL formatting API",
+      "description": "Bibliography panels format citations through the citeproc worker.",
+      "file_citations": [
+        "src/lib/citeprocClient.ts",
+        "src/workers/citeproc.worker.ts"
+      ]
+    },
+    {
+      "id": "e15",
+      "source": "renderer",
+      "target": "mcp-ui-runtime",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "McpRuntime API",
+      "description": "McpPanel and assistant flows use the in-app MCP runtime.",
+      "file_citations": [
+        "src/hooks/useMcpRuntime.ts:42",
+        "src/components/McpPanel.tsx"
+      ]
+    },
+    {
+      "id": "e16",
+      "source": "renderer",
+      "target": "portal-storage",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "WorkspaceBundle",
+      "description": "Portal/quick-capture surfaces read/write workspace bundles.",
+      "file_citations": [
+        "packages/portal/src/index.ts",
+        "packages/portal/src/storage.ts"
+      ]
+    },
+    {
+      "id": "e17",
+      "source": "renderer",
+      "target": "plugin-manager",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "Plugin contributions API",
+      "description": "PluginStateProvider loads enabled plugins and their contributions.",
+      "file_citations": [
+        "src/context/PluginStateContext.tsx"
+      ]
+    },
+    {
+      "id": "e18",
+      "source": "workspace-hooks",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "vaultOpen | vaultSaveNote | vaultScan | indexer* | gitStatus | export* | vaultConfig",
+      "description": "Workspace hooks drive native commands for vault lifecycle, indexing, git and export.",
+      "file_citations": [
+        "src/hooks/useVaultWorkspace.ts:102",
+        "src/bridge/commands/vault.ts:25",
+        "src/bridge/commands/indexer.ts:20"
+      ]
+    },
+    {
+      "id": "e19",
+      "source": "knowledge-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "indexerListOrphans | indexerListDeadEnds | indexerExecuteDql | indexerListInbox | indexerListTags",
+      "description": "Knowledge workbench queries the derived index through the bridge.",
+      "file_citations": [
+        "src/bridge/commands/indexer.ts:60",
+        "src/bridge/commands/indexer.ts:107",
+        "src/bridge/commands/indexer.ts:124"
+      ]
+    },
+    {
+      "id": "e20",
+      "source": "graph-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "indexerGraph | indexerTraverseGraph | indexerBacklinks",
+      "description": "Graph canvas fetches focused graph and traversal data.",
+      "file_citations": [
+        "src/bridge/commands/indexer.ts:80",
+        "src/bridge/commands/indexer.ts:92",
+        "src/bridge/commands/indexer.ts:75"
+      ]
+    },
+    {
+      "id": "e21",
+      "source": "canvas-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "canvasHitTest | canvasTemplateDryRun | canvasApplyTemplate | canvasSnapshot | canvasSaveDocument",
+      "description": "Canvas board operations execute in the native canvas-engine.",
+      "file_citations": [
+        "src/bridge/canvas.ts"
+      ]
+    },
+    {
+      "id": "e22",
+      "source": "publish-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "vaultPublishStarlight output",
+      "description": "Publish center calls the native publish command.",
+      "file_citations": [
+        "src/bridge/commands/vault.ts:322"
+      ]
+    },
+    {
+      "id": "e23",
+      "source": "git-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "gitStatus | gitCommit | gitPull | gitPush | gitResolveConflict",
+      "description": "Git panel drives native git adapter commands.",
+      "file_citations": [
+        "src/bridge/commands/git.ts:7",
+        "src/bridge/commands/git.ts:12",
+        "src/bridge/commands/git.ts:17",
+        "src/bridge/commands/git.ts:23"
+      ]
+    },
+    {
+      "id": "e24",
+      "source": "reader-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "reader_read_document bytes | ReaderAnnotationRecord[]",
+      "description": "Reader fetches confined document bytes and annotation records.",
+      "file_citations": [
+        "src/bridge/reader.ts:9",
+        "src/bridge/reader.ts:16"
+      ]
+    },
+    {
+      "id": "e25",
+      "source": "export-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "ExportJobInput | PandocDiscovery",
+      "description": "Export UI starts/cancels export jobs and discovers Pandoc.",
+      "file_citations": [
+        "src/bridge/commands/export.ts:7",
+        "src/bridge/commands/export.ts:12",
+        "src/bridge/commands/export.ts:29"
+      ]
+    },
+    {
+      "id": "e26",
+      "source": "mcp-ui-runtime",
+      "target": "mcp-ts-stdio",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "McpRuntime | DraftPatch | CommandResult",
+      "description": "In-app runtime embeds the @scriptor/mcp package (shared logic; stdio server is separate).",
+      "file_citations": [
+        "packages/mcp/src/runtime.ts",
+        "packages/mcp/src/draft.ts"
+      ]
+    },
+    {
+      "id": "e27",
+      "source": "citation-ui",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "indexerListBibliography | indexerValidateCitations",
+      "description": "Citation panels load bibliography entries from the indexer.",
+      "file_citations": [
+        "src/bridge/commands/indexer.ts:50"
+      ]
+    },
+    {
+      "id": "e28",
+      "source": "plugin-manager",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "plugin_state_get | plugin_state_set_enabled",
+      "description": "Plugin enablement persisted through native vault plugin-state commands.",
+      "file_citations": [
+        "src/bridge/plugin.ts",
+        "apps/desktop/src-tauri/src/commands/plugin_state.rs"
+      ]
+    },
+    {
+      "id": "e29",
+      "source": "plugin-manager",
+      "target": "wasm-runtime",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "PluginInstance | PluginCapabilities",
+      "description": "WASM plugin host maps to the incubating wasm-runtime crate.",
+      "file_citations": [
+        "packages/plugin-api/src/wasm-host.ts",
+        "crates/wasm-runtime/src/lib.rs"
+      ]
+    },
+    {
+      "id": "e30",
+      "source": "desktop-shell",
+      "target": "daemon",
+      "type": "sync_request",
+      "protocol": "Local RPC (postcard frames)",
+      "payload_type": "RpcRequest/RpcResponse (RpcMethod::*)",
+      "description": "Desktop talks to the daemon sidecar through `rpc_call`: ping/endpoint/start, open vault, search, backlinks, graph, save note, rename, export, git status, health.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/daemon.rs",
+        "crates/daemon/src/lib.rs",
+        "crates/ipc/src/lib.rs"
+      ]
+    },
+    {
+      "id": "e31",
+      "source": "desktop-shell",
+      "target": "os-keychain",
+      "type": "sync_request",
+      "protocol": "OS keychain (keyring)",
+      "payload_type": "AI API key | Google token bundle",
+      "description": "Desktop commands store/read secrets for AI provider and Google Calendar.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/system.rs:104",
+        "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+        "crates/system-bridge/src/keychain.rs"
+      ]
+    },
+    {
+      "id": "e32",
+      "source": "desktop-shell",
+      "target": "google-api",
+      "type": "sync_request",
+      "protocol": "HTTPS (REST)",
+      "payload_type": "CalendarEvent | GoogleTask | OAuth token response",
+      "description": "Calendar v3 / Tasks v1 calls with PKCE auth and transparent refresh.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/google_calendar.rs:606",
+        "apps/desktop/src-tauri/src/commands/google_calendar.rs:727",
+        "apps/desktop/src-tauri/src/commands/google_calendar.rs:764"
+      ]
+    },
+    {
+      "id": "e33",
+      "source": "desktop-shell",
+      "target": "ai-provider",
+      "type": "sync_request",
+      "protocol": "HTTPS (REST)",
+      "payload_type": "AiProviderProposeDraft request/response",
+      "description": "Draft proposal to the configured OpenAI-compatible endpoint (authorized network op).",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/system.rs:137"
+      ]
+    },
+    {
+      "id": "e34",
+      "source": "desktop-shell",
+      "target": "vault-kernel",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "OpenVaultOutput | NoteDocument | SaveNoteOutput | DeleteNoteOutput | VaultConfig",
+      "description": "Vault command surface (vault_open, vault_scan, vault_read_note, vault_save_note, vault_rename_*, vault_lint_fix, textbundle, history, sessions, activity).",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/vault.rs:35",
+        "apps/desktop/src-tauri/src/commands/vault.rs:70",
+        "apps/desktop/src-tauri/src/commands/vault.rs:136"
+      ]
+    },
+    {
+      "id": "e35",
+      "source": "desktop-shell",
+      "target": "indexer",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "RebuildSummary | SearchHit[] | GraphQueryOutput | TaskRow[] | KanbanBoardRow | DqlResultRow",
+      "description": "Indexer command surface (rebuild, search, graph, DQL, tasks, kanban, tags, bibliography, health).",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/indexer.rs:42",
+        "apps/desktop/src-tauri/src/commands/indexer.rs:70",
+        "apps/desktop/src-tauri/src/commands/indexer.rs:100",
+        "apps/desktop/src-tauri/src/commands/indexer.rs:468"
+      ]
+    },
+    {
+      "id": "e36",
+      "source": "desktop-shell",
+      "target": "native-git",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "GitStatus | GitCommitOutput | GitPullOutput | GitPushOutput | ConflictResolveOutput",
+      "description": "Git command surface with authorization for pull/push/conflict ops.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/git.rs:17",
+        "apps/desktop/src-tauri/src/commands/git.rs:27",
+        "apps/desktop/src-tauri/src/commands/git.rs:67"
+      ]
+    },
+    {
+      "id": "e37",
+      "source": "desktop-shell",
+      "target": "export-runner",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "ExportJobOutput | PandocDiscovery",
+      "description": "Export commands (export_discover, export_run_note, export_start_note, pdf_translate) execute the runner; job events are re-emitted to the webview.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/export.rs:237",
+        "apps/desktop/src-tauri/src/commands/export.rs:243",
+        "apps/desktop/src-tauri/src/commands/export.rs:452"
+      ]
+    },
+    {
+      "id": "e38",
+      "source": "desktop-shell",
+      "target": "canvas-engine",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "CanvasDocument JSON | TemplateApplyOutput | SnapshotOutput",
+      "description": "Canvas commands (hit_test, render_svg, template dry-run/apply, snapshot, save/load document).",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/canvas.rs:57",
+        "apps/desktop/src-tauri/src/commands/canvas.rs:110",
+        "apps/desktop/src-tauri/src/commands/canvas.rs:143"
+      ]
+    },
+    {
+      "id": "e39",
+      "source": "desktop-shell",
+      "target": "publish-runner",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "PublishPlan | PublishApplyOutput",
+      "description": "Publish command (vault_publish_starlight) plans and applies the approved bucket.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/code_chunk.rs:168"
+      ]
+    },
+    {
+      "id": "e40",
+      "source": "desktop-shell",
+      "target": "embeddings",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command → crate)",
+      "payload_type": "EmbeddingRecord[]",
+      "description": "Embeddings commands (index/remove/search) — incubating surface.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/embeddings.rs:66",
+        "apps/desktop/src-tauri/src/commands/embeddings.rs:115"
+      ]
+    },
+    {
+      "id": "e41",
+      "source": "desktop-shell",
+      "target": "system-bridge",
+      "type": "sync_request",
+      "protocol": "Internal (crate call)",
+      "payload_type": "ProcessReceipt | SystemInfo",
+      "description": "Desktop commands use the process broker for code chunks, LaTeX, PlantUML, PDF translation and system info.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/code_chunk.rs:76",
+        "apps/desktop/src-tauri/src/commands/latex.rs:155",
+        "apps/desktop/src-tauri/src/commands/media.rs",
+        "crates/system-bridge/src/process.rs:116"
+      ]
+    },
+    {
+      "id": "e42",
+      "source": "desktop-shell",
+      "target": "backup-store",
+      "type": "sync_request",
+      "protocol": "Internal (Tauri command)",
+      "payload_type": "VaultBackupEntry | BackupManifest",
+      "description": "Backup/restore commands with versioned SHA-256 manifests.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/backup.rs"
+      ]
+    },
+    {
+      "id": "e43",
+      "source": "desktop-shell",
+      "target": "vault-fs",
+      "type": "sync_request",
+      "protocol": "Filesystem",
+      "payload_type": "Document bytes (PDF/EPUB)",
+      "description": "Reader command reads vault-confined document bytes (≤128 MiB) after relative-path resolution.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/reader.rs:31"
+      ]
+    },
+    {
+      "id": "e44",
+      "source": "daemon",
+      "target": "vault-kernel",
+      "type": "sync_request",
+      "protocol": "Internal (RPC handler → crate)",
+      "payload_type": "VaultOpened | NoteDocument | NoteSaved | RenameApplied | HealthDiagnostics",
+      "description": "Daemon executes vault methods under the state lock (open, read, save, rename, config, lint, history, sessions).",
+      "file_citations": [
+        "crates/daemon/src/handler.rs:230",
+        "crates/daemon/src/handler.rs:335",
+        "crates/daemon/src/command_gateway.rs:52"
+      ]
+    },
+    {
+      "id": "e45",
+      "source": "daemon",
+      "target": "indexer",
+      "type": "sync_request",
+      "protocol": "Internal (RPC handler → crate)",
+      "payload_type": "RebuildSummary | SearchHits | GraphSummary | HealthReport",
+      "description": "Daemon routes index methods (rebuild, search, list notes, backlinks, graph summary, health).",
+      "file_citations": [
+        "crates/daemon/src/handler.rs",
+        "crates/daemon/src/index_job.rs"
+      ]
+    },
+    {
+      "id": "e46",
+      "source": "daemon",
+      "target": "native-git",
+      "type": "sync_request",
+      "protocol": "Internal (gateway → crate)",
+      "payload_type": "GitStatus JSON",
+      "description": "Daemon git_status for headless/TUI clients.",
+      "file_citations": [
+        "crates/daemon/src/command_gateway.rs:52",
+        "crates/native-git/src/status.rs:33"
+      ]
+    },
+    {
+      "id": "e47",
+      "source": "daemon",
+      "target": "export-runner",
+      "type": "sync_request",
+      "protocol": "Internal (outside-lock dispatch)",
+      "payload_type": "ExportJobInput | ExportJobOutput",
+      "description": "Export RPCs run outside the state lock via dispatch_export_sync.",
+      "file_citations": [
+        "crates/daemon/src/transport.rs:683",
+        "crates/daemon/src/export_job.rs:75"
+      ]
+    },
+    {
+      "id": "e48",
+      "source": "daemon",
+      "target": "canvas-engine",
+      "type": "sync_request",
+      "protocol": "Internal (gateway → crate)",
+      "payload_type": "Canvas command JSON",
+      "description": "Daemon gateway exposes the canvas command catalog for remote clients.",
+      "file_citations": [
+        "crates/daemon/src/command_gateway.rs:52"
+      ]
+    },
+    {
+      "id": "e49",
+      "source": "daemon",
+      "target": "event-hub",
+      "type": "async_event",
+      "protocol": "Internal (mpsc broadcast)",
+      "payload_type": "RpcEventPayload::ConfigReloaded | ResyncRequired",
+      "description": "Daemon broadcasts config reloads and resync requirements to subscribers.",
+      "file_citations": [
+        "crates/daemon/src/events.rs:72",
+        "crates/daemon/src/events.rs:54"
+      ]
+    },
+    {
+      "id": "e50",
+      "source": "daemon",
+      "target": "vault-watcher",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "VaultWatchBatch",
+      "description": "Daemon (re)starts the vault watcher on open with a generation counter; stale generations are ignored.",
+      "file_citations": [
+        "crates/daemon/src/watcher.rs:22",
+        "crates/vault/src/watch.rs:55"
+      ]
+    },
+    {
+      "id": "e51",
+      "source": "daemon",
+      "target": "os-keychain",
+      "type": "sync_request",
+      "protocol": "OS keychain (keyring)",
+      "payload_type": "daemon-endpoint-hmac-key",
+      "description": "Daemon generates/reads its endpoint HMAC key through the system keychain.",
+      "file_citations": [
+        "crates/daemon/src/transport.rs",
+        "crates/system-bridge/src/keychain.rs"
+      ]
+    },
+    {
+      "id": "e52",
+      "source": "daemon",
+      "target": "ipc",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "postcard frames (magic ARCL)",
+      "description": "Daemon transport encodes/decodes RPC envelopes and frames.",
+      "file_citations": [
+        "crates/ipc/src/lib.rs",
+        "crates/daemon/src/transport.rs"
+      ]
+    },
+    {
+      "id": "e53",
+      "source": "cli",
+      "target": "daemon",
+      "type": "sync_request",
+      "protocol": "Local RPC (postcard frames)",
+      "payload_type": "RpcRequest/RpcResponse",
+      "description": "CLI routes index/search/graph/health through the daemon by default.",
+      "file_citations": [
+        "crates/cli/src/daemon_client.rs:78",
+        "crates/cli/src/commands/indexing.rs"
+      ]
+    },
+    {
+      "id": "e54",
+      "source": "cli",
+      "target": "vault-kernel",
+      "type": "sync_request",
+      "protocol": "Internal (in-process)",
+      "payload_type": "OpenVaultOutput | ScannedEntry[] | NoteDocument | LintReport",
+      "description": "CLI vault commands run in-process when `--in-process` or for non-daemon ops.",
+      "file_citations": [
+        "crates/cli/src/commands/vault.rs",
+        "crates/vault/src/open.rs:49"
+      ]
+    },
+    {
+      "id": "e55",
+      "source": "cli",
+      "target": "indexer",
+      "type": "sync_request",
+      "protocol": "Internal (in-process)",
+      "payload_type": "RebuildSummary | SearchHit[] | HealthReport",
+      "description": "CLI indexing commands can run in-process (deprecated path).",
+      "file_citations": [
+        "crates/cli/src/commands/indexing.rs"
+      ]
+    },
+    {
+      "id": "e56",
+      "source": "cli",
+      "target": "capture",
+      "type": "sync_request",
+      "protocol": "Internal (crate call)",
+      "payload_type": "ExtractedContent | markdown",
+      "description": "`scriptor clip` runs the fetch→extract→markdown pipeline.",
+      "file_citations": [
+        "crates/cli/src/commands/clip.rs:27",
+        "crates/capture/src/lib.rs"
+      ]
+    },
+    {
+      "id": "e57",
+      "source": "cli",
+      "target": "native-git",
+      "type": "sync_request",
+      "protocol": "Internal (crate call)",
+      "payload_type": "GitStatus | GitConflictResolveOutput",
+      "description": "CLI git conflict-resolution command.",
+      "file_citations": [
+        "crates/cli/src/commands/git_ops.rs"
+      ]
+    },
+    {
+      "id": "e58",
+      "source": "mcp-ts-stdio",
+      "target": "cli",
+      "type": "sync_request",
+      "protocol": "Subprocess (stdio JSON)",
+      "payload_type": "scriptor search/read/backlinks/health-diagnostics JSON",
+      "description": "TS MCP vault context shells out to the CLI binary for data access.",
+      "file_citations": [
+        "packages/mcp/src/cli-vault-context.ts",
+        "packages/mcp/src/stdio-server.ts:31"
+      ]
+    },
+    {
+      "id": "e59",
+      "source": "mcp-rust-stdio",
+      "target": "vault-kernel",
+      "type": "sync_request",
+      "protocol": "Internal (crate call)",
+      "payload_type": "VaultOpened | NoteDocument | NoteSaved (with audit)",
+      "description": "Rust MCP server opens the vault and performs audited writes (`--trust-stdio`).",
+      "file_citations": [
+        "crates/daemon/src/mcp_stdio.rs:157",
+        "crates/daemon/src/mcp_stdio.rs:196"
+      ]
+    },
+    {
+      "id": "e60",
+      "source": "mcp-rust-stdio",
+      "target": "indexer",
+      "type": "sync_request",
+      "protocol": "Internal (crate call)",
+      "payload_type": "SearchHits | GraphQueryOutput | DqlResultRow",
+      "description": "Rust MCP read tools query the index.",
+      "file_citations": [
+        "crates/daemon/src/mcp_stdio.rs"
+      ]
+    },
+    {
+      "id": "e61",
+      "source": "vault-kernel",
+      "target": "vault-fs",
+      "type": "db_query",
+      "protocol": "Filesystem",
+      "payload_type": "Markdown bytes (read) / atomic write",
+      "description": "All vault IO is confined: resolve_relative then read/write; atomic writes use temp+rename+fsync.",
+      "file_citations": [
+        "crates/vault/src/path.rs",
+        "crates/vault/src/fs.rs:9",
+        "crates/vault/src/note.rs:37"
+      ]
+    },
+    {
+      "id": "e62",
+      "source": "vault-kernel",
+      "target": "vault-meta",
+      "type": "db_query",
+      "protocol": "Filesystem (JSON/JSONL)",
+      "payload_type": "VaultConfig | McpMutationAuditRecord | NoteHistoryEntry | ActivityLogEntry | RenamePatchLog | WorkspaceSession",
+      "description": "Vault kernel persists config, audit trail (hash-chained), history, activity, stats, sessions, plugin state.",
+      "file_citations": [
+        "crates/vault/src/config.rs:501",
+        "crates/vault/src/mcp_audit.rs:120",
+        "crates/vault/src/note_history.rs",
+        "crates/vault/src/activity_log.rs"
+      ]
+    },
+    {
+      "id": "e63",
+      "source": "indexer",
+      "target": "sqlite-index",
+      "type": "db_query",
+      "protocol": "SQL (r2d2/SQLite)",
+      "payload_type": "notes | links | note_fts | citation_refs | tasks | task_tags | cache_meta rows",
+      "description": "Index reads/writes the derived cache with WAL, schema v8, FTS5 weighted queries.",
+      "file_citations": [
+        "crates/indexer/src/db.rs:22",
+        "crates/indexer/src/schema.rs:279",
+        "crates/indexer/src/search.rs:120"
+      ]
+    },
+    {
+      "id": "e64",
+      "source": "indexer",
+      "target": "extractor",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "HeadingNode[]",
+      "description": "Indexer reuses the shared heading extractor inside parse_note_markdown.",
+      "file_citations": [
+        "crates/indexer/src/parse.rs:64",
+        "crates/extractor/src/lib.rs"
+      ]
+    },
+    {
+      "id": "e65",
+      "source": "indexer",
+      "target": "vault-fs",
+      "type": "db_query",
+      "protocol": "Filesystem",
+      "payload_type": "Note markdown (read for hashing/parsing)",
+      "description": "Rebuild/incremental indexing reads note bytes from the vault.",
+      "file_citations": [
+        "crates/indexer/src/rebuild.rs:56",
+        "crates/indexer/src/rebuild.rs:201"
+      ]
+    },
+    {
+      "id": "e66",
+      "source": "vault-watcher",
+      "target": "indexer",
+      "type": "async_event",
+      "protocol": "Internal (callback → crate)",
+      "payload_type": "VaultWatchBatch (paths)",
+      "description": "Debounced batches feed incremental indexing; RescanRequired triggers full rebuild.",
+      "file_citations": [
+        "crates/daemon/src/watcher.rs:32",
+        "crates/vault/src/watch.rs:55"
+      ]
+    },
+    {
+      "id": "e67",
+      "source": "export-runner",
+      "target": "pandoc",
+      "type": "sync_request",
+      "protocol": "Subprocess (explicit args)",
+      "payload_type": "ExportFormat + pandoc args",
+      "description": "Pandoc discovery (hash-verified) then execution through the process broker with bounded output.",
+      "file_citations": [
+        "crates/export-runner/src/pandoc.rs:79",
+        "crates/export-runner/src/job.rs:62"
+      ]
+    },
+    {
+      "id": "e68",
+      "source": "export-runner",
+      "target": "vault-fs",
+      "type": "db_query",
+      "protocol": "Filesystem",
+      "payload_type": "Export artifact (docx/pdf/html/…)",
+      "description": "Exported artifacts written to the vault export directory.",
+      "file_citations": [
+        "crates/export-runner/src/job.rs:247"
+      ]
+    },
+    {
+      "id": "e69",
+      "source": "export-runner",
+      "target": "logs",
+      "type": "async_event",
+      "protocol": "Filesystem (JSONL)",
+      "payload_type": "ExportJobLogEntry",
+      "description": "Slow-export detection and bounded export logs.",
+      "file_citations": [
+        "crates/export-runner/src/log.rs"
+      ]
+    },
+    {
+      "id": "e70",
+      "source": "native-git",
+      "target": "git-remote",
+      "type": "sync_request",
+      "protocol": "Git (SSH/HTTPS)",
+      "payload_type": "git pull/push transfer",
+      "description": "Pull/push to the configured origin.",
+      "file_citations": [
+        "crates/native-git/src/sync.rs:58",
+        "crates/native-git/src/sync.rs:74"
+      ]
+    },
+    {
+      "id": "e71",
+      "source": "native-git",
+      "target": "vault-fs",
+      "type": "db_query",
+      "protocol": "Filesystem (git objects)",
+      "payload_type": "git object DB / index / refs",
+      "description": "git status/commit operate on the vault's .git (isolated temp index for commits).",
+      "file_citations": [
+        "crates/native-git/src/status.rs:33",
+        "crates/native-git/src/status.rs:79"
+      ]
+    },
+    {
+      "id": "e72",
+      "source": "native-git",
+      "target": "git-queue",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "QueuedOp",
+      "description": "Git operations serialize through the queue.",
+      "file_citations": [
+        "crates/native-git/src/queue.rs"
+      ]
+    },
+    {
+      "id": "e73",
+      "source": "canvas-engine",
+      "target": "vault-fs",
+      "type": "db_query",
+      "protocol": "Filesystem (JSON)",
+      "payload_type": "CanvasDocument JSON + checkpoints",
+      "description": "Canvas boards persisted under the vault meta directory.",
+      "file_citations": [
+        "crates/canvas-engine/src/store.rs:23",
+        "crates/canvas-engine/src/store.rs:40"
+      ]
+    },
+    {
+      "id": "e74",
+      "source": "publish-runner",
+      "target": "vault-fs",
+      "type": "db_query",
+      "protocol": "Filesystem",
+      "payload_type": "PublishCandidate content scans",
+      "description": "Publish planning scans eligible notes; apply writes buckets and `.publish-state.json`.",
+      "file_citations": [
+        "crates/publish-runner/src/plan.rs:127",
+        "crates/publish-runner/src/compile.rs:144"
+      ]
+    },
+    {
+      "id": "e75",
+      "source": "publish-runner",
+      "target": "starlight-sitegen",
+      "type": "sync_request",
+      "protocol": "Subprocess",
+      "payload_type": "SiteTemplate | site output",
+      "description": "Approved publish apply runs the site generator.",
+      "file_citations": [
+        "crates/publish-runner/src/compile.rs"
+      ]
+    },
+    {
+      "id": "e76",
+      "source": "system-bridge",
+      "target": "pandoc",
+      "type": "sync_request",
+      "protocol": "Subprocess",
+      "payload_type": "ProcessSpec → ProcessReceipt",
+      "description": "Process broker executes pandoc with bounds/cancellation.",
+      "file_citations": [
+        "crates/system-bridge/src/process.rs:116"
+      ]
+    },
+    {
+      "id": "e77",
+      "source": "system-bridge",
+      "target": "tectonic",
+      "type": "sync_request",
+      "protocol": "Subprocess",
+      "payload_type": "ProcessSpec → ProcessReceipt",
+      "description": "Tectonic compile (network allowed) via the process broker.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/latex.rs:155",
+        "crates/system-bridge/src/process.rs:116"
+      ]
+    },
+    {
+      "id": "e78",
+      "source": "system-bridge",
+      "target": "plantuml",
+      "type": "sync_request",
+      "protocol": "Subprocess",
+      "payload_type": "ProcessSpec → ProcessReceipt",
+      "description": "PlantUML render with network denied by default.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/media.rs",
+        "crates/system-bridge/src/process.rs:116"
+      ]
+    },
+    {
+      "id": "e79",
+      "source": "system-bridge",
+      "target": "code-runner",
+      "type": "sync_request",
+      "protocol": "Subprocess",
+      "payload_type": "ProcessSpec → ProcessReceipt",
+      "description": "Code chunk runtimes (python/node/powershell/sh/cmd) with 30 s timeout and no network.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/code_chunk.rs:76",
+        "crates/system-bridge/src/process.rs:116"
+      ]
+    },
+    {
+      "id": "e80",
+      "source": "system-bridge",
+      "target": "pdf-translator",
+      "type": "sync_request",
+      "protocol": "Subprocess",
+      "payload_type": "ProcessSpec → ProcessReceipt",
+      "description": "Configured PDF translation tool executed with bounds.",
+      "file_citations": [
+        "apps/desktop/src-tauri/src/commands/export.rs:452",
+        "crates/system-bridge/src/process.rs:116"
+      ]
+    },
+    {
+      "id": "e81",
+      "source": "embeddings",
+      "target": "ollama",
+      "type": "sync_request",
+      "protocol": "HTTP (REST)",
+      "payload_type": "POST /api/embed (Ollama)",
+      "description": "Embedding inference against local Ollama.",
+      "file_citations": [
+        "crates/embeddings/src/ollama_client.rs",
+        "crates/embeddings/src/provider.rs"
+      ]
+    },
+    {
+      "id": "e82",
+      "source": "embeddings",
+      "target": "sqlite-index",
+      "type": "db_query",
+      "protocol": "SQL",
+      "payload_type": "blocks embedding rows",
+      "description": "Embedding vectors stored in the index store (schema v8 blocks embedding table).",
+      "file_citations": [
+        "crates/embeddings/src/lib.rs",
+        "crates/indexer/src/schema.rs"
+      ]
+    },
+    {
+      "id": "e83",
+      "source": "zotero-api",
+      "target": "google-api",
+      "type": "dependency",
+      "protocol": "HTTPS (REST)",
+      "payload_type": "ZoteroItem | ZoteroCollection",
+      "description": "Zotero connector syncs library items (standalone package client).",
+      "file_citations": [
+        "packages/zotero-connector/src/index.ts"
+      ]
+    },
+    {
+      "id": "e84",
+      "source": "mcp-ts-stdio",
+      "target": "core-contracts",
+      "type": "dependency",
+      "protocol": "Internal",
+      "payload_type": "McpMode | McpToolDescriptor",
+      "description": "TS MCP package imports core contracts.",
+      "file_citations": [
+        "packages/mcp/src/stdio-server.ts",
+        "packages/core/src/contracts/mcp.ts"
+      ]
+    },
+    {
+      "id": "e85",
+      "source": "desktop-shell",
+      "target": "system-bridge",
+      "type": "sync_request",
+      "protocol": "OS keychain",
+      "payload_type": "keychain_get/set/delete",
+      "description": "Desktop keychain ops (AI key, Google tokens) go through the system bridge.",
+      "file_citations": [
+        "crates/system-bridge/src/keychain.rs"
+      ]
+    },
+    {
+      "id": "e86",
+      "source": "desktop-shell",
+      "target": "logs",
+      "type": "async_event",
+      "protocol": "Filesystem (JSONL)",
+      "payload_type": "tracing JSONL",
+      "description": "Desktop component tracing initialized via observability.",
+      "file_citations": [
+        "crates/system-bridge/src/observability.rs",
+        "apps/desktop/src-tauri/src/lib.rs:92"
+      ]
+    },
+    {
+      "id": "e87",
+      "source": "daemon",
+      "target": "logs",
+      "type": "async_event",
+      "protocol": "Filesystem (JSONL)",
+      "payload_type": "tracing JSONL",
+      "description": "Daemon structured tracing.",
+      "file_citations": [
+        "crates/system-bridge/src/observability.rs",
+        "crates/daemon/src/main.rs"
+      ]
+    },
+    {
+      "id": "e88",
+      "source": "cli",
+      "target": "system-bridge",
+      "type": "sync_request",
+      "protocol": "Internal (crate call)",
+      "payload_type": "SystemInfo | ProcessReceipt",
+      "description": "CLI doctor/system-info/tooling use the system bridge.",
+      "file_citations": [
+        "crates/cli/src/commands/tooling.rs"
+      ]
+    },
+    {
+      "id": "e89",
+      "source": "editor",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "vaultSaveNote | indexerSyncNoteTasks | vaultFrontmatterSet",
+      "description": "Editor commands persist through the bridge (autosave, task toggle, frontmatter).",
+      "file_citations": [
+        "src/bridge/commands/vault.ts:40",
+        "src/bridge/commands/indexer.ts:261"
+      ]
+    },
+    {
+      "id": "e90",
+      "source": "web-workers",
+      "target": "renderer",
+      "type": "async_event",
+      "protocol": "Web Worker postMessage",
+      "payload_type": "CiteprocFormatResponse | LayoutResult | dataUrl",
+      "description": "Workers return formatted citations, layout coordinates, and rasterized canvas images.",
+      "file_citations": [
+        "src/workers/citeproc.worker.ts",
+        "src/workers/graph-layout.worker.ts",
+        "src/workers/canvas-render.worker.ts"
+      ]
+    },
+    {
+      "id": "e91",
+      "source": "mcp-ui-runtime",
+      "target": "desktop-shell",
+      "type": "sync_request",
+      "protocol": "Tauri IPC (via src/bridge)",
+      "payload_type": "indexerSearch | vaultReadNote | vaultSaveNote | vaultDeleteNote | vaultRenameApply",
+      "description": "In-app MCP write dispatch routes approved tools to native commands.",
+      "file_citations": [
+        "src/hooks/useMcpRuntime.ts:42",
+        "packages/mcp/src/write-dispatch.ts"
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "flow.vault-open-index",
+      "name": "Vault Open & Index (Authentication/Open Handshake)",
+      "description": "User opens a vault folder: renderer → native command → vault kernel validates/confines the path, recovers pending renames, then the index is rebuilt/migrated and the filesystem watcher restarts with a new generation.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "vaultOpen(rootPath) → invoke('vault_open')",
+          "payload": "OpenVaultOutput",
+          "file_citation": "src/bridge/commands/vault.ts:25",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "vault-kernel",
+          "action": "vault_open command validates path & opens vault",
+          "payload": "VaultSession",
+          "file_citation": "apps/desktop/src-tauri/src/commands/vault.rs:35",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "vault-meta",
+          "action": "recover pending rename transactions; sweep stale temp files",
+          "payload": "RenameRecoveryOutcome",
+          "file_citation": "crates/vault/src/open.rs:49",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 4,
+          "to": "indexer",
+          "action": "indexer_rebuild / daemon RebuildIndex",
+          "payload": "RebuildSummary",
+          "file_citation": "apps/desktop/src-tauri/src/commands/indexer.rs:42",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 5,
+          "to": "sqlite-index",
+          "action": "open cache, apply schema v8 / migrate, index notes+links+FTS",
+          "payload": "IndexCache",
+          "file_citation": "crates/indexer/src/db.rs:22; crates/indexer/src/schema.rs:279",
+          "from": "indexer"
+        },
+        {
+          "step_number": 6,
+          "to": "vault-watcher",
+          "action": "restart_vault_watcher with incrementing generation",
+          "payload": "watcher_generation",
+          "file_citation": "crates/daemon/src/watcher.rs:22",
+          "from": "daemon"
+        }
+      ]
+    },
+    {
+      "id": "flow.save-note",
+      "name": "Save Note (hash-checked atomic write)",
+      "description": "Editor saves Markdown with optimistic concurrency: renderer → native → vault kernel checks expected content hash, appends history, atomically replaces the file, then refreshes the note index (and rolls the disk write back on index failure).",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "vaultSaveNote({path, markdown, expected_content_hash})",
+          "payload": "SaveNoteInput",
+          "file_citation": "src/bridge/commands/vault.ts:40",
+          "from": "editor"
+        },
+        {
+          "step_number": 2,
+          "to": "vault-kernel",
+          "action": "vault_save_note command",
+          "payload": "SaveNoteOutput",
+          "file_citation": "apps/desktop/src-tauri/src/commands/vault.rs:70",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "vault-kernel",
+          "action": "optimistic-concurrency hash check (HashMismatch on stale)",
+          "payload": "Option<content_hash>",
+          "file_citation": "crates/vault/src/write.rs:45",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-fs",
+          "action": "atomic write (temp+rename+fsync) + append note history",
+          "payload": "Note markdown bytes",
+          "file_citation": "crates/vault/src/fs.rs:9; crates/vault/src/note_history.rs",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 5,
+          "to": "sqlite-index",
+          "action": "update_note_index → incremental re-index of the path (rollback on failure)",
+          "payload": "IncrementalIndexSummary",
+          "file_citation": "crates/indexer/src/rebuild.rs:201; crates/daemon/src/handler.rs:373",
+          "from": "indexer"
+        }
+      ]
+    },
+    {
+      "id": "flow.mcp-write-audit",
+      "name": "MCP Mutation Audit (intent/outcome hash chain)",
+      "description": "Write tools under the Rust daemon MCP server persist a crash-visible intent (idempotency key + hash-chain link), perform the atomic vault mutation, append the outcome; startup reconciliation resolves pending records deterministically.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "vault-kernel",
+          "action": "run_mcp_stdio reconciles pending mutations at startup",
+          "payload": "reconcile_count",
+          "file_citation": "crates/daemon/src/mcp_stdio.rs:157",
+          "from": "mcp-rust-stdio"
+        },
+        {
+          "step_number": 2,
+          "to": "vault-meta",
+          "action": "append intent record with idempotency_key + previous_hash",
+          "payload": "McpMutationAuditRecord(phase=intent)",
+          "file_citation": "crates/vault/src/mcp_audit.rs:120",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 3,
+          "to": "vault-kernel",
+          "action": "dispatch write tool (createNote/updateFrontmatter/proposePatch) when trust_stdio",
+          "payload": "tool_name + arguments",
+          "file_citation": "crates/daemon/src/mcp_stdio.rs:196",
+          "from": "mcp-rust-stdio"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-fs",
+          "action": "atomic vault mutation via save_note_with_options",
+          "payload": "markdown bytes",
+          "file_citation": "crates/vault/src/write.rs:45",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 5,
+          "to": "vault-meta",
+          "action": "append outcome record; interrupted marker on crash",
+          "payload": "McpMutationAuditRecord(phase=outcome)",
+          "file_citation": "crates/vault/src/mcp_audit.rs:188",
+          "from": "vault-kernel"
+        }
+      ]
+    },
+    {
+      "id": "flow.mcp-ts-draft-write",
+      "name": "MCP Draft Approval (TypeScript server)",
+      "description": "The in-app TS MCP runtime gates write tools by mode (off/read-only/draft/write-approved); drafts created, approved, then dispatched to native commands; every invocation audited.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "mcp-ui-runtime",
+          "action": "parse SCRIPTOR_MCP_MODE; construct McpRuntime",
+          "payload": "McpMode",
+          "file_citation": "packages/mcp/src/stdio-server.ts:31",
+          "from": "mcp-ts-stdio"
+        },
+        {
+          "step_number": 2,
+          "to": "mcp-ui-runtime",
+          "action": "modeAllowsTool gate + audit append (denied on mode mismatch)",
+          "payload": "CommandResult | audit entry",
+          "file_citation": "packages/mcp/src/runtime.ts; packages/mcp/src/permissions.ts",
+          "from": "mcp-ui-runtime"
+        },
+        {
+          "step_number": 3,
+          "to": "desktop-shell",
+          "action": "approved write dispatched to native command (save/rename/delete/frontmatter)",
+          "payload": "CommandResult",
+          "file_citation": "src/hooks/useMcpRuntime.ts:42; packages/mcp/src/write-dispatch.ts",
+          "from": "mcp-ui-runtime"
+        },
+        {
+          "step_number": 4,
+          "to": "cli",
+          "action": "CLI-backed vault context: scriptor search/read/backlinks/health-diagnostics",
+          "payload": "SearchHit[] | NoteDocument | issues",
+          "file_citation": "packages/mcp/src/cli-vault-context.ts",
+          "from": "mcp-ts-stdio"
+        }
+      ]
+    },
+    {
+      "id": "flow.watch-incremental-index",
+      "name": "Event Ingestion & Processing (filesystem watcher)",
+      "description": "Recursive watcher debounces changed Markdown paths into batches; daemon applies incremental index updates; on event loss a RescanRequired batch triggers full rebuild; renderer receives filesystem-changed events to hydrate.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "daemon",
+          "action": "debounced VaultWatchBatch::Events (300 ms)",
+          "payload": "VaultWatchEvent[]",
+          "file_citation": "crates/vault/src/watch.rs:55; crates/daemon/src/watcher.rs:32",
+          "from": "vault-watcher"
+        },
+        {
+          "step_number": 2,
+          "to": "indexer",
+          "action": "apply_watch_batch → incremental_notes_index_with_cache",
+          "payload": "changed paths",
+          "file_citation": "crates/daemon/src/watcher.rs:45; crates/indexer/src/rebuild.rs:201",
+          "from": "daemon"
+        },
+        {
+          "step_number": 3,
+          "to": "sqlite-index",
+          "action": "upsert notes/links/FTS (stale generation ignored)",
+          "payload": "IncrementalIndexSummary",
+          "file_citation": "crates/indexer/src/rebuild.rs:192",
+          "from": "indexer"
+        },
+        {
+          "step_number": 4,
+          "to": "indexer",
+          "action": "RescanRequired on event loss → full rebuild_index",
+          "payload": "VaultWatchBatch::RescanRequired",
+          "file_citation": "crates/daemon/src/watcher.rs:40",
+          "from": "vault-watcher"
+        },
+        {
+          "step_number": 5,
+          "to": "renderer",
+          "action": "emit 'vault:filesystem-changed' → useWorkspaceFilesystemSync applies",
+          "payload": "VaultFilesystemChangedEvent",
+          "file_citation": "apps/desktop/src-tauri/src/commands/shared.rs:50; src/hooks/useWorkspaceFilesystemSync.ts:20",
+          "from": "desktop-shell"
+        }
+      ]
+    },
+    {
+      "id": "flow.search-fts",
+      "name": "Search (FTS5 weighted query)",
+      "description": "Renderer issues indexerSearch; the indexer builds a safe FTS5 MATCH (diacritic folding, quoted prefix phrases) and returns rank-ordered hits.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "indexerSearch(query, limit)",
+          "payload": "SearchHit[]",
+          "file_citation": "src/bridge/commands/indexer.ts:35",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "indexer",
+          "action": "indexer_search command",
+          "payload": "SearchHit[]",
+          "file_citation": "apps/desktop/src-tauri/src/commands/indexer.rs:70",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "sqlite-index",
+          "action": "build_fts_query → note_fts MATCH (unicode61 remove_diacritics 2)",
+          "payload": "FTS5 rows",
+          "file_citation": "crates/indexer/src/search.rs:120; crates/indexer/src/schema.rs (CREATE_FTS_V5)",
+          "from": "indexer"
+        },
+        {
+          "step_number": 4,
+          "to": "renderer",
+          "action": "return hits (path,title,snippet) → validated parseSearchHits",
+          "payload": "SearchHit[]",
+          "file_citation": "crates/indexer/src/search.rs:10; src/types/vaultValidators.ts",
+          "from": "indexer"
+        }
+      ]
+    },
+    {
+      "id": "flow.git-commit-isolated",
+      "name": "Git Commit (isolated temporary index)",
+      "description": "Commit selected files without touching the user's index: seed temp index from HEAD, stage literal paths, build the tree, update the branch; conflicts resolved via merge3; pull/push route to the remote.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "gitCommit(files, message)",
+          "payload": "GitCommitInput",
+          "file_citation": "src/bridge/commands/git.ts:12",
+          "from": "git-ui"
+        },
+        {
+          "step_number": 2,
+          "to": "native-git",
+          "action": "git_commit_cmd (authorization-gated)",
+          "payload": "GitCommitOutput",
+          "file_citation": "apps/desktop/src-tauri/src/commands/git.rs:27",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "vault-fs",
+          "action": "temporary index seeded from HEAD; stage literal requested paths",
+          "payload": "temp index + tree",
+          "file_citation": "crates/native-git/src/status.rs:79",
+          "from": "native-git"
+        },
+        {
+          "step_number": 4,
+          "to": "git-queue",
+          "action": "serialize through GitQueue; update branch ref, leave user index untouched",
+          "payload": "QueuedOp",
+          "file_citation": "crates/native-git/src/queue.rs",
+          "from": "native-git"
+        },
+        {
+          "step_number": 5,
+          "to": "git-remote",
+          "action": "git_pull/git_push with strategy",
+          "payload": "PullStrategy",
+          "file_citation": "crates/native-git/src/sync.rs:58",
+          "from": "native-git"
+        }
+      ]
+    },
+    {
+      "id": "flow.export-pandoc",
+      "name": "Export Job (Pandoc orchestration)",
+      "description": "Export UI starts a job; desktop forwards to daemon (or runs direct); ExportJobRunner spawns a worker thread; export-runner discovers hash-verified Pandoc, writes the artifact and emits progress events to the webview.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "exportStartNote/exportRunNote(note, format)",
+          "payload": "ExportJobInput",
+          "file_citation": "src/bridge/commands/export.ts:12; src/bridge/commands/export.ts:29",
+          "from": "export-ui"
+        },
+        {
+          "step_number": 2,
+          "to": "daemon",
+          "action": "bridge_export_start_note → RpcMethod::ExportStartNote",
+          "payload": "job_id",
+          "file_citation": "apps/desktop/src-tauri/src/commands/daemon.rs",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "export-job",
+          "action": "ExportJobRunner::start spawns worker thread (outside lock)",
+          "payload": "ExportProgressReport",
+          "file_citation": "crates/daemon/src/export_job.rs:75; crates/daemon/src/transport.rs:683",
+          "from": "daemon"
+        },
+        {
+          "step_number": 4,
+          "to": "pandoc",
+          "action": "discover_pandoc (hash check) → run_export_job_with_cancel",
+          "payload": "ExportFormat + args",
+          "file_citation": "crates/export-runner/src/pandoc.rs:79; crates/export-runner/src/job.rs:62",
+          "from": "export-runner"
+        },
+        {
+          "step_number": 5,
+          "to": "vault-fs",
+          "action": "write artifact to default export directory",
+          "payload": "export file",
+          "file_citation": "crates/export-runner/src/job.rs:247",
+          "from": "export-runner"
+        },
+        {
+          "step_number": 6,
+          "to": "renderer",
+          "action": "emit export:started/progress/finished/failed",
+          "payload": "ExportJobStarted | ExportJobFinished",
+          "file_citation": "apps/desktop/src-tauri/src/commands/export.rs; src/bridge/exportEvents.ts",
+          "from": "desktop-shell"
+        }
+      ]
+    },
+    {
+      "id": "flow.daemon-auth-handshake",
+      "name": "Daemon Authentication Handshake",
+      "description": "Daemon generates a per-install HMAC key in the OS keychain, writes daemon-endpoint.json with nonce+HMAC; clients verify HMAC constant-time and process liveness before opening the local socket; frames are length-prefixed postcard (magic ARCL, 2 MiB bound).",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "os-keychain",
+          "action": "endpoint_hmac_key_runtime: get or generate keychain key",
+          "payload": "daemon-endpoint-hmac-key",
+          "file_citation": "crates/daemon/src/transport.rs (KEYCHAIN_ACCOUNT)",
+          "from": "daemon"
+        },
+        {
+          "step_number": 2,
+          "to": "daemon",
+          "action": "write_endpoint: nonce + HMAC(socket:pid:nonce) → daemon-endpoint.json",
+          "payload": "DaemonEndpoint",
+          "file_citation": "crates/daemon/src/transport.rs (write_endpoint)",
+          "from": "daemon"
+        },
+        {
+          "step_number": 3,
+          "to": "daemon",
+          "action": "client read_endpoint verifies HMAC + pid liveness (constant-time)",
+          "payload": "DaemonEndpoint",
+          "file_citation": "crates/daemon/src/transport.rs (read_endpoint, verify_endpoint_process)",
+          "from": "daemon"
+        },
+        {
+          "step_number": 4,
+          "to": "ipc",
+          "action": "connect local socket; encode/decode postcard frames (ARCL magic, 2 MiB bound)",
+          "payload": "RpcRequest | ServerMessage",
+          "file_citation": "crates/ipc/src/lib.rs (encode_frame, read_frame_resyncing)",
+          "from": "daemon"
+        },
+        {
+          "step_number": 5,
+          "to": "renderer",
+          "action": "enforce 60 RPC/s/conn, 32 concurrent connections",
+          "payload": "RateLimiter",
+          "file_citation": "crates/daemon/src/transport.rs (MAX_RPC_PER_CONNECTION_PER_SEC, MAX_CONCURRENT_CONNECTIONS); crates/ipc/src/rate_limit.rs",
+          "from": "daemon"
+        }
+      ]
+    },
+    {
+      "id": "flow.config-reload-resync",
+      "name": "Cache Invalidation & Config Reload Cycle",
+      "description": "Config save triggers ReloadConfig RPC; daemon broadcasts ConfigReloaded (with generation) through the event hub; desktop re-emits to the webview where it is runtime-validated; slow subscribers are dropped and must ResyncRequired-reload authoritative state.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "vaultSaveConfig → RpcMethod::ReloadConfig",
+          "payload": "VaultConfig",
+          "file_citation": "src/bridge/commands/vault.ts:79; apps/desktop/src-tauri/src/commands/daemon.rs",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "event-hub",
+          "action": "broadcast_config_reloaded(json, generation)",
+          "payload": "RpcEventPayload::ConfigReloaded",
+          "file_citation": "crates/daemon/src/events.rs:54; crates/daemon/src/events.rs:72",
+          "from": "daemon"
+        },
+        {
+          "step_number": 3,
+          "to": "desktop-shell",
+          "action": "register_rpc_event_handler → emit 'daemon:config-reloaded'",
+          "payload": "DaemonConfigReloadedEvent",
+          "file_citation": "apps/desktop/src-tauri/src/lib.rs",
+          "from": "event-hub"
+        },
+        {
+          "step_number": 4,
+          "to": "renderer",
+          "action": "subscribeDaemonConfigReloaded + parseVaultConfig validation",
+          "payload": "VaultConfig",
+          "file_citation": "src/bridge/daemonEvents.ts:23; src/types/vaultValidators.ts",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 5,
+          "to": "renderer",
+          "action": "slow subscriber disconnected → ResyncRequired on resubscribe",
+          "payload": "RpcEventPayload::ResyncRequired",
+          "file_citation": "crates/daemon/src/events.rs; crates/ipc/src/lib.rs",
+          "from": "event-hub"
+        }
+      ]
+    },
+    {
+      "id": "flow.rename-note",
+      "name": "Rename Note with Link Rewrite & Recovery",
+      "description": "Rename applies as a staged transaction (manifest + rollback), moves the file, rewrites inbound links across the vault, writes a patch log, and recovers pending transactions on next open; the daemon refreshes the note index.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "vaultRenameApply({from,to,updateLinks})",
+          "payload": "RenameNoteApplyOutput",
+          "file_citation": "src/bridge/commands/vault.ts:121",
+          "from": "workspace-hooks"
+        },
+        {
+          "step_number": 2,
+          "to": "vault-kernel",
+          "action": "vault_rename_apply command",
+          "payload": "RenameNoteApplyOutput",
+          "file_citation": "apps/desktop/src-tauri/src/commands/vault.rs:136",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "vault-meta",
+          "action": "staged rename transaction manifest for crash recovery",
+          "payload": "StagedRenameTransaction",
+          "file_citation": "crates/vault/src/rename_transaction.rs; crates/vault/src/rename.rs:98",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-fs",
+          "action": "move file + rewrite links via link_rewrite",
+          "payload": "LinkRewriteApplyOutput",
+          "file_citation": "crates/vault/src/link_rewrite.rs",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 5,
+          "to": "vault-meta",
+          "action": "write rename patch log (undo support)",
+          "payload": "RenamePatchLog",
+          "file_citation": "crates/vault/src/patch_log.rs",
+          "from": "vault-kernel"
+        },
+        {
+          "step_number": 6,
+          "to": "indexer",
+          "action": "RenameNoteApply RPC → refresh index for old/new paths",
+          "payload": "RenameApplied",
+          "file_citation": "crates/daemon/src/handler.rs",
+          "from": "daemon"
+        }
+      ]
+    },
+    {
+      "id": "flow.canvas-template",
+      "name": "Canvas Template Apply & Snapshot",
+      "description": "Canvas board applies a template: dry-run preview → apply with undo checkpoint → persist document; SVG snapshots rasterize off the main thread.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "canvasTemplateDryRun/canvasApplyTemplate(sceneJson)",
+          "payload": "CanvasTemplateApplyPreview",
+          "file_citation": "src/bridge/canvas.ts",
+          "from": "canvas-ui"
+        },
+        {
+          "step_number": 2,
+          "to": "canvas-engine",
+          "action": "canvas_template_dry_run/canvas_apply_template commands",
+          "payload": "TemplateApplyOutput",
+          "file_citation": "apps/desktop/src-tauri/src/commands/canvas.rs:57",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "canvas-engine",
+          "action": "parse scene JSON, apply template patch, store checkpoint",
+          "payload": "CanvasDocument",
+          "file_citation": "crates/canvas-engine/src/apply.rs:32; crates/canvas-engine/src/scene.rs:134",
+          "from": "canvas-engine"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-fs",
+          "action": "save_document to vault canvas store",
+          "payload": "CanvasDocument JSON",
+          "file_citation": "crates/canvas-engine/src/store.rs:23",
+          "from": "canvas-engine"
+        },
+        {
+          "step_number": 5,
+          "to": "web-workers",
+          "action": "canvasSnapshot (png/svg/pdf) → rasterize off main thread",
+          "payload": "SnapshotOutput",
+          "file_citation": "src/bridge/canvas.ts; src/workers/canvas-render.worker.ts",
+          "from": "canvas-ui"
+        }
+      ]
+    },
+    {
+      "id": "flow.publish-plan-apply",
+      "name": "Publish Plan → Approved Apply",
+      "description": "Publish center builds the four-bucket diff (new/changed/unchanged/orphaned) from prior bucket state; after user approval, publish_apply writes buckets, persists state, and runs the site generator.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "vaultPublishStarlight(outputPath)",
+          "payload": "publish request",
+          "file_citation": "src/bridge/commands/vault.ts:322",
+          "from": "publish-ui"
+        },
+        {
+          "step_number": 2,
+          "to": "publish-runner",
+          "action": "vault_publish_starlight command",
+          "payload": "PublishApplyOutput",
+          "file_citation": "apps/desktop/src-tauri/src/commands/code_chunk.rs:168",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "vault-fs",
+          "action": "plan_publish scans candidates (publish: true) vs bucket state",
+          "payload": "PublishPlan",
+          "file_citation": "crates/publish-runner/src/plan.rs:127",
+          "from": "publish-runner"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-fs",
+          "action": "publish_apply writes approved bucket + .publish-state.json",
+          "payload": "BucketState",
+          "file_citation": "crates/publish-runner/src/compile.rs:144",
+          "from": "publish-runner"
+        },
+        {
+          "step_number": 5,
+          "to": "starlight-sitegen",
+          "action": "run site generator on staged content",
+          "payload": "SiteTemplate",
+          "file_citation": "crates/publish-runner/src/compile.rs",
+          "from": "publish-runner"
+        }
+      ]
+    },
+    {
+      "id": "flow.google-calendar-auth",
+      "name": "Google Calendar OAuth2 PKCE & Task Sync",
+      "description": "PKCE loopback auth (ephemeral TCP listener + system browser), token exchange, keychain persistence; Calendar v3 / Tasks v1 calls with transparent refresh; task completion maps back to note updates.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "googleCalendarStartAuth → authorization gate",
+          "payload": "auth token grant",
+          "file_citation": "src/bridge/commands/google_calendar.ts:42",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "desktop-shell",
+          "action": "TcpListener loopback + browser consent; exchange code for tokens",
+          "payload": "OAuth token bundle",
+          "file_citation": "apps/desktop/src-tauri/src/commands/google_calendar.rs:606",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "os-keychain",
+          "action": "persist token bundle under 'google.calendar.tokens'",
+          "payload": "token JSON",
+          "file_citation": "apps/desktop/src-tauri/src/commands/google_calendar.rs (TOKEN_KEYCHAIN_ACCOUNT); crates/system-bridge/src/keychain.rs",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 4,
+          "to": "google-api",
+          "action": "list events / list-create-complete-delete tasks",
+          "payload": "GoogleTask | CalendarEvent",
+          "file_citation": "apps/desktop/src-tauri/src/commands/google_calendar.rs:727; apps/desktop/src-tauri/src/commands/google_calendar.rs:764; apps/desktop/src-tauri/src/commands/google_calendar.rs:816",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 5,
+          "to": "indexer",
+          "action": "completed task writes back to originating note (useGoogleCalendarSync)",
+          "payload": "task update",
+          "file_citation": "src/hooks/useGoogleCalendarSync.ts",
+          "from": "renderer"
+        }
+      ]
+    },
+    {
+      "id": "flow.kanban-move",
+      "name": "Kanban Card Move (source rewrite)",
+      "description": "Moving a card relocates the complete card line under the destination `##` heading and patches its checkbox, then saves through the canonical vault write path and refreshes the index.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "indexerKanbanMoveCard(notePath, line, column)",
+          "payload": "KanbanMoveInput",
+          "file_citation": "src/bridge/commands/indexer.ts:286",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "indexer",
+          "action": "indexer_kanban_move_card command",
+          "payload": "KanbanBoardRow",
+          "file_citation": "apps/desktop/src-tauri/src/commands/indexer.rs:468",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "indexer",
+          "action": "move_card_in_markdown relocates card block + checkbox status",
+          "payload": "rewritten markdown",
+          "file_citation": "crates/indexer/src/kanban.rs:149",
+          "from": "indexer"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-fs",
+          "action": "rewrite source file through canonical save path; refresh index",
+          "payload": "markdown bytes",
+          "file_citation": "crates/indexer/src/kanban.rs; crates/vault/src/write.rs:45",
+          "from": "indexer"
+        }
+      ]
+    },
+    {
+      "id": "flow.tasks-sync",
+      "name": "Task Extraction & Query",
+      "description": "Tasks are parsed from Markdown on demand (field styles), persisted into tasks/task_tags, and queried with filters.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "indexerSyncNoteTasks(notePath) / indexerQueryTasks(filter)",
+          "payload": "TaskFilter",
+          "file_citation": "src/bridge/commands/indexer.ts:261; src/bridge/commands/indexer.ts:231",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "indexer",
+          "action": "indexer_sync_note_tasks / indexer_query_tasks commands",
+          "payload": "TaskRow[]",
+          "file_citation": "apps/desktop/src-tauri/src/commands/indexer.rs:428; apps/desktop/src-tauri/src/commands/indexer.rs:345",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "indexer",
+          "action": "sync_note_tasks parses markdown tasks (FieldStyle)",
+          "payload": "ParsedTask[]",
+          "file_citation": "crates/indexer/src/tasks.rs:390",
+          "from": "indexer"
+        },
+        {
+          "step_number": 4,
+          "to": "sqlite-index",
+          "action": "upsert tasks + task_tags rows",
+          "payload": "TaskRow[]",
+          "file_citation": "crates/indexer/src/tasks.rs:479; crates/indexer/src/schema.rs (tasks)",
+          "from": "indexer"
+        }
+      ]
+    },
+    {
+      "id": "flow.reader-document",
+      "name": "Reader Document Confinement & Annotations",
+      "description": "Reader accepts vault-relative PDF/EPUB only; native resolves and confines the path (≤128 MiB) and returns bytes; annotations are stored atomically as a JSON sidecar in the vault.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "readReaderDocument(relPath)",
+          "payload": "Uint8Array",
+          "file_citation": "src/bridge/reader.ts:9",
+          "from": "reader-ui"
+        },
+        {
+          "step_number": 2,
+          "to": "vault-fs",
+          "action": "document_path (pdf|epub only) → resolve_relative → read",
+          "payload": "document bytes",
+          "file_citation": "apps/desktop/src-tauri/src/commands/reader.rs:31",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "desktop-shell",
+          "action": "loadReaderAnnotations/saveReaderAnnotations",
+          "payload": "ReaderAnnotationRecord[]",
+          "file_citation": "src/bridge/reader.ts:16; src/bridge/reader.ts:24",
+          "from": "reader-ui"
+        },
+        {
+          "step_number": 4,
+          "to": "vault-meta",
+          "action": "annotations store at .scriptor/reader/annotations.json",
+          "payload": "AnnotationStore",
+          "file_citation": "apps/desktop/src-tauri/src/commands/reader.rs (ANNOTATIONS_PATH)",
+          "from": "desktop-shell"
+        }
+      ]
+    },
+    {
+      "id": "flow.embeddings-search",
+      "name": "Semantic Search (incubating)",
+      "description": "Optional embeddings path: index note vectors via Ollama/OpenAI-compatible provider, store in the index, overlay cosine scores on BM25 results by note path.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "embeddingsSearch(query)",
+          "payload": "EmbeddingRecord[]",
+          "file_citation": "src/bridge/commands/embeddings.ts:86",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "embeddings",
+          "action": "embeddings_search command",
+          "payload": "EmbeddingRecord[]",
+          "file_citation": "apps/desktop/src-tauri/src/commands/embeddings.rs:115",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "ollama",
+          "action": "embed query via provider (Ollama/OpenAI)",
+          "payload": "float vector",
+          "file_citation": "crates/embeddings/src/ollama_client.rs; crates/embeddings/src/provider.rs",
+          "from": "embeddings"
+        },
+        {
+          "step_number": 4,
+          "to": "sqlite-index",
+          "action": "cosine-similarity lookup; join by note_path",
+          "payload": "EmbeddingRecord[]",
+          "file_citation": "crates/embeddings/src/lib.rs",
+          "from": "embeddings"
+        }
+      ]
+    },
+    {
+      "id": "flow.code-chunk-exec",
+      "name": "Code Chunk Execution (opt-in, sandboxed)",
+      "description": "Code chunks run only when explicitly allowed; the process broker resolves the runner (python/node/powershell/sh/cmd), denies network unless sandbox available, bounds output/time, and kills the process tree on timeout.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "codeChunkRun(language, code) → authorize CodeExecution",
+          "payload": "CodeChunkRunInput",
+          "file_citation": "src/bridge/commands/system.ts:71",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "system-bridge",
+          "action": "code_chunk_run builds ProcessSpec (timeout 30 s, no network)",
+          "payload": "ProcessSpec",
+          "file_citation": "apps/desktop/src-tauri/src/commands/code_chunk.rs:76",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "code-runner",
+          "action": "resolve executable → sandboxed_command → run_process",
+          "payload": "ProcessReceipt",
+          "file_citation": "crates/system-bridge/src/process.rs:116; crates/system-bridge/src/process.rs:410",
+          "from": "system-bridge"
+        },
+        {
+          "step_number": 4,
+          "to": "renderer",
+          "action": "bounded stdout/stderr + exit code returned",
+          "payload": "CodeChunkRunOutput",
+          "file_citation": "crates/system-bridge/src/process.rs (ProcessReceipt)",
+          "from": "system-bridge"
+        }
+      ]
+    },
+    {
+      "id": "flow.backup-restore",
+      "name": "Backup & Restore (verified manifests)",
+      "description": "Local snapshots or external disaster-recovery backups carry versioned SHA-256 manifests; restore verifies path/size/hash/vault-binding before promotion, with rollback copy and restore journal.",
+      "steps": [
+        {
+          "step_number": 1,
+          "to": "desktop-shell",
+          "action": "vaultCreateBackup(backupPath?) → authorize CreateBackup",
+          "payload": "VaultBackupEntry",
+          "file_citation": "src/bridge/commands/vault.ts:349",
+          "from": "renderer"
+        },
+        {
+          "step_number": 2,
+          "to": "backup-store",
+          "action": "copy vault to snapshots or external root; write manifest",
+          "payload": "BackupManifest",
+          "file_citation": "apps/desktop/src-tauri/src/commands/backup.rs (backup_root)",
+          "from": "desktop-shell"
+        },
+        {
+          "step_number": 3,
+          "to": "backup-store",
+          "action": "restore verifies path/size/hash + vault binding; rollback copy",
+          "payload": "restore journal",
+          "file_citation": "apps/desktop/src-tauri/src/commands/backup.rs (vault_restore_backup)",
+          "from": "desktop-shell"
+        }
+      ]
+    }
+  ]
+}

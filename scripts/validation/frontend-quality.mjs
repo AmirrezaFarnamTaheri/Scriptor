@@ -42,6 +42,9 @@ const productionFiles = [
 
 for (const { absolute, rel } of productionFiles) {
   const text = readFileSync(absolute, 'utf8')
+  if (rel.startsWith('src/') && !rel.startsWith('src/bridge/') && /from\s+['"]@tauri-apps\/api\/core['"]/.test(text)) {
+    failures.push(`${rel}: production renderer code must call native commands through src/bridge`)
+  }
   if (/\bas\s+any\b|:\s*any\b|<any>/.test(text)) {
     failures.push(`${rel}: explicit any is forbidden in production UI/type contracts`)
   }

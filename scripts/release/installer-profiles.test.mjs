@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
 import { PROFILES, GITHUB_RELEASE_BASE_URL } from './installer-profiles.mjs'
 
@@ -43,4 +44,11 @@ test('all profiles with native plugins use github-release source', () => {
 test('GITHUB_RELEASE_BASE_URL is exported and non-empty', () => {
   assert.ok(typeof GITHUB_RELEASE_BASE_URL === 'string')
   assert.ok(GITHUB_RELEASE_BASE_URL.length > 0)
+})
+
+test('importing installer profiles is side-effect free', () => {
+  // This test file imports the module at top level. If import executed the CLI,
+  // the receipt would already exist before this assertion in a clean checkout.
+  const receipt = new URL('../../release-output/installer-profile.json', import.meta.url)
+  assert.equal(fs.existsSync(receipt), false)
 })

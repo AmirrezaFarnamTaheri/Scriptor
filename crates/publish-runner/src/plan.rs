@@ -27,9 +27,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use globset::{Glob, GlobSetBuilder};
-use scriptor_vault::content_hash_bytes;
+use scriptor_vault::{MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, ScannedEntryKind, VaultRoot, content_hash_bytes, scan_vault};
 use serde::{Deserialize, Serialize};
-use walkdir::WalkDir;
 
 use crate::error::PublishError;
 
@@ -37,7 +36,7 @@ use crate::error::PublishError;
 
 /// ASCII prefix that marks a sealed / encrypted span inside a note body.
 /// The indexer, export-runner, and this runner all use this sentinel.
-const SEALED_PREFIX: &str = "%%scriptor-sealed:";
+pub(crate) const SEALED_PREFIX: &str = "%%scriptor-sealed:";
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -154,12 +153,13 @@ pub fn plan_publish(
     }
 
     // Anything in the prior state not found in the current scan is orphaned.
-    let orphaned: Vec<String> = prior_state
+    let mut orphaned: Vec<String> = prior_state
         .entries
         .keys()
         .filter(|k| !found.contains_key(*k))
         .cloned()
         .collect();
+    orphaned.sort();
 
     Ok(PublishPlan {
         new_items,
@@ -177,58 +177,61 @@ fn scan_candidates(
     include_set: &Option<globset::GlobSet>,
     exclude_set: &globset::GlobSet,
 ) -> Result<Vec<PublishCandidate>, PublishError> {
+    let root = VaultRoot::open(vault_root)?;
     let mut out = Vec::new();
 
-    for entry in WalkDir::new(vault_root)
-        .follow_links(false)
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| e.file_type().is_file())
-        .filter(|e| {
-            e.path()
-                .extension()
-                .map(|x| x.eq_ignore_ascii_case("md"))
-                .unwrap_or(false)
-        })
-    {
-        let abs = entry.path();
-        let rel = rel_posix(vault_root, abs);
+    // Reuse the vault kernel's bounded, symlink-aware metadata scan instead of
+    // maintaining a second, weaker filesystem walker here. It excludes the
+    // internal `.scriptor` tree and surfaces enumeration failures.
+    for entry in scan_vault(&root)? {
+        if entry.kind != ScannedEntryKind::Note {
+            continue;
+        }
+        let rel = RelativeVaultPath::parse(&entry.path)?;
+        let rel_str = rel.as_str();
 
-        // Glob filtering.
-        if let Some(inc) = include_set
-            && !inc.is_match(&rel)
+        if let Some(include) = include_set
+            && !include.is_match(rel_str)
         {
             continue;
         }
-        if exclude_set.is_match(&rel) {
+        if exclude_set.is_match(rel_str) {
             continue;
         }
+        if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
+            return Err(PublishError::NoteTooLarge {
+                path: rel_str.to_string(),
+                size_bytes: entry.size_bytes,
+                limit_bytes: MAX_INDEXED_NOTE_BYTES,
+            });
+        }
 
-        let bytes = std::fs::read(abs).map_err(|e| PublishError::Io {
-            path: rel.clone(),
-            source: e,
+        let absolute = root.resolve_relative(&rel)?;
+        let bytes = std::fs::read(&absolute).map_err(|source| PublishError::Io {
+            path: rel_str.to_string(),
+            source,
         })?;
 
-        // I-3: refuse sealed content without --redact-secrets.
+        // Apply the opt-in gate before sealed-content enforcement so a private,
+        // non-published sealed note cannot deny publication of unrelated notes.
+        if options.require_frontmatter_opt_in
+            && !frontmatter_has_publish_true(&String::from_utf8_lossy(&bytes))
+        {
+            continue;
+        }
+
         if bytes
             .windows(SEALED_PREFIX.len())
-            .any(|w| w == SEALED_PREFIX.as_bytes())
+            .any(|window| window == SEALED_PREFIX.as_bytes())
         {
-            return Err(PublishError::SealedContent { path: rel });
+            return Err(PublishError::SealedContent {
+                path: rel_str.to_string(),
+            });
         }
 
-        // Frontmatter gate.
-        if options.require_frontmatter_opt_in {
-            let text = String::from_utf8_lossy(&bytes);
-            if !frontmatter_has_publish_true(&text) {
-                continue;
-            }
-        }
-
-        let content_hash = content_hash_bytes(&bytes);
         out.push(PublishCandidate {
-            rel_path: rel,
-            content_hash,
+            rel_path: rel_str.to_string(),
+            content_hash: content_hash_bytes(&bytes),
         });
     }
 
@@ -242,7 +245,7 @@ fn scan_candidates(
 /// This is a deliberately simple line-oriented check — no full YAML parse.
 /// Frontmatter starts and ends with `---`; we look for `publish: true` on its
 /// own line within that block.
-fn frontmatter_has_publish_true(text: &str) -> bool {
+pub(crate) fn frontmatter_has_publish_true(text: &str) -> bool {
     let mut lines = text.lines();
 
     // Must start with `---`.
@@ -282,14 +285,6 @@ fn build_exclude_set(patterns: &[String]) -> Result<globset::GlobSet, PublishErr
         builder.add(Glob::new(p)?);
     }
     builder.build().map_err(PublishError::GlobPattern)
-}
-
-/// Convert an absolute path to a vault-relative POSIX path string.
-fn rel_posix(vault_root: &Path, abs: &Path) -> String {
-    abs.strip_prefix(vault_root)
-        .unwrap_or(abs)
-        .to_string_lossy()
-        .replace('\\', "/")
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

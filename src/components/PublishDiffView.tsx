@@ -4,7 +4,7 @@
  * Renders the four-bucket publish plan (new_items, changed, unchanged, orphaned)
  * and lets the user select which items to apply.  No publish may occur without
  * the user first seeing this view (enforced by the parent's state machine: the
- * plan prop is only set after `plan_publish_cmd` completes).
+ * plan prop is only set after `vault_publish_plan_starlight` completes).
  *
  * Acceptance criteria (plan W1-7):
  * - No publish without a plan the user saw.

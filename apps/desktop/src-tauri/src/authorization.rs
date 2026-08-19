@@ -24,6 +24,7 @@ pub enum SensitiveOperation {
     GitPull,
     GitPush,
     GoogleCalendarAuth,
+    GoogleCalendarDisconnect,
     GoogleTaskWrite,
     KeychainDelete,
     ImportVault,
@@ -51,6 +52,7 @@ impl SensitiveOperation {
             Self::GitPull => "Pull remote Git changes",
             Self::GitPush => "Push local Git commits",
             Self::GoogleCalendarAuth => "Connect your Google account",
+            Self::GoogleCalendarDisconnect => "Disconnect your Google account",
             Self::GoogleTaskWrite => "Modify Google Tasks",
             Self::ImportVault => "Import content into the current vault",
             Self::KeychainDelete => "Delete the saved AI provider credential",
@@ -92,6 +94,9 @@ impl SensitiveOperation {
             Self::GoogleCalendarAuth => {
                 "Scriptor will open your browser to sign in to Google and store the resulting access tokens in the operating-system keychain."
             }
+            Self::GoogleCalendarDisconnect => {
+                "Scriptor will revoke the current Google access token when possible and remove the saved Google credentials from the operating-system keychain."
+            }
             Self::GoogleTaskWrite => {
                 "The selected task change will be sent to Google Tasks on your behalf."
             }
@@ -112,7 +117,7 @@ impl SensitiveOperation {
             }
             Self::PlantUmlExecution => "A local external renderer will process the diagram source.",
             Self::PublishSite => {
-                "External build and publish tools can read vault content and contact remote services."
+                "The reviewed, frontmatter-opted-in notes will be written to local site files. Any selected managed orphan deletions will also be applied."
             }
             Self::ResourceSync => {
                 "The approved plan can install or update agent resources across the selected applications. Existing destinations are quarantined before replacement and every result is hash-verified."

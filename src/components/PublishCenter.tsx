@@ -27,18 +27,18 @@ interface PublishCenterProps {
   exportResult: ExportJobOutput | null
   isExporting: boolean
   nativeReady: boolean
-  /** Publish plan returned by plan_publish_cmd — null until the user initiates a plan. */
+  /** Publish plan returned by vault_publish_plan_starlight — null until the user initiates a plan. */
   publishPlan?: PublishPlan | null
-  /** True while publish_apply_cmd is running. */
+  /** True while vault_publish_apply_starlight is running. */
   applyingPlan?: boolean
   /** Whether the plan was built with requireFrontmatterOptIn = true (default). */
   publishRequireOptIn?: boolean
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
   onCancelExport: () => void
-  /** Initiates the read-only plan_publish_cmd scan. */
+  /** Initiates the read-only vault_publish_plan_starlight scan. */
   onPlanStarlight: () => void
-  /** Discards the current plan and re-runs plan_publish_cmd. */
+  /** Discards the current plan and re-runs vault_publish_plan_starlight. */
   onReplanStarlight?: () => void
   /** Applies the reviewed plan with the given selection and orphan deletions. */
   onApplyPlan?: (selectedPaths: string[], deleteOrphans: string[]) => void

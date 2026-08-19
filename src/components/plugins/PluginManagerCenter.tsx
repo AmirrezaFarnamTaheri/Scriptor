@@ -28,7 +28,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
     description: 'Vault link topology and Cytoscape force-directed layout rendering',
     publisher: 'Scriptor Team',
     capabilityId: 'graph',
-    rustFeatureGate: 'scriptor-graph-engine',
+    rustFeatureGate: 'scriptor-indexer',
     activation: ['on-startup'],
     capabilities: ['renderer-extension'],
     permissions: [{ permission: 'read', reason: 'Access graph links' }],

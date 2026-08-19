@@ -9,8 +9,8 @@
 //! - Each canonical repo root gets its own `GitQueue` instance.
 //! - `GitQueue::enqueue` submits a boxed closure that runs on the worker
 //!   thread and returns its result via a [`std::sync::mpsc`] one-shot.
-//! - The queue is unbounded; back-pressure is the caller's responsibility
-//!   (the UI busy flag is the coarse limiter).
+//! - The queue is bounded; a full queue blocks submitters and applies back-pressure
+//!   instead of allowing an unbounded mutation backlog.
 //! - Dropping a `GitQueue` shuts the worker thread down gracefully: the
 //!   worker exits when the send half of the channel is dropped.
 //!
@@ -33,6 +33,8 @@ use std::thread;
 
 use crate::error::GitError;
 
+const MAX_PENDING_GIT_OPERATIONS: usize = 64;
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 /// A boxed closure that runs a git operation and returns a result.
@@ -49,7 +51,7 @@ type Task = Box<dyn FnOnce(&PathBuf) + Send + 'static>;
 /// Create one instance per canonical repository root. All mutating git
 /// operations should be submitted through [`GitQueue::enqueue`].
 pub struct GitQueue {
-    sender: mpsc::Sender<Task>,
+    sender: mpsc::SyncSender<Task>,
     /// The canonical path of the managed repository root (for diagnostics).
     pub repo_root: PathBuf,
 }
@@ -60,7 +62,7 @@ impl GitQueue {
     /// The worker runs until the `GitQueue` is dropped (at which point the
     /// sender channel closes and the worker exits its loop).
     pub fn new(repo_root: PathBuf) -> Self {
-        let (sender, receiver) = mpsc::channel::<Task>();
+        let (sender, receiver) = mpsc::sync_channel::<Task>(MAX_PENDING_GIT_OPERATIONS);
         let root_clone = repo_root.clone();
 
         thread::Builder::new()

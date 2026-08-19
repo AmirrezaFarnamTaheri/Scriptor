@@ -9,13 +9,10 @@ path = "src/lib.rs"
 
 [dependencies]
 scriptor-vault = { path = "../vault" }
-chrono = { workspace = true }
 globset = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "2"
-tracing = "0.1"
-walkdir = "2"
 
 [dev-dependencies]
 tempfile = "3"

@@ -86,7 +86,7 @@ pub fn upsert_note(
             metadata.title,
             headings_text,
             tags_text,
-            markdown
+            parsed.body
         ],
     )?;
     tx.commit()?;

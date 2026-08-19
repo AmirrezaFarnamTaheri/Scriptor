@@ -15,7 +15,7 @@ use commands::canvas::{
     canvas_load_document, canvas_query_blocks, canvas_render_svg, canvas_restore_template,
     canvas_save_document, canvas_snapshot, canvas_template_dry_run,
 };
-use commands::code_chunk::{code_chunk_run, vault_publish_starlight};
+use commands::code_chunk::code_chunk_run;
 use commands::daemon::{
     daemon_backlinks, daemon_endpoint, daemon_export_cancel, daemon_export_job_status,
     daemon_export_run_markdown, daemon_export_run_note, daemon_export_start_note,
@@ -24,7 +24,6 @@ use commands::daemon::{
     daemon_reload_config, daemon_rename_apply, daemon_save_note, daemon_search, daemon_start,
     daemon_update_note_index,
 };
-use commands::embeddings::{embeddings_index_note, embeddings_remove_note, embeddings_search};
 use commands::export::{
     export_cancel, export_discover, export_run_markdown, export_run_note, export_start_note,
     pdf_translate,
@@ -52,6 +51,7 @@ use commands::indexer::{
 };
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
 use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
+use commands::publish::{vault_publish_apply_starlight, vault_publish_plan_starlight};
 use commands::reader::{reader_load_annotations, reader_read_document, reader_save_annotations};
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
@@ -218,7 +218,8 @@ pub fn run() {
             canvas_load_document,
             canvas_list_documents,
             code_chunk_run,
-            vault_publish_starlight,
+            vault_publish_plan_starlight,
+            vault_publish_apply_starlight,
             latex_discover_tectonic,
             latex_compile,
             latex_cancel_compile,
@@ -262,9 +263,6 @@ pub fn run() {
             indexer_sync_note_tasks,
             indexer_kanban_board,
             indexer_kanban_move_card,
-            embeddings_index_note,
-            embeddings_remove_note,
-            embeddings_search,
             reader_read_document,
             reader_load_annotations,
             reader_save_annotations,

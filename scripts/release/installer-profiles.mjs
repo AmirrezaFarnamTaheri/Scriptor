@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 const root = path.resolve(import.meta.dirname, '../..')
 
@@ -82,20 +83,24 @@ function parseProfile(argv) {
   return 'complete'
 }
 
-const selectedProfileKey = parseProfile(process.argv)
-const selectedProfile = PROFILES[selectedProfileKey]
-
-const output = {
-  profile: selectedProfileKey,
-  ...selectedProfile,
-  timestamp: new Date().toISOString(),
-}
-
-const targetDir = path.join(root, 'release-output')
-if (!fs.existsSync(targetDir)) {
+export function writeInstallerProfile(argv = process.argv) {
+  const selectedProfileKey = parseProfile(argv)
+  const selectedProfile = PROFILES[selectedProfileKey]
+  const output = {
+    profile: selectedProfileKey,
+    ...selectedProfile,
+    timestamp: new Date().toISOString(),
+  }
+  const targetDir = path.join(root, 'release-output')
   fs.mkdirSync(targetDir, { recursive: true })
+  const outputPath = path.join(targetDir, 'installer-profile.json')
+  fs.writeFileSync(outputPath, JSON.stringify(output, null, 2))
+  console.log(`Generated installer profile receipt at ${outputPath} (profile: ${selectedProfileKey})`)
+  return outputPath
 }
 
-const outputPath = path.join(targetDir, 'installer-profile.json')
-fs.writeFileSync(outputPath, JSON.stringify(output, null, 2))
-console.log(`Generated installer profile receipt at ${outputPath} (profile: ${selectedProfileKey})`)
+const isMain = process.argv[1]
+  ? pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
+  : false
+
+if (isMain) writeInstallerProfile(process.argv)

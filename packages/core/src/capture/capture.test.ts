@@ -1,45 +1,47 @@
-import { describe, it, expect } from 'vitest'
-import { resolveTarget, resolveFilename } from '../capture/target'
-import { presentCaptureChoice } from '../capture/choice'
-import type { CaptureChoice, CaptureChoiceOption } from '../capture/choice'
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+import { resolveTarget, resolveFilename } from '../capture/target.ts'
+import { presentCaptureChoice } from '../capture/choice.ts'
+import type { CaptureChoice, CaptureChoiceOption } from '../capture/choice.ts'
 
 // ── resolveTarget ────────────────────────────────────────────────────────────
 
 describe('resolveTarget', () => {
   it('returns inbox folder when called with undefined', () => {
-    const t = resolveTarget(undefined)
-    expect(t.kind).toBe('folder')
-    if (t.kind === 'folder') {
-      expect(t.folderPath).toContain('inbox')
+    const target = resolveTarget(undefined)
+    assert.equal(target.kind, 'folder')
+    if (target.kind === 'folder') {
+      assert.match(target.folderPath, /inbox/i)
     }
   })
 
   it('fills missing folderPath with inbox', () => {
-    const t = resolveTarget({ kind: 'folder' })
-    expect(t.kind).toBe('folder')
-    if (t.kind === 'folder') expect(t.folderPath).toBeTruthy()
+    const target = resolveTarget({ kind: 'folder' })
+    assert.equal(target.kind, 'folder')
+    if (target.kind === 'folder') assert.ok(target.folderPath)
   })
 
   it('preserves explicit folderPath', () => {
-    const t = resolveTarget({ kind: 'folder', folderPath: 'my-folder' })
-    if (t.kind === 'folder') expect(t.folderPath).toBe('my-folder')
+    const target = resolveTarget({ kind: 'folder', folderPath: 'my-folder' })
+    assert.equal(target.kind, 'folder')
+    if (target.kind === 'folder') assert.equal(target.folderPath, 'my-folder')
   })
 
   it('handles template target', () => {
-    const t = resolveTarget({ kind: 'template', templatePath: 'templates/clip.md' })
-    expect(t.kind).toBe('template')
-    if (t.kind === 'template') expect(t.templatePath).toBe('templates/clip.md')
+    const target = resolveTarget({ kind: 'template', templatePath: 'templates/clip.md' })
+    assert.equal(target.kind, 'template')
+    if (target.kind === 'template') assert.equal(target.templatePath, 'templates/clip.md')
   })
 
   it('handles active-note target', () => {
-    const t = resolveTarget({ kind: 'active-note', insertPosition: 'cursor' })
-    expect(t.kind).toBe('active-note')
-    if (t.kind === 'active-note') expect(t.insertPosition).toBe('cursor')
+    const target = resolveTarget({ kind: 'active-note', insertPosition: 'cursor' })
+    assert.equal(target.kind, 'active-note')
+    if (target.kind === 'active-note') assert.equal(target.insertPosition, 'cursor')
   })
 
   it('falls back to inbox for malformed template target (no templatePath)', () => {
-    const t = resolveTarget({ kind: 'template' } as never)
-    expect(t.kind).toBe('folder')
+    const target = resolveTarget({ kind: 'template' } as never)
+    assert.equal(target.kind, 'folder')
   })
 })
 
@@ -50,31 +52,31 @@ describe('resolveFilename', () => {
 
   it('interpolates {{date}}', () => {
     const name = resolveFilename('{{date}}-note.md', 'My Title', fixedDate)
-    expect(name).toContain('2026-08-10')
+    assert.match(name, /2026-08-10/)
   })
 
   it('interpolates {{title}} as a slug', () => {
     const name = resolveFilename('{{date}}-{{title}}.md', 'Hello, World! (draft)', fixedDate)
-    expect(name).toContain('hello-world-draft')
+    assert.match(name, /hello-world-draft/)
   })
 
   it('caps slug at 80 characters', () => {
     const longTitle = 'a'.repeat(200)
     const name = resolveFilename('{{title}}.md', longTitle, fixedDate)
     const slug = name.replace('.md', '')
-    expect(slug.length).toBeLessThanOrEqual(80)
+    assert.ok(slug.length <= 80)
   })
 
   it('does not double hyphenate slug', () => {
     const name = resolveFilename('{{title}}.md', 'a  b   c', fixedDate)
-    expect(name).not.toContain('--')
+    assert.equal(name.includes('--'), false)
   })
 })
 
 // ── presentCaptureChoice ─────────────────────────────────────────────────────
 
 describe('presentCaptureChoice', () => {
-  const noPicker = async (_opts: CaptureChoiceOption[]) => null
+  const noPicker = async (_options: CaptureChoiceOption[]) => null
 
   it('silent mode returns defaultTarget without picker', async () => {
     const choice: CaptureChoice = {
@@ -82,13 +84,13 @@ describe('presentCaptureChoice', () => {
       defaultTarget: { kind: 'folder', folderPath: 'notes', filenameTemplate: '{{date}}.md' },
     }
     const target = await presentCaptureChoice(choice, {}, noPicker)
-    expect(target?.kind).toBe('folder')
+    assert.equal(target?.kind, 'folder')
   })
 
   it('silent mode returns inbox when no defaultTarget', async () => {
     const choice: CaptureChoice = { mode: 'silent' }
     const target = await presentCaptureChoice(choice, {}, noPicker)
-    expect(target).not.toBeNull()
+    assert.notEqual(target, null)
   })
 
   it('prompt mode with one option skips picker', async () => {
@@ -97,49 +99,49 @@ describe('presentCaptureChoice', () => {
       mode: 'prompt',
       options: [{ id: '1', label: 'Inbox', target: { kind: 'folder', folderPath: '00-inbox' } }],
     }
-    const pickerSpy = async (_opts: CaptureChoiceOption[]) => {
+    const pickerSpy = async (_options: CaptureChoiceOption[]) => {
       pickerCalled = true
       return null
     }
     const target = await presentCaptureChoice(choice, {}, pickerSpy)
-    expect(pickerCalled).toBe(false)
-    expect(target?.kind).toBe('folder')
+    assert.equal(pickerCalled, false)
+    assert.equal(target?.kind, 'folder')
   })
 
   it('prompt mode with no options falls back to inbox', async () => {
     const choice: CaptureChoice = { mode: 'prompt', options: [] }
     const target = await presentCaptureChoice(choice, {}, noPicker)
-    expect(target).not.toBeNull()
+    assert.notEqual(target, null)
   })
 
   it('prompt mode calls picker when multiple options exist', async () => {
     let pickerCalled = false
-    const opts: CaptureChoiceOption[] = [
+    const options: CaptureChoiceOption[] = [
       { id: 'a', label: 'A', target: { kind: 'folder', folderPath: 'a' } },
       { id: 'b', label: 'B', target: { kind: 'folder', folderPath: 'b' } },
     ]
-    const choice: CaptureChoice = { mode: 'prompt', options: opts }
-    await presentCaptureChoice(choice, {}, async (receivedOpts) => {
+    const choice: CaptureChoice = { mode: 'prompt', options }
+    await presentCaptureChoice(choice, {}, async (receivedOptions) => {
       pickerCalled = true
-      expect(receivedOpts).toHaveLength(2)
-      return receivedOpts[0]!
+      assert.equal(receivedOptions.length, 2)
+      return receivedOptions[0]!
     })
-    expect(pickerCalled).toBe(true)
+    assert.equal(pickerCalled, true)
   })
 
   it('dynamic mode calls resolve()', async () => {
     const choice: CaptureChoice = {
       mode: 'dynamic',
-      resolve: async (_ctx) => ({ kind: 'folder', folderPath: 'dynamic' }),
+      resolve: async (_context) => ({ kind: 'folder', folderPath: 'dynamic' }),
     }
     const target = await presentCaptureChoice(choice, { url: 'https://example.com' }, noPicker)
-    expect(target?.kind).toBe('folder')
-    if (target?.kind === 'folder') expect(target.folderPath).toBe('dynamic')
+    assert.equal(target?.kind, 'folder')
+    if (target?.kind === 'folder') assert.equal(target.folderPath, 'dynamic')
   })
 
   it('dynamic mode returns null when resolve is missing', async () => {
     const choice: CaptureChoice = { mode: 'dynamic' }
     const target = await presentCaptureChoice(choice, {}, noPicker)
-    expect(target).toBeNull()
+    assert.equal(target, null)
   })
 })

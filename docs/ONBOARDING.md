@@ -26,7 +26,7 @@
 ┌───────────────────────────────────▼────────────────────────────────────┐
 │                         Rust Kernel Workspace                          │
 │ ┌────────────────┐ ┌────────────────┐ ┌──────────────────────────────┐ │
-│ │  crates/vault  │ │ crates/indexer │ │   crates/citation-engine     │ │
+│ │  crates/vault  │ │ crates/indexer │ │   crates/publish-runner      │ │
 │ └────────────────┘ └────────────────┘ └──────────────────────────────┘ │
 │ ┌────────────────┐ ┌────────────────┐ ┌──────────────────────────────┐ │
 │ │ crates/daemon  │ │crates/system-b.│ │    crates/export-runner      │ │

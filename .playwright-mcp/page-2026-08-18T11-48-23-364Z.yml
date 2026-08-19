@@ -1,0 +1,826 @@
+- generic [active] [ref=f1e1]:
+  - banner [ref=f1e2]:
+    - heading "◫ Scriptor — Architecture & Data-Flow Map" [level=1] [ref=f1e3]
+    - generic [ref=f1e4]: "tracking branch: main"
+    - generic [ref=f1e5]: 61 nodes · 91 edges · 20 flows
+    - generic [ref=f1e6]: Scriptor · HEAD bb3caaed42f2 · merged from 36738609c00d · 2026-08-18T15:10:00Z
+  - generic [ref=f1e7]:
+    - generic [ref=f1e8]:
+      - img [ref=f1e9]:
+        - generic [ref=f1e10]:
+          - generic [ref=f1e11]:
+            - generic [ref=f1e12] [cursor=pointer]
+            - generic [ref=f1e13] [cursor=pointer]
+          - generic [ref=f1e14]:
+            - generic [ref=f1e15] [cursor=pointer]
+            - generic [ref=f1e16] [cursor=pointer]
+          - generic [ref=f1e17]:
+            - generic [ref=f1e18] [cursor=pointer]
+            - generic [ref=f1e19] [cursor=pointer]
+          - generic [ref=f1e20]:
+            - generic [ref=f1e21] [cursor=pointer]
+            - generic [ref=f1e22] [cursor=pointer]
+          - generic [ref=f1e23]:
+            - generic [ref=f1e24] [cursor=pointer]
+            - generic [ref=f1e25] [cursor=pointer]
+          - generic [ref=f1e26]:
+            - generic [ref=f1e27] [cursor=pointer]
+            - generic [ref=f1e28] [cursor=pointer]
+          - generic [ref=f1e29]:
+            - generic [ref=f1e30] [cursor=pointer]
+            - generic [ref=f1e31] [cursor=pointer]
+          - generic [ref=f1e32]:
+            - generic [ref=f1e33] [cursor=pointer]
+            - generic [ref=f1e34] [cursor=pointer]
+          - generic [ref=f1e35]:
+            - generic [ref=f1e36] [cursor=pointer]
+            - generic [ref=f1e37] [cursor=pointer]
+          - generic [ref=f1e38]:
+            - generic [ref=f1e39] [cursor=pointer]
+            - generic [ref=f1e40] [cursor=pointer]
+          - generic [ref=f1e41]:
+            - generic [ref=f1e42] [cursor=pointer]
+            - generic [ref=f1e43] [cursor=pointer]
+          - generic [ref=f1e44]:
+            - generic [ref=f1e45] [cursor=pointer]
+            - generic [ref=f1e46] [cursor=pointer]
+          - generic [ref=f1e47]:
+            - generic [ref=f1e48] [cursor=pointer]
+            - generic [ref=f1e49] [cursor=pointer]
+          - generic [ref=f1e50]:
+            - generic [ref=f1e51] [cursor=pointer]
+            - generic [ref=f1e52] [cursor=pointer]
+          - generic [ref=f1e53]:
+            - generic [ref=f1e54] [cursor=pointer]
+            - generic [ref=f1e55] [cursor=pointer]
+          - generic [ref=f1e56]:
+            - generic [ref=f1e57] [cursor=pointer]
+            - generic [ref=f1e58] [cursor=pointer]
+          - generic [ref=f1e59]:
+            - generic [ref=f1e60] [cursor=pointer]
+            - generic [ref=f1e61] [cursor=pointer]
+          - generic [ref=f1e62]:
+            - generic [ref=f1e63] [cursor=pointer]
+            - generic [ref=f1e64] [cursor=pointer]
+          - generic [ref=f1e65]:
+            - generic [ref=f1e66] [cursor=pointer]
+            - generic [ref=f1e67] [cursor=pointer]
+          - generic [ref=f1e68]:
+            - generic [ref=f1e69] [cursor=pointer]
+            - generic [ref=f1e70] [cursor=pointer]
+          - generic [ref=f1e71]:
+            - generic [ref=f1e72] [cursor=pointer]
+            - generic [ref=f1e73] [cursor=pointer]
+          - generic [ref=f1e74]:
+            - generic [ref=f1e75] [cursor=pointer]
+            - generic [ref=f1e76] [cursor=pointer]
+          - generic [ref=f1e77]:
+            - generic [ref=f1e78] [cursor=pointer]
+            - generic [ref=f1e79] [cursor=pointer]
+          - generic [ref=f1e80]:
+            - generic [ref=f1e81] [cursor=pointer]
+            - generic [ref=f1e82] [cursor=pointer]
+          - generic [ref=f1e83]:
+            - generic [ref=f1e84] [cursor=pointer]
+            - generic [ref=f1e85] [cursor=pointer]
+          - generic [ref=f1e86]:
+            - generic [ref=f1e87] [cursor=pointer]
+            - generic [ref=f1e88] [cursor=pointer]
+          - generic [ref=f1e89]:
+            - generic [ref=f1e90] [cursor=pointer]
+            - generic [ref=f1e91] [cursor=pointer]
+          - generic [ref=f1e92]:
+            - generic [ref=f1e93] [cursor=pointer]
+            - generic [ref=f1e94] [cursor=pointer]
+          - generic [ref=f1e95]:
+            - generic [ref=f1e96] [cursor=pointer]
+            - generic [ref=f1e97] [cursor=pointer]
+          - generic [ref=f1e98]:
+            - generic [ref=f1e99] [cursor=pointer]
+            - generic [ref=f1e100] [cursor=pointer]
+          - generic [ref=f1e101]:
+            - generic [ref=f1e102] [cursor=pointer]
+            - generic [ref=f1e103] [cursor=pointer]
+          - generic [ref=f1e104]:
+            - generic [ref=f1e105] [cursor=pointer]
+            - generic [ref=f1e106] [cursor=pointer]
+          - generic [ref=f1e107]:
+            - generic [ref=f1e108] [cursor=pointer]
+            - generic [ref=f1e109] [cursor=pointer]
+          - generic [ref=f1e110]:
+            - generic [ref=f1e111] [cursor=pointer]
+            - generic [ref=f1e112] [cursor=pointer]
+          - generic [ref=f1e113]:
+            - generic [ref=f1e114] [cursor=pointer]
+            - generic [ref=f1e115] [cursor=pointer]
+          - generic [ref=f1e116]:
+            - generic [ref=f1e117] [cursor=pointer]
+            - generic [ref=f1e118] [cursor=pointer]
+          - generic [ref=f1e119]:
+            - generic [ref=f1e120] [cursor=pointer]
+            - generic [ref=f1e121] [cursor=pointer]
+          - generic [ref=f1e122]:
+            - generic [ref=f1e123] [cursor=pointer]
+            - generic [ref=f1e124] [cursor=pointer]
+          - generic [ref=f1e125]:
+            - generic [ref=f1e126] [cursor=pointer]
+            - generic [ref=f1e127] [cursor=pointer]
+          - generic [ref=f1e128]:
+            - generic [ref=f1e129] [cursor=pointer]
+            - generic [ref=f1e130] [cursor=pointer]
+          - generic [ref=f1e131]:
+            - generic [ref=f1e132] [cursor=pointer]
+            - generic [ref=f1e133] [cursor=pointer]
+          - generic [ref=f1e134]:
+            - generic [ref=f1e135] [cursor=pointer]
+            - generic [ref=f1e136] [cursor=pointer]
+          - generic [ref=f1e137]:
+            - generic [ref=f1e138] [cursor=pointer]
+            - generic [ref=f1e139] [cursor=pointer]
+          - generic [ref=f1e140]:
+            - generic [ref=f1e141] [cursor=pointer]
+            - generic [ref=f1e142] [cursor=pointer]
+          - generic [ref=f1e143]:
+            - generic [ref=f1e144] [cursor=pointer]
+            - generic [ref=f1e145] [cursor=pointer]
+          - generic [ref=f1e146]:
+            - generic [ref=f1e147] [cursor=pointer]
+            - generic [ref=f1e148] [cursor=pointer]
+          - generic [ref=f1e149]:
+            - generic [ref=f1e150] [cursor=pointer]
+            - generic [ref=f1e151] [cursor=pointer]
+          - generic [ref=f1e152]:
+            - generic [ref=f1e153] [cursor=pointer]
+            - generic [ref=f1e154] [cursor=pointer]
+          - generic [ref=f1e155]:
+            - generic [ref=f1e156] [cursor=pointer]
+            - generic [ref=f1e157] [cursor=pointer]
+          - generic [ref=f1e158]:
+            - generic [ref=f1e159] [cursor=pointer]
+            - generic [ref=f1e160] [cursor=pointer]
+          - generic [ref=f1e161]:
+            - generic [ref=f1e162] [cursor=pointer]
+            - generic [ref=f1e163] [cursor=pointer]
+          - generic [ref=f1e164]:
+            - generic [ref=f1e165] [cursor=pointer]
+            - generic [ref=f1e166] [cursor=pointer]
+          - generic [ref=f1e167]:
+            - generic [ref=f1e168] [cursor=pointer]
+            - generic [ref=f1e169] [cursor=pointer]
+          - generic [ref=f1e170]:
+            - generic [ref=f1e171] [cursor=pointer]
+            - generic [ref=f1e172] [cursor=pointer]
+          - generic [ref=f1e173]:
+            - generic [ref=f1e174] [cursor=pointer]
+            - generic [ref=f1e175] [cursor=pointer]
+          - generic [ref=f1e176]:
+            - generic [ref=f1e177] [cursor=pointer]
+            - generic [ref=f1e178] [cursor=pointer]
+          - generic [ref=f1e179]:
+            - generic [ref=f1e180] [cursor=pointer]
+            - generic [ref=f1e181] [cursor=pointer]
+          - generic [ref=f1e182]:
+            - generic [ref=f1e183] [cursor=pointer]
+            - generic [ref=f1e184] [cursor=pointer]
+          - generic [ref=f1e185]:
+            - generic [ref=f1e186] [cursor=pointer]
+            - generic [ref=f1e187] [cursor=pointer]
+          - generic [ref=f1e188]:
+            - generic [ref=f1e189] [cursor=pointer]
+            - generic [ref=f1e190] [cursor=pointer]
+          - generic [ref=f1e191]:
+            - generic [ref=f1e192] [cursor=pointer]
+            - generic [ref=f1e193] [cursor=pointer]
+          - generic [ref=f1e194]:
+            - generic [ref=f1e195] [cursor=pointer]
+            - generic [ref=f1e196] [cursor=pointer]
+          - generic [ref=f1e197]:
+            - generic [ref=f1e198] [cursor=pointer]
+            - generic [ref=f1e199] [cursor=pointer]
+          - generic [ref=f1e200]:
+            - generic [ref=f1e201] [cursor=pointer]
+            - generic [ref=f1e202] [cursor=pointer]
+          - generic [ref=f1e203]:
+            - generic [ref=f1e204] [cursor=pointer]
+            - generic [ref=f1e205] [cursor=pointer]
+          - generic [ref=f1e206]:
+            - generic [ref=f1e207] [cursor=pointer]
+            - generic [ref=f1e208] [cursor=pointer]
+          - generic [ref=f1e210]:
+            - generic [ref=f1e211] [cursor=pointer]
+            - generic [ref=f1e212] [cursor=pointer]
+          - generic [ref=f1e213]:
+            - generic [ref=f1e214] [cursor=pointer]
+            - generic [ref=f1e215] [cursor=pointer]
+          - generic [ref=f1e216]:
+            - generic [ref=f1e217] [cursor=pointer]
+            - generic [ref=f1e218] [cursor=pointer]
+          - generic [ref=f1e219]:
+            - generic [ref=f1e220] [cursor=pointer]
+            - generic [ref=f1e221] [cursor=pointer]
+          - generic [ref=f1e222]:
+            - generic [ref=f1e223] [cursor=pointer]
+            - generic [ref=f1e224] [cursor=pointer]
+          - generic [ref=f1e225]:
+            - generic [ref=f1e226] [cursor=pointer]
+            - generic [ref=f1e227] [cursor=pointer]
+          - generic [ref=f1e228]:
+            - generic [ref=f1e229] [cursor=pointer]
+            - generic [ref=f1e230] [cursor=pointer]
+          - generic [ref=f1e231]:
+            - generic [ref=f1e232] [cursor=pointer]
+            - generic [ref=f1e233] [cursor=pointer]
+          - generic [ref=f1e234]:
+            - generic [ref=f1e235] [cursor=pointer]
+            - generic [ref=f1e236] [cursor=pointer]
+          - generic [ref=f1e237]:
+            - generic [ref=f1e238] [cursor=pointer]
+            - generic [ref=f1e239] [cursor=pointer]
+          - generic [ref=f1e240]:
+            - generic [ref=f1e241] [cursor=pointer]
+            - generic [ref=f1e242] [cursor=pointer]
+          - generic [ref=f1e243]:
+            - generic [ref=f1e244] [cursor=pointer]
+            - generic [ref=f1e245] [cursor=pointer]
+          - generic [ref=f1e246]:
+            - generic [ref=f1e247] [cursor=pointer]
+            - generic [ref=f1e248] [cursor=pointer]
+          - generic [ref=f1e250]:
+            - generic [ref=f1e251] [cursor=pointer]
+            - generic [ref=f1e252] [cursor=pointer]
+          - generic [ref=f1e253]:
+            - generic [ref=f1e254] [cursor=pointer]
+            - generic [ref=f1e255] [cursor=pointer]
+          - generic [ref=f1e256]:
+            - generic [ref=f1e257] [cursor=pointer]
+            - generic [ref=f1e258] [cursor=pointer]
+          - generic [ref=f1e259]:
+            - generic [ref=f1e260] [cursor=pointer]
+            - generic [ref=f1e261] [cursor=pointer]
+          - generic [ref=f1e262]:
+            - generic [ref=f1e263] [cursor=pointer]
+            - generic [ref=f1e264] [cursor=pointer]
+          - generic [ref=f1e265]:
+            - generic [ref=f1e266] [cursor=pointer]
+            - generic [ref=f1e267] [cursor=pointer]
+          - generic [ref=f1e268]:
+            - generic [ref=f1e269] [cursor=pointer]
+            - generic [ref=f1e270] [cursor=pointer]
+          - generic [ref=f1e271]:
+            - generic [ref=f1e272] [cursor=pointer]
+            - generic [ref=f1e273] [cursor=pointer]
+          - generic [ref=f1e274]:
+            - generic [ref=f1e275] [cursor=pointer]
+            - generic [ref=f1e276] [cursor=pointer]
+          - generic [ref=f1e277]:
+            - generic [ref=f1e278] [cursor=pointer]
+            - generic [ref=f1e279] [cursor=pointer]
+          - generic [ref=f1e280]:
+            - generic [ref=f1e281] [cursor=pointer]
+            - generic [ref=f1e282] [cursor=pointer]
+            - generic [ref=f1e283] [cursor=pointer]
+            - generic: React Renderer
+            - generic: gateway · presentation
+          - generic [ref=f1e284]:
+            - generic [ref=f1e285] [cursor=pointer]
+            - generic [ref=f1e286] [cursor=pointer]
+            - generic [ref=f1e287] [cursor=pointer]
+            - generic: Tauri Desktop Shell (native a…
+            - generic: gateway · infrastructure
+          - generic [ref=f1e288]:
+            - generic [ref=f1e289] [cursor=pointer]
+            - generic [ref=f1e290] [cursor=pointer]
+            - generic [ref=f1e291] [cursor=pointer]
+            - generic: Headless Daemon (local RPC se…
+            - generic: gateway · infrastructure
+          - generic [ref=f1e292]:
+            - generic [ref=f1e293] [cursor=pointer]
+            - generic [ref=f1e294] [cursor=pointer]
+            - generic [ref=f1e295] [cursor=pointer]
+            - generic: scriptor CLI
+            - generic: gateway · application
+          - generic [ref=f1e296]:
+            - generic [ref=f1e297] [cursor=pointer]
+            - generic [ref=f1e298] [cursor=pointer]
+            - generic [ref=f1e299] [cursor=pointer]
+            - generic: TypeScript MCP Server (stdio)
+            - generic: gateway · application
+          - generic [ref=f1e300]:
+            - generic [ref=f1e301] [cursor=pointer]
+            - generic [ref=f1e302] [cursor=pointer]
+            - generic [ref=f1e303] [cursor=pointer]
+            - generic: Rust Daemon MCP Server (stdio)
+            - generic: gateway · application
+          - generic [ref=f1e304]:
+            - generic [ref=f1e305] [cursor=pointer]
+            - generic [ref=f1e306] [cursor=pointer]
+            - generic [ref=f1e307] [cursor=pointer]
+            - generic: xtask (release/CI orchestrati…
+            - generic: service · infrastructure
+          - generic [ref=f1e308]:
+            - generic [ref=f1e309] [cursor=pointer]
+            - generic [ref=f1e310] [cursor=pointer]
+            - generic [ref=f1e311] [cursor=pointer]
+            - generic: Headless export script (CI)
+            - generic: worker · infrastructure
+          - generic [ref=f1e312]:
+            - generic [ref=f1e313] [cursor=pointer]
+            - generic [ref=f1e314] [cursor=pointer]
+            - generic [ref=f1e315] [cursor=pointer]
+            - generic: Frontend Workspace Orchestrat…
+            - generic: service · application
+          - generic [ref=f1e316]:
+            - generic [ref=f1e317] [cursor=pointer]
+            - generic [ref=f1e318] [cursor=pointer]
+            - generic [ref=f1e319] [cursor=pointer]
+            - generic: CodeMirror Markdown Editor
+            - generic: service · application
+          - generic [ref=f1e320]:
+            - generic [ref=f1e321] [cursor=pointer]
+            - generic [ref=f1e322] [cursor=pointer]
+            - generic [ref=f1e323] [cursor=pointer]
+            - generic: Markdown Preview Pipeline
+            - generic: service · application
+          - generic [ref=f1e324]:
+            - generic [ref=f1e325] [cursor=pointer]
+            - generic [ref=f1e326] [cursor=pointer]
+            - generic [ref=f1e327] [cursor=pointer]
+            - generic: Knowledge Workbench
+            - generic: service · application
+          - generic [ref=f1e328]:
+            - generic [ref=f1e329] [cursor=pointer]
+            - generic [ref=f1e330] [cursor=pointer]
+            - generic [ref=f1e331] [cursor=pointer]
+            - generic: Knowledge Graph Visualization
+            - generic: service · application
+          - generic [ref=f1e332]:
+            - generic [ref=f1e333] [cursor=pointer]
+            - generic [ref=f1e334] [cursor=pointer]
+            - generic [ref=f1e335] [cursor=pointer]
+            - generic: Canvas Board UI
+            - generic: service · application
+          - generic [ref=f1e336]:
+            - generic [ref=f1e337] [cursor=pointer]
+            - generic [ref=f1e338] [cursor=pointer]
+            - generic [ref=f1e339] [cursor=pointer]
+            - generic: Publish Center
+            - generic: service · application
+          - generic [ref=f1e340]:
+            - generic [ref=f1e341] [cursor=pointer]
+            - generic [ref=f1e342] [cursor=pointer]
+            - generic [ref=f1e343] [cursor=pointer]
+            - generic: Git Panel
+            - generic: service · application
+          - generic [ref=f1e344]:
+            - generic [ref=f1e345] [cursor=pointer]
+            - generic [ref=f1e346] [cursor=pointer]
+            - generic [ref=f1e347] [cursor=pointer]
+            - generic: PDF/EPUB Reader
+            - generic: service · application
+          - generic [ref=f1e348]:
+            - generic [ref=f1e349] [cursor=pointer]
+            - generic [ref=f1e350] [cursor=pointer]
+            - generic [ref=f1e351] [cursor=pointer]
+            - generic: Export UI Package
+            - generic: service · application
+          - generic [ref=f1e352]:
+            - generic [ref=f1e353] [cursor=pointer]
+            - generic [ref=f1e354] [cursor=pointer]
+            - generic [ref=f1e355] [cursor=pointer]
+            - generic: Citation Rendering (citeproc)
+            - generic: service · application
+          - generic [ref=f1e356]:
+            - generic [ref=f1e357] [cursor=pointer]
+            - generic [ref=f1e358] [cursor=pointer]
+            - generic [ref=f1e359] [cursor=pointer]
+            - generic: In-App MCP Runtime
+            - generic: service · application
+          - generic [ref=f1e360]:
+            - generic [ref=f1e361] [cursor=pointer]
+            - generic [ref=f1e362] [cursor=pointer]
+            - generic [ref=f1e363] [cursor=pointer]
+            - generic: Portal & Quick Capture Storage
+            - generic: service · application
+          - generic [ref=f1e364]:
+            - generic [ref=f1e365] [cursor=pointer]
+            - generic [ref=f1e366] [cursor=pointer]
+            - generic [ref=f1e367] [cursor=pointer]
+            - generic: Plugin Manager
+            - generic: service · application
+          - generic [ref=f1e368]:
+            - generic [ref=f1e369] [cursor=pointer]
+            - generic [ref=f1e370] [cursor=pointer]
+            - generic [ref=f1e371] [cursor=pointer]
+            - generic: Shared TypeScript Contracts
+            - generic: service · application
+          - generic [ref=f1e372]:
+            - generic [ref=f1e373] [cursor=pointer]
+            - generic [ref=f1e374] [cursor=pointer]
+            - generic [ref=f1e375] [cursor=pointer]
+            - generic: Vault Kernel
+            - generic: service · domain
+          - generic [ref=f1e376]:
+            - generic [ref=f1e377] [cursor=pointer]
+            - generic [ref=f1e378] [cursor=pointer]
+            - generic [ref=f1e379] [cursor=pointer]
+            - generic: Index / Search / Graph Kernel
+            - generic: service · domain
+          - generic [ref=f1e380]:
+            - generic [ref=f1e381] [cursor=pointer]
+            - generic [ref=f1e382] [cursor=pointer]
+            - generic [ref=f1e383] [cursor=pointer]
+            - generic: Native Git Adapter
+            - generic: service · domain
+          - generic [ref=f1e384]:
+            - generic [ref=f1e385] [cursor=pointer]
+            - generic [ref=f1e386] [cursor=pointer]
+            - generic [ref=f1e387] [cursor=pointer]
+            - generic: Export Runner
+            - generic: service · domain
+          - generic [ref=f1e388]:
+            - generic [ref=f1e389] [cursor=pointer]
+            - generic [ref=f1e390] [cursor=pointer]
+            - generic [ref=f1e391] [cursor=pointer]
+            - generic: Publish Runner
+            - generic: service · domain
+          - generic [ref=f1e392]:
+            - generic [ref=f1e393] [cursor=pointer]
+            - generic [ref=f1e394] [cursor=pointer]
+            - generic [ref=f1e395] [cursor=pointer]
+            - generic: Canvas Scene Engine
+            - generic: service · domain
+          - generic [ref=f1e396]:
+            - generic [ref=f1e397] [cursor=pointer]
+            - generic [ref=f1e398] [cursor=pointer]
+            - generic [ref=f1e399] [cursor=pointer]
+            - generic: BibTeX/CSL Citation Engine
+            - generic: service · domain
+          - generic [ref=f1e400]:
+            - generic [ref=f1e401] [cursor=pointer]
+            - generic [ref=f1e402] [cursor=pointer]
+            - generic [ref=f1e403] [cursor=pointer]
+            - generic: System Bridge (process broker…
+            - generic: service · domain
+          - generic [ref=f1e404]:
+            - generic [ref=f1e405] [cursor=pointer]
+            - generic [ref=f1e406] [cursor=pointer]
+            - generic [ref=f1e407] [cursor=pointer]
+            - generic: Web Clip Capture
+            - generic: service · domain
+          - generic [ref=f1e408]:
+            - generic [ref=f1e409] [cursor=pointer]
+            - generic [ref=f1e410] [cursor=pointer]
+            - generic [ref=f1e411] [cursor=pointer]
+            - generic: Markdown Heading Extractor
+            - generic: service · domain
+          - generic [ref=f1e412]:
+            - generic [ref=f1e413] [cursor=pointer]
+            - generic [ref=f1e414] [cursor=pointer]
+            - generic [ref=f1e415] [cursor=pointer]
+            - generic: Annotation Anchoring
+            - generic: service · domain
+          - generic [ref=f1e416]:
+            - generic [ref=f1e417] [cursor=pointer]
+            - generic [ref=f1e418] [cursor=pointer]
+            - generic [ref=f1e419] [cursor=pointer]
+            - generic: IPC Envelope Protocol (postca…
+            - generic: service · infrastructure
+          - generic [ref=f1e420]:
+            - generic [ref=f1e421] [cursor=pointer]
+            - generic [ref=f1e422] [cursor=pointer]
+            - generic [ref=f1e423] [cursor=pointer]
+            - generic: Semantic Embeddings (incubati…
+            - generic: service · domain
+          - generic [ref=f1e424]:
+            - generic [ref=f1e425] [cursor=pointer]
+            - generic [ref=f1e426] [cursor=pointer]
+            - generic [ref=f1e427] [cursor=pointer]
+            - generic: Tantivy FTS Index (incubating)
+            - generic: service · domain
+          - generic [ref=f1e428]:
+            - generic [ref=f1e429] [cursor=pointer]
+            - generic [ref=f1e430] [cursor=pointer]
+            - generic [ref=f1e431] [cursor=pointer]
+            - generic: WASM Plugin Runtime (incubati…
+            - generic: service · domain
+          - generic [ref=f1e432]:
+            - generic [ref=f1e433] [cursor=pointer]
+            - generic [ref=f1e434] [cursor=pointer]
+            - generic [ref=f1e435] [cursor=pointer]
+            - generic: SQLite Derived Index
+            - generic: database · persistence
+          - generic [ref=f1e436]:
+            - generic [ref=f1e437] [cursor=pointer]
+            - generic [ref=f1e438] [cursor=pointer]
+            - generic [ref=f1e439] [cursor=pointer]
+            - generic: Vault Markdown Files (source …
+            - generic: database · persistence
+          - generic [ref=f1e440]:
+            - generic [ref=f1e441] [cursor=pointer]
+            - generic [ref=f1e442] [cursor=pointer]
+            - generic [ref=f1e443] [cursor=pointer]
+            - generic: .scriptor Metadata Store
+            - generic: database · persistence
+          - generic [ref=f1e444]:
+            - generic [ref=f1e445] [cursor=pointer]
+            - generic [ref=f1e446] [cursor=pointer]
+            - generic [ref=f1e447] [cursor=pointer]
+            - generic: OS Keychain
+            - generic: database · persistence
+          - generic [ref=f1e448]:
+            - generic [ref=f1e449] [cursor=pointer]
+            - generic [ref=f1e450] [cursor=pointer]
+            - generic [ref=f1e451] [cursor=pointer]
+            - generic: Bounded JSONL Logs
+            - generic: database · persistence
+          - generic [ref=f1e452]:
+            - generic [ref=f1e453] [cursor=pointer]
+            - generic [ref=f1e454] [cursor=pointer]
+            - generic [ref=f1e455] [cursor=pointer]
+            - generic: Backup Snapshots + Manifests
+            - generic: database · persistence
+          - generic [ref=f1e456]:
+            - generic [ref=f1e457] [cursor=pointer]
+            - generic [ref=f1e458] [cursor=pointer]
+            - generic [ref=f1e459] [cursor=pointer]
+            - generic: Daemon Event Hub (bounded que…
+            - generic: queue · infrastructure
+          - generic [ref=f1e460]:
+            - generic [ref=f1e461] [cursor=pointer]
+            - generic [ref=f1e462] [cursor=pointer]
+            - generic [ref=f1e463] [cursor=pointer]
+            - generic: Filesystem Watcher
+            - generic: worker · infrastructure
+          - generic [ref=f1e464]:
+            - generic [ref=f1e465] [cursor=pointer]
+            - generic [ref=f1e466] [cursor=pointer]
+            - generic [ref=f1e467] [cursor=pointer]
+            - generic: Export Job Runner (worker thr…
+            - generic: worker · infrastructure
+          - generic [ref=f1e468]:
+            - generic [ref=f1e469] [cursor=pointer]
+            - generic [ref=f1e470] [cursor=pointer]
+            - generic [ref=f1e471] [cursor=pointer]
+            - generic: Index Rebuild Job (worker thr…
+            - generic: worker · infrastructure
+          - generic [ref=f1e472]:
+            - generic [ref=f1e473] [cursor=pointer]
+            - generic [ref=f1e474] [cursor=pointer]
+            - generic [ref=f1e475] [cursor=pointer]
+            - generic: Git Serialization Queue
+            - generic: queue · infrastructure
+          - generic [ref=f1e476]:
+            - generic [ref=f1e477] [cursor=pointer]
+            - generic [ref=f1e478] [cursor=pointer]
+            - generic [ref=f1e479] [cursor=pointer]
+            - generic: Frontend Web Workers
+            - generic: worker · application
+          - generic [ref=f1e480]:
+            - generic [ref=f1e481] [cursor=pointer]
+            - generic [ref=f1e482] [cursor=pointer]
+            - generic [ref=f1e483] [cursor=pointer]
+            - generic: Google Calendar / Tasks API
+            - generic: external · external
+          - generic [ref=f1e484]:
+            - generic [ref=f1e485] [cursor=pointer]
+            - generic [ref=f1e486] [cursor=pointer]
+            - generic [ref=f1e487] [cursor=pointer]
+            - generic: OpenAI-Compatible AI Provider
+            - generic: external · external
+          - generic [ref=f1e488]:
+            - generic [ref=f1e489] [cursor=pointer]
+            - generic [ref=f1e490] [cursor=pointer]
+            - generic [ref=f1e491] [cursor=pointer]
+            - generic: Local Ollama (embeddings)
+            - generic: external · external
+          - generic [ref=f1e492]:
+            - generic [ref=f1e493] [cursor=pointer]
+            - generic [ref=f1e494] [cursor=pointer]
+            - generic [ref=f1e495] [cursor=pointer]
+            - generic: Pandoc
+            - generic: external · external
+          - generic [ref=f1e496]:
+            - generic [ref=f1e497] [cursor=pointer]
+            - generic [ref=f1e498] [cursor=pointer]
+            - generic [ref=f1e499] [cursor=pointer]
+            - generic: Tectonic (LaTeX engine)
+            - generic: external · external
+          - generic [ref=f1e500]:
+            - generic [ref=f1e501] [cursor=pointer]
+            - generic [ref=f1e502] [cursor=pointer]
+            - generic [ref=f1e503] [cursor=pointer]
+            - generic: PlantUML renderer
+            - generic: external · external
+          - generic [ref=f1e504]:
+            - generic [ref=f1e505] [cursor=pointer]
+            - generic [ref=f1e506] [cursor=pointer]
+            - generic [ref=f1e507] [cursor=pointer]
+            - generic: PDF translation tool
+            - generic: external · external
+          - generic [ref=f1e508]:
+            - generic [ref=f1e509] [cursor=pointer]
+            - generic [ref=f1e510] [cursor=pointer]
+            - generic [ref=f1e511] [cursor=pointer]
+            - generic: Code execution runtimes (opt-…
+            - generic: external · external
+          - generic [ref=f1e512]:
+            - generic [ref=f1e513] [cursor=pointer]
+            - generic [ref=f1e514] [cursor=pointer]
+            - generic [ref=f1e515] [cursor=pointer]
+            - generic: Zotero Web API
+            - generic: external · external
+          - generic [ref=f1e516]:
+            - generic [ref=f1e517] [cursor=pointer]
+            - generic [ref=f1e518] [cursor=pointer]
+            - generic [ref=f1e519] [cursor=pointer]
+            - generic: Remote Git repository (origin)
+            - generic: external · external
+          - generic [ref=f1e520]:
+            - generic [ref=f1e521] [cursor=pointer]
+            - generic [ref=f1e522] [cursor=pointer]
+            - generic [ref=f1e523] [cursor=pointer]
+            - generic: Starlight site generator
+            - generic: external · external
+      - generic [ref=f1e524]:
+        - generic [ref=f1e525]:
+          - button "⛶ Fit" [ref=f1e526] [cursor=pointer]
+          - button "+" [ref=f1e527] [cursor=pointer]
+          - button "−" [ref=f1e528] [cursor=pointer]
+          - button "⟳" [ref=f1e529] [cursor=pointer]
+        - generic [ref=f1e530]:
+          - generic [ref=f1e531] [cursor=pointer]:
+            - checkbox "gateway" [checked] [ref=f1e532]
+            - text: gateway
+          - generic [ref=f1e533] [cursor=pointer]:
+            - checkbox "service" [checked] [ref=f1e534]
+            - text: service
+          - generic [ref=f1e535] [cursor=pointer]:
+            - checkbox "worker" [checked] [ref=f1e536]
+            - text: worker
+          - generic [ref=f1e537] [cursor=pointer]:
+            - checkbox "database" [checked] [ref=f1e538]
+            - text: database
+          - generic [ref=f1e539] [cursor=pointer]:
+            - checkbox "cache" [checked] [ref=f1e540]
+            - text: cache
+          - generic [ref=f1e541] [cursor=pointer]:
+            - checkbox "queue" [checked] [ref=f1e542]
+            - text: queue
+          - generic [ref=f1e543] [cursor=pointer]:
+            - checkbox "external" [checked] [ref=f1e544]
+            - text: external
+          - generic [ref=f1e545] [cursor=pointer]:
+            - checkbox "sync_request" [checked] [ref=f1e546]
+            - text: sync_request
+          - generic [ref=f1e547] [cursor=pointer]:
+            - checkbox "async_event" [checked] [ref=f1e548]
+            - text: async_event
+          - generic [ref=f1e549] [cursor=pointer]:
+            - checkbox "db_query" [checked] [ref=f1e550]
+            - text: db_query
+          - generic [ref=f1e551] [cursor=pointer]:
+            - checkbox "stream" [checked] [ref=f1e552]
+            - text: stream
+          - generic [ref=f1e553] [cursor=pointer]:
+            - checkbox "dependency" [checked] [ref=f1e554]
+            - text: dependency
+        - button "Legend" [ref=f1e555] [cursor=pointer]
+      - generic [ref=f1e556]:
+        - heading "Node layers" [level=4] [ref=f1e557]
+        - generic [ref=f1e558]: Gateway / entry point
+        - generic [ref=f1e560]: Service (app / kernel)
+        - generic [ref=f1e562]: Worker
+        - generic [ref=f1e564]: Database / persistence
+        - generic [ref=f1e566]: Queue
+        - generic [ref=f1e568]: External integration
+        - heading "Edge protocols" [level=4] [ref=f1e571]
+        - generic [ref=f1e572]: sync_request (invoke / RPC)
+        - generic [ref=f1e574]: async_event (broker / events)
+        - generic [ref=f1e576]: db_query (SQL / filesystem)
+        - generic [ref=f1e578]: stream (worker postMessage)
+        - generic [ref=f1e580]: dependency (module import)
+    - generic [ref=f1e582]:
+      - generic [ref=f1e583]:
+        - heading "End-to-end flows" [level=2] [ref=f1e584]
+        - button "Collapse" [ref=f1e585] [cursor=pointer]: »
+      - generic [ref=f1e586]:
+        - generic [ref=f1e587] [cursor=pointer]:
+          - generic [ref=f1e588]: Vault Open & Index (Authentication/Open Handshake)
+          - generic [ref=f1e589]: "User opens a vault folder: renderer → native command → vault kernel validates/confines the path, recovers pending renames, then the index is rebuilt/migrated and the filesystem watcher restarts with a new generation."
+          - generic [ref=f1e590]:
+            - generic [ref=f1e591]: 6 steps
+            - generic [ref=f1e592]: flow.vault-open-index
+        - generic [ref=f1e593] [cursor=pointer]:
+          - generic [ref=f1e594]: Save Note (hash-checked atomic write)
+          - generic [ref=f1e595]: "Editor saves Markdown with optimistic concurrency: renderer → native → vault kernel checks expected content hash, appends history, atomically replaces the file, then refreshes the note index (and rolls the disk write back on index failure)."
+          - generic [ref=f1e596]:
+            - generic [ref=f1e597]: 5 steps
+            - generic [ref=f1e598]: flow.save-note
+        - generic [ref=f1e599] [cursor=pointer]:
+          - generic [ref=f1e600]: MCP Mutation Audit (intent/outcome hash chain)
+          - generic [ref=f1e601]: Write tools under the Rust daemon MCP server persist a crash-visible intent (idempotency key + hash-chain link), perform the atomic vault mutation, append the outcome; startup reconciliation resolves pending records deterministically.
+          - generic [ref=f1e602]:
+            - generic [ref=f1e603]: 5 steps
+            - generic [ref=f1e604]: flow.mcp-write-audit
+        - generic [ref=f1e605] [cursor=pointer]:
+          - generic [ref=f1e606]: MCP Draft Approval (TypeScript server)
+          - generic [ref=f1e607]: The in-app TS MCP runtime gates write tools by mode (off/read-only/draft/write-approved); drafts created, approved, then dispatched to native commands; every invocation audited.
+          - generic [ref=f1e608]:
+            - generic [ref=f1e609]: 4 steps
+            - generic [ref=f1e610]: flow.mcp-ts-draft-write
+        - generic [ref=f1e611] [cursor=pointer]:
+          - generic [ref=f1e612]: Event Ingestion & Processing (filesystem watcher)
+          - generic [ref=f1e613]: Recursive watcher debounces changed Markdown paths into batches; daemon applies incremental index updates; on event loss a RescanRequired batch triggers full rebuild; renderer receives filesystem-changed events to hydrate.
+          - generic [ref=f1e614]:
+            - generic [ref=f1e615]: 5 steps
+            - generic [ref=f1e616]: flow.watch-incremental-index
+        - generic [ref=f1e617] [cursor=pointer]:
+          - generic [ref=f1e618]: Search (FTS5 weighted query)
+          - generic [ref=f1e619]: Renderer issues indexerSearch; the indexer builds a safe FTS5 MATCH (diacritic folding, quoted prefix phrases) and returns rank-ordered hits.
+          - generic [ref=f1e620]:
+            - generic [ref=f1e621]: 4 steps
+            - generic [ref=f1e622]: flow.search-fts
+        - generic [ref=f1e623] [cursor=pointer]:
+          - generic [ref=f1e624]: Git Commit (isolated temporary index)
+          - generic [ref=f1e625]: "Commit selected files without touching the user's index: seed temp index from HEAD, stage literal paths, build the tree, update the branch; conflicts resolved via merge3; pull/push route to the remote."
+          - generic [ref=f1e626]:
+            - generic [ref=f1e627]: 5 steps
+            - generic [ref=f1e628]: flow.git-commit-isolated
+        - generic [ref=f1e629] [cursor=pointer]:
+          - generic [ref=f1e630]: Export Job (Pandoc orchestration)
+          - generic [ref=f1e631]: Export UI starts a job; desktop forwards to daemon (or runs direct); ExportJobRunner spawns a worker thread; export-runner discovers hash-verified Pandoc, writes the artifact and emits progress events to the webview.
+          - generic [ref=f1e632]:
+            - generic [ref=f1e633]: 6 steps
+            - generic [ref=f1e634]: flow.export-pandoc
+        - generic [ref=f1e635] [cursor=pointer]:
+          - generic [ref=f1e636]: Daemon Authentication Handshake
+          - generic [ref=f1e637]: Daemon generates a per-install HMAC key in the OS keychain, writes daemon-endpoint.json with nonce+HMAC; clients verify HMAC constant-time and process liveness before opening the local socket; frames are length-prefixed postcard (magic ARCL, 2 MiB bound).
+          - generic [ref=f1e638]:
+            - generic [ref=f1e639]: 5 steps
+            - generic [ref=f1e640]: flow.daemon-auth-handshake
+        - generic [ref=f1e641] [cursor=pointer]:
+          - generic [ref=f1e642]: Cache Invalidation & Config Reload Cycle
+          - generic [ref=f1e643]: Config save triggers ReloadConfig RPC; daemon broadcasts ConfigReloaded (with generation) through the event hub; desktop re-emits to the webview where it is runtime-validated; slow subscribers are dropped and must ResyncRequired-reload authoritative state.
+          - generic [ref=f1e644]:
+            - generic [ref=f1e645]: 5 steps
+            - generic [ref=f1e646]: flow.config-reload-resync
+        - generic [ref=f1e647] [cursor=pointer]:
+          - generic [ref=f1e648]: Rename Note with Link Rewrite & Recovery
+          - generic [ref=f1e649]: Rename applies as a staged transaction (manifest + rollback), moves the file, rewrites inbound links across the vault, writes a patch log, and recovers pending transactions on next open; the daemon refreshes the note index.
+          - generic [ref=f1e650]:
+            - generic [ref=f1e651]: 6 steps
+            - generic [ref=f1e652]: flow.rename-note
+        - generic [ref=f1e653] [cursor=pointer]:
+          - generic [ref=f1e654]: Canvas Template Apply & Snapshot
+          - generic [ref=f1e655]: "Canvas board applies a template: dry-run preview → apply with undo checkpoint → persist document; SVG snapshots rasterize off the main thread."
+          - generic [ref=f1e656]:
+            - generic [ref=f1e657]: 5 steps
+            - generic [ref=f1e658]: flow.canvas-template
+        - generic [ref=f1e659] [cursor=pointer]:
+          - generic [ref=f1e660]: Publish Plan → Approved Apply
+          - generic [ref=f1e661]: Publish center builds the four-bucket diff (new/changed/unchanged/orphaned) from prior bucket state; after user approval, publish_apply writes buckets, persists state, and runs the site generator.
+          - generic [ref=f1e662]:
+            - generic [ref=f1e663]: 5 steps
+            - generic [ref=f1e664]: flow.publish-plan-apply
+        - generic [ref=f1e665] [cursor=pointer]:
+          - generic [ref=f1e666]: Google Calendar OAuth2 PKCE & Task Sync
+          - generic [ref=f1e667]: PKCE loopback auth (ephemeral TCP listener + system browser), token exchange, keychain persistence; Calendar v3 / Tasks v1 calls with transparent refresh; task completion maps back to note updates.
+          - generic [ref=f1e668]:
+            - generic [ref=f1e669]: 5 steps
+            - generic [ref=f1e670]: flow.google-calendar-auth
+        - generic [ref=f1e671] [cursor=pointer]:
+          - generic [ref=f1e672]: Kanban Card Move (source rewrite)
+          - generic [ref=f1e673]: "Moving a card relocates the complete card line under the destination `##` heading and patches its checkbox, then saves through the canonical vault write path and refreshes the index."
+          - generic [ref=f1e674]:
+            - generic [ref=f1e675]: 4 steps
+            - generic [ref=f1e676]: flow.kanban-move
+        - generic [ref=f1e677] [cursor=pointer]:
+          - generic [ref=f1e678]: Task Extraction & Query
+          - generic [ref=f1e679]: Tasks are parsed from Markdown on demand (field styles), persisted into tasks/task_tags, and queried with filters.
+          - generic [ref=f1e680]:
+            - generic [ref=f1e681]: 4 steps
+            - generic [ref=f1e682]: flow.tasks-sync
+        - generic [ref=f1e683] [cursor=pointer]:
+          - generic [ref=f1e684]: Reader Document Confinement & Annotations
+          - generic [ref=f1e685]: Reader accepts vault-relative PDF/EPUB only; native resolves and confines the path (≤128 MiB) and returns bytes; annotations are stored atomically as a JSON sidecar in the vault.
+          - generic [ref=f1e686]:
+            - generic [ref=f1e687]: 4 steps
+            - generic [ref=f1e688]: flow.reader-document
+        - generic [ref=f1e689] [cursor=pointer]:
+          - generic [ref=f1e690]: Semantic Search (incubating)
+          - generic [ref=f1e691]: "Optional embeddings path: index note vectors via Ollama/OpenAI-compatible provider, store in the index, overlay cosine scores on BM25 results by note path."
+          - generic [ref=f1e692]:
+            - generic [ref=f1e693]: 4 steps
+            - generic [ref=f1e694]: flow.embeddings-search
+        - generic [ref=f1e695] [cursor=pointer]:
+          - generic [ref=f1e696]: Code Chunk Execution (opt-in, sandboxed)
+          - generic [ref=f1e697]: Code chunks run only when explicitly allowed; the process broker resolves the runner (python/node/powershell/sh/cmd), denies network unless sandbox available, bounds output/time, and kills the process tree on timeout.
+          - generic [ref=f1e698]:
+            - generic [ref=f1e699]: 4 steps
+            - generic [ref=f1e700]: flow.code-chunk-exec
+        - generic [ref=f1e701] [cursor=pointer]:
+          - generic [ref=f1e702]: Backup & Restore (verified manifests)
+          - generic [ref=f1e703]: Local snapshots or external disaster-recovery backups carry versioned SHA-256 manifests; restore verifies path/size/hash/vault-binding before promotion, with rollback copy and restore journal.
+          - generic [ref=f1e704]:
+            - generic [ref=f1e705]: 3 steps
+            - generic [ref=f1e706]: flow.backup-restore

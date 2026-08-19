@@ -1,13 +1,11 @@
 //! Vault-scoped command handlers (open, scan, read, lint, rename, publish).
 
-use std::fs;
 use std::path::PathBuf;
 
 use scriptor_vault::{
     RelativeVaultPath, SaveNoteOptions, ScannedEntryKind, export_text_bundle, format_lint_text,
-    lint_vault, lint_vault_fix, load_vault_config, normalize_rule_filter, open_vault,
-    open_vault_output, read_note, rename_apply, rename_dry_run, save_note_with_options, scan_vault,
-    scan_vault_with_roots,
+    lint_vault, lint_vault_fix, normalize_rule_filter, open_vault, open_vault_output, read_note,
+    rename_apply, rename_dry_run, save_note_with_options, scan_vault,
 };
 
 use crate::command_line::exit_code;
@@ -165,40 +163,32 @@ pub(crate) fn run_text_bundle_export(
 
 pub(crate) fn run_publish(path: PathBuf, output: PathBuf) -> CommandResult {
     let session = open_vault(&path)?;
-    let config = load_vault_config(session.root.root()).unwrap_or_default();
-    let entries = scan_vault_with_roots(&session.root, &config.extra_roots)?;
-    let docs_dir = output.join("src").join("content").join("docs");
-    fs::create_dir_all(&docs_dir)?;
-    let mut copied = 0usize;
-    for entry in entries {
-        if entry.kind != ScannedEntryKind::Note {
-            continue;
-        }
-        let source = session
-            .root
-            .root()
-            .join(entry.path.replace('/', std::path::MAIN_SEPARATOR_STR));
-        let target = docs_dir.join(entry.path.replace('/', std::path::MAIN_SEPARATOR_STR));
-        if let Some(parent) = target.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::copy(&source, &target)?;
-        copied += 1;
-    }
-    fs::write(
-        output.join("astro.config.mjs"),
-        "import { defineConfig } from 'astro/config';\nimport starlight from '@astrojs/starlight';\nexport default defineConfig({ integrations: [starlight({ title: 'Scriptor Publish' })] });\n",
-    )?;
-    fs::write(
-        output.join("package.json"),
-        r#"{"name":"scriptor-publish","private":true,"scripts":{"dev":"astro dev","build":"astro build"}}"#,
+    let output = scriptor_publish_runner::resolve_output_path(session.root.root(), &output);
+    let plan = scriptor_publish_runner::plan_starlight_site(session.root.root(), &output)?;
+    let to_write = plan
+        .new_items
+        .iter()
+        .chain(plan.changed.iter())
+        .cloned()
+        .collect();
+    // CLI publish preserves its historical non-interactive behavior for writes,
+    // but never deletes orphans implicitly. Deletion requires desktop review.
+    let applied = scriptor_publish_runner::apply_starlight_site(
+        session.root.root(),
+        &output,
+        &scriptor_publish_runner::PublishApplyInput {
+            to_write,
+            to_delete: Vec::new(),
+        },
     )?;
     println!(
         "{}",
         serde_json::to_string_pretty(&serde_json::json!({
             "output": output,
-            "notes_copied": copied,
-            "docs_dir": docs_dir,
+            "notes_written": applied.written.len(),
+            "written": applied.written,
+            "orphaned_not_deleted": plan.orphaned,
+            "docs_dir": output.join("src/content/docs"),
         }))?
     );
     Ok(())

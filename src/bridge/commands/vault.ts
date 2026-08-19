@@ -17,6 +17,9 @@ import type {
   VaultHealthReport,
   VaultSnippet,
   ViewNoteHit,
+  PublishCandidate,
+  StarlightPublishPlanOutput,
+  StarlightPublishApplyOutput,
 } from '../../types/vault'
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
@@ -319,14 +322,25 @@ export async function vaultFrontmatterSet(
   return invoke('vault_frontmatter_set', { path, field, value })
 }
 
-export async function vaultPublishStarlight(outputPath: string): Promise<{
-  output: string
-  notes_copied: number
-  docs_dir: string
-}> {
+export async function vaultPublishPlanStarlight(outputPath: string): Promise<StarlightPublishPlanOutput> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('publish_site', outputPath)
-  return invoke('vault_publish_starlight', { outputPath, authorizationToken })
+  return invoke<StarlightPublishPlanOutput>('vault_publish_plan_starlight', { outputPath })
+}
+
+export async function vaultPublishApplyStarlight(
+  outputPath: string,
+  toWrite: PublishCandidate[],
+  toDelete: string[],
+): Promise<StarlightPublishApplyOutput> {
+  requireNative()
+  const authorizationScope = `${outputPath} • ${toWrite.length} write(s) • ${toDelete.length} deletion(s)`
+  const authorizationToken = await authorizeSensitiveOperation('publish_site', authorizationScope)
+  return invoke<StarlightPublishApplyOutput>('vault_publish_apply_starlight', {
+    outputPath,
+    toWrite,
+    toDelete,
+    authorizationToken,
+  })
 }
 
 export async function pickVaultFolder(): Promise<string | null> {

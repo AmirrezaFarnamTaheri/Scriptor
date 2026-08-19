@@ -93,6 +93,19 @@ test('built-in self updater stays disabled until signed updates are supported', 
   assert.equal(capability.includes('updater:'), false)
 })
 
+test('incubating embeddings stay outside the default desktop product boundary', () => {
+  const workspace = read('Cargo.toml')
+  const desktopCargo = read('apps/desktop/src-tauri/Cargo.toml')
+  const desktopLib = read('apps/desktop/src-tauri/src/lib.rs')
+  const searchStore = read('src/hooks/useSearchStore.ts')
+  const bridgeIndex = read('src/bridge/commands/index.ts')
+  assert.match(workspace, /incubating\s*=\s*\[[^\]]*"embeddings"/s)
+  assert.doesNotMatch(desktopCargo, /scriptor-embeddings/)
+  assert.doesNotMatch(desktopLib, /commands::embeddings|embeddings_(?:index_note|remove_note|search)/)
+  assert.doesNotMatch(searchStore, /EmbeddingProviderConfig|embeddingsSearch|embeddingConfig|semanticWeight/)
+  assert.doesNotMatch(bridgeIndex, /embeddings/)
+})
+
 test('daemon IPC requires the authenticated endpoint nonce on every production connection', () => {
   const transport = read('crates/daemon/src/transport.rs')
   const client = read('crates/daemon/src/client.rs')
@@ -207,4 +220,61 @@ test('release hardening and RustSec ownership contracts pass under the pinned No
     encoding: 'utf8',
   })
   assert.equal(ledger.status, 0, [ledger.stdout, ledger.stderr].filter(Boolean).join('\n'))
+})
+
+test('local publishing is composed through one hardened desktop and CLI engine', () => {
+  const workspace = read('Cargo.toml')
+  const desktopCargo = read('apps/desktop/src-tauri/Cargo.toml')
+  const cliCargo = read('crates/cli/Cargo.toml')
+  const desktopLib = read('apps/desktop/src-tauri/src/lib.rs')
+  const publishCommand = read('apps/desktop/src-tauri/src/commands/publish.rs')
+  const legacy = read('apps/desktop/src-tauri/src/commands/code_chunk.rs')
+  const cli = read('crates/cli/src/commands/vault.rs')
+  const compile = read('crates/publish-runner/src/compile.rs')
+  const localSite = read('crates/publish-runner/src/local_site.rs')
+
+  assert.match(workspace, /"crates\/publish-runner"/)
+  assert.match(desktopCargo, /scriptor-publish-runner\s*=\s*\{\s*path/)
+  assert.match(cliCargo, /scriptor-publish-runner\s*=\s*\{\s*path/)
+  assert.match(desktopLib, /vault_publish_plan_starlight/)
+  assert.match(desktopLib, /vault_publish_apply_starlight/)
+  assert.match(publishCommand, /require_sensitive_operation[\s\S]*SensitiveOperation::PublishSite/)
+  assert.doesNotMatch(legacy, /vault_publish_starlight/)
+  assert.match(cli, /scriptor_publish_runner::plan_starlight_site/)
+  assert.match(cli, /scriptor_publish_runner::apply_starlight_site/)
+  assert.match(compile, /let fresh_plan = plan_publish/)
+  assert.match(compile, /current_hash != reviewed\.content_hash/)
+  assert.match(compile, /fresh_orphans/)
+  assert.match(compile, /managed publish paths may not traverse symbolic links/)
+  assert.match(compile, /source_unchanged/)
+  assert.match(compile, /sink\.content_hash\(rel\)/)
+  assert.match(localSite, /fn output_drift\(/)
+  assert.match(localSite, /drifted\.contains\(&candidate\.rel_path\)/)
+  assert.match(localSite, /managed_output_drift_can_be_repaired_by_reviewed_apply/)
+  assert.match(localSite, /UnsafeOutputRoot/)
+})
+
+test('desktop Git mutations serialize and reusable queue has bounded backpressure', () => {
+  const state = read('apps/desktop/src-tauri/src/state.rs')
+  const gitCommands = read('apps/desktop/src-tauri/src/commands/git.rs')
+  const queue = read('crates/native-git/src/queue.rs')
+
+  assert.match(state, /git_mutation_lock:\s*Mutex<\(\)>/)
+  const lockUses = [...gitCommands.matchAll(/lock_recover\(&state\.git_mutation_lock/g)]
+  assert.ok(lockUses.length >= 5, `expected all desktop Git mutations to acquire the lock, found ${lockUses.length}`)
+  assert.match(queue, /MAX_PENDING_GIT_OPERATIONS:\s*usize\s*=\s*64/)
+  assert.match(queue, /mpsc::sync_channel::<Task>\(MAX_PENDING_GIT_OPERATIONS\)/)
+  assert.doesNotMatch(queue, /mpsc::channel::<Task>/)
+})
+
+test('citation UI uses the composed indexer backend and makes no Zotero sync claim', () => {
+  const manifest = read('src/components/inspector/citation-plugin-manifest.ts')
+  const dispatch = read('src/lib/pluginCommandDispatch.ts')
+  const maturity = read('docs/CAPABILITY-MATURITY.md')
+
+  assert.match(manifest, /rustFeatureGate:\s*'scriptor-indexer'/)
+  assert.match(manifest, /commandId:\s*'citations\.insert'/)
+  assert.doesNotMatch(manifest, /citations\.sync|Zotero/)
+  assert.match(dispatch, /case 'citations\.insert':[\s\S]*openBibliography/)
+  assert.match(maturity, /Zotero Web API connector \| Experimental \/ library-only/)
 })

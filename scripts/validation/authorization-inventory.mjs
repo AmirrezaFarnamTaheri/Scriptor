@@ -19,6 +19,7 @@ const sensitiveCommands = [
   ['google_calendar_complete_task', 'apps/desktop/src-tauri/src/commands/google_calendar.rs', 'GoogleTaskWrite', 'google_task_write'],
   ['google_calendar_create_task', 'apps/desktop/src-tauri/src/commands/google_calendar.rs', 'GoogleTaskWrite', 'google_task_write'],
   ['google_calendar_delete_task', 'apps/desktop/src-tauri/src/commands/google_calendar.rs', 'GoogleTaskWrite', 'google_task_write'],
+  ['google_calendar_disconnect', 'apps/desktop/src-tauri/src/commands/google_calendar.rs', 'GoogleCalendarDisconnect', 'google_calendar_disconnect'],
   ['google_calendar_start_auth', 'apps/desktop/src-tauri/src/commands/google_calendar.rs', 'GoogleCalendarAuth', 'google_calendar_auth'],
   ['latex_compile', 'apps/desktop/src-tauri/src/commands/latex.rs', 'LatexCompilation', 'latex_compilation'],
   ['pdf_translate', 'apps/desktop/src-tauri/src/commands/export.rs', 'PdfTranslation', 'pdf_translation'],
@@ -29,7 +30,7 @@ const sensitiveCommands = [
   ['vault_delete_note', 'apps/desktop/src-tauri/src/commands/vault.rs', 'DeleteNote', 'delete_note'],
   ['vault_import_obsidian', 'apps/desktop/src-tauri/src/commands/vault.rs', 'ImportVault', 'import_vault'],
   ['vault_lint_fix', 'apps/desktop/src-tauri/src/commands/vault.rs', 'ApplyBulkFix', 'apply_bulk_fix'],
-  ['vault_publish_starlight', 'apps/desktop/src-tauri/src/commands/code_chunk.rs', 'PublishSite', 'publish_site'],
+  ['vault_publish_apply_starlight', 'apps/desktop/src-tauri/src/commands/publish.rs', 'PublishSite', 'publish_site'],
   ['vault_restore_backup', 'apps/desktop/src-tauri/src/commands/backup.rs', 'RestoreBackup', 'restore_backup'],
   ['vault_restore_note_history_revision', 'apps/desktop/src-tauri/src/commands/history.rs', 'RestoreHistory', 'restore_history'],
 ]

@@ -1,0 +1,116 @@
+- generic [active] [ref=f2e1]:
+  - banner [ref=f2e2]:
+    - heading "Scriptor — Architecture & Data-Flow Map" [level=1] [ref=f2e3]
+    - generic [ref=f2e4]: local-first Markdown workspace
+    - generic [ref=f2e5]: Scriptor @ main · analyzed 2026-08-18T04:21:13Z · 53 components · 88 relations · 14 flows
+  - generic [ref=f2e6]:
+    - generic [ref=f2e9]:
+      - button "Fit" [ref=f2e10] [cursor=pointer]
+      - button "+" [ref=f2e11] [cursor=pointer]
+      - button "−" [ref=f2e12] [cursor=pointer]
+      - button "Reset view" [ref=f2e13] [cursor=pointer]
+    - complementary [ref=f2e14]:
+      - generic [ref=f2e15]:
+        - heading "Flow Controller" [level=2] [ref=f2e16]
+        - generic [ref=f2e17]:
+          - button "▶ Play" [ref=f2e18] [cursor=pointer]
+          - button "Step" [ref=f2e19] [cursor=pointer]
+          - button "Reset" [ref=f2e20] [cursor=pointer]
+          - button "Hide" [ref=f2e21] [cursor=pointer]
+      - generic [ref=f2e22]:
+        - generic [ref=f2e23] [cursor=pointer]:
+          - generic [ref=f2e24]: Vault Open & Index Rebuild
+          - generic [ref=f2e25]: Renderer requests a vault open; the desktop opens the kernel session, restarts the watcher, and the background rebuild job indexes notes, links and FTS into SQLite.
+          - generic [ref=f2e26]: 6 steps · React→Tauri · Tauri→Vault · Tauri→Vault · Tauri→Indexer · Indexer→Index · Indexer→Markdown
+        - generic [ref=f2e27] [cursor=pointer]:
+          - generic [ref=f2e28]: Atomic Note Save
+          - generic [ref=f2e29]: Editor save goes through the typed bridge; the kernel checks the optimistic content hash, backs up recoverability, appends history, and atomically writes the note; the watcher then updates the index incrementally.
+          - generic [ref=f2e30]: 5 steps · Markdown→Tauri · Tauri→Vault · Vault→Markdown · Vault→.scriptor · Vault→Indexer
+        - generic [ref=f2e31] [cursor=pointer]:
+          - generic [ref=f2e32]: MCP Mutation with Intent/Outcome Audit
+          - generic [ref=f2e33]: Rust MCP stdio write tools persist a hash-chained intent before mutating, then append the outcome; startup reconciliation resolves any crash between intent and outcome.
+          - generic [ref=f2e34]: 4 steps · Daemon→.scriptor · Daemon→Vault · Daemon→.scriptor · Daemon→.scriptor
+        - generic [ref=f2e35] [cursor=pointer]:
+          - generic [ref=f2e36]: Watcher → Incremental Index / Rescan Recovery
+          - generic [ref=f2e37]: The debounced filesystem watcher batches .md changes; the daemon applies incremental index updates and falls back to a full rebuild on event loss, guarded by generation counters.
+          - generic [ref=f2e38]: 4 steps · Vault→Markdown · Vault→Scriptor · Vault→Indexer · Vault→Scriptor
+        - generic [ref=f2e39] [cursor=pointer]:
+          - generic [ref=f2e40]: Full-Text Search (FTS5)
+          - generic [ref=f2e41]: Search requests from renderer, daemon RPC, CLI, or MCP route to the indexer's weighted FTS5 query and return normalized hits.
+          - generic [ref=f2e42]: 3 steps · React→Tauri · Tauri→Indexer · Indexer→Index
+        - generic [ref=f2e43] [cursor=pointer]:
+          - generic [ref=f2e44]: Git Commit (isolated temp index)
+          - generic [ref=f2e45]: GitPanel commits selected paths; native-git creates an isolated temporary index seeded from HEAD, stages literal paths, writes the tree, updates the branch, and leaves the user index untouched.
+          - generic [ref=f2e46]: 3 steps · React→Tauri · Tauri→Native · Native→Git
+        - generic [ref=f2e47] [cursor=pointer]:
+          - generic [ref=f2e48]: Export via Pandoc (sealed redaction + validation)
+          - generic [ref=f2e49]: "Export profiles drive pandoc jobs: discover + hash-verify pandoc, refuse or redact sealed spans, preprocess diagrams, run with explicit args, and validate the artifact."
+          - generic [ref=f2e50]: 5 steps · Tauri→Export · Export→Pandoc · Export→Markdown · Export→Pandoc · Export→.scriptor
+        - generic [ref=f2e51] [cursor=pointer]:
+          - generic [ref=f2e52]: Publish Plan → Apply
+          - generic [ref=f2e53]: Plan scans notes for publish:true with include/exclude globs and diffs against hashed bucket state; apply persists the new state after writing site output.
+          - generic [ref=f2e54]: 4 steps · Tauri→Publish · Publish→Markdown · Publish→Site · Publish→Markdown
+        - generic [ref=f2e55] [cursor=pointer]:
+          - generic [ref=f2e56]: Canvas Save + SVG Snapshot
+          - generic [ref=f2e57]: Canvas UI saves the scene through the native engine (JSON in the board store) and renders SVG/PNG snapshots for export.
+          - generic [ref=f2e58]: 4 steps · Canvas→Tauri · Tauri→Canvas · Canvas→Canvas · Canvas→Browser
+        - generic [ref=f2e59] [cursor=pointer]:
+          - generic [ref=f2e60]: Google Calendar/Tasks OAuth + Sync
+          - generic [ref=f2e61]: "OAuth2 PKCE loopback: bind ephemeral port, open system browser, capture code, exchange tokens, store in keychain; then list/sync events and tasks over HTTPS."
+          - generic [ref=f2e62]: 3 steps · React→Tauri · Tauri→OS · Tauri→Google
+        - generic [ref=f2e63] [cursor=pointer]:
+          - generic [ref=f2e64]: Web Capture → Markdown
+          - generic [ref=f2e65]: scriptor clip fetches a URL (bounded), sanitizes and extracts readability content, converts to Markdown, and saves through the vault write path.
+          - generic [ref=f2e66]: 3 steps · CLI→Web · Web→External · Web→Markdown
+        - generic [ref=f2e67] [cursor=pointer]:
+          - generic [ref=f2e68]: Daemon Auth Handshake & Event Subscription
+          - generic [ref=f2e69]: Clients read the endpoint file, verify nonce+HMAC against the keychain-bound key and live pid, connect, present the nonce, then subscribe to the bounded event stream with resync recovery.
+          - generic [ref=f2e70]: 5 steps · Tauri→Scriptor · Scriptor→OS · Tauri→Scriptor · Scriptor→Daemon · Scriptor→Tauri
+        - generic [ref=f2e71] [cursor=pointer]:
+          - generic [ref=f2e72]: MCP Draft Proposal → Approval → Write
+          - generic [ref=f2e73]: TypeScript MCP runtime stages proposed patches as drafts in mode draft/write-approved; approved drafts write through the vault context with a base content-hash check.
+          - generic [ref=f2e74]: 4 steps · MCP→MCP · MCP→MCP · MCP→MCP · MCP→Tauri
+        - generic [ref=f2e75] [cursor=pointer]:
+          - generic [ref=f2e76]: Semantic Search (Embeddings)
+          - generic [ref=f2e77]: Notes are embedded via the selected provider and stored in the embedding DB; semantic search embeds the query and returns cosine nearest neighbors, falling back to BM25 for MCP when no semantic backend is bound.
+          - generic [ref=f2e78]: 4 steps · Tauri→Embeddings · Embeddings→Ollama · Embeddings→Embedding · MCP→Tauri
+      - generic [ref=f2e79]:
+        - heading "Filters" [level=2] [ref=f2e80]
+        - group [ref=f2e81]:
+          - generic "Layers" [ref=f2e82] [cursor=pointer]
+          - generic [ref=f2e83]:
+            - generic [ref=f2e84]:
+              - checkbox "Presentation" [checked] [ref=f2e85]
+              - text: Presentation
+            - generic [ref=f2e86]:
+              - checkbox "Application" [checked] [ref=f2e87]
+              - text: Application
+            - generic [ref=f2e88]:
+              - checkbox "Domain" [checked] [ref=f2e89]
+              - text: Domain
+            - generic [ref=f2e90]:
+              - checkbox "Persistence" [checked] [ref=f2e91]
+              - text: Persistence
+            - generic [ref=f2e92]:
+              - checkbox "Infrastructure/External" [checked] [ref=f2e93]
+              - text: Infrastructure/External
+        - group [ref=f2e94]:
+          - generic "Edge types" [ref=f2e95] [cursor=pointer]
+          - generic [ref=f2e96]:
+            - generic [ref=f2e97]:
+              - checkbox "sync (RPC/HTTP)" [checked] [ref=f2e98]
+              - text: sync (RPC/HTTP)
+            - generic [ref=f2e99]:
+              - checkbox "async event" [checked] [ref=f2e100]
+              - text: async event
+            - generic [ref=f2e101]:
+              - checkbox "DB query" [checked] [ref=f2e102]
+              - text: DB query
+            - generic [ref=f2e103]:
+              - checkbox "stream" [checked] [ref=f2e104]
+              - text: stream
+            - generic [ref=f2e105]:
+              - checkbox "dependency" [checked] [ref=f2e106]
+              - text: dependency
+        - group [ref=f2e107]:
+          - generic "Legend" [ref=f2e108] [cursor=pointer]
