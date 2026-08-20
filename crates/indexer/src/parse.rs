@@ -100,7 +100,7 @@ fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
     if lines.len() < 2 {
         return (
             String::new(),
-            markdown.to_string(),
+            String::new(),
             false,
             Some("unterminated frontmatter".into()),
         );
@@ -117,7 +117,7 @@ fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
     let Some(end_index) = end_index else {
         return (
             String::new(),
-            markdown.to_string(),
+            String::new(),
             false,
             Some("unterminated frontmatter".into()),
         );
@@ -352,5 +352,17 @@ mod tests {
         let markdown = "---\naliases: [Friendly Name, Alt]\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
         assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt"]);
+    }
+
+    #[test]
+    fn unterminated_frontmatter_does_not_expose_raw_markdown_as_body() {
+        let markdown = "---\nsecret: do-not-index\n# Still frontmatter\n";
+        let parsed = parse_note_markdown("Private.md", markdown);
+
+        assert!(!parsed.frontmatter_valid);
+        assert_eq!(parsed.frontmatter_error.as_deref(), Some("unterminated frontmatter"));
+        assert!(parsed.body.is_empty());
+        assert!(parsed.tags.is_empty());
+        assert!(parsed.headings.is_empty());
     }
 }
