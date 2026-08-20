@@ -19,7 +19,13 @@ use crate::{
 pub const PUBLISH_STATE_FILE: &str = ".scriptor-publish-state.json";
 const MAX_STATE_BYTES: u64 = 4 * 1024 * 1024;
 
-const ASTRO_CONFIG: &str = "import { defineConfig } from 'astro/config';\nimport starlight from '@astrojs/starlight';\n\nexport default defineConfig({\n  integrations: [starlight({ title: 'Scriptor Publish' })],\n});\n";
+const ASTRO_CONFIG: &str = "import { defineConfig } from 'astro/config';\
+import starlight from '@astrojs/starlight';\
+\
+export default defineConfig({\
+  integrations: [starlight({ title: 'Scriptor Publish' })],\
+});\
+";
 
 // Versions are intentionally exact so a generated local site is reproducible.
 // Refresh them deliberately when Scriptor's publication compatibility is tested.
@@ -30,7 +36,7 @@ const PACKAGE_JSON: &str = r#"{
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "pnpm install --frozen-lockfile && astro build",
     "preview": "astro preview"
   },
   "dependencies": {
@@ -39,6 +45,23 @@ const PACKAGE_JSON: &str = r#"{
   }
 }
 "#;
+
+const PNPM_LOCK_PARTS: &[&str] = &[
+    include_str!("starlight-lock/part-001.txt"),
+    include_str!("starlight-lock/part-002.txt"),
+    include_str!("starlight-lock/part-003.txt"),
+    include_str!("starlight-lock/part-004.txt"),
+    include_str!("starlight-lock/part-005.txt"),
+    include_str!("starlight-lock/part-006.txt"),
+    include_str!("starlight-lock/part-007.txt"),
+    include_str!("starlight-lock/part-008.txt"),
+    include_str!("starlight-lock/part-009.txt"),
+    include_str!("starlight-lock/part-010.txt"),
+    include_str!("starlight-lock/part-011.txt"),
+    include_str!("starlight-lock/part-012.txt"),
+    include_str!("starlight-lock/part-013.txt"),
+    include_str!("starlight-lock/part-014.txt"),
+];
 
 pub fn resolve_output_path(vault_root: &Path, requested: &Path) -> PathBuf {
     if requested.is_absolute() {
@@ -238,6 +261,8 @@ impl StarlightSite {
     pub fn ensure_scaffold(&self) -> Result<(), PublishError> {
         self.write_if_missing("astro.config.mjs", ASTRO_CONFIG.as_bytes())?;
         self.write_if_missing("package.json", PACKAGE_JSON.as_bytes())?;
+        let pnpm_lock = PNPM_LOCK_PARTS.concat();
+        self.write_if_missing("pnpm-lock.yaml", pnpm_lock.as_bytes())?;
         Ok(())
     }
 
@@ -313,7 +338,11 @@ mod tests {
     use tempfile::TempDir;
 
     fn write_opted_in(path: &Path, body: &str) {
-        std::fs::write(path, format!("---\npublish: true\n---\n{body}\n")).unwrap();
+        std::fs::write(path, format!("---\
+publish: true\
+---\
+{body}\
+")).unwrap();
     }
 
     #[test]
@@ -328,14 +357,21 @@ mod tests {
     fn scaffold_preserves_existing_customizations() {
         let vault = TempDir::new().unwrap();
         let output = TempDir::new().unwrap();
-        std::fs::write(output.path().join("astro.config.mjs"), "// custom\n").unwrap();
+        std::fs::write(output.path().join("astro.config.mjs"), "// custom\
+").unwrap();
         let site = StarlightSite::open(vault.path(), output.path()).unwrap();
         site.ensure_scaffold().unwrap();
         assert_eq!(
             std::fs::read_to_string(output.path().join("astro.config.mjs")).unwrap(),
-            "// custom\n"
+            "// custom\
+"
         );
-        assert!(output.path().join("package.json").exists());
+        let package_json = std::fs::read_to_string(output.path().join("package.json")).unwrap();
+        assert!(package_json.contains("pnpm install --frozen-lockfile && astro build"));
+        assert_eq!(
+            std::fs::read_to_string(output.path().join("pnpm-lock.yaml")).unwrap(),
+            PNPM_LOCK_PARTS.concat()
+        );
     }
 
     #[test]
@@ -343,7 +379,8 @@ mod tests {
         let vault = TempDir::new().unwrap();
         let output = TempDir::new().unwrap();
         let site = StarlightSite::open(vault.path(), output.path()).unwrap();
-        let bytes = b"published body\n";
+        let bytes = b"published body\
+";
         std::fs::write(site.docs_root().join("note.md"), bytes).unwrap();
         let mut state = BucketState::default();
         state
@@ -470,7 +507,8 @@ mod tests {
         let vault = TempDir::new().unwrap();
         let output = TempDir::new().unwrap();
         write_opted_in(&vault.path().join("public.md"), "public");
-        std::fs::write(vault.path().join("private.md"), "# private\n").unwrap();
+        std::fs::write(vault.path().join("private.md"), "# private\
+").unwrap();
         let plan = plan_starlight_site(vault.path(), output.path()).unwrap();
         assert_eq!(plan.new_items.len(), 1);
         let reviewed: PublishCandidate = plan.new_items[0].clone();
