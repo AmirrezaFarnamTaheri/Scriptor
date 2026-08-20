@@ -39,7 +39,7 @@ jobs:
           corepack prepare pnpm@10.33.0 --activate
           pnpm --version
 
-      - name: Generate exact scaffold lock
+      - name: Validate canonical scaffold lock
         shell: bash
         run: |
           set -euo pipefail
@@ -63,14 +63,15 @@ jobs:
             }
           }
           JSON
-          pnpm --dir "${lock_dir}" install --lockfile-only --ignore-scripts
+          node scripts/validation/starlight-lock-template.mjs --write "${lock_dir}/pnpm-lock.yaml"
+          pnpm --dir "${lock_dir}" install --lockfile-only --frozen-lockfile --ignore-scripts
           echo "STARLIGHT_LOCK=${lock_dir}/pnpm-lock.yaml" >> "${GITHUB_ENV}"
 
       - name: Verify checked-in lock template
         shell: bash
         run: node scripts/validation/starlight-lock-template.mjs "${STARLIGHT_LOCK}"
 
-      - name: Upload generated lock for diagnosis
+      - name: Upload validated lock for diagnosis
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
