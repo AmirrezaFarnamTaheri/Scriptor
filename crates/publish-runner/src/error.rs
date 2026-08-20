@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::plan::BucketState;
+
 /// Errors that can occur in the publish pipeline.
 #[derive(Debug, Error)]
 pub enum PublishError {
@@ -31,6 +33,15 @@ pub enum PublishError {
 
     #[error("unsafe publish output `{output}` relative to vault `{vault}`: roots must not contain one another")]
     UnsafeOutputRoot { vault: String, output: String },
+
+    #[error("publish apply partially completed: {source}")]
+    PartialApply {
+        #[source]
+        source: Box<PublishError>,
+        written: Vec<String>,
+        deleted: Vec<String>,
+        new_state: Box<BucketState>,
+    },
 
     #[error("glob pattern error: {0}")]
     GlobPattern(#[from] globset::Error),
