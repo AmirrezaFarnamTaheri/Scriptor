@@ -1,25 +1,26 @@
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const cargoPackages = new Set()
-
-function walk(dir) {
-  const out = []
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (['.git', 'node_modules', 'target', 'dist', 'fuzz', 'test-fixtures'].includes(entry.name)) continue
-    const full = path.join(dir, entry.name)
-    if (entry.isDirectory()) out.push(...walk(full))
-    else out.push(full)
-  }
-  return out
-}
-
-for (const file of walk(root).filter((file) => file.endsWith('Cargo.toml'))) {
-  const match = fs.readFileSync(file, 'utf8').match(/^name\s*=\s*"([^"]+)"/m)
-  if (match) cargoPackages.add(match[1])
-}
+const metadataResult = spawnSync(
+  'cargo',
+  ['metadata', '--no-deps', '--format-version=1'],
+  { cwd: root, encoding: 'utf8' },
+)
+assert.equal(
+  metadataResult.status,
+  0,
+  [metadataResult.stdout, metadataResult.stderr].filter(Boolean).join('\n'),
+)
+const metadata = JSON.parse(metadataResult.stdout)
+const workspaceMembers = new Set(metadata.workspace_members)
+const cargoPackages = new Set(
+  metadata.packages
+    .filter((pkg) => workspaceMembers.has(pkg.id))
+    .map((pkg) => pkg.name),
+)
 
 const manifestFiles = [
   'packages/canvas/plugin.json',
