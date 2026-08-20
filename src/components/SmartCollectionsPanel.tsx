@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Database, Play, Plus, Trash2 } from 'lucide-react'
 
 import { indexerExecuteDql } from '../bridge/commands'
@@ -67,6 +67,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   const [status, setStatus] = useState('Select a collection to run its DQL query.')
   const [draftLabel, setDraftLabel] = useState('')
   const [draftQuery, setDraftQuery] = useState('path has #tag')
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     if (!vaultOpen) return
@@ -85,6 +86,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
 
   const runQuery = useCallback(
     async (collection: SmartCollection) => {
+      const requestId = ++requestIdRef.current
       if (!canQuery) {
         setStatus('Open a vault in the desktop app to run DQL collections.')
         setResults([])
@@ -94,6 +96,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
       try {
         const started = performance.now()
         const rows = await indexerExecuteDql(collection.query)
+        if (requestId !== requestIdRef.current) return
         const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
           path: row.path,
           title: row.title,
@@ -104,6 +107,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
         const durationMs = Math.round(performance.now() - started)
         setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${durationMs}ms.`)
       } catch (error) {
+        if (requestId !== requestIdRef.current) return
         setResults([])
         setStatus(error instanceof Error ? error.message : 'Search failed')
       }
@@ -113,31 +117,8 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
 
   useEffect(() => {
     if (!canQuery || !activeCollection) return
-    let cancelled = false
-    const requestedCollection = activeCollection
-    const started = performance.now()
-    void indexerExecuteDql(requestedCollection.query)
-      .then((rows) => {
-        if (cancelled) return
-        const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
-          path: row.path,
-          title: row.title,
-          inbound_links: 0,
-          outbound_links: 0,
-        }))
-        setResults(mapped)
-        const durationMs = Math.round(performance.now() - started)
-        setStatus(`${mapped.length} note(s) matched "${requestedCollection.label}" in ${durationMs}ms.`)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        setResults([])
-        setStatus(error instanceof Error ? error.message : 'Search failed')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeCollection, canQuery])
+    void runQuery(activeCollection)
+  }, [activeCollection, canQuery, runQuery])
 
   const addCollection = () => {
     const label = draftLabel.trim()
