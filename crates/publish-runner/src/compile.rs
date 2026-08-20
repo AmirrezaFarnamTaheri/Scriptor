@@ -9,7 +9,9 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
-use scriptor_vault::{MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, VaultRoot, atomic_write, content_hash_bytes};
+use scriptor_vault::{
+    MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, VaultRoot, atomic_write, content_hash_bytes,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::error::PublishError;
@@ -33,6 +35,8 @@ pub enum SiteTemplate {
 /// which rejects absolute paths, parent traversal, and symlink escapes.
 pub struct LocalDirSink {
     output_root: VaultRoot,
+    #[cfg(test)]
+    fail_write_paths: HashSet<String>,
 }
 
 impl LocalDirSink {
@@ -44,11 +48,18 @@ impl LocalDirSink {
         })?;
         Ok(Self {
             output_root: VaultRoot::open(output_root)?,
+            #[cfg(test)]
+            fail_write_paths: HashSet::new(),
         })
     }
 
     pub fn root(&self) -> &Path {
         self.output_root.root()
+    }
+
+    #[cfg(test)]
+    fn inject_write_failure(&mut self, rel_path: &str) {
+        self.fail_write_paths.insert(rel_path.to_string());
     }
 
     fn resolve_managed_path(&self, rel_path: &str) -> Result<PathBuf, PublishError> {
@@ -103,6 +114,14 @@ impl LocalDirSink {
     }
 
     pub fn write(&self, rel_path: &str, source_bytes: &[u8]) -> Result<(), PublishError> {
+        #[cfg(test)]
+        if self.fail_write_paths.contains(rel_path) {
+            return Err(PublishError::Io {
+                path: rel_path.to_string(),
+                source: std::io::Error::other("injected publish write failure"),
+            });
+        }
+
         let relative = RelativeVaultPath::parse(rel_path)?;
         let dest = self.resolve_managed_path(relative.as_str())?;
         if let Some(parent) = dest.parent() {
@@ -164,23 +183,38 @@ pub struct PublishApplyOutput {
     pub new_state: BucketState,
 }
 
-/// Apply a reviewed subset of the current publish plan.
-///
-/// Security and correctness invariants:
-/// - selected writes must still be `new` or `changed` in a freshly recomputed
-///   plan using the same options;
-/// - selected hashes must match both the fresh plan and the immediately re-read
-///   source bytes;
-/// - `publish: true` and sealed-content gates are rechecked at write time;
-/// - deletions must be fresh orphans from the prior managed state;
-/// - every source and destination path is traversal/symlink safe.
-pub fn publish_apply(
+struct PreparedWrite {
+    rel_path: String,
+    content_hash: String,
+    bytes: Vec<u8>,
+}
+
+fn partial_apply_error(
+    source: PublishError,
+    written: &[String],
+    deleted: &[String],
+    new_state: &BucketState,
+    state_changed: bool,
+) -> PublishError {
+    if written.is_empty() && deleted.is_empty() && !state_changed {
+        source
+    } else {
+        PublishError::PartialApply {
+            source: Box::new(source),
+            written: written.to_vec(),
+            deleted: deleted.to_vec(),
+            new_state: Box::new(new_state.clone()),
+        }
+    }
+}
+
+fn prepare_apply(
     vault_root: &Path,
     input: &PublishApplyInput,
     sink: &LocalDirSink,
     prior_state: &BucketState,
     options: &PublishPlanOptions,
-) -> Result<PublishApplyOutput, PublishError> {
+) -> Result<(Vec<PreparedWrite>, Vec<String>), PublishError> {
     let root = VaultRoot::open(vault_root)?;
     let fresh_plan = plan_publish(root.root(), prior_state, options)?;
     let actionable: HashMap<&str, &PublishCandidate> = fresh_plan
@@ -197,9 +231,7 @@ pub fn publish_apply(
     let fresh_orphans: HashSet<&str> = fresh_plan.orphaned.iter().map(String::as_str).collect();
 
     let mut seen_writes = HashSet::new();
-    let mut written = Vec::new();
-    let mut new_state = prior_state.clone();
-
+    let mut prepared_writes = Vec::with_capacity(input.to_write.len());
     for reviewed in &input.to_write {
         let relative = RelativeVaultPath::parse(&reviewed.rel_path)?;
         let rel = relative.as_str();
@@ -211,10 +243,6 @@ pub fn publish_apply(
         let current = if let Some(current) = actionable.get(rel) {
             *current
         } else if let Some(current) = source_unchanged.get(rel) {
-            // A Starlight plan may surface a source-unchanged note as changed
-            // when its previously managed generated output is missing or has
-            // been modified. Preserve ownership and allow that reviewed repair
-            // only while the output still differs from the last-published hash.
             let expected_output_hash = prior_state.entries.get(rel).ok_or_else(|| {
                 PublishError::InvalidSelection {
                     path: rel.to_string(),
@@ -277,15 +305,15 @@ pub fn publish_apply(
             });
         }
 
-        sink.write(rel, &bytes)?;
-        new_state
-            .entries
-            .insert(rel.to_string(), reviewed.content_hash.clone());
-        written.push(rel.to_string());
+        prepared_writes.push(PreparedWrite {
+            rel_path: rel.to_string(),
+            content_hash: reviewed.content_hash.clone(),
+            bytes,
+        });
     }
 
     let mut seen_deletes = HashSet::new();
-    let mut deleted = Vec::new();
+    let mut prepared_deletes = Vec::with_capacity(input.to_delete.len());
     for raw in &input.to_delete {
         let relative = RelativeVaultPath::parse(raw)?;
         let rel = relative.as_str();
@@ -300,9 +328,111 @@ pub fn publish_apply(
                 reason: "path is not a managed orphan in the current publish plan".into(),
             });
         }
-        sink.delete(rel)?;
-        new_state.entries.remove(rel);
-        deleted.push(rel.to_string());
+        prepared_deletes.push(rel.to_string());
+    }
+
+    Ok((prepared_writes, prepared_deletes))
+}
+
+/// Apply a reviewed subset of the current publish plan.
+///
+/// Security and correctness invariants:
+/// - all selected writes/deletes are validated before any output is mutated;
+/// - selected hashes match both the fresh plan and freshly read source bytes;
+/// - `publish: true` and sealed-content gates are rechecked at apply time;
+/// - deletions are fresh orphans from the prior managed state;
+/// - failures after mutation return a `PartialApply` carrying recoverable state.
+pub fn publish_apply(
+    vault_root: &Path,
+    input: &PublishApplyInput,
+    sink: &LocalDirSink,
+    prior_state: &BucketState,
+    options: &PublishPlanOptions,
+) -> Result<PublishApplyOutput, PublishError> {
+    publish_apply_with_state_persistence(vault_root, input, sink, prior_state, options, |_| Ok(()))
+}
+
+pub(crate) fn publish_apply_with_state_persistence<F>(
+    vault_root: &Path,
+    input: &PublishApplyInput,
+    sink: &LocalDirSink,
+    prior_state: &BucketState,
+    options: &PublishPlanOptions,
+    mut persist_state: F,
+) -> Result<PublishApplyOutput, PublishError>
+where
+    F: FnMut(&BucketState) -> Result<(), PublishError>,
+{
+    let (prepared_writes, prepared_deletes) =
+        prepare_apply(vault_root, input, sink, prior_state, options)?;
+    let mut written = Vec::new();
+    let mut deleted = Vec::new();
+    let mut new_state = prior_state.clone();
+    let mut state_changed = false;
+
+    for prepared in prepared_writes {
+        let previous = new_state
+            .entries
+            .insert(prepared.rel_path.clone(), prepared.content_hash.clone());
+        if let Err(error) = persist_state(&new_state) {
+            match previous {
+                Some(hash) => {
+                    new_state.entries.insert(prepared.rel_path.clone(), hash);
+                }
+                None => {
+                    new_state.entries.remove(&prepared.rel_path);
+                }
+            }
+            return Err(partial_apply_error(
+                error,
+                &written,
+                &deleted,
+                &new_state,
+                state_changed,
+            ));
+        }
+        state_changed = true;
+
+        if let Err(error) = sink.write(&prepared.rel_path, &prepared.bytes) {
+            return Err(partial_apply_error(
+                error,
+                &written,
+                &deleted,
+                &new_state,
+                true,
+            ));
+        }
+        written.push(prepared.rel_path);
+    }
+
+    for rel in prepared_deletes {
+        if let Err(error) = sink.delete(&rel) {
+            return Err(partial_apply_error(
+                error,
+                &written,
+                &deleted,
+                &new_state,
+                state_changed,
+            ));
+        }
+
+        let removed_hash = new_state.entries.remove(&rel);
+        if let Err(error) = persist_state(&new_state) {
+            if let Some(hash) = removed_hash {
+                new_state.entries.insert(rel.clone(), hash);
+            }
+            let mut physically_deleted = deleted.clone();
+            physically_deleted.push(rel);
+            return Err(partial_apply_error(
+                error,
+                &written,
+                &physically_deleted,
+                &new_state,
+                true,
+            ));
+        }
+        state_changed = true;
+        deleted.push(rel);
     }
 
     Ok(PublishApplyOutput {
@@ -362,6 +492,47 @@ mod tests {
 
         assert_eq!(result.written, vec!["hello.md"]);
         assert_eq!(fs::read_to_string(out.path().join("hello.md")).unwrap(), opted_in("Hello!"));
+    }
+
+    #[test]
+    fn later_write_failure_returns_recoverable_partial_state() {
+        let vault = TempDir::new().unwrap();
+        let out = TempDir::new().unwrap();
+        vault_note(vault.path(), "first.md", &opted_in("first"));
+        vault_note(vault.path(), "second.md", &opted_in("second"));
+        let first = reviewed_candidate(vault.path(), "first.md");
+        let second = reviewed_candidate(vault.path(), "second.md");
+        let mut sink = LocalDirSink::new(out.path()).unwrap();
+        sink.inject_write_failure("second.md");
+
+        let error = publish_apply(
+            vault.path(),
+            &PublishApplyInput {
+                to_write: vec![first, second],
+                to_delete: vec![],
+            },
+            &sink,
+            &BucketState::default(),
+            &Default::default(),
+        )
+        .expect_err("second write must fail");
+
+        match error {
+            PublishError::PartialApply {
+                written,
+                deleted,
+                new_state,
+                ..
+            } => {
+                assert_eq!(written, vec!["first.md"]);
+                assert!(deleted.is_empty());
+                assert!(new_state.entries.contains_key("first.md"));
+                assert!(new_state.entries.contains_key("second.md"));
+            }
+            other => panic!("expected partial apply error, got {other:?}"),
+        }
+        assert!(out.path().join("first.md").exists());
+        assert!(!out.path().join("second.md").exists());
     }
 
     #[test]
@@ -515,7 +686,6 @@ mod tests {
         vault_note(vault.path(), "hello.md", &note_content);
         let note_hash = content_hash_bytes(note_content.as_bytes());
 
-        // 1. When both source and managed output are unchanged, apply is rejected.
         fs::write(out.path().join("hello.md"), &note_content).unwrap();
         let mut prior = BucketState::default();
         prior.entries.insert("hello.md".into(), note_hash.clone());
@@ -547,7 +717,6 @@ mod tests {
             "unexpected error: {error:?}"
         );
 
-        // 2. When managed output drifts (is modified), reviewed apply repairs it.
         fs::write(out.path().join("hello.md"), b"drifted output").unwrap();
         let result = publish_apply(
             vault.path(),
