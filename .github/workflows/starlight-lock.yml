@@ -64,8 +64,8 @@ jobs:
           }
           JSON
           node scripts/validation/starlight-lock-template.mjs --write "${lock_dir}/pnpm-lock.yaml"
-          pnpm --dir "${lock_dir}" install --lockfile-only --frozen-lockfile --ignore-scripts
           echo "STARLIGHT_LOCK=${lock_dir}/pnpm-lock.yaml" >> "${GITHUB_ENV}"
+          pnpm --dir "${lock_dir}" install --lockfile-only --frozen-lockfile --ignore-scripts
 
       - name: Verify checked-in lock template
         shell: bash

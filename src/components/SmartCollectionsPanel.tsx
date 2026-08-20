@@ -113,6 +113,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
         setResults([])
         return
       }
+      setResults([])
       setStatus(`Running "${collection.label}"…`)
       void executeQuery(collection, requestId)
     },
@@ -122,6 +123,10 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   useEffect(() => {
     const requestId = ++requestIdRef.current
     if (!canQuery || !activeCollection) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new async query must hide stale rows immediately
+    setResults([])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- expose the loading state before the async request resolves
+    setStatus(`Running "${activeCollection.label}"…`)
     void executeQuery(activeCollection, requestId)
   }, [activeCollection, canQuery, executeQuery])
 
