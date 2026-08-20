@@ -43,9 +43,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .tmp-starlight-lock
-          mkdir .tmp-starlight-lock
-          cat > .tmp-starlight-lock/package.json <<'JSON'
+          lock_dir="${RUNNER_TEMP}/scriptor-starlight-lock"
+          rm -rf "${lock_dir}"
+          mkdir -p "${lock_dir}"
+          cat > "${lock_dir}/package.json" <<'JSON'
           {
             "name": "scriptor-publish",
             "private": true,
@@ -62,17 +63,18 @@ jobs:
             }
           }
           JSON
-          pnpm --dir .tmp-starlight-lock install --lockfile-only --ignore-scripts
+          pnpm --dir "${lock_dir}" install --lockfile-only --ignore-scripts
+          echo "STARLIGHT_LOCK=${lock_dir}/pnpm-lock.yaml" >> "${GITHUB_ENV}"
 
       - name: Verify checked-in lock template
         shell: bash
-        run: node scripts/validation/starlight-lock-template.mjs .tmp-starlight-lock/pnpm-lock.yaml
+        run: node scripts/validation/starlight-lock-template.mjs "${STARLIGHT_LOCK}"
 
       - name: Upload generated lock for diagnosis
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: starlight-pnpm-lock-${{ github.event.pull_request.head.sha || github.sha }}
-          path: .tmp-starlight-lock/pnpm-lock.yaml
+          path: ${{ env.STARLIGHT_LOCK }}
           if-no-files-found: error
           retention-days: 1
