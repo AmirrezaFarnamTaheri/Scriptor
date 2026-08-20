@@ -24,10 +24,14 @@
 //! - `requireFrontmatterOptIn = true` (default) excludes notes without the flag.
 
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::Path;
 
 use globset::{Glob, GlobSetBuilder};
-use scriptor_vault::{MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, ScannedEntryKind, VaultRoot, content_hash_bytes, scan_vault};
+use scriptor_vault::{
+    MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, ScannedEntryKind, VaultRoot, content_hash_bytes,
+    scan_vault,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::error::PublishError;
@@ -37,6 +41,7 @@ use crate::error::PublishError;
 /// ASCII prefix that marks a sealed / encrypted span inside a note body.
 /// The indexer, export-runner, and this runner all use this sentinel.
 pub(crate) const SEALED_PREFIX: &str = "%%scriptor-sealed:";
+const FRONTMATTER_PROBE_BYTES: usize = 64 * 1024;
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -198,7 +203,21 @@ fn scan_candidates(
         if exclude_set.is_match(rel_str) {
             continue;
         }
+
+        let absolute = root.resolve_relative(&rel)?;
         if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
+            // Keep the metadata size bound: oversized notes are never fully read.
+            // When opt-in is required, inspect only a bounded frontmatter prefix so
+            // an unrelated private note cannot deny publishing the rest of the vault.
+            if options.require_frontmatter_opt_in
+                && !frontmatter_has_publish_true(&read_prefix_lossy(
+                    &absolute,
+                    FRONTMATTER_PROBE_BYTES,
+                    rel_str,
+                )?)
+            {
+                continue;
+            }
             return Err(PublishError::NoteTooLarge {
                 path: rel_str.to_string(),
                 size_bytes: entry.size_bytes,
@@ -206,7 +225,6 @@ fn scan_candidates(
             });
         }
 
-        let absolute = root.resolve_relative(&rel)?;
         let bytes = std::fs::read(&absolute).map_err(|source| PublishError::Io {
             path: rel_str.to_string(),
             source,
@@ -236,6 +254,21 @@ fn scan_candidates(
     }
 
     Ok(out)
+}
+
+fn read_prefix_lossy(path: &Path, limit: usize, rel: &str) -> Result<String, PublishError> {
+    let file = std::fs::File::open(path).map_err(|source| PublishError::Io {
+        path: rel.to_string(),
+        source,
+    })?;
+    let mut buffer = Vec::new();
+    file.take(limit as u64)
+        .read_to_end(&mut buffer)
+        .map_err(|source| PublishError::Io {
+            path: rel.to_string(),
+            source,
+        })?;
+    Ok(String::from_utf8_lossy(&buffer).into_owned())
 }
 
 // ── Frontmatter gate ──────────────────────────────────────────────────────────
@@ -293,6 +326,7 @@ fn build_exclude_set(patterns: &[String]) -> Result<globset::GlobSet, PublishErr
 mod tests {
     use super::*;
     use std::fs;
+    use std::io::Write;
     use tempfile::TempDir;
 
     fn write_note(dir: &Path, rel: &str, content: &str) {
@@ -301,6 +335,16 @@ mod tests {
             fs::create_dir_all(parent).unwrap();
         }
         fs::write(path, content).unwrap();
+    }
+
+    fn write_oversized_note(dir: &Path, rel: &str, prefix: &str) {
+        let path = dir.join(rel.replace('/', std::path::MAIN_SEPARATOR_STR));
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).unwrap();
+        }
+        let mut file = fs::File::create(path).unwrap();
+        file.write_all(prefix.as_bytes()).unwrap();
+        file.set_len(MAX_INDEXED_NOTE_BYTES + 1).unwrap();
     }
 
     fn note_with_publish() -> &'static str {
@@ -324,6 +368,27 @@ mod tests {
         assert_eq!(plan.new_items.len(), 2, "only opted-in notes: {plan:?}");
         assert!(plan.changed.is_empty());
         assert!(plan.orphaned.is_empty());
+    }
+
+    #[test]
+    fn oversized_private_note_does_not_block_unrelated_publish() {
+        let tmp = TempDir::new().unwrap();
+        write_note(tmp.path(), "public.md", note_with_publish());
+        write_oversized_note(tmp.path(), "private.md", note_without_publish());
+
+        let plan = plan_publish(tmp.path(), &BucketState::default(), &Default::default()).unwrap();
+        assert_eq!(plan.new_items.len(), 1);
+        assert_eq!(plan.new_items[0].rel_path, "public.md");
+    }
+
+    #[test]
+    fn oversized_opted_in_note_still_fails_size_gate() {
+        let tmp = TempDir::new().unwrap();
+        write_oversized_note(tmp.path(), "large.md", note_with_publish());
+
+        let error = plan_publish(tmp.path(), &BucketState::default(), &Default::default())
+            .expect_err("opted-in oversized notes must fail");
+        assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error}");
     }
 
     #[test]
