@@ -30,7 +30,7 @@ const registered = new Set(
     .filter((entry) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(entry)),
 )
 
-const invokePattern = /\binvoke(?:<[^;\n(]+>)?\(\s*['"]([^'"]+)['"]/g
+const invokePattern = /\b(?:invoke|nativeInvoke)(?:<[^;\n(]+>)?\(\s*['"]([^'"]+)['"]/g
 const invoked = new Map()
 for (const file of walk(bridgeRoot)) {
   const source = fs.readFileSync(file, 'utf8')
