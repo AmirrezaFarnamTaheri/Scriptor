@@ -64,10 +64,10 @@ C4Container
 | Indexer | Rebuildable SQLite WAL/FTS5 cache; FTS5 body snippets and correctly aligned BM25 weights. |
 | Git service | System-git execution is noninteractive; desktop mutations serialize through application state; reusable queue is bounded. |
 | Export runner | Explicit export profiles and local process boundaries; external tools are not the vault authority. |
-| Publish runner | Renderer selects only from a server-derived plan; apply recomputes eligibility/hash, writes atomically and deletes only managed fresh orphans. |
+| Publish runner | Renderer selects only from a publish-runner-derived plan; apply recomputes eligibility/hash, writes atomically and deletes only managed fresh orphans. |
 | Canvas engine | Local canvas state and spatial operations; no independent network authority. |
 | System bridge | Keychain/process/OS boundary with redaction, allowlists, time/output bounds and cancellation. |
-| Daemon + IPC | Same-user authenticated local transport, nonce on production connections, bounded frames/queues and resynchronizing event delivery. |
+| Daemon + IPC | Same-user authenticated local transport, per-endpoint nonce on every request and event subscription, bounded frames/queues and resynchronizing event delivery. |
 | CLI/TUI | Terminal adapter; machine-readable output where supported and no hidden direct-data bypass for daemon-routed commands. |
 
 ## Persistence
