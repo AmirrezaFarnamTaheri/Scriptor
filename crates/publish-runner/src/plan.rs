@@ -207,16 +207,14 @@ fn scan_candidates(
         let absolute = root.resolve_relative(&rel)?;
         if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
             // Keep the metadata size bound: oversized notes are never fully read.
-            // When opt-in is required, inspect only a bounded frontmatter prefix so
-            // an unrelated private note cannot deny publishing the rest of the vault.
-            if options.require_frontmatter_opt_in
-                && !frontmatter_has_publish_true(&read_prefix_lossy(
-                    &absolute,
-                    FRONTMATTER_PROBE_BYTES,
-                    rel_str,
-                )?)
-            {
-                continue;
+            // Skip only when the bounded probe proves the note has complete
+            // frontmatter without opt-in. An unterminated probe is indeterminate,
+            // so fail closed with NoteTooLarge instead of silently orphaning it.
+            if options.require_frontmatter_opt_in {
+                let probe = read_prefix_lossy(&absolute, FRONTMATTER_PROBE_BYTES, rel_str)?;
+                if matches!(frontmatter_probe_publish_true(&probe), Some(false)) {
+                    continue;
+                }
             }
             return Err(PublishError::NoteTooLarge {
                 path: rel_str.to_string(),
@@ -272,6 +270,29 @@ fn read_prefix_lossy(path: &Path, limit: usize, rel: &str) -> Result<String, Pub
 }
 
 // ── Frontmatter gate ──────────────────────────────────────────────────────────
+
+/// Returns whether a bounded prefix conclusively contains a publish opt-in.
+/// `None` means the prefix began frontmatter but did not include its terminator,
+/// so the caller cannot safely classify the note as private.
+fn frontmatter_probe_publish_true(text: &str) -> Option<bool> {
+    let mut lines = text.lines();
+    if lines.next().map(str::trim) != Some("---") {
+        return Some(false);
+    }
+
+    let mut publish_true = false;
+    for line in lines {
+        let trimmed = line.trim();
+        if trimmed == "---" || trimmed == "..." {
+            return Some(publish_true);
+        }
+        if trimmed == "publish: true" {
+            publish_true = true;
+        }
+    }
+
+    None
+}
 
 /// Returns `true` iff the note's YAML frontmatter contains `publish: true`.
 ///
@@ -388,6 +409,19 @@ mod tests {
 
         let error = plan_publish(tmp.path(), &BucketState::default(), &Default::default())
             .expect_err("opted-in oversized notes must fail");
+        assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error}");
+    }
+
+    #[test]
+    fn oversized_note_with_opt_in_beyond_probe_still_fails_size_gate() {
+        let tmp = TempDir::new().unwrap();
+        let mut prefix = String::from("---\n");
+        prefix.push_str(&"x".repeat(FRONTMATTER_PROBE_BYTES));
+        prefix.push_str("\npublish: true\n---\n");
+        write_oversized_note(tmp.path(), "late-opt-in.md", &prefix);
+
+        let error = plan_publish(tmp.path(), &BucketState::default(), &Default::default())
+            .expect_err("an incomplete frontmatter probe must not be treated as private");
         assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error}");
     }
 

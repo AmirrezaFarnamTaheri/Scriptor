@@ -84,8 +84,29 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
     [activeId, collections],
   )
 
+  const executeQuery = useCallback(async (collection: SmartCollection, requestId: number) => {
+    try {
+      const started = performance.now()
+      const rows = await indexerExecuteDql(collection.query)
+      if (requestId !== requestIdRef.current) return
+      const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
+        path: row.path,
+        title: row.title,
+        inbound_links: 0,
+        outbound_links: 0,
+      }))
+      setResults(mapped)
+      const durationMs = Math.round(performance.now() - started)
+      setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${durationMs}ms.`)
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return
+      setResults([])
+      setStatus(error instanceof Error ? error.message : 'Search failed')
+    }
+  }, [])
+
   const runQuery = useCallback(
-    async (collection: SmartCollection) => {
+    (collection: SmartCollection) => {
       const requestId = ++requestIdRef.current
       if (!canQuery) {
         setStatus('Open a vault in the desktop app to run DQL collections.')
@@ -93,32 +114,16 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
         return
       }
       setStatus(`Running "${collection.label}"…`)
-      try {
-        const started = performance.now()
-        const rows = await indexerExecuteDql(collection.query)
-        if (requestId !== requestIdRef.current) return
-        const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
-          path: row.path,
-          title: row.title,
-          inbound_links: 0,
-          outbound_links: 0,
-        }))
-        setResults(mapped)
-        const durationMs = Math.round(performance.now() - started)
-        setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${durationMs}ms.`)
-      } catch (error) {
-        if (requestId !== requestIdRef.current) return
-        setResults([])
-        setStatus(error instanceof Error ? error.message : 'Search failed')
-      }
+      void executeQuery(collection, requestId)
     },
-    [canQuery],
+    [canQuery, executeQuery],
   )
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current
     if (!canQuery || !activeCollection) return
-    void runQuery(activeCollection)
-  }, [activeCollection, canQuery, runQuery])
+    void executeQuery(activeCollection, requestId)
+  }, [activeCollection, canQuery, executeQuery])
 
   const addCollection = () => {
     const label = draftLabel.trim()
@@ -189,7 +194,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
             <>
               <div className="smart-collections-toolbar">
                 <code className="smart-collection-query">{activeCollection.query}</code>
-                <button type="button" className="toolbar-button" onClick={() => void runQuery(activeCollection)}>
+                <button type="button" className="toolbar-button" onClick={() => runQuery(activeCollection)}>
                   <Play size={14} />
                   Refresh
                 </button>
