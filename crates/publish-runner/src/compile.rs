@@ -14,6 +14,7 @@ use scriptor_vault::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_io::{BoundedRead, read_bounded};
 use crate::error::PublishError;
 use crate::plan::{
     BucketState, PublishCandidate, PublishPlanOptions, SEALED_PREFIX, frontmatter_has_publish_true,
@@ -100,16 +101,15 @@ impl LocalDirSink {
                 reason: "managed publish output is not a regular file".into(),
             });
         }
-        if metadata.len() > MAX_INDEXED_NOTE_BYTES {
-            return Err(PublishError::InvalidSelection {
-                path: rel_path.to_string(),
-                reason: format!("managed publish output exceeds {MAX_INDEXED_NOTE_BYTES} bytes"),
-            });
-        }
-        let bytes = std::fs::read(&path).map_err(|source| PublishError::Io {
-            path: rel_path.to_string(),
-            source,
-        })?;
+        let bytes = match read_bounded(&path, rel_path, MAX_INDEXED_NOTE_BYTES)? {
+            BoundedRead::Bytes(bytes) => bytes,
+            BoundedRead::TooLarge { .. } => {
+                return Err(PublishError::InvalidSelection {
+                    path: rel_path.to_string(),
+                    reason: format!("managed publish output exceeds {MAX_INDEXED_NOTE_BYTES} bytes"),
+                });
+            }
+        };
         Ok(Some(content_hash_bytes(&bytes)))
     }
 
@@ -277,10 +277,16 @@ fn prepare_apply(
         }
 
         let source = root.resolve_relative(&relative)?;
-        let bytes = std::fs::read(&source).map_err(|source| PublishError::Io {
-            path: rel.to_string(),
-            source,
-        })?;
+        let bytes = match read_bounded(&source, rel, MAX_INDEXED_NOTE_BYTES)? {
+            BoundedRead::Bytes(bytes) => bytes,
+            BoundedRead::TooLarge { observed_bytes } => {
+                return Err(PublishError::NoteTooLarge {
+                    path: rel.to_string(),
+                    size_bytes: observed_bytes,
+                    limit_bytes: MAX_INDEXED_NOTE_BYTES,
+                });
+            }
+        };
         let current_hash = content_hash_bytes(&bytes);
         if current_hash != reviewed.content_hash {
             return Err(PublishError::StalePlan {
@@ -566,6 +572,37 @@ mod tests {
         let error = publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default())
             .expect_err("stale reviewed hashes must fail");
         assert!(matches!(error, PublishError::StalePlan { .. }));
+    }
+
+    #[test]
+    fn apply_rejects_note_that_grows_beyond_limit_after_review() {
+        let vault = TempDir::new().unwrap();
+        let out = TempDir::new().unwrap();
+        vault_note(vault.path(), "note.md", &opted_in("reviewed"));
+        let candidate = reviewed_candidate(vault.path(), "note.md");
+        let note = fs::OpenOptions::new()
+            .write(true)
+            .open(vault.path().join("note.md"))
+            .unwrap();
+        note.set_len(MAX_INDEXED_NOTE_BYTES + 1).unwrap();
+        drop(note);
+        let sink = LocalDirSink::new(out.path()).unwrap();
+        let input = PublishApplyInput {
+            to_write: vec![candidate],
+            to_delete: vec![],
+        };
+
+        let error = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &BucketState::default(),
+            &Default::default(),
+        )
+        .expect_err("a note that grows past the publish limit after review must fail");
+
+        assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error:?}");
+        assert!(!out.path().join("note.md").exists());
     }
 
     #[test]

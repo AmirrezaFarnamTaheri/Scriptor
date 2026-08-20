@@ -10,6 +10,7 @@ use scriptor_vault::{
     MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, VaultRoot, atomic_write, content_hash_bytes,
 };
 
+use crate::bounded_io::{BoundedRead, read_bounded};
 use crate::compile::publish_apply_with_state_persistence;
 use crate::{
     BucketState, LocalDirSink, PublishApplyInput, PublishApplyOutput, PublishError, PublishPlan,
@@ -119,32 +120,44 @@ fn validate_disjoint(
     Ok((vault, output))
 }
 
-fn read_state(output: &VaultRoot) -> Result<BucketState, PublishError> {
+fn state_path(output: &VaultRoot) -> Result<PathBuf, PublishError> {
+    let lexical = output.root().join(PUBLISH_STATE_FILE);
+    match std::fs::symlink_metadata(&lexical) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || !metadata.file_type().is_file() {
+                return Err(PublishError::InvalidSelection {
+                    path: PUBLISH_STATE_FILE.into(),
+                    reason: "managed publish state must be a regular file".into(),
+                });
+            }
+        }
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(PublishError::Io {
+                path: PUBLISH_STATE_FILE.into(),
+                source,
+            });
+        }
+    }
+
     let relative = RelativeVaultPath::parse(PUBLISH_STATE_FILE)?;
-    let path = output.resolve_relative(&relative)?;
+    Ok(output.resolve_relative(&relative)?)
+}
+
+fn read_state(output: &VaultRoot) -> Result<BucketState, PublishError> {
+    let path = state_path(output)?;
     if !path.exists() {
         return Ok(BucketState::default());
     }
-    let metadata = std::fs::symlink_metadata(&path).map_err(|source| PublishError::Io {
-        path: PUBLISH_STATE_FILE.into(),
-        source,
-    })?;
-    if metadata.file_type().is_symlink() || !metadata.file_type().is_file() {
-        return Err(PublishError::InvalidSelection {
-            path: PUBLISH_STATE_FILE.into(),
-            reason: "managed publish state must be a regular file".into(),
-        });
-    }
-    if metadata.len() > MAX_STATE_BYTES {
-        return Err(PublishError::InvalidSelection {
-            path: PUBLISH_STATE_FILE.into(),
-            reason: format!("managed publish state exceeds {MAX_STATE_BYTES} bytes"),
-        });
-    }
-    let bytes = std::fs::read(&path).map_err(|source| PublishError::Io {
-        path: PUBLISH_STATE_FILE.into(),
-        source,
-    })?;
+    let bytes = match read_bounded(&path, PUBLISH_STATE_FILE, MAX_STATE_BYTES)? {
+        BoundedRead::Bytes(bytes) => bytes,
+        BoundedRead::TooLarge { .. } => {
+            return Err(PublishError::InvalidSelection {
+                path: PUBLISH_STATE_FILE.into(),
+                reason: format!("managed publish state exceeds {MAX_STATE_BYTES} bytes"),
+            });
+        }
+    };
     Ok(serde_json::from_slice(&bytes)?)
 }
 
@@ -162,27 +175,35 @@ fn output_drift(
             "src/content/docs/{}",
             source_rel.as_str()
         ))?;
-        let path = output.resolve_relative(&docs_rel)?;
-        if !path.exists() {
-            drifted.insert(rel.clone());
-            continue;
+        let mut lexical = output.root().to_path_buf();
+        for component in docs_rel.as_str().split('/') {
+            lexical.push(component);
         }
-        let metadata = std::fs::symlink_metadata(&path).map_err(|source| PublishError::Io {
-            path: docs_rel.to_string(),
-            source,
-        })?;
+        let metadata = match std::fs::symlink_metadata(&lexical) {
+            Ok(metadata) => metadata,
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                drifted.insert(rel.clone());
+                continue;
+            }
+            Err(source) => {
+                return Err(PublishError::Io {
+                    path: docs_rel.to_string(),
+                    source,
+                });
+            }
+        };
         if metadata.file_type().is_symlink() || !metadata.file_type().is_file() {
             drifted.insert(rel.clone());
             continue;
         }
-        if metadata.len() > MAX_INDEXED_NOTE_BYTES {
-            drifted.insert(rel.clone());
-            continue;
-        }
-        let bytes = std::fs::read(&path).map_err(|source| PublishError::Io {
-            path: docs_rel.to_string(),
-            source,
-        })?;
+        let path = output.resolve_relative(&docs_rel)?;
+        let bytes = match read_bounded(&path, docs_rel.as_str(), MAX_INDEXED_NOTE_BYTES)? {
+            BoundedRead::Bytes(bytes) => bytes,
+            BoundedRead::TooLarge { .. } => {
+                drifted.insert(rel.clone());
+                continue;
+            }
+        };
         if content_hash_bytes(&bytes) != *expected_hash {
             drifted.insert(rel.clone());
         }
@@ -214,12 +235,18 @@ impl StarlightSite {
     /// publish tree inside the vault would be re-scanned on the next plan; a
     /// vault inside the output could be deleted or overwritten by site work.
     pub fn open(vault_root: &Path, output_root: &Path) -> Result<Self, PublishError> {
-        let (_, canonical_output) = validate_disjoint(vault_root, output_root)?;
+        let (vault, canonical_output) = validate_disjoint(vault_root, output_root)?;
         std::fs::create_dir_all(&canonical_output).map_err(|source| PublishError::Io {
             path: canonical_output.display().to_string(),
             source,
         })?;
         let output = VaultRoot::open(&canonical_output)?;
+        if output.root().starts_with(vault.root()) || vault.root().starts_with(output.root()) {
+            return Err(PublishError::UnsafeOutputRoot {
+                vault: vault.root().display().to_string(),
+                output: output.root().display().to_string(),
+            });
+        }
 
         let docs_rel = RelativeVaultPath::parse("src/content/docs")?;
         let docs_root = output.resolve_relative(&docs_rel)?;
@@ -228,6 +255,12 @@ impl StarlightSite {
             source,
         })?;
         let docs_sink = LocalDirSink::new(docs_root)?;
+        if !docs_sink.root().starts_with(output.root()) {
+            return Err(PublishError::InvalidSelection {
+                path: "src/content/docs".into(),
+                reason: "managed docs directory escapes the publish output root".into(),
+            });
+        }
 
         Ok(Self {
             output_root: output,
@@ -248,10 +281,15 @@ impl StarlightSite {
     }
 
     pub fn save_state(&self, state: &BucketState) -> Result<(), PublishError> {
-        let relative = RelativeVaultPath::parse(PUBLISH_STATE_FILE)?;
-        let path = self.output_root.resolve_relative(&relative)?;
+        let path = state_path(&self.output_root)?;
         let mut bytes = serde_json::to_vec_pretty(state)?;
         bytes.push(b'\n');
+        if bytes.len() as u64 > MAX_STATE_BYTES {
+            return Err(PublishError::InvalidSelection {
+                path: PUBLISH_STATE_FILE.into(),
+                reason: format!("managed publish state exceeds {MAX_STATE_BYTES} bytes"),
+            });
+        }
         atomic_write(&path, &bytes)?;
         Ok(())
     }
@@ -347,6 +385,64 @@ mod tests {
         let output = vault.path().join("site");
         let error = StarlightSite::open(vault.path(), &output).err().unwrap();
         assert!(matches!(error, PublishError::UnsafeOutputRoot { .. }));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn docs_symlink_may_not_escape_site_output() {
+        use std::os::unix::fs::symlink;
+
+        let vault = TempDir::new().unwrap();
+        let output = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        std::fs::create_dir_all(output.path().join("src/content")).unwrap();
+        symlink(outside.path(), output.path().join("src/content/docs")).unwrap();
+
+        let error = StarlightSite::open(vault.path(), output.path())
+            .err()
+            .expect("docs symlinks that escape output must be rejected");
+        assert!(
+            matches!(error, PublishError::InvalidSelection { .. } | PublishError::Vault(_)),
+            "unexpected error: {error:?}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn state_symlink_is_rejected_without_overwriting_its_target() {
+        use std::os::unix::fs::symlink;
+
+        let vault = TempDir::new().unwrap();
+        let output = TempDir::new().unwrap();
+        let outside = TempDir::new().unwrap();
+        let target = outside.path().join("state-target.json");
+        std::fs::write(&target, b"keep me").unwrap();
+        symlink(&target, output.path().join(PUBLISH_STATE_FILE)).unwrap();
+
+        let site = StarlightSite::open(vault.path(), output.path()).unwrap();
+        let error = site
+            .save_state(&BucketState::default())
+            .expect_err("publish state symlinks must not be followed");
+        assert!(matches!(error, PublishError::InvalidSelection { .. }));
+        assert_eq!(std::fs::read(&target).unwrap(), b"keep me");
+    }
+
+    #[test]
+    fn save_state_never_writes_a_state_file_that_load_state_would_reject() {
+        let vault = TempDir::new().unwrap();
+        let output = TempDir::new().unwrap();
+        let site = StarlightSite::open(vault.path(), output.path()).unwrap();
+        let mut state = BucketState::default();
+        state
+            .entries
+            .insert("x".repeat(MAX_STATE_BYTES as usize), "hash".into());
+
+        let error = site
+            .save_state(&state)
+            .expect_err("oversized state must be rejected before it is persisted");
+        assert!(matches!(error, PublishError::InvalidSelection { .. }));
+        assert!(!output.path().join(PUBLISH_STATE_FILE).exists());
+        assert!(site.load_state().unwrap().entries.is_empty());
     }
 
     #[test]

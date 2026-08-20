@@ -7,6 +7,8 @@
 //! 3. Pass the user-approved subset to [`compile::publish_apply`].
 //! 4. Persist [`compile::PublishApplyOutput::new_state`] as the new bucket state.
 
+mod bounded_io;
+
 pub mod compile;
 pub mod error;
 pub mod local_site;

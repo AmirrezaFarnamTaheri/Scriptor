@@ -116,6 +116,8 @@ export function PublishDiffView({
     () => [...plan.new_items, ...plan.changed].map((c) => c.rel_path),
     [plan],
   )
+  const actionablePaths = useMemo(() => new Set(allActionable), [allActionable])
+  const orphanPaths = useMemo(() => new Set(plan.orphaned), [plan.orphaned])
 
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(
     () => new Set(allActionable),
@@ -143,12 +145,23 @@ export function PublishDiffView({
     })
   }, [])
 
-  const handleApply = useCallback(() => {
-    onApply(Array.from(selectedPaths), Array.from(deleteOrphans))
-  }, [onApply, selectedPaths, deleteOrphans])
+  const selectedCurrentPaths = useMemo(
+    () => Array.from(selectedPaths).filter((path) => actionablePaths.has(path)),
+    [actionablePaths, selectedPaths],
+  )
+  const selectedCurrentOrphans = useMemo(
+    () => Array.from(deleteOrphans).filter((path) => orphanPaths.has(path)),
+    [deleteOrphans, orphanPaths],
+  )
 
-  const hasAnything =
-    selectedPaths.size > 0 || deleteOrphans.size > 0
+  const handleApply = useCallback(() => {
+    // A refreshed plan may replace the prop without remounting this view. Never
+    // carry invisible selections from the previous review into the new apply.
+    onApply(selectedCurrentPaths, selectedCurrentOrphans)
+  }, [onApply, selectedCurrentPaths, selectedCurrentOrphans])
+
+  const selectedCount = selectedCurrentPaths.length + selectedCurrentOrphans.length
+  const hasAnything = selectedCount > 0
 
   const isClean = plan.new_items.length === 0
     && plan.changed.length === 0
@@ -285,7 +298,7 @@ export function PublishDiffView({
           disabled={applying || !hasAnything || isClean}
           aria-busy={applying}
         >
-          {applying ? 'Applying…' : `Apply (${selectedPaths.size + deleteOrphans.size})`}
+          {applying ? 'Applying…' : `Apply (${selectedCount})`}
         </button>
       </div>
     </section>

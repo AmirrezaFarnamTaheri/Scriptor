@@ -34,6 +34,7 @@ use scriptor_vault::{
 };
 use serde::{Deserialize, Serialize};
 
+use crate::bounded_io::{BoundedRead, read_bounded};
 use crate::error::PublishError;
 
 // ── Sealed-content marker (I-3) ───────────────────────────────────────────────
@@ -205,28 +206,21 @@ fn scan_candidates(
         }
 
         let absolute = root.resolve_relative(&rel)?;
-        if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
-            // Keep the metadata size bound: oversized notes are never fully read.
-            // Skip only when the bounded probe proves the note has complete
-            // frontmatter without opt-in. An unterminated probe is indeterminate,
-            // so fail closed with NoteTooLarge instead of silently orphaning it.
-            if options.require_frontmatter_opt_in {
-                let probe = read_prefix_lossy(&absolute, FRONTMATTER_PROBE_BYTES, rel_str)?;
-                if matches!(frontmatter_probe_publish_true(&probe), Some(false)) {
-                    continue;
-                }
-            }
-            return Err(PublishError::NoteTooLarge {
-                path: rel_str.to_string(),
-                size_bytes: entry.size_bytes,
-                limit_bytes: MAX_INDEXED_NOTE_BYTES,
-            });
+        if entry.size_bytes > MAX_INDEXED_NOTE_BYTES
+            && reject_or_skip_oversized_note(&absolute, rel_str, entry.size_bytes, options)?
+        {
+            continue;
         }
 
-        let bytes = std::fs::read(&absolute).map_err(|source| PublishError::Io {
-            path: rel_str.to_string(),
-            source,
-        })?;
+        let bytes = match read_bounded(&absolute, rel_str, MAX_INDEXED_NOTE_BYTES)? {
+            BoundedRead::Bytes(bytes) => bytes,
+            BoundedRead::TooLarge { observed_bytes } => {
+                if reject_or_skip_oversized_note(&absolute, rel_str, observed_bytes, options)? {
+                    continue;
+                }
+                unreachable!("oversized publish notes are either skipped or rejected")
+            }
+        };
 
         // Apply the opt-in gate before sealed-content enforcement so a private,
         // non-published sealed note cannot deny publication of unrelated notes.
@@ -252,6 +246,30 @@ fn scan_candidates(
     }
 
     Ok(out)
+}
+
+fn reject_or_skip_oversized_note(
+    path: &Path,
+    rel: &str,
+    size_bytes: u64,
+    options: &PublishPlanOptions,
+) -> Result<bool, PublishError> {
+    // Keep the size bound: oversized notes are never fully read. Skip only
+    // when the bounded probe proves the note has complete frontmatter without
+    // opt-in. An unterminated probe is indeterminate, so fail closed with
+    // NoteTooLarge instead of silently orphaning a potentially public note.
+    if options.require_frontmatter_opt_in {
+        let probe = read_prefix_lossy(path, FRONTMATTER_PROBE_BYTES, rel)?;
+        if matches!(frontmatter_probe_publish_true(&probe), Some(false)) {
+            return Ok(true);
+        }
+    }
+
+    Err(PublishError::NoteTooLarge {
+        path: rel.to_string(),
+        size_bytes,
+        limit_bytes: MAX_INDEXED_NOTE_BYTES,
+    })
 }
 
 fn read_prefix_lossy(path: &Path, limit: usize, rel: &str) -> Result<String, PublishError> {
@@ -307,16 +325,18 @@ pub(crate) fn frontmatter_has_publish_true(text: &str) -> bool {
         return false;
     }
 
+    let mut publish_true = false;
     for line in lines {
         let trimmed = line.trim();
         if trimmed == "---" || trimmed == "..." {
-            break; // end of frontmatter
+            return publish_true; // end of complete frontmatter
         }
         if trimmed == "publish: true" {
-            return true;
+            publish_true = true;
         }
     }
 
+    // Unterminated frontmatter is malformed and must never opt a note in.
     false
 }
 
@@ -389,6 +409,20 @@ mod tests {
         assert_eq!(plan.new_items.len(), 2, "only opted-in notes: {plan:?}");
         assert!(plan.changed.is_empty());
         assert!(plan.orphaned.is_empty());
+    }
+
+    #[test]
+    fn unterminated_frontmatter_does_not_opt_note_into_publish() {
+        let tmp = TempDir::new().unwrap();
+        write_note(
+            tmp.path(),
+            "private.md",
+            "---\npublish: true\nprivate content without terminator\n",
+        );
+
+        let plan = plan_publish(tmp.path(), &BucketState::default(), &Default::default()).unwrap();
+        assert!(plan.new_items.is_empty());
+        assert!(plan.changed.is_empty());
     }
 
     #[test]
@@ -513,6 +547,9 @@ mod tests {
             "---\npublish: yes\n---\nbody\n"
         ));
         assert!(!frontmatter_has_publish_true("no frontmatter at all\n"));
+        assert!(!frontmatter_has_publish_true(
+            "---\npublish: true\nprivate content without terminator\n"
+        ));
     }
 
     #[test]
