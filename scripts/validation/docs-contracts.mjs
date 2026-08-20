@@ -29,9 +29,17 @@ const releaseTruthDocs = ['README.md', 'PRODUCT.md', 'SECURITY.md'];
 const releaseTruth = Object.fromEntries(
   releaseTruthDocs.map((rel) => [rel, fs.readFileSync(path.join(root, rel), 'utf8')]),
 );
+const requiredReleaseClaims = [
+  ['unsigned policy', /\bunsigned\b/i],
+  ['checksums', /\bchecksums?\b/i],
+  ['CycloneDX SBOM', /\bCycloneDX\b[\s\S]{0,80}\bSBOMs?\b|\bSBOMs?\b[\s\S]{0,80}\bCycloneDX\b/i],
+  ['release receipt', /\brelease receipts?\b|\breceipts?\b/i],
+  ['source identity', /\bsource identity\b|\bsource-attributable\b/i],
+  ['provenance attestation', /\battest(?:ation|ations|ed)?\b/i],
+];
 for (const [rel, source] of Object.entries(releaseTruth)) {
-  if (!/unsigned/i.test(source) || !/attest/i.test(source)) {
-    failures.push(`${rel}: must state the unsigned-but-attested upstream release policy`);
+  for (const [claim, pattern] of requiredReleaseClaims) {
+    if (!pattern.test(source)) failures.push(`${rel}: missing required release-evidence claim (${claim})`);
   }
 }
 const contradictoryReleaseClaims = [
@@ -41,6 +49,10 @@ const contradictoryReleaseClaims = [
   /Production artifacts require platform signatures/i,
   /unsigned production release channels\./i,
   /reproducible, signed, attributable releases/i,
+  /\b(?:installers?|artifacts?|packages?|bundles?)\s+(?:are|is|must be|required to be|require)\s+(?:platform-|code-)?signed\b/i,
+  /\b(?:installers?|artifacts?|packages?|bundles?)\s+(?:are|is|must be|required to be|require)[^.\n]{0,80}\bnotarized\b/i,
+  /\bAuthenticode-signed\b/i,
+  /\bDeveloper ID-signed\b/i,
 ];
 for (const [rel, source] of Object.entries(releaseTruth)) {
   for (const pattern of contradictoryReleaseClaims) {
