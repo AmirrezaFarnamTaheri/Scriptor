@@ -42,7 +42,13 @@ describe('ZoteroConnector', () => {
   })
 
   it('does not retain invalid credentials', async () => {
-    const connector = new ZoteroConnector(async () => jsonResponse({}, 403))
+    let authenticated = true
+    const connector = new ZoteroConnector(async () =>
+      authenticated ? jsonResponse({ userID: 42 }) : jsonResponse({}, 403),
+    )
+    await connector.connect('valid-key')
+    authenticated = false
+
     await assert.rejects(() => connector.connect('bad-key'), /authentication failed/)
     await assert.rejects(() => connector.listItems(), /Not connected/)
   })
