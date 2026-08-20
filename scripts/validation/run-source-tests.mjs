@@ -13,7 +13,7 @@ const ignoredDirectories = new Set([
   'test-results',
   'playwright-report',
 ])
-const testPattern = /\.test\.(?:ts|tsx|js|mjs)$/
+const testPattern = /\.test\.(?:ts|js|mjs)$/
 
 function collect(directory, output) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
