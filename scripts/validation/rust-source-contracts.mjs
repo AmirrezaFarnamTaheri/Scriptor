@@ -262,6 +262,19 @@ for (const id of processEntries.keys()) {
   if (!usedProcessEntries.has(id)) failures.push(`unused process launch inventory entry: ${id}`)
 }
 
+{
+  const search = fs.readFileSync(path.join(root, 'crates/indexer/src/search.rs'), 'utf8')
+  const dql = fs.readFileSync(path.join(root, 'crates/indexer/src/dql.rs'), 'utf8')
+  for (const [name, source] of [['search.rs', search], ['dql.rs', dql]]) {
+    if (!source.includes("snippet(note_fts, 4, '[[', ']]', '...', 32)")) {
+      failures.push(`crates/indexer/src/${name}: FTS snippets must read the body column (index 4)`)
+    }
+    if (!source.includes('bm25(note_fts, 0.0, 10.0, 5.0, 3.0, 1.0)')) {
+      failures.push(`crates/indexer/src/${name}: BM25 weights must include the UNINDEXED note_id column`)
+    }
+  }
+}
+
 if (failures.length) {
   console.error(failures.join('\n'))
   process.exit(1)

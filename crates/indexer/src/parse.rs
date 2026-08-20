@@ -47,6 +47,10 @@ pub struct ParsedNote {
     pub archived: bool,
     #[serde(default)]
     pub template_body: Option<String>,
+    /// Body text after stripping YAML frontmatter. Use this for FTS indexing
+    /// to avoid exposing frontmatter content (e.g. tag values) in snippets.
+    #[serde(default)]
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -83,6 +87,7 @@ pub fn parse_note_markdown(path: &str, markdown: &str) -> ParsedNote {
         organized,
         archived,
         template_body,
+        body,
     }
 }
 
@@ -95,7 +100,7 @@ fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
     if lines.len() < 2 {
         return (
             String::new(),
-            markdown.to_string(),
+            String::new(),
             false,
             Some("unterminated frontmatter".into()),
         );
@@ -112,7 +117,7 @@ fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
     let Some(end_index) = end_index else {
         return (
             String::new(),
-            markdown.to_string(),
+            String::new(),
             false,
             Some("unterminated frontmatter".into()),
         );
@@ -347,5 +352,17 @@ mod tests {
         let markdown = "---\naliases: [Friendly Name, Alt]\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
         assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt"]);
+    }
+
+    #[test]
+    fn unterminated_frontmatter_does_not_expose_raw_markdown_as_body() {
+        let markdown = "---\nsecret: do-not-index\n# Still frontmatter\n";
+        let parsed = parse_note_markdown("Private.md", markdown);
+
+        assert!(!parsed.frontmatter_valid);
+        assert_eq!(parsed.frontmatter_error.as_deref(), Some("unterminated frontmatter"));
+        assert!(parsed.body.is_empty());
+        assert!(parsed.tags.is_empty());
+        assert!(parsed.headings.is_empty());
     }
 }

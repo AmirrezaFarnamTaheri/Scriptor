@@ -491,7 +491,7 @@ export interface PublishCandidate {
 
 /**
  * Four-bucket publish diff. Mirrors Rust `PublishPlan`.
- * Returned by `plan_publish_cmd` before any write occurs.
+ * Returned by `vault_publish_plan_starlight` before any write occurs.
  */
 export interface PublishPlan {
   /** Present in vault, absent from bucket → will be uploaded. */
@@ -504,18 +504,15 @@ export interface PublishPlan {
   orphaned: string[]
 }
 
-/**
- * Request to apply a previously reviewed publish plan.
- * The user must have seen the plan before this is issued.
- */
-export interface PublishApplyInput {
-  /** Absolute path to the vault root. */
-  vault_root: string
-  /** The plan the user reviewed and approved. */
+export interface StarlightPublishPlanOutput {
+  output: string
+  docs_dir: string
   plan: PublishPlan
-  /**
-   * Orphaned paths the user explicitly checked for deletion.
-   * Empty means "leave orphans in place".
-   */
-  delete_orphans: string[]
+}
+
+export interface StarlightPublishApplyOutput {
+  output: string
+  docs_dir: string
+  written: string[]
+  deleted: string[]
 }

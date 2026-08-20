@@ -14,6 +14,7 @@ export type SensitiveOperation =
   | 'git_pull'
   | 'git_push'
   | 'google_calendar_auth'
+  | 'google_calendar_disconnect'
   | 'google_task_write'
   | 'import_vault'
   | 'keychain_delete'

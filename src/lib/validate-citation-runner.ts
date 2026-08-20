@@ -60,9 +60,10 @@ test('builds CSL JSON items from bibliography rows', () => {
 test('validates citations plugin capability manifest structure', () => {
   assert.equal(citationsPluginManifest.id, CITATION_PLUGIN_ID)
   assert.equal(citationsPluginManifest.capabilityId, CITATION_PLUGIN_CAPABILITY_ID)
-  assert.equal(citationsPluginManifest.rustFeatureGate, 'scriptor-citations-engine')
+  assert.equal(citationsPluginManifest.rustFeatureGate, 'scriptor-indexer')
   assert.ok(citationsPluginManifest.contributes?.inspectorWidgets?.some((w) => w.id === 'citation-inspector'))
   assert.ok(citationsPluginManifest.contributes?.commands?.some((c) => c.commandId === 'citations.insert'))
+  assert.equal(citationsPluginManifest.contributes?.commands?.some((c) => c.commandId === 'citations.sync'), false)
 })
 
 test('checks citations plugin enablement correctly', () => {

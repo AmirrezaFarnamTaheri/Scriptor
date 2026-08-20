@@ -36,7 +36,7 @@ Scriptor is local-first. It does not require telemetry. Diagnostics are opt-in a
 
 ## Release integrity
 
-Production artifacts require platform signatures, notarization where applicable, SHA-256 checksums, CycloneDX SBOM, immutable release receipt, and GitHub provenance attestations. Verification instructions: [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md).
+Official upstream production installers are intentionally unsigned. Their trust records explicitly report platform signing and notarization as absent. Production publication instead requires an explicit per-target trust-status record, SHA-256 checksums, CycloneDX SBOM, immutable release receipt, exact source identity, and GitHub provenance attestations. Verification instructions: [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md).
 The production go/no-go sequence is [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md); the current evidence vocabulary and unverified areas are recorded in [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
 ## Dependency and CI policy

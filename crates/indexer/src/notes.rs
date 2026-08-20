@@ -86,7 +86,7 @@ pub fn upsert_note(
             metadata.title,
             headings_text,
             tags_text,
-            markdown
+            parsed.body
         ],
     )?;
     tx.commit()?;
@@ -104,16 +104,35 @@ pub fn note_hash(cache: &IndexCache, note_id: &str) -> Result<Option<String>, In
     Ok(None)
 }
 
+fn note_has_fts_row(cache: &IndexCache, note_id: &str) -> Result<bool, IndexerError> {
+    let conn = cache.connection()?;
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM note_fts WHERE note_id = ?1",
+        params![note_id],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
+}
+
 pub fn note_needs_reindex(
     cache: &IndexCache,
     metadata: &NoteMetadata,
     markdown: &str,
 ) -> Result<bool, IndexerError> {
     let current_hash = content_hash(markdown);
-    Ok(match note_hash(cache, &metadata.id)? {
-        Some(previous) => previous != current_hash,
-        None => true,
-    })
+    match note_hash(cache, &metadata.id)? {
+        Some(previous) if previous == current_hash => {
+            // Sealed notes intentionally have no FTS row. Every other unchanged
+            // note must have one so schema migrations that recreate note_fts do
+            // not leave search empty while the metadata hash still looks fresh.
+            if scriptor_export_runner::sealed::contains_sealed_span(markdown.as_bytes()) {
+                Ok(false)
+            } else {
+                Ok(!note_has_fts_row(cache, &metadata.id)?)
+            }
+        }
+        Some(_) | None => Ok(true),
+    }
 }
 
 pub fn indexed_note_count(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
@@ -256,6 +275,12 @@ mod remove_tests {
         }
     }
 
+    fn metadata_for_markdown(path: &str, markdown: &str) -> NoteMetadata {
+        let mut metadata = sample_metadata(path, markdown.split_whitespace().count() as u32);
+        metadata.content_hash = content_hash(markdown);
+        metadata
+    }
+
     #[test]
     fn total_word_count_sums_indexed_notes() -> Result<(), IndexerError> {
         let dir = tempdir().expect("temp dir");
@@ -264,6 +289,23 @@ mod remove_tests {
         upsert_note(&cache, &sample_metadata("b.md", 250), "many words")?;
         assert_eq!(total_word_count(&cache, "vault-test")?, 350);
         assert_eq!(indexed_note_count(&cache, "vault-test")?, 2);
+        Ok(())
+    }
+
+    #[test]
+    fn missing_fts_row_for_unchanged_note_forces_reindex() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let markdown = "# Searchable\n\nBody text";
+        let metadata = metadata_for_markdown("searchable.md", markdown);
+        upsert_note(&cache, &metadata, markdown)?;
+        assert!(!note_needs_reindex(&cache, &metadata, markdown)?);
+
+        let conn = cache.connection()?;
+        conn.execute("DELETE FROM note_fts WHERE note_id = ?1", [&metadata.id])?;
+        drop(conn);
+
+        assert!(note_needs_reindex(&cache, &metadata, markdown)?);
         Ok(())
     }
 
@@ -279,7 +321,7 @@ mod remove_tests {
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
 
         let sealed_body = "# Title\n\nNormal paragraph.\n\n%%scriptor-sealed:hint:ciphertext%%\n";
-        let meta = sample_metadata("private.md", 5);
+        let meta = metadata_for_markdown("private.md", sealed_body);
 
         upsert_note(&cache, &meta, sealed_body)?;
 
@@ -295,6 +337,11 @@ mod remove_tests {
             |row| row.get(0),
         )?;
         assert_eq!(fts_count, 0, "sealed note must be excluded from note_fts");
+        drop(conn);
+        assert!(
+            !note_needs_reindex(&cache, &meta, sealed_body)?,
+            "missing FTS rows for sealed notes are intentional"
+        );
         Ok(())
     }
 }

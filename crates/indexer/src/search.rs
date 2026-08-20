@@ -16,7 +16,7 @@ pub struct SearchHit {
 struct SearchToken {
     term: String,
     negate: bool,
-    or_after: bool,
+    or_before: bool,
 }
 
 pub fn build_fts_query(raw: &str) -> Option<String> {
@@ -25,12 +25,17 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
         return None;
     }
 
-    let mut parts = Vec::new();
-    for (index, token) in tokens.iter().enumerate() {
+    let mut positives: Vec<(String, bool)> = Vec::new();
+    let mut negatives = Vec::new();
+    let mut pending_or = false;
+
+    for token in tokens {
         let cleaned = token.term.trim_matches('"');
         // Skip terms with no searchable content: a punctuation-only phrase
-        // tokenizes to nothing, which FTS5 rejects.
+        // tokenizes to nothing, which FTS5 rejects. Preserve a preceding OR so
+        // `alpha | ( beta` still joins the next searchable term with OR.
         if !cleaned.chars().any(char::is_alphanumeric) {
+            pending_or |= token.or_before;
             continue;
         }
 
@@ -39,29 +44,33 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
         // literally instead of being parsed as MATCH syntax. Embedded quotes
         // are escaped by doubling, per SQLite string rules.
         let quoted = format!("\"{}\"*", cleaned.replace('"', "\"\""));
-        let mut clause = if token.negate {
-            format!("NOT {quoted}")
+        if token.negate {
+            // FTS5 NOT is a binary operator, so exclusions are applied after a
+            // finite positive expression instead of ever emitting unary NOT.
+            negatives.push(quoted);
+            pending_or |= token.or_before;
         } else {
-            quoted
-        };
-
-        if index > 0 {
-            let join = if tokens[index - 1].or_after {
-                "OR"
-            } else {
-                "AND"
-            };
-            clause = format!("{join} {clause}");
+            positives.push((quoted, token.or_before || pending_or));
+            pending_or = false;
         }
-
-        parts.push(clause);
     }
 
-    if parts.is_empty() {
-        None
-    } else {
-        Some(parts.join(" "))
+    // FTS5 has no finite universe term, so a pure-negative query cannot be
+    // represented safely as MATCH syntax. Treat it like an empty query.
+    let (first, rest) = positives.split_first()?;
+    let mut query = first.0.clone();
+    for (quoted, or_before) in rest {
+        query.push_str(if *or_before { " OR " } else { " AND " });
+        query.push_str(quoted);
     }
+    if !negatives.is_empty() && positives.len() > 1 {
+        query = format!("({query})");
+    }
+    for quoted in negatives {
+        query.push_str(" NOT ");
+        query.push_str(&quoted);
+    }
+    Some(query)
 }
 
 fn compile_search_tokens(raw: &str) -> Vec<SearchToken> {
@@ -80,13 +89,8 @@ fn compile_search_tokens(raw: &str) -> Vec<SearchToken> {
             tokens.push(SearchToken {
                 term,
                 negate: *negate,
-                or_after: false,
+                or_before: *pending_or,
             });
-        }
-        if *pending_or {
-            if let Some(last) = tokens.last_mut() {
-                last.or_after = true;
-            }
             *pending_or = false;
         }
         current.clear();
@@ -128,19 +132,18 @@ pub fn search_notes(
     };
 
     let conn = cache.connection()?;
-    // v5 weighted BM25 — column order: title(10), headings(5), tags(3), body(1).
-    // `bm25()` is negated (more relevant = more negative) so ORDER BY ascending
+    // v5 FTS column order is note_id(UNINDEXED), title, headings, tags, body.
+    // FTS5 column indices and bm25() weights still include UNINDEXED columns,
+    // so note_id receives a zero weight and body is snippet column 4.
+    // `bm25()` is negated (more relevant = more negative) so ascending order
     // gives highest-relevance first.
-    // snippet() column-index 3 = body (0=note_id UNINDEXED, 1=title, 2=headings, 3=tags, 4=body
-    // — but note_id is UNINDEXED so FTS column indices start at 0 for title).
-    // Correct snippet column: title=0, headings=1, tags=2, body=3.
     let mut statement = conn.prepare(
         "SELECT note_fts.note_id, notes.path, notes.title,
-                snippet(note_fts, 3, '[[', ']]', '...', 32) AS snippet
+                snippet(note_fts, 4, '[[', ']]', '...', 32) AS snippet
          FROM note_fts
          JOIN notes ON notes.id = note_fts.note_id
          WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
-         ORDER BY bm25(note_fts, 10.0, 5.0, 3.0, 1.0)
+         ORDER BY bm25(note_fts, 0.0, 10.0, 5.0, 3.0, 1.0)
          LIMIT ?3",
     )?;
 
@@ -175,8 +178,17 @@ mod tests {
             Some("\"alpha\"* OR \"beta\"*".into())
         );
         assert_eq!(
+            build_fts_query("alpha|beta"),
+            Some("\"alpha\"* OR \"beta\"*".into())
+        );
+        assert_eq!(
             build_fts_query("!draft published"),
-            Some("NOT \"draft\"* AND \"published\"*".into())
+            Some("\"published\"* NOT \"draft\"*".into())
+        );
+        assert_eq!(build_fts_query("!draft"), None);
+        assert_eq!(
+            build_fts_query("!draft alpha | beta"),
+            Some("(\"alpha\"* OR \"beta\"*) NOT \"draft\"*".into())
         );
     }
 
@@ -230,6 +242,37 @@ mod tests {
     }
 
     #[test]
+    fn leading_negation_executes_as_a_binary_fts_not() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+
+        let published = RelativeVaultPath::parse("Published.md")?;
+        let published_markdown = "# Published\n\npublished release notes\n";
+        let published_metadata = metadata_from_markdown(
+            "vault-test",
+            &published,
+            published_markdown,
+            "2026-01-01T00:00:00Z".into(),
+        );
+        upsert_note(&cache, &published_metadata, published_markdown)?;
+
+        let draft = RelativeVaultPath::parse("Draft.md")?;
+        let draft_markdown = "# Draft\n\ndraft published release notes\n";
+        let draft_metadata = metadata_from_markdown(
+            "vault-test",
+            &draft,
+            draft_markdown,
+            "2026-01-01T00:00:00Z".into(),
+        );
+        upsert_note(&cache, &draft_metadata, draft_markdown)?;
+
+        let hits = search_notes(&cache, "vault-test", "!draft published", 10)?;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "Published.md");
+        Ok(())
+    }
+
+    #[test]
     fn finds_indexed_note_by_title() -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
@@ -243,6 +286,32 @@ mod tests {
         let hits = search_notes(&cache, "vault-test", "knowledge", 10)?;
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].title, "Research Plan");
+        Ok(())
+    }
+
+    #[test]
+    fn body_search_returns_a_body_snippet() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let path = RelativeVaultPath::parse("Snippet.md")?;
+        let markdown = "---\ntags: [metadata-only]\n---\n# Snippet\n\nBodyneedle lives in the prose.\n";
+        let metadata =
+            metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
+
+        upsert_note(&cache, &metadata, markdown)?;
+
+        let hits = search_notes(&cache, "vault-test", "bodyneedle", 10)?;
+        assert_eq!(hits.len(), 1);
+        assert!(hits[0].snippet.contains("[[Bodyneedle]]"), "{}", hits[0].snippet);
+        assert!(!hits[0].snippet.contains("metadata-only"));
+
+        // Frontmatter-only terms must not surface through body FTS search.
+        let frontmatter_hits = search_notes(&cache, "vault-test", "metadata-only", 10)?;
+        assert!(
+            frontmatter_hits.is_empty(),
+            "FTS body must not index frontmatter; got {} hit(s)",
+            frontmatter_hits.len()
+        );
         Ok(())
     }
 }

@@ -15,6 +15,8 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | Monaco editor | Advanced/lazy editor | `src/components/shell/EditorWorkspace.tsx` | Included, non-default |
 | Git operations/conflict UI | Supported | `crates/native-git/`, `src/components/GitPanel.tsx` | Included |
 | Export/Pandoc profiles | Supported with external-tool policy | `crates/export-runner/`, `packages/export/` | Included; Pandoc separate |
+| Citation parsing/bibliography UI | Supported, bounded | `crates/indexer/src/citations.rs`, renderer citeproc path | Included; local bibliography data, no Zotero sync claim |
+| Local Starlight publishing | Experimental | `crates/publish-runner/`, desktop plan/review/apply, CLI adapter | Local output only; source/security contracts pass, full Cargo/browser release proof still required |
 | Canvas | Supported | `crates/canvas-engine/`, `packages/canvas/` | Included |
 | Daemon IPC / CLI / TUI | Supported | `crates/daemon/`, `crates/ipc/`, `crates/cli/` | Daemon sidecar included |
 | MCP stdio tools | Supported with audit/authorization | `crates/daemon/src/mcp_stdio.rs`, `packages/mcp/` | Included |
@@ -24,6 +26,8 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | Local recovery snapshots | Supported | `commands/backup.rs` | Included |
 | External DR backups | Supported foundation; drill required per release | `commands/backup.rs` | Included |
 | Encrypted vaults | Experimental primitives only | `crates/vault/src/encryption.rs` | Not a supported vault mode |
+| Rust citation-engine prototype | Incubating | `crates/citation-engine/` | Workspace-only prototype; not composed into desktop/daemon/CLI |
+| Zotero Web API connector | Experimental / library-only | `packages/zotero-connector/` | Read-only library; not composed into the product and no shipped sync UI |
 | Local embeddings | Incubating | `crates/embeddings/` | Excluded from default workspace build |
 | Tantivy index | Evaluation | `crates/tantivy-indexer/` | Excluded from default workspace build |
 | WASM plugin host | Incubating | `crates/wasm-runtime/` | Excluded from default workspace build |

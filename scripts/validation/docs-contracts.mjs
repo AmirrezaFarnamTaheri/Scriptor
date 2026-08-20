@@ -21,5 +21,43 @@ const licenseNotice = fs.readFileSync(path.join(root, 'LICENSE'), 'utf8').slice(
 if (!licenseNotice.includes('SPDX-License-Identifier: AGPL-3.0-or-later')) failures.push('LICENSE: missing SPDX identifier');
 if (/Non-commercial use|Commercial use requires/i.test(licenseNotice)) failures.push('LICENSE: contains a restriction incompatible with the AGPL grant');
 if (!fs.existsSync(path.join(root, '.github/CODEOWNERS'))) failures.push('governance: missing .github/CODEOWNERS');
+
+// Root product/security documents must match the implemented upstream release trust policy.
+// Official GitHub Release installers are intentionally unsigned; integrity is established by
+// exact target-status records, checksums, SBOM, receipt, source identity, and GitHub attestations.
+const releaseTruthDocs = ['README.md', 'PRODUCT.md', 'SECURITY.md'];
+const releaseTruth = Object.fromEntries(
+  releaseTruthDocs.map((rel) => [rel, fs.readFileSync(path.join(root, rel), 'utf8')]),
+);
+const requiredReleaseClaims = [
+  ['unsigned policy', /\bunsigned\b/i],
+  ['checksums', /\bchecksums?\b/i],
+  ['CycloneDX SBOM', /\bCycloneDX\b[\s\S]{0,80}\bSBOMs?\b|\bSBOMs?\b[\s\S]{0,80}\bCycloneDX\b/i],
+  ['release receipt', /\brelease receipts?\b|\breceipts?\b/i],
+  ['source identity', /\bsource identity\b|\bsource-attributable\b/i],
+  ['provenance attestation', /\battest(?:ation|ations|ed)?\b/i],
+];
+for (const [rel, source] of Object.entries(releaseTruth)) {
+  for (const [claim, pattern] of requiredReleaseClaims) {
+    if (!pattern.test(source)) failures.push(`${rel}: missing required release-evidence claim (${claim})`);
+  }
+}
+const contradictoryReleaseClaims = [
+  /Windows installers are Authenticode-signed/i,
+  /macOS bundles are Developer ID-signed and notarized/i,
+  /Linux packages have detached OpenPGP signatures/i,
+  /Production artifacts require platform signatures/i,
+  /unsigned production release channels\./i,
+  /reproducible, signed, attributable releases/i,
+  /\b(?:installers?|artifacts?|packages?|bundles?)\s+(?:are|is|must be|required to be|require)\s+(?:platform-|code-)?signed\b/i,
+  /\b(?:installers?|artifacts?|packages?|bundles?)\s+(?:are|is|must be|required to be|require)[^.\n]{0,80}\bnotarized\b/i,
+  /\bAuthenticode-signed\b/i,
+  /\bDeveloper ID-signed\b/i,
+];
+for (const [rel, source] of Object.entries(releaseTruth)) {
+  for (const pattern of contradictoryReleaseClaims) {
+    if (pattern.test(source)) failures.push(`${rel}: contradicts the upstream unsigned release policy (${pattern})`);
+  }
+}
 if (failures.length) { console.error(failures.join('\n')); process.exit(1); }
 console.log(`Documentation contracts OK: ${docs.length} required documents and referenced repository paths.`);

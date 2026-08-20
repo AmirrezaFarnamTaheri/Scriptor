@@ -663,7 +663,16 @@ pub fn google_calendar_start_auth(
 
 /// Best-effort token revocation followed by clearing the keychain entry.
 #[tauri::command]
-pub fn google_calendar_disconnect() -> Result<(), String> {
+pub fn google_calendar_disconnect(
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<(), String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleCalendarDisconnect,
+        Some(AUTH_SCOPE),
+    )?;
     if let Ok(Some(tokens)) = load_tokens()
         && let Ok(client) = http_client()
     {

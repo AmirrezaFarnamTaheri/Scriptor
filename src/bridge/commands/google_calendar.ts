@@ -57,7 +57,11 @@ export async function googleCalendarStartAuth(args: {
 /** Revoke and clear stored tokens. */
 export async function googleCalendarDisconnect(): Promise<void> {
   requireNative()
-  await invoke('google_calendar_disconnect')
+  const authorizationToken = await authorizeSensitiveOperation(
+    'google_calendar_disconnect',
+    'google-calendar-auth',
+  )
+  await invoke('google_calendar_disconnect', { authorizationToken })
 }
 
 export async function googleCalendarListEvents(

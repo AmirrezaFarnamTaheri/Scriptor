@@ -5,12 +5,12 @@ export const CITATION_PLUGIN_ID = 'scriptor.citations'
 
 export const citationsPluginManifest: PluginManifest = {
   id: CITATION_PLUGIN_ID,
-  name: 'Zotero & CSL Citations',
+  name: 'CSL Citations',
   version: '1.0.0',
-  description: 'Zotero library synchronization, CSL citation formatting, and bibliography inspector',
+  description: 'CSL citation formatting and bibliography inspection for vault references',
   publisher: 'Scriptor Team',
   capabilityId: CITATION_PLUGIN_CAPABILITY_ID,
-  rustFeatureGate: 'scriptor-citations-engine',
+  rustFeatureGate: 'scriptor-indexer',
   activation: ['on-startup'],
   capabilities: ['inspector-widget', 'command'],
   permissions: [{ permission: 'read', reason: 'Read citations' }],
@@ -26,12 +26,6 @@ export const citationsPluginManifest: PluginManifest = {
       {
         commandId: 'citations.insert',
         label: 'Insert Citation',
-        category: 'Citations',
-        permission: 'read',
-      },
-      {
-        commandId: 'citations.sync',
-        label: 'Sync Zotero Library',
         category: 'Citations',
         permission: 'read',
       },

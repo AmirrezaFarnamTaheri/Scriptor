@@ -134,6 +134,20 @@ export async function runCommand(page: Page, commandLabel: string) {
     }
 
     await expect(palette).toBeHidden({ timeout: 5000 })
+
+    // A Vite optimizer reload can begin after the click has already resolved.
+    // In that case the palette disappears because the document was replaced,
+    // but the command's in-memory panel state is lost with it. Detect the same
+    // document replacement on the successful-click path and replay once.
+    await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+    const currentTimeOrigin = await page
+      .evaluate(() => performance.timeOrigin)
+      .catch(() => navigationTimeOrigin)
+    if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+      await waitForWorkspace(page)
+      await openCommandPalette(page)
+      continue
+    }
     return
   }
 }

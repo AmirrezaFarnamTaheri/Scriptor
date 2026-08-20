@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import test from 'node:test'
-import { PROFILES, GITHUB_RELEASE_BASE_URL } from './installer-profiles.mjs'
+
+const receipt = new URL('../../release-output/installer-profile.json', import.meta.url)
+const readReceipt = () => (fs.existsSync(receipt) ? fs.readFileSync(receipt) : null)
+const receiptBeforeImport = readReceipt()
+const { PROFILES, GITHUB_RELEASE_BASE_URL } = await import(
+  `./installer-profiles.mjs?side-effect-test=${Date.now()}`
+)
+const receiptAfterImport = readReceipt()
 
 test('PROFILES contains all 7 preset profiles', () => {
   assert.ok(PROFILES.focused)
@@ -43,4 +51,12 @@ test('all profiles with native plugins use github-release source', () => {
 test('GITHUB_RELEASE_BASE_URL is exported and non-empty', () => {
   assert.ok(typeof GITHUB_RELEASE_BASE_URL === 'string')
   assert.ok(GITHUB_RELEASE_BASE_URL.length > 0)
+})
+
+test('importing installer profiles is side-effect free', () => {
+  if (receiptBeforeImport === null || receiptAfterImport === null) {
+    assert.equal(receiptAfterImport, receiptBeforeImport)
+    return
+  }
+  assert.deepEqual(receiptAfterImport, receiptBeforeImport)
 })

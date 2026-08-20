@@ -14,6 +14,8 @@ pub struct AppState {
     pub vault_watcher: Mutex<Option<VaultWatcher>>,
     pub vault_watcher_generation: Arc<AtomicU64>,
     pub headless_engine: Mutex<bool>,
+    /// Serializes native Git mutations across every renderer/hook instance.
+    pub git_mutation_lock: Mutex<()>,
     pub authorization: AuthorizationBroker,
     /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
     pub latex_cancel: Arc<AtomicBool>,
@@ -33,6 +35,7 @@ impl AppState {
             vault_watcher: Mutex::new(None),
             vault_watcher_generation: Arc::new(AtomicU64::new(0)),
             headless_engine: Mutex::new(false),
+            git_mutation_lock: Mutex::new(()),
             authorization: AuthorizationBroker::default(),
             latex_cancel: Arc::new(AtomicBool::new(false)),
         }

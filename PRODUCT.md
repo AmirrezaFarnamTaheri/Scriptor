@@ -61,7 +61,7 @@ The authoritative matrix is [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATU
 
 - no silent loss or cross-vault mutation;
 - bounded memory and latency as vault size grows;
-- reproducible, signed, attributable releases;
+- reproducible, source-attributable releases with explicit trust status, checksums, CycloneDX SBOMs, receipts, and provenance attestations;
 - keyboard-complete and WCAG 2.2 AA workspace flows;
 - a new contributor can locate ownership, contracts, tests, and operational evidence without archaeology;
 - core user workflows work without external network access, except explicitly opted-in services.
@@ -74,7 +74,7 @@ The authoritative matrix is [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATU
 - chat-first navigation that displaces writing;
 - decorative dashboard chrome that reduces working area;
 - security claims for prototype encryption or unisolated third-party code;
-- unsigned production release channels.
+- production channels that hide or misrepresent the intentionally unsigned upstream installer trust status.
 
 ## Operating model
 

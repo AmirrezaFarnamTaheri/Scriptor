@@ -7,6 +7,6 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "check:zotero": "node --experimental-strip-types -e \"import('./src/index.ts').then(m => { if (!m.ZoteroConnector) throw new Error('ZoteroConnector not exported'); console.log('Zotero connector OK'); })\""
+    "check:zotero": "node --experimental-strip-types --test src/index.test.ts"
   }
 }

@@ -7,6 +7,7 @@ export interface PluginCommandRuntime {
   setStatusDockTab: (tab: 'problems' | 'jobs' | 'output' | 'search') => void
   setHealthDashboardOpen: (open: boolean) => void
   openCanvas?: () => void
+  openBibliography?: () => void
 }
 
 export interface PluginCommandContext {
@@ -33,6 +34,10 @@ export async function dispatchPluginCommandId(
       runtime.setStatusDockTab('problems')
       await runtime.fixVaultLint()
       await runtime.refreshHealth()
+      return { handled: true }
+    case 'citations.insert':
+      if (!runtime.openBibliography) return { handled: false }
+      runtime.openBibliography()
       return { handled: true }
     default:
       break

@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Database, Play, Plus, Trash2 } from 'lucide-react'
 
-import {
-  indexerSearchRanked,
-  type RankedSearchHit,
-} from '../bridge/commands'
+import { indexerExecuteDql } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import {
   loadVaultPresetJson,
@@ -67,13 +64,10 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   const [collections, setCollections] = useState<SmartCollection[]>(() => loadCollections())
   const [activeId, setActiveId] = useState(collections[0]?.id ?? '')
   const [results, setResults] = useState<KnowledgeNoteSummary[]>([])
-  // W3-1: ranked hits stored separately so the score debug affordance can render.
-  const [rankedHits, setRankedHits] = useState<RankedSearchHit[]>([])
   const [status, setStatus] = useState('Select a collection to run its DQL query.')
-  const [durationMs, setDurationMs] = useState<number | null>(null)
-  const [usedFuzzy, setUsedFuzzy] = useState(false)
   const [draftLabel, setDraftLabel] = useState('')
   const [draftQuery, setDraftQuery] = useState('path has #tag')
+  const requestIdRef = useRef(0)
 
   useEffect(() => {
     if (!vaultOpen) return
@@ -90,69 +84,50 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
     [activeId, collections],
   )
 
+  const executeQuery = useCallback(async (collection: SmartCollection, requestId: number) => {
+    try {
+      const started = performance.now()
+      const rows = await indexerExecuteDql(collection.query)
+      if (requestId !== requestIdRef.current) return
+      const mapped: KnowledgeNoteSummary[] = rows.map((row) => ({
+        path: row.path,
+        title: row.title,
+        inbound_links: 0,
+        outbound_links: 0,
+      }))
+      setResults(mapped)
+      const durationMs = Math.round(performance.now() - started)
+      setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${durationMs}ms.`)
+    } catch (error) {
+      if (requestId !== requestIdRef.current) return
+      setResults([])
+      setStatus(error instanceof Error ? error.message : 'Search failed')
+    }
+  }, [])
+
   const runQuery = useCallback(
-    async (collection: SmartCollection) => {
+    (collection: SmartCollection) => {
+      const requestId = ++requestIdRef.current
       if (!canQuery) {
         setStatus('Open a vault in the desktop app to run DQL collections.')
         setResults([])
-        setRankedHits([])
         return
       }
+      setResults([])
       setStatus(`Running "${collection.label}"…`)
-      try {
-        // W3-1: use ranked search so results are BM25-ordered.
-        const out = await indexerSearchRanked(collection.query)
-        const mapped: KnowledgeNoteSummary[] = out.hits.map((hit) => ({
-          path: hit.path,
-          title: hit.title,
-          inbound_links: 0,
-          outbound_links: 0,
-        }))
-        setResults(mapped)
-        setRankedHits(out.hits)
-        setDurationMs(out.durationMs)
-        setUsedFuzzy(out.usedFuzzyFallback)
-        const suffix = out.usedFuzzyFallback ? ' (fuzzy fallback)' : ''
-        setStatus(`${mapped.length} note(s) matched "${collection.label}" in ${out.durationMs}ms${suffix}.`)
-      } catch (error) {
-        setResults([])
-        setRankedHits([])
-        setStatus(error instanceof Error ? error.message : 'Search failed')
-      }
+      void executeQuery(collection, requestId)
     },
-    [canQuery],
+    [canQuery, executeQuery],
   )
 
   useEffect(() => {
+    const requestId = ++requestIdRef.current
     if (!canQuery || !activeCollection) return
-    let cancelled = false
-    const requestedCollection = activeCollection
-    void indexerSearchRanked(requestedCollection.query)
-      .then((out) => {
-        if (cancelled) return
-        const mapped: KnowledgeNoteSummary[] = out.hits.map((hit) => ({
-          path: hit.path,
-          title: hit.title,
-          inbound_links: 0,
-          outbound_links: 0,
-        }))
-        setResults(mapped)
-        setRankedHits(out.hits)
-        setDurationMs(out.durationMs)
-        setUsedFuzzy(out.usedFuzzyFallback)
-        const suffix = out.usedFuzzyFallback ? ' (fuzzy fallback)' : ''
-        setStatus(`${mapped.length} note(s) matched "${requestedCollection.label}" in ${out.durationMs}ms${suffix}.`)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        setResults([])
-        setRankedHits([])
-        setStatus(error instanceof Error ? error.message : 'Search failed')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeCollection, canQuery])
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new async query must hide stale rows immediately
+    setResults([])
+    setStatus(`Running "${activeCollection.label}"…`)
+    void executeQuery(activeCollection, requestId)
+  }, [activeCollection, canQuery, executeQuery])
 
   const addCollection = () => {
     const label = draftLabel.trim()
@@ -223,7 +198,7 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
             <>
               <div className="smart-collections-toolbar">
                 <code className="smart-collection-query">{activeCollection.query}</code>
-                <button type="button" className="toolbar-button" onClick={() => void runQuery(activeCollection)}>
+                <button type="button" className="toolbar-button" onClick={() => runQuery(activeCollection)}>
                   <Play size={14} />
                   Refresh
                 </button>
@@ -231,33 +206,6 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
               {embedded ? null : (
                 <p className="health-subtitle">
                   {status}
-                  {/* W3-1: score debug affordance — shows BM25 column breakdown */}
-                  {durationMs !== null && !usedFuzzy && rankedHits.length > 0 && (
-                    <details className="search-score-debug" style={{ display: 'inline', marginLeft: '0.5rem' }}>
-                      <summary style={{ cursor: 'pointer', fontSize: '0.75em', opacity: 0.6 }}>score debug</summary>
-                      <table className="score-debug-table" style={{ fontSize: '0.7em', borderCollapse: 'collapse', marginTop: '0.25rem' }}>
-                        <thead>
-                          <tr>
-                            <th>title</th><th>headings</th><th>tags</th><th>body</th><th>total</th><th>path</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {rankedHits.slice(0, 10).map((hit) =>
-                            hit.scoreDebug ? (
-                              <tr key={hit.path}>
-                                <td>{hit.scoreDebug.titleScore.toFixed(3)}</td>
-                                <td>{hit.scoreDebug.headingScore.toFixed(3)}</td>
-                                <td>{hit.scoreDebug.tagScore.toFixed(3)}</td>
-                                <td>{hit.scoreDebug.bodyScore.toFixed(3)}</td>
-                                <td><strong>{hit.scoreDebug.bm25Total.toFixed(3)}</strong></td>
-                                <td style={{ maxWidth: '16rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>{hit.path}</td>
-                              </tr>
-                            ) : null
-                          )}
-                        </tbody>
-                      </table>
-                    </details>
-                  )}
                 </p>
               )}
               {results.length === 0 ? (

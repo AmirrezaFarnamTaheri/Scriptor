@@ -88,11 +88,33 @@ core surfaces; transient/state-review screenshots are attached to the Visual rev
 creating missing-baseline failures. Documentation screenshots mirror reviewed Windows baselines
 with the platform suffix removed; regenerate them with `scripts/screenshots/capture.ps1`.
 
-## Current local candidate evidence — 2026-08-17
+## Exploratory ZIP-derived candidate output — 2026-08-19
 
-The final candidate tree has fresh local proof. These receipts are local candidate evidence; the
-authoritative exact-head record remains the CI run produced after the candidate is committed and
-pushed.
+This section records exploratory baseline checks executed against the working tree reconstructed from the unhashed `Scriptor-lite.zip` artifact during workspace triage. Because the input archive did not record an immutable cryptographic hash, and the inspection environment had Node.js `v22.16.0` without a local Cargo/Rust toolchain, pnpm installation, workspace `node_modules`, PowerShell, or production browser build, this output is retained as informational exploratory notes only. It is **not** auditable candidate evidence or a release-readiness claim. Clean CI environments enforce all repository gates.
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Source contracts | Verified: 19/19 passed | `node scripts/validation/source-contracts.mjs` |
+| Complete lightweight source-test inventory | Verified: 100/100 tests passed across 19 discovered test files | `node scripts/validation/run-source-tests.mjs` |
+| Rust source structure | Statically validated: 200 Rust files | `node scripts/validation/rust-source-contracts.mjs` |
+| Native authorization inventory | Statically validated: 26 high-impact command bindings brokered | `node scripts/validation/authorization-inventory.mjs` |
+| Renderer/native command contract | Statically validated: 135 bridged commands resolve to 152 registered handlers | `node scripts/validation/tauri-command-contracts.mjs` |
+| Package boundaries | Statically validated: 15 packages / 482 package source files, no unexported cross-package imports or cycles | `node scripts/validation/deep-module-boundaries.mjs` |
+| Cargo manifest/lock workspace dependencies | Statically validated: 19 packages | `node scripts/validation/cargo-lock-workspace-deps.mjs` |
+| Plugin Rust gates | Statically validated: 5/5 backend package references resolve | `node scripts/validation/plugin-rust-gates.mjs` |
+| Frontend policy | Statically validated: 522 production TypeScript/CSS files; CSS token policy also passed | `node scripts/validation/frontend-quality.mjs`; `node scripts/validation/css-custom-properties.mjs` |
+| Governance/docs/version/action pins/i18n | Verified/static validators passed | `version.mjs check`, `action-pins.mjs`, `i18n-parity.mjs`, `docs-contracts.mjs` |
+| Standalone module runners | Verified where dependency-free: Canvas, Portal, Export, headless contracts, citations, safe external URLs, knowledge, merge/conflict, palette scoring, and Zotero connector tests | direct Node runners |
+| Workspace-dependent module runners | Pending: MCP, plugin-api, editor, renderer resolve workspace/external packages only after install | blocked by absent `node_modules` / pnpm |
+| Browser accessibility smoke | Pending | runner requires `pnpm build`; pnpm/dependencies unavailable |
+| Rust compile/test/fmt/Clippy/deny | Pending | Cargo/Rust toolchain unavailable |
+| Full TS/ESLint/Vite/Playwright/release packaging | Pending | pnpm dependencies, browser build, and/or PowerShell unavailable |
+
+Independent audit-only checks also parsed all strict JSON/TOML manifests, syntax-checked every JS/MJS/CJS script, verified pnpm-lock importer dependency contracts for 17 package manifests, found no repository symlinks or unexpected zero-byte files, and found no high-signal credential/private-key patterns outside fixture data. These checks are useful consistency evidence but do not replace repository-native build/test gates.
+
+## Historical upstream candidate evidence — 2026-08-17 (not re-run for this ZIP-derived candidate)
+
+This table is retained as historical upstream evidence from the pre-improvement source state. It must not be used as proof that the ZIP-derived candidate above compiles, packages, or passes browser/Rust release gates.
 
 | Gate | Result | Evidence |
 | --- | --- | --- |

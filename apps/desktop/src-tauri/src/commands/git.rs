@@ -8,7 +8,7 @@ use scriptor_vault::RelativeVaultPath;
 
 use crate::AppState;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::{active_session, use_headless_engine};
+use crate::state::{active_session, lock_recover, use_headless_engine};
 
 use super::daemon::bridge_git_status;
 use super::shared::parse_daemon_json;
@@ -30,6 +30,7 @@ pub fn git_commit_cmd(
     message: String,
 ) -> Result<GitCommitOutput, String> {
     let session = active_session(&state)?;
+    let _mutation = lock_recover(&state.git_mutation_lock, "git mutation");
     git_commit_selected(session.root.root(), &files, &message).map_err(|error| error.to_string())
 }
 
@@ -45,6 +46,7 @@ pub fn git_pull_cmd(
         SensitiveOperation::GitPull,
         Some(&session.descriptor.id),
     )?;
+    let _mutation = lock_recover(&state.git_mutation_lock, "git mutation");
     git_pull(session.root.root(), PullStrategy::FastForward).map_err(|error| error.to_string())
 }
 
@@ -60,6 +62,7 @@ pub fn git_push_cmd(
         SensitiveOperation::GitPush,
         Some(&session.descriptor.id),
     )?;
+    let _mutation = lock_recover(&state.git_mutation_lock, "git mutation");
     git_push(session.root.root()).map_err(|error| error.to_string())
 }
 
@@ -77,6 +80,7 @@ pub fn git_resolve_conflict_cmd(
         Some(&path),
     )?;
     let session = active_session(&state)?;
+    let _mutation = lock_recover(&state.git_mutation_lock, "git mutation");
     git_resolve_conflict(session.root.root(), &path, &strategy).map_err(|error| error.to_string())
 }
 
@@ -94,6 +98,7 @@ pub fn git_apply_merged_conflict_cmd(
         Some(&path),
     )?;
     let session = active_session(&state)?;
+    let _mutation = lock_recover(&state.git_mutation_lock, "git mutation");
     git_apply_merged_conflict(session.root.root(), &path, &merged_markdown)
         .map_err(|error| error.to_string())
 }

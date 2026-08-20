@@ -35,6 +35,7 @@ The renderer is not an authority boundary. Native operations validate scope, aut
 | Daemon transport | `crates/daemon/`, `crates/ipc/` | authenticated local RPC, frame bounds, resynchronizing event delivery, jobs, MCP bridge; the command catalog is owned separately from dispatch |
 | Observability | `crates/system-bridge/src/observability.rs` | structured, redacted, bounded local tracing |
 | Export | `crates/export-runner/`, `packages/export/` | profiles, preflight, diagrams, Pandoc orchestration |
+| Publish | `crates/publish-runner/`, desktop/CLI adapters | frontmatter-gated plan/review/apply, managed local Starlight output, stale-plan and output-drift protection |
 | UI packages | `packages/*` | deep modules exposed only through package exports; MCP tool contracts/catalog are separated from runtime state and dispatch |
 
 ## Primary workflows
@@ -67,6 +68,14 @@ The Reader accepts only vault-relative PDF and EPUB paths at the native boundary
 
 Tasks are indexed from Markdown and changes write back to the originating note through the canonical vault save path before the native mutation runs. Kanban is an alternate Markdown view: moving a card rewrites the source file by relocating the complete card line under the requested `##` heading, then refreshes the index. Both paths reject stale or invalid source state instead of silently applying an optimistic UI-only change.
 
+### Publish a local Starlight site
+
+1. Desktop or CLI asks `crates/publish-runner` for a read-only plan derived from a bounded, symlink-aware vault scan.
+2. Only notes with `publish: true` are candidates; sealed content is rejected after the opt-in gate.
+3. Desktop presents new/changed/orphaned items for review. Apply is a separate native-authorized mutation.
+4. Apply recomputes eligibility and content hashes, rejects stale or renderer-invented selections, and deletes only fresh paths previously owned by publish state.
+5. Managed output uses atomic writes and refuses traversal, symlink indirection, source/output containment, and unmanaged overwrites. Missing or manually modified generated pages preserve managed ownership but are surfaced as changed on the next plan so a reviewed apply can repair them.
+
 ### External process
 
 All supported launches pass through the process broker. Policy includes canonical executable resolution, optional binary hash, trusted workspace, environment allowlist, network policy, time/output limits, process group/job cancellation, and structured outcome. No command is assembled through a shell string.
@@ -94,7 +103,7 @@ SQLite uses WAL, foreign keys, busy timeouts, current-schema validation, FTS, an
 | Event subscribers | bounded nonblocking queues; slow consumers disconnected; authenticated resubscription emits `ResyncRequired` before normal delivery resumes |
 | Subprocess | timeout/cancel/process-tree kill; bounded stdout/stderr |
 | Logs/audit | redaction, size rotation, bounded tail; mutation log hash chain |
-| Release | immutable action pins, version contract, mandatory production signatures, attestations |
+| Release | immutable action pins, version contract, explicit unsigned trust records, checksums/SBOM/receipt, provenance attestations |
 
 ## Known architecture work
 
