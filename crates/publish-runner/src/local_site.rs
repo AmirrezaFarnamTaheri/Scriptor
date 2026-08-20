@@ -6,11 +6,14 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use scriptor_vault::{MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, VaultRoot, atomic_write, content_hash_bytes};
+use scriptor_vault::{
+    MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, VaultRoot, atomic_write, content_hash_bytes,
+};
 
+use crate::compile::publish_apply_with_state_persistence;
 use crate::{
     BucketState, LocalDirSink, PublishApplyInput, PublishApplyOutput, PublishError, PublishPlan,
-    PublishPlanOptions, plan_publish, publish_apply,
+    PublishPlanOptions, plan_publish,
 };
 
 pub const PUBLISH_STATE_FILE: &str = ".scriptor-publish-state.json";
@@ -36,7 +39,6 @@ const PACKAGE_JSON: &str = r#"{
   }
 }
 "#;
-
 
 pub fn resolve_output_path(vault_root: &Path, requested: &Path) -> PathBuf {
     if requested.is_absolute() {
@@ -79,7 +81,10 @@ fn canonical_target(path: &Path) -> Result<PathBuf, PublishError> {
     Ok(canonical)
 }
 
-fn validate_disjoint(vault_root: &Path, output_root: &Path) -> Result<(VaultRoot, PathBuf), PublishError> {
+fn validate_disjoint(
+    vault_root: &Path,
+    output_root: &Path,
+) -> Result<(VaultRoot, PathBuf), PublishError> {
     let vault = VaultRoot::open(vault_root)?;
     let output = canonical_target(output_root)?;
     if output.starts_with(vault.root()) || vault.root().starts_with(&output) {
@@ -130,7 +135,10 @@ fn output_drift(
     let mut drifted = HashSet::new();
     for (rel, expected_hash) in &state.entries {
         let source_rel = RelativeVaultPath::parse(rel)?;
-        let docs_rel = RelativeVaultPath::parse(&format!("src/content/docs/{}", source_rel.as_str()))?;
+        let docs_rel = RelativeVaultPath::parse(&format!(
+            "src/content/docs/{}",
+            source_rel.as_str()
+        ))?;
         let path = output.resolve_relative(&docs_rel)?;
         if !path.exists() {
             drifted.insert(rel.clone());
@@ -260,7 +268,8 @@ pub fn plan_starlight_site(
             }
         }
         plan.unchanged = unchanged;
-        plan.changed.sort_by(|left, right| left.rel_path.cmp(&right.rel_path));
+        plan.changed
+            .sort_by(|left, right| left.rel_path.cmp(&right.rel_path));
     }
     Ok(plan)
 }
@@ -270,18 +279,31 @@ pub fn apply_starlight_site(
     output_root: &Path,
     input: &PublishApplyInput,
 ) -> Result<PublishApplyOutput, PublishError> {
+    apply_starlight_site_with_state_writer(vault_root, output_root, input, |site, state| {
+        site.save_state(state)
+    })
+}
+
+fn apply_starlight_site_with_state_writer<F>(
+    vault_root: &Path,
+    output_root: &Path,
+    input: &PublishApplyInput,
+    mut save_state: F,
+) -> Result<PublishApplyOutput, PublishError>
+where
+    F: FnMut(&StarlightSite, &BucketState) -> Result<(), PublishError>,
+{
     let site = StarlightSite::open(vault_root, output_root)?;
     let state = site.load_state()?;
     site.ensure_scaffold()?;
-    let result = publish_apply(
+    publish_apply_with_state_persistence(
         vault_root,
         input,
         &site.docs_sink,
         &state,
         &PublishPlanOptions::default(),
-    )?;
-    site.save_state(&result.new_state)?;
-    Ok(result)
+        |next_state| save_state(&site, next_state),
+    )
 }
 
 #[cfg(test)]
@@ -321,8 +343,7 @@ mod tests {
         let vault = TempDir::new().unwrap();
         let output = TempDir::new().unwrap();
         let site = StarlightSite::open(vault.path(), output.path()).unwrap();
-        let bytes = b"published body
-";
+        let bytes = b"published body\n";
         std::fs::write(site.docs_root().join("note.md"), bytes).unwrap();
         let mut state = BucketState::default();
         state
@@ -333,6 +354,61 @@ mod tests {
             site.load_state().unwrap().entries.get("note.md"),
             state.entries.get("note.md")
         );
+    }
+
+    #[test]
+    fn state_save_failure_before_later_write_keeps_publish_recoverable() {
+        let vault = TempDir::new().unwrap();
+        let output = TempDir::new().unwrap();
+        write_opted_in(&vault.path().join("first.md"), "first");
+        write_opted_in(&vault.path().join("second.md"), "second");
+        let plan = plan_starlight_site(vault.path(), output.path()).unwrap();
+        let first = plan
+            .new_items
+            .iter()
+            .find(|candidate| candidate.rel_path == "first.md")
+            .unwrap()
+            .clone();
+        let second = plan
+            .new_items
+            .iter()
+            .find(|candidate| candidate.rel_path == "second.md")
+            .unwrap()
+            .clone();
+        let mut save_calls = 0;
+
+        let error = apply_starlight_site_with_state_writer(
+            vault.path(),
+            output.path(),
+            &PublishApplyInput {
+                to_write: vec![first, second],
+                to_delete: vec![],
+            },
+            |site, state| {
+                save_calls += 1;
+                if save_calls == 2 {
+                    return Err(PublishError::InvalidSelection {
+                        path: PUBLISH_STATE_FILE.into(),
+                        reason: "injected state save failure".into(),
+                    });
+                }
+                site.save_state(state)
+            },
+        )
+        .expect_err("second state save must fail");
+
+        assert!(matches!(error, PublishError::PartialApply { .. }));
+        assert!(output.path().join("src/content/docs/first.md").exists());
+        assert!(!output.path().join("src/content/docs/second.md").exists());
+
+        let site = StarlightSite::open(vault.path(), output.path()).unwrap();
+        let durable = site.load_state().unwrap();
+        assert!(durable.entries.contains_key("first.md"));
+        assert!(!durable.entries.contains_key("second.md"));
+
+        let retry = plan_starlight_site(vault.path(), output.path()).unwrap();
+        assert!(retry.unchanged.iter().any(|candidate| candidate.rel_path == "first.md"));
+        assert!(retry.new_items.iter().any(|candidate| candidate.rel_path == "second.md"));
     }
 
     #[test]
