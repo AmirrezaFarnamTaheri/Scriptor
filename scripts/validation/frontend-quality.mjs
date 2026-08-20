@@ -2,6 +2,8 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs'
 import { extname, join, relative } from 'node:path'
 
+import { importsTauriCore } from './frontend-quality-patterns.mjs'
+
 const root = process.cwd()
 const failures = []
 const productionExtensions = new Set(['.ts', '.tsx', '.css'])
@@ -42,7 +44,7 @@ const productionFiles = [
 
 for (const { absolute, rel } of productionFiles) {
   const text = readFileSync(absolute, 'utf8')
-  if (rel.startsWith('src/') && !rel.startsWith('src/bridge/') && /from\s+['"]@tauri-apps\/api\/core['"]/.test(text)) {
+  if (rel.startsWith('src/') && !rel.startsWith('src/bridge/') && importsTauriCore(text)) {
     failures.push(`${rel}: production renderer code must call native commands through src/bridge`)
   }
   if (/\bas\s+any\b|:\s*any\b|<any>/.test(text)) {
