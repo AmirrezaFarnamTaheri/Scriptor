@@ -96,7 +96,8 @@ Production releases are tag-driven and fail unless:
 
 - tag/input version matches [`VERSION`](VERSION) and every manifest;
 - GitHub Actions are pinned to immutable SHAs;
-- every supported target publishes an explicit trust-status record stating the official upstream installer is intentionally unsigned and, where applicable, not notarized;
+- every supported target publishes an explicit trust-status record stating the official upstream installer is intentionally unsigned;
+- where applicable, that target trust record also reports `notarized: false`;
 - checksums, CycloneDX SBOM, release receipt, exact source identity, and GitHub provenance attestations are produced from the same downloaded installer set;
 - release notes disclose operating-system unknown-publisher / unidentified-developer warnings instead of implying a publisher signature that is not present.
 

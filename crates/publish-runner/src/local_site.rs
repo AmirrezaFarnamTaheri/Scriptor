@@ -338,11 +338,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn write_opted_in(path: &Path, body: &str) {
-        std::fs::write(path, format!("---\
-publish: true\
----\
-{body}\
-")).unwrap();
+        std::fs::write(path, format!("---\npublish: true\n---\n{body}\n")).unwrap();
     }
 
     #[test]
