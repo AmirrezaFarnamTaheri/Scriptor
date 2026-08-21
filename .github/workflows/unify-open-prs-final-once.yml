@@ -1,0 +1,125 @@
+name: Final unified dependency validator
+
+on:
+  push:
+    branches:
+      - integrate/open-prs-unified
+
+permissions:
+  contents: write
+
+jobs:
+  unify:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: integrate/open-prs-unified
+          fetch-depth: 0
+
+      - name: Configure Node.js and pnpm
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure package and Rust toolchains
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+
+      - name: Install Linux build dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf xdg-utils
+
+      - name: Apply all open PR dependency intents
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs')
+          function edit(path, apply) {
+            const value = JSON.parse(fs.readFileSync(path, 'utf8'))
+            apply(value)
+            fs.writeFileSync(path, JSON.stringify(value, null, 2) + '\n')
+          }
+          edit('package.json', p => {
+            p.dependencies.immer = '^11.1.17'
+            p.devDependencies['@axe-core/cli'] = '^4.13.0'
+            p.devDependencies['eslint-plugin-react-refresh'] = '^0.5.4'
+            p.devDependencies.globals = '^17.11.0'
+            p.devDependencies['typescript-eslint'] = '^8.67.0'
+          })
+          edit('packages/editor/package.json', p => {
+            p.dependencies['@codemirror/commands'] = '^6.11.0'
+            p.dependencies['@codemirror/view'] = '^6.43.9'
+          })
+          edit('packages/renderer/package.json', p => {
+            p.dependencies['highlight.js'] = '^11.12.0'
+          })
+          NODE
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if new in text:
+                  return
+              if old not in text:
+                  raise SystemExit(f'expected dependency declaration not found in {path}: {old}')
+              p.write_text(text.replace(old, new, 1))
+
+          replace('crates/vault/Cargo.toml', 'chacha20poly1305 = "0.10"', 'chacha20poly1305 = "0.11"')
+          replace('crates/capture/Cargo.toml', 'htmd        = "0.1"', 'htmd        = "0.5"')
+          replace('crates/capture/Cargo.toml', 'ureq        = { version = "2", features = ["charset", "gzip"] }', 'ureq        = { version = "3", features = ["charset", "gzip"] }')
+          replace('crates/native-git/Cargo.toml', 'diffy = "0.4"', 'diffy = "0.5"')
+          PY
+
+      - name: Reconcile JavaScript lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin refs/heads/dependabot/npm_and_yarn/npm-minor-and-patch-cac03838f6:refs/remotes/origin/unified-npm
+          git show refs/remotes/origin/unified-npm:pnpm-lock.yaml > pnpm-lock.yaml
+
+      - name: Reconcile Rust lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo update -p uuid@1.24.0 --precise 1.24.1
+          cargo update -p globset@0.4.19 --precise 0.4.20
+
+      - name: Validate combined state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          node scripts/release/version.mjs check
+          pnpm install --frozen-lockfile
+          pnpm lint
+          env -u GITHUB_SHA -u SCRIPTOR_SOURCE_COMMIT pnpm check:source
+          cargo fmt --all --check
+          cargo check --workspace --all-targets
+          cargo test -p scriptor-vault -p scriptor-capture -p scriptor-native-git
+
+      - name: Commit validated unified state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- package.json packages/editor/package.json packages/renderer/package.json pnpm-lock.yaml Cargo.lock crates/vault/Cargo.toml crates/capture/Cargo.toml crates/capture/src/fetch.rs crates/native-git/Cargo.toml
+          git diff --cached --check
+          git commit -m 'chore(deps): unify open dependency updates'
+          git push origin HEAD:refs/heads/integrate/open-prs-unified
