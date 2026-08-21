@@ -181,6 +181,7 @@ fn encrypt_with_header(
 
 // ── Low-level crypto ──────────────────────────────────────────────────────────
 
+/// Encrypt plaintext with XChaCha20-Poly1305 after validating the 24-byte nonce.
 fn xchacha20_encrypt(
     key: &[u8; 32],
     nonce: &[u8],
@@ -198,6 +199,7 @@ fn xchacha20_encrypt(
         .map_err(|e| EncryptionError::Encrypt(e.to_string()))
 }
 
+/// Decrypt ciphertext with XChaCha20-Poly1305 after validating the 24-byte nonce.
 fn xchacha20_decrypt(
     key: &[u8; 32],
     nonce: &[u8],
@@ -264,6 +266,28 @@ mod tests {
         assert_eq!(encrypted[4], VERSION_V2);
         let decrypted = decrypt(&encrypted, &key).unwrap();
         assert_eq!(decrypted, data);
+    }
+
+    #[test]
+    fn xchacha20_encrypt_rejects_invalid_nonce_lengths() {
+        let key = [0x11u8; 32];
+        for nonce_len in [0, V2_NONCE_LEN - 1, V2_NONCE_LEN + 1] {
+            let nonce = vec![0u8; nonce_len];
+            let err = xchacha20_encrypt(&key, &nonce, b"plaintext")
+                .expect_err("invalid XChaCha20 nonce length must fail encryption");
+            assert!(matches!(err, EncryptionError::Encrypt(_)), "{err}");
+        }
+    }
+
+    #[test]
+    fn xchacha20_decrypt_rejects_invalid_nonce_lengths() {
+        let key = [0x22u8; 32];
+        for nonce_len in [0, V2_NONCE_LEN - 1, V2_NONCE_LEN + 1] {
+            let nonce = vec![0u8; nonce_len];
+            let err = xchacha20_decrypt(&key, &nonce, b"ciphertext")
+                .expect_err("invalid XChaCha20 nonce length must fail decryption");
+            assert!(matches!(err, EncryptionError::Decrypt(_)), "{err}");
+        }
     }
 
     #[test]
