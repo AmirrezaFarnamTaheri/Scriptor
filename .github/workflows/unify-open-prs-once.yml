@@ -4,6 +4,13 @@ on:
   push:
     branches:
       - integrate/open-prs-unified
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - synchronize
 
 concurrency:
   group: unify-open-prs
