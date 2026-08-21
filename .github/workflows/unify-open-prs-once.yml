@@ -122,7 +122,7 @@ jobs:
           node scripts/release/version.mjs check
           pnpm install --frozen-lockfile
           pnpm lint
-          pnpm check:source
+          env -u GITHUB_SHA -u SCRIPTOR_SOURCE_COMMIT pnpm check:source
           cargo fmt --all --check
           cargo check --workspace --all-targets
           cargo test -p scriptor-vault -p scriptor-capture -p scriptor-native-git
