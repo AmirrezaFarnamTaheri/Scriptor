@@ -1,0 +1,60 @@
+name: Prepare release 1.0.1 packaging fix
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/fix/release-linux-xdg-utils-v1.0.1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/release-linux-xdg-utils-v1.0.1
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Apply release packaging fix and synchronize version
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/release.yml')
+          text = path.read_text()
+          old = 'libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf'
+          new = old + ' xdg-utils'
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('expected Linux packaging dependency list not found')
+              path.write_text(text.replace(old, new, 1))
+          PY
+          printf '1.0.1\n' > VERSION
+          node scripts/release/version.mjs sync
+          cargo metadata --format-version=1 >/dev/null
+          node scripts/release/version.mjs check
+          grep -F 'patchelf xdg-utils' .github/workflows/release.yml >/dev/null
+          git diff --check
+
+      - name: Commit only generated release-fix changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/prepare-release-1.0.1-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          mapfile -t changed < <(git diff --name-only)
+          test "${#changed[@]}" -gt 0
+          git add -- "${changed[@]}"
+          git diff --cached --check
+          git commit -m 'fix(release): install xdg-utils and prepare v1.0.1'
+          git push origin HEAD:refs/heads/fix/release-linux-xdg-utils-v1.0.1
