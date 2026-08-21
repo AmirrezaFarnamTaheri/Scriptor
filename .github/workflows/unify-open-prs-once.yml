@@ -5,6 +5,10 @@ on:
     branches:
       - integrate/open-prs-unified
 
+concurrency:
+  group: unify-open-prs
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -92,69 +96,6 @@ jobs:
           replace('crates/capture/Cargo.toml', 'htmd        = "0.1"', 'htmd        = "0.5"')
           replace('crates/capture/Cargo.toml', 'ureq        = { version = "2", features = ["charset", "gzip"] }', 'ureq        = { version = "3", features = ["charset", "gzip"] }')
           replace('crates/native-git/Cargo.toml', 'diffy = "0.4"', 'diffy = "0.5"')
-
-          path = Path('crates/capture/src/fetch.rs')
-          text = path.read_text()
-          start = text.index('pub fn fetch_html(')
-          end = text.index('\n#[cfg(test)]', start)
-          new_fn = r'''pub fn fetch_html(url: &str, opts: &FetchOptions) -> Result<FetchResponse, FetchError> {
-    use std::io::Read as _;
-    use std::time::Duration;
-    use ureq::ResponseExt as _;
-
-    let config = ureq::Agent::config_builder()
-        .timeout_recv_body(Some(Duration::from_secs(opts.timeout_secs)))
-        .timeout_connect(Some(Duration::from_secs(10)))
-        .user_agent("Scriptor/1 (https://github.com/0xDAEF0F/scriptor)")
-        .http_status_as_error(false)
-        .build();
-    let agent = ureq::Agent::new_with_config(config);
-
-    let mut response = agent
-        .get(url)
-        .call()
-        .map_err(|e| FetchError::Network(e.to_string()))?;
-
-    let status = response.status().as_u16();
-    let final_url = response.get_uri().to_string();
-    if !(200..300).contains(&status) {
-        return Err(FetchError::Http {
-            status,
-            url: final_url,
-        });
-    }
-
-    let content_type = response
-        .headers()
-        .get("content-type")
-        .and_then(|value| value.to_str().ok())
-        .unwrap_or("text/html")
-        .to_ascii_lowercase();
-    if !content_type.contains("text/html") {
-        return Err(FetchError::NotHtml { content_type });
-    }
-
-    let mut body_bytes = Vec::with_capacity(opts.max_bytes.min(128 * 1024));
-    let mut reader = response
-        .body_mut()
-        .as_reader()
-        .take(opts.max_bytes as u64 + 1);
-    reader
-        .read_to_end(&mut body_bytes)
-        .map_err(|e| FetchError::Network(e.to_string()))?;
-
-    if body_bytes.len() > opts.max_bytes {
-        return Err(FetchError::TooLarge {
-            limit: opts.max_bytes,
-        });
-    }
-
-    let html = String::from_utf8_lossy(&body_bytes).into_owned();
-
-    Ok(FetchResponse { final_url, html })
-}
-'''
-          path.write_text(text[:start] + new_fn + text[end:])
           PY
 
       - name: Reconcile JavaScript lockfile from PR 80
@@ -194,16 +135,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- \
-            package.json \
-            packages/editor/package.json \
-            packages/renderer/package.json \
-            pnpm-lock.yaml \
-            Cargo.lock \
-            crates/vault/Cargo.toml \
-            crates/capture/Cargo.toml \
-            crates/capture/src/fetch.rs \
-            crates/native-git/Cargo.toml
+          git add -- package.json packages/editor/package.json packages/renderer/package.json pnpm-lock.yaml Cargo.lock crates/vault/Cargo.toml crates/capture/Cargo.toml crates/capture/src/fetch.rs crates/native-git/Cargo.toml
           git diff --cached --check
           git commit -m 'chore(deps): unify open dependency updates'
           git push origin HEAD:refs/heads/integrate/open-prs-unified
