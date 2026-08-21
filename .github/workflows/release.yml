@@ -150,7 +150,7 @@ jobs:
       - name: Install Linux packaging dependencies
         if: matrix.platform == 'linux'
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux packaging dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf") -TimeoutSeconds 900
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Linux packaging dependencies" -FilePath "bash" -ArgumentList @("-lc", "sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libssl-dev libgtk-3-dev patchelf xdg-utils") -TimeoutSeconds 900
 
       - name: Install frozen pnpm dependency graph
         shell: pwsh

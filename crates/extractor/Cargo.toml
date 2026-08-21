@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-extractor"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 license.workspace = true
 description = "Heading/section extraction from Markdown — shared by reader, mind-map, and outline (W3-9)"
