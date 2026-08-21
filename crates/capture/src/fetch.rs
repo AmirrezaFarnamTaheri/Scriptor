@@ -40,38 +40,50 @@ pub struct FetchResponse {
 pub fn fetch_html(url: &str, opts: &FetchOptions) -> Result<FetchResponse, FetchError> {
     use std::io::Read as _;
     use std::time::Duration;
+    use ureq::ResponseExt as _;
 
-    let agent = ureq::AgentBuilder::new()
-        .timeout_read(Duration::from_secs(opts.timeout_secs))
-        .timeout_connect(Duration::from_secs(10))
+    let config = ureq::Agent::config_builder()
+        .timeout_recv_body(Some(Duration::from_secs(opts.timeout_secs)))
+        .timeout_connect(Some(Duration::from_secs(10)))
         .user_agent("Scriptor/1 (https://github.com/0xDAEF0F/scriptor)")
+        .http_status_as_error(false)
         .build();
+    let agent = ureq::Agent::new_with_config(config);
 
-    let response = agent.get(url).call().map_err(|e| match e {
-        ureq::Error::Status(status, resp) => FetchError::Http {
+    let mut response = agent
+        .get(url)
+        .call()
+        .map_err(|error| FetchError::Network(error.to_string()))?;
+
+    let status = response.status().as_u16();
+    let final_url = response.get_uri().to_string();
+    if !(200..300).contains(&status) {
+        return Err(FetchError::Http {
             status,
-            url: resp.get_url().to_string(),
-        },
-        other => FetchError::Network(other.to_string()),
-    })?;
+            url: final_url,
+        });
+    }
 
-    // Content-type check — must contain "text/html"
+    // Content-type check — must contain "text/html".
     let content_type = response
-        .header("content-type")
+        .headers()
+        .get("content-type")
+        .and_then(|value| value.to_str().ok())
         .unwrap_or("text/html")
         .to_ascii_lowercase();
     if !content_type.contains("text/html") {
         return Err(FetchError::NotHtml { content_type });
     }
 
-    let final_url = response.get_url().to_string();
-
     // Bounded read to avoid memory exhaustion.
     let mut body_bytes = Vec::with_capacity(opts.max_bytes.min(128 * 1024));
-    let mut reader = response.into_reader().take(opts.max_bytes as u64 + 1);
+    let mut reader = response
+        .body_mut()
+        .as_reader()
+        .take(opts.max_bytes as u64 + 1);
     reader
         .read_to_end(&mut body_bytes)
-        .map_err(|e| FetchError::Network(e.to_string()))?;
+        .map_err(|error| FetchError::Network(error.to_string()))?;
 
     if body_bytes.len() > opts.max_bytes {
         return Err(FetchError::TooLarge {
