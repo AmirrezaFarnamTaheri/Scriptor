@@ -188,9 +188,13 @@ fn xchacha20_encrypt(
 ) -> Result<Vec<u8>, EncryptionError> {
     let cipher = XChaCha20Poly1305::new_from_slice(key)
         .map_err(|e| EncryptionError::Encrypt(e.to_string()))?;
-    let xnonce = XNonce::from_slice(nonce);
+    let xnonce = XNonce::try_from(nonce).map_err(|_| {
+        EncryptionError::Encrypt(format!(
+            "invalid XChaCha20 nonce length: expected {V2_NONCE_LEN} bytes"
+        ))
+    })?;
     cipher
-        .encrypt(xnonce, plaintext)
+        .encrypt(&xnonce, plaintext)
         .map_err(|e| EncryptionError::Encrypt(e.to_string()))
 }
 
@@ -201,9 +205,13 @@ fn xchacha20_decrypt(
 ) -> Result<Vec<u8>, EncryptionError> {
     let cipher = XChaCha20Poly1305::new_from_slice(key)
         .map_err(|e| EncryptionError::Decrypt(e.to_string()))?;
-    let xnonce = XNonce::from_slice(nonce);
+    let xnonce = XNonce::try_from(nonce).map_err(|_| {
+        EncryptionError::Decrypt(format!(
+            "invalid XChaCha20 nonce length: expected {V2_NONCE_LEN} bytes"
+        ))
+    })?;
     cipher
-        .decrypt(xnonce, ciphertext)
+        .decrypt(&xnonce, ciphertext)
         .map_err(|e| EncryptionError::Decrypt(e.to_string()))
 }
 
