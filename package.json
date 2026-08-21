@@ -140,7 +140,7 @@
     "citeproc": "^2.4.63",
     "d3-force": "^3.0.0",
     "epubjs": "^0.3.93",
-    "immer": "^11.1.16",
+    "immer": "^11.1.17",
     "lucide-react": "^1.31.0",
     "monaco-editor": "^0.56.0",
     "pdfjs-dist": "^6.2.108",
@@ -149,7 +149,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@axe-core/cli": "^4.10.2",
+    "@axe-core/cli": "^4.13.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/d3-force": "^3.0.10",
@@ -159,10 +159,10 @@
     "@vitejs/plugin-react": "^6.0.5",
     "eslint": "^10.8.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.9.0",
+    "eslint-plugin-react-refresh": "^0.5.4",
+    "globals": "^17.11.0",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.66.0",
+    "typescript-eslint": "^8.67.0",
     "vite": "^8.2.1"
   }
 }
