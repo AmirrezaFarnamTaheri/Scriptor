@@ -67,11 +67,37 @@ async function openCanvas(page: Page): Promise<Locator> {
   await waitForWorkspace(page)
   await settleLayout(page)
   await enableCanvasKit(page)
-  await openCommandPalette(page)
-  await runCommand(page, 'Open canvas')
+
   const panel = page.getByRole('dialog', { name: 'Canvas board' })
-  await expect(panel).toBeVisible({ timeout: 15_000 })
-  return panel
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await openCommandPalette(page)
+    const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
+    await runCommand(page, 'Open canvas')
+
+    try {
+      await expect(panel).toBeVisible({ timeout: 15_000 })
+      return panel
+    } catch (error) {
+      // A parallel Playwright worker can reveal a new lazy dependency after
+      // runCommand has already observed a successful click. Vite then replaces
+      // this document and the in-memory Canvas panel state disappears. Retry
+      // only when the document time origin proves that navigation happened;
+      // a real Canvas command failure still fails immediately.
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+      const currentTimeOrigin = await page
+        .evaluate(() => performance.timeOrigin)
+        .catch(() => navigationTimeOrigin)
+      if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+        await waitForWorkspace(page)
+        await settleLayout(page)
+        await enableCanvasKit(page)
+        continue
+      }
+      throw error
+    }
+  }
+
+  throw new Error('Canvas did not open after the Vite navigation retry')
 }
 
 async function addTableBlock(panel: Locator): Promise<Locator> {
