@@ -35,7 +35,8 @@ pub struct FetchResponse {
 
 /// Download a URL and return the HTML body.
 ///
-/// Follows up to 10 redirects (ureq default). Returns `FetchError::NotHtml`
+/// Uses the ureq 3 response APIs so redirects, status, headers, and bounded
+/// body reads are handled from one response object. Returns `FetchError::NotHtml`
 /// if the response content-type is not `text/html`.
 pub fn fetch_html(url: &str, opts: &FetchOptions) -> Result<FetchResponse, FetchError> {
     use std::io::Read as _;
