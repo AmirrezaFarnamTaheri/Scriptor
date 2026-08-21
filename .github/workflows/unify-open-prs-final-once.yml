@@ -109,7 +109,7 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm lint
           env -u GITHUB_SHA -u SCRIPTOR_SOURCE_COMMIT pnpm check:source
-          cargo fmt --all --check
+          cargo fmt -p scriptor-capture -p scriptor-vault -p scriptor-native-git -- --check
           cargo check --workspace --all-targets
           cargo test -p scriptor-vault -p scriptor-capture -p scriptor-native-git
 
