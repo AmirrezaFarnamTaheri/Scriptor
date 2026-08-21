@@ -109,12 +109,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Updating either lock-only package also resolves all changed direct
+          # dependencies from the edited manifests in a single coherent graph.
           cargo update -p uuid@1.24.0 --precise 1.24.1
           cargo update -p globset@0.4.19 --precise 0.4.20
-          cargo update -p chacha20poly1305@0.10.1 --precise 0.11.0
-          cargo update -p htmd@0.1.6 --precise 0.5.5
-          cargo update -p diffy@0.4.2 --precise 0.5.1
-          cargo update -p ureq@2.12.1 --precise 3.4.0
 
       - name: Validate combined dependency state
         shell: bash
