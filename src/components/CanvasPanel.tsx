@@ -127,7 +127,7 @@ export function CanvasPanel({
   }
 
   return (
-    <div ref={dialogRef} className="canvas-overlay" role="dialog" aria-modal="true" aria-labelledby="canvas-board-title">
+    <div ref={dialogRef} className="canvas-overlay" role="dialog" aria-modal="true" aria-label="Canvas board">
       <header className="canvas-header">
         <h2 id="canvas-board-title">{document.title}</h2>
         <div className="canvas-board-picker">
