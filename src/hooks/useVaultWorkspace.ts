@@ -141,6 +141,7 @@ export function useVaultWorkspace(options?: {
   const applyFilesystemChangesRef = useRef<(paths: string[]) => Promise<void>>(async () => {})
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
+  const vaultOpenRequestIdRef = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
     setActivityLog((entries) => [entry, ...entries].slice(0, 100))
@@ -406,6 +407,7 @@ export function useVaultWorkspace(options?: {
 
   const openVaultAt = useCallback(
     async (rootPath: string) => {
+      const requestId = ++vaultOpenRequestIdRef.current
       setStatus('opening')
       setError(null)
       clearSearch()
@@ -413,12 +415,14 @@ export function useVaultWorkspace(options?: {
 
       try {
         const opened = await vaultOpen(rootPath)
+        if (requestId !== vaultOpenRequestIdRef.current) return
         setVault(opened.vault)
         onVaultChanged?.(opened.vault.id)
         setStatus('indexing')
 
         void indexerListNoteSummaries()
           .then((summaries) => {
+            if (requestId !== vaultOpenRequestIdRef.current) return
             setNoteSummaries(summaries)
             if (summaries.length > 0) {
               setSections(buildVaultSectionsFromSummaries(summaries))
@@ -431,6 +435,7 @@ export function useVaultWorkspace(options?: {
           indexerRebuild(),
           vaultReadWorkspaceSession().catch(() => null),
         ])
+        if (requestId !== vaultOpenRequestIdRef.current) return
 
         setEntries(scanned)
         setSections(buildVaultSections(scanned))
@@ -440,6 +445,7 @@ export function useVaultWorkspace(options?: {
         setStatus('ready')
 
         if (savedSession?.open_tabs?.length) {
+          if (requestId !== vaultOpenRequestIdRef.current) return
           onSessionLayoutRestore?.({
             collapsedFolders: savedSession.collapsed_folders ?? {},
             sidebarView: savedSession.sidebar_view === 'inbox' ? 'inbox' : 'vault',
@@ -447,13 +453,16 @@ export function useVaultWorkspace(options?: {
           await restoreEditorSession(
             savedSession.open_tabs.map((tab) => ({ path: tab.path, pinned: tab.pinned })),
             savedSession.active_path ?? null,
+            () => requestId === vaultOpenRequestIdRef.current,
           )
         } else {
+          if (requestId !== vaultOpenRequestIdRef.current) return
           const firstNote = scanned.find((entry) => entry.kind === 'note')
           if (firstNote) {
-            await openNote(firstNote.path)
+            await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
           }
         }
+        if (requestId !== vaultOpenRequestIdRef.current) return
         void Promise.all([
           refreshHealth(opened.vault),
           refreshGit(),
@@ -461,10 +470,12 @@ export function useVaultWorkspace(options?: {
           refreshVaultSnippets(),
           refreshNoteSummaries()
         ]).catch((err) => {
+          if (requestId !== vaultOpenRequestIdRef.current) return
           console.error('Failed to load background vault services:', err)
         })
         try {
           const persisted = await vaultReadActivityLog(100)
+          if (requestId !== vaultOpenRequestIdRef.current) return
           if (persisted.length > 0) {
             setActivityLog(
               persisted.map((row) => ({
@@ -479,8 +490,10 @@ export function useVaultWorkspace(options?: {
         } catch {
           // activity log is optional until first write
         }
+        if (requestId !== vaultOpenRequestIdRef.current) return
         logActivity('success', `Opened vault ${opened.vault.name}`, rootPath)
       } catch (caught) {
+        if (requestId !== vaultOpenRequestIdRef.current) return
         setStatus('error')
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)

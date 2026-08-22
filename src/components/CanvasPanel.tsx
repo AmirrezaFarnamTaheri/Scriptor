@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CanvasBlock } from '@scriptor/core/contracts/canvas'
 import type { CanvasToolContribution, TemplatePackContribution } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest, sceneBounds } from '@scriptor/canvas'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useCanvasBoard } from '../hooks/useCanvasBoard'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { CanvasStage } from './canvas/CanvasStage'
 
 interface CanvasPanelProps {
@@ -28,6 +29,7 @@ export function CanvasPanel({
   onClose,
   onOpenNote,
 }: CanvasPanelProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (import.meta.env.DEV) {
       console.info(
@@ -55,10 +57,18 @@ export function CanvasPanel({
   const [activeTool, setActiveTool] = useState(canvasTools[0]?.id ?? 'select')
 
   useEscapeToClose(true, onClose)
+  useFocusTrap(dialogRef, { active: true })
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey)) return
+      const target = event.target
+      if (target instanceof HTMLElement && (
+        target.isContentEditable ||
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target instanceof HTMLSelectElement
+      )) return
       const key = event.key.toLowerCase()
       if (key === 'z' && !event.shiftKey) {
         event.preventDefault()
@@ -124,9 +134,9 @@ export function CanvasPanel({
   }
 
   return (
-    <div className="canvas-overlay" role="dialog" aria-label="Canvas board">
+    <div ref={dialogRef} className="canvas-overlay" role="dialog" aria-modal="true" aria-label="Canvas board">
       <header className="canvas-header">
-        <h2>{document.title}</h2>
+        <h2 id="canvas-board-title">{document.title}</h2>
         <div className="canvas-board-picker">
           <label>
             <span className="sr-only">Active board</span>

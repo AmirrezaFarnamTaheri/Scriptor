@@ -64,7 +64,19 @@ export function readStoredCustomThemes(): CustomColorPalette[] {
   if (typeof window === 'undefined') return []
   try {
     const raw = window.localStorage.getItem(CUSTOM_THEMES_KEY)
-    return raw ? JSON.parse(raw) : []
+    const parsed: unknown = raw ? JSON.parse(raw) : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((candidate): candidate is CustomColorPalette => {
+      if (!candidate || typeof candidate !== 'object') return false
+      const palette = candidate as Partial<CustomColorPalette>
+      const colors = palette.colors
+      return typeof palette.id === 'string' && palette.id.startsWith('custom-') &&
+        typeof palette.name === 'string' &&
+        (palette.category === 'light' || palette.category === 'dark' || palette.category === 'contrast') &&
+        !!colors && typeof colors.bg === 'string' && typeof colors.surface === 'string' &&
+        typeof colors.primary === 'string' && typeof colors.amber === 'string' &&
+        typeof colors.ink === 'string' && typeof colors.border === 'string'
+    })
   } catch {
     return []
   }

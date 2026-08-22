@@ -1,32 +1,61 @@
 import { test, expect } from '@playwright/test'
-import { launchApp, settleLayout, openCommandPalette, runCommand } from './helpers'
+import type { Locator, Page } from '@playwright/test'
+import {
+  launchApp,
+  settleLayout,
+  openCommandPalette,
+  runCommand,
+  waitForWorkspace,
+} from './helpers'
+
+async function openGraph(page: Page): Promise<Locator> {
+  await launchApp(page)
+  await waitForWorkspace(page)
+  await settleLayout(page)
+
+  const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await openCommandPalette(page)
+    const navigationTimeOrigin = await page.evaluate(() => performance.timeOrigin)
+    await runCommand(page, 'Open graph')
+
+    try {
+      await expect(panel).toBeVisible({ timeout: 15_000 })
+      return panel
+    } catch (error) {
+      // A parallel worker can trigger Vite's lazy-dependency optimizer after
+      // the command click has already completed. If that replaces the document,
+      // the graph's in-memory open state disappears. Replay only when the time
+      // origin proves navigation occurred; ordinary graph failures still fail.
+      await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
+      const currentTimeOrigin = await page
+        .evaluate(() => performance.timeOrigin)
+        .catch(() => navigationTimeOrigin)
+      if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
+        await waitForWorkspace(page)
+        await settleLayout(page)
+        continue
+      }
+      throw error
+    }
+  }
+
+  throw new Error('Graph did not open after the Vite navigation retry')
+}
 
 test.describe('Graph panel', () => {
   test('opens via command palette', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
-    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expect(panel).toBeVisible({ timeout: 15_000 })
+    await openGraph(page)
   })
 
   test('has accessible graph container', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
+    await openGraph(page)
     const svg = page.locator('svg[role="application"], canvas[role="img"]')
     await expect(svg.first()).toBeVisible({ timeout: 30_000 })
   })
 
   test('keyboard navigation moves focus between nodes', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
-    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expect(panel).toBeVisible({ timeout: 15_000 })
+    const panel = await openGraph(page)
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
     await expect(graphContainer.first()).toBeVisible({ timeout: 30_000 })
@@ -46,12 +75,7 @@ test.describe('Graph panel', () => {
   })
 
   test('enter key activates focused node', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
-    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expect(panel).toBeVisible({ timeout: 15_000 })
+    const panel = await openGraph(page)
 
     const graphContainer = page.locator('svg[role="application"], canvas[role="img"], .graph-canvas')
     await expect(graphContainer.first()).toBeVisible({ timeout: 30_000 })
@@ -68,23 +92,13 @@ test.describe('Graph panel', () => {
   })
 
   test('escape closes graph panel', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
-    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expect(panel).toBeVisible({ timeout: 15_000 })
+    const panel = await openGraph(page)
     await page.keyboard.press('Escape')
     await expect(panel).not.toBeVisible({ timeout: 5000 })
   })
 
   test('depth slider controls graph depth', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
-    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expect(panel).toBeVisible({ timeout: 15_000 })
+    const panel = await openGraph(page)
 
     // The depth control is a plain range input in `.graph-controls`; require it
     // rather than skipping silently when it cannot be found.
@@ -105,12 +119,7 @@ test.describe('Graph panel', () => {
   // isVisible() on two locators that never match and discarded both results.
   // Assert the view controls that do exist instead.
   test('graph view controls are accessible', async ({ page }) => {
-    await launchApp(page)
-    await settleLayout(page)
-    await openCommandPalette(page)
-    await runCommand(page, 'Open graph')
-    const panel = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expect(panel).toBeVisible({ timeout: 15_000 })
+    const panel = await openGraph(page)
 
     const controls = panel.locator('.graph-controls')
     await expect(controls.getByRole('button', { name: 'Neighborhood (depth 2)' })).toBeVisible()

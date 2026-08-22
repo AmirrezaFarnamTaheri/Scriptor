@@ -139,14 +139,20 @@ export async function runCommand(page: Page, commandLabel: string) {
     // In that case the palette disappears because the document was replaced,
     // but the command's in-memory panel state is lost with it. Detect the same
     // document replacement on the successful-click path and replay once.
+    await page
+      .evaluate(() => new Promise<void>((resolve) => window.setTimeout(resolve, 0)))
+      .catch(() => undefined)
     await page.waitForLoadState('domcontentloaded', { timeout: 10_000 }).catch(() => undefined)
     const currentTimeOrigin = await page
       .evaluate(() => performance.timeOrigin)
       .catch(() => navigationTimeOrigin)
-    if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
-      await waitForWorkspace(page)
-      await openCommandPalette(page)
-      continue
+    if (currentTimeOrigin !== navigationTimeOrigin) {
+      if (attempt === 0) {
+        await waitForWorkspace(page)
+        await openCommandPalette(page)
+        continue
+      }
+      throw new Error(`Command "${commandLabel}" triggered two consecutive document reloads`)
     }
     return
   }

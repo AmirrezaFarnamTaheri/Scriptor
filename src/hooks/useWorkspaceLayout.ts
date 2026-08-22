@@ -25,8 +25,16 @@ function validateLayouts(value: unknown): Record<WorkspaceMode, WorkspaceLayout>
   const parsed = expectRecord(value, 'workspace layouts')
   return (Object.keys(DEFAULT_WORKSPACE_LAYOUTS) as WorkspaceMode[]).reduce(
     (accumulator, mode) => {
-      const candidate = typeof parsed[mode] === 'object' && parsed[mode] !== null ? parsed[mode] : {}
-      accumulator[mode] = { ...DEFAULT_WORKSPACE_LAYOUTS[mode], ...(candidate as Partial<WorkspaceLayout>) }
+      const candidate = typeof parsed[mode] === 'object' && parsed[mode] !== null ? parsed[mode] as Record<string, unknown> : {}
+      const fallback = DEFAULT_WORKSPACE_LAYOUTS[mode]
+      accumulator[mode] = {
+        splitPreview: typeof candidate.splitPreview === 'boolean' ? candidate.splitPreview : fallback.splitPreview,
+        showStickies: typeof candidate.showStickies === 'boolean' ? candidate.showStickies : fallback.showStickies,
+        graphDepth: typeof candidate.graphDepth === 'number' && Number.isFinite(candidate.graphDepth)
+          ? Math.max(1, Math.min(5, Math.round(candidate.graphDepth)))
+          : fallback.graphDepth,
+        distractionFree: typeof candidate.distractionFree === 'boolean' ? candidate.distractionFree : fallback.distractionFree,
+      }
       return accumulator
     },
     {} as Record<WorkspaceMode, WorkspaceLayout>,

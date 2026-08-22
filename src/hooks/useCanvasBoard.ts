@@ -13,7 +13,6 @@ import {
   canvasApplyTemplate,
   canvasSaveDocument,
   canvasSnapshot,
-  canvasTemplateDryRun,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
@@ -271,27 +270,13 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           commitDocument(next)
           setStatus(`Inserted ${output.blocksAdded} blocks from ${templateLabel}.`)
           return
-        } catch {
-          // Fall through to local template blocks.
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : `Could not apply ${templateLabel}.`)
+          return
         }
       }
 
-      let added = blocksForTemplate(templateId)
-      if (isNativeBridgeAvailable()) {
-        try {
-          const preview = await canvasTemplateDryRun(JSON.stringify(document), templateId)
-          added = preview.blocksAdded.map((block) => ({
-            id: block.id,
-            kind: block.kind as CanvasDocument['blocks'][number]['kind'],
-            layerId: block.layerId,
-            bounds: block.bounds,
-            zIndex: block.zIndex,
-            contentRef: block.contentRef,
-          }))
-        } catch {
-          // Fall back to local template blocks.
-        }
-      }
+      const added = blocksForTemplate(templateId)
 
       const base = documentRef.current
       const next = {
