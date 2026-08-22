@@ -21,17 +21,28 @@ export function attachPreviewCodeCopy(
     button.setAttribute('aria-label', 'Copy code to clipboard')
     block.classList.add('has-copy-button')
 
+    let resetTimer: number | undefined
+    const showResult = (label: string, ariaLabel: string) => {
+      button.textContent = label
+      button.setAttribute('aria-label', ariaLabel)
+      if (resetTimer !== undefined) window.clearTimeout(resetTimer)
+      resetTimer = window.setTimeout(() => {
+        button.textContent = 'Copy'
+        button.setAttribute('aria-label', 'Copy code to clipboard')
+      }, 1200)
+    }
     const onClick = () => {
-      void copyText(text).then(() => {
-        button.textContent = 'Copied'
-        window.setTimeout(() => {
-          button.textContent = 'Copy'
-        }, 1200)
-      })
+      void copyText(text).then(
+        () => showResult('Copied', 'Code copied to clipboard'),
+        () => showResult('Copy failed', 'Copy failed; try again'),
+      )
     }
     button.addEventListener('click', onClick)
     block.appendChild(button)
-    cleanups.push(() => button.removeEventListener('click', onClick))
+    cleanups.push(() => {
+      button.removeEventListener('click', onClick)
+      if (resetTimer !== undefined) window.clearTimeout(resetTimer)
+    })
   }
 
   return () => {

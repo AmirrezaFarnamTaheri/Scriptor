@@ -36,9 +36,9 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: `node_modules\\.bin\\vite.cmd build --mode e2e && node_modules\\.bin\\vite.cmd preview --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    command: `node_modules\\.bin\\vite.cmd build --mode e2e --outDir dist-e2e && node_modules\\.bin\\vite.cmd preview --outDir dist-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
     port: serverPort,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 })

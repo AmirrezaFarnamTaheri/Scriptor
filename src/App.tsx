@@ -538,6 +538,7 @@ function App() {
   )
   const workspaceStore = useWorkspaceStore({
     vaultOpen: Boolean(workspace.vault),
+    vaultId: workspace.vault?.id,
     readVaultText: nativeReady ? previewReadVaultText : undefined,
     writeVaultText: nativeReady ? writeVaultText : undefined,
   })
@@ -1416,6 +1417,7 @@ function App() {
           focusPath={workspace.activePath}
           graphGroups={workspace.vaultConfig.graph_groups ?? []}
           vaultOpen={Boolean(workspace.vault)}
+          vaultId={workspace.vault?.id}
           depth={graphDepth}
           fullVault={graphFullVault}
           onDepthChange={setGraphDepth}
@@ -1757,6 +1759,7 @@ function App() {
           <KnowledgeWorkbench
             key={knowledgeWorkbenchTab}
             vaultOpen={Boolean(workspace.vault)}
+            vaultId={workspace.vault?.id}
             initialTab={knowledgeWorkbenchTab}
             activePath={workspace.activePath}
             onClose={() => setKnowledgeWorkbenchOpen(false)}

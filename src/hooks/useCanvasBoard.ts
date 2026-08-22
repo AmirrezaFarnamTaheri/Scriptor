@@ -15,6 +15,7 @@ import {
   canvasSnapshot,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { OperationGuard } from './operation-guard'
 
 export interface CanvasBoardSummary {
   id: string
@@ -39,10 +40,23 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const lastCommittedSerializedRef = useRef('')
   const persistRef = useRef<(next: CanvasDocument) => void>(() => {})
   const documentRef = useRef(document)
+  const lifecycleGuardRef = useRef(new OperationGuard())
+  const loadGuardRef = useRef(new OperationGuard())
+  const saveGuardRef = useRef(new OperationGuard())
 
   useEffect(() => {
     documentRef.current = document
   }, [document])
+
+  useEffect(() => {
+    lifecycleGuardRef.current.invalidate()
+    loadGuardRef.current.invalidate()
+    saveGuardRef.current.invalidate()
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+  }, [vaultId, vaultOpen])
 
   useEffect(() => {
     return () => {
@@ -88,20 +102,23 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const displayStatus =
     !vaultOpen || !vaultId ? 'Open a vault to edit canvas boards.' : status
 
-  const refreshBoardList = useCallback(async () => {
+  const refreshBoardList = useCallback(async (isCurrent: () => boolean = () => true) => {
     if (!isNativeBridgeAvailable() || !vaultOpen) {
-      setBoards([])
+      if (isCurrent()) setBoards([])
       return []
     }
     const summaries = await canvasListDocuments()
-    setBoards(summaries)
+    if (isCurrent()) setBoards(summaries)
     return summaries
   }, [vaultOpen])
 
   const loadBoard = useCallback(
     async (boardId: string) => {
       if (!isNativeBridgeAvailable() || !vaultOpen) return
+      const lifecycle = lifecycleGuardRef.current.snapshot()
+      const request = loadGuardRef.current.issue()
       const json = await canvasLoadDocument(boardId)
+      if (!lifecycleGuardRef.current.isCurrent(lifecycle) || !loadGuardRef.current.isCurrent(request)) return
       const loaded = JSON.parse(json) as CanvasDocument
       setDocument(loaded)
       resetHistory(loaded)
@@ -117,6 +134,8 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     }
 
     let cancelled = false
+    const lifecycle = lifecycleGuardRef.current.snapshot()
+    const isCurrent = () => !cancelled && lifecycleGuardRef.current.isCurrent(lifecycle)
     void (async () => {
       try {
         if (!isNativeBridgeAvailable()) {
@@ -129,11 +148,12 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           return
         }
 
-        const summaries = await refreshBoardList()
-        if (cancelled) return
+        const summaries = await refreshBoardList(isCurrent)
+        if (!isCurrent()) return
 
         if (summaries.length > 0) {
           await loadBoard(summaries[0]!.id)
+          if (!isCurrent()) return
         } else {
           const created = createEmptyDocument(vaultId, 'Research board')
           setDocument(created)
@@ -142,7 +162,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           setStatus('New board ready.')
         }
       } catch (error) {
-        if (!cancelled) {
+        if (isCurrent()) {
           const fallback = createEmptyDocument(vaultId, 'Research board')
           setDocument(fallback)
           resetHistory(fallback)
@@ -160,6 +180,23 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const persist = useCallback(
     (next: CanvasDocument) => {
       if (!isNativeBridgeAvailable() || !vaultOpen) return
+      const lifecycle = lifecycleGuardRef.current.snapshot()
+      const save = saveGuardRef.current.issue()
+      const isCurrent = () =>
+        lifecycleGuardRef.current.isCurrent(lifecycle) &&
+        saveGuardRef.current.isCurrent(save) &&
+        documentRef.current.id === next.id
+      const saveDocument = async (payload: CanvasDocument) => {
+        try {
+          const path = await canvasSaveDocument(JSON.stringify(payload))
+          if (!isCurrent()) return
+          setStatus(`Saved to ${path}`)
+          setActiveBoardId(next.id)
+          await refreshBoardList(isCurrent)
+        } catch (error) {
+          if (isCurrent()) setStatus(error instanceof Error ? error.message : 'Save failed')
+        }
+      }
       const crdt = crdtRef.current
       if (crdt) {
         crdt.markLocalEdit()
@@ -167,25 +204,15 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         crdt.flush()
         if (saveTimer.current) window.clearTimeout(saveTimer.current)
         saveTimer.current = window.setTimeout(() => {
-          void canvasSaveDocument(JSON.stringify(payload))
-            .then(async (path) => {
-              setStatus(`Saved to ${path}`)
-              setActiveBoardId(next.id)
-              await refreshBoardList()
-            })
-            .catch((error) => setStatus(error instanceof Error ? error.message : 'Save failed'))
+          saveTimer.current = null
+          void saveDocument(payload)
         }, 400)
         return
       }
       if (saveTimer.current) window.clearTimeout(saveTimer.current)
       saveTimer.current = window.setTimeout(() => {
-        void canvasSaveDocument(JSON.stringify(next))
-          .then(async (path) => {
-            setStatus(`Saved to ${path}`)
-            setActiveBoardId(next.id)
-            await refreshBoardList()
-          })
-          .catch((error) => setStatus(error instanceof Error ? error.message : 'Save failed'))
+        saveTimer.current = null
+        void saveDocument(next)
       }, 400)
     },
     [refreshBoardList, vaultOpen],

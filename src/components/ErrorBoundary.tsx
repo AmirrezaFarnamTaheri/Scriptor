@@ -83,7 +83,10 @@ export class ErrorBoundary extends Component<Props, State> {
 
     const panelFallback = fallback as ReactElement<ComponentProps<typeof PanelErrorFallback>>
     return cloneElement(panelFallback, {
-      onRetry: panelFallback.props.onRetry ?? this.handleReset,
+      onRetry: () => {
+        panelFallback.props.onRetry?.()
+        this.handleReset()
+      },
     })
   }
 

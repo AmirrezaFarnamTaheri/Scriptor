@@ -49,7 +49,7 @@ export function PluginManagerCenter({
   currentTheme: propTheme,
   onThemeChange,
 }: PluginManagerCenterProps) {
-  const { enabledPluginIds, enablePlugin, disablePlugin } = usePluginState()
+  const { enabledPluginIds, enablePlugin, disablePlugin, persistenceError } = usePluginState()
   const { theme: hookTheme, setTheme: hookSetTheme } = useAppTheme()
 
   const activeTheme = propTheme ?? hookTheme
@@ -142,6 +142,7 @@ export function PluginManagerCenter({
               ✕
             </button>
           </div>
+          {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
           {/* Primary Tabs — Color Palette Store active by default */}
           <div className="plugin-manager-tabs" role="tablist">

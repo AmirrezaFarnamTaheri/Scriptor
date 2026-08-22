@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
 
 import { gitCommit, gitPull, gitPush, gitStatus } from '../bridge/commands'
 import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
+import { OperationGuard } from './operation-guard'
 
 interface UseWorkspaceGitOptions {
   vaultId: string | null
@@ -21,90 +22,123 @@ export function useWorkspaceGit({
   logActivity,
   setError,
 }: UseWorkspaceGitOptions) {
-  const [gitStatusState, setGitStatusState] = useState<GitStatus | null>(null)
-  const [gitStatusError, setGitStatusError] = useState<string | null>(null)
-  const [isGitStatusLoading, setIsGitStatusLoading] = useState(false)
-  const [isGitMutationBusy, setIsGitMutationBusy] = useState(false)
+  const [gitStatusState, setGitStatusState] = useState<{ vaultId: string | null; status: GitStatus } | null>(null)
+  const [gitStatusError, setGitStatusError] = useState<{ vaultId: string | null; detail: string } | null>(null)
+  const [isGitStatusLoading, setIsGitStatusLoading] = useState<{ vaultId: string | null; active: boolean } | null>(null)
+  const [isGitMutationBusy, setIsGitMutationBusy] = useState<{ vaultId: string | null; active: boolean } | null>(null)
+  const statusGuardRef = useRef(new OperationGuard())
+  const mutationGuardRef = useRef(new OperationGuard())
+  const vaultIdRef = useRef(vaultId)
+
+  useLayoutEffect(() => {
+    vaultIdRef.current = vaultId
+  }, [vaultId])
+
+  const isCurrentVault = useCallback((targetVaultId: string | null) => vaultIdRef.current === targetVaultId, [])
 
   const refreshGit = useCallback(async () => {
-    setIsGitStatusLoading(true)
+    const targetVaultId = vaultId
+    const request = statusGuardRef.current.issue()
+    setIsGitStatusLoading({ vaultId: targetVaultId, active: true })
     setGitStatusError(null)
     try {
       const status = await gitStatus()
-      setGitStatusState(status)
+      if (!statusGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
+      setGitStatusState({ vaultId: targetVaultId, status })
     } catch (caught) {
+      if (!statusGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
       const detail = caught instanceof Error ? caught.message : String(caught)
       console.error('useWorkspaceGit: gitStatus error', caught)
-      setGitStatusError(detail)
+      setGitStatusError({ vaultId: targetVaultId, detail })
       logActivity('error', 'Git status refresh failed', detail)
     } finally {
-      setIsGitStatusLoading(false)
+      if (statusGuardRef.current.isCurrent(request) && isCurrentVault(targetVaultId)) {
+        setIsGitStatusLoading({ vaultId: targetVaultId, active: false })
+      }
     }
-  }, [logActivity])
+  }, [isCurrentVault, logActivity, vaultId])
 
   const commitFiles = useCallback(
     async (files: string[], message: string) => {
-      if (!gitStatusState?.is_repo) {
+      const targetVaultId = vaultId
+      if (gitStatusState?.vaultId !== targetVaultId || !gitStatusState.status.is_repo) {
         setError('This vault is not a Git repository.')
         return
       }
-      setIsGitMutationBusy(true)
+      const request = mutationGuardRef.current.issue()
+      setIsGitMutationBusy({ vaultId: targetVaultId, active: true })
       setError(null)
       try {
         await gitCommit(files, message)
         await refreshGit()
+        if (!mutationGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
         logActivity('success', 'Git commit created', message)
       } catch (caught) {
+        if (!mutationGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
         const detail = caught instanceof Error ? caught.message : String(caught)
         setError(detail)
         logActivity('error', 'Git commit failed', detail)
       } finally {
-        setIsGitMutationBusy(false)
+        if (mutationGuardRef.current.isCurrent(request) && isCurrentVault(targetVaultId)) {
+          setIsGitMutationBusy({ vaultId: targetVaultId, active: false })
+        }
       }
     },
-    [gitStatusState, logActivity, refreshGit, setError],
+    [gitStatusState, isCurrentVault, logActivity, refreshGit, setError, vaultId],
   )
 
   const pullRemote = useCallback(async () => {
-    setIsGitMutationBusy(true)
+    const targetVaultId = vaultId
+    const request = mutationGuardRef.current.issue()
+    setIsGitMutationBusy({ vaultId: targetVaultId, active: true })
     setError(null)
     try {
-      if (!vaultId) throw new Error('No active vault is open.')
-      const result = await gitPull(vaultId)
+      if (!targetVaultId) throw new Error('No active vault is open.')
+      const result = await gitPull(targetVaultId)
       await refreshVault()
       await refreshGit()
+      if (!mutationGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
       logActivity('success', 'Git pull complete', result.message)
     } catch (caught) {
+      if (!mutationGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
       const detail = caught instanceof Error ? caught.message : String(caught)
       setError(detail)
       logActivity('error', 'Git pull failed', detail)
     } finally {
-      setIsGitMutationBusy(false)
+      if (mutationGuardRef.current.isCurrent(request) && isCurrentVault(targetVaultId)) {
+        setIsGitMutationBusy({ vaultId: targetVaultId, active: false })
+      }
     }
-  }, [logActivity, refreshGit, refreshVault, setError, vaultId])
+  }, [isCurrentVault, logActivity, refreshGit, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
-    setIsGitMutationBusy(true)
+    const targetVaultId = vaultId
+    const request = mutationGuardRef.current.issue()
+    setIsGitMutationBusy({ vaultId: targetVaultId, active: true })
     setError(null)
     try {
-      if (!vaultId) throw new Error('No active vault is open.')
-      const result = await gitPush(vaultId)
+      if (!targetVaultId) throw new Error('No active vault is open.')
+      const result = await gitPush(targetVaultId)
       await refreshGit()
+      if (!mutationGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
       logActivity('success', 'Git push complete', result.message)
     } catch (caught) {
+      if (!mutationGuardRef.current.isCurrent(request) || !isCurrentVault(targetVaultId)) return
       const detail = caught instanceof Error ? caught.message : String(caught)
       setError(detail)
       logActivity('error', 'Git push failed', detail)
     } finally {
-      setIsGitMutationBusy(false)
+      if (mutationGuardRef.current.isCurrent(request) && isCurrentVault(targetVaultId)) {
+        setIsGitMutationBusy({ vaultId: targetVaultId, active: false })
+      }
     }
-  }, [logActivity, refreshGit, setError, vaultId])
+  }, [isCurrentVault, logActivity, refreshGit, setError, vaultId])
 
   return {
-    gitStatusState,
-    gitStatusError,
-    isGitStatusLoading,
-    isGitBusy: isGitMutationBusy,
+    gitStatusState: gitStatusState?.vaultId === vaultId ? gitStatusState.status : null,
+    gitStatusError: gitStatusError?.vaultId === vaultId ? gitStatusError.detail : null,
+    isGitStatusLoading: isGitStatusLoading?.vaultId === vaultId && isGitStatusLoading.active,
+    isGitBusy: isGitMutationBusy?.vaultId === vaultId && isGitMutationBusy.active,
     refreshGit,
     commitFiles,
     pullRemote,

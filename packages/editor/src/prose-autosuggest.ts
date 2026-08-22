@@ -16,7 +16,7 @@
  */
 
 import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
-import { StateEffect, StateField } from '@codemirror/state'
+import { StateEffect, StateField, type Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
 import { extractBigrams, extractWords } from './prose-mining.ts'
@@ -248,15 +248,23 @@ function buildSource(
  * ```
  */
 export function proseAutosuggestExtension(options: ProseAutosuggestOptions = {}): ReturnType<typeof autocompletion>[] {
-  const opts = { ...DEFAULTS, ...options }
   return [
-    proseCorpusField,
+    ...proseAutosuggestState(),
     autocompletion({
       activateOnTyping: true,
       defaultKeymap: true,
-      override: [buildSource(opts)],
+      override: [proseAutosuggestSource(options)],
     }),
   ]
+}
+
+export function proseAutosuggestState(): Extension[] {
+  return [proseCorpusField]
+}
+
+export function proseAutosuggestSource(options: ProseAutosuggestOptions = {}) {
+  const opts = { ...DEFAULTS, ...options }
+  return buildSource(opts)
 }
 
 /**

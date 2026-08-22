@@ -36,7 +36,18 @@ Get-ChildItem $docsDir -Filter *.png | ForEach-Object { Write-Host "  $($_.Name)
 
 if (-not $SkipDesktopBuild) {
     Write-Host "==> Build final desktop app"
-    pnpm prepare:desktop
-    pnpm --dir apps/desktop build
+    $previousE2EMode = $env:VITE_E2E_MODE
+    Remove-Item Env:VITE_E2E_MODE -ErrorAction SilentlyContinue
+    try {
+        pnpm prepare:desktop
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        pnpm --dir apps/desktop build
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    }
+    finally {
+        if ($null -ne $previousE2EMode) {
+            $env:VITE_E2E_MODE = $previousE2EMode
+        }
+    }
     Write-Host "Installers: target/release/bundle/"
 }

@@ -5844,6 +5844,7 @@ name = "scriptor-native-git"
 version = "1.0.1"
 dependencies = [
  "diffy",
+ "scriptor-system-bridge",
  "scriptor-vault",
  "serde",
  "serde_json",
@@ -5896,6 +5897,7 @@ dependencies = [
  "chacha20poly1305",
  "chrono",
  "filetime",
+ "fs4",
  "getrandom 0.4.3",
  "hex",
  "notify-debouncer-mini",

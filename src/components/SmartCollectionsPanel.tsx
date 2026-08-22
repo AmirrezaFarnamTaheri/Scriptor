@@ -56,10 +56,11 @@ function saveCollections(collections: SmartCollection[]) {
 interface SmartCollectionsPanelProps {
   embedded?: boolean
   vaultOpen: boolean
+  vaultId?: string | null
   onOpenNote: (path: string) => void
 }
 
-export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote }: SmartCollectionsPanelProps) {
+export function SmartCollectionsPanel({ embedded = false, vaultOpen, vaultId = null, onOpenNote }: SmartCollectionsPanelProps) {
   const canQuery = vaultOpen && isNativeBridgeAvailable()
   const [collections, setCollections] = useState<SmartCollection[]>(() => loadCollections())
   const [activeId, setActiveId] = useState(collections[0]?.id ?? '')
@@ -70,14 +71,18 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, onOpenNote 
   const requestIdRef = useRef(0)
 
   useEffect(() => {
-    if (!vaultOpen) return
+    if (!vaultOpen || !vaultId) return
+    let cancelled = false
     void loadVaultPresetJson<SmartCollection[]>(VAULT_SMART_COLLECTIONS_PATH).then((stored) => {
-      if (stored && stored.length > 0) {
+      if (!cancelled && stored && stored.length > 0) {
         setCollections(stored)
         setActiveId(stored[0]?.id ?? '')
       }
     })
-  }, [vaultOpen])
+    return () => {
+      cancelled = true
+    }
+  }, [vaultId, vaultOpen])
 
   const activeCollection = useMemo(
     () => collections.find((entry) => entry.id === activeId) ?? collections[0] ?? null,

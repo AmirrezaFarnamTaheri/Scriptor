@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
-use crate::fs::atomic_write;
+use crate::fs::{atomic_write, lock_vault_update};
 use crate::path::{RelativeVaultPath, VaultRoot};
 
 pub const DEFAULT_STATS_HISTORY_PATH: &str = ".scriptor/stats-history.json";
@@ -32,6 +32,10 @@ pub fn read_stats_history(
     relative_path: &str,
 ) -> Result<Vec<StatsHistoryEntry>, VaultError> {
     let absolute = resolve_history_path(root, relative_path)?;
+    read_stats_history_at(&absolute)
+}
+
+fn read_stats_history_at(absolute: &std::path::Path) -> Result<Vec<StatsHistoryEntry>, VaultError> {
     if !absolute.exists() {
         return Ok(Vec::new());
     }
@@ -44,7 +48,12 @@ pub fn append_stats_history(
     relative_path: &str,
     entry: StatsHistoryEntry,
 ) -> Result<Vec<StatsHistoryEntry>, VaultError> {
-    let mut history = read_stats_history(root, relative_path)?;
+    let absolute = resolve_history_path(root, relative_path)?;
+    // Atomic replacement prevents torn JSON; this sidecar advisory lock also
+    // serializes independent desktop and daemon processes that would otherwise
+    // read the same history and overwrite one another's increments.
+    let _update_lock = lock_vault_update(&absolute)?;
+    let mut history = read_stats_history_at(&absolute)?;
     if let Some(existing) = history.iter_mut().find(|row| row.date == entry.date) {
         existing.words = existing.words.saturating_add(entry.words);
     } else {
@@ -54,16 +63,14 @@ pub fn append_stats_history(
     if history.len() > 90 {
         history = history.split_off(history.len().saturating_sub(90));
     }
-    write_stats_history(root, relative_path, &history)?;
+    write_stats_history_at(&absolute, &history)?;
     Ok(history)
 }
 
-fn write_stats_history(
-    root: &VaultRoot,
-    relative_path: &str,
+fn write_stats_history_at(
+    absolute: &std::path::Path,
     history: &[StatsHistoryEntry],
 ) -> Result<(), VaultError> {
-    let absolute = resolve_history_path(root, relative_path)?;
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
@@ -73,6 +80,9 @@ fn write_stats_history(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Barrier};
+    use std::thread;
+
     use super::*;
     use tempfile::tempdir;
 
@@ -119,5 +129,46 @@ mod tests {
         }
 
         assert_eq!(std::fs::read_to_string(&victim).unwrap(), "do not clobber");
+    }
+
+    #[test]
+    fn concurrent_appends_preserve_every_increment() {
+        let dir = tempdir().unwrap();
+        let root = VaultRoot::open(dir.path()).unwrap();
+        let barrier = Arc::new(Barrier::new(3));
+        let mut workers = Vec::new();
+
+        for _ in 0..2 {
+            let root = root.clone();
+            let barrier = Arc::clone(&barrier);
+            workers.push(thread::spawn(move || {
+                barrier.wait();
+                for _ in 0..25 {
+                    append_stats_history(
+                        &root,
+                        DEFAULT_STATS_HISTORY_PATH,
+                        StatsHistoryEntry {
+                            date: "2026-07-26".into(),
+                            words: 1,
+                        },
+                    )
+                    .unwrap();
+                }
+            }));
+        }
+
+        barrier.wait();
+        for worker in workers {
+            worker.join().unwrap();
+        }
+
+        let history = read_stats_history(&root, DEFAULT_STATS_HISTORY_PATH).unwrap();
+        assert_eq!(
+            history,
+            vec![StatsHistoryEntry {
+                date: "2026-07-26".into(),
+                words: 50,
+            }]
+        );
     }
 }

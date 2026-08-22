@@ -218,7 +218,7 @@ test.describe('visual review states', () => {
 
     const fallback = page.getByRole('alert').filter({ hasText: 'The editor could not be displayed' })
     await expect(fallback).toBeVisible({ timeout: 45_000 })
-    await expect(fallback.getByRole('button', { name: 'Retry' })).toBeFocused()
+    await expect(fallback.getByRole('button', { name: 'Switch to CodeMirror' })).toBeFocused()
     await fallback.locator(':scope > div').screenshot({ path: test.info().outputPath('visual-editor-recovery.png') })
   })
 

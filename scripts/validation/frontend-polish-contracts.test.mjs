@@ -26,13 +26,16 @@ test('Git panel state selection covers every owned async state', () => {
   assert.equal(selectGitPanelState(READY_STATUS, null, false), 'ready')
 
   const hookSource = readFileSync(new URL('../../src/hooks/useWorkspaceGit.ts', import.meta.url), 'utf8')
-  assert.match(hookSource, /const \[isGitStatusLoading, setIsGitStatusLoading\] = useState\(false\)/)
-  assert.match(hookSource, /const \[gitStatusError, setGitStatusError\] = useState<string \| null>\(null\)/)
-  assert.match(hookSource, /const \[isGitMutationBusy, setIsGitMutationBusy\] = useState\(false\)/)
+  assert.match(hookSource, /const statusGuardRef = useRef\(new OperationGuard\(\)\)/)
+  assert.match(hookSource, /const mutationGuardRef = useRef\(new OperationGuard\(\)\)/)
+  assert.match(hookSource, /gitStatusState: gitStatusState\?\.vaultId === vaultId \? gitStatusState\.status : null/)
+  assert.match(hookSource, /gitStatusError: gitStatusError\?\.vaultId === vaultId \? gitStatusError\.detail : null/)
   const refreshBlock = hookSource.match(/const refreshGit = useCallback\(async \(\) => \{([\s\S]*?)\n {2}\}, \[/)?.[1]
   assert.ok(refreshBlock, 'refreshGit implementation must remain inspectable')
-  assert.match(refreshBlock, /setIsGitStatusLoading\(true\)/)
+  assert.match(refreshBlock, /const request = statusGuardRef\.current\.issue\(\)/)
+  assert.match(refreshBlock, /setIsGitStatusLoading\(\{ vaultId: targetVaultId, active: true \}\)/)
   assert.match(refreshBlock, /setGitStatusError\(null\)/)
+  assert.match(refreshBlock, /statusGuardRef\.current\.isCurrent\(request\).*isCurrentVault\(targetVaultId\)/)
   assert.doesNotMatch(refreshBlock, /setError\(/, 'status refresh must not clear or overwrite workspace-wide errors')
 })
 

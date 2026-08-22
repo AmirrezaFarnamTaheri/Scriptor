@@ -58,6 +58,27 @@ impl DaemonState {
         self.vault_watcher = None;
     }
 
+    /// Invalidates callbacks from the current watcher before a vault session is
+    /// replaced or a new watcher is started. A watcher callback runs outside
+    /// the daemon-state mutex, so dropping its handle alone cannot prove that
+    /// an already queued callback belongs to the current vault.
+    pub fn invalidate_vault_watcher(&mut self) -> u64 {
+        self.clear_vault_watcher();
+        self.watcher_generation = self.watcher_generation.saturating_add(1);
+        self.watcher_generation
+    }
+
+    pub(crate) fn can_install_vault_watcher(
+        &self,
+        generation: u64,
+        root: &scriptor_vault::VaultRoot,
+    ) -> bool {
+        self.watcher_generation == generation
+            && self
+                .session()
+                .is_some_and(|session| session.root.root() == root.root())
+    }
+
     pub fn set_vault_watcher(&mut self, watcher: VaultWatcher) {
         self.vault_watcher = Some(watcher);
     }
@@ -143,7 +164,11 @@ impl DaemonState {
                 Err("SubscribeEvents must be handled by the transport layer".into())
             }
             RpcMethod::ListCommands => {
-                match serde_json::to_string(&command_gateway::list_commands()) {
+                let commands: Vec<_> = command_gateway::list_commands()
+                    .into_iter()
+                    .filter(|command| !command_gateway::requires_desktop_authorization(command))
+                    .collect();
+                match serde_json::to_string(&commands) {
                     Ok(json) => Ok(RpcPayload::Json { json }),
                     Err(error) => Err(error.to_string()),
                 }
@@ -152,7 +177,11 @@ impl DaemonState {
                 command,
                 payload_json,
             } => {
-                if command_gateway::is_outside_lock_command(&command) {
+                if command_gateway::requires_desktop_authorization(&command) {
+                    Err(format!(
+                        "command {command} requires desktop authorization and is unavailable over daemon IPC"
+                    ))
+                } else if command_gateway::is_outside_lock_command(&command) {
                     Err(format!(
                         "command {command} must be dispatched outside the daemon state lock"
                     ))
@@ -207,6 +236,10 @@ impl DaemonState {
         &mut self,
         path: String,
     ) -> Result<scriptor_vault::OpenVaultOutput, String> {
+        // Invalidate before changing `session` or `index_cache`: a callback
+        // from the old watcher can otherwise capture the newly installed
+        // session and apply old-vault paths to the new index.
+        self.invalidate_vault_watcher();
         self.index_rebuild.wait();
         self.index_cache = None;
         self.session = None;
@@ -598,6 +631,60 @@ mod tests {
             RpcResult::Ok(RpcPayload::Pong { version }) => assert!(!version.is_empty()),
             other => panic!("unexpected response: {other:?}"),
         }
+    }
+
+    #[test]
+    fn invoke_rejects_operations_that_require_desktop_authorization() {
+        let mut state = DaemonState::default();
+        let response = state.handle(RpcRequest::new(
+            2,
+            RpcMethod::Invoke {
+                command: "git_push_cmd".into(),
+                payload_json: "{}".into(),
+            },
+        ));
+        assert!(matches!(
+            response.result,
+            RpcResult::Err(message) if message.contains("desktop authorization")
+        ));
+    }
+
+    #[test]
+    fn list_commands_excludes_operations_that_require_desktop_authorization() {
+        let mut state = DaemonState::default();
+        let response = state.handle(RpcRequest::new(3, RpcMethod::ListCommands));
+        let RpcResult::Ok(RpcPayload::Json { json }) = response.result else {
+            panic!("expected command list response");
+        };
+        let commands: Vec<String> = serde_json::from_str(&json).expect("command list json");
+        assert!(
+            commands
+                .iter()
+                .all(|command| !command_gateway::requires_desktop_authorization(command))
+        );
+        assert!(commands.iter().any(|command| command == "vault_save_note"));
+    }
+
+    #[test]
+    fn vault_swap_invalidates_existing_watcher_generation() {
+        let first = tempdir().expect("first vault");
+        let second = tempdir().expect("second vault");
+        let mut state = DaemonState::default();
+
+        state
+            .open_vault_invoke(first.path().display().to_string())
+            .expect("open first vault");
+        let first_generation = state.watcher_generation;
+        let first_root = state.session().expect("first session").root.clone();
+        assert!(state.can_install_vault_watcher(first_generation, &first_root));
+
+        state
+            .open_vault_invoke(second.path().display().to_string())
+            .expect("open second vault");
+        assert!(
+            !state.can_install_vault_watcher(first_generation, &first_root),
+            "a watcher prepared for the old vault must not install after the swap"
+        );
     }
 
     #[test]

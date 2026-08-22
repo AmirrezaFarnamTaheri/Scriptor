@@ -17,7 +17,7 @@ use scriptor_vault::{
 };
 
 use crate::AppState;
-use crate::state::{active_session, use_headless_engine};
+use crate::state::{ActiveSession, active_session, use_headless_engine};
 
 use super::daemon::{
     bridge_backlinks, bridge_graph, bridge_health_diagnostics, bridge_list_note_summaries,
@@ -25,9 +25,9 @@ use super::daemon::{
 };
 use super::shared::parse_daemon_json;
 
-fn require_graph_capability(
-    state: &tauri::State<AppState>,
-) -> Result<scriptor_vault::VaultSession, String> {
+fn require_graph_capability<'a>(
+    state: &'a tauri::State<'a, AppState>,
+) -> Result<ActiveSession<'a>, String> {
     let session = active_session(state)?;
     let plugin_state = scriptor_vault::load_plugin_state(session.root.root())
         .map_err(|error| error.to_string())?;

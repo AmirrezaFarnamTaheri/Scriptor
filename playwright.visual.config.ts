@@ -1,7 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
 const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
-const serverPort = Number(process.env.SCRIPTOR_VISUAL_PORT ?? 4184)
+const serverPort = Number(process.env.SCRIPTOR_VISUAL_PORT ?? 4185)
 
 export default defineConfig({
   testDir: 'e2e',
@@ -39,9 +39,9 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: `node_modules\\.bin\\vite.cmd build --mode e2e && node_modules\\.bin\\vite.cmd preview --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    command: `node_modules\\.bin\\vite.cmd build --mode e2e --outDir dist-visual-e2e && node_modules\\.bin\\vite.cmd preview --outDir dist-visual-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
     port: serverPort,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 })

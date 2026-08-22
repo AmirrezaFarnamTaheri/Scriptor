@@ -12,6 +12,7 @@ export type KnowledgeWorkbenchTab = 'repair' | 'views' | 'collections' | 'tags' 
 
 interface KnowledgeWorkbenchProps {
   vaultOpen: boolean
+  vaultId?: string | null
   initialTab?: KnowledgeWorkbenchTab
   activePath: string | null
   onClose: () => void
@@ -38,6 +39,7 @@ const TABS = [
 
 export function KnowledgeWorkbench({
   vaultOpen,
+  vaultId = null,
   initialTab = 'repair',
   activePath,
   onClose,
@@ -83,6 +85,7 @@ export function KnowledgeWorkbench({
         <SavedViewsPanel
           embedded
           vaultOpen={vaultOpen}
+          vaultId={vaultId}
           onClose={onClose}
           promptText={promptText}
           onOpenNote={handleOpenNote}
@@ -90,7 +93,7 @@ export function KnowledgeWorkbench({
       ) : null}
 
       {tab === 'collections' ? (
-        <SmartCollectionsPanel embedded vaultOpen={vaultOpen} onOpenNote={handleOpenNote} />
+        <SmartCollectionsPanel embedded vaultOpen={vaultOpen} vaultId={vaultId} onOpenNote={handleOpenNote} />
       ) : null}
 
       {tab === 'tags' ? (

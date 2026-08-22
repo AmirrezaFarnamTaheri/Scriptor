@@ -13,6 +13,7 @@ argon2 = "0.5"
 base64 = "0.22"
 chacha20poly1305 = "0.11"
 chrono = { version = "0.4", features = ["serde"] }
+fs4 = "0.13"
 getrandom = "0.4"
 hex = "0.4"
 regex = "1"

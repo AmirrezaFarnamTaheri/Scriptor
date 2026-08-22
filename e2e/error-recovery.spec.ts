@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 import { WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 test.describe('workspace error recovery', () => {
-  test('editor render failure exposes Retry and restores the active note', async ({ page }) => {
+  test('editor render failure offers a CodeMirror recovery path and restores the active note', async ({ page }) => {
     await page.addInitScript((chromePrefs) => {
       window.localStorage.setItem('scriptor:app-theme', 'light')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
@@ -18,14 +18,14 @@ test.describe('workspace error recovery', () => {
 
     const fallback = page.getByRole('alert').filter({ hasText: 'The editor could not be displayed' })
     await expect(fallback).toBeVisible({ timeout: 45_000 })
-    const retry = fallback.getByRole('button', { name: 'Retry' })
-    await expect(retry).toBeVisible()
-    await expect(retry).toBeFocused()
+    const switchEditor = fallback.getByRole('button', { name: 'Switch to CodeMirror' })
+    await expect(switchEditor).toBeVisible()
+    await expect(switchEditor).toBeFocused()
 
-    await retry.click()
+    await switchEditor.click()
 
     await expect(fallback).toBeHidden({ timeout: 15_000 })
-    await expect(page.locator('.monaco-editor .view-lines')).toContainText('Research Plan', {
+    await expect(page.locator('.cm-content')).toContainText('Research Plan', {
       timeout: 45_000,
     })
     await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible()

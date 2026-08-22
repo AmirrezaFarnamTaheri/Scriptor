@@ -215,7 +215,7 @@ impl AuthorizationBroker {
         let now = Self::now_ms();
         let mut grants = self.lock_grants();
         grants.retain(|_, grant| grant.expires_at_ms >= now);
-        let Some(grant) = grants.remove(token) else {
+        let Some(grant) = grants.get(token) else {
             return Err("authorization is missing, expired, or already used".into());
         };
         if grant.operation != operation {
@@ -224,6 +224,7 @@ impl AuthorizationBroker {
         if grant.scope.as_deref() != scope {
             return Err("authorization token is scoped to a different resource".into());
         }
+        grants.remove(token);
         Ok(())
     }
 }
@@ -318,12 +319,28 @@ mod tests {
                 )
                 .is_err()
         );
+        assert!(
+            broker
+                .consume(
+                    &operation.token,
+                    SensitiveOperation::GitPush,
+                    Some("vault-a")
+                )
+                .is_ok(),
+            "a mismatched request must not consume a valid grant"
+        );
 
         let scope = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
         assert!(
             broker
                 .consume(&scope.token, SensitiveOperation::GitPush, Some("vault-b"))
                 .is_err()
+        );
+        assert!(
+            broker
+                .consume(&scope.token, SensitiveOperation::GitPush, Some("vault-a"))
+                .is_ok(),
+            "a mismatched scope must not consume a valid grant"
         );
     }
 

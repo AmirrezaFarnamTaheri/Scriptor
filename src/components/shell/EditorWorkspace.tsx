@@ -549,6 +549,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                   variant="inline"
                   title="The editor"
                   detail="The editor surface failed to render. Switching notes or toggling the editor engine will retry."
+                  onRetry={editorMode === 'monaco' ? toggleEditorMode : undefined}
+                  retryLabel={editorMode === 'monaco' ? 'Switch to CodeMirror' : undefined}
                 />
               }
             >

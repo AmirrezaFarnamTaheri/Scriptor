@@ -23,7 +23,7 @@ use tauri::AppHandle;
 
 use crate::AppState;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::{active_session, lock_recover, use_headless_engine};
+use crate::state::{active_session, use_headless_engine, write_recover};
 
 use super::daemon::{
     bridge_health_report, bridge_reload_config, bridge_rename_apply, bridge_save_note,
@@ -37,6 +37,7 @@ pub fn vault_open(
     state: tauri::State<AppState>,
     root_path: String,
 ) -> Result<OpenVaultOutput, String> {
+    let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
     let path = std::path::Path::new(&root_path);
     if !path.exists() {
         std::fs::create_dir_all(path)
@@ -44,7 +45,7 @@ pub fn vault_open(
     }
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
-    *lock_recover(&state.session, "session") = Some(session.clone());
+    *write_recover(&state.session, "session") = Some(session.clone());
     restart_vault_watcher(&app, &state, &session)?;
     Ok(output)
 }

@@ -56,63 +56,63 @@ function buildCompletions(source: Completion[], prefix: string): Completion[] {
   return source.filter((item) => item.label.toLowerCase().includes(lower))
 }
 
+export function editorAutocompleteSource(completionContext: CompletionContext) {
+  const line = completionContext.state.doc.lineAt(completionContext.pos)
+  const before = line.text.slice(0, completionContext.pos - line.from)
+
+  const citeMatch = before.match(/\[@[\w:-]*$/)
+  if (citeMatch) {
+    const prefix = citeMatch[0].slice(2)
+    return { from: completionContext.pos - prefix.length - 1, options: buildCompletions(citeCompletions(), prefix) }
+  }
+
+  const tagMatch = before.match(/#[\w/-]*$/)
+  if (tagMatch) {
+    const prefix = tagMatch[0].slice(1)
+    return { from: completionContext.pos - prefix.length - 1, options: buildCompletions(tagCompletions(), prefix) }
+  }
+
+  const footnoteMatch = before.match(/\[\^[^\]]*$/)
+  if (footnoteMatch) {
+    const prefix = footnoteMatch[0].slice(2)
+    const doc = completionContext.state.doc.toString()
+    const defined = new Set<string>()
+    for (const match of doc.matchAll(/\[\^([^\]]+)\]:/g)) {
+      defined.add(match[1] ?? '')
+    }
+    const options = Array.from(defined)
+      .filter((id) => id.toLowerCase().includes(prefix.toLowerCase()))
+      .map((id) => ({
+        label: id,
+        type: 'footnote' as const,
+        apply: `${id}]`,
+      }))
+    if (options.length > 0) {
+      return { from: completionContext.pos - prefix.length - 2, options }
+    }
+  }
+
+  const wikiMatch = before.match(/\[\[[^\]|]*$/)
+  if (wikiMatch) {
+    const inner = wikiMatch[0].slice(2)
+    if (inner.startsWith('#')) {
+      const prefix = inner.slice(1)
+      return {
+        from: completionContext.pos - prefix.length - 3,
+        options: buildCompletions(headingCompletions(), prefix),
+      }
+    }
+    return {
+      from: completionContext.pos - inner.length - 2,
+      options: buildCompletions(fileCompletions(), inner),
+    }
+  }
+
+  return null
+}
+
 export function editorAutocompleteExtension(): Extension {
   return autocompletion({
-    override: [
-      (completionContext: CompletionContext) => {
-        const line = completionContext.state.doc.lineAt(completionContext.pos)
-        const before = line.text.slice(0, completionContext.pos - line.from)
-
-        const citeMatch = before.match(/\[@[\w:-]*$/)
-        if (citeMatch) {
-          const prefix = citeMatch[0].slice(2)
-          return { from: completionContext.pos - prefix.length - 1, options: buildCompletions(citeCompletions(), prefix) }
-        }
-
-        const tagMatch = before.match(/#[\w/-]*$/)
-        if (tagMatch) {
-          const prefix = tagMatch[0].slice(1)
-          return { from: completionContext.pos - prefix.length - 1, options: buildCompletions(tagCompletions(), prefix) }
-        }
-
-        const footnoteMatch = before.match(/\[\^[^\]]*$/)
-        if (footnoteMatch) {
-          const prefix = footnoteMatch[0].slice(2)
-          const doc = completionContext.state.doc.toString()
-          const defined = new Set<string>()
-          for (const match of doc.matchAll(/\[\^([^\]]+)\]:/g)) {
-            defined.add(match[1] ?? '')
-          }
-          const options = Array.from(defined)
-            .filter((id) => id.toLowerCase().includes(prefix.toLowerCase()))
-            .map((id) => ({
-              label: id,
-              type: 'footnote' as const,
-              apply: `${id}]`,
-            }))
-          if (options.length > 0) {
-            return { from: completionContext.pos - prefix.length - 2, options }
-          }
-        }
-
-        const wikiMatch = before.match(/\[\[[^\]|]*$/)
-        if (wikiMatch) {
-          const inner = wikiMatch[0].slice(2)
-          if (inner.startsWith('#')) {
-            const prefix = inner.slice(1)
-            return {
-              from: completionContext.pos - prefix.length - 3,
-              options: buildCompletions(headingCompletions(), prefix),
-            }
-          }
-          return {
-            from: completionContext.pos - inner.length - 2,
-            options: buildCompletions(fileCompletions(), inner),
-          }
-        }
-
-        return null
-      },
-    ],
+    override: [editorAutocompleteSource],
   })
 }

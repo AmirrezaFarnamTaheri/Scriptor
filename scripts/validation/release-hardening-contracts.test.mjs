@@ -60,6 +60,16 @@ test('manual release dispatch builds canonical VERSION and production requires a
   assert.match(versionScript, /versionTag\.test\(refName\)/)
 })
 
+test('release kickoff only tags the default-branch commit after CI succeeds for that exact SHA', () => {
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+
+  assert.match(kickoff, /EXPECTED_BRANCH:\s*\$\{\{ github\.event\.repository\.default_branch \}\}/)
+  assert.match(kickoff, /test "\$GITHUB_REF_NAME" = "\$EXPECTED_BRANCH"/)
+  assert.match(kickoff, /actions\/runs\?head_sha=\$GITHUB_SHA&event=push&status=completed/)
+  assert.match(kickoff, /\.name == "CI" and \.conclusion == "success"/)
+  assert.match(kickoff, /test "\$successful_ci_runs" -gt 0/)
+})
+
 test('release receipt separates installer subjects from architecture trust metadata', () => {
   const workflow = read('.github/workflows/release.yml')
   const receipt = read('scripts/release/create-receipt.mjs')
