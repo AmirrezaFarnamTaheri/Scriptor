@@ -10,6 +10,7 @@ import {
 
 async function openGraph(page: Page): Promise<Locator> {
   await launchApp(page)
+  await waitForWorkspace(page)
   await settleLayout(page)
 
   const panel = page.getByRole('dialog', { name: 'Knowledge graph' })

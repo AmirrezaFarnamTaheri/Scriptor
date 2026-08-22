@@ -9,7 +9,7 @@
 
 ## Current release posture
 
-Version `1.0.0` is an early production candidate. Core writing, vault, indexing, knowledge, Git, export, daemon, and desktop surfaces are implemented. Experimental capabilities are identified in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md); encryption, WASM plugins, local embeddings, mobile, and Tantivy are not marketed as shipped security or platform guarantees.
+Version `1.0.1` is an early production candidate. Core writing, vault, indexing, knowledge, Git, export, daemon, and desktop surfaces are implemented. Experimental capabilities are identified in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md); encryption, WASM plugins, local embeddings, mobile, and Tantivy are not marketed as shipped security or platform guarantees.
 
 ## Principles
 
@@ -25,6 +25,7 @@ Version `1.0.0` is an early production candidate. Core writing, vault, indexing,
 - Node.js `22.16.0`
 - pnpm `10.33.0`
 - Rust `1.96.0`
+- PowerShell 7 (`pwsh`) for release, container, and benchmark scripts
 - Platform dependencies required by Tauri 2
 
 ## Start from source
@@ -35,7 +36,7 @@ corepack prepare pnpm@10.33.0 --activate
 pnpm install --frozen-lockfile
 rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
 rustup default 1.96.0
-pnpm dev --host 127.0.0.1
+pnpm web:dev
 ```
 
 Desktop development:
@@ -72,7 +73,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
 
-The full release gate includes contract runners, Rust tests, Playwright E2E/visual/accessibility tests, daemon/TUI/container smoke tests, performance gates, dependency audits, release packaging, and signature checks.
+`pnpm check:release` includes contract runners, Rust tests, Playwright E2E/visual/accessibility tests, daemon/TUI/container smoke tests, and performance gates. Packaging and release-evidence verification are separate steps documented in [`scripts/release/README.md`](scripts/release/README.md). The axe browser audit additionally needs a ChromeDriver compatible with the installed Chrome; set `CHROMEWEBDRIVER` to its directory when automatic discovery is unavailable.
 
 ## Architecture
 

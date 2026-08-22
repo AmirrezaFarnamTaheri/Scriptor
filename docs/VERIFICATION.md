@@ -53,6 +53,8 @@ pnpm audit --prod
 
 `pnpm build` includes the production bundle graph and initial gzip budget check. Warning-zero ESLint is part of `pnpm lint`.
 
+`pnpm check:release` invokes PowerShell scripts through PowerShell 7 (`pwsh`), so contributors on Linux and macOS need `pwsh` installed. The axe gate requires a ChromeDriver compatible with the local Chrome build. When its automatic driver discovery is unavailable, set `CHROMEWEBDRIVER` to the directory containing the driver before running `pnpm check:a11y-axe`.
+
 ## UI and accessibility gate
 
 ```bash
@@ -100,7 +102,7 @@ This section records exploratory baseline checks executed against the working tr
 | Native authorization inventory | Statically validated: 26 high-impact command bindings brokered | `node scripts/validation/authorization-inventory.mjs` |
 | Renderer/native command contract | Statically validated: 135 bridged commands resolve to 152 registered handlers | `node scripts/validation/tauri-command-contracts.mjs` |
 | Package boundaries | Statically validated: 15 packages / 482 package source files, no unexported cross-package imports or cycles | `node scripts/validation/deep-module-boundaries.mjs` |
-| Cargo manifest/lock workspace dependencies | Statically validated: 19 packages | `node scripts/validation/cargo-lock-workspace-deps.mjs` |
+| Cargo manifest/lock workspace dependencies | Statically validated: 19 packages; parser is independent of LF/CRLF checkout normalization | `node scripts/validation/cargo-lock-workspace-deps.mjs` |
 | Plugin Rust gates | Statically validated: 5/5 backend package references resolve | `node scripts/validation/plugin-rust-gates.mjs` |
 | Frontend policy | Statically validated: 522 production TypeScript/CSS files; CSS token policy also passed | `node scripts/validation/frontend-quality.mjs`; `node scripts/validation/css-custom-properties.mjs` |
 | Governance/docs/version/action pins/i18n | Verified/static validators passed | `version.mjs check`, `action-pins.mjs`, `i18n-parity.mjs`, `docs-contracts.mjs` |

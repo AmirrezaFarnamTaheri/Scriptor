@@ -40,6 +40,7 @@ export function useSearchStore({
       if (!trimmed) {
         searchRequestId.current += 1
         setSearchResults([])
+        setIsSearching(false)
         return
       }
 
@@ -78,6 +79,7 @@ export function useSearchStore({
     searchRequestId.current += 1
     setSearchQuery('')
     setSearchResults([])
+    setIsSearching(false)
     if (searchTimer.current) {
       window.clearTimeout(searchTimer.current)
       searchTimer.current = null

@@ -4,6 +4,12 @@
 
 ### Fixed
 
+- Made Cargo lockfile validation independent of Windows CRLF checkout normalization, so source and governance gates use the same semantics locally and in CI.
+- Added behavioral loopback coverage for capture HTTP responses and strengthened HTML-to-Markdown table assertions after dependency upgrades.
+- Made search cancellation clear its loading state, protected native Canvas template failures from being reported as successful local insertions, and restored full modal semantics to Canvas.
+- Prevented workspace shortcuts from intercepting keyboard interaction inside native select controls.
+- Updated release kickoff concurrency so a newer explicit request can replace an unapproved stale request; missing Rust evidence artifacts now fail CI visibly.
+- Standardized local release scripts on PowerShell 7 and documented browser-driver requirements for the axe gate.
 - Hardened local Starlight publishing around a server-derived plan, explicit `publish: true` opt-in, stale-hash checks, managed-only deletion, atomic writes, symlink/path confinement, output-drift repair, and native one-time authorization.
 - Corrected FTS5 body snippets and BM25 column weighting, and removed the phantom ranked-search Tauri call from Smart Collections in favor of the implemented DQL engine.
 - Serialized desktop Git mutations and bounded the reusable native Git mutation queue.

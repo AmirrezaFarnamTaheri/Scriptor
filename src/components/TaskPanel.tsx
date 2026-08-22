@@ -332,11 +332,14 @@ export function TaskPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const handlePatchStatus = (taskId: string, status: string) => {
-    void store.patchStatus(taskId, status)
+    // The store publishes mutationError for this surface. Consume the rejected
+    // promise as well so a failed native mutation never escapes React's event
+    // handler as an unhandled rejection.
+    void store.patchStatus(taskId, status).catch(() => undefined)
   }
 
   const handlePatchDue = (taskId: string, dueAt: string | null) => {
-    void store.patchDue(taskId, dueAt)
+    void store.patchDue(taskId, dueAt).catch(() => undefined)
   }
 
   const handleToggleExpand = (id: string) => {

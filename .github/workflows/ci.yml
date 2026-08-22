@@ -79,7 +79,7 @@ jobs:
         with:
           name: ci-evidence-source-snapshot-${{ github.run_attempt }}
           path: ${{ env.CI_LOG_DIR }}
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
 
   supply-chain:
@@ -475,6 +475,21 @@ jobs:
       - name: Run accessibility smoke
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run accessibility smoke" -FilePath "pnpm" -ArgumentList @("check:a11y") -TimeoutSeconds 600
+
+      - name: Verify hosted ChromeDriver for axe
+        shell: pwsh
+        run: |
+          if (-not $env:CHROMEWEBDRIVER) {
+            throw "CHROMEWEBDRIVER is required for the axe audit on hosted runners."
+          }
+          $driver = Join-Path $env:CHROMEWEBDRIVER "chromedriver"
+          if (-not (Test-Path -LiteralPath $driver -PathType Leaf)) {
+            throw "Hosted ChromeDriver was not found at $driver."
+          }
+          & google-chrome --version
+          if ($LASTEXITCODE -ne 0) { throw "Hosted Google Chrome is unavailable." }
+          & $driver --version
+          if ($LASTEXITCODE -ne 0) { throw "Hosted ChromeDriver is not executable." }
 
       - name: Run axe-core WCAG audit
         shell: pwsh

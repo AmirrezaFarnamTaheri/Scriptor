@@ -220,8 +220,19 @@ export function useWorkspaceEditor({
       const doc = await vaultReadNote(path)
       setActiveNote(doc)
       setDraftMarkdown(doc.markdown)
+      activeNoteRef.current = doc
+      draftMarkdownRef.current = doc.markdown
+      setOpenTabs((tabs) =>
+        tabs.map((tab) =>
+          tab.path === path
+            ? { ...tab, title: doc.metadata.title, contentHash: doc.metadata.content_hash }
+            : tab,
+        ),
+      )
+      setExternalChangeConflict(null)
+      await loadBacklinks(path)
     },
-    [activeNote, activePath],
+    [activeNote, activeNoteRef, activePath, draftMarkdownRef, loadBacklinks],
   )
 
   const checkExternalChanges = useCallback(async () => {
@@ -447,15 +458,37 @@ export function useWorkspaceEditor({
       if (sourcePath === activePathRef.current && isSavingRef.current) {
         return false
       }
-      return coordinateNoteMutation({
+      const didMutate = await coordinateNoteMutation({
         sourcePath,
         activePath: activePathRef.current,
         isDirty: Boolean(note && draftMarkdownRef.current !== note.markdown),
         saveActiveNote: saveActiveNoteNow,
         runMutation,
       })
+      if (didMutate && sourcePath === activePathRef.current) {
+        try {
+          await syncActiveNoteContent(sourcePath)
+        } catch (caught) {
+          // The native mutation is already durable. Preserve that successful
+          // outcome while making the reconciliation failure observable.
+          logActivity(
+            'error',
+            'Note updated, but the editor could not refresh',
+            caught instanceof Error ? caught.message : String(caught),
+          )
+        }
+      }
+      return didMutate
     },
-    [activeNoteRef, activePathRef, draftMarkdownRef, isSavingRef, saveActiveNoteNow],
+    [
+      activeNoteRef,
+      activePathRef,
+      draftMarkdownRef,
+      isSavingRef,
+      logActivity,
+      saveActiveNoteNow,
+      syncActiveNoteContent,
+    ],
   )
 
   const updateDraft = useCallback(

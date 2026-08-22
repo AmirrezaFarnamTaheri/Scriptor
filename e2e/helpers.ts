@@ -143,10 +143,13 @@ export async function runCommand(page: Page, commandLabel: string) {
     const currentTimeOrigin = await page
       .evaluate(() => performance.timeOrigin)
       .catch(() => navigationTimeOrigin)
-    if (attempt === 0 && currentTimeOrigin !== navigationTimeOrigin) {
-      await waitForWorkspace(page)
-      await openCommandPalette(page)
-      continue
+    if (currentTimeOrigin !== navigationTimeOrigin) {
+      if (attempt === 0) {
+        await waitForWorkspace(page)
+        await openCommandPalette(page)
+        continue
+      }
+      throw new Error(`Command "${commandLabel}" triggered two consecutive document reloads`)
     }
     return
   }

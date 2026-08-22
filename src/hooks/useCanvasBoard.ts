@@ -271,13 +271,14 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
           commitDocument(next)
           setStatus(`Inserted ${output.blocksAdded} blocks from ${templateLabel}.`)
           return
-        } catch {
-          // Fall through to local template blocks.
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : `Could not apply ${templateLabel}.`)
+          return
         }
       }
 
       let added = blocksForTemplate(templateId)
-      if (isNativeBridgeAvailable()) {
+      if (isNativeBridgeAvailable() && vaultOpen) {
         try {
           const preview = await canvasTemplateDryRun(JSON.stringify(document), templateId)
           added = preview.blocksAdded.map((block) => ({
@@ -288,8 +289,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
             zIndex: block.zIndex,
             contentRef: block.contentRef,
           }))
-        } catch {
-          // Fall back to local template blocks.
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : `Could not preview ${templateLabel}.`)
+          return
         }
       }
 

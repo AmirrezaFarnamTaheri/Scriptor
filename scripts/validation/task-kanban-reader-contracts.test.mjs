@@ -6,6 +6,8 @@ import { coordinateNoteMutation } from '../../src/lib/workspace/coordinateNoteMu
 
 const taskPanel = readFileSync(new URL('../../src/components/TaskPanel.tsx', import.meta.url), 'utf8')
 const kanbanPanel = readFileSync(new URL('../../src/components/KanbanPanel.tsx', import.meta.url), 'utf8')
+const workspaceEditor = readFileSync(new URL('../../src/hooks/useWorkspaceEditor.ts', import.meta.url), 'utf8')
+const vaultWorkspace = readFileSync(new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url), 'utf8')
 const taskStatusGlyph = readFileSync(new URL('../../src/components/taskStatusGlyph.tsx', import.meta.url), 'utf8')
 const annotationPopover = readFileSync(new URL('../../src/components/reader/AnnotationPopover.tsx', import.meta.url), 'utf8')
 const readerStyles = readFileSync(new URL('../../src/styles/components/reader-panel.css', import.meta.url), 'utf8')
@@ -24,6 +26,11 @@ test('task and kanban panels use declared task exports and unified modal shell',
   assert.match(taskPanel, /runSourceNoteMutation/)
   assert.match(kanbanPanel, /runSourceNoteMutation/)
   assert.equal(corePackage.exports['./task'], './src/task/index.ts')
+})
+
+test('task event handlers consume rejected mutations after surfacing their error state', () => {
+  assert.match(taskPanel, /void store\.patchStatus\(taskId, status\)\.catch\(\(\) => undefined\)/)
+  assert.match(taskPanel, /void store\.patchDue\(taskId, dueAt\)\.catch\(\(\) => undefined\)/)
 })
 
 test('kanban loads ignore stale responses and stale note mutation refreshes', () => {
@@ -79,6 +86,29 @@ test('a failed dirty-note save prevents the native mutation', async () => {
 
   assert.equal(result, false)
   assert.deepEqual(events, ['save'])
+})
+
+test('successful task and kanban mutations reconcile the active editor from disk', () => {
+  assert.match(
+    workspaceEditor,
+    /if \(didMutate && sourcePath === activePathRef\.current\) \{[\s\S]{0,500}?await syncActiveNoteContent\(sourcePath\)/,
+  )
+  assert.match(workspaceEditor, /activeNoteRef\.current = doc/)
+  assert.match(workspaceEditor, /draftMarkdownRef\.current = doc\.markdown/)
+  assert.match(workspaceEditor, /contentHash: doc\.metadata\.content_hash/)
+})
+
+test('overlapping vault opens cannot publish stale state or errors', () => {
+  assert.match(vaultWorkspace, /const vaultOpenRequestIdRef = useRef\(0\)/)
+  assert.match(vaultWorkspace, /const requestId = \+\+vaultOpenRequestIdRef\.current/)
+  assert.match(
+    vaultWorkspace,
+    /const opened = await vaultOpen\(rootPath\)\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+  )
+  assert.match(
+    vaultWorkspace,
+    /catch \(caught\) \{\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+  )
 })
 
 test('annotation popover keeps modal focus semantics inside the reader panel', () => {

@@ -9,18 +9,24 @@
 
 ## Toolchain
 
+The local gates use Node.js 22.12 or newer, pnpm 10.33.0, Rust 1.96.0, and
+PowerShell 7 (`pwsh`). Browser accessibility checks also need a ChromeDriver
+that matches the installed Chrome version; set `CHROMEWEBDRIVER` when it is not
+discoverable automatically.
+
 ```powershell
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
 pnpm install --frozen-lockfile
 rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
 rustup default 1.96.0
+pwsh --version
 ```
 
 ## Development
 
 ```powershell
-pnpm dev --host 127.0.0.1
+pnpm web:dev
 pnpm desktop:dev
 ```
 
@@ -53,6 +59,10 @@ cargo test --workspace
 ```
 
 Run focused package validators and relevant Playwright suites for the changed behavior. UI changes must include keyboard, screen-reader semantics, loading/empty/error states, narrow viewport, and 200% zoom evidence.
+
+`pnpm check:release` is a broad release gate, not the fastest local feedback
+loop. Start with the focused checks above, then run the full gate on a machine
+with the desktop/browser prerequisites installed.
 
 Proof terminology and platform/release gates are defined in [`docs/VERIFICATION.md`](docs/VERIFICATION.md). Never describe a static source check as a compiled, packaged, native, or browser-verified result.
 

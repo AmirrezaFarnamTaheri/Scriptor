@@ -3,7 +3,10 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '../..')
-const lockText = fs.readFileSync(path.join(root, 'Cargo.lock'), 'utf8')
+// Git may materialize the lockfile as CRLF on Windows (`text=auto`), while
+// Cargo writes LF. Normalize before parsing so this repository contract is
+// independent of the contributor's checkout setting.
+const lockText = fs.readFileSync(path.join(root, 'Cargo.lock'), 'utf8').replace(/\r\n/g, '\n')
 
 function walk(dir) {
   const out = []

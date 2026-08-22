@@ -141,6 +141,7 @@ export function useVaultWorkspace(options?: {
   const applyFilesystemChangesRef = useRef<(paths: string[]) => Promise<void>>(async () => {})
   const loadGraphRef = useRef<(focusPath?: string | null) => Promise<void>>(async () => {})
   const exportProfilesRef = useRef<ExportProfile[]>([])
+  const vaultOpenRequestIdRef = useRef(0)
   const logActivity = useCallback((kind: ActivityEntry['kind'], message: string, detail?: string) => {
     const entry = createActivityEntry(kind, message, detail)
     setActivityLog((entries) => [entry, ...entries].slice(0, 100))
@@ -406,6 +407,7 @@ export function useVaultWorkspace(options?: {
 
   const openVaultAt = useCallback(
     async (rootPath: string) => {
+      const requestId = ++vaultOpenRequestIdRef.current
       setStatus('opening')
       setError(null)
       clearSearch()
@@ -413,6 +415,7 @@ export function useVaultWorkspace(options?: {
 
       try {
         const opened = await vaultOpen(rootPath)
+        if (requestId !== vaultOpenRequestIdRef.current) return
         setVault(opened.vault)
         onVaultChanged?.(opened.vault.id)
         setStatus('indexing')
@@ -431,6 +434,7 @@ export function useVaultWorkspace(options?: {
           indexerRebuild(),
           vaultReadWorkspaceSession().catch(() => null),
         ])
+        if (requestId !== vaultOpenRequestIdRef.current) return
 
         setEntries(scanned)
         setSections(buildVaultSections(scanned))
@@ -454,6 +458,7 @@ export function useVaultWorkspace(options?: {
             await openNote(firstNote.path)
           }
         }
+        if (requestId !== vaultOpenRequestIdRef.current) return
         void Promise.all([
           refreshHealth(opened.vault),
           refreshGit(),
@@ -481,6 +486,7 @@ export function useVaultWorkspace(options?: {
         }
         logActivity('success', `Opened vault ${opened.vault.name}`, rootPath)
       } catch (caught) {
+        if (requestId !== vaultOpenRequestIdRef.current) return
         setStatus('error')
         const message = caught instanceof Error ? caught.message : String(caught)
         setError(message)

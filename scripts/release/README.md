@@ -35,6 +35,7 @@ Release engineering scripts for Scriptor.
 - Node.js `22.16.0`
 - pnpm `10.33.0`
 - Rust `1.96.0` with `rustfmt` and `clippy`
+- PowerShell 7 (`pwsh`)
 
 ```powershell
 corepack enable

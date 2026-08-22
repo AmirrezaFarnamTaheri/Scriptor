@@ -11,7 +11,9 @@ on:
 
 concurrency:
   group: release-kickoff
-  cancel-in-progress: false
+  # Environment approval can wait indefinitely; a newer explicit kickoff must
+  # supersede an unapproved predecessor instead of blocking every release.
+  cancel-in-progress: true
 
 permissions:
   contents: write

@@ -72,6 +72,8 @@ for (const path of [
 
 requirePattern('src/components/GraphPanel.tsx', /useFocusTrap\(dialogRef, \{ active: true \}\)/, 'graph dialog must trap and restore focus')
 requirePattern('src/components/GraphPanel.tsx', /aria-modal="true"/, 'graph dialog must declare modal semantics')
+requirePattern('src/components/CanvasPanel.tsx', /useFocusTrap\(dialogRef, \{ active: true \}\)/, 'canvas dialog must trap and restore focus')
+requirePattern('src/components/CanvasPanel.tsx', /aria-modal="true"/, 'canvas dialog must declare modal semantics')
 requirePattern('src/components/ObsidianImportDialog.tsx', /useFocusTrap\(dialogRef,\s*\{\s*active:\s*true(?:,\s*initialFocus:\s*false)?\s*\}\)/, 'import dialog must trap and restore focus')
 requirePattern('src/components/ObsidianImportDialog.tsx', /aria-labelledby=\{titleId\}/, 'import dialog must have a programmatic title')
 requirePattern('src/components/shell/EditorWorkspace.tsx', /type EditorTransformAction/, 'editor actions must use the editor package contract')

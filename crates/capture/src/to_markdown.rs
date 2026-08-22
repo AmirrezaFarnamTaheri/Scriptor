@@ -253,8 +253,8 @@ mod tests {
     fn table_is_included_when_requested() {
         let html = "<table><tr><th>A</th></tr><tr><td>1</td></tr></table>";
         let md = convert(html, true, true).unwrap();
-        // htmd should produce some form of table representation.
-        assert!(!md.is_empty());
+        assert!(md.contains('A') && md.contains('1'), "table cells must survive: {md}");
+        assert!(md.lines().any(|line| line.contains('|')), "expected Markdown table syntax: {md}");
     }
 
     #[test]
