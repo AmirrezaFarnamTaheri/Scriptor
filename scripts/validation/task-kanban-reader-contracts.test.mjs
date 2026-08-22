@@ -91,11 +91,18 @@ test('a failed dirty-note save prevents the native mutation', async () => {
 test('successful task and kanban mutations reconcile the active editor from disk', () => {
   assert.match(
     workspaceEditor,
-    /if \(didMutate && sourcePath === activePathRef\.current\) \{[\s\S]{0,500}?await syncActiveNoteContent\(sourcePath\)/,
+    /if \(didMutate && sourcePath === activePathRef\.current\) \{[\s\S]{0,500}?await syncActiveNoteContent\(sourcePath, \{ navigationGeneration, draftRevision \}\)/,
   )
   assert.match(workspaceEditor, /activeNoteRef\.current = doc/)
   assert.match(workspaceEditor, /draftMarkdownRef\.current = doc\.markdown/)
   assert.match(workspaceEditor, /contentHash: doc\.metadata\.content_hash/)
+  assert.match(workspaceEditor, /const navigationGenerationRef = useRef\(0\)/)
+  assert.match(workspaceEditor, /const draftRevisionRef = useRef\(0\)/)
+  assert.match(
+    workspaceEditor,
+    /const doc = await vaultReadNote\(path\)[\s\S]{0,300}?activePathRef\.current !== path[\s\S]{0,300}?draftRevision !== draftRevisionRef\.current/,
+  )
+  assert.match(workspaceEditor, /draftRevisionRef\.current \+= 1\s+setDraftMarkdown\(markdown\)/)
 })
 
 test('overlapping vault opens cannot publish stale state or errors', () => {
@@ -109,6 +116,28 @@ test('overlapping vault opens cannot publish stale state or errors', () => {
     vaultWorkspace,
     /catch \(caught\) \{\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
   )
+  assert.match(
+    vaultWorkspace,
+    /indexerListNoteSummaries\(\)[\s\S]{0,200}?if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+  )
+  assert.match(
+    vaultWorkspace,
+    /const persisted = await vaultReadActivityLog\(100\)\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+  )
+  assert.match(
+    vaultWorkspace,
+    /if \(savedSession\?\.open_tabs\?\.length\) \{\s+if \(requestId !== vaultOpenRequestIdRef\.current\) return/,
+  )
+  assert.match(
+    vaultWorkspace,
+    /await restoreEditorSession\([\s\S]{0,350}?\(\) => requestId === vaultOpenRequestIdRef\.current/,
+  )
+  assert.match(
+    vaultWorkspace,
+    /await openNote\(firstNote\.path, \(\) => requestId === vaultOpenRequestIdRef\.current\)/,
+  )
+  assert.match(workspaceEditor, /async \(path: string, isCurrent: \(\) => boolean = \(\) => true\)/)
+  assert.match(workspaceEditor, /if \(!isCurrent\(\) \|\| navigationGeneration !== navigationGenerationRef\.current\) return false/)
 })
 
 test('annotation popover keeps modal focus semantics inside the reader panel', () => {

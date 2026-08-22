@@ -32,9 +32,11 @@ test('command replay recovers after one document reload', async ({ page }) => {
   await launchApp(page)
   await waitForWorkspace(page)
   await openCommandPalette(page)
+  const initialTimeOrigin = await page.evaluate(() => performance.timeOrigin)
 
   await runCommand(page, 'Open graph')
 
+  await expect.poll(() => page.evaluate(() => performance.timeOrigin)).not.toBe(initialTimeOrigin)
   await expect(page.getByRole('dialog', { name: 'Knowledge graph' })).toBeVisible()
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('e2e:command-reloads-remaining'))).toBe('0')
 })

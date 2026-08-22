@@ -1,7 +1,7 @@
 # Scriptor
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.1-0f766e.svg)](VERSION)
 [![CI](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
 
 **A local-first Markdown workspace for serious writing and research.** Scriptor combines a Tauri desktop shell, a Rust vault/indexing kernel, a React workspace, Git-aware editing, citations, graph navigation, publishing, canvas tools, and permissioned automation while keeping Markdown files portable on disk.

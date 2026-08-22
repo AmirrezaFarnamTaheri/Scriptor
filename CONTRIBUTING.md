@@ -9,7 +9,7 @@
 
 ## Toolchain
 
-The local gates use Node.js 22.12 or newer, pnpm 10.33.0, Rust 1.96.0, and
+The local gates use Node.js 22.12 or newer (CI pins 22.16.0), pnpm 10.33.0, Rust 1.96.0, and
 PowerShell 7 (`pwsh`). Browser accessibility checks also need a ChromeDriver
 that matches the installed Chrome version; set `CHROMEWEBDRIVER` when it is not
 discoverable automatically.

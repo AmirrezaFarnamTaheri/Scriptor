@@ -210,8 +210,10 @@ test('release workflows remain portable and install the complete browser runtime
   const ci = read('.github/workflows/ci.yml')
   assert.match(ci, /Install Playwright FFmpeg runtime/)
   assert.match(ci, /"playwright", "install", "ffmpeg"/)
-  assert.match(ci, /Verify hosted ChromeDriver for axe/)
-  assert.match(ci, /CHROMEWEBDRIVER is required for the axe audit/)
+  assert.match(
+    ci,
+    /- name: Verify hosted ChromeDriver for axe[\s\S]*?CHROMEWEBDRIVER is required for the axe audit[\s\S]*?- name: Run axe-core WCAG audit/,
+  )
 })
 
 test('MCP runtime types and Windows unsigned verification stay complete', () => {

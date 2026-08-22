@@ -9,20 +9,17 @@ on:
         required: true
         type: string
 
-concurrency:
-  group: release-kickoff
-  # Environment approval can wait indefinitely; a newer explicit kickoff must
-  # supersede an unapproved predecessor instead of blocking every release.
-  cancel-in-progress: true
-
 permissions:
   contents: write
   actions: write
 
 jobs:
-  tag-and-dispatch:
+  approve-release:
     environment: release-production
     runs-on: ubuntu-24.04
+    concurrency:
+      group: release-kickoff-approval
+      cancel-in-progress: true
     timeout-minutes: 10
     steps:
       - name: Checkout release commit and tags
@@ -42,6 +39,21 @@ jobs:
           version=$(tr -d '[:space:]' < VERSION)
           test "$version" = "${{ inputs.version }}"
           SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check
+
+  tag-and-dispatch:
+    needs: approve-release
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: release-kickoff-publish
+      # Once approval has completed, never cancel the tag-and-dispatch side
+      # effects midway through an immutable tag publication.
+      cancel-in-progress: false
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release commit and tags
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Create immutable version tag
         id: tag

@@ -13,7 +13,6 @@ import {
   canvasApplyTemplate,
   canvasSaveDocument,
   canvasSnapshot,
-  canvasTemplateDryRun,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
@@ -277,23 +276,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         }
       }
 
-      let added = blocksForTemplate(templateId)
-      if (isNativeBridgeAvailable() && vaultOpen) {
-        try {
-          const preview = await canvasTemplateDryRun(JSON.stringify(document), templateId)
-          added = preview.blocksAdded.map((block) => ({
-            id: block.id,
-            kind: block.kind as CanvasDocument['blocks'][number]['kind'],
-            layerId: block.layerId,
-            bounds: block.bounds,
-            zIndex: block.zIndex,
-            contentRef: block.contentRef,
-          }))
-        } catch (error) {
-          setStatus(error instanceof Error ? error.message : `Could not preview ${templateLabel}.`)
-          return
-        }
-      }
+      const added = blocksForTemplate(templateId)
 
       const base = documentRef.current
       const next = {

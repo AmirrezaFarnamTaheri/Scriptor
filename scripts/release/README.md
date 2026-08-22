@@ -53,13 +53,13 @@ pnpm check:governance
 pnpm check:source
 pnpm check:contracts
 pnpm check:release-evidence-contracts
-powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1 -SkipTauri
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/package.ps1 -SkipTauri
 ```
 
 Build the desktop bundle only after the source checks pass:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/release/package.ps1
+pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/package.ps1
 ```
 
 Installers land under `target/release/bundle/`. Before transport, run the target-specific status writer and exact staging script. Example:

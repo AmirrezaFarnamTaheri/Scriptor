@@ -67,6 +67,13 @@ export function useSearchStore({
     (query: string) => {
       setSearchQuery(query)
       if (searchTimer.current) window.clearTimeout(searchTimer.current)
+      if (!query.trim()) {
+        searchTimer.current = null
+        searchRequestId.current += 1
+        setSearchResults([])
+        setIsSearching(false)
+        return
+      }
       searchTimer.current = window.setTimeout(() => {
         void runSearch(query)
       }, debounceMs)

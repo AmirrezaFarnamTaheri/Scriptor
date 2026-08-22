@@ -89,18 +89,24 @@ export function useWorkspaceEditor({
   const saveTimer = useRef<number | null>(null)
   const historyNavigation = useRef(false)
   const saveOverwriteRef = useRef(false)
+  const navigationGenerationRef = useRef(0)
+  const draftRevisionRef = useRef(0)
   const { activePathRef, activeNoteRef, draftMarkdownRef, isSavingRef, checkExternalChangesRef } = editorRefs
 
   const resetNoteNavigation = useCallback(() => {
+    navigationGenerationRef.current += 1
     setNoteNav({ paths: [], index: -1 })
   }, [])
 
   const loadNote = useCallback(
-    async (path: string) => {
+    async (path: string, isCurrent: () => boolean = () => true) => {
+      if (!isCurrent()) return false
+      const navigationGeneration = ++navigationGenerationRef.current
       setError(null)
       setExternalChangeConflict(null)
       saveOverwriteRef.current = false
       const document = await vaultReadNote(path)
+      if (!isCurrent() || navigationGeneration !== navigationGenerationRef.current) return false
       setActivePath(path)
       setActiveNote(document)
       setDraftMarkdown(document.markdown)
@@ -117,10 +123,12 @@ export function useWorkspaceEditor({
         return [...tabs, nextTab]
       })
       await loadBacklinks(path)
+      if (!isCurrent() || navigationGeneration !== navigationGenerationRef.current) return false
       if (isNativeBridgeAvailable()) {
         void vaultRecordRecentNote(path).catch(() => undefined)
         void indexerRecordRecentAccess(path).catch(() => undefined)
       }
+      return true
     },
     [loadBacklinks, setError],
   )
@@ -135,9 +143,9 @@ export function useWorkspaceEditor({
   }, [])
 
   const openNote = useCallback(
-    async (path: string) => {
-      await loadNote(path)
-      if (!historyNavigation.current) {
+    async (path: string, isCurrent?: () => boolean) => {
+      const didLoad = await loadNote(path, isCurrent)
+      if (didLoad && !historyNavigation.current) {
         recordNoteHistory(path)
       }
       historyNavigation.current = false
@@ -156,8 +164,12 @@ export function useWorkspaceEditor({
   )
 
   const restoreEditorSession = useCallback(
-    async (tabs: Array<{ path: string; pinned?: boolean }>, active: string | null) => {
-      if (tabs.length === 0) return
+    async (
+      tabs: Array<{ path: string; pinned?: boolean }>,
+      active: string | null,
+      isCurrent: () => boolean = () => true,
+    ) => {
+      if (tabs.length === 0 || !isCurrent()) return
       setOpenTabs(
         tabs.map((tab) => ({
           path: tab.path,
@@ -167,8 +179,8 @@ export function useWorkspaceEditor({
         })),
       )
       const target = active && tabs.some((tab) => tab.path === active) ? active : tabs[0]?.path
-      if (target) {
-        await openNote(target)
+      if (target && isCurrent()) {
+        await openNote(target, isCurrent)
       }
     },
     [openNote],
@@ -213,11 +225,23 @@ export function useWorkspaceEditor({
   }, [externalChangeConflict, logActivity])
 
   const syncActiveNoteContent = useCallback(
-    async (path: string) => {
+    async (
+      path: string,
+      expected?: { navigationGeneration: number; draftRevision: number },
+    ) => {
       if (activePath !== path || !activeNote) {
         return
       }
+      const navigationGeneration = expected?.navigationGeneration ?? navigationGenerationRef.current
+      const draftRevision = expected?.draftRevision ?? draftRevisionRef.current
       const doc = await vaultReadNote(path)
+      if (
+        activePathRef.current !== path ||
+        navigationGeneration !== navigationGenerationRef.current ||
+        draftRevision !== draftRevisionRef.current
+      ) {
+        return
+      }
       setActiveNote(doc)
       setDraftMarkdown(doc.markdown)
       activeNoteRef.current = doc
@@ -231,8 +255,9 @@ export function useWorkspaceEditor({
       )
       setExternalChangeConflict(null)
       await loadBacklinks(path)
+      if (navigationGeneration !== navigationGenerationRef.current) return
     },
-    [activeNote, activeNoteRef, activePath, draftMarkdownRef, loadBacklinks],
+    [activeNote, activeNoteRef, activePath, activePathRef, draftMarkdownRef, loadBacklinks],
   )
 
   const checkExternalChanges = useCallback(async () => {
@@ -296,6 +321,7 @@ export function useWorkspaceEditor({
           if (fallback) {
             void openNote(fallback)
           } else {
+            navigationGenerationRef.current += 1
             setActivePath(null)
             setActiveNote(null)
             setDraftMarkdown('')
@@ -455,6 +481,8 @@ export function useWorkspaceEditor({
   const runNoteMutation = useCallback(
     async (sourcePath: string, runMutation: () => Promise<void>) => {
       const note = activeNoteRef.current
+      const navigationGeneration = navigationGenerationRef.current
+      const draftRevision = draftRevisionRef.current
       if (sourcePath === activePathRef.current && isSavingRef.current) {
         return false
       }
@@ -467,7 +495,7 @@ export function useWorkspaceEditor({
       })
       if (didMutate && sourcePath === activePathRef.current) {
         try {
-          await syncActiveNoteContent(sourcePath)
+          await syncActiveNoteContent(sourcePath, { navigationGeneration, draftRevision })
         } catch (caught) {
           // The native mutation is already durable. Preserve that successful
           // outcome while making the reconciliation failure observable.
@@ -493,6 +521,7 @@ export function useWorkspaceEditor({
 
   const updateDraft = useCallback(
     (markdown: string) => {
+      draftRevisionRef.current += 1
       setDraftMarkdown(markdown)
       scheduleSave(markdown)
     },

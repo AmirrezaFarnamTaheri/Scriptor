@@ -422,6 +422,7 @@ export function useVaultWorkspace(options?: {
 
         void indexerListNoteSummaries()
           .then((summaries) => {
+            if (requestId !== vaultOpenRequestIdRef.current) return
             setNoteSummaries(summaries)
             if (summaries.length > 0) {
               setSections(buildVaultSectionsFromSummaries(summaries))
@@ -444,6 +445,7 @@ export function useVaultWorkspace(options?: {
         setStatus('ready')
 
         if (savedSession?.open_tabs?.length) {
+          if (requestId !== vaultOpenRequestIdRef.current) return
           onSessionLayoutRestore?.({
             collapsedFolders: savedSession.collapsed_folders ?? {},
             sidebarView: savedSession.sidebar_view === 'inbox' ? 'inbox' : 'vault',
@@ -451,11 +453,13 @@ export function useVaultWorkspace(options?: {
           await restoreEditorSession(
             savedSession.open_tabs.map((tab) => ({ path: tab.path, pinned: tab.pinned })),
             savedSession.active_path ?? null,
+            () => requestId === vaultOpenRequestIdRef.current,
           )
         } else {
+          if (requestId !== vaultOpenRequestIdRef.current) return
           const firstNote = scanned.find((entry) => entry.kind === 'note')
           if (firstNote) {
-            await openNote(firstNote.path)
+            await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
           }
         }
         if (requestId !== vaultOpenRequestIdRef.current) return
@@ -466,10 +470,12 @@ export function useVaultWorkspace(options?: {
           refreshVaultSnippets(),
           refreshNoteSummaries()
         ]).catch((err) => {
+          if (requestId !== vaultOpenRequestIdRef.current) return
           console.error('Failed to load background vault services:', err)
         })
         try {
           const persisted = await vaultReadActivityLog(100)
+          if (requestId !== vaultOpenRequestIdRef.current) return
           if (persisted.length > 0) {
             setActivityLog(
               persisted.map((row) => ({
@@ -484,6 +490,7 @@ export function useVaultWorkspace(options?: {
         } catch {
           // activity log is optional until first write
         }
+        if (requestId !== vaultOpenRequestIdRef.current) return
         logActivity('success', `Opened vault ${opened.vault.name}`, rootPath)
       } catch (caught) {
         if (requestId !== vaultOpenRequestIdRef.current) return
