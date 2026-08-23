@@ -130,7 +130,10 @@ Windows 11 x86_64 host; Node v26.1.0; Rust 1.96.0 (pinned toolchain).
 | TypeScript build | Verified | `tsc -b --pretty false` |
 | ESLint warning-zero, full repository | Verified: exit 0 only after adding missing `dist-e2e` ignores (finding D9) | `eslint . --max-warnings=0` |
 | Functional browser suite | Verified locally: 73/73 including the eight Git-panel failures observed in CI run 32632696707 pre-fix | `playwright test --config playwright.e2e.config.ts` |
-| Desktop/embeddings local compile+clippy+tests | Pending on this host: `aws-lc-sys` MSVC feature probes fail (`-WX`); Ubuntu CI compiles these crates | cargo output archived by auditor |
+| Desktop crate release build (incl. aws-lc-sys/reqwest TLS graph) | Verified on this host after exporting `CL`/`CFLAGS=/std:c11 /wd4100 /wd4244 /wd4267 /wd4189` for the MSVC `-WX` feature probes; `target/release/scriptor-desktop.exe` produced | `cargo build --release -p scriptor-desktop` (5 m 24 s) |
+| Desktop binary launch smoke | Verified: process started, stayed alive through the observation window, terminated cleanly | manual launch of `target/release/scriptor-desktop.exe` |
+| Daemon IPC hermetic smoke | Verified: exit 0 against the minimal fixture vault | `node scripts/validation/daemon-smoke.mjs` |
+| TUI hermetic smoke | Verified: exit 0 (`scriptor-cli tui --smoke-test --in-process`) | `node scripts/validation/tui-smoke.mjs` |
 | Visual regression suite, axe audit, packaging/release gates | Pending: require pinned browser baselines, ChromeDriver, and packaging tooling | — |
 
 
