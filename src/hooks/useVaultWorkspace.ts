@@ -465,7 +465,7 @@ export function useVaultWorkspace(options?: {
         if (requestId !== vaultOpenRequestIdRef.current) return
         void Promise.all([
           refreshHealth(opened.vault),
-          refreshGit(),
+          refreshGit(opened.vault.id), // explicit target: may run before setVault commits
           refreshVaultConfig(),
           refreshVaultSnippets(),
           refreshNoteSummaries()

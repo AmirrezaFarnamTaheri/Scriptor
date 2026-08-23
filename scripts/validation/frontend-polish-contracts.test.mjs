@@ -25,18 +25,26 @@ test('Git panel state selection covers every owned async state', () => {
   assert.equal(selectGitPanelState({ ...READY_STATUS, is_repo: false }, null, false), 'not-repository')
   assert.equal(selectGitPanelState(READY_STATUS, null, false), 'ready')
 
-  const hookSource = readFileSync(new URL('../../src/hooks/useWorkspaceGit.ts', import.meta.url), 'utf8')
-  assert.match(hookSource, /const statusGuardRef = useRef\(new OperationGuard\(\)\)/)
-  assert.match(hookSource, /const mutationGuardRef = useRef\(new OperationGuard\(\)\)/)
-  assert.match(hookSource, /gitStatusState: gitStatusState\?\.vaultId === vaultId \? gitStatusState\.status : null/)
-  assert.match(hookSource, /gitStatusError: gitStatusError\?\.vaultId === vaultId \? gitStatusError\.detail : null/)
-  const refreshBlock = hookSource.match(/const refreshGit = useCallback\(async \(\) => \{([\s\S]*?)\n {2}\}, \[/)?.[1]
-  assert.ok(refreshBlock, 'refreshGit implementation must remain inspectable')
-  assert.match(refreshBlock, /const request = statusGuardRef\.current\.issue\(\)/)
-  assert.match(refreshBlock, /setIsGitStatusLoading\(\{ vaultId: targetVaultId, active: true \}\)/)
-  assert.match(refreshBlock, /setGitStatusError\(null\)/)
-  assert.match(refreshBlock, /statusGuardRef\.current\.isCurrent\(request\).*isCurrentVault\(targetVaultId\)/)
-  assert.doesNotMatch(refreshBlock, /setError\(/, 'status refresh must not clear or overwrite workspace-wide errors')
+  const hookSource = readFileSync(new URL("../../src/hooks/useWorkspaceGit.ts", import.meta.url), "utf8")
+  const controllerSource = readFileSync(
+    new URL("../../src/hooks/workspace-git-status.ts", import.meta.url),
+    "utf8",
+  )
+  const workspaceSource = readFileSync(new URL("../../src/hooks/useVaultWorkspace.ts", import.meta.url), "utf8")
+
+  // Status freshness is owned by the framework-free per-vault controller.
+  assert.match(hookSource, /new WorkspaceGitStatusController\(gitStatus\)/)
+  assert.match(hookSource, /useSyncExternalStore\(controller\.subscribe, controller\.getSnapshot\)/)
+  // The vault-open flow must pass the opened vault explicitly: neither a
+  // closure-captured nor a ref-read id can be trusted before setVault commits.
+  assert.match(workspaceSource, /refreshGit\(opened\.vault\.id\)/)
+  // Refresh sequencing stays guard-protected and results land per vault.
+  assert.match(controllerSource, /const ticket = this\.guard\.issue\(\)/)
+  assert.match(controllerSource, /this\.guard\.isCurrent\(ticket\)/)
+  assert.match(controllerSource, /explicitVaultId === undefined \? this\.currentKey : vaultStatusKey\(explicitVaultId\)/)
+  assert.match(controllerSource, /this\.write\(targetKey/)
+  assert.match(controllerSource, /GIT_STATUS_MAX_VAULT_SLOTS/)
+  assert.doesNotMatch(controllerSource, /setError\(/, "status freshness must not touch workspace-wide error state")
 })
 
 test('Git selection distinguishes untouched defaults from an explicit empty selection', () => {
