@@ -33,6 +33,7 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
         .read(true)
         .write(true)
         .create(true)
+        .truncate(false)
         .open(&lock_path)
         .map_err(|source| VaultError::io(&lock_path, source))?;
     file.lock_exclusive()
