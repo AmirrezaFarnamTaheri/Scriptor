@@ -9,6 +9,7 @@ export default defineConfig([
   globalIgnores([
     'dist',
     'dist-ssr',
+    'dist-e2e',
     'target',
     '**/target/**',
     'node_modules',
