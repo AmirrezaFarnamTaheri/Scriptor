@@ -56,7 +56,7 @@ fn read_recent_file_at(absolute: &std::path::Path) -> Result<Vec<RecentNoteEntry
     if !absolute.exists() {
         return Ok(Vec::new());
     }
-    let raw = fs::read_to_string(&absolute).map_err(|source| VaultError::io(&absolute, source))?;
+    let raw = fs::read_to_string(absolute).map_err(|source| VaultError::io(absolute, source))?;
     serde_json::from_str(&raw).map_err(VaultError::from)
 }
 
@@ -68,7 +68,7 @@ fn write_recent_file_at(
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
     let payload = serde_json::to_string_pretty(entries).map_err(VaultError::from)?;
-    atomic_write(&absolute, payload.as_bytes())
+    atomic_write(absolute, payload.as_bytes())
 }
 
 #[cfg(test)]
