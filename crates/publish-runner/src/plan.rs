@@ -443,7 +443,10 @@ mod tests {
 
         let error = plan_publish(tmp.path(), &BucketState::default(), &Default::default())
             .expect_err("opted-in oversized notes must fail");
-        assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error}");
+        assert!(
+            matches!(error, PublishError::NoteTooLarge { .. }),
+            "{error}"
+        );
     }
 
     #[test]
@@ -456,7 +459,10 @@ mod tests {
 
         let error = plan_publish(tmp.path(), &BucketState::default(), &Default::default())
             .expect_err("an incomplete frontmatter probe must not be treated as private");
-        assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error}");
+        assert!(
+            matches!(error, PublishError::NoteTooLarge { .. }),
+            "{error}"
+        );
     }
 
     #[test]

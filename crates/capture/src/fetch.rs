@@ -112,13 +112,18 @@ mod tests {
             let (mut stream, _) = listener.accept().expect("accept request");
             let mut request = [0_u8; 1024];
             let _ = stream.read(&mut request);
-            stream.write_all(response.as_bytes()).expect("write response");
+            stream
+                .write_all(response.as_bytes())
+                .expect("write response");
         });
         format!("http://{address}/capture-test")
     }
 
     fn options(max_bytes: usize) -> FetchOptions {
-        FetchOptions { max_bytes, timeout_secs: 2 }
+        FetchOptions {
+            max_bytes,
+            timeout_secs: 2,
+        }
     }
 
     #[test]
@@ -133,7 +138,9 @@ mod tests {
 
     #[test]
     fn fetch_html_accepts_parameterized_html() {
-        let url = serve_once("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 9\r\nConnection: close\r\n\r\n<p>ok</p>");
+        let url = serve_once(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 9\r\nConnection: close\r\n\r\n<p>ok</p>",
+        );
         let response = fetch_html(&url, &options(9)).expect("HTML response succeeds");
         assert_eq!(response.final_url, url);
         assert_eq!(response.html, "<p>ok</p>");
@@ -141,17 +148,35 @@ mod tests {
 
     #[test]
     fn fetch_html_rejects_missing_or_non_html_content_type() {
-        let missing = serve_once("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
-        assert!(matches!(fetch_html(&missing, &options(2)), Err(FetchError::NotHtml { .. })));
-        let json = serve_once("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
-        assert!(matches!(fetch_html(&json, &options(2)), Err(FetchError::NotHtml { .. })));
+        let missing =
+            serve_once("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok");
+        assert!(matches!(
+            fetch_html(&missing, &options(2)),
+            Err(FetchError::NotHtml { .. })
+        ));
+        let json = serve_once(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}",
+        );
+        assert!(matches!(
+            fetch_html(&json, &options(2)),
+            Err(FetchError::NotHtml { .. })
+        ));
     }
 
     #[test]
     fn fetch_html_enforces_the_byte_limit_and_status() {
-        let oversized = serve_once("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 10\r\nConnection: close\r\n\r\n0123456789");
-        assert!(matches!(fetch_html(&oversized, &options(9)), Err(FetchError::TooLarge { limit: 9 })));
-        let missing = serve_once("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
-        assert!(matches!(fetch_html(&missing, &options(1)), Err(FetchError::Http { status: 404, .. })));
+        let oversized = serve_once(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: 10\r\nConnection: close\r\n\r\n0123456789",
+        );
+        assert!(matches!(
+            fetch_html(&oversized, &options(9)),
+            Err(FetchError::TooLarge { limit: 9 })
+        ));
+        let missing =
+            serve_once("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        assert!(matches!(
+            fetch_html(&missing, &options(1)),
+            Err(FetchError::Http { status: 404, .. })
+        ));
     }
 }

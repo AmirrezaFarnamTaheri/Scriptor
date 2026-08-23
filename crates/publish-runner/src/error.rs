@@ -18,7 +18,9 @@ pub enum PublishError {
         limit_bytes: u64,
     },
 
-    #[error("reviewed publish plan is stale for `{path}` (planned {planned_hash}, current {current_hash})")]
+    #[error(
+        "reviewed publish plan is stale for `{path}` (planned {planned_hash}, current {current_hash})"
+    )]
     StalePlan {
         path: String,
         planned_hash: String,
@@ -31,7 +33,9 @@ pub enum PublishError {
     #[error("duplicate publish selection `{path}`")]
     DuplicateSelection { path: String },
 
-    #[error("unsafe publish output `{output}` relative to vault `{vault}`: roots must not contain one another")]
+    #[error(
+        "unsafe publish output `{output}` relative to vault `{vault}`: roots must not contain one another"
+    )]
     UnsafeOutputRoot { vault: String, output: String },
 
     #[error("publish apply partially completed: {source}")]

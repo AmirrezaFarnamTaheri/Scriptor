@@ -106,7 +106,9 @@ impl LocalDirSink {
             BoundedRead::TooLarge { .. } => {
                 return Err(PublishError::InvalidSelection {
                     path: rel_path.to_string(),
-                    reason: format!("managed publish output exceeds {MAX_INDEXED_NOTE_BYTES} bytes"),
+                    reason: format!(
+                        "managed publish output exceeds {MAX_INDEXED_NOTE_BYTES} bytes"
+                    ),
                 });
             }
         };
@@ -243,12 +245,14 @@ fn prepare_apply(
         let current = if let Some(current) = actionable.get(rel) {
             *current
         } else if let Some(current) = source_unchanged.get(rel) {
-            let expected_output_hash = prior_state.entries.get(rel).ok_or_else(|| {
-                PublishError::InvalidSelection {
-                    path: rel.to_string(),
-                    reason: "unchanged source is not owned by publish state".into(),
-                }
-            })?;
+            let expected_output_hash =
+                prior_state
+                    .entries
+                    .get(rel)
+                    .ok_or_else(|| PublishError::InvalidSelection {
+                        path: rel.to_string(),
+                        reason: "unchanged source is not owned by publish state".into(),
+                    })?;
             if sink.content_hash(rel)?.as_deref() == Some(expected_output_hash.as_str()) {
                 return Err(PublishError::InvalidSelection {
                     path: rel.to_string(),
@@ -401,11 +405,7 @@ where
 
         if let Err(error) = sink.write(&prepared.rel_path, &prepared.bytes) {
             return Err(partial_apply_error(
-                error,
-                &written,
-                &deleted,
-                &new_state,
-                true,
+                error, &written, &deleted, &new_state, true,
             ));
         }
         written.push(prepared.rel_path);
@@ -497,7 +497,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(result.written, vec!["hello.md"]);
-        assert_eq!(fs::read_to_string(out.path().join("hello.md")).unwrap(), opted_in("Hello!"));
+        assert_eq!(
+            fs::read_to_string(out.path().join("hello.md")).unwrap(),
+            opted_in("Hello!")
+        );
     }
 
     #[test]
@@ -553,7 +556,16 @@ mod tests {
             }],
             to_delete: vec![],
         };
-        assert!(publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default()).is_err());
+        assert!(
+            publish_apply(
+                vault.path(),
+                &input,
+                &sink,
+                &Default::default(),
+                &Default::default()
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -569,8 +581,14 @@ mod tests {
             to_delete: vec![],
         };
 
-        let error = publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default())
-            .expect_err("stale reviewed hashes must fail");
+        let error = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &Default::default(),
+            &Default::default(),
+        )
+        .expect_err("stale reviewed hashes must fail");
         assert!(matches!(error, PublishError::StalePlan { .. }));
     }
 
@@ -601,7 +619,10 @@ mod tests {
         )
         .expect_err("a note that grows past the publish limit after review must fail");
 
-        assert!(matches!(error, PublishError::NoteTooLarge { .. }), "{error:?}");
+        assert!(
+            matches!(error, PublishError::NoteTooLarge { .. }),
+            "{error:?}"
+        );
         assert!(!out.path().join("note.md").exists());
     }
 
@@ -611,16 +632,29 @@ mod tests {
         let out = TempDir::new().unwrap();
         vault_note(vault.path(), "note.md", &opted_in("reviewed"));
         let candidate = reviewed_candidate(vault.path(), "note.md");
-        vault_note(vault.path(), "note.md", "---\npublish: false\n---\nprivate now\n");
+        vault_note(
+            vault.path(),
+            "note.md",
+            "---\npublish: false\n---\nprivate now\n",
+        );
         let sink = LocalDirSink::new(out.path()).unwrap();
         let input = PublishApplyInput {
             to_write: vec![candidate],
             to_delete: vec![],
         };
 
-        let error = publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default())
-            .expect_err("de-opted notes must fail");
-        assert!(matches!(error, PublishError::InvalidSelection { .. } | PublishError::NotOptedIn { .. }));
+        let error = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &Default::default(),
+            &Default::default(),
+        )
+        .expect_err("de-opted notes must fail");
+        assert!(matches!(
+            error,
+            PublishError::InvalidSelection { .. } | PublishError::NotOptedIn { .. }
+        ));
     }
 
     #[test]
@@ -636,7 +670,8 @@ mod tests {
             to_delete: vec!["old.md".into()],
         };
 
-        let result = publish_apply(vault.path(), &input, &sink, &prior, &Default::default()).unwrap();
+        let result =
+            publish_apply(vault.path(), &input, &sink, &prior, &Default::default()).unwrap();
         assert_eq!(result.deleted, vec!["old.md"]);
         assert!(!out.path().join("old.md").exists());
     }
@@ -658,10 +693,19 @@ mod tests {
             to_delete: vec![],
         };
 
-        let error = publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default())
-            .expect_err("managed writes must reject symlink targets");
+        let error = publish_apply(
+            vault.path(),
+            &input,
+            &sink,
+            &Default::default(),
+            &Default::default(),
+        )
+        .expect_err("managed writes must reject symlink targets");
         assert!(matches!(error, PublishError::InvalidSelection { .. }));
-        assert_eq!(fs::read_to_string(out.path().join("real.md")).unwrap(), "user owned");
+        assert_eq!(
+            fs::read_to_string(out.path().join("real.md")).unwrap(),
+            "user owned"
+        );
     }
 
     #[test]
@@ -675,7 +719,16 @@ mod tests {
             to_delete: vec!["user-file.md".into()],
         };
 
-        assert!(publish_apply(vault.path(), &input, &sink, &Default::default(), &Default::default()).is_err());
+        assert!(
+            publish_apply(
+                vault.path(),
+                &input,
+                &sink,
+                &Default::default(),
+                &Default::default()
+            )
+            .is_err()
+        );
         assert!(out.path().join("user-file.md").exists());
     }
 
@@ -736,14 +789,8 @@ mod tests {
             to_delete: vec![],
         };
 
-        let error = publish_apply(
-            vault.path(),
-            &input,
-            &sink,
-            &prior,
-            &Default::default(),
-        )
-        .expect_err("unchanged source and managed output must reject apply");
+        let error = publish_apply(vault.path(), &input, &sink, &prior, &Default::default())
+            .expect_err("unchanged source and managed output must reject apply");
 
         assert!(
             matches!(
@@ -755,14 +802,8 @@ mod tests {
         );
 
         fs::write(out.path().join("hello.md"), b"drifted output").unwrap();
-        let result = publish_apply(
-            vault.path(),
-            &input,
-            &sink,
-            &prior,
-            &Default::default(),
-        )
-        .unwrap();
+        let result =
+            publish_apply(vault.path(), &input, &sink, &prior, &Default::default()).unwrap();
 
         assert_eq!(result.written, vec!["hello.md"]);
         assert_eq!(

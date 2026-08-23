@@ -36,7 +36,8 @@ pub fn vault_publish_plan_starlight(
 ) -> Result<StarlightPublishPlanOutput, String> {
     let session = active_session(&state)?;
     let output = resolved_output(session.root.root(), &output_path);
-    let plan = plan_starlight_site(session.root.root(), &output).map_err(|error| error.to_string())?;
+    let plan =
+        plan_starlight_site(session.root.root(), &output).map_err(|error| error.to_string())?;
     Ok(StarlightPublishPlanOutput {
         output: output.display().to_string(),
         docs_dir: output.join("src/content/docs").display().to_string(),
@@ -70,13 +71,14 @@ pub fn vault_publish_apply_starlight(
         Some(&authorization_scope),
     )?;
     let PublishApplyOutput {
-        written,
-        deleted,
-        ..
+        written, deleted, ..
     } = apply_starlight_site(
         session.root.root(),
         &output,
-        &PublishApplyInput { to_write, to_delete },
+        &PublishApplyInput {
+            to_write,
+            to_delete,
+        },
     )
     .map_err(|error| error.to_string())?;
 

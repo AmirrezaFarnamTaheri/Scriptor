@@ -24,10 +24,13 @@ pub(crate) fn read_bounded(
         path: display_path.to_string(),
         source,
     })?;
-    let initial_len = file.metadata().map_err(|source| PublishError::Io {
-        path: display_path.to_string(),
-        source,
-    })?.len();
+    let initial_len = file
+        .metadata()
+        .map_err(|source| PublishError::Io {
+            path: display_path.to_string(),
+            source,
+        })?
+        .len();
     if initial_len > limit {
         return Ok(BoundedRead::TooLarge {
             observed_bytes: initial_len,
@@ -46,10 +49,13 @@ pub(crate) fn read_bounded(
     }
 
     if bytes.len() as u64 > limit {
-        let final_len = file.metadata().map_err(|source| PublishError::Io {
-            path: display_path.to_string(),
-            source,
-        })?.len();
+        let final_len = file
+            .metadata()
+            .map_err(|source| PublishError::Io {
+                path: display_path.to_string(),
+                source,
+            })?
+            .len();
         return Ok(BoundedRead::TooLarge {
             observed_bytes: final_len.max(bytes.len() as u64),
         });
