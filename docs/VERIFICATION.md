@@ -114,6 +114,26 @@ This section records exploratory baseline checks executed against the working tr
 
 Independent audit-only checks also parsed all strict JSON/TOML manifests, syntax-checked every JS/MJS/CJS script, verified pnpm-lock importer dependency contracts for 17 package manifests, found no repository symlinks or unexpected zero-byte files, and found no high-signal credential/private-key patterns outside fixture data. These checks are useful consistency evidence but do not replace repository-native build/test gates.
 
+## Local remediation evidence — 2026-08-23
+
+Executed against the working tree at commit `7981e8f` plus the local Git-panel
+remediation described in [`AUDIT-2026-08-23.md`](../AUDIT-2026-08-23.md).
+Windows 11 x86_64 host; Node v26.1.0; Rust 1.96.0 (pinned toolchain).
+
+| Gate | Result | Evidence |
+| --- | --- | --- |
+| Dependency-free source/governance validators (16 runners) | Verified: all passed | `node scripts/validation/*.mjs` per `check:source`/`check:governance` lists |
+| Complete lightweight source-test inventory | Verified: 127/127 across 28 discovered test files (adds `src/hooks/workspace-git-status.test.ts`) | `node scripts/validation/run-source-tests.mjs` |
+| Rust workspace tests (CI exclusion list, `SCRIPTOR_TEST_DAEMON_HMAC_KEY` set) | Verified: 38 test binaries, 675 passed, 0 failed | `cargo test --locked --workspace --exclude scriptor-desktop --exclude scriptor-embeddings --exclude scriptor-tantivy-indexer --exclude scriptor-wasm-runtime --jobs 2` |
+| Clippy warning-zero (16 product crates) | Verified | `cargo clippy --locked --workspace --exclude scriptor-desktop --exclude scriptor-embeddings --all-targets -- -D warnings` |
+| rustfmt check after normalization | Verified: exit 0 (pre-fix HEAD emitted 41 diff hunks across 8 files) | `cargo fmt --all --check` |
+| TypeScript build | Verified | `tsc -b --pretty false` |
+| ESLint warning-zero, full repository | Verified: exit 0 only after adding missing `dist-e2e` ignores (finding D9) | `eslint . --max-warnings=0` |
+| Functional browser suite | Verified locally: 73/73 including the eight Git-panel failures observed in CI run 32632696707 pre-fix | `playwright test --config playwright.e2e.config.ts` |
+| Desktop/embeddings local compile+clippy+tests | Pending on this host: `aws-lc-sys` MSVC feature probes fail (`-WX`); Ubuntu CI compiles these crates | cargo output archived by auditor |
+| Visual regression suite, axe audit, packaging/release gates | Pending: require pinned browser baselines, ChromeDriver, and packaging tooling | — |
+
+
 ## Historical upstream candidate evidence — 2026-08-17 (not re-run for this ZIP-derived candidate)
 
 This table is retained as historical upstream evidence from the pre-improvement source state. It must not be used as proof that the ZIP-derived candidate above compiles, packages, or passes browser/Rust release gates.
