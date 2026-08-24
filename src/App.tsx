@@ -996,6 +996,7 @@ function App() {
       </div>
       <div className="app-chrome">
         <AppTopBar
+        onPatchChrome={patchChrome}
           vault={workspace.vault}
           workspaceMode={workspaceMode}
           onWorkspaceModeChange={handleWorkspaceModeChange}
