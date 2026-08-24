@@ -306,6 +306,10 @@ svg {
 
 .top-actions {
   margin-left: auto;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
   padding: 4px;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
@@ -394,7 +398,8 @@ svg {
 }
 
 .command-search {
-  min-width: 280px;
+  min-width: 170px;
+  max-width: 460px;
   flex: 1;
   height: 40px;
   display: flex;
@@ -699,3 +704,20 @@ svg {
   color: var(--muted);
 }
 
+
+
+.workspace-mode-strip {
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.workspace-mode-strip::-webkit-scrollbar,
+.top-actions::-webkit-scrollbar {
+  display: none;
+}
+
+.topbar .action-button {
+  white-space: nowrap;
+}

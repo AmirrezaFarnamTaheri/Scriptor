@@ -88,6 +88,7 @@ import { usePanelSurfaceController } from './controllers/usePanelSurfaceControll
 import { useWorkspaceAuxiliaryData } from './hooks/useWorkspaceAuxiliaryData'
 import { useAppJourneyTelemetry } from './hooks/useAppJourneyTelemetry'
 import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
+import { useAppZoom } from './hooks/useAppZoom'
 import { useVaultSidebarActions } from './hooks/useVaultSidebarActions'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
@@ -913,6 +914,8 @@ function App() {
   }, [workspace.activePath, workspace.draftMarkdown, workspace.healthDiagnostics])
 
   const { formatInline, formatBibliography } = useCiteprocPreview(bibliography, citationRows)
+
+  useAppZoom()
 
   useAppKeyboardShortcuts({
     activePath: workspace.activePath,

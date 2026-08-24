@@ -38,10 +38,10 @@
   --danger: #dc2626;
   --success: #047857;
 
-  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-bg: rgba(255, 255, 255, 0.97);
   --glass-border: rgba(148, 163, 184, 0.2);
   --glass-highlight: rgba(255, 255, 255, 0.9);
-  --glass-blur: blur(24px) saturate(1.6);
+  --glass-blur: none;
 
   --overlay: rgba(15, 23, 42, 0.35);
   --focus-ring: 0 0 0 3px rgba(15, 118, 110, 0.25);
@@ -86,10 +86,10 @@
   --danger: #f87171;
   --success: #34d399;
 
-  --glass-bg: rgba(11, 15, 26, 0.75);
+  --glass-bg: rgba(11, 15, 26, 0.97);
   --glass-border: rgba(156, 163, 175, 0.12);
   --glass-highlight: rgba(255, 255, 255, 0.05);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
 
   --overlay: rgba(3, 7, 18, 0.55);
   --focus-ring: 0 0 0 3px rgba(45, 212, 191, 0.25);
@@ -175,10 +175,10 @@
   --amber-soft: rgba(250, 179, 135, 0.15);
   --danger: #f38ba8;
   --success: #a6e3a1;
-  --glass-bg: rgba(30, 30, 46, 0.75);
+  --glass-bg: rgba(30, 30, 46, 0.97);
   --glass-border: rgba(147, 153, 178, 0.2);
   --glass-highlight: rgba(205, 214, 244, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(17, 17, 27, 0.6);
   --focus-ring: 0 0 0 3px rgba(203, 166, 247, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -215,10 +215,10 @@
   --amber-soft: rgba(255, 184, 108, 0.15);
   --danger: #ff5555;
   --success: #50fa7b;
-  --glass-bg: rgba(40, 42, 54, 0.75);
+  --glass-bg: rgba(40, 42, 54, 0.97);
   --glass-border: rgba(98, 114, 164, 0.3);
   --glass-highlight: rgba(248, 248, 242, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(19, 20, 26, 0.6);
   --focus-ring: 0 0 0 3px rgba(255, 121, 198, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -255,10 +255,10 @@
   --amber-soft: rgba(208, 135, 112, 0.15);
   --danger: #bf616a;
   --success: #a3be8c;
-  --glass-bg: rgba(46, 52, 64, 0.75);
+  --glass-bg: rgba(46, 52, 64, 0.97);
   --glass-border: rgba(76, 86, 106, 0.35);
   --glass-highlight: rgba(236, 239, 244, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(20, 23, 29, 0.6);
   --focus-ring: 0 0 0 3px rgba(136, 192, 208, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -295,10 +295,10 @@
   --amber-soft: rgba(224, 175, 104, 0.15);
   --danger: #f7768e;
   --success: #9ece6a;
-  --glass-bg: rgba(26, 27, 38, 0.75);
+  --glass-bg: rgba(26, 27, 38, 0.97);
   --glass-border: rgba(65, 72, 104, 0.35);
   --glass-highlight: rgba(192, 202, 245, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(15, 15, 21, 0.6);
   --focus-ring: 0 0 0 3px rgba(122, 162, 247, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -335,10 +335,10 @@
   --amber-soft: rgba(203, 75, 22, 0.15);
   --danger: #dc322f;
   --success: #859900;
-  --glass-bg: rgba(0, 43, 54, 0.75);
+  --glass-bg: rgba(0, 43, 54, 0.97);
   --glass-border: rgba(88, 110, 117, 0.3);
   --glass-highlight: rgba(147, 161, 161, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(0, 20, 26, 0.6);
   --focus-ring: 0 0 0 3px rgba(42, 161, 152, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -375,10 +375,10 @@
   --amber-soft: rgba(214, 93, 14, 0.15);
   --danger: #fb4934;
   --success: #b8bb26;
-  --glass-bg: rgba(40, 40, 40, 0.75);
+  --glass-bg: rgba(40, 40, 40, 0.97);
   --glass-border: rgba(102, 92, 84, 0.4);
   --glass-highlight: rgba(235, 219, 178, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(20, 20, 20, 0.6);
   --focus-ring: 0 0 0 3px rgba(254, 128, 25, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -415,10 +415,10 @@
   --amber-soft: rgba(245, 158, 11, 0.15);
   --danger: #ef4444;
   --success: #34d399;
-  --glass-bg: rgba(6, 32, 27, 0.75);
+  --glass-bg: rgba(6, 32, 27, 0.97);
   --glass-border: rgba(16, 185, 129, 0.2);
   --glass-highlight: rgba(236, 253, 245, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(2, 10, 8, 0.6);
   --focus-ring: 0 0 0 3px rgba(16, 185, 129, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -458,7 +458,7 @@
   --glass-bg: rgba(15, 5, 29, 0.78);
   --glass-border: rgba(0, 240, 255, 0.25);
   --glass-highlight: rgba(255, 255, 255, 0.12);
-  --glass-blur: blur(28px) saturate(1.8);
+  --glass-blur: none;
   --overlay: rgba(6, 1, 12, 0.7);
   --focus-ring: 0 0 0 3px rgba(0, 240, 255, 0.4);
   --focus-outline: 2px solid var(--primary);
@@ -495,10 +495,10 @@
   --amber-soft: rgba(255, 216, 102, 0.15);
   --danger: #ff6188;
   --success: #a9dc76;
-  --glass-bg: rgba(45, 42, 46, 0.75);
+  --glass-bg: rgba(45, 42, 46, 0.97);
   --glass-border: rgba(147, 146, 147, 0.3);
   --glass-highlight: rgba(252, 252, 250, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(20, 18, 20, 0.6);
   --focus-ring: 0 0 0 3px rgba(255, 97, 136, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -538,7 +538,7 @@
   --glass-bg: rgba(244, 237, 224, 0.8);
   --glass-border: rgba(180, 155, 120, 0.3);
   --glass-highlight: rgba(255, 255, 255, 0.9);
-  --glass-blur: blur(24px) saturate(1.6);
+  --glass-blur: none;
   --overlay: rgba(44, 32, 19, 0.4);
   --focus-ring: 0 0 0 3px rgba(140, 94, 52, 0.25);
   --focus-outline: 2px solid var(--primary-strong);
@@ -575,10 +575,10 @@
   --amber-soft: rgba(246, 193, 119, 0.15);
   --danger: #eb6f92;
   --success: #31748f;
-  --glass-bg: rgba(25, 23, 36, 0.75);
+  --glass-bg: rgba(25, 23, 36, 0.97);
   --glass-border: rgba(110, 106, 134, 0.3);
   --glass-highlight: rgba(224, 222, 244, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(15, 13, 21, 0.6);
   --focus-ring: 0 0 0 3px rgba(235, 188, 186, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -618,7 +618,7 @@
   --glass-bg: rgba(36, 27, 47, 0.78);
   --glass-border: rgba(255, 126, 219, 0.25);
   --glass-highlight: rgba(255, 255, 255, 0.12);
-  --glass-blur: blur(28px) saturate(1.8);
+  --glass-blur: none;
   --overlay: rgba(14, 10, 20, 0.7);
   --focus-ring: 0 0 0 3px rgba(255, 126, 219, 0.4);
   --focus-outline: 2px solid var(--primary);
@@ -655,10 +655,10 @@
   --amber-soft: rgba(229, 192, 123, 0.15);
   --danger: #e06c75;
   --success: #98c379;
-  --glass-bg: rgba(33, 37, 43, 0.75);
+  --glass-bg: rgba(33, 37, 43, 0.97);
   --glass-border: rgba(92, 99, 112, 0.3);
   --glass-highlight: rgba(171, 178, 191, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(16, 18, 22, 0.6);
   --focus-ring: 0 0 0 3px rgba(97, 175, 239, 0.3);
   --focus-outline: 2px solid var(--primary);
@@ -695,10 +695,10 @@
   --amber-soft: rgba(222, 141, 66, 0.15);
   --danger: #cb7676;
   --success: #4d9375;
-  --glass-bg: rgba(18, 18, 18, 0.75);
+  --glass-bg: rgba(18, 18, 18, 0.97);
   --glass-border: rgba(60, 60, 60, 0.35);
   --glass-highlight: rgba(219, 219, 219, 0.08);
-  --glass-blur: blur(28px) saturate(1.5);
+  --glass-blur: none;
   --overlay: rgba(5, 5, 5, 0.65);
   --focus-ring: 0 0 0 3px rgba(77, 147, 117, 0.3);
   --focus-outline: 2px solid var(--primary);

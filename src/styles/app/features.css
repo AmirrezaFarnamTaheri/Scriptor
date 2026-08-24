@@ -1280,3 +1280,15 @@
 .is-split-resizing .panel-resizer {
   pointer-events: auto;
 }
+
+
+.editor-toolbar-wrapper {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.editor-toolbar-wrapper::-webkit-scrollbar {
+  display: none;
+}

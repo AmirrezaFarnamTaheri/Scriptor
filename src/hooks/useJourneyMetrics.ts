@@ -51,6 +51,35 @@ function readSnapshot(): JourneySnapshot {
   })
 }
 
+let pendingSnapshot: JourneySnapshot | null = null
+let persistTimer: number | null = null
+
+function flushPersist() {
+  if (persistTimer !== null) {
+    window.clearTimeout(persistTimer)
+    persistTimer = null
+  }
+  if (pendingSnapshot !== null) {
+    persist(pendingSnapshot)
+    pendingSnapshot = null
+  }
+}
+
+// Journey marks can fire per interaction; coalesce storage writes to at
+// most one per second and always flush when the app is hidden or closed.
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', flushPersist)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushPersist()
+  })
+}
+
+function persistThrottled(snapshot: JourneySnapshot) {
+  pendingSnapshot = snapshot
+  if (persistTimer === null) {
+    persistTimer = window.setTimeout(flushPersist, 1000)
+  }
+}
 function persist(snapshot: JourneySnapshot) {
   writeVersionedStorage(STORAGE_KEY, 1, snapshot)
 }
@@ -64,7 +93,7 @@ export function useJourneyMetrics() {
       if (next === current) {
         return current
       }
-      persist(next)
+      persistThrottled(next)
       return next
     })
   }, [])
