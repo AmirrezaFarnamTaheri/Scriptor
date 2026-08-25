@@ -14,8 +14,11 @@ export default defineConfig({
     host: '127.0.0.1',
     open: false,
   },
+  // Classic (IIFE) worker bundles: ES-module workers never start under the
+  // Tauri custom protocol in packaged builds; a classic worker is one same-
+  // origin fetch with no module graph, which works under any protocol.
   worker: {
-    format: 'es',
+    format: 'iife',
   },
   build: {
     manifest: true,

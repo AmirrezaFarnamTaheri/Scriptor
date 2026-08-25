@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MoonStar, Power, X } from 'lucide-react'
 
+// Classic bundled worker (vite worker.format=iife) - module workers never
+// start under the Tauri custom protocol.
+import GraphLayoutWorker from '../workers/graph-layout.worker.ts?worker'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { usePluginState } from '../context/PluginStateContext.tsx'
@@ -132,7 +135,7 @@ export function GraphPanel({
   useEffect(() => {
     if (!graph || hibernated || !isGraphEnabled) return
     const requestedGraph = graph
-    const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
+    const worker = new GraphLayoutWorker()
     worker.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'done') {
         setWorkerState({ graph: requestedGraph, layout: event.data.nodes as CanvasNode[] })

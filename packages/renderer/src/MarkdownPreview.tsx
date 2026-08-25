@@ -21,6 +21,7 @@ import { injectPreviewUserCss, loadVaultPreviewCss } from './preview-user-css.ts
 import { preprocessImportsAsync } from './remark-import.ts'
 import { renderMarkdownPipeline, type PreviewPipelineOptions } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
+import PreviewWorker from './preview.worker.ts?worker'
 import {
   applyPreviewPostProcess,
   combinePreviewWarnings,
@@ -140,7 +141,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         setHtml(result.html)
         setIsRendering(false)
       },
-      [clearWorkerDeadline],
+      [clearWorkerProvisional],
     )
 
     const commitRenderFailure = useCallback((error: unknown, fallback: string) => {
@@ -151,7 +152,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       setRenderError(renderFailureMessage(error, fallback))
       setHtml('')
       setIsRendering(false)
-    }, [clearWorkerDeadline])
+    }, [clearWorkerProvisional])
 
     useEffect(() => {
       if (!USE_PREVIEW_WORKER || previewWorkerDisabled) return undefined
@@ -175,9 +176,9 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       const createWorker = (): Worker | null => {
         let worker: Worker
         try {
-          worker = new Worker(new URL('./preview.worker.ts', import.meta.url), {
-            type: 'module',
-          })
+          // Classic bundled worker (vite worker.format=iife): module workers
+          // never deliver messages under the Tauri custom protocol.
+          worker = new PreviewWorker()
         } catch {
           previewWorkerDisabled = true
           workerRef.current = null
@@ -217,7 +218,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         workerRef.current?.terminate()
         workerRef.current = null
       }
-    }, [clearWorkerDeadline, commitRenderFailure, commitRenderedHtml])
+    }, [clearWorkerDeadline, clearWorkerProvisional, commitRenderFailure, commitRenderedHtml])
 
     useEffect(() => {
       if (debounceTimer.current) {
@@ -317,6 +318,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       fetchNote,
       postProcessHtml,
       clearWorkerDeadline,
+      clearWorkerProvisional,
       commitRenderFailure,
       commitRenderedHtml,
     ])
