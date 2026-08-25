@@ -137,6 +137,8 @@ interface EditorWorkspaceProps {
   onSplitHandlePointerUp: PointerEventHandler<HTMLDivElement>
   onSplitHandlePointerCancel: PointerEventHandler<HTMLDivElement>
   onSplitHandleDoubleClick: () => void
+  splitRatioPct: number
+  onSplitHandleNudge: (delta: number) => void
   editorWorkspaceRef: RefObject<HTMLDivElement | null>
   splitPreviewScrollRef: RefObject<HTMLElement | null>
   previewRef: RefObject<MarkdownPreviewHandle | null>
@@ -242,6 +244,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     onSplitHandlePointerUp,
     onSplitHandlePointerCancel,
     onSplitHandleDoubleClick,
+  splitRatioPct,
+  onSplitHandleNudge,
     editorWorkspaceRef,
     splitPreviewScrollRef,
     previewRef,
@@ -651,6 +655,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               onPointerUp={onSplitHandlePointerUp}
               onPointerCancel={onSplitHandlePointerCancel}
               onDoubleClick={onSplitHandleDoubleClick}
+              valueNow={splitRatioPct * 100}
+              onNudge={onSplitHandleNudge}
             />
             <aside
               className="editor-preview-pane"

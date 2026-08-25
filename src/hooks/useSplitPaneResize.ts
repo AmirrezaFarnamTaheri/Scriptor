@@ -62,6 +62,14 @@ export function useSplitPaneResize(
     setRatio(DEFAULT_RATIO)
   }, [setRatio])
 
+
+  const nudgeRatio = useCallback(
+    (delta: number) => {
+      if (!enabled) return
+      setRatio((current) => clampRatio(current + delta))
+    },
+    [enabled, setRatio],
+  )
   useEffect(() => {
     if (!dragging) return
     document.body.classList.add('is-split-resizing')
@@ -73,6 +81,8 @@ export function useSplitPaneResize(
   const editorWidth = `${clampRatio(ratio) * 100}%`
 
   return {
+    ratio: clampRatio(ratio),
+    nudgeRatio,
     editorWidth,
     dragging,
     onHandlePointerDown,

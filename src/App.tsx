@@ -454,6 +454,8 @@ function App() {
     onHandlePointerUp: onSplitHandlePointerUp,
     onHandlePointerCancel: onSplitHandlePointerCancel,
     onHandleDoubleClick: onSplitHandleDoubleClick,
+    ratio: splitRatioPct,
+    nudgeRatio: onSplitHandleNudge,
   } = useSplitPaneResize(showSplitPreview && !chrome.layoutLocked, editorWorkspaceRef)
 
   const vaultResizer = useResizablePanel(
@@ -1171,6 +1173,8 @@ function App() {
           onSplitHandlePointerUp={onSplitHandlePointerUp}
           onSplitHandlePointerCancel={onSplitHandlePointerCancel}
           onSplitHandleDoubleClick={onSplitHandleDoubleClick}
+          splitRatioPct={splitRatioPct}
+          onSplitHandleNudge={onSplitHandleNudge}
           editorWorkspaceRef={editorWorkspaceRef}
           splitPreviewScrollRef={splitPreviewScrollRef}
           previewRef={previewRef}
