@@ -172,6 +172,7 @@ export function ThemeCustomizerModal({
                 <RotateCcw /> Load From Preset Template
               </h3>
               <select value={baseSchemeId} onChange={(e) => handleLoadBaseScheme(e.target.value)}>
+              aria-label="Load base color scheme from preset template"
                 {COLOR_PALETTE_SCHEMES.map((scheme) => (
                   <option key={scheme.id} value={scheme.id}>
                     {scheme.name} ({scheme.category})

@@ -120,7 +120,10 @@ export function WorkspaceStatusFooter({
         <ChevronDown />
       </button>
 
-      <div className="job-progress" aria-label={`Building graph ${graphProgress}%`}>
+      <div
+        className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
+        aria-label={workspaceStatus === 'indexing' ? `Building graph ${graphProgress}%` : `Index ready (${graphProgress}%)`}
+      >
         <Activity />
         <div>
           <strong>{workspaceStatus === 'indexing' ? 'Building index...' : 'Index ready'}</strong>

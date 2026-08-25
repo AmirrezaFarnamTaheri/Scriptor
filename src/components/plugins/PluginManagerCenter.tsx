@@ -221,6 +221,7 @@ export function PluginManagerCenter({
           <div className="plugin-manager-search">
             <input
               type="search"
+              aria-label="Search plugins by name or capability"
               placeholder={
                 activeTab === 'palettes'
                   ? 'Search color palette schemes by name or theme style...'
