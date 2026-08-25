@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { X } from 'lucide-react'
 
 import { vaultFrontmatterSet } from '../bridge/commands'
@@ -20,6 +21,8 @@ interface FrontmatterInspectorProps {
 export function FrontmatterInspector({ path, fields, onClose, onSaved }: FrontmatterInspectorProps) {
   const [draft, setDraft] = useState<Record<string, string>>(() => stringifyFields(fields))
   const [status, setStatus] = useState('')
+  const dialogRef = useRef<HTMLElement>(null)
+  useFocusTrap(dialogRef, { active: true })
 
   const saveField = async (field: string) => {
     setStatus('Saving…')
@@ -36,7 +39,7 @@ export function FrontmatterInspector({ path, fields, onClose, onSaved }: Frontma
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="frontmatter-inspector" role="dialog" aria-label="Frontmatter" onClick={(e) => e.stopPropagation()}>
+      <section ref={dialogRef} className="frontmatter-inspector" role="dialog" aria-modal="true" aria-label="Frontmatter" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>Frontmatter</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">

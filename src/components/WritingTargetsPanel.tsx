@@ -14,6 +14,7 @@ import {
 import { X } from 'lucide-react'
 
 import { vaultReadStatsHistory, type StatsHistoryEntry } from '../bridge/commands'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
 Chart.register(
@@ -44,6 +45,8 @@ export function WritingTargetsPanel({
   const [history, setHistory] = useState<StatsHistoryEntry[]>([])
   const chartRef = useRef<HTMLCanvasElement | null>(null)
   const chartInstance = useRef<Chart | null>(null)
+  const dialogRef = useRef<HTMLElement>(null)
+  useFocusTrap(dialogRef, { active: true })
 
   useEffect(() => {
     if (!isNativeBridgeAvailable()) return
@@ -117,7 +120,7 @@ export function WritingTargetsPanel({
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="writing-targets-panel" role="dialog" aria-label="Writing targets" onClick={(e) => e.stopPropagation()}>
+      <section ref={dialogRef} className="writing-targets-panel" role="dialog" aria-modal="true" aria-label="Writing targets" onClick={(e) => e.stopPropagation()}>
         <header>
           <h2>Writing targets</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">

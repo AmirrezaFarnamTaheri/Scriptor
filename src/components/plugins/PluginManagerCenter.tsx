@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Palette, Blocks, Plus } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
@@ -17,6 +17,7 @@ import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
@@ -74,6 +75,9 @@ export function PluginManagerCenter({
   const [activeProfile, setActiveProfile] = useState<InstallerProfile>('complete')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  // The nested ThemeCustomizerModal owns the focus trap while it is open.
+  useFocusTrap(overlayRef, { active: isOpen && !customizerModalOpen })
 
   if (!isOpen) return null
 
@@ -135,6 +139,7 @@ export function PluginManagerCenter({
   return (
     <>
       <div
+        ref={overlayRef}
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"

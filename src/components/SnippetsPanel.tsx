@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Save, Trash2, X } from 'lucide-react'
 
 import { vaultLoadSnippets, vaultSaveSnippets } from '../bridge/commands'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { VaultSnippet } from '../types/vault'
 
 interface SnippetsPanelProps {
@@ -18,6 +19,8 @@ export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProp
   const [error, setError] = useState<string | null>(null)
 
   useEscapeToClose(true, onClose)
+  const dialogRef = useRef<HTMLElement>(null)
+  useFocusTrap(dialogRef, { active: true })
 
   useEffect(() => {
     if (!vaultOpen) return
@@ -66,7 +69,7 @@ export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProp
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="snippets-panel" role="dialog" aria-label="Snippet catalog" onClick={(event) => event.stopPropagation()}>
+      <section ref={dialogRef} className="snippets-panel" role="dialog" aria-modal="true" aria-label="Snippet catalog" onClick={(event) => event.stopPropagation()}>
         <header>
           <div>
             <h2>Snippet catalog</h2>

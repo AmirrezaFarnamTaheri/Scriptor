@@ -1,5 +1,6 @@
-import { useState, useLayoutEffect } from 'react'
+import { useState, useLayoutEffect, useRef } from 'react'
 import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye } from 'lucide-react'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import {
   COLOR_PALETTE_SCHEMES,
 } from '../../brand/palettes'
@@ -49,6 +50,9 @@ export function ThemeCustomizerModal({
       setCustomThemes(readStoredCustomThemes())
     }
   }, [isOpen])
+
+  const overlayRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(overlayRef, { active: isOpen })
 
 
   if (!isOpen) return null
@@ -122,7 +126,7 @@ export function ThemeCustomizerModal({
   }
 
   return (
-    <div className="customizer-overlay" role="dialog" aria-modal="true" aria-label="Theme Customizer & Builder">
+    <div ref={overlayRef} className="customizer-overlay" role="dialog" aria-modal="true" aria-label="Theme Customizer & Builder">
       <div className="customizer-modal">
         <div className="customizer-header">
           <h2>

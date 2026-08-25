@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Tags, X } from 'lucide-react'
 
 import { indexerListTags, indexerNotesForTag } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { TaggedNote, TagSummary } from '../types/vault'
 
 interface TagNode {
@@ -113,6 +114,9 @@ export function TagBrowserPanel({
   const [loadStatus, setLoadStatus] = useState('Loading tags…')
 
   useEscapeToClose(!embedded, onClose)
+  const dialogRef = useRef<HTMLElement>(null)
+  // Embedded workbench mode is non-modal; only the floating dialog traps.
+  useFocusTrap(dialogRef, { active: !embedded })
 
   const status = useMemo(() => {
     if (!canBrowse) return 'Open a vault in the desktop app to browse tags.'
@@ -220,7 +224,7 @@ export function TagBrowserPanel({
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section className="tag-browser-panel" role="dialog" aria-label="Tag browser" onClick={(event) => event.stopPropagation()}>
+      <section ref={dialogRef} className="tag-browser-panel" role="dialog" aria-modal="true" aria-label="Tag browser" onClick={(event) => event.stopPropagation()}>
         <header>
           <div>
             <h2>Tag browser</h2>

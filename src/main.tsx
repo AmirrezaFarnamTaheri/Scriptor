@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import { AccessibilitySemantics } from './components/AccessibilitySemantics'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
@@ -32,7 +31,6 @@ async function mountApp() {
     import.meta.env.VITE_E2E_MODE === 'true' || import.meta.env.VITE_SCREENSHOT_MODE === 'true'
   const app = (
     <ErrorBoundary name="app-root">
-      <AccessibilitySemantics />
       <I18nProvider>
         <PluginStateProvider>
           {fixtureMode ? <App /> : (
