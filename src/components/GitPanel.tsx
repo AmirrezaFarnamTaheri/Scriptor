@@ -111,7 +111,7 @@ export function GitPanel({
         title={t('git.title')}
         subtitle={t('git.checkingStatus')}
         icon={<GitBranch size={18} />}
-        ariaLabel={t('git.status')}
+        ariaLabel={t('git.title')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -132,7 +132,7 @@ export function GitPanel({
         title={t('git.title')}
         subtitle={t('git.statusUnavailable')}
         icon={<GitBranch size={18} />}
-        ariaLabel={t('git.status')}
+        ariaLabel={t('git.title')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -155,7 +155,7 @@ export function GitPanel({
         title={t('git.title')}
         subtitle={t('git.subtitle')}
         icon={<GitBranch size={18} />}
-        ariaLabel={t('git.status')}
+        ariaLabel={t('git.title')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -170,7 +170,7 @@ export function GitPanel({
       title={t('git.title')}
       subtitle={`${status.branch ?? t('git.detached')}${status.has_upstream ? ` · ${t('git.aheadBehind', { ahead: status.ahead, behind: status.behind })}` : ''}`}
       icon={<GitBranch size={18} />}
-      ariaLabel={t('git.status')}
+      ariaLabel={t('git.title')}
       onClose={onClose}
       presentation={presentation}
       className="git-panel knowledge-filters-panel"

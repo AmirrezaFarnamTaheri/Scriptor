@@ -491,7 +491,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             className={splitPreview ? 'active' : ''}
             disabled={!activePath}
             title="Toggle split preview"
-            aria-label={splitPreview ? 'Close split preview' : 'Open split preview'}
+            aria-label="Toggle split preview"
             aria-pressed={splitPreview}
             onClick={() => setSplitPreview((value) => !value)}
           >
