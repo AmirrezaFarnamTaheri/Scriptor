@@ -5,7 +5,8 @@ use scriptor_daemon::transport;
 #[derive(Debug, Parser)]
 #[command(
     name = "scriptor-daemon",
-    about = "Headless Scriptor vault engine over local IPC"
+    about = "Headless Scriptor vault engine over local IPC",
+    version = env!("CARGO_PKG_VERSION")
 )]
 struct Cli {
     #[command(subcommand)]

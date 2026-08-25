@@ -60,7 +60,7 @@ const required = [
   'canvas_snapshot_ms',
   'editor_frame_ms',
   'preview_render_ms',
-  'startup_ms',
+  'scan_single_iter_ms',
 ]
 for (const key of required) if (!(key in baselines)) fail(`baseline not defined: ${key}`)
 
@@ -105,10 +105,12 @@ try {
   const previewReport = parseBenchmarkReport('preview_render_ms', previewOutput)
   results.push(checkThreshold('preview_render_ms', previewReport, baselines.preview_render_ms))
 
-  console.log('==> startup_ms')
+  // NOTE: this is a single-pass vault scan, NOT application startup.
+  // Packaged-shell startup instrumentation is a separate roadmap item.
+  console.log('==> scan_single_iter_ms')
   const startupOutput = run(executable, ['bench-scan', syntheticVault, '--iterations', '1'])
-  const startupReport = parseBenchmarkReport('startup_ms', startupOutput)
-  results.push(checkThreshold('startup_ms', startupReport, baselines.startup_ms))
+  const startupReport = parseBenchmarkReport('scan_single_iter_ms', startupOutput)
+  results.push(checkThreshold('scan_single_iter_ms', startupReport, baselines.scan_single_iter_ms))
 
   const report = {
     schemaVersion: 2,

@@ -191,7 +191,7 @@ The pinned Vite/Playwright server is required for the browser gate. Record the e
 - Clean-install each package and record operating-system warnings caused by the explicit unsigned policy.
 - Create an external backup, corrupt a copy, prove rejection, and restore on each supported OS.
 - Interrupt restore and MCP mutation flows and prove deterministic recovery.
-- Run startup, idle-memory, index, search, graph, editor, and export performance gates.
+- Run single-pass vault-scan, idle-memory, index, search, graph, editor, and export performance gates.
 
 ## Release workflow invariants
 

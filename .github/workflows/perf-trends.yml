@@ -1,0 +1,88 @@
+name: Performance Trends
+
+# Nightly/weekly performance trend gates at vault sizes that the mandatory
+# PR gate (1k) does not cover. These are trend signals, not release blockers:
+# failures open an investigation rather than blocking merges.
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # nightly 5k trend
+    - cron: "0 4 * * 6" # weekly 25k deep run (Saturday)
+  workflow_dispatch:
+    inputs:
+      size:
+        description: "Fixture size (1k | 5k | 25k)"
+        default: "5k"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: perf-trends-${{ github.event.schedule || github.event.inputs.size }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+defaults:
+  run:
+    working-directory: .
+
+jobs:
+  bench:
+    name: Vault benchmark (${{ github.event.schedule == '0 4 * * 6' && '25k weekly' || (github.event.inputs.size || '5k nightly') }})
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned Rust 1.96.0
+        shell: pwsh
+        run: |
+          rustup toolchain install 1.96.0 --profile minimal --component clippy
+          rustup default 1.96.0
+          cargo --version
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+
+      - name: Generate synthetic vault fixture
+        shell: pwsh
+        run: |
+          $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:GITHUB_EVENT_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { '${{ github.event.inputs.size }}' } else { '5k' }
+          Write-Host "Generating synthetic-$size fixture"
+          pnpm "fixtures:synthetic-$size"
+
+      - name: Run benchmark gate
+        shell: pwsh
+        run: |
+          $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:GITHUB_EVENT_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { '${{ github.event.inputs.size }}' } else { '5k' }
+          Write-Host "Running bench:scan-$size"
+          pnpm "bench:scan-$size"
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: perf-trend-report
+          path: |
+            perf-baselines.json
+            benchmark-report*.json
+          if-no-files-found: warn
+          retention-days: 30

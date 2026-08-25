@@ -62,6 +62,11 @@ pub fn build_health_diagnostics(
         .map(|entry| entry.path.clone())
         .collect();
 
+    // Build resolution lookups once: per-link index construction was O(L*N).
+    let wikilink_index = WikilinkIndex::from_note_paths(&note_paths);
+    // Note bodies captured during the single read pass below; the orphan-asset
+    // check reuses them instead of rereading every note per asset (O(A*N) I/O).
+    let mut note_bodies: Vec<(String, String)> = Vec::with_capacity(note_paths.len());
     let mut issues = Vec::new();
     let mut title_paths = std::collections::BTreeMap::<String, Vec<(String, String)>>::new();
     let mut invalid_frontmatter = 0u32;
@@ -72,6 +77,7 @@ pub fn build_health_diagnostics(
         let relative = scriptor_vault::RelativeVaultPath::parse(path)?;
         let note = read_note(&session.descriptor.id, &session.root, &relative)?;
         let parsed = parse_note_markdown(path, &note.markdown);
+        note_bodies.push((path.clone(), note.markdown.clone()));
         title_paths
             .entry(parsed.title.to_lowercase())
             .or_default()
@@ -94,7 +100,10 @@ pub fn build_health_diagnostics(
             if link.kind == ParsedLinkKind::External {
                 continue;
             }
-            if !target_exists(&note_paths, &link.target) {
+            if !matches!(
+                wikilink_index.resolve(&link.target).kind,
+                crate::resolve::WikilinkResolutionKind::Resolved
+            ) {
                 broken_links += 1;
                 issues.push(HealthIssue {
                     kind: "broken_link".into(),
@@ -143,7 +152,10 @@ pub fn build_health_diagnostics(
         .collect();
     let mut orphan_assets = 0u32;
     for asset in &asset_paths {
-        if !asset_is_referenced(&note_paths, session, asset)? {
+        if !note_bodies
+            .iter()
+            .any(|(_, markdown)| markdown.contains(asset))
+        {
             orphan_assets += 1;
             issues.push(HealthIssue {
                 kind: "orphan_asset".into(),
@@ -189,7 +201,7 @@ pub fn build_health_diagnostics(
     Ok(VaultHealthDiagnostics { summary, issues })
 }
 
-use crate::resolve::resolve_wikilink_target;
+use crate::resolve::WikilinkIndex;
 
 fn append_cache_diagnostics(
     cache: &IndexCache,
@@ -296,31 +308,6 @@ fn append_foam_lint_diagnostics(
         }
     }
     Ok(())
-}
-
-fn target_exists(note_paths: &[String], target: &str) -> bool {
-    matches!(
-        resolve_wikilink_target(note_paths, target).kind,
-        crate::resolve::WikilinkResolutionKind::Resolved
-    )
-}
-
-fn asset_is_referenced(
-    note_paths: &[String],
-    session: &VaultSession,
-    asset_path: &str,
-) -> Result<bool, IndexerError> {
-    for path in note_paths {
-        let note = read_note(
-            &session.descriptor.id,
-            &session.root,
-            &scriptor_vault::RelativeVaultPath::parse(path)?,
-        )?;
-        if note.markdown.contains(asset_path) {
-            return Ok(true);
-        }
-    }
-    Ok(false)
 }
 
 pub fn health_report_json(

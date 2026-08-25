@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Bound daemon-sidecar staging to source identity: local builds are the default, GitHub downloads require an immutable tag matching VERSION plus a version handshake, and every staging writes a SHA-256 receipt; packaged smoke now hard-fails on missing installers, sidecar, or receipt.
+- Removed quadratic paths from vault-health diagnostics (per-link index rebuilds and per-asset note rereads) and made incremental indexing skip whole-vault bibliography scans and no-op link updates; task queries fetch tags in bounded batches instead of one query per task.
+- Renamed the mislabeled startup benchmark to scan_single_iter_ms so the two-second cold-shell target is no longer claimed by a vault-scan metric.
+- Hardened the validation container: base image pinned by digest, Rust toolchain pinned to 1.96.0, and no pipe-to-shell installer.
+- Added nightly 5k and weekly 25k performance trend workflows above the mandatory 1k PR gate.
+- scriptor-daemon now reports its version via --version for release identity checks.
 - Fixed a Git-panel regression where the initial status fetch issued during vault open was discarded as stale, leaving status content empty, commits blocked, and conflicts undetectable; status is now stored per vault so open-flow responses can never be lost or leak across vault switches.
 - Normalized Rust formatting drift across publish-runner, capture, indexer, and desktop publish commands, and added a rustfmt workspace check to CI so the documented formatting gate is actually enforced.
 - Excluded the Playwright E2E build output directory from ESLint and Git so running browser suites before lint no longer floods the warning-zero gate with minified-bundle errors.

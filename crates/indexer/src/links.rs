@@ -99,18 +99,32 @@ pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, I
     drop(notes_statement);
 
     let mut links_statement = conn.prepare(
-        "SELECT id, to_path FROM links
+        "SELECT id, to_path, to_note_id FROM links
          WHERE vault_id = ?1 AND kind IN ('wikilink', 'markdown', 'heading')",
     )?;
     let link_rows = links_statement.query_map(params![vault_id], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, Option<String>>(2)?,
+        ))
     })?;
     let mut updates = Vec::new();
     for row in link_rows {
-        let (id, target) = row?;
-        updates.push((id, lookup.get(&target.to_lowercase()).cloned()));
+        let (id, target, current_target_id) = row?;
+        let resolved = lookup.get(&target.to_lowercase()).cloned();
+        // Only queue a write when resolution actually changed; identical
+        // targets are the common case in steady-state vaults.
+        if resolved.as_deref() != current_target_id.as_deref() {
+            updates.push((id, resolved));
+        }
     }
     drop(links_statement);
+
+    if updates.is_empty() {
+        // Steady-state vault: every link already points at its resolved note.
+        return Ok(0);
+    }
 
     let transaction = conn.unchecked_transaction()?;
     let mut changed = 0u32;
