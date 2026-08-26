@@ -657,6 +657,35 @@ fn dispatch_invoke_outside_lock(
             }
             Err(error) => Err(error),
         },
+        "pdf_translate" => {
+            let prepared = {
+                let guard = lock_recover(state);
+                command_gateway::prepare_pdf_translate(&guard, &payload)
+            };
+            prepared
+                .and_then(command_gateway::run_prepared_pdf_translate)
+                .and_then(|output| {
+                    serde_json::to_string(&output).map_err(|error| error.to_string())
+                })
+        }
+        "plantuml_render" => command_gateway::cmd_plantuml_render(&payload)
+            .and_then(|output| serde_json::to_string(&output).map_err(|error| error.to_string())),
+        "indexer_resolve_wikilink" => {
+            let session = {
+                let guard = lock_recover(state);
+                guard.session().cloned()
+            };
+            match session {
+                Some(session) => match require_invoke_str(&payload, "target") {
+                    Ok(target) => command_gateway::resolve_wikilink_for_session(&session, &target)
+                        .and_then(|value| {
+                            serde_json::to_string(&value).map_err(|error| error.to_string())
+                        }),
+                    Err(message) => Err(message),
+                },
+                None => Err("no vault is open; call OpenVault first".into()),
+            }
+        }
         other => Err(format!("unsupported outside-lock invoke command: {other}")),
     };
 

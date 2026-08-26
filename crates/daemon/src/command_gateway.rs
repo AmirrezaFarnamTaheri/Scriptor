@@ -46,6 +46,10 @@ use crate::handler::DaemonState;
 
 mod support;
 use support::*;
+pub(crate) use support::{
+    cmd_plantuml_render, prepare_pdf_translate, resolve_wikilink_for_session,
+    run_prepared_pdf_translate,
+};
 
 mod catalog;
 pub use catalog::{is_outside_lock_command, list_commands, requires_desktop_authorization};
@@ -504,10 +508,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let tag = require_str(payload, "tag")?;
             to_value(notes_for_tag(cache, &session.descriptor.id, &tag).map_err(|e| e.to_string())?)
         }
-        "indexer_resolve_wikilink" => {
-            let target = require_str(payload, "target")?;
-            cmd_resolve_wikilink(state, &target)
-        }
+
         "indexer_list_recent_files" => {
             state.require_session()?;
             let cache = state.require_cache()?;
@@ -661,7 +662,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             }))
         }
         "set_headless_engine" => Ok(Value::Null),
-        "pdf_translate" => to_value(cmd_pdf_translate(state, payload)?),
         "git_status_cmd" => {
             let session = state.require_session()?;
             to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
@@ -721,7 +721,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                     .map_err(|e| e.to_string())?,
             )
         }
-        "plantuml_render" => to_value(cmd_plantuml_render(payload)?),
         "canvas_hit_test" => {
             let scene_json = require_str(payload, "scene_json")?;
             let x = require_f64(payload, "x")?;

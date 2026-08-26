@@ -98,6 +98,10 @@ pub fn is_outside_lock_command(command: &str) -> bool {
     matches!(
         command,
         "export_run_note" | "export_run_markdown" | "indexer_rebuild" | "vault_open"
+        // Subprocess/scanning work that must never hold the daemon mutex:
+        // pdf2zh allows a 15-minute timeout, PlantUML up to 30s, and wikilink
+        // resolution walks every note in the vault.
+        | "pdf_translate" | "plantuml_render" | "indexer_resolve_wikilink"
     )
 }
 
