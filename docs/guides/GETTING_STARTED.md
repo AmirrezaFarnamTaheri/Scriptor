@@ -95,7 +95,7 @@ Enable **Settings → Headless engine** to route indexing, search, backlinks, gr
 - [`docs/contracts/COMMAND_CATALOG.md`](../contracts/COMMAND_CATALOG.md) — Tauri, daemon, and CLI commands
 - [`docs/architecture/PLUGIN_SYSTEM.md`](../architecture/PLUGIN_SYSTEM.md) — plugins and marketplace
 - [`docs/plugins/AUTHOR_GUIDE.md`](../plugins/AUTHOR_GUIDE.md) — plugin author guide and hello-world walkthrough
-- [`docs/architecture/EDITOR_ENGINES.md`](../architecture/EDITOR_ENGINES.md) — CodeMirror and Monaco dual-engine roles
+- [`DESIGN.md`](../../DESIGN.md) — editor surface, design system, and accessibility contract
 - [`docs/design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — visual system tokens
 - [`docs/brand/BRAND.md`](../brand/BRAND.md) — logo and wordmark
 - [`docs/assets/screenshots/README.md`](../assets/screenshots/README.md) — regenerate UI screenshots
