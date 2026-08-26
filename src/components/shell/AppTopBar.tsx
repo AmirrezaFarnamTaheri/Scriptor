@@ -151,7 +151,7 @@ export function AppTopBar({
           ? chrome.topBarHiddenActions.filter((id): id is string => typeof id === 'string')
           : [],
       ),
-    [chrome?.topBarHiddenActions],
+    [chrome],
   )
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)

@@ -57,6 +57,9 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
               })
           }, 2500)
         })
+      return () => {
+        cancelled = true
+      }
     }
   }, [initialEnabledPluginIds])
 
