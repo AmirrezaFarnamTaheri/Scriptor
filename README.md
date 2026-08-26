@@ -24,15 +24,43 @@ It is **not** an Electron app. It is **not** a cloud sync service. It is **not**
 
 ## Screenshots
 
-| Workspace | Editor | Knowledge graph |
-|---|---|---|
-| ![Light workspace](docs/assets/screenshots/command-palette.png) | ![Editor and preview](docs/assets/screenshots/editor-preview.png) | ![Graph](docs/assets/screenshots/graph.png) |
+### Workspace
 
-| Command palette | Git panel | Publish center |
-|---|---|---|
-| ![Command palette](docs/assets/screenshots/command-palette.png) | ![Git panel](docs/assets/screenshots/git-panel.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
+| Light | Dark |
+|---|---|
+| ![Light workspace](docs/assets/screenshots/workspace-light.png) | ![Dark workspace](docs/assets/screenshots/workspace-dark.png) |
 
-More captures in [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md). Regenerate locally with `pnpm screenshots:capture`.
+### Write
+
+| Editor with split preview | Inspector with outline, links, citations |
+|---|---|
+| ![Editor and preview](docs/assets/screenshots/editor-preview.png) | ![Inspector preview](docs/assets/screenshots/inspector-preview.png) |
+
+### Knowledge
+
+| Knowledge graph | Knowledge workbench (inbox, tags, orphans, backlinks, recent) |
+|---|---|
+| ![Graph](docs/assets/screenshots/graph.png) | ![Knowledge workbench](docs/assets/screenshots/knowledge-workbench.png) |
+
+### Visualize and extend
+
+| Canvas board | Plugin marketplace |
+|---|---|
+| ![Canvas board](docs/assets/screenshots/canvas.png) | ![Plugins](docs/assets/screenshots/plugins.png) |
+
+### Automate
+
+| Git panel | 3-way conflict resolver |
+|---|---|
+| ![Git panel](docs/assets/screenshots/git-panel.png) | ![Conflict resolver](docs/assets/screenshots/conflict-resolver.png) |
+
+### Operate and publish
+
+| Command palette | Publish center |
+|---|---|
+| ![Command palette](docs/assets/screenshots/command-palette.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
+
+Additional captures — MCP panel, settings, vault health, note history, keyboard shortcuts, onboarding tour, mobile and tablet breakpoints, dark workspace — live in [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md). Regenerate locally with `pnpm screenshots:capture`.
 
 ## Features
 
