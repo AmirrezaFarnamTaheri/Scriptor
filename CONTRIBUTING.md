@@ -2,8 +2,8 @@
 
 ## Before changing code
 
-1. Read [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md), and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
-2. Check [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) before extending an experimental surface.
+1. Read [`PRODUCT.md`](PRODUCT.md), [`DESIGN.md`](DESIGN.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), and [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md).
+2. For contributor onboarding, directory map, and entry points, see [`docs/ONBOARDING.md`](docs/ONBOARDING.md).
 3. For TypeScript packages, read [`packages/README.md`](packages/README.md); import packages only through declared entry points.
 4. Preserve unrelated staged, unstaged, and untracked work.
 

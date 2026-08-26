@@ -1,60 +1,64 @@
-# Onboarding Guide: Scriptor
+# Onboarding: Scriptor contributors
 
-## Overview
-**Scriptor** is a local-first Markdown knowledge workspace for serious writing and research. It combines a Tauri 2 desktop shell, a Rust vault/indexing kernel (`crates/vault`, `crates/indexer`), a React 19 workspace, Git-aware editing, citation management, canvas tools, graph navigation, and permissioned automation while keeping Markdown files portable on disk.
+> **Audience:** first-time contributors, maintainers, and code auditors. New users
+> should start at [`README.md`](../README.md) and
+> [`docs/guides/GETTING_STARTED.md`](guides/GETTING_STARTED.md).
+>
+> For agent rules read first, see [`AGENTS.md`](../AGENTS.md). For the contributor
+> workflow, PRs, and required checks, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
 
-## Tech Stack
+## Tech stack
 
-| Layer | Technology | Version / Spec |
+| Layer | Technology | Source of truth |
 |---|---|---|
-| **Desktop Shell** | Tauri 2 (Rust) | `apps/desktop/src-tauri` |
-| **Core Engines** | Rust Workspace Crates | 1.96.0 (2024 Edition) |
-| **Frontend Framework** | React 19, Vite 8, TypeScript 6 | pnpm `10.33.0` |
-| **Styling System** | Semantic OKLCH & CSS custom properties | `src/index.css` & `src/styles/` |
-| **Icons & UI** | Lucide React, `UnifiedPanelShell` | No remote fonts / Tailwind |
-| **IPC Protocol** | Rust `ts-rs` generated TS contracts | `crates/ipc` $\rightarrow$ `tsconfig.contracts.json` |
-| **Testing** | Cargo Test, Playwright E2E & Visual, axe-core a11y | `playwright.e2e.config.ts`, `playwright.visual.config.ts` |
+| **Desktop shell** | Tauri 2 (Rust) | `apps/desktop/src-tauri/` |
+| **Core engines** | Rust workspace crates (1.96.0, 2024 Edition) | `crates/`, `rust-toolchain.toml` |
+| **Frontend** | React 19, Vite 8, TypeScript 6, Lucide React | `package.json` |
+| **Package manager** | pnpm 10.33.0 | `package.json` (`packageManager`) |
+| **Styling** | Semantic OKLCH + CSS custom properties; no Tailwind, no remote fonts | `src/index.css`, `src/styles/` |
+| **IPC protocol** | Rust `ts-rs` → TypeScript contracts | `crates/ipc/src/lib.rs` → `tsconfig.contracts.json` |
+| **Testing** | Cargo test, Playwright E2E + visual, axe-core a11y | `playwright.e2e.config.ts`, `playwright.visual.config.ts` |
 
-## Architecture & Data Flow
+For install commands, see the **Build from source** section in [`README.md`](../README.md).
+For the full required-checks list, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+
+## Architecture at a glance
+
+The runtime topology, trust boundaries, and crate ownership are documented in
+[`docs/ARCHITECTURE.md`](ARCHITECTURE.md). The current overview:
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        Tauri 2 Desktop Shell                           │
-│  (apps/desktop/src-tauri/src/lib.rs) <---> React Workspace (src/App.tsx)│
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ IPC (crates/ipc)
-┌───────────────────────────────────▼────────────────────────────────────┐
-│                         Rust Kernel Workspace                          │
-│ ┌────────────────┐ ┌────────────────┐ ┌──────────────────────────────┐ │
-│ │  crates/vault  │ │ crates/indexer │ │   crates/publish-runner      │ │
-│ └────────────────┘ └────────────────┘ └──────────────────────────────┘ │
-│ ┌────────────────┐ ┌────────────────┐ ┌──────────────────────────────┐ │
-│ │ crates/daemon  │ │crates/system-b.│ │    crates/export-runner      │ │
-│ └────────────────┘ └────────────────┘ └──────────────────────────────┘ │
-└───────────────────────────────────┬────────────────────────────────────┘
-                                    │ Local Filesystem & Git
-                                    ▼
-                         Local Vault (.md files)
+React renderer
+  → typed bridge commands
+  → Tauri command adapters
+  → authorization broker
+  → application/kernel crates (vault, indexer, native-git, export-runner, canvas-engine)
+  → filesystem / SQLite / Git / keychain / approved external tools
+
+CLI/TUI and MCP
+  → daemon IPC (scriptor-ipc envelopes)
+  → daemon handlers and shared kernel crates
 ```
 
-1. **User Action / Workspace Editing**: Triggered in `src/App.tsx` or modular frontend packages (`packages/editor`, `packages/canvas`, `packages/portal`).
-2. **IPC Invocation**: Calls IPC endpoints validated against TS types generated from `crates/ipc/src/lib.rs`.
-3. **Rust Engine Execution**: `crates/vault` manages local Markdown file IO, `crates/indexer` maintains SQLite/in-memory graph indices, `crates/native-git` performs atomic commits.
-4. **Process & Security Sandbox**: Subprocesses are launched strictly through `crates/system-bridge/src/process.rs` and validated against `process-launch-inventory.json`.
+The renderer is not an authority boundary. Native operations validate scope,
+authorization, runtime payloads, paths, process policy, and cancellation
+independently of UI state.
 
-## Key Entry Points
+## Key entry points
 
-- **Desktop Shell Entry**: `apps/desktop/src-tauri/src/lib.rs`
-- **React SPA Entry**: `src/App.tsx` & `src/main.tsx`
-- **Vault Kernel Entry**: `crates/vault/src/lib.rs`
-- **Index & Search Kernel Entry**: `crates/indexer/src/lib.rs`
-- **IPC Protocol Definitions**: `crates/ipc/src/lib.rs`
-- **Daemon IPC Entry**: `crates/daemon/src/lib.rs`
-- **Process Launch Sandbox**: `crates/system-bridge/src/process.rs`
-- **Design Tokens & Theme**: `src/index.css` & `src/styles/`
-- **Canonical Design Contract**: `DESIGN.md`
+| Component | Entry point |
+|---|---|
+| Desktop shell | `apps/desktop/src-tauri/src/lib.rs` |
+| React SPA | `src/App.tsx`, `src/main.tsx` |
+| Vault kernel | `crates/vault/src/lib.rs` |
+| Indexer / search / graph | `crates/indexer/src/lib.rs` |
+| IPC protocol definitions | `crates/ipc/src/lib.rs` |
+| Daemon IPC | `crates/daemon/src/lib.rs` |
+| Process launch sandbox | `crates/system-bridge/src/process.rs` |
+| Design tokens & theme | `src/index.css`, `src/styles/` |
+| Design contract | [`DESIGN.md`](../DESIGN.md) |
 
-## Directory Map
+## Directory map
 
 ```
 apps/desktop/         → Tauri 2 desktop shell application
@@ -63,57 +67,30 @@ packages/             → TypeScript monorepo packages (@scriptor/core, editor, 
 src/                  → Main React workspace SPA, UI components, custom hooks, styles
 scripts/validation/   → Automated contract, governance, a11y, and source verification scripts
 scripts/benchmarks/   → Latency, memory, and throughput performance benchmark scripts
-docs/                 → Architectural specifications, capability maturity ledger, security threat models, verification docs
+docs/                 → Architectural specifications, capability maturity ledger, verification docs
 e2e/                  → Playwright E2E and visual regression specifications
 ```
 
-## Conventions & Quality Floor
+## Conventions & quality floor
 
-- **Local-First & Markdown Native**: Markdown files on disk remain the single source of truth.
-- **IPC Contracts**: Every Rust IPC command maps to a TypeScript interface; runtime JSON is validated before use.
-- **Process Sandbox**: External process execution must use `crates/system-bridge/src/process.rs`.
-- **UI & Anti-Slop**: Follow [`DESIGN.md`](DESIGN.md) (no purple/indigo AI gradients, system fonts only, WCAG 2.2 AA floor, touch targets $\ge 44\times 44\text{px}$).
-- **Rust Safety**: Production code must avoid `unwrap()`, use `thiserror` in libraries vs `anyhow` in binaries, and include explicit `// SAFETY:` comments for any `unsafe` block.
+The full list of contributor conventions lives in [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+and [`AGENTS.md`](../AGENTS.md). The non-negotiable items:
 
-## Essential Verification Commands
+- **Local-first & Markdown native** — Markdown files on disk are the source of truth.
+- **IPC contracts** — every Rust IPC command maps to a TypeScript interface; runtime JSON from `unknown` is validated before use.
+- **Process sandbox** — external process execution must go through `crates/system-bridge/src/process.rs` and be validated against `process-launch-inventory.json`.
+- **UI & anti-slop** — follow [`DESIGN.md`](../DESIGN.md) (no purple/indigo AI gradients, system fonts only, WCAG 2.2 AA floor, touch targets ≥ 44×44 px).
+- **Rust safety** — production code avoids `.unwrap()`; `thiserror` in libraries vs. `anyhow` in binaries; every `unsafe` block has an explicit `// SAFETY:` comment.
 
-```powershell
-# Fast contract and governance checks
-pnpm version:check
-pnpm check:governance
-pnpm check:contracts
-pnpm check:source
-pnpm check:frontend-quality
-
-# Rust compiler, lints & tests
-cargo fmt --all --check
-cargo clippy --workspace --all-targets -- -D warnings
-pnpm check:deny
-pnpm test:rust
-
-# Frontend linting, build & E2E/visual/a11y tests
-pnpm lint
-pnpm build
-pnpm check:a11y
-pnpm check:a11y-axe
-pnpm test:e2e
-pnpm test:visual
-
-# Performance & Benchmarks
-pnpm check:perf
-pnpm bench:startup
-pnpm bench:idle-memory
-```
-
-## Where to Look
+## Where to look
 
 | Task | Location |
 |---|---|
-| Modify Vault file logic | `crates/vault/src/` |
-| Modify Indexer or Graph search | `crates/indexer/src/` |
+| Modify vault file logic | `crates/vault/src/` |
+| Modify indexer or graph search | `crates/indexer/src/` |
 | Add or update IPC methods | `crates/ipc/src/` & `tsconfig.contracts.json` |
-| Update Editor component | `packages/editor/src/` |
-| Update Canvas workspace | `packages/canvas/src/` & `crates/canvas-engine/` |
-| Update Theme or Styling | `src/index.css` & `src/styles/` |
+| Update editor component | `packages/editor/src/` |
+| Update canvas workspace | `packages/canvas/src/` & `crates/canvas-engine/` |
+| Update theme or styling | `src/index.css` & `src/styles/` |
 | Add end-to-end / visual test | `e2e/` & `playwright.e2e.config.ts` |
 | Add performance benchmark | `scripts/benchmarks/` & `perf-baselines.json` |

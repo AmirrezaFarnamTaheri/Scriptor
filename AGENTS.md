@@ -7,3 +7,7 @@
 - New native commands require authorization classification and runtime validation.
 - External processes must use `crates/system-bridge/src/process.rs`.
 - Update docs, changelog, source contracts, and verification evidence with the implementation.
+- Toolchain versions, script names, and package boundaries are read from `package.json` and `Cargo.toml` — do not duplicate them in secondary documentation.
+- Detailed contributor conventions and verification gates: see `CONTRIBUTING.md`.
+- Contributor onboarding, directory map, and entry points: see `docs/ONBOARDING.md`.
+- Extended guidance: see `GEMINI.md`.
