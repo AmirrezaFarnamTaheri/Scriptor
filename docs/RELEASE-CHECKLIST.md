@@ -1,7 +1,6 @@
 # Production release checklist
 
-Review the [visual gallery](./VISUAL-REVIEW.md) before approving a release. It links the checked-in
-panel, widget, responsive, recovery, and onboarding captures used by the visual Playwright suite.
+Review the visual capture baselines before approving a release. The canonical screenshot gallery is in the main [](../README.md) (12 images across 6 user-facing surfaces). The complete indexed inventory of all reviewed captures, their reviewer notes, and the regeneration workflow are in [](assets/screenshots/README.md). The review discipline and suite coverage narrative are in [](VISUAL-REVIEW.md).
 
 A production release is blocked until every required item is checked against the exact tag and artifact bytes.
 

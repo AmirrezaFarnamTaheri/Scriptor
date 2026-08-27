@@ -1,55 +1,23 @@
-# Visual review gallery
+# Visual review notes
 
-These images are reviewed Windows baselines produced by the visual Playwright suite. They are
-documentation artifacts, not release evidence by themselves; the exact commit, browser, viewport,
-and pnpm test:visual result remain authoritative.
+The visual gallery of reviewed Windows baselines is the home for every screenshot this document discusses. The README's screenshot section, `docs/assets/screenshots/README.md`, and the checked-in PNGs under `docs/assets/screenshots/` are canonical; this page records the **reviewer narrative and discipline**, not a duplicate image dump.
 
-## Core workspace
+## What the visual suite asserts
 
-![Light workspace](assets/screenshots/workspace-light.png)
-![Dark workspace](assets/screenshots/workspace-dark.png)
-![Mobile workspace](assets/screenshots/workspace-mobile.png)
-![Tablet workspace](assets/screenshots/workspace-tablet.png)
+- Lazy-panel loading, topbar overflow, compact layouts, modal focus, and console/network cleanliness are asserted by the Playwright source suite and must be rerun from the frozen release candidate.
+- Dark mode and the 1024 / 768 / 375px breakpoints are part of the matrix; the README's workspace pair and the responsive captures document the reviewed baselines.
+- The reader, tasks, and kanban flows are exercised by the functional Playwright regression suite and captured as runtime evidence when their experimental surfaces are enabled.
+- Recovery fallbacks, keyboard popovers, plugin management, and indexing readiness have specific captures linked from the gallery.
 
-## Product surfaces
+## Review discipline
 
-![Command palette](assets/screenshots/command-palette.png)
-![Canvas](assets/screenshots/canvas.png)
-![Graph](assets/screenshots/graph.png)
-![Git panel](assets/screenshots/git-panel.png)
-![MCP panel](assets/screenshots/mcp-panel.png)
-![Publish center](assets/screenshots/publish-center.png)
-![Vault health](assets/screenshots/vault-health.png)
+- Any baseline change requires visual diff inspection and an explicit review note in the change packet.
+- Stale snapshots are replaced only after a reviewer inspects the diff; visual failures are never hidden by raising the global tolerance.
+- The Playwright source suite and the checked-in PNGs must agree; checked-in PNGs are documentation artifacts and are not release evidence by themselves. The exact commit, browser, viewport, and `pnpm test:visual` result remain authoritative.
 
-These captures are the visual index for the primary panels and widgets. The command palette is
-the keyboard-first entry point; Canvas and Graph are capability-gated workspaces; Git and MCP
-show transport/status surfaces; Publish and Vault health show review-before-mutation flows.
+## Cross-references
 
-## Review states
-
-![Editor preview](assets/screenshots/editor-preview.png)
-![Conflict resolver](assets/screenshots/conflict-resolver.png)
-![Note history](assets/screenshots/note-history.png)
-![Settings](assets/screenshots/settings.png)
-![Plugins](assets/screenshots/plugins.png)
-![Keyboard shortcuts](assets/screenshots/keyboard-shortcuts.png)
-![Onboarding](assets/screenshots/onboarding-tour.png)
-![Inspector preview](assets/screenshots/inspector-preview.png)
-![Editor recovery](assets/screenshots/editor-recovery.png)
-![MCP sharing inventory](assets/screenshots/mcp-sharing-inventory.png)
-
-## Widgets and responsive states
-
-![Typography toolbar](assets/screenshots/toolbar-typography.png)
-![Insert toolbar](assets/screenshots/toolbar-insert.png)
-![Mobile inspector](assets/screenshots/mobile-inspector.png)
-![Mobile vault](assets/screenshots/mobile-vault.png)
-
-The supporting set covers knowledge navigation, reading/editing, recovery, configuration,
-extension management, keyboard customization, and first-run guidance. Reader, Tasks, and Kanban
-are additionally exercised by the functional Playwright regression suite; their screenshots are
-captured as runtime evidence when the corresponding experimental surfaces are enabled.
-
-The suite also covers dark mode, compact 1024/768/375px layouts, keyboard popovers, recovery
-fallbacks, and indexing readiness. Any baseline change requires visual diff inspection and an
-explicit review note in the change packet.
+- README screenshot section — user-facing tour of the workspace, write, knowledge, visualize, automate, and operate/publish surfaces.
+- `docs/assets/screenshots/README.md` — every checked-in PNG, its size, and the docs that reference it.
+- `docs/RELEASE-CHECKLIST.md` — release-time visual gate items.
+- `docs/VERIFICATION.md` — visual verification evidence trail.

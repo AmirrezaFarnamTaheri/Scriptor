@@ -42,7 +42,7 @@
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | Runtime topology, ownership, trust and failure boundaries |
 | [`architecture/c4-container.md`](architecture/c4-container.md) | Container-level runtime diagram (Mermaid) |
 | [`architecture/c4-context.md`](architecture/c4-context.md) | Context diagram (Mermaid) |
-| [`architecture/IPC_DAEMON.md`](architecture/IPC_DAEMON.md) | Daemon RPC surface, frame format, desktop integration |
+| [`architecture/IPC_DAEMON.md`](architecture/IPC_DAEMON.md) | Daemon RPC surface, invariants, and validation (pointer to `ARCHITECTURE.md` for topology) |
 | [`architecture/PLUGIN_SYSTEM.md`](architecture/PLUGIN_SYSTEM.md) | Plugin manifest, safe mode, marketplace, authoring |
 | [`architecture/PERFORMANCE_ARCHITECTURE.md`](architecture/PERFORMANCE_ARCHITECTURE.md) | Optimization layers, owners, and performance budgets |
 | [`architecture/TUI_PARITY.md`](architecture/TUI_PARITY.md) | TTY TUI parity model with the desktop surface |

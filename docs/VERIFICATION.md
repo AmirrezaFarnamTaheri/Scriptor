@@ -152,7 +152,7 @@ This table is retained as historical upstream evidence from the pre-improvement 
 | Release smoke and performance | Passed | `pnpm release:smoke`; `pnpm release:perf-gate` (1k-note scan mean 41 ms; 1500 ms budget) |
 | Production dependency audit | Pending external service | `pnpm audit --prod` exhausted retries after registry `ECONNRESET`; no vulnerability verdict was produced |
 
-Visual assets reviewed by this pass are catalogued in [`VISUAL-REVIEW.md`](./VISUAL-REVIEW.md).
+Visual assets reviewed by this pass are catalogued in [`VISUAL-REVIEW.md`](./VISUAL-REVIEW.md) and the [canonical screenshot inventory](assets/screenshots/README.md).
 
 ## 2026-08-13 experimental workspace evidence
 

@@ -1,26 +1,12 @@
 # Scriptor Capabilities
 
-Visual references for capability-gated surfaces are maintained in the [visual review gallery](./VISUAL-REVIEW.md),
-including [Graph](assets/screenshots/graph.png), [Canvas](assets/screenshots/canvas.png), [MCP](assets/screenshots/mcp-panel.png),
-and [Plugins](assets/screenshots/plugins.png). Screenshots illustrate UI state only; native authorization and vault state remain authoritative.
+Visual references for capability-gated surfaces are maintained in the [visual review gallery](./VISUAL-REVIEW.md) and the [canonical screenshot inventory](assets/screenshots/README.md), including [Graph](assets/screenshots/graph.png), [Canvas](assets/screenshots/canvas.png), [MCP](assets/screenshots/mcp-panel.png), and [Plugins](assets/screenshots/plugins.png). Screenshots illustrate UI state only; native authorization and vault state remain authoritative.
 
 Shipped product surfaces and release validation for **v1.0.0**.
 
-## What you can do
+The user-facing feature tour is in the main [`README.md`](../README.md) (Features section) and the source-of-truth maturity posture is in [`CAPABILITY-MATURITY.md`](./CAPABILITY-MATURITY.md). This page tracks the v1.0.0 delivery manifest and the release-validation commands.
 
-| Category | Features |
-|----------|----------|
-| **Write** | CodeMirror (default) and optional Monaco editors; source, split, and preview modes; format toolbar; snippets; distraction-free mode; keyboard shortcut editor |
-| **Organize** | Vault tree with virtualized list; inbox; daily notes; note types; templates; saved views |
-| **Connect** | Wikilinks, backlinks, knowledge graph with keyboard navigation, knowledge workbench, unresolved link repair |
-| **Cite** | Bibliography files, CSL styles, inline `[@key]` citations, reference preview |
-| **Publish** | Pandoc export profiles (HTML, PDF, DOCX, LaTeX, ePub, Reveal.js); publish center; background textbundle export |
-| **Automate** | Git integration with 3-way conflict resolver; MCP 15 tools with audit JSONL; plugin marketplace and safe mode; headless daemon with tracing spans |
-| **Visualize** | Canvas boards (lazy-loaded) with resvg worker offload; portal quick capture |
-| **Operate** | Command palette; workspace modes; vault health dashboard; terminal UI; scheduled vault snapshots |
-| **Spellcheck** | Multi-locale Hunspell (11 languages); LanguageTool self-host default for grammar/style |
-
-## Included in v0.1
+## Included in v1.0.0
 
 | Area | Reference |
 |------|-----------|
