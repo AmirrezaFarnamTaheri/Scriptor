@@ -7,6 +7,8 @@
  * from the generated operation catalog (`contracts/operation-catalog.generated.ts`)
  * so the status union has a single source of truth in `contracts/operations.json`.
  */
+export type { BoundaryOutcomeStatus } from './operation-catalog.generated.ts'
+
 export type BoundaryOutcome<T, W = string, R = unknown> =
   | { status: 'value'; value: T }
   | { status: 'absent-optional'; value: T }

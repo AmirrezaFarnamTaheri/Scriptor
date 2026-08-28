@@ -13,6 +13,7 @@
 // (deflate via zlib.deflateRawSync), UTF-8 name flag, no data descriptors
 // (sizes are known before header write).
 import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
 import { deflateRawSync, crc32 } from 'node:zlib'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,6 +41,8 @@ const PROFILE_REQUIRED_MANIFEST = path.join(REPO_ROOT, 'scripts/packaging/source
 // archive bytes depend only on file content and names, never on checkout mtimes.
 const DOS_TIME = 0
 const DOS_DATE = 0x21
+const ZIP32_MAX_ENTRIES = 0xffff
+const ZIP32_MAX_SIZE = 0xffffffff
 
 function globToRegExp(glob) {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
@@ -139,7 +142,10 @@ function centralDirectoryEntry(entry, offset) {
   return central
 }
 
-function assembleZip(entries) {
+export function assembleZip(entries) {
+  if (entries.length > ZIP32_MAX_ENTRIES) {
+    throw new Error(`archive has ${entries.length} entries; ZIP64 support is required above ${ZIP32_MAX_ENTRIES}`)
+  }
   const chunks = []
   const offsets = []
   let offset = 0
@@ -148,6 +154,9 @@ function assembleZip(entries) {
     const local = Buffer.concat([entry.header, entry.nameBuffer, entry.compressed])
     chunks.push(local)
     offset += local.length
+    if (offset > ZIP32_MAX_SIZE) {
+      throw new Error('archive exceeds 4 GiB; ZIP64 support is required')
+    }
   }
   const centralStart = offset
   let centralSize = 0
@@ -155,6 +164,9 @@ function assembleZip(entries) {
     const central = Buffer.concat([centralDirectoryEntry(entries[i], offsets[i]), entries[i].nameBuffer])
     chunks.push(central)
     centralSize += central.length
+    if (centralSize > ZIP32_MAX_SIZE || centralStart + centralSize > ZIP32_MAX_SIZE) {
+      throw new Error('archive central directory exceeds 4 GiB; ZIP64 support is required')
+    }
   }
   const eocd = Buffer.alloc(22)
   eocd.writeUInt32LE(0x06054b50, 0)
@@ -171,7 +183,6 @@ export function buildZip(repo, output, profile = 'source-review') {
   const rules = profileRules(profile)
   const required = validateProfileInputs(repo, profile)
   fs.mkdirSync(path.dirname(output), { recursive: true })
-  if (fs.existsSync(output)) fs.unlinkSync(output)
 
   const files = []
   collectFiles(repo, rules, files)
@@ -206,7 +217,16 @@ export function buildZip(repo, output, profile = 'source-review') {
   }
   entries.push(zipEntry(Buffer.from('Scriptor/PACKAGING_PROFILE.json', 'utf8'), Buffer.from(JSON.stringify(profileRecord, null, 2) + '\n', 'utf8')))
 
-  fs.writeFileSync(output, assembleZip(entries))
+  const temporaryOutput = path.join(
+    path.dirname(output),
+    `.${path.basename(output)}.${process.pid}.${randomUUID()}.tmp`,
+  )
+  try {
+    fs.writeFileSync(temporaryOutput, assembleZip(entries))
+    fs.renameSync(temporaryOutput, output)
+  } finally {
+    if (fs.existsSync(temporaryOutput)) fs.unlinkSync(temporaryOutput)
+  }
   return { count: entries.length, totalBytes }
 }
 
@@ -232,26 +252,29 @@ export function main(argv = process.argv.slice(2)) {
   let positional = null
   let output = null
   let profile = 'source-review'
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i]
-    if (arg === '--profile') {
-      profile = argv[i + 1]
-      i += 1
-      assert.ok(profile === 'source-review' || profile === 'runtime-lite', `invalid --profile: ${profile}`)
-    } else if (arg === '--output') {
-      output = argv[i + 1]
-      i += 1
-    } else if (arg === '--help' || arg === '-h') {
-      console.log('Usage: node scripts/packaging/zip-lite.mjs [--profile source-review|runtime-lite] [--output path]')
-      return 0
-    } else {
-      if (positional !== null) throw new Error('use either positional output or --output, not both')
-      positional = arg
-    }
-  }
-  if (output && positional) throw new Error('use either positional output or --output, not both')
-  const resolved = path.resolve(output ?? positional ?? DEFAULT_OUTPUT)
   try {
+    for (let i = 0; i < argv.length; i += 1) {
+      const arg = argv[i]
+      if (arg === '--profile') {
+        profile = argv[i + 1]
+        if (!profile || profile.startsWith('--')) throw new Error('--profile requires a value')
+        i += 1
+        assert.ok(profile === 'source-review' || profile === 'runtime-lite', `invalid --profile: ${profile}`)
+      } else if (arg === '--output') {
+        output = argv[i + 1]
+        if (!output || output.startsWith('--')) throw new Error('--output requires a path')
+        i += 1
+      } else if (arg === '--help' || arg === '-h') {
+        console.log('Usage: node scripts/packaging/zip-lite.mjs [--profile source-review|runtime-lite] [--output path]')
+        return 0
+      } else {
+        if (arg.startsWith('-')) throw new Error(`unknown option: ${arg}`)
+        if (positional !== null) throw new Error('use either positional output or --output, not both')
+        positional = arg
+      }
+    }
+    if (output && positional) throw new Error('use either positional output or --output, not both')
+    const resolved = path.resolve(output ?? positional ?? DEFAULT_OUTPUT)
     const { count, totalBytes } = buildZip(REPO_ROOT, resolved, profile)
     const outBytes = fs.statSync(resolved).size
     console.log(`Profile: ${profile}`)

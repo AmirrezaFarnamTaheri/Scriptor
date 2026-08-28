@@ -8,7 +8,8 @@ import type { McpRuntime } from './runtime'
  * from the compatibility codecs below: declaring a published revision does not
  * imply wire-level support for it.
  */
-export const MCP_CURRENT_SPEC_VERSION = OPERATION_CATALOG.protocols.mcp.currentSpecVersion as string
+export const MCP_CURRENT_SPEC_VERSION: typeof OPERATION_CATALOG.protocols.mcp.currentSpecVersion =
+  OPERATION_CATALOG.protocols.mcp.currentSpecVersion
 
 /**
  * Legacy JSON-RPC MCP revisions this server currently implements, newest first.

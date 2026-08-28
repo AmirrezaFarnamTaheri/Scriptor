@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Fixed
+- Preserved spellcheck after the locale catalog was narrowed: previously saved unavailable locales now normalize and persist to the shipped `en-US` dictionary instead of leaving the selector blank and spellcheck empty.
+- Added local recovery boundaries for the newly deferred overlays, so a failed lazy chunk can be dismissed without taking down the writing workspace.
+- Made the lightweight archive CLI reject missing option values and unknown flags through its normal error path with a nonzero exit code, rather than exposing an uncaught Node exception.
 - Reduced the initial renderer bundle from 505,913 to 442,797 gzip bytes (−12.4%) by deferring six conditionally-mounted overlays (writing targets, conflict resolver, cheatsheet, onboarding tour, support, perf HUD) behind `lazy()` boundaries — chart.js no longer loads at startup and is fetched only when the writing-targets panel opens; panel code follows the existing `lazyPanels` + `Suspense` + `PanelFallback` conventions.
 - Advertised spellcheck locales now match shipped dictionary assets: the locale picker no longer offers ten locales whose Hunspell `.dic` files do not exist (silent empty word sets), and a new dependency-free contract gate fails the build if `LOCALE_MAP` ever advertises an asset missing from `public/dictionaries/`.
 - Ported the packaging archive builder from Python to dependency-free Node (`scripts/packaging/zip-lite.mjs`): excluded dependency/build trees are pruned during traversal instead of enumerated-then-filtered, output archives are now byte-for-byte reproducible (fixed DOS timestamps), and the packaging gate no longer requires Python on the host.

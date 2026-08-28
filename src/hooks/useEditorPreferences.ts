@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { EditorThemeId } from '@scriptor/editor'
+import { resolveHunspellLocale } from '@scriptor/editor/pure'
 
 import type { AppTheme } from './useAppTheme'
 
@@ -41,6 +42,11 @@ export function useEditorPreferences(appTheme: AppTheme, initialLayout?: Initial
   const [vimMode, setVimMode] = usePersistedBoolean('scriptor:vim-mode', false)
   const [spellcheck, setSpellcheck] = usePersistedBoolean('scriptor:spellcheck', false)
   const [spellcheckLocale, setSpellcheckLocale] = usePersistedString('scriptor:spellcheck-locale', 'en-US')
+
+  useEffect(() => {
+    const normalized = resolveHunspellLocale(spellcheckLocale)
+    if (normalized !== spellcheckLocale) setSpellcheckLocale(normalized)
+  }, [setSpellcheckLocale, spellcheckLocale])
   const [languageToolEndpoint, setLanguageToolEndpoint] = usePersistedString(
     'scriptor:languagetool-endpoint',
     'http://localhost:8010/v2/check',

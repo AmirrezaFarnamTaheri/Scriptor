@@ -18,6 +18,8 @@ interface Props {
   name?: string
   /** When any value in this array changes, a caught error is cleared so children can re-render. */
   resetKeys?: unknown[]
+  /** Set false when retrying would reuse a rejected lazy-module loader. */
+  autoRetryPanelFallback?: boolean
 }
 
 interface State {
@@ -82,6 +84,9 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     const panelFallback = fallback as ReactElement<ComponentProps<typeof PanelErrorFallback>>
+    if (this.props.autoRetryPanelFallback === false && !panelFallback.props.onRetry) {
+      return panelFallback
+    }
     return cloneElement(panelFallback, {
       onRetry: () => {
         panelFallback.props.onRetry?.()

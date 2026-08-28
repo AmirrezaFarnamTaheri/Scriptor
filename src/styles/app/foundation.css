@@ -275,7 +275,6 @@ svg {
   width: 28px;
   height: 28px;
   display: block;
-  object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 2px 4px color-mix(in oklch, var(--primary-strong) 25%, transparent));
 }

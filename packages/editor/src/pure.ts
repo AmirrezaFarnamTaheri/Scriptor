@@ -30,8 +30,10 @@ export { MATH_SNIPPETS, MERMAID_SNIPPETS } from './snippet-catalogs.ts'
 
 export {
   getActiveHunspellLocale,
+  DEFAULT_HUNSPELL_LOCALE,
   LOCALE_MAP,
   loadHunspellLocale,
+  resolveHunspellLocale,
   setActiveHunspellLocale,
   SUPPORTED_LOCALES,
 } from './hunspell-dictionary.ts'

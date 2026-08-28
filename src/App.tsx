@@ -1546,6 +1546,11 @@ function App() {
       )}
 
       {writingTargetsOpen && (
+        <ErrorBoundary
+          name="writing-targets-panel"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Writing targets" onDismiss={() => setWritingTargetsOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
         <WritingTargetsPanel
           dailyTarget={workspace.vaultConfig.writing_targets?.daily_words ?? 500}
@@ -1576,9 +1581,16 @@ function App() {
           }}
         />
         </Suspense>
+        </ErrorBoundary>
       )}
 
       {conflictPath && conflictSource ? (
+        <ErrorBoundary
+          name="conflict-resolver"
+          resetKeys={[conflictPath]}
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Conflict resolver" onDismiss={() => setConflictPath(null)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
         <ConflictResolverModal
           key={conflictPath}
@@ -1601,6 +1613,7 @@ function App() {
           }}
         />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       {healthDashboardOpen && (
@@ -1851,11 +1864,22 @@ function App() {
       )}
 
       {cheatsheetOpen ? (
+        <ErrorBoundary
+          name="cheatsheet-panel"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Cheatsheet" onDismiss={() => setCheatsheetOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
       {onboarding.onboardingOpen ? (
+        <ErrorBoundary
+          name="onboarding-tour"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Onboarding tour" onDismiss={onboarding.completeOnboarding} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <OnboardingTour
             onComplete={onboarding.completeOnboarding}
@@ -1865,12 +1889,19 @@ function App() {
             }}
           />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       {supportOpen ? (
+        <ErrorBoundary
+          name="support-panel"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Support" onDismiss={() => setSupportOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <SupportPanel onClose={() => setSupportOpen(false)} />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       <QuickCaptureWorkspaceLayer
@@ -1916,9 +1947,15 @@ function App() {
       ) : null}
 
       {perfHudOpen ? (
+        <ErrorBoundary
+          name="perf-hud"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Performance HUD" onDismiss={() => setPerfHudOpen(false)} />}
+        >
         <Suspense fallback={<PanelFallback />}>
           <PerfHudOverlay metrics={perfMetrics.metrics} />
         </Suspense>
+        </ErrorBoundary>
       ) : null}
       {toastMessage ? (
         <AppToastRegion>

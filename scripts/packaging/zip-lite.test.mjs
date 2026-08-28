@@ -5,7 +5,7 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
 
-import { buildZip, listZip } from './zip-lite.mjs'
+import { assembleZip, buildZip, listZip, main } from './zip-lite.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 
@@ -76,6 +76,55 @@ test('packaging profile record is embedded with the requested profile', () => {
     for (const entry of listZip(output)) {
       assert.doesNotMatch(entry, /\/(?:synthetic-1k|synthetic-5k|synthetic-25k|screenshots\.spec\.ts-snapshots)\//)
     }
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true })
+  }
+})
+
+test('CLI rejects missing option values and unknown options before creating an archive', () => {
+  const errors = []
+  const originalError = console.error
+  console.error = (message) => {
+    errors.push(String(message))
+  }
+  try {
+    assert.equal(main(['--output']), 1)
+    assert.equal(main(['--profile']), 1)
+    assert.equal(main(['--unknown']), 1)
+  } finally {
+    console.error = originalError
+  }
+
+  assert.deepEqual(errors, [
+    'Packaging failed: --output requires a path',
+    'Packaging failed: --profile requires a value',
+    'Packaging failed: unknown option: --unknown',
+  ])
+})
+
+test('ZIP32 entry limits fail with actionable ZIP64 guidance', () => {
+  const entry = {
+    header: Buffer.alloc(30),
+    nameBuffer: Buffer.from('x'),
+    compressed: Buffer.alloc(0),
+    crc: 0,
+    method: 0,
+    compressedSize: 0,
+    uncompressedSize: 0,
+  }
+  assert.throws(
+    () => assembleZip(Array.from({ length: 0x10000 }, () => entry)),
+    /ZIP64 support is required above 65535/,
+  )
+})
+
+test('a failed build preserves an existing archive', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-zip-recovery-'))
+  try {
+    const output = path.join(temp, 'existing.zip')
+    fs.writeFileSync(output, 'known-good-archive')
+    assert.throws(() => buildZip(path.join(temp, 'missing-source'), output), /missing required inputs/)
+    assert.equal(fs.readFileSync(output, 'utf8'), 'known-good-archive')
   } finally {
     fs.rmSync(temp, { recursive: true, force: true })
   }

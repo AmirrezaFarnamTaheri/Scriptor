@@ -23,7 +23,10 @@ test('MCP protocol policy distinguishes current specification from implemented c
   const currentSpecVersion = catalog.protocols.mcp.currentSpecVersion
   // Single source of truth: the advertised spec revision comes from the
   // generated operation catalog, never a duplicated literal.
-  assert.match(mcpServer, /MCP_CURRENT_SPEC_VERSION\s*=\s*OPERATION_CATALOG\.protocols\.mcp\.currentSpecVersion/)
+  assert.match(
+    mcpServer,
+    /MCP_CURRENT_SPEC_VERSION(?:\s*:[^=]+)?\s*=\s*OPERATION_CATALOG\.protocols\.mcp\.currentSpecVersion/,
+  )
   assert.ok(!/release candidate/i.test(mcpServer))
   assert.match(mcpServer, new RegExp(`MCP_SERVER_VERSION\\s*=\\s*'${version.replaceAll('.', '\\.')}'`))
   // The current spec revision must never appear in the implemented codec list.

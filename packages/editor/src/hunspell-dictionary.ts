@@ -28,12 +28,18 @@ export const LOCALE_MAP: Record<string, { dic: string; aff?: string }> = {
 }
 
 export const SUPPORTED_LOCALES = Object.keys(LOCALE_MAP)
+export const DEFAULT_HUNSPELL_LOCALE = 'en-US'
+
+export function resolveHunspellLocale(locale: string): string {
+  return Object.hasOwn(LOCALE_MAP, locale) ? locale : DEFAULT_HUNSPELL_LOCALE
+}
 
 const dictionariesByLocale = new Map<string, Set<string>>()
 const loadPromisesByLocale = new Map<string, Promise<Set<string>>>()
-let activeLocale = 'en-US'
+let activeLocale = DEFAULT_HUNSPELL_LOCALE
 
 export async function loadHunspellLocale(locale: string): Promise<Set<string>> {
+  locale = resolveHunspellLocale(locale)
   const existing = dictionariesByLocale.get(locale)
   if (existing) return existing
 
@@ -64,7 +70,7 @@ export async function loadHunspellLocale(locale: string): Promise<Set<string>> {
 }
 
 export function setActiveHunspellLocale(locale: string): void {
-  activeLocale = locale
+  activeLocale = resolveHunspellLocale(locale)
 }
 
 export function getActiveHunspellLocale(): string {

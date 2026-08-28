@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 
 import { overlayEscapeCoordinator, type FocusRestorer } from '../lib/overlayEscapeCoordinator'
 
 export function useEscapeToClose(active: boolean, onClose: () => void): void {
   const onCloseRef = useRef(onClose)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     onCloseRef.current = onClose
   })
 
