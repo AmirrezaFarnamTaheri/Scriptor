@@ -1,3 +1,10 @@
+//! Trusted local automation stdio transport.
+//!
+//! This is deliberately *not* the canonical MCP wire server. The canonical MCP
+//! interoperability implementation lives in `packages/mcp`; this transport keeps
+//! its narrower local envelope for same-user automation and exposes `mcp.*` tool
+//! semantics for backward compatibility.
+
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
 
@@ -17,42 +24,44 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
-pub struct McpStdioOptions {
+pub const MAX_AUTOMATION_STDIO_LINE_BYTES: usize = 4 * 1024 * 1024;
+
+pub struct AutomationStdioOptions {
     pub vault_path: String,
     pub trust_stdio: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct McpRequest {
+struct AutomationRequest {
     id: Value,
     method: String,
     #[serde(default)]
-    params: Option<McpRequestParams>,
+    params: Option<AutomationRequestParams>,
 }
 
 #[derive(Debug, Deserialize)]
-struct McpRequestParams {
+struct AutomationRequestParams {
     name: Option<String>,
     #[serde(default)]
     arguments: Option<Value>,
 }
 
 #[derive(Debug, Serialize)]
-struct McpResponse {
+struct AutomationResponse {
     id: Value,
     #[serde(skip_serializing_if = "Option::is_none")]
     result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<McpError>,
+    error: Option<AutomationError>,
 }
 
 #[derive(Debug, Serialize)]
-struct McpError {
+struct AutomationError {
     code: String,
     message: String,
 }
 
-struct McpStdioState {
+struct AutomationStdioState {
     session: VaultSession,
     trust_stdio: bool,
     index_cache: IndexCache,
@@ -154,7 +163,7 @@ const WRITE_TOOLS: &[(&str, &str, &str)] = &[
     ),
 ];
 
-pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
+pub fn run_automation_stdio(options: AutomationStdioOptions) -> Result<(), String> {
     let session = open_vault(&options.vault_path).map_err(|error| error.to_string())?;
     let plugin_state = load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
     if !plugin_state.is_enabled("scriptor.mcp") {
@@ -162,25 +171,43 @@ pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
     }
     reconcile_pending_mcp_mutations(&session.root).map_err(|error| error.to_string())?;
     let index_cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
-    let mut state = McpStdioState {
+    let mut state = AutomationStdioState {
         session,
         trust_stdio: options.trust_stdio,
         index_cache,
     };
     let stdin = io::stdin();
+    let mut input = stdin.lock();
     let mut stdout = io::stdout();
-    for line in stdin.lock().lines() {
-        let line = line.map_err(|error| error.to_string())?;
+    loop {
+        let line = match read_bounded_automation_line(&mut input) {
+            Ok(Some(line)) => line,
+            Ok(None) => break,
+            Err(message) => {
+                let response = AutomationResponse {
+                    id: json!("invalid"),
+                    result: None,
+                    error: Some(AutomationError {
+                        code: "frame_too_large".into(),
+                        message,
+                    }),
+                };
+                let encoded = serde_json::to_string(&response).map_err(|error| error.to_string())?;
+                writeln!(stdout, "{encoded}").map_err(|error| error.to_string())?;
+                stdout.flush().map_err(|error| error.to_string())?;
+                continue;
+            }
+        };
         let trimmed = line.trim();
         if trimmed.is_empty() {
             continue;
         }
-        let response = match serde_json::from_str::<McpRequest>(trimmed) {
+        let response = match serde_json::from_str::<AutomationRequest>(trimmed) {
             Ok(request) => handle_request(&mut state, request),
-            Err(error) => McpResponse {
+            Err(error) => AutomationResponse {
                 id: json!("invalid"),
                 result: None,
-                error: Some(McpError {
+                error: Some(AutomationError {
                     code: "parse_error".into(),
                     message: error.to_string(),
                 }),
@@ -193,9 +220,48 @@ pub fn run_mcp_stdio(options: McpStdioOptions) -> Result<(), String> {
     Ok(())
 }
 
-fn handle_request(state: &mut McpStdioState, request: McpRequest) -> McpResponse {
+fn read_bounded_automation_line<R: BufRead>(reader: &mut R) -> Result<Option<String>, String> {
+    let mut bytes = Vec::new();
+    let mut oversized = false;
+
+    loop {
+        let buffer = reader.fill_buf().map_err(|error| error.to_string())?;
+        if buffer.is_empty() {
+            if bytes.is_empty() && !oversized {
+                return Ok(None);
+            }
+            break;
+        }
+
+        let newline = buffer.iter().position(|byte| *byte == b'\n');
+        let consumed = newline.map_or(buffer.len(), |index| index + 1);
+        if !oversized {
+            if bytes.len().saturating_add(consumed) > MAX_AUTOMATION_STDIO_LINE_BYTES {
+                oversized = true;
+            } else {
+                bytes.extend_from_slice(&buffer[..consumed]);
+            }
+        }
+        reader.consume(consumed);
+        if newline.is_some() {
+            break;
+        }
+    }
+
+    if oversized {
+        return Err(format!(
+            "automation stdio line exceeds {MAX_AUTOMATION_STDIO_LINE_BYTES} bytes"
+        ));
+    }
+
+    String::from_utf8(bytes)
+        .map(Some)
+        .map_err(|_| "automation stdio input must be UTF-8".to_string())
+}
+
+fn handle_request(state: &mut AutomationStdioState, request: AutomationRequest) -> AutomationResponse {
     match request.method.as_str() {
-        "tools/list" => McpResponse {
+        "tools/list" => AutomationResponse {
             id: request.id,
             result: Some(json!({ "tools": list_tools(state.trust_stdio) })),
             error: None,
@@ -214,7 +280,7 @@ fn handle_request(state: &mut McpStdioState, request: McpRequest) -> McpResponse
                 &name,
                 request.params.and_then(|params| params.arguments),
             ) {
-                Ok(output) => McpResponse {
+                Ok(output) => AutomationResponse {
                     id: request.id,
                     result: Some(json!({ "output": output })),
                     error: None,
@@ -230,11 +296,11 @@ fn handle_request(state: &mut McpStdioState, request: McpRequest) -> McpResponse
     }
 }
 
-fn error_response(id: Value, code: &str, message: &str) -> McpResponse {
-    McpResponse {
+fn error_response(id: Value, code: &str, message: &str) -> AutomationResponse {
+    AutomationResponse {
         id,
         result: None,
-        error: Some(McpError {
+        error: Some(AutomationError {
             code: code.into(),
             message: message.into(),
         }),
@@ -267,7 +333,7 @@ fn list_tools(trust_stdio: bool) -> Vec<Value> {
 }
 
 fn invoke_tool(
-    state: &mut McpStdioState,
+    state: &mut AutomationStdioState,
     tool_name: &str,
     arguments: Option<Value>,
 ) -> Result<Value, String> {
@@ -623,7 +689,7 @@ fn invoke_tool(
 }
 
 fn write_note_with_audit(
-    state: &McpStdioState,
+    state: &AutomationStdioState,
     tool_name: &str,
     command_id: &str,
     path: &str,
@@ -683,7 +749,7 @@ fn write_note_with_audit(
 }
 
 fn update_frontmatter_with_audit(
-    state: &McpStdioState,
+    state: &AutomationStdioState,
     path: &str,
     field: &str,
     value: &str,
@@ -787,7 +853,7 @@ mod tests {
 
         let session = open_vault(dir.path().display().to_string()).expect("open vault");
         let index_cache = open_cache_for_session(&session).expect("open cache");
-        let state = McpStdioState {
+        let state = AutomationStdioState {
             session,
             trust_stdio: true,
             index_cache,
@@ -831,7 +897,7 @@ mod tests {
         fs::write(dir.path().join("alpha.md"), "# Alpha\n").expect("write note");
         let session = open_vault(dir.path().display().to_string()).expect("open vault");
         let index_cache = open_cache_for_session(&session).expect("open cache");
-        let mut state = McpStdioState {
+        let mut state = AutomationStdioState {
             session,
             trust_stdio: false,
             index_cache,
@@ -861,7 +927,7 @@ mod tests {
 
         let session = open_vault(dir.path().display().to_string()).expect("open vault");
         let index_cache = open_cache_for_session(&session).expect("open cache");
-        let state = McpStdioState {
+        let state = AutomationStdioState {
             session,
             trust_stdio: true,
             index_cache,

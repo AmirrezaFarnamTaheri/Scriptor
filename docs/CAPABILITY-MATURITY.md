@@ -19,7 +19,8 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | Local Starlight publishing | Experimental | `crates/publish-runner/`, desktop plan/review/apply, CLI adapter | Local output only; source/security contracts pass, full Cargo/browser release proof still required |
 | Canvas | Supported | `crates/canvas-engine/`, `packages/canvas/` | Included |
 | Daemon IPC / CLI / TUI | Supported | `crates/daemon/`, `crates/ipc/`, `crates/cli/` | Daemon sidecar included |
-| MCP stdio tools | Supported with audit/authorization | `crates/daemon/src/mcp_stdio.rs`, `packages/mcp/` | Included |
+| Canonical MCP server | Supported (legacy compatibility codecs; current-spec adoption is explicit) | `packages/mcp/` | Included |
+| Trusted automation stdio | Supported with audit/authorization; `mcp-stdio` retained as a CLI alias | `crates/daemon/src/automation_stdio.rs` | Included |
 | Manifest-first plugins | Experimental | `packages/plugin-api/` | First-party catalog only |
 | External code chunks | Experimental/high-risk | process broker + user confirmation | Opt-in |
 | AI provider requests | Experimental opt-in | native keychain/network boundary | Opt-in |

@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "requiredPaths": [
+    "VERSION",
+    "package.json",
+    "pnpm-lock.yaml",
+    "Cargo.lock",
+    "rust-toolchain.toml",
+    "perf-baselines.json",
+    "docs/brand/app-icon.svg",
+    "apps/desktop/src-tauri/tauri.conf.json",
+    "apps/desktop/src-tauri/icons/icon.icns",
+    "apps/desktop/src-tauri/icons/icon.ico",
+    "apps/desktop/src-tauri/icons/icon.png",
+    "scripts/validation/desktop-branding.mjs",
+    "scripts/validation/docs-contracts.mjs",
+    "scripts/benchmarks/check-baselines.mjs"
+  ]
+}

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 import { Settings } from 'lucide-react'
 
 import { useI18n } from '../lib/i18n'
 
-import { exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/commands'
+import { diagnosticsExportSupportBundle, exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/commands'
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
 import type { AppTheme } from '../hooks/useAppTheme'
@@ -191,6 +192,7 @@ export function SettingsPanel({
   const { locale, t, changeLocale, supportedLocales } = useI18n()
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [status, setStatus] = useState('')
+  const [supportBundleStatus, setSupportBundleStatus] = useState('')
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
   const [pandocError, setPandocError] = useState<string | null>(null)
   const backup = useVaultBackup(vaultOpen && nativeReady)
@@ -208,7 +210,7 @@ export function SettingsPanel({
   }, [nativeReady])
 
   const dailyNotePreview = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = formatLocalDate()
     return planDailyNotePreview(config.daily_note, today)
   }, [config.daily_note])
 
@@ -528,6 +530,24 @@ export function SettingsPanel({
             />
             <span>Store local client diagnostics in `.scriptor/diagnostics/client.jsonl`</span>
           </label>
+          <button
+            type="button"
+            className="toolbar-button"
+            disabled={!vaultOpen || !nativeReady}
+            onClick={() => {
+              setSupportBundleStatus('Creating support bundle…')
+              void diagnosticsExportSupportBundle()
+                .then((path) => setSupportBundleStatus(`Support bundle created: ${path}`))
+                .catch((error) =>
+                  setSupportBundleStatus(
+                    `Support bundle failed: ${error instanceof Error ? error.message : String(error)}`,
+                  ),
+                )
+            }}
+          >
+            Export redacted support bundle
+          </button>
+          {supportBundleStatus ? <p className="health-subtitle">{supportBundleStatus}</p> : null}
         </div>
 
         <div className="settings-section">

@@ -6,9 +6,9 @@
   width: min(640px, calc(100% - 32px));
   margin: 40px auto;
   padding: 18px;
-  border: 1px solid color-mix(in oklch, var(--danger, #b42318) 24%, var(--border));
+  border: 1px solid color-mix(in oklch, var(--danger) 24%, var(--border));
   border-radius: 12px;
-  background: color-mix(in oklch, var(--danger, #b42318) 5%, var(--surface-raised));
+  background: color-mix(in oklch, var(--danger) 5%, var(--surface-raised));
   color: var(--ink);
   box-shadow: var(--shadow-sm);
 }
@@ -19,8 +19,8 @@
   height: 34px;
   place-items: center;
   border-radius: 9px;
-  background: color-mix(in oklch, var(--danger, #b42318) 12%, var(--surface));
-  color: var(--danger, #b42318);
+  background: color-mix(in oklch, var(--danger) 12%, var(--surface));
+  color: var(--danger);
 }
 
 .error-boundary-content {

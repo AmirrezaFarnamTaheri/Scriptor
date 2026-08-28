@@ -69,12 +69,16 @@ jobs:
           Write-Host "Generating synthetic-$size fixture"
           pnpm "fixtures:synthetic-$size"
 
-      - name: Run benchmark gate
+      - name: Run benchmark producers and persist evidence
         shell: pwsh
         run: |
           $size = if ($env:GITHUB_EVENT_NAME -eq 'schedule' -and $env:GITHUB_EVENT_SCHEDULE -eq '0 4 * * 6') { '25k' } elseif ($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch') { '${{ github.event.inputs.size }}' } else { '5k' }
-          Write-Host "Running bench:scan-$size"
-          pnpm "bench:scan-$size"
+          New-Item -ItemType Directory -Force -Path artifacts/performance | Out-Null
+          pwsh -NoProfile -File scripts/benchmarks/bench-large.ps1 -Size $size -Mode scan -Iterations 3 -OutputPath "artifacts/performance/benchmark-report-$size-scan.json"
+          pwsh -NoProfile -File scripts/benchmarks/bench-large.ps1 -Size $size -Mode search -Iterations 3 -OutputPath "artifacts/performance/benchmark-report-$size-search.json"
+          if (-not (Test-Path "artifacts/performance/benchmark-report-$size-scan.json") -or -not (Test-Path "artifacts/performance/benchmark-report-$size-search.json")) {
+            throw 'benchmark evidence is incomplete'
+          }
 
       - name: Upload benchmark report
         if: always()
@@ -83,6 +87,6 @@ jobs:
           name: perf-trend-report
           path: |
             perf-baselines.json
-            benchmark-report*.json
-          if-no-files-found: warn
+            artifacts/performance/benchmark-report*.json
+          if-no-files-found: error
           retention-days: 30

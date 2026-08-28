@@ -399,8 +399,7 @@ pub fn sync_note_tasks(
         let mut stmt =
             conn.prepare("SELECT id FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2")?;
         stmt.query_map(params![vault_id, note_id], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect()
+            .collect::<Result<BTreeSet<_>, _>>()?
     };
 
     let mut seen_ids: BTreeSet<String> = BTreeSet::new();
@@ -540,7 +539,7 @@ pub fn query_tasks(
 
     // Second pass: attach tags with ONE batched query per 500-task chunk
     // instead of one prepared statement + query per task (N+1).
-    let raws: Vec<TaskRowRaw> = rows.filter_map(|r| r.ok()).collect();
+    let raws: Vec<TaskRowRaw> = rows.collect::<Result<Vec<_>, _>>()?;
     let tags_by_task = fetch_tags_for_tasks(&conn, &raws)?;
     raws.into_iter()
         .map(|raw| {
@@ -713,8 +712,7 @@ fn build_task_row(conn: &Connection, raw: TaskRowRaw) -> Result<TaskRow, Indexer
     let mut tag_stmt = conn.prepare("SELECT tag FROM task_tags WHERE task_id = ?1 ORDER BY tag")?;
     let tags = tag_stmt
         .query_map(params![task_id], |row| row.get(0))?
-        .filter_map(|r| r.ok())
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(TaskRow {
         id: raw.id,
         vault_id: raw.vault_id,

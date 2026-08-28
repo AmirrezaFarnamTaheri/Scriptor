@@ -58,7 +58,7 @@ use commands::resources::{
 };
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
-    ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event, health_check,
+    ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event, diagnostics_export_support_bundle, health_check,
     plantuml_render, set_headless_engine, system_info,
 };
 use commands::vault::{
@@ -202,6 +202,7 @@ pub fn run() {
             vault_detect_obsidian,
             vault_import_obsidian,
             diagnostics_append_event,
+            diagnostics_export_support_bundle,
             ai_provider_has_api_key,
             ai_provider_set_api_key,
             ai_provider_delete_api_key,

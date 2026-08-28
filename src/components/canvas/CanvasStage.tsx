@@ -359,7 +359,7 @@ export function CanvasStage({
               {isFreehand ? (
                 <PressureStroke
                   points={block.strokePoints!}
-                  stroke={selected ? '#2563eb' : stroke}
+                  stroke={selected ? 'var(--primary)' : stroke}
                 />
               ) : block.kind === 'table' ? (
                 <>
@@ -370,7 +370,7 @@ export function CanvasStage({
                     height={block.bounds.height}
                     rx={rx}
                     fill={fill}
-                    stroke={selected ? '#2563eb' : stroke}
+                    stroke={selected ? 'var(--primary)' : stroke}
                     strokeWidth={selected ? 2.5 : (block.style?.strokeWidth ?? 1)}
                   />
                   <foreignObject
@@ -396,7 +396,7 @@ export function CanvasStage({
                     height={block.bounds.height}
                     rx={rx}
                     fill={fill}
-                    stroke={selected ? '#2563eb' : stroke}
+                    stroke={selected ? 'var(--primary)' : stroke}
                     strokeWidth={selected ? 2.5 : (block.style?.strokeWidth ?? 1)}
                   />
                   <text
@@ -422,8 +422,8 @@ export function CanvasStage({
             y={marquee.height < 0 ? marquee.y + marquee.height : marquee.y}
             width={Math.abs(marquee.width)}
             height={Math.abs(marquee.height)}
-            fill="rgba(37, 99, 235, 0.08)"
-            stroke="#2563eb"
+            fill="var(--selected)"
+            stroke="var(--primary)"
             strokeDasharray="4 3"
             pointerEvents="none"
           />

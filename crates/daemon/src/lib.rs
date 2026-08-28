@@ -6,7 +6,7 @@ pub mod export_job;
 pub mod handler;
 pub mod index_job;
 pub mod locks;
-pub mod mcp_stdio;
+pub mod automation_stdio;
 pub mod transport;
 pub mod watcher;
 #[cfg(windows)]

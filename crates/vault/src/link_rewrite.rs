@@ -4,6 +4,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::path::RelativeVaultPath;
+use crate::wikilink::WikilinkIndex;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct LinkRewritePreview {
@@ -193,6 +194,17 @@ pub fn rewrite_note_rename_links(
     from: &RenameLinkTarget,
     to: &RenameLinkTarget,
 ) -> (String, u32) {
+    let mut resolver = WikilinkIndex::from_note_paths(std::slice::from_ref(&from.path));
+    resolver.register_aliases(&from.path, std::slice::from_ref(&from.title));
+    rewrite_note_rename_links_with_resolver(markdown, from, to, &resolver)
+}
+
+pub fn rewrite_note_rename_links_with_resolver(
+    markdown: &str,
+    from: &RenameLinkTarget,
+    to: &RenameLinkTarget,
+    resolver: &WikilinkIndex,
+) -> (String, u32) {
     let mut edits = 0u32;
     let wikilink = &*WIKILINK_RE;
     let markdown_link = &*MARKDOWN_LINK_RE;
@@ -207,13 +219,7 @@ pub fn rewrite_note_rename_links(
             let section = capture.get(2).map(|value| value.as_str());
             let alias = capture.get(3).map(|value| value.as_str());
 
-            if !note_target_matches(
-                target,
-                &RelativeVaultPath::parse(&from.path)
-                    .unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
-                &from.title,
-                from.directory_identifier.as_deref(),
-            ) {
+            if !resolver.resolves_to(target, &from.path) {
                 return capture.get(0).unwrap().as_str().to_string();
             }
 
@@ -242,13 +248,7 @@ pub fn rewrite_note_rename_links(
                 .unwrap_or("");
             let section = capture.name("section").map(|value| value.as_str());
 
-            if !note_target_matches(
-                url,
-                &RelativeVaultPath::parse(&from.path)
-                    .unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
-                &from.title,
-                from.directory_identifier.as_deref(),
-            ) && url != from.path
+            if !resolver.resolves_to(url, &from.path)
             {
                 return capture.get(0).unwrap().as_str().to_string();
             }
@@ -273,13 +273,7 @@ pub fn rewrite_note_rename_links(
                 .map(|value| value.as_str().trim())
                 .unwrap_or("");
 
-            if !note_target_matches(
-                url,
-                &RelativeVaultPath::parse(&from.path)
-                    .unwrap_or_else(|_| RelativeVaultPath::parse("x.md").unwrap()),
-                &from.title,
-                from.directory_identifier.as_deref(),
-            ) && url != from.path
+            if !resolver.resolves_to(url, &from.path)
             {
                 return capture.get(0).unwrap().as_str().to_string();
             }

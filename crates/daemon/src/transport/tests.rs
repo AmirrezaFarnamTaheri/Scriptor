@@ -571,7 +571,7 @@ fn rate_limit_rejects_sustained_burst_on_single_connection() {
         write_frame(&mut stream, &RpcRequest::new(id, RpcMethod::Ping)).expect("write");
         let body = read_frame_resyncing(&mut stream).expect("read");
         let response = decode_rpc_response_body(&body);
-        if matches!(response.result, RpcResult::Err(ref message) if message.contains("rate limit"))
+        if matches!(response.result, RpcResult::Error(ref error) if error.to_string().contains("rate limit"))
         {
             limited += 1;
         }
@@ -643,7 +643,7 @@ fn ping_succeeds_during_background_export() {
     let export_ok = matches!(
         export_resp.result,
         RpcResult::Ok(RpcPayload::ExportStarted { .. })
-    ) || matches!(&export_resp.result, RpcResult::Err(message) if message.contains("pandoc"));
+    ) || matches!(&export_resp.result, RpcResult::Error(error) if error.to_string().contains("pandoc"));
     assert!(
         export_ok,
         "unexpected export response: {:?}",

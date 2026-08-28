@@ -10,6 +10,7 @@ use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
 use crate::write::save_note;
+use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
 
 static DEFINITION_LINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]:\s*(.+)$").expect("valid definition regex"));
@@ -430,18 +431,18 @@ fn expected_link_definitions(body: &str, note_paths: &[String]) -> BTreeMap<Stri
 
 fn resolve_wikilink_url(target: &str, note_paths: &[String]) -> String {
     let trimmed = target.trim();
-    if note_paths.iter().any(|path| path == trimmed) {
-        return trimmed.trim_end_matches(".md").to_string();
+    let resolution = WikilinkIndex::from_note_paths(note_paths).resolve(trimmed);
+    if resolution.kind == WikilinkResolutionKind::Resolved {
+        return resolution
+            .path
+            .unwrap_or_else(|| trimmed.to_string())
+            .trim_end_matches(".md")
+            .to_string();
     }
 
-    for path in note_paths {
-        let stem = path.trim_end_matches(".md");
-        let basename = stem.rsplit('/').next().unwrap_or(stem);
-        if basename.eq_ignore_ascii_case(trimmed) || stem.eq_ignore_ascii_case(trimmed) {
-            return stem.to_string();
-        }
-    }
-
+    // Keep ambiguous and unresolved identifiers verbatim. Picking an arbitrary
+    // candidate while lint-fixing would manufacture a semantically incorrect
+    // Markdown definition.
     trimmed.trim_end_matches(".md").to_string()
 }
 

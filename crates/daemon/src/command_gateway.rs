@@ -80,7 +80,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "vault_scan" => {
             let session = state.require_session()?;
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             to_value(
                 scan_vault_with_roots(&session.root, &config.extra_roots)
                     .map_err(|e| e.to_string())?,
@@ -366,7 +366,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "vault_read_stats_history" => {
             let session = state.require_session()?;
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             let path = config
                 .writing_targets
                 .history_path
@@ -378,7 +378,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let date = require_str(payload, "date")?;
             let words = require_u32(payload, "words")?;
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             let path = config
                 .writing_targets
                 .history_path
@@ -580,7 +580,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let cache = state.require_cache()?;
             let focus_path = optional_str(payload, "focus_path");
             let depth = optional_u32(payload, "depth").unwrap_or(1);
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             to_value(
                 query_focused_graph(
                     cache,

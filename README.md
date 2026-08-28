@@ -84,7 +84,7 @@ Production installers are published as GitHub Release assets. The current versio
 - **macOS** — `.dmg` and `.app` (Apple Silicon and Intel)
 - **Linux** — `.deb`, `.rpm`, and `.AppImage`
 
-> **Trust status.** The official upstream installers are intentionally **unsigned**. Releases ship with SHA-256 checksums, a CycloneDX SBOM, a release receipt, source-identity evidence, and GitHub provenance attestations. See [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md) for the full verification workflow before you install.
+> **Trust status.** The official upstream installers are intentionally **unsigned**. Releases ship with SHA-256 checksums, a CycloneDX SBOM, a release receipt, source identity evidence, and GitHub provenance attestations. See [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md) for the full verification workflow before you install.
 
 Get the latest release: <https://github.com/AmirrezaFarnamTaheri/Scriptor/releases>
 

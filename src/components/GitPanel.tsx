@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import { GitFileRow } from './git/GitFileRow'
@@ -86,7 +87,7 @@ export function GitPanel({
   const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = formatLocalDate()
     const numFiles = effectiveSelection.length
     const files = effectiveSelection.map(noteLabel).join(', ')
     const ctx = { date: today, numFiles: String(numFiles), files }

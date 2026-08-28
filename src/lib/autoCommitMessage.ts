@@ -1,6 +1,8 @@
 /** Build a descriptive Git commit message from changed vault paths (Tolaria-style helper). */
+import { formatLocalDate } from '@scriptor/core/date'
+
 export function buildAutoCommitMessage(changedPaths: string[]): string {
-  const date = new Date().toISOString().slice(0, 10)
+  const date = formatLocalDate()
   if (changedPaths.length === 0) {
     return `Update vault notes (${date})`
   }

@@ -493,7 +493,7 @@ pub fn handle_connection(
                 _ => {
                     let response = RpcResponse {
                         id: request.id,
-                        result: RpcResult::Err("invalid or missing endpoint nonce".into()),
+                        result: RpcResult::failed("invalid or missing endpoint nonce".into()),
                     };
                     write_frame(&mut stream, &ServerMessage::Response(response))?;
                     continue;
@@ -520,7 +520,7 @@ pub fn handle_connection(
         } else {
             RpcResponse {
                 id: request.id,
-                result: RpcResult::Err("rate limit exceeded".into()),
+                result: RpcResult::failed("rate limit exceeded".into()),
             }
         };
         write_frame(&mut stream, &ServerMessage::Response(response))?;
@@ -592,7 +592,7 @@ fn dispatch_invoke_outside_lock(
         Err(error) => {
             return RpcResponse {
                 id,
-                result: RpcResult::Err(error.to_string()),
+                result: RpcResult::failed(error.to_string()),
             };
         }
     };
@@ -621,7 +621,7 @@ fn dispatch_invoke_outside_lock(
                     None => {
                         return RpcResponse {
                             id,
-                            result: RpcResult::Err("no vault is open; call OpenVault first".into()),
+                            result: RpcResult::failed("no vault is open; call OpenVault first".into()),
                         };
                     }
                 }
@@ -641,7 +641,7 @@ fn dispatch_invoke_outside_lock(
                         Err(error) => {
                             return RpcResponse {
                                 id,
-                                result: RpcResult::Err(error),
+                                result: RpcResult::failed(error),
                             };
                         }
                     }
@@ -696,7 +696,7 @@ fn dispatch_invoke_outside_lock(
         },
         Err(message) => RpcResponse {
             id,
-            result: RpcResult::Err(message),
+            result: RpcResult::failed(message),
         },
     }
 }
@@ -723,15 +723,15 @@ fn dispatch_export_sync(
                     Err(error) => {
                         return RpcResponse {
                             id,
-                            result: RpcResult::Err(error.to_string()),
+                            result: RpcResult::failed(error.to_string()),
                         };
                     }
                 };
                 RpcResult::Ok(RpcPayload::ExportResult { json })
             }
-            Err(error) => RpcResult::Err(error.to_string()),
+            Err(error) => RpcResult::failed(error.to_string()),
         },
-        Err(error) => RpcResult::Err(error),
+        Err(error) => RpcResult::failed(error),
     };
     RpcResponse { id, result }
 }
@@ -745,7 +745,7 @@ fn dispatch_rebuild_sync(state: &Arc<Mutex<DaemonState>>, id: u64) -> RpcRespons
             None => {
                 return RpcResponse {
                     id,
-                    result: RpcResult::Err("no vault is open; call OpenVault first".into()),
+                    result: RpcResult::failed("no vault is open; call OpenVault first".into()),
                 };
             }
         }
@@ -757,7 +757,7 @@ fn dispatch_rebuild_sync(state: &Arc<Mutex<DaemonState>>, id: u64) -> RpcRespons
             skipped_notes: summary.skipped_notes,
             links_written: summary.links_written,
         }),
-        Err(error) => RpcResult::Err(error.to_string()),
+        Err(error) => RpcResult::failed(error.to_string()),
     };
     RpcResponse { id, result }
 }

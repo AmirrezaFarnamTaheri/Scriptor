@@ -52,6 +52,7 @@ import { useCommandPalette } from './hooks/useCommandPalette'
 import { useAiProvider } from './hooks/useAiProvider'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
+import { useLocalDate } from './hooks/useLocalDate'
 import { useMcpRuntime } from './hooks/useMcpRuntime'
 import { usePlatformShell, parseDeepLink } from './hooks/usePlatformShell'
 import { useOnboarding } from './hooks/useOnboarding'
@@ -133,6 +134,7 @@ import './styles/motion.css'
 
 function App() {
   const { t } = useI18n()
+  const localDate = useLocalDate()
   const { theme, toggleTheme, setTheme } = useAppTheme()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
@@ -783,10 +785,9 @@ function App() {
   )
 
   const dailyNoteLabel = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    const preview = planDailyNotePreview(workspace.vaultConfig.daily_note, today)
-    return preview.path.split('/').pop()?.replace(/\.md$/i, '') ?? today
-  }, [workspace.vaultConfig.daily_note])
+    const preview = planDailyNotePreview(workspace.vaultConfig.daily_note, localDate)
+    return preview.path.split('/').pop()?.replace(/\.md$/i, '') ?? localDate
+  }, [localDate, workspace.vaultConfig.daily_note])
 
   const paletteCommands = useMemo(
     () =>

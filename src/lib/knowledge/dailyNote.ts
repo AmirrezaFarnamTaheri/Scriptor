@@ -1,11 +1,11 @@
+import { offsetLocalDate, parseLocalDate } from '@scriptor/core/date'
+
 export function offsetIsoDate(iso: string, dayOffset: number): string {
-  const date = new Date(`${iso}T12:00:00`)
-  date.setDate(date.getDate() + dayOffset)
-  return date.toISOString().slice(0, 10)
+  return offsetLocalDate(iso, dayOffset)
 }
 
 export function previewDailyTokens(format: string, isoDate: string): string {
-  const date = new Date(`${isoDate}T12:00:00`)
+  const date = parseLocalDate(isoDate)
   const year = String(date.getFullYear())
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')

@@ -204,7 +204,7 @@ impl DaemonState {
             id,
             result: match result {
                 Ok(payload) => RpcResult::Ok(payload),
-                Err(message) => RpcResult::Err(message),
+                Err(message) => RpcResult::failed(message),
             },
         }
     }
@@ -645,7 +645,7 @@ mod tests {
         ));
         assert!(matches!(
             response.result,
-            RpcResult::Err(message) if message.contains("desktop authorization")
+            RpcResult::Error(error) if error.to_string().contains("desktop authorization")
         ));
     }
 
@@ -798,7 +798,7 @@ mod tests {
                 dry_run: false,
             },
         ));
-        assert!(matches!(save.result, RpcResult::Err(_)));
+        assert!(matches!(save.result, RpcResult::Error(_)));
 
         let session = state.session().expect("session");
         let document = read_note(
@@ -920,7 +920,7 @@ mod tests {
         ));
         match export.result {
             RpcResult::Ok(RpcPayload::ExportStarted { job_id }) => assert!(!job_id.is_empty()),
-            RpcResult::Err(message) if message.contains("pandoc") => {}
+            RpcResult::Error(error) if error.to_string().contains("pandoc") => {}
             other => panic!("unexpected response: {other:?}"),
         }
         state.wait_export_job();

@@ -5,6 +5,7 @@ import {
   normalizeReleaseArchitecture,
   normalizeReleaseChannel,
   normalizeReleasePlatform,
+  normalizeTrustProfile,
 } from './signing-policy.mjs'
 
 const SIGNATURE_TYPES = new Set(['none', 'authenticode', 'developer-id', 'openpgp'])
@@ -135,15 +136,46 @@ export function collectSigningEvidence(subjectDir) {
   return found
 }
 
+function assertTrustProfile(record, key, trustProfile, channel) {
+  if (channel !== 'production') return
+
+  if (trustProfile === 'unsigned') {
+    if (record.signed || record.notarized || record.signatureType !== 'none') {
+      throw new Error(`official production artifact must be unsigned: ${key}`)
+    }
+    return
+  }
+
+  if (record.platform === 'windows') {
+    if (!record.signed || record.notarized || record.signatureType !== 'authenticode') {
+      throw new Error(`native-signed Windows artifact must have a verified Authenticode signature: ${key}`)
+    }
+    return
+  }
+
+  if (record.platform === 'macos') {
+    if (!record.signed || !record.notarized || record.signatureType !== 'developer-id') {
+      throw new Error(`native-signed macOS artifact must be Developer ID signed and notarized: ${key}`)
+    }
+    return
+  }
+
+  if (record.signed || record.notarized || record.signatureType !== 'none') {
+    throw new Error(`native-signed Linux artifact remains unsigned and attestation-backed: ${key}`)
+  }
+}
+
 export function assertSigningEvidence(
   records,
   {
     channel = 'production',
     expectedSourceCommit,
     expectedTargets = DEFAULT_RELEASE_TARGETS,
+    expectedTrustProfile = 'unsigned',
   } = {},
 ) {
   const normalizedChannel = normalizeReleaseChannel(channel)
+  const normalizedTrustProfile = normalizeTrustProfile(expectedTrustProfile)
   const targets = expectedTargets.map(normalizeTarget)
   const expectedKeys = new Set(targets.map(targetKey))
   const byTarget = new Map()
@@ -156,9 +188,7 @@ export function assertSigningEvidence(
     if (record.channel !== normalizedChannel) {
       throw new Error(`signing evidence channel mismatch for ${key}`)
     }
-    if (normalizedChannel === 'production' && record.signed) {
-      throw new Error(`official production artifact must be unsigned: ${key}`)
-    }
+    assertTrustProfile(record, key, normalizedTrustProfile, normalizedChannel)
     if (expectedSourceCommit && record.sourceCommit !== expectedSourceCommit) {
       throw new Error(`signing evidence source commit mismatch for ${key}`)
     }

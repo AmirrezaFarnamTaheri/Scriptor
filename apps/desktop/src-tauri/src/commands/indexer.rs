@@ -108,7 +108,7 @@ pub fn indexer_graph(
         return parse_daemon_json(&json);
     }
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
-    let config = load_vault_config(session.root.root()).unwrap_or_default();
+    let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
     query_focused_graph(
         &cache,
         &session,

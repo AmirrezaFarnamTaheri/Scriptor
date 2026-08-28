@@ -53,7 +53,7 @@ pub fn vault_open(
 #[tauri::command]
 pub fn vault_scan(state: tauri::State<AppState>) -> Result<Vec<ScannedEntry>, String> {
     let session = active_session(&state)?;
-    let config = load_vault_config(session.root.root()).unwrap_or_default();
+    let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
     scan_vault_with_roots(&session.root, &config.extra_roots).map_err(|error| error.to_string())
 }
 
@@ -285,7 +285,7 @@ pub fn vault_read_stats_history(
     state: tauri::State<AppState>,
 ) -> Result<Vec<StatsHistoryEntry>, String> {
     let session = active_session(&state)?;
-    let config = load_vault_config(session.root.root()).unwrap_or_default();
+    let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
     let path = config
         .writing_targets
         .history_path
@@ -301,7 +301,7 @@ pub fn vault_append_stats_history(
     words: u32,
 ) -> Result<Vec<StatsHistoryEntry>, String> {
     let session = active_session(&state)?;
-    let config = load_vault_config(session.root.root()).unwrap_or_default();
+    let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
     let path = config
         .writing_targets
         .history_path

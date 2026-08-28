@@ -6,13 +6,14 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
-use crate::link_rewrite::{RenameLinkTarget, rewrite_note_rename_links};
+use crate::link_rewrite::{RenameLinkTarget, rewrite_note_rename_links_with_resolver};
 use crate::note::read_note;
 use crate::patch_log::{collect_rename_backups, write_rename_patch_log};
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::rename_transaction::StagedRenameTransaction;
 use crate::scan::{ScannedEntryKind, list_notes, scan_vault};
 use crate::write::save_note;
+use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
 
 static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex")
@@ -61,10 +62,16 @@ pub fn rename_dry_run(
         let note_paths = note_paths_for_rewrite(root)?;
         let from = rename_target(vault_id, root, from_path, &note_paths)?;
         let to = rename_target_for_path(vault_id, root, to_path, &note_paths)?;
+        let resolver = wikilink_index_for_vault(vault_id, root, &note_paths)?;
 
         for note_path in list_notes(root)? {
             let document = read_note(vault_id, root, &note_path)?;
-            let (_, edits) = rewrite_note_rename_links(&document.markdown, &from, &to);
+            let (_, edits) = rewrite_note_rename_links_with_resolver(
+                &document.markdown,
+                &from,
+                &to,
+                &resolver,
+            );
             if edits > 0 {
                 affected.insert(note_path.to_string());
                 link_edits += edits;
@@ -109,6 +116,7 @@ pub fn rename_apply_staged(
     let note_paths = note_paths_for_rewrite(root)?;
     let from = rename_target(vault_id, root, from_path, &note_paths)?;
     let to = rename_target_for_path(vault_id, root, to_path, &note_paths)?;
+    let resolver = wikilink_index_for_vault(vault_id, root, &note_paths)?;
 
     let mut staged =
         StagedRenameTransaction::begin(root, from_path, to_path, &preview.affected_files)?;
@@ -118,7 +126,12 @@ pub fn rename_apply_staged(
     if update_links {
         for note_path in list_notes(root)? {
             let document = read_note(vault_id, root, &note_path)?;
-            let (updated, edits) = rewrite_note_rename_links(&document.markdown, &from, &to);
+            let (updated, edits) = rewrite_note_rename_links_with_resolver(
+                &document.markdown,
+                &from,
+                &to,
+                &resolver,
+            );
             if edits > 0 && updated != document.markdown {
                 pending_writes.insert(note_path.to_string(), updated);
             }
@@ -174,6 +187,20 @@ fn note_paths_for_rewrite(root: &VaultRoot) -> Result<Vec<String>, VaultError> {
         .collect())
 }
 
+fn wikilink_index_for_vault(
+    vault_id: &str,
+    root: &VaultRoot,
+    note_paths: &[String],
+) -> Result<WikilinkIndex, VaultError> {
+    let mut resolver = WikilinkIndex::from_note_paths(note_paths);
+    for path in note_paths {
+        let relative = RelativeVaultPath::parse(path)?;
+        let title = read_note(vault_id, root, &relative)?.metadata.title;
+        resolver.register_aliases(path, &[title]);
+    }
+    Ok(resolver)
+}
+
 fn rename_target(
     vault_id: &str,
     root: &VaultRoot,
@@ -214,23 +241,14 @@ fn title_for_path(
 
 pub fn unresolved_link_targets(root: &VaultRoot) -> Result<Vec<(String, String)>, VaultError> {
     let notes = list_notes(root)?;
-    let titles: BTreeMap<String, String> = notes
-        .iter()
-        .map(|path| {
-            (
-                path.as_str()
-                    .trim_end_matches(".md")
-                    .rsplit('/')
-                    .next()
-                    .unwrap_or("")
-                    .to_string(),
-                path.to_string(),
-            )
-        })
-        .collect();
+    let note_paths: Vec<String> = notes.iter().map(ToString::to_string).collect();
+    let mut resolver = WikilinkIndex::from_note_paths(&note_paths);
+    for note_path in &notes {
+        let document = read_note("health", root, note_path)?;
+        resolver.register_aliases(note_path.as_str(), &[document.metadata.title]);
+    }
 
     let mut unresolved = Vec::new();
-
     for note_path in notes {
         let markdown = read_note("health", root, &note_path)?.markdown;
         for capture in WIKILINK_RE.captures_iter(&markdown) {
@@ -241,37 +259,13 @@ pub fn unresolved_link_targets(root: &VaultRoot) -> Result<Vec<(String, String)>
             if target.is_empty() {
                 continue;
             }
-            if !titles.contains_key(target) && !note_exists(root, target)? {
+            if resolver.resolve(target).kind != WikilinkResolutionKind::Resolved {
                 unresolved.push((note_path.to_string(), target.to_string()));
             }
         }
     }
 
     Ok(unresolved)
-}
-
-fn note_exists(root: &VaultRoot, title_or_path: &str) -> Result<bool, VaultError> {
-    if title_or_path.ends_with(".md") {
-        return Ok(root
-            .resolve_relative(&RelativeVaultPath::parse(title_or_path)?)
-            .is_ok());
-    }
-
-    for entry in scan_vault(root)? {
-        if entry.kind == ScannedEntryKind::Note && entry.path.ends_with(".md") {
-            let stem = entry
-                .path
-                .trim_end_matches(".md")
-                .rsplit('/')
-                .next()
-                .unwrap_or("");
-            if stem.eq_ignore_ascii_case(title_or_path) {
-                return Ok(true);
-            }
-        }
-    }
-
-    Ok(false)
 }
 
 #[cfg(test)]

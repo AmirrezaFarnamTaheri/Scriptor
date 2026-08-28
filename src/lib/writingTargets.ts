@@ -1,8 +1,10 @@
 import { vaultAppendStatsHistory } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
+import { formatLocalDate } from '@scriptor/core/date'
+
 export function recordWritingSession(words: number): void {
   if (!isNativeBridgeAvailable() || words <= 0) return
-  const today = new Date().toISOString().slice(0, 10)
+  const today = formatLocalDate()
   void vaultAppendStatsHistory(today, words)
 }

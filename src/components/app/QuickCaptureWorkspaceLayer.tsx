@@ -6,6 +6,7 @@ import { PanelErrorFallback } from '../PanelErrorFallback'
 import { StickyNotesLayer } from '../portal/StickyNotesLayer'
 import { PanelFallback, QuickCapturePanel } from './lazyPanels'
 import { Suspense } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 
 type VaultWorkspace = ReturnType<typeof useVaultWorkspace>
 type WorkspaceStore = ReturnType<typeof useWorkspaceStore>
@@ -151,7 +152,7 @@ export function QuickCaptureWorkspaceLayer({
                 if (!body) return
                 createCaptureNote(
                   'Create inbox note from scratchpad',
-                  `Capture ${new Date().toISOString().slice(0, 10)}`,
+                  `Capture ${formatLocalDate()}`,
                   body,
                   () =>
                     workspaceStore.updateQuickCapture((capture) => ({

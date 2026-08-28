@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 
 import {
   indexerUpdateNote,
@@ -95,7 +96,7 @@ export function useWorkspaceNoteFactory({
         setError('Open a vault before creating a note.')
         return
       }
-      const noteTitle = title?.trim() || `${typeName} ${new Date().toISOString().slice(0, 10)}`
+      const noteTitle = title?.trim() || `${typeName} ${formatLocalDate()}`
       const typeDef = noteTypes.find((entry) => entry.name === typeName)
       let templateBody: string | undefined
       if (typeDef) {
@@ -133,7 +134,7 @@ export function useWorkspaceNoteFactory({
   const createNoteFromTemplate = useCallback(
     async (templatePath: string, title?: string) => {
       if (!vault) return
-      const noteTitle = title?.trim() || `Untitled ${new Date().toISOString().slice(0, 10)}`
+      const noteTitle = title?.trim() || `Untitled ${formatLocalDate()}`
       try {
         const template = await vaultLoadTemplate(templatePath)
         const path = defaultNotePath(noteTitle)
@@ -155,7 +156,7 @@ export function useWorkspaceNoteFactory({
   const createDailyNoteForOffset = useCallback(
     async (dayOffset = 0) => {
       if (!vault) return
-      const iso = offsetIsoDate(new Date().toISOString().slice(0, 10), dayOffset)
+      const iso = offsetIsoDate(formatLocalDate(), dayOffset)
       try {
         const plan = await vaultPlanDailyNote(iso)
         try {
@@ -185,7 +186,7 @@ export function useWorkspaceNoteFactory({
         return null
       }
 
-      const noteTitle = title?.trim() || `Untitled ${new Date().toISOString().slice(0, 10)}`
+      const noteTitle = title?.trim() || `Untitled ${formatLocalDate()}`
       const pathBase = vaultConfig.inbox?.new_note_directory?.trim()
       const fileName = defaultNotePath(noteTitle)
       const path = pathBase ? `${pathBase.replace(/\/$/, '')}/${fileName}` : fileName

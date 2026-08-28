@@ -13,9 +13,13 @@ const result = validateSigningEnvironment({
   platform: readArgument('platform', process.env.SCRIPTOR_PLATFORM),
   architecture: readArgument('architecture', process.env.SCRIPTOR_ARCHITECTURE),
   channel: readArgument('channel', process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'preview'),
+  trustProfile: readArgument('trust-profile', process.env.SCRIPTOR_TRUST_PROFILE ?? 'unsigned'),
+  env: process.env,
 })
 
+const trustDescription = result.trustProfile === 'unsigned'
+  ? 'unsigned; verify SHA-256 plus provenance attestation'
+  : `${result.signingMode}; preserve SHA-256 plus provenance attestation`
 console.log(
-  `${result.channel} ${result.platform}/${result.architecture} policy verified: `
-  + 'release artifacts are unsigned and require checksum plus GitHub attestation verification.',
+  `${result.channel} ${result.platform}/${result.architecture} trust policy verified: ${trustDescription}.`,
 )

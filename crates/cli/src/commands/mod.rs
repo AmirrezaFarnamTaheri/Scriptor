@@ -21,7 +21,6 @@ pub(crate) fn print_rpc_response(response: &RpcResponse) -> CommandResult {
             Ok(())
         }
         RpcResult::Error(error) => Err(error.to_string().into()),
-        RpcResult::Err(message) => Err(message.clone().into()),
     }
 }
 

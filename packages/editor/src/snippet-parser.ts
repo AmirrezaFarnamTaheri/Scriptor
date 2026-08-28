@@ -7,6 +7,7 @@
  * etc. produce identical output in snippets and templates (D1 collapse).
  */
 
+import { formatLocalDate } from '@scriptor/core/date'
 import { makeVariableContext } from '@scriptor/template-engine'
 
 /**
@@ -52,7 +53,7 @@ function randomUuid(): string {
 
 export function resolveSnippetVariables(template: string, context: SnippetVariableContext = {}): string {
   const now = context.now ?? new Date()
-  const today = now.toISOString().slice(0, 10)
+  const today = formatLocalDate(now)
   const filename = context.filename ?? ''
   const directory = context.directory ?? ''
 

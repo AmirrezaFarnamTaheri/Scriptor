@@ -68,7 +68,7 @@ fn daemon_ping_with_timeout(timeout: Duration) -> Result<String, Box<dyn std::er
         shared_rpc_client().call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), timeout)?;
     match response.result {
         RpcResult::Ok(RpcPayload::Pong { version }) => Ok(version),
-        RpcResult::Err(message) => Err(message.into()),
+        RpcResult::Error(error) => Err(error.to_string().into()),
         _ => Err("unexpected daemon ping response".into()),
     }
 }
@@ -335,7 +335,7 @@ pub fn open_vault(path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     ))?;
     match response.result {
         RpcResult::Ok(RpcPayload::VaultOpened { .. }) => Ok(()),
-        RpcResult::Err(message) => Err(message.into()),
+        RpcResult::Error(error) => Err(error.to_string().into()),
         _ => Err("unexpected daemon open vault response".into()),
     }
 }

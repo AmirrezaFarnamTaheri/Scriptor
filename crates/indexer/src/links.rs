@@ -1,7 +1,7 @@
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
-use scriptor_vault::{VaultSession, note_id};
+use scriptor_vault::{VaultSession, WikilinkIndex, WikilinkResolutionKind, note_id};
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
@@ -73,56 +73,65 @@ pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, I
     let mut notes_statement = conn.prepare(
         "SELECT id, path, title FROM notes WHERE vault_id = ?1 ORDER BY lower(path), id",
     )?;
-    let note_rows = notes_statement.query_map(params![vault_id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
-    })?;
-
-    let mut lookup = std::collections::HashMap::<String, String>::new();
-    for row in note_rows {
-        let (id, path, title) = row?;
-        let stem = path
-            .trim_end_matches(".md")
-            .rsplit('/')
-            .next()
-            .unwrap_or(&path)
-            .to_string();
-        for key in [path, title, stem] {
-            lookup
-                .entry(key.to_lowercase())
-                .or_insert_with(|| id.clone());
-        }
-    }
+    let note_rows = notes_statement
+        .query_map(params![vault_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
     drop(notes_statement);
+
+    let note_paths: Vec<String> = note_rows.iter().map(|(_, path, _)| path.clone()).collect();
+    let mut resolver = WikilinkIndex::from_note_paths(&note_paths);
+    let ids_by_path: std::collections::BTreeMap<String, String> = note_rows
+        .iter()
+        .map(|(id, path, _)| (path.clone(), id.clone()))
+        .collect();
+    for (_, path, title) in &note_rows {
+        // H1 titles are semantic aliases for indexed notes. Duplicate titles are
+        // intentionally retained by the resolver so they become Ambiguous
+        // rather than whichever SQLite row happened to be visited first.
+        resolver.register_aliases(path, std::slice::from_ref(title));
+    }
 
     let mut links_statement = conn.prepare(
         "SELECT id, to_path, to_note_id FROM links
          WHERE vault_id = ?1 AND kind IN ('wikilink', 'markdown', 'heading')",
     )?;
-    let link_rows = links_statement.query_map(params![vault_id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, Option<String>>(2)?,
-        ))
-    })?;
+    let link_rows = links_statement
+        .query_map(params![vault_id], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(links_statement);
+
     let mut updates = Vec::new();
-    for row in link_rows {
-        let (id, target, current_target_id) = row?;
-        let resolved = lookup.get(&target.to_lowercase()).cloned();
-        // Only queue a write when resolution actually changed; identical
-        // targets are the common case in steady-state vaults.
+    for (id, target, current_target_id) in link_rows {
+        let target_without_fragment = target.split('#').next().unwrap_or(&target).trim();
+        let resolution = resolver.resolve(target_without_fragment);
+        let resolved = if resolution.kind == WikilinkResolutionKind::Resolved {
+            resolution
+                .path
+                .as_ref()
+                .and_then(|path| ids_by_path.get(path))
+                .cloned()
+        } else {
+            None
+        };
+
         if resolved.as_deref() != current_target_id.as_deref() {
             updates.push((id, resolved));
         }
     }
-    drop(links_statement);
 
     if updates.is_empty() {
-        // Steady-state vault: every link already points at its resolved note.
         return Ok(0);
     }
 
@@ -170,27 +179,6 @@ pub fn backlinks_for_path(
     let note_key = note_id(&session.descriptor.id, &relative);
 
     let conn = cache.connection()?;
-    let title: String = conn
-        .query_row(
-            "SELECT title FROM notes WHERE id = ?1",
-            params![note_key],
-            |row| row.get(0),
-        )
-        .unwrap_or_else(|_| {
-            note_path
-                .trim_end_matches(".md")
-                .rsplit('/')
-                .next()
-                .unwrap_or(note_path)
-                .to_string()
-        });
-
-    let stem = note_path
-        .trim_end_matches(".md")
-        .rsplit('/')
-        .next()
-        .unwrap_or(note_path);
-
     let mut statement = conn.prepare(
         "SELECT n.path, n.title, l.label, l.kind, l.line
          FROM links l
@@ -198,33 +186,19 @@ pub fn backlinks_for_path(
          WHERE l.vault_id = ?1
            AND l.kind IN ('wikilink', 'markdown')
            AND l.from_note_id != ?2
-           AND (
-             l.to_path = ?3 OR l.to_path = ?4 OR l.to_path = ?5
-             OR lower(l.to_path) = lower(?6) OR lower(l.to_path) = lower(?7)
-           )
+           AND l.to_note_id = ?2
          ORDER BY n.path, l.line",
     )?;
 
-    let rows = statement.query_map(
-        params![
-            session.descriptor.id,
-            note_key,
-            title,
-            note_path,
-            stem,
-            title,
-            stem,
-        ],
-        |row| {
-            Ok(BacklinkHit {
-                from_path: row.get(0)?,
-                from_title: row.get(1)?,
-                label: row.get(2)?,
-                kind: row.get(3)?,
-                line: row.get(4)?,
-            })
-        },
-    )?;
+    let rows = statement.query_map(params![session.descriptor.id, note_key], |row| {
+        Ok(BacklinkHit {
+            from_path: row.get(0)?,
+            from_title: row.get(1)?,
+            label: row.get(2)?,
+            kind: row.get(3)?,
+            line: row.get(4)?,
+        })
+    })?;
 
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
@@ -285,4 +259,36 @@ mod tests {
 
         Ok(())
     }
+    #[test]
+    fn ambiguous_basenames_do_not_materialize_a_backlink() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path())?;
+        let cache = crate::rebuild::open_cache_for_session(&session)?;
+
+        write_note(&session, "a/Note.md", "# A note\n")?;
+        write_note(&session, "b/Note.md", "# B note\n")?;
+        write_note(&session, "source.md", "# Source\n\nSee [[Note]].\n")?;
+
+        crate::rebuild::rebuild_index(&session, &[])?;
+
+        let conn = cache.connection()?;
+        let target: Option<String> = conn.query_row(
+            "SELECT to_note_id FROM links WHERE vault_id = ?1 AND from_note_id = ?2",
+            params![
+                session.descriptor.id,
+                note_id(
+                    &session.descriptor.id,
+                    &scriptor_vault::RelativeVaultPath::parse("source.md")?,
+                )
+            ],
+            |row| row.get(0),
+        )?;
+        assert!(target.is_none(), "ambiguous link must remain unresolved");
+        drop(conn);
+
+        assert!(backlinks_for_path(&cache, &session, "a/Note.md")?.is_empty());
+        assert!(backlinks_for_path(&cache, &session, "b/Note.md")?.is_empty());
+        Ok(())
+    }
+
 }

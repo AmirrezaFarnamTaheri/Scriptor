@@ -22,6 +22,11 @@ export async function diagnosticsAppendEvent(
   await invoke('diagnostics_append_event', { eventType, message, detailJson })
 }
 
+export async function diagnosticsExportSupportBundle(): Promise<string> {
+  requireNative()
+  return invoke<string>('diagnostics_export_support_bundle')
+}
+
 export async function aiProviderHasApiKey(): Promise<boolean> {
   requireNative()
   return invoke<boolean>('ai_provider_has_api_key')

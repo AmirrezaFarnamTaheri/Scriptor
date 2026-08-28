@@ -27,6 +27,14 @@ on:
           - minimal
           - focused
         default: complete
+      trust_profile:
+        description: Release trust profile; native-signed requires platform publisher credentials
+        required: false
+        type: choice
+        options:
+          - unsigned
+          - native-signed
+        default: unsigned
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -51,6 +59,8 @@ env:
       && 'production'
       || 'preview'
     }}
+  SCRIPTOR_TRUST_PROFILE: ${{ inputs.trust_profile || 'unsigned' }}
+  SCRIPTOR_SOURCE_COMMIT: ${{ github.sha }}
   # Build channel derived from the tag's pre-release segment.
   # v1.2.3         → lts
   # v1.2.3-beta.*  → beta
@@ -66,6 +76,74 @@ env:
   FORCE_COLOR: 1
 
 jobs:
+  quality:
+    name: Release quality evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      CI_LOG_DIR: artifacts/ci-logs/release-quality
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure pinned Rust 1.96.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
+          rustup default 1.96.0
+          rustc --version
+          cargo --version
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          cache-all-crates: true
+          key: release-quality
+
+      - name: Install frozen pnpm dependency graph
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Chromium test runtime
+        shell: bash
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run source-bound release quality gate
+        shell: bash
+        run: node scripts/release/run-release-quality.mjs
+
+      - name: Upload release quality evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scriptor-release-quality
+          path: artifacts/release-quality/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release quality diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-evidence-release-quality-${{ github.run_attempt }}
+          path: artifacts/
+          if-no-files-found: warn
+          retention-days: 14
+
   build:
     name: Package ${{ matrix.platform }}/${{ matrix.architecture }} installers
     strategy:
@@ -128,8 +206,17 @@ jobs:
           cache-all-crates: true
           key: ${{ matrix.platform }}
 
-      - name: Validate release version and unsigned publication policy
+      - name: Validate release version and trust policy
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ matrix.platform == 'windows' && inputs.trust_profile == 'native-signed' && secrets.WINDOWS_CERTIFICATE || '' }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ matrix.platform == 'windows' && inputs.trust_profile == 'native-signed' && secrets.WINDOWS_CERTIFICATE_PASSWORD || '' }}
+          WINDOWS_TIMESTAMP_URL: ${{ matrix.platform == 'windows' && inputs.trust_profile == 'native-signed' && vars.WINDOWS_TIMESTAMP_URL || '' }}
+          APPLE_CERTIFICATE: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_CERTIFICATE || '' }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
+          APPLE_ID: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_TEAM_ID || '' }}
         run: |
           if ($env:SCRIPTOR_RELEASE_CHANNEL -eq 'preview') {
             $canonicalVersion = (Get-Content -LiteralPath VERSION -Raw).Trim()
@@ -137,7 +224,7 @@ jobs:
             "SCRIPTOR_RELEASE_VERSION=v$canonicalVersion" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
           }
           node scripts/release/version.mjs check
-          node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --architecture "${{ matrix.architecture }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
+          node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --architecture "${{ matrix.architecture }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL" --trust-profile "$env:SCRIPTOR_TRUST_PROFILE"
 
       - name: Verify runner architecture matches target
         shell: pwsh
@@ -156,27 +243,84 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
+      - name: Import Windows publisher certificate
+        if: inputs.trust_profile == 'native-signed' && matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_TIMESTAMP_URL: ${{ vars.WINDOWS_TIMESTAMP_URL }}
+        run: |
+          $pfxPath = Join-Path $env:RUNNER_TEMP "scriptor-release-signing.pfx"
+          [IO.File]::WriteAllBytes($pfxPath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE))
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $certificate = Import-PfxCertificate -FilePath $pfxPath -CertStoreLocation Cert:\CurrentUser\My -Password $password
+          Remove-Item -LiteralPath $pfxPath -Force
+          if (-not $certificate.Thumbprint) { throw "Imported Windows certificate has no thumbprint." }
+          $configPath = Join-Path $env:RUNNER_TEMP "scriptor-tauri-signing.json"
+          @{
+            bundle = @{
+              windows = @{
+                certificateThumbprint = $certificate.Thumbprint
+                digestAlgorithm = "sha256"
+                timestampUrl = $env:WINDOWS_TIMESTAMP_URL
+              }
+            }
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $configPath -Encoding utf8
+          "SCRIPTOR_WINDOWS_CERT_THUMBPRINT=$($certificate.Thumbprint)" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+          "SCRIPTOR_TAURI_SIGNING_CONFIG=$configPath" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+
+      - name: Import macOS Developer ID certificate
+        if: inputs.trust_profile == 'native-signed' && matrix.platform == 'macos'
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          certificate_path="$RUNNER_TEMP/scriptor-release-signing.p12"
+          keychain_path="$RUNNER_TEMP/scriptor-release-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          printf '%s' "$APPLE_CERTIFICATE" | base64 --decode > "$certificate_path"
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain_path"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain_path" >/dev/null
+          security list-keychains -d user -s "$keychain_path"
+          identity="$(security find-identity -v -p codesigning "$keychain_path" | sed -n '1s/.*"\(.*\)".*/\1/p')"
+          test -n "$identity"
+          rm -f "$certificate_path"
+          printf 'APPLE_SIGNING_IDENTITY=%s\n' "$identity" >> "$GITHUB_ENV"
+          printf 'SCRIPTOR_MACOS_SIGNING_KEYCHAIN=%s\n' "$keychain_path" >> "$GITHUB_ENV"
+
       - name: Build Tauri bundles
         shell: pwsh
         env:
           TAURI_BUNDLE_TARGETS: ${{ matrix.targets }}
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Build Tauri bundles for ${{ matrix.platform }}/${{ matrix.architecture }}" -FilePath "pnpm" -ArgumentList @("--dir", "apps/desktop", "build") -TimeoutSeconds 4800 -HeartbeatSeconds 20
+          APPLE_ID: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_ID || '' }}
+          APPLE_PASSWORD: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ matrix.platform == 'macos' && inputs.trust_profile == 'native-signed' && secrets.APPLE_TEAM_ID || '' }}
+        run: |
+          if ($env:SCRIPTOR_TAURI_SIGNING_CONFIG) {
+            $arguments = @("--dir", "apps/desktop", "exec", "tauri", "build", "--config", $env:SCRIPTOR_TAURI_SIGNING_CONFIG)
+          } else {
+            $arguments = @("--dir", "apps/desktop", "build")
+          }
+          ./scripts/ci/invoke-logged.ps1 -Name "Build Tauri bundles for ${{ matrix.platform }}/${{ matrix.architecture }}" -FilePath "pnpm" -ArgumentList $arguments -TimeoutSeconds 4800 -HeartbeatSeconds 20
 
       - name: Verify bundle artifacts and expected target coverage
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Verify bundle artifacts and expected target coverage" -FilePath "node" -ArgumentList @("scripts/release/verify-bundle.mjs", "${{ matrix.platform }}") -TimeoutSeconds 300
 
-      - name: Record unsigned release trust status
+      - name: Verify and record release trust status
         shell: pwsh
         run: >-
-          node scripts/release/write-signing-evidence.mjs
+          node scripts/release/record-target-trust.mjs
           --platform "${{ matrix.platform }}"
           --architecture "${{ matrix.architecture }}"
           --channel "$env:SCRIPTOR_RELEASE_CHANNEL"
-          --signed false
-          --notarized false
-          --signature-type none
-          --verifier "unsigned artifact; verify SHA-256 and GitHub attestation"
+          --trust-profile "$env:SCRIPTOR_TRUST_PROFILE"
 
       - name: Stage distributable release assets only
         shell: pwsh
@@ -213,6 +357,21 @@ jobs:
           path: release-output/*
           if-no-files-found: error
 
+      - name: Remove transient native-signing credentials
+        if: always() && inputs.trust_profile == 'native-signed' && (matrix.platform == 'windows' || matrix.platform == 'macos')
+        shell: pwsh
+        run: |
+          if ($env:SCRIPTOR_WINDOWS_CERT_THUMBPRINT) {
+            $path = "Cert:\CurrentUser\My\$env:SCRIPTOR_WINDOWS_CERT_THUMBPRINT"
+            if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
+          }
+          if ($env:SCRIPTOR_TAURI_SIGNING_CONFIG -and (Test-Path -LiteralPath $env:SCRIPTOR_TAURI_SIGNING_CONFIG)) {
+            Remove-Item -LiteralPath $env:SCRIPTOR_TAURI_SIGNING_CONFIG -Force
+          }
+          if ($env:SCRIPTOR_MACOS_SIGNING_KEYCHAIN -and (Test-Path -LiteralPath $env:SCRIPTOR_MACOS_SIGNING_KEYCHAIN)) {
+            & security delete-keychain $env:SCRIPTOR_MACOS_SIGNING_KEYCHAIN
+          }
+
       - name: Capture release packaging failure context
         if: failure()
         shell: pwsh
@@ -236,7 +395,7 @@ jobs:
 
   publish:
     name: Publish GitHub Release
-    needs: build
+    needs: [build, quality]
     if: >-
       ${{
         inputs.publish && startsWith(github.ref, 'refs/tags/v')
@@ -270,6 +429,12 @@ jobs:
           path: release-artifacts
           pattern: scriptor-*-installers
           merge-multiple: true
+
+      - name: Download source-bound release quality evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: scriptor-release-quality
+          path: release-evidence
 
       - name: Separate installer subjects from trust metadata
         shell: bash
@@ -309,12 +474,12 @@ jobs:
               Write-Host $line
             }
           }
-          if ($lines.Count -ne 11) { throw "Expected 7 installers and 4 trust records; found $($lines.Count) files." }
+          if ($lines.Count -ne 13) { throw "Expected 7 installers, 4 trust records, and 2 quality evidence files; found $($lines.Count) files." }
           $lines | Set-Content -LiteralPath $inventoryPath -Encoding utf8
 
-      - name: Verify architecture-bound unsigned trust evidence
+      - name: Verify architecture-bound release trust evidence
         shell: bash
-        run: node scripts/release/verify-signing-evidence.mjs release-evidence "$SCRIPTOR_RELEASE_CHANNEL"
+        run: node scripts/release/verify-signing-evidence.mjs release-evidence "$SCRIPTOR_RELEASE_CHANNEL" "$SCRIPTOR_TRUST_PROFILE"
 
       - name: Generate source-bound release evidence
         shell: bash
@@ -335,6 +500,19 @@ jobs:
           subject-path: release-artifacts/*
           sbom-path: release-evidence/scriptor.cyclonedx.json
 
+      - name: Verify installer provenance and CycloneDX attestations
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/release/verify-github-attestations.mjs release-artifacts release-evidence
+
+      - name: Create and verify unified release evidence graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/release/create-evidence-graph.mjs release-artifacts release-evidence
+          node scripts/release/verify-evidence-graph.mjs release-artifacts release-evidence
+
       - name: Create or update GitHub Release and attach verified assets
         shell: bash
         env:
@@ -344,15 +522,15 @@ jobs:
           cat > release-notes.md <<'NOTES'
           ## Verification notice
 
-          These installers are intentionally **unsigned**. Windows may show an unknown-publisher warning and macOS may require explicit approval through Finder or System Settings.
+          Every installer is bound to this tag by SHA-256, a CycloneDX 1.7 SBOM, a source-bound release receipt, and GitHub provenance/SBOM attestations.
 
           Before running an installer:
 
-          1. Download the installer, `SHA256SUMS`, `scriptor.cyclonedx.json`, and `release-receipt.json`.
+          1. Download the installer, `SHA256SUMS`, `scriptor.cyclonedx.json`, `release-receipt.json`, and `release-evidence-graph.json`.
           2. Set `installer` to the downloaded filename and verify only its checksum: `installer="<installer filename>"; grep -F "  $installer" SHA256SUMS | sha256sum --check -`.
           3. Verify GitHub provenance and SBOM attestations with `gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor`.
 
-          The receipt binds every installer byte to this tag's source commit and records `signed: false` for each platform/architecture target. Full platform-specific commands are documented in `docs/RELEASE-SECURITY.md` at this tag.
+          Trust profile details are recorded per platform in the release receipt and evidence graph. Under `native-signed`, Windows installers are Authenticode-verified and macOS artifacts are Developer-ID-signed and notarized; Linux remains checksum/provenance-backed. Under `unsigned`, all installers remain explicitly unsigned. Full platform-specific verification commands are documented in `docs/RELEASE-SECURITY.md` at this tag.
           NOTES
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release edit "$GITHUB_REF_NAME" --title "Scriptor $GITHUB_REF_NAME" --notes-file release-notes.md
