@@ -147,7 +147,6 @@ impl TuiApp {
             }
             RpcResult::Ok(_) => Err("daemon returned unexpected payload for OpenVault".into()),
             RpcResult::Error(error) => Err(error.to_string().into()),
-            RpcResult::Err(message) => Err(message.into()),
         }
     }
 
@@ -166,7 +165,7 @@ impl TuiApp {
                             })
                             .collect();
                     }
-                    RpcResult::Err(message) => return Err(message.into()),
+                    RpcResult::Error(error) => return Err(error.to_string().into()),
                     _ => return Err("daemon returned unexpected payload for ListNotes".into()),
                 }
             } else {
@@ -187,7 +186,7 @@ impl TuiApp {
                             })
                             .collect();
                     }
-                    RpcResult::Err(message) => return Err(message.into()),
+                    RpcResult::Error(error) => return Err(error.to_string().into()),
                     _ => return Err("daemon returned unexpected payload for SearchNotes".into()),
                 }
             }
@@ -243,7 +242,7 @@ impl TuiApp {
             let git = rpc_call(RpcRequest::new(self.next_rpc_id(), RpcMethod::GitStatus))?;
             self.git_footer = match git.result {
                 RpcResult::Ok(RpcPayload::GitStatus { json }) => summarize_git_json(&json),
-                RpcResult::Err(message) => format!("git: {message}"),
+                RpcResult::Error(error) => format!("git: {error}"),
                 _ => String::from("git: unexpected response"),
             };
 
@@ -255,7 +254,7 @@ impl TuiApp {
                 RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => {
                     summarize_health_json(&json)
                 }
-                RpcResult::Err(message) => format!("health: {message}"),
+                RpcResult::Error(error) => format!("health: {error}"),
                 _ => String::from("health: unexpected response"),
             };
         } else {
@@ -286,7 +285,7 @@ impl TuiApp {
             ))?;
             match response.result {
                 RpcResult::Ok(RpcPayload::NoteDocument { markdown, .. }) => markdown,
-                RpcResult::Err(message) => return Err(message.into()),
+                RpcResult::Error(error) => return Err(error.to_string().into()),
                 _ => return Err("daemon returned unexpected payload for ReadNote".into()),
             }
         } else {
@@ -329,8 +328,8 @@ impl TuiApp {
             ))?;
             let json = match response.result {
                 RpcResult::Ok(RpcPayload::Backlinks { json, .. }) => json,
-                RpcResult::Err(message) => {
-                    self.pane_lines = vec![message];
+                RpcResult::Error(error) => {
+                    self.pane_lines = vec![error.to_string()];
                     return Ok(());
                 }
                 _ => {
@@ -366,8 +365,8 @@ impl TuiApp {
             ))?;
             let json = match response.result {
                 RpcResult::Ok(RpcPayload::GraphSummary { json }) => json,
-                RpcResult::Err(message) => {
-                    self.pane_lines = vec![message];
+                RpcResult::Error(error) => {
+                    self.pane_lines = vec![error.to_string()];
                     return Ok(());
                 }
                 _ => {
@@ -403,8 +402,8 @@ impl TuiApp {
             ))?;
             let json = match response.result {
                 RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => json,
-                RpcResult::Err(message) => {
-                    self.pane_lines = vec![message];
+                RpcResult::Error(error) => {
+                    self.pane_lines = vec![error.to_string()];
                     return Ok(());
                 }
                 _ => {

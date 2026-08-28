@@ -272,6 +272,7 @@ export function VaultConfigSettingsSection({
       <textarea
         className="settings-textarea"
         rows={4}
+        aria-label="Graph groups rules (one tag prefix,color pair per line)"
         value={(config.graph_groups ?? []).map((group) => `${group.tag_prefix},${group.color}`).join('\n')}
         onChange={(event) => {
           const graph_groups = event.target.value
@@ -305,6 +306,7 @@ export function VaultConfigSettingsSection({
       <textarea
         className="settings-textarea"
         rows={3}
+        aria-label="Extra scan roots (one folder path per line)"
         value={(config.extra_roots ?? []).join('\n')}
         onChange={(event) =>
           setConfig((current) => ({

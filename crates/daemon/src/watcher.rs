@@ -11,12 +11,11 @@ const WATCH_DEBOUNCE_MS: u64 = 300;
 pub fn restart_vault_watcher(state: &Arc<Mutex<DaemonState>>) -> Result<(), String> {
     let (root, generation) = {
         let mut guard = lock_recover(state);
-        guard.clear_vault_watcher();
-        guard.watcher_generation = guard.watcher_generation.saturating_add(1);
+        let generation = guard.invalidate_vault_watcher();
         let session = guard
             .session()
             .ok_or_else(|| "no vault is open; cannot start watcher".to_string())?;
-        (session.root.clone(), guard.watcher_generation)
+        (session.root.clone(), generation)
     };
 
     let state_for_watcher = Arc::clone(state);
@@ -25,7 +24,10 @@ pub fn restart_vault_watcher(state: &Arc<Mutex<DaemonState>>) -> Result<(), Stri
     })
     .map_err(|error| error.to_string())?;
 
-    lock_recover(state).set_vault_watcher(watcher);
+    let mut guard = lock_recover(state);
+    if guard.can_install_vault_watcher(generation, &root) {
+        guard.set_vault_watcher(watcher);
+    }
     Ok(())
 }
 

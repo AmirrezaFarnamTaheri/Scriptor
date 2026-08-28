@@ -1,3 +1,4 @@
+use scriptor_indexer::{build_health_diagnostics, open_cache_for_session};
 use scriptor_system_bridge::{
     SystemInfo, detect_system_info, keychain_delete, keychain_get, keychain_set,
 };
@@ -206,6 +207,26 @@ pub async fn ai_provider_propose_draft(
     Ok(AiDraftProposal { markdown })
 }
 
+const CLIENT_DIAGNOSTICS_MAX_BYTES: u64 = 2 * 1024 * 1024;
+const CLIENT_DIAGNOSTICS_MAX_MESSAGE_CHARS: usize = 4_096;
+const CLIENT_DIAGNOSTICS_MAX_DETAIL_CHARS: usize = 16_384;
+const SUPPORT_BUNDLE_MAX_CLIENT_EVENTS: usize = 100;
+
+fn truncate_chars(value: &str, limit: usize) -> String {
+    value.chars().take(limit).collect()
+}
+
+fn rotate_client_diagnostics(path: &std::path::Path) -> Result<(), String> {
+    if path.metadata().map(|metadata| metadata.len()).unwrap_or(0) < CLIENT_DIAGNOSTICS_MAX_BYTES {
+        return Ok(());
+    }
+    let rotated = path.with_extension("jsonl.1");
+    if rotated.exists() {
+        std::fs::remove_file(&rotated).map_err(|error| error.to_string())?;
+    }
+    std::fs::rename(path, rotated).map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn diagnostics_append_event(
     state: tauri::State<AppState>,
@@ -222,9 +243,13 @@ pub fn diagnostics_append_event(
         .map(|duration| duration.as_secs())
         .unwrap_or(0);
 
-    let redacted_message = redact_sensitive_text(&message);
+    let redacted_message = truncate_chars(
+        &redact_sensitive_text(&message),
+        CLIENT_DIAGNOSTICS_MAX_MESSAGE_CHARS,
+    );
     let redacted_detail = detail_json.as_ref().and_then(|raw| {
-        serde_json::from_str::<serde_json::Value>(raw)
+        let bounded = truncate_chars(raw, CLIENT_DIAGNOSTICS_MAX_DETAIL_CHARS);
+        serde_json::from_str::<serde_json::Value>(&bounded)
             .ok()
             .map(|value| {
                 serde_json::to_string(&redact_json_value(&value))
@@ -234,17 +259,81 @@ pub fn diagnostics_append_event(
 
     let line = serde_json::json!({
         "ts": timestamp_secs,
-        "type": event_type,
+        "type": truncate_chars(&event_type, 128),
         "message": redacted_message,
         "detail": redacted_detail,
     });
 
     use std::io::Write;
+    let client_log = diagnostics_dir.join("client.jsonl");
+    rotate_client_diagnostics(&client_log)?;
     let mut file = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(diagnostics_dir.join("client.jsonl"))
+        .open(client_log)
         .map_err(|error| error.to_string())?;
     writeln!(file, "{line}").map_err(|error| error.to_string())?;
     Ok(())
+}
+
+
+#[tauri::command]
+pub fn diagnostics_export_support_bundle(state: tauri::State<AppState>) -> Result<String, String> {
+    let session = active_session(&state)?;
+    let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
+    let health = build_health_diagnostics(&cache, &session).map_err(|error| error.to_string())?;
+    let mut issue_counts = std::collections::BTreeMap::<String, u32>::new();
+    for issue in &health.issues {
+        *issue_counts.entry(issue.kind.clone()).or_default() += 1;
+    }
+
+    let diagnostics_dir = session.root.root().join(".scriptor").join("diagnostics");
+    std::fs::create_dir_all(&diagnostics_dir).map_err(|error| error.to_string())?;
+    let client_log = diagnostics_dir.join("client.jsonl");
+    let client_events = std::fs::read_to_string(&client_log)
+        .ok()
+        .map(|content| {
+            let mut events = content
+                .lines()
+                .rev()
+                .take(SUPPORT_BUNDLE_MAX_CLIENT_EVENTS)
+                .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+                .map(|value| redact_json_value(&value))
+                .collect::<Vec<_>>();
+            events.reverse();
+            events
+        })
+        .unwrap_or_default();
+
+    let generated_at_secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0);
+    let bundle = serde_json::json!({
+        "schema_version": 1,
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "generated_at_secs": generated_at_secs,
+        "system": detect_system_info(),
+        "vault_id": session.descriptor.id,
+        "health_summary": health.summary,
+        "issue_counts": issue_counts,
+        "recent_client_events": client_events,
+        "privacy": {
+            "vault_root_included": false,
+            "note_paths_included": false,
+            "note_content_included": false,
+            "credentials_included": false
+        }
+    });
+    let redacted = redact_json_value(&bundle);
+    let file_name = format!("support-bundle-{generated_at_secs}.json");
+    let output = diagnostics_dir.join(&file_name);
+    let temp = diagnostics_dir.join(format!(".{file_name}.tmp"));
+    std::fs::write(
+        &temp,
+        serde_json::to_vec_pretty(&redacted).map_err(|error| error.to_string())?,
+    )
+    .map_err(|error| error.to_string())?;
+    std::fs::rename(&temp, &output).map_err(|error| error.to_string())?;
+    Ok(format!(".scriptor/diagnostics/{file_name}"))
 }

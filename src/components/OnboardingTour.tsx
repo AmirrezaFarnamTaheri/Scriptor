@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 const STEPS = [
   {
@@ -31,6 +32,9 @@ interface OnboardingTourProps {
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
   const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Passive trap: the tour manages its own initial focus (dialog element, per step).
+  useFocusTrap(dialogRef, { active: true, initialFocus: false })
 
   useEffect(() => {
     dialogRef.current?.focus()

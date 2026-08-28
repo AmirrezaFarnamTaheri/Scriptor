@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Palette, Blocks, Plus } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
@@ -16,6 +16,8 @@ import { PluginCard } from './PluginCard'
 import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
+import { useTablistKeys } from '../../hooks/useTablistKeys'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 
 const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
@@ -49,7 +51,7 @@ export function PluginManagerCenter({
   currentTheme: propTheme,
   onThemeChange,
 }: PluginManagerCenterProps) {
-  const { enabledPluginIds, enablePlugin, disablePlugin } = usePluginState()
+  const { enabledPluginIds, enablePlugin, disablePlugin, persistenceError } = usePluginState()
   const { theme: hookTheme, setTheme: hookSetTheme } = useAppTheme()
 
   const activeTheme = propTheme ?? hookTheme
@@ -63,10 +65,19 @@ export function PluginManagerCenter({
 
   // Active Tab: 'palettes' is ACTIVE BY DEFAULT per user specification
   const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>('palettes')
+  const PMC_TABS: readonly string[] = ['palettes', 'plugins']
+  const handlePmcTabKeys = useTablistKeys(
+    PMC_TABS,
+    activeTab,
+    useCallback((id: string) => setActiveTab(id as 'palettes' | 'plugins'), []),
+  )
   const [searchQuery, setSearchQuery] = useState('')
   const [activeProfile, setActiveProfile] = useState<InstallerProfile>('complete')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
+  const overlayRef = useRef<HTMLDivElement>(null)
+  // The nested ThemeCustomizerModal owns the focus trap while it is open.
+  useFocusTrap(overlayRef, { active: isOpen && !customizerModalOpen })
 
   if (!isOpen) return null
 
@@ -128,6 +139,7 @@ export function PluginManagerCenter({
   return (
     <>
       <div
+        ref={overlayRef}
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"
@@ -142,12 +154,14 @@ export function PluginManagerCenter({
               ✕
             </button>
           </div>
+          {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
           {/* Primary Tabs — Color Palette Store active by default */}
-          <div className="plugin-manager-tabs" role="tablist">
+          <div className="plugin-manager-tabs" role="tablist" onKeyDown={handlePmcTabKeys} aria-label="Plugin manager sections">
             <button
               type="button"
               role="tab"
+              tabIndex={activeTab === 'palettes' ? 0 : -1}
               aria-selected={activeTab === 'palettes'}
               className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
               onClick={() => setActiveTab('palettes')}
@@ -157,6 +171,7 @@ export function PluginManagerCenter({
             <button
               type="button"
               role="tab"
+              tabIndex={activeTab === 'plugins' ? 0 : -1}
               aria-selected={activeTab === 'plugins'}
               className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
               onClick={() => setActiveTab('plugins')}
@@ -220,6 +235,7 @@ export function PluginManagerCenter({
           <div className="plugin-manager-search">
             <input
               type="search"
+              aria-label="Search plugins by name or capability"
               placeholder={
                 activeTab === 'palettes'
                   ? 'Search color palette schemes by name or theme style...'

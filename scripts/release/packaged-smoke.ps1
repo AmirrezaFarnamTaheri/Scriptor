@@ -6,16 +6,30 @@ Set-Location $root
 Write-Host '==> CLI packaged workflow smoke'
 & (Join-Path $PSScriptRoot 'smoke.ps1')
 
+# Source-identity gate: the staged sidecar must exist with a staging receipt
+# so packaged evidence can pin the exact daemon artifact.
+$sidecar = Join-Path $root 'apps/desktop/src-tauri/binaries/scriptor-daemon.exe'
+if (-not (Test-Path $sidecar)) {
+  throw "Daemon sidecar missing at $sidecar - run stage-daemon-sidecar before packaging."
+}
+$receipt = Join-Path (Split-Path $sidecar -Parent) 'scriptor-daemon.exe.staging-receipt.json'
+if (-not (Test-Path $receipt)) {
+  throw "Daemon staging receipt missing at $receipt - re-run stage-daemon-sidecar (identity evidence is mandatory)."
+}
+Write-Host "Daemon sidecar receipt present: $receipt"
+
 $bundleRoot = Join-Path $root 'target/release/bundle'
-if (Test-Path $bundleRoot) {
-  $installers = Get-ChildItem -Path $bundleRoot -Recurse -Include *.msi, *.exe -ErrorAction SilentlyContinue
-  if ($installers.Count -eq 0) {
-    Write-Warning 'No installer artifacts found under bundle/. Run release:package without -SkipTauri first.'
-  } else {
-    Write-Host "Found $($installers.Count) installer artifact(s)."
-  }
-} else {
-  Write-Warning 'Bundle directory missing. Desktop packaging step was skipped or not run yet.'
+if (-not (Test-Path $bundleRoot)) {
+  throw "Bundle directory missing at $bundleRoot - desktop packaging was skipped. A packaged smoke run without packages validates nothing."
+}
+$installers = Get-ChildItem -Path $bundleRoot -Recurse -Include *.msi, *.exe -ErrorAction SilentlyContinue
+if ($installers.Count -eq 0) {
+  throw "No installer artifacts found under $bundleRoot - run release:package without -SkipTauri first."
+}
+Write-Host "Found $($installers.Count) installer artifact(s)."
+foreach ($installer in $installers) {
+  $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+  Write-Host ("installer {0} sha256={1}" -f $installer.Name, $hash)
 }
 
 Write-Host 'Packaged smoke checks complete.'

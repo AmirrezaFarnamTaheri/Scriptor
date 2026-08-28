@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { vaultReadWorkspaceSession, vaultSaveWorkspaceSession } from '../bridge/commands'
+import { createVaultBoundSessionWrites } from './workspace-session-persistence'
 
 export interface WorkspaceSessionSnapshot {
   activePath: string | null
@@ -15,25 +16,55 @@ export function useWorkspaceSession(
 ) {
   const timerRef = useRef<number | null>(null)
   const hydratedVaultRef = useRef<string | null>(null)
+  const writesRef = useRef(createVaultBoundSessionWrites())
+  const initialSnapshotRef = useRef<{ vaultId: string; serialized: string } | null>(null)
+  const writesEnabledRef = useRef(false)
+  const payload = useMemo(
+    () => ({
+      version: 1 as const,
+      active_path: snapshot.activePath,
+      open_tabs: snapshot.openTabs.map((tab) => ({ path: tab.path, pinned: Boolean(tab.pinned) })),
+      collapsed_folders: snapshot.collapsedFolders,
+      sidebar_view: snapshot.sidebarView,
+    }),
+    [snapshot.activePath, snapshot.collapsedFolders, snapshot.openTabs, snapshot.sidebarView],
+  )
+  const serializedPayload = useMemo(() => JSON.stringify(payload), [payload])
+  const latestSerializedPayloadRef = useRef(serializedPayload)
+
+  useEffect(() => {
+    latestSerializedPayloadRef.current = serializedPayload
+  }, [serializedPayload])
 
   const persist = useCallback(async () => {
     if (!vaultId) return
-    await vaultSaveWorkspaceSession({
-      version: 1,
-      active_path: snapshot.activePath,
-      open_tabs: snapshot.openTabs.map((tab) => ({
-        path: tab.path,
-        pinned: Boolean(tab.pinned),
-      })),
-      collapsed_folders: snapshot.collapsedFolders,
-      sidebar_view: snapshot.sidebarView,
-    })
-  }, [snapshot.activePath, snapshot.collapsedFolders, snapshot.openTabs, snapshot.sidebarView, vaultId])
+    const writes = writesRef.current
+    await writes.enqueue(vaultId, writes.generation(), () => vaultSaveWorkspaceSession(payload))
+  }, [payload, vaultId])
+
+  useEffect(() => {
+    if (timerRef.current) {
+      window.clearTimeout(timerRef.current)
+      timerRef.current = null
+    }
+    writesRef.current.beginVault(vaultId ?? null)
+    hydratedVaultRef.current = null
+    writesEnabledRef.current = false
+    initialSnapshotRef.current = vaultId
+      ? { vaultId, serialized: latestSerializedPayloadRef.current }
+      : null
+  }, [vaultId])
 
   useEffect(() => {
     if (!vaultId) return
-    if (timerRef.current) {
-      window.clearTimeout(timerRef.current)
+    const baseline = initialSnapshotRef.current
+    if (!baseline || baseline.vaultId !== vaultId) {
+      initialSnapshotRef.current = { vaultId, serialized: serializedPayload }
+      return
+    }
+    if (!writesEnabledRef.current) {
+      if (baseline.serialized === serializedPayload) return
+      writesEnabledRef.current = true
     }
     timerRef.current = window.setTimeout(() => {
       void persist().catch(() => {})
@@ -43,14 +74,17 @@ export function useWorkspaceSession(
         window.clearTimeout(timerRef.current)
       }
     }
-  }, [persist, vaultId])
+  }, [persist, serializedPayload, vaultId])
 
   const loadSession = useCallback(async (): Promise<WorkspaceSessionSnapshot | null> => {
     if (!vaultId) return null
     if (hydratedVaultRef.current === vaultId) return null
+    const writes = writesRef.current
+    const generation = writes.generation()
     hydratedVaultRef.current = vaultId
     try {
       const session = await vaultReadWorkspaceSession()
+      if (!writes.isCurrent(vaultId, generation)) return null
       return {
         activePath: session.active_path ?? null,
         openTabs: session.open_tabs.map((tab) => ({ path: tab.path, pinned: tab.pinned })),

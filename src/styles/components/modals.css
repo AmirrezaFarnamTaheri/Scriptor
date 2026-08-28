@@ -116,13 +116,13 @@
 }
 
 .obsidian-import-status .is-success {
-  color: var(--success, #15803d);
+  color: var(--success);
 }
 
 .obsidian-import-status .is-error,
 .obsidian-import-error,
 .obsidian-import-result-errors {
-  color: var(--danger, #b42318);
+  color: var(--danger);
 }
 
 .obsidian-import-options {
@@ -149,9 +149,9 @@
 
 .obsidian-import-error {
   padding: 10px 12px;
-  border: 1px solid color-mix(in oklch, var(--danger, #b42318) 28%, var(--border));
+  border: 1px solid color-mix(in oklch, var(--danger) 28%, var(--border));
   border-radius: 8px;
-  background: color-mix(in oklch, var(--danger, #b42318) 7%, var(--surface));
+  background: color-mix(in oklch, var(--danger) 7%, var(--surface));
 }
 
 .obsidian-import-result {
@@ -161,7 +161,7 @@
 }
 
 .obsidian-import-result-heading {
-  color: var(--success, #15803d);
+  color: var(--success);
 }
 
 .obsidian-import-metrics {

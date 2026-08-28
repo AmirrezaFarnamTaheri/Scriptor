@@ -82,31 +82,23 @@
   animation: scale-in var(--ease-soft) both;
 }
 
-.panel-loading {
-  display: grid;
-  place-items: center;
-  min-height: 120px;
-  color: var(--muted);
-  font-size: var(--text-sm);
-  background: linear-gradient(
-    90deg,
-    var(--surface-muted) 0%,
-    var(--surface-elevated) 50%,
-    var(--surface-muted) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-  border-radius: var(--radius-md);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .pressable,
   .elevate-hover,
-  .fade-rise,
-  .scale-in,
   .panel-loading {
     animation: none !important;
     transition: none !important;
     transform: none !important;
+  }
+
+  /* Universal neutralizer: covers keyframe animations and transitions in
+     third-party stylesheets and any selector not listed above. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

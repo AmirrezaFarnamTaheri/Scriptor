@@ -1,6 +1,8 @@
 //! Length-prefixed postcard frames for local-first IPC between Scriptor surfaces.
 
 pub mod fuzz_corpus;
+pub mod operation_catalog_generated;
+pub mod outcome;
 pub mod rate_limit;
 
 use serde::{Deserialize, Serialize};
@@ -155,10 +157,13 @@ pub struct RpcResponse {
 )]
 pub enum RpcResult {
     Ok(RpcPayload),
-    /// Structured errors sent over the current typed error wire.
-    /// variant. New callers must prefer this variant for actionable failures.
     Error(RpcError),
-    Err(String),
+}
+
+impl RpcResult {
+    pub fn failed(message: impl Into<String>) -> Self {
+        Self::Error(RpcError::command_failed(message))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Error, TS)]
@@ -169,9 +174,35 @@ pub enum RpcResult {
 pub enum RpcError {
     #[error("Plugin capability '{capability_id}' is disabled in active vault")]
     PluginDisabled { capability_id: String },
+    #[error("{message}")]
+    CommandFailed {
+        code: String,
+        message: String,
+        recoverable: bool,
+    },
 }
 
 impl RpcError {
+    pub fn command_failed(message: impl Into<String>) -> Self {
+        Self::CommandFailed {
+            code: "rpc.command_failed".into(),
+            message: message.into(),
+            recoverable: true,
+        }
+    }
+
+    pub fn with_code(
+        code: impl Into<String>,
+        message: impl Into<String>,
+        recoverable: bool,
+    ) -> Self {
+        Self::CommandFailed {
+            code: code.into(),
+            message: message.into(),
+            recoverable,
+        }
+    }
+
     pub fn is_plugin_disabled(&self) -> bool {
         matches!(self, Self::PluginDisabled { .. })
     }

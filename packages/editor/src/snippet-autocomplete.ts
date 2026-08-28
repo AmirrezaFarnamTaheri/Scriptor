@@ -1,5 +1,5 @@
-import { autocompletion } from '@codemirror/autocomplete'
-import { StateEffect, StateField } from '@codemirror/state'
+import { autocompletion, type CompletionContext, type CompletionResult } from '@codemirror/autocomplete'
+import { StateEffect, StateField, type Extension } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
 import type { SnippetCatalogEntry } from './snippet-catalog.ts'
@@ -68,38 +68,42 @@ function applySnippetCompletion(
 
 export function snippetAutocompleteExtension(initialContext: SnippetVariableContext = {}) {
   return [
-    snippetCatalogField.init(() => ({ entries: [], context: initialContext })),
+    ...snippetAutocompleteState(initialContext),
     autocompletion({
       activateOnTyping: true,
-      override: [
-        (context) => {
-          const matched = snippetMatch(context.state, context.pos)
-          if (!matched) {
-            return null
-          }
-
-          const { entries, context: snippetContext } = context.state.field(snippetCatalogField)
-          const matches = entries.filter((entry) => entry.name.toLowerCase().includes(matched.query))
-          if (matches.length === 0) {
-            return null
-          }
-
-          return {
-            from: matched.from,
-            to: matched.to,
-            options: matches.map((entry) => ({
-              label: entry.name,
-              detail: entry.description,
-              type: 'keyword',
-              apply: (view, _completion, from, to) => {
-                applySnippetCompletion(view, entry.content, from, to, snippetContext)
-              },
-            })),
-          }
-        },
-      ],
+      override: [snippetAutocompleteSource],
     }),
   ]
+}
+
+export function snippetAutocompleteState(initialContext: SnippetVariableContext = {}): Extension[] {
+  return [snippetCatalogField.init(() => ({ entries: [], context: initialContext }))]
+}
+
+export function snippetAutocompleteSource(context: CompletionContext): CompletionResult | null {
+  const matched = snippetMatch(context.state, context.pos)
+  if (!matched) {
+    return null
+  }
+
+  const { entries, context: snippetContext } = context.state.field(snippetCatalogField)
+  const matches = entries.filter((entry) => entry.name.toLowerCase().includes(matched.query))
+  if (matches.length === 0) {
+    return null
+  }
+
+  return {
+    from: matched.from,
+    to: matched.to,
+    options: matches.map((entry) => ({
+      label: entry.name,
+      detail: entry.description,
+      type: 'keyword',
+      apply: (view, _completion, from, to) => {
+        applySnippetCompletion(view, entry.content, from, to, snippetContext)
+      },
+    })),
+  }
 }
 
 export function dispatchSnippetCatalog(view: EditorView, entries: SnippetCatalogEntry[]): void {

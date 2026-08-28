@@ -34,9 +34,11 @@ const source = getSourceIdentity({
   requireClean: !allowArchive,
   allowArchive,
 })
+const trustProfile = process.env.SCRIPTOR_TRUST_PROFILE ?? 'unsigned'
 const signing = assertSigningEvidence(collectSigningEvidence(outDir), {
   channel: process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'production',
   expectedSourceCommit: source.sourceCommit,
+  expectedTrustProfile: trustProfile,
 })
 const createdAt = process.env.SOURCE_DATE_EPOCH
   ? new Date(Number(process.env.SOURCE_DATE_EPOCH) * 1000).toISOString()
@@ -45,6 +47,7 @@ const receipt = {
   schemaVersion: 4,
   createdAt,
   version: fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim(),
+  trustProfile,
   source,
   signing,
   platform: { os: os.platform(), arch: os.arch() },

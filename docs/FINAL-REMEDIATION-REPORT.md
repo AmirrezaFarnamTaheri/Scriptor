@@ -1,6 +1,6 @@
 # V1 product baseline
 
-**Product version:** `1.0.0`
+**Product version:** tracked in [`VERSION`](../VERSION)
 **Contract:** one current source, API, and persisted-state schema.
 
 ## Product boundary

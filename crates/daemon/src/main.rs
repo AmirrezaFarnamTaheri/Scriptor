@@ -1,11 +1,12 @@
 use clap::{Parser, Subcommand};
-use scriptor_daemon::mcp_stdio::{McpStdioOptions, run_mcp_stdio};
+use scriptor_daemon::automation_stdio::{AutomationStdioOptions, run_automation_stdio};
 use scriptor_daemon::transport;
 
 #[derive(Debug, Parser)]
 #[command(
     name = "scriptor-daemon",
-    about = "Headless Scriptor vault engine over local IPC"
+    about = "Headless Scriptor vault engine over local IPC",
+    version = env!("CARGO_PKG_VERSION")
 )]
 struct Cli {
     #[command(subcommand)]
@@ -21,13 +22,14 @@ enum Commands {
     },
     /// Verify the daemon endpoint file is readable.
     Endpoint,
-    /// Serve MCP tools over stdio JSON-RPC (dev/agent integrations).
-    McpStdio {
+    /// Serve the trusted local automation protocol over newline-delimited JSON.
+    #[command(name = "automation-stdio", visible_alias = "mcp-stdio")]
+    AutomationStdio {
         #[arg(long, help = "Vault root directory path")]
         vault: String,
         #[arg(
             long,
-            help = "Apply MCP write tools directly without GUI approval (development only)"
+            help = "Apply trusted automation write tools directly without GUI approval (development only)"
         )]
         trust_stdio: bool,
     },
@@ -50,7 +52,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&endpoint)?);
             Ok(())
         }
-        Commands::McpStdio { vault, trust_stdio } => run_mcp_stdio(McpStdioOptions {
+        Commands::AutomationStdio { vault, trust_stdio } => run_automation_stdio(AutomationStdioOptions {
             vault_path: vault,
             trust_stdio,
         })

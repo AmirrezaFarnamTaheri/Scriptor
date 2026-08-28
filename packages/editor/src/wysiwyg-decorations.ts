@@ -68,7 +68,7 @@ export function wysiwygDecorationExtension(): Extension {
       '.cm-wysiwyg-heading': { fontWeight: '700', fontSize: '1.15em' },
       '.cm-wysiwyg-strong': { fontWeight: '700' },
       '.cm-wysiwyg-emphasis': { fontStyle: 'italic' },
-      '.cm-wysiwyg-link': { color: 'var(--primary, #2563eb)', textDecoration: 'underline' },
+      '.cm-wysiwyg-link': { color: 'var(--primary)', textDecoration: 'underline' },
       '.cm-wysiwyg-inline-code': {
         fontFamily: 'var(--mono, monospace)',
         backgroundColor: 'var(--primary-soft, #eef2ff)',

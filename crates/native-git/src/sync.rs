@@ -90,12 +90,7 @@ pub fn git_push(repo_root: &Path) -> Result<GitPushOutput, GitError> {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn has_upstream(repo_root: &Path) -> bool {
-    std::process::Command::new("git")
-        .current_dir(repo_root)
-        .args(["rev-parse", "--abbrev-ref", "@{upstream}"])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    run_git(repo_root, &["rev-parse", "--abbrev-ref", "@{upstream}"]).is_ok()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

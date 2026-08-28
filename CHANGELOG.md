@@ -3,7 +3,20 @@
 ## Unreleased
 
 ### Fixed
+- Bound daemon-sidecar staging to source identity: local builds are the default, GitHub downloads require an immutable tag matching VERSION plus a version handshake, and every staging writes a SHA-256 receipt; packaged smoke now hard-fails on missing installers, sidecar, or receipt.
+- Removed quadratic paths from vault-health diagnostics (per-link index rebuilds and per-asset note rereads) and made incremental indexing skip whole-vault bibliography scans and no-op link updates; task queries fetch tags in bounded batches instead of one query per task.
+- Renamed the mislabeled startup benchmark to scan_single_iter_ms so the two-second cold-shell target is no longer claimed by a vault-scan metric.
+- Hardened the validation container: base image pinned by digest, Rust toolchain pinned to 1.96.0, and no pipe-to-shell installer.
+- Added nightly 5k and weekly 25k performance trend workflows above the mandatory 1k PR gate.
+- scriptor-daemon now reports its version via --version for release identity checks.
+- Fixed a Git-panel regression where the initial status fetch issued during vault open was discarded as stale, leaving status content empty, commits blocked, and conflicts undetectable; status is now stored per vault so open-flow responses can never be lost or leak across vault switches.
+- Normalized Rust formatting drift across publish-runner, capture, indexer, and desktop publish commands, and added a rustfmt workspace check to CI so the documented formatting gate is actually enforced.
+- Excluded the Playwright E2E build output directory from ESLint and Git so running browser suites before lint no longer floods the warning-zero gate with minified-bundle errors.
+- Stopped tracking generated fixture-vault index caches and excluded them from Git so test and benchmark runs no longer leave binary churn in the working tree.
+- Removed the stale pre-Git remediation board from the shipped tree and pointed the product-baseline document at the authoritative VERSION file instead of a pinned number.
 
+- Prevented E2E editor fault injection from leaking into desktop builds by rejecting test-only markers in production assets and clearing inherited E2E mode during screenshot-to-desktop builds.
+- Made the editor render fallback recover Monaco crashes into the supported CodeMirror editor instead of retrying the same failing engine loop.
 - Made Cargo lockfile validation independent of Windows CRLF checkout normalization, so source and governance gates use the same semantics locally and in CI.
 - Added behavioral loopback coverage for capture HTTP responses and strengthened HTML-to-Markdown table assertions after dependency upgrades.
 - Made search cancellation clear its loading state, protected native Canvas template failures from being reported as successful local insertions, and restored full modal semantics to Canvas.
@@ -13,6 +26,8 @@
 - Hardened local Starlight publishing around a server-derived plan, explicit `publish: true` opt-in, stale-hash checks, managed-only deletion, atomic writes, symlink/path confinement, output-drift repair, and native one-time authorization.
 - Corrected FTS5 body snippets and BM25 column weighting, and removed the phantom ranked-search Tauri call from Smart Collections in favor of the implemented DQL engine.
 - Serialized desktop Git mutations and bounded the reusable native Git mutation queue.
+- Fenced vault switches behind active native command leases; serialized overlapping opens; and prevented stale editor, workspace, session, Git, Canvas, plugin-state, and preset completions from replacing a newer vault's state.
+- Made vault JSON history/recent updates cross-process safe, hardened watcher replacement, and moved native Git execution and conflict writes through bounded, atomic platform boundaries.
 - Closed Google Calendar disconnect authorization, restored the renderer/native bridge boundary, and removed unreachable incubating embeddings from the default desktop product graph.
 - Corrected workspace package declarations/lock metadata, Tauri command contracts, plugin Rust backend identities, and source-test discovery so hidden dependency and phantom-command drift fails fast.
 - Removed the unimplemented Zotero-sync product claim; the standalone connector now validates credentials at Zotero's current-key endpoint, confines credentials to the official HTTPS API origin, and does not write arbitrary vault paths.
@@ -20,6 +35,7 @@
 
 ### Verification
 
+- Added artifact-level regression coverage proving production bundle validation rejects compiled E2E editor crash hooks.
 - Added dependency-free contracts for publishing, authorization, Git serialization, workspace boundaries, Tauri command registration, Cargo lock consistency, plugin backend resolution, and complete lightweight test ownership.
 
 ## 1.0.0 — 2026-08-17

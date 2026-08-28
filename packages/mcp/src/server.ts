@@ -1,17 +1,19 @@
 import type { CommandResult } from '@scriptor/core/contracts/command'
+import { OPERATION_CATALOG } from '@scriptor/core/contracts/operation-catalog.generated'
 
 import type { McpRuntime } from './runtime'
 
 /**
- * MCP protocol revisions this server can speak, newest first.
- *
- * Revisions are date strings. `2025-11-25` is the current stable spec; the
- * older entries stay listed because clients pinned to them still interoperate
- * with this server's handshake and tool surface.
- *
- * Note: the 2026-07-28 release candidate drops the `initialize` handshake in
- * favour of per-request `_meta`, so adopting it is a protocol change rather
- * than a version bump and is deliberately not listed here.
+ * Current published MCP specification revision. Scriptor keeps this separate
+ * from the compatibility codecs below: declaring a published revision does not
+ * imply wire-level support for it.
+ */
+export const MCP_CURRENT_SPEC_VERSION = OPERATION_CATALOG.protocols.mcp.currentSpecVersion as const
+
+/**
+ * Legacy JSON-RPC MCP revisions this server currently implements, newest first.
+ * 2026-07-28 is intentionally not advertised until its stateless request model
+ * is implemented end-to-end and covered by protocol fixtures.
  */
 export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [
   '2025-11-25',
@@ -23,7 +25,7 @@ export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [
 /** Revision advertised when the client asks for one this server cannot speak. */
 export const MCP_PROTOCOL_VERSION = MCP_SUPPORTED_PROTOCOL_VERSIONS[0]
 export const MCP_SERVER_NAME = 'scriptor-mcp'
-export const MCP_SERVER_VERSION = '1.0.0'
+export const MCP_SERVER_VERSION = '1.0.1'
 
 /** Standard JSON-RPC 2.0 error codes (integers, per the spec). */
 export const JSON_RPC_PARSE_ERROR = -32700

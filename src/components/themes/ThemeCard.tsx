@@ -22,6 +22,8 @@ export function ThemeCard({
       className={`theme-card ${isActive ? 'is-active' : ''}`}
       onMouseEnter={() => onHoverPreviewStart?.(scheme.id)}
       onMouseLeave={() => onHoverPreviewEnd?.()}
+      onFocus={() => onHoverPreviewStart?.(scheme.id)}
+      onBlur={() => onHoverPreviewEnd?.()}
     >
       <div className="theme-card-header">
         <div className="theme-card-title-row">

@@ -29,6 +29,7 @@ export function StickyNotesLayer({ stickies, visible, onUpdate, onDelete }: Stic
           <header>
             <input
               className="sticky-note-title"
+              aria-label="Sticky note title"
               value={note.title}
               onChange={(event) => onUpdate({ ...note, title: event.target.value, updatedAt: new Date().toISOString() })}
             />

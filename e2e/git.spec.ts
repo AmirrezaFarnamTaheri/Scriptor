@@ -152,4 +152,18 @@ test.describe('Git panel', () => {
     expect(markdown).toContain('- Schedule follow-up interviews.')
     expect(markdown).toContain('Dangling half-conflict with no closing marker.')
   })
+
+  test('docked presentation exposes a complementary landmark, not a dialog', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      window.localStorage.setItem('scriptor:panel-presentation', 'dock-right')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await settleLayout(page)
+    await openCommandPalette(page)
+    await runCommand(page, OPEN_GIT)
+    const docked = page.getByRole('complementary', { name: 'Git', exact: true })
+    await expect(docked).toBeVisible({ timeout: 45_000 })
+    await expect(page.getByRole('dialog', { name: 'Git', exact: true })).toHaveCount(0)
+  })
 })

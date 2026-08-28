@@ -9,5 +9,8 @@
     "./eval": "./src/eval.ts",
     "./filters": "./src/filters.ts",
     "./variables": "./src/variables.ts"
+  },
+  "dependencies": {
+    "@scriptor/core": "workspace:*"
   }
 }

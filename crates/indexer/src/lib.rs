@@ -68,7 +68,7 @@ pub use rebuild::{
 };
 pub use recent::{RecentFileHit, list_recent_files, record_recent_access};
 pub use resolve::{
-    WikilinkResolution, WikilinkResolutionKind, resolve_wikilink_target,
+    WikilinkIndex, WikilinkResolution, WikilinkResolutionKind, resolve_wikilink_target,
     resolve_wikilink_target_with_aliases,
 };
 pub use search::{SearchHit, build_fts_query, search_notes};

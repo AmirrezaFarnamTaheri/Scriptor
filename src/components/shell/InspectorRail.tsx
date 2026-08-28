@@ -17,6 +17,7 @@ import { NoteQualityCard } from '../inspector/NoteQualityCard'
 import { PreviewQABar } from '../inspector/PreviewQABar'
 import { INSPECTOR_PRESETS, type InspectorPreset } from '../../lib/inspectorPresets'
 import type { BibliographyEntry, BacklinkHit, ExportJobOutput, VaultHealthDiagnostics, VaultHealthReport } from '../../types/vault'
+import { useTablistKeys } from '../../hooks/useTablistKeys'
 
 interface InspectorRailProps {
   railRef?: RefObject<HTMLElement | null>
@@ -145,17 +146,20 @@ export function InspectorRail({
     [inspectorPreset],
   )
   const missingCitations = citationRows.filter((key) => !bibliographyKeys.has(key)).length
+  const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
+  const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
 
   return (
     <aside className="inspector-panel" aria-label="Inspector" ref={railRef}>
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
-      <div className="inspector-tabs" role="tablist" aria-label="Inspector mode">
+      <div className="inspector-tabs" role="tablist" aria-label="Inspector mode" onKeyDown={handleInspectorTabKeys}>
         {(['inspector', 'preview', 'plugins'] as const).map((mode) => (
           <button
             type="button"
             key={mode}
             id={`inspector-tab-${mode}`}
             role="tab"
+            tabIndex={activeMode === mode ? 0 : -1}
             aria-selected={activeMode === mode}
             aria-controls={`inspector-panel-${mode}`}
             className={activeMode === mode ? 'active' : ''}

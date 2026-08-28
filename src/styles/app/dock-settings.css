@@ -66,6 +66,24 @@
   background: var(--amber);
 }
 
+/* Indexing finished: success semantics instead of a lingering amber bar. */
+.job-progress.is-done {
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.job-progress.is-done > svg,
+.job-progress.is-done strong {
+  color: var(--success);
+}
+
+.job-progress.is-done .progress-track {
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+}
+
+.job-progress.is-done .progress-track span {
+  background: var(--success);
+}
+
 .bottom-tabs {
   min-width: 280px;
   display: flex;

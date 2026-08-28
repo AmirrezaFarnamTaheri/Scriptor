@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, run_process};
-use scriptor_vault::{RelativeVaultPath, VaultRoot};
+use scriptor_vault::{RelativeVaultPath, VaultRoot, atomic_write};
 use serde::Serialize;
 
 const PLANTUML_TIMEOUT: Duration = Duration::from_secs(30);
@@ -111,6 +111,6 @@ pub fn save_vault_asset(
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
-    fs::write(&absolute, bytes).map_err(|error| error.to_string())?;
+    atomic_write(&absolute, bytes).map_err(|error| error.to_string())?;
     Ok(relative.to_string())
 }

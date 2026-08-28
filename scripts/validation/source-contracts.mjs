@@ -124,7 +124,7 @@ test('daemon IPC requires the authenticated endpoint nonce on every production c
 })
 
 test('MCP mutation journaling validates paths before durable intent and never hides outcome-write failure', () => {
-  const source = read('crates/daemon/src/mcp_stdio.rs')
+  const source = read('crates/daemon/src/automation_stdio.rs')
   const writeStart = source.indexOf('fn write_note_with_audit')
   const updateStart = source.indexOf('fn update_frontmatter_with_audit')
   const writeBody = source.slice(writeStart, updateStart)

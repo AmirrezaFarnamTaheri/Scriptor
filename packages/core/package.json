@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./task": "./src/task/index.ts",
-    "./contracts/*": "./src/contracts/*.ts"
+    "./contracts/*": "./src/contracts/*.ts",
+    "./date": "./src/date/index.ts"
   }
 }

@@ -385,6 +385,10 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Clippy workspace checks" -FilePath "cargo" -ArgumentList @("clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings") -TimeoutSeconds 1200
 
+      - name: Rustfmt workspace check
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Rustfmt workspace check" -FilePath "cargo" -ArgumentList @("fmt", "--all", "--check") -TimeoutSeconds 300
+
       - name: Test Rust workspace crates
         shell: pwsh
         env:

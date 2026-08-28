@@ -41,7 +41,7 @@ pub(crate) fn run_health(path: PathBuf, in_process: bool) -> CommandResult {
         let response = rpc_call(RpcRequest::new(4, RpcMethod::HealthReport))?;
         match response.result {
             RpcResult::Ok(RpcPayload::HealthReport { json }) => println!("{json}"),
-            RpcResult::Err(message) => return Err(message.into()),
+            RpcResult::Error(error) => return Err(error.to_string().into()),
             _ => return Err("unexpected daemon health response".into()),
         }
     }
@@ -60,7 +60,7 @@ pub(crate) fn run_health_diagnostics(path: PathBuf, in_process: bool) -> Command
         let response = rpc_call(RpcRequest::new(5, RpcMethod::HealthDiagnostics))?;
         match response.result {
             RpcResult::Ok(RpcPayload::HealthDiagnostics { json }) => println!("{json}"),
-            RpcResult::Err(message) => return Err(message.into()),
+            RpcResult::Error(error) => return Err(error.to_string().into()),
             _ => return Err("unexpected daemon health diagnostics response".into()),
         }
     }
@@ -93,7 +93,7 @@ pub(crate) fn run_search(
             RpcResult::Ok(RpcPayload::SearchHits { hits }) => {
                 println!("{}", serde_json::to_string_pretty(&hits)?);
             }
-            RpcResult::Err(message) => return Err(message.into()),
+            RpcResult::Error(error) => return Err(error.to_string().into()),
             _ => return Err("unexpected daemon search response".into()),
         }
     }
@@ -116,7 +116,7 @@ pub(crate) fn run_backlinks(path: PathBuf, note: String, in_process: bool) -> Co
         ))?;
         match response.result {
             RpcResult::Ok(RpcPayload::Backlinks { json, .. }) => println!("{json}"),
-            RpcResult::Err(message) => return Err(message.into()),
+            RpcResult::Error(error) => return Err(error.to_string().into()),
             _ => return Err("unexpected daemon backlinks response".into()),
         }
     }
@@ -147,7 +147,7 @@ pub(crate) fn run_graph(
         ))?;
         match response.result {
             RpcResult::Ok(RpcPayload::GraphSummary { json }) => println!("{json}"),
-            RpcResult::Err(message) => return Err(message.into()),
+            RpcResult::Error(error) => return Err(error.to_string().into()),
             _ => return Err("unexpected daemon graph response".into()),
         }
     }

@@ -360,7 +360,10 @@ mod tests {
         let parsed = parse_note_markdown("Private.md", markdown);
 
         assert!(!parsed.frontmatter_valid);
-        assert_eq!(parsed.frontmatter_error.as_deref(), Some("unterminated frontmatter"));
+        assert_eq!(
+            parsed.frontmatter_error.as_deref(),
+            Some("unterminated frontmatter")
+        );
         assert!(parsed.body.is_empty());
         assert!(parsed.tags.is_empty());
         assert!(parsed.headings.is_empty());

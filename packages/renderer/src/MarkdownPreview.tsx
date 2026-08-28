@@ -21,6 +21,7 @@ import { injectPreviewUserCss, loadVaultPreviewCss } from './preview-user-css.ts
 import { preprocessImportsAsync } from './remark-import.ts'
 import { renderMarkdownPipeline, type PreviewPipelineOptions } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
+import PreviewWorker from './preview.worker.ts?worker'
 import {
   applyPreviewPostProcess,
   combinePreviewWarnings,
@@ -52,7 +53,16 @@ interface WorkerRenderRequest {
 
 const PREVIEW_DEBOUNCE_MS = 200
 const PREVIEW_WORKER_TIMEOUT_MS = 5_000
+const PREVIEW_WORKER_PROVISIONAL_MS = 900
 const USE_PREVIEW_WORKER = import.meta.env.VITE_SCREENSHOT_MODE !== 'true'
+
+/**
+ * Sticky kill-switch: some embedded environments (Tauri custom protocol) never
+ * deliver module-worker messages. After the first timeout we stop creating
+ * workers so later renders take the fast main-thread path instead of paying
+ * the full timeout again on every keystroke.
+ */
+let previewWorkerDisabled = false
 
 function renderFailureMessage(error: unknown, fallback: string): string {
   if (error instanceof Error && error.message.trim()) return error.message
@@ -85,6 +95,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     const workerFactoryRef = useRef<(() => Worker | null) | null>(null)
     const workerFallbackRef = useRef<WorkerRenderRequest | null>(null)
     const workerDeadlineRef = useRef<number | null>(null)
+    const workerProvisionalRef = useRef<number | null>(null)
     const debounceTimer = useRef<number | null>(null)
     const contentRef = useRef<HTMLDivElement>(null)
     const postProcessRef = useRef(postProcessHtml)
@@ -105,6 +116,12 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       getContentRoot: () => contentRef.current,
     }))
 
+    const clearWorkerProvisional = useCallback(() => {
+      if (workerProvisionalRef.current === null) return
+      window.clearTimeout(workerProvisionalRef.current)
+      workerProvisionalRef.current = null
+    }, [])
+    
     const clearWorkerDeadline = useCallback(() => {
       if (workerDeadlineRef.current === null) return
       window.clearTimeout(workerDeadlineRef.current)
@@ -113,7 +130,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
 
     const commitRenderedHtml = useCallback(
       (nextHtml: string, fallbackWarning?: string | null) => {
-        clearWorkerDeadline()
+        clearWorkerProvisional()
         workerFallbackRef.current = null
         const result = applyPreviewPostProcess(nextHtml, postProcessRef.current)
         const combined =
@@ -124,21 +141,21 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         setHtml(result.html)
         setIsRendering(false)
       },
-      [clearWorkerDeadline],
+      [clearWorkerProvisional],
     )
 
     const commitRenderFailure = useCallback((error: unknown, fallback: string) => {
-      clearWorkerDeadline()
+      clearWorkerProvisional()
       workerFallbackRef.current = null
       postProcessWarningRef.current = null
       setRenderWarning(null)
       setRenderError(renderFailureMessage(error, fallback))
       setHtml('')
       setIsRendering(false)
-    }, [clearWorkerDeadline])
+    }, [clearWorkerProvisional])
 
     useEffect(() => {
-      if (!USE_PREVIEW_WORKER) return undefined
+      if (!USE_PREVIEW_WORKER || previewWorkerDisabled) return undefined
 
       const renderFallback = () => {
         const fallback = workerFallbackRef.current
@@ -159,10 +176,11 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       const createWorker = (): Worker | null => {
         let worker: Worker
         try {
-          worker = new Worker(new URL('./preview.worker.ts', import.meta.url), {
-            type: 'module',
-          })
+          // Classic bundled worker (vite worker.format=iife): module workers
+          // never deliver messages under the Tauri custom protocol.
+          worker = new PreviewWorker()
         } catch {
+          previewWorkerDisabled = true
           workerRef.current = null
           return null
         }
@@ -170,6 +188,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         worker.onmessage = (
           event: MessageEvent<{ id: number; html?: string; error?: string }>,
         ) => {
+          clearWorkerDeadline()
           const fallback = workerFallbackRef.current
           if (event.data.id !== requestId.current || fallback?.id !== event.data.id) return
           if (event.data.error) {
@@ -192,19 +211,21 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       createWorker()
 
       return () => {
+        clearWorkerProvisional()
         clearWorkerDeadline()
         workerFallbackRef.current = null
         workerFactoryRef.current = null
         workerRef.current?.terminate()
         workerRef.current = null
       }
-    }, [clearWorkerDeadline, commitRenderFailure, commitRenderedHtml])
+    }, [clearWorkerDeadline, clearWorkerProvisional, commitRenderFailure, commitRenderedHtml])
 
     useEffect(() => {
       if (debounceTimer.current) {
         window.clearTimeout(debounceTimer.current)
       }
 
+      clearWorkerProvisional()
       clearWorkerDeadline()
       requestId.current += 1
       const currentId = requestId.current
@@ -253,6 +274,11 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           }
           const workerRequest = { id: currentId, markdown: prepared, options }
           workerFallbackRef.current = workerRequest
+          const showProvisional = window.setTimeout(() => {
+            if (requestId.current !== currentId || workerFallbackRef.current?.id !== currentId) return
+            renderOnMainThread('Showing core Markdown preview (worker starting)')
+          }, PREVIEW_WORKER_PROVISIONAL_MS)
+          window.setTimeout(() => window.clearTimeout(showProvisional), PREVIEW_WORKER_TIMEOUT_MS + 100)
           try {
             worker.postMessage(workerRequest)
             workerDeadlineRef.current = window.setTimeout(() => {
@@ -268,7 +294,9 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
                 workerRef.current = null
                 workerFactoryRef.current?.()
               }
-              renderOnMainThread('Showing core Markdown preview (worker timed out)')
+              clearWorkerProvisional()
+              previewWorkerDisabled = true
+              renderOnMainThread(null)
             }, PREVIEW_WORKER_TIMEOUT_MS)
           } catch {
             renderOnMainThread('Showing core Markdown preview (worker unavailable)')
@@ -290,6 +318,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       fetchNote,
       postProcessHtml,
       clearWorkerDeadline,
+      clearWorkerProvisional,
       commitRenderFailure,
       commitRenderedHtml,
     ])

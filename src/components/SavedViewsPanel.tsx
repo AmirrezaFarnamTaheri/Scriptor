@@ -12,6 +12,7 @@ import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedSto
 interface SavedViewsPanelProps {
   embedded?: boolean
   vaultOpen: boolean
+  vaultId?: string | null
   onClose: () => void
   onOpenNote: (path: string) => void
   promptText: (request: {
@@ -120,6 +121,7 @@ function buildFilterJson(input: {
 export function SavedViewsPanel({
   embedded = false,
   vaultOpen,
+  vaultId = null,
   onClose,
   onOpenNote,
   promptText,
@@ -135,11 +137,15 @@ export function SavedViewsPanel({
   const [presets, setPresets] = useState<SavedViewPreset[]>(() => loadPresets())
 
   useEffect(() => {
-    if (!vaultOpen) return
+    if (!vaultOpen || !vaultId) return
+    let cancelled = false
     void loadVaultPresetJson<SavedViewPreset[]>(VAULT_SAVED_VIEWS_PATH).then((stored) => {
-      if (stored && stored.length > 0) setPresets(stored)
+      if (!cancelled && stored && stored.length > 0) setPresets(stored)
     })
-  }, [vaultOpen])
+    return () => {
+      cancelled = true
+    }
+  }, [vaultId, vaultOpen])
 
   useEscapeToClose(!embedded, onClose)
 

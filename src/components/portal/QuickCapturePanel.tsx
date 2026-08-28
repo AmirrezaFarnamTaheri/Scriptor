@@ -66,6 +66,7 @@ export function QuickCapturePanel({
           </div>
           <textarea
             className="scratchpad-editor"
+            aria-label="Quick capture scratchpad"
             rows={8}
             value={scratchpad.body}
             onChange={(event) => onScratchpadChange(event.target.value)}
@@ -91,6 +92,7 @@ export function QuickCapturePanel({
                     <Check size={14} />
                   </button>
                   <input value={todo.text} onChange={(event) => onUpdateTodo(todo.id, event.target.value)} />
+                  aria-label={`Todo text: ${todo.text.slice(0, 40)}`}
                   {onCreateNoteFromTodo ? (
                     <button type="button" onClick={() => onCreateNoteFromTodo(todo.id)}>
                       To note

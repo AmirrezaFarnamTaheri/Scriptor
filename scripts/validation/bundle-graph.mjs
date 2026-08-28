@@ -9,6 +9,7 @@ const budgetBytes = Number(process.env.SCRIPTOR_INITIAL_JS_GZIP_BUDGET ?? 900 * 
 const htmlPath = path.join(dist, 'index.html')
 const manifestPath = path.join(dist, '.vite/manifest.json')
 const failures = []
+const testOnlyMarkers = ['e2e:editor-render-failure', 'E2E editor render failure']
 if (!fs.existsSync(htmlPath)) failures.push(`missing production HTML: ${htmlPath}`)
 if (!fs.existsSync(manifestPath)) failures.push(`missing Vite manifest: ${manifestPath}`)
 if (failures.length) {
@@ -52,6 +53,18 @@ for (const file of initialJs) {
   else gzipBytes += zlib.gzipSync(fs.readFileSync(absolute), { level: 9 }).length
 }
 if (gzipBytes > budgetBytes) failures.push(`initial JavaScript gzip budget exceeded: ${gzipBytes} > ${budgetBytes}`)
+
+const assetsDirectory = path.join(dist, 'assets')
+if (fs.existsSync(assetsDirectory)) {
+  for (const entry of fs.readdirSync(assetsDirectory, { withFileTypes: true })) {
+    if (!entry.isFile() || !entry.name.endsWith('.js')) continue
+    const source = fs.readFileSync(path.join(assetsDirectory, entry.name), 'utf8')
+    const leakedMarkers = testOnlyMarkers.filter((marker) => source.includes(marker))
+    if (leakedMarkers.length) {
+      failures.push(`production asset contains test-only marker(s): ${entry.name}: ${leakedMarkers.join(', ')}`)
+    }
+  }
+}
 if (failures.length) {
   console.error(failures.join('\n'))
   process.exit(1)

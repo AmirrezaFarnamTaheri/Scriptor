@@ -11,7 +11,7 @@ function readPresentation(): PanelPresentation {
   } catch {
     // ignore storage failures
   }
-  return 'modal'
+  return 'dock-right'
 }
 
 export function usePanelPresentation() {

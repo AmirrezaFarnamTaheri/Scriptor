@@ -1,8 +1,9 @@
 use std::collections::HashSet;
+use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use scriptor_system_bridge::{ProcessReceipt, ProcessSpec, run_process};
 use serde::{Deserialize, Serialize};
 
 use crate::error::GitError;
@@ -285,17 +286,13 @@ fn run_git_with_index_owned(
 }
 
 fn is_git_repo(repo_root: &Path) -> Result<bool, GitError> {
-    let output = Command::new("git")
-        .current_dir(repo_root)
-        .args(["rev-parse", "--is-inside-work-tree"])
-        .output()
-        .map_err(|_| GitError::GitMissing)?;
+    let output = run_git_receipt(repo_root, &["rev-parse", "--is-inside-work-tree"])?;
 
-    if !output.status.success() {
+    if output.exit_code != 0 {
         return Ok(false);
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).trim() == "true")
+    Ok(output.stdout.trim() == "true")
 }
 
 fn current_branch(repo_root: &Path) -> Result<String, GitError> {
@@ -311,27 +308,87 @@ fn run_git_command(
     args: &[&str],
     index: Option<&Path>,
 ) -> Result<String, GitError> {
-    let mut command = Command::new("git");
-    command
-        .current_dir(repo_root)
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GCM_INTERACTIVE", "Never")
-        .stdin(Stdio::null());
-    if let Some(index) = index {
-        command.env("GIT_INDEX_FILE", index);
-    }
-    let output = command.output().map_err(|_| GitError::GitMissing)?;
+    let output = run_git_receipt_with_index(repo_root, args, index)?;
 
-    if !output.status.success() {
+    if output.exit_code != 0 {
         return Err(GitError::Command(format!(
             "git {} failed: {}",
             args.join(" "),
-            String::from_utf8_lossy(&output.stderr).trim()
+            output.stderr.trim()
         )));
     }
 
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
+    Ok(output.stdout.trim().to_string())
+}
+
+fn run_git_receipt(repo_root: &Path, args: &[&str]) -> Result<ProcessReceipt, GitError> {
+    run_git_receipt_with_index(repo_root, args, None)
+}
+
+fn run_git_receipt_with_index(
+    repo_root: &Path,
+    args: &[&str],
+    index: Option<&Path>,
+) -> Result<ProcessReceipt, GitError> {
+    let mut spec = ProcessSpec::new("git")
+        .args(args.iter().copied())
+        .current_dir(repo_root)
+        .timeout(Duration::from_secs(30))
+        .max_output_bytes(256 * 1024)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GCM_INTERACTIVE", "Never");
+    if let Some(index) = index {
+        spec = spec.env("GIT_INDEX_FILE", index.as_os_str());
+    }
+    for (key, value) in git_transport_environment() {
+        spec = spec.env(key, value);
+    }
+    let receipt = run_process(spec).map_err(GitError::Process)?;
+    reject_truncated_output(&args.join(" "), receipt)
+}
+
+/// The bridge intentionally starts subprocesses with a minimal environment.
+/// Keep only the transport credential hand-off variables Git needs for SSH
+/// agents and non-interactive askpass helpers; do not inherit arbitrary Git
+/// configuration or execution overrides.
+const GIT_TRANSPORT_ENVIRONMENT: [&str; 5] = [
+    "SSH_AUTH_SOCK",
+    "SSH_AGENT_PID",
+    "GIT_ASKPASS",
+    "SSH_ASKPASS",
+    "SSH_ASKPASS_REQUIRE",
+];
+
+fn git_transport_environment() -> Vec<(OsString, OsString)> {
+    git_transport_environment_from(|key| std::env::var_os(key))
+}
+
+fn git_transport_environment_from(
+    mut value_for: impl FnMut(&str) -> Option<OsString>,
+) -> Vec<(OsString, OsString)> {
+    GIT_TRANSPORT_ENVIRONMENT
+        .iter()
+        .filter_map(|key| value_for(key).map(|value| ((*key).into(), value)))
+        .collect()
+}
+
+fn reject_truncated_output(
+    command: &str,
+    receipt: ProcessReceipt,
+) -> Result<ProcessReceipt, GitError> {
+    if receipt.stdout_truncated {
+        return Err(GitError::OutputTruncated {
+            command: command.to_string(),
+            stream: "stdout",
+        });
+    }
+    if receipt.stderr_truncated {
+        return Err(GitError::OutputTruncated {
+            command: command.to_string(),
+            stream: "stderr",
+        });
+    }
+    Ok(receipt)
 }
 
 fn parse_porcelain(output: &str) -> Vec<GitChangedFile> {
@@ -472,12 +529,7 @@ fn is_conflict_code(code: &str) -> bool {
 }
 
 fn read_sync_counts(repo_root: &Path) -> (u32, u32, bool) {
-    let has_upstream = std::process::Command::new("git")
-        .current_dir(repo_root)
-        .args(["rev-parse", "--abbrev-ref", "@{upstream}"])
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false);
+    let has_upstream = run_git(repo_root, &["rev-parse", "--abbrev-ref", "@{upstream}"]).is_ok();
 
     if !has_upstream {
         return (0, 0, false);
@@ -556,9 +608,72 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scriptor_system_bridge::BridgeError;
     use std::fs;
     use std::process::Command;
     use tempfile::tempdir;
+
+    #[test]
+    fn keeps_only_reviewed_git_transport_environment() {
+        let environment = git_transport_environment_from(|key| match key {
+            "SSH_AUTH_SOCK" => Some("agent.sock".into()),
+            "SSH_AGENT_PID" => Some("1234".into()),
+            "GIT_ASKPASS" => Some("git-askpass".into()),
+            "SSH_ASKPASS" => Some("ssh-askpass".into()),
+            "SSH_ASKPASS_REQUIRE" => Some("force".into()),
+            _ => None,
+        });
+
+        assert_eq!(
+            environment,
+            vec![
+                ("SSH_AUTH_SOCK".into(), "agent.sock".into()),
+                ("SSH_AGENT_PID".into(), "1234".into()),
+                ("GIT_ASKPASS".into(), "git-askpass".into()),
+                ("SSH_ASKPASS".into(), "ssh-askpass".into()),
+                ("SSH_ASKPASS_REQUIRE".into(), "force".into()),
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_truncated_git_output() {
+        for (stdout_truncated, stderr_truncated, stream) in
+            [(true, false, "stdout"), (false, true, "stderr")]
+        {
+            let receipt = ProcessReceipt {
+                program: "git".into(),
+                resolved_program: "git".into(),
+                program_sha256: None,
+                exit_code: 0,
+                duration_ms: 0,
+                timed_out: false,
+                stdout: String::new(),
+                stderr: String::new(),
+                stdout_truncated,
+                stderr_truncated,
+            };
+
+            assert!(matches!(
+                reject_truncated_output("status --porcelain=1", receipt),
+                Err(GitError::OutputTruncated {
+                    command,
+                    stream: actual_stream,
+                }) if command == "status --porcelain=1" && actual_stream == stream
+            ));
+        }
+    }
+
+    #[test]
+    fn preserves_bridge_failures_instead_of_reporting_git_missing() {
+        let directory = tempdir().expect("tempdir");
+        let nonexistent_root = directory.path().join("does-not-exist");
+
+        assert!(matches!(
+            run_git(&nonexistent_root, &["status", "--porcelain=1"]),
+            Err(GitError::Process(BridgeError::ProcessSpawn { .. }))
+        ));
+    }
 
     fn configure_git_identity(repo: &Path) -> Result<(), Box<dyn std::error::Error>> {
         for (key, value) in [

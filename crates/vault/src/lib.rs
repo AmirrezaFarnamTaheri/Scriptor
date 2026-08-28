@@ -35,6 +35,7 @@ pub(crate) mod text;
 pub mod textbundle;
 pub mod views;
 pub mod watch;
+pub mod wikilink;
 pub mod workspace_session;
 pub mod write;
 
@@ -130,4 +131,9 @@ pub use workspace_session::{
 };
 pub use write::{
     SaveNoteOptions, SaveNoteOutput, rollback_save_note, save_note, save_note_with_options,
+};
+
+pub use wikilink::{
+    WikilinkIndex, WikilinkResolution, WikilinkResolutionKind, resolve_wikilink_target,
+    resolve_wikilink_target_with_aliases,
 };

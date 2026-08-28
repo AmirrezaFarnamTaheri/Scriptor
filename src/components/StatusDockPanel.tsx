@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 
 import type { ActivityEntry } from '../hooks/useActivityLog'
 import type { ExportJobOutput, ExportJobRecord, SearchHit } from '../types/vault'
+import { useTablistKeys } from '../hooks/useTablistKeys'
 
 export type StatusDockTab = 'problems' | 'output' | 'search' | 'jobs'
 
@@ -44,13 +45,17 @@ export function StatusDockPanel({
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const runningJob = exportHistory.find((job) => job.status === 'running')
   const liveExportOutput = runningJob?.live_stderr ?? ''
+  const DOCK_TABS: readonly string[] = ['problems', 'output', 'search', 'jobs']
+  const handleTablistKeys = useTablistKeys(DOCK_TABS, activeTab, (id) => onTabChange(id as StatusDockTab))
 
   return (
     <>
-      <div className="bottom-tabs" role="tablist" aria-label="Status dock">
+      <div className="bottom-tabs" role="tablist" aria-label="Status dock" onKeyDown={handleTablistKeys}>
         <button
           type="button"
           role="tab"
+          tabIndex={activeTab === 'problems' ? 0 : -1}
+          id={'dock-tab-problems'}
           aria-selected={activeTab === 'problems'}
           className={activeTab === 'problems' ? 'active' : ''}
           onClick={() => {
@@ -67,6 +72,8 @@ export function StatusDockPanel({
         <button
           type="button"
           role="tab"
+          tabIndex={activeTab === 'output' ? 0 : -1}
+          id={'dock-tab-output'}
           aria-selected={activeTab === 'output'}
           className={activeTab === 'output' ? 'active' : ''}
           onClick={() => {
@@ -79,6 +86,8 @@ export function StatusDockPanel({
         <button
           type="button"
           role="tab"
+          tabIndex={activeTab === 'search' ? 0 : -1}
+          id={'dock-tab-search'}
           aria-selected={activeTab === 'search'}
           className={activeTab === 'search' ? 'active' : ''}
           onClick={() => {
@@ -91,6 +100,8 @@ export function StatusDockPanel({
         <button
           type="button"
           role="tab"
+          tabIndex={activeTab === 'jobs' ? 0 : -1}
+          id={'dock-tab-jobs'}
           aria-selected={activeTab === 'jobs'}
           className={activeTab === 'jobs' ? 'active' : ''}
           onClick={() => onTabChange('jobs')}

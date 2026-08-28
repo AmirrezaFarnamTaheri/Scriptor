@@ -73,8 +73,12 @@ pub(super) fn cmd_rename_apply(
     Ok(output)
 }
 
-pub(super) fn cmd_resolve_wikilink(state: &DaemonState, target: &str) -> Result<Value, String> {
-    let session = state.require_session()?;
+/// Runs outside the daemon lock: walks every note in the vault. Takes an
+/// owned clone of the session so no state guard needs to be held.
+pub(crate) fn resolve_wikilink_for_session(
+    session: &scriptor_vault::VaultSession,
+    target: &str,
+) -> Result<Value, String> {
     let scanned = scan_vault(&session.root).map_err(|error| error.to_string())?;
     let mut note_paths = Vec::new();
     let mut aliases_by_path = std::collections::BTreeMap::new();
@@ -187,15 +191,26 @@ pub(super) fn build_export_markdown_input(
 }
 
 #[derive(serde::Serialize)]
-pub(super) struct PdfTranslateOutput {
+pub(crate) struct PdfTranslateOutput {
     #[serde(rename = "outputPath")]
     output_path: String,
 }
 
-pub(super) fn cmd_pdf_translate(
+/// Everything needed to run pdf2zh WITHOUT holding the daemon lock. The
+/// subprocess may legitimately run for minutes; prepare under a short guard,
+/// execute outside the lock.
+pub(crate) struct PreparedPdfTranslate {
+    pub(crate) program: String,
+    args: Vec<String>,
+    current_dir: PathBuf,
+    expected_sha256: Option<String>,
+    output: PathBuf,
+}
+
+pub(crate) fn prepare_pdf_translate(
     state: &DaemonState,
     payload: &Value,
-) -> Result<PdfTranslateOutput, String> {
+) -> Result<PreparedPdfTranslate, String> {
     let session = state.require_session()?;
     let input_path = require_str(payload, "input_path")?;
     let relative = RelativeVaultPath::parse(&input_path)
@@ -204,7 +219,7 @@ pub(super) fn cmd_pdf_translate(
         .root
         .resolve_relative(&relative)
         .map_err(|error| error.to_string())?;
-    let pdf2zh = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
+    let program = std::env::var("SCRIPTOR_PDF2ZH_PATH").unwrap_or_else(|_| "pdf2zh".into());
     let mut args = vec![
         resolved.display().to_string(),
         "-li".into(),
@@ -226,19 +241,35 @@ pub(super) fn cmd_pdf_translate(
         None
     };
 
+    let stem = resolved
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .unwrap_or("document");
+    let parent = resolved.parent().unwrap_or_else(|| Path::new("."));
+    let output = explicit_output.unwrap_or_else(|| parent.join(format!("{stem}-dual.pdf")));
+    Ok(PreparedPdfTranslate {
+        args,
+        current_dir: session.root.root().to_path_buf(),
+        expected_sha256: std::env::var("SCRIPTOR_PDF2ZH_SHA256").ok(),
+        output,
+        program,
+    })
+}
+
+pub(crate) fn run_prepared_pdf_translate(
+    prepared: PreparedPdfTranslate,
+) -> Result<PdfTranslateOutput, String> {
     let receipt = run_process(
-        ProcessSpec::new(&pdf2zh)
-            .args(args)
-            .current_dir(session.root.root())
+        ProcessSpec::new(&prepared.program)
+            .args(prepared.args)
+            .current_dir(&prepared.current_dir)
             .timeout(Duration::from_secs(15 * 60))
             .max_output_bytes(512 * 1024)
             .network_policy(NetworkPolicy::Allow)
-            .expected_sha256(std::env::var("SCRIPTOR_PDF2ZH_SHA256").ok()),
+            .expected_sha256(prepared.expected_sha256),
     )
     .map_err(|error| {
-        format!(
-            "PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256."
-        )
+        format!("PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256.")
     })?;
     if receipt.exit_code != 0 {
         return Err(format!(
@@ -247,20 +278,13 @@ pub(super) fn cmd_pdf_translate(
             receipt.stderr.trim()
         ));
     }
-
-    let stem = resolved
-        .file_stem()
-        .and_then(|value| value.to_str())
-        .unwrap_or("document");
-    let parent = resolved.parent().unwrap_or_else(|| Path::new("."));
-    let output = explicit_output.unwrap_or_else(|| parent.join(format!("{stem}-dual.pdf")));
     Ok(PdfTranslateOutput {
-        output_path: output.display().to_string(),
+        output_path: prepared.output.display().to_string(),
     })
 }
 
 #[derive(serde::Serialize)]
-pub(super) struct PlantUmlRenderOutput {
+pub(crate) struct PlantUmlRenderOutput {
     svg: String,
     engine: String,
 }
@@ -274,7 +298,7 @@ pub(super) fn environment_opt_in(name: &str) -> bool {
     })
 }
 
-pub(super) fn cmd_plantuml_render(payload: &Value) -> Result<PlantUmlRenderOutput, String> {
+pub(crate) fn cmd_plantuml_render(payload: &Value) -> Result<PlantUmlRenderOutput, String> {
     let source = require_str(payload, "source")?;
     if source.len() > 1024 * 1024 {
         return Err("PlantUML source exceeds the 1 MiB rendering limit".into());

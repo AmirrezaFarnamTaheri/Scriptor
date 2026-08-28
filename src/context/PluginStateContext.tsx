@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { savePluginState, loadPluginState } from '../bridge/plugin.ts'
 import { DEFAULT_ENABLED_PLUGINS } from './plugin-defaults.ts'
+import { createPluginStatePersistenceQueue } from './plugin-state-persistence.ts'
 
 
 export interface PluginStateContextType {
@@ -8,6 +9,7 @@ export interface PluginStateContextType {
   enablePlugin: (id: string) => void
   disablePlugin: (id: string) => void
   isPluginEnabled: (id: string) => boolean
+  persistenceError: string | null
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -22,36 +24,63 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
   const [enabledPluginIds, setEnabledPluginIds] = useState<Set<string>>(
     () => new Set(initialEnabledPluginIds ?? DEFAULT_ENABLED_PLUGINS)
   )
+  const [persistenceError, setPersistenceError] = useState<string | null>(null)
+  const enabledPluginIdsRef = useRef(enabledPluginIds)
+  const localChangeVersionRef = useRef(0)
+  const persistenceQueueRef = useRef(createPluginStatePersistenceQueue())
+
+  useEffect(() => {
+    enabledPluginIdsRef.current = enabledPluginIds
+  }, [enabledPluginIds])
 
   useEffect(() => {
     if (!initialEnabledPluginIds) {
-      loadPluginState().then((loaded) => {
-        if (loaded && loaded.size > 0) {
-          setEnabledPluginIds(loaded)
-        }
-      }).catch(() => {})
+      const loadVersion = localChangeVersionRef.current
+      let cancelled = false
+      loadPluginState()
+        .catch(() => {
+          // The native bridge can briefly lag the first render; retry once
+          // before surfacing an error to the user.
+          window.setTimeout(() => {
+            if (cancelled || localChangeVersionRef.current !== loadVersion) return
+            loadPluginState()
+              .then((loaded) => {
+                if (cancelled || localChangeVersionRef.current !== loadVersion) return
+                if (loaded && loaded.size > 0) {
+                  enabledPluginIdsRef.current = loaded
+                  setEnabledPluginIds(loaded)
+                }
+              })
+              .catch((error: unknown) => {
+                if (cancelled) return
+                setPersistenceError(error instanceof Error ? error.message : 'Could not load plugin state.')
+              })
+          }, 2500)
+        })
+      return () => {
+        cancelled = true
+      }
     }
   }, [initialEnabledPluginIds])
 
-  const enablePlugin = useCallback((id: string) => {
-    setEnabledPluginIds((prev) => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      savePluginState(next, id).catch(() => {})
-      return next
+  const setPluginEnabled = useCallback((id: string, enabled: boolean) => {
+    const current = enabledPluginIdsRef.current
+    if (current.has(id) === enabled) return
+
+    const next = new Set(current)
+    if (enabled) next.add(id)
+    else next.delete(id)
+    enabledPluginIdsRef.current = next
+    localChangeVersionRef.current += 1
+    setEnabledPluginIds(next)
+    setPersistenceError(null)
+    void persistenceQueueRef.current.enqueue(() => savePluginState(next, id)).catch((error: unknown) => {
+      setPersistenceError(error instanceof Error ? error.message : 'Could not save plugin state.')
     })
   }, [])
 
-  const disablePlugin = useCallback((id: string) => {
-    setEnabledPluginIds((prev) => {
-      if (!prev.has(id)) return prev
-      const next = new Set(prev)
-      next.delete(id)
-      savePluginState(next, id).catch(() => {})
-      return next
-    })
-  }, [])
+  const enablePlugin = useCallback((id: string) => setPluginEnabled(id, true), [setPluginEnabled])
+  const disablePlugin = useCallback((id: string) => setPluginEnabled(id, false), [setPluginEnabled])
 
   const isPluginEnabled = useCallback(
     (id: string) => enabledPluginIds.has(id),
@@ -64,8 +93,9 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
       enablePlugin,
       disablePlugin,
       isPluginEnabled,
+      persistenceError,
     }),
-    [enabledPluginIds, enablePlugin, disablePlugin, isPluginEnabled]
+    [enabledPluginIds, enablePlugin, disablePlugin, isPluginEnabled, persistenceError]
   )
 
   return React.createElement(PluginStateContext.Provider, { value }, children)

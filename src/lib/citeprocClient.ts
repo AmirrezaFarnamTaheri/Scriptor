@@ -1,5 +1,8 @@
 import styleXml from '../assets/citeproc/apa-lite.csl?raw'
 import localeXml from '../assets/citeproc/locales-en-US.xml?raw'
+// Classic bundled worker (vite worker.format=iife) - module workers never
+// start under the Tauri custom protocol.
+import CiteprocWorker from '../workers/citeproc.worker.ts?worker'
 import type { CiteprocFormatRequest, CiteprocFormatResponse } from '../workers/citeproc.worker'
 import type { BibliographyEntry } from '../types/vault'
 
@@ -26,7 +29,7 @@ function ensureWorker(): Worker {
     return worker
   }
 
-  worker = new Worker(new URL('../workers/citeproc.worker.ts', import.meta.url), { type: 'module' })
+  worker = new CiteprocWorker()
   worker.onmessage = (event: MessageEvent<CiteprocFormatResponse>) => {
     const payload = event.data
     const handler = pending.get(payload.requestId)

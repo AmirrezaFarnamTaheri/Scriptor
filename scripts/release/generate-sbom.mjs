@@ -32,7 +32,7 @@ const timestamp = process.env.SOURCE_DATE_EPOCH
   : new Date().toISOString()
 const sbom = {
   bomFormat: 'CycloneDX',
-  specVersion: '1.6',
+  specVersion: '1.7',
   serialNumber: `urn:uuid:${uuid}`,
   version: 1,
   metadata: {

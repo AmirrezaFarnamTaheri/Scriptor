@@ -33,7 +33,7 @@
 }
 
 .git-diff-remove {
-  background: color-mix(in srgb, #e5534b 12%, transparent);
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
 .git-note-link {

@@ -24,6 +24,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 
 import {
   googleCalendarCompleteTask,
@@ -113,7 +114,7 @@ export interface GoogleCalendarSyncResult {
 const DEFAULT_LOOKAHEAD_DAYS = 7
 
 function eventsToday(events: CalendarEvent[]): CalendarEvent[] {
-  const today = new Date().toISOString().slice(0, 10)
+  const today = formatLocalDate()
   return events.filter((e) => e.start.startsWith(today))
 }
 

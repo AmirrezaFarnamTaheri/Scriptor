@@ -1,19 +1,10 @@
 param(
-    [ValidateSet('1k', '5k')]
-    [string]$Size = '1k',
-    [switch]$IncludeSearch
+    [string]$Output = 'artifacts/performance/release-performance.json'
 )
-
-$ErrorActionPreference = "Stop"
-$root = Join-Path $PSScriptRoot "../.."
+$ErrorActionPreference = 'Stop'
+$root = Join-Path $PSScriptRoot '../..'
 Set-Location $root
-
-Write-Host "==> Performance gate: scan $Size"
-& (Join-Path $PSScriptRoot "../benchmarks/bench-large.ps1") -Size $Size -Mode scan -Iterations 3
-
-if ($IncludeSearch) {
-    Write-Host "==> Performance gate: search $Size"
-    & (Join-Path $PSScriptRoot "../benchmarks/bench-large.ps1") -Size $Size -Mode search -Iterations 3
-}
-
-Write-Host "Performance gates passed."
+Write-Host '==> Performance gate: canonical baseline evaluator'
+node scripts/benchmarks/check-baselines.mjs "--output=$Output"
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+Write-Host "Performance evidence written to $Output"

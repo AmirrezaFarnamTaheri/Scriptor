@@ -52,6 +52,7 @@ import { useCommandPalette } from './hooks/useCommandPalette'
 import { useAiProvider } from './hooks/useAiProvider'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
+import { useLocalDate } from './hooks/useLocalDate'
 import { useMcpRuntime } from './hooks/useMcpRuntime'
 import { usePlatformShell, parseDeepLink } from './hooks/usePlatformShell'
 import { useOnboarding } from './hooks/useOnboarding'
@@ -88,6 +89,7 @@ import { usePanelSurfaceController } from './controllers/usePanelSurfaceControll
 import { useWorkspaceAuxiliaryData } from './hooks/useWorkspaceAuxiliaryData'
 import { useAppJourneyTelemetry } from './hooks/useAppJourneyTelemetry'
 import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
+import { useAppZoom } from './hooks/useAppZoom'
 import { useVaultSidebarActions } from './hooks/useVaultSidebarActions'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
@@ -132,6 +134,7 @@ import './styles/motion.css'
 
 function App() {
   const { t } = useI18n()
+  const localDate = useLocalDate()
   const { theme, toggleTheme, setTheme } = useAppTheme()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
@@ -453,6 +456,8 @@ function App() {
     onHandlePointerUp: onSplitHandlePointerUp,
     onHandlePointerCancel: onSplitHandlePointerCancel,
     onHandleDoubleClick: onSplitHandleDoubleClick,
+    ratio: splitRatioPct,
+    nudgeRatio: onSplitHandleNudge,
   } = useSplitPaneResize(showSplitPreview && !chrome.layoutLocked, editorWorkspaceRef)
 
   const vaultResizer = useResizablePanel(
@@ -538,6 +543,7 @@ function App() {
   )
   const workspaceStore = useWorkspaceStore({
     vaultOpen: Boolean(workspace.vault),
+    vaultId: workspace.vault?.id,
     readVaultText: nativeReady ? previewReadVaultText : undefined,
     writeVaultText: nativeReady ? writeVaultText : undefined,
   })
@@ -779,10 +785,9 @@ function App() {
   )
 
   const dailyNoteLabel = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10)
-    const preview = planDailyNotePreview(workspace.vaultConfig.daily_note, today)
-    return preview.path.split('/').pop()?.replace(/\.md$/i, '') ?? today
-  }, [workspace.vaultConfig.daily_note])
+    const preview = planDailyNotePreview(workspace.vaultConfig.daily_note, localDate)
+    return preview.path.split('/').pop()?.replace(/\.md$/i, '') ?? localDate
+  }, [localDate, workspace.vaultConfig.daily_note])
 
   const paletteCommands = useMemo(
     () =>
@@ -913,6 +918,8 @@ function App() {
 
   const { formatInline, formatBibliography } = useCiteprocPreview(bibliography, citationRows)
 
+  useAppZoom()
+
   useAppKeyboardShortcuts({
     activePath: workspace.activePath,
     chooseVaultFolder: workspace.chooseVaultFolder,
@@ -992,6 +999,7 @@ function App() {
       </div>
       <div className="app-chrome">
         <AppTopBar
+        onPatchChrome={patchChrome}
           vault={workspace.vault}
           workspaceMode={workspaceMode}
           onWorkspaceModeChange={handleWorkspaceModeChange}
@@ -1166,6 +1174,8 @@ function App() {
           onSplitHandlePointerUp={onSplitHandlePointerUp}
           onSplitHandlePointerCancel={onSplitHandlePointerCancel}
           onSplitHandleDoubleClick={onSplitHandleDoubleClick}
+          splitRatioPct={splitRatioPct}
+          onSplitHandleNudge={onSplitHandleNudge}
           editorWorkspaceRef={editorWorkspaceRef}
           splitPreviewScrollRef={splitPreviewScrollRef}
           previewRef={previewRef}
@@ -1416,6 +1426,7 @@ function App() {
           focusPath={workspace.activePath}
           graphGroups={workspace.vaultConfig.graph_groups ?? []}
           vaultOpen={Boolean(workspace.vault)}
+          vaultId={workspace.vault?.id}
           depth={graphDepth}
           fullVault={graphFullVault}
           onDepthChange={setGraphDepth}
@@ -1757,6 +1768,7 @@ function App() {
           <KnowledgeWorkbench
             key={knowledgeWorkbenchTab}
             vaultOpen={Boolean(workspace.vault)}
+            vaultId={workspace.vault?.id}
             initialTab={knowledgeWorkbenchTab}
             activePath={workspace.activePath}
             onClose={() => setKnowledgeWorkbenchOpen(false)}

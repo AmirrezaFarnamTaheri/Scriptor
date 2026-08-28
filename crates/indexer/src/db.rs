@@ -131,8 +131,9 @@ pub fn orphaned_note_count(
     let mut statement = conn.prepare("SELECT path FROM notes WHERE vault_id = ?1")?;
     let rows = statement.query_map([vault_id], |row| row.get::<_, String>(0))?;
     let path_set: std::collections::BTreeSet<_> = note_paths.iter().cloned().collect();
-    let count = rows
-        .filter_map(Result::ok)
+    let indexed_paths = rows.collect::<Result<Vec<_>, _>>()?;
+    let count = indexed_paths
+        .into_iter()
         .filter(|path| !path_set.contains(path))
         .count();
     Ok(u32::try_from(count).unwrap_or(u32::MAX))

@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
 import { GitFileRow } from './git/GitFileRow'
@@ -86,7 +87,7 @@ export function GitPanel({
   const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
 
   useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
+    const today = formatLocalDate()
     const numFiles = effectiveSelection.length
     const files = effectiveSelection.map(noteLabel).join(', ')
     const ctx = { date: today, numFiles: String(numFiles), files }
@@ -111,7 +112,7 @@ export function GitPanel({
         title={t('git.title')}
         subtitle={t('git.checkingStatus')}
         icon={<GitBranch size={18} />}
-        ariaLabel={t('git.status')}
+        ariaLabel={t('git.title')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -132,7 +133,7 @@ export function GitPanel({
         title={t('git.title')}
         subtitle={t('git.statusUnavailable')}
         icon={<GitBranch size={18} />}
-        ariaLabel={t('git.status')}
+        ariaLabel={t('git.title')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -155,7 +156,7 @@ export function GitPanel({
         title={t('git.title')}
         subtitle={t('git.subtitle')}
         icon={<GitBranch size={18} />}
-        ariaLabel={t('git.status')}
+        ariaLabel={t('git.title')}
         onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
@@ -170,7 +171,7 @@ export function GitPanel({
       title={t('git.title')}
       subtitle={`${status.branch ?? t('git.detached')}${status.has_upstream ? ` · ${t('git.aheadBehind', { ahead: status.ahead, behind: status.behind })}` : ''}`}
       icon={<GitBranch size={18} />}
-      ariaLabel={t('git.status')}
+      ariaLabel={t('git.title')}
       onClose={onClose}
       presentation={presentation}
       className="git-panel knowledge-filters-panel"

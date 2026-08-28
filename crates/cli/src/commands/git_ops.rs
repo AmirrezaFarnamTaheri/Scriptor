@@ -22,7 +22,7 @@ pub(crate) fn run_status(path: PathBuf, in_process: bool) -> CommandResult {
         let response = rpc_call(RpcRequest::new(9, RpcMethod::GitStatus))?;
         match response.result {
             RpcResult::Ok(RpcPayload::GitStatus { json }) => println!("{json}"),
-            RpcResult::Err(message) => return Err(message.into()),
+            RpcResult::Error(error) => return Err(error.to_string().into()),
             _ => return Err("unexpected daemon git status response".into()),
         }
     }

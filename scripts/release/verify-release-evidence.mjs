@@ -30,6 +30,7 @@ const source = getSourceIdentity({
   requireGit: true,
   requireClean: true,
 })
+if (receipt.trustProfile !== (process.env.SCRIPTOR_TRUST_PROFILE ?? 'unsigned')) throw new Error('receipt trust profile does not match release policy')
 if (receipt.source?.schemaVersion !== 2) throw new Error(`unsupported source identity schema: ${receipt.source?.schemaVersion}`)
 if (receipt.version !== fs.readFileSync(path.join(root, 'VERSION'), 'utf8').trim()) {
   throw new Error('receipt version does not match checkout')
@@ -40,6 +41,7 @@ if (receipt.source?.sourceTreeSha256 !== source.sourceTreeSha256) throw new Erro
 const signing = assertSigningEvidence(collectSigningEvidence(evidenceDir), {
   channel: process.env.SCRIPTOR_RELEASE_CHANNEL ?? 'production',
   expectedSourceCommit: source.sourceCommit,
+  expectedTrustProfile: process.env.SCRIPTOR_TRUST_PROFILE ?? 'unsigned',
 })
 if (JSON.stringify(receipt.signing) !== JSON.stringify(signing)) {
   throw new Error('receipt signing evidence does not match release metadata')
@@ -49,7 +51,7 @@ const expectedRoot = path.relative(root, subjectDir).replaceAll('\\', '/')
 if (receipt.subjectRoot !== expectedRoot) throw new Error(`receipt subject root mismatch: expected ${expectedRoot}, found ${receipt.subjectRoot}`)
 
 const sbom = JSON.parse(fs.readFileSync(sbomPath, 'utf8'))
-if (sbom.bomFormat !== 'CycloneDX' || sbom.specVersion !== '1.6') throw new Error('unsupported SBOM format')
+if (sbom.bomFormat !== 'CycloneDX' || sbom.specVersion !== '1.7') throw new Error('unsupported SBOM format')
 if (sbom.metadata?.component?.version !== receipt.version) throw new Error('SBOM version does not match receipt')
 const properties = new Map((sbom.metadata?.properties ?? []).map((item) => [item.name, item.value]))
 if (properties.get('scriptor:source-commit') !== source.sourceCommit) throw new Error('SBOM source commit does not match checkout')

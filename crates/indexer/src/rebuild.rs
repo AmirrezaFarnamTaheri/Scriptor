@@ -204,7 +204,14 @@ pub fn incremental_notes_index_with_cache(
     paths: &[String],
     bibliography_keys: &[&str],
 ) -> Result<IncrementalIndexSummary, IndexerError> {
-    sync_vault_bibliography(cache, session)?;
+    // A full bibliography scan is only meaningful when a BibTeX database
+    // changed; note-body edits must not pay O(vault) maintenance.
+    if paths
+        .iter()
+        .any(|path| path.to_ascii_lowercase().ends_with(".bib"))
+    {
+        sync_vault_bibliography(cache, session)?;
+    }
     register_bibliography_keys(cache, bibliography_keys)?;
 
     let mut summary = IncrementalIndexSummary {

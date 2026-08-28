@@ -25,9 +25,18 @@ import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
 import { parseVaultHealthDiagnostics, parseVaultHealthReport } from '../../types/vaultValidators'
 
+// Tauri invokes may run concurrently. Preserve caller order here so a slow
+// earlier open cannot finish after a later selection and replace its session.
+let vaultOpenTail: Promise<void> = Promise.resolve()
+
 export async function vaultOpen(rootPath: string): Promise<OpenVaultOutput> {
   requireNative()
-  return invoke<OpenVaultOutput>('vault_open', { rootPath })
+  const open = vaultOpenTail.then(() => invoke<OpenVaultOutput>('vault_open', { rootPath }))
+  vaultOpenTail = open.then(
+    () => undefined,
+    () => undefined,
+  )
+  return open
 }
 
 export async function vaultScan(): Promise<ScannedEntry[]> {

@@ -48,9 +48,13 @@ provides fixture data so no real vault or Tauri binary is needed.
 ### Build in E2E mode
 
 ```powershell
-$env:VITE_E2E_MODE = 'true'
-pnpm build --mode e2e
+pnpm exec vite build --mode e2e
 ```
+
+Vite loads `.env.e2e` for this mode; do not export `VITE_E2E_MODE` into the
+parent shell. E2E builds use the shared `dist/` directory, so run `pnpm build`
+before packaging the desktop application. Production bundle validation rejects
+test-only fault-injection markers if an E2E environment leaks into release assets.
 
 ### Start preview server
 

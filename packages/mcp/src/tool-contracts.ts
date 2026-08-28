@@ -1,5 +1,6 @@
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 import type { McpToolDescriptor } from '@scriptor/core/contracts/mcp'
+import { MCP_TOOL_INPUT_SCHEMAS } from './tool-schemas.generated'
 
 /**
  * Ensure a tool path argument stays inside the vault: relative, no drive
@@ -204,7 +205,15 @@ export interface McpVaultContext {
   vaultHealth?(): Promise<VaultHealthSummaryLike>
 }
 
-export const READ_ONLY_TOOLS: McpToolDescriptor[] = [
+type McpToolDefinition = Omit<McpToolDescriptor, 'inputSchema' | 'outputSchema'>
+
+function withInputSchema(tool: McpToolDefinition): McpToolDescriptor {
+  const inputSchema = MCP_TOOL_INPUT_SCHEMAS[tool.name]
+  if (!inputSchema) throw new Error(`Missing MCP input schema for ${tool.name}`)
+  return { ...tool, inputSchema: inputSchema }
+}
+
+const READ_ONLY_TOOL_DEFINITIONS: McpToolDefinition[] = [
   {
     name: 'mcp.search',
     description: 'Search indexed notes in the open vault.',
@@ -324,7 +333,7 @@ export const READ_ONLY_TOOLS: McpToolDescriptor[] = [
   },
 ]
 
-export const WRITE_TOOLS: McpToolDescriptor[] = [
+const WRITE_TOOL_DEFINITIONS: McpToolDefinition[] = [
   {
     name: 'mcp.proposePatch',
     description: 'Propose a Markdown patch for user approval.',
@@ -356,6 +365,9 @@ export const WRITE_TOOLS: McpToolDescriptor[] = [
     commandId: 'note.delete',
   },
 ]
+
+export const READ_ONLY_TOOLS: McpToolDescriptor[] = READ_ONLY_TOOL_DEFINITIONS.map(withInputSchema)
+export const WRITE_TOOLS: McpToolDescriptor[] = WRITE_TOOL_DEFINITIONS.map(withInputSchema)
 
 export function allMcpTools(): McpToolDescriptor[] {
   return [...READ_ONLY_TOOLS, ...WRITE_TOOLS]

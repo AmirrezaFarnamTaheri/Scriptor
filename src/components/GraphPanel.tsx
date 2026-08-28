@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MoonStar, Power, X } from 'lucide-react'
 
+// Classic bundled worker (vite worker.format=iife) - module workers never
+// start under the Tauri custom protocol.
+import GraphLayoutWorker from '../workers/graph-layout.worker.ts?worker'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { usePluginState } from '../context/PluginStateContext.tsx'
@@ -66,6 +69,7 @@ interface GraphPanelProps {
   focusPath: string | null
   graphGroups?: Array<{ tag_prefix: string; color: string }>
   vaultOpen?: boolean
+  vaultId?: string | null
   onSelectNode: (path: string) => void
   onClose: () => void
   onDepthChange: (depth: number) => void
@@ -85,6 +89,7 @@ export function GraphPanel({
   focusPath,
   graphGroups = [],
   vaultOpen = false,
+  vaultId = null,
   onSelectNode,
   onClose,
   onDepthChange,
@@ -115,18 +120,22 @@ export function GraphPanel({
   useFocusTrap(dialogRef, { active: true })
 
   useEffect(() => {
-    if (!vaultOpen) return
+    if (!vaultOpen || !vaultId) return
+    let cancelled = false
     void loadVaultPresetJson<GraphPreset[]>(VAULT_GRAPH_PRESETS_PATH).then((stored) => {
-      if (stored && stored.length > 0) setPresets(stored)
+      if (!cancelled && stored && stored.length > 0) setPresets(stored)
     })
-  }, [vaultOpen])
+    return () => {
+      cancelled = true
+    }
+  }, [vaultId, vaultOpen])
 
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
     if (!graph || hibernated || !isGraphEnabled) return
     const requestedGraph = graph
-    const worker = new Worker(new URL('../workers/graph-layout.worker.ts', import.meta.url), { type: 'module' })
+    const worker = new GraphLayoutWorker()
     worker.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'done') {
         setWorkerState({ graph: requestedGraph, layout: event.data.nodes as CanvasNode[] })

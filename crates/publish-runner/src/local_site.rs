@@ -68,10 +68,7 @@ pub fn resolve_output_path(vault_root: &Path, requested: &Path) -> PathBuf {
     if requested.is_absolute() {
         requested.to_path_buf()
     } else {
-        vault_root
-            .parent()
-            .unwrap_or(vault_root)
-            .join(requested)
+        vault_root.parent().unwrap_or(vault_root).join(requested)
     }
 }
 
@@ -85,15 +82,19 @@ fn canonical_target(path: &Path) -> Result<PathBuf, PublishError> {
     let mut missing = Vec::new();
     let mut ancestor = path;
     while !ancestor.exists() {
-        let name = ancestor.file_name().ok_or_else(|| PublishError::InvalidSelection {
-            path: path.display().to_string(),
-            reason: "publish output has no existing ancestor".into(),
-        })?;
+        let name = ancestor
+            .file_name()
+            .ok_or_else(|| PublishError::InvalidSelection {
+                path: path.display().to_string(),
+                reason: "publish output has no existing ancestor".into(),
+            })?;
         missing.push(name.to_os_string());
-        ancestor = ancestor.parent().ok_or_else(|| PublishError::InvalidSelection {
-            path: path.display().to_string(),
-            reason: "publish output has no existing ancestor".into(),
-        })?;
+        ancestor = ancestor
+            .parent()
+            .ok_or_else(|| PublishError::InvalidSelection {
+                path: path.display().to_string(),
+                reason: "publish output has no existing ancestor".into(),
+            })?;
     }
     let mut canonical = ancestor.canonicalize().map_err(|source| PublishError::Io {
         path: ancestor.display().to_string(),
@@ -164,17 +165,12 @@ fn read_state(output: &VaultRoot) -> Result<BucketState, PublishError> {
 /// Identify managed output whose bytes no longer match the hash recorded by
 /// the last successful publish. Ownership remains in `BucketState`; the drift
 /// set is only a planning signal so reviewed apply can safely repair the file.
-fn output_drift(
-    output: &VaultRoot,
-    state: &BucketState,
-) -> Result<HashSet<String>, PublishError> {
+fn output_drift(output: &VaultRoot, state: &BucketState) -> Result<HashSet<String>, PublishError> {
     let mut drifted = HashSet::new();
     for (rel, expected_hash) in &state.entries {
         let source_rel = RelativeVaultPath::parse(rel)?;
-        let docs_rel = RelativeVaultPath::parse(&format!(
-            "src/content/docs/{}",
-            source_rel.as_str()
-        ))?;
+        let docs_rel =
+            RelativeVaultPath::parse(&format!("src/content/docs/{}", source_rel.as_str()))?;
         let mut lexical = output.root().to_path_buf();
         for component in docs_rel.as_str().split('/') {
             lexical.push(component);
@@ -402,7 +398,10 @@ mod tests {
             .err()
             .expect("docs symlinks that escape output must be rejected");
         assert!(
-            matches!(error, PublishError::InvalidSelection { .. } | PublishError::Vault(_)),
+            matches!(
+                error,
+                PublishError::InvalidSelection { .. } | PublishError::Vault(_)
+            ),
             "unexpected error: {error:?}"
         );
     }
@@ -449,8 +448,12 @@ mod tests {
     fn scaffold_preserves_existing_customizations() {
         let vault = TempDir::new().unwrap();
         let output = TempDir::new().unwrap();
-        std::fs::write(output.path().join("astro.config.mjs"), "// custom\
-").unwrap();
+        std::fs::write(
+            output.path().join("astro.config.mjs"),
+            "// custom\
+",
+        )
+        .unwrap();
         let site = StarlightSite::open(vault.path(), output.path()).unwrap();
         site.ensure_scaffold().unwrap();
         assert_eq!(
@@ -536,8 +539,18 @@ mod tests {
         assert!(!durable.entries.contains_key("second.md"));
 
         let retry = plan_starlight_site(vault.path(), output.path()).unwrap();
-        assert!(retry.unchanged.iter().any(|candidate| candidate.rel_path == "first.md"));
-        assert!(retry.new_items.iter().any(|candidate| candidate.rel_path == "second.md"));
+        assert!(
+            retry
+                .unchanged
+                .iter()
+                .any(|candidate| candidate.rel_path == "first.md")
+        );
+        assert!(
+            retry
+                .new_items
+                .iter()
+                .any(|candidate| candidate.rel_path == "second.md")
+        );
     }
 
     #[test]
@@ -599,8 +612,12 @@ mod tests {
         let vault = TempDir::new().unwrap();
         let output = TempDir::new().unwrap();
         write_opted_in(&vault.path().join("public.md"), "public");
-        std::fs::write(vault.path().join("private.md"), "# private\
-").unwrap();
+        std::fs::write(
+            vault.path().join("private.md"),
+            "# private\
+",
+        )
+        .unwrap();
         let plan = plan_starlight_site(vault.path(), output.path()).unwrap();
         assert_eq!(plan.new_items.len(), 1);
         let reviewed: PublishCandidate = plan.new_items[0].clone();

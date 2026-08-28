@@ -21,3 +21,7 @@ Long-running and cross-boundary operations should carry an operation/request ID 
 ## Incident collection
 
 Use redacted diagnostics only. Never attach a real vault, keychain value, full request body, or unreviewed audit log. Preserve source commit, app version, OS/arch, reproduction, operation ID, and the smallest relevant bounded log segment.
+
+## Support bundle
+
+Settings → Diagnostics → **Export redacted support bundle** writes a bounded JSON support artifact under `.scriptor/diagnostics/`. The bundle includes app/system identity, aggregate vault-health counts, and at most 100 already-redacted client diagnostic events. It deliberately excludes the vault root, note paths, note content, request bodies, and credentials. The client diagnostic journal rotates at 2 MiB and bounds message/detail sizes before persistence.

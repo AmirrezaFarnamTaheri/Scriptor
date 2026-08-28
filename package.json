@@ -59,7 +59,7 @@
     "screenshots:capture:web": "powershell -ExecutionPolicy Bypass -File scripts/screenshots/capture.ps1 -SkipDesktopBuild",
     "release:package": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/package.ps1",
     "release:smoke": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/smoke.ps1",
-    "release:perf-gate": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/release/perf-gate.ps1",
+    "release:perf-gate": "node scripts/benchmarks/check-baselines.mjs --output=artifacts/performance/release-performance.json",
     "check:release": "pnpm check:contracts && pnpm check:mcp && pnpm check:plugins && pnpm check:canvas && pnpm check:editor && pnpm check:renderer && pnpm check:export && pnpm check:portal && pnpm check:knowledge && pnpm check:merge && pnpm check:citations && pnpm check:headless && pnpm lint && pnpm build && pnpm test:rust && pnpm check:tui && pnpm check:daemon && pnpm check:container && pnpm release:smoke && pnpm release:perf-gate && pnpm bench:canvas && pnpm bench:startup && pnpm bench:idle-memory && pnpm check:a11y && pnpm check:a11y-axe && pnpm test:e2e && pnpm test:visual",
     "cli": "cargo run -p scriptor-cli --",
     "bench:vault-scan": "powershell -ExecutionPolicy Bypass -File scripts/benchmarks/vault-scan.ps1",
@@ -98,7 +98,7 @@
     "release:sbom": "node scripts/release/generate-sbom.mjs",
     "release:receipt": "node scripts/release/create-receipt.mjs",
     "release:evidence:verify": "node scripts/release/verify-release-evidence.mjs",
-    "check:source": "node scripts/validation/source-contracts.mjs && node scripts/validation/desktop-branding.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/tauri-command-contracts.mjs && node scripts/validation/cargo-lock-workspace-deps.mjs && node scripts/validation/plugin-rust-gates.mjs && pnpm test:source",
+    "check:source": "pnpm check:operation-contracts && node scripts/validation/source-contracts.mjs && node scripts/validation/desktop-branding.mjs && node scripts/validation/rust-source-contracts.mjs && node scripts/validation/authorization-inventory.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/tauri-command-contracts.mjs && node scripts/validation/cargo-lock-workspace-deps.mjs && node scripts/validation/plugin-rust-gates.mjs && pnpm test:source",
     "check:governance": "node scripts/release/version.mjs check && node scripts/validation/action-pins.mjs && node scripts/validation/deep-module-boundaries.mjs && node scripts/validation/i18n-parity.mjs && node scripts/validation/docs-contracts.mjs && node scripts/validation/frontend-quality.mjs && node scripts/validation/module-size-ratchet.mjs && node scripts/validation/rustsec-exceptions.mjs && node scripts/validation/cargo-lock-workspace-deps.mjs && node scripts/validation/plugin-rust-gates.mjs",
     "check:rust:product": "cargo check --locked",
     "check:rust:incubating": "cargo check --locked -p scriptor-citation-engine -p scriptor-embeddings -p scriptor-tantivy-indexer -p scriptor-wasm-runtime",
@@ -116,7 +116,14 @@
     "check:branding": "node scripts/validation/desktop-branding.mjs",
     "test:source": "node scripts/validation/run-source-tests.mjs",
     "check:cargo-lock": "node scripts/validation/cargo-lock-workspace-deps.mjs",
-    "check:plugin-rust-gates": "node scripts/validation/plugin-rust-gates.mjs"
+    "check:plugin-rust-gates": "node scripts/validation/plugin-rust-gates.mjs",
+    "check:packaging-profile": "node --test scripts/packaging/zip-lite.test.mjs",
+    "check:docs-contracts": "node --test scripts/validation/docs-contract-utils.test.mjs && node scripts/validation/docs-contracts.mjs",
+    "release:quality": "node scripts/release/run-release-quality.mjs",
+    "release:attestations:verify": "node scripts/release/verify-github-attestations.mjs",
+    "release:evidence:create": "node scripts/release/create-evidence-graph.mjs",
+    "release:evidence:doctor": "node scripts/release/verify-evidence-graph.mjs",
+    "check:operation-contracts": "node scripts/contracts/generate-operation-contracts.mjs --check && node --test scripts/contracts/operation-contracts.test.mjs"
   },
   "dependencies": {
     "@codemirror/theme-one-dark": "^6.1.3",

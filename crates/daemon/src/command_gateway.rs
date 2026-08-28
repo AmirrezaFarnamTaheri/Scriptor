@@ -28,14 +28,15 @@ use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run
 use scriptor_vault::{
     ActivityLogEntry, RULE_MISSING_HEADING, RULE_STALE_DEFINITIONS, RelativeVaultPath,
     SaveNoteOptions, StatsHistoryEntry, VaultConfig, VaultSnippet, WorkspaceSession,
-    append_activity_log, append_stats_history, block_rename_apply, block_rename_dry_run,
-    build_note_markdown, delete_note, export_text_bundle, lint_vault_fix, list_note_history,
-    list_recent_notes, load_vault_config, load_vault_snippets, load_vault_template,
-    plan_daily_note, read_activity_log, read_note, read_note_history_revision, read_stats_history,
-    read_workspace_session, record_recent_note, rename_apply_staged, rename_dry_run,
-    rollback_save_note, save_note, save_note_with_options, save_vault_config, save_vault_snippets,
-    scan_vault, scan_vault_with_roots, section_rename_apply, section_rename_dry_run,
-    set_frontmatter_field, tag_rename_apply, tag_rename_dry_run, write_workspace_session,
+    append_activity_log, append_stats_history, atomic_write, block_rename_apply,
+    block_rename_dry_run, build_note_markdown, delete_note, export_text_bundle, lint_vault_fix,
+    list_note_history, list_recent_notes, load_vault_config, load_vault_snippets,
+    load_vault_template, plan_daily_note, read_activity_log, read_note, read_note_history_revision,
+    read_stats_history, read_workspace_session, record_recent_note, rename_apply_staged,
+    rename_dry_run, rollback_save_note, save_note, save_note_with_options, save_vault_config,
+    save_vault_snippets, scan_vault, scan_vault_with_roots, section_rename_apply,
+    section_rename_dry_run, set_frontmatter_field, tag_rename_apply, tag_rename_dry_run,
+    write_workspace_session,
 };
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -45,9 +46,13 @@ use crate::handler::DaemonState;
 
 mod support;
 use support::*;
+pub(crate) use support::{
+    cmd_plantuml_render, prepare_pdf_translate, resolve_wikilink_for_session,
+    run_prepared_pdf_translate,
+};
 
 mod catalog;
-pub use catalog::{is_outside_lock_command, list_commands};
+pub use catalog::{is_outside_lock_command, list_commands, requires_desktop_authorization};
 
 pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Result<Value, String> {
     match command {
@@ -70,12 +75,12 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             if let Some(parent) = absolute.parent() {
                 fs::create_dir_all(parent).map_err(|error| error.to_string())?;
             }
-            fs::write(&absolute, &bytes).map_err(|error| error.to_string())?;
+            atomic_write(&absolute, &bytes).map_err(|error| error.to_string())?;
             Ok(json!(relative.to_string()))
         }
         "vault_scan" => {
             let session = state.require_session()?;
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             to_value(
                 scan_vault_with_roots(&session.root, &config.extra_roots)
                     .map_err(|e| e.to_string())?,
@@ -361,7 +366,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "vault_read_stats_history" => {
             let session = state.require_session()?;
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             let path = config
                 .writing_targets
                 .history_path
@@ -373,7 +378,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let date = require_str(payload, "date")?;
             let words = require_u32(payload, "words")?;
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             let path = config
                 .writing_targets
                 .history_path
@@ -503,10 +508,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let tag = require_str(payload, "tag")?;
             to_value(notes_for_tag(cache, &session.descriptor.id, &tag).map_err(|e| e.to_string())?)
         }
-        "indexer_resolve_wikilink" => {
-            let target = require_str(payload, "target")?;
-            cmd_resolve_wikilink(state, &target)
-        }
+
         "indexer_list_recent_files" => {
             state.require_session()?;
             let cache = state.require_cache()?;
@@ -578,7 +580,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let cache = state.require_cache()?;
             let focus_path = optional_str(payload, "focus_path");
             let depth = optional_u32(payload, "depth").unwrap_or(1);
-            let config = load_vault_config(session.root.root()).unwrap_or_default();
+            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             to_value(
                 query_focused_graph(
                     cache,
@@ -660,7 +662,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             }))
         }
         "set_headless_engine" => Ok(Value::Null),
-        "pdf_translate" => to_value(cmd_pdf_translate(state, payload)?),
         "git_status_cmd" => {
             let session = state.require_session()?;
             to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
@@ -720,7 +721,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                     .map_err(|e| e.to_string())?,
             )
         }
-        "plantuml_render" => to_value(cmd_plantuml_render(payload)?),
         "canvas_hit_test" => {
             let scene_json = require_str(payload, "scene_json")?;
             let x = require_f64(payload, "x")?;

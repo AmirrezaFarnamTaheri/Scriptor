@@ -230,8 +230,8 @@
   margin: 0;
   padding: 10px 12px;
   border-radius: 8px;
-  background: #fff4f2;
-  color: #b42318;
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+  color: var(--danger);
   font-size: 13px;
 }
 

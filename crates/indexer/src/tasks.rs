@@ -51,7 +51,7 @@
 
 use std::collections::BTreeSet;
 
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -399,8 +399,7 @@ pub fn sync_note_tasks(
         let mut stmt =
             conn.prepare("SELECT id FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2")?;
         stmt.query_map(params![vault_id, note_id], |row| row.get(0))?
-            .filter_map(|r| r.ok())
-            .collect()
+            .collect::<Result<BTreeSet<_>, _>>()?
     };
 
     let mut seen_ids: BTreeSet<String> = BTreeSet::new();
@@ -538,9 +537,15 @@ pub fn query_tasks(
         })
     })?;
 
-    // Second pass: collect tags per task.
-    rows.filter_map(|r| r.ok())
-        .map(|raw| build_task_row(&conn, raw))
+    // Second pass: attach tags with ONE batched query per 500-task chunk
+    // instead of one prepared statement + query per task (N+1).
+    let raws: Vec<TaskRowRaw> = rows.collect::<Result<Vec<_>, _>>()?;
+    let tags_by_task = fetch_tags_for_tasks(&conn, &raws)?;
+    raws.into_iter()
+        .map(|raw| {
+            let tags = tags_by_task.get(&raw.id).cloned().unwrap_or_default();
+            Ok(TaskRow::from_raw(raw, tags))
+        })
         .collect()
 }
 
@@ -652,13 +657,62 @@ pub fn sync_note_tasks_from_markdown(
     sync_note_tasks(&conn, vault_id, note_id, &tasks, &now)
 }
 
+impl TaskRow {
+    fn from_raw(raw: TaskRowRaw, tags: Vec<String>) -> Self {
+        Self {
+            id: raw.id,
+            vault_id: raw.vault_id,
+            source_note_id: raw.source_note_id,
+            line: raw.line,
+            title: raw.title,
+            status: raw.status,
+            priority: raw.priority,
+            due_at: raw.due_at,
+            scheduled_at: raw.scheduled_at,
+            start_at: raw.start_at,
+            rrule: raw.rrule,
+            field_style: raw.field_style,
+            tags,
+            created_at: raw.created_at,
+            updated_at: raw.updated_at,
+        }
+    }
+}
+
+/// Fetches tags for many tasks in bounded IN queries (500 placeholders per
+/// statement, well under SQLite's variable limit) and groups them by task id.
+fn fetch_tags_for_tasks(
+    conn: &Connection,
+    raws: &[TaskRowRaw],
+) -> Result<std::collections::HashMap<String, Vec<String>>, IndexerError> {
+    let mut tags_by_task: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+    for chunk in raws.chunks(500) {
+        let placeholders = vec!["?"; chunk.len()].join(", ");
+        let sql = format!(
+            "SELECT task_id, tag FROM task_tags WHERE task_id IN ({placeholders}) ORDER BY tag"
+        );
+        let mut stmt = conn.prepare(&sql)?;
+        let ids: Vec<String> = chunk.iter().map(|raw| raw.id.clone()).collect();
+        let rows = stmt.query_map(params_from_iter(ids.iter()), |row| {
+            let task_id: String = row.get(0)?;
+            let tag: String = row.get(1)?;
+            Ok((task_id, tag))
+        })?;
+        for pair in rows {
+            let (task_id, tag) = pair?;
+            tags_by_task.entry(task_id).or_default().push(tag);
+        }
+    }
+    Ok(tags_by_task)
+}
+
 fn build_task_row(conn: &Connection, raw: TaskRowRaw) -> Result<TaskRow, IndexerError> {
     let task_id = raw.id.clone();
     let mut tag_stmt = conn.prepare("SELECT tag FROM task_tags WHERE task_id = ?1 ORDER BY tag")?;
     let tags = tag_stmt
         .query_map(params![task_id], |row| row.get(0))?
-        .filter_map(|r| r.ok())
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
     Ok(TaskRow {
         id: raw.id,
         vault_id: raw.vault_id,

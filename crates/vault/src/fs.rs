@@ -3,7 +3,44 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
+use fs4::fs_std::FileExt;
+
 use crate::error::VaultError;
+
+/// An exclusive, cross-process transaction lock for metadata files stored in a
+/// vault. Keep this guard alive across a complete read-modify-write sequence;
+/// the file is released automatically when the guard is dropped, including on
+/// an error path or process exit.
+pub struct VaultUpdateLock {
+    _file: fs::File,
+}
+
+/// Locks a stable sidecar next to `target` without ever locking the target
+/// itself (which is atomically replaced by writers). The sidecar intentionally
+/// persists after release so that a new writer locks the same inode rather
+/// than racing to recreate a deleted lock file.
+pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
+    let parent = target
+        .parent()
+        .ok_or_else(|| VaultError::InvalidRelativePath(target.display().to_string()))?;
+    fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
+
+    let name = target
+        .file_name()
+        .ok_or_else(|| VaultError::InvalidRelativePath(target.display().to_string()))?;
+    let lock_path = parent.join(format!(".scriptor-{}.lock", name.to_string_lossy()));
+    let file = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&lock_path)
+        .map_err(|source| VaultError::io(&lock_path, source))?;
+    file.lock_exclusive()
+        .map_err(|source| VaultError::io(&lock_path, source))?;
+
+    Ok(VaultUpdateLock { _file: file })
+}
 
 /// Write `bytes` to `path` atomically: temp file in the target directory, fsync, rename.
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
@@ -217,6 +254,7 @@ pub fn cleanup_stale_temp_files(root: &Path, max_age: Duration) -> Result<usize,
 mod tests {
     use super::*;
     use std::io::Write;
+    use std::process::Command;
     use std::time::SystemTime;
 
     fn write_temp(dir: &Path, name: &str, age_secs: u64) {
@@ -245,6 +283,50 @@ mod tests {
             .filter(|entry| entry.file_name().to_string_lossy().starts_with(TEMP_PREFIX))
             .count();
         assert_eq!(leftovers, 0);
+    }
+
+    const UPDATE_LOCK_TARGET_ENV: &str = "SCRIPTOR_VAULT_UPDATE_LOCK_TARGET";
+    const UPDATE_LOCK_READY_ENV: &str = "SCRIPTOR_VAULT_UPDATE_LOCK_READY";
+
+    #[test]
+    fn update_lock_child_holds_the_lock() {
+        let (Ok(target), Ok(ready)) = (
+            std::env::var(UPDATE_LOCK_TARGET_ENV),
+            std::env::var(UPDATE_LOCK_READY_ENV),
+        ) else {
+            return;
+        };
+        let _guard = lock_vault_update(Path::new(&target)).expect("child lock");
+        fs::write(ready, "ready").expect("signal lock acquired");
+        std::thread::sleep(Duration::from_millis(300));
+    }
+
+    #[test]
+    fn update_lock_serializes_across_processes() {
+        let dir = tempfile::tempdir().unwrap();
+        let target = dir.path().join("state.json");
+        let ready = dir.path().join("ready");
+        // PROCESS_BROKER_EXCEPTION(vault-test-lock-child): test-only child process verifies OS advisory locking.
+        let mut child = Command::new(std::env::current_exe().expect("test executable"))
+            .args(["--exact", "fs::tests::update_lock_child_holds_the_lock"])
+            .env(UPDATE_LOCK_TARGET_ENV, &target)
+            .env(UPDATE_LOCK_READY_ENV, &ready)
+            .spawn()
+            .expect("start lock holder");
+
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while !ready.exists() && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        assert!(ready.exists(), "child did not acquire the update lock");
+
+        let start = std::time::Instant::now();
+        let _guard = lock_vault_update(&target).expect("parent lock");
+        assert!(
+            start.elapsed() >= Duration::from_millis(150),
+            "parent must wait for the child process to release the update lock"
+        );
+        assert!(child.wait().expect("wait for lock holder").success());
     }
 
     #[test]

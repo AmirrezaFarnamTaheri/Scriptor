@@ -30,6 +30,11 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
   // Seed only when unset: init scripts run on every navigation, and clobbering
   // the theme on reload would mask persistence bugs.
   await page.addInitScript((theme: string) => {
+    // Dialog-contract specs target the MODAL panel presentation; the docked
+    // complementary-role ARIA is pinned separately (visual-review.spec).
+    if (window.localStorage.getItem('scriptor:panel-presentation') === null) {
+      window.localStorage.setItem('scriptor:panel-presentation', 'modal')
+    }
     if (window.localStorage.getItem('scriptor:onboarding-complete') === null) {
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     }

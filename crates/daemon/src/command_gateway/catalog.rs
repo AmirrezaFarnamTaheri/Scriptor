@@ -98,5 +98,24 @@ pub fn is_outside_lock_command(command: &str) -> bool {
     matches!(
         command,
         "export_run_note" | "export_run_markdown" | "indexer_rebuild" | "vault_open"
+        // Subprocess/scanning work that must never hold the daemon mutex:
+        // pdf2zh allows a 15-minute timeout, PlantUML up to 30s, and wikilink
+        // resolution walks every note in the vault.
+        | "pdf_translate" | "plantuml_render" | "indexer_resolve_wikilink"
+    )
+}
+
+/// Commands which can make a destructive or remote state change and therefore
+/// must originate from the desktop authorization broker. Daemon IPC is a
+/// same-user transport boundary, not an approval channel.
+pub fn requires_desktop_authorization(command: &str) -> bool {
+    matches!(
+        command,
+        "vault_delete_note"
+            | "vault_lint_fix"
+            | "vault_restore_note_history_revision"
+            | "git_pull_cmd"
+            | "git_push_cmd"
+            | "git_resolve_conflict_cmd"
     )
 }

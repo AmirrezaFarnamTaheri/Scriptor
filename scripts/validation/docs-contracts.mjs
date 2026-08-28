@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import { SOURCE_IDENTITY_CLAIM } from './docs-contract-utils.mjs';
 const root = path.resolve(import.meta.dirname, '../..');
 const docs = ['README.md','PRODUCT.md','DESIGN.md','SECURITY.md','CONTRIBUTING.md','MAINTAINERS.md','COMMERCIAL-LICENSING.md','docs/ARCHITECTURE.md','docs/CAPABILITY-MATURITY.md','docs/RELEASE-SECURITY.md','docs/ENCRYPTION-THREAT-MODEL.md','docs/FINAL-REMEDIATION-REPORT.md','docs/VERIFICATION.md','docs/RELEASE-CHECKLIST.md','docs/validation/FRONTEND_QUALITY.md'];
 const failures = [];
@@ -34,7 +35,7 @@ const requiredReleaseClaims = [
   ['checksums', /\bchecksums?\b/i],
   ['CycloneDX SBOM', /\bCycloneDX\b[\s\S]{0,80}\bSBOMs?\b|\bSBOMs?\b[\s\S]{0,80}\bCycloneDX\b/i],
   ['release receipt', /\brelease receipts?\b|\breceipts?\b/i],
-  ['source identity', /\bsource identity\b|\bsource-attributable\b/i],
+  ['source identity', SOURCE_IDENTITY_CLAIM],
   ['provenance attestation', /\battest(?:ation|ations|ed)?\b/i],
 ];
 for (const [rel, source] of Object.entries(releaseTruth)) {

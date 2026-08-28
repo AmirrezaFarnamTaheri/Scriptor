@@ -6,15 +6,40 @@ import test from 'node:test'
 const root = path.resolve(import.meta.dirname, '../..')
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8')
 
-test('production publication is secret-free, architecture-complete, and stages installers only', () => {
+test('unsigned release remains the secret-free default while native signing is explicitly gated', () => {
   const workflow = read('.github/workflows/release.yml')
   const signingPolicy = read('scripts/release/signing-policy.mjs')
   const staging = read('scripts/release/stage-release-assets.mjs')
 
-  assert.doesNotMatch(workflow, /\bsecrets\./)
-  assert.doesNotMatch(workflow, /WINDOWS_CERTIFICATE|APPLE_CERTIFICATE|LINUX_SIGNING_KEY/)
-  assert.doesNotMatch(signingPolicy, /WINDOWS_CERTIFICATE|APPLE_CERTIFICATE|LINUX_SIGNING_KEY/)
-  assert.match(signingPolicy, /requiredInputs:\s*\[\]/)
+  const dispatchStart = workflow.indexOf('  workflow_dispatch:')
+  const concurrencyStart = workflow.indexOf('concurrency:', dispatchStart)
+  const dispatch = workflow.slice(dispatchStart, concurrencyStart)
+  assert.match(dispatch, /trust_profile:[\s\S]*default:\s*unsigned/)
+  assert.match(dispatch, /native-signed/)
+
+  const windowsImportStart = workflow.indexOf('- name: Import Windows publisher certificate')
+  const macImportStart = workflow.indexOf('- name: Import macOS Developer ID certificate')
+  const buildStart = workflow.indexOf('- name: Build Tauri bundles', macImportStart)
+  assert.ok(windowsImportStart > 0 && macImportStart > windowsImportStart && buildStart > macImportStart)
+  const windowsImport = workflow.slice(windowsImportStart, macImportStart)
+  const macImport = workflow.slice(macImportStart, buildStart)
+  assert.match(windowsImport, /if: inputs\.trust_profile == 'native-signed'/)
+  assert.match(windowsImport, /secrets\.WINDOWS_CERTIFICATE/)
+  assert.match(macImport, /if: inputs\.trust_profile == 'native-signed'/)
+  assert.match(macImport, /secrets\.APPLE_CERTIFICATE/)
+
+  for (const line of workflow.split(/\r?\n/).filter((value) => /secrets\./.test(value))) {
+    const inlineGated = /inputs\.trust_profile == 'native-signed'/.test(line)
+    const inWindowsImport = workflow.indexOf(line) >= windowsImportStart && workflow.indexOf(line) < macImportStart
+    const inMacImport = workflow.indexOf(line) >= macImportStart && workflow.indexOf(line) < buildStart
+    assert.ok(inlineGated || inWindowsImport || inMacImport, `ungated release secret reference: ${line.trim()}`)
+  }
+
+  assert.match(signingPolicy, /trustProfile = 'unsigned'/)
+  assert.match(signingPolicy, /requiredProductionInputs/)
+  assert.match(signingPolicy, /WINDOWS_CERTIFICATE/)
+  assert.match(signingPolicy, /APPLE_CERTIFICATE/)
+  assert.doesNotMatch(signingPolicy, /LINUX_SIGNING_KEY/)
   assert.match(workflow, /architecture:\s*x86_64/)
   assert.match(workflow, /architecture:\s*aarch64/)
   assert.match(workflow, /ubuntu-24\.04-arm/)
@@ -58,6 +83,16 @@ test('manual release dispatch builds canonical VERSION and production requires a
   assert.match(kickoff, /refusing to move or reuse it/)
   assert.match(versionScript, /const versionTag = \/\^v/)
   assert.match(versionScript, /versionTag\.test\(refName\)/)
+})
+
+test('release kickoff only tags the default-branch commit after CI succeeds for that exact SHA', () => {
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+
+  assert.match(kickoff, /EXPECTED_BRANCH:\s*\$\{\{ github\.event\.repository\.default_branch \}\}/)
+  assert.match(kickoff, /test "\$GITHUB_REF_NAME" = "\$EXPECTED_BRANCH"/)
+  assert.match(kickoff, /actions\/runs\?head_sha=\$GITHUB_SHA&event=push&status=completed/)
+  assert.match(kickoff, /\.name == "CI" and \.conclusion == "success"/)
+  assert.match(kickoff, /test "\$successful_ci_runs" -gt 0/)
 })
 
 test('release receipt separates installer subjects from architecture trust metadata', () => {

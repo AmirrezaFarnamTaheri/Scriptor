@@ -21,6 +21,8 @@
  * No other file should mint or cache template variable strings.
  */
 
+import { formatLocalDate } from '@scriptor/core/date'
+
 /** A synchronous or async function that returns the variable's value. */
 export type ResolverFn = (ctx: VariableContext) => string | Promise<string>
 
@@ -45,7 +47,7 @@ export interface VariableContext {
 /** Build a `VariableContext` with sensible defaults for optional fields. */
 export function makeVariableContext(partial: Partial<VariableContext>): VariableContext {
   return {
-    today:    partial.today    ?? new Date().toISOString().slice(0, 10),
+    today:    partial.today    ?? formatLocalDate(),
     title:    partial.title    ?? '',
     filePath: partial.filePath ?? '',
     fileName: partial.fileName ?? '',

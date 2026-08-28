@@ -472,8 +472,9 @@ fn path_matches(
             snippet: String::new(),
         })
     })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
     Ok(rows
-        .filter_map(|row| row.ok())
+        .into_iter()
         .filter(|row| re.is_match(&row.path))
         .take(DQL_RESULT_LIMIT)
         .collect())
@@ -609,8 +610,9 @@ fn body_excludes(
             snippet: String::new(),
         })
     })?;
+    let rows = rows.collect::<Result<Vec<_>, _>>()?;
     Ok(rows
-        .filter_map(|r| r.ok())
+        .into_iter()
         .filter(|r| !matching.contains(&r.path))
         .collect())
 }

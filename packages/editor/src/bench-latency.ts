@@ -24,7 +24,8 @@ const max = Math.max(...samples)
 console.log(
   JSON.stringify({
     iterations,
-    average_ms: Number(average.toFixed(3)),
+    samples_ms: samples.map((value) => Number(value.toFixed(3))),
+    mean_ms: Number(average.toFixed(3)),
     max_ms: Number(max.toFixed(3)),
     budget_ms: 16,
     within_budget: average < 16,

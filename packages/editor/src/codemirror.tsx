@@ -1,3 +1,4 @@
+import { autocompletion } from '@codemirror/autocomplete'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
 import { Compartment, EditorState } from '@codemirror/state'
@@ -14,15 +15,21 @@ import { pasteHandlerExtension, setPasteImageHandler } from './paste-handler.ts'
 import { typewriterExtension, focusDimExtension } from './typewriter.ts'
 import {
   dispatchEditorAutocompleteContext,
-  editorAutocompleteExtension,
+  editorAutocompleteSource,
   type EditorAutocompleteContext,
 } from './editor-autocomplete.ts'
-import { proseAutosuggestExtension, dispatchProseCorpus, type ProseCorpus } from './prose-autosuggest.ts'
+import {
+  proseAutosuggestSource,
+  proseAutosuggestState,
+  dispatchProseCorpus,
+  type ProseCorpus,
+} from './prose-autosuggest.ts'
 import { frontmatterGutterExtension } from './frontmatter-gutter.ts'
 import {
   dispatchSnippetCatalog,
   dispatchSnippetContext,
-  snippetAutocompleteExtension,
+  snippetAutocompleteSource,
+  snippetAutocompleteState,
 } from './snippet-autocomplete.ts'
 import type { SnippetCatalogEntry } from './snippet-catalog.ts'
 import { insertExpandedSnippet, looksLikeSnippetTemplate, snippetExtension } from './snippets.ts'
@@ -76,6 +83,11 @@ class CodeMirrorAdapter implements EditorAdapter {
     this.onVisibleLineChange = options.onVisibleLineChange
     this.snippetContext = options.snippetContext ?? {}
     setPasteImageHandler(options.saveImageFromClipboard ?? null)
+    const completionSources = [
+      snippetAutocompleteSource,
+      editorAutocompleteSource,
+      proseAutosuggestSource({ minPrefix: 3, maxSuggestions: 8 }),
+    ]
     const extensions = [
       lineNumbersCompartment.of(options.showLineNumbers === false ? [] : lineNumbers()),
       tocField,
@@ -84,9 +96,13 @@ class CodeMirrorAdapter implements EditorAdapter {
       ...tableEditorExtension(!options.readOnly),
       tableContextMenuExtension(),
       ...snippetExtension(),
-      ...snippetAutocompleteExtension(options.snippetContext),
-      editorAutocompleteExtension(),
-      ...proseAutosuggestExtension({ minPrefix: 3, maxSuggestions: 8 }),
+      ...snippetAutocompleteState(options.snippetContext),
+      ...proseAutosuggestState(),
+      autocompletion({
+        activateOnTyping: true,
+        defaultKeymap: true,
+        override: completionSources,
+      }),
       findReplaceExtension(),
       autoPairExtension(),
       pasteHandlerExtension(),

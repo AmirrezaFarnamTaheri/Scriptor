@@ -37,6 +37,9 @@ pub struct CanvasSnapshotBenchReport {
     pub block_count: usize,
     pub iterations: u32,
     pub mean_ms: f64,
+    pub samples_ms: Vec<f64>,
+    pub p50_ms: f64,
+    pub p95_ms: f64,
     pub budget_ms: u128,
     pub within_budget: bool,
 }
@@ -45,15 +48,20 @@ pub fn bench_snapshot_render(
     document: &CanvasDocument,
     iterations: u32,
 ) -> CanvasSnapshotBenchReport {
-    let started = Instant::now();
+    let mut samples_ms = Vec::with_capacity(iterations as usize);
     for _ in 0..iterations {
+        let started = Instant::now();
         let _ = render_svg(document, None);
+        samples_ms.push(started.elapsed().as_secs_f64() * 1000.0);
     }
-    let mean_ms = started.elapsed().as_millis() as f64 / iterations as f64;
+    let (mean_ms, p50_ms, p95_ms) = summarize_benchmark_samples(&samples_ms);
     CanvasSnapshotBenchReport {
         block_count: document.blocks.len(),
         iterations,
         mean_ms,
+        samples_ms,
+        p50_ms,
+        p95_ms,
         budget_ms: SNAPSHOT_BUDGET_MS,
         within_budget: mean_ms <= SNAPSHOT_BUDGET_MS as f64,
     }
@@ -61,6 +69,17 @@ pub fn bench_snapshot_render(
 
 use std::path::Path;
 use std::time::Instant;
+fn summarize_benchmark_samples(samples: &[f64]) -> (f64, f64, f64) {
+    let mut sorted = samples.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let mean = sorted.iter().sum::<f64>() / sorted.len() as f64;
+    let percentile = |p: f64| {
+        let index = ((sorted.len() as f64 * p).ceil() as usize).saturating_sub(1);
+        sorted[index.min(sorted.len() - 1)]
+    };
+    (mean, percentile(0.50), percentile(0.95))
+}
+
 
 const HIT_TEST_FRAME_BUDGET_MS: u128 = 16;
 
@@ -71,6 +90,9 @@ pub struct CanvasHitTestBenchReport {
     pub block_count: usize,
     pub iterations: u32,
     pub mean_ms: f64,
+    pub samples_ms: Vec<f64>,
+    pub p50_ms: f64,
+    pub p95_ms: f64,
     pub budget_ms: u128,
     pub within_budget: bool,
 }
@@ -95,19 +117,23 @@ pub fn bench_hit_test_frame(
         height: 480.0,
     };
 
-    let started = Instant::now();
+    let mut samples_ms = Vec::with_capacity(iterations as usize);
     for _ in 0..iterations {
+        let started = Instant::now();
         let _ = hit_test(document, point);
         let _ = query_blocks_in_bounds(document, bounds, None);
+        samples_ms.push(started.elapsed().as_secs_f64() * 1000.0);
     }
-    let elapsed_ms = started.elapsed().as_millis() as f64;
-    let mean_ms = elapsed_ms / iterations as f64;
+    let (mean_ms, p50_ms, p95_ms) = summarize_benchmark_samples(&samples_ms);
 
     CanvasHitTestBenchReport {
         scenario: "canvas-hit-test-frame",
         block_count: document.blocks.len(),
         iterations,
         mean_ms,
+        samples_ms,
+        p50_ms,
+        p95_ms,
         budget_ms: HIT_TEST_FRAME_BUDGET_MS,
         within_budget: mean_ms <= HIT_TEST_FRAME_BUDGET_MS as f64,
     }

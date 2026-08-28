@@ -13,6 +13,7 @@
  */
 
 import { useRef, useState } from 'react'
+import { formatLocalDate } from '@scriptor/core/date'
 import {
   Calendar,
   CheckSquare,
@@ -67,7 +68,7 @@ function TaskRowItem({
     task.dueAt != null &&
     task.status !== 'done' &&
     task.status !== 'cancelled' &&
-    task.dueAt < new Date().toISOString().slice(0, 10)
+    task.dueAt < formatLocalDate()
 
   // Inline due-date edit state
   const [editingDue, setEditingDue] = useState(false)

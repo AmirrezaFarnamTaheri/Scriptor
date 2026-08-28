@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
 import { gitCommit, gitPull, gitPush, gitStatus } from '../bridge/commands'
-import type { GitStatus } from '../types/vault'
 import type { ActivityEntry } from './useActivityLog'
+import { WorkspaceGitStatusController, vaultStatusKey } from './workspace-git-status'
 
 interface UseWorkspaceGitOptions {
   vaultId: string | null
@@ -11,8 +11,16 @@ interface UseWorkspaceGitOptions {
   setError: (message: string | null) => void
 }
 
+interface GitMutationBusyState {
+  vaultId: string | null
+  active: boolean
+}
+
 /**
  * Owns Git status refresh state separately from user-triggered mutations. Status
+ * freshness lives in a framework-free per-vault controller (see
+ * `workspace-git-status.ts`) so results never leak across vault switches and the
+ * vault-open flow cannot lose its in-flight fetch to render timing. Status
  * failures stay local to the Git surface and never overwrite workspace-wide errors.
  */
 export function useWorkspaceGit({
@@ -21,90 +29,103 @@ export function useWorkspaceGit({
   logActivity,
   setError,
 }: UseWorkspaceGitOptions) {
-  const [gitStatusState, setGitStatusState] = useState<GitStatus | null>(null)
-  const [gitStatusError, setGitStatusError] = useState<string | null>(null)
-  const [isGitStatusLoading, setIsGitStatusLoading] = useState(false)
-  const [isGitMutationBusy, setIsGitMutationBusy] = useState(false)
-
-  const refreshGit = useCallback(async () => {
-    setIsGitStatusLoading(true)
-    setGitStatusError(null)
-    try {
-      const status = await gitStatus()
-      setGitStatusState(status)
-    } catch (caught) {
-      const detail = caught instanceof Error ? caught.message : String(caught)
-      console.error('useWorkspaceGit: gitStatus error', caught)
-      setGitStatusError(detail)
-      logActivity('error', 'Git status refresh failed', detail)
-    } finally {
-      setIsGitStatusLoading(false)
-    }
+  const logActivityRef = useRef(logActivity)
+  useEffect(() => {
+    logActivityRef.current = logActivity
   }, [logActivity])
+
+  const [controller] = useState(() => new WorkspaceGitStatusController(gitStatus))
+
+  useEffect(() => {
+    controller.setStatusErrorHandler((detail) => {
+      logActivityRef.current('error', 'Git status refresh failed', detail)
+    })
+    return () => controller.setStatusErrorHandler(undefined)
+  }, [controller])
+
+  useEffect(() => {
+    controller.setActiveVault(vaultId)
+  }, [controller, vaultId])
+
+  const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
+
+  const [gitMutationBusy, setGitMutationBusy] = useState<GitMutationBusyState | null>(null)
+
+  const refreshGit = useCallback(
+    (explicitVaultId?: string | null) => controller.refresh(explicitVaultId),
+    [controller],
+  )
 
   const commitFiles = useCallback(
     async (files: string[], message: string) => {
-      if (!gitStatusState?.is_repo) {
+      const targetVaultId = vaultId
+      if (!targetVaultId || controller.getStatus(targetVaultId)?.is_repo !== true) {
         setError('This vault is not a Git repository.')
         return
       }
-      setIsGitMutationBusy(true)
+      setGitMutationBusy({ vaultId: targetVaultId, active: true })
       setError(null)
       try {
         await gitCommit(files, message)
-        await refreshGit()
+        await controller.refresh()
         logActivity('success', 'Git commit created', message)
       } catch (caught) {
         const detail = caught instanceof Error ? caught.message : String(caught)
         setError(detail)
         logActivity('error', 'Git commit failed', detail)
       } finally {
-        setIsGitMutationBusy(false)
+        setGitMutationBusy({ vaultId: targetVaultId, active: false })
       }
     },
-    [gitStatusState, logActivity, refreshGit, setError],
+    [controller, logActivity, setError, vaultId],
   )
 
   const pullRemote = useCallback(async () => {
-    setIsGitMutationBusy(true)
+    const targetVaultId = vaultId
+    setGitMutationBusy({ vaultId: targetVaultId, active: true })
     setError(null)
     try {
-      if (!vaultId) throw new Error('No active vault is open.')
-      const result = await gitPull(vaultId)
+      if (!targetVaultId) throw new Error('No active vault is open.')
+      const result = await gitPull(targetVaultId)
       await refreshVault()
-      await refreshGit()
+      await controller.refresh()
       logActivity('success', 'Git pull complete', result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
       setError(detail)
       logActivity('error', 'Git pull failed', detail)
     } finally {
-      setIsGitMutationBusy(false)
+      setGitMutationBusy({ vaultId: targetVaultId, active: false })
     }
-  }, [logActivity, refreshGit, refreshVault, setError, vaultId])
+  }, [controller, logActivity, refreshVault, setError, vaultId])
 
   const pushRemote = useCallback(async () => {
-    setIsGitMutationBusy(true)
+    const targetVaultId = vaultId
+    setGitMutationBusy({ vaultId: targetVaultId, active: true })
     setError(null)
     try {
-      if (!vaultId) throw new Error('No active vault is open.')
-      const result = await gitPush(vaultId)
-      await refreshGit()
+      if (!targetVaultId) throw new Error('No active vault is open.')
+      const result = await gitPush(targetVaultId)
+      await controller.refresh()
       logActivity('success', 'Git push complete', result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
       setError(detail)
       logActivity('error', 'Git push failed', detail)
     } finally {
-      setIsGitMutationBusy(false)
+      setGitMutationBusy({ vaultId: targetVaultId, active: false })
     }
-  }, [logActivity, refreshGit, setError, vaultId])
+  }, [controller, logActivity, setError, vaultId])
+
+  const scopedSlot = vaultId === null ? undefined : snapshot.slots[vaultStatusKey(vaultId)]
 
   return {
-    gitStatusState,
-    gitStatusError,
-    isGitStatusLoading,
-    isGitBusy: isGitMutationBusy,
+    gitStatusState: scopedSlot?.status ?? null,
+    gitStatusError: scopedSlot?.error ?? null,
+    // Until this vault's own slot exists, the panel cannot truthfully claim
+    // "not a repository" — it is still waiting for its first status read.
+    isGitStatusLoading: snapshot.isLoading || (vaultId !== null && scopedSlot === undefined),
+    isGitBusy: gitMutationBusy?.vaultId === vaultId && gitMutationBusy.active,
     refreshGit,
     commitFiles,
     pullRemote,

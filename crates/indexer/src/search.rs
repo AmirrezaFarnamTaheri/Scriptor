@@ -294,7 +294,8 @@ mod tests {
         let dir = tempdir()?;
         let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
         let path = RelativeVaultPath::parse("Snippet.md")?;
-        let markdown = "---\ntags: [metadata-only]\n---\n# Snippet\n\nBodyneedle lives in the prose.\n";
+        let markdown =
+            "---\ntags: [metadata-only]\n---\n# Snippet\n\nBodyneedle lives in the prose.\n";
         let metadata =
             metadata_from_markdown("vault-test", &path, markdown, "2026-01-01T00:00:00Z".into());
 
@@ -302,7 +303,11 @@ mod tests {
 
         let hits = search_notes(&cache, "vault-test", "bodyneedle", 10)?;
         assert_eq!(hits.len(), 1);
-        assert!(hits[0].snippet.contains("[[Bodyneedle]]"), "{}", hits[0].snippet);
+        assert!(
+            hits[0].snippet.contains("[[Bodyneedle]]"),
+            "{}",
+            hits[0].snippet
+        );
         assert!(!hits[0].snippet.contains("metadata-only"));
 
         // Frontmatter-only terms must not surface through body FTS search.

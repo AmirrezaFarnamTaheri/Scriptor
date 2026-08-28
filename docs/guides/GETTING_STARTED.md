@@ -1,13 +1,15 @@
 # Getting Started with Scriptor
 
-Scriptor is a local-first Markdown knowledge workspace. This guide covers installation, opening your first vault, and the core workflows you will use every day.
+Scriptor is a local-first Markdown knowledge workspace. This guide covers installation,
+opening your first vault, and the core workflows you will use every day.
 
+For **building from source**, see the **Build from source** section in
+[`README.md`](../../README.md).
 
 ## Install
 
-### Pre-built installers
-
-Download the latest release for your platform from [GitHub Releases](https://github.com/AmirrezaFarnamTaheri/Scriptor/releases):
+Download the latest release for your platform from
+[GitHub Releases](https://github.com/AmirrezaFarnamTaheri/Scriptor/releases):
 
 | Platform | Formats |
 |----------|---------|
@@ -15,20 +17,9 @@ Download the latest release for your platform from [GitHub Releases](https://git
 | macOS | DMG |
 | Linux | DEB or AppImage |
 
-### Build from source
-
-**Requirements:** Node.js `22.16.0`, pnpm `10.33.0`, Rust `1.96.0`, and the platform dependencies required by Tauri 2.
-
-```powershell
-git clone https://github.com/AmirrezaFarnamTaheri/Scriptor.git
-cd Scriptor
-corepack enable
-corepack prepare pnpm@10.33.0 --activate
-pnpm install --frozen-lockfile
-rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
-rustup default 1.96.0
-pnpm desktop:dev
-```
+Production installers are intentionally unsigned. See
+[`docs/RELEASE-SECURITY.md`](../RELEASE-SECURITY.md) for the full verification
+workflow.
 
 ## Open a vault
 
@@ -40,7 +31,8 @@ Your files remain plain Markdown on disk. Scriptor reads and writes them directl
 
 ### Vault configuration
 
-Vault settings live in `.scriptor/config.json`. Snippets, export profiles, and plugin manifests are colocated under `.scriptor/`.
+Vault settings live in `.scriptor/config.json`. Snippets, export profiles, and
+plugin manifests are colocated under `.scriptor/`.
 
 ## The workspace
 
@@ -51,7 +43,8 @@ Vault settings live in `.scriptor/config.json`. Snippets, export profiles, and p
 | **Inspector rail** | Outline, links, backlinks, citations, note health, and export profiles |
 | **Status dock** | Output log, search results, diagnostics, and background jobs |
 
-Use the top bar workspace modes — **Writing**, **Knowledge**, **Publish**, **Review**, **Automation** — to focus the toolbar and command palette on the task at hand.
+Use the top bar workspace modes — **Writing**, **Knowledge**, **Publish**, **Review**,
+**Automation** — to focus the toolbar and command palette on the task at hand.
 
 ## Core workflows
 
@@ -70,10 +63,10 @@ Use the top bar workspace modes — **Writing**, **Knowledge**, **Publish**, **R
 | Keyboard shortcuts | Settings → Keyboard Shortcuts | — |
 | Scheduled backups | Settings → Vault Snapshots | — |
 
-
 ## Export setup
 
-Scriptor exports through [Pandoc](https://pandoc.org/). Install Pandoc on your system for real exports (HTML, PDF, DOCX, LaTeX, ePub, Reveal.js slides):
+Scriptor exports through [Pandoc](https://pandoc.org/). Install Pandoc on your system
+for real exports (HTML, PDF, DOCX, LaTeX, ePub, Reveal.js slides):
 
 ```powershell
 # Windows
@@ -83,11 +76,15 @@ winget install --id JohnMacFarlane.Pandoc
 brew install pandoc
 ```
 
-Dry-run export previews work without Pandoc. See [`docs/release/PANDOC_STRATEGY.md`](../release/PANDOC_STRATEGY.md) for discovery, overrides, and troubleshooting.
+Dry-run export previews work without Pandoc. See
+[`docs/release/PANDOC_STRATEGY.md`](../release/PANDOC_STRATEGY.md) for discovery,
+overrides, and troubleshooting.
 
 ## Optional: headless engine
 
-Enable **Settings → Headless engine** to route indexing, search, backlinks, graph, Git status, and export jobs through the local daemon. Vault open and canvas stay in-process for responsiveness. See [`docs/architecture/IPC_DAEMON.md`](../architecture/IPC_DAEMON.md).
+Enable **Settings → Headless engine** to route indexing, search, backlinks, graph, Git
+status, and export jobs through the local daemon. Vault open and canvas stay in-process
+for responsiveness. See [`docs/architecture/IPC_DAEMON.md`](../architecture/IPC_DAEMON.md).
 
 ## Further reading
 
@@ -95,7 +92,7 @@ Enable **Settings → Headless engine** to route indexing, search, backlinks, gr
 - [`docs/contracts/COMMAND_CATALOG.md`](../contracts/COMMAND_CATALOG.md) — Tauri, daemon, and CLI commands
 - [`docs/architecture/PLUGIN_SYSTEM.md`](../architecture/PLUGIN_SYSTEM.md) — plugins and marketplace
 - [`docs/plugins/AUTHOR_GUIDE.md`](../plugins/AUTHOR_GUIDE.md) — plugin author guide and hello-world walkthrough
-- [`docs/architecture/EDITOR_ENGINES.md`](../architecture/EDITOR_ENGINES.md) — CodeMirror and Monaco dual-engine roles
+- [`DESIGN.md`](../../DESIGN.md) — editor surface, design system, and accessibility contract
 - [`docs/design/DESIGN_SYSTEM.md`](../design/DESIGN_SYSTEM.md) — visual system tokens
 - [`docs/brand/BRAND.md`](../brand/BRAND.md) — logo and wordmark
 - [`docs/assets/screenshots/README.md`](../assets/screenshots/README.md) — regenerate UI screenshots

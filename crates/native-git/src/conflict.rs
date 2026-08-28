@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::GitError;
 use crate::merge3::{ConflictPolicy, merge3};
-use crate::status::{git_show_merge_base_file, git_status};
+use crate::status::{git_show_merge_base_file, git_status, run_git};
 // W2-9 (W1-3 hookup): write conflicted sidecar alongside the conflicted file.
-use vault::write_conflicted_sidecar;
+use vault::{atomic_write, write_conflicted_sidecar};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct GitConflictResolveOutput {
@@ -95,7 +95,7 @@ pub fn git_automerge_conflict_cmd(
     match merge3(&base, &ours, &theirs, policy, None) {
         Ok(merge_output) => {
             // Clean merge — write and stage.
-            fs::write(&file_path, &merge_output.merged).map_err(GitError::Io)?;
+            write_resolved_conflict(&file_path, &merge_output.merged)?;
             run_git(repo_root, &["add", "--", &input.path])?;
             Ok(AutoMergeOutcome::Clean {
                 merged: merge_output.merged,
@@ -239,12 +239,21 @@ pub fn git_apply_merged_conflict(
         )));
     }
 
-    fs::write(&file_path, merged_markdown).map_err(GitError::Io)?;
+    write_resolved_conflict(&file_path, merged_markdown)?;
     run_git(repo_root, &["add", "--", path])?;
 
     Ok(GitConflictResolveOutput {
         path: path.to_string(),
         strategy: "merged".into(),
+    })
+}
+
+fn write_resolved_conflict(path: &Path, markdown: &str) -> Result<(), GitError> {
+    atomic_write(path, markdown.as_bytes()).map_err(|error| {
+        GitError::Command(format!(
+            "failed to atomically write resolved conflict {}: {error}",
+            path.display()
+        ))
     })
 }
 
@@ -275,20 +284,6 @@ pub fn read_conflict_markers(path: &Path) -> Result<Vec<String>, GitError> {
         }
     }
     Ok(blocks)
-}
-
-fn run_git(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
-    let output = std::process::Command::new("git")
-        .current_dir(repo_root)
-        .args(args)
-        .output()
-        .map_err(GitError::Io)?;
-    if !output.status.success() {
-        return Err(GitError::Command(
-            String::from_utf8_lossy(&output.stderr).trim().to_string(),
-        ));
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim().to_string())
 }
 
 /// Read a file from the git index at the given stage (1=base, 2=ours, 3=theirs).
@@ -339,5 +334,19 @@ mod tests {
         let root = dir.path().canonicalize().expect("canonicalize");
         assert!(validate_conflict_path(&root, "bad\nname.md").is_err());
         assert!(validate_conflict_path(&root, "bad\0name.md").is_err());
+    }
+
+    #[test]
+    fn writes_resolved_content_through_atomic_write_boundary() {
+        let dir = tempdir().expect("tempdir");
+        let file = dir.path().join("conflict.md");
+        fs::write(&file, "old content").expect("seed file");
+
+        write_resolved_conflict(&file, "resolved content").expect("atomic write");
+
+        assert_eq!(
+            fs::read_to_string(&file).expect("read result"),
+            "resolved content"
+        );
     }
 }

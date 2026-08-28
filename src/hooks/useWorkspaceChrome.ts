@@ -16,6 +16,8 @@ export interface WorkspaceChromePrefs {
   showTopBar: boolean
   showModeStrip: boolean
   showQuickActions: boolean
+  /** Top-bar action ids hidden by the user via the customize popover. */
+  topBarHiddenActions: string[]
   showHistoryControls: boolean
   showFormatToolbar: boolean
   showEditorAssist: boolean
@@ -45,6 +47,7 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showTopBar: true,
   showModeStrip: true,
   showQuickActions: true,
+  topBarHiddenActions: [],
   showHistoryControls: true,
   showFormatToolbar: true,
   showEditorAssist: true,

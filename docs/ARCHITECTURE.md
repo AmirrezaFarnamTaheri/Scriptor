@@ -1,6 +1,6 @@
 # Current architecture
 
-**Status:** current implementation map for version `1.0.0`. Design-only proposals live in separate documents and are labeled in [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md).
+**Status:** current implementation map. The authoritative product version is [`VERSION`](../VERSION); design-only proposals live in separate documents and are labeled in [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md).
 
 ## Runtime topology
 

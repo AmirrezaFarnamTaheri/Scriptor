@@ -35,9 +35,23 @@
 - [`validation/FRONTEND_QUALITY.md`](validation/FRONTEND_QUALITY.md)
 - [`assets/screenshots/README.md`](assets/screenshots/README.md)
 
-## Architecture records and evaluations
+## Architecture records
 
-Files under `architecture/` may describe implemented systems, evaluations, or future designs. Their status must agree with [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md). A design document is not proof that a capability ships.
+| File | Scope |
+|---|---|
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | Runtime topology, ownership, trust and failure boundaries |
+| [`architecture/c4-container.md`](architecture/c4-container.md) | Container-level runtime diagram (Mermaid) |
+| [`architecture/c4-context.md`](architecture/c4-context.md) | Context diagram (Mermaid) |
+| [`architecture/IPC_DAEMON.md`](architecture/IPC_DAEMON.md) | Daemon RPC surface, invariants, and validation (pointer to `ARCHITECTURE.md` for topology) |
+| [`architecture/PLUGIN_SYSTEM.md`](architecture/PLUGIN_SYSTEM.md) | Plugin manifest, safe mode, marketplace, authoring |
+| [`architecture/PERFORMANCE_ARCHITECTURE.md`](architecture/PERFORMANCE_ARCHITECTURE.md) | Optimization layers, owners, and performance budgets |
+| [`architecture/TUI_PARITY.md`](architecture/TUI_PARITY.md) | TTY TUI parity model with the desktop surface |
+
+All capability claims in these files must agree with [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md). A design document is not proof that a capability ships.
+
+## Archived material
+
+Pre-v1 research and superseded design evaluations are preserved under [`_archived/`](_archived/) for historical reference. They are not linked from the main documentation index.
 
 ## Release references
 

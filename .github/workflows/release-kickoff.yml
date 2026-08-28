@@ -34,11 +34,20 @@ jobs:
 
       - name: Validate synchronized version contract
         shell: bash
+        env:
+          EXPECTED_BRANCH: ${{ github.event.repository.default_branch }}
+          EXPECTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"
           version=$(tr -d '[:space:]' < VERSION)
-          test "$version" = "${{ inputs.version }}"
+          test "$version" = "$EXPECTED_VERSION"
           SCRIPTOR_RELEASE_VERSION="v$version" node scripts/release/version.mjs check
+          successful_ci_runs=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&status=completed&per_page=100" \
+            --jq '[.workflow_runs[] | select(.name == "CI" and .conclusion == "success")] | length')
+          test "$successful_ci_runs" -gt 0
 
   tag-and-dispatch:
     needs: approve-release

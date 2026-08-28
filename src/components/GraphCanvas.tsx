@@ -11,6 +11,11 @@ function folderColor(path: string): string {
   return FOLDER_COLORS[hash % FOLDER_COLORS.length]
 }
 
+function semanticCanvasColor(canvas: HTMLCanvasElement, property: string, fallback: string): string {
+  const value = getComputedStyle(canvas).getPropertyValue(property).trim()
+  return value || fallback
+}
+
 export interface CanvasNode {
   id: string
   x: number
@@ -104,7 +109,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       if (isFocus) {
         ctx.beginPath()
         ctx.arc(node.x, node.y, 22, 0, Math.PI * 2)
-        ctx.strokeStyle = '#6366f1'
+        ctx.strokeStyle = semanticCanvasColor(canvas, '--primary', FOLDER_COLORS[0])
         ctx.lineWidth = 2
         ctx.stroke()
       }
