@@ -11,7 +11,7 @@ path = "src/lib.rs"
 scriptor-vault = { path = "../vault" }
 
 # HTML parsing and sanitisation (pure Rust, no subprocess)
-scraper     = "0.20"          # CSS-selector HTML parser (wraps html5ever)
+scraper     = "0.27"          # CSS-selector HTML parser (wraps html5ever)
 ammonia     = "4"             # Allow-list HTML sanitiser (strips scripts/handlers/srcdoc)
 htmd        = "0.5"           # HTML → Markdown converter
 
