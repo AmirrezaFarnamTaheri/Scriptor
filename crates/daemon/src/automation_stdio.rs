@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-#[derive(Debug, Clone)]
+/// Maximum bytes per line of automation stdio (4 MiB).
 pub const MAX_AUTOMATION_STDIO_LINE_BYTES: usize = 4 * 1024 * 1024;
 
 pub struct AutomationStdioOptions {
