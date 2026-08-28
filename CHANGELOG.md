@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- Reduced the initial renderer bundle from 505,913 to 442,797 gzip bytes (−12.4%) by deferring six conditionally-mounted overlays (writing targets, conflict resolver, cheatsheet, onboarding tour, support, perf HUD) behind `lazy()` boundaries — chart.js no longer loads at startup and is fetched only when the writing-targets panel opens; panel code follows the existing `lazyPanels` + `Suspense` + `PanelFallback` conventions.
+- Advertised spellcheck locales now match shipped dictionary assets: the locale picker no longer offers ten locales whose Hunspell `.dic` files do not exist (silent empty word sets), and a new dependency-free contract gate fails the build if `LOCALE_MAP` ever advertises an asset missing from `public/dictionaries/`.
+- Ported the packaging archive builder from Python to dependency-free Node (`scripts/packaging/zip-lite.mjs`): excluded dependency/build trees are pruned during traversal instead of enumerated-then-filtered, output archives are now byte-for-byte reproducible (fixed DOS timestamps), and the packaging gate no longer requires Python on the host.
+- Removed stale root-level duplicates with zero references (`export-theme.css`, `dictionaries/en_US.dic` — the live copies live in `public/` and `crates/export-runner/assets/`), the served-purpose `fix_lint.py` scratch script, a stray GitHub-404 log, and six empty unreferenced scratch directories.
 - Bound daemon-sidecar staging to source identity: local builds are the default, GitHub downloads require an immutable tag matching VERSION plus a version handshake, and every staging writes a SHA-256 receipt; packaged smoke now hard-fails on missing installers, sidecar, or receipt.
 - Removed quadratic paths from vault-health diagnostics (per-link index rebuilds and per-asset note rereads) and made incremental indexing skip whole-vault bibliography scans and no-op link updates; task queries fetch tags in bounded batches instead of one query per task.
 - Renamed the mislabeled startup benchmark to scan_single_iter_ms so the two-second cold-shell target is no longer claimed by a vault-scan metric.

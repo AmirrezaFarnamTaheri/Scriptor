@@ -161,7 +161,7 @@ export function createReleaseEvidenceGraph({
 function readJson(file, label) {
   if (!fs.existsSync(file)) throw new Error(`missing ${label}: ${file}`)
   try { return JSON.parse(fs.readFileSync(file, 'utf8')) }
-  catch (error) { throw new Error(`invalid ${label}: ${error instanceof Error ? error.message : String(error)}`) }
+  catch (error) { throw new Error(`invalid ${label}: ${error instanceof Error ? error.message : String(error)}`, { cause: error }) }
 }
 
 function fileNode({ id, kind, file, base }) {

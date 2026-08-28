@@ -11,7 +11,7 @@ use crate::note::read_note;
 use crate::patch_log::{collect_rename_backups, write_rename_patch_log};
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::rename_transaction::StagedRenameTransaction;
-use crate::scan::{ScannedEntryKind, list_notes, scan_vault};
+use crate::scan::list_notes;
 use crate::write::save_note;
 use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
 

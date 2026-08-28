@@ -13,18 +13,18 @@ export function parseHunspellDic(text: string): Set<string> {
   return words
 }
 
+/**
+ * Locale → Hunspell `.dic` asset map.
+ *
+ * Honesty rule: every entry here MUST have its asset present under
+ * `public/dictionaries/` — `scripts/validation/dictionary-asset-contracts.test.mjs`
+ * fails the build otherwise. To add a locale: drop `<locale>.dic` into
+ * `public/dictionaries/`, then add the entry. Selecting a locale without a
+ * shipped asset silently yields an empty word set (spellcheck does nothing),
+ * so unshipped locales must never be advertised.
+ */
 export const LOCALE_MAP: Record<string, { dic: string; aff?: string }> = {
   'en-US': { dic: '/dictionaries/en_US.dic' },
-  'en-GB': { dic: '/dictionaries/en_GB.dic' },
-  de: { dic: '/dictionaries/de_DE.dic' },
-  fr: { dic: '/dictionaries/fr.dic' },
-  es: { dic: '/dictionaries/es_ES.dic' },
-  pt: { dic: '/dictionaries/pt_PT.dic' },
-  it: { dic: '/dictionaries/it_IT.dic' },
-  nl: { dic: '/dictionaries/nl_NL.dic' },
-  ru: { dic: '/dictionaries/ru_RU.dic' },
-  ar: { dic: '/dictionaries/ar.dic' },
-  fa: { dic: '/dictionaries/fa_IR.dic' },
 }
 
 export const SUPPORTED_LOCALES = Object.keys(LOCALE_MAP)

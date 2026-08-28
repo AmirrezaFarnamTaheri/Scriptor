@@ -2,27 +2,19 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import test from 'node:test'
 
+import { buildZip, listZip } from './zip-lite.mjs'
+
 const root = path.resolve(import.meta.dirname, '../..')
-const script = path.join(root, 'scripts/zip-lite.py')
 
 function buildAndListArchive(profile = 'source-review') {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-zip-profile-'))
   const output = path.join(temp, 'Scriptor-lite.zip')
-  const build = spawnSync('python3', [script, '--profile', profile, '--output', output], {
-    cwd: root,
-    encoding: 'utf8',
-  })
-  assert.equal(build.status, 0, build.stderr || build.stdout)
-  const list = spawnSync(
-    'python3',
-    ['-c', 'import sys,zipfile; print("\\n".join(zipfile.ZipFile(sys.argv[1]).namelist()))', output],
-    { cwd: root, encoding: 'utf8' },
-  )
-  assert.equal(list.status, 0, list.stderr || list.stdout)
-  return { temp, entries: new Set(list.stdout.trim().split(/\r?\n/).filter(Boolean)), profile }
+  const { count } = buildZip(root, output, profile)
+  assert.ok(count > 0, 'archive must contain at least the profile record')
+  return { temp, entries: new Set(listZip(output)), profile, output }
 }
 
 test('source-review archive preserves validation and release-policy inputs', () => {
@@ -54,6 +46,35 @@ test('lite archive still excludes build, dependency, VCS, and cache trees', () =
   try {
     for (const entry of entries) {
       assert.doesNotMatch(entry, /\/(?:node_modules|target|\.git|dist|coverage|test-results)(?:\/|$)/)
+    }
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true })
+  }
+})
+
+test('archives are reproducible: identical content produces identical bytes', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-zip-repro-'))
+  try {
+    const first = path.join(temp, 'first.zip')
+    const second = path.join(temp, 'second.zip')
+    buildZip(root, first, 'source-review')
+    buildZip(root, second, 'source-review')
+    const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
+    assert.equal(hash(first), hash(second), 'two builds of the same tree must be byte-identical')
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true })
+  }
+})
+
+test('packaging profile record is embedded with the requested profile', () => {
+  const { temp, output } = buildAndListArchive('runtime-lite')
+  try {
+    const archive = fs.readFileSync(output)
+    const marker = Buffer.from('Scriptor/PACKAGING_PROFILE.json')
+    assert.ok(archive.includes(marker), 'profile record must be embedded')
+    // runtime-lite additionally prunes synthetic fixtures and screenshot baselines.
+    for (const entry of listZip(output)) {
+      assert.doesNotMatch(entry, /\/(?:synthetic-1k|synthetic-5k|synthetic-25k|screenshots\.spec\.ts-snapshots)\//)
     }
   } finally {
     fs.rmSync(temp, { recursive: true, force: true })

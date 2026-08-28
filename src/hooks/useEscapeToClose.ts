@@ -4,7 +4,10 @@ import { overlayEscapeCoordinator, type FocusRestorer } from '../lib/overlayEsca
 
 export function useEscapeToClose(active: boolean, onClose: () => void): void {
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  })
 
   useEffect(() => {
     if (!active) return

@@ -211,6 +211,10 @@ export function useMcpRuntime(
         description: tool.label,
         modeRequired: tool.modeRequired,
         commandId: tool.commandId,
+        // Plugin tools bridge to arbitrary plugin commands and receive the raw
+        // MCP input (see invokeTool), so their schema must accept any object
+        // shape rather than advertise a closed, empty schema.
+        inputSchema: { type: 'object' as const, properties: {}, additionalProperties: true },
       })),
     [pluginMcpTools],
   )

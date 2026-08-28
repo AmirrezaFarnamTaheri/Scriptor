@@ -17,10 +17,9 @@ import {
   VaultHealthDashboard,
 } from './components/app/lazyPanels'
 import { parseSimpleFrontmatter } from './lib/frontmatter'
-import { OnboardingTour } from './components/OnboardingTour'
+import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
-import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { AppTopBar } from './components/shell/AppTopBar'
 import { EditorWorkspace } from './components/shell/EditorWorkspace'
 import { InspectorRail } from './components/shell/InspectorRail'
@@ -32,19 +31,23 @@ import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
 import { PluginManagerCenter } from './components/plugins/PluginManagerCenter'
+
+import {
+  CheatsheetPanel,
+  ConflictResolverModal,
+  OnboardingTour,
+  PerfHudOverlay,
+  SupportPanel,
+  WritingTargetsPanel,
+} from './components/app/lazyPanels'
 import { AppToast, AppToastRegion } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
-import { ConflictResolverModal } from './components/ConflictResolverModal'
-import { PerfHudOverlay } from './components/PerfHudOverlay'
 import { FrontmatterInspector } from './components/FrontmatterInspector'
-import { CheatsheetPanel } from './components/CheatsheetPanel'
-import { SupportPanel } from './components/SupportPanel'
 import { QuickCaptureWorkspaceLayer } from './components/app/QuickCaptureWorkspaceLayer'
 import { WorkspacePanelLaunchers } from './components/app/WorkspacePanelLaunchers'
 import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlays'
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
-import { WritingTargetsPanel } from './components/WritingTargetsPanel'
 import { recordWritingSession } from './lib/writingTargets'
 import type { KnowledgeWorkbenchTab } from './components/KnowledgeWorkbench'
 import type { PublishPlan } from './types/vault'
@@ -1543,6 +1546,7 @@ function App() {
       )}
 
       {writingTargetsOpen && (
+        <Suspense fallback={<PanelFallback />}>
         <WritingTargetsPanel
           dailyTarget={workspace.vaultConfig.writing_targets?.daily_words ?? 500}
           wordsToday={draftWordCount}
@@ -1571,9 +1575,11 @@ function App() {
             setWritingTargetsOpen(false)
           }}
         />
+        </Suspense>
       )}
 
       {conflictPath && conflictSource ? (
+        <Suspense fallback={<PanelFallback />}>
         <ConflictResolverModal
           key={conflictPath}
           path={conflictPath}
@@ -1594,6 +1600,7 @@ function App() {
             })
           }}
         />
+        </Suspense>
       ) : null}
 
       {healthDashboardOpen && (
@@ -1843,18 +1850,28 @@ function App() {
         </ErrorBoundary>
       )}
 
-      {cheatsheetOpen ? <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} /> : null}
+      {cheatsheetOpen ? (
+        <Suspense fallback={<PanelFallback />}>
+          <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} />
+        </Suspense>
+      ) : null}
       {onboarding.onboardingOpen ? (
-        <OnboardingTour
-          onComplete={onboarding.completeOnboarding}
-          onOpenCheatsheet={() => {
-            onboarding.completeOnboarding()
-            setCheatsheetOpen(true)
-          }}
-        />
+        <Suspense fallback={<PanelFallback />}>
+          <OnboardingTour
+            onComplete={onboarding.completeOnboarding}
+            onOpenCheatsheet={() => {
+              onboarding.completeOnboarding()
+              setCheatsheetOpen(true)
+            }}
+          />
+        </Suspense>
       ) : null}
 
-      {supportOpen ? <SupportPanel onClose={() => setSupportOpen(false)} /> : null}
+      {supportOpen ? (
+        <Suspense fallback={<PanelFallback />}>
+          <SupportPanel onClose={() => setSupportOpen(false)} />
+        </Suspense>
+      ) : null}
 
       <QuickCaptureWorkspaceLayer
         isOpen={quickCaptureOpen}
@@ -1898,7 +1915,11 @@ function App() {
         />
       ) : null}
 
-      {perfHudOpen ? <PerfHudOverlay metrics={perfMetrics.metrics} /> : null}
+      {perfHudOpen ? (
+        <Suspense fallback={<PanelFallback />}>
+          <PerfHudOverlay metrics={perfMetrics.metrics} />
+        </Suspense>
+      ) : null}
       {toastMessage ? (
         <AppToastRegion>
           <AppToast message={toastMessage} onDismiss={dismissToast} />

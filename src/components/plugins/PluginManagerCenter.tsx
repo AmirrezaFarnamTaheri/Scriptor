@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react'
-import { Palette, Blocks, Plus } from 'lucide-react'
+import { Palette, Blocks, Plus, X } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
@@ -150,8 +150,8 @@ export function PluginManagerCenter({
             <h2>
               <Palette /> Extension &amp; Color Scheme Installer Center
             </h2>
-            <button type="button" className="close-button" onClick={onClose} aria-label="Close modal">
-              ✕
+            <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+              <X />
             </button>
           </div>
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}

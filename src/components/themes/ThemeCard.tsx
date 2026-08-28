@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import type { ColorPaletteScheme } from '../../brand/palettes'
 import type { AppTheme } from '../../hooks/useAppTheme'
 import '../../styles/components/theme-card.css'
@@ -124,7 +125,7 @@ export function ThemeCard({
       <div className="theme-card-actions">
         {isActive ? (
           <button type="button" className="theme-action-btn active-btn" disabled>
-            ✓ Installed &amp; Active
+            <Check /> Installed &amp; Active
           </button>
         ) : (
           <button

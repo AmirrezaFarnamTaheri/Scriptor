@@ -45,6 +45,26 @@ export const SnippetsPanelLazy = lazy(() =>
 export const TaskPanel = lazy(() =>
   import('../TaskPanel').then((module) => ({ default: module.TaskPanel })),
 )
+// Conditional overlays — deferred so their code (including chart.js inside the
+// writing-targets panel) never loads until the user opens them.
+export const WritingTargetsPanel = lazy(() =>
+  import('../WritingTargetsPanel').then((module) => ({ default: module.WritingTargetsPanel })),
+)
+export const ConflictResolverModal = lazy(() =>
+  import('../ConflictResolverModal').then((module) => ({ default: module.ConflictResolverModal })),
+)
+export const CheatsheetPanel = lazy(() =>
+  import('../CheatsheetPanel').then((module) => ({ default: module.CheatsheetPanel })),
+)
+export const OnboardingTour = lazy(() =>
+  import('../OnboardingTour').then((module) => ({ default: module.OnboardingTour })),
+)
+export const SupportPanel = lazy(() =>
+  import('../SupportPanel').then((module) => ({ default: module.SupportPanel })),
+)
+export const PerfHudOverlay = lazy(() =>
+  import('../PerfHudOverlay').then((module) => ({ default: module.PerfHudOverlay })),
+)
 
 export function PanelFallback() {
   return (

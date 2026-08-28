@@ -1,5 +1,5 @@
 import { useState, useLayoutEffect, useRef } from 'react'
-import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye } from 'lucide-react'
+import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye, X } from 'lucide-react'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import {
   COLOR_PALETTE_SCHEMES,
@@ -132,8 +132,8 @@ export function ThemeCustomizerModal({
           <h2>
             <Palette /> Custom Theme Builder &amp; Color Editor
           </h2>
-          <button type="button" className="close-button" onClick={onClose} aria-label="Close modal">
-            ✕
+          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+            <X />
           </button>
         </div>
 

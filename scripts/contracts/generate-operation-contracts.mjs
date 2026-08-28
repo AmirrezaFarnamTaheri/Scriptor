@@ -123,11 +123,11 @@ function typescriptMcpSchemas(catalog) {
 
 function rustOperationCatalog(catalog) {
   const rpc = catalog.operations.filter((operation) => operation.surface === 'daemon-rpc')
-  const entries = rpc.map((operation) => `    (\"${operation.name.slice(4)}\", &[${operation.outcomePolicy.map((item) => `\"${item}\"`).join(', ')}]),`).join('\n')
+  const entries = rpc.map((operation) => `    ("${operation.name.slice(4)}", &[${operation.outcomePolicy.map((item) => `"${item}"`).join(', ')}]),`).join('\n')
   return `// GENERATED from contracts/operations.json. Do not edit by hand.\n/// Daemon RPC operation names and their allowed boundary outcomes.\npub const RPC_OPERATION_CATALOG: &[(&str, &[&str])] = &[\n${entries}\n];\n`
 }
 
-export function renderGeneratedArtifacts(catalog, root) {
+export function renderGeneratedArtifacts(catalog, _root) {
   validateOperationCatalog(catalog)
   const mcpSchemas = Object.fromEntries(catalog.operations.filter((operation) => operation.surface === 'mcp').map((operation) => [operation.name, operation.inputSchema]))
   const tauri = catalog.operations.filter((operation) => operation.surface === 'tauri').map((operation) => ({

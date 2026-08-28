@@ -2,15 +2,11 @@
  * Canonical outcome algebra for process, IPC, tool, persistence, and adapter
  * boundaries. Optional absence is the only outcome that may map to a default;
  * malformed state and execution failures must remain explicit.
+ *
+ * `BoundaryOutcomeStatus` is intentionally NOT redefined here: it is derived
+ * from the generated operation catalog (`contracts/operation-catalog.generated.ts`)
+ * so the status union has a single source of truth in `contracts/operations.json`.
  */
-export type BoundaryOutcomeStatus =
-  | 'value'
-  | 'absent-optional'
-  | 'invalid'
-  | 'degraded'
-  | 'failed'
-  | 'recovered'
-
 export type BoundaryOutcome<T, W = string, R = unknown> =
   | { status: 'value'; value: T }
   | { status: 'absent-optional'; value: T }
