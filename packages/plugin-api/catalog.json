@@ -14,6 +14,13 @@
     "package": "@scriptor/plugin-canvas-kit"
   },
   {
+    "id": "scriptor.gmail-manager",
+    "name": "Gmail Manager",
+    "version": "1.0.0",
+    "description": "Google Workspace Gmail management and Markdown import.",
+    "package": "@scriptor/plugin-gmail-manager"
+  },
+  {
     "id": "scriptor.publish-pack",
     "name": "Publish Pack",
     "version": "1.0.0",

@@ -25,6 +25,10 @@ pub enum SensitiveOperation {
     GitPush,
     GoogleCalendarAuth,
     GoogleCalendarDisconnect,
+    GoogleGmailAuth,
+    GoogleGmailDisconnect,
+    GoogleGmailWrite,
+    GoogleGmailSend,
     GoogleTaskWrite,
     KeychainDelete,
     ImportVault,
@@ -53,6 +57,10 @@ impl SensitiveOperation {
             Self::GitPush => "Push local Git commits",
             Self::GoogleCalendarAuth => "Connect your Google account",
             Self::GoogleCalendarDisconnect => "Disconnect your Google account",
+            Self::GoogleGmailAuth => "Connect Gmail manager",
+            Self::GoogleGmailDisconnect => "Disconnect Gmail manager",
+            Self::GoogleGmailWrite => "Modify Gmail messages",
+            Self::GoogleGmailSend => "Send an email through Gmail",
             Self::GoogleTaskWrite => "Modify Google Tasks",
             Self::ImportVault => "Import content into the current vault",
             Self::KeychainDelete => "Delete the saved AI provider credential",
@@ -96,6 +104,18 @@ impl SensitiveOperation {
             }
             Self::GoogleCalendarDisconnect => {
                 "Scriptor will revoke the current Google access token when possible and remove the saved Google credentials from the operating-system keychain."
+            }
+            Self::GoogleGmailAuth => {
+                "Scriptor will open your browser to grant Gmail manager access. It stores resulting access tokens in the operating-system keychain and never receives your Google password."
+            }
+            Self::GoogleGmailDisconnect => {
+                "Scriptor will revoke the Gmail access token when possible and remove it from the operating-system keychain. Calendar and Tasks remain connected."
+            }
+            Self::GoogleGmailWrite => {
+                "The selected Gmail messages will be updated, archived, moved, marked read or unread, or moved to trash on your behalf."
+            }
+            Self::GoogleGmailSend => {
+                "The composed email and its recipients will be sent through your connected Gmail account."
             }
             Self::GoogleTaskWrite => {
                 "The selected task change will be sent to Google Tasks on your behalf."

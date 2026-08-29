@@ -23,11 +23,14 @@ use crate::state::AppState;
 // ---------------------------------------------------------------------------
 
 /// Keychain account under which the token bundle JSON is stored.
-const TOKEN_KEYCHAIN_ACCOUNT: &str = "google.calendar.tokens";
+const CALENDAR_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.calendar.tokens";
+const GMAIL_TOKEN_KEYCHAIN_ACCOUNT: &str = "google.gmail.tokens";
 /// Broker scope shared by all task mutations.
 const TASK_SCOPE: &str = "google-task";
 /// Broker scope for the auth flow.
 const AUTH_SCOPE: &str = "google-calendar-auth";
+/// Broker scope for the Gmail Manager OAuth grant.
+const GMAIL_AUTH_SCOPE: &str = "google-gmail-auth";
 
 const AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
@@ -35,9 +38,13 @@ const REVOKE_ENDPOINT: &str = "https://oauth2.googleapis.com/revoke";
 const USERINFO_ENDPOINT: &str = "https://openidconnect.googleapis.com/v1/userinfo";
 const CALENDAR_EVENTS_ENDPOINT: &str = "https://www.googleapis.com/calendar/v3/calendars";
 const TASKS_ENDPOINT: &str = "https://tasks.googleapis.com/tasks/v1/lists";
+const GMAIL_MESSAGES_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+const GMAIL_SEND_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 
 /// `openid`/`email` are appended so the authed email can be resolved.
 const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks";
+/// Gmail scopes are requested only from the dedicated Gmail manager flow.
+const GMAIL_OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send";
 
 const HTTP_TIMEOUT_SECS: u64 = 30;
 /// How long to wait for the browser redirect before giving up.
@@ -88,6 +95,31 @@ pub struct GoogleTask {
     source_path: Option<String>,
 }
 
+/// Gmail message metadata returned to the manager's message list.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GmailMessagePreview {
+    id: String,
+    thread_id: String,
+    subject: String,
+    from: String,
+    date: String,
+    snippet: String,
+}
+
+/// Gmail message content returned to the manager and its Markdown import flow.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GmailMessageContent {
+    id: String,
+    thread_id: String,
+    subject: String,
+    from: String,
+    date: String,
+    snippet: String,
+    plain_text: String,
+}
+
 // ---------------------------------------------------------------------------
 // Persisted token bundle
 // ---------------------------------------------------------------------------
@@ -111,8 +143,8 @@ fn now_ms() -> u64 {
         .unwrap_or(u64::MAX)
 }
 
-fn load_tokens() -> Result<Option<StoredTokens>, String> {
-    let raw = keychain_get(TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())?;
+fn load_tokens(keychain_account: &str) -> Result<Option<StoredTokens>, String> {
+    let raw = keychain_get(keychain_account).map_err(|error| error.to_string())?;
     match raw.filter(|value| !value.is_empty()) {
         Some(json) => serde_json::from_str(&json)
             .map(Some)
@@ -121,14 +153,15 @@ fn load_tokens() -> Result<Option<StoredTokens>, String> {
     }
 }
 
-fn save_tokens(tokens: &StoredTokens) -> Result<(), String> {
+fn save_tokens(keychain_account: &str, tokens: &StoredTokens) -> Result<(), String> {
     let json = serde_json::to_string(tokens)
         .map_err(|error| format!("failed to serialize Google tokens: {error}"))?;
-    keychain_set(TOKEN_KEYCHAIN_ACCOUNT, &json).map_err(|error| error.to_string())
+    keychain_set(keychain_account, &json).map_err(|error| error.to_string())
 }
 
-fn require_tokens() -> Result<StoredTokens, String> {
-    load_tokens()?.ok_or_else(|| "not authenticated with Google (no token)".to_string())
+fn require_tokens(keychain_account: &str) -> Result<StoredTokens, String> {
+    load_tokens(keychain_account)?
+        .ok_or_else(|| "not authenticated with Google (no token)".to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -364,16 +397,20 @@ fn http_client() -> Result<reqwest::blocking::Client, String> {
 /// provider's diagnostic (e.g. `invalid_grant`) without risking an unbounded
 /// read. Returns a placeholder when the body is empty or unreadable.
 fn bounded_error_body(response: reqwest::blocking::Response) -> String {
-    const MAX_ERROR_BODY: usize = 512;
+    const MAX_ERROR_BODY_CHARS: usize = 512;
     match response.text() {
         Ok(body) => {
             let trimmed = body.trim();
             if trimmed.is_empty() {
                 "<empty response body>".to_string()
-            } else if trimmed.len() > MAX_ERROR_BODY {
-                format!("{}…", &trimmed[..MAX_ERROR_BODY])
             } else {
-                trimmed.to_string()
+                let mut chars = trimmed.chars();
+                let bounded: String = chars.by_ref().take(MAX_ERROR_BODY_CHARS).collect();
+                if chars.next().is_some() {
+                    format!("{bounded}…")
+                } else {
+                    bounded
+                }
             }
         }
         Err(_) => "<unreadable response body>".to_string(),
@@ -430,8 +467,11 @@ fn fetch_email(client: &reqwest::blocking::Client, access_token: &str) -> Result
 }
 
 /// Return a currently-valid access token, refreshing it in place when expired.
-fn refresh_if_needed(client: &reqwest::blocking::Client) -> Result<String, String> {
-    let mut tokens = require_tokens()?;
+fn refresh_if_needed(
+    client: &reqwest::blocking::Client,
+    keychain_account: &str,
+) -> Result<String, String> {
+    let mut tokens = require_tokens(keychain_account)?;
     if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
         return Ok(tokens.access_token);
     }
@@ -465,7 +505,7 @@ fn refresh_if_needed(client: &reqwest::blocking::Client) -> Result<String, Strin
     if let Some(new_refresh) = refreshed.refresh_token {
         tokens.refresh_token = Some(new_refresh);
     }
-    save_tokens(&tokens)?;
+    save_tokens(keychain_account, &tokens)?;
     Ok(refreshed.access_token)
 }
 
@@ -529,6 +569,52 @@ struct GTask {
 #[derive(Debug, Deserialize)]
 struct GTaskList {
     items: Option<Vec<GTask>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailMessageRef {
+    id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailMessageList {
+    messages: Option<Vec<GmailMessageRef>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailHeader {
+    name: Option<String>,
+    value: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailBody {
+    data: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailPayload {
+    headers: Option<Vec<GmailHeader>>,
+    mime_type: Option<String>,
+    body: Option<GmailBody>,
+    parts: Option<Vec<GmailPayload>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailMessage {
+    id: Option<String>,
+    #[serde(rename = "threadId")]
+    thread_id: Option<String>,
+    snippet: Option<String>,
+    payload: Option<GmailPayload>,
+}
+
+#[derive(Debug, Serialize)]
+struct GmailModifyRequest {
+    #[serde(rename = "addLabelIds", skip_serializing_if = "Vec::is_empty")]
+    add_label_ids: Vec<String>,
+    #[serde(rename = "removeLabelIds", skip_serializing_if = "Vec::is_empty")]
+    remove_label_ids: Vec<String>,
 }
 
 fn map_event(event: GcalEvent, calendar_id: &str) -> CalendarEvent {
@@ -601,6 +687,107 @@ fn map_task(task: GTask) -> GoogleTask {
 // Commands
 // ---------------------------------------------------------------------------
 
+fn start_google_auth(
+    client_id: String,
+    scopes: &str,
+    keychain_account: &str,
+) -> Result<String, String> {
+    if client_id.trim().is_empty() {
+        return Err("Google OAuth client ID is required".into());
+    }
+
+    let listener = TcpListener::bind("127.0.0.1:0")
+        .map_err(|error| format!("failed to bind loopback listener: {error}"))?;
+    let port = listener
+        .local_addr()
+        .map_err(|error| error.to_string())?
+        .port();
+    let redirect_uri = format!("http://127.0.0.1:{port}");
+    let verifier = generate_code_verifier();
+    let challenge = code_challenge_for(&verifier);
+    let csrf_state = uuid::Uuid::new_v4().to_string();
+    let auth_url = format!(
+        "{AUTH_ENDPOINT}?response_type=code&client_id={}&redirect_uri={}&scope={}&code_challenge={}&code_challenge_method=S256&state={}&access_type=offline&prompt=consent",
+        percent_encode(&client_id),
+        percent_encode(&redirect_uri),
+        percent_encode(scopes),
+        percent_encode(&challenge),
+        percent_encode(&csrf_state),
+    );
+    open_in_browser(&auth_url)?;
+    let code = capture_authorization_code(&listener, &csrf_state)?;
+    let client = http_client()?;
+    let token = exchange_code_for_tokens(&client, &client_id, &code, &verifier, &redirect_uri)?;
+    let email = fetch_email(&client, &token.access_token)?;
+    let tokens = StoredTokens {
+        client_id,
+        access_token: token.access_token,
+        refresh_token: token.refresh_token,
+        expiry_ms: now_ms() + token.expires_in.unwrap_or(3600) * 1000,
+        email: email.clone(),
+    };
+    save_tokens(keychain_account, &tokens)?;
+    Ok(email)
+}
+
+fn gmail_header(headers: &[GmailHeader], name: &str) -> String {
+    headers
+        .iter()
+        .find(|header| {
+            header
+                .name
+                .as_deref()
+                .is_some_and(|value| value.eq_ignore_ascii_case(name))
+        })
+        .and_then(|header| header.value.clone())
+        .unwrap_or_default()
+}
+
+fn base64url_decode(value: &str) -> Result<Vec<u8>, String> {
+    let mut normalized = value.replace('-', "+").replace('_', "/");
+    while !normalized.len().is_multiple_of(4) {
+        normalized.push('=');
+    }
+    use base64::Engine;
+    base64::engine::general_purpose::STANDARD
+        .decode(normalized)
+        .map_err(|error| format!("Gmail returned an invalid message body: {error}"))
+}
+
+fn find_plain_text(payload: &GmailPayload) -> Result<Option<String>, String> {
+    if payload.mime_type.as_deref() == Some("text/plain")
+        && let Some(data) = payload.body.as_ref().and_then(|body| body.data.as_deref())
+    {
+        return String::from_utf8(base64url_decode(data)?)
+            .map(Some)
+            .map_err(|error| format!("Gmail returned non-UTF-8 plain text: {error}"));
+    }
+    if let Some(parts) = &payload.parts {
+        for part in parts {
+            if let Some(text) = find_plain_text(part)? {
+                return Ok(Some(text));
+            }
+        }
+    }
+    Ok(None)
+}
+
+fn gmail_preview(message: GmailMessage) -> GmailMessagePreview {
+    let headers = message
+        .payload
+        .as_ref()
+        .and_then(|payload| payload.headers.as_deref())
+        .unwrap_or_default();
+    GmailMessagePreview {
+        id: message.id.unwrap_or_default(),
+        thread_id: message.thread_id.unwrap_or_default(),
+        subject: gmail_header(headers, "Subject"),
+        from: gmail_header(headers, "From"),
+        date: gmail_header(headers, "Date"),
+        snippet: message.snippet.unwrap_or_default(),
+    }
+}
+
 /// Run the OAuth2 PKCE loopback flow and persist the resulting tokens.
 #[tauri::command]
 pub fn google_calendar_start_auth(
@@ -618,47 +805,280 @@ pub fn google_calendar_start_auth(
     )?;
     let _ = (&calendar_id, &task_list_id);
 
-    if client_id.trim().is_empty() {
-        return Err("Google OAuth client ID is required".into());
+    start_google_auth(client_id, OAUTH_SCOPES, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
+}
+
+/// Connect Gmail Manager. This expands the shared Google Workspace grant to
+/// include Gmail modify and send scopes; Calendar and Tasks keep working.
+#[tauri::command]
+pub fn google_gmail_start_auth(
+    state: tauri::State<AppState>,
+    client_id: String,
+    authorization_token: String,
+) -> Result<String, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleGmailAuth,
+        Some(GMAIL_AUTH_SCOPE),
+    )?;
+    start_google_auth(client_id, GMAIL_OAUTH_SCOPES, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
+}
+
+#[tauri::command]
+pub fn google_gmail_disconnect(
+    state: tauri::State<AppState>,
+    authorization_token: String,
+) -> Result<(), String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleGmailDisconnect,
+        Some(GMAIL_AUTH_SCOPE),
+    )?;
+    if let Ok(Some(tokens)) = load_tokens(GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
+        && let Ok(client) = http_client()
+    {
+        let _ = client
+            .post(REVOKE_ENDPOINT)
+            .form(&[("token", tokens.access_token.as_str())])
+            .send();
     }
+    keychain_delete(GMAIL_TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
+}
 
-    let listener = TcpListener::bind("127.0.0.1:0")
-        .map_err(|error| format!("failed to bind loopback listener: {error}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|error| error.to_string())?
-        .port();
-    let redirect_uri = format!("http://127.0.0.1:{port}");
+fn validate_gmail_message_id(id: &str) -> Result<(), String> {
+    if id.is_empty()
+        || id.len() > 256
+        || !id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
+    {
+        return Err("invalid Gmail message identifier".into());
+    }
+    Ok(())
+}
 
-    let verifier = generate_code_verifier();
-    let challenge = code_challenge_for(&verifier);
-    let csrf_state = uuid::Uuid::new_v4().to_string();
+fn gmail_message_url(id: &str) -> Result<String, String> {
+    validate_gmail_message_id(id)?;
+    Ok(format!("{GMAIL_MESSAGES_ENDPOINT}/{id}"))
+}
 
-    let auth_url = format!(
-        "{AUTH_ENDPOINT}?response_type=code&client_id={}&redirect_uri={}&scope={}&code_challenge={}&code_challenge_method=S256&state={}&access_type=offline&prompt=consent",
-        percent_encode(&client_id),
-        percent_encode(&redirect_uri),
-        percent_encode(OAUTH_SCOPES),
-        percent_encode(&challenge),
-        percent_encode(&csrf_state),
-    );
+fn gmail_get_message(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    id: &str,
+) -> Result<GmailMessage, String> {
+    let url = gmail_message_url(id)?;
+    let response = client
+        .get(url)
+        .bearer_auth(access_token)
+        .query(&[("format", "full")])
+        .send()
+        .map_err(|error| format!("failed to fetch Gmail message: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to fetch Gmail message ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    response
+        .json::<GmailMessage>()
+        .map_err(|error| format!("Gmail returned an invalid message response: {error}"))
+}
 
-    open_in_browser(&auth_url)?;
-    let code = capture_authorization_code(&listener, &csrf_state)?;
-
+/// List message metadata for the selected Gmail search. This does not modify
+/// any mailbox state.
+#[tauri::command]
+pub fn google_gmail_list_messages(
+    query: Option<String>,
+    max_results: u32,
+) -> Result<Vec<GmailMessagePreview>, String> {
+    let max_results = max_results.clamp(1, 50);
+    let query = query.unwrap_or_default();
+    if query.len() > 512 {
+        return Err("Gmail search query must be at most 512 characters".into());
+    }
     let client = http_client()?;
-    let token = exchange_code_for_tokens(&client, &client_id, &code, &verifier, &redirect_uri)?;
-    let email = fetch_email(&client, &token.access_token)?;
+    let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let mut request = client
+        .get(GMAIL_MESSAGES_ENDPOINT)
+        .bearer_auth(&access_token)
+        .query(&[("maxResults", max_results.to_string())]);
+    if !query.trim().is_empty() {
+        request = request.query(&[("q", query.trim())]);
+    }
+    let response = request
+        .send()
+        .map_err(|error| format!("failed to list Gmail messages: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to list Gmail messages ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    let list = response
+        .json::<GmailMessageList>()
+        .map_err(|error| format!("Gmail returned an invalid message list: {error}"))?;
+    list.messages
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|message| message.id)
+        .map(|id| gmail_get_message(&client, &access_token, &id).map(gmail_preview))
+        .collect()
+}
 
-    let tokens = StoredTokens {
-        client_id,
-        access_token: token.access_token,
-        refresh_token: token.refresh_token,
-        expiry_ms: now_ms() + token.expires_in.unwrap_or(3600) * 1000,
-        email: email.clone(),
-    };
-    save_tokens(&tokens)?;
-    Ok(email)
+/// Fetch one message's metadata and plain-text body for preview or Markdown
+/// conversion. HTML and attachments are deliberately not executed or fetched.
+#[tauri::command]
+pub fn google_gmail_get_message(id: String) -> Result<GmailMessageContent, String> {
+    let client = http_client()?;
+    let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let message = gmail_get_message(&client, &access_token, &id)?;
+    let headers = message
+        .payload
+        .as_ref()
+        .and_then(|payload| payload.headers.as_deref())
+        .unwrap_or_default();
+    let plain_text = message
+        .payload
+        .as_ref()
+        .map(find_plain_text)
+        .transpose()?
+        .flatten()
+        .unwrap_or_default();
+    Ok(GmailMessageContent {
+        id: message.id.unwrap_or_default(),
+        thread_id: message.thread_id.unwrap_or_default(),
+        subject: gmail_header(headers, "Subject"),
+        from: gmail_header(headers, "From"),
+        date: gmail_header(headers, "Date"),
+        snippet: message.snippet.unwrap_or_default(),
+        plain_text,
+    })
+}
+
+/// Apply a reviewed Gmail label transition. At least one add/remove label is
+/// required; Gmail's own IDs (for example `INBOX` and `UNREAD`) are supported.
+#[tauri::command]
+pub fn google_gmail_modify_message(
+    state: tauri::State<AppState>,
+    id: String,
+    add_label_ids: Vec<String>,
+    remove_label_ids: Vec<String>,
+    authorization_token: String,
+) -> Result<(), String> {
+    validate_gmail_message_id(&id)?;
+    if add_label_ids.is_empty() && remove_label_ids.is_empty() {
+        return Err("select at least one Gmail label change".into());
+    }
+    if add_label_ids
+        .iter()
+        .chain(remove_label_ids.iter())
+        .any(|label| label.is_empty() || label.len() > 256)
+    {
+        return Err("invalid Gmail label identifier".into());
+    }
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleGmailWrite,
+        Some(&id),
+    )?;
+    let client = http_client()?;
+    let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let url = format!("{}/modify", gmail_message_url(&id)?);
+    let response = client
+        .post(url)
+        .bearer_auth(&access_token)
+        .json(&GmailModifyRequest {
+            add_label_ids,
+            remove_label_ids,
+        })
+        .send()
+        .map_err(|error| format!("failed to modify Gmail message: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to modify Gmail message ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    Ok(())
+}
+
+/// Move a message to Gmail Trash. The operation is intentionally separate from
+/// ordinary label transitions so the native consent explains its effect.
+#[tauri::command]
+pub fn google_gmail_trash_message(
+    state: tauri::State<AppState>,
+    id: String,
+    authorization_token: String,
+) -> Result<(), String> {
+    validate_gmail_message_id(&id)?;
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleGmailWrite,
+        Some(&id),
+    )?;
+    let client = http_client()?;
+    let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let response = client
+        .post(format!("{}/trash", gmail_message_url(&id)?))
+        .bearer_auth(&access_token)
+        .send()
+        .map_err(|error| format!("failed to move Gmail message to trash: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to move Gmail message to trash ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    Ok(())
+}
+
+/// Send an RFC 5322 message encoded as URL-safe base64 without padding. The
+/// caller must obtain a fresh, message-scoped authorization grant immediately
+/// before this command; Scriptor never queues or retries sent mail.
+#[tauri::command]
+pub fn google_gmail_send_message(
+    state: tauri::State<AppState>,
+    raw_message: String,
+    authorization_token: String,
+) -> Result<(), String> {
+    if raw_message.is_empty() || raw_message.len() > 2_800_000 {
+        return Err("encoded email must contain between 1 and 2,800,000 characters".into());
+    }
+    let decoded = base64url_decode(&raw_message)?;
+    if decoded.len() > 2_000_000 || !decoded.windows(2).any(|window| window == b"\r\n") {
+        return Err("email must be a bounded RFC 5322 message".into());
+    }
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleGmailSend,
+        Some("gmail-send"),
+    )?;
+    let client = http_client()?;
+    let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let response = client
+        .post(GMAIL_SEND_ENDPOINT)
+        .bearer_auth(&access_token)
+        .json(&serde_json::json!({ "raw": raw_message }))
+        .send()
+        .map_err(|error| format!("failed to send Gmail message: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to send Gmail message ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    Ok(())
 }
 
 /// Best-effort token revocation followed by clearing the keychain entry.
@@ -673,7 +1093,7 @@ pub fn google_calendar_disconnect(
         SensitiveOperation::GoogleCalendarDisconnect,
         Some(AUTH_SCOPE),
     )?;
-    if let Ok(Some(tokens)) = load_tokens()
+    if let Ok(Some(tokens)) = load_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
         && let Ok(client) = http_client()
     {
         let _ = client
@@ -681,7 +1101,7 @@ pub fn google_calendar_disconnect(
             .form(&[("token", tokens.access_token.as_str())])
             .send();
     }
-    keychain_delete(TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
+    keychain_delete(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
 }
 
 /// List upcoming events within `lookahead_days`.
@@ -691,7 +1111,7 @@ pub fn google_calendar_list_events(
     lookahead_days: i64,
 ) -> Result<Vec<CalendarEvent>, String> {
     let client = http_client()?;
-    let access_token = refresh_if_needed(&client)?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let now = chrono::Utc::now();
     let time_min = now.to_rfc3339();
@@ -735,7 +1155,7 @@ pub fn google_calendar_list_events(
 #[tauri::command]
 pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask>, String> {
     let client = http_client()?;
-    let access_token = refresh_if_needed(&client)?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let url = format!("{TASKS_ENDPOINT}/{}/tasks", percent_encode(&task_list_id));
     let response = client
@@ -765,7 +1185,7 @@ pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask
 /// Return the authenticated Google account email.
 #[tauri::command]
 pub fn google_calendar_get_authed_email() -> Result<String, String> {
-    Ok(require_tokens()?.email)
+    Ok(require_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?.email)
 }
 
 /// Create a new task in the given task list.
@@ -789,7 +1209,7 @@ pub fn google_calendar_create_task(
     }
 
     let client = http_client()?;
-    let access_token = refresh_if_needed(&client)?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let mut body = serde_json::Map::new();
     body.insert("title".into(), serde_json::Value::String(title));
@@ -835,7 +1255,7 @@ pub fn google_calendar_complete_task(
         Some(TASK_SCOPE),
     )?;
     let client = http_client()?;
-    let access_token = refresh_if_needed(&client)?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let url = format!(
         "{TASKS_ENDPOINT}/{}/tasks/{}",
@@ -873,7 +1293,7 @@ pub fn google_calendar_delete_task(
         Some(TASK_SCOPE),
     )?;
     let client = http_client()?;
-    let access_token = refresh_if_needed(&client)?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let url = format!(
         "{TASKS_ENDPOINT}/{}/tasks/{}",
@@ -936,5 +1356,36 @@ mod tests {
         }));
         assert_eq!(value, "2026-01-01");
         assert!(all_day);
+    }
+
+    #[test]
+    fn gmail_message_ids_reject_path_and_query_injection() {
+        assert!(validate_gmail_message_id("18f4_abc-123").is_ok());
+        assert!(validate_gmail_message_id("../inbox").is_err());
+        assert!(validate_gmail_message_id("message?format=raw").is_err());
+        assert!(validate_gmail_message_id("").is_err());
+    }
+
+    #[test]
+    fn gmail_body_decoding_accepts_url_safe_unpadded_data() {
+        assert_eq!(base64url_decode("aGVsbG8td29ybGQ").unwrap(), b"hello-world");
+    }
+
+    #[test]
+    fn gmail_header_matching_is_case_insensitive() {
+        let headers = vec![GmailHeader {
+            name: Some("sUbJeCt".into()),
+            value: Some("A mail subject".into()),
+        }];
+        assert_eq!(gmail_header(&headers, "Subject"), "A mail subject");
+    }
+
+    #[test]
+    fn gmail_and_calendar_credentials_are_isolated() {
+        assert_ne!(GMAIL_TOKEN_KEYCHAIN_ACCOUNT, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT);
+        assert!(GMAIL_OAUTH_SCOPES.contains("gmail.modify"));
+        assert!(GMAIL_OAUTH_SCOPES.contains("gmail.send"));
+        assert!(!GMAIL_OAUTH_SCOPES.contains("calendar"));
+        assert!(!GMAIL_OAUTH_SCOPES.contains("tasks"));
     }
 }

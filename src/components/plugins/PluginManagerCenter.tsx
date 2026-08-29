@@ -4,6 +4,7 @@ import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
 import { exportPluginManifest } from '@scriptor/export'
+import { gmailManagerManifest } from '@scriptor/plugin-gmail-manager'
 import { mcpPluginManifest } from '@scriptor/mcp'
 import { usePluginState } from '../../context/PluginStateContext'
 import {
@@ -23,6 +24,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
   citationsPluginManifest,
   exportPluginManifest,
+  gmailManagerManifest,
   {
     id: 'scriptor.graph',
     name: 'Interactive Knowledge Graph',

@@ -50,7 +50,6 @@ import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlay
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
 import { recordWritingSession } from './lib/writingTargets'
 import type { KnowledgeWorkbenchTab } from './components/KnowledgeWorkbench'
-import type { PublishPlan } from './types/vault'
 import { useCommandPalette } from './hooks/useCommandPalette'
 import { useAiProvider } from './hooks/useAiProvider'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
@@ -95,6 +94,7 @@ import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
 import { useAppZoom } from './hooks/useAppZoom'
 import { useVaultSidebarActions } from './hooks/useVaultSidebarActions'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
+import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import {
@@ -107,8 +107,6 @@ import {
   vaultSaveConfig,
   vaultSaveAsset,
   codeChunkRun,
-  vaultPublishApplyStarlight,
-  vaultPublishPlanStarlight,
 } from './bridge/commands'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
@@ -289,10 +287,6 @@ function App() {
   } = perfMetrics
   const commandPalette = useCommandPalette()
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
-  const [publishPlan, setPublishPlan] = useState<PublishPlan | null>(null)
-  const [publishOutputPath, setPublishOutputPath] = useState<string | null>(null)
-  const [publishApplying, setPublishApplying] = useState(false)
-  const publishApplyingRef = useRef(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId)
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
@@ -343,6 +337,17 @@ function App() {
   })
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
+  const {
+    applyStarlightPlan,
+    publishApplying,
+    publishOutputPath,
+    publishPlan,
+    publishStarlight,
+  } = useStarlightPublishing({
+    promptText,
+    showToast,
+    openPublishCenter: () => setPublishCenterOpen(true),
+  })
   const recentVaults = useRecentVaults()
   const rememberRecentVault = recentVaults.remember
   useEffect(() => {
@@ -569,50 +574,6 @@ function App() {
     previewPostProcess,
     previewPlantUmlLocal,
   })
-  const publishStarlight = useCallback(async (existingOutput?: string) => {
-    const requestedOutput = existingOutput ?? await promptText({
-      title: 'Plan Starlight publish',
-      label: 'Output folder for Starlight site',
-      defaultValue: 'scriptor-publish',
-      submitLabel: 'Review plan',
-    })
-    if (!requestedOutput) return
-    try {
-      const result = await vaultPublishPlanStarlight(requestedOutput)
-      setPublishOutputPath(result.output)
-      setPublishPlan(result.plan)
-      setPublishCenterOpen(true)
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : String(error))
-    }
-  }, [promptText, setPublishCenterOpen, showToast])
-
-  const applyStarlightPlan = useCallback(async (selectedPaths: string[], deleteOrphans: string[]) => {
-    if (!publishPlan || !publishOutputPath || publishApplyingRef.current) return
-    publishApplyingRef.current = true
-    const candidates = [...publishPlan.new_items, ...publishPlan.changed]
-    const byPath = new Map(candidates.map((candidate) => [candidate.rel_path, candidate]))
-    const toWrite = selectedPaths.map((path) => byPath.get(path)).filter((candidate) => candidate != null)
-    if (toWrite.length !== selectedPaths.length) {
-      showToast('The publish selection no longer matches the reviewed plan. Replan before applying.')
-      publishApplyingRef.current = false
-      return
-    }
-    setPublishApplying(true)
-    try {
-      const result = await vaultPublishApplyStarlight(publishOutputPath, toWrite, deleteOrphans)
-      showToast(`Published ${result.written.length} note(s); deleted ${result.deleted.length} managed orphan(s).`)
-      const refreshed = await vaultPublishPlanStarlight(publishOutputPath)
-      setPublishPlan(refreshed.plan)
-      setPublishOutputPath(refreshed.output)
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : String(error))
-    } finally {
-      setPublishApplying(false)
-      publishApplyingRef.current = false
-    }
-  }, [publishOutputPath, publishPlan, showToast])
-
   const openKnowledgeWorkbench = useCallback((tab: KnowledgeWorkbenchTab = 'repair') => {
     setKnowledgeWorkbenchTab(tab)
     setKnowledgeWorkbenchOpen(true)

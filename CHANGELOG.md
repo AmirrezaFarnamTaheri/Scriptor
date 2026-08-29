@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Added the first-party Gmail Manager plugin contract and native Google Workspace commands for message listing, reading, label transitions, trash, and sending. OAuth uses the existing PKCE/keychain integration and every mailbox mutation is native-authorized.
 - Preserved spellcheck after the locale catalog was narrowed: previously saved unavailable locales now normalize and persist to the shipped `en-US` dictionary instead of leaving the selector blank and spellcheck empty.
 - Added local recovery boundaries for the newly deferred overlays, so a failed lazy chunk can be dismissed without taking down the writing workspace.
 - Made the lightweight archive CLI reject missing option values and unknown flags through its normal error path with a nonzero exit code, rather than exposing an uncaught Node exception.
