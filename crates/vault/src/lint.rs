@@ -9,8 +9,8 @@ use crate::link_rewrite::split_frontmatter;
 use crate::note::read_note;
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::scan::list_notes;
-use crate::write::save_note;
 use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
+use crate::write::save_note;
 
 static DEFINITION_LINE_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^\[([^\]]+)\]:\s*(.+)$").expect("valid definition regex"));

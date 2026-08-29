@@ -80,7 +80,6 @@ fn summarize_benchmark_samples(samples: &[f64]) -> (f64, f64, f64) {
     (mean, percentile(0.50), percentile(0.95))
 }
 
-
 const HIT_TEST_FRAME_BUDGET_MS: u128 = 16;
 
 #[derive(Debug, serde::Serialize)]

@@ -52,10 +52,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", serde_json::to_string_pretty(&endpoint)?);
             Ok(())
         }
-        Commands::AutomationStdio { vault, trust_stdio } => run_automation_stdio(AutomationStdioOptions {
-            vault_path: vault,
-            trust_stdio,
-        })
-        .map_err(Into::into),
+        Commands::AutomationStdio { vault, trust_stdio } => {
+            run_automation_stdio(AutomationStdioOptions {
+                vault_path: vault,
+                trust_stdio,
+            })
+            .map_err(Into::into)
+        }
     }
 }

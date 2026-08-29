@@ -135,7 +135,6 @@
     "@scriptor/mcp": "workspace:*",
     "@scriptor/plugin-api": "workspace:*",
     "@scriptor/plugin-canvas-kit": "workspace:*",
-    "@scriptor/plugin-gmail-manager": "workspace:*",
     "@scriptor/plugin-pdf-translate": "workspace:*",
     "@scriptor/plugin-publish-pack": "workspace:*",
     "@scriptor/plugin-vault-lint": "workspace:*",

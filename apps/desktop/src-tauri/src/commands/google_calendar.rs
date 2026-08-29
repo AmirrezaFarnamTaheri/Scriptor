@@ -16,7 +16,7 @@ use scriptor_system_bridge::{keychain_delete, keychain_get, keychain_set};
 use serde::{Deserialize, Serialize};
 
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::AppState;
+use crate::state::{ActiveSession, AppState, active_session};
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -51,6 +51,19 @@ const HTTP_TIMEOUT_SECS: u64 = 30;
 const AUTH_CAPTURE_TIMEOUT_SECS: u64 = 300;
 /// Refresh the access token this many seconds before its stated expiry.
 const EXPIRY_SKEW_SECS: u64 = 60;
+
+fn require_gmail_capability<'a>(
+    state: &'a tauri::State<'a, AppState>,
+) -> Result<ActiveSession<'a>, String> {
+    let session = active_session(state)?;
+    let plugin_state = scriptor_vault::load_plugin_state(session.root.root())
+        .map_err(|error| error.to_string())?;
+    if plugin_state.is_explicitly_enabled("scriptor.gmail-manager") {
+        Ok(session)
+    } else {
+        Err("Plugin capability 'scriptor.gmail-manager' is disabled in active vault".into())
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Frontend-facing shapes (must match useGoogleCalendarSync.ts)
@@ -816,6 +829,7 @@ pub fn google_gmail_start_auth(
     client_id: String,
     authorization_token: String,
 ) -> Result<String, String> {
+    require_gmail_capability(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
@@ -830,6 +844,7 @@ pub fn google_gmail_disconnect(
     state: tauri::State<AppState>,
     authorization_token: String,
 ) -> Result<(), String> {
+    require_gmail_capability(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
@@ -892,9 +907,11 @@ fn gmail_get_message(
 /// any mailbox state.
 #[tauri::command]
 pub fn google_gmail_list_messages(
+    state: tauri::State<AppState>,
     query: Option<String>,
     max_results: u32,
 ) -> Result<Vec<GmailMessagePreview>, String> {
+    require_gmail_capability(&state)?;
     let max_results = max_results.clamp(1, 50);
     let query = query.unwrap_or_default();
     if query.len() > 512 {
@@ -933,7 +950,11 @@ pub fn google_gmail_list_messages(
 /// Fetch one message's metadata and plain-text body for preview or Markdown
 /// conversion. HTML and attachments are deliberately not executed or fetched.
 #[tauri::command]
-pub fn google_gmail_get_message(id: String) -> Result<GmailMessageContent, String> {
+pub fn google_gmail_get_message(
+    state: tauri::State<AppState>,
+    id: String,
+) -> Result<GmailMessageContent, String> {
+    require_gmail_capability(&state)?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
     let message = gmail_get_message(&client, &access_token, &id)?;
@@ -970,6 +991,7 @@ pub fn google_gmail_modify_message(
     remove_label_ids: Vec<String>,
     authorization_token: String,
 ) -> Result<(), String> {
+    require_gmail_capability(&state)?;
     validate_gmail_message_id(&id)?;
     if add_label_ids.is_empty() && remove_label_ids.is_empty() {
         return Err("select at least one Gmail label change".into());
@@ -1017,6 +1039,7 @@ pub fn google_gmail_trash_message(
     id: String,
     authorization_token: String,
 ) -> Result<(), String> {
+    require_gmail_capability(&state)?;
     validate_gmail_message_id(&id)?;
     require_sensitive_operation(
         &state,
@@ -1050,6 +1073,7 @@ pub fn google_gmail_send_message(
     raw_message: String,
     authorization_token: String,
 ) -> Result<(), String> {
+    require_gmail_capability(&state)?;
     if raw_message.is_empty() || raw_message.len() > 2_800_000 {
         return Err("encoded email must contain between 1 and 2,800,000 characters".into());
     }
@@ -1382,7 +1406,10 @@ mod tests {
 
     #[test]
     fn gmail_and_calendar_credentials_are_isolated() {
-        assert_ne!(GMAIL_TOKEN_KEYCHAIN_ACCOUNT, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT);
+        assert_ne!(
+            GMAIL_TOKEN_KEYCHAIN_ACCOUNT,
+            CALENDAR_TOKEN_KEYCHAIN_ACCOUNT
+        );
         assert!(GMAIL_OAUTH_SCOPES.contains("gmail.modify"));
         assert!(GMAIL_OAUTH_SCOPES.contains("gmail.send"));
         assert!(!GMAIL_OAUTH_SCOPES.contains("calendar"));

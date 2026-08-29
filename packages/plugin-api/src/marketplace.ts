@@ -19,8 +19,6 @@ const MANIFEST_LOADERS: Record<string, () => Promise<PluginManifest>> = {
     (await import('@scriptor/plugin-vault-lint/manifest')).vaultLintManifest,
   'scriptor.canvas-kit': async () =>
     (await import('@scriptor/plugin-canvas-kit/manifest')).canvasKitManifest,
-  'scriptor.gmail-manager': async () =>
-    (await import('@scriptor/plugin-gmail-manager/manifest')).gmailManagerManifest,
   'scriptor.publish-pack': async () =>
     (await import('@scriptor/plugin-publish-pack/manifest')).publishPackManifest,
   'scriptor-pdf-translate': async () =>

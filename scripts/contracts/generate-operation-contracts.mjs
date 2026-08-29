@@ -123,7 +123,19 @@ function typescriptMcpSchemas(catalog) {
 
 function rustOperationCatalog(catalog) {
   const rpc = catalog.operations.filter((operation) => operation.surface === 'daemon-rpc')
-  const entries = rpc.map((operation) => `    ("${operation.name.slice(4)}", &[${operation.outcomePolicy.map((item) => `"${item}"`).join(', ')}]),`).join('\n')
+  const entries = rpc.map((operation) => {
+    const name = operation.name.slice(4)
+    const outcomes = operation.outcomePolicy.map((item) => `"${item}"`)
+    const singleLine = `    ("${name}", &[${outcomes.join(', ')}]),`
+    if (singleLine.length <= 66) return singleLine
+
+    const compactOutcomes = `        &[${outcomes.join(', ')}],`
+    if (compactOutcomes.length <= 66) {
+      return `    (\n        "${name}",\n${compactOutcomes}\n    ),`
+    }
+
+    return `    (\n        "${name}",\n        &[\n${outcomes.map((outcome) => `            ${outcome},`).join('\n')}\n        ],\n    ),`
+  }).join('\n')
   return `// GENERATED from contracts/operations.json. Do not edit by hand.\n/// Daemon RPC operation names and their allowed boundary outcomes.\npub const RPC_OPERATION_CATALOG: &[(&str, &[&str])] = &[\n${entries}\n];\n`
 }
 

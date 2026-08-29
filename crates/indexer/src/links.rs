@@ -290,5 +290,4 @@ mod tests {
         assert!(backlinks_for_path(&cache, &session, "b/Note.md")?.is_empty());
         Ok(())
     }
-
 }

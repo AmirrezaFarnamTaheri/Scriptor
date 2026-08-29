@@ -39,9 +39,6 @@ importers:
       '@scriptor/plugin-canvas-kit':
         specifier: workspace:*
         version: link:packages/plugins/canvas-kit
-      '@scriptor/plugin-gmail-manager':
-        specifier: workspace:*
-        version: link:packages/plugins/gmail-manager
       '@scriptor/plugin-pdf-translate':
         specifier: workspace:*
         version: link:packages/plugins/pdf-translate
@@ -238,9 +235,6 @@ importers:
       '@scriptor/plugin-canvas-kit':
         specifier: workspace:*
         version: link:../plugins/canvas-kit
-      '@scriptor/plugin-gmail-manager':
-        specifier: workspace:*
-        version: link:../plugins/gmail-manager
       '@scriptor/plugin-pdf-translate':
         specifier: workspace:*
         version: link:../plugins/pdf-translate

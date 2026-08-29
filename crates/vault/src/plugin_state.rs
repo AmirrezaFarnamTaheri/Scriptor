@@ -45,6 +45,13 @@ impl PluginState {
         !self.disabled_plugins.contains(capability_id)
     }
 
+    /// Optional integrations are fail-closed: absence from both sets must not
+    /// inherit the default-on behavior used by built-in product capabilities.
+    pub fn is_explicitly_enabled(&self, capability_id: &str) -> bool {
+        self.enabled_plugins.contains(capability_id)
+            && !self.disabled_plugins.contains(capability_id)
+    }
+
     pub fn validate(&self) -> Result<(), VaultError> {
         if self.schema_version != PLUGIN_STATE_SCHEMA_VERSION {
             return Err(VaultError::InvalidConfig {
@@ -165,6 +172,22 @@ mod tests {
                 .unwrap()
                 .is_enabled("scriptor.graph")
         );
+    }
+
+    #[test]
+    fn optional_capabilities_require_an_explicit_enable_record() {
+        let mut state = PluginState::default();
+        assert!(!state.is_explicitly_enabled("scriptor.gmail-manager"));
+
+        state
+            .enabled_plugins
+            .insert("scriptor.gmail-manager".into());
+        assert!(state.is_explicitly_enabled("scriptor.gmail-manager"));
+
+        state
+            .disabled_plugins
+            .insert("scriptor.gmail-manager".into());
+        assert!(!state.is_explicitly_enabled("scriptor.gmail-manager"));
     }
 
     #[test]

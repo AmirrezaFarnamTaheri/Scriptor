@@ -276,7 +276,6 @@ pub fn diagnostics_append_event(
     Ok(())
 }
 
-
 #[tauri::command]
 pub fn diagnostics_export_support_bundle(state: tauri::State<AppState>) -> Result<String, String> {
     let session = active_session(&state)?;

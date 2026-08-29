@@ -33,8 +33,8 @@
   --primary-strong: #0f766e;
   --primary-soft: rgba(15, 118, 110, 0.12);
 
-  --amber: #F97316;
-  --amber-soft: rgba(249, 115, 22, 0.15);
+  --amber: #ea580c;
+  --amber-soft: rgba(234, 88, 12, 0.15);
   --danger: #dc2626;
   --success: #047857;
 
@@ -323,7 +323,7 @@
   --border: rgba(88, 110, 117, 0.3);
   --border-strong: rgba(42, 161, 152, 0.35);
   --ink-strong: #93a1a1;
-  --ink: #839496;
+  --ink: #93a1a1;
   --text: var(--ink);
   --muted: #657b83;
   --text-muted: var(--muted);

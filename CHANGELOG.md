@@ -3,7 +3,10 @@
 ## Unreleased
 
 ### Fixed
-- Added the first-party Gmail Manager plugin contract and native Google Workspace commands for message listing, reading, label transitions, trash, and sending. OAuth uses the existing PKCE/keychain integration and every mailbox mutation is native-authorized.
+- Made generated Rust operation catalogs `rustfmt`-stable so contract generation and the workspace formatting gate can remain green together; normalized the existing Rust formatting drift.
+- Enforced the vault-backed `scriptor.gmail-manager` capability at every native Gmail command, including read/auth operations, so a disabled optional plugin cannot be invoked directly through the renderer boundary.
+- Raised Light Modern warning-accent and Solarized Dark body-text contrast above the WCAG UI/text floors and added catalog-wide contrast regression coverage.
+- Added an incubating native Gmail bridge for message listing, reading, label transitions, trash, and sending. OAuth uses the existing PKCE/keychain integration and every mailbox mutation is native-authorized; the unhandled plugin catalog/UI exposure remains withheld until a real manager surface is composed.
 - Preserved spellcheck after the locale catalog was narrowed: previously saved unavailable locales now normalize and persist to the shipped `en-US` dictionary instead of leaving the selector blank and spellcheck empty.
 - Added local recovery boundaries for the newly deferred overlays, so a failed lazy chunk can be dismissed without taking down the writing workspace.
 - Made the lightweight archive CLI reject missing option values and unknown flags through its normal error path with a nonzero exit code, rather than exposing an uncaught Node exception.
