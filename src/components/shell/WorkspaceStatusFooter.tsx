@@ -3,6 +3,7 @@ import { Activity, CheckCircle2, ChevronDown, GitBranch, PanelRight } from 'luci
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
 import { StatusDockPanel, type StatusDockTab } from '../StatusDockPanel'
+import { SubsystemToggles } from './SubsystemToggles'
 import type { ClientDiagnosticEvent } from '../../hooks/useDiagnosticsSettings'
 import type { ActivityEntry } from '../../hooks/useActivityLog'
 import type { EditorLintMessage } from '@scriptor/editor'
@@ -177,48 +178,18 @@ export function WorkspaceStatusFooter({
           <span>{health?.cache_status ?? 'no vault'}</span>
           {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
           {timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
-          <div className="subsystem-toggles" title="Subsystem hibernation (select to toggle)">
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateGraph ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateGraphChange(!hibernateGraph)}
-            title={`Graph Simulation: ${hibernateGraph ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Graph
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateMcp ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateMcpChange(!hibernateMcp)}
-            title={`MCP: ${hibernateMcp ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            MCP
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateWatcher ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateWatcherChange(!hibernateWatcher)}
-            title={`Watcher: ${hibernateWatcher ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Watch
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateGit ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateGitChange(!hibernateGit)}
-            title={`Git Polling: ${hibernateGit ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Git
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateSpellcheck ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateSpellcheckChange(!hibernateSpellcheck)}
-            title={`Spellcheck: ${hibernateSpellcheck ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Spell
-          </button>
-          </div>
+          <SubsystemToggles
+            graph={hibernateGraph}
+            onGraphChange={onHibernateGraphChange}
+            mcp={hibernateMcp}
+            onMcpChange={onHibernateMcpChange}
+            watcher={hibernateWatcher}
+            onWatcherChange={onHibernateWatcherChange}
+            git={hibernateGit}
+            onGitChange={onHibernateGitChange}
+            spellcheck={hibernateSpellcheck}
+            onSpellcheckChange={onHibernateSpellcheckChange}
+          />
           <GitBranch />
           <span>{vault?.name ?? 'unopened'}</span>
           <CheckCircle2 />

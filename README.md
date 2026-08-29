@@ -10,7 +10,7 @@
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
 [![CI](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
 
-Your notes remain ordinary Markdown files. Scriptor adds the workspace around them: writing, evidence, links, citations, revision, publishing, and controlled automation.
+Your notes remain ordinary Markdown files. Scriptor adds editing, backlinks, citations, version history, publishing, and permissioned automation.
 
 [Download](#download) · [Getting started](docs/guides/GETTING_STARTED.md) · [Capabilities](docs/CAPABILITIES.md) · [Plugin authoring](docs/plugins/AUTHOR_GUIDE.md) · [Contributing](CONTRIBUTING.md)
 
@@ -20,9 +20,9 @@ Your notes remain ordinary Markdown files. Scriptor adds the workspace around th
 
 ## The product
 
-Scriptor turns a folder of Markdown into a durable writing and research environment. The files on disk are authoritative; the index, graph, history, previews, and health data are derived around them. You can leave with the folder at any time and still have readable, portable documents.
+Scriptor opens a folder of Markdown and adds search, backlinks, history, previews, and health checks. Markdown remains the source of truth, so every note stays readable in other editors.
 
-The app is built for work that outlives a browser tab: research projects, books, theses, technical documentation, and maintained knowledge bases. A Tauri desktop shell keeps the interface light while Rust services handle vault access, indexing, Git, export, and local IPC.
+Scriptor is designed for long-running projects such as books, theses, technical documentation, research collections, and maintained knowledge bases. A Tauri desktop shell provides the interface while Rust services handle vault access, indexing, Git, export, and local IPC.
 
 | Work with your material | What Scriptor provides |
 |---|---|
@@ -45,7 +45,7 @@ The app is built for work that outlives a browser tab: research projects, books,
 |---|---|
 | ![Plugin marketplace](docs/assets/screenshots/plugins.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
 
-The [screenshot catalog](docs/assets/screenshots/README.md) also covers dark mode, Git, conflict resolution, the command palette, MCP, settings, vault health, note history, keyboard shortcuts, onboarding, and compact layouts. Every image is captured from the deterministic E2E workspace with `pnpm screenshots:capture`; placeholder UI is rejected before capture.
+The [screenshot catalog](docs/assets/screenshots/README.md) also covers dark mode, Git, conflict resolution, the command palette, MCP, settings, vault health, note history, keyboard shortcuts, onboarding, and compact layouts. The capture script waits for data and panels to finish loading and fails if a screen remains in a loading or degraded state.
 
 ## Features
 
@@ -59,7 +59,7 @@ The [screenshot catalog](docs/assets/screenshots/README.md) also covers dark mod
 - **Operate** — command palette, workspace modes, vault health dashboard, terminal UI, scheduled snapshots
 - **Spellcheck** — multi-locale Hunspell, optional LanguageTool
 
-Honest capability labeling matters. The authoritative list of what ships, what is experimental, and what is design-only lives in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md).
+See [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) for the current status of shipped, experimental, and design-only features.
 
 ## Get Scriptor
 

@@ -172,14 +172,19 @@ export async function settleLayout(page: Page) {
         await Promise.all(
           Array.from(document.images)
             .filter((image) => image.getBoundingClientRect().width > 0)
-            .map((image) => (image.complete ? Promise.resolve() : image.decode().catch(() => undefined))),
+            .map(async (image) => {
+              if (!image.complete) await image.decode()
+              if (image.naturalWidth === 0) {
+                throw new Error(`Visible image failed to load: ${image.currentSrc || image.src}`)
+              }
+            }),
         )
         window.dispatchEvent(new Event('resize'))
         const finiteAnimations = document.getAnimations().filter((animation) => {
           const endTime = animation.effect?.getComputedTiming().endTime
           return typeof endTime === 'number' && Number.isFinite(endTime)
         })
-        await Promise.all(finiteAnimations.map((animation) => animation.finished.catch(() => undefined)))
+        await Promise.allSettled(finiteAnimations.map((animation) => animation.finished))
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
         })

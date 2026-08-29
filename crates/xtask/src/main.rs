@@ -98,9 +98,9 @@ fn release_smoke_cargo_args(action: &str) -> Vec<&str> {
     vec![
         action,
         "--workspace",
-        // The running xtask executable cannot replace itself on Windows.
-        // Its own unit tests run when `cargo test -p scriptor-xtask` starts
-        // this command, so exclude the runner from the nested workspace pass.
+        // A running xtask executable cannot be replaced on Windows. The outer
+        // invocation already builds or tests this package, so the nested
+        // workspace pass excludes it on every platform.
         "--exclude",
         "scriptor-xtask",
         "--exclude",
@@ -243,7 +243,7 @@ mod tests {
     }
 
     #[test]
-    fn release_smoke_excludes_its_running_windows_executable() {
+    fn release_smoke_excludes_the_running_xtask() {
         let args = release_smoke_cargo_args("build");
         assert!(
             args.windows(2)

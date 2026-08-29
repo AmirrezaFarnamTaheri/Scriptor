@@ -106,7 +106,11 @@ export function StatusDockPanel({
         </button>
       </div>
 
-      {activeTab === 'problems' && expanded ? <div id="dock-panel-problems">{issuesPanel}</div> : null}
+      {activeTab === 'problems' && expanded ? (
+        <div id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">
+          {issuesPanel}
+        </div>
+      ) : null}
 
       {activeTab === 'output' && expanded ? (
         <section className="dock-panel" id="dock-panel-output" role="tabpanel" aria-labelledby="dock-tab-output">

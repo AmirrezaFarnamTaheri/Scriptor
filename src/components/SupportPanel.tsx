@@ -42,7 +42,7 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
   return (
     <UnifiedPanelShell
       title="Support Scriptor"
-      subtitle="Help maintain Scriptor and keep its development independent."
+      subtitle="Support Scriptor’s maintenance and development."
       icon={<span className="support-heart-icon"><Heart size={18} fill="currentColor" /></span>}
       ariaLabel="Support Scriptor"
       onClose={onClose}
@@ -54,7 +54,7 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
             <Star size={18} />
             <span>
               <strong>Star on GitHub</strong>
-              <small>The simplest way to show support</small>
+              <small>Help more people find Scriptor</small>
             </span>
             <ExternalLink size={16} aria-hidden />
           </button>
@@ -82,8 +82,8 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
         </p>
 
         <details className="support-details">
-          <summary>Support Scriptor</summary>
-          <p className="health-subtitle">Choose a network below to copy its support address.</p>
+          <summary>Donate</summary>
+          <p className="health-subtitle">Choose a network, then copy the wallet address.</p>
           <ul className="support-wallet-list">
             {WALLET_ROWS.map((row) => (
               <li key={row.id}>
@@ -107,7 +107,7 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
 
         <footer className="support-footer">
           <small>
-            Licensed under AGPL-3.0 for non-commercial use.{' '}
+            Licensed under AGPL-3.0-or-later.{' '}
             <button
               type="button"
               className="support-inline-link"

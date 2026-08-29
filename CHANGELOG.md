@@ -3,14 +3,15 @@
 ## Unreleased
 
 ### Fixed
-- Reworked the workspace footer into a compact, expandable status dock; kept the desktop shell viewport-bound; and made the write, vault, and inspector regions reflow instead of overlap at intermediate widths and persisted app zoom levels.
-- Restored the original tile-built Scriptor mark in the app shell and mapped its existing gradients to active theme tokens rather than substituting a simplified glyph.
-- Made documentation capture wait for fonts, images, lazy panels, preview completion, and layout settlement; the deterministic screenshot build now rejects loading/degraded states and the README leads with current product captures.
-- Kept the cross-platform Rust release smoke from rebuilding its own running `xtask` executable and taught it to launch Windows package-manager `.cmd` shims, fixing both access-denied and program-not-found failures on Windows.
+- Reworked the footer as a compact, expandable status dock. At intermediate widths and saved zoom levels, the write area, vault, and inspector now reflow without overlapping or escaping the viewport.
+- Restored the original tile-built Scriptor mark and made its gradients follow the active theme.
+- Screenshot capture now waits for fonts, images, lazy panels, previews, and layout to settle, and fails when loading or degraded states remain. Updated the README with current captures.
+- Fixed Windows release smoke checks by avoiding a rebuild of the running `xtask` executable and launching package-manager `.cmd` shims correctly.
 - Wired the existing template picker and Obsidian importer into the vault menu and command system; replaced the sidebar's unbounded template list with a searchable, keyboard-complete picker.
 - Made the inspector store the canonical runtime surface for plugin consent, MCP mode/audit, subsystem hibernation, and workspace layout presets; clarified that the separate palette center controls built-in modules and themes, with a direct route to the runtime marketplace.
 - Reduced the recorded initial renderer graph from 442,797 to 427,547 gzip bytes (−3.4%) by deferring the runtime store, built-in module/palette center, Reader, template picker, and Obsidian importer until first use; remote marketplace fetching now waits for the store to open, and store tabs/cards remain navigable at high text zoom.
-- Made top-bar customization keyboard-complete and viewport-bounded, including Escape focus restoration, resize/scroll repositioning, high-text-zoom coverage, and a distinct filled red heart for Support Scriptor.
+- Added keyboard-complete, viewport-bounded top-bar customization, including Escape focus restoration and resize, scroll, and high-zoom handling. The Support Scriptor action now uses a filled red heart.
+- Corrected the support panel's AGPL license text and replaced its vague donation copy with direct labels and instructions.
 - Made plugin installer profiles publish one coherent state transition, preserve third-party plugins, report the actual active preset, serialize native persistence, restore temporary theme previews on close, and remain usable at narrow widths and reduced motion.
 - Kept PDF/EPUB documents visible when annotation metadata fails, and removed an invalid empty `tablist` that blocked the axe WCAG gate.
 - Hardened the unstaged native/indexer work: authorization capacity now fails explicitly, Google resource IDs are bounded, task filters stay parameterized, v8→v9 alias migration is truly idempotent, wikilink resolution reuses the index cache, and note saves avoid redundant reads.
