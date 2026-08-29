@@ -169,7 +169,22 @@ export async function settleLayout(page: Page) {
     try {
       await page.evaluate(async () => {
         await document.fonts.ready
+        await Promise.all(
+          Array.from(document.images)
+            .filter((image) => image.getBoundingClientRect().width > 0)
+            .map(async (image) => {
+              if (!image.complete) await image.decode()
+              if (image.naturalWidth === 0) {
+                throw new Error(`Visible image failed to load: ${image.currentSrc || image.src}`)
+              }
+            }),
+        )
         window.dispatchEvent(new Event('resize'))
+        const finiteAnimations = document.getAnimations().filter((animation) => {
+          const endTime = animation.effect?.getComputedTiming().endTime
+          return typeof endTime === 'number' && Number.isFinite(endTime)
+        })
+        await Promise.allSettled(finiteAnimations.map((animation) => animation.finished))
         await new Promise<void>((resolve) => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
         })
@@ -185,6 +200,25 @@ export async function settleLayout(page: Page) {
     const root = document.getElementById('root')
     return root && root.getBoundingClientRect().width > 0
   }, { timeout: 5000 })
+}
+
+/** Capture only after fonts, visible images, lazy content, and finite transitions have settled. */
+export async function captureReadyScreenshot(page: Page, path: string) {
+  await settleLayout(page)
+  await expect(page.locator('.panel-loading:visible, .skeleton:visible, [aria-busy="true"]:visible')).toHaveCount(0, {
+    timeout: 30_000,
+  })
+  await expect(page.locator('.markdown-preview[data-preview-degraded="true"]:visible, .preview-loading:visible')).toHaveCount(0, {
+    timeout: 30_000,
+  })
+  await page.waitForFunction(() => {
+    const root = document.getElementById('root')
+    if (!root) return false
+    const style = getComputedStyle(root)
+    return style.visibility !== 'hidden' && Number.parseFloat(style.opacity || '1') >= 1
+  })
+  await page.evaluate(() => window.scrollTo({ top: 0, left: 0, behavior: 'instant' }))
+  await page.screenshot({ path, fullPage: false, animations: 'disabled', caret: 'hide' })
 }
 
 export async function waitForWorkspace(page: Page) {

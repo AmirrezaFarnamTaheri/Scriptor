@@ -2,8 +2,8 @@ use crate::db::{IndexCache, read_schema_version};
 use crate::error::IndexerError;
 use crate::schema::{
     CREATE_ANNOTATIONS, CREATE_BLOCKS, CREATE_FTS_V5, CREATE_INDEXES, CREATE_RECENT_ACCESS,
-    CREATE_TASK_TAGS, CREATE_TASKS, MIGRATE_V2_TO_V3, MIGRATE_V7_TO_V8_TASKS, SCHEMA_VERSION,
-    apply_schema,
+    CREATE_TASK_TAGS, CREATE_TASKS, MIGRATE_V2_TO_V3, MIGRATE_V7_TO_V8_TASKS,
+    MIGRATE_V8_TO_V9_NOTES, SCHEMA_VERSION, apply_schema,
 };
 #[cfg(feature = "srs")]
 use crate::schema::{CREATE_SRS_CARDS, CREATE_SRS_REVIEWS};
@@ -107,6 +107,22 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         stamp_schema_version(&transaction, 8)?;
         transaction.commit()?;
         current = 8;
+    }
+
+    // v8 → v9: ADD COLUMN aliases_json on `notes`.
+    // Guards against duplicate columns for idempotency (SQLite < 3.37 compat).
+    if current == 8 && SCHEMA_VERSION >= 9 {
+        let transaction = connection.unchecked_transaction()?;
+        let existing_cols = table_columns(&transaction, "notes")?;
+        for (col_name, stmt) in MIGRATE_V8_TO_V9_NOTES {
+            if existing_cols.contains(*col_name) {
+                continue;
+            }
+            transaction.execute_batch(stmt)?;
+        }
+        stamp_schema_version(&transaction, 9)?;
+        transaction.commit()?;
+        current = 9;
     }
 
     if current == SCHEMA_VERSION {
@@ -609,7 +625,24 @@ CREATE TABLE IF NOT EXISTS notes (
     fn open_v7_cache() -> Result<Connection, IndexerError> {
         let connection = Connection::open_in_memory()?;
         connection.execute_batch(CREATE_META)?;
-        connection.execute_batch(crate::schema::CREATE_NOTES)?;
+        // Keep this fixture pinned to the pre-v9 notes schema. Reusing
+        // CREATE_NOTES would silently gain future columns and stop exercising
+        // the migration it is meant to characterize.
+        connection.execute_batch(
+            "CREATE TABLE IF NOT EXISTS notes (
+               id TEXT PRIMARY KEY,
+               vault_id TEXT NOT NULL,
+               path TEXT NOT NULL,
+               title TEXT NOT NULL,
+               content_hash TEXT NOT NULL,
+               modified_at TEXT NOT NULL,
+               word_count INTEGER NOT NULL,
+               tags_json TEXT NOT NULL DEFAULT '[]',
+               note_type TEXT,
+               organized INTEGER NOT NULL DEFAULT 0,
+               archived INTEGER NOT NULL DEFAULT 0
+             );",
+        )?;
         connection.execute_batch(crate::schema::CREATE_LINKS)?;
         connection.execute_batch(crate::schema::CREATE_FTS_V5)?;
         connection.execute_batch(crate::schema::CREATE_CITATIONS)?;
@@ -668,6 +701,105 @@ CREATE TABLE IF NOT EXISTS notes (
              VALUES ('b-1', 'n-1', 'v-1', 'paragraph', 'hello', 'now')",
             [],
         )?;
+        Ok(())
+    }
+
+    // ── v8 → v9 aliases_json migration tests ──────────────────────────────────
+
+    /// Build a minimal v8 in-memory cache (notes table without aliases_json).
+    fn open_v8_cache() -> Result<rusqlite::Connection, IndexerError> {
+        let connection = open_v7_cache()?;
+        // Apply v7→v8 step manually to reach v8.
+        let existing = table_columns(&connection, "tasks")?;
+        for (col, stmt) in crate::schema::MIGRATE_V7_TO_V8_TASKS {
+            if existing.contains(*col) {
+                continue;
+            }
+            connection.execute_batch(stmt)?;
+        }
+        connection.execute_batch(CREATE_BLOCKS)?;
+        connection.execute(
+            "UPDATE cache_meta SET value = '8' WHERE key = 'schema_version'",
+            [],
+        )?;
+        Ok(connection)
+    }
+
+    #[test]
+    fn migration_v8_to_v9_adds_aliases_json_to_notes() -> Result<(), IndexerError> {
+        let connection = open_v8_cache()?;
+        migrate_cache(&connection)?;
+
+        assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
+
+        // aliases_json column must exist and accept a JSON-array default.
+        let aliases_json: String = connection
+            .query_row(
+                "SELECT aliases_json FROM notes WHERE id IS NULL OR 1=1 LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or_else(|_| "[]".to_string());
+        assert_eq!(aliases_json, "[]", "default aliases_json must be '[]'");
+
+        // Verify a note can be inserted with an explicit aliases value.
+        connection.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('n-1', 'v-1', 'note.md', 'Note', 'abc', 'now', 0, '[\"Alias One\"]')",
+            [],
+        )?;
+        let stored: String = connection.query_row(
+            "SELECT aliases_json FROM notes WHERE id = 'n-1'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(stored, "[\"Alias One\"]");
+        Ok(())
+    }
+
+    #[test]
+    fn migration_v8_to_v9_is_idempotent_when_column_exists() -> Result<(), IndexerError> {
+        // If the column already exists the migration must not error.
+        let connection = open_v8_cache()?;
+        connection.execute_batch(
+            "ALTER TABLE notes ADD COLUMN aliases_json TEXT NOT NULL DEFAULT '[]'",
+        )?;
+        // Running the migration again must succeed without error.
+        migrate_cache(&connection)?;
+        assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
+        Ok(())
+    }
+
+    #[test]
+    fn note_paths_and_aliases_returns_paths_and_parses_aliases() -> Result<(), IndexerError> {
+        // Use a tempfile cache so the full pool path is exercised.
+        let temp = tempfile::tempdir().expect("tempdir");
+        let cache = open_cache_migrated(temp.path().join("v9.sqlite"))?;
+        let conn = cache.connection()?;
+
+        // Insert two notes for v-1: one with aliases, one without.
+        conn.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('n-1', 'v-1', 'alpha.md', 'Alpha', 'h1', 'now', 10, '[\"A\",\"B\"]')",
+            [],
+        )?;
+        conn.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('n-2', 'v-1', 'beta.md', 'Beta', 'h2', 'now', 5, '[]')",
+            [],
+        )?;
+        // Different vault — must not appear in v-1 results.
+        conn.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('n-3', 'v-2', 'gamma.md', 'Gamma', 'h3', 'now', 1, '[\"G\"]')",
+            [],
+        )?;
+        drop(conn);
+
+        let (paths, aliases) = crate::notes::note_paths_and_aliases(&cache, "v-1")?;
+        assert_eq!(paths, vec!["alpha.md", "beta.md"], "paths must be ordered");
+        assert_eq!(aliases.len(), 1, "only alpha.md has aliases");
+        assert_eq!(aliases["alpha.md"], vec!["A", "B"]);
         Ok(())
     }
 }

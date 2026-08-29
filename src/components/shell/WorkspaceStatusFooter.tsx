@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from 'react'
 import { Activity, CheckCircle2, ChevronDown, GitBranch, PanelRight } from 'lucide-react'
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
 import { StatusDockPanel, type StatusDockTab } from '../StatusDockPanel'
+import { SubsystemToggles } from './SubsystemToggles'
 import type { ClientDiagnosticEvent } from '../../hooks/useDiagnosticsSettings'
 import type { ActivityEntry } from '../../hooks/useActivityLog'
 import type { EditorLintMessage } from '@scriptor/editor'
@@ -107,43 +109,98 @@ export function WorkspaceStatusFooter({
   hibernateSpellcheck,
   onHibernateSpellcheckChange,
 }: WorkspaceStatusFooterProps) {
+  const [dockExpanded, setDockExpanded] = useState(false)
+  const previousDockTab = useRef(statusDockTab)
+
+  useEffect(() => {
+    if (previousDockTab.current !== statusDockTab) {
+      previousDockTab.current = statusDockTab
+      setDockExpanded(true)
+    }
+  }, [statusDockTab])
+
+  const activateDockTab = (tab: StatusDockTab) => {
+    if (tab === statusDockTab) {
+      setDockExpanded((expanded) => !expanded)
+      return
+    }
+    onStatusDockTabChange(tab)
+  }
+
   return (
     <footer className="status-strip">
-      <button
-        type="button"
-        className="jobs-button"
-        onClick={() => onStatusDockTabChange('jobs')}
-        aria-pressed={statusDockTab === 'jobs'}
-      >
-        <PanelRight />
-        Jobs
-        <ChevronDown />
-      </button>
+      <div className="status-summary">
+        <button
+          type="button"
+          className="jobs-button"
+          onClick={() => activateDockTab('jobs')}
+          aria-pressed={statusDockTab === 'jobs'}
+          aria-expanded={statusDockTab === 'jobs' && dockExpanded}
+        >
+          <PanelRight />
+          Jobs
+          <ChevronDown />
+        </button>
 
-      <div
-        className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
-        aria-label={workspaceStatus === 'indexing' ? `Building graph ${graphProgress}%` : `Index ready (${graphProgress}%)`}
-      >
-        <Activity />
-        <div>
-          <strong>{workspaceStatus === 'indexing' ? 'Building index...' : 'Index ready'}</strong>
-          <div className="progress-track">
-            <span style={{ width: `${graphProgress}%` }} />
+        <div
+          className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
+          aria-label={workspaceStatus === 'indexing' ? `Building graph ${graphProgress}%` : `Index ready (${graphProgress}%)`}
+        >
+          <Activity />
+          <div>
+            <strong>{workspaceStatus === 'indexing' ? 'Building index...' : 'Index ready'}</strong>
+            <div className="progress-track">
+              <span style={{ width: `${graphProgress}%` }} />
+            </div>
           </div>
+          <span>{graphProgress}%</span>
+          <small>
+            {rebuildSummary
+              ? `${rebuildSummary.indexed_notes + rebuildSummary.skipped_notes} / ${noteCount} notes`
+              : `${noteCount} notes`}
+            {lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
+          </small>
         </div>
-        <span>{graphProgress}%</span>
-        <small>
-          {rebuildSummary
-            ? `${rebuildSummary.indexed_notes + rebuildSummary.skipped_notes} / ${noteCount} notes`
-            : `${noteCount} notes`}
-          {lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
-        </small>
+
+        <div className="repo-state">
+          <label
+            className="diagnostics-opt-in"
+            title="When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl"
+          >
+            <input
+              type="checkbox"
+              checked={diagnosticsOptIn}
+              onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
+              aria-label="Send local crash diagnostics"
+            />
+            <span>Diagnostics</span>
+          </label>
+          <span>{health?.cache_status ?? 'no vault'}</span>
+          {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
+          {timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
+          <SubsystemToggles
+            graph={hibernateGraph}
+            onGraphChange={onHibernateGraphChange}
+            mcp={hibernateMcp}
+            onMcpChange={onHibernateMcpChange}
+            watcher={hibernateWatcher}
+            onWatcherChange={onHibernateWatcherChange}
+            git={hibernateGit}
+            onGitChange={onHibernateGitChange}
+            spellcheck={hibernateSpellcheck}
+            onSpellcheckChange={onHibernateSpellcheckChange}
+          />
+          <GitBranch />
+          <span>{vault?.name ?? 'unopened'}</span>
+          <CheckCircle2 />
+        </div>
       </div>
 
       <div className="bottom-tabs-wrap">
         <StatusDockPanel
           activeTab={statusDockTab}
-          onTabChange={onStatusDockTabChange}
+          onTabChange={activateDockTab}
+          expanded={dockExpanded}
           problemCount={totalProblemCount}
           issuesPanel={<DiagnosticsPanel {...diagnosticsPanelProps} />}
           activity={activity}
@@ -158,69 +215,6 @@ export function WorkspaceStatusFooter({
           onOpenNote={onOpenNote}
           onCancelExport={onCancelExport}
         />
-      </div>
-
-      <div className="repo-state">
-        <label
-          className="diagnostics-opt-in"
-          title="When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl"
-        >
-          <input
-            type="checkbox"
-            checked={diagnosticsOptIn}
-            onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
-            aria-label="Send local crash diagnostics"
-          />
-          <span>Diagnostics</span>
-        </label>
-        <span>{health?.cache_status ?? 'no vault'}</span>
-        {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
-        {timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
-        <div className="subsystem-toggles" title="Subsystem Hibernation Status (Click to toggle)">
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateGraph ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateGraphChange(!hibernateGraph)}
-            title={`Graph Simulation: ${hibernateGraph ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Graph
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateMcp ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateMcpChange(!hibernateMcp)}
-            title={`MCP: ${hibernateMcp ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            MCP
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateWatcher ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateWatcherChange(!hibernateWatcher)}
-            title={`Watcher: ${hibernateWatcher ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Watch
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateGit ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateGitChange(!hibernateGit)}
-            title={`Git Polling: ${hibernateGit ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Git
-          </button>
-          <button
-            type="button"
-            className={`subsystem-toggle-badge ${hibernateSpellcheck ? 'hibernated' : 'active'}`}
-            onClick={() => onHibernateSpellcheckChange(!hibernateSpellcheck)}
-            title={`Spellcheck: ${hibernateSpellcheck ? 'Hibernated' : 'Active'} (Click to toggle)`}
-          >
-            Spell
-          </button>
-        </div>
-        <GitBranch />
-        <span>{vault?.name ?? 'unopened'}</span>
-        <CheckCircle2 />
       </div>
     </footer>
   )

@@ -36,6 +36,8 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
     stickiesVisible,
     supportOpen,
     tasksOpen,
+    templatePickerOpen,
+    obsidianImportOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -64,6 +66,8 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
   const setStickiesVisible = useCallback((v: boolean) => setPanel('stickiesVisible', v), [setPanel])
   const setSupportOpen = useCallback((v: boolean) => setPanel('supportOpen', v), [setPanel])
   const setTasksOpen = useCallback((v: boolean) => setPanel('tasksOpen', v), [setPanel])
+  const setTemplatePickerOpen = useCallback((v: boolean) => setPanel('templatePickerOpen', v), [setPanel])
+  const setObsidianImportOpen = useCallback((v: boolean) => setPanel('obsidianImportOpen', v), [setPanel])
   const setTocOpen = useCallback((v: boolean | ((open: boolean) => boolean)) => setPanel('tocOpen', v), [setPanel])
   const setWritingTargetsOpen = useCallback((v: boolean) => setPanel('writingTargetsOpen', v), [setPanel])
 
@@ -140,6 +144,8 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
     stickiesVisible,
     supportOpen,
     tasksOpen,
+    templatePickerOpen,
+    obsidianImportOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -166,6 +172,8 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
     setStickiesVisible,
     setSupportOpen,
     setTasksOpen,
+    setTemplatePickerOpen,
+    setObsidianImportOpen,
     setTocOpen,
     setWritingTargetsOpen,
     renameOpen,

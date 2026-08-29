@@ -31,7 +31,11 @@ export function EditorTabBar({
   onCloseTab,
 }: EditorTabBarProps) {
   return (
-    <div className="tabs-row" role="tablist" aria-label="Open notes">
+    <div
+      className="tabs-row"
+      role={openTabs.length > 0 ? 'tablist' : 'group'}
+      aria-label={openTabs.length > 0 ? 'Open notes' : 'Editor tabs'}
+    >
       {canReopenClosedTab && onReopenClosedTab ? (
         <span role="presentation">
           <button

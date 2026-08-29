@@ -44,6 +44,8 @@ export interface OverlayPanelState {
   frontmatterOpen: boolean
   readerOpen: boolean
   tasksOpen: boolean
+  templatePickerOpen: boolean
+  obsidianImportOpen: boolean
 }
 
 export type OverlayPanelKey = keyof Pick<
@@ -70,6 +72,8 @@ export type OverlayPanelKey = keyof Pick<
   | 'frontmatterOpen'
   | 'readerOpen'
   | 'tasksOpen'
+  | 'templatePickerOpen'
+  | 'obsidianImportOpen'
 >
 
 type BooleanPanelUpdater = boolean | ((current: boolean) => boolean)
@@ -101,6 +105,8 @@ function makeInitialState(initialStickiesVisible: boolean): OverlayPanelState {
     frontmatterOpen: false,
     readerOpen: false,
     tasksOpen: false,
+    templatePickerOpen: false,
+    obsidianImportOpen: false,
   }
 }
 
@@ -174,6 +180,8 @@ export function useOverlayPanelStore(initialStickiesVisible = true) {
       frontmatterOpen: false,
       readerOpen: false,
       tasksOpen: false,
+      templatePickerOpen: false,
+      obsidianImportOpen: false,
     }))
   }, [])
 

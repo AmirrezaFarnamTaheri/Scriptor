@@ -22,6 +22,7 @@ pub fn upsert_note(
 ) -> Result<(), IndexerError> {
     let parsed = parse_note_markdown(&metadata.path, markdown);
     let tags_json = serde_json::to_string(&parsed.tags)?;
+    let aliases_json = serde_json::to_string(&parsed.aliases)?;
     // Capture joined strings before moving fields into `enriched`.
     let headings_text = parsed.headings.join(" ");
     let tags_text = parsed.tags.join(" ");
@@ -34,8 +35,8 @@ pub fn upsert_note(
     let conn = cache.connection()?;
     let tx = conn.unchecked_transaction()?;
     tx.execute(
-        "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, tags_json, note_type, organized, archived)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+        "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, tags_json, note_type, organized, archived, aliases_json)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
          ON CONFLICT(id) DO UPDATE SET
            path = excluded.path,
            title = excluded.title,
@@ -45,7 +46,8 @@ pub fn upsert_note(
            tags_json = excluded.tags_json,
            note_type = excluded.note_type,
            organized = excluded.organized,
-           archived = excluded.archived",
+           archived = excluded.archived,
+           aliases_json = excluded.aliases_json",
         params![
             enriched.id,
             enriched.vault_id,
@@ -58,6 +60,7 @@ pub fn upsert_note(
             enriched.note_type,
             if enriched.organized { 1 } else { 0 },
             if enriched.archived { 1 } else { 0 },
+            aliases_json,
         ],
     )?;
 
@@ -153,6 +156,39 @@ pub fn total_word_count(cache: &IndexCache, vault_id: &str) -> Result<u32, Index
         |row| row.get(0),
     )?;
     Ok(u32::try_from(total).unwrap_or(u32::MAX))
+}
+
+/// Returns every indexed note path and its frontmatter aliases for the vault.
+///
+/// Used by `resolve_wikilink_for_session` to replace the O(n) disk-read loop
+/// (scan_vault + read_note per note) with one bounded SQLite query. Aliases
+/// are stored in the `aliases_json` column added by the v9 schema migration;
+/// pre-v9 rows default to `'[]'`.
+///
+/// The pair is `(all_paths, aliases_by_path)` where `aliases_by_path` contains
+/// only notes that have at least one alias (the common case is an empty map).
+type PathsAndAliases = (Vec<String>, std::collections::BTreeMap<String, Vec<String>>);
+
+pub fn note_paths_and_aliases(
+    cache: &IndexCache,
+    vault_id: &str,
+) -> Result<PathsAndAliases, IndexerError> {
+    let conn = cache.connection()?;
+    let mut statement =
+        conn.prepare("SELECT path, aliases_json FROM notes WHERE vault_id = ?1 ORDER BY path")?;
+    let mut note_paths = Vec::new();
+    let mut aliases_by_path = std::collections::BTreeMap::new();
+    let mut rows = statement.query(params![vault_id])?;
+    while let Some(row) = rows.next()? {
+        let path: String = row.get(0)?;
+        let aliases_json: String = row.get(1)?;
+        let aliases: Vec<String> = serde_json::from_str(&aliases_json).unwrap_or_default();
+        note_paths.push(path.clone());
+        if !aliases.is_empty() {
+            aliases_by_path.insert(path, aliases);
+        }
+    }
+    Ok((note_paths, aliases_by_path))
 }
 
 pub fn load_note_metadata(

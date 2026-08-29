@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Chart,
   CategoryScale,
@@ -15,6 +15,7 @@ import { X } from 'lucide-react'
 
 import { vaultReadStatsHistory, type StatsHistoryEntry } from '../bridge/commands'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { isNativeBridgeAvailable } from '../bridge/platform'
 
 Chart.register(
@@ -36,6 +37,11 @@ interface WritingTargetsPanelProps {
   onClose: () => void
 }
 
+function readThemeColor(token: '--primary' | '--amber', fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(token).trim()
+  return value || fallback
+}
+
 export function WritingTargetsPanel({
   dailyTarget,
   wordsToday,
@@ -43,33 +49,54 @@ export function WritingTargetsPanel({
   onClose,
 }: WritingTargetsPanelProps) {
   const [history, setHistory] = useState<StatsHistoryEntry[]>([])
+  const [historyStatus, setHistoryStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const chartRef = useRef<HTMLCanvasElement | null>(null)
   const chartInstance = useRef<Chart | null>(null)
   const dialogRef = useRef<HTMLElement>(null)
+  const historyRequestId = useRef(0)
+  useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true })
 
-  useEffect(() => {
-    if (!isNativeBridgeAvailable()) return
-    let cancelled = false
-    void vaultReadStatsHistory()
-      .then((entries) => {
-        if (!cancelled) setHistory(entries)
-      })
-      .catch(() => {
-        if (!cancelled) setHistory([])
-      })
-    return () => {
-      cancelled = true
+  const refreshHistory = useCallback(async (showLoading = false) => {
+    const requestId = ++historyRequestId.current
+    if (showLoading) setHistoryStatus('loading')
+    if (!isNativeBridgeAvailable()) {
+      setHistory([])
+      setHistoryStatus('ready')
+      return
     }
-  }, [wordsToday])
+    try {
+      const entries = await vaultReadStatsHistory()
+      if (requestId !== historyRequestId.current) return
+      setHistory(entries)
+      setHistoryStatus('ready')
+    } catch {
+      if (requestId !== historyRequestId.current) return
+      setHistory([])
+      setHistoryStatus('error')
+    }
+  }, [])
 
   useEffect(() => {
-    if (!chartRef.current) return
+    let mounted = true
+    queueMicrotask(() => {
+      if (mounted) void refreshHistory()
+    })
+    return () => {
+      mounted = false
+      historyRequestId.current += 1
+    }
+  }, [refreshHistory])
+
+  useEffect(() => {
+    if (!chartRef.current || historyStatus !== 'ready' || history.length === 0) return
 
     const recent = history.slice(-14)
     const labels = recent.map((entry) => entry.date.slice(5))
     const values = recent.map((entry) => entry.words)
     const targetLine = recent.map(() => dailyTarget)
+    const primary = readThemeColor('--primary', '#0d9488')
+    const amber = readThemeColor('--amber', '#d97706')
 
     chartInstance.current?.destroy()
     chartInstance.current = new Chart(chartRef.current, {
@@ -81,8 +108,8 @@ export function WritingTargetsPanel({
             type: 'bar',
             label: 'Words',
             data: values,
-            backgroundColor: 'rgba(13, 148, 136, 0.55)',
-            borderColor: '#0d9488',
+            backgroundColor: primary,
+            borderColor: primary,
             borderWidth: 1,
             borderRadius: 4,
           },
@@ -90,7 +117,7 @@ export function WritingTargetsPanel({
             type: 'line',
             label: 'Target',
             data: targetLine,
-            borderColor: '#d97706',
+            borderColor: amber,
             backgroundColor: 'transparent',
             borderDash: [6, 4],
             pointRadius: 0,
@@ -114,7 +141,7 @@ export function WritingTargetsPanel({
       chartInstance.current?.destroy()
       chartInstance.current = null
     }
-  }, [dailyTarget, history])
+  }, [dailyTarget, history, historyStatus])
 
   const progress = dailyTarget > 0 ? Math.min(100, Math.round((wordsToday / dailyTarget) * 100)) : 0
 
@@ -144,11 +171,22 @@ export function WritingTargetsPanel({
           <span style={{ width: `${progress}%` }} />
         </div>
         <h3>Recent history</h3>
-        <div className="writing-history-chart">
-          <canvas ref={chartRef} aria-label="Writing history chart" />
-        </div>
+        {historyStatus === 'ready' && history.length > 0 ? (
+          <div className="writing-history-chart">
+            <canvas ref={chartRef} aria-label="Writing history chart" />
+          </div>
+        ) : null}
         <ul className="writing-history">
-          {history.length === 0 ? (
+          {historyStatus === 'loading' ? (
+            <li>Loading writing history…</li>
+          ) : historyStatus === 'error' ? (
+            <li>
+              Could not load writing history.{' '}
+              <button type="button" className="action-button" onClick={() => void refreshHistory(true)}>
+                Retry
+              </button>
+            </li>
+          ) : history.length === 0 ? (
             <li>No sessions recorded yet.</li>
           ) : (
             history

@@ -275,9 +275,14 @@ svg {
   width: 28px;
   height: 28px;
   display: block;
-  object-fit: contain;
   flex-shrink: 0;
   filter: drop-shadow(0 2px 4px color-mix(in oklch, var(--primary-strong) 25%, transparent));
+}
+
+.brand-mark > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .brand-wordmark {
@@ -502,21 +507,21 @@ svg {
 .workspace-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--vault-width, 318px) auto minmax(520px, 1fr) auto var(--inspector-width, 408px);
+  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) auto var(--inspector-width, 408px);
   gap: 0;
   transition: grid-template-columns 250ms var(--ease-soft);
 }
 
 .workspace-grid[data-vault-collapsed='true'] {
-  grid-template-columns: 0px 0px minmax(520px, 1fr) auto var(--inspector-width, 408px);
+  grid-template-columns: 0px 0px minmax(0, 1fr) auto var(--inspector-width, 408px);
 }
 
 .workspace-grid[data-inspector-collapsed='true'] {
-  grid-template-columns: var(--vault-width, 318px) auto minmax(520px, 1fr) 0px 0px;
+  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) 0px 0px;
 }
 
 .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
-  grid-template-columns: 0px 0px minmax(520px, 1fr) 0px 0px;
+  grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px;
 }
 
 .workspace-grid[data-vault-collapsed='true'] .vault-panel,
@@ -759,6 +764,16 @@ svg {
   flex-direction: column;
   gap: 6px;
   font-size: 13px;
+}
+
+.support-heart-action,
+.support-heart-icon {
+  color: var(--danger);
+}
+
+.support-heart-action:hover:not(:disabled) {
+  color: color-mix(in oklch, var(--danger) 82%, var(--ink-strong));
+  background: color-mix(in oklch, var(--danger) 12%, var(--surface-raised));
 }
 
 .topbar-customize strong {

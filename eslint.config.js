@@ -10,6 +10,7 @@ export default defineConfig([
     'dist',
     'dist-ssr',
     'dist-e2e',
+    'dist-visual-e2e',
     'target',
     '**/target/**',
     'node_modules',

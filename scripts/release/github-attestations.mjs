@@ -49,7 +49,7 @@ export function verifyGithubAttestations({ subjects, repository, sourceDigest, s
     try {
       parsed = JSON.parse(execute(command))
     } catch (error) {
-      throw new Error(`invalid attestation verification output for ${command.subject}: ${error instanceof Error ? error.message : String(error)}`)
+      throw new Error(`invalid attestation verification output for ${command.subject}: ${error instanceof Error ? error.message : String(error)}`, { cause: error })
     }
     if (!Array.isArray(parsed) || parsed.length === 0) {
       throw new Error(`no verified attestations for ${command.subject} (${command.predicateType})`)

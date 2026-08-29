@@ -30,7 +30,7 @@ import { DaemonOpsPanel } from './DaemonOpsPanel'
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { VaultBackupSettings } from './VaultBackupSettings'
-import { SUPPORTED_LOCALES } from '@scriptor/editor/pure'
+import { resolveHunspellLocale, SUPPORTED_LOCALES } from '@scriptor/editor/pure'
 
 function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): boolean {
   if (!a) return false
@@ -190,6 +190,7 @@ export function SettingsPanel({
   onLanguageToolEndpointChange,
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales } = useI18n()
+  const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [status, setStatus] = useState('')
   const [supportBundleStatus, setSupportBundleStatus] = useState('')
@@ -458,7 +459,7 @@ export function SettingsPanel({
           <label className="settings-field">
             Spellcheck locale
             <select
-              value={spellcheckLocale}
+              value={selectedSpellcheckLocale}
               onChange={(event) => onSpellcheckLocaleChange?.(event.target.value)}
             >
               {SUPPORTED_LOCALES.map((loc) => (

@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
 import { applyRendererExtensions } from '@scriptor/renderer'
-
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { VaultSidebar } from './components/app/VaultSidebar'
@@ -17,10 +16,9 @@ import {
   VaultHealthDashboard,
 } from './components/app/lazyPanels'
 import { parseSimpleFrontmatter } from './lib/frontmatter'
-import { OnboardingTour } from './components/OnboardingTour'
+import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
-import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { AppTopBar } from './components/shell/AppTopBar'
 import { EditorWorkspace } from './components/shell/EditorWorkspace'
 import { InspectorRail } from './components/shell/InspectorRail'
@@ -31,23 +29,24 @@ import { useNoteDraftStats } from './hooks/useNoteDraftStats'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
-import { PluginManagerCenter } from './components/plugins/PluginManagerCenter'
+import {
+  CheatsheetPanel,
+  ConflictResolverModal,
+  OnboardingTour,
+  PerfHudOverlay,
+  SupportPanel,
+  WritingTargetsPanel,
+} from './components/app/lazyPanels'
 import { AppToast, AppToastRegion } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
-import { ConflictResolverModal } from './components/ConflictResolverModal'
-import { PerfHudOverlay } from './components/PerfHudOverlay'
 import { FrontmatterInspector } from './components/FrontmatterInspector'
-import { CheatsheetPanel } from './components/CheatsheetPanel'
-import { SupportPanel } from './components/SupportPanel'
 import { QuickCaptureWorkspaceLayer } from './components/app/QuickCaptureWorkspaceLayer'
 import { WorkspacePanelLaunchers } from './components/app/WorkspacePanelLaunchers'
 import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlays'
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
-import { WritingTargetsPanel } from './components/WritingTargetsPanel'
 import { recordWritingSession } from './lib/writingTargets'
 import type { KnowledgeWorkbenchTab } from './components/KnowledgeWorkbench'
-import type { PublishPlan } from './types/vault'
 import { useCommandPalette } from './hooks/useCommandPalette'
 import { useAiProvider } from './hooks/useAiProvider'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
@@ -92,6 +91,7 @@ import { useAppKeyboardShortcuts } from './hooks/useAppKeyboardShortcuts'
 import { useAppZoom } from './hooks/useAppZoom'
 import { useVaultSidebarActions } from './hooks/useVaultSidebarActions'
 import { useJourneyMetrics } from './hooks/useJourneyMetrics'
+import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import {
@@ -104,12 +104,13 @@ import {
   vaultSaveConfig,
   vaultSaveAsset,
   codeChunkRun,
-  vaultPublishApplyStarlight,
-  vaultPublishPlanStarlight,
 } from './bridge/commands'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
+import { useStoreSurfaceController } from './hooks/useStoreSurfaceController'
+import { CapabilityWorkflowOverlays } from './components/app/CapabilityWorkflowOverlays'
+import { usePluginCommandRuntime } from './hooks/usePluginCommandRuntime'
 import './styles/tokens/primitives.css'
 import './styles/tokens/semantic.css'
 import './styles/tokens/components.css'
@@ -128,10 +129,8 @@ import './styles/components/git-panel.css'
 import './styles/components/smart-collections.css'
 import './styles/components/markdown-preview.css'
 import './styles/components/canvas-graph.css'
-import './styles/components/reader-panel.css'
 import './App.css'
 import './styles/motion.css'
-
 function App() {
   const { t } = useI18n()
   const localDate = useLocalDate()
@@ -139,7 +138,7 @@ function App() {
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
   const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
-  const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
+  const { layouts, applyLayout, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
   const onboarding = useOnboarding()
   const { presentation: panelPresentation, setPresentation: setPanelPresentation } = usePanelPresentation()
   const journey = useJourneyMetrics()
@@ -178,6 +177,8 @@ function App() {
     stickiesVisible,
     supportOpen,
     tasksOpen,
+    templatePickerOpen,
+    obsidianImportOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -203,6 +204,8 @@ function App() {
     setStickiesVisible,
     setSupportOpen,
     setTasksOpen,
+    setTemplatePickerOpen,
+    setObsidianImportOpen,
     setTocOpen,
     setWritingTargetsOpen,
     renameOpen,
@@ -218,7 +221,6 @@ function App() {
     conflictPath,
     setConflictPath,
   } = panelSurfaces
-
   const nav = useWorkspaceNavigationController({
     initialGraphDepth: initialWorkspaceLayout.graphDepth,
   })
@@ -286,12 +288,8 @@ function App() {
   } = perfMetrics
   const commandPalette = useCommandPalette()
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
-  const [publishPlan, setPublishPlan] = useState<PublishPlan | null>(null)
-  const [publishOutputPath, setPublishOutputPath] = useState<string | null>(null)
-  const [publishApplying, setPublishApplying] = useState(false)
-  const publishApplyingRef = useRef(false)
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
-  const plugins = usePluginRegistry(pluginVaultId)
+  const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
   const workspace = useVaultWorkspace({
     onSearchComplete: (hits) => {
@@ -340,6 +338,17 @@ function App() {
   })
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
+  const {
+    applyStarlightPlan,
+    publishApplying,
+    publishOutputPath,
+    publishPlan,
+    publishStarlight,
+  } = useStarlightPublishing({
+    promptText,
+    showToast,
+    openPublishCenter: () => setPublishCenterOpen(true),
+  })
   const recentVaults = useRecentVaults()
   const rememberRecentVault = recentVaults.remember
   useEffect(() => {
@@ -349,27 +358,10 @@ function App() {
   }, [rememberRecentVault, workspace.vault?.root_path])
   const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph } = workspace
   const { refreshHealth, fixVaultLint, exportWithProfile } = workspace
-  const pluginCommandRuntime = useMemo(
-    () => ({
-      refreshHealth: () => refreshHealth(),
-      fixVaultLint: () => fixVaultLint(),
-      exportWithProfile,
-      setStatusDockTab,
-      setHealthDashboardOpen,
-      openCanvas: () => setCanvasOpen(true),
-      openBibliography: () => setBibliographyOpen(true),
-    }),
-    [
-      setHealthDashboardOpen,
-      setStatusDockTab,
-      exportWithProfile,
-      fixVaultLint,
-      refreshHealth,
-      setCanvasOpen,
-      setBibliographyOpen,
-    ],
-  )
-
+  const pluginCommandRuntime = usePluginCommandRuntime({
+    refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
+    setCanvasOpen, setBibliographyOpen,
+  })
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vaultConfig,
@@ -381,6 +373,18 @@ function App() {
     pluginCommandRuntime,
     hibernateMcp,
   )
+  const storeSurface = useStoreSurfaceController({
+    workspaceMode,
+    currentLayout: { splitPreview, showStickies: stickiesVisible, graphDepth, distractionFree },
+    applyLayout,
+    setSplitPreview,
+    setStickiesVisible,
+    setGraphDepth,
+    setDistractionFree,
+    mcp,
+    hibernation: { graph: hibernateGraph, mcp: hibernateMcp, watcher: hibernateWatcher, git: hibernateGit, spellcheck: hibernateSpellcheck },
+    setHibernation: { graph: setHibernateGraph, mcp: setHibernateMcp, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
+  })
   const ai = useAiProvider()
   const diagnostics = useDiagnosticsSettings(Boolean(workspace.vault))
   const rendererExtensions = plugins.contributions.rendererExtensions
@@ -566,50 +570,6 @@ function App() {
     previewPostProcess,
     previewPlantUmlLocal,
   })
-  const publishStarlight = useCallback(async (existingOutput?: string) => {
-    const requestedOutput = existingOutput ?? await promptText({
-      title: 'Plan Starlight publish',
-      label: 'Output folder for Starlight site',
-      defaultValue: 'scriptor-publish',
-      submitLabel: 'Review plan',
-    })
-    if (!requestedOutput) return
-    try {
-      const result = await vaultPublishPlanStarlight(requestedOutput)
-      setPublishOutputPath(result.output)
-      setPublishPlan(result.plan)
-      setPublishCenterOpen(true)
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : String(error))
-    }
-  }, [promptText, setPublishCenterOpen, showToast])
-
-  const applyStarlightPlan = useCallback(async (selectedPaths: string[], deleteOrphans: string[]) => {
-    if (!publishPlan || !publishOutputPath || publishApplyingRef.current) return
-    publishApplyingRef.current = true
-    const candidates = [...publishPlan.new_items, ...publishPlan.changed]
-    const byPath = new Map(candidates.map((candidate) => [candidate.rel_path, candidate]))
-    const toWrite = selectedPaths.map((path) => byPath.get(path)).filter((candidate) => candidate != null)
-    if (toWrite.length !== selectedPaths.length) {
-      showToast('The publish selection no longer matches the reviewed plan. Replan before applying.')
-      publishApplyingRef.current = false
-      return
-    }
-    setPublishApplying(true)
-    try {
-      const result = await vaultPublishApplyStarlight(publishOutputPath, toWrite, deleteOrphans)
-      showToast(`Published ${result.written.length} note(s); deleted ${result.deleted.length} managed orphan(s).`)
-      const refreshed = await vaultPublishPlanStarlight(publishOutputPath)
-      setPublishPlan(refreshed.plan)
-      setPublishOutputPath(refreshed.output)
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : String(error))
-    } finally {
-      setPublishApplying(false)
-      publishApplyingRef.current = false
-    }
-  }, [publishOutputPath, publishPlan, showToast])
-
   const openKnowledgeWorkbench = useCallback((tab: KnowledgeWorkbenchTab = 'repair') => {
     setKnowledgeWorkbenchTab(tab)
     setKnowledgeWorkbenchOpen(true)
@@ -823,6 +783,8 @@ function App() {
         setNoteHistoryOpen,
         setBibliographyOpen,
         setSnippetsOpen,
+        setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
+        setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
         insertSnippet: (text) => workspace.insertSnippet(text),
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
@@ -889,6 +851,8 @@ function App() {
       setSplitPreview,
       setStatusDockTab,
       setSnippetsOpen,
+      setTemplatePickerOpen,
+      setObsidianImportOpen,
       setSupportOpen,
       setTasksOpen,
       splitPreview,
@@ -937,6 +901,7 @@ function App() {
     openTasks: nativeReady && workspace.vault ? () => setTasksOpen(true) : undefined,
     openKanban:
       nativeReady && workspace.vault && workspace.activePath ? () => setKanbanOpen(true) : undefined,
+    openTemplates: nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined,
     toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
     toggleInspector: () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
   })
@@ -1080,7 +1045,8 @@ function App() {
           onChooseVault={sidebarActions.handleChooseVault}
           onCreateNote={sidebarActions.handleCreateNote}
           onCreateNoteOfType={sidebarActions.handleCreateNoteOfType}
-          onCreateNoteFromTemplate={sidebarActions.handleCreateNoteFromTemplate}
+          onOpenTemplatePicker={nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined}
+          onOpenObsidianImport={nativeReady && workspace.vault ? () => setObsidianImportOpen(true) : undefined}
           onRebuildIndex={sidebarActions.handleRebuildIndex}
           onOpenTags={sidebarActions.handleOpenTags}
           onOpenFilters={sidebarActions.handleOpenFilters}
@@ -1288,6 +1254,7 @@ function App() {
             setGraphOpen(true)
             void workspace.loadGraph(workspace.activePath)
           }}
+          store={storeSurface.inspectorProps}
           plugins={{
             plugins: plugins.plugins,
             templatePacks: plugins.contributions.templatePacks,
@@ -1543,6 +1510,12 @@ function App() {
       )}
 
       {writingTargetsOpen && (
+        <ErrorBoundary
+          name="writing-targets-panel"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Writing targets" onDismiss={() => setWritingTargetsOpen(false)} />}
+        >
+        <Suspense fallback={<PanelFallback />}>
         <WritingTargetsPanel
           dailyTarget={workspace.vaultConfig.writing_targets?.daily_words ?? 500}
           wordsToday={draftWordCount}
@@ -1571,9 +1544,18 @@ function App() {
             setWritingTargetsOpen(false)
           }}
         />
+        </Suspense>
+        </ErrorBoundary>
       )}
 
       {conflictPath && conflictSource ? (
+        <ErrorBoundary
+          name="conflict-resolver"
+          resetKeys={[conflictPath]}
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Conflict resolver" onDismiss={() => setConflictPath(null)} />}
+        >
+        <Suspense fallback={<PanelFallback />}>
         <ConflictResolverModal
           key={conflictPath}
           path={conflictPath}
@@ -1594,6 +1576,8 @@ function App() {
             })
           }}
         />
+        </Suspense>
+        </ErrorBoundary>
       ) : null}
 
       {healthDashboardOpen && (
@@ -1718,11 +1702,27 @@ function App() {
         </ErrorBoundary>
       )}
 
-      <PluginManagerCenter
-        isOpen={pluginManagerOpen}
-        onClose={() => setPluginManagerOpen(false)}
-        currentTheme={theme}
+      <CapabilityWorkflowOverlays
+        templatePickerOpen={templatePickerOpen}
+        obsidianImportOpen={obsidianImportOpen}
+        pluginManagerOpen={pluginManagerOpen}
+        templates={workspace.templatePaths}
+        onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
+        onCloseObsidianImport={() => setObsidianImportOpen(false)}
+        onClosePluginManager={() => setPluginManagerOpen(false)}
+        theme={theme}
         onThemeChange={setTheme}
+        onOpenPluginMarketplace={() => {
+          setPluginManagerOpen(false)
+          patchChrome({ inspectorCollapsed: false })
+          setActiveMode('plugins')
+        }}
+        onCreateBlankNote={sidebarActions.handleCreateNote}
+        onCreateFromTemplate={sidebarActions.handleCreateNoteFromTemplate}
+        onObsidianImported={(notesImported) => {
+          showToast(`Imported ${notesImported} note${notesImported === 1 ? '' : 's'} from Obsidian`)
+          void workspace.refreshVault()
+        }}
       />
 
       {bibliographyOpen && (
@@ -1843,18 +1843,46 @@ function App() {
         </ErrorBoundary>
       )}
 
-      {cheatsheetOpen ? <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} /> : null}
+      {cheatsheetOpen ? (
+        <ErrorBoundary
+          name="cheatsheet-panel"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Cheatsheet" onDismiss={() => setCheatsheetOpen(false)} />}
+        >
+        <Suspense fallback={<PanelFallback />}>
+          <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} />
+        </Suspense>
+        </ErrorBoundary>
+      ) : null}
       {onboarding.onboardingOpen ? (
-        <OnboardingTour
-          onComplete={onboarding.completeOnboarding}
-          onOpenCheatsheet={() => {
-            onboarding.completeOnboarding()
-            setCheatsheetOpen(true)
-          }}
-        />
+        <ErrorBoundary
+          name="onboarding-tour"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Onboarding tour" onDismiss={onboarding.completeOnboarding} />}
+        >
+        <Suspense fallback={<PanelFallback />}>
+          <OnboardingTour
+            onComplete={onboarding.completeOnboarding}
+            onOpenCheatsheet={() => {
+              onboarding.completeOnboarding()
+              setCheatsheetOpen(true)
+            }}
+          />
+        </Suspense>
+        </ErrorBoundary>
       ) : null}
 
-      {supportOpen ? <SupportPanel onClose={() => setSupportOpen(false)} /> : null}
+      {supportOpen ? (
+        <ErrorBoundary
+          name="support-panel"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Support" onDismiss={() => setSupportOpen(false)} />}
+        >
+        <Suspense fallback={<PanelFallback />}>
+          <SupportPanel onClose={() => setSupportOpen(false)} />
+        </Suspense>
+        </ErrorBoundary>
+      ) : null}
 
       <QuickCaptureWorkspaceLayer
         isOpen={quickCaptureOpen}
@@ -1898,7 +1926,17 @@ function App() {
         />
       ) : null}
 
-      {perfHudOpen ? <PerfHudOverlay metrics={perfMetrics.metrics} /> : null}
+      {perfHudOpen ? (
+        <ErrorBoundary
+          name="perf-hud"
+          autoRetryPanelFallback={false}
+          fallback={<PanelErrorFallback title="Performance HUD" onDismiss={() => setPerfHudOpen(false)} />}
+        >
+        <Suspense fallback={<PanelFallback />}>
+          <PerfHudOverlay metrics={perfMetrics.metrics} />
+        </Suspense>
+        </ErrorBoundary>
+      ) : null}
       {toastMessage ? (
         <AppToastRegion>
           <AppToast message={toastMessage} onDismiss={dismissToast} />

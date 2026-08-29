@@ -72,7 +72,7 @@ async function waitForInspectorReady(page: Page) {
 async function waitForVisualWorkspace(page: Page) {
   await waitForWorkspace(page)
   await waitForInspectorReady(page)
-  await expect(page.locator('.job-progress')).toHaveAttribute('aria-label', 'Building graph 100%', { timeout: 45_000 })
+  await expect(page.locator('.job-progress')).toHaveAttribute('aria-label', 'Index ready (100%)', { timeout: 45_000 })
   await expect(page.locator('.job-progress strong')).toHaveText('Index ready')
   await waitForActiveSplitPreview(page)
 }
@@ -193,9 +193,9 @@ test.describe('visual review states', () => {
   test('MCP sharing and sync inventory', async ({ page }) => {
     await openVisualWorkspace(page)
     await installResourceInventoryFixture(page)
-    const mcpButton = page.locator('.top-actions button').filter({ hasText: /MCP|Read-only|Write/i })
+    const mcpButton = page.locator('.top-actions').getByRole('button', { name: /MCP|Read-only|Write/i })
     await mcpButton.click()
-    const mcpPanel = page.getByRole('dialog', { name: /MCP|automation/i })
+    const mcpPanel = page.locator('.mcp-panel')
     await expect(mcpPanel).toBeVisible()
     await mcpPanel.getByRole('tab', { name: 'Sharing & sync' }).click()
 

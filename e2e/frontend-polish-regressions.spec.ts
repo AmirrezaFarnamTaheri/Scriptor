@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 
 import { selectGitPanelState } from '../src/lib/gitPanelState'
 import type { GitStatus } from '../src/types/vault'
-import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
+import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
 
 const OPEN_GIT = 'Open Git panel'
 const OPEN_READER = 'Open reader'
@@ -45,6 +45,72 @@ test.describe('Git panel state selector', () => {
 })
 
 test.describe('Frontend polish regressions', () => {
+  test('workspace and status dock reflow without covering the editor at intermediate widths', async ({ page }) => {
+    await page.setViewportSize({ width: 1240, height: 900 })
+    await launchApp(page)
+    await waitForWorkspace(page)
+
+    const workspace = page.locator('.workspace-grid')
+    const editor = page.locator('.editor-panel')
+    const inspector = page.locator('.inspector-panel')
+    const status = page.locator('.status-strip')
+    const dock = page.locator('.bottom-tabs-wrap')
+    const outputTab = page.getByRole('tab', { name: 'Output' })
+
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('#dock-panel-output')).toHaveCount(0)
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => ({
+          viewportHeight: document.documentElement.clientHeight,
+          viewportWidth: document.documentElement.clientWidth,
+          pageHeight: document.documentElement.scrollHeight,
+          pageWidth: document.documentElement.scrollWidth,
+        })),
+      )
+      .toEqual({ viewportHeight: 900, viewportWidth: 1240, pageHeight: 900, pageWidth: 1240 })
+
+    const [workspaceBox, editorBox, inspectorBox, statusBox, dockBox] = await Promise.all([
+      workspace.boundingBox(),
+      editor.boundingBox(),
+      inspector.boundingBox(),
+      status.boundingBox(),
+      dock.boundingBox(),
+    ])
+    expect(workspaceBox).not.toBeNull()
+    expect(editorBox).not.toBeNull()
+    expect(inspectorBox).not.toBeNull()
+    expect(statusBox).not.toBeNull()
+    expect(dockBox).not.toBeNull()
+    expect((editorBox?.x ?? 0) + (editorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
+    expect((inspectorBox?.x ?? 0) + (inspectorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
+    expect(dockBox?.x).toBeCloseTo((statusBox?.x ?? 0) + 12, 0)
+    expect(dockBox?.width ?? 0).toBeGreaterThan((statusBox?.width ?? 0) * 0.9)
+
+    await outputTab.click()
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.locator('#dock-panel-output')).toBeVisible()
+  })
+
+  test('high app zoom switches write and inspector into exclusive panes', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('scriptor:ui-zoom', '2'))
+    await launchApp(page)
+    await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({ timeout: 30_000 })
+    await settleLayout(page)
+
+    await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
+    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    await expect(nav).toBeVisible()
+    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeHidden()
+
+    await nav.getByRole('button', { name: 'Lens' }).click()
+    await expect(page.locator('.editor-panel')).toBeHidden()
+    await expect(page.locator('.inspector-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeInViewport()
+  })
+
   test('vault tree opens supported reader documents directly in the reader panel', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
@@ -124,8 +190,10 @@ test.describe('Frontend polish regressions', () => {
   })
 
   test('kanban keyboard move reloads the Markdown-derived board in its destination column', async ({ page }) => {
-    await page.addInitScript(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await launchApp(page)
+    // Set this after launch so the app bootstrap cannot replace the test hook
+    // while resetting browser state for a reused Playwright worker.
+    await page.evaluate(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await settleLayout(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
     await openCommandPalette(page)
@@ -240,16 +308,18 @@ test.describe('Frontend polish regressions', () => {
     await expect(panel).toContainText(/Working tree|changed file/i)
   })
 
-  test('store surface disables unavailable MCP and feature toggles instead of no-op clicks', async ({ page }) => {
+  test('store surface owns live MCP and feature controls', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
 
     await page.getByRole('tab', { name: 'Plugins' }).click()
     await page.getByRole('tab', { name: 'MCP' }).click()
-    await expect(page.getByText('MCP controls are unavailable in this surface. Open the dedicated MCP panel to change mode.')).toBeVisible()
-    await expect(page.getByRole('radio', { name: /Read-Only/i })).toBeDisabled()
+    const readOnlyMode = page.getByRole('radio', { name: /Read-Only/i })
+    await expect(readOnlyMode).toBeEnabled()
+    await readOnlyMode.click()
+    await expect(readOnlyMode).toHaveAttribute('aria-checked', 'true')
 
     await page.getByRole('tab', { name: 'Features' }).click()
-    await expect(page.getByText('Feature toggles are read-only in this surface.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Toggle Vault file watcher' })).toBeEnabled()
   })
 })

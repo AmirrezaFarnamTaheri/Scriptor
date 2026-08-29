@@ -1,5 +1,8 @@
-import type { CSSProperties } from 'react'
+import { useId, useRef, type CSSProperties } from 'react'
 import { RotateCcw } from 'lucide-react'
+
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 /**
  * Local error fallback for panel-level ErrorBoundary boundaries.
@@ -97,12 +100,28 @@ export function PanelErrorFallback({
   dismissLabel = 'Close',
   variant = 'overlay',
 }: PanelErrorFallbackProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  const detailId = useId()
+  const isModal = variant === 'overlay' && Boolean(onDismiss)
+  useEscapeToClose(isModal, onDismiss ?? (() => {}))
+  useFocusTrap(dialogRef, { active: isModal })
+
   return (
-    <div style={variant === 'overlay' ? overlayStyle : inlineStyle} role="alert" aria-live="assertive">
+    <div
+      ref={dialogRef}
+      style={variant === 'overlay' ? overlayStyle : inlineStyle}
+      role={isModal ? 'alertdialog' : 'alert'}
+      aria-modal={isModal || undefined}
+      aria-live="assertive"
+      aria-labelledby={isModal ? titleId : undefined}
+      aria-describedby={isModal ? detailId : undefined}
+      tabIndex={isModal ? -1 : undefined}
+    >
       <div style={cardStyle}>
         <span style={accentBarStyle} aria-hidden="true" />
-        <p style={titleStyle}>{title} could not be displayed</p>
-        <p style={detailStyle}>{detail}</p>
+        <p id={titleId} style={titleStyle}>{title} could not be displayed</p>
+        <p id={detailId} style={detailStyle}>{detail}</p>
         {onRetry || onDismiss ? (
           <div style={actionsStyle}>
             {onRetry ? (

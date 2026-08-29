@@ -6,31 +6,31 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 
 | Screenshot | Description | Size | Used in |
 |---|---|---|---|
-| workspace-light.png | Reviewed light workspace baseline | 130 KB | Docs + baseline mirror |
-| workspace-dark.png | Reviewed dark workspace baseline | 59 KB | Docs + baseline mirror |
-| workspace-tablet.png | 1024px workspace breakpoint capture | 139 KB | VISUAL-REVIEW |
-| editor-preview.png | Reviewed split editor/preview baseline | 201 KB | Docs + baseline mirror |
-| command-palette.png | Reviewed command palette baseline | 182 KB | Docs + baseline mirror |
-| graph.png | Reviewed graph baseline | 96 KB | Docs + baseline mirror |
-| canvas.png | Spatial canvas board for visual note arrangement | 100 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| git-panel.png | Version control status, commit, pull/push | 103 KB | VISUAL-REVIEW, STORE-MIGRATION |
-| mcp-panel.png | Reviewed MCP panel baseline | 246 KB | Docs + baseline mirror |
-| settings.png | Runtime config, vault config, appearance, diagnostics | 130 KB | VISUAL-REVIEW, STORE-MIGRATION |
-| publish-center.png | Reviewed publish-center baseline | 147 KB | Docs + baseline mirror |
-| vault-health.png | Vault health dashboard with lint and health scores | 100 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
-| knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 140 KB | VISUAL-REVIEW |
-| conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 88 KB | VISUAL-REVIEW, STORE-MIGRATION |
-| note-history.png | Revision timeline with restore capability | 134 KB | VISUAL-REVIEW |
-| keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 119 KB | VISUAL-REVIEW |
-| onboarding-tour.png | First-run product tour experience | 132 KB | VISUAL-REVIEW |
-| plugins.png | Plugin marketplace discovery and management | 81 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| inspector-preview.png | Inspector preview mode with editor/preview controls | 123 KB | VISUAL-REVIEW |
+| workspace-light.png | Reviewed light workspace baseline | 185 KB | Docs + baseline mirror |
+| workspace-dark.png | Reviewed dark workspace baseline | 156 KB | Docs + baseline mirror |
+| workspace-tablet.png | 1024px workspace breakpoint capture | 99 KB | VISUAL-REVIEW |
+| editor-preview.png | Reviewed split editor/preview baseline | 185 KB | Docs + baseline mirror |
+| command-palette.png | Reviewed command palette baseline | 197 KB | Docs + baseline mirror |
+| graph.png | Reviewed graph baseline | 99 KB | Docs + baseline mirror |
+| canvas.png | Spatial canvas board for visual note arrangement | 169 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| git-panel.png | Version control status, commit, pull/push | 213 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| mcp-panel.png | Reviewed MCP panel baseline | 244 KB | Docs + baseline mirror |
+| settings.png | Runtime config, vault config, appearance, diagnostics | 225 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| publish-center.png | Reviewed publish-center baseline | 201 KB | Docs + baseline mirror |
+| vault-health.png | Vault health dashboard with lint and health scores | 205 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
+| knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 202 KB | VISUAL-REVIEW |
+| conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 164 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| note-history.png | Revision timeline with restore capability | 193 KB | VISUAL-REVIEW |
+| keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 225 KB | VISUAL-REVIEW |
+| onboarding-tour.png | First-run product tour experience | 191 KB | VISUAL-REVIEW |
+| plugins.png | Plugin marketplace discovery and management | 191 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| inspector-preview.png | Inspector preview mode with editor/preview controls | 176 KB | VISUAL-REVIEW |
 | editor-recovery.png | Editor recovery fallback state | 8 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | mcp-sharing-inventory.png | MCP sharing and resource inventory view | 68 KB | VISUAL-REVIEW |
 | toolbar-typography.png | Typography toolbar popover | 12 KB | VISUAL-REVIEW |
 | toolbar-insert.png | Insert toolbar popover | 11 KB | VISUAL-REVIEW |
-| mobile-inspector.png | 390px mobile inspector pane | 53 KB | VISUAL-REVIEW |
-| mobile-vault.png | 390px mobile vault pane | 75 KB | VISUAL-REVIEW |
+| mobile-inspector.png | 390px mobile inspector pane | 29 KB | VISUAL-REVIEW |
+| mobile-vault.png | 390px mobile vault pane | 40 KB | VISUAL-REVIEW |
 
 ### Freshness and acceptance
 
@@ -43,7 +43,13 @@ inspects the diff; visual failures are never hidden by raising the global tolera
 ## Regeneration
 
 Screenshots are captured via Playwright in E2E mode. The mock IPC bridge
-provides fixture data so no real vault or Tauri binary is needed.
+provides fixture data so no real vault or Tauri binary is needed. The capture command disables
+the preview worker for deterministic main-thread rendering, waits for fonts, visible images,
+lazy panels, and finite transitions, and rejects loading or degraded-preview states.
+
+```powershell
+pnpm screenshots:capture:web
+```
 
 ### Build in E2E mode
 
@@ -65,7 +71,8 @@ pnpm vite preview --host 127.0.0.1 --port 4184 --strictPort
 ### Run Playwright screenshot tests
 
 ```powershell
-npx playwright test --config playwright.e2e.config.ts e2e/screenshots.spec.ts --update-snapshots
+$env:VITE_SCREENSHOT_MODE = 'true'
+pnpm exec playwright test --config playwright.e2e.config.ts e2e/screenshots.spec.ts --update-snapshots
 ```
 
 ### Copy snapshots to docs

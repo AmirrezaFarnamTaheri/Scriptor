@@ -29,6 +29,8 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | Encrypted vaults | Experimental primitives only | `crates/vault/src/encryption.rs` | Not a supported vault mode |
 | Rust citation-engine prototype | Incubating | `crates/citation-engine/` | Workspace-only prototype; not composed into desktop/daemon/CLI |
 | Zotero Web API connector | Experimental / library-only | `packages/zotero-connector/` | Read-only library; not composed into the product and no shipped sync UI |
+| Google Calendar and Tasks | Experimental desktop integration | `apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/hooks/useGoogleCalendarSync.ts` | OAuth PKCE and OS-keychain tokens; requires configured Google client ID and broader browser-flow evidence before support claim |
+| Gmail native bridge foundation | Incubating, not composed | `apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/bridge/commands/google_gmail.ts` | Not listed or activatable in the product until a real manager UI and handled command contributions exist; native capability and authorization checks remain enforced |
 | Local embeddings | Incubating | `crates/embeddings/` | Excluded from default workspace build |
 | Tantivy index | Evaluation | `crates/tantivy-indexer/` | Excluded from default workspace build |
 | WASM plugin host | Incubating | `crates/wasm-runtime/` | Excluded from default workspace build |

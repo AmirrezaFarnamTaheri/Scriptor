@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react'
-import { Palette, Blocks, Plus } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Palette, Blocks, Plus, X } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
@@ -8,7 +8,8 @@ import { mcpPluginManifest } from '@scriptor/mcp'
 import { usePluginState } from '../../context/PluginStateContext'
 import {
   type InstallerProfile,
-  getProfilePluginIds,
+  applyProfileToEnabledPlugins,
+  getMatchingInstallerProfile,
 } from '../../context/plugin-defaults'
 import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes'
 import { useAppTheme, readStoredCustomThemes, type AppTheme } from '../../hooks/useAppTheme'
@@ -18,6 +19,7 @@ import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 
 const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
@@ -43,6 +45,7 @@ export interface PluginManagerCenterProps {
   onClose: () => void
   currentTheme?: AppTheme
   onThemeChange?: (theme: AppTheme) => void
+  onOpenPluginMarketplace?: () => void
 }
 
 export function PluginManagerCenter({
@@ -50,8 +53,15 @@ export function PluginManagerCenter({
   onClose,
   currentTheme: propTheme,
   onThemeChange,
+  onOpenPluginMarketplace,
 }: PluginManagerCenterProps) {
-  const { enabledPluginIds, enablePlugin, disablePlugin, persistenceError } = usePluginState()
+  const {
+    enabledPluginIds,
+    enablePlugin,
+    disablePlugin,
+    replaceEnabledPlugins,
+    persistenceError,
+  } = usePluginState()
   const { theme: hookTheme, setTheme: hookSetTheme } = useAppTheme()
 
   const activeTheme = propTheme ?? hookTheme
@@ -72,12 +82,24 @@ export function PluginManagerCenter({
     useCallback((id: string) => setActiveTab(id as 'palettes' | 'plugins'), []),
   )
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeProfile, setActiveProfile] = useState<InstallerProfile>('complete')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
   const overlayRef = useRef<HTMLDivElement>(null)
   // The nested ThemeCustomizerModal owns the focus trap while it is open.
   useFocusTrap(overlayRef, { active: isOpen && !customizerModalOpen })
+  useEscapeToClose(isOpen && !customizerModalOpen, onClose)
+
+  useEffect(() => {
+    if (!isOpen) document.documentElement.dataset.theme = activeTheme
+    return () => {
+      document.documentElement.dataset.theme = activeTheme
+    }
+  }, [activeTheme, isOpen])
+
+  const knownPluginIds = useMemo(
+    () => new Set(BUILTIN_PLUGIN_MANIFESTS.map((plugin) => plugin.id)),
+    [],
+  )
 
   if (!isOpen) return null
 
@@ -114,9 +136,9 @@ export function PluginManagerCenter({
       plugin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       plugin.description.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+  const activeProfile = getMatchingInstallerProfile(enabledPluginIds, knownPluginIds)
 
   const handleTogglePlugin = (id: string, enable: boolean) => {
-    setActiveProfile('custom')
     if (enable) {
       enablePlugin(id)
     } else {
@@ -125,15 +147,8 @@ export function PluginManagerCenter({
   }
 
   const applyProfile = (profile: InstallerProfile) => {
-    setActiveProfile(profile)
-    const targetSet = getProfilePluginIds(profile)
-    for (const plugin of BUILTIN_PLUGIN_MANIFESTS) {
-      if (targetSet.has(plugin.id)) {
-        enablePlugin(plugin.id)
-      } else {
-        disablePlugin(plugin.id)
-      }
-    }
+    if (profile === 'custom') return
+    replaceEnabledPlugins(applyProfileToEnabledPlugins(enabledPluginIds, knownPluginIds, profile))
   }
 
   return (
@@ -143,17 +158,22 @@ export function PluginManagerCenter({
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label="Extension & Theme Management Center"
+        aria-label="Built-in modules and themes"
       >
         <div className="plugin-manager-modal">
           <div className="plugin-manager-header">
             <h2>
-              <Palette /> Extension &amp; Color Scheme Installer Center
+              <Palette /> Built-in Modules &amp; Color Palettes
             </h2>
-            <button type="button" className="close-button" onClick={onClose} aria-label="Close modal">
-              ✕
+            <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+              <X />
             </button>
           </div>
+          {onOpenPluginMarketplace ? (
+            <button type="button" className="toolbar-button plugin-marketplace-link" onClick={onOpenPluginMarketplace}>
+              Open runtime plugin marketplace
+            </button>
+          ) : null}
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
           {/* Primary Tabs — Color Palette Store active by default */}
@@ -200,8 +220,8 @@ export function PluginManagerCenter({
           )}
 
           {activeTab === 'palettes' && (
-            <div className="plugin-manager-profiles" style={{ justifyContent: 'space-between' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="plugin-manager-profiles palette-filter-row">
+              <div className="palette-filter-options">
                 <span className="profiles-label">Category Filter:</span>
                 {(['all', 'dark', 'light', 'contrast'] as const).map((cat) => (
                   <button
@@ -216,15 +236,7 @@ export function PluginManagerCenter({
               </div>
               <button
                 type="button"
-                className="profile-btn active"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'var(--primary, #38bdf8)',
-                  color: 'var(--bg, #0f172a)',
-                  fontWeight: 700,
-                }}
+                className="profile-btn create-palette-button"
                 onClick={() => setCustomizerModalOpen(true)}
               >
                 <Plus size={14} /> Create Custom Palette
@@ -248,7 +260,9 @@ export function PluginManagerCenter({
 
           {activeTab === 'palettes' ? (
             <div className="theme-palette-grid">
-              {filteredPalettes.map((scheme) => (
+              {filteredPalettes.length === 0 ? (
+                <p className="plugin-manager-empty" role="status">No color schemes match this search.</p>
+              ) : filteredPalettes.map((scheme) => (
                 <ThemeCard
                   key={scheme.id}
                   scheme={scheme}
@@ -261,7 +275,9 @@ export function PluginManagerCenter({
             </div>
           ) : (
             <div className="plugin-manager-list">
-              {filteredPlugins.map((plugin) => (
+              {filteredPlugins.length === 0 ? (
+                <p className="plugin-manager-empty" role="status">No plugins match this search.</p>
+              ) : filteredPlugins.map((plugin) => (
                 <PluginCard
                   key={plugin.id}
                   manifest={plugin}

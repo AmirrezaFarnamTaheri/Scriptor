@@ -1,3 +1,4 @@
+pub mod automation_stdio;
 pub mod capabilities;
 pub mod client;
 pub mod command_gateway;
@@ -6,7 +7,6 @@ pub mod export_job;
 pub mod handler;
 pub mod index_job;
 pub mod locks;
-pub mod automation_stdio;
 pub mod transport;
 pub mod watcher;
 #[cfg(windows)]

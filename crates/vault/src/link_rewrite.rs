@@ -248,8 +248,7 @@ pub fn rewrite_note_rename_links_with_resolver(
                 .unwrap_or("");
             let section = capture.name("section").map(|value| value.as_str());
 
-            if !resolver.resolves_to(url, &from.path)
-            {
+            if !resolver.resolves_to(url, &from.path) {
                 return capture.get(0).unwrap().as_str().to_string();
             }
 
@@ -273,8 +272,7 @@ pub fn rewrite_note_rename_links_with_resolver(
                 .map(|value| value.as_str().trim())
                 .unwrap_or("");
 
-            if !resolver.resolves_to(url, &from.path)
-            {
+            if !resolver.resolves_to(url, &from.path) {
                 return capture.get(0).unwrap().as_str().to_string();
             }
 

@@ -3,6 +3,7 @@ import { FileText, FilePlus2 } from 'lucide-react'
 import type { TemplateDefinition } from '../lib/knowledge/templates'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
+import '../styles/components/template-picker.css'
 
 interface TemplatePickerProps {
   templates: TemplateDefinition[]
@@ -60,7 +61,7 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
 
   return (
     <div className="modal-overlay" role="dialog" aria-modal="true" aria-label="Choose template">
-      <div ref={containerRef} className="template-picker" onKeyDown={handleKeyDown}>
+      <div ref={containerRef} className="template-picker-modal" onKeyDown={handleKeyDown}>
         <header className="template-picker__header">
           <h2 className="template-picker__title">New note from template</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
@@ -93,7 +94,7 @@ export function TemplatePicker({ templates, onSelect, onClose }: TemplatePickerP
           ) : (
             filtered.map((opt, i) => (
               <li
-                key={opt.label}
+                key={opt.value?.path ?? '__blank-note__'}
                 id={optionId(i)}
                 role="option"
                 aria-selected={i === activeIdx}

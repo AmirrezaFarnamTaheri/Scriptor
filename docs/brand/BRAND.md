@@ -13,8 +13,9 @@ A high-fidelity tile-built letter **S** with preserved bevels, shadows, coding g
 | Asset | Path | Use |
 |-------|------|-----|
 | In-app wrapper | `src/brand/BrandMark.tsx` | Top bar, glass shell |
-| Canonical source | `docs/brand/logo-mark.svg` | Single source-of-truth vector asset |
-| Runtime asset | `public/brand-mark.svg` | Served in-app without bundling the full SVG |
+| In-app SVG | `src/brand/BrandMark.tsx` | Inline SVG driven by the active theme tokens |
+| Canonical source | `docs/brand/logo-mark.svg` | Static vector master for documentation and exports |
+| Runtime asset | `public/brand-mark.svg` | Static fallback for external/static use |
 | Favicon | `public/favicon.svg` | Browser tab |
 | App icon master | `docs/brand/app-icon.svg` | Desktop/mobile installer icons |
 | Transparent mark | `docs/brand/logo-mark.svg` | Docs, light backgrounds |
@@ -23,13 +24,13 @@ A high-fidelity tile-built letter **S** with preserved bevels, shadows, coding g
 
 - **Source format:** Path-only SVG, no `<image>` payload.
 - **Composition:** Teal keycap tiles with preserved highlights, shadows, glyph engravings, and dispersed particles.
-- **Scaling:** Use the canonical SVG for parity; derive smaller assets from it.
+- **Scaling:** Use the inline in-app SVG where theme adaptation is needed; use the canonical SVG for static assets.
 
 ### Color
 
 | Context | Treatment |
 |---------|-----------|
-| In-app shell | Theme-aware teal tiles on subtle dot grid |
+| In-app shell | Inline SVG using `--surface-raised`, `--border`, `--primary`, and `--ink-strong` |
 | Favicon / installers | Teal rounded plate with tile S |
 | Wordmark | `--ink-strong` → `--primary-strong` gradient text |
 

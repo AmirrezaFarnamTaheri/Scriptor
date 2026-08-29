@@ -1,7 +1,8 @@
 .plugin-manager-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(15, 23, 42, 0.65);
+  padding: 8px;
+  background-color: color-mix(in oklch, var(--bg) 72%, transparent);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -10,12 +11,13 @@
 }
 
 .plugin-manager-modal {
-  width: 90%;
+  width: min(800px, calc(100vw - 16px));
   max-width: 800px;
-  max-height: 85vh;
-  background-color: var(--surface-bg, #1e293b);
-  color: var(--text-main, #f8fafc);
-  border: 1px solid var(--border-color, #334155);
+  max-height: calc(100dvh - 16px);
+  min-height: 0;
+  background-color: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--border);
   border-radius: 12px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
   display: flex;
@@ -45,11 +47,15 @@
   align-items: center;
   gap: 12px;
   padding: 0 24px;
-  background-color: var(--surface-raised, #0f172a);
-  border-bottom: 1px solid var(--border-color, #334155);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  background-color: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
 }
 
 .tab-btn {
+  flex: 0 0 auto;
+  min-height: 44px;
   padding: 12px 16px;
   font-size: 0.9rem;
   font-weight: 600;
@@ -72,7 +78,7 @@
 
 .theme-palette-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 16px;
   padding: 20px 24px;
   overflow-y: auto;
@@ -83,13 +89,25 @@
   align-items: center;
   gap: 10px;
   padding: 12px 24px;
-  background-color: #0f172a;
-  border-bottom: 1px solid var(--border-color, #334155);
+  flex-wrap: wrap;
+  background-color: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.palette-filter-row {
+  justify-content: space-between;
+}
+
+.palette-filter-options {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .profiles-label {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--muted);
   font-weight: 500;
 }
 
@@ -97,20 +115,22 @@
   padding: 6px 14px;
   font-size: 0.85rem;
   border-radius: 6px;
-  border: 1px solid #334155;
-  background-color: #1e293b;
-  color: #f8fafc;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  background-color: var(--surface);
+  color: var(--ink);
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .profile-btn:hover {
-  border-color: #38bdf8;
+  border-color: var(--primary);
 }
 
 .profile-btn.active {
-  background-color: #0284c7;
-  border-color: #38bdf8;
+  background-color: var(--primary-soft);
+  border-color: var(--primary);
+  color: var(--primary-strong);
   font-weight: 600;
 }
 
@@ -118,8 +138,19 @@
   font-size: 0.75rem;
   padding: 3px 8px;
   border-radius: 4px;
-  background-color: #475569;
-  color: #cbd5e1;
+  background-color: var(--surface-muted);
+  color: var(--muted);
+}
+
+.create-palette-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--bg);
+  font-weight: 700;
 }
 
 .plugin-manager-search {
@@ -131,9 +162,9 @@
   width: 100%;
   padding: 10px 14px;
   border-radius: 8px;
-  border: 1px solid var(--border-color, #475569);
-  background-color: var(--input-bg, #0f172a);
-  color: #f8fafc;
+  border: 1px solid var(--border);
+  background-color: var(--bg);
+  color: var(--ink);
   font-size: 0.9rem;
 }
 
@@ -151,8 +182,9 @@
   justify-content: space-between;
   padding: 16px;
   border-radius: 10px;
-  border: 1px solid var(--border-color, #334155);
-  background-color: var(--card-bg, #0f172a);
+  gap: 16px;
+  border: 1px solid var(--border);
+  background-color: var(--surface-raised);
   transition: border-color 0.2s ease;
 }
 
@@ -164,12 +196,14 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
 }
 
 .plugin-card-title {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .plugin-card-title h3 {
@@ -189,7 +223,8 @@
 .plugin-card-description {
   margin: 0;
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .plugin-card-actions {
@@ -201,8 +236,9 @@
 .toggle-switch {
   position: relative;
   width: 44px;
-  height: 24px;
-  background-color: #475569;
+  min-width: 44px;
+  height: 44px;
+  background-color: transparent;
   border-radius: 12px;
   cursor: pointer;
   border: none;
@@ -210,22 +246,55 @@
 }
 
 .toggle-switch.enabled {
-  background-color: #0284c7;
+  background-color: var(--primary-soft);
 }
 
 .toggle-switch-handle {
   position: absolute;
-  top: 2px;
+  top: 12px;
   left: 2px;
   width: 20px;
   height: 20px;
-  background-color: #ffffff;
+  background-color: var(--muted);
   border-radius: 50%;
   transition: transform 0.2s ease;
 }
 
 .toggle-switch.enabled .toggle-switch-handle {
   transform: translateX(20px);
+  background-color: var(--primary);
+}
+
+.plugin-manager-empty {
+  grid-column: 1 / -1;
+  margin: 24px 0;
+  color: var(--muted);
+  text-align: center;
+}
+
+@media (max-width: 640px), (min-resolution: 1.75dppx) {
+  .plugin-manager-header,
+  .plugin-manager-tabs,
+  .plugin-manager-profiles,
+  .plugin-manager-search,
+  .plugin-manager-list,
+  .theme-palette-grid {
+    padding-inline: 14px;
+  }
+
+  .plugin-card {
+    align-items: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-btn,
+  .profile-btn,
+  .plugin-card,
+  .toggle-switch,
+  .toggle-switch-handle {
+    transition: none;
+  }
 }
 
 

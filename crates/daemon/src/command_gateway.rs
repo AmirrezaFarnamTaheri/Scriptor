@@ -16,9 +16,9 @@ use scriptor_indexer::{
     health_diagnostics_json, health_report_json, incremental_note_index_with_cache,
     incremental_notes_index_with_cache, list_bibliography_entries, list_dead_end_notes,
     list_inbox_notes, list_note_summaries, list_orphan_notes, list_recent_files,
-    list_unresolved_link_targets, list_vault_tags, list_view_notes, notes_for_tag,
-    open_cache_for_session, parse_note_markdown, query_focused_graph, rebuild_index,
-    record_recent_access, resolve_wikilink_target_with_aliases, search_notes, traverse_graph,
+    list_unresolved_link_targets, list_vault_tags, list_view_notes, note_paths_and_aliases,
+    notes_for_tag, parse_note_markdown, query_focused_graph, rebuild_index, record_recent_access,
+    resolve_wikilink_target_with_aliases, search_notes, traverse_graph,
 };
 use scriptor_native_git::{
     PullStrategy, git_commit_selected, git_pull, git_push, git_resolve_conflict,
@@ -80,7 +80,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "vault_scan" => {
             let session = state.require_session()?;
-            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
+            let config =
+                load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             to_value(
                 scan_vault_with_roots(&session.root, &config.extra_roots)
                     .map_err(|e| e.to_string())?,
@@ -314,9 +315,13 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         "vault_list_view_notes" => {
             let session = state.require_session()?;
             let filter_json = require_str(payload, "filter_json")?;
-            let cache = open_cache_for_session(session).map_err(|e| e.to_string())?;
+            // Use the daemon's persistent cache rather than opening a new pool
+            // on every call. All other indexer commands use require_cache() for
+            // the same reason: pool creation is expensive (~8 SQLite connections
+            // + PRAGMA re-application) and should happen once per session.
+            let cache = state.require_cache()?;
             let hits: Vec<ViewNoteHit> =
-                list_view_notes(&cache, session, &filter_json).map_err(|e| e.to_string())?;
+                list_view_notes(cache, session, &filter_json).map_err(|e| e.to_string())?;
             to_value(hits)
         }
         "vault_frontmatter_set" => {
@@ -343,9 +348,9 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 "path": path,
                 "field": field,
                 "value": value_str,
-                "markdown": read_note(&session.descriptor.id, &session.root, &relative)
-                    .map_err(|e| e.to_string())?
-                    .markdown,
+                // The save_note call above already wrote `markdown` to disk;
+                // return the local variable directly to avoid a redundant read.
+                "markdown": markdown,
             }))
         }
         "vault_textbundle_export" => {
@@ -366,7 +371,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
         }
         "vault_read_stats_history" => {
             let session = state.require_session()?;
-            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
+            let config =
+                load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             let path = config
                 .writing_targets
                 .history_path
@@ -378,7 +384,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let session = state.require_session()?;
             let date = require_str(payload, "date")?;
             let words = require_u32(payload, "words")?;
-            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
+            let config =
+                load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             let path = config
                 .writing_targets
                 .history_path
@@ -580,7 +587,8 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let cache = state.require_cache()?;
             let focus_path = optional_str(payload, "focus_path");
             let depth = optional_u32(payload, "depth").unwrap_or(1);
-            let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
+            let config =
+                load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
             to_value(
                 query_focused_graph(
                     cache,

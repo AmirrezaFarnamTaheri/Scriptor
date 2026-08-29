@@ -56,6 +56,8 @@ export interface PaletteCommandContext {
   setNoteHistoryOpen?: (open: boolean) => void
   setBibliographyOpen: (open: boolean) => void
   setSnippetsOpen?: (open: boolean) => void
+  setTemplatePickerOpen?: (open: boolean) => void
+  setObsidianImportOpen?: (open: boolean) => void
   insertSnippet?: (text: string) => void
   publishStarlight?: () => void
   promptText?: (request: {
@@ -118,6 +120,8 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     setNoteHistoryOpen,
     setBibliographyOpen,
     setSnippetsOpen,
+    setTemplatePickerOpen,
+    setObsidianImportOpen,
     insertSnippet,
     publishStarlight,
     promptText,
@@ -176,6 +180,12 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
             run: () => setSnippetsOpen(true),
           } satisfies AppCommandDefinition,
         ]
+      : []),
+    ...(setTemplatePickerOpen
+      ? [{ id: 'open-templates', label: 'New note from template', shortcut: 'Alt+T', run: () => setTemplatePickerOpen(true) } satisfies AppCommandDefinition]
+      : []),
+    ...(setObsidianImportOpen
+      ? [{ id: 'import-obsidian-vault', label: 'Import Obsidian vault', keywords: ['migrate', 'notes'], run: () => setObsidianImportOpen(true) } satisfies AppCommandDefinition]
       : []),
     { id: 'open-vault', label: 'Open vault', shortcut: 'Alt+O', run: () => void workspace.chooseVaultFolder() },
     { id: 'rebuild-index', label: 'Rebuild index', run: () => void workspace.rebuildIndex() },
@@ -242,7 +252,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     { id: 'open-mcp', label: 'Open MCP panel', run: () => setMcpPanelOpen(true) },
     { id: 'open-settings', label: 'Open settings', run: () => setSettingsOpen(true) },
     ...(setPluginManagerOpen
-      ? [{ id: 'open-plugin-manager', label: 'Open Extension & Color Palette Store', keywords: ['theme', 'palette', 'colors', 'plugins'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
+      ? [{ id: 'open-plugin-manager', label: 'Open Built-in Modules & Color Palettes', keywords: ['theme', 'palette', 'colors', 'modules'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
       : []),
     {
       id: 'open-knowledge-workbench',

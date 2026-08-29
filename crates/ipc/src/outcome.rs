@@ -10,14 +10,27 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum BoundaryOutcome<T, W, R> {
-    Value { value: T },
-    AbsentOptional { value: T },
-    Invalid { code: String, message: String },
-    Degraded { value: T, warnings: Vec<W> },
+    Value {
+        value: T,
+    },
+    AbsentOptional {
+        value: T,
+    },
+    Invalid {
+        code: String,
+        message: String,
+    },
+    Degraded {
+        value: T,
+        warnings: Vec<W>,
+    },
     Failed {
         code: String,
         message: String,
         recoverable: bool,
     },
-    Recovered { value: T, receipt: R },
+    Recovered {
+        value: T,
+        receipt: R,
+    },
 }

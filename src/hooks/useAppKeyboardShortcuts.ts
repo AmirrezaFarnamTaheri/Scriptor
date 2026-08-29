@@ -20,6 +20,7 @@ interface UseAppKeyboardShortcutsOptions {
   openReader?: () => void
   openTasks?: () => void
   openKanban?: () => void
+  openTemplates?: () => void
   toggleVaultSidebar: () => void
   toggleInspector: () => void
 }
@@ -50,6 +51,7 @@ export function useAppKeyboardShortcuts({
   openReader,
   openTasks,
   openKanban,
+  openTemplates,
   toggleVaultSidebar,
   toggleInspector,
 }: UseAppKeyboardShortcutsOptions): void {
@@ -72,6 +74,7 @@ export function useAppKeyboardShortcuts({
       if (run('open-inbox', () => setSidebarView('inbox'))) return
       if (run('open-daily-note', () => void createDailyNote())) return
       if (run('manage-snippets', openSnippets)) return
+      if (openTemplates && run('open-templates', openTemplates)) return
       if (run('open-knowledge-workbench', openKnowledgeWorkbench)) return
       if (run('open-graph', () => {
         openGraph()
@@ -104,6 +107,7 @@ export function useAppKeyboardShortcuts({
     openReader,
     openSnippets,
     openTasks,
+    openTemplates,
     reopenClosedTab,
     setSidebarView,
     toggleInspector,

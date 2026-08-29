@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpenText,
   Box,
@@ -156,6 +156,7 @@ export function AppTopBar({
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)
   const customizeAnchorRef = useRef<HTMLButtonElement | null>(null)
+  const customizePopupRef = useRef<HTMLDivElement | null>(null)
 
   const quickActions = [
     { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge' },
@@ -169,7 +170,9 @@ export function AppTopBar({
     { id: 'git', label: gitTitle, icon: <GitBranch />, onClick: onOpenGit },
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
-    { id: 'paletteStore', label: 'Extension & Color Palette Store', icon: <Palette />, onClick: onOpenPluginManager },
+    ...(onOpenPluginManager
+      ? [{ id: 'paletteStore', label: 'Built-in Modules & Color Palettes', icon: <Palette />, onClick: onOpenPluginManager }]
+      : []),
   ]
 
   const toggleHiddenAction = useCallback(
@@ -182,11 +185,27 @@ export function AppTopBar({
     [hiddenTopBarActions, onPatchChrome],
   )
 
-  const openCustomize = useCallback(() => {
+  const positionCustomize = useCallback(() => {
     const rect = customizeAnchorRef.current?.getBoundingClientRect()
-    setCustomizePos(rect ? { x: rect.right, y: rect.bottom + 6 } : { x: 24, y: 64 })
-    setCustomizeOpen((open) => !open)
+    const popup = customizePopupRef.current?.getBoundingClientRect()
+    const width = popup?.width ?? 264
+    const height = popup?.height ?? Math.min(420, window.innerHeight * 0.7)
+    const anchorRight = rect?.right ?? 272
+    const anchorBottom = rect?.bottom ?? 58
+    setCustomizePos({
+      x: Math.max(8, Math.min(anchorRight - width, window.innerWidth - width - 8)),
+      y: Math.max(8, Math.min(anchorBottom + 6, window.innerHeight - height - 8)),
+    })
   }, [])
+
+  const openCustomize = useCallback(() => {
+    positionCustomize()
+    setCustomizeOpen((open) => !open)
+  }, [positionCustomize])
+
+  useLayoutEffect(() => {
+    if (customizeOpen) positionCustomize()
+  }, [customizeOpen, positionCustomize])
 
   useEffect(() => {
     if (!customizeOpen) return undefined
@@ -196,9 +215,24 @@ export function AppTopBar({
       if (target?.closest?.('.topbar')) return
       setCustomizeOpen(false)
     }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      setCustomizeOpen(false)
+      customizeAnchorRef.current?.focus()
+    }
+    const onViewportChange = () => positionCustomize()
     window.addEventListener('pointerdown', onPointerDown, true)
-    return () => window.removeEventListener('pointerdown', onPointerDown, true)
-  }, [customizeOpen])
+    window.addEventListener('keydown', onKeyDown)
+    window.addEventListener('resize', onViewportChange)
+    window.addEventListener('scroll', onViewportChange, true)
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true)
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('resize', onViewportChange)
+      window.removeEventListener('scroll', onViewportChange, true)
+    }
+  }, [customizeOpen, positionCustomize])
 
   const onHeaderContextMenu = useCallback(
     (event: React.MouseEvent) => {
@@ -344,12 +378,12 @@ export function AppTopBar({
             <PanelRight />
           </IconButton>
           {!hiddenTopBarActions.has('support') ? (
-            <IconButton label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
-              <Heart />
+            <IconButton className="support-heart-action" label={t('topBar.supportScriptor')} onClick={onOpenSupport}>
+              <Heart fill="currentColor" />
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton label="Extension &amp; Color Palette Store" onClick={onOpenPluginManager}>
+            <IconButton label="Built-in Modules &amp; Color Palettes" onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
           ) : null}
@@ -371,9 +405,10 @@ export function AppTopBar({
       {customizeOpen && customizePos ? (
         <div
           className="topbar-customize"
+          ref={customizePopupRef}
           role="dialog"
           aria-label="Customize top bar actions"
-          style={{ left: Math.max(8, customizePos.x - 264), top: customizePos.y + 4 }}
+          style={{ left: customizePos.x, top: customizePos.y }}
         >
           <strong>Top bar actions</strong>
           {[...quickActions, ...statusActions].map((action) => (

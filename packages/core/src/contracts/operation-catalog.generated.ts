@@ -3096,6 +3096,123 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "google_gmail_get_message",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_gmail_disconnect",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_gmail_disconnect",
+      "authorizationVariant": "GoogleGmailDisconnect",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_list_messages",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "google_gmail_modify_message",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_gmail_write",
+      "authorizationVariant": "GoogleGmailWrite",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_send_message",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_gmail_send",
+      "authorizationVariant": "GoogleGmailSend",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_start_auth",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_gmail_auth",
+      "authorizationVariant": "GoogleGmailAuth",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
+      "name": "google_gmail_trash_message",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "sensitive-mutation",
+      "scope": "google_gmail_write",
+      "authorizationVariant": "GoogleGmailWrite",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
       "name": "health_check",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/system.rs",

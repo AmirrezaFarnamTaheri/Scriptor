@@ -11,9 +11,9 @@ use crate::note::read_note;
 use crate::patch_log::{collect_rename_backups, write_rename_patch_log};
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::rename_transaction::StagedRenameTransaction;
-use crate::scan::{ScannedEntryKind, list_notes, scan_vault};
-use crate::write::save_note;
+use crate::scan::list_notes;
 use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
+use crate::write::save_note;
 
 static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex")
@@ -66,12 +66,8 @@ pub fn rename_dry_run(
 
         for note_path in list_notes(root)? {
             let document = read_note(vault_id, root, &note_path)?;
-            let (_, edits) = rewrite_note_rename_links_with_resolver(
-                &document.markdown,
-                &from,
-                &to,
-                &resolver,
-            );
+            let (_, edits) =
+                rewrite_note_rename_links_with_resolver(&document.markdown, &from, &to, &resolver);
             if edits > 0 {
                 affected.insert(note_path.to_string());
                 link_edits += edits;
@@ -126,12 +122,8 @@ pub fn rename_apply_staged(
     if update_links {
         for note_path in list_notes(root)? {
             let document = read_note(vault_id, root, &note_path)?;
-            let (updated, edits) = rewrite_note_rename_links_with_resolver(
-                &document.markdown,
-                &from,
-                &to,
-                &resolver,
-            );
+            let (updated, edits) =
+                rewrite_note_rename_links_with_resolver(&document.markdown, &from, &to, &resolver);
             if edits > 0 && updated != document.markdown {
                 pending_writes.insert(note_path.to_string(), updated);
             }

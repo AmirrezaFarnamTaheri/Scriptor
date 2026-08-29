@@ -10,57 +10,42 @@
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
 [![CI](https://img.shields.io/github/actions/workflow/status/AmirrezaFarnamTaheri/Scriptor/ci.yml?branch=main&label=CI)](https://github.com/AmirrezaFarnamTaheri/Scriptor/actions/workflows/ci.yml)
 
-Markdown stays portable on disk. Scriptor is the calm, capable surface around it.
+Your notes remain ordinary Markdown files. Scriptor adds editing, backlinks, citations, version history, publishing, and permissioned automation.
+
+[Download](#download) · [Getting started](docs/guides/GETTING_STARTED.md) · [Capabilities](docs/CAPABILITIES.md) · [Plugin authoring](docs/plugins/AUTHOR_GUIDE.md) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
----
+![Scriptor workspace with editor, rendered preview, inspector, and compact status dock](docs/assets/screenshots/workspace-light.png)
 
-## What is Scriptor?
+## The product
 
-Scriptor is a local-first desktop workspace for writers, researchers, students, and technical authors who maintain long-lived Markdown vaults. It combines writing, evidence management, citations, graph navigation, Git-aware revision, reproducible publishing, and permissioned automation while keeping the Markdown files authoritative on disk.
+Scriptor opens a folder of Markdown and adds search, backlinks, history, previews, and health checks. Markdown remains the source of truth, so every note stays readable in other editors.
 
-It is **not** an Electron app. It is **not** a cloud sync service. It is **not** a Notion clone. It is a Tauri 2 desktop shell around a Rust kernel (vault, indexer, native git, daemon) with a React workspace, designed for long-form writing and dense research work.
+Scriptor is designed for long-running projects such as books, theses, technical documentation, research collections, and maintained knowledge bases. A Tauri desktop shell provides the interface while Rust services handle vault access, indexing, Git, export, and local IPC.
 
-## Screenshots
-
-### Workspace
-
-| Light | Dark |
+| Work with your material | What Scriptor provides |
 |---|---|
-| ![Light workspace](docs/assets/screenshots/workspace-light.png) | ![Dark workspace](docs/assets/screenshots/workspace-dark.png) |
+| **Write and revise** | Source, split, and rendered views; outline navigation; snippets; configurable editor; note history |
+| **Build evidence** | Wikilinks, backlinks, citations, graph exploration, health checks, unresolved-link repair |
+| **Publish reproducibly** | Named Pandoc profiles for HTML, PDF, DOCX, LaTeX, ePub, and Reveal.js |
+| **Automate with boundaries** | Git-aware workflows, audited MCP tools, permissioned plugins, and a local daemon |
 
-### Write
+## See it in use
 
-| Editor with split preview | Inspector with outline, links, citations |
+| Write with source and preview | Inspect structure and note quality |
 |---|---|
 | ![Editor and preview](docs/assets/screenshots/editor-preview.png) | ![Inspector preview](docs/assets/screenshots/inspector-preview.png) |
 
-### Knowledge
-
-| Knowledge graph | Knowledge workbench (inbox, tags, orphans, backlinks, recent) |
+| Explore connections | Repair and organize the vault |
 |---|---|
 | ![Graph](docs/assets/screenshots/graph.png) | ![Knowledge workbench](docs/assets/screenshots/knowledge-workbench.png) |
 
-### Visualize and extend
-
-| Canvas board | Plugin marketplace |
+| Extend the workspace | Publish from named profiles |
 |---|---|
-| ![Canvas board](docs/assets/screenshots/canvas.png) | ![Plugins](docs/assets/screenshots/plugins.png) |
+| ![Plugin marketplace](docs/assets/screenshots/plugins.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
 
-### Automate
-
-| Git panel | 3-way conflict resolver |
-|---|---|
-| ![Git panel](docs/assets/screenshots/git-panel.png) | ![Conflict resolver](docs/assets/screenshots/conflict-resolver.png) |
-
-### Operate and publish
-
-| Command palette | Publish center |
-|---|---|
-| ![Command palette](docs/assets/screenshots/command-palette.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
-
-Additional captures — MCP panel, settings, vault health, note history, keyboard shortcuts, onboarding tour, mobile and tablet breakpoints, dark workspace — live in [`docs/assets/screenshots/README.md`](docs/assets/screenshots/README.md). Regenerate locally with `pnpm screenshots:capture`.
+The [screenshot catalog](docs/assets/screenshots/README.md) also covers dark mode, Git, conflict resolution, the command palette, MCP, settings, vault health, note history, keyboard shortcuts, onboarding, and compact layouts. The capture script waits for data and panels to finish loading and fails if a screen remains in a loading or degraded state.
 
 ## Features
 
@@ -74,9 +59,9 @@ Additional captures — MCP panel, settings, vault health, note history, keyboar
 - **Operate** — command palette, workspace modes, vault health dashboard, terminal UI, scheduled snapshots
 - **Spellcheck** — multi-locale Hunspell, optional LanguageTool
 
-Honest capability labeling matters. The authoritative list of what ships, what is experimental, and what is design-only lives in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md).
+See [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) for the current status of shipped, experimental, and design-only features.
 
-## Download
+## Get Scriptor
 
 Production installers are published as GitHub Release assets. The current version is **1.0.1**.
 
@@ -86,7 +71,7 @@ Production installers are published as GitHub Release assets. The current versio
 
 > **Trust status.** The official upstream installers are intentionally **unsigned**. Releases ship with SHA-256 checksums, a CycloneDX SBOM, a release receipt, source identity evidence, and GitHub provenance attestations. See [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md) for the full verification workflow before you install.
 
-Get the latest release: <https://github.com/AmirrezaFarnamTaheri/Scriptor/releases>
+[Download the latest release](https://github.com/AmirrezaFarnamTaheri/Scriptor/releases) or [build from source](#build-from-source).
 
 ## Tech stack
 

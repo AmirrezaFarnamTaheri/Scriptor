@@ -57,20 +57,63 @@ fn cargo(args: &[&str]) -> Result<()> {
     run("cargo", args)
 }
 
+#[cfg(windows)]
+fn pnpm_command() -> &'static str {
+    "pnpm.cmd"
+}
+
+#[cfg(not(windows))]
+fn pnpm_command() -> &'static str {
+    "pnpm"
+}
+
+#[cfg(windows)]
+fn corepack_command() -> &'static str {
+    "corepack.cmd"
+}
+
+#[cfg(not(windows))]
+fn corepack_command() -> &'static str {
+    "corepack"
+}
+
 fn pnpm(args: &[&str]) -> Result<()> {
     // Corepack-installed package-manager shims are not consistently visible
     // to child processes on hosted runners. Prefer the shim when available,
-    // then fall back to invoking pnpm through corepack explicitly.
-    match Command::new("pnpm").args(args).status() {
+    // then fall back to invoking pnpm through corepack explicitly. Windows
+    // CreateProcess also needs the `.cmd` extension for both shims.
+    match Command::new(pnpm_command()).args(args).status() {
         Ok(status) if status.success() => Ok(()),
         Ok(status) => bail!("pnpm exited with {status}"),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             let mut corepack_args = vec!["pnpm"];
             corepack_args.extend_from_slice(args);
-            run("corepack", &corepack_args)
+            run(corepack_command(), &corepack_args)
         }
         Err(error) => Err(error).with_context(|| "failed to run pnpm"),
     }
+}
+
+fn release_smoke_cargo_args(action: &str) -> Vec<&str> {
+    vec![
+        action,
+        "--workspace",
+        // A running xtask executable cannot be replaced on Windows. The outer
+        // invocation already builds or tests this package, so the nested
+        // workspace pass excludes it on every platform.
+        "--exclude",
+        "scriptor-xtask",
+        "--exclude",
+        "scriptor-desktop",
+        "--exclude",
+        "scriptor-embeddings",
+        "--exclude",
+        "scriptor-tantivy-indexer",
+        "--exclude",
+        "scriptor-wasm-runtime",
+        "--jobs",
+        "2",
+    ]
 }
 
 fn release_smoke() -> Result<()> {
@@ -83,34 +126,8 @@ fn release_smoke() -> Result<()> {
     // remaining crate depends on them, so excluding them shrinks the smoke
     // graph to the release surface without losing product coverage. Slower
     // but it completes and lets rust-cache persist artifacts for later runs.
-    cargo(&[
-        "build",
-        "--workspace",
-        "--exclude",
-        "scriptor-desktop",
-        "--exclude",
-        "scriptor-embeddings",
-        "--exclude",
-        "scriptor-tantivy-indexer",
-        "--exclude",
-        "scriptor-wasm-runtime",
-        "--jobs",
-        "2",
-    ])?;
-    cargo(&[
-        "test",
-        "--workspace",
-        "--exclude",
-        "scriptor-desktop",
-        "--exclude",
-        "scriptor-embeddings",
-        "--exclude",
-        "scriptor-tantivy-indexer",
-        "--exclude",
-        "scriptor-wasm-runtime",
-        "--jobs",
-        "2",
-    ])?;
+    cargo(&release_smoke_cargo_args("build"))?;
+    cargo(&release_smoke_cargo_args("test"))?;
     pnpm(&["build"])?;
     println!("Release smoke passed.");
     Ok(())
@@ -223,6 +240,22 @@ mod tests {
     fn parse_mean_ms_extracts_value() {
         let output = "some noise\n{\"mean_ms\": 42.5, \"other\": 1}\n";
         assert_eq!(parse_mean_ms(output).unwrap(), 42.5);
+    }
+
+    #[test]
+    fn release_smoke_excludes_the_running_xtask() {
+        let args = release_smoke_cargo_args("build");
+        assert!(
+            args.windows(2)
+                .any(|pair| pair == ["--exclude", "scriptor-xtask"])
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn package_manager_shims_are_executable_on_windows() {
+        assert_eq!(pnpm_command(), "pnpm.cmd");
+        assert_eq!(corepack_command(), "corepack.cmd");
     }
 
     #[test]

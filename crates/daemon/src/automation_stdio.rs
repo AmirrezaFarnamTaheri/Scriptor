@@ -192,7 +192,8 @@ pub fn run_automation_stdio(options: AutomationStdioOptions) -> Result<(), Strin
                         message,
                     }),
                 };
-                let encoded = serde_json::to_string(&response).map_err(|error| error.to_string())?;
+                let encoded =
+                    serde_json::to_string(&response).map_err(|error| error.to_string())?;
                 writeln!(stdout, "{encoded}").map_err(|error| error.to_string())?;
                 stdout.flush().map_err(|error| error.to_string())?;
                 continue;
@@ -259,7 +260,10 @@ fn read_bounded_automation_line<R: BufRead>(reader: &mut R) -> Result<Option<Str
         .map_err(|_| "automation stdio input must be UTF-8".to_string())
 }
 
-fn handle_request(state: &mut AutomationStdioState, request: AutomationRequest) -> AutomationResponse {
+fn handle_request(
+    state: &mut AutomationStdioState,
+    request: AutomationRequest,
+) -> AutomationResponse {
     match request.method.as_str() {
         "tools/list" => AutomationResponse {
             id: request.id,

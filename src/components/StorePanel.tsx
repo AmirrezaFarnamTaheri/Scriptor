@@ -137,6 +137,8 @@ function TabButton({
         color: active ? 'var(--bg)' : 'var(--text-muted)',
         fontSize: 'var(--text-sm)',
         transition: 'background var(--ease-fast), color var(--ease-fast)',
+        flexShrink: 0,
+        whiteSpace: 'nowrap',
       }}
     >
       {icon}
@@ -259,6 +261,7 @@ function McpTab({
           style={{
             display: 'flex',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: 6,
             background: 'none',
             border: 'none',
@@ -323,7 +326,7 @@ function FeaturesTab({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>
-        Feature flags let you opt-in to experimental or optional capabilities without reinstalling.
+        Runtime controls let you pause optional background work without uninstalling anything.
         Changes take effect immediately unless marked <em>requires restart</em>.
       </p>
       {!interactive ? (
@@ -342,6 +345,7 @@ function FeaturesTab({
           style={{
             display: 'flex',
             alignItems: 'center',
+            flexWrap: 'wrap',
             gap: 12,
             padding: '10px 12px',
             borderRadius: 'var(--radius-sm)',
@@ -368,7 +372,7 @@ function FeaturesTab({
               ? <ToggleRight size={22} color="var(--accent)" />
               : <ToggleLeft size={22} color="var(--text-muted)" />}
           </button>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: '1 1 12rem', minWidth: 0, overflowWrap: 'anywhere' }}>
             <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
               {flag.label}
               {flag.requiresRestart && (
@@ -409,6 +413,7 @@ function LayoutsTab({
             style={{
               display: 'flex',
               alignItems: 'center',
+              flexWrap: 'wrap',
               gap: 12,
               padding: '10px 12px',
               borderRadius: 'var(--radius-sm)',
@@ -418,7 +423,7 @@ function LayoutsTab({
             }}
           >
             <LayoutTemplate size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
-            <div style={{ flex: 1 }}>
+            <div style={{ flex: '1 1 12rem', minWidth: 0, overflowWrap: 'anywhere' }}>
               <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{preset.name}</div>
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
                 {preset.description}
@@ -439,6 +444,7 @@ function LayoutsTab({
                 color: 'var(--accent)',
                 cursor: !onApplyLayoutPreset || active ? 'default' : 'pointer',
                 opacity: !onApplyLayoutPreset ? 0.4 : 1,
+                marginLeft: 'auto',
               }}
             >
               {active ? 'Active' : 'Apply'}
@@ -893,6 +899,8 @@ export function StorePanel(props: StorePanelProps) {
           padding: '8px 12px',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
+          overflowX: 'auto',
+          scrollbarWidth: 'thin',
         }}
       >
         {STORE_TABS.map((tab) => (

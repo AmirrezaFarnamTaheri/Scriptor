@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { useMemo } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
@@ -10,7 +10,7 @@ import type { LayoutPreset } from '../../lib/workspace/layoutPresets'
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import { EmptyState } from '../EmptyState'
 import { ReferencesPreviewPanel } from '../ReferencesPreviewPanel'
-import { StorePanel, type FeatureFlagEntry, type McpAuditEntry } from '../StorePanel'
+import type { FeatureFlagEntry, McpAuditEntry } from '../StorePanel'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import { NoteQualityCard } from '../inspector/NoteQualityCard'
@@ -18,6 +18,10 @@ import { PreviewQABar } from '../inspector/PreviewQABar'
 import { INSPECTOR_PRESETS, type InspectorPreset } from '../../lib/inspectorPresets'
 import type { BibliographyEntry, BacklinkHit, ExportJobOutput, VaultHealthDiagnostics, VaultHealthReport } from '../../types/vault'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
+
+const StorePanel = lazy(() =>
+  import('../StorePanel').then((module) => ({ default: module.StorePanel })),
+)
 
 interface InspectorRailProps {
   railRef?: RefObject<HTMLElement | null>
@@ -489,7 +493,8 @@ export function InspectorRail({
               />
             }
           >
-            <StorePanel
+            <Suspense fallback={<div className="panel-loading" role="status">Loading store…</div>}>
+              <StorePanel
               plugins={plugins.plugins}
               templatePacks={plugins.templatePacks}
               safeMode={plugins.safeMode}
@@ -510,7 +515,8 @@ export function InspectorRail({
               onToggleFeature={store?.onToggleFeature}
               activeLayoutPresetId={store?.activeLayoutPresetId}
               onApplyLayoutPreset={store?.onApplyLayoutPreset}
-            />
+              />
+            </Suspense>
           </ErrorBoundary>
         ) : null}
       </div>
