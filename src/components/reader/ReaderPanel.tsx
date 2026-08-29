@@ -86,6 +86,7 @@ export function ReaderPanel({
   const [webviewReady, setWebviewReady] = useState(false)
   const [hasUnsavedAnnotations, setHasUnsavedAnnotations] = useState(false)
   const [closeWarning, setCloseWarning] = useState(false)
+  const [annotationError, setAnnotationError] = useState<string | null>(null)
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -113,13 +114,13 @@ export function ReaderPanel({
     createReaderAnnotationSaveQueue({
       saveAnnotations: saveReaderAnnotations,
       onPersisted: (annotation) => onAnnotationCreate?.(annotation as ReaderAnnotation),
-      onError: (cause) => setError(`Could not save annotation: ${messageFor(cause)}`),
+      onError: (cause) => setAnnotationError(`Could not save annotation: ${messageFor(cause)}`),
       onPendingChange: (pending) => {
         setHasUnsavedAnnotations(pending)
         if (!pending) setCloseWarning(false)
       },
     }),
-    [onAnnotationCreate, setError],
+    [onAnnotationCreate],
   )
 
   useEffect(() => () => annotationSaveQueue.reset(), [annotationSaveQueue])
@@ -133,8 +134,8 @@ export function ReaderPanel({
   }, [annotationSaveQueue, onClose])
 
   const retryAnnotationSave = useCallback(() => {
-    if (annotationSaveQueue.retry()) setError(null)
-  }, [annotationSaveQueue, setError])
+    if (annotationSaveQueue.retry()) setAnnotationError(null)
+  }, [annotationSaveQueue])
 
   // ── File I/O ───────────────────────────────────────────────────────────────
   const fileState = useReaderFile(filePath, vaultRoot)
@@ -144,13 +145,16 @@ export function ReaderPanel({
     let cancelled = false
     void loadReaderAnnotations(filePath)
       .then((saved) => {
-        if (!cancelled) setAnnotations(saved as ReaderAnnotation[])
+        if (!cancelled) {
+          setAnnotationError(null)
+          setAnnotations(saved as ReaderAnnotation[])
+        }
       })
       .catch((cause: unknown) => {
-        if (!cancelled) setError(`Could not load annotations: ${messageFor(cause)}`)
+        if (!cancelled) setAnnotationError(`Could not load annotations: ${messageFor(cause)}`)
       })
     return () => { cancelled = true }
-  }, [filePath, vaultRoot, setAnnotations, setError])
+  }, [filePath, vaultRoot, setAnnotations])
 
   // Open file in the store when the prop changes.
   useEffect(() => {
@@ -231,7 +235,7 @@ export function ReaderPanel({
   const handleAnnotate = useCallback(
     (partial: Omit<ReaderAnnotation, 'id' | 'createdAt'>) => {
       if (!filePath) {
-        setError('Could not save annotation: no reader document is open.')
+        setAnnotationError('Could not save annotation: no reader document is open.')
         return
       }
 
@@ -249,7 +253,7 @@ export function ReaderPanel({
       ] as ReaderAnnotationRecord[]
       annotationSaveQueue.enqueue(filePath, nextAnnotations, annotation)
     },
-    [addAnnotation, annotationSaveQueue, filePath, sendMsg, setError],
+    [addAnnotation, annotationSaveQueue, filePath, sendMsg],
   )
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────
@@ -329,6 +333,14 @@ export function ReaderPanel({
             Annotations are still saving. Retry a failed save or wait before closing the reader.
           </p>
         )}
+        {annotationError && (
+          <div className="reader-panel__annotation-error" role="alert">
+            <p>{annotationError}</p>
+            {hasUnsavedAnnotations && (
+              <button type="button" onClick={retryAnnotationSave}>Retry annotation save</button>
+            )}
+          </div>
+        )}
         {/* Loading skeleton */}
         {isLoading && (
           <div className="reader-panel__loading" role="status" aria-label="Loading document">
@@ -341,9 +353,6 @@ export function ReaderPanel({
           <div className="reader-panel__error" role="alert">
             <X size={20} />
             <p>{error}</p>
-            {hasUnsavedAnnotations && (
-              <button type="button" onClick={retryAnnotationSave}>Retry annotation save</button>
-            )}
           </div>
         )}
 

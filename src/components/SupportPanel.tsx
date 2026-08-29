@@ -42,8 +42,8 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
   return (
     <UnifiedPanelShell
       title="Support Scriptor"
-      subtitle="Independent, local-first software — your help keeps it alive."
-      icon={<Heart size={18} />}
+      subtitle="Help maintain Scriptor and keep its development independent."
+      icon={<span className="support-heart-icon"><Heart size={18} fill="currentColor" /></span>}
       ariaLabel="Support Scriptor"
       onClose={onClose}
       className="support-panel knowledge-filters-panel"
@@ -82,8 +82,8 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
         </p>
 
         <details className="support-details">
-          <summary>Optional crypto donations</summary>
-          <p className="health-subtitle">Never required. Copy an address if you would like to contribute.</p>
+          <summary>Support Scriptor</summary>
+          <p className="health-subtitle">Choose a network below to copy its support address.</p>
           <ul className="support-wallet-list">
             {WALLET_ROWS.map((row) => (
               <li key={row.id}>

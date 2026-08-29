@@ -6,6 +6,7 @@ $root = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 . (Join-Path $PSScriptRoot '../release/process-helpers.ps1')
 $pwsh = (Get-Command pwsh -ErrorAction Stop).Source
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) "scriptor-timeout-tests-$([guid]::NewGuid().ToString('N'))"
+$probeTimeoutSeconds = 5
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 
 function New-TreeProbeCommand {
@@ -50,7 +51,7 @@ try {
     try {
         Invoke-BoundedProcess -FilePath $pwsh -Arguments @(
             '-NoProfile', '-EncodedCommand', $boundedEncoded
-        ) -WorkingDirectory $root -TimeoutSeconds 2 -HeartbeatSeconds 5 | Out-Null
+        ) -WorkingDirectory $root -TimeoutSeconds $probeTimeoutSeconds -HeartbeatSeconds 5 | Out-Null
     }
     catch {
         if ($_.Exception.Message -notmatch 'timed out') {
@@ -77,7 +78,7 @@ try {
     $escapedRoot = $root.Replace("'", "''")
     $escapedLogDirectory = $logDirectory.Replace("'", "''")
     $loggedDriver = @"
-& '$invokeLoggedPath' -Name 'Timeout process-tree probe' -FilePath '$escapedPwsh' -ArgumentList @('-NoProfile', '-EncodedCommand', '$loggedEncoded') -WorkingDirectory '$escapedRoot' -LogDirectory '$escapedLogDirectory' -TimeoutSeconds 2 -HeartbeatSeconds 5
+& '$invokeLoggedPath' -Name 'Timeout process-tree probe' -FilePath '$escapedPwsh' -ArgumentList @('-NoProfile', '-EncodedCommand', '$loggedEncoded') -WorkingDirectory '$escapedRoot' -LogDirectory '$escapedLogDirectory' -TimeoutSeconds $probeTimeoutSeconds -HeartbeatSeconds 5
 exit `$LASTEXITCODE
 "@
     $loggedDriverEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($loggedDriver))

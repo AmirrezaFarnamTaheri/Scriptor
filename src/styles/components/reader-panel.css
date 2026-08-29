@@ -124,6 +124,22 @@
   text-align: center;
 }
 
+.reader-panel__annotation-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in oklch, var(--danger) 42%, var(--border));
+  background: color-mix(in oklch, var(--danger) 9%, var(--surface));
+  color: var(--ink);
+}
+
+.reader-panel__annotation-error p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .reader-panel__empty {
   display: flex;
   flex-direction: column;

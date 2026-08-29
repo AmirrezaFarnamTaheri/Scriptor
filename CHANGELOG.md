@@ -3,7 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Made top-bar customization keyboard-complete and viewport-bounded, including Escape focus restoration, resize/scroll repositioning, high-text-zoom coverage, and a distinct filled red heart for Support Scriptor.
+- Made plugin installer profiles publish one coherent state transition, preserve third-party plugins, report the actual active preset, serialize native persistence, restore temporary theme previews on close, and remain usable at narrow widths and reduced motion.
+- Kept PDF/EPUB documents visible when annotation metadata fails, and removed an invalid empty `tablist` that blocked the axe WCAG gate.
+- Hardened the unstaged native/indexer work: authorization capacity now fails explicitly, Google resource IDs are bounded, task filters stay parameterized, v8→v9 alias migration is truly idempotent, wikilink resolution reuses the index cache, and note saves avoid redundant reads.
 - Made generated Rust operation catalogs `rustfmt`-stable so contract generation and the workspace formatting gate can remain green together; normalized the existing Rust formatting drift.
+- Made release timeout probes tolerate slower PowerShell startup while still proving recursive cleanup, and excluded both functional and visual browser build outputs from lint and Git.
 - Enforced the vault-backed `scriptor.gmail-manager` capability at every native Gmail command, including read/auth operations, so a disabled optional plugin cannot be invoked directly through the renderer boundary.
 - Raised Light Modern warning-accent and Solarized Dark body-text contrast above the WCAG UI/text floors and added catalog-wide contrast regression coverage.
 - Added an incubating native Gmail bridge for message listing, reading, label transitions, trash, and sending. OAuth uses the existing PKCE/keychain integration and every mailbox mutation is native-authorized; the unhandled plugin catalog/UI exposure remains withheld until a real manager surface is composed.
@@ -46,6 +51,7 @@
 
 ### Verification
 
+- Added browser regressions for top-bar customization at narrow/high-text-zoom layouts, toolbar popover focus, the support-heart treatment, and Reader availability when annotations cannot load; added source tests for atomic plugin-profile derivation and preservation of unknown plugins.
 - Added artifact-level regression coverage proving production bundle validation rejects compiled E2E editor crash hooks.
 - Added dependency-free contracts for publishing, authorization, Git serialization, workspace boundaries, Tauri command registration, Cargo lock consistency, plugin backend resolution, and complete lightweight test ownership.
 

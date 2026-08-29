@@ -35,6 +35,8 @@ Each async surface must show loading, useful empty, actionable error, and visibl
 
 Dialogs require programmatic title/description, `aria-modal`, initial focus, focus containment, Escape, backdrop behavior, scroll containment, and focus restoration. Tabs use roving focus plus Arrow/Home/End. Icon-only controls have accessible names.
 
+Top-bar and toolbar overflow checks cover narrow viewports and 200% text zoom. Portaled menus and customization popovers must remain inside the visual viewport, close with Escape, restore trigger focus, and update position after resize or ancestor scrolling. Plugin/store presets must apply as one visible state transition, preserve unowned third-party plugin IDs, and expose honest empty and persistence-error states.
+
 ## Required visual evidence
 
 The Playwright screenshot suite covers the workspace, editor/preview, command palette, graph, canvas, Git, MCP, settings, publish, health, knowledge, conflict resolution, history, shortcuts, mobile layout, onboarding, and plugins. A release reviewer must regenerate snapshots from the frozen source and inspect diffs; historical PNGs are not proof of the current source state.

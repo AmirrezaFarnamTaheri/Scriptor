@@ -483,27 +483,23 @@ pub fn query_tasks(
 ) -> Result<Vec<TaskRow>, IndexerError> {
     let conn = cache.connection()?;
 
-    let status_clause = match &filter.status {
-        Some(s) => format!("AND t.status = '{}'", s.replace('\'', "''")),
-        None => String::new(),
-    };
-    let tag_join = if let Some(tag) = &filter.tag {
-        format!(
-            "INNER JOIN task_tags tt ON tt.task_id = t.id AND tt.tag = '{}'",
-            tag.replace('\'', "''")
-        )
+    // All user-supplied filter values are bound as positional parameters (?2–?5)
+    // and are NEVER interpolated into the SQL string. The NULL-guard pattern
+    // "(?N IS NULL OR col = ?N)" lets us use a fixed 5-parameter signature
+    // regardless of which filters are active, eliminating any SQL injection
+    // surface while keeping exactly one prepared statement shape.
+    //
+    // The tag JOIN remains conditional: a missing JOIN vs. a NULL-guarded JOIN
+    // would semantically differ (INNER vs. no-join row set), so we choose the
+    // tag clause at statement-build time but still bind the value as a parameter.
+    let tag_join = if filter.tag.is_some() {
+        "INNER JOIN task_tags tt ON tt.task_id = t.id AND tt.tag = ?3"
     } else {
-        String::new()
-    };
-    let due_clause = match (&filter.due_before, &filter.due_after) {
-        (Some(before), Some(after)) => {
-            format!("AND t.due_at >= '{after}' AND t.due_at <= '{before}'")
-        }
-        (Some(before), None) => format!("AND t.due_at <= '{before}'"),
-        (None, Some(after)) => format!("AND t.due_at >= '{after}'"),
-        (None, None) => String::new(),
+        ""
     };
 
+    // limit is a Rust u32 — safe to format directly into SQL; not user-supplied
+    // as a raw string, always validated at the call site.
     let sql = format!(
         "SELECT t.id, t.vault_id, t.source_note_id, t.line, t.title, t.status,
                 t.priority, t.due_at, t.scheduled_at, t.start_at, t.rrule,
@@ -511,31 +507,43 @@ pub fn query_tasks(
          FROM tasks t
          {tag_join}
          WHERE t.vault_id = ?1
-         {status_clause}
-         {due_clause}
+           AND (?2 IS NULL OR t.status = ?2)
+           AND (?4 IS NULL OR t.due_at >= ?4)
+           AND (?5 IS NULL OR t.due_at <= ?5)
          ORDER BY t.due_at ASC NULLS LAST, t.source_note_id, t.line
          LIMIT {limit}"
     );
 
     let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map(params![vault_id], |row| {
-        Ok(TaskRowRaw {
-            id: row.get(0)?,
-            vault_id: row.get(1)?,
-            source_note_id: row.get(2)?,
-            line: row.get(3)?,
-            title: row.get(4)?,
-            status: row.get(5)?,
-            priority: row.get(6)?,
-            due_at: row.get(7)?,
-            scheduled_at: row.get(8)?,
-            start_at: row.get(9)?,
-            rrule: row.get(10)?,
-            field_style: row.get(11)?,
-            created_at: row.get(12)?,
-            updated_at: row.get(13)?,
-        })
-    })?;
+    // Bind all five parameters. Absent (None) filter values bind as SQL NULL;
+    // the IS NULL guard in the WHERE clause makes them no-ops.
+    let rows = stmt.query_map(
+        params![
+            vault_id,
+            filter.status.as_deref(),
+            filter.tag.as_deref(),
+            filter.due_after.as_deref(),
+            filter.due_before.as_deref(),
+        ],
+        |row| {
+            Ok(TaskRowRaw {
+                id: row.get(0)?,
+                vault_id: row.get(1)?,
+                source_note_id: row.get(2)?,
+                line: row.get(3)?,
+                title: row.get(4)?,
+                status: row.get(5)?,
+                priority: row.get(6)?,
+                due_at: row.get(7)?,
+                scheduled_at: row.get(8)?,
+                start_at: row.get(9)?,
+                rrule: row.get(10)?,
+                field_style: row.get(11)?,
+                created_at: row.get(12)?,
+                updated_at: row.get(13)?,
+            })
+        },
+    )?;
 
     // Second pass: attach tags with ONE batched query per 500-task chunk
     // instead of one prepared statement + query per task (N+1).
@@ -1125,5 +1133,39 @@ mod tests {
 
         let error = rewrite_task_markdown(markdown, &task, Some("done"), None).unwrap_err();
         assert!(error.to_string().contains("stale"));
+    }
+
+    #[test]
+    fn query_tasks_filter_values_are_not_interpolated_as_sql() {
+        // A status filter value containing SQL injection syntax must be treated
+        // as a literal string by the parameterized query, not executed as SQL.
+        // If the old string-interpolation path were still in use, the injected
+        // UNION would cause the query to return extra rows or error differently.
+        use crate::open_cache_for_session;
+        use scriptor_vault::open_vault;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let cache = open_cache_for_session(&session).unwrap();
+
+        // No tasks exist; a SQL-injection attempt in the status filter should
+        // simply return zero rows (literal match against empty table), not panic
+        // or return unexpected data.
+        let filter = TaskFilter {
+            status: Some("' UNION SELECT 1,2,3,4,5,6,7,8,9,10,11,12,13,14 --".into()),
+            tag: Some("'; DROP TABLE tasks; --".into()),
+            due_before: Some("9999-99-99' OR '1'='1".into()),
+            due_after: Some("0000-00-00' OR '1'='1".into()),
+        };
+        let result = query_tasks(&cache, &session.descriptor.id, &filter, 100);
+        // Must succeed (no SQL syntax error from the injected fragments) and
+        // return zero rows (no tasks in the vault, literal strings don't match).
+        assert!(
+            result.is_ok(),
+            "query_tasks should not error on adversarial filter strings: {:?}",
+            result.err()
+        );
+        assert_eq!(result.unwrap().len(), 0);
     }
 }

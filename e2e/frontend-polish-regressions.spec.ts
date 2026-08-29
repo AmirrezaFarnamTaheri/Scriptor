@@ -124,8 +124,10 @@ test.describe('Frontend polish regressions', () => {
   })
 
   test('kanban keyboard move reloads the Markdown-derived board in its destination column', async ({ page }) => {
-    await page.addInitScript(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await launchApp(page)
+    // Set this after launch so the app bootstrap cannot replace the test hook
+    // while resetting browser state for a reused Playwright worker.
+    await page.evaluate(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await settleLayout(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
     await openCommandPalette(page)

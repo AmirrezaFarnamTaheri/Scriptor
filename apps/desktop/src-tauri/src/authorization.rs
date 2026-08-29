@@ -198,14 +198,28 @@ impl AuthorizationBroker {
         &self,
         operation: SensitiveOperation,
         scope: Option<String>,
-    ) -> AuthorizationGrant {
+    ) -> Result<AuthorizationGrant, String> {
         let now = Self::now_ms();
         let expires_at_ms = now.saturating_add(GRANT_TTL.as_millis() as u64);
         let token = Uuid::new_v4().to_string();
         let mut grants = self.lock_grants();
+        // Evict expired grants before checking capacity. This ensures the count
+        // reflects only live grants within their 60-second TTL.
         grants.retain(|_, grant| grant.expires_at_ms >= now);
         if grants.len() >= MAX_GRANTS {
-            grants.clear();
+            // Pathological accumulation: 64 live grants at once is not reachable
+            // in normal use. Refuse to insert rather than clearing all existing
+            // grants (the old clear() would have denied any in-flight operations
+            // that were legitimately pending). Surface the refusal immediately;
+            // callers must never receive a grant-shaped value that cannot work.
+            tracing::warn!(
+                "authorization grant store is full ({MAX_GRANTS} live grants); \
+                 refusing to issue a new grant to avoid evicting pending tokens"
+            );
+            return Err(
+                "authorization grant capacity reached; retry after a pending request completes"
+                    .into(),
+            );
         }
         grants.insert(
             token.clone(),
@@ -215,12 +229,12 @@ impl AuthorizationBroker {
                 expires_at_ms,
             },
         );
-        AuthorizationGrant {
+        Ok(AuthorizationGrant {
             token,
             operation,
             scope,
             expires_at_ms,
-        }
+        })
     }
 
     pub fn consume(
@@ -294,7 +308,7 @@ pub async fn authorize_sensitive_operation(
         return Err("operation cancelled by user".into());
     }
 
-    Ok(state.authorization.issue(operation, scope))
+    state.authorization.issue(operation, scope)
 }
 
 fn sanitize_scope(value: &str) -> String {
@@ -312,7 +326,9 @@ mod tests {
     #[test]
     fn grants_are_one_time_operation_and_scope_bound() {
         let broker = AuthorizationBroker::default();
-        let grant = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
+        let grant = broker
+            .issue(SensitiveOperation::GitPush, Some("vault-a".into()))
+            .unwrap();
 
         assert!(
             broker
@@ -329,7 +345,9 @@ mod tests {
     #[test]
     fn grants_reject_wrong_operation_or_scope() {
         let broker = AuthorizationBroker::default();
-        let operation = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
+        let operation = broker
+            .issue(SensitiveOperation::GitPush, Some("vault-a".into()))
+            .unwrap();
         assert!(
             broker
                 .consume(
@@ -350,7 +368,9 @@ mod tests {
             "a mismatched request must not consume a valid grant"
         );
 
-        let scope = broker.issue(SensitiveOperation::GitPush, Some("vault-a".into()));
+        let scope = broker
+            .issue(SensitiveOperation::GitPush, Some("vault-a".into()))
+            .unwrap();
         assert!(
             broker
                 .consume(&scope.token, SensitiveOperation::GitPush, Some("vault-b"))
@@ -367,7 +387,9 @@ mod tests {
     #[test]
     fn resource_sync_grants_are_plan_scoped() {
         let broker = AuthorizationBroker::default();
-        let grant = broker.issue(SensitiveOperation::ResourceSync, Some("plan-a".into()));
+        let grant = broker
+            .issue(SensitiveOperation::ResourceSync, Some("plan-a".into()))
+            .unwrap();
         assert!(
             broker
                 .consume(
@@ -377,5 +399,32 @@ mod tests {
                 )
                 .is_err()
         );
+    }
+
+    #[test]
+    fn issue_refuses_not_clears_when_store_is_full() {
+        // Fill the store to MAX_GRANTS with non-expiring grants (TTL is 60s,
+        // so they will all still be live during this test).
+        let broker = AuthorizationBroker::default();
+        let mut tokens = Vec::new();
+        for _ in 0..MAX_GRANTS {
+            let g = broker.issue(SensitiveOperation::GitPush, None).unwrap();
+            tokens.push(g.token);
+        }
+
+        // The next issue attempt should return an explicit refusal rather than
+        // clearing all existing grants or returning an unusable token.
+        let overflow = broker.issue(SensitiveOperation::GitPush, None);
+        assert!(overflow.is_err(), "overflow issue must be rejected");
+
+        // All previously issued tokens must still be live.
+        for token in &tokens {
+            assert!(
+                broker
+                    .consume(token, SensitiveOperation::GitPush, None)
+                    .is_ok(),
+                "pre-existing grant must survive an overflow issue attempt"
+            );
+        }
     }
 }

@@ -16,7 +16,7 @@
 //! | v8      | task extended fields + `blocks` embedding table    | No       |
 
 /// Current on-disk schema version. Bump this constant exactly once per train step.
-pub const SCHEMA_VERSION: i32 = 8;
+pub const SCHEMA_VERSION: i32 = 9;
 
 pub const CREATE_META: &str = "
 CREATE TABLE IF NOT EXISTS cache_meta (
@@ -37,7 +37,9 @@ CREATE TABLE IF NOT EXISTS notes (
   tags_json TEXT NOT NULL DEFAULT '[]',
   note_type TEXT,
   organized INTEGER NOT NULL DEFAULT 0,
-  archived INTEGER NOT NULL DEFAULT 0
+  archived INTEGER NOT NULL DEFAULT 0,
+  -- v9: frontmatter aliases stored as a JSON array for fast wikilink resolution.
+  aliases_json TEXT NOT NULL DEFAULT '[]'
 );
 ";
 
@@ -256,6 +258,13 @@ pub const MIGRATE_V7_TO_V8_TASKS: &[(&str, &str)] = &[
         "ALTER TABLE tasks ADD COLUMN field_style TEXT NOT NULL DEFAULT 'emoji'",
     ),
 ];
+
+/// v8 → v9: adds `aliases_json` to `notes` so wikilink resolution can use the
+/// index instead of reading every note from disk (O(1) SQL vs O(n) disk reads).
+pub const MIGRATE_V8_TO_V9_NOTES: &[(&str, &str)] = &[(
+    "aliases_json",
+    "ALTER TABLE notes ADD COLUMN aliases_json TEXT NOT NULL DEFAULT '[]'",
+)];
 
 /// v8 — `blocks` table for per-paragraph / per-heading embeddings.
 /// `embedding` is stored as a BLOB of IEEE-754 f32 values (little-endian).

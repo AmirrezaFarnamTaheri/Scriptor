@@ -8,6 +8,7 @@ export interface PluginStateContextType {
   enabledPluginIds: Set<string>
   enablePlugin: (id: string) => void
   disablePlugin: (id: string) => void
+  replaceEnabledPlugins: (ids: ReadonlySet<string>) => void
   isPluginEnabled: (id: string) => boolean
   persistenceError: string | null
 }
@@ -82,6 +83,37 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
   const enablePlugin = useCallback((id: string) => setPluginEnabled(id, true), [setPluginEnabled])
   const disablePlugin = useCallback((id: string) => setPluginEnabled(id, false), [setPluginEnabled])
 
+  const replaceEnabledPlugins = useCallback((ids: ReadonlySet<string>) => {
+    const current = enabledPluginIdsRef.current
+    const next = new Set(ids)
+    const changedIds = new Set<string>()
+    for (const id of current) {
+      if (!next.has(id)) changedIds.add(id)
+    }
+    for (const id of next) {
+      if (!current.has(id)) changedIds.add(id)
+    }
+    if (changedIds.size === 0) return
+
+    enabledPluginIdsRef.current = next
+    localChangeVersionRef.current += 1
+    setEnabledPluginIds(next)
+    setPersistenceError(null)
+    void persistenceQueueRef.current.enqueue(async () => {
+      const failures: string[] = []
+      for (const id of changedIds) {
+        try {
+          await savePluginState(next, id)
+        } catch (error) {
+          failures.push(error instanceof Error ? error.message : `Could not save ${id}.`)
+        }
+      }
+      if (failures.length > 0) throw new Error(failures.join(' '))
+    }).catch((error: unknown) => {
+      setPersistenceError(error instanceof Error ? error.message : 'Could not save plugin profile.')
+    })
+  }, [])
+
   const isPluginEnabled = useCallback(
     (id: string) => enabledPluginIds.has(id),
     [enabledPluginIds]
@@ -92,10 +124,11 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
       enabledPluginIds,
       enablePlugin,
       disablePlugin,
+      replaceEnabledPlugins,
       isPluginEnabled,
       persistenceError,
     }),
-    [enabledPluginIds, enablePlugin, disablePlugin, isPluginEnabled, persistenceError]
+    [enabledPluginIds, enablePlugin, disablePlugin, replaceEnabledPlugins, isPluginEnabled, persistenceError]
   )
 
   return React.createElement(PluginStateContext.Provider, { value }, children)

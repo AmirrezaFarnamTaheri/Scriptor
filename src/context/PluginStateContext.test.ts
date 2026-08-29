@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
+  applyProfileToEnabledPlugins,
   DEFAULT_ENABLED_PLUGINS,
   INSTALLER_PROFILES,
   getProfilePluginIds,
+  getMatchingInstallerProfile,
 } from './plugin-defaults.ts'
 
 describe('PluginStateContext', () => {
@@ -50,5 +52,34 @@ describe('PluginStateContext', () => {
     const complete = getProfilePluginIds('complete')
     assert.equal(complete.size, 5)
     assert.equal(complete.size, INSTALLER_PROFILES.complete.length)
+  })
+
+  it('applies a profile as one state transition while preserving unknown plugins', () => {
+    const current = new Set(['scriptor.canvas', 'third-party.calm-writer'])
+    const known = new Set(INSTALLER_PROFILES.complete)
+
+    const next = applyProfileToEnabledPlugins(current, known, 'scientific')
+
+    assert.deepEqual(
+      [...next].sort(),
+      [
+        'scriptor.citations',
+        'scriptor.export',
+        'scriptor.graph',
+        'third-party.calm-writer',
+      ],
+    )
+  })
+
+  it('reports the actual profile and treats mixed built-in states as custom', () => {
+    const known = new Set(INSTALLER_PROFILES.complete)
+    assert.equal(
+      getMatchingInstallerProfile(new Set(['scriptor.export', 'third-party.notes']), known),
+      'minimal',
+    )
+    assert.equal(
+      getMatchingInstallerProfile(new Set(['scriptor.export', 'scriptor.citations']), known),
+      'custom',
+    )
   })
 })

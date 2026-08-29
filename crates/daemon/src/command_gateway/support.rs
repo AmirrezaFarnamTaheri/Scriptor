@@ -73,12 +73,30 @@ pub(super) fn cmd_rename_apply(
     Ok(output)
 }
 
-/// Runs outside the daemon lock: walks every note in the vault. Takes an
-/// owned clone of the session so no state guard needs to be held.
+/// Runs outside the daemon lock: resolves a wikilink target using the index.
+///
+/// When `cache` is available (normal case) this issues a single SQL query
+/// against `notes.aliases_json` — one indexed query instead of O(n) disk reads.
+/// Falls back to a full vault scan when the cache is absent (e.g., before the
+/// first index build).
 pub(crate) fn resolve_wikilink_for_session(
     session: &scriptor_vault::VaultSession,
+    cache: Option<&scriptor_indexer::IndexCache>,
     target: &str,
 ) -> Result<Value, String> {
+    if let Some(cache) = cache {
+        // Fast path: aliases are stored in the index (v9+).
+        let (note_paths, aliases_by_path) = note_paths_and_aliases(cache, &session.descriptor.id)
+            .map_err(|error| error.to_string())?;
+        return to_value(resolve_wikilink_target_with_aliases(
+            &note_paths,
+            &aliases_by_path,
+            target,
+        ));
+    }
+
+    // Slow fallback: read every note from disk to extract aliases.
+    // Used only when the index has not been built yet.
     let scanned = scan_vault(&session.root).map_err(|error| error.to_string())?;
     let mut note_paths = Vec::new();
     let mut aliases_by_path = std::collections::BTreeMap::new();

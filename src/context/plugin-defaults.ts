@@ -25,4 +25,31 @@ export function getProfilePluginIds(profile: InstallerProfile): Set<string> {
   return new Set(INSTALLER_PROFILES[profile] ?? INSTALLER_PROFILES.complete)
 }
 
+/**
+ * Applies an installer profile to the built-in plugin set without removing
+ * third-party plugins. Keeping this transition pure lets the UI publish one
+ * coherent state instead of flashing through each individual toggle.
+ */
+export function applyProfileToEnabledPlugins(
+  current: ReadonlySet<string>,
+  knownPluginIds: ReadonlySet<string>,
+  profile: Exclude<InstallerProfile, 'custom'>,
+): Set<string> {
+  const target = getProfilePluginIds(profile)
+  const next = new Set([...current].filter((id) => !knownPluginIds.has(id)))
+  for (const id of target) next.add(id)
+  return next
+}
+
+export function getMatchingInstallerProfile(
+  enabled: ReadonlySet<string>,
+  knownPluginIds: ReadonlySet<string>,
+): InstallerProfile {
+  const enabledKnown = [...enabled].filter((id) => knownPluginIds.has(id)).sort()
+  for (const [profile, ids] of Object.entries(INSTALLER_PROFILES)) {
+    if ([...ids].sort().join('\0') === enabledKnown.join('\0')) return profile as InstallerProfile
+  }
+  return 'custom'
+}
+
 export const DEFAULT_ENABLED_PLUGINS: Set<string> = getProfilePluginIds(DEFAULT_INSTALLER_PROFILE)

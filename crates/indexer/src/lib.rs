@@ -58,7 +58,7 @@ pub use links::{
     BacklinkHit, backlinks_for_path, count_links, replace_note_links, resolve_link_targets,
 };
 pub use migration::migrate_cache;
-pub use notes::{load_note_metadata, note_hash};
+pub use notes::{load_note_metadata, note_hash, note_paths_and_aliases};
 pub use parse::{ParsedCitation, ParsedLink, ParsedLinkKind, ParsedNote, parse_note_markdown};
 pub use rebuild::{
     IncrementalIndexSummary, RebuildProgressReport, RebuildStatus, RebuildSummary,

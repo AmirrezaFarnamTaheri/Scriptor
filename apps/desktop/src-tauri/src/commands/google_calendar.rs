@@ -874,6 +874,47 @@ fn validate_gmail_message_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Validate a Google Calendar calendar ID or event ID.
+///
+/// Calendar IDs are opaque strings issued by Google; they can contain
+/// alphanumeric characters, dots, hyphens, underscores, plus signs, and the
+/// `@` character (e.g. `"primary"` or `"user@gmail.com"`).  We reject empty
+/// values, overly long strings, and any byte that is not printable ASCII, as
+/// those are never valid Google-issued IDs and could indicate an injection
+/// attempt.
+fn validate_calendar_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || id.len() > 255 {
+        return Err(format!(
+            "invalid Google Calendar ID (length {}): must be 1–255 characters",
+            id.len()
+        ));
+    }
+    if !id.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err(
+            "invalid Google Calendar ID: contains non-printable or non-ASCII characters".into(),
+        );
+    }
+    Ok(())
+}
+
+/// Validate a Google Tasks task-list ID.
+///
+/// Task-list IDs follow the same character constraints as calendar IDs.
+fn validate_task_list_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || id.len() > 255 {
+        return Err(format!(
+            "invalid Google Tasks list ID (length {}): must be 1–255 characters",
+            id.len()
+        ));
+    }
+    if !id.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err(
+            "invalid Google Tasks list ID: contains non-printable or non-ASCII characters".into(),
+        );
+    }
+    Ok(())
+}
+
 fn gmail_message_url(id: &str) -> Result<String, String> {
     validate_gmail_message_id(id)?;
     Ok(format!("{GMAIL_MESSAGES_ENDPOINT}/{id}"))
@@ -1134,12 +1175,17 @@ pub fn google_calendar_list_events(
     calendar_id: String,
     lookahead_days: i64,
 ) -> Result<Vec<CalendarEvent>, String> {
+    validate_calendar_id(&calendar_id)?;
+    // Clamp lookahead to a sensible range: at least 1 day, at most 365.
+    // Negative or zero values would produce past-looking windows; very large
+    // values could generate excessively broad API queries.
+    let lookahead_days = lookahead_days.clamp(1, 365);
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let now = chrono::Utc::now();
     let time_min = now.to_rfc3339();
-    let time_max = (now + chrono::Duration::days(lookahead_days.max(0))).to_rfc3339();
+    let time_max = (now + chrono::Duration::days(lookahead_days)).to_rfc3339();
 
     let url = format!(
         "{CALENDAR_EVENTS_ENDPOINT}/{}/events",
@@ -1178,6 +1224,7 @@ pub fn google_calendar_list_events(
 /// List tasks in the given task list.
 #[tauri::command]
 pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask>, String> {
+    validate_task_list_id(&task_list_id)?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
@@ -1388,6 +1435,17 @@ mod tests {
         assert!(validate_gmail_message_id("../inbox").is_err());
         assert!(validate_gmail_message_id("message?format=raw").is_err());
         assert!(validate_gmail_message_id("").is_err());
+    }
+
+    #[test]
+    fn calendar_resource_ids_are_bounded_and_reject_whitespace() {
+        assert!(validate_calendar_id("primary").is_ok());
+        assert!(validate_calendar_id("writer@example.com").is_ok());
+        assert!(validate_task_list_id("MDQxMjM0NTY3ODkw").is_ok());
+        assert!(validate_calendar_id("").is_err());
+        assert!(validate_calendar_id("team calendar").is_err());
+        assert!(validate_task_list_id("list\nheader").is_err());
+        assert!(validate_task_list_id(&"x".repeat(256)).is_err());
     }
 
     #[test]

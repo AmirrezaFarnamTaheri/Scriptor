@@ -50,25 +50,32 @@ pub fn save_note_with_options(
     expected_content_hash: Option<&str>,
     options: SaveNoteOptions,
 ) -> Result<SaveNoteOutput, VaultError> {
-    if let Some(expected) = expected_content_hash
-        && root.resolve_relative(path)?.exists()
-    {
-        let existing = read_note(vault_id, root, path)?;
-        if existing.metadata.content_hash != expected {
-            return Err(VaultError::HashMismatch {
-                path: path.to_string(),
-                expected: expected.to_string(),
-                found: existing.metadata.content_hash,
-            });
-        }
-    }
-
     let absolute = root.resolve_relative(path)?;
-    let previous_content_hash = if absolute.exists() {
-        Some(read_note(vault_id, root, path)?.metadata.content_hash)
+
+    // Read the existing note document at most once.  All three downstream uses
+    // (hash verification, previous_content_hash, history entry) consume this
+    // cached value rather than making independent disk reads.
+    let existing_note_doc = if absolute.exists() {
+        Some(read_note(vault_id, root, path)?)
     } else {
         None
     };
+
+    // Optimistic-concurrency check: reject the save if the caller's expected
+    // hash does not match the on-disk hash.
+    if let (Some(expected), Some(existing)) = (expected_content_hash, &existing_note_doc)
+        && existing.metadata.content_hash != expected
+    {
+        return Err(VaultError::HashMismatch {
+            path: path.to_string(),
+            expected: expected.to_string(),
+            found: existing.metadata.content_hash.clone(),
+        });
+    }
+
+    let previous_content_hash = existing_note_doc
+        .as_ref()
+        .map(|doc| doc.metadata.content_hash.clone());
 
     let metadata = if absolute.exists() {
         let modified_system = fs::metadata(&absolute)
@@ -97,19 +104,17 @@ pub fn save_note_with_options(
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
 
-    if absolute.exists() {
+    if let Some(ref existing) = existing_note_doc {
         backup_for_recovery(root, &absolute, path.as_str())?;
-        if let Ok(existing) = read_note(vault_id, root, path)
-            && let Err(error) = append_note_history(
-                root,
-                path.as_str(),
-                &existing.markdown,
-                &existing.metadata.content_hash,
-            )
-        {
-            // History is a best-effort safety net; the primary save must still
-            // succeed. Surface the failure via structured tracing so the daemon
-            // telemetry (and operators) can see it, rather than swallowing it.
+        // Append a history entry using the already-read document; no third disk
+        // read needed.  History is best-effort: a failure is logged and the
+        // primary save continues.
+        if let Err(error) = append_note_history(
+            root,
+            path.as_str(),
+            &existing.markdown,
+            &existing.metadata.content_hash,
+        ) {
             tracing::warn!(
                 target: "scriptor_vault::write",
                 vault_id,
