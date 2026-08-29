@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test, type Page } from '@playwright/test'
 
-import { settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
+import { captureReadyScreenshot, settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outputDir = path.join(rootDir, 'docs/assets/screenshots')
@@ -102,11 +102,12 @@ async function openCommandPaletteForShot(page: Page) {
 }
 
 async function ensureCleanStatusDock(page: Page) {
-  const problemsTab = page.getByRole('tab', { name: /Problems/ })
-  if (await problemsTab.getAttribute('aria-selected')) {
-    await page.getByRole('tab', { name: 'Output' }).click()
+  const selectedTab = page.locator('.bottom-tabs [role="tab"][aria-selected="true"]')
+  if ((await selectedTab.getAttribute('aria-expanded')) === 'true') {
+    await selectedTab.click()
   }
   await expect(page.locator('.diagnostics-panel')).toHaveCount(0)
+  await expect(page.locator('.dock-panel')).toHaveCount(0)
 }
 
 async function setEditorSurfaceMode(page: Page, mode: 'Source' | 'Split' | 'Preview') {
@@ -148,7 +149,7 @@ test('main workspace — light mode', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   await ensureCleanStatusDock(page)
-  await page.screenshot({ path: shotPath('workspace-light'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('workspace-light'))
   await expect(page).toHaveScreenshot('workspace-light.png', { fullPage: false })
 })
 
@@ -160,7 +161,7 @@ test('main workspace — dark mode', async ({ page }) => {
   await waitForFullWorkspace(page)
   await ensureCleanStatusDock(page)
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await page.screenshot({ path: shotPath('workspace-dark'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('workspace-dark'))
   await expect(page).toHaveScreenshot('workspace-dark.png', { fullPage: false })
 })
 
@@ -170,8 +171,19 @@ test('editor with split preview', async ({ page }) => {
   await ensureCleanStatusDock(page)
   await setEditorSurfaceMode(page, 'Split')
   await waitForPreviewReady(page)
-  await page.screenshot({ path: shotPath('editor-preview'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('editor-preview'))
   await expect(page).toHaveScreenshot('editor-preview.png', { fullPage: false })
+})
+
+test('inspector preview', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  const splitToggle = page.getByRole('button', { name: 'Toggle split preview' })
+  if ((await splitToggle.getAttribute('aria-pressed')) === 'true') await splitToggle.click()
+  await page.getByRole('tab', { name: 'Preview' }).click()
+  await waitForPreviewReady(page)
+  await captureReadyScreenshot(page, shotPath('inspector-preview'))
+  await expect(page).toHaveScreenshot('inspector-preview.png', { fullPage: false })
 })
 
 test('command palette', async ({ page }) => {
@@ -179,7 +191,7 @@ test('command palette', async ({ page }) => {
   await waitForFullWorkspace(page)
   await openCommandPaletteForShot(page)
   await settleLayout(page)
-  await page.screenshot({ path: shotPath('command-palette'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('command-palette'))
   await expect(page).toHaveScreenshot('command-palette.png', { fullPage: false })
 })
 
@@ -189,7 +201,7 @@ test('graph panel', async ({ page }) => {
   await page.locator('.top-actions').getByRole('button', { name: 'Graph', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Knowledge graph' })).toBeVisible()
   await waitForGraphReady(page)
-  await page.screenshot({ path: shotPath('graph'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('graph'))
   await expect(page).toHaveScreenshot('graph.png', { fullPage: false })
 })
 
@@ -199,7 +211,7 @@ test('canvas panel', async ({ page }) => {
   await page.locator('.top-actions').getByRole('button', { name: 'Canvas', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Canvas' })).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(800)
-  await page.screenshot({ path: shotPath('canvas'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('canvas'))
   await expect(page).toHaveScreenshot('canvas.png', { fullPage: false })
 })
 
@@ -210,7 +222,7 @@ test('git panel', async ({ page }) => {
   const gitPanel = page.locator('.git-panel')
   await expect(gitPanel).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
-  await page.screenshot({ path: shotPath('git-panel'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('git-panel'))
   await expect(page).toHaveScreenshot('git-panel.png', { fullPage: false })
 })
 
@@ -222,7 +234,7 @@ test('mcp panel', async ({ page }) => {
   const mcpPanel = page.locator('.mcp-panel')
   await expect(mcpPanel).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
-  await page.screenshot({ path: shotPath('mcp-panel'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('mcp-panel'))
   await expect(page).toHaveScreenshot('mcp-panel.png', { fullPage: false })
 })
 
@@ -231,7 +243,7 @@ test('settings panel', async ({ page }) => {
   await waitForFullWorkspace(page)
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
   await waitForSettingsReady(page)
-  await page.screenshot({ path: shotPath('settings'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('settings'))
   await expect(page).toHaveScreenshot('settings.png', { fullPage: false })
 })
 
@@ -241,7 +253,7 @@ test('publish center', async ({ page }) => {
   await page.locator('.top-actions').getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
   await page.waitForTimeout(800)
-  await page.screenshot({ path: shotPath('publish-center'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('publish-center'))
   await expect(page).toHaveScreenshot('publish-center.png', { fullPage: false })
 })
 
@@ -255,7 +267,7 @@ test('vault health dashboard', async ({ page }) => {
   const healthDashboard = page.getByRole('dialog', { name: 'Vault health' })
   await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(800)
-  await page.screenshot({ path: shotPath('vault-health'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('vault-health'))
   await expect(page).toHaveScreenshot('vault-health.png', { fullPage: false })
 })
 
@@ -265,7 +277,7 @@ test('knowledge workbench', async ({ page }) => {
   await page.locator('.top-actions').getByRole('button', { name: 'Workbench', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Knowledge workbench' })).toBeVisible()
   await page.waitForTimeout(800)
-  await page.screenshot({ path: shotPath('knowledge-workbench'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('knowledge-workbench'))
   await expect(page).toHaveScreenshot('knowledge-workbench.png', { fullPage: false })
 })
 
@@ -288,7 +300,7 @@ test('conflict resolver modal', async ({ page }) => {
   const resolver = page.getByRole('dialog', { name: 'Resolve merge conflict' })
   await expect(resolver).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
-  await page.screenshot({ path: shotPath('conflict-resolver'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('conflict-resolver'))
   await expect(page).toHaveScreenshot('conflict-resolver.png', { fullPage: false })
 })
 
@@ -304,7 +316,7 @@ test('note history panel', async ({ page }) => {
   await expect(historyPanel).toBeVisible()
   await expect(historyPanel.getByText(/words/)).toBeVisible()
   await settleLayout(page)
-  await page.screenshot({ path: shotPath('note-history'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('note-history'))
   await expect(page).toHaveScreenshot('note-history.png', { fullPage: false })
 })
 
@@ -319,7 +331,7 @@ test('keyboard shortcut editor', async ({ page }) => {
     await shortcutsTab.click()
     await page.waitForTimeout(500)
   }
-  await page.screenshot({ path: shotPath('keyboard-shortcuts'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('keyboard-shortcuts'))
   await expect(page).toHaveScreenshot('keyboard-shortcuts.png', { fullPage: false })
 })
 
@@ -331,7 +343,32 @@ test('mobile viewport', async ({ page }) => {
   const mobileNav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
   await expect(mobileNav).toBeVisible()
   await expect(mobileNav).toBeInViewport()
-  await page.screenshot({ path: shotPath('workspace-mobile'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('workspace-mobile'))
+})
+
+test('tablet workspace', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 })
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await captureReadyScreenshot(page, shotPath('workspace-tablet'))
+})
+
+test('compact mobile vault and inspector panes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForEditorReady(page)
+  const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+  await expect(nav).toBeVisible()
+
+  await nav.getByRole('button', { name: 'Vault' }).click()
+  await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
+  await captureReadyScreenshot(page, shotPath('mobile-vault'))
+
+  await nav.getByRole('button', { name: 'Lens' }).click()
+  await waitForInspectorReady(page)
+  await expect(page.locator('.inspector-panel')).toBeInViewport()
+  await captureReadyScreenshot(page, shotPath('mobile-inspector'))
 })
 
 test('onboarding tour', async ({ page }) => {
@@ -342,7 +379,7 @@ test('onboarding tour', async ({ page }) => {
   const tour = page.getByRole('dialog', { name: 'Product tour' })
   await expect(tour).toBeVisible({ timeout: 15_000 })
   await page.waitForTimeout(500)
-  await page.screenshot({ path: shotPath('onboarding-tour'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('onboarding-tour'))
   await expect(page).toHaveScreenshot('onboarding-tour.png', { fullPage: false })
 })
 
@@ -352,6 +389,6 @@ test('plugins panel', async ({ page }) => {
   await page.getByRole('tab', { name: 'Plugins' }).click()
   await expect(page.getByRole('heading', { name: 'Plugin marketplace' })).toBeVisible()
   await page.waitForTimeout(800)
-  await page.screenshot({ path: shotPath('plugins'), fullPage: false })
+  await captureReadyScreenshot(page, shotPath('plugins'))
   await expect(page).toHaveScreenshot('plugins.png', { fullPage: false })
 })

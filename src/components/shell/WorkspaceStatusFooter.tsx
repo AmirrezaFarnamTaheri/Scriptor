@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { Activity, CheckCircle2, ChevronDown, GitBranch, PanelRight } from 'lucide-react'
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
@@ -107,76 +108,76 @@ export function WorkspaceStatusFooter({
   hibernateSpellcheck,
   onHibernateSpellcheckChange,
 }: WorkspaceStatusFooterProps) {
+  const [dockExpanded, setDockExpanded] = useState(false)
+  const previousDockTab = useRef(statusDockTab)
+
+  useEffect(() => {
+    if (previousDockTab.current !== statusDockTab) {
+      previousDockTab.current = statusDockTab
+      setDockExpanded(true)
+    }
+  }, [statusDockTab])
+
+  const activateDockTab = (tab: StatusDockTab) => {
+    if (tab === statusDockTab) {
+      setDockExpanded((expanded) => !expanded)
+      return
+    }
+    onStatusDockTabChange(tab)
+  }
+
   return (
     <footer className="status-strip">
-      <button
-        type="button"
-        className="jobs-button"
-        onClick={() => onStatusDockTabChange('jobs')}
-        aria-pressed={statusDockTab === 'jobs'}
-      >
-        <PanelRight />
-        Jobs
-        <ChevronDown />
-      </button>
-
-      <div
-        className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
-        aria-label={workspaceStatus === 'indexing' ? `Building graph ${graphProgress}%` : `Index ready (${graphProgress}%)`}
-      >
-        <Activity />
-        <div>
-          <strong>{workspaceStatus === 'indexing' ? 'Building index...' : 'Index ready'}</strong>
-          <div className="progress-track">
-            <span style={{ width: `${graphProgress}%` }} />
-          </div>
-        </div>
-        <span>{graphProgress}%</span>
-        <small>
-          {rebuildSummary
-            ? `${rebuildSummary.indexed_notes + rebuildSummary.skipped_notes} / ${noteCount} notes`
-            : `${noteCount} notes`}
-          {lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
-        </small>
-      </div>
-
-      <div className="bottom-tabs-wrap">
-        <StatusDockPanel
-          activeTab={statusDockTab}
-          onTabChange={onStatusDockTabChange}
-          problemCount={totalProblemCount}
-          issuesPanel={<DiagnosticsPanel {...diagnosticsPanelProps} />}
-          activity={activity}
-          searchResults={searchResults}
-          searchQuery={searchQuery}
-          isSearching={isSearching}
-          exportResult={exportResult}
-          exportHistory={exportHistory}
-          isExporting={isExporting}
-          isIndexing={isIndexing}
-          graphProgress={graphProgress}
-          onOpenNote={onOpenNote}
-          onCancelExport={onCancelExport}
-        />
-      </div>
-
-      <div className="repo-state">
-        <label
-          className="diagnostics-opt-in"
-          title="When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl"
+      <div className="status-summary">
+        <button
+          type="button"
+          className="jobs-button"
+          onClick={() => activateDockTab('jobs')}
+          aria-pressed={statusDockTab === 'jobs'}
+          aria-expanded={statusDockTab === 'jobs' && dockExpanded}
         >
-          <input
-            type="checkbox"
-            checked={diagnosticsOptIn}
-            onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
-            aria-label="Send local crash diagnostics"
-          />
-          <span>Diagnostics</span>
-        </label>
-        <span>{health?.cache_status ?? 'no vault'}</span>
-        {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
-        {timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
-        <div className="subsystem-toggles" title="Subsystem Hibernation Status (Click to toggle)">
+          <PanelRight />
+          Jobs
+          <ChevronDown />
+        </button>
+
+        <div
+          className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
+          aria-label={workspaceStatus === 'indexing' ? `Building graph ${graphProgress}%` : `Index ready (${graphProgress}%)`}
+        >
+          <Activity />
+          <div>
+            <strong>{workspaceStatus === 'indexing' ? 'Building index...' : 'Index ready'}</strong>
+            <div className="progress-track">
+              <span style={{ width: `${graphProgress}%` }} />
+            </div>
+          </div>
+          <span>{graphProgress}%</span>
+          <small>
+            {rebuildSummary
+              ? `${rebuildSummary.indexed_notes + rebuildSummary.skipped_notes} / ${noteCount} notes`
+              : `${noteCount} notes`}
+            {lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
+          </small>
+        </div>
+
+        <div className="repo-state">
+          <label
+            className="diagnostics-opt-in"
+            title="When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl"
+          >
+            <input
+              type="checkbox"
+              checked={diagnosticsOptIn}
+              onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
+              aria-label="Send local crash diagnostics"
+            />
+            <span>Diagnostics</span>
+          </label>
+          <span>{health?.cache_status ?? 'no vault'}</span>
+          {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
+          {timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
+          <div className="subsystem-toggles" title="Subsystem hibernation (select to toggle)">
           <button
             type="button"
             className={`subsystem-toggle-badge ${hibernateGraph ? 'hibernated' : 'active'}`}
@@ -217,10 +218,32 @@ export function WorkspaceStatusFooter({
           >
             Spell
           </button>
+          </div>
+          <GitBranch />
+          <span>{vault?.name ?? 'unopened'}</span>
+          <CheckCircle2 />
         </div>
-        <GitBranch />
-        <span>{vault?.name ?? 'unopened'}</span>
-        <CheckCircle2 />
+      </div>
+
+      <div className="bottom-tabs-wrap">
+        <StatusDockPanel
+          activeTab={statusDockTab}
+          onTabChange={activateDockTab}
+          expanded={dockExpanded}
+          problemCount={totalProblemCount}
+          issuesPanel={<DiagnosticsPanel {...diagnosticsPanelProps} />}
+          activity={activity}
+          searchResults={searchResults}
+          searchQuery={searchQuery}
+          isSearching={isSearching}
+          exportResult={exportResult}
+          exportHistory={exportHistory}
+          isExporting={isExporting}
+          isIndexing={isIndexing}
+          graphProgress={graphProgress}
+          onOpenNote={onOpenNote}
+          onCancelExport={onCancelExport}
+        />
       </div>
     </footer>
   )

@@ -1,10 +1,17 @@
 .inspector-panel {
   min-height: 0;
   overflow: auto;
+  overflow-x: hidden;
+  contain: inline-size;
   background: var(--surface);
   padding: 0 12px 14px;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.inspector-panel > *,
+.inspector-panel [role='tabpanel'] {
+  min-width: 0;
 }
 
 .inspector-tabs {
@@ -329,7 +336,8 @@
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+  gap: 10px 0;
 }
 
 .metric {

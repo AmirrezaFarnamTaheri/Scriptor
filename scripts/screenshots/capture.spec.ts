@@ -106,11 +106,12 @@ async function waitForSettingsReady(page: Page) {
 }
 
 async function ensureCleanStatusDock(page: Page) {
-  const problemsTab = page.getByRole('tab', { name: /Problems/ })
-  if (await problemsTab.getAttribute('aria-selected')) {
-    await page.getByRole('tab', { name: 'Output' }).click()
+  const selectedTab = page.locator('.bottom-tabs [role="tab"][aria-selected="true"]')
+  if ((await selectedTab.getAttribute('aria-expanded')) === 'true') {
+    await selectedTab.click()
   }
   await expect(page.locator('.diagnostics-panel')).toHaveCount(0)
+  await expect(page.locator('.dock-panel')).toHaveCount(0)
 }
 
 test.beforeAll(() => {

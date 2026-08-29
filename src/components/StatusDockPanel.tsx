@@ -9,6 +9,7 @@ export type StatusDockTab = 'problems' | 'output' | 'search' | 'jobs'
 interface StatusDockPanelProps {
   activeTab: StatusDockTab
   onTabChange: (tab: StatusDockTab) => void
+  expanded: boolean
   problemCount: number
   issuesPanel: ReactNode
   activity: ActivityEntry[]
@@ -27,6 +28,7 @@ interface StatusDockPanelProps {
 export function StatusDockPanel({
   activeTab,
   onTabChange,
+  expanded,
   problemCount,
   issuesPanel,
   activity,
@@ -41,7 +43,6 @@ export function StatusDockPanel({
   onOpenNote,
   onCancelExport,
 }: StatusDockPanelProps) {
-  const [problemsCollapsed, setProblemsCollapsed] = useState(false)
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const runningJob = exportHistory.find((job) => job.status === 'running')
   const liveExportOutput = runningJob?.live_stderr ?? ''
@@ -57,15 +58,10 @@ export function StatusDockPanel({
           tabIndex={activeTab === 'problems' ? 0 : -1}
           id={'dock-tab-problems'}
           aria-selected={activeTab === 'problems'}
+          aria-expanded={activeTab === 'problems' && expanded}
+          aria-controls="dock-panel-problems"
           className={activeTab === 'problems' ? 'active' : ''}
-          onClick={() => {
-            if (activeTab === 'problems') {
-              setProblemsCollapsed((value) => !value)
-              return
-            }
-            onTabChange('problems')
-            setProblemsCollapsed(false)
-          }}
+          onClick={() => onTabChange('problems')}
         >
           Problems <span>{problemCount}</span>
         </button>
@@ -75,11 +71,10 @@ export function StatusDockPanel({
           tabIndex={activeTab === 'output' ? 0 : -1}
           id={'dock-tab-output'}
           aria-selected={activeTab === 'output'}
+          aria-expanded={activeTab === 'output' && expanded}
+          aria-controls="dock-panel-output"
           className={activeTab === 'output' ? 'active' : ''}
-          onClick={() => {
-            onTabChange('output')
-            setProblemsCollapsed(false)
-          }}
+          onClick={() => onTabChange('output')}
         >
           Output
         </button>
@@ -89,11 +84,10 @@ export function StatusDockPanel({
           tabIndex={activeTab === 'search' ? 0 : -1}
           id={'dock-tab-search'}
           aria-selected={activeTab === 'search'}
+          aria-expanded={activeTab === 'search' && expanded}
+          aria-controls="dock-panel-search"
           className={activeTab === 'search' ? 'active' : ''}
-          onClick={() => {
-            onTabChange('search')
-            setProblemsCollapsed(false)
-          }}
+          onClick={() => onTabChange('search')}
         >
           Search Results <span>{searchResults.length}</span>
         </button>
@@ -103,6 +97,8 @@ export function StatusDockPanel({
           tabIndex={activeTab === 'jobs' ? 0 : -1}
           id={'dock-tab-jobs'}
           aria-selected={activeTab === 'jobs'}
+          aria-expanded={activeTab === 'jobs' && expanded}
+          aria-controls="dock-panel-jobs"
           className={activeTab === 'jobs' ? 'active' : ''}
           onClick={() => onTabChange('jobs')}
         >
@@ -110,10 +106,10 @@ export function StatusDockPanel({
         </button>
       </div>
 
-      {activeTab === 'problems' && !problemsCollapsed ? issuesPanel : null}
+      {activeTab === 'problems' && expanded ? <div id="dock-panel-problems">{issuesPanel}</div> : null}
 
-      {activeTab === 'output' ? (
-        <section className="dock-panel" aria-label="Output">
+      {activeTab === 'output' && expanded ? (
+        <section className="dock-panel" id="dock-panel-output" role="tabpanel" aria-labelledby="dock-tab-output">
           <header>
             <strong>Output</strong>
           </header>
@@ -146,8 +142,8 @@ export function StatusDockPanel({
         </section>
       ) : null}
 
-      {activeTab === 'search' ? (
-        <section className="dock-panel" aria-label="Search results">
+      {activeTab === 'search' && expanded ? (
+        <section className="dock-panel" id="dock-panel-search" role="tabpanel" aria-labelledby="dock-tab-search">
           <header>
             <strong>Search results</strong>
             {searchQuery ? <span>for “{searchQuery}”</span> : null}
@@ -171,8 +167,8 @@ export function StatusDockPanel({
         </section>
       ) : null}
 
-      {activeTab === 'jobs' ? (
-        <section className="dock-panel jobs-panel" aria-label="Jobs">
+      {activeTab === 'jobs' && expanded ? (
+        <section className="dock-panel jobs-panel" id="dock-panel-jobs" role="tabpanel" aria-labelledby="dock-tab-jobs">
           <header>
             <strong>Background jobs</strong>
           </header>

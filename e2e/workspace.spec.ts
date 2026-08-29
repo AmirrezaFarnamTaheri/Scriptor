@@ -112,7 +112,7 @@ test.describe('workspace flows', () => {
     await searchInput.fill(E2E_SEARCH_MARKER)
     await expect(page.getByText('1 result', { exact: false })).toBeVisible({ timeout: 10_000 })
 
-    const searchPanel = page.getByRole('region', { name: 'Search results' })
+    const searchPanel = page.locator('#dock-panel-search')
     await expect(searchPanel.getByRole('button', { name: /Research Plan/ })).toBeVisible()
     await expect(searchPanel).toContainText(E2E_SEARCH_MARKER)
 

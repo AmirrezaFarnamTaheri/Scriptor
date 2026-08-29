@@ -40,6 +40,9 @@ export default defineConfig({
   },
   webServer: {
     command: `node_modules\\.bin\\vite.cmd build --mode e2e --outDir dist-visual-e2e && node_modules\\.bin\\vite.cmd preview --outDir dist-visual-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    env: {
+      VITE_SCREENSHOT_MODE: 'true',
+    },
     port: serverPort,
     reuseExistingServer: false,
     timeout: 180_000,

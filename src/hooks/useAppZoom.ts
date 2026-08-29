@@ -5,6 +5,8 @@ const ZOOM_MIN = 0.5
 const ZOOM_MAX = 2.5
 /** Content min-width the top bar is designed against; below this we zoom out to fit. */
 const FIT_REFERENCE_WIDTH = 1180
+const MOBILE_REFLOW_WIDTH = 820
+const STACKED_REFLOW_WIDTH = 1320
 
 function clampZoom(value: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100))
@@ -24,6 +26,17 @@ function readStoredZoom(): number | null {
 function defaultFitZoom(): number {
   if (window.innerWidth >= FIT_REFERENCE_WIDTH) return 1
   return clampZoom(window.innerWidth / FIT_REFERENCE_WIDTH)
+}
+
+function updateZoomReflow(factor: number): void {
+  const frameWidth = Math.max(window.innerWidth, window.outerWidth || 0)
+  const effectiveWidth = factor > 1 ? frameWidth / factor : window.innerWidth
+  document.documentElement.dataset.uiReflow =
+    effectiveWidth <= MOBILE_REFLOW_WIDTH
+      ? 'mobile'
+      : effectiveWidth <= STACKED_REFLOW_WIDTH
+        ? 'stacked'
+        : 'desktop'
 }
 
 async function applyZoom(factor: number): Promise<void> {
@@ -49,6 +62,7 @@ export function useAppZoom(): void {
 
     const apply = () => {
       if (applyScheduled) return
+      updateZoomReflow(factor)
       applyScheduled = true
       window.setTimeout(() => {
         applyScheduled = false
@@ -96,6 +110,8 @@ export function useAppZoom(): void {
       if (readStoredZoom() === null) {
         factor = defaultFitZoom()
         apply()
+      } else {
+        updateZoomReflow(factor)
       }
     }
 
@@ -108,6 +124,7 @@ export function useAppZoom(): void {
       window.removeEventListener('wheel', onWheel, true)
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('resize', onResize)
+      delete document.documentElement.dataset.uiReflow
     }
   }, [])
 }

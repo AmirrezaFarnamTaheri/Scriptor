@@ -1,26 +1,32 @@
 import { BRAND_NAME } from './identity'
+import originalBrandMark from '../../docs/brand/app-icon.svg?raw'
+
+const themedBrandMark = originalBrandMark
+  .replace('<svg ', '<svg aria-hidden="true" focusable="false" ')
+  .replace(
+    '<defs>',
+    `<defs>
+    <style>
+      #bgGrad stop:nth-child(1) { stop-color: var(--surface-raised, #050814); }
+      #bgGrad stop:nth-child(2) { stop-color: color-mix(in srgb, var(--surface-raised, #0b172a) 82%, var(--primary, #0d9488)); }
+      #bgGrad stop:nth-child(3) { stop-color: color-mix(in srgb, var(--surface-raised, #072a2e) 62%, var(--primary-strong, #0f766e)); }
+      #borderGrad stop { stop-color: var(--primary, #14b8a6); }
+      #tileBaseGrad stop:first-child { stop-color: var(--primary, #0d9488); }
+      #tileBaseGrad stop:last-child { stop-color: color-mix(in srgb, var(--primary-strong, #032f30) 58%, black); }
+      #tileTopGrad stop:first-child { stop-color: color-mix(in srgb, var(--primary, #14b8a6) 82%, white); }
+      #tileTopGrad stop:last-child { stop-color: var(--primary-strong, #0f766e); }
+      #dotGrid circle { fill: var(--primary, #2dd4bf); }
+    </style>`,
+  )
 
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg
+    <span
       aria-label={BRAND_NAME}
       className={className ?? 'brand-mark'}
       role="img"
-      viewBox="0 0 32 32"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <title>{BRAND_NAME}</title>
-      <rect fill="var(--surface-raised)" height="30" rx="8" stroke="var(--border)" width="30" x="1" y="1" />
-      <path
-        d="M21.75 7.5H12a4.5 4.5 0 0 0 0 9h8a2.5 2.5 0 1 1 0 5h-9.75"
-        fill="none"
-        stroke="var(--primary)"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="4"
-      />
-      <path d="M10 7.5h5M17 24.5h5" fill="none" stroke="var(--ink-strong)" strokeLinecap="round" strokeWidth="2" />
-    </svg>
+      dangerouslySetInnerHTML={{ __html: themedBrandMark }}
+    />
   )
 }
 

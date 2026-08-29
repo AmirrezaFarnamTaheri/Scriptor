@@ -1,7 +1,7 @@
-@media (max-width: 1180px) {
+@media (max-width: 1320px) {
   .workspace-grid {
     grid-template-columns: 280px minmax(420px, 1fr);
-    grid-template-rows: minmax(320px, 1fr) auto;
+    grid-template-rows: minmax(340px, 1fr) minmax(0, min(36dvh, 400px));
   }
 
   .workspace-grid[data-vault-collapsed='true'] {
@@ -45,10 +45,21 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
     border-top: 1px solid var(--border);
+    max-height: min(36dvh, 400px);
   }
 
   .inspector-tabs {
     grid-column: 1 / -1;
+  }
+
+  .status-summary {
+    grid-template-columns: auto minmax(240px, 1fr);
+  }
+
+  .status-summary .repo-state {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    margin-left: 0;
   }
 }
 
@@ -65,6 +76,18 @@
   .status-strip {
     flex-wrap: wrap;
     padding-block: 10px;
+  }
+
+  .status-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .status-summary .jobs-button {
+    justify-self: start;
+  }
+
+  .status-summary .repo-state {
+    grid-column: auto;
   }
 
   .brand {
@@ -257,4 +280,100 @@
   .settings-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* App-level zoom does not consistently participate in media queries across
+   WebView engines. Mirror the responsive workspace modes from useAppZoom's
+   effective content width so the inspector can never cover the write pane. */
+html[data-ui-reflow='stacked'] .workspace-grid {
+  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-rows: minmax(340px, 1fr) minmax(0, min(36dvh, 400px));
+}
+
+html[data-ui-reflow='stacked'] .workspace-grid[data-vault-collapsed='true'] {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+html[data-ui-reflow='stacked'] .workspace-grid > .split-pane-handle,
+html[data-ui-reflow='stacked'] .workspace-grid > .resizer-placeholder,
+html[data-ui-reflow='mobile'] .workspace-grid > .split-pane-handle,
+html[data-ui-reflow='mobile'] .workspace-grid > .resizer-placeholder {
+  display: none;
+}
+
+html[data-ui-reflow='stacked'] .workspace-grid > .vault-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+html[data-ui-reflow='stacked'] .workspace-grid > .editor-panel {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+html[data-ui-reflow='stacked'] .workspace-grid > .inspector-panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-height: min(36dvh, 400px);
+  border-top: 1px solid var(--border);
+}
+
+html[data-ui-reflow='stacked'] .workspace-grid[data-inspector-collapsed='true'] .inspector-panel {
+  display: none;
+}
+
+html[data-ui-reflow='stacked'] .inspector-tabs {
+  grid-column: 1 / -1;
+}
+
+html[data-ui-reflow='mobile'] .workspace-grid,
+html[data-ui-reflow='mobile'] .workspace-grid[data-vault-collapsed='true'],
+html[data-ui-reflow='mobile'] .workspace-grid[data-inspector-collapsed='true'],
+html[data-ui-reflow='mobile'] .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
+  min-height: 0;
+  overflow: hidden;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+html[data-ui-reflow='mobile'] .workspace-grid > .vault-panel,
+html[data-ui-reflow='mobile'] .workspace-grid > .editor-panel,
+html[data-ui-reflow='mobile'] .workspace-grid > .inspector-panel {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='vault'] .editor-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='vault'] .inspector-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='editor'] .vault-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='editor'] .inspector-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='inspector'] .vault-panel,
+html[data-ui-reflow='mobile'] .workspace-grid[data-mobile-pane='inspector'] .editor-panel {
+  display: none;
+}
+
+html[data-ui-reflow='mobile'] .inspector-panel {
+  grid-template-columns: minmax(0, 1fr);
+  max-height: none;
+}
+
+html[data-ui-reflow='mobile'] .mobile-workspace-chrome {
+  display: block;
+}
+
+html[data-ui-reflow='mobile'] .mobile-workspace-nav {
+  display: grid;
+}
+
+html[data-ui-reflow='mobile'] .status-summary {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+html[data-ui-reflow='mobile'] .status-summary .repo-state {
+  grid-column: auto;
+  justify-content: flex-start;
+  margin-left: 0;
 }

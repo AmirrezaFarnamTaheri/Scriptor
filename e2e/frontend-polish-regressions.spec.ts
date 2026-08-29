@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test'
 
 import { selectGitPanelState } from '../src/lib/gitPanelState'
 import type { GitStatus } from '../src/types/vault'
-import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
+import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
 
 const OPEN_GIT = 'Open Git panel'
 const OPEN_READER = 'Open reader'
@@ -45,6 +45,72 @@ test.describe('Git panel state selector', () => {
 })
 
 test.describe('Frontend polish regressions', () => {
+  test('workspace and status dock reflow without covering the editor at intermediate widths', async ({ page }) => {
+    await page.setViewportSize({ width: 1240, height: 900 })
+    await launchApp(page)
+    await waitForWorkspace(page)
+
+    const workspace = page.locator('.workspace-grid')
+    const editor = page.locator('.editor-panel')
+    const inspector = page.locator('.inspector-panel')
+    const status = page.locator('.status-strip')
+    const dock = page.locator('.bottom-tabs-wrap')
+    const outputTab = page.getByRole('tab', { name: 'Output' })
+
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('#dock-panel-output')).toHaveCount(0)
+
+    await expect
+      .poll(async () =>
+        page.evaluate(() => ({
+          viewportHeight: document.documentElement.clientHeight,
+          viewportWidth: document.documentElement.clientWidth,
+          pageHeight: document.documentElement.scrollHeight,
+          pageWidth: document.documentElement.scrollWidth,
+        })),
+      )
+      .toEqual({ viewportHeight: 900, viewportWidth: 1240, pageHeight: 900, pageWidth: 1240 })
+
+    const [workspaceBox, editorBox, inspectorBox, statusBox, dockBox] = await Promise.all([
+      workspace.boundingBox(),
+      editor.boundingBox(),
+      inspector.boundingBox(),
+      status.boundingBox(),
+      dock.boundingBox(),
+    ])
+    expect(workspaceBox).not.toBeNull()
+    expect(editorBox).not.toBeNull()
+    expect(inspectorBox).not.toBeNull()
+    expect(statusBox).not.toBeNull()
+    expect(dockBox).not.toBeNull()
+    expect((editorBox?.x ?? 0) + (editorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
+    expect((inspectorBox?.x ?? 0) + (inspectorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
+    expect(dockBox?.x).toBeCloseTo((statusBox?.x ?? 0) + 12, 0)
+    expect(dockBox?.width ?? 0).toBeGreaterThan((statusBox?.width ?? 0) * 0.9)
+
+    await outputTab.click()
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'true')
+    await expect(page.locator('#dock-panel-output')).toBeVisible()
+  })
+
+  test('high app zoom switches write and inspector into exclusive panes', async ({ page }) => {
+    await page.addInitScript(() => window.localStorage.setItem('scriptor:ui-zoom', '2'))
+    await launchApp(page)
+    await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({ timeout: 30_000 })
+    await settleLayout(page)
+
+    await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
+    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    await expect(nav).toBeVisible()
+    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeHidden()
+
+    await nav.getByRole('button', { name: 'Lens' }).click()
+    await expect(page.locator('.editor-panel')).toBeHidden()
+    await expect(page.locator('.inspector-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeInViewport()
+  })
+
   test('vault tree opens supported reader documents directly in the reader panel', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)

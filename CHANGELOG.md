@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- Reworked the workspace footer into a compact, expandable status dock; kept the desktop shell viewport-bound; and made the write, vault, and inspector regions reflow instead of overlap at intermediate widths and persisted app zoom levels.
+- Restored the original tile-built Scriptor mark in the app shell and mapped its existing gradients to active theme tokens rather than substituting a simplified glyph.
+- Made documentation capture wait for fonts, images, lazy panels, preview completion, and layout settlement; the deterministic screenshot build now rejects loading/degraded states and the README leads with current product captures.
+- Kept the cross-platform Rust release smoke from rebuilding its own running `xtask` executable and taught it to launch Windows package-manager `.cmd` shims, fixing both access-denied and program-not-found failures on Windows.
 - Wired the existing template picker and Obsidian importer into the vault menu and command system; replaced the sidebar's unbounded template list with a searchable, keyboard-complete picker.
 - Made the inspector store the canonical runtime surface for plugin consent, MCP mode/audit, subsystem hibernation, and workspace layout presets; clarified that the separate palette center controls built-in modules and themes, with a direct route to the runtime marketplace.
 - Reduced the recorded initial renderer graph from 442,797 to 427,547 gzip bytes (−3.4%) by deferring the runtime store, built-in module/palette center, Reader, template picker, and Obsidian importer until first use; remote marketplace fetching now waits for the store to open, and store tabs/cards remain navigable at high text zoom.
@@ -54,6 +58,7 @@
 
 ### Verification
 
+- Added browser regressions for horizontal and vertical workspace containment, full-width dock composition, dock disclosure semantics, and exclusive write/inspector panes at 200% app zoom; regenerated the reviewed documentation screenshots.
 - Added browser coverage for template and Obsidian entry points, interactive store feature/layout controls, and four-section store navigation at 200% text zoom.
 - Added browser regressions for top-bar customization at narrow/high-text-zoom layouts, toolbar popover focus, the support-heart treatment, and Reader availability when annotations cannot load; added source tests for atomic plugin-profile derivation and preservation of unknown plugins.
 - Added artifact-level regression coverage proving production bundle validation rejects compiled E2E editor crash hooks.
