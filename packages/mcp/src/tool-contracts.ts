@@ -1,6 +1,6 @@
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 import type { McpToolDescriptor } from '@scriptor/core/contracts/mcp'
-import { MCP_TOOL_INPUT_SCHEMAS } from './tool-schemas.generated'
+import { MCP_TOOL_INPUT_SCHEMAS } from './tool-schemas.generated.ts'
 
 /**
  * Ensure a tool path argument stays inside the vault: relative, no drive
