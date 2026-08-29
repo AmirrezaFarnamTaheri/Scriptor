@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
 import { applyRendererExtensions } from '@scriptor/renderer'
-
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
 import { VaultSidebar } from './components/app/VaultSidebar'
@@ -30,8 +29,6 @@ import { useNoteDraftStats } from './hooks/useNoteDraftStats'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
-import { PluginManagerCenter } from './components/plugins/PluginManagerCenter'
-
 import {
   CheatsheetPanel,
   ConflictResolverModal,
@@ -111,6 +108,9 @@ import {
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
+import { useStoreSurfaceController } from './hooks/useStoreSurfaceController'
+import { CapabilityWorkflowOverlays } from './components/app/CapabilityWorkflowOverlays'
+import { usePluginCommandRuntime } from './hooks/usePluginCommandRuntime'
 import './styles/tokens/primitives.css'
 import './styles/tokens/semantic.css'
 import './styles/tokens/components.css'
@@ -129,10 +129,8 @@ import './styles/components/git-panel.css'
 import './styles/components/smart-collections.css'
 import './styles/components/markdown-preview.css'
 import './styles/components/canvas-graph.css'
-import './styles/components/reader-panel.css'
 import './App.css'
 import './styles/motion.css'
-
 function App() {
   const { t } = useI18n()
   const localDate = useLocalDate()
@@ -140,7 +138,7 @@ function App() {
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
   const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
-  const { layouts, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
+  const { layouts, applyLayout, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
   const onboarding = useOnboarding()
   const { presentation: panelPresentation, setPresentation: setPanelPresentation } = usePanelPresentation()
   const journey = useJourneyMetrics()
@@ -179,6 +177,8 @@ function App() {
     stickiesVisible,
     supportOpen,
     tasksOpen,
+    templatePickerOpen,
+    obsidianImportOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -204,6 +204,8 @@ function App() {
     setStickiesVisible,
     setSupportOpen,
     setTasksOpen,
+    setTemplatePickerOpen,
+    setObsidianImportOpen,
     setTocOpen,
     setWritingTargetsOpen,
     renameOpen,
@@ -219,7 +221,6 @@ function App() {
     conflictPath,
     setConflictPath,
   } = panelSurfaces
-
   const nav = useWorkspaceNavigationController({
     initialGraphDepth: initialWorkspaceLayout.graphDepth,
   })
@@ -288,7 +289,7 @@ function App() {
   const commandPalette = useCommandPalette()
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
-  const plugins = usePluginRegistry(pluginVaultId)
+  const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
   const workspace = useVaultWorkspace({
     onSearchComplete: (hits) => {
@@ -357,27 +358,10 @@ function App() {
   }, [rememberRecentVault, workspace.vault?.root_path])
   const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph } = workspace
   const { refreshHealth, fixVaultLint, exportWithProfile } = workspace
-  const pluginCommandRuntime = useMemo(
-    () => ({
-      refreshHealth: () => refreshHealth(),
-      fixVaultLint: () => fixVaultLint(),
-      exportWithProfile,
-      setStatusDockTab,
-      setHealthDashboardOpen,
-      openCanvas: () => setCanvasOpen(true),
-      openBibliography: () => setBibliographyOpen(true),
-    }),
-    [
-      setHealthDashboardOpen,
-      setStatusDockTab,
-      exportWithProfile,
-      fixVaultLint,
-      refreshHealth,
-      setCanvasOpen,
-      setBibliographyOpen,
-    ],
-  )
-
+  const pluginCommandRuntime = usePluginCommandRuntime({
+    refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
+    setCanvasOpen, setBibliographyOpen,
+  })
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vaultConfig,
@@ -389,6 +373,18 @@ function App() {
     pluginCommandRuntime,
     hibernateMcp,
   )
+  const storeSurface = useStoreSurfaceController({
+    workspaceMode,
+    currentLayout: { splitPreview, showStickies: stickiesVisible, graphDepth, distractionFree },
+    applyLayout,
+    setSplitPreview,
+    setStickiesVisible,
+    setGraphDepth,
+    setDistractionFree,
+    mcp,
+    hibernation: { graph: hibernateGraph, mcp: hibernateMcp, watcher: hibernateWatcher, git: hibernateGit, spellcheck: hibernateSpellcheck },
+    setHibernation: { graph: setHibernateGraph, mcp: setHibernateMcp, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
+  })
   const ai = useAiProvider()
   const diagnostics = useDiagnosticsSettings(Boolean(workspace.vault))
   const rendererExtensions = plugins.contributions.rendererExtensions
@@ -787,6 +783,8 @@ function App() {
         setNoteHistoryOpen,
         setBibliographyOpen,
         setSnippetsOpen,
+        setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
+        setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
         insertSnippet: (text) => workspace.insertSnippet(text),
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
@@ -853,6 +851,8 @@ function App() {
       setSplitPreview,
       setStatusDockTab,
       setSnippetsOpen,
+      setTemplatePickerOpen,
+      setObsidianImportOpen,
       setSupportOpen,
       setTasksOpen,
       splitPreview,
@@ -901,6 +901,7 @@ function App() {
     openTasks: nativeReady && workspace.vault ? () => setTasksOpen(true) : undefined,
     openKanban:
       nativeReady && workspace.vault && workspace.activePath ? () => setKanbanOpen(true) : undefined,
+    openTemplates: nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined,
     toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
     toggleInspector: () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
   })
@@ -1044,7 +1045,8 @@ function App() {
           onChooseVault={sidebarActions.handleChooseVault}
           onCreateNote={sidebarActions.handleCreateNote}
           onCreateNoteOfType={sidebarActions.handleCreateNoteOfType}
-          onCreateNoteFromTemplate={sidebarActions.handleCreateNoteFromTemplate}
+          onOpenTemplatePicker={nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined}
+          onOpenObsidianImport={nativeReady && workspace.vault ? () => setObsidianImportOpen(true) : undefined}
           onRebuildIndex={sidebarActions.handleRebuildIndex}
           onOpenTags={sidebarActions.handleOpenTags}
           onOpenFilters={sidebarActions.handleOpenFilters}
@@ -1252,6 +1254,7 @@ function App() {
             setGraphOpen(true)
             void workspace.loadGraph(workspace.activePath)
           }}
+          store={storeSurface.inspectorProps}
           plugins={{
             plugins: plugins.plugins,
             templatePacks: plugins.contributions.templatePacks,
@@ -1699,11 +1702,27 @@ function App() {
         </ErrorBoundary>
       )}
 
-      <PluginManagerCenter
-        isOpen={pluginManagerOpen}
-        onClose={() => setPluginManagerOpen(false)}
-        currentTheme={theme}
+      <CapabilityWorkflowOverlays
+        templatePickerOpen={templatePickerOpen}
+        obsidianImportOpen={obsidianImportOpen}
+        pluginManagerOpen={pluginManagerOpen}
+        templates={workspace.templatePaths}
+        onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
+        onCloseObsidianImport={() => setObsidianImportOpen(false)}
+        onClosePluginManager={() => setPluginManagerOpen(false)}
+        theme={theme}
         onThemeChange={setTheme}
+        onOpenPluginMarketplace={() => {
+          setPluginManagerOpen(false)
+          patchChrome({ inspectorCollapsed: false })
+          setActiveMode('plugins')
+        }}
+        onCreateBlankNote={sidebarActions.handleCreateNote}
+        onCreateFromTemplate={sidebarActions.handleCreateNoteFromTemplate}
+        onObsidianImported={(notesImported) => {
+          showToast(`Imported ${notesImported} note${notesImported === 1 ? '' : 's'} from Obsidian`)
+          void workspace.refreshVault()
+        }}
       />
 
       {bibliographyOpen && (

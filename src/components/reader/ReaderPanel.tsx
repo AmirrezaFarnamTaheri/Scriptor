@@ -15,6 +15,8 @@
  * annotation UI in `AnnotationPopover`, rendering here only.
  */
 
+import '../../styles/components/reader-panel.css'
+
 import {
   useCallback,
   useEffect,

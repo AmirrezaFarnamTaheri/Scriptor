@@ -4,7 +4,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  FileText,
   Filter,
   Folder,
   Inbox,
@@ -42,7 +41,8 @@ interface VaultSidebarProps {
   onChooseVault: () => void
   onCreateNote: () => void
   onCreateNoteOfType: (typeName: string) => void
-  onCreateNoteFromTemplate: (templatePath: string) => void
+  onOpenTemplatePicker?: () => void
+  onOpenObsidianImport?: () => void
   onRebuildIndex: () => void
   onOpenTags: () => void
   onOpenFilters: () => void
@@ -79,7 +79,8 @@ function VaultSidebarImpl({
   onChooseVault,
   onCreateNote,
   onCreateNoteOfType,
-  onCreateNoteFromTemplate,
+  onOpenTemplatePicker,
+  onOpenObsidianImport,
   onRebuildIndex,
   onOpenTags,
   onOpenFilters,
@@ -128,6 +129,7 @@ function VaultSidebarImpl({
           { label: 'Knowledge filters', run: onOpenFilters },
           ...(onOpenSavedViews ? [{ label: 'Saved views', run: onOpenSavedViews }] : []),
           ...(onOpenSnippets ? [{ label: 'Manage snippets', run: onOpenSnippets }] : []),
+          ...(onOpenObsidianImport ? [{ label: 'Import Obsidian vault', run: onOpenObsidianImport }] : []),
         ]}
       />
 
@@ -209,28 +211,11 @@ function VaultSidebarImpl({
         </div>
       ) : null}
 
-      {templatePaths.length > 0 ? (
-        <div className="template-picker" aria-label="Create note from template">
-          <span className="note-type-label">
-            <LayoutTemplate size={12} aria-hidden />
-            New from template
-          </span>
-          <ul className="template-picker-list">
-            {templatePaths.map((template) => (
-              <li key={template.path}>
-                <button
-                  type="button"
-                  className="template-picker-item"
-                  title={template.path}
-                  onClick={() => onCreateNoteFromTemplate(template.path)}
-                >
-                  <FileText size={14} aria-hidden />
-                  <span>{template.name}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      {onOpenTemplatePicker ? (
+        <button type="button" className="filter-button" onClick={onOpenTemplatePicker}>
+          <LayoutTemplate aria-hidden />
+          New from template{templatePaths.length > 0 ? ` (${templatePaths.length})` : ''}
+        </button>
       ) : null}
 
       <div className="daily-note-nav">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   PluginHost,
   PluginRegistry,
@@ -71,7 +71,10 @@ function readInitialSafeMode(): boolean {
   }
 }
 
-export function usePluginRegistry(activeVaultId: string | null) {
+export function usePluginRegistry(
+  activeVaultId: string | null,
+  options: { marketplaceActive?: boolean } = {},
+) {
   const vaultOpen = activeVaultId !== null
   const [registry] = useState(() => new PluginRegistry(readInitialSafeMode(), readInitialPolicies()))
   const [revision, setRevision] = useState(0)
@@ -217,19 +220,23 @@ export function usePluginRegistry(activeVaultId: string | null) {
   const [marketplaceCatalog, setMarketplaceCatalog] = useState<MarketplaceListing[]>(() =>
     listBundledMarketplaceCatalog(),
   )
+  const remoteCatalogRequested = useRef(false)
 
   useEffect(() => {
+    if (!options.marketplaceActive || remoteCatalogRequested.current) return
     const remoteUrl =
       typeof import.meta.env.VITE_SCRIPTOR_PLUGIN_MARKETPLACE_URL === 'string'
         ? import.meta.env.VITE_SCRIPTOR_PLUGIN_MARKETPLACE_URL
         : null
     if (!remoteUrl?.trim()) return
+    remoteCatalogRequested.current = true
     void loadMarketplaceCatalog(remoteUrl)
       .then(setMarketplaceCatalog)
       .catch(() => {
+        remoteCatalogRequested.current = false
         // keep bundled catalog on remote fetch failure
       })
-  }, [])
+  }, [options.marketplaceActive])
 
   const installFromMarketplace = useCallback(
     async (listingId: string) => {

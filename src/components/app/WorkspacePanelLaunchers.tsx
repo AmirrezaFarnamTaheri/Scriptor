@@ -1,10 +1,8 @@
 import { Suspense } from 'react'
-import type { ComponentProps } from 'react'
-
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
-import { ReaderPanel } from '../reader'
-import { CanvasPanel, KanbanPanel, PanelFallback, TaskPanel } from './lazyPanels'
+import type { ReaderPanelProps } from '../reader/ReaderPanel'
+import { CanvasPanel, KanbanPanel, PanelFallback, ReaderPanel, TaskPanel } from './lazyPanels'
 import type { usePluginRegistry } from '../../hooks/usePluginRegistry'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 
@@ -17,7 +15,7 @@ type WorkspacePanelLaunchersProps = {
   readerFilePath: string | null
   tasksOpen: boolean
   kanbanOpen: boolean
-  readerPresentation: ComponentProps<typeof ReaderPanel>['presentation']
+  readerPresentation: ReaderPanelProps['presentation']
   onCloseCanvas: () => void
   onCloseReader: () => void
   onCloseTasks: () => void
@@ -68,12 +66,14 @@ export function WorkspacePanelLaunchers({
           name="reader-panel"
           fallback={<PanelErrorFallback title="The reader" onDismiss={onCloseReader} />}
         >
-          <ReaderPanel
-            filePath={readerFilePath}
-            vaultRoot={workspace.vault?.root_path ?? null}
-            presentation={readerPresentation}
-            onClose={onCloseReader}
-          />
+          <Suspense fallback={<PanelFallback />}>
+            <ReaderPanel
+              filePath={readerFilePath}
+              vaultRoot={workspace.vault?.root_path ?? null}
+              presentation={readerPresentation}
+              onClose={onCloseReader}
+            />
+          </Suspense>
         </ErrorBoundary>
       )}
 

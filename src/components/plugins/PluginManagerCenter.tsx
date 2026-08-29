@@ -45,6 +45,7 @@ export interface PluginManagerCenterProps {
   onClose: () => void
   currentTheme?: AppTheme
   onThemeChange?: (theme: AppTheme) => void
+  onOpenPluginMarketplace?: () => void
 }
 
 export function PluginManagerCenter({
@@ -52,6 +53,7 @@ export function PluginManagerCenter({
   onClose,
   currentTheme: propTheme,
   onThemeChange,
+  onOpenPluginMarketplace,
 }: PluginManagerCenterProps) {
   const {
     enabledPluginIds,
@@ -156,17 +158,22 @@ export function PluginManagerCenter({
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label="Extension & Theme Management Center"
+        aria-label="Built-in modules and themes"
       >
         <div className="plugin-manager-modal">
           <div className="plugin-manager-header">
             <h2>
-              <Palette /> Extension &amp; Color Scheme Installer Center
+              <Palette /> Built-in Modules &amp; Color Palettes
             </h2>
             <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
               <X />
             </button>
           </div>
+          {onOpenPluginMarketplace ? (
+            <button type="button" className="toolbar-button plugin-marketplace-link" onClick={onOpenPluginMarketplace}>
+              Open runtime plugin marketplace
+            </button>
+          ) : null}
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
           {/* Primary Tabs — Color Palette Store active by default */}

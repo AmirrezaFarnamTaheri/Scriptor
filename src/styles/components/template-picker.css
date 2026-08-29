@@ -1,6 +1,6 @@
 /* ===== Template Picker ===== */
 
-.template-picker {
+.template-picker-modal {
   background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -98,7 +98,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .template-picker {
+  .template-picker-modal {
     animation: none;
   }
 }

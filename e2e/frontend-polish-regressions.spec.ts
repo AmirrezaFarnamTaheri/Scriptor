@@ -242,16 +242,18 @@ test.describe('Frontend polish regressions', () => {
     await expect(panel).toContainText(/Working tree|changed file/i)
   })
 
-  test('store surface disables unavailable MCP and feature toggles instead of no-op clicks', async ({ page }) => {
+  test('store surface owns live MCP and feature controls', async ({ page }) => {
     await launchApp(page)
     await settleLayout(page)
 
     await page.getByRole('tab', { name: 'Plugins' }).click()
     await page.getByRole('tab', { name: 'MCP' }).click()
-    await expect(page.getByText('MCP controls are unavailable in this surface. Open the dedicated MCP panel to change mode.')).toBeVisible()
-    await expect(page.getByRole('radio', { name: /Read-Only/i })).toBeDisabled()
+    const readOnlyMode = page.getByRole('radio', { name: /Read-Only/i })
+    await expect(readOnlyMode).toBeEnabled()
+    await readOnlyMode.click()
+    await expect(readOnlyMode).toHaveAttribute('aria-checked', 'true')
 
     await page.getByRole('tab', { name: 'Features' }).click()
-    await expect(page.getByText('Feature toggles are read-only in this surface.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Toggle Vault file watcher' })).toBeEnabled()
   })
 })

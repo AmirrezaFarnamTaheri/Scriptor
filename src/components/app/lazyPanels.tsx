@@ -45,6 +45,18 @@ export const SnippetsPanelLazy = lazy(() =>
 export const TaskPanel = lazy(() =>
   import('../TaskPanel').then((module) => ({ default: module.TaskPanel })),
 )
+export const ReaderPanel = lazy(() =>
+  import('../reader/ReaderPanel').then((module) => ({ default: module.ReaderPanel })),
+)
+export const TemplatePicker = lazy(() =>
+  import('../TemplatePicker').then((module) => ({ default: module.TemplatePicker })),
+)
+export const ObsidianImportDialog = lazy(() =>
+  import('../ObsidianImportDialog').then((module) => ({ default: module.ObsidianImportDialog })),
+)
+export const PluginManagerCenter = lazy(() =>
+  import('../plugins/PluginManagerCenter').then((module) => ({ default: module.PluginManagerCenter })),
+)
 // Conditional overlays — deferred so their code (including chart.js inside the
 // writing-targets panel) never loads until the user opens them.
 export const WritingTargetsPanel = lazy(() =>

@@ -32,6 +32,8 @@ export type AppCommandId =
   | 'focus-search'
   | 'open-daily-note'
   | 'manage-snippets'
+  | 'open-templates'
+  | 'import-obsidian-vault'
   | 'organize-active-note'
   | 'export-reveal-slides'
   | 'editor-view-source'

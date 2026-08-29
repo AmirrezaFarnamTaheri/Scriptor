@@ -171,7 +171,7 @@ export function AppTopBar({
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
     ...(onOpenPluginManager
-      ? [{ id: 'paletteStore', label: 'Extension & Color Palette Store', icon: <Palette />, onClick: onOpenPluginManager }]
+      ? [{ id: 'paletteStore', label: 'Built-in Modules & Color Palettes', icon: <Palette />, onClick: onOpenPluginManager }]
       : []),
   ]
 
@@ -383,7 +383,7 @@ export function AppTopBar({
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton label="Extension &amp; Color Palette Store" onClick={onOpenPluginManager}>
+            <IconButton label="Built-in Modules &amp; Color Palettes" onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
           ) : null}
