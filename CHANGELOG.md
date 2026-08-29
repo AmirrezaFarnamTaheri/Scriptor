@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Restored the onboarding tour's primary-action contrast so the release accessibility audit meets WCAG AA.
 - Reworked the footer as a compact, expandable status dock. At intermediate widths and saved zoom levels, the write area, vault, and inspector now reflow without overlapping or escaping the viewport.
 - Restored the original tile-built Scriptor mark and made its gradients follow the active theme.
 - Screenshot capture now waits for fonts, images, lazy panels, previews, and layout to settle, and fails when loading or degraded states remain. Updated the README with current captures.

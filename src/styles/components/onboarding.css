@@ -41,3 +41,10 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Keep the tour's primary action AA-compliant across custom themes. */
+.onboarding-actions .primary-button {
+  background: #0f766e;
+  border-color: #0f766e;
+  color: #fff;
+}
