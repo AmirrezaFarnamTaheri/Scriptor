@@ -173,7 +173,7 @@ The current runtime topology, trust boundaries, and crate ownership are document
 | Security researcher | [`SECURITY.md`](SECURITY.md) and [`docs/ENCRYPTION-THREAT-MODEL.md`](docs/ENCRYPTION-THREAT-MODEL.md) |
 | Release manager | [`docs/RELEASE-CHECKLIST.md`](docs/RELEASE-CHECKLIST.md) and [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md) |
 | Architect | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/architecture/`](docs/architecture/) |
-| Auditor | [`AUDIT-2026-08-23.md`](AUDIT-2026-08-23.md) and [`docs/FINAL-REMEDIATION-REPORT.md`](docs/FINAL-REMEDIATION-REPORT.md) |
+| Auditor | [`docs/_archived/AUDIT-2026-08-23.md`](docs/_archived/AUDIT-2026-08-23.md) and [`docs/FINAL-REMEDIATION-REPORT.md`](docs/FINAL-REMEDIATION-REPORT.md) |
 
 Full index: [`docs/README.md`](docs/README.md).
 

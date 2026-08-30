@@ -85,6 +85,13 @@ const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
 
 const DEFAULT_TOP_BAR_GROUP_ORDER: TopBarGroupId[] = ['history', 'modes', 'command', 'actions']
 
+const TOP_BAR_GROUP_LABEL_KEYS: Record<TopBarGroupId, string> = {
+  history: 'topBar.groupVaultAndHistory',
+  modes: 'topBar.groupWorkspaceModes',
+  command: 'topBar.groupCommandSearch',
+  actions: 'topBar.groupActionButtons',
+}
+
 export function AppTopBar({
   vault,
   workspaceMode,
@@ -183,7 +190,7 @@ export function AppTopBar({
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
     ...(onOpenPluginManager
-      ? [{ id: 'paletteStore', label: 'Built-in Modules, Tools & Color Palettes', icon: <Store />, onClick: onOpenPluginManager }]
+      ? [{ id: 'paletteStore', label: t('topBar.paletteStore'), icon: <Store />, onClick: onOpenPluginManager }]
       : []),
   ]
 
@@ -347,7 +354,7 @@ export function AppTopBar({
           aria-label={`Open command palette (${commandShortcut})`}
         >
           <Command aria-hidden="true" />
-          <span className="command-search-placeholder">Type a command or search…</span>
+          <span className="command-search-placeholder">{t('topBar.typeCommandOrSearch')}</span>
           <kbd className="kbd" aria-hidden="true">{commandShortcut}</kbd>
         </button> : null}
 
@@ -414,7 +421,7 @@ export function AppTopBar({
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton label="Built-in Modules, Tools &amp; Color Palettes" onClick={onOpenPluginManager}>
+            <IconButton label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Store />
             </IconButton>
           ) : null}
@@ -425,7 +432,7 @@ export function AppTopBar({
             type="button"
             ref={customizeAnchorRef}
             className={`status-button${customizeOpen ? ' emphasized' : ''}`}
-            aria-label="Customize top bar actions"
+            aria-label={t('topBar.customizeAria')}
             aria-expanded={customizeOpen}
             onClick={openCustomize}
           >
@@ -438,30 +445,30 @@ export function AppTopBar({
           className="topbar-customize"
           ref={customizePopupRef}
           role="dialog"
-          aria-label="Customize top bar actions"
+          aria-label={t('topBar.customizeAria')}
           style={{ left: customizePos.x, top: customizePos.y }}
         >
-          <strong>Toolbar layout</strong>
+          <strong>{t('topBar.customizeToolbar')}</strong>
           {(['history', 'modes', 'command', 'actions'] as const).map((group) => (
             <div className="toolbar-group-settings" key={group}>
               <label>
                 <input type="checkbox" checked={!hiddenTopBarGroups.has(group)} onChange={() => toggleHiddenGroup(group)} />
-                <span>{group === 'modes' ? 'Workspace modes' : group === 'command' ? 'Command search' : group === 'actions' ? 'Action buttons' : 'Vault and history'}</span>
+                <span>{t(TOP_BAR_GROUP_LABEL_KEYS[group])}</span>
               </label>
-              <select aria-label={`${group} width`} value={groupWidth(group)} onChange={(event) => onPatchChrome?.({ topBarGroupWidths: { ...chrome?.topBarGroupWidths, [group]: event.target.value as 'compact' | 'auto' | 'wide' } })}>
-                <option value="compact">Compact</option><option value="auto">Auto</option><option value="wide">Wide</option>
+              <select aria-label={t('topBar.groupWidthAria', { group: t(TOP_BAR_GROUP_LABEL_KEYS[group]) })} value={groupWidth(group)} onChange={(event) => onPatchChrome?.({ topBarGroupWidths: { ...chrome?.topBarGroupWidths, [group]: event.target.value as 'compact' | 'auto' | 'wide' } })}>
+                <option value="compact">{t('topBar.widthCompact')}</option><option value="auto">{t('topBar.widthAuto')}</option><option value="wide">{t('topBar.widthWide')}</option>
               </select>
-              <button type="button" onClick={() => moveGroup(group, -1)} aria-label={`Move ${group} left`}>←</button>
-              <button type="button" onClick={() => moveGroup(group, 1)} aria-label={`Move ${group} right`}>→</button>
+              <button type="button" onClick={() => moveGroup(group, -1)} aria-label={t('topBar.moveGroupLeftAria', { group: t(TOP_BAR_GROUP_LABEL_KEYS[group]) })}>←</button>
+              <button type="button" onClick={() => moveGroup(group, 1)} aria-label={t('topBar.moveGroupRightAria', { group: t(TOP_BAR_GROUP_LABEL_KEYS[group]) })}>→</button>
             </div>
           ))}
           <label>
-            <span>Action rows</span>
-            <select aria-label="Action rows" value={chrome?.topBarActionRows ?? 1} onChange={(event) => onPatchChrome?.({ topBarActionRows: Number(event.target.value) as 1 | 2 })}>
-              <option value={1}>One line</option><option value={2}>Two lines</option>
+            <span>{t('topBar.actionRows')}</span>
+            <select aria-label={t('topBar.actionRows')} value={chrome?.topBarActionRows ?? 1} onChange={(event) => onPatchChrome?.({ topBarActionRows: Number(event.target.value) as 1 | 2 })}>
+              <option value={1}>{t('topBar.actionRowsOne')}</option><option value={2}>{t('topBar.actionRowsTwo')}</option>
             </select>
           </label>
-          <strong>Items in action group</strong>
+          <strong>{t('topBar.itemsInActionGroup')}</strong>
           {[...quickActions, ...statusActions].map((action) => (
             <label key={action.id}>
               <input
@@ -477,7 +484,7 @@ export function AppTopBar({
             className="customize-reset"
             onClick={() => onPatchChrome?.({ topBarHiddenActions: [], topBarHiddenGroups: [], topBarGroupOrder: DEFAULT_TOP_BAR_GROUP_ORDER, topBarGroupWidths: {}, topBarActionRows: 1 })}
           >
-            Show all
+            {t('topBar.customizeShowAll')}
           </button>
         </div>
       ) : null}

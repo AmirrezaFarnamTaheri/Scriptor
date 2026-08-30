@@ -105,14 +105,22 @@ export function useAppZoom(): void {
       }
     }
 
+    // Resize events arrive in bursts during window drags; coalesce to one
+    // update per frame. The reflow-attribute write forces a whole-document
+    // invalidation, so running it per event thrashes layout while dragging.
+    let resizeFrame = 0
     const onResize = () => {
-      // Re-fit only while the user has not chosen an explicit zoom.
-      if (readStoredZoom() === null) {
-        factor = defaultFitZoom()
-        apply()
-      } else {
-        updateZoomReflow(factor)
-      }
+      if (resizeFrame) return
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = 0
+        // Re-fit only while the user has not chosen an explicit zoom.
+        if (readStoredZoom() === null) {
+          factor = defaultFitZoom()
+          apply()
+        } else {
+          updateZoomReflow(factor)
+        }
+      })
     }
 
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
@@ -121,6 +129,7 @@ export function useAppZoom(): void {
     apply()
 
     return () => {
+      if (resizeFrame) window.cancelAnimationFrame(resizeFrame)
       window.removeEventListener('wheel', onWheel, true)
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('resize', onResize)

@@ -37,7 +37,9 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: `node_modules\\.bin\\vite.cmd build --mode e2e --outDir dist-e2e && node_modules\\.bin\\vite.cmd preview --outDir dist-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    // `pnpm exec` keeps the server portable across Windows runners, Linux CI,
+    // and the devcontainer; a hardcoded vite.cmd shim only exists on Windows.
+    command: `pnpm exec vite build --mode e2e --outDir dist-e2e && pnpm exec vite preview --outDir dist-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
     port: serverPort,
     reuseExistingServer: false,
     timeout: 180_000,

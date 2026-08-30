@@ -39,3 +39,11 @@ COPY public ./public
 COPY index.html ./
 COPY scripts ./scripts
 COPY tsconfig*.json ./
+# The lockfile is part of the validated source set (supply-chain and --locked
+# cargo flows depend on it); validation scripts read it as an input.
+COPY Cargo.lock ./
+
+# The container smoke gate must execute something: run the dependency-free
+# source-contract suite (node stdlib only — every file it reads is COPYed
+# above), so `docker run` proves the image works, not just that it builds.
+CMD ["node", "--experimental-strip-types", "--test", "scripts/validation/source-contracts.mjs"]

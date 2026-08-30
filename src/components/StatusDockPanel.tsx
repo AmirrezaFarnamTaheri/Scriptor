@@ -225,7 +225,9 @@ export function StatusDockPanel({
                       <strong>{job.profile_label}</strong>
                       <span>{job.note_path}</span>
                       <small>
-                        {new Date(job.finished_at).toLocaleTimeString()} · {job.status}
+                        {job.status === 'running'
+                          ? 'Running…'
+                          : `${new Date(job.finished_at).toLocaleTimeString()} · ${job.status}`}
                         {job.result ? ` · ${job.result.duration_ms}ms` : ''}
                       </small>
                     </button>

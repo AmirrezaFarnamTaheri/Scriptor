@@ -88,7 +88,22 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
 const STORAGE_KEY = 'scriptor:workspace-chrome'
 
 function validateChrome(value: unknown): WorkspaceChromePrefs {
-  return { ...DEFAULT_WORKSPACE_CHROME, ...expectRecord(value, 'workspace chrome') } as WorkspaceChromePrefs
+  const parsed = expectRecord(value, 'workspace chrome') as Partial<WorkspaceChromePrefs>
+  const output: WorkspaceChromePrefs = { ...DEFAULT_WORKSPACE_CHROME }
+  // Per-field type check against the defaults: persisted values whose type
+  // drifted (corrupt writes, schema probes) fall back per field instead of
+  // flowing into style computations and layout math.
+  const assignable = output as unknown as Record<string, unknown>
+  for (const key of Object.keys(DEFAULT_WORKSPACE_CHROME) as (keyof WorkspaceChromePrefs)[]) {
+    const fallback = DEFAULT_WORKSPACE_CHROME[key]
+    const incoming = parsed[key]
+    if (Array.isArray(fallback)) {
+      if (Array.isArray(incoming)) assignable[key] = incoming
+    } else if (typeof incoming === typeof fallback) {
+      assignable[key] = incoming
+    }
+  }
+  return output
 }
 
 function readChrome(): WorkspaceChromePrefs {
@@ -141,21 +156,20 @@ function applyVisualPrefsToElement(chrome: WorkspaceChromePrefs) {
 export function useWorkspaceChrome() {
   const [chrome, setChrome] = useState<WorkspaceChromePrefs>(() => readChrome())
 
+  // Persistence and visual application live in an effect, not inside the state
+  // updater: updaters must stay pure (they can run more than once under
+  // StrictMode and concurrent rendering, which would desynchronize storage).
   useEffect(() => {
     applyVisualPrefsToElement(chrome)
+    writeVersionedStorage(STORAGE_KEY, 1, chrome)
   }, [chrome])
 
   const patchChrome = useCallback((patch: Partial<WorkspaceChromePrefs>) => {
-    setChrome((current) => {
-      const next = { ...current, ...patch }
-      writeVersionedStorage(STORAGE_KEY, 1, next)
-      return next
-    })
+    setChrome((current) => ({ ...current, ...patch }))
   }, [])
 
   const resetChrome = useCallback(() => {
-    setChrome(DEFAULT_WORKSPACE_CHROME)
-    writeVersionedStorage(STORAGE_KEY, 1, DEFAULT_WORKSPACE_CHROME)
+    setChrome({ ...DEFAULT_WORKSPACE_CHROME })
   }, [])
 
   return { chrome, patchChrome, resetChrome }

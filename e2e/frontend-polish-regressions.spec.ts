@@ -105,14 +105,22 @@ test.describe('Frontend polish regressions', () => {
     await launchApp(page)
     await waitForWorkspace(page)
 
+    // Wait for the action strip's layout to settle. The strip is an
+    // intentional horizontal scroller in one-line mode (overflow-x auto,
+    // hidden scrollbar), so scrollWidth may legitimately exceed clientWidth
+    // by rounding pixels; the no-clipping contract is asserted by the
+    // per-button rect check below, not here.
+    let previousScrollWidth = -1
     await expect
-      .poll(() =>
-        page.locator('.top-actions').evaluate((element) => ({
-          clientWidth: element.clientWidth,
-          scrollWidth: element.scrollWidth,
-        })),
-      )
-      .toEqual(expect.objectContaining({ clientWidth: expect.any(Number), scrollWidth: expect.any(Number) }))
+      .poll(async () => {
+        const scrollWidth = await page
+          .locator('.top-actions')
+          .evaluate((element) => element.scrollWidth)
+        const settled = scrollWidth === previousScrollWidth
+        previousScrollWidth = scrollWidth
+        return settled
+      })
+      .toBe(true)
 
     const actionsFit = await page.locator('.top-actions').evaluate((element) => {
       const container = element.getBoundingClientRect()

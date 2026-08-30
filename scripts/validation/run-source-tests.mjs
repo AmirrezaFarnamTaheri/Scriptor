@@ -5,19 +5,30 @@ import path from 'node:path'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const ignoredDirectories = new Set([
-  '.git',
   'node_modules',
   'target',
   'dist',
+  'dist-e2e',
+  'dist-ssr',
+  'dist-visual-e2e',
+  'coverage',
   'release-output',
+  'release-artifacts',
+  'release-artifacts-test',
+  'release-evidence',
+  'release-manifests-test',
   'test-results',
   'playwright-report',
+  'update-manifests',
 ])
 const testPattern = /\.test\.(?:ts|js|mjs)$/
 
 function collect(directory, output) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (entry.isDirectory() && ignoredDirectories.has(entry.name)) continue
+    // Dot-directories hold tool state, caches, and linked git worktrees
+    // (e.g. .release-1.0.2), never first-party tests; running their copies
+    // duplicates the suite and fails spuriously on worktree-local state.
+    if (entry.isDirectory() && (entry.name.startsWith('.') || ignoredDirectories.has(entry.name))) continue
     const absolute = path.join(directory, entry.name)
     if (entry.isDirectory()) {
       collect(absolute, output)

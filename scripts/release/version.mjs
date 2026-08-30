@@ -11,9 +11,31 @@ const mode = process.argv[2] ?? 'check';
 const canonical = fs.readFileSync(canonicalPath, 'utf8').trim();
 if (!semver.test(canonical)) throw new Error(`VERSION is not valid SemVer: ${canonical}`);
 
+const ignoredDirectories = new Set([
+  'node_modules',
+  'target',
+  'dist',
+  'dist-e2e',
+  'dist-ssr',
+  'dist-visual-e2e',
+  'coverage',
+  'release-output',
+  'release-artifacts',
+  'release-artifacts-test',
+  'release-evidence',
+  'release-manifests-test',
+  'test-results',
+  'playwright-report',
+  'update-manifests',
+]);
+
 function walk(dir, name, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'dist') continue;
+    // Dot-directories hold tool state, caches, and linked git worktrees
+    // (e.g. .release-1.0.2) whose manifests belong to *another* checkout;
+    // scanning them fails the check against foreign versions and, in sync
+    // mode, would rewrite files inside the other worktree.
+    if (entry.isDirectory() && (entry.name.startsWith('.') || ignoredDirectories.has(entry.name))) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full, name, out);
     else if (entry.name === name) out.push(full);

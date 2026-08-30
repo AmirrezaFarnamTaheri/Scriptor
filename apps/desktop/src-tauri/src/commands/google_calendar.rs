@@ -355,6 +355,17 @@ fn capture_authorization_code(
             .map(|value| !value.is_empty())
             .unwrap_or(false);
 
+        // A request that carries neither a code nor a state is not part of
+        // the OAuth redirect at all (favicon probes, prefetches, a plain
+        // reload of the bare loopback URL). Answer it and keep waiting for
+        // the real redirect; only a *present but wrong* state is CSRF.
+        if state.is_none() && !has_code {
+            let probe_response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = stream.write_all(probe_response.as_bytes());
+            let _ = stream.flush();
+            continue;
+        }
+
         let body = if state_ok && has_code {
             "<html><body style=\"font-family:sans-serif;padding:2rem\">\
                 <h2>Scriptor is now connected to Google.</h2>\
@@ -378,8 +389,9 @@ fn capture_authorization_code(
         if has_code {
             return Ok(code.unwrap_or_default());
         }
-        // Neither a usable code nor a state failure: keep waiting for the real
-        // redirect (e.g. a favicon probe hit the loopback first).
+        // A valid state echo without a code (user landed on the loopback from
+        // the consent screen mid-flow): keep waiting for the redirect that
+        // carries the code.
     }
 }
 

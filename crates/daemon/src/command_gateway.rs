@@ -48,7 +48,7 @@ mod support;
 use support::*;
 pub(crate) use support::{
     cmd_plantuml_render, prepare_pdf_translate, resolve_wikilink_for_session,
-    run_prepared_pdf_translate,
+    run_prepared_pdf_translate, run_read_only_vault_command,
 };
 
 mod catalog;
@@ -125,38 +125,11 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
             to_value(delete_note(&session.root, &relative).map_err(|e| e.to_string())?)
         }
-        "vault_rename_dry_run" => {
-            let session = state.require_session()?;
-            let from_path = require_str(payload, "from_path")?;
-            let to_path = require_str(payload, "to_path")?;
-            let update_links = require_bool(payload, "update_links")?;
-            let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
-            let to = RelativeVaultPath::parse(&to_path).map_err(|error| error.to_string())?;
-            to_value(
-                rename_dry_run(
-                    &session.descriptor.id,
-                    &session.root,
-                    &from,
-                    &to,
-                    update_links,
-                )
-                .map_err(|e| e.to_string())?,
-            )
-        }
         "vault_rename_apply" => {
             let from_path = require_str(payload, "from_path")?;
             let to_path = require_str(payload, "to_path")?;
             let update_links = require_bool(payload, "update_links")?;
             to_value(cmd_rename_apply(state, &from_path, &to_path, update_links)?)
-        }
-        "vault_rename_tag_dry_run" => {
-            let session = state.require_session()?;
-            let old_tag = require_str(payload, "old_tag")?;
-            let new_tag = require_str(payload, "new_tag")?;
-            to_value(
-                tag_rename_dry_run(&session.descriptor.id, &session.root, &old_tag, &new_tag)
-                    .map_err(|e| e.to_string())?,
-            )
         }
         "vault_rename_tag_apply" => {
             let session = state.require_session()?;
@@ -165,25 +138,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             to_value(
                 tag_rename_apply(&session.descriptor.id, &session.root, &old_tag, &new_tag)
                     .map_err(|e| e.to_string())?,
-            )
-        }
-        "vault_rename_section_dry_run" => {
-            let session = state.require_session()?;
-            let note_path = require_str(payload, "note_path")?;
-            let old_section = require_str(payload, "old_section")?;
-            let new_section = require_str(payload, "new_section")?;
-            let update_heading = require_bool(payload, "update_heading")?;
-            let path = RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
-            to_value(
-                section_rename_dry_run(
-                    &session.descriptor.id,
-                    &session.root,
-                    &path,
-                    &old_section,
-                    &new_section,
-                    update_heading,
-                )
-                .map_err(|e| e.to_string())?,
             )
         }
         "vault_rename_section_apply" => {
@@ -201,25 +155,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                     &old_section,
                     &new_section,
                     update_heading,
-                )
-                .map_err(|e| e.to_string())?,
-            )
-        }
-        "vault_rename_block_dry_run" => {
-            let session = state.require_session()?;
-            let note_path = require_str(payload, "note_path")?;
-            let old_block = require_str(payload, "old_block")?;
-            let new_block = require_str(payload, "new_block")?;
-            let update_anchor = require_bool(payload, "update_anchor")?;
-            let path = RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
-            to_value(
-                block_rename_dry_run(
-                    &session.descriptor.id,
-                    &session.root,
-                    &path,
-                    &old_block,
-                    &new_block,
-                    update_anchor,
                 )
                 .map_err(|e| e.to_string())?,
             )
@@ -462,13 +397,6 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
                 )
                 .map_err(|e| e.to_string())?,
             )
-        }
-        "vault_health" => {
-            let session = state.require_session()?;
-            let cache = state.require_cache()?;
-            Ok(json!(
-                health_report_json(cache, session).map_err(|e| e.to_string())?
-            ))
         }
         "indexer_rebuild" => to_value(cmd_indexer_rebuild(state)?),
         "indexer_update_note" => {
@@ -920,5 +848,58 @@ mod tests {
         assert!(require_bytes(&json!({ "data": [1, "2"] }), "data").is_err());
         assert!(require_bytes(&json!({ "data": "abc" }), "data").is_err());
         assert!(require_bytes(&json!({}), "data").is_err());
+    }
+
+    #[test]
+    fn read_only_whole_vault_scans_run_outside_lock_and_mutations_do_not() {
+        for command in [
+            "vault_rename_dry_run",
+            "vault_rename_tag_dry_run",
+            "vault_rename_section_dry_run",
+            "vault_rename_block_dry_run",
+            "vault_health",
+        ] {
+            assert!(
+                is_outside_lock_command(command),
+                "{command} reads the whole vault and must be dispatched outside the daemon lock"
+            );
+        }
+        for command in ["vault_rename_apply", "vault_lint_fix", "vault_save_note"] {
+            assert!(
+                !is_outside_lock_command(command),
+                "{command} mutates notes and must stay serialized by the daemon lock"
+            );
+        }
+    }
+
+    #[test]
+    fn read_only_outside_lock_command_serves_rename_preview_from_cloned_session() {
+        let vault = tempfile::tempdir().expect("vault dir");
+        fs::write(vault.path().join("alpha.md"), "# Alpha\n").expect("write note");
+        let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+        let json = run_read_only_vault_command(
+            &session,
+            None,
+            "vault_rename_dry_run",
+            &json!({
+                "from_path": "alpha.md",
+                "to_path": "beta.md",
+                "update_links": false,
+            }),
+        )
+        .expect("rename dry run");
+        assert!(
+            json.contains("\"affected_files\"") && json.contains("alpha.md"),
+            "preview should report the affected source note: {json}"
+        );
+    }
+
+    #[test]
+    fn read_only_outside_lock_health_requires_index_cache() {
+        let vault = tempfile::tempdir().expect("vault dir");
+        let session = scriptor_vault::open_vault(vault.path()).expect("open vault");
+        let error = run_read_only_vault_command(&session, None, "vault_health", &json!({}))
+            .expect_err("vault_health needs the index cache");
+        assert_eq!(error, "no index cache is open; call OpenVault first");
     }
 }

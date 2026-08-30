@@ -73,6 +73,90 @@ pub(super) fn cmd_rename_apply(
     Ok(output)
 }
 
+/// Runs outside the daemon lock: resolves a read-only whole-vault command
+/// with a pre-cloned session.
+///
+/// `session` is cloned by the transport layer before the daemon mutex is
+/// released; `cache` is present whenever an index has been built. Only
+/// commands that never mutate vault state belong here — the rename previews
+/// and the vault health report read every note on disk, so running them under
+/// the daemon mutex would stall every other command for the whole scan.
+pub(crate) fn run_read_only_vault_command(
+    session: &scriptor_vault::VaultSession,
+    cache: Option<&scriptor_indexer::IndexCache>,
+    command: &str,
+    payload: &Value,
+) -> Result<String, String> {
+    fn serialize<T: serde::Serialize>(value: Result<T, String>) -> Result<String, String> {
+        value.and_then(|value| serde_json::to_string(&value).map_err(|error| error.to_string()))
+    }
+    match command {
+        "vault_rename_dry_run" => {
+            let from_path = require_str(payload, "from_path")?;
+            let to_path = require_str(payload, "to_path")?;
+            let update_links = require_bool(payload, "update_links")?;
+            let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
+            let to = RelativeVaultPath::parse(&to_path).map_err(|error| error.to_string())?;
+            serialize(
+                rename_dry_run(&session.descriptor.id, &session.root, &from, &to, update_links)
+                    .map_err(|e| e.to_string()),
+            )
+        }
+        "vault_rename_tag_dry_run" => {
+            let old_tag = require_str(payload, "old_tag")?;
+            let new_tag = require_str(payload, "new_tag")?;
+            serialize(
+                tag_rename_dry_run(&session.descriptor.id, &session.root, &old_tag, &new_tag)
+                    .map_err(|e| e.to_string()),
+            )
+        }
+        "vault_rename_section_dry_run" => {
+            let note_path = require_str(payload, "note_path")?;
+            let old_section = require_str(payload, "old_section")?;
+            let new_section = require_str(payload, "new_section")?;
+            let update_heading = require_bool(payload, "update_heading")?;
+            let path = RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
+            serialize(
+                section_rename_dry_run(
+                    &session.descriptor.id,
+                    &session.root,
+                    &path,
+                    &old_section,
+                    &new_section,
+                    update_heading,
+                )
+                .map_err(|e| e.to_string()),
+            )
+        }
+        "vault_rename_block_dry_run" => {
+            let note_path = require_str(payload, "note_path")?;
+            let old_block = require_str(payload, "old_block")?;
+            let new_block = require_str(payload, "new_block")?;
+            let update_anchor = require_bool(payload, "update_anchor")?;
+            let path = RelativeVaultPath::parse(&note_path).map_err(|error| error.to_string())?;
+            serialize(
+                block_rename_dry_run(
+                    &session.descriptor.id,
+                    &session.root,
+                    &path,
+                    &old_block,
+                    &new_block,
+                    update_anchor,
+                )
+                .map_err(|e| e.to_string()),
+            )
+        }
+        "vault_health" => {
+            let cache = cache
+                .ok_or_else(|| "no index cache is open; call OpenVault first".to_string())?;
+            serialize(health_report_json(cache, session).map_err(|e| e.to_string()))
+        }
+        other => Err(format!(
+            "unsupported read-only outside-lock invoke command: {other}"
+        )),
+    }
+}
+
 /// Runs outside the daemon lock: resolves a wikilink target using the index.
 ///
 /// When `cache` is available (normal case) this issues a single SQL query

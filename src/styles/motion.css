@@ -102,3 +102,15 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* backdrop-filter re-samples the content beneath it every frame the content
+   changes (every keystroke in the editor behind the glass top bar, footer,
+   and panels). On Windows "Transparency effects: off" the compositor cost is
+   pure overhead, so drop the blur the same way prefers-reduced-motion drops
+   animation. Themes that set --glass-blur to a solid fallback remain intact. */
+@media (prefers-reduced-transparency: reduce) {
+  .surface-glass {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}

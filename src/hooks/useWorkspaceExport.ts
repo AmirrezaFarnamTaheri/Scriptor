@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 
 import {
   appendCitationExportArgs,
@@ -52,9 +52,6 @@ export function useWorkspaceExport({
   const [exportResult, setExportResult] = useState<ExportJobOutput | null>(null)
   const [exportHistory, setExportHistory] = useState<ExportJobRecord[]>([])
   const [isExporting, setIsExporting] = useState(false)
-  const exportPendingRef = useRef<Map<string, { profileLabel: string; notePath: string; dryRun: boolean }>>(
-    new Map(),
-  )
 
   const exportProfiles = useMemo(
     () =>
@@ -67,9 +64,7 @@ export function useWorkspaceExport({
 
   const handleExportFinished = useCallback(
     async (event: ExportJobFinishedEvent) => {
-      const pending = exportPendingRef.current.get(event.job_id)
-      exportPendingRef.current.delete(event.job_id)
-      setIsExporting(exportPendingRef.current.size > 0)
+      setIsExporting(false)
       setExportResult(event.result)
       setExportHistory((current) =>
         current.map((entry) =>
@@ -85,9 +80,7 @@ export function useWorkspaceExport({
       )
       logActivity(
         'success',
-        event.result.dry_run
-          ? `Dry run: ${pending?.profileLabel ?? event.result.format}`
-          : `Exported ${pending?.profileLabel ?? event.result.format}`,
+        event.result.dry_run ? `Dry run: ${event.result.format}` : `Exported ${event.result.format}`,
         event.result.artifact_path,
       )
       if (!event.result.dry_run) {
@@ -99,9 +92,7 @@ export function useWorkspaceExport({
 
   const handleExportFailed = useCallback(
     (event: ExportJobFailedEvent) => {
-      const pending = exportPendingRef.current.get(event.job_id)
-      exportPendingRef.current.delete(event.job_id)
-      setIsExporting(exportPendingRef.current.size > 0)
+      setIsExporting(false)
       const cancelled = event.error.toLowerCase().includes('cancelled')
       if (!cancelled) {
         setError(event.error)
@@ -122,7 +113,7 @@ export function useWorkspaceExport({
       logActivity(
         cancelled ? 'info' : 'error',
         cancelled ? 'Export cancelled' : 'Export failed',
-        pending?.notePath ?? event.error,
+        event.error,
       )
     },
     [logActivity, setError],
@@ -214,6 +205,13 @@ export function useWorkspaceExport({
       setIsExporting(true)
       setError(null)
 
+      // The native export commands resolve only after the job completes, so the
+      // history entry is created up front (status "running") and reconciled in
+      // place when the outcome arrives; the job events emitted by the daemon's
+      // start-based flow carry backend job ids and are reconciled by
+      // handleExportFinished/handleExportFailed instead.
+      let runningId: string | null = null
+
       try {
         const citationArgs = appendCitationExportArgs(profile.extraPandocArgs, profile)
         const exportMarkdown = await preprocessMarkdownDiagramsForExport(
@@ -235,6 +233,20 @@ export function useWorkspaceExport({
         )
 
         if (isNativeBridgeAvailable()) {
+          const markdownJobId = crypto.randomUUID()
+          runningId = markdownJobId
+          setExportHistory((current) =>
+            [
+              {
+                id: markdownJobId,
+                profile_label: profile.label,
+                note_path: activePath,
+                status: 'running' as const,
+                finished_at: '',
+              },
+              ...current,
+            ].slice(0, 20),
+          )
           const result = await exportRunMarkdown(
             activePath,
             exportMarkdown,
@@ -244,17 +256,18 @@ export function useWorkspaceExport({
             profile.outputDirectory,
           )
           setExportResult(result)
-          setExportHistory((current) => [
-            {
-              id: result.job_id,
-              profile_label: profile.label,
-              note_path: activePath,
-              status: dryRun ? ('dry-run' as const) : ('success' as const),
-              finished_at: new Date().toISOString(),
-              result,
-            },
-            ...current,
-          ].slice(0, 20))
+          setExportHistory((current) =>
+            current.map((entry) =>
+              entry.id === runningId
+                ? {
+                    ...entry,
+                    status: dryRun ? ('dry-run' as const) : ('success' as const),
+                    finished_at: new Date().toISOString(),
+                    result,
+                  }
+                : entry,
+            ),
+          )
           logActivity(
         'success',
         dryRun ? `Dry run: ${profile.label}` : `Exported ${profile.label}`,
@@ -267,6 +280,20 @@ export function useWorkspaceExport({
           return
         }
 
+        const noteJobId = crypto.randomUUID()
+        runningId = noteJobId
+        setExportHistory((current) =>
+          [
+            {
+              id: noteJobId,
+              profile_label: profile.label,
+              note_path: activePath,
+              status: 'running' as const,
+              finished_at: '',
+            },
+            ...current,
+          ].slice(0, 20),
+        )
         const result = await exportRunNote(
           activePath,
           profile.format,
@@ -275,17 +302,18 @@ export function useWorkspaceExport({
           profile.outputDirectory,
         )
         setExportResult(result)
-        setExportHistory((current) => [
-          {
-            id: result.job_id,
-            profile_label: profile.label,
-            note_path: activePath,
-            status: dryRun ? ('dry-run' as const) : ('success' as const),
-            finished_at: new Date().toISOString(),
-            result,
-          },
-          ...current,
-        ].slice(0, 20))
+        setExportHistory((current) =>
+          current.map((entry) =>
+            entry.id === runningId
+              ? {
+                  ...entry,
+                  status: dryRun ? ('dry-run' as const) : ('success' as const),
+                  finished_at: new Date().toISOString(),
+                  result,
+                }
+              : entry,
+          ),
+        )
         logActivity(
           'success',
           dryRun ? `Dry run: ${profile.label}` : `Exported ${profile.label}`,
@@ -301,17 +329,31 @@ export function useWorkspaceExport({
           setError(message)
         }
         setExportResult(null)
-        setExportHistory((current) => [
-          {
-            id: crypto.randomUUID(),
-            profile_label: profile.label,
-            note_path: activePath,
-            status: cancelled ? ('cancelled' as const) : ('error' as const),
-            finished_at: new Date().toISOString(),
-            error: message,
-          },
-          ...current,
-        ].slice(0, 20))
+        setExportHistory((current) => {
+          if (runningId !== null) {
+            return current.map((entry) =>
+              entry.id === runningId
+                ? {
+                    ...entry,
+                    status: cancelled ? ('cancelled' as const) : ('error' as const),
+                    finished_at: new Date().toISOString(),
+                    error: message,
+                  }
+                : entry,
+            )
+          }
+          return [
+            {
+              id: crypto.randomUUID(),
+              profile_label: profile.label,
+              note_path: activePath,
+              status: cancelled ? ('cancelled' as const) : ('error' as const),
+              finished_at: new Date().toISOString(),
+              error: message,
+            },
+            ...current,
+          ].slice(0, 20)
+        })
         logActivity(
           cancelled ? 'info' : 'error',
           cancelled ? 'Export cancelled' : 'Export failed',
