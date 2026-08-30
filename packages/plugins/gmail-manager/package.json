@@ -1,7 +1,7 @@
 {
   "name": "@scriptor/plugin-gmail-manager",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.7",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",

@@ -409,7 +409,6 @@ jobs:
       attestations: write
       artifact-metadata: write
     runs-on: ubuntu-24.04
-    environment: release-production
     timeout-minutes: 30
     env:
       CI_LOG_DIR: artifacts/ci-logs/release-publish
@@ -569,7 +568,7 @@ jobs:
   publish-update-manifests:
     name: Publish LTS update manifests
     needs: publish
-    # Only run for manually approved LTS tags — no pre-release segment.
+    # Only run for verified LTS tags — no pre-release segment.
     if: >-
       ${{
         inputs.publish && startsWith(github.ref, 'refs/tags/v') &&
@@ -579,7 +578,6 @@ jobs:
     permissions:
       contents: write
     runs-on: ubuntu-24.04
-    environment: release-production
     timeout-minutes: 15
     env:
       CI_LOG_DIR: artifacts/ci-logs/publish-update-manifests

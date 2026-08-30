@@ -14,11 +14,10 @@ permissions:
   actions: write
 
 jobs:
-  approve-release:
-    environment: release-production
+  validate-release:
     runs-on: ubuntu-24.04
     concurrency:
-      group: release-kickoff-approval
+      group: release-kickoff-validation
       cancel-in-progress: true
     timeout-minutes: 10
     steps:
@@ -50,11 +49,11 @@ jobs:
           test "$successful_ci_runs" -gt 0
 
   tag-and-dispatch:
-    needs: approve-release
+    needs: validate-release
     runs-on: ubuntu-24.04
     concurrency:
       group: release-kickoff-publish
-      # Once approval has completed, never cancel the tag-and-dispatch side
+      # Once validation has completed, never cancel the tag-and-dispatch side
       # effects midway through an immutable tag publication.
       cancel-in-progress: false
     timeout-minutes: 10

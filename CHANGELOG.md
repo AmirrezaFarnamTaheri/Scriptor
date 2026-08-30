@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Fixed
+- Made verified production releases publish automatically after the immutable exact-commit CI, packaging, quality, provenance, SBOM, checksum, and evidence checks pass; no protected-environment approval wait remains in the release path.
+- Restored WCAG AA contrast for the onboarding tour's primary action in the release headless-browser audit.
 - Removed a stale post-tag `release-smoke` assertion from the unified release-evidence graph; it now validates the complete declared source-bound quality gate, allowing verified installer publication after the protected exact-commit CI checks pass.
 - Moved platform-specific release smoke and visual baseline checks to the protected exact-commit CI gate, preventing Linux post-tag runners from requiring Windows tooling or absent Linux snapshot baselines.
 - Avoided re-running the protected exact-commit CI Rust suite after tagging, so hosted-runner interruptions cannot prevent the remaining source-bound release checks from publishing verified installers.

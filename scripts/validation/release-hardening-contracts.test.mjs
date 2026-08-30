@@ -72,10 +72,10 @@ test('manual release dispatch builds canonical VERSION and production requires a
   const productionGuard = /inputs\.publish[\s\S]{0,120}?startsWith\(github\.ref,\s*'refs\/tags\/v'\)/
   assert.match(workflow, productionGuard)
   assert.doesNotMatch(workflow, /\n\s+push:\s*\n/)
-  assert.match(workflow, /environment:\s*release-production/)
+  assert.doesNotMatch(workflow, /environment:\s*release-production/)
   assert.match(kickoff, /workflow_dispatch:/)
   assert.doesNotMatch(kickoff, /\n\s+push:\s*\n/)
-  assert.match(kickoff, /environment:\s*release-production/)
+  assert.doesNotMatch(kickoff, /environment:\s*release-production/)
   assert.match(kickoff, /git tag -a/)
   assert.match(kickoff, /gh workflow run release\.yml/)
   assert.match(kickoff, /--ref "\$\{\{ steps\.tag\.outputs\.tag \}\}"/)
