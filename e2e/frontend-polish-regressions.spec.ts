@@ -196,6 +196,7 @@ test.describe('Frontend polish regressions', () => {
     await page.evaluate(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await settleLayout(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
+    await expect(page.getByRole('tab', { name: 'Sprint Board', selected: true })).toBeVisible()
     await openCommandPalette(page)
     await runCommand(page, OPEN_KANBAN)
 
