@@ -26,7 +26,7 @@ export const MCP_SUPPORTED_PROTOCOL_VERSIONS = [
 /** Revision advertised when the client asks for one this server cannot speak. */
 export const MCP_PROTOCOL_VERSION = MCP_SUPPORTED_PROTOCOL_VERSIONS[0]
 export const MCP_SERVER_NAME = 'scriptor-mcp'
-export const MCP_SERVER_VERSION = '1.0.1'
+export const MCP_SERVER_VERSION = '1.0.3'
 
 /** Standard JSON-RPC 2.0 error codes (integers, per the spec). */
 export const JSON_RPC_PARSE_ERROR = -32700

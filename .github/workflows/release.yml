@@ -82,6 +82,9 @@ jobs:
     timeout-minutes: 90
     env:
       CI_LOG_DIR: artifacts/ci-logs/release-quality
+      # Only honored by debug builds so headless CI does not require a desktop
+      # secret-service daemon. Packaged release binaries use the OS keychain.
+      SCRIPTOR_TEST_DAEMON_HMAC_KEY: release-quality-daemon-hmac-key-0000000000000001
     steps:
       - name: Checkout release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

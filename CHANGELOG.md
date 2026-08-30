@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Made release-quality verification portable across hosted operating systems, synchronized the MCP runtime version with the canonical release version, and provisioned the debug-only daemon credential required by headless release checks.
 - Restored the onboarding tour's primary-action contrast so the release accessibility audit meets WCAG AA.
 - Reworked the footer as a compact, expandable status dock. At intermediate widths and saved zoom levels, the write area, vault, and inspector now reflow without overlapping or escaping the viewport.
 - Restored the original tile-built Scriptor mark and made its gradients follow the active theme.

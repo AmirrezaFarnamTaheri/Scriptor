@@ -119,6 +119,7 @@ $smokeSocket = if ($isWindowsPlatform) {
 $originalAppData = $env:APPDATA
 $originalDaemonBin = $env:SCRIPTOR_DAEMON_BIN
 $originalDaemonSocket = $env:SCRIPTOR_DAEMON_SOCKET
+$originalDaemonHmacKey = $env:SCRIPTOR_TEST_DAEMON_HMAC_KEY
 $daemonProcessId = $null
 $daemonProcessStartTimeUtc = $null
 
@@ -137,6 +138,9 @@ try {
     }
     $env:SCRIPTOR_DAEMON_BIN = $daemonPath
     $env:SCRIPTOR_DAEMON_SOCKET = $smokeSocket
+    # Debug-only daemon authentication override for a headless smoke run. The
+    # production daemon always uses the operating-system keychain.
+    $env:SCRIPTOR_TEST_DAEMON_HMAC_KEY = ("$smokeId$smokeId").Replace('-', '')
 
     Write-Host "==> Daemon auto-start and ping ($smokeSocket)"
     Invoke-ScriptorCli daemon ping | Out-Null
@@ -263,6 +267,11 @@ finally {
         Remove-Item Env:SCRIPTOR_DAEMON_SOCKET -ErrorAction SilentlyContinue
     } else {
         $env:SCRIPTOR_DAEMON_SOCKET = $originalDaemonSocket
+    }
+    if ($null -eq $originalDaemonHmacKey) {
+        Remove-Item Env:SCRIPTOR_TEST_DAEMON_HMAC_KEY -ErrorAction SilentlyContinue
+    } else {
+        $env:SCRIPTOR_TEST_DAEMON_HMAC_KEY = $originalDaemonHmacKey
     }
 
     Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue

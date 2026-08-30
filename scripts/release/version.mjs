@@ -24,6 +24,11 @@ function walk(dir, name, out = []) {
 const jsonFiles = walk(root, 'package.json');
 const cargoFiles = walk(root, 'Cargo.toml').filter((file) => !file.endsWith(`${path.sep}crates${path.sep}ipc${path.sep}fuzz${path.sep}Cargo.toml`));
 const tauriFile = path.join(root, 'apps/desktop/src-tauri/tauri.conf.json');
+const sourceVersionFiles = [{
+  file: path.join(root, 'packages/mcp/src/server.ts'),
+  pattern: /export const MCP_SERVER_VERSION = '([^']+)'/,
+  replacement: (version) => `export const MCP_SERVER_VERSION = '${version}'`,
+}];
 const failures = [];
 const changed = [];
 
@@ -67,6 +72,20 @@ if (mode === 'sync') {
   failures.push(`${path.relative(root, tauriFile)}: ${tauri.version}`);
 }
 
+for (const { file, pattern, replacement } of sourceVersionFiles) {
+  const source = fs.readFileSync(file, 'utf8');
+  const match = source.match(pattern);
+  if (!match) throw new Error(`Version surface missing from ${path.relative(root, file)}`);
+  if (mode === 'sync') {
+    if (match[1] !== canonical) {
+      fs.writeFileSync(file, source.replace(pattern, replacement(canonical)));
+      changed.push(path.relative(root, file));
+    }
+  } else if (match[1] !== canonical) {
+    failures.push(`${path.relative(root, file)}: ${match[1]}`);
+  }
+}
+
 const explicitExpected = String(process.env.SCRIPTOR_RELEASE_VERSION ?? '').trim();
 const refName = String(process.env.GITHUB_REF_NAME ?? '').trim();
 const expectedSource = explicitExpected || (versionTag.test(refName) ? refName : '');
@@ -83,4 +102,4 @@ if (failures.length) {
 
 console.log(mode === 'sync'
   ? `Synchronized ${changed.length} manifest(s) to ${canonical}${changed.length ? `:\n- ${changed.join('\n- ')}` : ''}`
-  : `Version contract OK: ${canonical} across ${jsonFiles.length} package manifests, ${cargoFiles.length} Cargo manifests, and Tauri config.`);
+  : `Version contract OK: ${canonical} across ${jsonFiles.length} package manifests, ${cargoFiles.length} Cargo manifests, Tauri config, and ${sourceVersionFiles.length} source version surface(s).`);

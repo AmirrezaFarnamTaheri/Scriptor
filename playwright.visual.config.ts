@@ -39,7 +39,7 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
-    command: `node_modules\\.bin\\vite.cmd build --mode e2e --outDir dist-visual-e2e && node_modules\\.bin\\vite.cmd preview --outDir dist-visual-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
+    command: `pnpm exec vite build --mode e2e --outDir dist-visual-e2e && pnpm exec vite preview --outDir dist-visual-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
     env: {
       VITE_SCREENSHOT_MODE: 'true',
     },
