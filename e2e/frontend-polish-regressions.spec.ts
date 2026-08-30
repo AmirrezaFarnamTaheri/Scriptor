@@ -91,6 +91,43 @@ test.describe('Frontend polish regressions', () => {
     await outputTab.click()
     await expect(outputTab).toHaveAttribute('aria-expanded', 'true')
     await expect(page.locator('#dock-panel-output')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Hide status dock' }).click()
+    await expect(dock).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Show status dock' }).click()
+    await expect(dock).toBeVisible()
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  test('top actions wrap without clipping their icons at a compact desktop width', async ({ page }) => {
+    await page.setViewportSize({ width: 1126, height: 900 })
+    await launchApp(page)
+    await waitForWorkspace(page)
+
+    await expect
+      .poll(() =>
+        page.locator('.top-actions').evaluate((element) => ({
+          clientWidth: element.clientWidth,
+          scrollWidth: element.scrollWidth,
+        })),
+      )
+      .toEqual(expect.objectContaining({ clientWidth: expect.any(Number), scrollWidth: expect.any(Number) }))
+
+    const actionsFit = await page.locator('.top-actions').evaluate((element) => {
+      const container = element.getBoundingClientRect()
+      return Array.from(element.querySelectorAll('button')).every(
+        (button) => button.getBoundingClientRect().right <= container.right + 1,
+      )
+    })
+    expect(actionsFit).toBe(true)
+
+    const [editorBox, inspectorBox] = await Promise.all([
+      page.locator('.editor-panel').boundingBox(),
+      page.locator('.inspector-panel').boundingBox(),
+    ])
+    expect((editorBox?.x ?? 0) + (editorBox?.width ?? 0)).toBeLessThanOrEqual(1126)
+    expect((inspectorBox?.x ?? 0) + (inspectorBox?.width ?? 0)).toBeLessThanOrEqual(1126)
   })
 
   test('high app zoom switches write and inspector into exclusive panes', async ({ page }) => {

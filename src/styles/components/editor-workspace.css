@@ -8,7 +8,7 @@
 }
 
 .editor-workspace.is-split {
-  grid-template-columns: minmax(160px, var(--split-editor-width, 50%)) 5px minmax(160px, 1fr);
+  grid-template-columns: minmax(0, var(--split-editor-width, 50%)) 5px minmax(0, 1fr);
 }
 
 .split-pane-handle {

@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { X } from 'lucide-react'
 
 import type { ActivityEntry } from '../hooks/useActivityLog'
 import type { ExportJobOutput, ExportJobRecord, SearchHit } from '../types/vault'
@@ -23,6 +24,7 @@ interface StatusDockPanelProps {
   graphProgress: number
   onOpenNote: (path: string) => void
   onCancelExport: () => void
+  onClose: () => void
 }
 
 export function StatusDockPanel({
@@ -42,6 +44,7 @@ export function StatusDockPanel({
   graphProgress,
   onOpenNote,
   onCancelExport,
+  onClose,
 }: StatusDockPanelProps) {
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const runningJob = exportHistory.find((job) => job.status === 'running')
@@ -51,58 +54,69 @@ export function StatusDockPanel({
 
   return (
     <>
-      <div className="bottom-tabs" role="tablist" aria-label="Status dock" onKeyDown={handleTablistKeys}>
+      <div className="bottom-tabs-bar">
+        <div className="bottom-tabs" role="tablist" aria-label="Status dock" onKeyDown={handleTablistKeys}>
+          <button
+            type="button"
+            role="tab"
+            tabIndex={activeTab === 'problems' ? 0 : -1}
+            id={'dock-tab-problems'}
+            aria-selected={activeTab === 'problems'}
+            aria-expanded={activeTab === 'problems' && expanded}
+            aria-controls="dock-panel-problems"
+            className={activeTab === 'problems' ? 'active' : ''}
+            onClick={() => onTabChange('problems')}
+          >
+            Problems <span>{problemCount}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            tabIndex={activeTab === 'output' ? 0 : -1}
+            id={'dock-tab-output'}
+            aria-selected={activeTab === 'output'}
+            aria-expanded={activeTab === 'output' && expanded}
+            aria-controls="dock-panel-output"
+            className={activeTab === 'output' ? 'active' : ''}
+            onClick={() => onTabChange('output')}
+          >
+            Output
+          </button>
+          <button
+            type="button"
+            role="tab"
+            tabIndex={activeTab === 'search' ? 0 : -1}
+            id={'dock-tab-search'}
+            aria-selected={activeTab === 'search'}
+            aria-expanded={activeTab === 'search' && expanded}
+            aria-controls="dock-panel-search"
+            className={activeTab === 'search' ? 'active' : ''}
+            onClick={() => onTabChange('search')}
+          >
+            Search Results <span>{searchResults.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            tabIndex={activeTab === 'jobs' ? 0 : -1}
+            id={'dock-tab-jobs'}
+            aria-selected={activeTab === 'jobs'}
+            aria-expanded={activeTab === 'jobs' && expanded}
+            aria-controls="dock-panel-jobs"
+            className={activeTab === 'jobs' ? 'active' : ''}
+            onClick={() => onTabChange('jobs')}
+          >
+            Jobs <span>{exportHistory.length}</span>
+          </button>
+        </div>
         <button
           type="button"
-          role="tab"
-          tabIndex={activeTab === 'problems' ? 0 : -1}
-          id={'dock-tab-problems'}
-          aria-selected={activeTab === 'problems'}
-          aria-expanded={activeTab === 'problems' && expanded}
-          aria-controls="dock-panel-problems"
-          className={activeTab === 'problems' ? 'active' : ''}
-          onClick={() => onTabChange('problems')}
+          className="dock-close-button"
+          onClick={onClose}
+          aria-label="Hide status dock"
+          title="Hide status dock"
         >
-          Problems <span>{problemCount}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          tabIndex={activeTab === 'output' ? 0 : -1}
-          id={'dock-tab-output'}
-          aria-selected={activeTab === 'output'}
-          aria-expanded={activeTab === 'output' && expanded}
-          aria-controls="dock-panel-output"
-          className={activeTab === 'output' ? 'active' : ''}
-          onClick={() => onTabChange('output')}
-        >
-          Output
-        </button>
-        <button
-          type="button"
-          role="tab"
-          tabIndex={activeTab === 'search' ? 0 : -1}
-          id={'dock-tab-search'}
-          aria-selected={activeTab === 'search'}
-          aria-expanded={activeTab === 'search' && expanded}
-          aria-controls="dock-panel-search"
-          className={activeTab === 'search' ? 'active' : ''}
-          onClick={() => onTabChange('search')}
-        >
-          Search Results <span>{searchResults.length}</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          tabIndex={activeTab === 'jobs' ? 0 : -1}
-          id={'dock-tab-jobs'}
-          aria-selected={activeTab === 'jobs'}
-          aria-expanded={activeTab === 'jobs' && expanded}
-          aria-controls="dock-panel-jobs"
-          className={activeTab === 'jobs' ? 'active' : ''}
-          onClick={() => onTabChange('jobs')}
-        >
-          Jobs <span>{exportHistory.length}</span>
+          <X aria-hidden="true" size={16} />
         </button>
       </div>
 

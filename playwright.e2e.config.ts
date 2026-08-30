@@ -2,10 +2,11 @@ import { defineConfig, devices } from '@playwright/test'
 
 const systemChannel = process.env.PLAYWRIGHT_CHANNEL ?? 'msedge'
 const serverPort = Number(process.env.SCRIPTOR_E2E_PORT ?? 4184)
+const captureScreenshots = process.env.SCRIPTOR_CAPTURE_SCREENSHOTS === 'true'
 
 export default defineConfig({
   testDir: 'e2e',
-  testIgnore: /(?:screenshots|visual-review)\.spec\.ts$/,
+  testIgnore: captureScreenshots ? /visual-review\.spec\.ts$/ : /(?:screenshots|visual-review)\.spec\.ts$/,
   timeout: 120_000,
   // Release-gating runs must expose flakes rather than retry them into green.
   retries: 0,

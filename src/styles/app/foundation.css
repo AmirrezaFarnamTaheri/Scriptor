@@ -506,8 +506,10 @@ svg {
 
 .workspace-grid {
   min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   display: grid;
-  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) auto var(--inspector-width, 408px);
+  grid-template-columns: minmax(0, var(--vault-width, 318px)) auto minmax(0, 1fr) auto minmax(0, var(--inspector-width, 408px));
   gap: 0;
   transition: grid-template-columns 250ms var(--ease-soft);
 }
@@ -728,11 +730,10 @@ svg {
 }
 
 
-/* Zoom-safe top bar: scroll horizontally instead of clipping; hide scrollbar */
+/* The toolbar reflows; only its self-contained history and mode strips may scroll. */
 .topbar {
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: none;
+  overflow: visible;
+  flex-wrap: wrap;
 }
 
 .topbar::-webkit-scrollbar {
@@ -790,6 +791,28 @@ svg {
   gap: 8px;
   cursor: pointer;
 }
+
+.toolbar-group-settings {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.toolbar-group-settings select,
+.topbar-customize select,
+.toolbar-group-settings button {
+  min-height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface-muted);
+  color: var(--ink);
+}
+
+.topbar .width-compact { flex: 0 1 220px; }
+.topbar .width-wide { flex: 1 1 460px; }
+.top-actions.rows-1 { flex-wrap: nowrap; }
+.top-actions.rows-2 { flex-wrap: wrap; }
 
 .topbar-customize .customize-reset {
   margin-top: 4px;

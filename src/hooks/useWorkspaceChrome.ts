@@ -9,6 +9,8 @@ export type UiFontFamily = 'system' | 'inter' | 'sf-pro' | 'avenir-next' | 'outf
 export type UiDensity = 'compact' | 'comfortable' | 'spacious'
 export type UiBorderRadius = 'sharp' | 'rounded' | 'curved' | 'pill'
 export type GlassBlurIntensity = 'none' | 'subtle' | 'glass' | 'heavy'
+export type TopBarGroupId = 'history' | 'modes' | 'command' | 'actions'
+export type TopBarGroupWidth = 'compact' | 'auto' | 'wide'
 
 export interface WorkspaceChromePrefs {
   vaultSidebarCollapsed: boolean
@@ -18,6 +20,14 @@ export interface WorkspaceChromePrefs {
   showQuickActions: boolean
   /** Top-bar action ids hidden by the user via the customize popover. */
   topBarHiddenActions: string[]
+  /** Ordered, user-configurable top-bar groups. */
+  topBarGroupOrder: TopBarGroupId[]
+  /** Groups the user has removed from the top bar. */
+  topBarHiddenGroups: TopBarGroupId[]
+  /** Per-group width preference used by the flexible toolbar layout. */
+  topBarGroupWidths: Partial<Record<TopBarGroupId, TopBarGroupWidth>>
+  /** Lets the action group use one or two rows. */
+  topBarActionRows: 1 | 2
   showHistoryControls: boolean
   showFormatToolbar: boolean
   showEditorAssist: boolean
@@ -48,6 +58,10 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showModeStrip: true,
   showQuickActions: true,
   topBarHiddenActions: [],
+  topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
+  topBarHiddenGroups: [],
+  topBarGroupWidths: {},
+  topBarActionRows: 1,
   showHistoryControls: true,
   showFormatToolbar: true,
   showEditorAssist: true,
