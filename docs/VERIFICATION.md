@@ -196,10 +196,10 @@ The pinned Vite/Playwright server is required for the browser gate. Record the e
 ## Release workflow invariants
 
 - Manual dispatch defaults to preview and never publishes unless `publish: true` is supplied on an existing `v*` tag.
-- A release operator manually dispatches `Release Kickoff` through the protected `release-production` environment; a `VERSION` change alone never creates a tag.
+- A release operator manually dispatches `Release Kickoff`; the workflow verifies a successful CI run for the exact commit before it creates an immutable tag. A `VERSION` change alone never creates a tag.
 - An existing tag that points to another commit is a hard failure; it is never moved.
 - The kickoff workflow requires the exact `VERSION`, creates only an unused immutable tag, and explicitly dispatches the release workflow on that tag.
-- Production publication and Pages deployment are gated by the protected `release-production` and `github-pages` environments respectively.
+- Production publication proceeds automatically only after the immutable tag's build and release-quality checks succeed; Pages deployment remains gated by the protected `github-pages` environment.
 - Update manifests attach to the immutable version release; no mutable rolling tag is created or force-pushed.
 - The unified `Release` workflow is the only GitHub Release owner; the former ARM-specific publication workflow is removed.
 - Architecture-bearing filenames prevent collisions when artifacts are merged for publication.

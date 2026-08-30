@@ -110,24 +110,16 @@ export function WorkspaceStatusFooter({
   onHibernateSpellcheckChange,
 }: WorkspaceStatusFooterProps) {
   const [dockExpanded, setDockExpanded] = useState(false)
-  const [dockVisible, setDockVisible] = useState(true)
   const previousDockTab = useRef(statusDockTab)
 
   useEffect(() => {
     if (previousDockTab.current !== statusDockTab) {
       previousDockTab.current = statusDockTab
-      setDockVisible(true)
       setDockExpanded(true)
     }
   }, [statusDockTab])
 
   const activateDockTab = (tab: StatusDockTab) => {
-    if (!dockVisible) {
-      setDockVisible(true)
-      setDockExpanded(true)
-      if (tab !== statusDockTab) onStatusDockTabChange(tab)
-      return
-    }
     if (tab === statusDockTab) {
       setDockExpanded((expanded) => !expanded)
       return
@@ -137,19 +129,6 @@ export function WorkspaceStatusFooter({
 
   return (
     <footer className="status-strip">
-      {!dockVisible ? (
-        <button
-          type="button"
-          className="status-dock-reopen"
-          onClick={() => {
-            setDockVisible(true)
-            setDockExpanded(true)
-          }}
-        >
-          <PanelRight />
-          Show status dock
-        </button>
-      ) : <>
       <div className="status-summary">
         <button
           type="button"
@@ -217,7 +196,7 @@ export function WorkspaceStatusFooter({
         </div>
       </div>
 
-      {dockVisible ? <div className="bottom-tabs-wrap">
+      <div className="bottom-tabs-wrap">
         <StatusDockPanel
           activeTab={statusDockTab}
           onTabChange={activateDockTab}
@@ -235,13 +214,8 @@ export function WorkspaceStatusFooter({
           graphProgress={graphProgress}
           onOpenNote={onOpenNote}
           onCancelExport={onCancelExport}
-          onClose={() => {
-            setDockExpanded(false)
-            setDockVisible(false)
-          }}
         />
-      </div> : null}
-      </>}
+      </div>
     </footer>
   )
 }

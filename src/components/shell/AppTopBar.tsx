@@ -16,9 +16,9 @@ import {
   Network,
   PanelLeft,
   PanelRight,
+  Palette,
   Settings,
   SlidersHorizontal,
-  Store,
   Sun,
   Zap,
 } from 'lucide-react'
@@ -34,7 +34,7 @@ import { getNextTheme, THEME_DISPLAY_NAMES } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
-import type { TopBarGroupId, WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
+import type { WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
 
 interface AppTopBarProps {
   vault: VaultDescriptor | null
@@ -81,15 +81,6 @@ const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
   publish: 'workspaceModes.publish',
   review: 'workspaceModes.review',
   automation: 'workspaceModes.automation',
-}
-
-const DEFAULT_TOP_BAR_GROUP_ORDER: TopBarGroupId[] = ['history', 'modes', 'command', 'actions']
-
-const TOP_BAR_GROUP_LABEL_KEYS: Record<TopBarGroupId, string> = {
-  history: 'topBar.groupVaultAndHistory',
-  modes: 'topBar.groupWorkspaceModes',
-  command: 'topBar.groupCommandSearch',
-  actions: 'topBar.groupActionButtons',
 }
 
 export function AppTopBar({
@@ -162,16 +153,6 @@ export function AppTopBar({
       ),
     [chrome],
   )
-  const hiddenTopBarGroups = useMemo(
-    () => new Set<TopBarGroupId>(chrome?.topBarHiddenGroups ?? []),
-    [chrome],
-  )
-  const topBarGroupOrder = useMemo(
-    () => chrome?.topBarGroupOrder ?? DEFAULT_TOP_BAR_GROUP_ORDER,
-    [chrome?.topBarGroupOrder],
-  )
-  const groupOrder = (id: TopBarGroupId) => Math.max(0, topBarGroupOrder.indexOf(id)) + 1
-  const groupWidth = (id: TopBarGroupId) => chrome?.topBarGroupWidths?.[id] ?? 'auto'
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)
   const customizeAnchorRef = useRef<HTMLButtonElement | null>(null)
@@ -190,7 +171,7 @@ export function AppTopBar({
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
     ...(onOpenPluginManager
-      ? [{ id: 'paletteStore', label: t('topBar.paletteStore'), icon: <Store />, onClick: onOpenPluginManager }]
+      ? [{ id: 'paletteStore', label: t('topBar.paletteStore'), icon: <Palette />, onClick: onOpenPluginManager }]
       : []),
   ]
 
@@ -203,24 +184,6 @@ export function AppTopBar({
     },
     [hiddenTopBarActions, onPatchChrome],
   )
-
-  const toggleHiddenGroup = useCallback((id: TopBarGroupId) => {
-    const next = new Set(hiddenTopBarGroups)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    onPatchChrome?.({ topBarHiddenGroups: Array.from(next) })
-  }, [hiddenTopBarGroups, onPatchChrome])
-
-  const moveGroup = useCallback((id: TopBarGroupId, direction: -1 | 1) => {
-    const current = [...topBarGroupOrder]
-    const index = current.indexOf(id)
-    const target = index + direction
-    if (index < 0 || target < 0 || target >= current.length) return
-    const [group] = current.splice(index, 1)
-    if (!group) return
-    current.splice(target, 0, group)
-    onPatchChrome?.({ topBarGroupOrder: current })
-  }, [onPatchChrome, topBarGroupOrder])
 
   const positionCustomize = useCallback(() => {
     const rect = customizeAnchorRef.current?.getBoundingClientRect()
@@ -287,8 +250,8 @@ export function AppTopBar({
 
   if (chrome?.showTopBar === false) return null
 
-  const showHistory = chrome?.showHistoryControls !== false && !hiddenTopBarGroups.has('history')
-  const showModeStrip = chrome?.showModeStrip !== false && !hiddenTopBarGroups.has('modes')
+  const showHistory = chrome?.showHistoryControls !== false
+  const showModeStrip = chrome?.showModeStrip !== false
   const showActions = chrome?.showQuickActions !== false
 
   return (
@@ -308,7 +271,7 @@ export function AppTopBar({
         </div>
 
         {showHistory ? (
-          <div className={`history-controls toolbar-group width-${groupWidth('history')}`} style={{ order: groupOrder('history') }} aria-label="History controls">
+          <div className="history-controls" aria-label="History controls">
             <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
               <ChevronRight className="flip" />
             </IconButton>
@@ -329,7 +292,7 @@ export function AppTopBar({
         ) : null}
 
         {showModeStrip ? (
-          <div className={`workspace-mode-strip toolbar-group width-${groupWidth('modes')}`} style={{ order: groupOrder('modes') }} aria-label="Workspace mode">
+          <div className="workspace-mode-strip" aria-label="Workspace mode">
             {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
               <button
                 key={mode}
@@ -346,19 +309,18 @@ export function AppTopBar({
 
         {/* P0 fix: was a <label> wrapping a readOnly <input> (semantically broken).
            Now a proper <button> styled to look like a search field. */}
-        {!hiddenTopBarGroups.has('command') ? <button
+        <button
           type="button"
-          className={`command-search toolbar-group width-${groupWidth('command')}`}
-          style={{ order: groupOrder('command') }}
+          className="command-search"
           onClick={onOpenCommandPalette}
           aria-label={`Open command palette (${commandShortcut})`}
         >
           <Command aria-hidden="true" />
           <span className="command-search-placeholder">{t('topBar.typeCommandOrSearch')}</span>
           <kbd className="kbd" aria-hidden="true">{commandShortcut}</kbd>
-        </button> : null}
+        </button>
 
-        {!hiddenTopBarGroups.has('actions') ? <div className={`top-actions toolbar-group width-${groupWidth('actions')} rows-${chrome?.topBarActionRows ?? 1}`} style={{ order: groupOrder('actions') }} data-workspace-mode={workspaceMode}>
+        <div className="top-actions" data-workspace-mode={workspaceMode}>
           {showActions
             ? quickActions
                 .filter((action) => !hiddenTopBarActions.has(action.id))
@@ -422,7 +384,7 @@ export function AppTopBar({
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
             <IconButton label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
-              <Store />
+              <Palette />
             </IconButton>
           ) : null}
           <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
@@ -438,7 +400,7 @@ export function AppTopBar({
           >
             <SlidersHorizontal />
           </button>
-        </div> : null}
+        </div>
       </header>
       {customizeOpen && customizePos ? (
         <div
@@ -448,27 +410,7 @@ export function AppTopBar({
           aria-label={t('topBar.customizeAria')}
           style={{ left: customizePos.x, top: customizePos.y }}
         >
-          <strong>{t('topBar.customizeToolbar')}</strong>
-          {(['history', 'modes', 'command', 'actions'] as const).map((group) => (
-            <div className="toolbar-group-settings" key={group}>
-              <label>
-                <input type="checkbox" checked={!hiddenTopBarGroups.has(group)} onChange={() => toggleHiddenGroup(group)} />
-                <span>{t(TOP_BAR_GROUP_LABEL_KEYS[group])}</span>
-              </label>
-              <select aria-label={t('topBar.groupWidthAria', { group: t(TOP_BAR_GROUP_LABEL_KEYS[group]) })} value={groupWidth(group)} onChange={(event) => onPatchChrome?.({ topBarGroupWidths: { ...chrome?.topBarGroupWidths, [group]: event.target.value as 'compact' | 'auto' | 'wide' } })}>
-                <option value="compact">{t('topBar.widthCompact')}</option><option value="auto">{t('topBar.widthAuto')}</option><option value="wide">{t('topBar.widthWide')}</option>
-              </select>
-              <button type="button" onClick={() => moveGroup(group, -1)} aria-label={t('topBar.moveGroupLeftAria', { group: t(TOP_BAR_GROUP_LABEL_KEYS[group]) })}>←</button>
-              <button type="button" onClick={() => moveGroup(group, 1)} aria-label={t('topBar.moveGroupRightAria', { group: t(TOP_BAR_GROUP_LABEL_KEYS[group]) })}>→</button>
-            </div>
-          ))}
-          <label>
-            <span>{t('topBar.actionRows')}</span>
-            <select aria-label={t('topBar.actionRows')} value={chrome?.topBarActionRows ?? 1} onChange={(event) => onPatchChrome?.({ topBarActionRows: Number(event.target.value) as 1 | 2 })}>
-              <option value={1}>{t('topBar.actionRowsOne')}</option><option value={2}>{t('topBar.actionRowsTwo')}</option>
-            </select>
-          </label>
-          <strong>{t('topBar.itemsInActionGroup')}</strong>
+          <strong>{t('topBar.customizeAria')}</strong>
           {[...quickActions, ...statusActions].map((action) => (
             <label key={action.id}>
               <input
@@ -482,7 +424,7 @@ export function AppTopBar({
           <button
             type="button"
             className="customize-reset"
-            onClick={() => onPatchChrome?.({ topBarHiddenActions: [], topBarHiddenGroups: [], topBarGroupOrder: DEFAULT_TOP_BAR_GROUP_ORDER, topBarGroupWidths: {}, topBarActionRows: 1 })}
+            onClick={() => onPatchChrome?.({ topBarHiddenActions: [] })}
           >
             {t('topBar.customizeShowAll')}
           </button>

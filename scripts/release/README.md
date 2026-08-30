@@ -78,8 +78,8 @@ node scripts/release/stage-release-assets.mjs \
 ## Production workflow
 
 1. Merge a reviewed change whose synchronized `VERSION` differs from the prior release.
-2. A release operator manually dispatches `Release Kickoff`, enters the exact `VERSION`, and passes the protected `release-production` environment review.
-3. `Release Kickoff` validates parity, creates `v<VERSION>` without moving any existing tag, and dispatches `Release` on that immutable tag.
+2. A release operator manually dispatches `Release Kickoff` and enters the exact `VERSION`; the workflow automatically verifies a successful CI run for that exact commit before it can create the immutable tag.
+3. `Release Kickoff` validates parity and a successful exact-commit `main` CI run, creates `v<VERSION>` without moving any existing tag, and dispatches `Release` on that immutable tag.
 4. The unified matrix packages Windows x86_64, macOS aarch64, Linux x86_64, and Linux aarch64.
 5. The protected publication job proves exactly seven installers and four trust records, separates them, verifies the target matrix, generates evidence, attests only installers, and creates or updates one GitHub Release.
 

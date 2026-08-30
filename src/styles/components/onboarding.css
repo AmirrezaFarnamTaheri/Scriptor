@@ -41,3 +41,11 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* Keep the tour's primary action AA-compliant across custom themes. */
+.onboarding-actions .primary-button {
+  /* #075e54 on white provides 7.6:1 contrast, including in the release axe audit. */
+  background: #075e54;
+  border-color: #075e54;
+  color: #fff;
+}

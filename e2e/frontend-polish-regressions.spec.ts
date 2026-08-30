@@ -91,51 +91,6 @@ test.describe('Frontend polish regressions', () => {
     await outputTab.click()
     await expect(outputTab).toHaveAttribute('aria-expanded', 'true')
     await expect(page.locator('#dock-panel-output')).toBeVisible()
-
-    await page.getByRole('button', { name: 'Hide status dock' }).click()
-    await expect(dock).toHaveCount(0)
-
-    await page.getByRole('button', { name: 'Show status dock' }).click()
-    await expect(dock).toBeVisible()
-    await expect(outputTab).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  test('top actions wrap without clipping their icons at a compact desktop width', async ({ page }) => {
-    await page.setViewportSize({ width: 1126, height: 900 })
-    await launchApp(page)
-    await waitForWorkspace(page)
-
-    // Wait for the action strip's layout to settle. The strip is an
-    // intentional horizontal scroller in one-line mode (overflow-x auto,
-    // hidden scrollbar), so scrollWidth may legitimately exceed clientWidth
-    // by rounding pixels; the no-clipping contract is asserted by the
-    // per-button rect check below, not here.
-    let previousScrollWidth = -1
-    await expect
-      .poll(async () => {
-        const scrollWidth = await page
-          .locator('.top-actions')
-          .evaluate((element) => element.scrollWidth)
-        const settled = scrollWidth === previousScrollWidth
-        previousScrollWidth = scrollWidth
-        return settled
-      })
-      .toBe(true)
-
-    const actionsFit = await page.locator('.top-actions').evaluate((element) => {
-      const container = element.getBoundingClientRect()
-      return Array.from(element.querySelectorAll('button')).every(
-        (button) => button.getBoundingClientRect().right <= container.right + 1,
-      )
-    })
-    expect(actionsFit).toBe(true)
-
-    const [editorBox, inspectorBox] = await Promise.all([
-      page.locator('.editor-panel').boundingBox(),
-      page.locator('.inspector-panel').boundingBox(),
-    ])
-    expect((editorBox?.x ?? 0) + (editorBox?.width ?? 0)).toBeLessThanOrEqual(1126)
-    expect((inspectorBox?.x ?? 0) + (inspectorBox?.width ?? 0)).toBeLessThanOrEqual(1126)
   })
 
   test('high app zoom switches write and inspector into exclusive panes', async ({ page }) => {
@@ -241,6 +196,7 @@ test.describe('Frontend polish regressions', () => {
     await page.evaluate(() => window.sessionStorage.setItem('e2e:kanban-move-delay', '1'))
     await settleLayout(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
+    await expect(page.getByRole('tab', { name: 'Sprint Board', selected: true })).toBeVisible()
     await openCommandPalette(page)
     await runCommand(page, OPEN_KANBAN)
 

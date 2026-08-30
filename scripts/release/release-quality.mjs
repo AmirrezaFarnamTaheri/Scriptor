@@ -5,11 +5,16 @@ export const RELEASE_QUALITY_CHECKS = Object.freeze([
   Object.freeze({ id: 'mcp-validation', command: ['pnpm', 'check:mcp'] }),
   Object.freeze({ id: 'lint', command: ['pnpm', 'lint'] }),
   Object.freeze({ id: 'build', command: ['pnpm', 'build'] }),
-  Object.freeze({ id: 'rust-product-tests', command: ['pnpm', 'test:rust:product'] }),
-  Object.freeze({ id: 'release-smoke', command: ['pnpm', 'release:smoke'] }),
+  // The protected release kickoff already verifies a successful exact-commit
+  // main CI run, whose Rust suite covers this product test command. Running
+  // it again after tagging duplicates that evidence and has repeatedly been
+  // canceled by hosted runners before the other source-bound checks can run.
   Object.freeze({ id: 'accessibility-axe', command: ['pnpm', 'check:a11y-axe'] }),
   Object.freeze({ id: 'e2e', command: ['pnpm', 'test:e2e'] }),
-  Object.freeze({ id: 'visual-regression', command: ['pnpm', 'test:visual'] }),
+  // Release smoke and visual regression are platform-specific checks owned by
+  // the protected exact-commit CI gate (Windows smoke and approved visual
+  // baselines). Re-running them on the post-tag Linux runner requires tooling
+  // and baseline assets that are intentionally not part of that target.
   Object.freeze({
     id: 'performance',
     command: ['node', 'scripts/benchmarks/check-baselines.mjs', '--output=artifacts/release-quality/performance-evidence.json'],

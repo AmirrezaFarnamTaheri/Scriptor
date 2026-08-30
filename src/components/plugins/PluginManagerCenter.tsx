@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Palette, Blocks, Plus, Wrench, X } from 'lucide-react'
+import { Palette, Blocks, Plus, X } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
 import { citationsPluginManifest } from '../inspector/citation-plugin-manifest'
@@ -40,15 +40,6 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   mcpPluginManifest,
 ]
 
-const TOOL_AND_FEATURE_CATALOG = [
-  { name: 'Command palette', kind: 'Tool', description: 'Search commands, notes, and actions from one keyboard-first surface.' },
-  { name: 'Knowledge graph', kind: 'Feature', description: 'Explore connected notes and rebuild the local index.' },
-  { name: 'Canvas workspace', kind: 'Tool', description: 'Arrange notes and links spatially in a visual workspace.' },
-  { name: 'MCP connections', kind: 'Tool', description: 'Review and control connected tool servers and their capabilities.' },
-  { name: 'Export profiles', kind: 'Feature', description: 'Create local publishing outputs and inspect export history.' },
-  { name: 'Feature profiles', kind: 'Feature', description: 'Enable only the modules that suit the current workflow.' },
-]
-
 export interface PluginManagerCenterProps {
   isOpen: boolean
   onClose: () => void
@@ -83,12 +74,12 @@ export function PluginManagerCenter({
   }
 
   // Active Tab: 'palettes' is ACTIVE BY DEFAULT per user specification
-  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins' | 'tools'>('palettes')
-  const PMC_TABS: readonly string[] = ['palettes', 'plugins', 'tools']
+  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>('palettes')
+  const PMC_TABS: readonly string[] = ['palettes', 'plugins']
   const handlePmcTabKeys = useTablistKeys(
     PMC_TABS,
     activeTab,
-    useCallback((id: string) => setActiveTab(id as 'palettes' | 'plugins' | 'tools'), []),
+    useCallback((id: string) => setActiveTab(id as 'palettes' | 'plugins'), []),
   )
   const [searchQuery, setSearchQuery] = useState('')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
@@ -144,12 +135,6 @@ export function PluginManagerCenter({
     (plugin) =>
       plugin.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       plugin.description.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
-  const filteredToolsAndFeatures = TOOL_AND_FEATURE_CATALOG.filter(
-    (item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.kind.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.description.toLowerCase().includes(searchQuery.toLowerCase()),
   )
   const activeProfile = getMatchingInstallerProfile(enabledPluginIds, knownPluginIds)
 
@@ -213,16 +198,6 @@ export function PluginManagerCenter({
             >
               <Blocks /> Feature Plugins &amp; Profiles
             </button>
-            <button
-              type="button"
-              role="tab"
-              tabIndex={activeTab === 'tools' ? 0 : -1}
-              aria-selected={activeTab === 'tools'}
-              className={`tab-btn ${activeTab === 'tools' ? 'active' : ''}`}
-              onClick={() => setActiveTab('tools')}
-            >
-              <Wrench /> Tools &amp; Features
-            </button>
           </div>
 
           {activeTab === 'plugins' && (
@@ -276,9 +251,7 @@ export function PluginManagerCenter({
               placeholder={
                 activeTab === 'palettes'
                   ? 'Search color palette schemes by name or theme style...'
-                  : activeTab === 'plugins'
-                    ? 'Search plugins by name or capability...'
-                    : 'Search tools and features...'
+                  : 'Search plugins by name or capability...'
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -300,7 +273,7 @@ export function PluginManagerCenter({
                 />
               ))}
             </div>
-          ) : activeTab === 'plugins' ? (
+          ) : (
             <div className="plugin-manager-list">
               {filteredPlugins.length === 0 ? (
                 <p className="plugin-manager-empty" role="status">No plugins match this search.</p>
@@ -311,19 +284,6 @@ export function PluginManagerCenter({
                   isEnabled={enabledPluginIds.has(plugin.id)}
                   onToggle={handleTogglePlugin}
                 />
-              ))}
-            </div>
-          ) : (
-            <div className="plugin-manager-list">
-              {filteredToolsAndFeatures.length === 0 ? (
-                <p className="plugin-manager-empty" role="status">No tools or features match this search.</p>
-              ) : filteredToolsAndFeatures.map((item) => (
-                <article className="plugin-card" key={item.name}>
-                  <div className="plugin-card-info">
-                    <div className="plugin-card-title"><Wrench size={18} /><h3>{item.name}</h3><span className="plugin-badge">{item.kind}</span></div>
-                    <p className="plugin-card-description">{item.description}</p>
-                  </div>
-                </article>
               ))}
             </div>
           )}

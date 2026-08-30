@@ -128,7 +128,7 @@ function TabButton({
         display: 'flex',
         alignItems: 'center',
         gap: 6,
-        padding: '6px 8px',
+        padding: '6px 14px',
         borderRadius: 'var(--radius-sm)',
         border: 'none',
         cursor: 'pointer',
@@ -137,9 +137,7 @@ function TabButton({
         color: active ? 'var(--bg)' : 'var(--text-muted)',
         fontSize: 'var(--text-sm)',
         transition: 'background var(--ease-fast), color var(--ease-fast)',
-        flex: '1 1 0',
-        minWidth: 0,
-        justifyContent: 'center',
+        flexShrink: 0,
         whiteSpace: 'nowrap',
       }}
     >
@@ -897,11 +895,12 @@ export function StorePanel(props: StorePanelProps) {
         onKeyDown={handleTabKeyDown}
         style={{
           display: 'flex',
-          gap: 2,
-          padding: '8px',
+          gap: 4,
+          padding: '8px 12px',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
-          overflow: 'hidden',
+          overflowX: 'auto',
+          scrollbarWidth: 'thin',
         }}
       >
         {STORE_TABS.map((tab) => (
@@ -923,7 +922,7 @@ export function StorePanel(props: StorePanelProps) {
         role="tabpanel"
         aria-labelledby={tabId(activeTab)}
         tabIndex={-1}
-        style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '12px 16px' }}
+        style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}
       >
         {activeTab === 'plugins' && (
           <>

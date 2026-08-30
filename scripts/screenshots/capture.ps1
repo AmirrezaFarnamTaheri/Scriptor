@@ -16,11 +16,9 @@ Write-Host "==> Browser channel: $env:PLAYWRIGHT_CHANNEL"
 
 Write-Host "==> Capture screenshots via playwright.e2e.config"
 $previousScreenshotMode = $env:VITE_SCREENSHOT_MODE
-$previousCaptureMode = $env:SCRIPTOR_CAPTURE_SCREENSHOTS
 $captureExitCode = 0
 try {
     $env:VITE_SCREENSHOT_MODE = 'true'
-    $env:SCRIPTOR_CAPTURE_SCREENSHOTS = 'true'
     pnpm exec playwright test --config playwright.e2e.config.ts e2e/screenshots.spec.ts
     $captureExitCode = $LASTEXITCODE
 }
@@ -29,11 +27,6 @@ finally {
         $env:VITE_SCREENSHOT_MODE = $previousScreenshotMode
     } else {
         Remove-Item Env:VITE_SCREENSHOT_MODE -ErrorAction SilentlyContinue
-    }
-    if ($null -ne $previousCaptureMode) {
-        $env:SCRIPTOR_CAPTURE_SCREENSHOTS = $previousCaptureMode
-    } else {
-        Remove-Item Env:SCRIPTOR_CAPTURE_SCREENSHOTS -ErrorAction SilentlyContinue
     }
 }
 if ($captureExitCode -ne 0) { exit $captureExitCode }

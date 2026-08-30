@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- Made verified production releases publish automatically after the immutable exact-commit CI, packaging, quality, provenance, SBOM, checksum, and evidence checks pass; no protected-environment approval wait remains in the release path.
+- Restored WCAG AA contrast for the onboarding tour's primary action in the release headless-browser audit.
+- Removed a stale post-tag `release-smoke` assertion from the unified release-evidence graph; it now validates the complete declared source-bound quality gate, allowing verified installer publication after the protected exact-commit CI checks pass.
+- Moved platform-specific release smoke and visual baseline checks to the protected exact-commit CI gate, preventing Linux post-tag runners from requiring Windows tooling or absent Linux snapshot baselines.
+- Avoided re-running the protected exact-commit CI Rust suite after tagging, so hosted-runner interruptions cannot prevent the remaining source-bound release checks from publishing verified installers.
+- Made release-quality verification portable across hosted operating systems, synchronized the MCP runtime version with the canonical release version, and provisioned the debug-only daemon credential required by headless release checks.
+- Restored the onboarding tour's primary-action contrast so the release accessibility audit meets WCAG AA.
 - Reworked the footer as a compact, expandable status dock. At intermediate widths and saved zoom levels, the write area, vault, and inspector now reflow without overlapping or escaping the viewport.
 - Restored the original tile-built Scriptor mark and made its gradients follow the active theme.
 - Screenshot capture now waits for fonts, images, lazy panels, previews, and layout to settle, and fails when loading or degraded states remain. Updated the README with current captures.

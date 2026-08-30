@@ -26,10 +26,10 @@ function createRepository() {
 test('Git source identity hashes canonical blobs across line-ending-normalized worktrees', () => {
   const root = createRepository()
   try {
-    const before = getSourceIdentity({ root, requireGit: true, requireClean: true })
+    const before = getSourceIdentity({ root, expectedCommit: null, requireGit: true, requireClean: true })
     fs.writeFileSync(path.join(root, 'normalized.txt'), 'first\nsecond\n')
     assert.doesNotThrow(() => git(root, ['diff', '--quiet']))
-    const after = getSourceIdentity({ root, requireGit: true, requireClean: true })
+    const after = getSourceIdentity({ root, expectedCommit: null, requireGit: true, requireClean: true })
     assert.equal(after.schemaVersion, 2)
     assert.equal(after.sourceTreeSha256, before.sourceTreeSha256)
     assert.equal(after.sourceFileCount, before.sourceFileCount)
@@ -44,7 +44,7 @@ test('clean release identity rejects source changes before hashing committed blo
   try {
     fs.writeFileSync(path.join(root, 'normalized.txt'), 'different\n')
     assert.throws(
-      () => getSourceIdentity({ root, requireGit: true, requireClean: true }),
+      () => getSourceIdentity({ root, expectedCommit: null, requireGit: true, requireClean: true }),
       /uncommitted or untracked changes/,
     )
   } finally {

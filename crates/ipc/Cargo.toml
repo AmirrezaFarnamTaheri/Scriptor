@@ -1,6 +1,6 @@
 [package]
 name = "scriptor-ipc"
-version = "1.0.1"
+version = "1.0.7"
 edition = "2024"
 license.workspace = true
 
