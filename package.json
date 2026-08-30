@@ -2,7 +2,7 @@
   "name": "scriptor",
   "description": "Scriptor — local-first Markdown knowledge workspace",
   "private": true,
-  "version": "1.0.5",
+  "version": "1.0.6",
   "type": "module",
   "packageManager": "pnpm@10.33.0",
   "engines": {

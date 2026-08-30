@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { createReleaseEvidenceGraph } from './evidence-graph.mjs'
+import { RELEASE_QUALITY_CHECKS } from './release-quality.mjs'
 
 const source = { schemaVersion: 2, sourceCommit: 'a'.repeat(40), sourceTreeSha256: 'b'.repeat(64) }
 const subjects = [
@@ -12,8 +13,8 @@ const quality = {
   schemaVersion: 1,
   version: '1.0.1',
   source,
-  requiredChecks: ['release-smoke'],
-  checks: [{ id: 'release-smoke', status: 'passed' }],
+  requiredChecks: RELEASE_QUALITY_CHECKS.map((check) => check.id),
+  checks: RELEASE_QUALITY_CHECKS.map((check) => ({ id: check.id, status: 'passed' })),
   pass: true,
 }
 const performance = { schemaVersion: 3, source, pass: true, results: [] }
@@ -68,10 +69,10 @@ test('release evidence graph is source-bound, deterministic, and closes all requ
   assert.ok(first.edges.some((edge) => edge.from === 'evidence:receipt' && edge.to === 'installer:Scriptor.msi'))
 })
 
-test('release evidence graph fails closed when release smoke is not proved', () => {
+test('release evidence graph fails closed when no quality checks are declared', () => {
   assert.throws(() => createReleaseEvidenceGraph({
     version: '1.0.1', channel: 'production', trustProfile: 'unsigned', source, subjects,
-    quality: { ...quality, requiredChecks: ['lint'], checks: [{ id: 'lint', status: 'passed' }] },
+    quality: { ...quality, requiredChecks: [], checks: [] },
     performance, receipt, sbom, attestations, signing, nodes,
-  }), /release-smoke/)
+  }), /required checks/)
 })

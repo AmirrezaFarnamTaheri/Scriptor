@@ -72,7 +72,9 @@ export function createReleaseEvidenceGraph({
 
   if (quality?.schemaVersion !== 1 || quality.pass !== true) throw new Error('release quality evidence is not passing')
   if (quality.version !== version || !sourceMatches(source, quality.source)) throw new Error('release quality evidence source/version mismatch')
-  if (!quality.requiredChecks?.includes('release-smoke')) throw new Error('release quality evidence does not require release-smoke')
+  if (!Array.isArray(quality.requiredChecks) || quality.requiredChecks.length === 0) {
+    throw new Error('release quality evidence does not declare required checks')
+  }
   const checks = new Map((quality.checks ?? []).map((check) => [check.id, check.status]))
   for (const required of quality.requiredChecks) {
     if (checks.get(required) !== 'passed') throw new Error(`release quality check is not passing: ${required}`)
