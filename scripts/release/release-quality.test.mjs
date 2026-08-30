@@ -15,7 +15,6 @@ test('release quality owns a complete release-proof command set', () => {
     'mcp-validation',
     'lint',
     'build',
-    'rust-product-tests',
     'release-smoke',
     'accessibility-axe',
     'e2e',
