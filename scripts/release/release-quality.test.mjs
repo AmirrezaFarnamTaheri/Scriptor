@@ -15,10 +15,8 @@ test('release quality owns a complete release-proof command set', () => {
     'mcp-validation',
     'lint',
     'build',
-    'release-smoke',
     'accessibility-axe',
     'e2e',
-    'visual-regression',
     'performance',
   ])
   assert.equal(new Set(ids).size, ids.length)

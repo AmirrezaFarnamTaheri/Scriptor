@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Fixed
+- Moved platform-specific release smoke and visual baseline checks to the protected exact-commit CI gate, preventing Linux post-tag runners from requiring Windows tooling or absent Linux snapshot baselines.
 - Avoided re-running the protected exact-commit CI Rust suite after tagging, so hosted-runner interruptions cannot prevent the remaining source-bound release checks from publishing verified installers.
 - Made release-quality verification portable across hosted operating systems, synchronized the MCP runtime version with the canonical release version, and provisioned the debug-only daemon credential required by headless release checks.
 - Restored the onboarding tour's primary-action contrast so the release accessibility audit meets WCAG AA.
