@@ -86,18 +86,18 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
                 job_id, report.job_id
             ));
         }
-        if let Some(log) = report.stderr_log.as_deref() {
-            if log.len() > emitted_stderr {
-                let _ = app.emit(
-                    "export:progress",
-                    &ExportJobProgress {
-                        job_id: job_id.clone(),
-                        stream: "stderr".into(),
-                        chunk: log[emitted_stderr..].to_string(),
-                    },
-                );
-                emitted_stderr = log.len();
-            }
+        if let Some(log) = report.stderr_log.as_deref()
+            && log.len() > emitted_stderr
+        {
+            let _ = app.emit(
+                "export:progress",
+                &ExportJobProgress {
+                    job_id: job_id.clone(),
+                    stream: "stderr".into(),
+                    chunk: log[emitted_stderr..].to_string(),
+                },
+            );
+            emitted_stderr = log.len();
         }
         if report.event_index > last_event_index {
             let _ = app.emit(
