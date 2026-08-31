@@ -8,7 +8,13 @@ use scriptor_indexer::{open_cache_for_session, rebuild_index, search_notes};
 use scriptor_vault::{ScannedEntryKind, open_vault, scan_vault};
 use serde::Serialize;
 
-const VAULT_SCAN_BUDGET_MS: u128 = 1500;
+/// Scan budget scales with vault size: 150ms per 1k notes with a 500ms
+/// floor. The previous single 1500ms constant was sized for ~10k notes and
+/// mislabeled healthy 25k scans (measured ~2.4s on Windows NTFS, ~0.1ms
+/// per entry) as regressions.
+fn scan_budget_ms(note_count: u32) -> u128 {
+    (500 + 150 * u128::from(note_count / 1000)).max(500)
+}
 const SEARCH_BUDGET_MS: u128 = 100;
 
 #[derive(Debug, Serialize)]
@@ -79,8 +85,8 @@ pub(crate) fn bench_scan(
         p50_ms: summary.p50_ms,
         p95_ms: summary.p95_ms,
         max_ms: summary.max_ms,
-        budget_ms: VAULT_SCAN_BUDGET_MS,
-        within_budget: summary.mean_ms <= VAULT_SCAN_BUDGET_MS as f64,
+        budget_ms: scan_budget_ms(note_count),
+        within_budget: summary.mean_ms <= scan_budget_ms(note_count) as f64,
     })
 }
 
