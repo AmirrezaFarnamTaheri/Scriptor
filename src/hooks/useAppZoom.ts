@@ -123,6 +123,11 @@ export function useAppZoom(): void {
       })
     }
 
+    // Tauri v2 webviews ship with native page zoom disabled (zoomHotkeysEnabled defaults
+    // to false, i.e. WebView2 IsZoomControlEnabled=false), so ctrl+wheel reaches the page
+    // as a plain wheel event whose default action is scrolling. This listener must stay
+    // non-passive: preventDefault is what stops app zoom from also scrolling the page.
+    // passive: true here would reintroduce scroll-during-zoom on every wheel gesture.
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('resize', onResize)
