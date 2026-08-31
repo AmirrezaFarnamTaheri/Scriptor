@@ -3,12 +3,37 @@
 ## Unreleased
 
 ### Fixed
+- Resolved the 2026-08-30 forensic review findings: OAuth stateless-probe handling, daemon outside-lock read-only scans, truthful export-history running state, chrome preference persistence and validation, top-bar i18n coverage, reduced-transparency and resize coalescing, portable Playwright web servers, a container gate that executes the contract suite, and worktree-proof source-test and version walkers.
+
+## 1.0.7 — 2026-08
+
+### Fixed
 - Made verified production releases publish automatically after the immutable exact-commit CI, packaging, quality, provenance, SBOM, checksum, and evidence checks pass; no protected-environment approval wait remains in the release path.
 - Restored WCAG AA contrast for the onboarding tour's primary action in the release headless-browser audit.
+
+## 1.0.6 — 2026-08
+
+### Fixed
 - Removed a stale post-tag `release-smoke` assertion from the unified release-evidence graph; it now validates the complete declared source-bound quality gate, allowing verified installer publication after the protected exact-commit CI checks pass.
+
+## 1.0.5 — 2026-08
+
+### Fixed
 - Moved platform-specific release smoke and visual baseline checks to the protected exact-commit CI gate, preventing Linux post-tag runners from requiring Windows tooling or absent Linux snapshot baselines.
+
+## 1.0.4 — 2026-08
+
+### Fixed
 - Avoided re-running the protected exact-commit CI Rust suite after tagging, so hosted-runner interruptions cannot prevent the remaining source-bound release checks from publishing verified installers.
+
+## 1.0.3 — 2026-08
+
+### Fixed
 - Made release-quality verification portable across hosted operating systems, synchronized the MCP runtime version with the canonical release version, and provisioned the debug-only daemon credential required by headless release checks.
+
+## 1.0.2 — 2026-08
+
+### Fixed
 - Restored the onboarding tour's primary-action contrast so the release accessibility audit meets WCAG AA.
 - Reworked the footer as a compact, expandable status dock. At intermediate widths and saved zoom levels, the write area, vault, and inspector now reflow without overlapping or escaping the viewport.
 - Restored the original tile-built Scriptor mark and made its gradients follow the active theme.
@@ -45,7 +70,6 @@
 - Excluded the Playwright E2E build output directory from ESLint and Git so running browser suites before lint no longer floods the warning-zero gate with minified-bundle errors.
 - Stopped tracking generated fixture-vault index caches and excluded them from Git so test and benchmark runs no longer leave binary churn in the working tree.
 - Removed the stale pre-Git remediation board from the shipped tree and pointed the product-baseline document at the authoritative VERSION file instead of a pinned number.
-
 - Prevented E2E editor fault injection from leaking into desktop builds by rejecting test-only markers in production assets and clearing inherited E2E mode during screenshot-to-desktop builds.
 - Made the editor render fallback recover Monaco crashes into the supported CodeMirror editor instead of retrying the same failing engine loop.
 - Made Cargo lockfile validation independent of Windows CRLF checkout normalization, so source and governance gates use the same semantics locally and in CI.
@@ -63,14 +87,16 @@
 - Corrected workspace package declarations/lock metadata, Tauri command contracts, plugin Rust backend identities, and source-test discovery so hidden dependency and phantom-command drift fails fast.
 - Removed the unimplemented Zotero-sync product claim; the standalone connector now validates credentials at Zotero's current-key endpoint, confines credentials to the official HTTPS API origin, and does not write arbitrary vault paths.
 - Reconciled release documentation with the intentional unsigned-but-attested upstream installer policy.
-
-### Verification
-
 - Added browser regressions for horizontal and vertical workspace containment, full-width dock composition, dock disclosure semantics, and exclusive write/inspector panes at 200% app zoom; regenerated the reviewed documentation screenshots.
 - Added browser coverage for template and Obsidian entry points, interactive store feature/layout controls, and four-section store navigation at 200% text zoom.
 - Added browser regressions for top-bar customization at narrow/high-text-zoom layouts, toolbar popover focus, the support-heart treatment, and Reader availability when annotations cannot load; added source tests for atomic plugin-profile derivation and preservation of unknown plugins.
 - Added artifact-level regression coverage proving production bundle validation rejects compiled E2E editor crash hooks.
 - Added dependency-free contracts for publishing, authorization, Git serialization, workspace boundaries, Tauri command registration, Cargo lock consistency, plugin backend resolution, and complete lightweight test ownership.
+
+## 1.0.1 — 2026-08
+
+### Fixed
+- Installed `xdg-utils` in the Linux release environment and prepared the 1.0.1 release.
 
 ## 1.0.0 — 2026-08-17
 

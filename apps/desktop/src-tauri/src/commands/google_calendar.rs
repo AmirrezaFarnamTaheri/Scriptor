@@ -992,12 +992,35 @@ pub fn google_gmail_list_messages(
     let list = response
         .json::<GmailMessageList>()
         .map_err(|error| format!("Gmail returned an invalid message list: {error}"))?;
-    list.messages
+    let ids: Vec<String> = list
+        .messages
         .unwrap_or_default()
         .into_iter()
         .filter_map(|message| message.id)
-        .map(|id| gmail_get_message(&client, &access_token, &id).map(gmail_preview))
-        .collect()
+        .collect();
+    // Bounded-concurrency fetch: strictly sequential per-message GETs let one
+    // slow response stall the whole list behind a 30s timeout. Chunks of 8
+    // overlap request latency while staying polite to the Gmail API.
+    const FETCH_CONCURRENCY: usize = 8;
+    let mut previews = Vec::with_capacity(ids.len());
+    for chunk in ids.chunks(FETCH_CONCURRENCY) {
+        let results: Vec<Result<GmailMessagePreview, String>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = chunk
+                .iter()
+                .map(|id| scope.spawn(|| gmail_get_message(&client, &access_token, id).map(gmail_preview)))
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| {
+                    handle.join().unwrap_or_else(|_| Err("Gmail message fetch worker panicked".into()))
+                })
+                .collect()
+        });
+        for result in results {
+            previews.push(result?);
+        }
+    }
+    Ok(previews)
 }
 
 /// Fetch one message's metadata and plain-text body for preview or Markdown

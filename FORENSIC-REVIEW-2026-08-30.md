@@ -96,19 +96,23 @@ Every divergent branch was diffed and cross-checked against HEAD by content, not
 4. **Glass blur default** — `blur(24px)` stays on by default for aesthetics (reduced-transparency users now opt out automatically). If jank reports persist, consider blur(12px) as the default `glass` tier.
 
 ### Phase 8–9: Knowledge preservation & implementation roadmap
-Preserved in this report, the workspace memory, and code comments (the OAuth probe semantics, the daemon lock-seam mutation rule, the export-history contract, the one-line-scroller design intent in the e2e test).
 
-| # | Task | Risk | Priority |
-|---|---|---|---|
-| 1 | Merge/rebase this branch onto `origin/main` (1.0.7) — expect conflicts on VERSION, CHANGELOG, lockfiles; run `pnpm version:sync` after | medium | **P1** |
-| 2 | Decide `GitQueue`: wire as the git serialization seam or delete | low | P1 |
-| 3 | jwalk parallel scan behind a benchmark (scan-5k/25k) | medium | P2 |
-| 4 | Gmail bounded-concurrency listing | low | P2 |
-| 5 | Standardize ubuntu runners on 24.04 | low | P2 |
-| 6 | Backfill CHANGELOG for 1.0.1–1.0.7 + add a release-job CHANGELOG guard | low | P2 |
-| 7 | Manifest version gate (or explicit exemption comment) | low | P3 |
-| 8 | Delete the dead third playwright config | low | P3 |
-| 9 | Decide local-branch hygiene (`feat/scriptor-improved-sync`, `integrate/open-prs-unified`, superseded audit branches are fully absorbed) | none | P3 |
+**EXECUTED 2026-08-30 (commits `3692432f` fixes, `6ba2f346` merge, `e4b0aa4f` roadmap):**
+
+| # | Task | Outcome |
+|---|---|---|
+| 1 | Merge origin/main (1.0.7) | **DONE** — conflicts reconciled (screenshots/CHANGELOG/locks → main; forensic fixes re-applied on main's evolved UI); VERSION + 18 package + 20 Cargo manifests + Tauri config all at 1.0.7, version contract green |
+| 2 | GitQueue wire-or-delete | **WIRED** — the five native Git mutation commands submit through a bounded per-repo `GitQueue` worker (replacing the ad-hoc mutex); handle resets on vault swap; desktop crate compiles clean |
+| 3 | jwalk parallel scan | **MEASURED, REJECTED** — implemented and benchmarked: 1k scan p50 97ms vs walkdir's 75ms. jwalk's `metadata()` re-stats every entry, discarding walkdir's readdir-cached NTFS metadata; the 2026-08-27 "2–4×" estimate was Linux-specific. Reverted; walkdir stays |
+| 4 | Gmail bounded-concurrency listing | **DONE** — chunked parallel fetches (8 at a time, `std::thread::scope`) replace 50 sequential GETs; error semantics preserved |
+| 5 | Ubuntu runners on 24.04 | **DONE** — desktop-check linux leg + release build matrix; zero 22.04 pins remain |
+| 6 | CHANGELOG backfill + guard | **DONE** — 64 shipped bullets redistributed into verifiable 1.0.1–1.0.7 sections from tag ranges; `verify-changelog.mjs` wired into the release quality job + `check:changelog` |
+| 7 | Manifest version gate | **DONE (documented exemption)** — manifest `version` documented as plugin-lifecycle-scoped, intentionally independent of app VERSION (which gates MCP_SERVER_VERSION) |
+| 8 | Dead third playwright config | **DONE** — deleted (zero references verified) |
+| 9 | Branch hygiene | **DONE** — `main` fast-forwarded to origin/main; 4 fully-absorbed local branches deleted (tip SHAs preserved here: sync `8b8bf764`, v2 `098d6a5a`, audit `8d56fbb2`, unified `ba151ecd`) |
+| 10 | Rust gate alignment | **DONE** — `test:rust` no longer excludes citation-engine (16/16 tests verified green locally), matching CI exactly; CONTRIBUTING already corrected |
+
+**Post-roadmap verification:** full Rust workspace suite (citation-engine included) 38/38 result-groups ok with 0 failures; `tsc -b` clean; source tests 0 failures; version contract OK at 1.0.7; CHANGELOG guard green; i18n parity 3×304; targeted e2e (topbar-store + polish regressions + workspace) **31/31 passed**.
 
 ---
 

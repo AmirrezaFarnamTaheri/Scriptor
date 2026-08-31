@@ -12,6 +12,11 @@ export const MCP_PLUGIN_CAPABILITY_ID = 'scriptor.mcp'
  *
  * Drift is tested by auditToolScopeDrift() in tool-scopes.ts.
  * Mode ladder: off → read-only → draft → write-approved
+ *
+ * `version` is the plugin-manifest lifecycle version and is intentionally
+ * independent of the application VERSION (which gates MCP_SERVER_VERSION in
+ * server.ts instead). Bump it only when the manifest shape or tool-surface
+ * contract itself changes.
  */
 export const mcpPluginManifest: PluginManifest = {
   id: MCP_PLUGIN_ID,

@@ -1,9 +1,11 @@
+use std::path::Path;
 use std::sync::{
     Arc, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard,
     atomic::{AtomicBool, AtomicU64},
 };
 
 use scriptor_export_runner::{ExportCancelSlot, new_cancel_slot};
+use scriptor_native_git::queue::GitQueue;
 use scriptor_vault::{VaultSession, VaultWatcher};
 
 use crate::authorization::AuthorizationBroker;
@@ -20,8 +22,11 @@ pub struct AppState {
     pub vault_watcher: Mutex<Option<VaultWatcher>>,
     pub vault_watcher_generation: Arc<AtomicU64>,
     pub headless_engine: Mutex<bool>,
-    /// Serializes native Git mutations across every renderer/hook instance.
-    pub git_mutation_lock: Mutex<()>,
+    /// Serializes native Git mutations across every renderer/hook instance
+    /// through the bounded per-repo `GitQueue` worker. The handle is replaced
+    /// whenever a command targets a different canonical repo root, so a vault
+    /// swap can never reuse the previous vault's queue.
+    pub git_queue: Mutex<Option<Arc<GitQueue>>>,
     pub authorization: AuthorizationBroker,
     /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
     pub latex_cancel: Arc<AtomicBool>,
@@ -42,7 +47,7 @@ impl AppState {
             vault_watcher: Mutex::new(None),
             vault_watcher_generation: Arc::new(AtomicU64::new(0)),
             headless_engine: Mutex::new(false),
-            git_mutation_lock: Mutex::new(()),
+            git_queue: Mutex::new(None),
             authorization: AuthorizationBroker::default(),
             latex_cancel: Arc::new(AtomicBool::new(false)),
         }
@@ -55,6 +60,29 @@ pub fn use_headless_engine(state: &AppState) -> bool {
 
 pub fn set_headless_engine(state: &AppState, enabled: bool) {
     *lock_recover(&state.headless_engine, "headless engine") = enabled;
+}
+
+/// Returns the bounded per-repo `GitQueue` for `root`, reusing the handle when
+/// the previous command targeted the same canonical repo root and replacing it
+/// after a vault swap. All native Git mutations must run through this queue:
+/// its worker is the serialization guarantee; the session lease on the caller
+/// additionally blocks a vault swap until the queued operation completes.
+pub fn git_queue_handle(state: &AppState, root: &Path) -> Arc<GitQueue> {
+    let mut guard = lock_recover(&state.git_queue, "git queue");
+    match guard.as_ref() {
+        Some(queue) if queue.repo_root == root => Arc::clone(queue),
+        _ => {
+            let queue = Arc::new(GitQueue::new(root.to_path_buf()));
+            *guard = Some(Arc::clone(&queue));
+            queue
+        }
+    }
+}
+
+/// Drops the cached queue handle after a vault swap so the next mutation
+/// targets the new repo root.
+pub fn reset_git_queue(state: &AppState) {
+    *lock_recover(&state.git_queue, "git queue") = None;
 }
 
 pub struct ActiveSession<'a> {

@@ -46,6 +46,8 @@ pub fn vault_open(
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
     *write_recover(&state.session, "session") = Some(session.clone());
+    // The previous vault's GitQueue handle must not serve the next vault.
+    crate::state::reset_git_queue(&state);
     restart_vault_watcher(&app, &state, &session)?;
     Ok(output)
 }

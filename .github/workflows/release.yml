@@ -121,6 +121,10 @@ jobs:
         shell: bash
         run: pnpm install --frozen-lockfile
 
+      - name: Verify CHANGELOG entry for the release version
+        shell: bash
+        run: node scripts/release/verify-changelog.mjs
+
       - name: Install Chromium test runtime
         shell: bash
         run: pnpm exec playwright install --with-deps chromium
@@ -163,7 +167,7 @@ jobs:
             architecture: aarch64
             targets: dmg
             artifact: scriptor-macos-aarch64-installers
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             platform: linux
             architecture: x86_64
             targets: deb,appimage
