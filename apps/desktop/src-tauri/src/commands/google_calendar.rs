@@ -1007,12 +1007,16 @@ pub fn google_gmail_list_messages(
         let results: Vec<Result<GmailMessagePreview, String>> = std::thread::scope(|scope| {
             let handles: Vec<_> = chunk
                 .iter()
-                .map(|id| scope.spawn(|| gmail_get_message(&client, &access_token, id).map(gmail_preview)))
+                .map(|id| {
+                    scope.spawn(|| gmail_get_message(&client, &access_token, id).map(gmail_preview))
+                })
                 .collect();
             handles
                 .into_iter()
                 .map(|handle| {
-                    handle.join().unwrap_or_else(|_| Err("Gmail message fetch worker panicked".into()))
+                    handle
+                        .join()
+                        .unwrap_or_else(|_| Err("Gmail message fetch worker panicked".into()))
                 })
                 .collect()
         });

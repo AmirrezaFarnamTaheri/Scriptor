@@ -98,8 +98,14 @@ pub(crate) fn run_read_only_vault_command(
             let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
             let to = RelativeVaultPath::parse(&to_path).map_err(|error| error.to_string())?;
             serialize(
-                rename_dry_run(&session.descriptor.id, &session.root, &from, &to, update_links)
-                    .map_err(|e| e.to_string()),
+                rename_dry_run(
+                    &session.descriptor.id,
+                    &session.root,
+                    &from,
+                    &to,
+                    update_links,
+                )
+                .map_err(|e| e.to_string()),
             )
         }
         "vault_rename_tag_dry_run" => {
@@ -147,8 +153,8 @@ pub(crate) fn run_read_only_vault_command(
             )
         }
         "vault_health" => {
-            let cache = cache
-                .ok_or_else(|| "no index cache is open; call OpenVault first".to_string())?;
+            let cache =
+                cache.ok_or_else(|| "no index cache is open; call OpenVault first".to_string())?;
             serialize(health_report_json(cache, session).map_err(|e| e.to_string()))
         }
         other => Err(format!(

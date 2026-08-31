@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Su
 import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
+import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
   BibliographyPanel,
@@ -886,6 +887,7 @@ function App() {
   const { formatInline, formatBibliography } = useCiteprocPreview(bibliography, citationRows)
 
   useAppZoom()
+  useTopBarHeightVar()
 
   useAppKeyboardShortcuts({
     activePath: workspace.activePath,

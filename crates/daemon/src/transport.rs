@@ -690,8 +690,11 @@ fn dispatch_invoke_outside_lock(
                 None => Err("no vault is open; call OpenVault first".into()),
             }
         }
-        "vault_rename_dry_run" | "vault_rename_tag_dry_run" | "vault_rename_section_dry_run"
-        | "vault_rename_block_dry_run" | "vault_health" => {
+        "vault_rename_dry_run"
+        | "vault_rename_tag_dry_run"
+        | "vault_rename_section_dry_run"
+        | "vault_rename_block_dry_run"
+        | "vault_health" => {
             let (session, cache) = {
                 let guard = lock_recover(state);
                 (guard.session().cloned(), guard.index_cache().cloned())

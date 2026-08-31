@@ -1,4 +1,4 @@
-import { useCallback, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
@@ -46,29 +46,10 @@ export function UnifiedPanelShell({
   const titleId = useId()
   const descriptionId = useId()
   const docked = presentation === 'dock-right'
-  // The dock spans the full viewport height at z-index 41 while the top bar is
-  // sticky at z-index 60: without this offset the dock's header and tabs slide
-  // behind the bar and become unclickable. The bar wraps responsively (54px
-  // min, 166px+ at compact widths), so measure it live instead of guessing.
-  const [dockedTop, setDockedTop] = useState<number | null>(null)
-  useLayoutEffect(() => {
-    if (!docked) return undefined
-    const topbar = document.querySelector('.topbar')
-    const update = () => {
-      setDockedTop(topbar instanceof HTMLElement ? topbar.getBoundingClientRect().bottom : 0)
-    }
-    update()
-    window.addEventListener('resize', update)
-    const observer =
-      typeof ResizeObserver === 'function' && topbar instanceof HTMLElement
-        ? new ResizeObserver(update)
-        : null
-    if (topbar instanceof HTMLElement) observer?.observe(topbar)
-    return () => {
-      window.removeEventListener('resize', update)
-      observer?.disconnect()
-    }
-  }, [docked])
+  // Docked shells start below the live top bar via --topbar-bottom
+  // (measured in useTopBarHeightVar): the dock z-index sits under the
+  // bar's, so without the offset its header and tabs would slide behind
+  // the bar and become unclickable whenever the bar wraps responsively.
 
   useEscapeToClose(!docked, onClose)
   useFocusTrap(shellRef, { active: !docked })
@@ -101,7 +82,6 @@ export function UnifiedPanelShell({
         ref={shellRef}
         className={`unified-panel-shell ${className}${wide ? ' unified-panel-wide' : ''}${docked ? ' unified-panel-docked' : ''}`}
         role={docked ? 'complementary' : 'dialog'}
-        style={docked && dockedTop !== null ? { top: dockedTop } : undefined}
         aria-modal={docked ? undefined : true}
         aria-label={docked ? ariaLabel : undefined}
         aria-labelledby={docked ? undefined : titleId}
