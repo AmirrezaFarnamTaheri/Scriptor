@@ -11,6 +11,7 @@ dist-ssr
 .cache
 coverage
 docs
+!docs/CAPABILITY-MATURITY.md
 e2e
 test-results
 playwright-report

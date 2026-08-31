@@ -47,6 +47,11 @@ const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calenda
 const GMAIL_OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send";
 
 const HTTP_TIMEOUT_SECS: u64 = 30;
+/// Serializes token refreshes process-wide: two concurrent commands hitting
+/// an expired token would otherwise both POST a refresh and race the
+/// keychain write (last-write-wins is benign, but Google may also hand out
+/// a new refresh token to the loser, invalidating the stored one).
+static TOKEN_REFRESH_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// How long to wait for the browser redirect before giving up.
 const AUTH_CAPTURE_TIMEOUT_SECS: u64 = 300;
 /// Refresh the access token this many seconds before its stated expiry.
@@ -145,6 +150,21 @@ struct StoredTokens {
     /// Unix epoch milliseconds at which the access token expires.
     expiry_ms: u64,
     email: String,
+}
+
+/// Poison-recovering lock acquisition for the process-wide refresh mutex.
+fn lock_refresh_guard() -> std::sync::MutexGuard<'static, ()> {
+    match TOKEN_REFRESH_LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::error!(
+                lock = "google token refresh",
+                "recovering poisoned refresh lock"
+            );
+            TOKEN_REFRESH_LOCK.clear_poison();
+            poisoned.into_inner()
+        }
+    }
 }
 
 fn now_ms() -> u64 {
@@ -496,6 +516,13 @@ fn refresh_if_needed(
     client: &reqwest::blocking::Client,
     keychain_account: &str,
 ) -> Result<String, String> {
+    let tokens = require_tokens(keychain_account)?;
+    if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
+        return Ok(tokens.access_token);
+    }
+    // Hold the refresh lock across read-modify-write so concurrent commands
+    // cannot race the keychain update; re-check freshness after acquiring.
+    let _refresh_guard = lock_refresh_guard();
     let mut tokens = require_tokens(keychain_account)?;
     if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
         return Ok(tokens.access_token);
