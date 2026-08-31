@@ -3,6 +3,8 @@
 ## Unreleased
 
 ### Fixed
+- Fixed docked side panels (git, MCP, settings, knowledge) rendering beneath the sticky top bar: the dock now starts below the bar and its header and tabs are always reachable; visual baselines and README captures were regenerated for the corrected geometry.
+- Smoothed the typing path: word counting no longer allocates a word array per keystroke, draft stats and citation extraction render from deferred draft values, glass blur tiers were lightened (16px default), and reduced-transparency now strips modal and palette backdrop blurs as well.
 - Resolved the 2026-08-30 forensic review findings: OAuth stateless-probe handling, daemon outside-lock read-only scans, truthful export-history running state, chrome preference persistence and validation, top-bar i18n coverage, reduced-transparency and resize coalescing, portable Playwright web servers, a container gate that executes the contract suite, and worktree-proof source-test and version walkers.
 
 ## 1.0.7 — 2026-08
