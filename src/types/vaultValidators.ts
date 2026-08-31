@@ -293,6 +293,23 @@ export function parseVaultConfig(payload: string): VaultConfig {
     config.canvas = { crdt_enabled: expectBoolean(canvas, 'crdt_enabled', `${context}.canvas`) }
   }
 
+  if (record.semantic !== undefined) {
+    const semantic = expectRecord(record.semantic, `${context}.semantic`)
+    const provider = expectString(semantic, 'provider', `${context}.semantic`)
+    if (!['none', 'ollama', 'openai'].includes(provider)) {
+      throw new Error(`${context}.semantic.provider: unsupported value`)
+    }
+    config.semantic = {
+      provider: provider as NonNullable<VaultConfig['semantic']>['provider'],
+      base_url: optionalNullableString(semantic.base_url, `${context}.semantic.base_url`),
+      model: optionalNullableString(semantic.model, `${context}.semantic.model`),
+      dimension:
+        semantic.dimension === undefined || semantic.dimension === null
+          ? null
+          : expectNumber(semantic, 'dimension', `${context}.semantic.dimension`),
+    }
+  }
+
   if (record.mcp !== undefined) {
     const mcp = expectRecord(record.mcp, `${context}.mcp`)
     const mode = expectString(mcp, 'mode', `${context}.mcp`)

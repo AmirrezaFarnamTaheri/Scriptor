@@ -326,6 +326,13 @@ export interface VaultConfig {
     /** Custom focus outline color (CSS value) */
     focus_outline_color?: string
   }
+  /** Semantic (embedding) search; opt-in, keys live in the OS keychain */
+  semantic?: {
+    provider: 'none' | 'ollama' | 'openai'
+    base_url?: string | null
+    model?: string | null
+    dimension?: number | null
+  }
   /** Feature flags: modules that can be enabled/disabled per-vault */
   features?: {
     latex: boolean

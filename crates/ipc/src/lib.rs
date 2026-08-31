@@ -68,6 +68,18 @@ pub enum RpcMethod {
         query: String,
         limit: u32,
     },
+    // Semantic search: falls back to an "unavailable" payload when the vault
+    // has no `semantic` section; the OpenAI key travels per-request from the
+    // OS keychain and is never persisted. (Comments kept out of the enum body:
+    // the operation-contract generator scans variant names here.)
+    EmbeddingsSearch {
+        query: String,
+        limit: u32,
+        api_key: Option<String>,
+    },
+    EmbeddingsSync {
+        api_key: Option<String>,
+    },
     ReadNote {
         path: String,
     },

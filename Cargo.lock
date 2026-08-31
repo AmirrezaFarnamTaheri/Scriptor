@@ -5602,6 +5602,7 @@ dependencies = [
  "postcard",
  "pulldown-cmark",
  "scriptor-canvas-engine",
+ "scriptor-embeddings",
  "scriptor-export-runner",
  "scriptor-indexer",
  "scriptor-ipc",
@@ -5654,6 +5655,8 @@ version = "1.0.7"
 dependencies = [
  "reqwest",
  "rusqlite",
+ "scriptor-export-runner",
+ "scriptor-vault",
  "serde",
  "tempfile",
  "thiserror 2.0.20",

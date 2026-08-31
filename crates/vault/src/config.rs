@@ -386,8 +386,66 @@ pub struct VaultConfig {
     pub accessibility: Option<AccessibilityConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<FeaturesConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub semantic: Option<SemanticConfig>,
 }
 
+/// Semantic (embedding) search configuration. Opt-in: an absent section (or
+/// `provider: "none"`) keeps search keyword-only. API keys never live in
+/// this file — the OpenAI key is supplied per request from the OS keychain.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SemanticConfig {
+    /// `"ollama"` (local server) or `"openai"`; `"none"` disables the feature.
+    pub provider: String,
+    /// Ollama base URL, e.g. `http://localhost:11434`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub base_url: Option<String>,
+    /// Embedding model id, e.g. `nomic-embed-text` or `text-embedding-3-small`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    /// Embedding dimension; must match the model output (e.g. 768 for
+    /// nomic-embed-text, 1536 for text-embedding-3-small).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dimension: Option<usize>,
+}
+
+#[cfg(test)]
+mod semantic_config_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn semantic_section_round_trips() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let config = VaultConfig {
+            semantic: Some(SemanticConfig {
+                provider: "ollama".into(),
+                base_url: Some("http://localhost:11434".into()),
+                model: Some("nomic-embed-text".into()),
+                dimension: Some(768),
+            }),
+            ..VaultConfig::default()
+        };
+        save_vault_config(dir.path(), &config)?;
+        let loaded = load_vault_config(dir.path())?;
+        let semantic = loaded.semantic.expect("semantic section");
+        assert_eq!(semantic.provider, "ollama");
+        assert_eq!(semantic.base_url.as_deref(), Some("http://localhost:11434"));
+        assert_eq!(semantic.model.as_deref(), Some("nomic-embed-text"));
+        assert_eq!(semantic.dimension, Some(768));
+        Ok(())
+    }
+
+    #[test]
+    fn semantic_section_is_optional() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        let config = VaultConfig::default();
+        save_vault_config(dir.path(), &config)?;
+        let loaded = load_vault_config(dir.path())?;
+        assert!(loaded.semantic.is_none());
+        Ok(())
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TrustedBinaries {
     #[serde(default)]
@@ -490,6 +548,7 @@ impl Default for VaultConfig {
             reading_list: None,
             accessibility: None,
             features: None,
+            semantic: None,
         }
     }
 }

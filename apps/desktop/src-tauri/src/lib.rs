@@ -58,6 +58,7 @@ use commands::reader::{reader_load_annotations, reader_read_document, reader_sav
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
+use commands::semantic::{semantic_search, semantic_sync};
 use commands::system::{
     ai_provider_delete_api_key, ai_provider_has_api_key, ai_provider_propose_draft,
     ai_provider_set_api_key, copy_text_to_clipboard, diagnostics_append_event,
@@ -168,6 +169,8 @@ pub fn run() {
             indexer_list_bibliography,
             indexer_backlinks,
             indexer_graph,
+            semantic_search,
+            semantic_sync,
             export_discover,
             export_run_note,
             export_run_markdown,

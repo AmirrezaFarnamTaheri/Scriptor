@@ -7,6 +7,9 @@ use scriptor_vault::PluginState;
 pub fn capability_for_method(method: &RpcMethod) -> Option<&'static str> {
     match method {
         RpcMethod::GraphSummary { .. } => Some("scriptor.graph"),
+        RpcMethod::EmbeddingsSearch { .. } | RpcMethod::EmbeddingsSync { .. } => {
+            Some("scriptor.semantic")
+        }
         RpcMethod::ExportRunNote { .. }
         | RpcMethod::ExportRunMarkdown { .. }
         | RpcMethod::ExportStartNote { .. }

@@ -49,8 +49,9 @@ pub use activity_log::{
 pub use config::{
     AccessibilityConfig, AutosuggestConfig, CalendarSyncConfig, CustomCallout, DailyNotePlan,
     ExportOnSaveConfig, FeaturesConfig, GraphGroupRule, LatexConfig, ReadingListConfig, SavedView,
-    TrustedBinaries, VaultConfig, WritingTargetsConfig, build_note_markdown, load_vault_config,
-    load_vault_template, plan_daily_note, preview_daily_tokens, save_vault_config,
+    SemanticConfig, TrustedBinaries, VaultConfig, WritingTargetsConfig, build_note_markdown,
+    load_vault_config, load_vault_template, plan_daily_note, preview_daily_tokens,
+    save_vault_config,
 };
 pub use crypto::{
     EnvelopeHeader, decrypt, decrypt_with_passphrase, encrypt, encrypt_with_passphrase,

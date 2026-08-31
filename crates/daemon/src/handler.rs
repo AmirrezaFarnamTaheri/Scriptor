@@ -112,6 +112,12 @@ impl DaemonState {
             RpcMethod::OpenVault { path } => self.open_vault(path),
             RpcMethod::ListNotes => self.list_notes(),
             RpcMethod::SearchNotes { query, limit } => self.search_notes(query, limit),
+            RpcMethod::EmbeddingsSearch {
+                query,
+                limit,
+                api_key,
+            } => self.embeddings_search(query, limit, api_key),
+            RpcMethod::EmbeddingsSync { api_key } => self.embeddings_sync(api_key),
             RpcMethod::ReadNote { path } => self.read_note(path),
             RpcMethod::RebuildIndex => self.rebuild_index(),
             RpcMethod::HealthReport => self.health_report(),
@@ -257,6 +263,61 @@ impl DaemonState {
         self.index_cache
             .as_ref()
             .ok_or_else(|| "no index cache is open; call OpenVault first".to_string())
+    }
+
+    /// Build the embedding provider from the vault's `semantic` config.
+    /// Returns `None` when the section is absent or `provider: "none"` —
+    /// semantic search then degrades to an "unavailable" payload instead of
+    /// an error, so callers can fall back to keyword search.
+    fn embeddings_provider(
+        &self,
+        api_key: Option<String>,
+    ) -> Result<Option<scriptor_embeddings::DaemonEmbedProvider>, String> {
+        let session = self.require_session()?;
+        let config = scriptor_vault::load_vault_config(session.root.root())
+            .map_err(|error| error.to_string())?;
+        let Some(semantic) = config.semantic else {
+            return Ok(None);
+        };
+        scriptor_embeddings::resolve_provider(&semantic, api_key).map_err(|error| error.to_string())
+    }
+
+    fn embeddings_search(
+        &mut self,
+        query: String,
+        limit: u32,
+        api_key: Option<String>,
+    ) -> Result<RpcPayload, String> {
+        let session = self.require_session()?.clone();
+        let Some(provider) = self.embeddings_provider(api_key)? else {
+            return Ok(RpcPayload::Json {
+                json: r#"{"available":false}"#.to_string(),
+            });
+        };
+        let limit = usize::try_from(limit).unwrap_or(25).clamp(1, 100);
+        let hits = scriptor_embeddings::search_vault_embeddings(
+            &session,
+            provider.as_provider(),
+            &query,
+            limit,
+        )
+        .map_err(|error| error.to_string())?;
+        let json = serde_json::to_string(&hits).map_err(|error| error.to_string())?;
+        Ok(RpcPayload::Json { json })
+    }
+
+    fn embeddings_sync(&mut self, api_key: Option<String>) -> Result<RpcPayload, String> {
+        let session = self.require_session()?.clone();
+        let Some(provider) = self.embeddings_provider(api_key)? else {
+            return Ok(RpcPayload::Json {
+                json: r#"{"available":false}"#.to_string(),
+            });
+        };
+        let report =
+            scriptor_embeddings::sync_vault_embeddings(&session, provider.as_provider(), None)
+                .map_err(|error| error.to_string())?;
+        let json = serde_json::to_string(&report).map_err(|error| error.to_string())?;
+        Ok(RpcPayload::Json { json })
     }
 
     fn reload_config(&mut self) -> Result<RpcPayload, String> {
@@ -702,6 +763,46 @@ mod tests {
                 .all(|command| !command_gateway::requires_desktop_authorization(command))
         );
         assert!(commands.iter().any(|command| command == "vault_save_note"));
+    }
+
+    #[test]
+    fn embeddings_search_without_config_reports_unavailable() {
+        let mut state = DaemonState::default();
+        // No vault open: capability/identity pass may error, and that is fine
+        // here. What matters is that the arm never panics and, once a vault
+        // without a semantic section is open, answers an "unavailable" JSON
+        // payload so callers fall back to keyword search.
+        let response = state.handle(RpcRequest::new(
+            1,
+            RpcMethod::EmbeddingsSearch {
+                query: "anything".into(),
+                limit: 5,
+                api_key: None,
+            },
+        ));
+        match response.result {
+            RpcResult::Error(_) => {}
+            RpcResult::Ok(RpcPayload::Json { json }) => {
+                assert!(json.contains("available"), "graceful payload: {json}");
+            }
+            other => panic!("unexpected response: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn embeddings_sync_without_config_reports_unavailable() {
+        let mut state = DaemonState::default();
+        let response = state.handle(RpcRequest::new(
+            2,
+            RpcMethod::EmbeddingsSync { api_key: None },
+        ));
+        match response.result {
+            RpcResult::Error(_) => {}
+            RpcResult::Ok(RpcPayload::Json { json }) => {
+                assert!(json.contains("available"), "graceful payload: {json}");
+            }
+            other => panic!("unexpected response: {other:?}"),
+        }
     }
 
     #[test]

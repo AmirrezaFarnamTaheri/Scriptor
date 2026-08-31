@@ -57,6 +57,7 @@ test('vault config runtime parser preserves every supported optional section', (
     'extra_roots',
     'canvas',
     'mcp',
+    'semantic',
   ]) {
     assert.ok(source.includes(field), `vault config parser missing ${field}`)
   }
