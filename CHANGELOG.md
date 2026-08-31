@@ -11,7 +11,6 @@
 
 ### Fixed
 - Made verified production releases publish automatically after the immutable exact-commit CI, packaging, quality, provenance, SBOM, checksum, and evidence checks pass; no protected-environment approval wait remains in the release path.
-- Restored WCAG AA contrast for the onboarding tour's primary action in the release headless-browser audit.
 
 ## 1.0.6 — 2026-08
 

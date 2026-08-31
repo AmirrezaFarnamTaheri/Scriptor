@@ -44,6 +44,7 @@ COPY tsconfig*.json ./
 COPY Cargo.lock ./
 COPY Cargo.toml deny.toml rust-toolchain.toml ./
 COPY docs/CAPABILITY-MATURITY.md ./docs/CAPABILITY-MATURITY.md
+COPY docs/security/RUSTSEC-EXCEPTIONS.md ./docs/security/RUSTSEC-EXCEPTIONS.md
 
 # The container smoke gate must execute something: run the dependency-free
 # source-contract suite (node stdlib only — every file it reads is COPYed
