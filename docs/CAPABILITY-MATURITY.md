@@ -27,7 +27,7 @@ This ledger is authoritative for support claims. “Implemented” means source 
 | Local recovery snapshots | Supported | `commands/backup.rs` | Included |
 | External DR backups | Supported foundation; drill required per release | `commands/backup.rs` | Included |
 | Encrypted vaults | Experimental primitives only | `crates/vault/src/encryption.rs` | Not a supported vault mode |
-| Rust citation-engine prototype | Incubating | `crates/citation-engine/` | Workspace-only prototype; not composed into desktop/daemon/CLI |
+| Rust citation-engine (BibLaTeX parsing) | Supported | `crates/citation-engine/`, `crates/indexer/src/bibliography.rs` | The indexer parses `.bib` files through the engine (hayagriva grammar): fatal parse errors degrade to a warning and per-entry conversion failures are skipped; the citeproc rendering surface of the crate stays incubating |
 | Zotero Web API connector | Experimental / library-only | `packages/zotero-connector/` | Read-only library; not composed into the product and no shipped sync UI |
 | Google Calendar and Tasks | Experimental desktop integration | `apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/hooks/useGoogleCalendarSync.ts` | OAuth PKCE and OS-keychain tokens; requires configured Google client ID and broader browser-flow evidence before support claim |
 | Gmail native bridge (manager UI composed, capability-gated) | Experimental desktop integration | `apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/bridge/commands/google_gmail.ts` | Composed behind the `scriptor.gmail-manager` plugin capability: listed only when the plugin is explicitly enabled, and every native command (including reads and auth) re-checks the capability at the boundary; bounded message listing with concurrent fetches |
