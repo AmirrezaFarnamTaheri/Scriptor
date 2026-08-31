@@ -147,8 +147,8 @@ function applyVisualPrefsToElement(chrome: WorkspaceChromePrefs) {
   const blurMap: Record<GlassBlurIntensity, string> = {
     none: 'none',
     subtle: 'blur(12px) saturate(1.2)',
-    glass: 'blur(24px) saturate(1.6)',
-    heavy: 'blur(40px) saturate(2.0)',
+    glass: 'blur(16px) saturate(1.6)',
+    heavy: 'blur(28px) saturate(2.0)',
   }
   root.style.setProperty('--glass-blur', blurMap[chrome.glassBlur] || blurMap.glass)
 }

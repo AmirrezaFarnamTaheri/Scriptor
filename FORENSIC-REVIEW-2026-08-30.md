@@ -90,10 +90,17 @@ Every divergent branch was diffed and cross-checked against HEAD by content, not
 **Fixed this session:** resize-storm layout thrash (F13), forced per-frame blur under reduced-transparency (F12), dead-render cost of the dock history (F5/F6), container/redundant-lock stalls on the daemon path (F9).
 
 **Remaining, ordered by expected impact (not fixed here — each needs its own measured PR):**
-1. **Parallel vault scan (jwalk)** — the one remediation never implemented; serial `WalkDir` is syscall-bound on 50K+ entry vaults (~2–5× expected). New dependency → benchmark first (the repo has bench harnesses ready: `bench:scan-5k/25k`).
-2. **Gmail list N+1** — `google_gmail_list_messages` issues up to 50 sequential GETs (30 s timeout each); under main-thread/network stall the manager panel appears frozen. Sketch: bounded-concurrency fetch pool or Gmail batch endpoint.
+1. ~~Parallel vault scan (jwalk)~~ — **measured and rejected** (see roadmap execution below): jwalk's per-entry `metadata()` re-stat discards walkdir's readdir-cached NTFS metadata; 1k scan measured 97ms vs 75ms.
+2. ~~Gmail list N+1~~ — **fixed** (bounded-concurrency fetch, 8 at a time).
 3. **Non-passive capture wheel listener** (`useAppZoom`) — required for Ctrl+wheel zoom interception, but forces main-thread routing of every wheel event. The handler early-returns cheaply, so cost is small; if scroll jank is reported under load, consider scoping the non-passive listener to zoom-capable surfaces.
-4. **Glass blur default** — `blur(24px)` stays on by default for aesthetics (reduced-transparency users now opt out automatically). If jank reports persist, consider blur(12px) as the default `glass` tier.
+4. **Glass blur default** — **reduced** (glass 24→16px, heavy 40→28px; palette panel follows the theme tier; reduced-transparency covers modals/palette/plugin-manager). If jank reports persist, consider blur(12px) as the default `glass` tier.
+
+### Smoothness pass (2026-08-30, commit `f269f499`)
+Typing-path audit found the per-keystroke main-thread costs and removed them:
+- `countWords` materialized a word array per keystroke (`trim().split(/\s+/)`) — now a single allocation-free pass with exact JS-`\s` semantics, pinned by a split-reference test over a 50k-word document and Unicode whitespace.
+- Draft stats (`useNoteDraftStats`) and citation-key extraction render from `useDeferredValue` — their full-document scans run at lower priority instead of inside the keystroke frame.
+- Glass compositing lightened (tiers above); palette panel now honors the theme blur tier and reduced-transparency opt-out.
+Verified: tsc clean, source tests 0 failures, editor countWords reference tests 3/3, targeted e2e 16/16.
 
 ### Phase 8–9: Knowledge preservation & implementation roadmap
 

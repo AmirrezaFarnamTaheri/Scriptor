@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
 import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
@@ -871,14 +871,17 @@ function App() {
     ],
   )
 
+  // Citation key extraction re-scans the whole draft; deferring it keeps
+  // that scan off the keystroke frame for large notes.
+  const deferredCitationDraft = useDeferredValue(workspace.draftMarkdown)
   const citationRows = useMemo(() => {
-    const inline = extractPandocCitationKeys(workspace.draftMarkdown)
+    const inline = extractPandocCitationKeys(deferredCitationDraft)
     const unresolved =
       workspace.healthDiagnostics?.issues
         .filter((issue) => issue.kind === 'unresolved_citation' && issue.path === workspace.activePath)
         .map((issue) => issue.detail.replace('missing bibliography entry: ', '')) ?? []
     return Array.from(new Set([...inline, ...unresolved]))
-  }, [workspace.activePath, workspace.draftMarkdown, workspace.healthDiagnostics])
+  }, [workspace.activePath, deferredCitationDraft, workspace.healthDiagnostics])
 
   const { formatInline, formatBibliography } = useCiteprocPreview(bibliography, citationRows)
 
