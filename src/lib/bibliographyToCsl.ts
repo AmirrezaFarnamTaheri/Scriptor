@@ -1,10 +1,36 @@
 import type { BibliographyEntry } from '../types/vault'
 
+// Keys are the normalized kebab-case work types the indexer now emits
+// (hayagriva taxonomy via scriptor-citation-engine). "inbook" and
+// "incollection" stay as legacy aliases for rows cached before the engine
+// swap; the next vault rebuild rewrites them.
 const ENTRY_TYPE_MAP: Record<string, string> = {
   article: 'article-journal',
   book: 'book',
+  chapter: 'chapter',
+  anthos: 'chapter',
   inbook: 'chapter',
   incollection: 'chapter',
+  anthology: 'book',
+  proceedings: 'book',
+  report: 'report',
+  thesis: 'thesis',
+  manuscript: 'manuscript',
+  reference: 'entry-dictionary',
+  entry: 'entry',
+  newspaper: 'article-newspaper',
+  legislation: 'legislation',
+  case: 'legal_case',
+  patent: 'patent',
+  web: 'webpage',
+  post: 'post',
+  thread: 'post',
+  blog: 'post-weblog',
+  repository: 'dataset',
+  video: 'motion_picture',
+  audio: 'song',
+  artwork: 'graphic',
+  conference: 'paper-conference',
   misc: 'article',
 }
 

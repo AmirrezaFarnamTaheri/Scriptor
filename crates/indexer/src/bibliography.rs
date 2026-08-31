@@ -1,9 +1,8 @@
 use std::fs;
 use std::path::Path;
-use std::sync::LazyLock;
 
-use regex::Regex;
 use rusqlite::params;
+use scriptor_citation_engine::CitationEntryExcerpt;
 use serde::{Deserialize, Serialize};
 
 use scriptor_vault::{ScannedEntryKind, VaultSession, scan_vault};
@@ -11,17 +10,6 @@ use scriptor_vault::{ScannedEntryKind, VaultSession, scan_vault};
 use crate::citation::register_bibliography_keys_on;
 use crate::db::IndexCache;
 use crate::error::IndexerError;
-
-static ENTRY_START_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"@([A-Za-z]+)\s*\{\s*([^,\s]+)\s*,"#).expect("valid bib entry regex")
-});
-static TITLE_FIELD_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"title\s*=\s*\{([^}]*)\}"#).expect("valid title regex"));
-static AUTHOR_FIELD_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r#"author\s*=\s*\{([^}]*)\}"#).expect("valid author regex"));
-static YEAR_FIELD_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"year\s*=\s*(?:\{([^}]*)\}|(\d{4}))"#).expect("valid year regex")
-});
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct BibliographyEntry {
@@ -107,65 +95,52 @@ pub fn list_bibliography_entries(
     Ok(entries)
 }
 
+/// Parse `.bib` content into bibliography rows.
+///
+/// Parsing is delegated to `scriptor-citation-engine` (Hayagriva's BibLaTeX
+/// grammar), replacing the hand-rolled regex scan: quoted values, nested
+/// braces, `@string` macros, and entry boundaries are now handled by the
+/// grammar instead of field-slicing heuristics, and a field can no longer
+/// leak from one entry into the next.
+///
+/// A file that cannot be parsed at all degrades to an empty row set with a
+/// warning: one broken `.bib` must not fail the whole vault rebuild.
 fn parse_bibtex(raw: &str, source_path: &str) -> Vec<BibliographyEntry> {
-    let mut entries = Vec::new();
-
-    // Entry boundaries have to be known up front: without them a field lookup runs to EOF and an
-    // entry that omits a field silently inherits that field from a later entry.
-    let starts: Vec<usize> = ENTRY_START_RE
-        .find_iter(raw)
-        .map(|matched| matched.start())
-        .collect();
-
-    for (index, capture) in ENTRY_START_RE.captures_iter(raw).enumerate() {
-        let entry_type = capture.get(1).map(|value| value.as_str()).unwrap_or("misc");
-        let key = capture
-            .get(2)
-            .map(|value| value.as_str().trim())
-            .unwrap_or("")
-            .to_string();
-        if key.is_empty() {
-            continue;
+    match scriptor_citation_engine::parse_lenient(raw) {
+        Ok(excerpts) => excerpts
+            .into_iter()
+            .map(|excerpt| bibliography_entry_from_excerpt(excerpt, source_path))
+            .collect(),
+        Err(error) => {
+            tracing::warn!(
+                source_path = %source_path,
+                error = %error,
+                "skipping unparseable bibliography file"
+            );
+            Vec::new()
         }
-
-        let start = capture.get(0).map(|value| value.start()).unwrap_or(0);
-        let end = starts.get(index + 1).copied().unwrap_or(raw.len());
-        let slice = &raw[start..end];
-        let title = TITLE_FIELD_RE
-            .captures(slice)
-            .and_then(|title_capture| title_capture.get(1))
-            .map(|value| normalize_bib_value(value.as_str()))
-            .unwrap_or_else(|| key.clone());
-        let author = AUTHOR_FIELD_RE
-            .captures(slice)
-            .and_then(|author_capture| author_capture.get(1))
-            .map(|value| normalize_bib_value(value.as_str()))
-            .unwrap_or_default();
-        let year = YEAR_FIELD_RE
-            .captures(slice)
-            .and_then(|year_capture| {
-                year_capture
-                    .get(1)
-                    .or_else(|| year_capture.get(2))
-                    .map(|value| normalize_bib_value(value.as_str()))
-            })
-            .unwrap_or_default();
-
-        entries.push(BibliographyEntry {
-            key,
-            title,
-            source_path: source_path.to_string(),
-            entry_type: entry_type.to_string(),
-            author,
-            year,
-        });
     }
-
-    entries
 }
 
-fn normalize_bib_value(value: &str) -> String {
-    value.replace(['{', '}'], "").trim().to_string()
+fn bibliography_entry_from_excerpt(
+    excerpt: CitationEntryExcerpt,
+    source_path: &str,
+) -> BibliographyEntry {
+    let mut entry_type = excerpt.entry_type;
+    // Hayagriva models @inproceedings as an article inside proceedings; the
+    // bibliography CSL mapper still keys on the classic label.
+    if entry_type == "article" && excerpt.parents.iter().any(|parent| parent == "proceedings") {
+        entry_type = "inproceedings".to_string();
+    }
+
+    BibliographyEntry {
+        title: excerpt.title.unwrap_or_else(|| excerpt.key.clone()),
+        source_path: source_path.to_string(),
+        entry_type,
+        author: excerpt.authors.join("; "),
+        year: excerpt.year.unwrap_or_default(),
+        key: excerpt.key,
+    }
 }
 
 pub fn default_bibliography_paths(vault_root: &Path) -> Vec<String> {
@@ -200,8 +175,11 @@ mod tests {
         let entries = parse_bibtex(raw, "refs.bib");
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].key, "smith2024");
+        assert_eq!(entries[0].entry_type, "article");
         assert_eq!(entries[0].title, "An Example Paper");
         assert_eq!(entries[0].author, "Smith, Jane");
+        assert_eq!(entries[1].key, "doe2023");
+        assert_eq!(entries[1].entry_type, "book");
     }
 
     #[test]
@@ -232,9 +210,43 @@ mod tests {
         // `a` has no title/year of its own: it must fall back, not borrow `b`'s values.
         assert_eq!(entries[0].key, "a");
         assert_eq!(entries[0].title, "a");
-        assert_eq!(entries[0].author, "Author A");
+        // BibLaTeX "Given Family" word order normalizes to "Family, Given".
+        assert_eq!(entries[0].author, "A, Author");
         assert_eq!(entries[0].year, "");
         assert_eq!(entries[1].title, "Only B Has A Title");
         assert_eq!(entries[1].year, "2001");
+    }
+
+    #[test]
+    fn inproceedings_keeps_the_classic_label() {
+        let raw = r#"
+@inproceedings{conf2024,
+  title = {A Conference Paper},
+  booktitle = {Proceedings of Testing},
+  year = {2024}
+}
+"#;
+        let entries = parse_bibtex(raw, "refs.bib");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].entry_type, "inproceedings");
+    }
+
+    #[test]
+    fn unparseable_files_yield_no_entries_instead_of_failing_the_sync() {
+        let entries = parse_bibtex("@article{key, author = {unclosed brace", "refs.bib");
+        assert!(entries.is_empty());
+    }
+
+    #[test]
+    fn parses_the_minimal_fixture() {
+        let raw = include_str!("../../../packages/test-fixtures/vaults/minimal/references.bib");
+        let entries = parse_bibtex(raw, "references.bib");
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].key, "smith2024");
+        assert_eq!(entries[0].title, "Research Methods");
+        assert_eq!(entries[0].author, "Smith, Jane");
+        assert_eq!(entries[0].year, "2024");
+        assert_eq!(entries[0].entry_type, "article");
+        assert_eq!(entries[0].source_path, "references.bib");
     }
 }

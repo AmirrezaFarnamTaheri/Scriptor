@@ -5552,9 +5552,12 @@ dependencies = [
 name = "scriptor-citation-engine"
 version = "1.0.7"
 dependencies = [
+ "biblatex",
  "hayagriva",
  "serde",
+ "serde_json",
  "thiserror 2.0.20",
+ "tracing",
 ]
 
 [[package]]
@@ -5690,6 +5693,7 @@ dependencies = [
  "r2d2_sqlite",
  "regex",
  "rusqlite",
+ "scriptor-citation-engine",
  "scriptor-export-runner",
  "scriptor-vault",
  "serde",
