@@ -267,6 +267,12 @@ test('desktop Git mutations serialize through the bounded per-repo queue', () =>
     `expected all desktop Git mutations to enqueue through the queue, found ${queueUses.length}`,
   )
   assert.doesNotMatch(gitCommands, /lock_recover\(&state\.git_mutation_lock/)
+  const daemonGateway = read('crates/daemon/src/command_gateway.rs')
+  const daemonEnqueues = [...daemonGateway.matchAll(/\.git_queue\(\)/g)]
+  assert.ok(
+    daemonEnqueues.length >= 4,
+    `expected daemon git mutations to enqueue through the queue, found ${daemonEnqueues.length}`,
+  )
   assert.match(queue, /MAX_PENDING_GIT_OPERATIONS:\s*usize\s*=\s*64/)
   assert.match(queue, /mpsc::sync_channel::<Task>\(MAX_PENDING_GIT_OPERATIONS\)/)
   assert.doesNotMatch(queue, /mpsc::channel::<Task>/)

@@ -31,6 +31,11 @@ pub struct DaemonState {
     pub(crate) watcher_generation: u64,
     pub(crate) endpoint_nonce: Option<String>,
     pub(crate) plugin_state: PluginState,
+    /// Bounded per-repo worker serializing native Git mutations for this vault;
+    /// replaced whenever the vault swaps so a queued op can never target the
+    /// previous repo root.
+    pub(crate) git_queue:
+        std::sync::Mutex<Option<std::sync::Arc<scriptor_native_git::queue::GitQueue>>>,
 }
 
 impl DaemonState {
@@ -209,6 +214,39 @@ impl DaemonState {
         }
     }
 
+    /// Returns the bounded GitQueue worker for the current vault root. The
+    /// handle lives behind a mutex (the daemon lock is NOT held when the queue
+    /// runs the op, so this accessor may be called from the dispatch path) and
+    /// is replaced whenever the stored root no longer matches the session.
+    pub(crate) fn git_queue(&self) -> std::sync::Arc<scriptor_native_git::queue::GitQueue> {
+        let mut guard = match self.git_queue.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::error!(
+                    lock = "daemon git queue",
+                    "recovering poisoned queue handle"
+                );
+                self.git_queue.clear_poison();
+                poisoned.into_inner()
+            }
+        };
+        let root = self
+            .session
+            .as_ref()
+            .expect("git queue requires an open vault")
+            .root
+            .root()
+            .to_path_buf();
+        match guard.as_ref() {
+            Some(queue) if queue.repo_root == root => std::sync::Arc::clone(queue),
+            _ => {
+                let queue = std::sync::Arc::new(scriptor_native_git::queue::GitQueue::new(root));
+                *guard = Some(std::sync::Arc::clone(&queue));
+                queue
+            }
+        }
+    }
+
     pub(crate) fn require_session(&self) -> Result<&VaultSession, String> {
         self.session
             .as_ref()
@@ -243,6 +281,7 @@ impl DaemonState {
         self.index_rebuild.wait();
         self.index_cache = None;
         self.session = None;
+        self.git_queue = std::sync::Mutex::new(None);
         let mut session = open_vault(PathBuf::from(path)).map_err(|error| error.to_string())?;
         self.plugin_state =
             load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;

@@ -603,31 +603,34 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             to_value(git_status(session.root.root()).map_err(|e| e.to_string())?)
         }
         "git_commit_cmd" => {
-            let session = state.require_session()?;
             let files: Vec<String> = require_deserialize(payload, "files")?;
             let message = require_str(payload, "message")?;
             to_value(
-                git_commit_selected(session.root.root(), &files, &message)
+                state
+                    .git_queue()
+                    .enqueue(move |root| git_commit_selected(root, &files, &message))
                     .map_err(|e| e.to_string())?,
             )
         }
-        "git_pull_cmd" => {
-            let session = state.require_session()?;
-            to_value(
-                git_pull(session.root.root(), PullStrategy::FastForward)
-                    .map_err(|e| e.to_string())?,
-            )
-        }
-        "git_push_cmd" => {
-            let session = state.require_session()?;
-            to_value(git_push(session.root.root()).map_err(|e| e.to_string())?)
-        }
+        "git_pull_cmd" => to_value(
+            state
+                .git_queue()
+                .enqueue(move |root| git_pull(root, PullStrategy::FastForward))
+                .map_err(|e| e.to_string())?,
+        ),
+        "git_push_cmd" => to_value(
+            state
+                .git_queue()
+                .enqueue(move |root| git_push(root))
+                .map_err(|e| e.to_string())?,
+        ),
         "git_resolve_conflict_cmd" => {
-            let session = state.require_session()?;
             let path = require_str(payload, "path")?;
             let strategy = require_str(payload, "strategy")?;
             to_value(
-                git_resolve_conflict(session.root.root(), &path, &strategy)
+                state
+                    .git_queue()
+                    .enqueue(move |root| git_resolve_conflict(root, &path, &strategy))
                     .map_err(|e| e.to_string())?,
             )
         }
