@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { gitWorkspaceFiles, hasDotSegment } from '../lib/workspace-files.mjs';
+
 const root = path.resolve(import.meta.dirname, '../..');
 const canonicalPath = path.join(root, 'VERSION');
 const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -29,6 +31,9 @@ const ignoredDirectories = new Set([
   'update-manifests',
 ]);
 
+// Legacy filesystem walk for checkouts without git (packaged source drops).
+// The git listing is preferred: it honors .gitignore and cannot wander into
+// foreign checkouts, while untracked-but-not-ignored manifests still count.
 function walk(dir, name, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     // Dot-directories hold tool state, caches, and linked git worktrees
@@ -43,8 +48,27 @@ function walk(dir, name, out = []) {
   return out;
 }
 
-const jsonFiles = walk(root, 'package.json');
-const cargoFiles = walk(root, 'Cargo.toml').filter((file) => !file.endsWith(`${path.sep}crates${path.sep}ipc${path.sep}fuzz${path.sep}Cargo.toml`));
+function collectLegacyManifests() {
+  return [...walk(root, 'package.json'), ...walk(root, 'Cargo.toml')];
+}
+
+const gitFiles = gitWorkspaceFiles(root);
+if (!gitFiles) console.warn('version: git unavailable, walking the filesystem');
+const manifestCandidates = (gitFiles ?? collectLegacyManifests())
+  .filter((file) => !hasDotSegment(file, root))
+  .filter((file) => !path.relative(root, file).split(path.sep).some((segment) => ignoredDirectories.has(segment)))
+  .filter((file) => {
+    const name = path.basename(file);
+    return name === 'package.json' || name === 'Cargo.toml';
+  });
+const jsonFiles = manifestCandidates.filter((file) => path.basename(file) === 'package.json');
+const cargoFiles = manifestCandidates.filter(
+  (file) =>
+    path.basename(file) === 'Cargo.toml' &&
+    // The ipc fuzz crate is excluded from the workspace; its manifest pins
+    // no release version.
+    !file.replaceAll('\\', '/').endsWith('/crates/ipc/fuzz/Cargo.toml'),
+);
 const tauriFile = path.join(root, 'apps/desktop/src-tauri/tauri.conf.json');
 const sourceVersionFiles = [{
   file: path.join(root, 'packages/mcp/src/server.ts'),

@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { gitWorkspaceFiles, hasDotSegment } from '../lib/workspace-files.mjs'
+
 const root = path.resolve(import.meta.dirname, '../..')
 const ignoredDirectories = new Set([
   'node_modules',
@@ -23,6 +25,10 @@ const ignoredDirectories = new Set([
 ])
 const testPattern = /\.test\.(?:ts|js|mjs)$/
 
+// Legacy filesystem walk for checkouts without git (packaged source drops).
+// The git listing is preferred: it honors .gitignore, so ignored build
+// output never reaches the suite, while untracked-but-not-ignored new tests
+// still run.
 function collect(directory, output) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     // Dot-directories hold tool state, caches, and linked git worktrees
@@ -38,8 +44,18 @@ function collect(directory, output) {
   }
 }
 
-const tests = []
-collect(root, tests)
+function collectLegacyTests() {
+  const output = []
+  collect(root, output)
+  return output
+}
+
+const gitFiles = gitWorkspaceFiles(root)
+if (!gitFiles) console.warn('source tests: git unavailable, walking the filesystem')
+const tests = (gitFiles ?? collectLegacyTests())
+  .filter((file) => testPattern.test(path.basename(file)))
+  .filter((file) => !hasDotSegment(file, root))
+  .filter((file) => !ignoredDirectories.has(path.relative(root, file).split(path.sep)[0]))
 tests.sort()
 if (tests.length === 0) {
   console.error('source tests: no test files discovered')
