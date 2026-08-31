@@ -28,6 +28,12 @@ pub struct ExportProgressReport {
     pub event_index: u32,
     pub result_json: Option<String>,
     pub error: Option<String>,
+    /// Pandoc stderr accumulated so far, so desktop pollers can stream the
+    /// export output live instead of waiting for the final receipt. Grows
+    /// with the job and dies with it; the receipt still carries the final
+    /// stderr. `serde(default)` keeps older desktops parsing new daemons.
+    #[serde(default)]
+    pub stderr_log: String,
 }
 
 impl Default for ExportProgressReport {
@@ -39,8 +45,17 @@ impl Default for ExportProgressReport {
             event_index: 0,
             result_json: None,
             error: None,
+            stderr_log: String::new(),
         }
     }
+}
+
+/// Fold one stderr chunk into a progress report: every chunk is a progress
+/// event, and its text joins the live stderr log.
+fn apply_progress_chunk(report: &mut ExportProgressReport, chunk: &str) {
+    report.event_index = report.event_index.saturating_add(1);
+    report.phase = "exporting".into();
+    report.stderr_log.push_str(chunk);
 }
 
 pub struct ExportJobRunner {
@@ -90,6 +105,7 @@ impl ExportJobRunner {
                 event_index: 1,
                 result_json: None,
                 error: None,
+                stderr_log: String::new(),
             };
         }
 
@@ -98,10 +114,9 @@ impl ExportJobRunner {
         let handle = thread::spawn(move || {
             let progress_cb: ExportProgressCallback = Arc::new({
                 let progress = Arc::clone(&progress);
-                move |_chunk: &str| {
+                move |chunk: &str| {
                     let mut guard = lock_recover(&progress);
-                    guard.event_index = guard.event_index.saturating_add(1);
-                    guard.phase = "exporting".into();
+                    apply_progress_chunk(&mut guard, chunk);
                 }
             });
 
@@ -221,6 +236,34 @@ mod tests {
             report.event_index
         );
         assert!(report.result_json.is_some());
+    }
+
+    #[test]
+    fn progress_chunks_accumulate_into_stderr_log() {
+        let mut report = ExportProgressReport::default();
+        apply_progress_chunk(
+            &mut report,
+            "[WARNING] Deprecated flag
+",
+        );
+        apply_progress_chunk(&mut report, "second line\n");
+        assert_eq!(
+            report.stderr_log,
+            "[WARNING] Deprecated flag\nsecond line\n"
+        );
+        assert_eq!(report.phase, "exporting");
+        assert_eq!(report.event_index, 2);
+        // Round-trips through the status payload for desktop pollers.
+        let json = serde_json::to_string(&report).expect("serialize");
+        let parsed: ExportProgressReport = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(parsed.stderr_log, report.stderr_log);
+    }
+
+    #[test]
+    fn missing_stderr_log_deserializes_for_older_desktops() {
+        let legacy = r#"{"job_id":"j","status":"running","phase":"exporting","event_index":2,"result_json":null,"error":null}"#;
+        let parsed: ExportProgressReport = serde_json::from_str(legacy).expect("deserialize");
+        assert_eq!(parsed.stderr_log, "");
     }
 
     #[test]
