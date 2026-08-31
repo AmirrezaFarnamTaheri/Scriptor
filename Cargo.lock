@@ -5580,6 +5580,7 @@ dependencies = [
  "scriptor-native-git",
  "scriptor-publish-runner",
  "scriptor-system-bridge",
+ "scriptor-tantivy-indexer",
  "scriptor-vault",
  "serde",
  "serde_json",

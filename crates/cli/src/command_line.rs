@@ -260,6 +260,17 @@ pub(crate) enum Commands {
         #[arg(long, default_value_t = 10)]
         iterations: u32,
     },
+    /// Measure tantivy warm search latency for the FTS5 comparison. Requires
+    /// the `tantivy` feature.
+    #[cfg(feature = "tantivy")]
+    BenchTantivy {
+        #[arg(value_name = "PATH")]
+        path: PathBuf,
+        #[arg(value_name = "QUERY")]
+        query: String,
+        #[arg(long, default_value_t = 10)]
+        iterations: u32,
+    },
     /// Generate a synthetic Markdown vault fixture for benchmarks.
     GenerateVault {
         #[arg(value_name = "OUTPUT")]
