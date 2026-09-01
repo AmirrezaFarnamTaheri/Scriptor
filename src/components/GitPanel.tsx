@@ -93,7 +93,20 @@ export function GitPanel({
   // Windowed list state: only the rows intersecting the viewport mount, so a
   // 10k-file status stays at a fixed DOM size.
   const [listScrollTop, setListScrollTop] = useState(0)
+  const [listViewportHeight, setListViewportHeight] = useState(420)
   const listViewportRef = useRef<HTMLDivElement | null>(null)
+
+  // Measure the list viewport with a ResizeObserver: refs are not read
+  // during render (react-hooks/refs), so the height lands in state.
+  useEffect(() => {
+    const viewport = listViewportRef.current
+    if (!viewport || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) setListViewportHeight(entry.contentRect.height)
+    })
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     const today = formatLocalDate()
@@ -252,7 +265,7 @@ export function GitPanel({
               >
                 <ul style={{ height: status.changed_files.length * GIT_ROW_HEIGHT, position: 'relative' }}>
                   {(() => {
-                    const viewport = listViewportRef.current?.clientHeight ?? 420
+                    const viewport = listViewportHeight
                     const first = Math.max(0, Math.floor(listScrollTop / GIT_ROW_HEIGHT) - GIT_ROW_OVERSCAN)
                     const visible = Math.ceil(viewport / GIT_ROW_HEIGHT) + GIT_ROW_OVERSCAN * 2
                     const last = Math.min(status.changed_files.length, first + visible)
