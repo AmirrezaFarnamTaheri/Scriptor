@@ -211,6 +211,21 @@
   color: var(--primary);
 }
 
+/* Hybrid search: mark results that arrived through the semantic overlay. */
+.search-hit-semantic {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
 .jobs-panel .dock-list li {
   grid-template-columns: 1fr auto;
   align-items: center;
