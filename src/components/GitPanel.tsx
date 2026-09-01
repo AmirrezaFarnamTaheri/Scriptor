@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
@@ -30,6 +30,11 @@ export interface GitPanelProps {
 }
 
 /** Renders repository status, selection, diff, and confirmation flows for the active vault. */
+/** Row height in px; keeps the window math simple and matches the row CSS. */
+const GIT_ROW_HEIGHT = 36
+/** Rows rendered above/below the viewport to smooth scrolling. */
+const GIT_ROW_OVERSCAN = 8
+
 export function GitPanel({
   status,
   statusError,
@@ -85,6 +90,10 @@ export function GitPanel({
     t('git.organizeLinksAndTags'),
   ]
   const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
+  // Windowed list state: only the rows intersecting the viewport mount, so a
+  // 10k-file status stays at a fixed DOM size.
+  const [listScrollTop, setListScrollTop] = useState(0)
+  const listViewportRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     const today = formatLocalDate()
@@ -236,20 +245,39 @@ export function GitPanel({
                 </button>
               </div>
             ) : (
-              <ul>
-                {status.changed_files.map((file) => (
-                  <GitFileRow
-                    key={file.path}
-                    file={file}
-                    isActive={file.path === activePath}
-                    isSelected={effectiveSelection.includes(file.path)}
-                    onToggleSelect={handleToggleSelect}
-                    onOpenNote={onOpenNote}
-                    onPreviewDiff={handlePreviewDiff}
-                    onResolveConflict={onResolveConflict}
-                  />
-                ))}
-              </ul>
+              <div
+                ref={listViewportRef}
+                onScroll={(event) => setListScrollTop(event.currentTarget.scrollTop)}
+                style={{ maxHeight: '420px', overflowY: 'auto' }}
+              >
+                <ul style={{ height: status.changed_files.length * GIT_ROW_HEIGHT, position: 'relative' }}>
+                  {(() => {
+                    const viewport = listViewportRef.current?.clientHeight ?? 420
+                    const first = Math.max(0, Math.floor(listScrollTop / GIT_ROW_HEIGHT) - GIT_ROW_OVERSCAN)
+                    const visible = Math.ceil(viewport / GIT_ROW_HEIGHT) + GIT_ROW_OVERSCAN * 2
+                    const last = Math.min(status.changed_files.length, first + visible)
+                    return status.changed_files.slice(first, last).map((file, offset) => (
+                      <GitFileRow
+                        key={file.path}
+                        file={file}
+                        isActive={file.path === activePath}
+                        isSelected={effectiveSelection.includes(file.path)}
+                        onToggleSelect={handleToggleSelect}
+                        onOpenNote={onOpenNote}
+                        onPreviewDiff={handlePreviewDiff}
+                        onResolveConflict={onResolveConflict}
+                        style={{
+                          position: 'absolute',
+                          top: (first + offset) * GIT_ROW_HEIGHT,
+                          left: 0,
+                          right: 0,
+                          height: GIT_ROW_HEIGHT,
+                        }}
+                      />
+                    ))
+                  })()}
+                </ul>
+              </div>
             )}
           </div>
 
