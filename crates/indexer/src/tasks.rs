@@ -659,10 +659,21 @@ pub fn sync_note_tasks_from_markdown(
     note_id: &str,
     markdown: &str,
 ) -> Result<(), IndexerError> {
+    let conn = cache.connection()?;
+    sync_note_tasks_from_markdown_on(&conn, vault_id, note_id, markdown)
+}
+
+/// Connection-scoped variant for batched rebuilds; joins the caller's
+/// transaction when one is open on `conn`.
+pub fn sync_note_tasks_from_markdown_on(
+    conn: &rusqlite::Connection,
+    vault_id: &str,
+    note_id: &str,
+    markdown: &str,
+) -> Result<(), IndexerError> {
     let tasks = parse_tasks_from_markdown(markdown);
     let now = chrono::Utc::now().format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    let conn = cache.connection()?;
-    sync_note_tasks(&conn, vault_id, note_id, &tasks, &now)
+    sync_note_tasks(conn, vault_id, note_id, &tasks, &now)
 }
 
 impl TaskRow {

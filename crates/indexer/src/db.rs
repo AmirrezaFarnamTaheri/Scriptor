@@ -87,6 +87,11 @@ fn apply_connection_pragmas(connection: &Connection) -> Result<(), rusqlite::Err
     connection.pragma_update(None, "synchronous", "NORMAL")?;
     connection.pragma_update(None, "busy_timeout", 5_000)?;
     connection.pragma_update(None, "foreign_keys", "ON")?;
+    // Memory-mapped reads + a generous page cache keep hot queries (FTS
+    // lookups, graph walks) off the syscall path at 10k+ note scale.
+    connection.pragma_update(None, "mmap_size", 268_435_456)?;
+    connection.pragma_update(None, "cache_size", -64_000)?;
+    connection.pragma_update(None, "temp_store", "MEMORY")?;
     Ok(())
 }
 

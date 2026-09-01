@@ -1481,6 +1481,33 @@
       ]
     },
     {
+      "name": "semantic_search",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "read-only",
+      "scope": "ai_network_request",
+      "authorizationVariant": "AiNetworkRequest",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_sync",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "local-mutation",
+      "scope": "ai_network_request",
+      "authorizationVariant": "AiNetworkRequest",
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "latex_compile",
       "owner": "apps/desktop/src-tauri/src/commands/latex.rs",
       "authorizationClass": "brokered-sensitive",

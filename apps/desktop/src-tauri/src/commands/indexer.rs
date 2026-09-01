@@ -6,14 +6,13 @@ use scriptor_indexer::{
     health_diagnostics_json, incremental_note_index, incremental_notes_index,
     list_bibliography_entries, list_dead_end_notes, list_inbox_notes, list_note_summaries,
     list_orphan_notes, list_recent_files, list_unresolved_link_targets, list_vault_tags,
-    load_note_metadata, move_card_in_markdown, notes_for_tag, open_cache_for_session, parse_kanban,
-    parse_note_markdown, query_focused_graph, query_tasks, rebuild_index, record_recent_access,
-    resolve_wikilink_target_with_aliases, rewrite_task_markdown, search_notes,
-    sync_note_tasks_from_markdown, task_by_id, traverse_graph,
+    load_note_metadata, move_card_in_markdown, note_paths_and_aliases, notes_for_tag,
+    open_cache_for_session, parse_kanban, query_focused_graph, query_tasks, rebuild_index,
+    record_recent_access, resolve_wikilink_target_with_aliases, rewrite_task_markdown,
+    search_notes, sync_note_tasks_from_markdown, task_by_id, traverse_graph,
 };
 use scriptor_vault::{
     RelativeVaultPath, SaveNoteOptions, load_vault_config, read_note, save_note_with_options,
-    scan_vault,
 };
 
 use crate::AppState;
@@ -206,23 +205,11 @@ pub fn indexer_resolve_wikilink(
     target: String,
 ) -> Result<WikilinkResolution, String> {
     let session = active_session(&state)?;
-    let scanned = scan_vault(&session.root).map_err(|error| error.to_string())?;
-    let mut note_paths = Vec::new();
-    let mut aliases_by_path = std::collections::BTreeMap::new();
-    for entry in scanned {
-        if entry.kind != scriptor_vault::ScannedEntryKind::Note {
-            continue;
-        }
-        note_paths.push(entry.path.clone());
-        if let Ok(relative) = RelativeVaultPath::parse(&entry.path)
-            && let Ok(document) = read_note(&session.descriptor.id, &session.root, &relative)
-        {
-            let parsed = parse_note_markdown(&entry.path, &document.markdown);
-            if !parsed.aliases.is_empty() {
-                aliases_by_path.insert(entry.path, parsed.aliases);
-            }
-        }
-    }
+    // SQLite fast path: aliases_json is maintained by the indexer (v9+), so
+    // resolution is one indexed query instead of an O(n) disk scan.
+    let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
+    let (note_paths, aliases_by_path) = note_paths_and_aliases(&cache, &session.descriptor.id)
+        .map_err(|error| error.to_string())?;
     Ok(resolve_wikilink_target_with_aliases(
         &note_paths,
         &aliases_by_path,

@@ -8,9 +8,11 @@ use crate::citation::register_bibliography_keys;
 use crate::db::{IndexCache, default_cache_path};
 use crate::error::IndexerError;
 use crate::health::{CacheStatus, VaultHealthReport, build_health_report};
-use crate::links::{replace_note_links, resolve_link_targets};
-use crate::notes::{note_needs_reindex, remove_note_from_index, session_cache_path, upsert_note};
-use crate::tasks::sync_note_tasks_from_markdown;
+use crate::links::{replace_note_links, replace_note_links_on, resolve_link_targets};
+use crate::notes::{
+    note_needs_reindex, remove_note_from_index, session_cache_path, upsert_note, upsert_note_on,
+};
+use crate::tasks::{sync_note_tasks_from_markdown, sync_note_tasks_from_markdown_on};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct RebuildSummary {
@@ -96,53 +98,70 @@ pub fn rebuild_index_with_progress(
     let mut indexed_notes = 0u32;
     let mut skipped_notes = 0u32;
     let mut links_written = 0u32;
-    let progress_stride = (notes_total / 3).max(1);
+    let progress_stride = (notes_total / 3).max(1) as usize;
 
-    for (index, entry) in note_entries.into_iter().enumerate() {
-        if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
-            skipped_notes += 1;
-            tracing::warn!(
-                path = %entry.path,
-                size_bytes = entry.size_bytes,
-                limit_bytes = MAX_INDEXED_NOTE_BYTES,
-                "skipping oversized note during index rebuild"
-            );
-            continue;
-        }
-        let path = scriptor_vault::RelativeVaultPath::parse(&entry.path)?;
-        // Reuse the content the scan already read instead of re-reading every
-        // file; fall back to a fresh read if the scan did not capture it.
-        let note = match (entry.content, entry.modified_at) {
-            (Some(markdown), Some(modified_at)) => NoteDocument {
-                metadata: metadata_from_markdown(
+    // One transaction per chunk: 500 notes share a single WAL commit instead
+    // of paying fsync per note (SQLite group-commit dominates rebuild cost
+    // on spinning and SSD disks alike).
+    const NOTES_PER_TRANSACTION: usize = 500;
+    let conn = cache.connection()?;
+    let mut processed = 0usize;
+
+    for chunk in note_entries.chunks(NOTES_PER_TRANSACTION) {
+        let transaction = conn.unchecked_transaction()?;
+        let tx = &transaction;
+        for entry in chunk.iter() {
+            if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
+                skipped_notes += 1;
+                tracing::warn!(
+                    path = %entry.path,
+                    size_bytes = entry.size_bytes,
+                    limit_bytes = MAX_INDEXED_NOTE_BYTES,
+                    "skipping oversized note during index rebuild"
+                );
+                continue;
+            }
+            let path = scriptor_vault::RelativeVaultPath::parse(&entry.path)?;
+            // Reuse the content the scan already read instead of re-reading every
+            // file; fall back to a fresh read if the scan did not capture it.
+            let note = match (entry.content.clone(), entry.modified_at.clone()) {
+                (Some(markdown), Some(modified_at)) => NoteDocument {
+                    metadata: metadata_from_markdown(
+                        &session.descriptor.id,
+                        &path,
+                        &markdown,
+                        modified_at,
+                    ),
+                    markdown,
+                },
+                _ => read_note(&session.descriptor.id, &session.root, &path)?,
+            };
+
+            if !note_needs_reindex(&cache, &note.metadata, &note.markdown)? {
+                skipped_notes += 1;
+            } else {
+                upsert_note_on(tx, &note.metadata, &note.markdown)?;
+                sync_note_tasks_from_markdown_on(
+                    tx,
                     &session.descriptor.id,
-                    &path,
-                    &markdown,
-                    modified_at,
-                ),
-                markdown,
-            },
-            _ => read_note(&session.descriptor.id, &session.root, &path)?,
-        };
+                    &entry.path,
+                    &note.markdown,
+                )?;
+                links_written += replace_note_links_on(tx, session, &entry.path, &note.markdown)?;
+                indexed_notes += 1;
+            }
 
-        if !note_needs_reindex(&cache, &note.metadata, &note.markdown)? {
-            skipped_notes += 1;
-        } else {
-            upsert_note(&cache, &note.metadata, &note.markdown)?;
-            sync_note_tasks_from_markdown(
-                &cache,
-                &session.descriptor.id,
-                &entry.path,
-                &note.markdown,
-            )?;
-            links_written += replace_note_links(&cache, session, &entry.path, &note.markdown)?;
-            indexed_notes += 1;
+            processed += 1;
+            if processed.is_multiple_of(progress_stride) || processed as u32 == notes_total {
+                emit(
+                    "indexing",
+                    processed as u32,
+                    notes_total,
+                    RebuildStatus::Running,
+                );
+            }
         }
-
-        let processed = (index + 1) as u32;
-        if processed.is_multiple_of(progress_stride) || processed == notes_total {
-            emit("indexing", processed, notes_total, RebuildStatus::Running);
-        }
+        transaction.commit()?;
     }
 
     resolve_link_targets(&cache, &session.descriptor.id)?;

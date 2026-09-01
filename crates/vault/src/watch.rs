@@ -73,6 +73,26 @@ impl VaultWatcher {
     }
 }
 
+/// Directory segments whose churn must never reach the index: internal
+/// metadata, VCS state, tool caches. Filtering here — before the event
+/// becomes a VaultWatchEvent — keeps external git/tool operations from
+/// flooding the incremental indexer.
+const IGNORED_SEGMENTS: &[&str] = &[
+    ".git",
+    ".scriptor",
+    ".obsidian",
+    ".trash",
+    "node_modules",
+    "target",
+    "dist",
+];
+
+fn has_ignored_segment(relative: &str) -> bool {
+    relative
+        .split('/')
+        .any(|segment| IGNORED_SEGMENTS.contains(&segment))
+}
+
 fn parse_watch_path(root: &Path, absolute: &Path) -> Option<VaultWatchEvent> {
     if let Some(file_name) = absolute.file_name().and_then(|name| name.to_str())
         && file_name.starts_with(".scriptor-")
@@ -82,7 +102,7 @@ fn parse_watch_path(root: &Path, absolute: &Path) -> Option<VaultWatchEvent> {
     }
 
     let relative = vault_relative_path(root, absolute)?;
-    if !relative.ends_with(".md") || relative.starts_with(".scriptor/") {
+    if !relative.ends_with(".md") || has_ignored_segment(&relative) {
         return None;
     }
 
@@ -133,5 +153,39 @@ mod tests {
         assert!(parse_watch_path(&root, &root.join(".scriptor/cache.sqlite")).is_none());
         assert!(parse_watch_path(&root, &root.join("notes/.scriptor-abc.tmp")).is_none());
         assert!(parse_watch_path(&root, &root.join("assets/logo.png")).is_none());
+    }
+}
+
+#[cfg(test)]
+mod watcher_filter_tests {
+    use super::*;
+
+    fn root_of(dir: &std::path::Path) -> VaultRoot {
+        VaultRoot::open(dir).expect("vault root")
+    }
+
+    #[test]
+    fn internal_metadata_folders_never_reach_the_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = root_of(dir.path());
+        let cases = [
+            (".git/hooks/something.md", false),
+            (".scriptor/cache/state.md", false),
+            (".obsidian/plugin.md", false),
+            (".trash/old.md", false),
+            ("node_modules/pkg/README.md", false),
+            ("target/debug/notes.md", false),
+            ("Research Plan.md", true),
+            ("notes/My note.md", true),
+        ];
+        for (relative, expected) in cases {
+            // The watcher delivers paths under the canonicalized root.
+            let absolute = root.root().join(relative);
+            assert_eq!(
+                parse_watch_path(root.root(), &absolute).is_some(),
+                expected,
+                "{relative}",
+            );
+        }
     }
 }

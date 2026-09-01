@@ -22,16 +22,6 @@ fn semantic_payload(payload: RpcPayload) -> Result<String, String> {
     }
 }
 
-fn semantic_api_key(state: &AppState, authorization_token: &str) -> Result<Option<String>, String> {
-    require_sensitive_operation(
-        state,
-        authorization_token,
-        SensitiveOperation::AiNetworkRequest,
-        None,
-    )?;
-    keychain_get(SEMANTIC_OPENAI_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
-}
-
 /// Semantic search: returns `{"available":false}` when the vault has no
 /// `semantic` section, letting callers fall back to keyword search.
 #[tauri::command]
@@ -41,7 +31,14 @@ pub fn semantic_search(
     limit: Option<u32>,
     authorization_token: String,
 ) -> Result<String, String> {
-    let api_key = semantic_api_key(&state, &authorization_token)?;
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::AiNetworkRequest,
+        None,
+    )?;
+    let api_key =
+        keychain_get(SEMANTIC_OPENAI_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())?;
     daemon_rpc(RpcMethod::EmbeddingsSearch {
         query,
         limit: limit.unwrap_or(25),
@@ -56,6 +53,13 @@ pub fn semantic_sync(
     state: tauri::State<AppState>,
     authorization_token: String,
 ) -> Result<String, String> {
-    let api_key = semantic_api_key(&state, &authorization_token)?;
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::AiNetworkRequest,
+        None,
+    )?;
+    let api_key =
+        keychain_get(SEMANTIC_OPENAI_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())?;
     daemon_rpc(RpcMethod::EmbeddingsSync { api_key }).and_then(semantic_payload)
 }

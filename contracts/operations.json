@@ -3704,6 +3704,37 @@
       ]
     },
     {
+      "name": "semantic_search",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "read-only",
+      "scope": "ai_network_request",
+      "authorizationVariant": "AiNetworkRequest",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_sync",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "local-mutation",
+      "scope": "ai_network_request",
+      "authorizationVariant": "AiNetworkRequest",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "latex_compile",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/latex.rs",

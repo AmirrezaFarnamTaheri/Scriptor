@@ -15,8 +15,24 @@ fn reading_time_from_word_count(word_count: u32) -> u32 {
     }
 }
 
+/// Autocommitting convenience wrapper; see [`upsert_note_on`] for the
+/// connection-scoped core used by batched rebuilds.
 pub fn upsert_note(
     cache: &IndexCache,
+    metadata: &NoteMetadata,
+    markdown: &str,
+) -> Result<(), IndexerError> {
+    let conn = cache.connection()?;
+    let tx = conn.unchecked_transaction()?;
+    upsert_note_on(&tx, metadata, markdown)?;
+    tx.commit()?;
+    Ok(())
+}
+
+/// Connection-scoped upsert: writes run inside the caller's transaction so a
+/// rebuild can amortize fsync cost across a whole chunk of notes.
+pub fn upsert_note_on(
+    conn: &rusqlite::Connection,
     metadata: &NoteMetadata,
     markdown: &str,
 ) -> Result<(), IndexerError> {
@@ -32,9 +48,7 @@ pub fn upsert_note(
     enriched.organized = parsed.organized;
     enriched.archived = parsed.archived;
 
-    let conn = cache.connection()?;
-    let tx = conn.unchecked_transaction()?;
-    tx.execute(
+    conn.execute(
         "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, tags_json, note_type, organized, archived, aliases_json)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
          ON CONFLICT(id) DO UPDATE SET
@@ -72,17 +86,16 @@ pub fn upsert_note(
         // not added to `note_fts`. Callers that need an error should call
         // `check_or_redact` from `scriptor_export_runner::sealed` before
         // calling `upsert_note`.
-        tx.commit()?;
         return Ok(());
     }
 
     // v5: populate all four FTS columns (title, headings, tags, body).
     // headings_text and tags_text were captured before the move above.
-    tx.execute(
+    conn.execute(
         "DELETE FROM note_fts WHERE note_id = ?1",
         params![metadata.id],
     )?;
-    tx.execute(
+    conn.execute(
         "INSERT INTO note_fts(note_id, title, headings, tags, body) VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             metadata.id,
@@ -92,7 +105,6 @@ pub fn upsert_note(
             parsed.body
         ],
     )?;
-    tx.commit()?;
 
     Ok(())
 }
@@ -240,23 +252,23 @@ pub fn remove_note_from_index(
 
     let conn = cache.connection()?;
     let tx = conn.unchecked_transaction()?;
-    tx.execute(
+    conn.execute(
         "DELETE FROM task_tags WHERE task_id IN (
             SELECT id FROM tasks WHERE source_note_id = ?1
          )",
         params![path],
     )?;
-    tx.execute("DELETE FROM tasks WHERE source_note_id = ?1", params![path])?;
-    tx.execute(
+    conn.execute("DELETE FROM tasks WHERE source_note_id = ?1", params![path])?;
+    conn.execute(
         "DELETE FROM links WHERE from_note_id = ?1",
         params![note_key],
     )?;
-    tx.execute(
+    conn.execute(
         "DELETE FROM citation_refs WHERE note_id = ?1",
         params![note_key],
     )?;
-    tx.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
-    tx.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
     tx.commit()?;
     Ok(true)
 }

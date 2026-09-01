@@ -7,8 +7,25 @@ use crate::db::IndexCache;
 use crate::error::IndexerError;
 use crate::parse::{ParsedLinkKind, parse_note_markdown};
 
+/// Autocommitting convenience wrapper; see [`replace_note_links_on`] for the
+/// connection-scoped core used by batched rebuilds.
 pub fn replace_note_links(
     cache: &IndexCache,
+    session: &VaultSession,
+    path: &str,
+    markdown: &str,
+) -> Result<u32, IndexerError> {
+    let conn = cache.connection()?;
+    let tx = conn.unchecked_transaction()?;
+    let inserted = replace_note_links_on(&tx, session, path, markdown)?;
+    tx.commit()?;
+    Ok(inserted)
+}
+
+/// Connection-scoped variant: the delete and re-insert are atomic inside the
+/// caller's transaction (a failure partway leaves the note's links intact).
+pub fn replace_note_links_on(
+    conn: &rusqlite::Connection,
     session: &VaultSession,
     path: &str,
     markdown: &str,
@@ -19,11 +36,8 @@ pub fn replace_note_links(
     );
     let parsed = parse_note_markdown(path, markdown);
 
-    let conn = cache.connection()?;
-    // The delete and the re-insert must be atomic: without a transaction a failure partway
-    // through leaves the note with no links at all, silently dropping every backlink to it.
-    let transaction = conn.unchecked_transaction()?;
-    transaction.execute(
+    // The caller's transaction makes the delete and the re-insert atomic.
+    conn.execute(
         "DELETE FROM links WHERE from_note_id = ?1",
         params![note_key],
     )?;
@@ -42,7 +56,7 @@ pub fn replace_note_links(
         // same line (`See [[A]] and [[A]] again.`), or a wikilink and a Markdown link pointing at
         // the same target on the same line, would otherwise collide on the primary key.
         let link_id = format!("{note_key}:{}:{ordinal}:{}", link.line, link.target);
-        transaction.execute(
+        conn.execute(
             "INSERT INTO links(id, vault_id, from_note_id, to_note_id, to_path, kind, label, line)
              VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6, ?7)",
             params![
@@ -58,7 +72,6 @@ pub fn replace_note_links(
         inserted += 1;
     }
 
-    transaction.commit()?;
     Ok(inserted)
 }
 

@@ -5,7 +5,9 @@ use std::path::{Path, PathBuf};
 use std::time::Instant;
 
 use scriptor_indexer::{open_cache_for_session, rebuild_index, search_notes};
-use scriptor_vault::{ScannedEntryKind, open_vault, scan_vault, scan_vault_for_index};
+#[cfg(feature = "tantivy")]
+use scriptor_vault::scan_vault_for_index;
+use scriptor_vault::{ScannedEntryKind, open_vault, scan_vault};
 use serde::Serialize;
 
 /// Scan budget scales with vault size: 150ms per 1k notes with a 500ms
