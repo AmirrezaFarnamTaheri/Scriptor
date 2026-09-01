@@ -83,6 +83,39 @@ impl TantivyIndex {
         Ok(())
     }
 
+    /// Queue one note without committing. Pair with [`commit_batch`]:
+    /// committing per note segments the index and thrashes the disk, so
+    /// bulk loads stage documents and flush once.
+    pub fn stage_note(&self, path: &str, title: &str, body: &str) -> Result<(), TantivyError> {
+        let writer = self
+            .writer
+            .lock()
+            .map_err(|e| TantivyError::Io(std::io::Error::other(e.to_string())))?;
+
+        let term = tantivy::Term::from_field_text(self.path_field, path);
+        writer.delete_term(term);
+
+        writer.add_document(doc!(
+            self.path_field => path,
+            self.title_field => title,
+            self.body_field => body,
+        ))?;
+        Ok(())
+    }
+
+    /// Flush staged documents and refresh the reader once.
+    pub fn commit_batch(&self) -> Result<(), TantivyError> {
+        {
+            let mut writer = self
+                .writer
+                .lock()
+                .map_err(|e| TantivyError::Io(std::io::Error::other(e.to_string())))?;
+            writer.commit()?;
+        }
+        self.reader.reload()?;
+        Ok(())
+    }
+
     pub fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchHit>, TantivyError> {
         let searcher = self.reader.searcher();
         let query_parser =

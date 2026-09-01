@@ -179,6 +179,8 @@ pub(crate) fn bench_tantivy(
         std::env::temp_dir().join(format!("scriptor-tantivy-bench-{}", std::process::id()));
     let _ = fs::remove_dir_all(&index_dir);
     let index = TantivyIndex::create_or_open(&index_dir)?;
+    // Bulk load stages every note and commits once: per-note commits were
+    // the dominant build cost (149.5s for 2k notes in the earlier bench).
     for entry in scan_vault_for_index(&session.root)? {
         if entry.kind != ScannedEntryKind::Note {
             continue;
@@ -192,8 +194,9 @@ pub(crate) fn bench_tantivy(
             .trim_end_matches(".md")
             .to_string();
         let markdown = entry.content.unwrap_or_default();
-        index.index_note(&entry.path, &title, &markdown)?;
+        index.stage_note(&entry.path, &title, &markdown)?;
     }
+    index.commit_batch()?;
     let index_build_ms = build_started.elapsed().as_millis() as u64;
 
     let mut samples = Vec::with_capacity(iterations as usize);
