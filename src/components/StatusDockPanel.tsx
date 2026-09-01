@@ -160,7 +160,10 @@ export function StatusDockPanel({
               {searchResults.map((hit) => (
                 <li key={`${hit.path}:${hit.note_id}`}>
                   <button type="button" onClick={() => onOpenNote(hit.path)}>
-                    <strong>{hit.title}</strong>
+                    <strong>
+                      {hit.title}
+                      {hit.semantic ? <span className="search-hit-semantic">semantic</span> : null}
+                    </strong>
                     <span>{hit.path}</span>
                     <small>{hit.snippet}</small>
                   </button>

@@ -150,6 +150,8 @@ export interface SearchHit {
   path: string
   title: string
   snippet: string
+  /** True when the note also matched semantically (embedding overlay). */
+  semantic?: boolean
 }
 
 export interface TagSummary {
