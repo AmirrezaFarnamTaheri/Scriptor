@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::fs::atomic_write;
 use crate::hash::path_hash;
-use crate::note_history::append_note_history;
+use crate::note_history::append_note_history_throttled;
 
 use serde::{Deserialize, Serialize};
 
@@ -107,13 +107,15 @@ pub fn save_note_with_options(
     if let Some(ref existing) = existing_note_doc {
         backup_for_recovery(root, &absolute, path.as_str())?;
         // Append a history entry using the already-read document; no third disk
-        // read needed.  History is best-effort: a failure is logged and the
-        // primary save continues.
-        if let Err(error) = append_note_history(
+        // read needed. The throttle folds rapid small autosaves into one
+        // snapshot per window. History is best-effort: a failure is logged and
+        // the primary save continues.
+        if let Err(error) = append_note_history_throttled(
             root,
             path.as_str(),
             &existing.markdown,
             &existing.metadata.content_hash,
+            Some(&existing.markdown),
         ) {
             tracing::warn!(
                 target: "scriptor_vault::write",

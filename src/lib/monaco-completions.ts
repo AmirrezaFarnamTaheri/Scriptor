@@ -10,10 +10,29 @@ export interface MonacoCompletionContext {
 /** Upper bound on wikilink suggestions handed to Monaco for one keystroke. */
 const MAX_WIKILINK_SUGGESTIONS = 200
 
-let completionContext: MonacoCompletionContext = {}
+interface PrecomputedCompletionContext {
+  /** Precomputed `.md`-stripped labels paired with their lowercase form. */
+  notePaths: Array<{ label: string; lower: string }>
+  headings: Array<{ label: string; lower: string }>
+  tags: string[]
+}
+
+let completionContext: PrecomputedCompletionContext = { notePaths: [], headings: [], tags: [] }
 
 export function setMonacoCompletionContext(next: MonacoCompletionContext): void {
-  completionContext = next
+  completionContext = {
+    // Lowercasing every path per keystroke allocated megabytes of throwaway
+    // strings on large vaults; hoist it to the (rare) context update.
+    notePaths: (next.notePaths ?? []).map((path) => {
+      const label = path.replace(/\.md$/i, '')
+      return { label, lower: label.toLowerCase() }
+    }),
+    headings: (next.headings ?? []).map((heading) => ({
+      label: `#${heading}`,
+      lower: `#${heading.toLowerCase()}`,
+    })),
+    tags: next.tags ?? [],
+  }
 }
 
 export function registerMarkdownCompletions(monaco: Monaco): { dispose: () => void } {
@@ -62,32 +81,31 @@ export function registerMarkdownCompletions(monaco: Monaco): { dispose: () => vo
           endColumn: position.column,
         }
 
-        for (const path of completionContext.notePaths ?? []) {
+        for (const entry of completionContext.notePaths) {
           if (suggestions.length >= MAX_WIKILINK_SUGGESTIONS) break
-          const label = path.replace(/\.md$/i, '')
-          if (typed && !label.toLowerCase().includes(typed)) continue
+          if (typed && !entry.lower.includes(typed)) continue
           suggestions.push({
-            label,
+            label: entry.label,
             kind: monaco.languages.CompletionItemKind.File,
-            insertText: `${label}${close}`,
+            insertText: `${entry.label}${close}`,
             range: linkRange,
           })
         }
-        for (const heading of completionContext.headings ?? []) {
+        for (const entry of completionContext.headings) {
           if (suggestions.length >= MAX_WIKILINK_SUGGESTIONS) break
-          const label = `#${heading}`
-          if (typed && !label.toLowerCase().includes(typed)) continue
+          if (typed && !entry.lower.includes(typed)) continue
           suggestions.push({
-            label,
+            label: entry.label,
             kind: monaco.languages.CompletionItemKind.Reference,
-            insertText: `${label}${close}`,
+            insertText: `${entry.label}${close}`,
             range: linkRange,
           })
         }
       }
 
       if (linePrefix.endsWith('#') || /\s#\w*$/.test(linePrefix)) {
-        for (const tag of completionContext.tags ?? []) {
+        for (const tag of completionContext.tags) {
+          if (suggestions.length >= MAX_WIKILINK_SUGGESTIONS) break
           suggestions.push({
             label: tag,
             kind: monaco.languages.CompletionItemKind.Enum,

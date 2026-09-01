@@ -81,7 +81,8 @@ pub use mcp_audit::{
 pub use note::{NoteDocument, NoteMetadata, metadata_from_markdown, note_id, read_note};
 pub use note_history::{
     DEFAULT_NOTE_HISTORY_DIR, MAX_REVISIONS_PER_NOTE, NoteHistoryEntry, append_note_history,
-    list_note_history, read_note_history_revision, restore_note_history_revision,
+    append_note_history_throttled, list_note_history, read_note_history_revision,
+    restore_note_history_revision,
 };
 pub use open::{
     OpenVaultOutput, VaultDescriptor, VaultSession, VaultStatus, open_vault, open_vault_output,

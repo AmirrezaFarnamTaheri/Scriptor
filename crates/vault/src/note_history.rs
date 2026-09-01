@@ -88,6 +88,75 @@ pub fn read_note_history_revision(
     fs::read_to_string(&path).map_err(|source| VaultError::io(&path, source))
 }
 
+/// Minimum seconds between history snapshots for the same note. Autosave
+/// fires roughly every 700ms while typing; without a throttle that is six
+/// filesystem mutations per second of typing for one throwaway revision.
+/// Meaningful edits (> MIN_CHARS_FOR_IMMEDIATE_SNAPSHOT chars delta) still
+/// snapshot immediately.
+const MIN_SECONDS_BETWEEN_SNAPSHOTS: u64 = 180;
+const MIN_CHARS_FOR_IMMEDIATE_SNAPSHOT: usize = 50;
+
+/// History append with a time+size throttle. `previous_markdown` is the
+/// body the snapshot would capture; when the newest revision is younger than
+/// the throttle window AND the delta is small, the append is skipped (the
+/// note body itself is already persisted by the save).
+pub fn append_note_history_throttled(
+    root: &VaultRoot,
+    note_path: &str,
+    markdown: &str,
+    content_hash: &str,
+    previous_markdown: Option<&str>,
+) -> Result<NoteHistoryEntry, VaultError> {
+    if let Some(previous) = previous_markdown
+        && should_skip_snapshot(root, note_path, previous, markdown)
+    {
+        // Return the newest existing revision so callers cannot tell the
+        // difference without re-reading the manifest.
+        let manifest_file = manifest_path(root, note_path);
+        if let Ok(raw) = fs::read_to_string(&manifest_file)
+            && let Ok(manifest) = serde_json::from_str::<NoteHistoryManifest>(&raw)
+            && let Some(latest) = manifest.revisions.first()
+        {
+            return Ok(latest.clone());
+        }
+        // Manifest unreadable: fall through and snapshot normally.
+        return append_note_history(root, note_path, markdown, content_hash);
+    }
+    append_note_history(root, note_path, markdown, content_hash)
+}
+
+/// True when the newest snapshot is recent AND the edit is small enough to
+/// fold into the next snapshot window.
+fn should_skip_snapshot(
+    root: &VaultRoot,
+    note_path: &str,
+    previous_markdown: &str,
+    markdown: &str,
+) -> bool {
+    let delta = previous_markdown.len().abs_diff(markdown.len());
+    if delta > MIN_CHARS_FOR_IMMEDIATE_SNAPSHOT {
+        return false;
+    }
+    let manifest_file = manifest_path(root, note_path);
+    let Ok(raw) = fs::read_to_string(&manifest_file) else {
+        return false;
+    };
+    let Ok(manifest) = serde_json::from_str::<NoteHistoryManifest>(&raw) else {
+        return false;
+    };
+    let Some(latest) = manifest.revisions.first() else {
+        return false;
+    };
+    let Ok(saved_at) = chrono::DateTime::parse_from_rfc3339(&latest.saved_at) else {
+        return false;
+    };
+    saved_at
+        .signed_duration_since(chrono::Utc::now())
+        .num_seconds()
+        .unsigned_abs()
+        < MIN_SECONDS_BETWEEN_SNAPSHOTS
+}
+
 pub fn append_note_history(
     root: &VaultRoot,
     note_path: &str,
@@ -149,6 +218,59 @@ pub fn restore_note_history_revision(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn write_note(dir: &std::path::Path, body: &str) {
+        std::fs::write(dir.join("note.md"), body).unwrap();
+    }
+
+    #[test]
+    fn small_rapid_edits_are_folded_into_one_snapshot() {
+        let dir = tempfile::tempdir().unwrap();
+        write_note(dir.path(), "# Note\n\noriginal body\n");
+        let root = VaultRoot::open(dir.path()).unwrap();
+
+        let first = append_note_history(&root, "note.md", "original body", "h1").unwrap();
+        // A tiny edit within the throttle window folds in: no new revision.
+        let folded = append_note_history_throttled(
+            &root,
+            "note.md",
+            "original body!",
+            "h2",
+            Some("original body"),
+        )
+        .unwrap();
+        assert_eq!(
+            folded.id, first.id,
+            "small rapid edit must reuse the newest snapshot"
+        );
+        let listed = list_note_history(&root, "note.md").unwrap();
+        assert_eq!(listed.len(), 1);
+    }
+
+    #[test]
+    fn large_edits_snapshot_immediately() {
+        let dir = tempfile::tempdir().unwrap();
+        write_note(dir.path(), "# Note\n\noriginal body\n");
+        let root = VaultRoot::open(dir.path()).unwrap();
+
+        let first = append_note_history(&root, "note.md", "original body", "h1").unwrap();
+        let rewritten = format!("# Note\n\n{}\n", "x".repeat(400));
+        let second = append_note_history_throttled(
+            &root,
+            "note.md",
+            &rewritten,
+            "h2",
+            Some("original body"),
+        )
+        .unwrap();
+        assert_ne!(
+            second.id, first.id,
+            "a large edit must snapshot immediately"
+        );
+        let listed = list_note_history(&root, "note.md").unwrap();
+        assert_eq!(listed.len(), 2);
+    }
+
     use crate::open::open_vault;
     use tempfile::tempdir;
 
