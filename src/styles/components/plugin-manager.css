@@ -34,6 +34,7 @@
 }
 
 .plugin-manager-header h2 {
+  min-width: 0;
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
@@ -77,6 +78,8 @@
 }
 
 .theme-palette-grid {
+  flex: 1 1 auto;
+  min-height: 0;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
   gap: 16px;
@@ -169,6 +172,8 @@
 }
 
 .plugin-manager-list {
+  flex: 1 1 auto;
+  min-height: 0;
   padding: 20px 24px;
   overflow-y: auto;
   display: flex;

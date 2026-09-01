@@ -49,8 +49,9 @@ pub use activity_log::{
 pub use config::{
     AccessibilityConfig, AutosuggestConfig, CalendarSyncConfig, CustomCallout, DailyNotePlan,
     ExportOnSaveConfig, FeaturesConfig, GraphGroupRule, LatexConfig, ReadingListConfig, SavedView,
-    TrustedBinaries, VaultConfig, WritingTargetsConfig, build_note_markdown, load_vault_config,
-    load_vault_template, plan_daily_note, preview_daily_tokens, save_vault_config,
+    SemanticConfig, TrustedBinaries, VaultConfig, WritingTargetsConfig, build_note_markdown,
+    load_vault_config, load_vault_template, plan_daily_note, preview_daily_tokens,
+    save_vault_config,
 };
 pub use crypto::{
     EnvelopeHeader, decrypt, decrypt_with_passphrase, encrypt, encrypt_with_passphrase,
@@ -80,7 +81,8 @@ pub use mcp_audit::{
 pub use note::{NoteDocument, NoteMetadata, metadata_from_markdown, note_id, read_note};
 pub use note_history::{
     DEFAULT_NOTE_HISTORY_DIR, MAX_REVISIONS_PER_NOTE, NoteHistoryEntry, append_note_history,
-    list_note_history, read_note_history_revision, restore_note_history_revision,
+    append_note_history_throttled, list_note_history, read_note_history_revision,
+    restore_note_history_revision,
 };
 pub use open::{
     OpenVaultOutput, VaultDescriptor, VaultSession, VaultStatus, open_vault, open_vault_output,

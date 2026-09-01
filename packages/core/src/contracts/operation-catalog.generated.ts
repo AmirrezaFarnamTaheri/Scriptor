@@ -102,6 +102,24 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "cli.BenchTantivy",
+      "surface": "cli",
+      "owner": "crates/cli/src/command_line.rs",
+      "authorizationClass": "local-user",
+      "mutationClass": "command-defined",
+      "scope": null,
+      "schemaKind": "clap-rust",
+      "inputType": "Commands::BenchTantivy",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "invalid",
+        "degraded",
+        "failed",
+        "recovered"
+      ]
+    },
+    {
       "name": "cli.CanvasHitTest",
       "surface": "cli",
       "owner": "crates/cli/src/command_line.rs",
@@ -1230,6 +1248,39 @@ export const OPERATION_CATALOG = {
       "outcomePolicy": [
         "value",
         "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "rpc.EmbeddingsSearch",
+      "surface": "daemon-rpc",
+      "owner": "crates/ipc/src/lib.rs",
+      "authorizationClass": "local-ipc",
+      "mutationClass": "read-only",
+      "scope": null,
+      "schemaKind": "typed-rust",
+      "inputType": "RpcMethod::EmbeddingsSearch",
+      "maxInputBytes": 2097152,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "rpc.EmbeddingsSync",
+      "surface": "daemon-rpc",
+      "owner": "crates/ipc/src/lib.rs",
+      "authorizationClass": "local-ipc",
+      "mutationClass": "local-mutation",
+      "scope": null,
+      "schemaKind": "typed-rust",
+      "inputType": "RpcMethod::EmbeddingsSync",
+      "maxInputBytes": 2097152,
+      "outcomePolicy": [
+        "value",
         "degraded",
         "failed"
       ]
@@ -3690,6 +3741,37 @@ export const OPERATION_CATALOG = {
         "degraded",
         "failed",
         "recovered"
+      ]
+    },
+    {
+      "name": "semantic_search",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "read-only",
+      "scope": "ai_network_request",
+      "authorizationVariant": "AiNetworkRequest",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
+      "name": "semantic_sync",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/semantic.rs",
+      "authorizationClass": "brokered-sensitive",
+      "mutationClass": "local-mutation",
+      "scope": "ai_network_request",
+      "authorizationVariant": "AiNetworkRequest",
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "degraded",
+        "failed"
       ]
     },
     {

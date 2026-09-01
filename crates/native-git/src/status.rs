@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
+use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -31,7 +32,74 @@ pub struct GitStatus {
     pub conflicted_files: Vec<GitChangedFile>,
 }
 
+/// Fingerprint of the files whose change implies a different `git status`
+/// result: HEAD, the index, and every ref. Reads four stat calls instead of
+/// spawning three to four git subprocesses (~30-80ms each on Windows).
+fn status_fingerprint(repo_root: &Path) -> Option<(u128, u128, Option<u128>)> {
+    let head = fs::metadata(repo_root.join(".git").join("HEAD")).ok()?;
+    let index = fs::metadata(repo_root.join(".git").join("index")).ok()?;
+    let refs_mod = fs::read_dir(repo_root.join(".git").join("refs"))
+        .ok()?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| entry.metadata().ok())
+        .filter_map(|meta| meta.modified().ok())
+        .max();
+    let sys_time_to_nanos = |time: std::time::SystemTime| -> u128 {
+        time.duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0)
+    };
+    Some((
+        sys_time_to_nanos(head.modified().ok()?),
+        sys_time_to_nanos(index.modified().ok()?),
+        refs_mod.map(sys_time_to_nanos),
+    ))
+}
+
+/// Cache entry: HEAD/index/refs fingerprint plus the status it produced.
+type StatusCacheEntry = (u128, u128, Option<u128>, GitStatus);
+
+/// Process-wide status cache: one vault per daemon/desktop process, so the
+/// fingerprint alone identifies the entry. Mutations (commit, pull, push,
+/// conflict resolution) invalidate implicitly by touching .git.
+static STATUS_CACHE: std::sync::Mutex<Option<StatusCacheEntry>> = std::sync::Mutex::new(None);
+
+fn cache_get(fingerprint: &Option<(u128, u128, Option<u128>)>) -> Option<GitStatus> {
+    let fingerprint = fingerprint.as_ref()?;
+    let guard = STATUS_CACHE.lock().ok()?;
+    let (head, index, refs, status) = guard.as_ref()?;
+    if *head == fingerprint.0 && *index == fingerprint.1 && refs == &fingerprint.2 {
+        return Some(status.clone());
+    }
+    None
+}
+
+fn cache_store(fingerprint: &Option<(u128, u128, Option<u128>)>, status: &GitStatus) {
+    let Some(fingerprint) = fingerprint else {
+        return;
+    };
+    if let Ok(mut guard) = STATUS_CACHE.lock() {
+        *guard = Some((fingerprint.0, fingerprint.1, fingerprint.2, status.clone()));
+    }
+}
+
 pub fn git_status(repo_root: &Path) -> Result<GitStatus, GitError> {
+    // Only real repositories get cached; the not-a-repo result is cheap and
+    // its fingerprint would be None anyway.
+    let fingerprint = if is_git_repo(repo_root).unwrap_or(false) {
+        status_fingerprint(repo_root)
+    } else {
+        None
+    };
+    if let Some(cached) = cache_get(&fingerprint) {
+        return Ok(cached);
+    }
+    let status = git_status_uncached(repo_root)?;
+    cache_store(&fingerprint, &status);
+    Ok(status)
+}
+
+fn git_status_uncached(repo_root: &Path) -> Result<GitStatus, GitError> {
     if !is_git_repo(repo_root)? {
         return Ok(GitStatus {
             is_repo: false,

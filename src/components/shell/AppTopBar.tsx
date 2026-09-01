@@ -171,7 +171,7 @@ export function AppTopBar({
     { id: 'mcp', label: mcpLabel, icon: <Lock />, onClick: onOpenMcp },
     { id: 'support', label: t('topBar.supportScriptor'), icon: <Heart />, onClick: onOpenSupport },
     ...(onOpenPluginManager
-      ? [{ id: 'paletteStore', label: 'Built-in Modules & Color Palettes', icon: <Palette />, onClick: onOpenPluginManager }]
+      ? [{ id: 'paletteStore', label: t('topBar.paletteStore'), icon: <Palette />, onClick: onOpenPluginManager }]
       : []),
   ]
 
@@ -316,7 +316,7 @@ export function AppTopBar({
           aria-label={`Open command palette (${commandShortcut})`}
         >
           <Command aria-hidden="true" />
-          <span className="command-search-placeholder">Type a command or search…</span>
+          <span className="command-search-placeholder">{t('topBar.typeCommandOrSearch')}</span>
           <kbd className="kbd" aria-hidden="true">{commandShortcut}</kbd>
         </button>
 
@@ -383,7 +383,7 @@ export function AppTopBar({
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton label="Built-in Modules &amp; Color Palettes" onClick={onOpenPluginManager}>
+            <IconButton label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
           ) : null}
@@ -394,7 +394,7 @@ export function AppTopBar({
             type="button"
             ref={customizeAnchorRef}
             className={`status-button${customizeOpen ? ' emphasized' : ''}`}
-            aria-label="Customize top bar actions"
+            aria-label={t('topBar.customizeAria')}
             aria-expanded={customizeOpen}
             onClick={openCustomize}
           >
@@ -407,10 +407,10 @@ export function AppTopBar({
           className="topbar-customize"
           ref={customizePopupRef}
           role="dialog"
-          aria-label="Customize top bar actions"
+          aria-label={t('topBar.customizeAria')}
           style={{ left: customizePos.x, top: customizePos.y }}
         >
-          <strong>Top bar actions</strong>
+          <strong>{t('topBar.customizeAria')}</strong>
           {[...quickActions, ...statusActions].map((action) => (
             <label key={action.id}>
               <input
@@ -426,7 +426,7 @@ export function AppTopBar({
             className="customize-reset"
             onClick={() => onPatchChrome?.({ topBarHiddenActions: [] })}
           >
-            Show all
+            {t('topBar.customizeShowAll')}
           </button>
         </div>
       ) : null}

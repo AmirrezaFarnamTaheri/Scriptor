@@ -21,6 +21,7 @@
 
 For install commands, see the **Build from source** section in [`README.md`](../README.md).
 For the full required-checks list, see [`CONTRIBUTING.md`](../CONTRIBUTING.md).
+> Local quick gates: `pnpm test:source` (contract + governance suite), `pnpm check:changelog` (release-notes guard), `pnpm test:rust` (CI-aligned Rust gate; excludes scriptor-desktop and the incubating engines), `pnpm check:i18n` (locale parity).
 
 ## Architecture at a glance
 

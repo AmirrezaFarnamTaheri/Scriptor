@@ -59,8 +59,19 @@ rust-version = "1.96"
 citationberg = { git = "https://github.com/typst/citationberg", rev = "06a591e2f237d25e1dfdedac3f3d1494c496c52d" }
 
 [workspace.dependencies]
+mimalloc = "0.1"
 # Unified chrono dependency — fixes the pre-existing `clock`/`local-offset`
 # feature conflict between scriptor-daemon and scriptor-cli (W3-9).
 # Each crate that uses chrono should inherit this via `chrono.workspace = true`
 # or pin at least 0.4.38 so the feature set is consistent.
 chrono = { version = "0.4.38", features = ["clock", "serde"] }
+
+# Release build hardening: thin LTO and one codegen unit shrink the
+# binaries and speed up the indexer/parser hot paths. panic=abort is
+# deliberately NOT set: the Tauri runtime, the daemon RPC loop, and the
+# export pipeline rely on unwinding for graceful error boundaries.
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

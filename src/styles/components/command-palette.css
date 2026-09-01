@@ -19,8 +19,8 @@
   border: 1px solid var(--border);
   border-radius: 16px;
   background: color-mix(in oklch, var(--dialog-bg, var(--bg-elevated)) 85%, transparent);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: var(--glass-blur, blur(16px));
+  -webkit-backdrop-filter: var(--glass-blur, blur(16px));
   box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px color-mix(in oklch, var(--border) 40%, transparent);
   overflow: hidden;
   animation: scale-in var(--ease-spring) both;

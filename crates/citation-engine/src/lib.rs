@@ -2,6 +2,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 
+use biblatex::Bibliography;
 use hayagriva::io::from_biblatex_str;
 use hayagriva::{Entry, Library};
 use serde::{Deserialize, Serialize};
@@ -25,6 +26,25 @@ pub struct CitationInfo {
     pub title: Option<String>,
     pub authors: Vec<String>,
     pub year: Option<String>,
+}
+
+/// A flattened bibliography entry for indexing surfaces.
+///
+/// Excerpts deliberately drop citation-style detail (venues, pages, DOIs):
+/// they power vault indexing and bibliography panels, not CSL rendering.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CitationEntryExcerpt {
+    pub key: String,
+    /// `None` when the entry has no usable title; callers fall back to the key.
+    pub title: Option<String>,
+    /// Rendered "Family, Given" per person, in citation order.
+    pub authors: Vec<String>,
+    /// Calendar year as written in the file, if present.
+    pub year: Option<String>,
+    /// Normalized kebab-case work type from the hayagriva taxonomy (e.g. "article").
+    pub entry_type: String,
+    /// Normalized work types of parent containers (e.g. ["proceedings"] for @inproceedings).
+    pub parents: Vec<String>,
 }
 
 pub struct CitationEngine {
@@ -92,6 +112,64 @@ impl CitationEngine {
             year,
         })
     }
+
+    /// Excerpt every entry in the library, in library iteration order.
+    pub fn entries(&self) -> Vec<CitationEntryExcerpt> {
+        self.library.iter().map(entry_excerpt).collect()
+    }
+}
+
+/// Excerpt a single hayagriva entry.
+fn entry_excerpt(entry: &Entry) -> CitationEntryExcerpt {
+    CitationEntryExcerpt {
+        key: entry.key().to_string(),
+        title: entry.title().map(|title| title.to_string()),
+        authors: entry
+            .authors()
+            .map(|people| people.iter().map(|p| p.name_first(false, false)).collect())
+            .unwrap_or_default(),
+        year: entry.date().map(|date| date.year.to_string()),
+        entry_type: type_label(entry.entry_type()),
+        parents: entry
+            .parents()
+            .iter()
+            .map(|parent| type_label(parent.entry_type()))
+            .collect(),
+    }
+}
+
+/// hayagriva's work types serialize as kebab-case strings ("article", "book", ...).
+fn type_label(entry_type: &hayagriva::types::EntryType) -> String {
+    serde_json::to_string(entry_type)
+        .ok()
+        .map(|json| json.trim_matches('"').to_string())
+        .filter(|label| !label.is_empty())
+        .unwrap_or_else(|| "misc".to_string())
+}
+
+/// Parse a BibLaTeX document, keeping the entries that survive.
+///
+/// [`CitationEngine::from_biblatex_str`] is all-or-nothing: one bad field drops
+/// the whole library. Vault bibliographies are user-authored, so recovery
+/// matters: this parses the file with the same underlying parser, converts
+/// entries one by one, and skips only the entries that fail conversion. An
+/// error is returned only when the document cannot be parsed at all.
+pub fn parse_lenient(content: &str) -> Result<Vec<CitationEntryExcerpt>, CitationError> {
+    let bibliography =
+        Bibliography::parse(content).map_err(|error| CitationError::Parse(format!("{error:?}")))?;
+
+    let mut excerpts = Vec::new();
+    for raw in bibliography.iter() {
+        match Entry::try_from(raw) {
+            Ok(entry) => excerpts.push(entry_excerpt(&entry)),
+            Err(error) => tracing::warn!(
+                key = %raw.key,
+                error = %error,
+                "skipping bibliography entry that failed to convert"
+            ),
+        }
+    }
+    Ok(excerpts)
 }
 
 fn format_citation(entry: &Entry, style: &str) -> String {
@@ -328,6 +406,51 @@ mod tests {
         let output = engine.render_bibliography(&[], "apa").unwrap();
         assert!(output.contains("T"));
         assert!(output.contains("U"));
+    }
+
+    #[test]
+    fn parse_lenient_excerpts_entries() {
+        let bib = r#"
+@article{smith2024, author = {Smith, Jane}, title = {Research Methods}, year = {2024}}
+@book{doe2023, author = {Doe, John}, title = {Handbook}}
+"#;
+        let excerpts = parse_lenient(bib).unwrap();
+        assert_eq!(excerpts.len(), 2);
+        assert_eq!(excerpts[0].key, "smith2024");
+        assert_eq!(excerpts[0].entry_type, "article");
+        assert_eq!(excerpts[0].authors, vec!["Smith, Jane".to_string()]);
+        assert_eq!(excerpts[0].year.as_deref(), Some("2024"));
+        assert_eq!(excerpts[1].entry_type, "book");
+        assert!(excerpts[1].parents.is_empty());
+    }
+
+    #[test]
+    fn parse_lenient_records_proceedings_parent() {
+        let bib = r#"@inproceedings{conf2024, title = {A Conference Paper}, year = {2024}}"#;
+        let excerpts = parse_lenient(bib).unwrap();
+        assert_eq!(excerpts.len(), 1);
+        assert_eq!(excerpts[0].entry_type, "article");
+        assert_eq!(excerpts[0].parents, vec!["proceedings".to_string()]);
+    }
+
+    #[test]
+    fn parse_lenient_reports_fatal_parse_errors() {
+        let result = parse_lenient("@article{key, author = {unclosed brace");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn entries_excerpts_the_whole_library() {
+        let bib = r#"
+@article{a2024, author = {A, Author}, title = {First}, year = {2024}}
+@misc{m2023, title = {Miscellaneous}}
+"#;
+        let engine = CitationEngine::from_biblatex_str(bib).unwrap();
+        let entries = engine.entries();
+        assert_eq!(entries.len(), 2);
+        assert_eq!(entries[1].key, "m2023");
+        assert_eq!(entries[1].entry_type, "misc");
+        assert_eq!(entries[1].title, Some("Miscellaneous".to_string()));
     }
 
     #[test]

@@ -40,7 +40,10 @@
     "expandSidebar": "Seitenleiste erweitern",
     "collapseSidebar": "Seitenleiste einklappen",
     "expandInspector": "Inspektor erweitern",
-    "collapseInspector": "Inspektor einklappen"
+    "collapseInspector": "Inspektor einklappen",
+    "paletteStore": "Eingebaute Module & Farbpaletten",
+    "customizeAria": "Kopfzeilen-Aktionen anpassen",
+    "customizeShowAll": "Alle anzeigen"
   },
   "commandPalette": {
     "placeholder": "Befehl oder Notiz eingeben...",

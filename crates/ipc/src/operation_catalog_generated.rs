@@ -168,6 +168,11 @@ pub const RPC_OPERATION_CATALOG: &[(&str, &[&str])] = &[
         &["value", "absent-optional", "degraded", "failed"],
     ),
     (
+        "EmbeddingsSearch",
+        &["value", "absent-optional", "degraded", "failed"],
+    ),
+    ("EmbeddingsSync", &["value", "degraded", "failed"]),
+    (
         "SubscribeEvents",
         &[
             "value",

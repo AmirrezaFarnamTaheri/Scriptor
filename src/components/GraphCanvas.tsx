@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -14,6 +14,24 @@ function folderColor(path: string): string {
 function semanticCanvasColor(canvas: HTMLCanvasElement, property: string, fallback: string): string {
   const value = getComputedStyle(canvas).getPropertyValue(property).trim()
   return value || fallback
+}
+
+/**
+ * Resolves a CSS variable once and keeps it until the document theme
+ * changes. Calling getComputedStyle inside the per-node draw loop forces a
+ * style recalculation on every animation frame; this hook removes it from
+ * the hot path entirely.
+ */
+function useSemanticCanvasColor(property: string, fallback: string): string {
+  const theme = document.documentElement.dataset.theme
+  return useMemo(
+    () => {
+      const canvas = document.createElement('canvas')
+      return semanticCanvasColor(canvas, property, fallback)
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme switch is the only signal that changes the variable
+    [property, fallback, theme],
+  )
 }
 
 export interface CanvasNode {
@@ -57,6 +75,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     nodeMap.current = map
   }, [nodes])
 
+  const primaryColor = useSemanticCanvasColor('--primary', FOLDER_COLORS[0])
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -109,7 +128,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       if (isFocus) {
         ctx.beginPath()
         ctx.arc(node.x, node.y, 22, 0, Math.PI * 2)
-        ctx.strokeStyle = semanticCanvasColor(canvas, '--primary', FOLDER_COLORS[0])
+        ctx.strokeStyle = primaryColor
         ctx.lineWidth = 2
         ctx.stroke()
       }
@@ -122,7 +141,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     }
 
     ctx.restore()
-  }, [nodes, edges, focusPath, width, height])
+  }, [nodes, edges, focusPath, width, height, primaryColor])
 
   useEffect(() => {
     draw()

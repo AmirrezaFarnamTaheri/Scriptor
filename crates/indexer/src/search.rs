@@ -28,6 +28,10 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
     let mut positives: Vec<(String, bool)> = Vec::new();
     let mut negatives = Vec::new();
     let mut pending_or = false;
+    // The final searchable positive term keeps the prefix wildcard: it is the
+    // word the user is still typing. Earlier terms stay exact matches, which
+    // lets FTS5 use vocabulary statistics instead of B-tree range scans.
+    let mut last_positive_quoted: Option<String> = None;
 
     for token in tokens {
         let cleaned = token.term.trim_matches('"');
@@ -43,13 +47,14 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
         // punctuation (`(`, `)`, `:`, `^`, `-`, ...) in user input are treated
         // literally instead of being parsed as MATCH syntax. Embedded quotes
         // are escaped by doubling, per SQLite string rules.
-        let quoted = format!("\"{}\"*", cleaned.replace('"', "\"\""));
+        let quoted = format!("\"{}\"", cleaned.replace('"', "\"\""));
         if token.negate {
             // FTS5 NOT is a binary operator, so exclusions are applied after a
             // finite positive expression instead of ever emitting unary NOT.
-            negatives.push(quoted);
+            negatives.push(quoted.clone());
             pending_or |= token.or_before;
         } else {
+            last_positive_quoted = Some(quoted.clone());
             positives.push((quoted, token.or_before || pending_or));
             pending_or = false;
         }
@@ -57,6 +62,12 @@ pub fn build_fts_query(raw: &str) -> Option<String> {
 
     // FTS5 has no finite universe term, so a pure-negative query cannot be
     // represented safely as MATCH syntax. Treat it like an empty query.
+    if let Some(last) = last_positive_quoted
+        && let Some(last_entry) = positives.last_mut()
+        && last_entry.0 == last
+    {
+        last_entry.0.push('*');
+    }
     let (first, rest) = positives.split_first()?;
     let mut query = first.0.clone();
     for (quoted, or_before) in rest {
@@ -171,24 +182,24 @@ mod tests {
     fn builds_and_or_not_query() {
         assert_eq!(
             build_fts_query("alpha beta"),
-            Some("\"alpha\"* AND \"beta\"*".into())
+            Some("\"alpha\" AND \"beta\"*".into())
         );
         assert_eq!(
             build_fts_query("alpha | beta"),
-            Some("\"alpha\"* OR \"beta\"*".into())
+            Some("\"alpha\" OR \"beta\"*".into())
         );
         assert_eq!(
             build_fts_query("alpha|beta"),
-            Some("\"alpha\"* OR \"beta\"*".into())
+            Some("\"alpha\" OR \"beta\"*".into())
         );
         assert_eq!(
             build_fts_query("!draft published"),
-            Some("\"published\"* NOT \"draft\"*".into())
+            Some("\"published\"* NOT \"draft\"".into())
         );
         assert_eq!(build_fts_query("!draft"), None);
         assert_eq!(
             build_fts_query("!draft alpha | beta"),
-            Some("(\"alpha\"* OR \"beta\"*) NOT \"draft\"*".into())
+            Some("(\"alpha\" OR \"beta\"*) NOT \"draft\"".into())
         );
     }
 

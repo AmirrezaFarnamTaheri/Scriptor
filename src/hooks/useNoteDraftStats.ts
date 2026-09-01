@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useDeferredValue, useMemo } from 'react'
 import { countWords, countCharacters } from '@scriptor/editor/pure'
 import type { NoteDocument } from '../types/vault'
 
@@ -21,8 +21,12 @@ export function useNoteDraftStats({
   activeNote,
   isNoteDirty,
 }: UseNoteDraftStatsOptions): NoteDraftStats {
-  const draftWordCount = useMemo(() => countWords(draftMarkdown), [draftMarkdown])
-  const charCount = useMemo(() => countCharacters(draftMarkdown), [draftMarkdown])
+  // Stats are derived from the deferred draft: typing renders immediately at
+  // high priority and the scans re-run at lower priority a frame later, so a
+  // large note never pays its word/character scan inside the keystroke frame.
+  const deferredDraft = useDeferredValue(draftMarkdown)
+  const draftWordCount = useMemo(() => countWords(deferredDraft), [deferredDraft])
+  const charCount = useMemo(() => countCharacters(deferredDraft), [deferredDraft])
 
   const savedWordCount = activeNote?.metadata.word_count ?? 0
   const savedReadingMinutes = activeNote?.metadata.reading_time_minutes ?? 0

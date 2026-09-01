@@ -2,9 +2,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use scriptor_indexer::{
-    IndexerError, backlinks_for_path, build_health_diagnostics, list_recent_files,
-    list_unresolved_link_targets, open_cache_for_session, parse_note_markdown, query_focused_graph,
-    rebuild_index, record_recent_access, resolve_wikilink_target_with_aliases, search_notes,
+    IndexerError, backlinks_for_path, build_health_diagnostics, list_bibliography_entries,
+    list_recent_files, list_unresolved_link_targets, open_cache_for_session, parse_note_markdown,
+    query_focused_graph, rebuild_index, record_recent_access, resolve_wikilink_target_with_aliases,
+    search_notes,
 };
 use scriptor_vault::{
     RelativeVaultPath, VaultError, open_vault, read_note, rename_apply, save_note,
@@ -117,6 +118,25 @@ fn graph_query_returns_neighbors() -> Result<(), IndexerError> {
     let graph = query_focused_graph(&cache, &session, Some("Research Plan.md"), 1, &[])?;
     assert!(graph.nodes.len() >= 2);
     assert!(!graph.edges.is_empty());
+    Ok(())
+}
+
+#[test]
+fn bibliography_sync_reads_fixture_references() -> Result<(), IndexerError> {
+    let minimal = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/test-fixtures/vaults/minimal");
+    let session = open_vault(minimal).map_err(IndexerError::from)?;
+    rebuild_index(&session, &[])?;
+    let cache = open_cache_for_session(&session)?;
+
+    let entries = list_bibliography_entries(&cache)?;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(entries[0].key, "smith2024");
+    assert_eq!(entries[0].title, "Research Methods");
+    assert_eq!(entries[0].author, "Smith, Jane");
+    assert_eq!(entries[0].year, "2024");
+    assert_eq!(entries[0].entry_type, "article");
+    assert_eq!(entries[0].source_path, "references.bib");
     Ok(())
 }
 

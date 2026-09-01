@@ -98,6 +98,12 @@ pub(crate) fn dispatch(cli: Cli) -> CommandResult {
             query,
             iterations,
         } => tooling::run_bench_search(path, query, iterations),
+        #[cfg(feature = "tantivy")]
+        Commands::BenchTantivy {
+            path,
+            query,
+            iterations,
+        } => tooling::run_bench_tantivy(path, query, iterations),
         Commands::GenerateVault {
             output,
             count,

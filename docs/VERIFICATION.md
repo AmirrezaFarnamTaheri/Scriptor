@@ -117,7 +117,7 @@ Independent audit-only checks also parsed all strict JSON/TOML manifests, syntax
 ## Local remediation evidence — 2026-08-23
 
 Executed against the working tree at commit `7981e8f` plus the local Git-panel
-remediation described in [`AUDIT-2026-08-23.md`](../AUDIT-2026-08-23.md).
+remediation described in [`AUDIT-2026-08-23.md`](_archived/AUDIT-2026-08-23.md).
 Windows 11 x86_64 host; Node v26.1.0; Rust 1.96.0 (pinned toolchain).
 
 | Gate | Result | Evidence |

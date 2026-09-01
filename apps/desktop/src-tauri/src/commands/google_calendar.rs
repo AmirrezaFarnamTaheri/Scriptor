@@ -39,6 +39,11 @@ const USERINFO_ENDPOINT: &str = "https://openidconnect.googleapis.com/v1/userinf
 const CALENDAR_EVENTS_ENDPOINT: &str = "https://www.googleapis.com/calendar/v3/calendars";
 const TASKS_ENDPOINT: &str = "https://tasks.googleapis.com/tasks/v1/lists";
 const GMAIL_MESSAGES_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
+/// Gmail batch endpoint: one multipart request carries up to
+/// `GMAIL_BATCH_MAX_CALLS` inner GETs (Google recommends staying at or
+/// below 50 parts per batch to avoid rate limiting).
+const GMAIL_BATCH_ENDPOINT: &str = "https://gmail.googleapis.com/batch";
+const GMAIL_BATCH_MAX_CALLS: usize = 50;
 const GMAIL_SEND_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 
 /// `openid`/`email` are appended so the authed email can be resolved.
@@ -47,6 +52,11 @@ const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calenda
 const GMAIL_OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send";
 
 const HTTP_TIMEOUT_SECS: u64 = 30;
+/// Serializes token refreshes process-wide: two concurrent commands hitting
+/// an expired token would otherwise both POST a refresh and race the
+/// keychain write (last-write-wins is benign, but Google may also hand out
+/// a new refresh token to the loser, invalidating the stored one).
+static TOKEN_REFRESH_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 /// How long to wait for the browser redirect before giving up.
 const AUTH_CAPTURE_TIMEOUT_SECS: u64 = 300;
 /// Refresh the access token this many seconds before its stated expiry.
@@ -145,6 +155,21 @@ struct StoredTokens {
     /// Unix epoch milliseconds at which the access token expires.
     expiry_ms: u64,
     email: String,
+}
+
+/// Poison-recovering lock acquisition for the process-wide refresh mutex.
+fn lock_refresh_guard() -> std::sync::MutexGuard<'static, ()> {
+    match TOKEN_REFRESH_LOCK.lock() {
+        Ok(guard) => guard,
+        Err(poisoned) => {
+            tracing::error!(
+                lock = "google token refresh",
+                "recovering poisoned refresh lock"
+            );
+            TOKEN_REFRESH_LOCK.clear_poison();
+            poisoned.into_inner()
+        }
+    }
 }
 
 fn now_ms() -> u64 {
@@ -355,6 +380,17 @@ fn capture_authorization_code(
             .map(|value| !value.is_empty())
             .unwrap_or(false);
 
+        // A request that carries neither a code nor a state is not part of
+        // the OAuth redirect at all (favicon probes, prefetches, a plain
+        // reload of the bare loopback URL). Answer it and keep waiting for
+        // the real redirect; only a *present but wrong* state is CSRF.
+        if state.is_none() && !has_code {
+            let probe_response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+            let _ = stream.write_all(probe_response.as_bytes());
+            let _ = stream.flush();
+            continue;
+        }
+
         let body = if state_ok && has_code {
             "<html><body style=\"font-family:sans-serif;padding:2rem\">\
                 <h2>Scriptor is now connected to Google.</h2>\
@@ -378,8 +414,9 @@ fn capture_authorization_code(
         if has_code {
             return Ok(code.unwrap_or_default());
         }
-        // Neither a usable code nor a state failure: keep waiting for the real
-        // redirect (e.g. a favicon probe hit the loopback first).
+        // A valid state echo without a code (user landed on the loopback from
+        // the consent screen mid-flow): keep waiting for the redirect that
+        // carries the code.
     }
 }
 
@@ -484,6 +521,13 @@ fn refresh_if_needed(
     client: &reqwest::blocking::Client,
     keychain_account: &str,
 ) -> Result<String, String> {
+    let tokens = require_tokens(keychain_account)?;
+    if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
+        return Ok(tokens.access_token);
+    }
+    // Hold the refresh lock across read-modify-write so concurrent commands
+    // cannot race the keychain update; re-check freshness after acquiring.
+    let _refresh_guard = lock_refresh_guard();
     let mut tokens = require_tokens(keychain_account)?;
     if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
         return Ok(tokens.access_token);
@@ -944,6 +988,173 @@ fn gmail_get_message(
         .map_err(|error| format!("Gmail returned an invalid message response: {error}"))
 }
 
+/// Fetch several messages in one multipart batch request. Response parts are
+/// matched back to requests by their `Content-ID` echo
+/// (`<response-scriptor+N>`), so ordering never depends on server internals.
+/// Any failure — transport, non-success outer status, malformed multipart, a
+/// part without a successful inner status — returns `Err` so the caller can
+/// fall back to per-message fetches.
+fn gmail_batch_get_messages(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    ids: &[String],
+) -> Result<Vec<GmailMessage>, String> {
+    let mut messages = Vec::with_capacity(ids.len());
+    for chunk in ids.chunks(GMAIL_BATCH_MAX_CALLS) {
+        messages.extend(gmail_batch_get_chunk(client, access_token, chunk)?);
+    }
+    Ok(messages)
+}
+
+fn gmail_batch_get_chunk(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    ids: &[String],
+) -> Result<Vec<GmailMessage>, String> {
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    let (boundary, body) = gmail_batch_request_body(ids)?;
+    let response = client
+        .post(GMAIL_BATCH_ENDPOINT)
+        .bearer_auth(access_token)
+        .header(
+            "Content-Type",
+            format!("multipart/mixed; boundary={boundary}"),
+        )
+        .body(body)
+        .send()
+        .map_err(|error| format!("failed to send Gmail batch request: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "Gmail batch request failed ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    let content_type = response
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or_default()
+        .to_string();
+    let payload = response
+        .text()
+        .map_err(|error| format!("failed to read Gmail batch response: {error}"))?;
+    let boundary = parse_multipart_boundary(&content_type)
+        .ok_or_else(|| "Gmail batch response lacks a multipart boundary".to_string())?;
+    gmail_parse_batch_response(&payload, &boundary, ids.len())
+}
+
+/// Build the multipart body: one `application/http` GET part per message id,
+/// each tagged `Content-ID: <scriptor+N>`.
+fn gmail_batch_request_body(ids: &[String]) -> Result<(String, String), String> {
+    let boundary = format!("scriptor_batch_{}", uuid::Uuid::new_v4().simple());
+    let mut body = String::new();
+    for (index, id) in ids.iter().enumerate() {
+        validate_gmail_message_id(id)?;
+        body.push_str("--");
+        body.push_str(&boundary);
+        body.push_str("\r\n");
+        body.push_str("Content-Type: application/http\r\n");
+        body.push_str("Content-Transfer-Encoding: binary\r\n");
+        body.push_str(&format!("Content-ID: <scriptor+{index}>\r\n\r\n"));
+        body.push_str(&format!(
+            "GET /gmail/v1/users/me/messages/{id}?format=full\r\n\r\n"
+        ));
+    }
+    body.push_str("--");
+    body.push_str(&boundary);
+    body.push_str("--\r\n");
+    Ok((boundary, body))
+}
+
+/// Extract the `boundary` parameter from a Content-Type header value.
+fn parse_multipart_boundary(content_type: &str) -> Option<String> {
+    for parameter in content_type.split(';').skip(1) {
+        let parameter = parameter.trim();
+        if let Some(value) = parameter.strip_prefix("boundary=") {
+            let value = value.trim_matches('"');
+            if !value.is_empty() {
+                return Some(value.to_string());
+            }
+        }
+    }
+    None
+}
+
+/// Parse a batch response body into messages, ordered by the `scriptor+N`
+/// request index echoed in each part's `Content-ID`.
+fn gmail_parse_batch_response(
+    payload: &str,
+    boundary: &str,
+    expected: usize,
+) -> Result<Vec<GmailMessage>, String> {
+    let normalized = payload.replace("\r\n", "\n");
+    let delimiter = format!("--{boundary}");
+    let mut slots: Vec<Option<GmailMessage>> = (0..expected).map(|_| None).collect();
+    // Everything before the first boundary is the preamble; everything
+    // after the closing boundary is the epilogue. Neither is a part.
+    for (position, segment) in normalized.split(delimiter.as_str()).enumerate() {
+        if position == 0 {
+            continue;
+        }
+        let segment = segment.trim();
+        if segment.is_empty() || segment.starts_with("--") {
+            continue; // closing delimiter remainder / epilogue
+        }
+        let (index, message) = gmail_parse_batch_part(segment)?;
+        let slot = index as usize;
+        if slot >= expected {
+            return Err("Gmail batch response referenced an unknown request index".into());
+        }
+        slots[slot] = Some(message);
+    }
+    let mut messages = Vec::with_capacity(expected);
+    for slot in slots {
+        messages.push(
+            slot.ok_or_else(|| "Gmail batch response is missing a message part".to_string())?,
+        );
+    }
+    Ok(messages)
+}
+
+/// Parse one multipart part: part headers, then the inner HTTP response
+/// (status line, inner headers, JSON body). Parts are normalized to LF first,
+/// so the parsing survives either line-ending style.
+fn gmail_parse_batch_part(part: &str) -> Result<(u32, GmailMessage), String> {
+    let part = part.replace("\r\n", "\n");
+    let (headers, inner) = part
+        .split_once("\n\n")
+        .ok_or_else(|| "Gmail batch part has no inner response".to_string())?;
+    let mut index = None;
+    for line in headers.lines().map(str::trim_start) {
+        if let Some(value) = line.strip_prefix("Content-ID:") {
+            let value = value.trim().trim_start_matches('<').trim_end_matches('>');
+            if let Some(number) = value.strip_prefix("response-scriptor+") {
+                index = number.parse::<u32>().ok();
+            }
+        }
+    }
+    let index =
+        index.ok_or_else(|| "Gmail batch part lacks a recognizable Content-ID".to_string())?;
+    let status_line = inner
+        .lines()
+        .next()
+        .ok_or_else(|| "Gmail batch part has an empty inner response".to_string())?;
+    let status_code = status_line.split_whitespace().nth(1).unwrap_or_default();
+    if !status_code.starts_with('2') {
+        return Err(format!("Gmail batch part failed with status {status_code}"));
+    }
+    let json = inner
+        .split_once("\n\n")
+        .map(|(_, body)| body)
+        .unwrap_or_default();
+    let message = serde_json::from_str::<GmailMessage>(json.trim())
+        .map_err(|error| format!("Gmail batch part returned an invalid message: {error}"))?;
+    Ok((index, message))
+}
+
 /// List message metadata for the selected Gmail search. This does not modify
 /// any mailbox state.
 #[tauri::command]
@@ -980,12 +1191,62 @@ pub fn google_gmail_list_messages(
     let list = response
         .json::<GmailMessageList>()
         .map_err(|error| format!("Gmail returned an invalid message list: {error}"))?;
-    list.messages
+    let ids: Vec<String> = list
+        .messages
         .unwrap_or_default()
         .into_iter()
         .filter_map(|message| message.id)
-        .map(|id| gmail_get_message(&client, &access_token, &id).map(gmail_preview))
-        .collect()
+        .collect();
+    if ids.is_empty() {
+        return Ok(Vec::new());
+    }
+    // One multipart batch covers the whole page (the list is clamped to 50,
+    // the recommended batch ceiling). Any failure falls back to the
+    // bounded-concurrency per-message fetches.
+    let messages = match gmail_batch_get_messages(&client, &access_token, &ids) {
+        Ok(messages) => messages,
+        Err(batch_error) => {
+            tracing::warn!(
+                error = %batch_error,
+                message_count = ids.len(),
+                "Gmail batch fetch failed; falling back to parallel per-message GETs"
+            );
+            gmail_fetch_messages_parallel(&client, &access_token, &ids)?
+        }
+    };
+    Ok(messages.into_iter().map(gmail_preview).collect())
+}
+
+/// Bounded-concurrency fetch: strictly sequential per-message GETs let one
+/// slow response stall the whole list behind a 30s timeout. Chunks of 8
+/// overlap request latency while staying polite to the Gmail API.
+fn gmail_fetch_messages_parallel(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    ids: &[String],
+) -> Result<Vec<GmailMessage>, String> {
+    const FETCH_CONCURRENCY: usize = 8;
+    let mut messages = Vec::with_capacity(ids.len());
+    for chunk in ids.chunks(FETCH_CONCURRENCY) {
+        let results: Vec<Result<GmailMessage, String>> = std::thread::scope(|scope| {
+            let handles: Vec<_> = chunk
+                .iter()
+                .map(|id| scope.spawn(|| gmail_get_message(client, access_token, id)))
+                .collect();
+            handles
+                .into_iter()
+                .map(|handle| {
+                    handle
+                        .join()
+                        .unwrap_or_else(|_| Err("Gmail message fetch worker panicked".into()))
+                })
+                .collect()
+        });
+        for result in results {
+            messages.push(result?);
+        }
+    }
+    Ok(messages)
 }
 
 /// Fetch one message's metadata and plain-text body for preview or Markdown
@@ -1460,6 +1721,65 @@ mod tests {
             value: Some("A mail subject".into()),
         }];
         assert_eq!(gmail_header(&headers, "Subject"), "A mail subject");
+    }
+
+    #[test]
+    fn gmail_batch_body_has_one_http_part_per_message() {
+        let ids = vec!["18f4a".to_string(), "18f4b".to_string()];
+        let (boundary, body) = gmail_batch_request_body(&ids).expect("body");
+        assert!(boundary.starts_with("scriptor_batch_"));
+        assert_eq!(
+            body.matches("GET /gmail/v1/users/me/messages/18f4a?format=full")
+                .count(),
+            1
+        );
+        assert_eq!(
+            body.matches("GET /gmail/v1/users/me/messages/18f4b?format=full")
+                .count(),
+            1
+        );
+        assert_eq!(body.matches("Content-ID: <scriptor+").count(), 2);
+        assert!(body.contains(&format!("--{boundary}--")));
+        // ids are validated, so injection via message ids cannot enter a part
+        assert!(gmail_batch_request_body(&["../inbox".to_string()]).is_err());
+    }
+
+    #[test]
+    fn gmail_batch_response_maps_parts_by_content_id_echo() {
+        let boundary = "scriptor_batch_test";
+        let payload = format!(
+            "Preamble ignored.\r\n             --{boundary}\r\n             Content-Type: application/http\r\n             Content-ID: <response-scriptor+1>\r\n\r\n             HTTP/1.1 200 OK\r\n             Content-Type: application/json\r\n\r\n             {{\"id\":\"b\",\"threadId\":\"tb\",\"snippet\":\"second\"}}\r\n             --{boundary}\r\n             Content-Type: application/http\r\n             Content-ID: <response-scriptor+0>\r\n\r\n             HTTP/1.1 200 OK\r\n             Content-Type: application/json\r\n\r\n             {{\"id\":\"a\",\"threadId\":\"ta\",\"snippet\":\"first\"}}\r\n             --{boundary}--\r\n"
+        );
+        let messages = gmail_parse_batch_response(&payload, boundary, 2).expect("parsed");
+        assert_eq!(messages[0].id.as_deref(), Some("a"));
+        assert_eq!(messages[1].id.as_deref(), Some("b"));
+    }
+
+    #[test]
+    fn gmail_batch_response_rejects_failing_or_missing_parts() {
+        let boundary = "scriptor_batch_test";
+        let failing = format!(
+            "--{boundary}\r\n             Content-ID: <response-scriptor+0>\r\n\r\n             HTTP/1.1 404 Not Found\r\n\r\n             {{\"error\":{{\"code\":404}}}}\r\n             --{boundary}--\r\n"
+        );
+        assert!(gmail_parse_batch_response(&failing, boundary, 1).is_err());
+
+        let missing = format!(
+            "--{boundary}\r\n             Content-ID: <response-scriptor+0>\r\n\r\n             HTTP/1.1 200 OK\r\n\r\n             {{\"id\":\"a\"}}\r\n             --{boundary}--\r\n"
+        );
+        assert!(gmail_parse_batch_response(&missing, boundary, 2).is_err());
+    }
+
+    #[test]
+    fn multipart_boundary_extraction_handles_quoted_parameters() {
+        assert_eq!(
+            parse_multipart_boundary("multipart/mixed; boundary=batch_abc; charset=utf-8"),
+            Some("batch_abc".to_string())
+        );
+        assert_eq!(
+            parse_multipart_boundary("multipart/mixed; boundary=\"quoted-name\""),
+            Some("quoted-name".to_string())
+        );
+        assert_eq!(parse_multipart_boundary("application/json"), None);
     }
 
     #[test]

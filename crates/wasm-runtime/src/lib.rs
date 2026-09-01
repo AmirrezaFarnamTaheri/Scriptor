@@ -1,7 +1,12 @@
 pub mod capabilities;
 pub mod error;
+#[cfg(feature = "wasmtime-backend")]
+pub mod executor;
 
 pub use capabilities::PluginCapabilities;
+#[cfg(feature = "wasmtime-backend")]
+use wasmtime::{Engine, Store};
+
 pub use error::WasmRuntimeError;
 
 /// Represents a loaded WASM plugin instance with its granted capabilities.
@@ -97,6 +102,44 @@ impl WasmPluginRuntime {
         let _plugin = self.get_plugin(plugin_idx)?;
         // Log is always allowed; in a real runtime this writes to the daemon log
         Ok(())
+    }
+
+    /// Compile and run the plugin export `run() -> i32` on wasmtime.
+    /// Capability-gated host calls are wired via
+    /// [`executor::link_plugin_imports`]; a guest that violates its grants
+    /// receives -1 from the host call, not a trap.
+    #[cfg(feature = "wasmtime-backend")]
+    pub fn invoke_entry(
+        &self,
+        plugin_idx: usize,
+        host_state: crate::executor::PluginHostState,
+    ) -> Result<i32, WasmRuntimeError> {
+        let plugin = self.get_plugin(plugin_idx)?;
+        let engine = Engine::default();
+        let module = crate::executor::compile(&engine, &plugin.wasm_bytes)?;
+        let mut store = Store::new(&engine, host_state);
+
+        // Host imports resolve the guest memory from the caller exports, so
+        // the linker needs no memory up front; the guest must export one
+        // named "memory" and it is verified after instantiation.
+        let linker = crate::executor::link_plugin_imports(&engine, &mut store);
+        let instance = linker.instantiate(&mut store, &module).map_err(|error| {
+            WasmRuntimeError::Runtime(format!("plugin instantiate failed: {error}"))
+        })?;
+        if instance.get_memory(&mut store, "memory").is_none() {
+            return Err(WasmRuntimeError::Load(
+                "plugin does not export a 'memory' linear memory".to_string(),
+            ));
+        }
+
+        let run = instance
+            .get_typed_func::<(), i32>(&mut store, "run")
+            .map_err(|error| {
+                WasmRuntimeError::Runtime(format!("plugin does not export 'run() -> i32': {error}"))
+            })?;
+
+        run.call(&mut store, ())
+            .map_err(|error| WasmRuntimeError::Runtime(format!("plugin run trapped: {error}")))
     }
 
     pub fn plugin_count(&self) -> usize {
@@ -295,5 +338,83 @@ mod tests {
             .capabilities
             .check("export");
         assert!(matches!(err, Err(WasmRuntimeError::CapabilityDenied(_))));
+    }
+}
+
+#[cfg(all(test, feature = "wasmtime-backend"))]
+mod executor_tests {
+    use super::*;
+    use crate::executor::PluginHostState;
+
+    /// A plugin that exports memory + run() -> i32 and logs a line.
+    const RUN_PLUGIN: &str = r#"
+        (module
+            (import "scriptor" "host_log" (func $log (param i32 i32 i32) (result i32)))
+            (memory (export "memory") 1)
+            (data (i32.const 0) "plugin started")
+            (func (export "run") (result i32)
+                (drop (call $log (i32.const 2) (i32.const 0) (i32.const 14)))
+                (i32.const 0)
+            )
+        )
+    "#;
+
+    #[test]
+    fn invoke_entry_runs_plugin_and_collects_logs() {
+        let mut runtime = WasmPluginRuntime::new();
+        let wasm = wat::parse_str(RUN_PLUGIN).unwrap();
+        let idx = runtime
+            .load_plugin("logger", &wasm, PluginCapabilities::default())
+            .unwrap();
+
+        let host_state =
+            PluginHostState::new(PluginCapabilities::default(), String::new(), String::new());
+        let exit = runtime.invoke_entry(idx, host_state).unwrap();
+        assert_eq!(exit, 0);
+    }
+
+    #[test]
+    fn invoke_entry_rejects_plugin_without_memory() {
+        let mut runtime = WasmPluginRuntime::new();
+        // No memory export, no run export.
+        const NO_MEMORY: &str = r#"
+            (module
+                (func (export "run") (result i32) (i32.const 0))
+            )
+        "#;
+        let wasm = wat::parse_str(NO_MEMORY).unwrap();
+        let idx = runtime
+            .load_plugin("no-memory", &wasm, PluginCapabilities::default())
+            .unwrap();
+        let host_state =
+            PluginHostState::new(PluginCapabilities::default(), String::new(), String::new());
+        let error = runtime.invoke_entry(idx, host_state).unwrap_err();
+        assert!(error.to_string().contains("memory"), "got: {error}");
+    }
+
+    #[test]
+    fn host_read_note_requires_capability() {
+        let mut runtime = WasmPluginRuntime::new();
+        // A guest whose run() calls host_read_note; capability denied -> -1,
+        // and the guest propagates it as its own exit code.
+        const READER: &str = r#"
+            (module
+                (import "scriptor" "host_read_note" (func $read (result i32)))
+                (memory (export "memory") 1)
+                (func (export "run") (result i32) (call $read))
+            )
+        "#;
+        let wasm = wat::parse_str(READER).unwrap();
+        let idx = runtime
+            .load_plugin("reader", &wasm, PluginCapabilities::default())
+            .unwrap();
+        let host_state = PluginHostState::new(
+            PluginCapabilities::default(),
+            "secret body".to_string(),
+            String::new(),
+        );
+        // run() returns the host -1 as its own exit code.
+        let exit = runtime.invoke_entry(idx, host_state).unwrap();
+        assert_eq!(exit, -1, "denied capability must surface as -1");
     }
 }

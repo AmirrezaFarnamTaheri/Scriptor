@@ -40,7 +40,10 @@
     "expandSidebar": "باز کردن نوار کناری",
     "collapseSidebar": "جمع کردن نوار کناری",
     "expandInspector": "باز کردن بازرس",
-    "collapseInspector": "جمع کردن بازرس"
+    "collapseInspector": "جمع کردن بازرس",
+    "paletteStore": "ماژول‌ها و پالت‌های رنگی داخلی",
+    "customizeAria": "سفارشی‌سازی کنش‌های نوار بالا",
+    "customizeShowAll": "نمایش همه"
   },
   "commandPalette": {
     "placeholder": "دستور یا یادداشت تایپ کنید...",

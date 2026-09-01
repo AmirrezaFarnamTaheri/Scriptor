@@ -1,6 +1,6 @@
 .graph-overlay {
   position: fixed;
-  inset: 118px 20px 88px;
+  inset: calc(var(--topbar-bottom, 0px) + 16px) 20px 88px;
   z-index: 40;
   display: grid;
   grid-template-rows: auto auto 1fr;
@@ -12,7 +12,7 @@
 
 .canvas-overlay {
   position: fixed;
-  inset: 72px 24px 96px;
+  inset: calc(var(--topbar-bottom, 0px) + 16px) 24px 96px;
   z-index: 31;
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -293,7 +293,7 @@
 
 @media (max-width: 720px) {
   .graph-overlay {
-    inset: 64px 10px 72px;
+    inset: calc(var(--topbar-bottom, 0px) + 16px) 10px 72px;
     border-radius: 12px;
   }
 

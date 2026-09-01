@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
 import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
+import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
   BibliographyPanel,
@@ -31,7 +32,6 @@ import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
 import {
   CheatsheetPanel,
-  ConflictResolverModal,
   OnboardingTour,
   PerfHudOverlay,
   SupportPanel,
@@ -95,8 +95,6 @@ import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import {
-  gitApplyMergedConflict,
-  gitResolveConflict,
   gitShowHeadFile,
   indexerApplyFilesystemChanges,
   vaultReadNote,
@@ -105,6 +103,7 @@ import {
   vaultSaveAsset,
   codeChunkRun,
 } from './bridge/commands'
+import { ConflictResolverSurface } from './components/app/ConflictResolverSurface'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
@@ -871,18 +870,22 @@ function App() {
     ],
   )
 
+  // Citation key extraction re-scans the whole draft; deferring it keeps
+  // that scan off the keystroke frame for large notes.
+  const deferredCitationDraft = useDeferredValue(workspace.draftMarkdown)
   const citationRows = useMemo(() => {
-    const inline = extractPandocCitationKeys(workspace.draftMarkdown)
+    const inline = extractPandocCitationKeys(deferredCitationDraft)
     const unresolved =
       workspace.healthDiagnostics?.issues
         .filter((issue) => issue.kind === 'unresolved_citation' && issue.path === workspace.activePath)
         .map((issue) => issue.detail.replace('missing bibliography entry: ', '')) ?? []
     return Array.from(new Set([...inline, ...unresolved]))
-  }, [workspace.activePath, workspace.draftMarkdown, workspace.healthDiagnostics])
+  }, [workspace.activePath, deferredCitationDraft, workspace.healthDiagnostics])
 
   const { formatInline, formatBibliography } = useCiteprocPreview(bibliography, citationRows)
 
   useAppZoom()
+  useTopBarHeightVar()
 
   useAppKeyboardShortcuts({
     activePath: workspace.activePath,
@@ -1549,35 +1552,14 @@ function App() {
       )}
 
       {conflictPath && conflictSource ? (
-        <ErrorBoundary
-          name="conflict-resolver"
-          resetKeys={[conflictPath]}
-          autoRetryPanelFallback={false}
-          fallback={<PanelErrorFallback title="Conflict resolver" onDismiss={() => setConflictPath(null)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-        <ConflictResolverModal
-          key={conflictPath}
-          path={conflictPath}
-          source={conflictSource}
-          basePreview={conflictBasePreview}
+        <ConflictResolverSurface
+          conflictPath={conflictPath}
+          conflictSource={conflictSource}
+          conflictBasePreview={conflictBasePreview}
           isBusy={workspace.isGitBusy}
           onClose={() => setConflictPath(null)}
-          onResolveQuick={(strategy) => {
-            void gitResolveConflict(conflictPath, strategy).then(() => {
-              setConflictPath(null)
-              void workspace.refreshGit()
-            })
-          }}
-          onResolveMerged={(mergedMarkdown) => {
-            void gitApplyMergedConflict(conflictPath, mergedMarkdown).then(() => {
-              setConflictPath(null)
-              void workspace.refreshGit()
-            })
-          }}
+          onResolved={() => void workspace.refreshGit()}
         />
-        </Suspense>
-        </ErrorBoundary>
       ) : null}
 
       {healthDashboardOpen && (

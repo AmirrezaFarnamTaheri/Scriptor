@@ -161,25 +161,35 @@ impl EmbedProvider for OpenAiProvider {
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
+/// Stub provider for offline tests — deterministic vectors keyed by text, so
+/// vault-op tests can assert that different notes land at different spots.
+#[cfg(test)]
+pub(crate) struct ConstProvider {
+    dim: usize,
+    value: f32,
+}
+
+#[cfg(test)]
+impl ConstProvider {
+    pub(crate) fn new(dim: usize, value: f32) -> Self {
+        Self { dim, value }
+    }
+}
+
+#[cfg(test)]
+impl EmbedProvider for ConstProvider {
+    fn embed_texts(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
+        Ok(texts.iter().map(|_| vec![self.value; self.dim]).collect())
+    }
+    fn dimension(&self) -> usize {
+        self.dim
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::EmbeddingStore;
-
-    /// Stub provider for offline tests — returns deterministic unit vectors.
-    struct ConstProvider {
-        dim: usize,
-        value: f32,
-    }
-
-    impl EmbedProvider for ConstProvider {
-        fn embed_texts(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
-            Ok(texts.iter().map(|_| vec![self.value; self.dim]).collect())
-        }
-        fn dimension(&self) -> usize {
-            self.dim
-        }
-    }
 
     #[test]
     fn provider_round_trip_through_store() {
@@ -190,8 +200,8 @@ mod tests {
         assert_eq!(vecs.len(), 2);
         assert_eq!(vecs[0].len(), 4);
 
-        store.upsert_embedding("note/a", &vecs[0]).unwrap();
-        store.upsert_embedding("note/b", &vecs[1]).unwrap();
+        store.upsert_embedding("note/a", None, &vecs[0]).unwrap();
+        store.upsert_embedding("note/b", None, &vecs[1]).unwrap();
 
         let query = provider.embed_single("test").unwrap();
         let results = store.query_nearest(&query, 5).unwrap();

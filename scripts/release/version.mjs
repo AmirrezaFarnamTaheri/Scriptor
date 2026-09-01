@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+import { gitWorkspaceFiles, hasDotSegment } from '../lib/workspace-files.mjs';
+
 const root = path.resolve(import.meta.dirname, '../..');
 const canonicalPath = path.join(root, 'VERSION');
 const semver = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -11,9 +13,34 @@ const mode = process.argv[2] ?? 'check';
 const canonical = fs.readFileSync(canonicalPath, 'utf8').trim();
 if (!semver.test(canonical)) throw new Error(`VERSION is not valid SemVer: ${canonical}`);
 
+const ignoredDirectories = new Set([
+  'node_modules',
+  'target',
+  'dist',
+  'dist-e2e',
+  'dist-ssr',
+  'dist-visual-e2e',
+  'coverage',
+  'release-output',
+  'release-artifacts',
+  'release-artifacts-test',
+  'release-evidence',
+  'release-manifests-test',
+  'test-results',
+  'playwright-report',
+  'update-manifests',
+]);
+
+// Legacy filesystem walk for checkouts without git (packaged source drops).
+// The git listing is preferred: it honors .gitignore and cannot wander into
+// foreign checkouts, while untracked-but-not-ignored manifests still count.
 function walk(dir, name, out = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === '.git' || entry.name === 'node_modules' || entry.name === 'target' || entry.name === 'dist') continue;
+    // Dot-directories hold tool state, caches, and linked git worktrees
+    // (e.g. .release-1.0.2) whose manifests belong to *another* checkout;
+    // scanning them fails the check against foreign versions and, in sync
+    // mode, would rewrite files inside the other worktree.
+    if (entry.isDirectory() && (entry.name.startsWith('.') || ignoredDirectories.has(entry.name))) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full, name, out);
     else if (entry.name === name) out.push(full);
@@ -21,8 +48,27 @@ function walk(dir, name, out = []) {
   return out;
 }
 
-const jsonFiles = walk(root, 'package.json');
-const cargoFiles = walk(root, 'Cargo.toml').filter((file) => !file.endsWith(`${path.sep}crates${path.sep}ipc${path.sep}fuzz${path.sep}Cargo.toml`));
+function collectLegacyManifests() {
+  return [...walk(root, 'package.json'), ...walk(root, 'Cargo.toml')];
+}
+
+const gitFiles = gitWorkspaceFiles(root);
+if (!gitFiles) console.warn('version: git unavailable, walking the filesystem');
+const manifestCandidates = (gitFiles ?? collectLegacyManifests())
+  .filter((file) => !hasDotSegment(file, root))
+  .filter((file) => !path.relative(root, file).split(path.sep).some((segment) => ignoredDirectories.has(segment)))
+  .filter((file) => {
+    const name = path.basename(file);
+    return name === 'package.json' || name === 'Cargo.toml';
+  });
+const jsonFiles = manifestCandidates.filter((file) => path.basename(file) === 'package.json');
+const cargoFiles = manifestCandidates.filter(
+  (file) =>
+    path.basename(file) === 'Cargo.toml' &&
+    // The ipc fuzz crate is excluded from the workspace; its manifest pins
+    // no release version.
+    !file.replaceAll('\\', '/').endsWith('/crates/ipc/fuzz/Cargo.toml'),
+);
 const tauriFile = path.join(root, 'apps/desktop/src-tauri/tauri.conf.json');
 const sourceVersionFiles = [{
   file: path.join(root, 'packages/mcp/src/server.ts'),

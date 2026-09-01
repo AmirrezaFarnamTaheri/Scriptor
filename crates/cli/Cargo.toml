@@ -8,8 +8,15 @@ license.workspace = true
 name = "scriptor"
 path = "src/main.rs"
 
+[features]
+# Tantivy comparison bench stays outside the default build: the engine is
+# incubating, and the product search path is FTS5. The flag exists so the
+# comparison can be rerun without dragging tantivy into releases.
+tantivy = ["dep:scriptor-tantivy-indexer"]
+
 [dependencies]
 scriptor-daemon = { path = "../daemon" }
+scriptor-tantivy-indexer = { path = "../tantivy-indexer", optional = true }
 scriptor-ipc = { path = "../ipc" }
 scriptor-system-bridge = { path = "../system-bridge" }
 scriptor-export-runner = { path = "../export-runner" }

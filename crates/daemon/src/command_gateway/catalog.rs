@@ -102,6 +102,15 @@ pub fn is_outside_lock_command(command: &str) -> bool {
         // pdf2zh allows a 15-minute timeout, PlantUML up to 30s, and wikilink
         // resolution walks every note in the vault.
         | "pdf_translate" | "plantuml_render" | "indexer_resolve_wikilink"
+        // Read-only whole-vault scans: the rename previews and the vault
+        // health report read every note, so holding the mutex across them
+        // would freeze every other daemon command on large vaults. The
+        // mutating rename/lint commands stay inside the lock on purpose —
+        // the mutex is what serializes note mutations against each other
+        // and against concurrent saves.
+        | "vault_rename_dry_run" | "vault_rename_tag_dry_run"
+        | "vault_rename_section_dry_run" | "vault_rename_block_dry_run"
+        | "vault_health"
     )
 }
 

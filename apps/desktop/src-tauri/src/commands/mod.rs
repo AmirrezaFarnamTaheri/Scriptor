@@ -13,6 +13,7 @@ pub mod plugin_state;
 pub mod publish;
 pub mod reader;
 pub mod resources;
+pub mod semantic;
 pub mod shared;
 pub mod system;
 pub mod vault;

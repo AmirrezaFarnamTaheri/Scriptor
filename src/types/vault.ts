@@ -150,6 +150,8 @@ export interface SearchHit {
   path: string
   title: string
   snippet: string
+  /** True when the note also matched semantically (embedding overlay). */
+  semantic?: boolean
 }
 
 export interface TagSummary {
@@ -325,6 +327,13 @@ export interface VaultConfig {
     focus_outline: 'default' | 'strong' | 'custom'
     /** Custom focus outline color (CSS value) */
     focus_outline_color?: string
+  }
+  /** Semantic (embedding) search; opt-in, keys live in the OS keychain */
+  semantic?: {
+    provider: 'none' | 'ollama' | 'openai'
+    base_url?: string | null
+    model?: string | null
+    dimension?: number | null
   }
   /** Feature flags: modules that can be enabled/disabled per-vault */
   features?: {

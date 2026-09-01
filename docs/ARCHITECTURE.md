@@ -33,6 +33,7 @@ The renderer is not an authority boundary. Native operations validate scope, aut
 | Git | `crates/native-git/` | noninteractive status/diff/commit/conflict operations |
 | External tools | `crates/system-bridge/src/process.rs` | executable policy, sanitized env, sandbox, bounds, cancellation, receipts |
 | Daemon transport | `crates/daemon/`, `crates/ipc/` | authenticated local RPC, frame bounds, resynchronizing event delivery, jobs, MCP bridge; the command catalog is owned separately from dispatch |
+| Desktop git serialization | `crates/native-git/src/queue.rs`, `apps/desktop/src-tauri/src/state.rs` | all five native Git mutations submit through the bounded per-repo GitQueue worker (64-slot backpressure); the handle resets on vault swap; read-only whole-vault commands (rename previews, vault health) dispatch outside the daemon state mutex via the session-clone seam |
 | Observability | `crates/system-bridge/src/observability.rs` | structured, redacted, bounded local tracing |
 | Export | `crates/export-runner/`, `packages/export/` | profiles, preflight, diagrams, Pandoc orchestration |
 | Publish | `crates/publish-runner/`, desktop/CLI adapters | frontmatter-gated plan/review/apply, managed local Starlight output, stale-plan and output-drift protection |

@@ -39,6 +39,8 @@ export default defineConfig({
     video: 'retain-on-failure',
   },
   webServer: {
+    // `pnpm exec` keeps the server portable across Windows runners, Linux CI,
+    // and the devcontainer; a hardcoded vite.cmd shim only exists on Windows.
     command: `pnpm exec vite build --mode e2e --outDir dist-visual-e2e && pnpm exec vite preview --outDir dist-visual-e2e --host 127.0.0.1 --port ${serverPort} --strictPort`,
     env: {
       VITE_SCREENSHOT_MODE: 'true',

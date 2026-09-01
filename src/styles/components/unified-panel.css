@@ -103,7 +103,7 @@
 
 .unified-panel-docked {
   position: fixed;
-  top: 0;
+  top: var(--topbar-bottom, 0px);
   right: 0;
   bottom: 0;
   width: min(480px, 92vw);

@@ -1,14 +1,98 @@
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 use std::path::Path;
 use std::sync::Mutex;
 
 pub mod error;
 pub mod ollama_client;
 pub mod provider;
+pub mod vault_ops;
 
 pub use error::EmbeddingError;
 pub use ollama_client::OllamaClient;
 pub use provider::{EmbedProvider, OllamaProvider, OpenAiProvider};
+pub use vault_ops::{SemanticHit, SyncReport, search_vault_embeddings, sync_vault_embeddings};
+
+use scriptor_vault::SemanticConfig;
+
+/// Default dimension for OpenAI models when the config omits one.
+fn openai_default_dimension(model: &str) -> usize {
+    match model {
+        "text-embedding-3-large" => 3072,
+        _ => 1536,
+    }
+}
+
+/// A provider plus its dimension, erased for daemon storage.
+pub struct DaemonEmbedProvider {
+    dimension: usize,
+    inner: Box<dyn EmbedProvider>,
+}
+
+impl DaemonEmbedProvider {
+    pub fn as_provider(&self) -> &dyn EmbedProvider {
+        &*self.inner
+    }
+
+    pub fn dimension(&self) -> usize {
+        self.dimension
+    }
+}
+
+/// Build the configured provider. Semantic search stays opt-in: an absent
+/// config or `provider: "none"` resolves to `None`, and every caller must
+/// degrade gracefully (the daemon answers an "unavailable" payload).
+pub fn resolve_provider(
+    config: &SemanticConfig,
+    api_key: Option<String>,
+) -> Result<Option<DaemonEmbedProvider>, EmbeddingError> {
+    match config.provider.as_str() {
+        "none" | "" => Ok(None),
+        "ollama" => {
+            let base_url = config
+                .base_url
+                .clone()
+                .unwrap_or_else(|| "http://localhost:11434".to_string());
+            let model = config
+                .model
+                .clone()
+                .unwrap_or_else(|| "nomic-embed-text".to_string());
+            let dimension = config
+                .dimension
+                .ok_or_else(|| {
+                    EmbeddingError::Provider(
+                        "semantic.dimension must be set for the ollama provider (e.g. 768 for nomic-embed-text)"
+                            .to_string(),
+                    )
+                })?;
+            Ok(Some(DaemonEmbedProvider {
+                dimension,
+                inner: Box::new(OllamaProvider::new(&base_url, &model, dimension)),
+            }))
+        }
+        "openai" => {
+            let model = config
+                .model
+                .clone()
+                .unwrap_or_else(|| "text-embedding-3-small".to_string());
+            let dimension = config
+                .dimension
+                .unwrap_or_else(|| openai_default_dimension(&model));
+            let Some(api_key) = api_key else {
+                return Err(EmbeddingError::Provider(
+                    "the openai semantic provider requires an API key (stored in the OS keychain)"
+                        .to_string(),
+                ));
+            };
+            Ok(Some(DaemonEmbedProvider {
+                dimension,
+                inner: Box::new(OpenAiProvider::new(&api_key, &model, config.dimension)),
+            }))
+        }
+        other => Err(EmbeddingError::Provider(format!(
+            "unknown semantic provider: {other} (expected ollama, openai, or none)"
+        ))),
+    }
+}
 
 // ── Typed record ──────────────────────────────────────────────────────────────
 
@@ -39,7 +123,8 @@ impl<P: EmbedProvider> NoteEmbedder<P> {
     /// Embed `text` and upsert into the store keyed by `note_path`.
     pub fn index_note(&self, note_path: &str, text: &str) -> Result<(), EmbeddingError> {
         let vec = self.provider.embed_single(text)?;
-        self.store.upsert_embedding(note_path, &vec)
+        self.store
+            .upsert_embedding(note_path, Some(&content_hash(text)), &vec)
     }
 
     /// Remove the embedding for a deleted or renamed note.
@@ -64,6 +149,7 @@ CREATE TABLE IF NOT EXISTS embeddings (
     id TEXT PRIMARY KEY,
     vector BLOB NOT NULL,
     dimension INTEGER NOT NULL,
+    content_hash TEXT,
     updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 ";
@@ -101,7 +187,15 @@ impl EmbeddingStore {
         self.dimension
     }
 
-    pub fn upsert_embedding(&self, id: &str, vector: &[f32]) -> Result<(), EmbeddingError> {
+    /// Insert or replace an embedding. `content_hash` records which version
+    /// of the source text produced the vector, so sync passes can skip
+    /// unchanged notes; pass `None` when the caller does not track hashes.
+    pub fn upsert_embedding(
+        &self,
+        id: &str,
+        content_hash: Option<&str>,
+        vector: &[f32],
+    ) -> Result<(), EmbeddingError> {
         if vector.len() != self.dimension {
             return Err(EmbeddingError::DimensionMismatch {
                 expected: self.dimension,
@@ -115,9 +209,55 @@ impl EmbeddingStore {
             .lock()
             .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         conn.execute(
-            "INSERT OR REPLACE INTO embeddings (id, vector, dimension, updated_at)
-             VALUES (?1, ?2, ?3, unixepoch())",
-            params![id, bytes, self.dimension as i64],
+            "INSERT OR REPLACE INTO embeddings (id, vector, dimension, content_hash, updated_at)
+             VALUES (?1, ?2, ?3, ?4, unixepoch())",
+            params![id, bytes, self.dimension as i64, content_hash],
+        )?;
+        Ok(())
+    }
+
+    /// Stored content hash for an embedding, if any.
+    pub fn hash_for(&self, id: &str) -> Result<Option<String>, EmbeddingError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let hash = conn
+            .query_row(
+                "SELECT content_hash FROM embeddings WHERE id = ?1",
+                params![id],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .optional()?;
+        Ok(hash.flatten())
+    }
+
+    /// Every stored embedding id.
+    pub fn ids(&self) -> Result<Vec<String>, EmbeddingError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        let mut statement = conn.prepare("SELECT id FROM embeddings")?;
+        let rows = statement.query_map([], |row| row.get::<_, String>(0))?;
+        let mut ids = Vec::new();
+        for row in rows {
+            ids.push(row?);
+        }
+        Ok(ids)
+    }
+
+    /// Drop embeddings stored under a different dimension (e.g. after the
+    /// configured model changed); vectors of mismatched dimension can never
+    /// be compared again.
+    pub fn prune_dimension(&self, dimension: usize) -> Result<(), EmbeddingError> {
+        let conn = self
+            .conn
+            .lock()
+            .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+        conn.execute(
+            "DELETE FROM embeddings WHERE dimension != ?1",
+            params![dimension as i64],
         )?;
         Ok(())
     }
@@ -145,11 +285,19 @@ impl EmbeddingStore {
             Ok((id, blob))
         })?;
 
+        // One scratch buffer reused across rows: no per-row heap allocation,
+        // and the similarity loop runs over plain float slices so the
+        // optimizer can vectorize it.
+        let mut scratch: Vec<f32> = Vec::with_capacity(self.dimension);
         let mut scored: Vec<(String, f32)> = Vec::new();
         for row in rows {
             let (id, blob) = row?;
-            let stored = bytes_to_vector(&blob);
-            let sim = cosine_similarity(vector, &stored);
+            scratch.clear();
+            scratch.extend(
+                blob.chunks_exact(4)
+                    .map(|chunk| f32::from_le_bytes(chunk.try_into().expect("4-byte chunk"))),
+            );
+            let sim = cosine_similarity(vector, &scratch);
             scored.push((id, sim));
         }
 
@@ -177,19 +325,23 @@ impl EmbeddingStore {
     }
 }
 
+/// FNV-1a change marker for embedded text — not a security digest;
+/// collisions only cost one redundant embedding round-trip.
+pub(crate) fn content_hash(text: &str) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for byte in text.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
+}
+
 fn vector_to_bytes(v: &[f32]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(v.len() * 4);
     for &f in v {
         bytes.extend_from_slice(&f.to_le_bytes());
     }
     bytes
-}
-
-fn bytes_to_vector(bytes: &[u8]) -> Vec<f32> {
-    bytes
-        .chunks_exact(4)
-        .map(|chunk| f32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
-        .collect()
 }
 
 fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
@@ -214,7 +366,7 @@ mod tests {
     fn round_trip_embedding() {
         let store = EmbeddingStore::open_in_memory(4).unwrap();
         let vec = vec![1.0, 0.0, 0.0, 0.0];
-        store.upsert_embedding("note/a", &vec).unwrap();
+        store.upsert_embedding("note/a", None, &vec).unwrap();
         assert_eq!(store.count().unwrap(), 1);
 
         let results = store.query_nearest(&[1.0, 0.0, 0.0, 0.0], 5).unwrap();
@@ -226,7 +378,7 @@ mod tests {
     #[test]
     fn delete_removes_embedding() {
         let store = EmbeddingStore::open_in_memory(3).unwrap();
-        store.upsert_embedding("x", &[1.0, 2.0, 3.0]).unwrap();
+        store.upsert_embedding("x", None, &[1.0, 2.0, 3.0]).unwrap();
         store.delete_embedding("x").unwrap();
         assert_eq!(store.count().unwrap(), 0);
     }
@@ -234,9 +386,9 @@ mod tests {
     #[test]
     fn nearest_neighbors_ranked() {
         let store = EmbeddingStore::open_in_memory(2).unwrap();
-        store.upsert_embedding("close", &[1.0, 0.0]).unwrap();
-        store.upsert_embedding("far", &[0.0, 1.0]).unwrap();
-        store.upsert_embedding("mid", &[0.7, 0.7]).unwrap();
+        store.upsert_embedding("close", None, &[1.0, 0.0]).unwrap();
+        store.upsert_embedding("far", None, &[0.0, 1.0]).unwrap();
+        store.upsert_embedding("mid", None, &[0.7, 0.7]).unwrap();
 
         let results = store.query_nearest(&[1.0, 0.0], 2).unwrap();
         assert_eq!(results[0].0, "close");
@@ -246,14 +398,16 @@ mod tests {
     #[test]
     fn dimension_mismatch_rejected() {
         let store = EmbeddingStore::open_in_memory(3).unwrap();
-        let err = store.upsert_embedding("x", &[1.0, 2.0]);
+        let err = store.upsert_embedding("x", None, &[1.0, 2.0]);
         assert!(matches!(err, Err(EmbeddingError::DimensionMismatch { .. })));
     }
 
     #[test]
     fn dimension_mismatch_on_query() {
         let store = EmbeddingStore::open_in_memory(4).unwrap();
-        store.upsert_embedding("a", &[1.0, 0.0, 0.0, 0.0]).unwrap();
+        store
+            .upsert_embedding("a", None, &[1.0, 0.0, 0.0, 0.0])
+            .unwrap();
         let err = store.query_nearest(&[1.0, 0.0], 5);
         assert!(matches!(err, Err(EmbeddingError::DimensionMismatch { .. })));
     }
@@ -261,15 +415,19 @@ mod tests {
     #[test]
     fn empty_vector_stores_and_queries() {
         let store = EmbeddingStore::open_in_memory(0).unwrap();
-        store.upsert_embedding("empty", &[]).unwrap();
+        store.upsert_embedding("empty", None, &[]).unwrap();
         assert_eq!(store.count().unwrap(), 1);
     }
 
     #[test]
     fn zero_vector_cosine_similarity() {
         let store = EmbeddingStore::open_in_memory(3).unwrap();
-        store.upsert_embedding("zero", &[0.0, 0.0, 0.0]).unwrap();
-        store.upsert_embedding("one", &[1.0, 0.0, 0.0]).unwrap();
+        store
+            .upsert_embedding("zero", None, &[0.0, 0.0, 0.0])
+            .unwrap();
+        store
+            .upsert_embedding("one", None, &[1.0, 0.0, 0.0])
+            .unwrap();
         let results = store.query_nearest(&[0.0, 0.0, 0.0], 5).unwrap();
         assert_eq!(results.len(), 2);
         for (_, sim) in &results {
@@ -289,7 +447,7 @@ mod tests {
             handles.push(thread::spawn(move || {
                 let id = format!("note/{i}");
                 let vec = vec![i as f32, 0.0, 0.0, 0.0];
-                s.upsert_embedding(&id, &vec).unwrap();
+                s.upsert_embedding(&id, None, &vec).unwrap();
             }));
         }
         for h in handles {
@@ -301,11 +459,66 @@ mod tests {
     #[test]
     fn upsert_replaces_existing() {
         let store = EmbeddingStore::open_in_memory(2).unwrap();
-        store.upsert_embedding("note", &[1.0, 0.0]).unwrap();
-        store.upsert_embedding("note", &[0.0, 1.0]).unwrap();
+        store.upsert_embedding("note", None, &[1.0, 0.0]).unwrap();
+        store.upsert_embedding("note", None, &[0.0, 1.0]).unwrap();
         assert_eq!(store.count().unwrap(), 1);
         let results = store.query_nearest(&[0.0, 1.0], 1).unwrap();
         assert!((results[0].1 - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn query_nearest_scales_to_ten_thousand_vectors() {
+        // Correctness at the scale where a per-row heap allocation would show
+        // up: 10k vectors of 1536 floats, nearest must still be exact.
+        let store = EmbeddingStore::open_in_memory(1536).unwrap();
+        let mut query = vec![0.0f32; 1536];
+        query[0] = 1.0;
+        for i in 0..10_000u32 {
+            let mut vector = vec![0.0f32; 1536];
+            // Only note 9999 points the same way as the query.
+            if i == 9999 {
+                vector[0] = 1.0;
+            } else {
+                vector[1 + (i as usize) % 1535] = 1.0;
+            }
+            store
+                .upsert_embedding(&format!("note/{i}"), None, &vector)
+                .unwrap();
+        }
+        let hits = store.query_nearest(&query, 5).unwrap();
+        assert_eq!(hits[0].0, "note/9999");
+        assert!((hits[0].1 - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn content_hash_round_trip_and_prune() {
+        let store = EmbeddingStore::open_in_memory(2).unwrap();
+        store
+            .upsert_embedding("note/a", Some("hash-1"), &[1.0, 0.0])
+            .unwrap();
+        assert_eq!(store.hash_for("note/a").unwrap().as_deref(), Some("hash-1"));
+        store
+            .upsert_embedding("note/a", Some("hash-2"), &[0.0, 1.0])
+            .unwrap();
+        assert_eq!(store.hash_for("note/a").unwrap().as_deref(), Some("hash-2"));
+        assert_eq!(store.hash_for("missing").unwrap(), None);
+
+        let other_dimension = EmbeddingStore::open_in_memory(4).unwrap();
+        other_dimension
+            .upsert_embedding("note/b", None, &[1.0, 0.0, 0.0, 0.0])
+            .unwrap();
+        other_dimension.prune_dimension(4).unwrap();
+        assert_eq!(other_dimension.count().unwrap(), 1);
+    }
+
+    #[test]
+    fn ids_lists_every_embedding() {
+        let store = EmbeddingStore::open_in_memory(2).unwrap();
+        store.upsert_embedding("a", None, &[1.0, 0.0]).unwrap();
+        store.upsert_embedding("b", None, &[0.0, 1.0]).unwrap();
+        let mut ids = store.ids().unwrap();
+        ids.sort();
+        assert_eq!(ids, vec!["a".to_string(), "b".to_string()]);
     }
 
     #[test]

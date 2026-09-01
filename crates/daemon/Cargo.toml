@@ -12,6 +12,8 @@ name = "scriptor-daemon"
 path = "src/main.rs"
 
 [dependencies]
+mimalloc = { workspace = true }
+scriptor-embeddings = { path = "../embeddings" }
 scriptor-export-runner = { path = "../export-runner" }
 scriptor-ipc = { path = "../ipc" }
 scriptor-indexer = { path = "../indexer" }

@@ -14,6 +14,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+mimalloc = { workspace = true }
 scriptor-export-runner = { path = "../../../crates/export-runner" }
 scriptor-canvas-engine = { path = "../../../crates/canvas-engine" }
 scriptor-daemon = { path = "../../../crates/daemon" }

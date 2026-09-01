@@ -10,6 +10,8 @@ use scriptor_export_runner::{
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use scriptor_vault::{RelativeVaultPath, open_vault, read_note};
 
+#[cfg(feature = "tantivy")]
+use crate::bench::bench_tantivy;
 use crate::bench::{bench_scan, bench_search, generate_vault};
 use crate::command_line::{Cli, DaemonCommands, exit_code};
 use crate::{daemon_client, doctor, tui};
@@ -59,6 +61,16 @@ pub(crate) fn run_bench_scan(path: PathBuf, iterations: u32) -> CommandResult {
 
 pub(crate) fn run_bench_search(path: PathBuf, query: String, iterations: u32) -> CommandResult {
     let report = bench_search(&path, &query, iterations)?;
+    println!("{}", serde_json::to_string_pretty(&report)?);
+    if !report.within_budget {
+        std::process::exit(exit_code::BUDGET_EXCEEDED);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "tantivy")]
+pub(crate) fn run_bench_tantivy(path: PathBuf, query: String, iterations: u32) -> CommandResult {
+    let report = bench_tantivy(&path, &query, iterations)?;
     println!("{}", serde_json::to_string_pretty(&report)?);
     if !report.within_budget {
         std::process::exit(exit_code::BUDGET_EXCEEDED);

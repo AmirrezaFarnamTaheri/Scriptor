@@ -160,7 +160,10 @@ export function StatusDockPanel({
               {searchResults.map((hit) => (
                 <li key={`${hit.path}:${hit.note_id}`}>
                   <button type="button" onClick={() => onOpenNote(hit.path)}>
-                    <strong>{hit.title}</strong>
+                    <strong>
+                      {hit.title}
+                      {hit.semantic ? <span className="search-hit-semantic">semantic</span> : null}
+                    </strong>
                     <span>{hit.path}</span>
                     <small>{hit.snippet}</small>
                   </button>
@@ -211,7 +214,9 @@ export function StatusDockPanel({
                       <strong>{job.profile_label}</strong>
                       <span>{job.note_path}</span>
                       <small>
-                        {new Date(job.finished_at).toLocaleTimeString()} · {job.status}
+                        {job.status === 'running'
+                          ? 'Running…'
+                          : `${new Date(job.finished_at).toLocaleTimeString()} · ${job.status}`}
                         {job.result ? ` · ${job.result.duration_ms}ms` : ''}
                       </small>
                     </button>

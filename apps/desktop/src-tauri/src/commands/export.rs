@@ -63,10 +63,19 @@ struct DaemonExportProgressReport {
     event_index: u32,
     result_json: Option<String>,
     error: Option<String>,
+    /// Live pandoc stderr accumulated by the daemon job; `default` keeps the
+    /// poller working against sidecars that predate the field.
+    #[serde(default)]
+    stderr_log: Option<String>,
 }
 
 pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Result<(), String> {
     let mut last_event_index = 0u32;
+    // The daemon accumulates pandoc stderr into its progress report; stream
+    // whatever grew since the last poll as stderr chunks, exactly like the
+    // in-process export path does, so the export history shows live output
+    // in the headless engine too.
+    let mut emitted_stderr = 0usize;
     loop {
         std::thread::sleep(std::time::Duration::from_millis(100));
         let json = bridge_export_job_status()?;
@@ -76,6 +85,19 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
                 "daemon export status job mismatch: expected {}, got {}",
                 job_id, report.job_id
             ));
+        }
+        if let Some(log) = report.stderr_log.as_deref()
+            && log.len() > emitted_stderr
+        {
+            let _ = app.emit(
+                "export:progress",
+                &ExportJobProgress {
+                    job_id: job_id.clone(),
+                    stream: "stderr".into(),
+                    chunk: log[emitted_stderr..].to_string(),
+                },
+            );
+            emitted_stderr = log.len();
         }
         if report.event_index > last_event_index {
             let _ = app.emit(

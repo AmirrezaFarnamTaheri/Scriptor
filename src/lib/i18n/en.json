@@ -40,7 +40,10 @@
     "expandSidebar": "Expand sidebar",
     "collapseSidebar": "Collapse sidebar",
     "expandInspector": "Expand inspector",
-    "collapseInspector": "Collapse inspector"
+    "collapseInspector": "Collapse inspector",
+    "paletteStore": "Built-in Modules & Color Palettes",
+    "customizeAria": "Customize top bar actions",
+    "customizeShowAll": "Show all"
   },
   "commandPalette": {
     "placeholder": "Type a command or note...",

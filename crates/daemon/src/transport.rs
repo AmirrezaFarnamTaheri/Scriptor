@@ -690,6 +690,25 @@ fn dispatch_invoke_outside_lock(
                 None => Err("no vault is open; call OpenVault first".into()),
             }
         }
+        "vault_rename_dry_run"
+        | "vault_rename_tag_dry_run"
+        | "vault_rename_section_dry_run"
+        | "vault_rename_block_dry_run"
+        | "vault_health" => {
+            let (session, cache) = {
+                let guard = lock_recover(state);
+                (guard.session().cloned(), guard.index_cache().cloned())
+            };
+            match session {
+                Some(session) => command_gateway::run_read_only_vault_command(
+                    &session,
+                    cache.as_ref(),
+                    command,
+                    &payload,
+                ),
+                None => Err("no vault is open; call OpenVault first".into()),
+            }
+        }
         other => Err(format!("unsupported outside-lock invoke command: {other}")),
     };
 

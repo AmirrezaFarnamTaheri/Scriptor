@@ -46,6 +46,10 @@ export function UnifiedPanelShell({
   const titleId = useId()
   const descriptionId = useId()
   const docked = presentation === 'dock-right'
+  // Docked shells start below the live top bar via --topbar-bottom
+  // (measured in useTopBarHeightVar): the dock z-index sits under the
+  // bar's, so without the offset its header and tabs would slide behind
+  // the bar and become unclickable whenever the bar wraps responsively.
 
   useEscapeToClose(!docked, onClose)
   useFocusTrap(shellRef, { active: !docked })

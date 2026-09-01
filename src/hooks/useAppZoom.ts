@@ -105,22 +105,36 @@ export function useAppZoom(): void {
       }
     }
 
+    // Resize events arrive in bursts during window drags; coalesce to one
+    // update per frame. The reflow-attribute write forces a whole-document
+    // invalidation, so running it per event thrashes layout while dragging.
+    let resizeFrame = 0
     const onResize = () => {
-      // Re-fit only while the user has not chosen an explicit zoom.
-      if (readStoredZoom() === null) {
-        factor = defaultFitZoom()
-        apply()
-      } else {
-        updateZoomReflow(factor)
-      }
+      if (resizeFrame) return
+      resizeFrame = window.requestAnimationFrame(() => {
+        resizeFrame = 0
+        // Re-fit only while the user has not chosen an explicit zoom.
+        if (readStoredZoom() === null) {
+          factor = defaultFitZoom()
+          apply()
+        } else {
+          updateZoomReflow(factor)
+        }
+      })
     }
 
+    // Tauri v2 webviews ship with native page zoom disabled (zoomHotkeysEnabled defaults
+    // to false, i.e. WebView2 IsZoomControlEnabled=false), so ctrl+wheel reaches the page
+    // as a plain wheel event whose default action is scrolling. This listener must stay
+    // non-passive: preventDefault is what stops app zoom from also scrolling the page.
+    // passive: true here would reintroduce scroll-during-zoom on every wheel gesture.
     window.addEventListener('wheel', onWheel, { passive: false, capture: true })
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('resize', onResize)
     apply()
 
     return () => {
+      if (resizeFrame) window.cancelAnimationFrame(resizeFrame)
       window.removeEventListener('wheel', onWheel, true)
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('resize', onResize)

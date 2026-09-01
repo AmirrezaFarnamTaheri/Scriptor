@@ -57,6 +57,7 @@ test('vault config runtime parser preserves every supported optional section', (
     'extra_roots',
     'canvas',
     'mcp',
+    'semantic',
   ]) {
     assert.ok(source.includes(field), `vault config parser missing ${field}`)
   }
@@ -254,14 +255,25 @@ test('local publishing is composed through one hardened desktop and CLI engine',
   assert.match(localSite, /UnsafeOutputRoot/)
 })
 
-test('desktop Git mutations serialize and reusable queue has bounded backpressure', () => {
+test('desktop Git mutations serialize through the bounded per-repo queue', () => {
   const state = read('apps/desktop/src-tauri/src/state.rs')
   const gitCommands = read('apps/desktop/src-tauri/src/commands/git.rs')
   const queue = read('crates/native-git/src/queue.rs')
 
-  assert.match(state, /git_mutation_lock:\s*Mutex<\(\)>/)
-  const lockUses = [...gitCommands.matchAll(/lock_recover\(&state\.git_mutation_lock/g)]
-  assert.ok(lockUses.length >= 5, `expected all desktop Git mutations to acquire the lock, found ${lockUses.length}`)
+  assert.match(state, /git_queue:\s*Mutex<Option<Arc<GitQueue>>>/)
+  assert.match(state, /pub fn git_queue_handle/)
+  const queueUses = [...gitCommands.matchAll(/git_queue_handle\(&state/g)]
+  assert.ok(
+    queueUses.length >= 5,
+    `expected all desktop Git mutations to enqueue through the queue, found ${queueUses.length}`,
+  )
+  assert.doesNotMatch(gitCommands, /lock_recover\(&state\.git_mutation_lock/)
+  const daemonGateway = read('crates/daemon/src/command_gateway.rs')
+  const daemonEnqueues = [...daemonGateway.matchAll(/\.git_queue\(\)/g)]
+  assert.ok(
+    daemonEnqueues.length >= 4,
+    `expected daemon git mutations to enqueue through the queue, found ${daemonEnqueues.length}`,
+  )
   assert.match(queue, /MAX_PENDING_GIT_OPERATIONS:\s*usize\s*=\s*64/)
   assert.match(queue, /mpsc::sync_channel::<Task>\(MAX_PENDING_GIT_OPERATIONS\)/)
   assert.doesNotMatch(queue, /mpsc::channel::<Task>/)

@@ -12,6 +12,7 @@ default = ["srs"]
 srs = []
 
 [dependencies]
+scriptor-citation-engine = { path = "../citation-engine" }
 scriptor-vault = { path = "../vault" }
 scriptor-export-runner = { path = "../export-runner" }
 chrono = { version = "0.4", features = ["serde"] }

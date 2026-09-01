@@ -9,6 +9,8 @@ export type UiFontFamily = 'system' | 'inter' | 'sf-pro' | 'avenir-next' | 'outf
 export type UiDensity = 'compact' | 'comfortable' | 'spacious'
 export type UiBorderRadius = 'sharp' | 'rounded' | 'curved' | 'pill'
 export type GlassBlurIntensity = 'none' | 'subtle' | 'glass' | 'heavy'
+export type TopBarGroupId = 'history' | 'modes' | 'command' | 'actions'
+export type TopBarGroupWidth = 'compact' | 'auto' | 'wide'
 
 export interface WorkspaceChromePrefs {
   vaultSidebarCollapsed: boolean
@@ -18,6 +20,14 @@ export interface WorkspaceChromePrefs {
   showQuickActions: boolean
   /** Top-bar action ids hidden by the user via the customize popover. */
   topBarHiddenActions: string[]
+  /** Ordered, user-configurable top-bar groups. */
+  topBarGroupOrder: TopBarGroupId[]
+  /** Groups the user has removed from the top bar. */
+  topBarHiddenGroups: TopBarGroupId[]
+  /** Per-group width preference used by the flexible toolbar layout. */
+  topBarGroupWidths: Partial<Record<TopBarGroupId, TopBarGroupWidth>>
+  /** Lets the action group use one or two rows. */
+  topBarActionRows: 1 | 2
   showHistoryControls: boolean
   showFormatToolbar: boolean
   showEditorAssist: boolean
@@ -48,6 +58,10 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showModeStrip: true,
   showQuickActions: true,
   topBarHiddenActions: [],
+  topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
+  topBarHiddenGroups: [],
+  topBarGroupWidths: {},
+  topBarActionRows: 1,
   showHistoryControls: true,
   showFormatToolbar: true,
   showEditorAssist: true,
@@ -74,7 +88,22 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
 const STORAGE_KEY = 'scriptor:workspace-chrome'
 
 function validateChrome(value: unknown): WorkspaceChromePrefs {
-  return { ...DEFAULT_WORKSPACE_CHROME, ...expectRecord(value, 'workspace chrome') } as WorkspaceChromePrefs
+  const parsed = expectRecord(value, 'workspace chrome') as Partial<WorkspaceChromePrefs>
+  const output: WorkspaceChromePrefs = { ...DEFAULT_WORKSPACE_CHROME }
+  // Per-field type check against the defaults: persisted values whose type
+  // drifted (corrupt writes, schema probes) fall back per field instead of
+  // flowing into style computations and layout math.
+  const assignable = output as unknown as Record<string, unknown>
+  for (const key of Object.keys(DEFAULT_WORKSPACE_CHROME) as (keyof WorkspaceChromePrefs)[]) {
+    const fallback = DEFAULT_WORKSPACE_CHROME[key]
+    const incoming = parsed[key]
+    if (Array.isArray(fallback)) {
+      if (Array.isArray(incoming)) assignable[key] = incoming
+    } else if (typeof incoming === typeof fallback) {
+      assignable[key] = incoming
+    }
+  }
+  return output
 }
 
 function readChrome(): WorkspaceChromePrefs {
@@ -118,8 +147,8 @@ function applyVisualPrefsToElement(chrome: WorkspaceChromePrefs) {
   const blurMap: Record<GlassBlurIntensity, string> = {
     none: 'none',
     subtle: 'blur(12px) saturate(1.2)',
-    glass: 'blur(24px) saturate(1.6)',
-    heavy: 'blur(40px) saturate(2.0)',
+    glass: 'blur(16px) saturate(1.6)',
+    heavy: 'blur(28px) saturate(2.0)',
   }
   root.style.setProperty('--glass-blur', blurMap[chrome.glassBlur] || blurMap.glass)
 }
@@ -127,21 +156,20 @@ function applyVisualPrefsToElement(chrome: WorkspaceChromePrefs) {
 export function useWorkspaceChrome() {
   const [chrome, setChrome] = useState<WorkspaceChromePrefs>(() => readChrome())
 
+  // Persistence and visual application live in an effect, not inside the state
+  // updater: updaters must stay pure (they can run more than once under
+  // StrictMode and concurrent rendering, which would desynchronize storage).
   useEffect(() => {
     applyVisualPrefsToElement(chrome)
+    writeVersionedStorage(STORAGE_KEY, 1, chrome)
   }, [chrome])
 
   const patchChrome = useCallback((patch: Partial<WorkspaceChromePrefs>) => {
-    setChrome((current) => {
-      const next = { ...current, ...patch }
-      writeVersionedStorage(STORAGE_KEY, 1, next)
-      return next
-    })
+    setChrome((current) => ({ ...current, ...patch }))
   }, [])
 
   const resetChrome = useCallback(() => {
-    setChrome(DEFAULT_WORKSPACE_CHROME)
-    writeVersionedStorage(STORAGE_KEY, 1, DEFAULT_WORKSPACE_CHROME)
+    setChrome({ ...DEFAULT_WORKSPACE_CHROME })
   }, [])
 
   return { chrome, patchChrome, resetChrome }
