@@ -1,3 +1,8 @@
+// mimalloc: reduces Windows CRT heap lock contention during concurrent
+// SQLite queries, regex link parsing, and background indexing.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 use clap::{Parser, Subcommand};
 use scriptor_daemon::automation_stdio::{AutomationStdioOptions, run_automation_stdio};
 use scriptor_daemon::transport;
