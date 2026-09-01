@@ -1,5 +1,7 @@
 # Whole-Stack Audit & Deslop Report — 2026-08-28
 
+> **Historical context:** this audit describes the working tree as it stood on 2026-08-28, including uncommitted WIP that has since been committed and superseded. Claims about "uncommitted changes" and gate results are frozen at that date; the authoritative capability status is [CAPABILITY-MATURITY.md](../CAPABILITY-MATURITY.md).
+
 **Scope:** full working tree of `fix/ci-post-merge-compile-errors` (298 committed files vs `main` + 17 uncommitted + 2 untracked).
 **Method:** regression-first (gates before and after every edit), five-axis review (correctness / readability / architecture / security / performance), design audit against `DESIGN.md`, CI supply-chain scan.
 
