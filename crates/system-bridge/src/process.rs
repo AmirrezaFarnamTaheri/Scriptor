@@ -14,6 +14,51 @@ const POLL_INTERVAL: Duration = Duration::from_millis(25);
 const TERMINATION_GRACE: Duration = Duration::from_millis(250);
 const DEFAULT_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 
+/// Returns whether `pid` currently names a live process without spawning a
+/// helper command. This is intentionally a small OS boundary shared by the
+/// daemon and CLI so failed connection retries do not fork `kill -0` dozens
+/// of times.
+pub fn process_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+
+    #[cfg(unix)]
+    {
+        unsafe extern "C" {
+            fn kill(pid: i32, sig: i32) -> i32;
+        }
+        // SAFETY: POSIX `kill(pid, 0)` sends no signal; it only performs
+        // existence/permission checks for the numeric process id.
+        let result = unsafe { kill(pid as i32, 0) };
+        result == 0 || std::io::Error::last_os_error().kind() == std::io::ErrorKind::PermissionDenied
+    }
+
+    #[cfg(windows)]
+    {
+        use std::ffi::c_void;
+        unsafe extern "system" {
+            fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+            fn GetExitCodeProcess(handle: *mut c_void, exit_code: *mut u32) -> i32;
+            fn CloseHandle(handle: *mut c_void) -> i32;
+        }
+        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+        const STILL_ACTIVE: u32 = 259;
+        // SAFETY: Win32 receives a numeric pid; the returned handle is checked
+        // for null and closed exactly once before it can escape this function.
+        unsafe {
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if handle.is_null() {
+                return false;
+            }
+            let mut exit_code = 0u32;
+            let queried = GetExitCodeProcess(handle, &mut exit_code);
+            CloseHandle(handle);
+            queried != 0 && exit_code == STILL_ACTIVE
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetworkPolicy {
     Allow,

@@ -18,7 +18,7 @@ pub use cancel::{ExportCancelSlot, cancel_active_export, new_cancel_slot};
 pub use args::ExportFormat;
 pub use error::ExportError;
 pub use job::{
-    ExportJobInput, ExportJobOutput, ExportProgressCallback, default_export_directory,
+    ExportJobInput, ExportJobOutput, ExportProgressCallback, default_export_directory, export_artifact_stem,
     run_export_job, run_export_job_with_cancel,
 };
 pub use log::{

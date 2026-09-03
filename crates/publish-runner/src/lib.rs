@@ -15,7 +15,7 @@ pub mod local_site;
 pub mod plan;
 
 pub use compile::{
-    LocalDirSink, PublishApplyInput, PublishApplyOutput, SiteTemplate, publish_apply,
+    LocalDirSink, PublishApplyInput, PublishApplyOutput, publish_apply,
 };
 pub use error::PublishError;
 pub use local_site::{

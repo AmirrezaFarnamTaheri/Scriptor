@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::fs::atomic_write;
-use crate::hash::path_hash;
+use crate::hash::{content_hash_bytes, path_hash};
 use crate::note_history::append_note_history_throttled;
 
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use crate::error::VaultError;
 use crate::note::{NoteMetadata, metadata_from_markdown, read_note};
 use crate::path::{RelativeVaultPath, VaultRoot};
+
+pub const EXPECTED_MISSING_CONTENT_HASH: &str = "<missing>";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SaveNoteOutput {
@@ -52,45 +54,49 @@ pub fn save_note_with_options(
 ) -> Result<SaveNoteOutput, VaultError> {
     let absolute = root.resolve_relative(path)?;
 
-    // Read the existing note document at most once.  All three downstream uses
-    // (hash verification, previous_content_hash, history entry) consume this
-    // cached value rather than making independent disk reads.
-    let existing_note_doc = if absolute.exists() {
-        Some(read_note(vault_id, root, path)?)
+    // Snapshot the existing file once as raw bytes.  CAS and recovery must work
+    // even for a legacy/non-UTF-8 `.md`; history is recorded only when the old
+    // bytes are valid UTF-8.
+    let existing_metadata = fs::metadata(&absolute).ok().filter(|meta| meta.is_file());
+    let existing_bytes = if existing_metadata.is_some() {
+        Some(fs::read(&absolute).map_err(|source| VaultError::io(&absolute, source))?)
     } else {
         None
     };
+    let previous_content_hash = existing_bytes.as_deref().map(content_hash_bytes);
 
-    // Optimistic-concurrency check: reject the save if the caller's expected
-    // hash does not match the on-disk hash.
-    if let (Some(expected), Some(existing)) = (expected_content_hash, &existing_note_doc)
-        && existing.metadata.content_hash != expected
-    {
-        return Err(VaultError::HashMismatch {
-            path: path.to_string(),
-            expected: expected.to_string(),
-            found: existing.metadata.content_hash.clone(),
-        });
+    match (expected_content_hash, previous_content_hash.as_deref()) {
+        (Some(EXPECTED_MISSING_CONTENT_HASH), None) => {}
+        (Some(EXPECTED_MISSING_CONTENT_HASH), Some(found)) => {
+            return Err(VaultError::HashMismatch {
+                path: path.to_string(),
+                expected: EXPECTED_MISSING_CONTENT_HASH.to_string(),
+                found: found.to_string(),
+            });
+        }
+        (Some(expected), Some(found)) if expected != found => {
+            return Err(VaultError::HashMismatch {
+                path: path.to_string(),
+                expected: expected.to_string(),
+                found: found.to_string(),
+            });
+        }
+        (Some(expected), None) => {
+            return Err(VaultError::HashMismatch {
+                path: path.to_string(),
+                expected: expected.to_string(),
+                found: "<missing>".into(),
+            });
+        }
+        _ => {}
     }
 
-    let previous_content_hash = existing_note_doc
+    let observed_modified_at = existing_metadata
         .as_ref()
-        .map(|doc| doc.metadata.content_hash.clone());
-
-    let metadata = if absolute.exists() {
-        let modified_system = fs::metadata(&absolute)
-            .map_err(|source| VaultError::io(&absolute, source))?
-            .modified()
-            .map_err(|source| VaultError::io(&absolute, source))?;
-        metadata_from_markdown(
-            vault_id,
-            path,
-            markdown,
-            chrono::DateTime::<chrono::Utc>::from(modified_system).to_rfc3339(),
-        )
-    } else {
-        metadata_from_markdown(vault_id, path, markdown, chrono::Utc::now().to_rfc3339())
-    };
+        .and_then(|metadata| metadata.modified().ok())
+        .map(|modified| chrono::DateTime::<chrono::Utc>::from(modified).to_rfc3339())
+        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
+    let metadata = metadata_from_markdown(vault_id, path, markdown, observed_modified_at);
 
     if options.dry_run {
         return Ok(SaveNoteOutput {
@@ -104,26 +110,24 @@ pub fn save_note_with_options(
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
 
-    if let Some(ref existing) = existing_note_doc {
-        backup_for_recovery(root, &absolute, path.as_str())?;
-        // Append a history entry using the already-read document; no third disk
-        // read needed. The throttle folds rapid small autosaves into one
-        // snapshot per window. History is best-effort: a failure is logged and
-        // the primary save continues.
-        if let Err(error) = append_note_history_throttled(
-            root,
-            path.as_str(),
-            &existing.markdown,
-            &existing.metadata.content_hash,
-            Some(&existing.markdown),
-        ) {
-            tracing::warn!(
-                target: "scriptor_vault::write",
-                vault_id,
-                note_path = %path.as_str(),
-                error = %error,
-                "failed to append note history before overwrite; save continues",
-            );
+    if let Some(existing) = existing_bytes.as_deref() {
+        backup_for_recovery(root, path.as_str(), existing)?;
+        if let Ok(previous_markdown) = std::str::from_utf8(existing) {
+            if let Err(error) = append_note_history_throttled(
+                root,
+                path.as_str(),
+                previous_markdown,
+                previous_content_hash.as_deref().unwrap_or_default(),
+                Some(markdown),
+            ) {
+                tracing::warn!(
+                    target: "scriptor_vault::write",
+                    vault_id,
+                    note_path = %path.as_str(),
+                    error = %error,
+                    "failed to append note history before overwrite; save continues",
+                );
+            }
         }
     }
 
@@ -156,19 +160,14 @@ fn recovery_backup_path(root: &VaultRoot, relative_path: &str) -> std::path::Pat
 
 fn backup_for_recovery(
     root: &VaultRoot,
-    absolute: &Path,
     relative_path: &str,
+    content: &[u8],
 ) -> Result<(), VaultError> {
-    // Read bytes, not a String: a note that is not valid UTF-8 must still be
-    // saveable, and the backup must be a faithful copy either way.
-    let content = fs::read(absolute).map_err(|source| VaultError::io(absolute, source))?;
     let backup_path = recovery_backup_path(root, relative_path);
     if let Some(parent) = backup_path.parent() {
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
-    // Atomic, not a plain write: a crash mid-backup would otherwise leave a
-    // truncated file that rollback would happily restore over the real note.
-    atomic_write(&backup_path, &content)
+    atomic_write(&backup_path, content)
 }
 
 /// Restores disk state after a failed post-save index update.

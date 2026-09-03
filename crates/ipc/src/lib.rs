@@ -108,6 +108,8 @@ pub enum RpcMethod {
         from_path: String,
         to_path: String,
         update_links: bool,
+        #[serde(default)]
+        expected_source_hash: Option<String>,
     },
     ExportRunNote {
         note_path: String,
@@ -456,22 +458,43 @@ fn sync_to_length_field<R: std::io::Read>(
     reader: &mut R,
     scan_buf: &mut Vec<u8>,
 ) -> Result<Vec<u8>, IpcError> {
+    if let Some(len_start) = find_length_field_start(scan_buf) {
+        return Ok(scan_buf[len_start..].to_vec());
+    }
+
+    // Scan in chunks and only revisit the final three bytes from the previous
+    // chunk. A four-byte magic value can only begin in that overlap, so this
+    // keeps recovery O(n) instead of rescanning the entire accumulated buffer
+    // after every byte.
+    let mut chunk = [0u8; 4096];
     loop {
-        if let Some(len_start) = find_length_field_start(scan_buf) {
-            return Ok(scan_buf[len_start..].to_vec());
-        }
-        if scan_buf.len() > RESYNC_SCAN_BUDGET {
+        if scan_buf.len() >= RESYNC_SCAN_BUDGET {
             return Err(IpcError::Codec("resync scan budget exceeded".into()));
         }
-        let mut byte = [0u8; 1];
-        reader.read_exact(&mut byte)?;
-        scan_buf.push(byte[0]);
+        let remaining = RESYNC_SCAN_BUDGET - scan_buf.len();
+        let read_len = remaining.min(chunk.len());
+        let search_from = scan_buf.len().saturating_sub(3);
+        let read = reader.read(&mut chunk[..read_len])?;
+        if read == 0 {
+            return Err(IpcError::Io(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "stream ended while resynchronizing frame header",
+            )));
+        }
+        scan_buf.extend_from_slice(&chunk[..read]);
+        if let Some(len_start) = find_length_field_start_from(scan_buf, search_from) {
+            return Ok(scan_buf[len_start..].to_vec());
+        }
     }
 }
 
 fn find_length_field_start(buf: &[u8]) -> Option<usize> {
+    find_length_field_start_from(buf, 0)
+}
+
+fn find_length_field_start_from(buf: &[u8], start_at: usize) -> Option<usize> {
     let magic = FRAME_MAGIC.to_le_bytes();
-    (0..buf.len().saturating_sub(3))
+    (start_at..buf.len().saturating_sub(3))
         .find(|&start| buf[start..start + 4] == magic)
         .map(|start| start + 4)
 }

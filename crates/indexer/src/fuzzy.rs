@@ -10,10 +10,12 @@ use rusqlite::params;
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
+use scriptor_vault::normalize_lookup_key;
 
 /// Maximum notes scanned before early exit.  On a 50k-note vault with
 /// ~100-byte average row, this is ~5 MB of SQLite page reads.
-const FUZZY_SCAN_LIMIT: i64 = 50_000;
+const FUZZY_SCAN_LIMIT: usize = 50_000;
+const FUZZY_SCAN_FETCH: i64 = FUZZY_SCAN_LIMIT as i64 + 1;
 
 #[derive(Debug, Clone)]
 pub struct FuzzyHit {
@@ -96,7 +98,7 @@ pub fn fuzzy_search_notes(
     query: &str,
     limit: usize,
 ) -> Result<Vec<FuzzyHit>, IndexerError> {
-    let q = query.trim().to_lowercase();
+    let q = normalize_lookup_key(query);
     if q.is_empty() {
         return Ok(Vec::new());
     }
@@ -107,10 +109,11 @@ pub fn fuzzy_search_notes(
         "SELECT id, path, title
          FROM notes
          WHERE vault_id = ?1
+         ORDER BY path, id
          LIMIT ?2",
     )?;
 
-    let rows = stmt.query_map(params![vault_id, FUZZY_SCAN_LIMIT], |row| {
+    let rows = stmt.query_map(params![vault_id, FUZZY_SCAN_FETCH], |row| {
         Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
@@ -118,17 +121,23 @@ pub fn fuzzy_search_notes(
         ))
     })?;
 
+    let candidates = rows.collect::<Result<Vec<_>, _>>()?;
+    if candidates.len() > FUZZY_SCAN_LIMIT {
+        return Err(IndexerError::InvalidQuery(format!(
+            "fuzzy search requires scanning more than {FUZZY_SCAN_LIMIT} notes; narrow the query or use full-text search"
+        )));
+    }
+
     let mut hits: Vec<FuzzyHit> = Vec::new();
 
-    for row in rows {
-        let (note_id, path, title) = row?;
+    for (note_id, path, title) in candidates {
 
-        let title_lower = title.to_lowercase();
+        let title_lower = normalize_lookup_key(&title);
         let basename = std::path::Path::new(&path)
             .file_stem()
             .and_then(|s| s.to_str())
-            .unwrap_or(&path)
-            .to_lowercase();
+            .unwrap_or(&path);
+        let basename = normalize_lookup_key(basename);
 
         let dist_title = best_token_distance(&q, &title_lower);
         let dist_path = best_token_distance(&q, &basename);

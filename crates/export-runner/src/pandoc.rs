@@ -46,14 +46,18 @@ pub fn verify_binary_hash(
     expected_hash: Option<&str>,
     label: &str,
 ) -> Result<Option<String>, ExportError> {
-    let computed = sha256_file(binary_path)?;
+    let Some(expected) = expected_hash else {
+        log::debug!("{label} trusted hash is not configured; skipping binary hashing");
+        return Ok(None);
+    };
 
+    let computed = sha256_file(binary_path)?;
     log::info!(
         "{label} SHA-256: {computed} (path: {})",
         binary_path.display()
     );
 
-    if let Some(expected) = expected_hash {
+    {
         let normalized = expected.trim().to_ascii_lowercase();
         if normalized.len() != 64 || !normalized.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(ExportError::Process(format!(

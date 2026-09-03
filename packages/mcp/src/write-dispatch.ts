@@ -37,6 +37,12 @@ function assertNonEmpty(value: unknown, toolName: string, field: string): assert
   }
 }
 
+
+function requireVaultId(ctx: McpVaultContext): string {
+  if (!ctx.vaultId) throw new Error('Draft/write MCP tools require a stable vault identity')
+  return ctx.vaultId
+}
+
 /**
  * Validate and execute the draft-producing MCP tools. Returns
  * `{ handled: false }` for tool names this module does not own so the caller can
@@ -82,7 +88,7 @@ export async function dispatchWriteTool(
         throw new Error('mcp.createNote requires a "markdown" string')
       }
       assertNonEmpty(payload.summary, toolName, 'summary')
-      const patch = createNoteDraft(payload)
+      const patch = createNoteDraft(payload, requireVaultId(ctx))
       deps.pushDraft(patch)
       return { handled: true, output: patch }
     }
@@ -94,7 +100,7 @@ export async function dispatchWriteTool(
       assertVaultRelativePath(payload.to, 'to')
       assertNonEmpty(payload.summary, toolName, 'summary')
       const note = await ctx.readNote(payload.from)
-      const patch = moveNoteDraft(payload, note.markdown, note.metadata.content_hash)
+      const patch = moveNoteDraft(payload, note.markdown, note.metadata.content_hash, requireVaultId(ctx))
       deps.pushDraft(patch)
       return { handled: true, output: patch }
     }
@@ -103,7 +109,8 @@ export async function dispatchWriteTool(
       assertNonEmpty(payload.path, toolName, 'path')
       assertVaultRelativePath(payload.path)
       assertNonEmpty(payload.summary, toolName, 'summary')
-      const patch = deleteNoteDraft(payload)
+      const note = await ctx.readNote(payload.path)
+      const patch = deleteNoteDraft(payload, note.metadata.content_hash, requireVaultId(ctx))
       deps.pushDraft(patch)
       return { handled: true, output: patch }
     }

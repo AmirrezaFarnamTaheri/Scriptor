@@ -61,6 +61,36 @@ fn rewrite_hashtag_line(line: &str, old_root: &str, new_root: &str, edits: &mut 
         .into_owned()
 }
 
+fn rewrite_hashtags_outside_code_and_urls(
+    line: &str,
+    old_root: &str,
+    new_root: &str,
+    edits: &mut u32,
+) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    let mut in_code = false;
+    while let Some(pos) = rest.find('`') {
+        let (segment, tail) = rest.split_at(pos);
+        if in_code { out.push_str(segment); } else { out.push_str(&rewrite_non_url_segment(segment, old_root, new_root, edits)); }
+        out.push('`');
+        rest = &tail[1..];
+        in_code = !in_code;
+    }
+    if in_code { out.push_str(rest); } else { out.push_str(&rewrite_non_url_segment(rest, old_root, new_root, edits)); }
+    out
+}
+
+fn rewrite_non_url_segment(segment: &str, old_root: &str, new_root: &str, edits: &mut u32) -> String {
+    // A URL fragment is not a Markdown tag. Split on whitespace so `#tag`
+    // adjacent to prose is still handled while `https://x/#tag` is preserved.
+    segment.split_inclusive(char::is_whitespace).map(|token| {
+        let core = token.trim_end_matches(char::is_whitespace);
+        let suffix = &token[core.len()..];
+        if core.contains("://") { token.to_string() } else { format!("{}{}", rewrite_hashtag_line(core, old_root, new_root, edits), suffix) }
+    }).collect()
+}
+
 /// Splits a frontmatter line into `(key, value)` when it looks like a YAML
 /// mapping entry. Anything else (comments, list items, continuations) is `None`.
 fn split_yaml_key(trimmed: &str) -> Option<(&str, &str)> {
@@ -179,8 +209,25 @@ pub fn rewrite_tags_in_markdown(old_tag: &str, new_tag: &str, markdown: &str) ->
 
     let mut edits = 0u32;
     let (frontmatter, body) = split_frontmatter(&normalized);
+    let mut fence: Option<(char, usize)> = None;
     let rewritten_body = crate::text::split_lines(&body)
-        .map(|line| rewrite_hashtag_line(line, old_tag, new_tag, &mut edits))
+        .map(|line| {
+            let trimmed = line.trim_start();
+            let marker = trimmed.chars().next().filter(|ch| matches!(ch, '`' | '~'));
+            if let Some(ch) = marker {
+                let len = trimmed.chars().take_while(|c| *c == ch).count();
+                if len >= 3 {
+                    match fence {
+                        Some((open, open_len)) if open == ch && len >= open_len => fence = None,
+                        None => fence = Some((ch, len)),
+                        _ => {}
+                    }
+                    return line.to_string();
+                }
+            }
+            if fence.is_some() { return line.to_string(); }
+            rewrite_hashtags_outside_code_and_urls(line, old_tag, new_tag, &mut edits)
+        })
         .collect::<Vec<_>>()
         .join("\n");
     let rewritten_frontmatter = frontmatter

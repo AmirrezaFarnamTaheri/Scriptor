@@ -147,9 +147,26 @@ export function usePluginRegistry(
   }, [vaultOpen])
 
   const snapshot = useMemo(() => registry.getSnapshot(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
-  const enabledPlugins = useMemo(() => registry.listEnabled(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
+  const enabledPlugins = useMemo(
+    () => registry.listEnabledForVault(activeVaultId),
+    [activeVaultId, registry, revision], // eslint-disable-line react-hooks/exhaustive-deps
+  )
   const plugins = useMemo(() => registry.listAll(), [registry, revision]) // eslint-disable-line react-hooks/exhaustive-deps
   const contributions = useMemo(() => collectContributions(enabledPlugins), [enabledPlugins])
+
+  const canExecutePluginCommand = useCallback(
+    (pluginId: string, permission: import('@scriptor/core/contracts/plugin').PluginPermission['permission']) => {
+      const plugin = registry.get(pluginId)
+      if (!plugin?.enabled || !registry.canEnable(pluginId, activeVaultId)) return false
+      const policy = registry.defaultPolicy(pluginId)
+      if (!policy?.grantedPermissions.includes(permission)) return false
+      if (permission === 'read' || permission === 'write-approved') {
+        return Boolean(activeVaultId && policy.allowedVaultIds.includes(activeVaultId))
+      }
+      return true
+    },
+    [activeVaultId, registry, revision], // eslint-disable-line react-hooks/exhaustive-deps
+  )
   const pluginHosts = useMemo(
     () =>
       enabledPlugins.map((plugin) => ({
@@ -275,6 +292,8 @@ export function usePluginRegistry(
     installFromMarketplace,
     marketplaceCatalog,
     plugins,
+    activePlugins: enabledPlugins,
+    canExecutePluginCommand,
     manifestsReady,
   }
 }

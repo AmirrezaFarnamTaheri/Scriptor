@@ -48,7 +48,10 @@ fn check(name: &'static str, required: bool, outcome: Result<String, String>) ->
 
 fn probe_daemon_endpoint() -> Result<String, String> {
     match scriptor_daemon::read_endpoint() {
-        Ok(endpoint) => Ok(format!("endpoint resolved: {endpoint:?}")),
+        Ok(endpoint) => Ok(format!(
+            "endpoint resolved: socket={} pid={} protocol={}",
+            endpoint.socket_name, endpoint.pid, endpoint.protocol_version
+        )),
         Err(error) => Err(format!("daemon endpoint unavailable: {error}")),
     }
 }

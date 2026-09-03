@@ -107,7 +107,33 @@ pub fn list_inbox_notes(
     vault_id: &str,
     period: InboxPeriod,
 ) -> Result<Vec<NoteIndexSummary>, IndexerError> {
-    let summaries = list_note_summaries(cache, vault_id)?;
+    // Push the stable inbox predicates into SQLite instead of loading every
+    // note and discarding organized/archived/type rows in Rust. Timestamp
+    // windowing remains in Rust because RFC3339 offsets must be compared as
+    // instants, not lexicographic strings.
+    let conn = cache.connection()?;
+    let mut statement = conn.prepare_cached(
+        "SELECT path, title, modified_at, note_type, organized, archived, tags_json
+         FROM notes
+         WHERE vault_id = ?1
+           AND archived = 0
+           AND organized = 0
+           AND (note_type IS NULL OR note_type != 'Type')
+         ORDER BY modified_at DESC",
+    )?;
+    let rows = statement.query_map(params![vault_id], |row| {
+        let tags_json: String = row.get(6)?;
+        Ok(NoteIndexSummary {
+            path: row.get(0)?,
+            title: row.get(1)?,
+            modified_at: row.get(2)?,
+            note_type: row.get(3)?,
+            organized: row.get::<_, i64>(4)? != 0,
+            archived: row.get::<_, i64>(5)? != 0,
+            tags: serde_json::from_str(&tags_json).unwrap_or_default(),
+        })
+    })?;
+    let summaries = rows.collect::<Result<Vec<_>, _>>()?;
     Ok(filter_inbox_notes(summaries, period))
 }
 

@@ -163,6 +163,7 @@ export interface TaskRow {
   rrule: string | null
   fieldStyle: 'emoji' | 'dataview'
   tags: string[]
+  completedAt: string | null
   createdAt: string
   updatedAt: string
 }

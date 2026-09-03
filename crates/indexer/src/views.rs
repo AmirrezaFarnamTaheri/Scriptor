@@ -1,12 +1,13 @@
+use rusqlite::types::Value;
 use serde::{Deserialize, Serialize};
 
 use scriptor_vault::{
-    NoteMetadata, VaultSession, ViewFilter, ViewNoteMetadata, evaluate_view_filter,
+    NoteMetadata, VaultSession, ViewFilter, ViewFilterCondition, ViewFilterNode, ViewFilterOp,
+    ViewNoteMetadata, evaluate_view_filter,
 };
 
 use crate::db::IndexCache;
 use crate::error::IndexerError;
-use crate::parse::parse_note_markdown;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ViewNoteHit {
@@ -34,27 +35,39 @@ pub fn list_view_notes(
     })?;
 
     let conn = cache.connection()?;
-    let mut statement = conn.prepare(
-        "SELECT path, title, modified_at, tags_json, note_type, organized, archived FROM notes WHERE vault_id = ?1 ORDER BY path",
-    )?;
-    let rows = statement.query_map(rusqlite::params![session.descriptor.id], |row| {
+    let mut sql = String::from(
+        "SELECT id, path, title, modified_at, tags_json, note_type, organized, archived \
+         FROM notes WHERE vault_id = ?",
+    );
+    let mut values = vec![Value::Text(session.descriptor.id.clone())];
+    if let Some((predicate, mut predicate_values)) = view_sql_prefilter(&filter) {
+        sql.push_str(" AND (");
+        sql.push_str(&predicate);
+        sql.push(')');
+        values.append(&mut predicate_values);
+    }
+    sql.push_str(" ORDER BY path");
+
+    let mut statement = conn.prepare_cached(&sql)?;
+    let rows = statement.query_map(rusqlite::params_from_iter(values.iter()), |row| {
         Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
             row.get::<_, String>(2)?,
             row.get::<_, String>(3)?,
-            row.get::<_, Option<String>>(4)?,
-            row.get::<_, i64>(5)?,
+            row.get::<_, String>(4)?,
+            row.get::<_, Option<String>>(5)?,
             row.get::<_, i64>(6)?,
+            row.get::<_, i64>(7)?,
         ))
     })?;
 
     let mut hits = Vec::new();
     for row in rows {
-        let (path, title, modified_at, tags_json, note_type, organized, archived) = row?;
+        let (id, path, title, modified_at, tags_json, note_type, organized, archived) = row?;
         let tags: Vec<String> = serde_json::from_str(&tags_json).unwrap_or_default();
         let metadata = NoteMetadata {
-            id: format!("{}:{path}", session.descriptor.id),
+            id,
             vault_id: session.descriptor.id.clone(),
             path,
             title,
@@ -78,23 +91,90 @@ pub fn list_view_notes(
     Ok(hits)
 }
 
-pub fn note_metadata_matches_view(
-    markdown_path: &str,
-    markdown: &str,
-    filter: &ViewFilter,
-) -> bool {
-    let parsed = parse_note_markdown(markdown_path, markdown);
-    let metadata = ViewNoteMetadata {
-        path: markdown_path,
-        title: &parsed.title,
-        tags: &parsed.tags,
-        modified_at: "",
-        note_type: parsed.note_type.as_deref(),
-        organized: parsed.organized,
-        archived: parsed.archived,
-    };
-    evaluate_view_filter(filter, &metadata)
+fn view_sql_prefilter(filter: &ViewFilter) -> Option<(String, Vec<Value>)> {
+    match filter {
+        ViewFilter::All(nodes) => {
+            let mut predicates = Vec::new();
+            let mut values = Vec::new();
+            for node in nodes {
+                if let Some((predicate, mut node_values)) = view_node_sql_prefilter(node) {
+                    predicates.push(format!("({predicate})"));
+                    values.append(&mut node_values);
+                }
+            }
+            (!predicates.is_empty()).then(|| (predicates.join(" AND "), values))
+        }
+        ViewFilter::Any(nodes) => {
+            // For OR, dropping an unsupported branch would create false
+            // negatives. Only push the group when every branch has a safe SQL
+            // superset predicate; exact semantics are still rechecked in Rust.
+            let mut predicates = Vec::new();
+            let mut values = Vec::new();
+            for node in nodes {
+                let (predicate, mut node_values) = view_node_sql_prefilter(node)?;
+                predicates.push(format!("({predicate})"));
+                values.append(&mut node_values);
+            }
+            (!predicates.is_empty()).then(|| (predicates.join(" OR "), values))
+        }
+    }
 }
+
+fn view_node_sql_prefilter(node: &ViewFilterNode) -> Option<(String, Vec<Value>)> {
+    match node {
+        ViewFilterNode::Condition(condition) => view_condition_sql_prefilter(condition),
+        ViewFilterNode::Group(group) => view_sql_prefilter(group),
+    }
+}
+
+fn view_condition_sql_prefilter(
+    condition: &ViewFilterCondition,
+) -> Option<(String, Vec<Value>)> {
+    let scalar = || match &condition.value {
+        Some(serde_json::Value::String(value)) => Some(value.clone()),
+        Some(serde_json::Value::Number(value)) => Some(value.to_string()),
+        Some(value) if !value.is_null() => Some(value.to_string()),
+        _ => None,
+    };
+
+    match condition.op {
+        ViewFilterOp::InInbox => Some((
+            "archived = 0 AND organized = 0 AND (note_type IS NULL OR note_type != 'Type')".into(),
+            Vec::new(),
+        )),
+        ViewFilterOp::OrganizedIs => {
+            let value = scalar()?;
+            let expected = matches!(value.to_lowercase().as_str(), "true" | "yes" | "1");
+            Some(("organized = ?".into(), vec![Value::Integer(i64::from(expected))]))
+        }
+        ViewFilterOp::TypeEquals => {
+            let value = scalar()?;
+            value.is_ascii().then(|| {
+                ("note_type = ? COLLATE NOCASE".into(), vec![Value::Text(value)])
+            })
+        }
+        ViewFilterOp::TagHas => {
+            let value = scalar()?.trim_start_matches('#').to_string();
+            value.is_ascii().then(|| {
+                (
+                    "json_valid(tags_json) AND EXISTS (SELECT 1 FROM json_each(tags_json) WHERE value = ? COLLATE NOCASE)".into(),
+                    vec![Value::Text(value)],
+                )
+            })
+        }
+        ViewFilterOp::TitleContains => {
+            let value = scalar()?;
+            value.is_ascii().then(|| {
+                ("title LIKE ? COLLATE NOCASE".into(), vec![Value::Text(format!("%{value}%"))])
+            })
+        }
+        // Arbitrary regexes and timestamp semantics stay in the authoritative
+        // Rust evaluator. In an `All` group, sibling predicates can still
+        // reduce the candidate set safely.
+        ViewFilterOp::PathMatches | ViewFilterOp::ModifiedWithinDays => None,
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -124,15 +204,28 @@ mod tests {
     }
 
     #[test]
-    fn matches_markdown_without_index_row() {
-        let filter = ViewFilter::All(vec![scriptor_vault::ViewFilterNode::Condition(
-            scriptor_vault::ViewFilterCondition {
-                op: ViewFilterOp::TagHas,
-                value: Some(serde_json::json!("project")),
-            },
-        )]);
-        let markdown = "# Title\n\nTagged #project\n";
-        assert!(note_metadata_matches_view("x.md", markdown, &filter));
+    fn any_group_with_regex_does_not_build_an_incomplete_sql_prefilter() {
+        let filter: ViewFilter = serde_json::from_value(serde_json::json!({
+            "any": [
+                { "op": "path matches", "value": "^daily/" },
+                { "op": "organized is", "value": true }
+            ]
+        }))
+        .unwrap();
+        assert!(view_sql_prefilter(&filter).is_none());
+    }
+
+    #[test]
+    fn all_group_pushes_safe_subset_predicates() {
+        let filter: ViewFilter = serde_json::from_value(serde_json::json!({
+            "all": [
+                { "op": "path matches", "value": "^daily/" },
+                { "op": "in inbox" }
+            ]
+        }))
+        .unwrap();
+        let (sql, _values) = view_sql_prefilter(&filter).expect("safe conjunctive subset");
+        assert!(sql.contains("archived = 0"));
     }
 
     #[test]

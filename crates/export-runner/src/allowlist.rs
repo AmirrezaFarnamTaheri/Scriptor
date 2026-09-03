@@ -30,7 +30,7 @@ const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--highlight-style=",
 ];
 
-const ALLOWED_VALUE_FLAGS: &[&str] = &["-t", "--metadata", "--variable"];
+const ALLOWED_VALUE_FLAGS: &[&str] = &["--metadata", "--variable"];
 
 fn contains_shell_metachar(value: &str) -> bool {
     value.contains(['&', '|', ';', '`', '\n', '\r'])
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn allows_bare_token_as_value_of_value_flag() {
-        validate_extra_args(&["-t".into(), "revealjs".into()]).expect("format target value");
+        assert!(validate_extra_args(&["-t".into(), "revealjs".into()]).is_err());
         validate_extra_args(&["--variable".into(), "theme:moon".into()]).expect("variable value");
     }
 
@@ -127,8 +127,6 @@ mod tests {
             "--embed-resources".into(),
             "--css=export-theme.css".into(),
             "--citeproc".into(),
-            "-t".into(),
-            "revealjs".into(),
             "-s".into(),
             "--slide-level=2".into(),
             "--standalone".into(),

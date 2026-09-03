@@ -1,3 +1,5 @@
+use unicode_normalization::UnicodeNormalization;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -16,6 +18,16 @@ pub struct WikilinkResolution {
 }
 
 const DIRECTORY_INDEX_NAMES: [&str; 2] = ["index", "readme"];
+
+/// Canonical comparison key for user-authored note identifiers.
+///
+/// Filesystems may surface canonically equivalent Unicode spellings (NFC/NFD),
+/// especially across macOS and Windows/Linux sync. Normalize before
+/// case-folding so wikilink identity does not depend on the host's spelling.
+pub fn normalize_lookup_key(value: &str) -> String {
+    let lowered: String = value.trim().nfc().flat_map(char::to_lowercase).collect();
+    lowered.nfc().collect()
+}
 
 #[derive(Debug, Default)]
 pub struct WikilinkIndex {
@@ -36,13 +48,13 @@ impl WikilinkIndex {
 
     fn register_note(&mut self, path: &str) {
         let stem = path.trim_end_matches(".md");
-        let basename = stem.rsplit('/').next().unwrap_or(stem).to_lowercase();
+        let basename = normalize_lookup_key(stem.rsplit('/').next().unwrap_or(stem));
         self.by_basename
             .entry(basename)
             .or_default()
             .push(path.to_string());
 
-        let relative = stem.to_lowercase();
+        let relative = normalize_lookup_key(stem);
         self.by_relative_stem
             .entry(relative)
             .or_default()
@@ -60,7 +72,7 @@ impl WikilinkIndex {
 
     pub fn register_aliases(&mut self, path: &str, aliases: &[String]) {
         for alias in aliases {
-            let key = alias.trim().to_lowercase();
+            let key = normalize_lookup_key(alias);
             if key.is_empty() {
                 continue;
             }
@@ -101,29 +113,27 @@ impl WikilinkIndex {
 
     fn resolve_alias(&self, normalized: &str) -> Option<WikilinkResolution> {
         self.by_alias
-            .get(&normalized.to_lowercase())
+            .get(&normalize_lookup_key(normalized))
             .cloned()
             .map(finalize)
     }
 
     fn resolve_relative(&self, normalized: &str) -> Option<WikilinkResolution> {
         self.by_relative_stem
-            .get(&normalized.to_lowercase())
+            .get(&normalize_lookup_key(normalized))
             .cloned()
             .map(finalize)
     }
 
     fn resolve_basename(&self, normalized: &str) -> Option<WikilinkResolution> {
-        let basename = normalized
-            .rsplit('/')
-            .next()
-            .unwrap_or(normalized)
-            .to_lowercase();
+        let basename = normalize_lookup_key(
+            normalized.rsplit('/').next().unwrap_or(normalized),
+        );
         self.by_basename.get(&basename).cloned().map(finalize)
     }
 
     fn resolve_directory_identifier(&self, normalized: &str) -> WikilinkResolution {
-        let needle = normalized.to_lowercase();
+        let needle = normalize_lookup_key(normalized);
         let mut candidates = Vec::new();
         for (dir_path, path) in &self.directory_index {
             if dir_path == &needle || dir_path.ends_with(&format!("/{needle}")) {
@@ -142,7 +152,7 @@ fn directory_index_entry(path: &str) -> Option<(String, usize)> {
         .position(|name| basename.eq_ignore_ascii_case(name))?;
     let dir_path = stem
         .rsplit_once('/')
-        .map(|(parent, _)| parent.to_lowercase())
+        .map(|(parent, _)| normalize_lookup_key(parent))
         .unwrap_or_default();
     Some((dir_path, priority))
 }
@@ -221,6 +231,15 @@ mod tests {
         let resolution = index.resolve("notes/Target");
         assert_eq!(resolution.kind, WikilinkResolutionKind::Resolved);
         assert_eq!(resolution.path.as_deref(), Some("notes/Target.md"));
+    }
+
+    #[test]
+    fn resolves_canonically_equivalent_unicode_identifiers() {
+        let paths = vec!["Café.md".into()];
+        let decomposed = "Cafe\u{301}";
+        let resolution = resolve_wikilink_target(&paths, decomposed);
+        assert_eq!(resolution.kind, WikilinkResolutionKind::Resolved);
+        assert_eq!(resolution.path.as_deref(), Some("Café.md"));
     }
 
     #[test]

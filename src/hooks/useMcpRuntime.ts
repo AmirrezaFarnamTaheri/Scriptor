@@ -41,6 +41,7 @@ function normalizeMcpMode(value: string | undefined, disabled?: boolean): McpMod
 
 export function useMcpRuntime(
   vaultOpen: boolean,
+  vaultId: string | undefined,
   vaultConfig: VaultConfig,
   setVaultConfig: (updater: (current: VaultConfig) => VaultConfig) => void,
   activePath: string | null,
@@ -48,6 +49,10 @@ export function useMcpRuntime(
   pluginExportProfiles: ExportProfileContribution[] = [],
   pluginMcpTools: McpToolContribution[] = [],
   pluginCommandRuntime?: PluginCommandRuntime,
+  canExecutePluginCommand?: (
+    pluginId: string,
+    permission: import('@scriptor/core/contracts/plugin').PluginPermission['permission'],
+  ) => boolean,
   hibernated: boolean = false,
 ) {
   const mode = normalizeMcpMode(
@@ -96,6 +101,7 @@ export function useMcpRuntime(
   const context = useMemo<McpVaultContext | null>(() => {
     if (!vaultOpen || mode === 'off') return null
     return {
+      vaultId,
       search: (query, limit) => indexerSearch(query, limit ?? 25),
       readNote: (path) => vaultReadNote(path),
       backlinks: (path) => indexerBacklinks(path),
@@ -115,8 +121,9 @@ export function useMcpRuntime(
       exportProfiles: async () => exportProfiles,
       saveNote: (path, markdown, expectedContentHash) =>
         vaultSaveNote(path, markdown, expectedContentHash),
-      renameNote: (from, to, updateLinks) => vaultRenameApply(from, to, updateLinks ?? true),
-      deleteNote: (path) => vaultDeleteNote(path),
+      renameNote: (from, to, updateLinks, expectedSourceHash) =>
+        vaultRenameApply(from, to, updateLinks ?? true, expectedSourceHash),
+      deleteNote: (path, expectedContentHash) => vaultDeleteNote(path, expectedContentHash),
       renderMarkdown: async (markdown, theme) => {
         const themeId = theme === 'grace' ? 'grace' : 'default'
         const publishPack = await import('@scriptor/plugin-publish-pack')
@@ -126,7 +133,7 @@ export function useMcpRuntime(
         return publishPack.prepareWeChatHtml(html, publishPack.getPublishThemeCss(themeId))
       },
     }
-  }, [exportProfiles, mode, vaultOpen])
+  }, [exportProfiles, mode, vaultId, vaultOpen])
 
   // One runtime for the lifetime of the hook. Recreating it on every mode
   // toggle or daemon config push discarded all pending drafts and the entire
@@ -150,6 +157,24 @@ export function useMcpRuntime(
     async (toolName: string, input: unknown) => {
       const pluginTool = pluginMcpTools.find((tool) => tool.name === toolName)
       if (pluginTool && pluginCommandRuntime) {
+        if (
+          !pluginTool.pluginId ||
+          !pluginTool.permission ||
+          !canExecutePluginCommand?.(pluginTool.pluginId, pluginTool.permission)
+        ) {
+          const denied: CommandResult = {
+            ok: false,
+            requestId: crypto.randomUUID(),
+            error: {
+              code: 'mcp.plugin_permission_denied',
+              message: `Plugin tool ${pluginTool.name} is not authorized for the active vault`,
+              recoverable: true,
+            },
+          }
+          setLastResult(denied)
+          bump()
+          return denied
+        }
         const notePath =
           typeof (input as { path?: string })?.path === 'string'
             ? (input as { path: string }).path
@@ -169,7 +194,7 @@ export function useMcpRuntime(
       bump()
       return result
     },
-    [activePath, bump, pluginCommandRuntime, pluginMcpTools, runtime],
+    [activePath, bump, canExecutePluginCommand, pluginCommandRuntime, pluginMcpTools, runtime],
   )
 
   const approveDraft = useCallback(
@@ -206,7 +231,13 @@ export function useMcpRuntime(
 
   const pluginToolDescriptors = useMemo<McpToolDescriptor[]>(
     () =>
-      pluginMcpTools.map((tool) => ({
+      pluginMcpTools
+        .filter(
+          (tool) =>
+            Boolean(tool.pluginId && tool.permission) &&
+            Boolean(canExecutePluginCommand?.(tool.pluginId!, tool.permission!)),
+        )
+        .map((tool) => ({
         name: tool.name,
         description: tool.label,
         modeRequired: tool.modeRequired,
@@ -216,7 +247,7 @@ export function useMcpRuntime(
         // shape rather than advertise a closed, empty schema.
         inputSchema: { type: 'object' as const, properties: {}, additionalProperties: true },
       })),
-    [pluginMcpTools],
+    [canExecutePluginCommand, pluginMcpTools],
   )
 
   const tools = useMemo(() => {

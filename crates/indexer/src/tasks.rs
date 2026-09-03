@@ -51,7 +51,7 @@
 
 use std::collections::BTreeSet;
 
-use rusqlite::{Connection, params, params_from_iter};
+use rusqlite::{Connection, TransactionBehavior, params, params_from_iter};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -62,6 +62,7 @@ use crate::error::IndexerError;
 
 /// A task row as represented in the `tasks` table.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
 pub struct TaskRow {
     pub id: String,
     pub vault_id: String,
@@ -84,6 +85,8 @@ pub struct TaskRow {
     /// `"emoji"` or `"dataview"`.
     pub field_style: String,
     pub tags: Vec<String>,
+    /// ISO-8601 completion timestamp while status is `done`.
+    pub completed_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -196,7 +199,12 @@ struct ExtractedFields {
 
 fn extract_fields(text: &str) -> (String, ExtractedFields) {
     // Check which style is present.  Dataview takes precedence if both appear.
-    if text.contains("[due::") || text.contains("[scheduled::") || text.contains("[start::") {
+    if text.contains("[due::")
+        || text.contains("[scheduled::")
+        || text.contains("[start::")
+        || text.contains("[rrule::")
+        || text.contains("[priority::")
+    {
         extract_dataview_fields(text)
     } else {
         extract_emoji_fields(text)
@@ -343,16 +351,11 @@ fn extract_emoji_rrule(text: &str, emoji: &str, dest: &mut Option<String>) -> St
 }
 
 fn looks_like_date(s: &str) -> bool {
-    // YYYY-MM-DD: exactly 10 chars, digits at 0-3, 5-6, 8-9, dashes at 4 and 7.
-    if s.len() != 10 {
-        return false;
-    }
-    let b = s.as_bytes();
-    b[4] == b'-'
-        && b[7] == b'-'
-        && b[..4].iter().all(u8::is_ascii_digit)
-        && b[5..7].iter().all(u8::is_ascii_digit)
-        && b[8..10].iter().all(u8::is_ascii_digit)
+    is_valid_task_date(s)
+}
+
+pub(crate) fn is_valid_task_date(s: &str) -> bool {
+    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
 }
 
 // ── Tag extraction ────────────────────────────────────────────────────────────
@@ -414,19 +417,24 @@ pub fn sync_note_tasks(
         conn.execute(
             "INSERT INTO tasks
                (id, vault_id, source_note_id, line, title, status, priority,
-                due_at, scheduled_at, start_at, rrule, field_style,
+                due_at, scheduled_at, start_at, rrule, field_style, completed_at,
                 created_at, updated_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?13)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
+                     CASE WHEN ?6 = 'done' THEN ?13 ELSE NULL END, ?13, ?13)
              ON CONFLICT(id) DO UPDATE SET
-               title       = excluded.title,
-               status      = excluded.status,
-               priority    = excluded.priority,
-               due_at      = excluded.due_at,
+               title        = excluded.title,
+               status       = excluded.status,
+               priority     = excluded.priority,
+               due_at       = excluded.due_at,
                scheduled_at = excluded.scheduled_at,
-               start_at    = excluded.start_at,
-               rrule       = excluded.rrule,
-               field_style = excluded.field_style,
-               updated_at  = excluded.updated_at",
+               start_at     = excluded.start_at,
+               rrule        = excluded.rrule,
+               field_style  = excluded.field_style,
+               completed_at = CASE
+                   WHEN excluded.status = 'done' THEN COALESCE(tasks.completed_at, excluded.completed_at)
+                   ELSE NULL
+               END,
+               updated_at   = excluded.updated_at",
             params![
                 id,
                 vault_id,
@@ -481,72 +489,62 @@ pub fn query_tasks(
     filter: &TaskFilter,
     limit: u32,
 ) -> Result<Vec<TaskRow>, IndexerError> {
+    use rusqlite::types::Value;
+
     let conn = cache.connection()?;
-
-    // All user-supplied filter values are bound as positional parameters (?2–?5)
-    // and are NEVER interpolated into the SQL string. The NULL-guard pattern
-    // "(?N IS NULL OR col = ?N)" lets us use a fixed 5-parameter signature
-    // regardless of which filters are active, eliminating any SQL injection
-    // surface while keeping exactly one prepared statement shape.
-    //
-    // The tag JOIN remains conditional: a missing JOIN vs. a NULL-guarded JOIN
-    // would semantically differ (INNER vs. no-join row set), so we choose the
-    // tag clause at statement-build time but still bind the value as a parameter.
-    let tag_join = if filter.tag.is_some() {
-        "INNER JOIN task_tags tt ON tt.task_id = t.id AND tt.tag = ?3"
-    } else {
-        ""
-    };
-
-    // limit is a Rust u32 — safe to format directly into SQL; not user-supplied
-    // as a raw string, always validated at the call site.
-    let sql = format!(
+    let mut sql = String::from(
         "SELECT t.id, t.vault_id, t.source_note_id, t.line, t.title, t.status,
                 t.priority, t.due_at, t.scheduled_at, t.start_at, t.rrule,
-                t.field_style, t.created_at, t.updated_at
-         FROM tasks t
-         {tag_join}
-         WHERE t.vault_id = ?1
-           AND (?2 IS NULL OR t.status = ?2)
-           AND (?4 IS NULL OR t.due_at >= ?4)
-           AND (?5 IS NULL OR t.due_at <= ?5)
-         ORDER BY t.due_at ASC NULLS LAST, t.source_note_id, t.line
-         LIMIT {limit}"
+                t.field_style, t.completed_at, t.created_at, t.updated_at
+         FROM tasks t",
     );
+    let mut values: Vec<Value> = vec![Value::Text(vault_id.to_string())];
+    let mut predicates = vec!["t.vault_id = ?".to_string()];
 
-    let mut stmt = conn.prepare(&sql)?;
-    // Bind all five parameters. Absent (None) filter values bind as SQL NULL;
-    // the IS NULL guard in the WHERE clause makes them no-ops.
-    let rows = stmt.query_map(
-        params![
-            vault_id,
-            filter.status.as_deref(),
-            filter.tag.as_deref(),
-            filter.due_after.as_deref(),
-            filter.due_before.as_deref(),
-        ],
-        |row| {
-            Ok(TaskRowRaw {
-                id: row.get(0)?,
-                vault_id: row.get(1)?,
-                source_note_id: row.get(2)?,
-                line: row.get(3)?,
-                title: row.get(4)?,
-                status: row.get(5)?,
-                priority: row.get(6)?,
-                due_at: row.get(7)?,
-                scheduled_at: row.get(8)?,
-                start_at: row.get(9)?,
-                rrule: row.get(10)?,
-                field_style: row.get(11)?,
-                created_at: row.get(12)?,
-                updated_at: row.get(13)?,
-            })
-        },
-    )?;
+    if let Some(tag) = filter.tag.as_deref() {
+        sql.push_str(" INNER JOIN task_tags tt ON tt.task_id = t.id");
+        predicates.push("tt.tag = ?".into());
+        values.push(Value::Text(tag.to_string()));
+    }
+    if let Some(status) = filter.status.as_deref() {
+        predicates.push("t.status = ?".into());
+        values.push(Value::Text(status.to_string()));
+    }
+    if let Some(due_after) = filter.due_after.as_deref() {
+        predicates.push("t.due_at >= ?".into());
+        values.push(Value::Text(due_after.to_string()));
+    }
+    if let Some(due_before) = filter.due_before.as_deref() {
+        predicates.push("t.due_at <= ?".into());
+        values.push(Value::Text(due_before.to_string()));
+    }
 
-    // Second pass: attach tags with ONE batched query per 500-task chunk
-    // instead of one prepared statement + query per task (N+1).
+    sql.push_str(" WHERE ");
+    sql.push_str(&predicates.join(" AND "));
+    sql.push_str(" ORDER BY t.due_at ASC NULLS LAST, t.source_note_id, t.line LIMIT ?");
+    values.push(Value::Integer(i64::from(limit)));
+
+    let mut stmt = conn.prepare_cached(&sql)?;
+    let rows = stmt.query_map(params_from_iter(values.iter()), |row| {
+        Ok(TaskRowRaw {
+            id: row.get(0)?,
+            vault_id: row.get(1)?,
+            source_note_id: row.get(2)?,
+            line: row.get(3)?,
+            title: row.get(4)?,
+            status: row.get(5)?,
+            priority: row.get(6)?,
+            due_at: row.get(7)?,
+            scheduled_at: row.get(8)?,
+            start_at: row.get(9)?,
+            rrule: row.get(10)?,
+            field_style: row.get(11)?,
+            completed_at: row.get(12)?,
+            created_at: row.get(13)?,
+            updated_at: row.get(14)?,
+        })
+    })?;
+
     let raws: Vec<TaskRowRaw> = rows.collect::<Result<Vec<_>, _>>()?;
     let tags_by_task = fetch_tags_for_tasks(&conn, &raws)?;
     raws.into_iter()
@@ -580,6 +578,7 @@ struct TaskRowRaw {
     start_at: Option<String>,
     rrule: Option<String>,
     field_style: String,
+    completed_at: Option<String>,
     created_at: String,
     updated_at: String,
 }
@@ -589,7 +588,7 @@ pub fn task_by_id(cache: &IndexCache, task_id: &str) -> Result<Option<TaskRow>, 
     let mut stmt = conn.prepare(
         "SELECT t.id, t.vault_id, t.source_note_id, t.line, t.title, t.status,
                 t.priority, t.due_at, t.scheduled_at, t.start_at, t.rrule,
-                t.field_style, t.created_at, t.updated_at
+                t.field_style, t.completed_at, t.created_at, t.updated_at
          FROM tasks t
          WHERE t.id = ?1
          LIMIT 1",
@@ -612,8 +611,9 @@ pub fn task_by_id(cache: &IndexCache, task_id: &str) -> Result<Option<TaskRow>, 
         start_at: row.get(9)?,
         rrule: row.get(10)?,
         field_style: row.get(11)?,
-        created_at: row.get(12)?,
-        updated_at: row.get(13)?,
+        completed_at: row.get(12)?,
+        created_at: row.get(13)?,
+        updated_at: row.get(14)?,
     };
 
     Ok(Some(build_task_row(&conn, raw)?))
@@ -659,8 +659,11 @@ pub fn sync_note_tasks_from_markdown(
     note_id: &str,
     markdown: &str,
 ) -> Result<(), IndexerError> {
-    let conn = cache.connection()?;
-    sync_note_tasks_from_markdown_on(&conn, vault_id, note_id, markdown)
+    let mut conn = cache.connection()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    sync_note_tasks_from_markdown_on(&tx, vault_id, note_id, markdown)?;
+    tx.commit()?;
+    Ok(())
 }
 
 /// Connection-scoped variant for batched rebuilds; joins the caller's
@@ -692,6 +695,7 @@ impl TaskRow {
             rrule: raw.rrule,
             field_style: raw.field_style,
             tags,
+            completed_at: raw.completed_at,
             created_at: raw.created_at,
             updated_at: raw.updated_at,
         }
@@ -746,6 +750,7 @@ fn build_task_row(conn: &Connection, raw: TaskRowRaw) -> Result<TaskRow, Indexer
         rrule: raw.rrule,
         field_style: raw.field_style,
         tags,
+        completed_at: raw.completed_at,
         created_at: raw.created_at,
         updated_at: raw.updated_at,
     })
@@ -851,6 +856,9 @@ fn rewrite_due_annotation(
             None => String::new(),
         };
         updated.replace_range(start..end, &replacement);
+        if replacement.is_empty() {
+            collapse_spacing_at_removed_field(&mut updated, start);
+        }
         kind
     } else {
         preferred_due_style(&task.field_style)
@@ -919,12 +927,25 @@ fn find_emoji_due_range(line: &str) -> Option<(usize, usize)> {
     None
 }
 
+fn collapse_spacing_at_removed_field(line: &mut String, boundary: usize) {
+    let mut boundary = boundary.min(line.len());
+    while boundary > 0
+        && boundary < line.len()
+        && line.as_bytes()[boundary - 1] == b' '
+        && line.as_bytes()[boundary] == b' '
+    {
+        line.remove(boundary);
+    }
+    if boundary >= line.len() {
+        while line.ends_with(' ') {
+            line.pop();
+            boundary = boundary.saturating_sub(1);
+        }
+    }
+}
+
 fn compact_task_spacing(line: &str) -> String {
-    let trimmed = line.trim_start();
-    let indent_len = line.len() - trimmed.len();
-    let indent = &line[..indent_len];
-    let collapsed = trimmed.split_whitespace().collect::<Vec<_>>().join(" ");
-    format!("{indent}{collapsed}")
+    line.trim_end().to_string()
 }
 
 // ── Unit tests ────────────────────────────────────────────────────────────────
@@ -979,6 +1000,13 @@ mod tests {
     }
 
     #[test]
+    fn invalid_calendar_dates_are_not_indexed_as_due_dates() {
+        let tasks = parse_tasks_from_markdown("- [ ] Impossible 📅 2026-02-31");
+        assert_eq!(tasks[0].due_at, None);
+        assert!(tasks[0].title.contains("2026-02-31"));
+    }
+
+    #[test]
     fn parse_emoji_scheduled() {
         let md = "- [ ] Deploy ⏳ 2026-04-01";
         let tasks = parse_tasks_from_markdown(md);
@@ -1013,6 +1041,17 @@ mod tests {
             let tasks = parse_tasks_from_markdown(md);
             assert_eq!(tasks[0].priority, expected, "failed for {md}");
         }
+    }
+
+    #[test]
+    fn priority_and_rrule_alone_select_dataview_style() {
+        let priority = parse_tasks_from_markdown("- [ ] Task [priority:: -2]");
+        assert_eq!(priority[0].field_style, FieldStyle::Dataview);
+        assert_eq!(priority[0].priority, -2);
+
+        let recurrence = parse_tasks_from_markdown("- [ ] Task [rrule:: FREQ=WEEKLY]");
+        assert_eq!(recurrence[0].field_style, FieldStyle::Dataview);
+        assert_eq!(recurrence[0].rrule.as_deref(), Some("FREQ=WEEKLY"));
     }
 
     #[test]
@@ -1113,12 +1152,39 @@ mod tests {
             rrule: None,
             field_style: "emoji".into(),
             tags: vec!["work".into()],
+            completed_at: None,
             created_at: "2026-08-01T00:00:00Z".into(),
             updated_at: "2026-08-01T00:00:00Z".into(),
         };
 
         let rewritten = rewrite_task_markdown(markdown, &task, None, Some(None)).unwrap();
         assert_eq!(rewritten, "- [ ] Ship release #work\n");
+    }
+
+    #[test]
+    fn clearing_due_date_preserves_unrelated_double_space_in_title() {
+        let markdown = "- [ ] Keep  deliberate 📅 2026-08-20 spacing\n";
+        let mut task = parse_tasks_from_markdown(markdown).remove(0);
+        let row = TaskRow {
+            id: stable_task_id("vault", "notes/tasks.md", 0),
+            vault_id: "vault".into(),
+            source_note_id: Some("notes/tasks.md".into()),
+            line: 0,
+            title: task.title.clone(),
+            status: task.status.clone(),
+            priority: task.priority,
+            due_at: task.due_at.take(),
+            scheduled_at: None,
+            start_at: None,
+            rrule: None,
+            field_style: "emoji".into(),
+            tags: vec![],
+            completed_at: None,
+            created_at: "2026-08-01T00:00:00Z".into(),
+            updated_at: "2026-08-01T00:00:00Z".into(),
+        };
+        let rewritten = rewrite_task_markdown(markdown, &row, None, Some(None)).unwrap();
+        assert_eq!(rewritten, "- [ ] Keep  deliberate spacing\n");
     }
 
     #[test]
@@ -1138,6 +1204,7 @@ mod tests {
             rrule: None,
             field_style: "emoji".into(),
             tags: vec![],
+            completed_at: None,
             created_at: "2026-08-01T00:00:00Z".into(),
             updated_at: "2026-08-01T00:00:00Z".into(),
         };

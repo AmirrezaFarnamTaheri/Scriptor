@@ -1,7 +1,7 @@
 use std::fs;
 use std::path::Path;
 
-use rusqlite::params;
+use rusqlite::{TransactionBehavior, params};
 use scriptor_citation_engine::CitationEntryExcerpt;
 use serde::{Deserialize, Serialize};
 
@@ -53,10 +53,16 @@ pub fn sync_vault_bibliography(
     // Delete + re-insert must be atomic on a single connection. Splitting them across two pooled
     // connections without a transaction leaves the cache with zero `bib:` keys whenever anything
     // fails in between, which makes every citation in the vault report as unresolved.
-    let conn = cache.connection()?;
-    let transaction = conn.unchecked_transaction()?;
-    transaction.execute("DELETE FROM cache_meta WHERE key LIKE 'bib:%'", [])?;
-    transaction.execute("DELETE FROM cache_meta WHERE key LIKE 'bibmeta:%'", [])?;
+    let mut conn = cache.connection()?;
+    let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    transaction.execute(
+        "DELETE FROM cache_meta WHERE key >= 'bib:' AND key < 'bib;'",
+        [],
+    )?;
+    transaction.execute(
+        "DELETE FROM cache_meta WHERE key >= 'bibmeta:' AND key < 'bibmeta;'",
+        [],
+    )?;
 
     let key_refs: Vec<&str> = keys.iter().map(String::as_str).collect();
     register_bibliography_keys_on(&transaction, &key_refs)?;
@@ -79,7 +85,9 @@ pub fn list_bibliography_entries(
 ) -> Result<Vec<BibliographyEntry>, IndexerError> {
     let conn = cache.connection()?;
     let mut statement =
-        conn.prepare("SELECT value FROM cache_meta WHERE key LIKE 'bibmeta:%' ORDER BY key")?;
+        conn.prepare_cached(
+            "SELECT value FROM cache_meta WHERE key >= 'bibmeta:' AND key < 'bibmeta;' ORDER BY key",
+        )?;
     let rows = statement.query_map([], |row| {
         let payload: String = row.get(0)?;
         Ok(payload)

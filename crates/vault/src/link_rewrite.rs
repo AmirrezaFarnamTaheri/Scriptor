@@ -299,7 +299,7 @@ pub(crate) fn split_frontmatter(markdown: &str) -> (Option<String>, String) {
     }
 
     for (index, line) in lines.iter().enumerate().skip(1) {
-        if *line == "---" {
+        if line.trim_end_matches('\r') == "---" {
             let frontmatter = lines[1..index].join("\n");
             let body = lines[(index + 1)..].join("\n");
             return (Some(frontmatter), body);

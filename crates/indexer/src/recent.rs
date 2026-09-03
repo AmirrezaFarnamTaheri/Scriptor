@@ -1,4 +1,4 @@
-use rusqlite::params;
+use rusqlite::{TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 
 use crate::db::IndexCache;
@@ -12,17 +12,19 @@ pub struct RecentFileHit {
 
 pub fn record_recent_access(cache: &IndexCache, path: &str) -> Result<(), IndexerError> {
     let opened_at = chrono::Utc::now().to_rfc3339();
-    let conn = cache.connection()?;
-    conn.execute(
+    let mut conn = cache.connection()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    tx.execute(
         "INSERT OR REPLACE INTO recent_access(path, opened_at) VALUES (?1, ?2)",
         params![path, opened_at],
     )?;
-    conn.execute(
+    tx.execute(
         "DELETE FROM recent_access WHERE path NOT IN (
             SELECT path FROM recent_access ORDER BY opened_at DESC LIMIT 50
         )",
         [],
     )?;
+    tx.commit()?;
     Ok(())
 }
 

@@ -363,6 +363,7 @@ function App() {
   })
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
+    workspace.vault?.id,
     workspace.vaultConfig,
     workspace.setVaultConfig,
     workspace.activePath,
@@ -370,6 +371,7 @@ function App() {
     plugins.contributions.exportProfiles,
     plugins.contributions.mcpTools,
     pluginCommandRuntime,
+    plugins.canExecutePluginCommand,
     hibernateMcp,
   )
   const storeSurface = useStoreSurfaceController({
@@ -696,13 +698,10 @@ function App() {
 
   const pluginCommandEntries = useMemo(
     () =>
-      plugins.plugins.flatMap((plugin) =>
-        (plugin.manifest.contributes?.commands ?? []).map((command) => ({
-          pluginId: plugin.manifest.id,
-          command,
-        })),
+      plugins.contributions.commands.flatMap((command) =>
+        command.pluginId ? [{ pluginId: command.pluginId, command }] : [],
       ),
-    [plugins.plugins],
+    [plugins.contributions.commands],
   )
 
   const setEditorSurfaceMode = useCallback(
@@ -788,10 +787,12 @@ function App() {
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
-        runPluginCommand: (command) =>
-          void runPluginCommand(command, pluginCommandRuntime, {
+        runPluginCommand: (entry) => {
+          if (!plugins.canExecutePluginCommand(entry.pluginId, entry.command.permission)) return
+          void runPluginCommand(entry.command, pluginCommandRuntime, {
             notePath: workspace.activePath,
-          }),
+          })
+        },
         deleteActiveNote: nativeReady ? () => void deleteActiveNote() : undefined,
         openRecentNote: (path) => void workspace.openNote(path),
         recentNotes,

@@ -4,29 +4,45 @@ This ledger owns every advisory temporarily ignored by `cargo-deny`. An ignore i
 
 **Owner:** Scriptor release and security maintainers
 **Review cadence:** monthly and before every production tag
-**Next full review:** 2026-09-01
+**Last full review:** 2026-09-03
+**Next full review:** 2026-10-01
+
+### 2026-09-03 review evidence
+
+- The ignored GTK3/Tauri, `proc-macro-error`, `atomic-polyfill`, `paste`, and
+  `rust-unic` advisories remain RustSec **INFO / unmaintained** advisories with
+  no patched versions. Their locked packages are still present because the
+  supported Tauri/Linux or transitive product graph has no compatible
+  maintained replacement in this checkout.
+- `RUSTSEC-2025-0057` (`fxhash`) was removed from both this ledger and
+  `deny.toml`: `fxhash` is no longer present in `Cargo.lock`, so retaining the
+  exception would hide future reintroduction instead of documenting current
+  reachability.
+- This review does not suppress newly issued vulnerabilities. `cargo deny`
+  remains the production authority for advisories outside this exact list;
+  the next production-capable environment must run it against the current
+  advisory database before tagging.
 
 | Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |
 |---|---|---|---|---|---|---|
-| RUSTSEC-2024-0370 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0370.html | 2026-09-01 | Remove when Tauri/WebKitGTK no longer resolves the affected unmaintained crate |
-| RUSTSEC-2024-0411 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0411.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0412 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0412.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0413 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0413.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0414 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0414.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0415 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0415.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0416 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0416.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0417 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0417.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0418 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0418.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0419 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0419.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2024-0420 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0420.html | 2026-09-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
-| RUSTSEC-2023-0089 | Transitive product dependency | Product dependency graph; no safe compatible upgrade recorded | Release/Security | https://rustsec.org/advisories/RUSTSEC-2023-0089.html | 2026-09-01 | Remove on patched parent release or replace the parent dependency |
-| RUSTSEC-2025-0057 | `fxhash` via `scraper` capture stack | CLI capture/extraction; upstream reports no safe compatible upgrade | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0057.html | 2026-09-01 | Replace `scraper`/selector dependency or migrate to a maintained hash implementation |
-| RUSTSEC-2024-0436 | Transitive product dependency | Product dependency graph; no safe compatible upgrade recorded | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0436.html | 2026-09-01 | Remove on patched parent release or replace the parent dependency |
-| RUSTSEC-2025-0075 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0075.html | 2026-09-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
-| RUSTSEC-2025-0080 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0080.html | 2026-09-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
-| RUSTSEC-2025-0081 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0081.html | 2026-09-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
-| RUSTSEC-2025-0098 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0098.html | 2026-09-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
-| RUSTSEC-2025-0100 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0100.html | 2026-09-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
+| RUSTSEC-2024-0370 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0370.html | 2026-10-01 | Remove when Tauri/WebKitGTK no longer resolves the affected unmaintained crate |
+| RUSTSEC-2024-0411 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0411.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0412 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0412.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0413 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0413.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0414 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0414.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0415 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0415.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0416 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0416.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0417 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0417.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0418 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0418.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0419 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0419.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2024-0420 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0420.html | 2026-10-01 | Remove when the supported Tauri Linux stack has a maintained replacement |
+| RUSTSEC-2023-0089 | Transitive product dependency | Product dependency graph; no safe compatible upgrade recorded | Release/Security | https://rustsec.org/advisories/RUSTSEC-2023-0089.html | 2026-10-01 | Remove on patched parent release or replace the parent dependency |
+| RUSTSEC-2024-0436 | Transitive product dependency | Product dependency graph; no safe compatible upgrade recorded | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0436.html | 2026-10-01 | Remove on patched parent release or replace the parent dependency |
+| RUSTSEC-2025-0075 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0075.html | 2026-10-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
+| RUSTSEC-2025-0080 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0080.html | 2026-10-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
+| RUSTSEC-2025-0081 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0081.html | 2026-10-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
+| RUSTSEC-2025-0098 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0098.html | 2026-10-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
+| RUSTSEC-2025-0100 | `rust-unic` via Tauri `urlpattern` | Desktop URL-pattern parsing | Release/Security | https://rustsec.org/advisories/RUSTSEC-2025-0100.html | 2026-10-01 | Remove when Tauri replaces the unmaintained `rust-unic` family |
 
 ## Review procedure
 

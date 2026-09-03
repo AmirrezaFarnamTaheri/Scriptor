@@ -6,6 +6,7 @@
 //! from a previous dimension after a model change. Search embeds the
 //! query and returns nearest notes by cosine similarity.
 
+use std::collections::HashSet;
 use std::path::Path;
 
 use scriptor_export_runner::{RedactSecretsMode, check_or_redact};
@@ -81,7 +82,7 @@ pub fn sync_vault_embeddings_with_store(
     }
 
     let mut pending: Vec<PendingNote> = Vec::new();
-    let mut current: Vec<String> = Vec::new();
+    let mut current: HashSet<String> = HashSet::new();
     let mut unchanged = 0usize;
     let mut total_notes = 0usize;
 
@@ -90,9 +91,15 @@ pub fn sync_vault_embeddings_with_store(
             continue;
         }
         total_notes += 1;
-        current.push(entry.path.clone());
+        current.insert(entry.path.clone());
         let Some(markdown) = entry.content.clone() else {
-            continue; // oversized note: content omitted by the scan
+            // The note still exists, but its current bytes are intentionally not
+            // available to the embedding pipeline. Keeping an older vector would
+            // make semantic search return stale content, so invalidate it.
+            if store.hash_for(&entry.path)?.is_some() {
+                store.delete_embedding(&entry.path)?;
+            }
+            continue;
         };
         let hash = crate::content_hash(&markdown);
         if store.hash_for(&entry.path)?.as_deref() == Some(hash.as_str()) {
@@ -118,6 +125,21 @@ pub fn sync_vault_embeddings_with_store(
     for batch in pending.chunks(SYNC_BATCH) {
         let texts: Vec<&str> = batch.iter().map(|note| note.text.as_str()).collect();
         let vectors = provider.embed_texts(&texts)?;
+        if vectors.len() != batch.len() {
+            return Err(crate::EmbeddingError::Provider(format!(
+                "embedding provider returned {} vectors for {} inputs",
+                vectors.len(),
+                batch.len()
+            )));
+        }
+        for vector in &vectors {
+            if vector.len() != provider.dimension() {
+                return Err(crate::EmbeddingError::DimensionMismatch {
+                    expected: provider.dimension(),
+                    actual: vector.len(),
+                });
+            }
+        }
         for (note, vector) in batch.iter().zip(vectors) {
             store.upsert_embedding(&note.path, Some(&note.hash), &vector)?;
             embedded += 1;
@@ -127,7 +149,7 @@ pub fn sync_vault_embeddings_with_store(
     // Remove embeddings whose notes no longer exist.
     let mut removed = 0usize;
     for id in store.ids()? {
-        if !current.iter().any(|path| path == &id) {
+        if !current.contains(&id) {
             store.delete_embedding(&id)?;
             removed += 1;
         }

@@ -1,6 +1,7 @@
 mod authorization;
 mod commands;
 mod platform;
+mod reader_protocol;
 mod state;
 
 pub use state::AppState;
@@ -54,7 +55,9 @@ use commands::indexer::{
 use commands::latex::{latex_cancel_compile, latex_compile, latex_discover_tectonic};
 use commands::plugin_state::{plugin_state_get, plugin_state_set_enabled};
 use commands::publish::{vault_publish_apply_starlight, vault_publish_plan_starlight};
-use commands::reader::{reader_load_annotations, reader_read_document, reader_save_annotations};
+use commands::reader::{
+    reader_load_annotations, reader_read_document, reader_save_annotations, reader_viewer_location,
+};
 use commands::resources::{
     resource_apply_plan, resource_create_dedup_plan, resource_create_plan, resource_inventory,
 };
@@ -99,6 +102,9 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
+        .register_uri_scheme_protocol("reader", |_context, request| {
+            reader_protocol::respond(&request)
+        })
         .setup(|app| {
             platform::setup(app)?;
             let handle = app.handle().clone();
@@ -278,6 +284,7 @@ pub fn run() {
             indexer_kanban_board,
             indexer_kanban_move_card,
             reader_read_document,
+            reader_viewer_location,
             reader_load_annotations,
             reader_save_annotations,
             plugin_state_get,

@@ -29,6 +29,7 @@ async function runCliJson<T>(args: string[]): Promise<T> {
 
 export function createCliVaultContext(vaultPath: string): McpVaultContext {
   return {
+    vaultId: vaultPath,
     search: async (query, limit = 25) => {
       const hits = await runCliJson<Array<{ path: string; title: string; snippet: string }>>([
         'search',

@@ -64,7 +64,9 @@ export class McpRuntime {
 
   listTools(): McpToolDescriptor[] {
     if (this.mode === 'off') return []
-    return allMcpTools().filter((tool) => modeAllowsTool(this.mode, tool.modeRequired))
+    return allMcpTools().filter(
+      (tool) => modeAllowsTool(this.mode, tool.modeRequired) && this.contextSupportsTool(tool.name),
+    )
   }
 
   listAudit(limit = 50) {
@@ -73,6 +75,22 @@ export class McpRuntime {
 
   listDrafts(): DraftPatch[] {
     return this.drafts.filter((patch) => patch.status === 'pending')
+  }
+
+  private requireDraftVaultId(): string {
+    const vaultId = this.context?.vaultId
+    if (!vaultId) throw new Error('Draft/write MCP tools require a stable vault identity')
+    return vaultId
+  }
+
+  private contextSupportsTool(toolName: string): boolean {
+    if (!this.context) return false
+    if (toolName === 'mcp.createNote' || toolName === 'mcp.proposePatch' || toolName === 'mcp.proposeTagPatch') {
+      return typeof this.context.saveNote === 'function'
+    }
+    if (toolName === 'mcp.moveNote') return typeof this.context.renameNote === 'function'
+    if (toolName === 'mcp.deleteNote') return typeof this.context.deleteNote === 'function'
+    return true
   }
 
   private pushDraft(patch: DraftPatch): void {
@@ -179,6 +197,7 @@ export class McpRuntime {
     }
 
     const patch = createDraftPatch({
+      vaultId: this.requireDraftVaultId(),
       notePath: input.path,
       proposedMarkdown: input.proposedMarkdown,
       summary: input.summary,
@@ -215,6 +234,7 @@ export class McpRuntime {
     }
 
     const patch = createDraftPatch({
+      vaultId: this.requireDraftVaultId(),
       notePath: input.path,
       proposedMarkdown: patched.markdown,
       summary: input.summary,
@@ -260,8 +280,27 @@ export class McpRuntime {
     }
 
     const patch = this.drafts[index]
+    if (patch.status !== 'pending') {
+      return {
+        ok: false,
+        requestId,
+        error: { code: 'mcp.draft_resolved', message: `Draft is already ${patch.status}`, recoverable: false },
+      }
+    }
+    if (!this.context?.vaultId || patch.vaultId !== this.context.vaultId) {
+      return {
+        ok: false,
+        requestId,
+        error: { code: 'mcp.vault_mismatch', message: 'Draft was reviewed for a different vault', recoverable: false },
+      }
+    }
+
+    // Claim the draft before crossing the async mutation boundary. This makes
+    // approval single-use even if two callers race the same patch id.
+    this.drafts[index] = { ...patch, status: 'applying' }
     const applied = await applyApprovedDraft(patch, this.context)
     if (!applied.ok) {
+      this.drafts[index] = { ...patch, status: 'failed' }
       return { ok: false, requestId, error: applied.error }
     }
 
@@ -278,7 +317,7 @@ export class McpRuntime {
 
   rejectDraft(patchId: string): boolean {
     const index = this.drafts.findIndex((patch) => patch.id === patchId)
-    if (index < 0) return false
+    if (index < 0 || this.drafts[index].status !== 'pending') return false
     this.drafts[index] = rejectDraftPatch(this.drafts[index])
     this.audit.append({
       toolName: 'mcp.proposePatch',

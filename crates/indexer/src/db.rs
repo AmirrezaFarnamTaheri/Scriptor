@@ -66,10 +66,6 @@ impl IndexCache {
             .map_err(|error| IndexerError::Pool(error.to_string()))
     }
 
-    pub fn pool(&self) -> &CachePool {
-        &self.pool
-    }
-
     pub fn shares_pool_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.pool, &other.pool)
     }
@@ -89,8 +85,8 @@ fn apply_connection_pragmas(connection: &Connection) -> Result<(), rusqlite::Err
     connection.pragma_update(None, "foreign_keys", "ON")?;
     // Memory-mapped reads + a generous page cache keep hot queries (FTS
     // lookups, graph walks) off the syscall path at 10k+ note scale.
-    connection.pragma_update(None, "mmap_size", 268_435_456)?;
-    connection.pragma_update(None, "cache_size", -64_000)?;
+    connection.pragma_update(None, "mmap_size", 67_108_864)?;
+    connection.pragma_update(None, "cache_size", -16_000)?;
     connection.pragma_update(None, "temp_store", "MEMORY")?;
     Ok(())
 }
@@ -112,9 +108,20 @@ pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, Index
     let mut rows = statement.query([])?;
     if let Some(row) = rows.next()? {
         let value: String = row.get(0)?;
-        return Ok(value.parse().ok());
+        return value.parse::<i32>().map(Some).map_err(|_| {
+            IndexerError::InvalidQuery(format!(
+                "cache schema_version metadata is not an integer: {value:?}"
+            ))
+        });
     }
-    Ok(None)
+
+    // A cache_meta table without its required schema_version row is not a new
+    // database. Treat it as corrupt/stale instead of stamping the latest schema
+    // onto an unknown layout.
+    Err(IndexerError::SchemaRebuildRequired {
+        found: 0,
+        expected: crate::schema::SCHEMA_VERSION,
+    })
 }
 
 pub fn integrity_check_ok(connection: &Connection) -> Result<bool, IndexerError> {

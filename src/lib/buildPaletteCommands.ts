@@ -67,7 +67,7 @@ export interface PaletteCommandContext {
     submitLabel?: string
   }) => Promise<string | null>
   pluginCommands?: Array<{ pluginId: string; command: import('@scriptor/core/contracts/plugin').PluginCommandContribution }>
-  runPluginCommand?: (command: import('@scriptor/core/contracts/plugin').PluginCommandContribution) => void | Promise<void>
+  runPluginCommand?: (entry: { pluginId: string; command: import('@scriptor/core/contracts/plugin').PluginCommandContribution }) => void | Promise<void>
   deleteActiveNote?: () => void | Promise<void>
   openRecentNote?: (path: string) => void | Promise<void>
   recentNotes?: Array<{ path: string; title: string }>
@@ -474,7 +474,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     commands.push({
       id: `plugin-${entry.pluginId}-${entry.command.commandId}`,
       label: `${entry.command.label} (${entry.command.category})`,
-      run: () => void runPluginCommand(entry.command),
+      run: () => void runPluginCommand(entry),
     })
   }
 

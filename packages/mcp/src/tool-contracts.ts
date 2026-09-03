@@ -177,6 +177,8 @@ export interface VaultHealthSummaryLike {
 }
 
 export interface McpVaultContext {
+  /** Stable identity for the currently bound vault. Required for draft/write modes. */
+  vaultId?: string
   search(query: string, limit?: number): Promise<unknown[]>
   readNote(path: string): Promise<{ metadata: { title: string; content_hash: string }; markdown: string }>
   backlinks(path: string): Promise<unknown[]>
@@ -190,8 +192,8 @@ export interface McpVaultContext {
   listUnresolvedTargets?(): Promise<UnresolvedLinkTargetLike[]>
   exportProfiles?(): Promise<ExportProfile[]>
   saveNote?(path: string, markdown: string, expectedContentHash?: string): Promise<unknown>
-  renameNote?(from: string, to: string, updateLinks?: boolean): Promise<unknown>
-  deleteNote?(path: string): Promise<unknown>
+  renameNote?(from: string, to: string, updateLinks?: boolean, expectedSourceHash?: string): Promise<unknown>
+  deleteNote?(path: string, expectedContentHash?: string): Promise<unknown>
   renderMarkdown?(markdown: string, theme?: string): Promise<string>
   // --- 8.4 ---
   getGraphNeighbors?(path: string, depth?: number): Promise<GraphQueryOutputLike>

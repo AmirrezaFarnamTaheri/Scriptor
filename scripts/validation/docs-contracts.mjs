@@ -18,6 +18,14 @@ for (const rel of docs.filter((rel) => fs.existsSync(path.join(root, rel)))) {
   }
 }
 if (JSON.parse(fs.readFileSync(path.join(root, 'package.json'),'utf8')).version !== version) failures.push('README/doc contract: root package version differs from VERSION');
+const readme = fs.readFileSync(path.join(root, 'README.md'), 'utf8');
+const readmeBadgeVersion = readme.match(/version-(\d+\.\d+\.\d+)-/i)?.[1];
+if (readmeBadgeVersion !== version) failures.push(`README.md: version badge ${readmeBadgeVersion ?? '<missing>'} differs from VERSION ${version}`);
+if (!readme.includes(`current version is **${version}**`)) failures.push(`README.md: current-version prose must be derived from VERSION (${version})`);
+if (!readme.includes(`v${version} is the current`)) failures.push(`README.md: development-status prose must match VERSION (${version})`);
+const mcpSchemas = JSON.parse(fs.readFileSync(path.join(root, 'contracts/mcp-tool-schemas.generated.json'), 'utf8'));
+const mcpToolCount = Object.keys(mcpSchemas).length;
+if (!readme.includes(`MCP ${mcpToolCount} tools`)) failures.push(`README.md: MCP tool count must match generated registry (${mcpToolCount})`);
 const licenseNotice = fs.readFileSync(path.join(root, 'LICENSE'), 'utf8').slice(0, 1200);
 if (!licenseNotice.includes('SPDX-License-Identifier: AGPL-3.0-or-later')) failures.push('LICENSE: missing SPDX identifier');
 if (/Non-commercial use|Commercial use requires/i.test(licenseNotice)) failures.push('LICENSE: contains a restriction incompatible with the AGPL grant');

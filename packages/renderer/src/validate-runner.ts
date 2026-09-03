@@ -224,6 +224,20 @@ test('renderMarkdownPreview renders through pipeline', () => {
   assert.match(html, /<h1[^>]*>Hello<\/h1>/)
 })
 
+test('renderMarkdownPreview cache includes render flags and never caches resolver context', () => {
+  const markdown = '$x$\n\n```plantuml\nAlice -> Bob\n```\n'
+  const enabled = renderMarkdownPreview(markdown, { enableMath: true, enablePlantUml: true })
+  const disabled = renderMarkdownPreview(markdown, { enableMath: false, enablePlantUml: false })
+  assert.notEqual(enabled, disabled)
+
+  const imported = '@import "child.md"'
+  const first = renderMarkdownPreview(imported, { fetchNote: () => '# First', basePath: 'a.md' })
+  const second = renderMarkdownPreview(imported, { fetchNote: () => '# Second', basePath: 'a.md' })
+  assert.match(first, /First/)
+  assert.match(second, /Second/)
+  assert.notEqual(first, second)
+})
+
 test('hostile markdown fixtures strip script and event handlers', () => {
   for (const fixture of ['script-tag.md', 'onclick.md', 'iframe.md', 'data-uri.md']) {
     const markdown = readFileSync(join(fixturesRoot, fixture), 'utf8')
