@@ -3895,6 +3895,22 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "reader_viewer_location",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/reader.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "reader_read_document",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/reader.rs",

@@ -10,4 +10,6 @@ pub enum TantivyError {
     QueryParse(#[from] tantivy::query::QueryParserError),
     #[error("doc not found: {0}")]
     DocNotFound(String),
+    #[error("incompatible on-disk search schema: {0}")]
+    IncompatibleSchema(String),
 }

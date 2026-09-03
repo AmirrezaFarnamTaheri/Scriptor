@@ -40,7 +40,7 @@ export async function applyApprovedDraft(
           },
         }
       }
-      return { ok: true, output: await context.deleteNote(patch.notePath) }
+      return { ok: true, output: await context.deleteNote(patch.notePath, patch.baseContentHash) }
     }
     case 'move': {
       if (!context?.renameNote || !patch.sourcePath) {
@@ -55,7 +55,12 @@ export async function applyApprovedDraft(
       }
       return {
         ok: true,
-        output: await context.renameNote(patch.sourcePath, patch.notePath, true),
+        output: await context.renameNote(
+          patch.sourcePath,
+          patch.notePath,
+          patch.updateLinks ?? true,
+          patch.baseContentHash,
+        ),
       }
     }
     case 'create':
@@ -71,9 +76,10 @@ export async function applyApprovedDraft(
           },
         }
       }
+      const expected = patch.operation === 'create' ? '<missing>' : patch.baseContentHash
       return {
         ok: true,
-        output: await context.saveNote(patch.notePath, patch.proposedMarkdown, patch.baseContentHash),
+        output: await context.saveNote(patch.notePath, patch.proposedMarkdown, expected),
       }
     }
   }

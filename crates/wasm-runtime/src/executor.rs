@@ -7,12 +7,17 @@
 //! wired to any host import: a plugin cannot reach the network or spawn
 //! processes in this runtime (residual risk in the capability ledger).
 
-use wasmtime::{Engine, Store};
+use wasmtime::{Engine, Store, StoreLimits, StoreLimitsBuilder};
 
 use crate::capabilities::PluginCapabilities;
 use crate::error::WasmRuntimeError;
 
 /// Host state shared with guest imports for one plugin instance.
+const MAX_HOST_CALL_BYTES: usize = 1024 * 1024;
+const MAX_HOST_RETURN_BYTES: usize = 4 * 1024 * 1024;
+const MAX_LOG_LINE_BYTES: usize = 64 * 1024;
+const MAX_LOG_LINES: usize = 1024;
+
 pub struct PluginHostState {
     pub capabilities: PluginCapabilities,
     /// Note content the guest may read; the host pre-loads it so the
@@ -23,6 +28,7 @@ pub struct PluginHostState {
     /// it after the guest returns (the guest never touches disk).
     pub pending_write: Option<(String, String)>,
     pub log_lines: Vec<(String, String)>,
+    pub(crate) limits: StoreLimits,
 }
 
 impl PluginHostState {
@@ -37,6 +43,14 @@ impl PluginHostState {
             search_results_json,
             pending_write: None,
             log_lines: Vec::new(),
+            limits: StoreLimitsBuilder::new()
+                .memory_size(64 * 1024 * 1024)
+                .instances(1)
+                .memories(1)
+                .tables(4)
+                .table_elements(65_536)
+                .trap_on_grow_failure(true)
+                .build(),
         }
     }
 }
@@ -65,7 +79,9 @@ pub fn link_plugin_imports(
                 // Copy out of host state before taking the mutable caller borrow.
                 let bytes = {
                     let state = caller.data();
-                    if state.capabilities.check("read_notes").is_err() {
+                    if state.capabilities.check("read_notes").is_err()
+                        || state.note_body.len() > MAX_HOST_RETURN_BYTES
+                    {
                         return -1;
                     }
                     state.note_body.as_bytes().to_vec()
@@ -95,7 +111,11 @@ pub fn link_plugin_imports(
                 // host state; the two borrows must not overlap.
                 let content = {
                     let state = caller.data();
-                    if state.capabilities.check("write_notes").is_err() || ptr < 0 || len <= 0 {
+                    if state.capabilities.check("write_notes").is_err()
+                        || ptr < 0
+                        || len <= 0
+                        || len as usize > MAX_HOST_CALL_BYTES
+                    {
                         return -1;
                     }
                     let memory = match caller
@@ -127,7 +147,9 @@ pub fn link_plugin_imports(
             move |mut caller: wasmtime::Caller<PluginHostState>| -> i32 {
                 let bytes = {
                     let state = caller.data();
-                    if state.capabilities.check("search").is_err() {
+                    if state.capabilities.check("search").is_err()
+                        || state.search_results_json.len() > MAX_HOST_RETURN_BYTES
+                    {
                         return -1;
                     }
                     state.search_results_json.as_bytes().to_vec()
@@ -158,6 +180,13 @@ pub fn link_plugin_imports(
                   len: i32|
                   -> i32 {
                 // Read the guest log line first, then push into host state.
+                if ptr < 0
+                    || len < 0
+                    || len as usize > MAX_LOG_LINE_BYTES
+                    || caller.data().log_lines.len() >= MAX_LOG_LINES
+                {
+                    return -1;
+                }
                 let line = {
                     let memory = match caller
                         .get_export("memory")
@@ -166,7 +195,7 @@ pub fn link_plugin_imports(
                         Some(memory) => memory,
                         None => return -1,
                     };
-                    let mut buffer = vec![0u8; len.max(0) as usize];
+                    let mut buffer = vec![0u8; len as usize];
                     if memory
                         .read(&caller, ptr.max(0) as usize, &mut buffer)
                         .is_err()

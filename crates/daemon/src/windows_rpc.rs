@@ -1,4 +1,5 @@
 use std::io::{self, Read, Write};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,10 +11,31 @@ use scriptor_ipc::{
     read_frame_resyncing, write_frame,
 };
 
-use crate::transport::read_endpoint;
+use crate::transport::{DaemonEndpoint, read_endpoint};
 
 const RETRY_INTERVAL: Duration = Duration::from_millis(5);
 const MAX_UNMATCHED_FRAMES: usize = 512;
+
+static ENDPOINT_CACHE: OnceLock<Mutex<Option<DaemonEndpoint>>> = OnceLock::new();
+
+fn endpoint_cache() -> &'static Mutex<Option<DaemonEndpoint>> {
+    ENDPOINT_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn cached_endpoint() -> Result<DaemonEndpoint, IpcError> {
+    let mut guard = endpoint_cache().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(endpoint) = guard.as_ref() {
+        return Ok(endpoint.clone());
+    }
+    let endpoint = read_endpoint()?;
+    *guard = Some(endpoint.clone());
+    Ok(endpoint)
+}
+
+fn invalidate_endpoint_cache() {
+    let mut guard = endpoint_cache().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    *guard = None;
+}
 
 struct DeadlineIo<'a, T> {
     inner: &'a mut T,
@@ -92,7 +114,7 @@ fn remaining(deadline: Instant) -> Result<Duration, IpcError> {
 }
 
 fn call_once(request: &mut RpcRequest, deadline: Instant) -> Result<RpcResponse, IpcError> {
-    let endpoint = read_endpoint()?;
+    let endpoint = cached_endpoint()?;
     request.endpoint_nonce = endpoint.nonce;
     let name = endpoint
         .socket_name
@@ -149,6 +171,10 @@ pub(crate) fn call_with_timeout(
             if Instant::now() < deadline
                 && (is_expected_disconnect(&error) || matches!(error, IpcError::Io(_))) =>
         {
+            // The daemon may have restarted between calls. Drop the verified
+            // endpoint snapshot only after a connection-level failure so the
+            // normal hot path does not re-read the endpoint file/keychain.
+            invalidate_endpoint_cache();
             call_once(&mut request, deadline)
         }
         Err(error) => Err(error),

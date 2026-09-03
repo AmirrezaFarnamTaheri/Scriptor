@@ -39,7 +39,7 @@ pub use graph::{
     GraphEdge, GraphNode, GraphQueryOutput, GraphTraverseStep, MAX_GRAPH_DEPTH,
     apply_graph_group_color, query_focused_graph, traverse_graph,
 };
-pub use hash::{content_changed, content_hash};
+pub use hash::content_hash;
 pub use health::{
     CacheStatus, HealthIssue, VaultHealthDiagnostics, VaultHealthReport, build_health_diagnostics,
     build_health_report, health_diagnostics_json, health_report_json,
@@ -77,6 +77,4 @@ pub use tasks::{
     FieldStyle, ParsedTask, TaskFilter, TaskRow, parse_tasks_from_markdown, query_tasks,
     rewrite_task_markdown, sync_note_tasks, sync_note_tasks_from_markdown, task_by_id,
 };
-pub use views::{
-    ViewNoteHit, evaluate_view_filter_json, list_view_notes, note_metadata_matches_view,
-};
+pub use views::{ViewNoteHit, evaluate_view_filter_json, list_view_notes};

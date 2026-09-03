@@ -56,7 +56,7 @@ pub use config::{
 pub use crypto::{
     EnvelopeHeader, decrypt, decrypt_with_passphrase, encrypt, encrypt_with_passphrase,
 };
-pub use delete::{DeleteNoteOutput, delete_note};
+pub use delete::{DeleteNoteOutput, delete_note, delete_note_guarded};
 pub use diagnostics::{redact_json_value, redact_sensitive_text};
 pub use error::VaultError;
 
@@ -76,12 +76,12 @@ pub use lint::{
 pub use mcp_audit::{
     DEFAULT_MCP_AUDIT_MAX_BYTES, DEFAULT_MCP_AUDIT_PATH, DEFAULT_MCP_AUDIT_SEGMENTS,
     McpMutationAuditRecord, append_mcp_mutation, read_mcp_audit_tail,
-    reconcile_pending_mcp_mutations,
+    reconcile_pending_mcp_mutations, verify_mcp_audit_chain,
 };
 pub use note::{NoteDocument, NoteMetadata, metadata_from_markdown, note_id, read_note};
 pub use note_history::{
     DEFAULT_NOTE_HISTORY_DIR, MAX_REVISIONS_PER_NOTE, NoteHistoryEntry, append_note_history,
-    append_note_history_throttled, list_note_history, read_note_history_revision,
+    append_note_history_throttled, list_note_history, move_note_history, read_note_history_revision,
     restore_note_history_revision,
 };
 pub use open::{
@@ -136,6 +136,7 @@ pub use write::{
 };
 
 pub use wikilink::{
-    WikilinkIndex, WikilinkResolution, WikilinkResolutionKind, resolve_wikilink_target,
+    WikilinkIndex, WikilinkResolution, WikilinkResolutionKind, normalize_lookup_key,
+    resolve_wikilink_target,
     resolve_wikilink_target_with_aliases,
 };

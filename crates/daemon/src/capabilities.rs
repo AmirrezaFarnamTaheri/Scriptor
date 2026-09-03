@@ -29,6 +29,8 @@ pub fn capability_for_command(command: &str) -> Option<&'static str> {
         | "export_start_note"
         | "export_start_markdown"
         | "export_cancel" => Some("scriptor.export"),
+        "pdf_translate" => Some("scriptor.pdf"),
+        "plantuml_render" => Some("scriptor.plantuml"),
         // Keep this exhaustive with `command_gateway::catalog::COMMAND_IDS`.
         // Capability disablement applies to the whole Canvas surface, not only
         // to its mutating commands: otherwise an untrusted client can still

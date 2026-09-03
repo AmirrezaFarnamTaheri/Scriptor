@@ -139,14 +139,30 @@ fn split_frontmatter(markdown: &str) -> (String, String, bool, Option<String>) {
 }
 
 fn validate_frontmatter(frontmatter: &str) -> bool {
+    let mut allows_indented_content = false;
+    let mut parent_indent = 0usize;
+
     for line in frontmatter.lines() {
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with('#') {
             continue;
         }
-        if !trimmed.contains(':') {
-            return false;
+        let indent = line.len().saturating_sub(line.trim_start().len());
+
+        if let Some((_, value)) = trimmed.split_once(':') {
+            let value = value.trim();
+            allows_indented_content = value.is_empty() || value == "|" || value == ">";
+            parent_indent = indent;
+            continue;
         }
+
+        if allows_indented_content && indent > parent_indent {
+            // YAML block lists/scalars are continuation lines of the preceding
+            // key and do not need their own `:` delimiter.
+            continue;
+        }
+
+        return false;
     }
     true
 }
@@ -205,14 +221,20 @@ fn extract_frontmatter_block(frontmatter: &str, key: &str) -> Option<String> {
 
 fn extract_aliases(frontmatter: &str) -> Vec<String> {
     let mut aliases = Vec::new();
-    for line in frontmatter.lines() {
+    let lines: Vec<&str> = frontmatter.lines().collect();
+    let mut index = 0usize;
+
+    while index < lines.len() {
+        let line = lines[index];
         let trimmed = line.trim();
         let Some(rest) = trimmed
             .strip_prefix("aliases:")
             .or_else(|| trimmed.strip_prefix("alias:"))
         else {
+            index += 1;
             continue;
         };
+
         let value = rest.trim();
         if value.starts_with('[') && value.ends_with(']') {
             for part in value
@@ -227,8 +249,40 @@ fn extract_aliases(frontmatter: &str) -> Vec<String> {
             }
         } else if !value.is_empty() {
             aliases.push(value.trim_matches('"').trim_matches('\'').to_string());
+        } else {
+            // YAML block-list form:
+            // aliases:
+            //   - Friendly Name
+            //   - Alternate
+            let parent_indent = line.len().saturating_sub(line.trim_start().len());
+            let mut next = index + 1;
+            while next < lines.len() {
+                let candidate = lines[next];
+                let candidate_trimmed = candidate.trim();
+                if candidate_trimmed.is_empty() {
+                    next += 1;
+                    continue;
+                }
+                let indent = candidate.len().saturating_sub(candidate.trim_start().len());
+                if indent <= parent_indent {
+                    break;
+                }
+                let Some(item) = candidate_trimmed.strip_prefix('-') else {
+                    break;
+                };
+                let alias = item.trim().trim_matches('"').trim_matches('\'');
+                if !alias.is_empty() {
+                    aliases.push(alias.to_string());
+                }
+                next += 1;
+            }
+            index = next.saturating_sub(1);
         }
+        index += 1;
     }
+
+    aliases.sort();
+    aliases.dedup();
     aliases
 }
 
@@ -257,13 +311,42 @@ fn extract_tags(body: &str) -> Vec<String> {
 }
 
 fn extract_headings(body: &str) -> Vec<String> {
-    body.lines()
-        .filter_map(|line| {
-            line.strip_prefix("# ")
-                .map(|value| value.trim().to_string())
-        })
-        .filter(|value| !value.is_empty())
-        .collect()
+    let mut headings = Vec::new();
+    let mut fence: Option<(char, usize)> = None;
+
+    for line in body.lines() {
+        let trimmed = line.trim_start();
+        if let Some((marker, length)) = fence {
+            let run = trimmed.chars().take_while(|ch| *ch == marker).count();
+            if run >= length {
+                fence = None;
+            }
+            continue;
+        }
+
+        if let Some(marker) = trimmed.chars().next().filter(|ch| matches!(ch, '`' | '~')) {
+            let run = trimmed.chars().take_while(|ch| *ch == marker).count();
+            if run >= 3 {
+                fence = Some((marker, run));
+                continue;
+            }
+        }
+
+        let level = trimmed.chars().take_while(|ch| *ch == '#').count();
+        if !(1..=6).contains(&level) {
+            continue;
+        }
+        let rest = &trimmed[level..];
+        let Some(rest) = rest.strip_prefix([' ', '\t']) else {
+            continue;
+        };
+        let heading = rest.trim().trim_end_matches('#').trim();
+        if !heading.is_empty() {
+            headings.push(heading.to_string());
+        }
+    }
+
+    headings
 }
 
 fn extract_links(body: &str) -> Vec<ParsedLink> {
@@ -352,6 +435,27 @@ mod tests {
         let markdown = "---\naliases: [Friendly Name, Alt]\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
         assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt"]);
+    }
+
+    #[test]
+    fn yaml_block_sequences_are_valid_frontmatter() {
+        let markdown = "---\naliases:\n  - One\n  - Two\ntemplate: |\n  hello\n  world\n---\n\n# Body\n";
+        let parsed = parse_note_markdown("Block.md", markdown);
+        assert!(parsed.frontmatter_valid, "block YAML continuations must be accepted");
+    }
+
+    #[test]
+    fn extracts_aliases_from_yaml_block_list() {
+        let markdown = "---\naliases:\n  - Friendly Name\n  - 'Alt Name'\n---\n\n# Body\n";
+        let parsed = parse_note_markdown("Alias Target.md", markdown);
+        assert_eq!(parsed.aliases, vec!["Alt Name", "Friendly Name"]);
+    }
+
+    #[test]
+    fn extracts_all_atx_heading_levels_but_not_fenced_examples() {
+        let markdown = "# One\n## Two\n###### Six\n```md\n### Not a heading\n```\n#### Four ###\n";
+        let parsed = parse_note_markdown("Headings.md", markdown);
+        assert_eq!(parsed.headings, vec!["One", "Two", "Six", "Four"]);
     }
 
     #[test]

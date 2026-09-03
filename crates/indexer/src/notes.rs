@@ -1,4 +1,4 @@
-use rusqlite::params;
+use rusqlite::{TransactionBehavior, params};
 
 use scriptor_vault::{NoteMetadata, VaultSession};
 
@@ -11,7 +11,7 @@ fn reading_time_from_word_count(word_count: u32) -> u32 {
     if word_count == 0 {
         0
     } else {
-        (word_count / 200).max(1)
+        word_count.saturating_add(199) / 200
     }
 }
 
@@ -22,8 +22,8 @@ pub fn upsert_note(
     metadata: &NoteMetadata,
     markdown: &str,
 ) -> Result<(), IndexerError> {
-    let conn = cache.connection()?;
-    let tx = conn.unchecked_transaction()?;
+    let mut conn = cache.connection()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     upsert_note_on(&tx, metadata, markdown)?;
     tx.commit()?;
     Ok(())
@@ -78,26 +78,28 @@ pub fn upsert_note_on(
         ],
     )?;
 
-    // I-3 interlock: do not index sealed content into the FTS table.
-    // Search snippets are user-visible and could expose ciphertext.
-    // `contains_sealed_span` is the single authoritative check (I-5).
+    // Bind the FTS row to the ordinary `notes.rowid`. FTS5 indexes rowid, so
+    // equality deletes/existence checks stay O(log N) instead of scanning the
+    // UNINDEXED `note_id` payload column.
+    let note_rowid: i64 = conn.query_row(
+        "SELECT rowid FROM notes WHERE id = ?1",
+        params![metadata.id],
+        |row| row.get(0),
+    )?;
+    conn.execute("DELETE FROM note_fts WHERE rowid = ?1", params![note_rowid])?;
+
+    // I-3 interlock: sealed content may retain metadata but never an FTS row.
+    // Deleting the previous row *before* the early return is essential when a
+    // formerly-plaintext note becomes sealed.
     if scriptor_export_runner::sealed::contains_sealed_span(markdown.as_bytes()) {
-        // Refuse silently: the note stays in `notes` (metadata only) but is
-        // not added to `note_fts`. Callers that need an error should call
-        // `check_or_redact` from `scriptor_export_runner::sealed` before
-        // calling `upsert_note`.
         return Ok(());
     }
 
     // v5: populate all four FTS columns (title, headings, tags, body).
-    // headings_text and tags_text were captured before the move above.
     conn.execute(
-        "DELETE FROM note_fts WHERE note_id = ?1",
-        params![metadata.id],
-    )?;
-    conn.execute(
-        "INSERT INTO note_fts(note_id, title, headings, tags, body) VALUES (?1, ?2, ?3, ?4, ?5)",
+        "INSERT INTO note_fts(rowid, note_id, title, headings, tags, body) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
+            note_rowid,
             metadata.id,
             metadata.title,
             headings_text,
@@ -109,9 +111,11 @@ pub fn upsert_note_on(
     Ok(())
 }
 
-pub fn note_hash(cache: &IndexCache, note_id: &str) -> Result<Option<String>, IndexerError> {
-    let conn = cache.connection()?;
-    let mut statement = conn.prepare("SELECT content_hash FROM notes WHERE id = ?1")?;
+pub(crate) fn note_hash_on(
+    conn: &rusqlite::Connection,
+    note_id: &str,
+) -> Result<Option<String>, IndexerError> {
+    let mut statement = conn.prepare_cached("SELECT content_hash FROM notes WHERE id = ?1")?;
     let mut rows = statement.query(params![note_id])?;
     if let Some(row) = rows.next()? {
         return Ok(Some(row.get(0)?));
@@ -119,14 +123,43 @@ pub fn note_hash(cache: &IndexCache, note_id: &str) -> Result<Option<String>, In
     Ok(None)
 }
 
-fn note_has_fts_row(cache: &IndexCache, note_id: &str) -> Result<bool, IndexerError> {
+pub fn note_hash(cache: &IndexCache, note_id: &str) -> Result<Option<String>, IndexerError> {
     let conn = cache.connection()?;
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM note_fts WHERE note_id = ?1",
+    note_hash_on(&conn, note_id)
+}
+
+pub(crate) fn note_has_fts_row_on(
+    conn: &rusqlite::Connection,
+    note_id: &str,
+) -> Result<bool, IndexerError> {
+    conn.query_row(
+        "SELECT EXISTS(
+            SELECT 1 FROM note_fts
+            WHERE rowid = (SELECT rowid FROM notes WHERE id = ?1)
+         )",
         params![note_id],
         |row| row.get(0),
-    )?;
-    Ok(count > 0)
+    )
+    .map_err(IndexerError::from)
+}
+
+pub(crate) fn note_needs_reindex_on(
+    conn: &rusqlite::Connection,
+    metadata: &NoteMetadata,
+    markdown: &str,
+) -> Result<bool, IndexerError> {
+    let current_hash = content_hash(markdown);
+    match note_hash_on(conn, &metadata.id)? {
+        Some(previous) if previous == current_hash => {
+            if scriptor_export_runner::sealed::contains_sealed_span(markdown.as_bytes()) {
+                // Sealed notes intentionally have no FTS row.
+                Ok(false)
+            } else {
+                Ok(!note_has_fts_row_on(conn, &metadata.id)?)
+            }
+        }
+        Some(_) | None => Ok(true),
+    }
 }
 
 pub fn note_needs_reindex(
@@ -134,20 +167,8 @@ pub fn note_needs_reindex(
     metadata: &NoteMetadata,
     markdown: &str,
 ) -> Result<bool, IndexerError> {
-    let current_hash = content_hash(markdown);
-    match note_hash(cache, &metadata.id)? {
-        Some(previous) if previous == current_hash => {
-            // Sealed notes intentionally have no FTS row. Every other unchanged
-            // note must have one so schema migrations that recreate note_fts do
-            // not leave search empty while the metadata hash still looks fresh.
-            if scriptor_export_runner::sealed::contains_sealed_span(markdown.as_bytes()) {
-                Ok(false)
-            } else {
-                Ok(!note_has_fts_row(cache, &metadata.id)?)
-            }
-        }
-        Some(_) | None => Ok(true),
-    }
+    let conn = cache.connection()?;
+    note_needs_reindex_on(&conn, metadata, markdown)
 }
 
 pub fn indexed_note_count(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
@@ -238,39 +259,56 @@ pub fn load_note_metadata(
     Ok(None)
 }
 
+pub(crate) fn remove_note_from_index_on(
+    conn: &rusqlite::Connection,
+    vault_id: &str,
+    path: &str,
+) -> Result<bool, IndexerError> {
+    let relative = scriptor_vault::RelativeVaultPath::parse(path)?;
+    let note_key = scriptor_vault::note_id(vault_id, &relative);
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM notes WHERE id = ?1 AND vault_id = ?2)",
+        params![note_key, vault_id],
+        |row| row.get(0),
+    )?;
+    if !exists {
+        return Ok(false);
+    }
+
+    conn.execute(
+        "DELETE FROM task_tags WHERE task_id IN (
+            SELECT id FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2
+         )",
+        params![vault_id, path],
+    )?;
+    conn.execute(
+        "DELETE FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2",
+        params![vault_id, path],
+    )?;
+    conn.execute("DELETE FROM links WHERE from_note_id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM citation_refs WHERE note_id = ?1", params![note_key])?;
+    conn.execute("DELETE FROM blocks WHERE note_id = ?1", params![note_key])?;
+    conn.execute(
+        "DELETE FROM note_fts WHERE rowid = (SELECT rowid FROM notes WHERE id = ?1)",
+        params![note_key],
+    )?;
+    conn.execute(
+        "DELETE FROM notes WHERE id = ?1 AND vault_id = ?2",
+        params![note_key, vault_id],
+    )?;
+    Ok(true)
+}
+
 pub fn remove_note_from_index(
     cache: &IndexCache,
     session: &VaultSession,
     path: &str,
 ) -> Result<bool, IndexerError> {
-    let relative = scriptor_vault::RelativeVaultPath::parse(path)?;
-    let note_key = scriptor_vault::note_id(&session.descriptor.id, &relative);
-
-    if load_note_metadata(cache, &session.descriptor.id, path)?.is_none() {
-        return Ok(false);
-    }
-
-    let conn = cache.connection()?;
-    let tx = conn.unchecked_transaction()?;
-    conn.execute(
-        "DELETE FROM task_tags WHERE task_id IN (
-            SELECT id FROM tasks WHERE source_note_id = ?1
-         )",
-        params![path],
-    )?;
-    conn.execute("DELETE FROM tasks WHERE source_note_id = ?1", params![path])?;
-    conn.execute(
-        "DELETE FROM links WHERE from_note_id = ?1",
-        params![note_key],
-    )?;
-    conn.execute(
-        "DELETE FROM citation_refs WHERE note_id = ?1",
-        params![note_key],
-    )?;
-    conn.execute("DELETE FROM note_fts WHERE note_id = ?1", params![note_key])?;
-    conn.execute("DELETE FROM notes WHERE id = ?1", params![note_key])?;
+    let mut conn = cache.connection()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let removed = remove_note_from_index_on(&tx, &session.descriptor.id, path)?;
     tx.commit()?;
-    Ok(true)
+    Ok(removed)
 }
 
 pub fn session_cache_path(session: &VaultSession) -> std::path::PathBuf {
@@ -391,5 +429,35 @@ mod remove_tests {
             "missing FTS rows for sealed notes are intentional"
         );
         Ok(())
+    }
+
+    #[test]
+    fn sealing_previously_plain_note_removes_existing_fts_row() -> Result<(), IndexerError> {
+        let dir = tempdir().expect("temp dir");
+        let cache = IndexCache::open(dir.path().join("cache.sqlite"))?;
+        let plain = "# Private\n\nvisible secret";
+        let plain_meta = metadata_for_markdown("private.md", plain);
+        upsert_note(&cache, &plain_meta, plain)?;
+
+        let sealed = "# Private\n\n%%scriptor-sealed:hint:ciphertext%%";
+        let sealed_meta = metadata_for_markdown("private.md", sealed);
+        upsert_note(&cache, &sealed_meta, sealed)?;
+
+        let conn = cache.connection()?;
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM note_fts WHERE rowid = (SELECT rowid FROM notes WHERE id = ?1)",
+            [&sealed_meta.id],
+            |row| row.get(0),
+        )?;
+        assert_eq!(count, 0, "sealing must purge the previous plaintext FTS row");
+        Ok(())
+    }
+
+    #[test]
+    fn reading_time_rounds_partial_minutes_up() {
+        assert_eq!(reading_time_from_word_count(0), 0);
+        assert_eq!(reading_time_from_word_count(1), 1);
+        assert_eq!(reading_time_from_word_count(200), 1);
+        assert_eq!(reading_time_from_word_count(201), 2);
     }
 }

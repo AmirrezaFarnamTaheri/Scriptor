@@ -24,8 +24,8 @@ pub struct StarlightPublishApplyOutput {
     pub deleted: Vec<String>,
 }
 
-fn resolved_output(vault_root: &Path, requested: &str) -> PathBuf {
-    resolve_output_path(vault_root, Path::new(requested))
+fn resolved_output(vault_root: &Path, requested: &str) -> Result<PathBuf, String> {
+    resolve_output_path(vault_root, Path::new(requested)).map_err(|error| error.to_string())
 }
 
 /// Read-only publication planning. This does not create the output directory.
@@ -35,7 +35,7 @@ pub fn vault_publish_plan_starlight(
     output_path: String,
 ) -> Result<StarlightPublishPlanOutput, String> {
     let session = active_session(&state)?;
-    let output = resolved_output(session.root.root(), &output_path);
+    let output = resolved_output(session.root.root(), &output_path)?;
     let plan =
         plan_starlight_site(session.root.root(), &output).map_err(|error| error.to_string())?;
     Ok(StarlightPublishPlanOutput {
@@ -57,7 +57,7 @@ pub fn vault_publish_apply_starlight(
     authorization_token: String,
 ) -> Result<StarlightPublishApplyOutput, String> {
     let session = active_session(&state)?;
-    let output = resolved_output(session.root.root(), &output_path);
+    let output = resolved_output(session.root.root(), &output_path)?;
     let authorization_scope = format!(
         "{} • {} write(s) • {} deletion(s)",
         output.display(),

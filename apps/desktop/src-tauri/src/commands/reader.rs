@@ -28,7 +28,7 @@ struct AnnotationStore {
 pub fn reader_read_document(
     state: tauri::State<AppState>,
     rel_path: String,
-) -> Result<Vec<u8>, String> {
+) -> Result<tauri::ipc::Response, String> {
     let session = active_session(&state)?;
     let relative = document_path(&rel_path)?;
     let path = session
@@ -40,7 +40,38 @@ pub fn reader_read_document(
     if metadata.len() > MAX_DOCUMENT_BYTES {
         return Err("Reader documents must be 128 MiB or smaller".into());
     }
-    std::fs::read(path).map_err(|error| format!("cannot read reader document: {error}"))
+    let bytes = std::fs::read(path)
+        .map_err(|error| format!("cannot read reader document: {error}"))?;
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReaderViewerLocation {
+    pub url: String,
+    pub origin: String,
+}
+
+#[tauri::command]
+pub fn reader_viewer_location(document_type: String) -> Result<ReaderViewerLocation, String> {
+    let filename = match document_type.as_str() {
+        "pdf" => "pdf-viewer.html",
+        "epub" => "epub-viewer.html",
+        _ => return Err("Reader supports only PDF and EPUB viewers".into()),
+    };
+
+    #[cfg(any(target_os = "windows", target_os = "android"))]
+    let (origin, url) = (
+        "http://reader.localhost".to_string(),
+        format!("http://reader.localhost/{filename}"),
+    );
+    #[cfg(not(any(target_os = "windows", target_os = "android")))]
+    let (origin, url) = (
+        "reader://localhost".to_string(),
+        format!("reader://localhost/{filename}"),
+    );
+
+    Ok(ReaderViewerLocation { url, origin })
 }
 
 #[tauri::command]

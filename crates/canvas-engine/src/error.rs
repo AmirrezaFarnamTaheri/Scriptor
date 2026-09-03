@@ -8,8 +8,6 @@ pub enum CanvasError {
     InvalidDocument(String),
     #[error("unknown canvas template: {0}")]
     UnknownTemplate(String),
-    #[error("unsupported snapshot format: {0}")]
-    UnsupportedSnapshotFormat(String),
     #[error("failed to read canvas file {path}: {source}")]
     IoRead {
         path: PathBuf,

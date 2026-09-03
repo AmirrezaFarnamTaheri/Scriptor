@@ -46,8 +46,9 @@ default-members = [
 product = [
   "vault", "indexer", "export-runner", "publish-runner", "native-git",
   "system-bridge", "canvas-engine", "ipc", "daemon", "cli", "desktop",
+  "citation-engine",
 ]
-incubating = ["citation-engine", "embeddings", "tantivy-indexer", "wasm-runtime"]
+incubating = ["embeddings", "tantivy-indexer", "wasm-runtime"]
 
 [workspace.package]
 license = "AGPL-3.0-or-later"

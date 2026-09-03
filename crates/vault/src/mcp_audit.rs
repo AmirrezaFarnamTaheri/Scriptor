@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::error::VaultError;
+use crate::fs::lock_vault_update;
 use crate::path::VaultRoot;
 
 pub const DEFAULT_MCP_AUDIT_PATH: &str = ".scriptor/audit/mcp-mutations.jsonl";
@@ -126,6 +127,10 @@ pub fn append_mcp_mutation(
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
 
+    // Serialize the complete read-hash / rotate / append sequence across
+    // processes. Locking only the append would still allow two writers to read
+    // the same previous hash and fork the chain.
+    let _lock = lock_vault_update(&absolute)?;
     let previous_hash = read_last_record_hash(&absolute)?;
     rotate_if_needed(&absolute)?;
     record.previous_hash = previous_hash.clone();
@@ -171,9 +176,10 @@ pub fn read_mcp_audit_tail(
     let start = len.saturating_sub(AUDIT_TAIL_SCAN_BYTES.max((limit as u64) * 2048));
     file.seek(SeekFrom::Start(start))
         .map_err(|source| VaultError::io(&absolute, source))?;
-    let mut buffer = String::new();
-    file.read_to_string(&mut buffer)
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes)
         .map_err(|source| VaultError::io(&absolute, source))?;
+    let buffer = String::from_utf8_lossy(&bytes);
     let mut records: Vec<_> = buffer
         .lines()
         .skip(if start > 0 { 1 } else { 0 })
@@ -186,6 +192,7 @@ pub fn read_mcp_audit_tail(
 }
 
 pub fn reconcile_pending_mcp_mutations(root: &VaultRoot) -> Result<usize, VaultError> {
+    verify_mcp_audit_chain(root)?;
     let records = read_mcp_audit_tail(root, 10_000)?;
     let mut pending = std::collections::BTreeMap::new();
     for record in records {
@@ -217,20 +224,14 @@ fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
         return Ok(None);
     }
     let mut file = File::open(path).map_err(|source| VaultError::io(path, source))?;
-    let len = file
-        .metadata()
-        .map_err(|source| VaultError::io(path, source))?
-        .len();
+    let len = file.metadata().map_err(|source| VaultError::io(path, source))?.len();
     let start = len.saturating_sub(AUDIT_TAIL_SCAN_BYTES);
-    file.seek(SeekFrom::Start(start))
-        .map_err(|source| VaultError::io(path, source))?;
-    let reader = BufReader::new(file);
-    let lines: Vec<String> = reader
-        .lines()
-        .collect::<Result<_, _>>()
-        .map_err(|source| VaultError::io(path, source))?;
-    for line in lines.into_iter().rev() {
-        if let Ok(record) = serde_json::from_str::<McpMutationAuditRecord>(&line)
+    file.seek(SeekFrom::Start(start)).map_err(|source| VaultError::io(path, source))?;
+    let mut bytes = Vec::new();
+    file.read_to_end(&mut bytes).map_err(|source| VaultError::io(path, source))?;
+    let buffer = String::from_utf8_lossy(&bytes);
+    for line in buffer.lines().skip(if start > 0 { 1 } else { 0 }).rev() {
+        if let Ok(record) = serde_json::from_str::<McpMutationAuditRecord>(line)
             && record.record_hash.is_some()
         {
             return Ok(record.record_hash);
@@ -239,8 +240,65 @@ fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
     Ok(None)
 }
 
+/// Verify the complete retained MCP mutation chain, including rotated segments.
+pub fn verify_mcp_audit_chain(root: &VaultRoot) -> Result<(), VaultError> {
+    let active = root.root().join(DEFAULT_MCP_AUDIT_PATH);
+    let parent = active.parent().unwrap_or_else(|| Path::new("."));
+    if !parent.exists() {
+        return Ok(());
+    }
+    let mut files: Vec<PathBuf> = fs::read_dir(parent)
+        .map_err(|source| VaultError::io(parent, source))?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|source| VaultError::io(parent, source))?
+        .into_iter()
+        .map(|entry| entry.path())
+        .filter(|path| path.file_name().and_then(|n| n.to_str()).is_some_and(|name| {
+            name.starts_with("mcp-mutations-") && name.ends_with(".jsonl")
+        }))
+        .collect();
+    files.sort();
+    if active.is_file() {
+        files.push(active.clone());
+    }
+
+    let mut previous: Option<String> = None;
+    for path in files {
+        let file = File::open(&path).map_err(|source| VaultError::io(&path, source))?;
+        for line in BufReader::new(file).lines() {
+            let line = line.map_err(|source| VaultError::io(&path, source))?;
+            if line.trim().is_empty() { continue; }
+            let record: McpMutationAuditRecord = serde_json::from_str(&line).map_err(|error| {
+                VaultError::InvalidConfig { message: format!("invalid MCP audit record in {}: {error}", path.display()) }
+            })?;
+            if record.previous_hash != previous {
+                return Err(VaultError::InvalidConfig { message: format!("MCP audit chain fork/tamper detected at {}", record.id) });
+            }
+            let claimed = record.record_hash.clone().ok_or_else(|| VaultError::InvalidConfig {
+                message: format!("MCP audit record {} has no hash", record.id),
+            })?;
+            let mut canonical_record = record.clone();
+            canonical_record.record_hash = None;
+            let canonical = serde_json::to_vec(&canonical_record)?;
+            let mut hasher = Sha256::new();
+            if let Some(ref prev) = previous { hasher.update(prev.as_bytes()); }
+            hasher.update(&canonical);
+            let computed = hex::encode(hasher.finalize());
+            if computed != claimed {
+                return Err(VaultError::InvalidConfig { message: format!("MCP audit record hash mismatch at {}", record.id) });
+            }
+            previous = Some(claimed);
+        }
+    }
+    Ok(())
+}
+
 fn rotate_if_needed(path: &Path) -> Result<(), VaultError> {
-    let size = path.metadata().map(|metadata| metadata.len()).unwrap_or(0);
+    let size = match path.metadata() {
+        Ok(metadata) => metadata.len(),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => 0,
+        Err(error) => return Err(VaultError::io(path, error)),
+    };
     if size < DEFAULT_MCP_AUDIT_MAX_BYTES {
         return Ok(());
     }

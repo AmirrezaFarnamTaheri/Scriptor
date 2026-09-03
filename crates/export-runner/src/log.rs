@@ -46,15 +46,19 @@ pub fn prune_export_logs(vault_root: &Path, keep: usize) -> usize {
     let dir = export_logs_dir(vault_root);
     let mut files = match log_files_newest_first(&dir) {
         Ok(files) => files,
-        Err(_) => return 0,
+        Err(error) => {
+            log::warn!("failed to enumerate export logs for pruning: {error}");
+            return 0;
+        }
     };
     if files.len() <= keep {
         return 0;
     }
     let mut removed = 0;
     for (path, _) in files.drain(keep..) {
-        if fs::remove_file(&path).is_ok() {
-            removed += 1;
+        match fs::remove_file(&path) {
+            Ok(()) => removed += 1,
+            Err(error) => log::warn!("failed to prune export log {}: {error}", path.display()),
         }
     }
     removed
@@ -78,10 +82,13 @@ fn log_files_newest_first(
         if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
             continue;
         }
-        let modified = entry
-            .metadata()
-            .and_then(|metadata| metadata.modified())
-            .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+        let modified = match entry.metadata().and_then(|metadata| metadata.modified()) {
+            Ok(modified) => modified,
+            Err(error) => {
+                log::warn!("skipping export log with unreadable metadata {}: {error}", path.display());
+                continue;
+            }
+        };
         files.push((path, modified));
     }
     // Newest first; ties broken by path so the order is deterministic.

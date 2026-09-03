@@ -52,11 +52,12 @@ export interface McpDeleteNoteInput {
  * Build a create-note draft patch. Throws `SealedContentError` if `markdown`
  * contains a sealed span (I-3 interlock: agents may never write ciphertext).
  */
-export function createNoteDraft(input: McpCreateNoteInput): DraftPatch {
+export function createNoteDraft(input: McpCreateNoteInput, vaultId: string): DraftPatch {
   if (containsSealedSpan(input.markdown)) {
     throw new SealedContentError(input.path)
   }
   return createDraftPatch({
+    vaultId,
     notePath: input.path,
     proposedMarkdown: input.markdown,
     summary: input.summary,
@@ -64,10 +65,12 @@ export function createNoteDraft(input: McpCreateNoteInput): DraftPatch {
   })
 }
 
-export function moveNoteDraft(input: McpMoveNoteInput, markdown: string, contentHash: string): DraftPatch {
+export function moveNoteDraft(input: McpMoveNoteInput, markdown: string, contentHash: string, vaultId: string): DraftPatch {
   return createDraftPatch({
+    vaultId,
     notePath: input.to,
     sourcePath: input.from,
+    updateLinks: input.updateLinks ?? true,
     proposedMarkdown: markdown,
     summary: `${input.summary} (move ${input.from} → ${input.to})`,
     baseContentHash: contentHash,
@@ -75,10 +78,12 @@ export function moveNoteDraft(input: McpMoveNoteInput, markdown: string, content
   })
 }
 
-export function deleteNoteDraft(input: McpDeleteNoteInput): DraftPatch {
+export function deleteNoteDraft(input: McpDeleteNoteInput, contentHash: string, vaultId: string): DraftPatch {
   return createDraftPatch({
+    vaultId,
     notePath: input.path,
     proposedMarkdown: '',
+    baseContentHash: contentHash,
     summary: `${input.summary} (delete ${input.path})`,
     operation: 'delete',
   })
@@ -89,15 +94,15 @@ export function deleteNoteDraft(input: McpDeleteNoteInput): DraftPatch {
 export function runNoteWriteDraftTests(): string[] {
   const failures: string[] = []
 
-  const create = createNoteDraft({ path: 'a.md', markdown: '# A', summary: 'create' })
+  const create = createNoteDraft({ path: 'a.md', markdown: '# A', summary: 'create' }, 'vault-test')
   if (create.operation !== 'create') failures.push('createNoteDraft operation')
 
-  const del = deleteNoteDraft({ path: 'b.md', summary: 'delete' })
+  const del = deleteNoteDraft({ path: 'b.md', summary: 'delete' }, 'hash-b', 'vault-test')
   if (del.operation !== 'delete') failures.push('deleteNoteDraft operation')
 
   // I-3: creating a note with sealed content must throw.
   try {
-    createNoteDraft({ path: 'c.md', markdown: `%%scriptor-sealed:x:y%%`, summary: 'bad' })
+    createNoteDraft({ path: 'c.md', markdown: `%%scriptor-sealed:x:y%%`, summary: 'bad' }, 'vault-test')
     failures.push('createNoteDraft should throw on sealed content')
   } catch (e) {
     if (!(e instanceof SealedContentError)) {

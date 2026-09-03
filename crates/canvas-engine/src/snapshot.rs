@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::error::CanvasError;
-use crate::scene::{CanvasBlockKind, CanvasDocument, CanvasRect, CanvasShapeKind};
+use crate::scene::{CanvasBlockKind, CanvasDocument, CanvasRect, CanvasShapeKind, layer_by_id};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -36,7 +36,12 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
         viewport.x, viewport.y, viewport.width, viewport.height
     ));
 
-    let mut blocks = document.blocks.clone();
+    let mut blocks = document
+        .blocks
+        .iter()
+        .filter(|block| layer_by_id(document, &block.layer_id).is_some_and(|layer| layer.visible))
+        .cloned()
+        .collect::<Vec<_>>();
     blocks.sort_by_key(|block| block.z_index);
 
     for block in blocks {
@@ -359,6 +364,17 @@ mod tests {
         let svg = render_svg(&merged, None);
         assert!(svg.contains("Weekly focus"));
         assert!(svg.contains("data-block-id"));
+    }
+
+    #[test]
+    fn svg_snapshot_omits_blocks_on_hidden_layers() {
+        let mut document = empty_document("vault", "Board");
+        let preview = apply_template_dry_run(&document, "weekly-plan").expect("preview");
+        document.blocks = preview.blocks_added;
+        let layer_id = document.blocks.first().expect("block").layer_id.clone();
+        document.layers.iter_mut().find(|layer| layer.id == layer_id).expect("layer").visible = false;
+        let svg = render_svg(&document, None);
+        assert!(!svg.contains("Weekly focus"));
     }
 
     #[test]

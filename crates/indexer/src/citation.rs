@@ -68,7 +68,7 @@ pub(crate) fn validate_citations_on(
     };
 
     // One batched lookup instead of a query per citation, and no second pooled connection.
-    let known = known_bibliography_keys(
+    let known = known_bibliography_keys_on(
         connection,
         &citations
             .iter()
@@ -112,7 +112,7 @@ pub(crate) fn validate_citations_on(
 }
 
 /// Return the subset of `keys` that have a bibliography entry, in one query.
-fn known_bibliography_keys(
+pub(crate) fn known_bibliography_keys_on(
     connection: &Connection,
     keys: &BTreeSet<String>,
 ) -> Result<BTreeSet<String>, IndexerError> {
@@ -137,6 +137,15 @@ fn known_bibliography_keys(
         }
     }
     Ok(found)
+}
+
+
+pub(crate) fn known_bibliography_keys_for_cache(
+    cache: &IndexCache,
+    keys: &BTreeSet<String>,
+) -> Result<BTreeSet<String>, IndexerError> {
+    let connection = cache.connection()?;
+    known_bibliography_keys_on(&connection, keys)
 }
 
 pub(crate) fn bibliography_contains_public(

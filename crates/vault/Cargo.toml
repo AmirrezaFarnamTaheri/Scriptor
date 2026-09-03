@@ -23,6 +23,7 @@ sha2 = "0.11"
 thiserror = "2"
 tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
+unicode-normalization = "0.1"
 walkdir = "2"
 zeroize = { version = "1", features = ["derive"] }
 notify-debouncer-mini = "0.7"

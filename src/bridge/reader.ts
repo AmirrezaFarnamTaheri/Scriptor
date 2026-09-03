@@ -11,9 +11,22 @@ export interface ReaderAnnotationRecord {
   createdAt: string
 }
 
+export interface ReaderViewerLocation {
+  url: string
+  origin: string
+}
+
 /** Reads a supported document from the native active vault only. */
 export async function readReaderDocument(relPath: string): Promise<Uint8Array> {
-  return new Uint8Array(await invoke<number[]>('reader_read_document', { relPath }))
+  const response = await invoke<ArrayBuffer>('reader_read_document', { relPath })
+  return new Uint8Array(response)
+}
+
+/** Returns the isolated custom-protocol location for the bundled Reader wrapper. */
+export async function getReaderViewerLocation(
+  documentType: ReaderDocumentType,
+): Promise<ReaderViewerLocation> {
+  return invoke<ReaderViewerLocation>('reader_viewer_location', { documentType })
 }
 
 /** Annotation records are stored at `.scriptor/reader/annotations.json` in the active vault. */

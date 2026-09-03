@@ -5984,7 +5984,6 @@ name = "scriptor-indexer"
 version = "1.0.7"
 dependencies = [
  "chrono",
- "hex",
  "r2d2",
  "r2d2_sqlite",
  "regex",
@@ -5994,7 +5993,6 @@ dependencies = [
  "scriptor-vault",
  "serde",
  "serde_json",
- "sha2 0.11.0",
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
@@ -6029,6 +6027,7 @@ name = "scriptor-publish-runner"
 version = "1.0.7"
 dependencies = [
  "globset",
+ "memchr",
  "scriptor-vault",
  "serde",
  "serde_json",
@@ -6080,6 +6079,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.20",
  "tracing",
+ "unicode-normalization",
  "uuid",
  "walkdir",
  "zeroize",

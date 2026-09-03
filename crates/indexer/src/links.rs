@@ -1,4 +1,4 @@
-use rusqlite::params;
+use rusqlite::{TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 
 use scriptor_vault::{VaultSession, WikilinkIndex, WikilinkResolutionKind, note_id};
@@ -15,8 +15,8 @@ pub fn replace_note_links(
     path: &str,
     markdown: &str,
 ) -> Result<u32, IndexerError> {
-    let conn = cache.connection()?;
-    let tx = conn.unchecked_transaction()?;
+    let mut conn = cache.connection()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let inserted = replace_note_links_on(&tx, session, path, markdown)?;
     tx.commit()?;
     Ok(inserted)
@@ -81,10 +81,13 @@ pub fn replace_note_links_on(
 /// may not exist in the cache yet. This pass builds a case-insensitive lookup
 /// once, updates all links transactionally, and enables indexed graph traversal
 /// without loading every note and link into memory for each query.
-pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
-    let conn = cache.connection()?;
-    let mut notes_statement = conn.prepare(
-        "SELECT id, path, title FROM notes WHERE vault_id = ?1 ORDER BY lower(path), id",
+pub(crate) fn resolve_link_targets_on(
+    conn: &rusqlite::Connection,
+    vault_id: &str,
+    from_note_id: Option<&str>,
+) -> Result<u32, IndexerError> {
+    let mut notes_statement = conn.prepare_cached(
+        "SELECT id, path, title, aliases_json FROM notes WHERE vault_id = ?1 ORDER BY path, id",
     )?;
     let note_rows = notes_statement
         .query_map(params![vault_id], |row| {
@@ -92,30 +95,44 @@ pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, I
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
                 row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     drop(notes_statement);
 
-    let note_paths: Vec<String> = note_rows.iter().map(|(_, path, _)| path.clone()).collect();
+    let note_paths: Vec<String> = note_rows
+        .iter()
+        .map(|(_, path, _, _)| path.clone())
+        .collect();
     let mut resolver = WikilinkIndex::from_note_paths(&note_paths);
     let ids_by_path: std::collections::BTreeMap<String, String> = note_rows
         .iter()
-        .map(|(id, path, _)| (path.clone(), id.clone()))
+        .map(|(id, path, _, _)| (path.clone(), id.clone()))
         .collect();
-    for (_, path, title) in &note_rows {
-        // H1 titles are semantic aliases for indexed notes. Duplicate titles are
-        // intentionally retained by the resolver so they become Ambiguous
-        // rather than whichever SQLite row happened to be visited first.
-        resolver.register_aliases(path, std::slice::from_ref(title));
+    for (_, path, title, aliases_json) in &note_rows {
+        let mut aliases = vec![title.clone()];
+        aliases.extend(serde_json::from_str::<Vec<String>>(aliases_json).unwrap_or_default());
+        resolver.register_aliases(path, &aliases);
     }
 
-    let mut links_statement = conn.prepare(
-        "SELECT id, to_path, to_note_id FROM links
-         WHERE vault_id = ?1 AND kind IN ('wikilink', 'markdown', 'heading')",
-    )?;
+    let (link_sql, link_params): (&str, Vec<&dyn rusqlite::ToSql>) = if let Some(source) = from_note_id {
+        (
+            "SELECT id, to_path, to_note_id FROM links
+             WHERE vault_id = ?1 AND from_note_id = ?2
+               AND kind IN ('wikilink', 'markdown', 'heading')",
+            vec![&vault_id, &source],
+        )
+    } else {
+        (
+            "SELECT id, to_path, to_note_id FROM links
+             WHERE vault_id = ?1 AND kind IN ('wikilink', 'markdown', 'heading')",
+            vec![&vault_id],
+        )
+    };
+    let mut links_statement = conn.prepare_cached(link_sql)?;
     let link_rows = links_statement
-        .query_map(params![vault_id], |row| {
+        .query_map(rusqlite::params_from_iter(link_params), |row| {
             Ok((
                 row.get::<_, String>(0)?,
                 row.get::<_, String>(1)?,
@@ -144,22 +161,30 @@ pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, I
         }
     }
 
-    if updates.is_empty() {
-        return Ok(0);
-    }
-
-    let transaction = conn.unchecked_transaction()?;
     let mut changed = 0u32;
-    {
-        let mut update = transaction
-            .prepare("UPDATE links SET to_note_id = ?1 WHERE id = ?2 AND vault_id = ?3")?;
-        for (id, target_id) in updates {
-            changed = changed.saturating_add(
-                u32::try_from(update.execute(params![target_id, id, vault_id])?)
-                    .unwrap_or(u32::MAX),
-            );
-        }
+    let mut update = conn
+        .prepare_cached("UPDATE links SET to_note_id = ?1 WHERE id = ?2 AND vault_id = ?3")?;
+    for (id, target_id) in updates {
+        changed = changed.saturating_add(
+            u32::try_from(update.execute(params![target_id, id, vault_id])?)
+                .unwrap_or(u32::MAX),
+        );
     }
+    Ok(changed)
+}
+
+pub(crate) fn resolve_note_link_targets_on(
+    conn: &rusqlite::Connection,
+    vault_id: &str,
+    from_note_id: &str,
+) -> Result<u32, IndexerError> {
+    resolve_link_targets_on(conn, vault_id, Some(from_note_id))
+}
+
+pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
+    let mut conn = cache.connection()?;
+    let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let changed = resolve_link_targets_on(&transaction, vault_id, None)?;
     transaction.commit()?;
     Ok(changed)
 }

@@ -44,6 +44,7 @@ function taskFromMarkdown(path: string, line: string, lineNumber: number): TaskR
     rrule: null,
     fieldStyle: 'emoji',
     tags: path === 'Research Plan.md' ? ['research'] : ['release'],
+    completedAt: checkboxToStatus[checkbox] === 'done' ? '2026-06-20T10:00:00Z' : null,
     createdAt: '2026-06-20T10:00:00Z',
     updatedAt: '2026-06-20T10:00:00Z',
   }

@@ -100,13 +100,21 @@ fn decode_rpc_response_body(body: &[u8]) -> RpcResponse {
     postcard::from_bytes(body).expect("decode response")
 }
 
+fn test_endpoint_nonce() -> String {
+    read_endpoint()
+        .expect("read test endpoint")
+        .nonce
+        .expect("test endpoint nonce")
+}
+
 fn spawn_test_handler(
     stream: LocalSocketStream,
     state: Arc<Mutex<DaemonState>>,
     event_hub: Arc<EventHub>,
 ) -> std::thread::JoinHandle<()> {
+    let expected_nonce = test_endpoint_nonce();
     std::thread::spawn(move || {
-        let _ = handle_connection(stream, &state, &event_hub);
+        let _ = handle_connection(stream, &state, &event_hub, &expected_nonce);
     })
 }
 
@@ -137,10 +145,11 @@ fn accept_and_handle_n(
     event_hub: &Arc<EventHub>,
     count: usize,
 ) {
+    let expected_nonce = test_endpoint_nonce();
     let mut handled = 0usize;
     while handled < count {
         let stream = listener.accept().expect("accept");
-        match handle_connection(stream, state, event_hub) {
+        match handle_connection(stream, state, event_hub, &expected_nonce) {
             Ok(()) => handled += 1,
             Err(_) => continue,
         }
@@ -566,9 +575,14 @@ fn rate_limit_rejects_sustained_burst_on_single_connection() {
     let name = resolve_name(&socket).expect("name");
     let mut stream = LocalSocketStream::connect(name.borrow()).expect("connect");
 
+    let expected_nonce = test_endpoint_nonce();
     let mut limited = 0u32;
     for id in 0..65 {
-        write_frame(&mut stream, &RpcRequest::new(id, RpcMethod::Ping)).expect("write");
+        write_frame(
+            &mut stream,
+            &RpcRequest::with_nonce(id, RpcMethod::Ping, expected_nonce.clone()),
+        )
+        .expect("write");
         let body = read_frame_resyncing(&mut stream).expect("read");
         let response = decode_rpc_response_body(&body);
         if matches!(response.result, RpcResult::Error(ref error) if error.to_string().contains("rate limit"))

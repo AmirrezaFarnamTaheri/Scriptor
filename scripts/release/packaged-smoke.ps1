@@ -16,7 +16,19 @@ $receipt = Join-Path (Split-Path $sidecar -Parent) 'scriptor-daemon.exe.staging-
 if (-not (Test-Path $receipt)) {
   throw "Daemon staging receipt missing at $receipt - re-run stage-daemon-sidecar (identity evidence is mandatory)."
 }
-Write-Host "Daemon sidecar receipt present: $receipt"
+$receiptData = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+$actualSidecar = Get-Item -LiteralPath $sidecar
+$actualSidecarHash = (Get-FileHash -LiteralPath $sidecar -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($receiptData.artifact -ne $actualSidecar.Name) {
+  throw "Daemon staging receipt artifact '$($receiptData.artifact)' does not match staged sidecar '$($actualSidecar.Name)'."
+}
+if ([int64]$receiptData.bytes -ne [int64]$actualSidecar.Length) {
+  throw "Daemon staging receipt byte count $($receiptData.bytes) does not match staged sidecar size $($actualSidecar.Length)."
+}
+if ([string]$receiptData.sha256 -ne $actualSidecarHash) {
+  throw "Daemon staging receipt SHA-256 $($receiptData.sha256) does not match staged sidecar SHA-256 $actualSidecarHash."
+}
+Write-Host "Daemon sidecar receipt verified: $receipt sha256=$actualSidecarHash"
 
 $bundleRoot = Join-Path $root 'target/release/bundle'
 if (-not (Test-Path $bundleRoot)) {

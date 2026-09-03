@@ -144,9 +144,7 @@ pub fn normalize_relative(raw: &str) -> Result<String, VaultError> {
                 if part == "." || part.is_empty() {
                     continue;
                 }
-                if part == ".." {
-                    return Err(VaultError::PathEscape(raw.into()));
-                }
+                validate_portable_component(&part, raw)?;
                 parts.push(part.into_owned());
             }
             Component::ParentDir => return Err(VaultError::PathEscape(raw.into())),
@@ -162,6 +160,25 @@ pub fn normalize_relative(raw: &str) -> Result<String, VaultError> {
     }
 
     Ok(parts.join("/"))
+}
+
+fn validate_portable_component(part: &str, raw: &str) -> Result<(), VaultError> {
+    // Keep vault paths portable and prevent Windows namespace aliases such as
+    // NTFS alternate data streams (`note.md::$DATA`).  Apply these checks on
+    // every platform so a vault created on Unix cannot become unsafe on Windows.
+    if part.contains(':') || part.ends_with('.') || part.ends_with(' ') {
+        return Err(VaultError::InvalidRelativePath(raw.into()));
+    }
+
+    let stem = part.split('.').next().unwrap_or(part).trim_end_matches(['.', ' ']);
+    let upper = stem.to_ascii_uppercase();
+    let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CLOCK$")
+        || upper.strip_prefix("COM").is_some_and(|n| matches!(n.parse::<u8>(), Ok(1..=9)))
+        || upper.strip_prefix("LPT").is_some_and(|n| matches!(n.parse::<u8>(), Ok(1..=9)));
+    if reserved {
+        return Err(VaultError::InvalidRelativePath(raw.into()));
+    }
+    Ok(())
 }
 
 fn normalize_components(path: &Path) -> PathBuf {
@@ -208,6 +225,16 @@ mod tests {
     fn normalizes_nested_paths() {
         let path = RelativeVaultPath::parse("notes/./Research Plan.md").unwrap();
         assert_eq!(path.as_str(), "notes/Research Plan.md");
+    }
+
+    #[test]
+    fn rejects_windows_alias_and_device_paths_on_every_platform() {
+        for raw in [
+            "note.md::$DATA", "notes/con.md", "NUL.txt", "folder/COM1.log",
+            "trailing.", "trailing ",
+        ] {
+            assert!(RelativeVaultPath::parse(raw).is_err(), "{raw} should be rejected");
+        }
     }
 
     #[test]

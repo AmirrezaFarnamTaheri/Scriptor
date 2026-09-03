@@ -29,9 +29,10 @@ static MARKDOWN_LINK_RE: LazyLock<Regex> = LazyLock::new(|| {
 fn normalize_section_label(label: &str) -> Result<String, VaultError> {
     let clean = label.trim();
     if clean.is_empty() {
-        return Err(VaultError::InvalidConfig {
-            message: "section label cannot be empty".into(),
-        });
+        return Err(VaultError::InvalidConfig { message: "section label cannot be empty".into() });
+    }
+    if clean.chars().count() > 256 || clean.contains(['#', '\n', '\r', '[', ']', '|']) {
+        return Err(VaultError::InvalidConfig { message: "section label contains unsafe Markdown syntax".into() });
     }
     Ok(clean.to_string())
 }
@@ -190,7 +191,6 @@ pub fn rewrite_section_links_in_markdown(
             }
             if !note_target_matches(url, target_path, target_title, None)
                 && url != target_path.as_str()
-                && !url.ends_with(target_path.as_str())
             {
                 return capture.get(0).unwrap().as_str().to_string();
             }

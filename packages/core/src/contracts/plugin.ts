@@ -50,6 +50,8 @@ export interface PluginContributions {
 }
 
 export interface PluginCommandContribution {
+  /** Filled by the registry when contributions are collected. */
+  pluginId?: string
   commandId: string
   label: string
   category: string
@@ -70,6 +72,10 @@ export interface ExportProfileContribution {
 }
 
 export interface McpToolContribution {
+  /** Filled by the registry when contributions are collected. */
+  pluginId?: string
+  /** Effective permission re-checked at invocation. */
+  permission?: CommandPermission
   name: string
   label: string
   modeRequired: McpMode
