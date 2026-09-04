@@ -12,8 +12,6 @@ use crate::write::save_note;
 
 static EMBED_WIKILINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"!\[\[([^\]]+?)\]\]").expect("embed wikilink regex"));
-static WIKILINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[\[([^\]]+?)(?:\|([^\]]+?))?\]\]").expect("wikilink regex"));
 static HIGHLIGHT_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"==(.+?)==").expect("highlight regex"));
 

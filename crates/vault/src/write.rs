@@ -1,5 +1,4 @@
 use std::fs;
-use std::path::Path;
 
 use crate::fs::atomic_write;
 use crate::hash::{content_hash_bytes, path_hash};
