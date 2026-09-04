@@ -231,10 +231,7 @@ impl DaemonState {
                 public = public.replace(&root, "<vault>");
             }
         }
-        if public.len() > 2_048 {
-            public.truncate(2_048);
-            public.push_str("…");
-        }
+        clamp_to_public_error_limit(&mut public);
 
         let lower = public.to_ascii_lowercase();
         let (code, recoverable) = if lower.contains("no vault is open") {
@@ -751,11 +748,47 @@ impl DaemonState {
     }
 }
 
+/// Byte budget for an error message the daemon hands to a client.
+const MAX_PUBLIC_ERROR_BYTES: usize = 2_048;
+
+/// Clamp already-redacted error text to [`MAX_PUBLIC_ERROR_BYTES`] without
+/// cutting a character in half. `String::truncate` panics on a byte index that is
+/// not a char boundary, and this text is arbitrary error output that can name a
+/// note title or path in any script, so the limit walks back to the previous
+/// boundary first — the same care `is_kanban_file` and `append_bounded` take.
+fn clamp_to_public_error_limit(text: &mut String) {
+    if text.len() <= MAX_PUBLIC_ERROR_BYTES {
+        return;
+    }
+
+    let mut cut = MAX_PUBLIC_ERROR_BYTES;
+    while cut > 0 && !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    text.truncate(cut);
+    text.push('…');
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use scriptor_ipc::RpcMethod;
     use tempfile::tempdir;
+
+    #[test]
+    fn public_error_limit_walks_back_to_a_char_boundary() {
+        // Byte 2 048 lands inside the two-byte `é`, so the cut has to move back
+        // to 2 047 rather than slice the character in half.
+        let mut text = format!("{}é{}", "a".repeat(2_047), "c".repeat(64));
+        clamp_to_public_error_limit(&mut text);
+        assert_eq!(text, format!("{}…", "a".repeat(2_047)));
+
+        // Text at the limit is reported verbatim, ellipsis-free.
+        let mut exact = "b".repeat(2_048);
+        clamp_to_public_error_limit(&mut exact);
+        assert_eq!(exact, "b".repeat(2_048));
+        assert!(!exact.ends_with('…'));
+    }
 
     #[test]
     fn ping_returns_version() {
