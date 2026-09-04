@@ -92,12 +92,35 @@ fn resolve_filename(template: &str, title: &str) -> String {
         .filter(|s| !s.is_empty())
         .collect::<Vec<_>>()
         .join("-");
-    let slug = &slug[..slug.len().min(80)];
+    // The ASCII slug is safe to cut by byte because it only contains ASCII.
+    let slug = slug[..slug.len().min(80)].to_string();
+    let slug = if slug.is_empty() {
+        readable_title_fallback(title)
+    } else {
+        slug
+    };
 
     template
         .replace("{{date}}", &date)
         .replace("{{time}}", &time)
-        .replace("{{title}}", slug)
+        .replace("{{title}}", &slug)
+}
+
+/// A slug built from ASCII alphanumerics only is empty for a title in another
+/// script, which used to hand back a filename with no title in it at all. Keep
+/// the title instead, dropping the characters a path cannot carry plus the
+/// control characters a captured page title can smuggle in, and count the limit
+/// in characters so a multi-byte title cannot be cut mid-character.
+fn readable_title_fallback(title: &str) -> String {
+    const MAX_SLUG_CHARS: usize = 80;
+    let mut readable = String::new();
+    for c in title.chars().take(MAX_SLUG_CHARS) {
+        if c.is_control() || matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') {
+            continue;
+        }
+        readable.push(c);
+    }
+    readable.trim().to_string()
 }
 
 fn build_note_content(result: &scriptor_capture::CaptureResult) -> String {
@@ -143,6 +166,29 @@ mod tests {
         let name = resolve_filename("{{title}}.md", "Café: résumé & notes (2026)");
         // Should contain at most hyphens and alphanumeric ASCII.
         assert!(!name.contains('é'), "non-ASCII should be replaced: {name}");
+    }
+
+    #[test]
+    fn resolve_filename_keeps_a_non_ascii_title_readable() {
+        // No ASCII alphanumerics means the slug is empty, and an empty slug used
+        // to produce a filename that described nothing.
+        let name = resolve_filename("{{title}}.md", "日本語 / テスト");
+        assert!(name.ends_with(".md"), "{name}");
+        assert!(name.starts_with("日本語"), "{name}");
+        assert!(name.contains('テ'), "{name}");
+        assert!(
+            !name.contains('/'),
+            "a captured page title must not add a path separator: {name}"
+        );
+
+        // The fallback is clamped by characters, so a byte-based cut cannot
+        // split a multi-byte title.
+        let long = resolve_filename("{{title}}.md", &"標".repeat(300));
+        assert!(
+            long.chars().count() <= 80 + ".md".len(),
+            "{} chars",
+            long.chars().count()
+        );
     }
 
     #[test]
