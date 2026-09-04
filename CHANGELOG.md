@@ -9,6 +9,11 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- `scripts/ci/invoke-logged.ps1` keeps the *end* of a failed step's log when it shortens the CI
+  annotation and strips the per-line timestamp prefixes. The old truncation kept the first 3 500
+  characters of a 20-line tail, which is exactly the part that never contains the failing
+  diagnostic, so heavy steps reported "exit code 1" with the real error cut off; the annotation now
+  also lists the last `==>` stage markers so the running step is identifiable.
 - Renaming a note no longer rewrites wikilinks, markdown links, and reference definitions that a
   note quotes inside a fenced code block or an inline code span. The rename rewriter replaced
   matches across the whole document, so documentation *about* links was silently edited, while the

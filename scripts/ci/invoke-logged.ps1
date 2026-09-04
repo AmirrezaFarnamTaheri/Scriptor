@@ -180,10 +180,30 @@ Write-Host "Result: $status; exit=$exitCode; duration=$([math]::Round($duration.
 Write-Host '::endgroup::'
 
 if ($exitCode -ne 0) {
-    $tail = @(Get-Content -LiteralPath $logPath -Tail 20 -ErrorAction SilentlyContinue) -join ' | '
-    $annotation = $tail -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A'
-    if ($annotation.Length -gt 3500) {
-        $annotation = $annotation.Substring(0, 3500)
+    # The failing child writes its own diagnostic last, so the annotation has to
+    # keep the *end* of the log. Truncating from the front used to drop the error
+    # line itself, leaving only the surrounding build noise in the check.
+    $tailLines = @(Get-Content -LiteralPath $logPath -Tail 40 -ErrorAction SilentlyContinue)
+    $tailLines = @($tailLines | ForEach-Object { $_ -replace '^\[[^\]]+\]\s*', '' })
+    $tail = ($tailLines -join ' | ')
+    $maxTail = 3000
+    if ($tail.Length -gt $maxTail) {
+        $tail = '...' + $tail.Substring($tail.Length - $maxTail)
+    }
+
+    # The stage markers name the step that was running, which a tail of a long
+    # log cannot show on its own.
+    $stages = @(Select-String -LiteralPath $logPath -Pattern '==> ' -ErrorAction SilentlyContinue |
+        Select-Object -Last 3 | ForEach-Object { $_.Line.Trim() })
+    if ($stages.Count -gt 0) {
+        $annotation = ('last stages: ' + ($stages -join ' | ') + ' || ') + $tail
+    } else {
+        $annotation = $tail
+    }
+
+    $annotation = $annotation -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A'
+    if ($annotation.Length -gt 4000) {
+        $annotation = $annotation.Substring($annotation.Length - 4000)
     }
     Write-Host "::error title=$Name failed::$annotation"
     exit $exitCode
