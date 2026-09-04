@@ -350,7 +350,12 @@ fn apply_note_index_change(
             session.descriptor.id
         ])?;
         rows.next()?
-            .map(|row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .map(|row| {
+                Ok::<_, rusqlite::Error>((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                ))
+            })
             .transpose()?
     };
     let identity_changed = old_identity
