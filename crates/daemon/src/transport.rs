@@ -335,15 +335,14 @@ fn dispatch_request(
         };
     }
 
-    if runs_outside_lock {
-        if let Err(error) =
+    if runs_outside_lock
+        && let Err(error) =
             crate::capabilities::enforce(&lock_recover(state).plugin_state, &request.method)
-        {
-            return RpcResponse {
-                id,
-                result: RpcResult::Error(error),
-            };
-        }
+    {
+        return RpcResponse {
+            id,
+            result: RpcResult::Error(error),
+        };
     }
     let response = match request.method {
         RpcMethod::Invoke {
