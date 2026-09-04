@@ -116,31 +116,29 @@ pub(crate) fn resolve_link_targets_on(
         resolver.register_aliases(path, &aliases);
     }
 
-    let (link_sql, link_params): (&str, Vec<&dyn rusqlite::ToSql>) = if let Some(source) = from_note_id {
-        (
+    let parse_link_row = |row: &rusqlite::Row<'_>| -> rusqlite::Result<(String, String, Option<String>)> {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+    };
+    // Prepare and run each branch directly so the parameter borrows never
+    // outlive a branch-local binding (building a single
+    // `Vec<&dyn ToSql>` that borrowed a branch-scoped `source` did not compile).
+    let link_rows: Vec<(String, String, Option<String>)> = if let Some(source) = from_note_id {
+        let mut stmt = conn.prepare_cached(
             "SELECT id, to_path, to_note_id FROM links
              WHERE vault_id = ?1 AND from_note_id = ?2
                AND kind IN ('wikilink', 'markdown', 'heading')",
-            vec![&vault_id, &source],
-        )
+        )?;
+        stmt.query_map(params![vault_id, source], parse_link_row)?
+            .collect::<Result<Vec<_>, _>>()?
     } else {
-        (
+        let mut stmt = conn.prepare_cached(
             "SELECT id, to_path, to_note_id FROM links
-             WHERE vault_id = ?1 AND kind IN ('wikilink', 'markdown', 'heading')",
-            vec![&vault_id],
-        )
+             WHERE vault_id = ?1
+               AND kind IN ('wikilink', 'markdown', 'heading')",
+        )?;
+        stmt.query_map(params![vault_id], parse_link_row)?
+            .collect::<Result<Vec<_>, _>>()?
     };
-    let mut links_statement = conn.prepare_cached(link_sql)?;
-    let link_rows = links_statement
-        .query_map(rusqlite::params_from_iter(link_params), |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-            ))
-        })?
-        .collect::<Result<Vec<_>, _>>()?;
-    drop(links_statement);
 
     let mut updates = Vec::new();
     for (id, target, current_target_id) in link_rows {
