@@ -371,8 +371,8 @@ fn extract_after_preserving_case(input: &str, lower: &str, prefix: &str) -> Opti
         let end = inner.find('"')?;
         return Some(inner[..end].to_string());
     }
-    if let Some(inner) = rest.strip_prefix(''') {
-        let end = inner.find(''')?;
+    if let Some(inner) = rest.strip_prefix('\'') {
+        let end = inner.find('\'')?;
         return Some(inner[..end].to_string());
     }
     (!rest.is_empty()).then(|| rest.to_string())
@@ -759,7 +759,7 @@ mod tests {
             "helper must not pre-truncate before compound predicates are applied"
         );
         let session = test_session(dir.path());
-        let public_rows = execute_dql_query(&cache, &session, "path matches /^notes\//")?;
+        let public_rows = execute_dql_query(&cache, &session, "path matches /^notes./")?;
         assert_eq!(public_rows.len(), DQL_RESULT_LIMIT, "public DQL results stay bounded");
         Ok(())
     }
