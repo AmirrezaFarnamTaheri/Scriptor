@@ -14,7 +14,7 @@ use scriptor_vault::{
     delete_note_guarded, export_text_bundle, lint_vault_fix, list_note_history, list_recent_notes,
     load_vault_config, load_vault_snippets, load_vault_template, open_vault, open_vault_output,
     plan_daily_note, read_activity_log, read_note, read_note_history_revision, read_stats_history,
-    read_workspace_session, record_recent_note, rename_apply, rename_dry_run, save_note,
+    read_workspace_session, record_recent_note, rename_apply_guarded, rename_dry_run, save_note,
     save_note_with_options, save_vault_config, save_vault_snippets, scan_vault_with_roots,
     section_rename_apply, section_rename_dry_run, set_frontmatter_field, tag_rename_apply,
     tag_rename_dry_run, write_workspace_session,

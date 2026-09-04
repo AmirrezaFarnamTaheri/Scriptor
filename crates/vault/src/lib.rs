@@ -99,8 +99,8 @@ pub use plugin_state::{
 };
 pub use recent::{RecentNoteEntry, list_recent_notes, record_recent_note};
 pub use rename::{
-    RenameNoteApplyOutput, RenameNoteDryRunOutput, rename_apply, rename_apply_staged,
-    rename_dry_run, unresolved_link_targets,
+    RenameNoteApplyOutput, RenameNoteDryRunOutput, rename_apply, rename_apply_guarded,
+    rename_apply_staged, rename_apply_staged_guarded, rename_dry_run, unresolved_link_targets,
 };
 pub use rename_transaction::{
     RenamePhase, RenameRecoveryOutcome, RenameTransactionManifest, StagedRenameTransaction,

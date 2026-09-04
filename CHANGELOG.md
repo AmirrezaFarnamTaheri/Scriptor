@@ -34,6 +34,11 @@
   wrapped in a closure so the queue's `&PathBuf` repository root coerces to the `&Path` the git
   helper takes. The nested `if let` in `save_note_with_options` that
   `cargo clippy --workspace --all-targets -- -D warnings` rejected is now a single let-chain.
+- Re-exported the guarded rename entry points (`rename_apply_guarded`, `rename_apply_staged_guarded`)
+  from `scriptor-vault`'s crate root. The rename pre-condition was added to the rename module without
+  extending the root re-export list, so the daemon's rename dispatch and the desktop
+  `vault_rename_apply` command referenced names that were never in scope; the desktop command also
+  still imported the unguarded `rename_apply` while calling the guarded form.
 - Fixed docked side panels (git, MCP, settings, knowledge) rendering beneath the sticky top bar: the dock now starts below the bar and its header and tabs are always reachable; visual baselines and README captures were regenerated for the corrected geometry.
 - Smoothed the typing path: word counting no longer allocates a word array per keystroke, draft stats and citation extraction render from deferred draft values, glass blur tiers were lightened (16px default), and reduced-transparency now strips modal and palette backdrop blurs as well.
 - Resolved the 2026-08-30 forensic review findings: OAuth stateless-probe handling, daemon outside-lock read-only scans, truthful export-history running state, chrome preference persistence and validation, top-bar i18n coverage, reduced-transparency and resize coalescing, portable Playwright web servers, a container gate that executes the contract suite, and worktree-proof source-test and version walkers.

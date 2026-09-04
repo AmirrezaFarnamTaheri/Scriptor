@@ -115,7 +115,7 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
             persist_endpoint(&endpoint)?;
         }
 
-        let mut stream = match listener.accept() {
+        let stream = match listener.accept() {
             Ok(stream) => {
                 consecutive_accept_errors = 0;
                 stream
