@@ -9,6 +9,10 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- Loading a canvas board validates the parsed file instead of casting it. A `.canvas` file that is
+  valid JSON but not a canvas document (a truncated write, an edit made outside the app) used to be
+  handed straight to the renderer, where the missing layers or blocks array threw; the board is now
+  left as it was and the panel says why.
 - `clip` names a new note after the captured page title even when that title has no ASCII
   alphanumerics. The filename slug kept only ASCII letters and digits, so a Japanese, Greek, or
   emoji title slugged to nothing and produced a note named after the timestamp alone; the title is

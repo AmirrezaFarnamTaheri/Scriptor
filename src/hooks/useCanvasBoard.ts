@@ -119,7 +119,24 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       const request = loadGuardRef.current.issue()
       const json = await canvasLoadDocument(boardId)
       if (!lifecycleGuardRef.current.isCurrent(lifecycle) || !loadGuardRef.current.isCurrent(request)) return
-      const loaded = JSON.parse(json) as CanvasDocument
+      // A board file is user data on disk. A truncated write or an edit outside
+      // the app can leave JSON that parses but is not a canvas document, and the
+      // cast alone would let that reach the renderer and throw there.
+      const parsed: unknown = JSON.parse(json)
+      const candidate = parsed as Partial<CanvasDocument> | null
+      if (
+        typeof candidate !== 'object' ||
+        candidate === null ||
+        typeof candidate.id !== 'string' ||
+        typeof candidate.title !== 'string' ||
+        !Array.isArray(candidate.layers) ||
+        !Array.isArray(candidate.blocks)
+      ) {
+        setStatus('The board file is not a canvas document; the current board was kept.')
+        return
+      }
+
+      const loaded = candidate as CanvasDocument
       setDocument(loaded)
       resetHistory(loaded)
       setActiveBoardId(boardId)
