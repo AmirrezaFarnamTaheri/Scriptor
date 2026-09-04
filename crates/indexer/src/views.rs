@@ -186,7 +186,7 @@ fn view_condition_sql_prefilter(condition: &ViewFilterCondition) -> Option<(Stri
 mod tests {
     use super::*;
     use chrono::Utc;
-    use scriptor_vault::{ViewFilterOp, open_vault};
+    use scriptor_vault::open_vault;
     use tempfile::tempdir;
 
     #[test]
