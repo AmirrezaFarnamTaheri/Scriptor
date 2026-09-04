@@ -34,6 +34,10 @@ pnpm desktop:dev
 
 - Reproduce bugs with a failing test before the fix.
 - Keep mutation, refactor, dependency update, and generated-file changes reviewable.
+  When a PR changes a dependency's major or minor version, audit the call sites against the
+  pinned upstream release notes in the same commit: a renamed module or method (for example
+  `fs4` 1.x moved `fs_std::FileExt::lock_exclusive` to `FileExt::lock`) compiles on no
+  platform, and the failure hides every gate behind it.
 - Route external commands through `crates/system-bridge/src/process.rs`.
 - Validate runtime JSON from `unknown`; do not add unchecked boundary assertions.
 - Add authorization classification for every new native command.

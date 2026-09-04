@@ -121,22 +121,22 @@ pub fn save_note_with_options(
 
     if let Some(existing) = existing_bytes.as_deref() {
         backup_for_recovery(root, path.as_str(), existing)?;
-        if let Ok(previous_markdown) = std::str::from_utf8(existing) {
-            if let Err(error) = append_note_history_throttled(
+        if let Ok(previous_markdown) = std::str::from_utf8(existing)
+            && let Err(error) = append_note_history_throttled(
                 root,
                 path.as_str(),
                 previous_markdown,
                 previous_content_hash.as_deref().unwrap_or_default(),
                 Some(markdown),
-            ) {
-                tracing::warn!(
-                    target: "scriptor_vault::write",
-                    vault_id,
-                    note_path = %path.as_str(),
-                    error = %error,
-                    "failed to append note history before overwrite; save continues",
-                );
-            }
+            )
+        {
+            tracing::warn!(
+                target: "scriptor_vault::write",
+                vault_id,
+                note_path = %path.as_str(),
+                error = %error,
+                "failed to append note history before overwrite; save continues",
+            );
         }
     }
 

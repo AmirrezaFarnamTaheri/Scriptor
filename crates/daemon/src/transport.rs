@@ -1,5 +1,5 @@
 use std::fs;
-use std::io;
+use std::io::{self, Read};
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -92,7 +92,10 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let _endpoint_guard = EndpointCleanup;
 
     let state = Arc::new(Mutex::new(DaemonState {
-        endpoint_nonce: endpoint.nonce,
+        // `endpoint` itself is still needed below (the expected nonce and the
+        // recovery path that re-persists it), so the nonce is cloned rather
+        // than moved out of the struct.
+        endpoint_nonce: endpoint.nonce.clone(),
         ..DaemonState::default()
     }));
     let event_hub = EventHub::new();
@@ -529,7 +532,10 @@ fn dispatch_invoke_outside_lock(
             let queue = { lock_recover(state).git_queue() };
             queue.and_then(|queue| {
                 queue
-                    .enqueue(scriptor_native_git::git_push)
+                    // Wrapped so the queue's `&PathBuf` root coerces to the
+                    // `&Path` that `git_push` takes; the function item alone
+                    // does not satisfy the `FnOnce(&PathBuf)` bound.
+                    .enqueue(|root| scriptor_native_git::git_push(root))
                     .map_err(|error| error.to_string())
                     .and_then(|value| {
                         serde_json::to_string(&value).map_err(|error| error.to_string())
