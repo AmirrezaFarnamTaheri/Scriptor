@@ -148,7 +148,7 @@ pub fn rebuild_index_with_progress(
                 sync_note_tasks_from_markdown_on(
                     tx,
                     &session.descriptor.id,
-                    &entry.path,
+                    &note.metadata.id,
                     &note.markdown,
                 )?;
                 links_written += replace_note_links_on(tx, session, &entry.path, &note.markdown)?;
@@ -361,7 +361,12 @@ fn apply_note_index_change(
         .is_none_or(|(title, aliases)| title != &parsed.title || aliases != &new_aliases);
 
     upsert_note_on(&tx, &note.metadata, &note.markdown)?;
-    sync_note_tasks_from_markdown_on(&tx, &session.descriptor.id, path, &note.markdown)?;
+    sync_note_tasks_from_markdown_on(
+        &tx,
+        &session.descriptor.id,
+        &note.metadata.id,
+        &note.markdown,
+    )?;
     replace_note_links_on(&tx, session, path, &note.markdown)?;
     resolve_link_targets_on(
         &tx,
@@ -437,6 +442,16 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].title, "Ship release");
         assert_eq!(rows[0].due_at.as_deref(), Some("2026-08-20"));
+        assert_eq!(
+            rows[0].source_note_id.as_deref(),
+            Some(scriptor_vault::note_id(&session.descriptor.id, &relative).as_str()),
+            "tasks must key on the canonical note id"
+        );
+        assert_eq!(
+            rows[0].source_note_path.as_deref(),
+            Some(path),
+            "tasks must keep the vault-relative path for navigation"
+        );
 
         Ok(())
     }

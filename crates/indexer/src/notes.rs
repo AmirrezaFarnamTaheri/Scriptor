@@ -275,15 +275,18 @@ pub(crate) fn remove_note_from_index_on(
         return Ok(false);
     }
 
+    // `tasks.source_note_id` holds the canonical note id since schema v10, so
+    // the reconciliation must key off `note_key` — filtering by the bare path
+    // silently leaves the deleted note's tasks (and their tags) in the cache.
     conn.execute(
         "DELETE FROM task_tags WHERE task_id IN (
             SELECT id FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2
          )",
-        params![vault_id, path],
+        params![vault_id, note_key],
     )?;
     conn.execute(
         "DELETE FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2",
-        params![vault_id, path],
+        params![vault_id, note_key],
     )?;
     conn.execute(
         "DELETE FROM links WHERE from_note_id = ?1",

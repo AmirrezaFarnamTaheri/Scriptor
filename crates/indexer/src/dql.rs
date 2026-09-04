@@ -216,7 +216,9 @@ fn execute_single_clause(
         return Ok(tasks
             .into_iter()
             .map(|t| DqlResultRow {
-                path: t.source_note_id.unwrap_or_default(),
+                path: t
+                    .source_note_path
+                    .unwrap_or_else(|| t.source_note_id.unwrap_or_default()),
                 title: t.title,
                 // tasks have no pre-built snippet; leave empty.
                 snippet: String::new(),

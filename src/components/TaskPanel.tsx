@@ -198,12 +198,12 @@ function TaskRowItem({
               <strong>Priority:</strong> {task.priority > 0 ? `+${task.priority}` : task.priority}
             </p>
           )}
-          {task.sourceNoteId && (
+          {task.sourceNotePath && (
             <button
               type="button"
               className="task-row__open-note"
               disabled={isPending}
-              onClick={() => onOpenNote(task.sourceNoteId!)}
+              onClick={() => onOpenNote(task.sourceNotePath!)}
             >
               Open source note ↗
             </button>

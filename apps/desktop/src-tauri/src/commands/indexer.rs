@@ -376,8 +376,15 @@ pub fn indexer_update_task(
         .map_err(|e| e.to_string())?
         .ok_or_else(|| format!("unknown task id: {task_id}"))?;
     let note_path = task
-        .source_note_id
+        .source_note_path
         .clone()
+        .or_else(|| {
+            // Rows written before `source_note_path` was mirrored still carry a
+            // canonical note id, whose prefix is exactly the vault id.
+            let id = task.source_note_id.as_deref()?;
+            id.strip_prefix(&format!("{}:", task.vault_id))
+                .map(str::to_owned)
+        })
         .ok_or_else(|| format!("task {} has no source note", task.id))?;
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
     let document =
@@ -424,7 +431,7 @@ pub fn indexer_sync_note_tasks(
     sync_note_tasks_from_markdown(
         &cache,
         &session.descriptor.id,
-        &note_path,
+        &document.metadata.id,
         &document.markdown,
     )
     .map_err(|e| e.to_string())

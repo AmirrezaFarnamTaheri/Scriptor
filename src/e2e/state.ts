@@ -33,7 +33,8 @@ function taskFromMarkdown(path: string, line: string, lineNumber: number): TaskR
   return {
     id: `${path}:${lineNumber}`,
     vaultId: SCREENSHOT_VAULT.id,
-    sourceNoteId: path,
+    sourceNoteId: `${SCREENSHOT_VAULT.id}:${path}`,
+    sourceNotePath: path,
     line: lineNumber,
     title,
     status: checkboxToStatus[checkbox] ?? 'open',
@@ -65,12 +66,12 @@ export function e2eQueryTasks(): TaskRow[] {
 /** Rewrite the matching Markdown task and let subsequent queries re-parse it. */
 export function e2eUpdateTask(taskId: string, patch: { status?: string; dueAt?: string | null }): void {
   const task = e2eQueryTasks().find((row) => row.id === taskId)
-  if (!task || !task.sourceNoteId) throw new Error(`E2E task not found: ${taskId}`)
-  const lines = (noteBodies.get(task.sourceNoteId) ?? '').split('\n')
+  if (!task || !task.sourceNotePath) throw new Error(`E2E task not found: ${taskId}`)
+  const lines = (noteBodies.get(task.sourceNotePath) ?? '').split('\n')
   const status = patch.status ?? task.status
   const dueAt = patch.dueAt === undefined ? task.dueAt : patch.dueAt
   lines[task.line] = `- [${statusToCheckbox[status] ?? ' '}] ${task.title}${dueAt ? ` due: ${dueAt}` : ''}`
-  noteBodies.set(task.sourceNoteId, lines.join('\n'))
+  noteBodies.set(task.sourceNotePath, lines.join('\n'))
 }
 
 function kanbanColumns(markdown: string): KanbanBoardRow['columns'] {

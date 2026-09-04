@@ -66,8 +66,13 @@ use crate::error::IndexerError;
 pub struct TaskRow {
     pub id: String,
     pub vault_id: String,
-    /// Vault-relative path of the source note.
+    /// Canonical `notes.id` of the source note (`"<vault_id>:<path>"`), or
+    /// `None` for a task that is not attached to a note.  This is the value
+    /// `tasks.source_note_id` carries the foreign key on, never a bare path.
     pub source_note_id: Option<String>,
+    /// Vault-relative path of the source note.  This is what the UI and the
+    /// DQL projector navigate with; `source_note_id` must not be used for it.
+    pub source_note_path: Option<String>,
     /// 0-based line number in the note.
     pub line: i64,
     pub title: String,
@@ -388,7 +393,14 @@ fn extract_tags(text: &str) -> Vec<String> {
 /// Upsert all tasks parsed from a note, delete any rows from that note that no
 /// longer appear in the parse result.  Idempotent.
 ///
-/// `note_id` is the `notes.id` of the source note (e.g. its vault-relative path).
+/// `note_id` is the canonical `notes.id` of the source note — i.e.
+/// `"<vault_id>:<vault-relative path>"` as produced by `scriptor_vault::note_id`
+/// — **not** the bare vault-relative path.  `tasks.source_note_id` carries a
+/// foreign key on `notes(id)` and the connection runs with `foreign_keys=ON`,
+/// so a bare path is rejected with `FOREIGN KEY constraint failed` and the whole
+/// index transaction rolls back.  `tasks.source_note_path` is mirrored from the
+/// notes row so readers never have to decode a note id.
+///
 /// `now` must be an ISO-8601 datetime string.
 pub fn sync_note_tasks(
     conn: &Connection,
@@ -405,6 +417,17 @@ pub fn sync_note_tasks(
             .collect::<Result<BTreeSet<_>, _>>()?
     };
 
+    // Mirrored from the parent row: the path is the navigation key the UI and
+    // the DQL projector use, and it stays correct when a note is renamed
+    // because every re-index re-reads it here.
+    let source_note_path: Option<String> = conn
+        .query_row(
+            "SELECT path FROM notes WHERE id = ?1",
+            params![note_id],
+            |row| row.get(0),
+        )
+        .ok();
+
     let mut seen_ids: BTreeSet<String> = BTreeSet::new();
 
     for task in tasks {
@@ -418,9 +441,9 @@ pub fn sync_note_tasks(
             "INSERT INTO tasks
                (id, vault_id, source_note_id, line, title, status, priority,
                 due_at, scheduled_at, start_at, rrule, field_style, completed_at,
-                created_at, updated_at)
+                created_at, updated_at, source_note_path)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
-                     CASE WHEN ?6 = 'done' THEN ?13 ELSE NULL END, ?13, ?13)
+                     CASE WHEN ?6 = 'done' THEN ?13 ELSE NULL END, ?13, ?13, ?14)
              ON CONFLICT(id) DO UPDATE SET
                title        = excluded.title,
                status       = excluded.status,
@@ -434,7 +457,8 @@ pub fn sync_note_tasks(
                    WHEN excluded.status = 'done' THEN COALESCE(tasks.completed_at, excluded.completed_at)
                    ELSE NULL
                END,
-               updated_at   = excluded.updated_at",
+               updated_at   = excluded.updated_at,
+               source_note_path = excluded.source_note_path",
             params![
                 id,
                 vault_id,
@@ -449,6 +473,7 @@ pub fn sync_note_tasks(
                 task.rrule,
                 task.field_style.as_str(),
                 now,
+                source_note_path,
             ],
         )?;
 
@@ -495,7 +520,8 @@ pub fn query_tasks(
     let mut sql = String::from(
         "SELECT t.id, t.vault_id, t.source_note_id, t.line, t.title, t.status,
                 t.priority, t.due_at, t.scheduled_at, t.start_at, t.rrule,
-                t.field_style, t.completed_at, t.created_at, t.updated_at
+                t.field_style, t.completed_at, t.created_at, t.updated_at,
+                t.source_note_path
          FROM tasks t",
     );
     let mut values: Vec<Value> = vec![Value::Text(vault_id.to_string())];
@@ -542,6 +568,7 @@ pub fn query_tasks(
             completed_at: row.get(12)?,
             created_at: row.get(13)?,
             updated_at: row.get(14)?,
+            source_note_path: row.get(15)?,
         })
     })?;
 
@@ -569,6 +596,7 @@ struct TaskRowRaw {
     id: String,
     vault_id: String,
     source_note_id: Option<String>,
+    source_note_path: Option<String>,
     line: i64,
     title: String,
     status: String,
@@ -588,7 +616,8 @@ pub fn task_by_id(cache: &IndexCache, task_id: &str) -> Result<Option<TaskRow>, 
     let mut stmt = conn.prepare(
         "SELECT t.id, t.vault_id, t.source_note_id, t.line, t.title, t.status,
                 t.priority, t.due_at, t.scheduled_at, t.start_at, t.rrule,
-                t.field_style, t.completed_at, t.created_at, t.updated_at
+                t.field_style, t.completed_at, t.created_at, t.updated_at,
+                t.source_note_path
          FROM tasks t
          WHERE t.id = ?1
          LIMIT 1",
@@ -614,6 +643,7 @@ pub fn task_by_id(cache: &IndexCache, task_id: &str) -> Result<Option<TaskRow>, 
         completed_at: row.get(12)?,
         created_at: row.get(13)?,
         updated_at: row.get(14)?,
+        source_note_path: row.get(15)?,
     };
 
     Ok(Some(build_task_row(&conn, raw)?))
@@ -685,6 +715,7 @@ impl TaskRow {
             id: raw.id,
             vault_id: raw.vault_id,
             source_note_id: raw.source_note_id,
+            source_note_path: raw.source_note_path,
             line: raw.line,
             title: raw.title,
             status: raw.status,
@@ -740,6 +771,7 @@ fn build_task_row(conn: &Connection, raw: TaskRowRaw) -> Result<TaskRow, Indexer
         id: raw.id,
         vault_id: raw.vault_id,
         source_note_id: raw.source_note_id,
+        source_note_path: raw.source_note_path,
         line: raw.line,
         title: raw.title,
         status: raw.status,
@@ -1142,6 +1174,7 @@ mod tests {
             id: stable_task_id("vault", "notes/tasks.md", 0),
             vault_id: "vault".into(),
             source_note_id: Some("notes/tasks.md".into()),
+            source_note_path: Some("notes/tasks.md".into()),
             line: 0,
             title: "Ship release  #work".into(),
             status: "open".into(),
@@ -1169,6 +1202,7 @@ mod tests {
             id: stable_task_id("vault", "notes/tasks.md", 0),
             vault_id: "vault".into(),
             source_note_id: Some("notes/tasks.md".into()),
+            source_note_path: Some("notes/tasks.md".into()),
             line: 0,
             title: task.title.clone(),
             status: task.status.clone(),
@@ -1194,6 +1228,7 @@ mod tests {
             id: stable_task_id("vault", "notes/tasks.md", 0),
             vault_id: "vault".into(),
             source_note_id: Some("notes/tasks.md".into()),
+            source_note_path: Some("notes/tasks.md".into()),
             line: 0,
             title: "Ship release".into(),
             status: "open".into(),
@@ -1245,5 +1280,64 @@ mod tests {
             result.err()
         );
         assert_eq!(result.unwrap().len(), 0);
+    }
+
+    /// Schema v10 turned `tasks.source_note_id` into a foreign key on
+    /// `notes(id)`.  Indexing with the vault-relative path instead of the
+    /// canonical note id rolls the whole write transaction back with
+    /// `FOREIGN KEY constraint failed` — the failure that took down the
+    /// incremental index in the release smoke and the TUI smoke.
+    #[test]
+    fn task_sync_keys_on_the_canonical_note_id_and_mirrors_the_path() -> Result<(), IndexerError> {
+        use crate::notes::upsert_note_on;
+        use crate::open_cache_for_session;
+        use scriptor_vault::{RelativeVaultPath, metadata_from_markdown, note_id, open_vault};
+        use tempfile::tempdir;
+
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path()).expect("open vault");
+        let cache = open_cache_for_session(&session)?;
+        let relative = RelativeVaultPath::parse("notes/tasks.md")?;
+        let markdown = "- [ ] Ship release 📅 2026-08-20\n";
+        let metadata = metadata_from_markdown(
+            &session.descriptor.id,
+            &relative,
+            markdown,
+            "2026-08-01T00:00:00Z".to_string(),
+        );
+
+        {
+            let mut conn = cache.connection()?;
+            let tx = conn.transaction()?;
+            upsert_note_on(&tx, &metadata, markdown)?;
+            sync_note_tasks_from_markdown_on(&tx, &session.descriptor.id, &metadata.id, markdown)?;
+            tx.commit()?;
+        }
+
+        let rows = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(
+            rows[0].source_note_id.as_deref(),
+            Some(note_id(&session.descriptor.id, &relative).as_str())
+        );
+        assert_eq!(
+            rows[0].source_note_path.as_deref(),
+            Some("notes/tasks.md"),
+            "the path must stay readable for navigation without decoding the note id"
+        );
+
+        // The bare path is not a note id: the foreign key has to refuse it
+        // rather than let an orphan row through.
+        let by_path = sync_note_tasks_from_markdown(
+            &cache,
+            &session.descriptor.id,
+            "notes/tasks.md",
+            markdown,
+        );
+        assert!(
+            by_path.is_err(),
+            "a vault-relative path must not satisfy the notes(id) foreign key"
+        );
+        Ok(())
     }
 }
