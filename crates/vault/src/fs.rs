@@ -3,7 +3,9 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-use fs4::fs_std::FileExt;
+// `fs4` 1.x exposes the std locking trait at the crate root; `fs_std` was the 0.13
+// path, and 1.x names the exclusive lock simply `lock`.
+use fs4::FileExt;
 
 use crate::error::VaultError;
 
@@ -36,7 +38,7 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
         .truncate(false)
         .open(&lock_path)
         .map_err(|source| VaultError::io(&lock_path, source))?;
-    file.lock_exclusive()
+    file.lock()
         .map_err(|source| VaultError::io(&lock_path, source))?;
 
     Ok(VaultUpdateLock { _file: file })
