@@ -895,12 +895,11 @@ export function StorePanel(props: StorePanelProps) {
         onKeyDown={handleTabKeyDown}
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           gap: 4,
           padding: '8px 12px',
           borderBottom: '1px solid var(--border)',
           flexShrink: 0,
-          overflowX: 'auto',
-          scrollbarWidth: 'thin',
         }}
       >
         {STORE_TABS.map((tab) => (

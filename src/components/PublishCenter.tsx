@@ -123,7 +123,14 @@ export function PublishCenter({
               <li key={profile.id}>
                 <div>
                   <strong>{profile.label}</strong>
-                  <small>{profile.format.toUpperCase()} · {profile.outputDirectory}</small>
+                  <small>
+                    {/* Defaults label profiles after their format ("HTML"); only show the
+                       format chip when it adds information beyond the label. */}
+                    {profile.format.toUpperCase() !== profile.label.toUpperCase()
+                      ? `${profile.format.toUpperCase()} · `
+                      : ''}
+                    {profile.outputDirectory}
+                  </small>
                 </div>
                 <div className="publish-profile-actions">
                   <button

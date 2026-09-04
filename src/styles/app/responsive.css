@@ -124,24 +124,30 @@
     min-width: 0;
   }
 
-  /* Keep the wordmark intact and let the vault badge (lower priority) absorb squeezes. */
+  /* Keep the wordmark intact and let the vault badge yield entirely below
+     1600px — the switcher select and the status footer repeat it. */
   .brand-wordmark {
     flex-shrink: 0;
     white-space: nowrap;
   }
 
   .vault-badge {
-    flex-shrink: 1;
+    display: none;
   }
 
   .history-controls {
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
+    padding: 2px;
   }
 
   .workspace-switcher select {
-    max-width: 150px;
+    max-width: 120px;
+  }
+
+  .topbar {
+    gap: 6px;
   }
 
   .command-search {
@@ -149,19 +155,61 @@
     min-width: 128px;
     max-width: 380px;
   }
+
+  /* Primary navigation must never shrink into an invisible internal scroller:
+     the strip keeps its full width and sibling sections compress instead. */
+  .workspace-mode-strip {
+    flex-shrink: 0;
+  }
+
+  /* The Publish Center quick-launch yields at tight widths — the Publish
+     workspace mode and the command palette open the same surface. */
+  .topbar-quick-publish {
+    display: none;
+  }
+}
+
+/* Below ~1600px the descriptive "Workspaces" label yields its space to the
+   mode strip; the select itself (aria-label="Recent vault") still announces. */
+@media (max-width: 1600px) {
+  .workspace-switcher span {
+    display: none;
+  }
 }
 
 @media (max-width: 1280px) {
-  .vault-badge {
-    display: none;
-  }
-
   /* Drop the wordmark before letting it truncate mid-letter. */
   .brand-wordmark {
     display: none;
   }
 
-  /* Icon-only "Open Vault"; the label stays for assistive tech. */
+  .workspace-switcher select {
+    max-width: 140px;
+  }
+}
+
+/* Below ~1600px every section is compressing; the two lowest-priority icon
+   actions (support heart, palette store — both reachable via command palette
+   and the customize menu) step aside so the core controls stay visible, and
+   "Open Vault" collapses to its icon (label remains for assistive tech). */
+@media (max-width: 1600px) {
+  .topbar .support-heart-action,
+  .topbar .palette-store-action,
+  /* MCP status also lives in the footer subsystem toggles and the settings
+     store; it yields at tight widths so Settings/Customize never clip. */
+  .topbar .topbar-status-mcp {
+    display: none;
+  }
+
+  .workspace-mode {
+    padding: 6px 8px;
+  }
+
+  .topbar,
+  .top-actions {
+    gap: 6px;
+  }
+
   .topbar .action-button .action-button-label {
     position: absolute;
     width: 1px;
@@ -178,36 +226,34 @@
     padding: 0 10px;
   }
 
-  .workspace-switcher span {
-    display: none;
-  }
-
-  .workspace-switcher select {
-    max-width: 140px;
-  }
-
   .icon-button,
   .status-button {
-    padding-inline: 6px;
-  }
-}
-
-/* Below ~1460px every section is compressing; the two lowest-priority icon
-   actions (support heart, palette store — both reachable via command palette
-   and the customize menu) step aside so the core controls stay visible. */
-@media (max-width: 1460px) {
-  .topbar .support-heart-action,
-  .topbar .palette-store-action {
-    display: none;
+    padding-inline: 5px;
   }
 
-  .workspace-mode {
-    padding: 6px 8px;
-  }
-
-  .topbar,
   .top-actions {
-    gap: 6px;
+    gap: 3px;
+    padding: 3px;
+  }
+
+  .top-actions .status-button {
+    min-width: 28px;
+    padding: 0 6px;
+  }
+
+  .top-actions svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .command-search {
+    min-width: 110px;
+  }
+
+  /* The shortcut badge inside the search pill yields its ~55px; the shortcut
+     remains announced by the button's accessible name. */
+  .command-search .kbd {
+    display: none;
   }
 }
 
@@ -344,4 +390,17 @@ html[data-ui-reflow='mobile'] .status-summary .repo-state {
   grid-column: auto;
   justify-content: flex-start;
   margin-left: 0;
+}
+
+/* Docked unified panels (portal, git, MCP, quick capture, note history) all
+   render at the shared 720px dock width (their width classes resolve there),
+   so reserve exactly that much workspace. The old reservation was a blanket
+   480px: docks visually covered the inspector and part of the editor while
+   the grid only made room for 480px, crushing the editor column. */
+.unified-panel-docked {
+  width: min(720px, 92vw);
+}
+
+body:has(.unified-panel-docked) .workspace-grid {
+  padding-right: min(720px, 92vw);
 }

@@ -1,5 +1,6 @@
 import { useState, useLayoutEffect, useRef } from 'react'
 import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye, X } from 'lucide-react'
+import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import {
   COLOR_PALETTE_SCHEMES,
@@ -52,6 +53,7 @@ export function ThemeCustomizerModal({
   }, [isOpen])
 
   const overlayRef = useRef<HTMLDivElement>(null)
+  useEscapeToClose(isOpen, onClose)
   useFocusTrap(overlayRef, { active: isOpen })
 
 

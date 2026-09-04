@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { X } from 'lucide-react'
 
@@ -22,6 +23,7 @@ export function FrontmatterInspector({ path, fields, onClose, onSaved }: Frontma
   const [draft, setDraft] = useState<Record<string, string>>(() => stringifyFields(fields))
   const [status, setStatus] = useState('')
   const dialogRef = useRef<HTMLElement>(null)
+  useEscapeToClose(true, onClose)
   useFocusTrap(dialogRef, { active: true })
 
   const saveField = async (field: string) => {

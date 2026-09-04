@@ -160,7 +160,7 @@ export function AppTopBar({
 
   const quickActions = [
     { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge' },
-    { id: 'publish', label: t('topBar.publish'), icon: <Globe />, onClick: onOpenPublishCenter, emphasized: workspaceMode === 'publish' },
+    { id: 'publish', label: t('topBar.publish'), icon: <Globe />, onClick: onOpenPublishCenter, emphasized: workspaceMode === 'publish', className: 'topbar-quick-publish' },
     { id: 'portal', label: t('topBar.portal'), icon: <LayoutDashboard />, onClick: onOpenPortal, emphasized: false },
     { id: 'capture', label: t('topBar.capture'), icon: <Zap />, onClick: onOpenQuickCapture, emphasized: false },
     { id: 'graph', label: t('topBar.graph'), icon: <Network />, onClick: onOpenGraph, emphasized: false },
@@ -329,7 +329,7 @@ export function AppTopBar({
                     key={action.id}
                     label={action.label}
                     onClick={action.onClick}
-                    className={action.emphasized ? 'emphasized' : undefined}
+                    className={`${action.className ?? ''} ${action.emphasized ? 'emphasized' : ''}`.trim() || undefined}
                   >
                     {action.icon}
                   </IconButton>
@@ -354,7 +354,7 @@ export function AppTopBar({
           {!hiddenTopBarActions.has('mcp') ? (
             <button
               type="button"
-              className={`status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
+              className={`topbar-status-mcp status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
               onClick={onOpenMcp}
               aria-label={mcpLabel}
             >
