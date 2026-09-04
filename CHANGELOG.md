@@ -9,6 +9,11 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- The daemon's transport tests import the two framing helpers they use. Moving frame I/O into
+  `transport/framing.rs` trimmed the parent module's imports, and the test module had been resolving
+  `read_frame_resyncing`/`write_frame` through that parent scope, so `scriptor-daemon (lib test)`
+  failed to compile with four `E0425` errors - invisible for a while because clippy's other errors
+  ran first and the log tail only showed those.
 - The daemon no longer stores an endpoint nonce that nothing reads. `main` verified each request
   against that `DaemonState` copy and skipped authentication when it was unset; the transport now
   compares requests against the nonce taken from the endpoint file it wrote and refuses to serve

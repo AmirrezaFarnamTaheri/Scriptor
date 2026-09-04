@@ -2,6 +2,7 @@ use super::*;
 use crate::events::EventHub;
 use scriptor_ipc::{
     RpcEventPayload, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult, ServerMessage,
+    read_frame_resyncing, write_frame,
 };
 use std::sync::Mutex;
 use std::time::Duration;
