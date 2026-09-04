@@ -3,10 +3,6 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-// `fs4` 1.x exposes the std locking trait at the crate root; `fs_std` was the 0.13
-// path, and 1.x names the exclusive lock simply `lock`.
-use fs4::FileExt;
-
 use crate::error::VaultError;
 
 /// An exclusive, cross-process transaction lock for metadata files stored in a
@@ -38,8 +34,11 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
         .truncate(false)
         .open(&lock_path)
         .map_err(|source| VaultError::io(&lock_path, source))?;
-    file.lock()
-        .map_err(|source| VaultError::io(&lock_path, source))?;
+    // `fs4` 1.x renamed `fs_std::FileExt::lock_exclusive` to `FileExt::lock`. The call is
+    // written as a qualified path on purpose: std grew inherent `File::lock`/`unlock` methods
+    // at this project's MSRV, and an inherent method takes precedence over a trait method, so a
+    // plain `file.lock()` would silently bypass `fs4` (and leave the import unused).
+    fs4::FileExt::lock(&file).map_err(|source| VaultError::io(&lock_path, source))?;
 
     Ok(VaultUpdateLock { _file: file })
 }

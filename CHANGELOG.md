@@ -24,9 +24,11 @@
 - Split the daemon transport module's deadline-bounded frame I/O into
   `crates/daemon/src/transport/framing.rs`, bringing `transport.rs` back under its module-size
   ratchet instead of leaving the split half-finished.
-- Adapted `crates/vault` to the `fs4` 1.x API it was bumped to (`fs4::FileExt::lock`, not the 0.13
-  `fs4::fs_std::FileExt::lock_exclusive`), which was the sole reason every Rust job on the branch
-  failed: the unresolved import aborted the build before any other crate was checked. With vault
+- Adapted `crates/vault` to the `fs4` 1.x API it was bumped to (1.x has no `fs_std` module and names
+  the exclusive lock `FileExt::lock` instead of `lock_exclusive`; the call is written as a qualified
+  path because std's newer inherent `File::lock` would otherwise shadow the trait method), which was
+  the sole reason every Rust job on the branch failed: the unresolved import aborted the build before
+  any other crate was checked. With vault
   compiling again, three further errors in the daemon transport surfaced and are fixed here: the
   endpoint nonce is cloned into `DaemonState` instead of moved out of the endpoint that is still
   needed for the expected nonce and endpoint recovery, the nonblocking disconnect probe reads
