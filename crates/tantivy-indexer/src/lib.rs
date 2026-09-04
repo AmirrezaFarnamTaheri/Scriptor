@@ -380,7 +380,13 @@ mod tests {
         let dir = tempdir().unwrap();
         TantivyIndex::create_or_open(dir.path()).unwrap();
         std::fs::write(dir.path().join(SCRIPTOR_SCHEMA_FILE), "999\n").unwrap();
-        let error = TantivyIndex::create_or_open(dir.path()).unwrap_err();
+        let error = match TantivyIndex::create_or_open(dir.path()) {
+            Ok(idx) => panic!(
+                "create_or_open on wrong schema version returned Ok: {:?}",
+                idx.path_field
+            ),
+            Err(e) => e,
+        };
         assert!(matches!(error, TantivyError::IncompatibleSchema(_)));
     }
 }
