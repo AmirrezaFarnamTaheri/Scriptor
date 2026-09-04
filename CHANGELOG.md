@@ -9,6 +9,21 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- Opening a legacy index cache no longer fails. `read_schema_version` reported a cache that has its
+  `cache_meta` table but no `schema_version` row as needing a rebuild, and because `migrate_cache`
+  reads the version through the same helper, that error aborted the migration chain before it could
+  run - so every pre-v9 cache was unusable instead of being migrated forward. The helper reports what
+  it finds again (`None` for a missing row) and `IndexCache::open` makes the distinction it actually
+  needs: no `cache_meta` table at all is a fresh cache, a table without its version row migrates from
+  version 0. Ten migration tests that had never run (the step sits behind clippy) pinned this.
+- The task date validator no longer accepts partial dates. It delegated to `chrono`, whose `%Y`,
+  `%m` and `%d` take any digit count, so `26-12-31` was a valid date (year 26) and `2026-1-31` was
+  too, while the renderer writes zero-padded ISO dates; the shape is now checked before the calendar
+  is. The validator's own test also asserted that `2026-12-31` was both valid and invalid, so it
+  could never pass; it now checks a one-digit month and an impossible month instead.
+- Note aliases keep the order the frontmatter declares. The parser sorted them before de-duplicating,
+  which reordered the list the author wrote (and broke the pre-existing frontmatter-alias test); the
+  de-duplication now keeps the first occurrence in place.
 - The layout blueprint's breakpoints now state what the CSS does: the side rails apply from `1321px`
   (the doc said `1181px`), the inspector reflows below the editor between `821px` and `1320px` with a
   capped height, and the topbar compacts to a two-column grid below `1500px` without ever becoming a

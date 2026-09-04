@@ -281,8 +281,10 @@ fn extract_aliases(frontmatter: &str) -> Vec<String> {
         index += 1;
     }
 
-    aliases.sort();
-    aliases.dedup();
+    // First occurrence wins, in the order the author wrote them: frontmatter aliases are
+    // surfaced to the user as declared, so sorting them here would reorder the note's list.
+    let mut seen = std::collections::HashSet::new();
+    aliases.retain(|alias| seen.insert(alias.clone()));
     aliases
 }
 

@@ -39,8 +39,11 @@ impl IndexCache {
         {
             let connection = Connection::open(&path)?;
             apply_connection_pragmas(&connection).map_err(IndexerError::from)?;
+            // `None` alone does not mean "fresh": only a cache without `cache_meta` is. A DB that
+            // has the table but lost its version row is legacy, so it migrates from version 0
+            // instead of having the latest schema stamped over an unknown layout.
             let version = read_schema_version(&connection)?;
-            if version.is_none() {
+            if version.is_none() && !cache_meta_table_exists(&connection)? {
                 apply_schema(&connection)?;
             } else {
                 crate::migration::migrate_cache(&connection)?;
@@ -115,13 +118,23 @@ pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, Index
         });
     }
 
-    // A cache_meta table without its required schema_version row is not a new
-    // database. Treat it as corrupt/stale instead of stamping the latest schema
-    // onto an unknown layout.
-    Err(IndexerError::SchemaRebuildRequired {
-        found: 0,
-        expected: crate::schema::SCHEMA_VERSION,
-    })
+    Ok(None)
+}
+
+/// `true` when the cache already has its `cache_meta` table.
+///
+/// This is what separates a brand-new cache (no table at all, so `read_schema_version` reports
+/// `None` and the latest schema can be created) from a legacy or half-written one (table present,
+/// version row missing - an unknown layout that must be migrated forward, never stamped current).
+fn cache_meta_table_exists(connection: &Connection) -> Result<bool, IndexerError> {
+    let exists = connection
+        .query_row(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cache_meta'",
+            [],
+            |row| row.get::<_, i32>(0),
+        )
+        .is_ok();
+    Ok(exists)
 }
 
 pub fn integrity_check_ok(connection: &Connection) -> Result<bool, IndexerError> {

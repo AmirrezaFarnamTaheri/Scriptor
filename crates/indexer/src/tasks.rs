@@ -360,7 +360,17 @@ fn looks_like_date(s: &str) -> bool {
 }
 
 pub(crate) fn is_valid_task_date(s: &str) -> bool {
-    chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
+    // `chrono`'s `%Y`/`%m`/`%d` accept any digit count, so `26-12-31` parses as year 26 and
+    // `2026-1-31` parses as January. Task dates are written zero-padded, so pin that shape
+    // before asking whether the calendar date is real.
+    let bytes = s.as_bytes();
+    bytes.len() == 10
+        && bytes[4] == b'-'
+        && bytes[7] == b'-'
+        && bytes[..4].iter().all(u8::is_ascii_digit)
+        && bytes[5..7].iter().all(u8::is_ascii_digit)
+        && bytes[8..10].iter().all(u8::is_ascii_digit)
+        && chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok()
 }
 
 // ── Tag extraction ────────────────────────────────────────────────────────────
@@ -1147,7 +1157,8 @@ mod tests {
     fn date_validator() {
         assert!(looks_like_date("2026-12-31"));
         assert!(!looks_like_date("26-12-31"));
-        assert!(!looks_like_date("2026/12/31"));
+        assert!(!looks_like_date("2026-1-31"));
+        assert!(!looks_like_date("2026-13-01"));
         assert!(!looks_like_date("not-a-date"));
     }
 
