@@ -191,6 +191,17 @@ if ($exitCode -ne 0) {
         $tail = '...' + $tail.Substring($tail.Length - $maxTail)
     }
 
+    # A long test run buries the assertion under cargo's per-crate progress lines, so lift the
+    # failure detail out of the whole log instead of trusting the tail window alone.
+    $detail = @(Select-String -LiteralPath $logPath -Pattern '---- .* stdout ----|panicked at |assertion|test result: FAILED|error\[E[0-9A-Z]+\]' -ErrorAction SilentlyContinue | Select-Object -Last 18 | ForEach-Object { ($_.Line -replace '^\[[^\]]+\]\s*', '').Trim() })
+    if ($detail.Count -gt 0) {
+        $detailText = $detail -join ' | '
+        if ($detailText.Length -gt 1600) {
+            $detailText = $detailText.Substring(0, 1600) + '...'
+        }
+        $tail = $tail.Substring([math]::Max(0, $tail.Length - 1600)) + ' || test failures: ' + $detailText
+    }
+
     # The stage markers name the step that was running, which a tail of a long
     # log cannot show on its own.
     $stages = @(Select-String -LiteralPath $logPath -Pattern '==> ' -ErrorAction SilentlyContinue |
