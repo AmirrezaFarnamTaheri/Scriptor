@@ -54,7 +54,11 @@ export function sanitizeHtml(html: string): string {
       const checkedMatch = /\schecked\b/i.test(attrs)
       const type = typeMatch?.[1] ?? 'checkbox'
       if (type !== 'checkbox') return ''
-      return checkedMatch ? '<input type="checkbox" checked disabled>' : '<input type="checkbox" disabled>'
+      // Disabled render-only checkbox; the accessible name keeps screen
+      // readers from announcing a bare "checkbox" with no context.
+      return checkedMatch
+        ? '<input type="checkbox" checked disabled aria-label="Completed task">'
+        : '<input type="checkbox" disabled aria-label="Open task">'
     }
 
     return `<${tag}>`

@@ -529,6 +529,43 @@ svg {
   grid-template-columns: min(var(--vault-width, 318px), 24%) auto minmax(0, 1fr) 0px 0px;
 }
 
+/* RTL: the logical grid keeps the vault rail on the reading side, but the
+   physical resizer paddings, dock edge and directional shadows were built
+   for LTR. Mirror them so the Persian locale doesn't keep left-facing
+   artifacts (dock flushes to the wrong edge, resizers face the wrong way). */
+html[dir='rtl'] .vault-panel {
+  border-right: 0;
+  border-left: 1px solid var(--glass-border);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+html[dir='rtl'] .vault-collapsed-placeholder {
+  transform: scaleX(-1);
+}
+
+html[dir='rtl'] .inspector-collapsed-placeholder {
+  transform: scaleX(-1);
+}
+
+html[dir='rtl'] .unified-panel-docked {
+  right: auto;
+  left: 0;
+  border-left: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0 16px 16px 0;
+}
+
+html[dir='rtl'] body:has(.unified-panel-docked) .workspace-grid {
+  padding-right: 0;
+  padding-left: min(720px, 92vw);
+}
+
+html[dir='rtl'] .has-custom-tooltip:hover .custom-tooltip,
+html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
+  opacity: 1;
+  transform: translateX(50%) translateY(0);
+}
+
 .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
   grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px;
 }

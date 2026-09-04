@@ -48,6 +48,11 @@ export function MonacoMarkdownEditor({
   const completionDisposableRef = useRef<{ dispose: () => void } | null>(null)
   const latest = useRef(value)
   const onChangeRef = useRef(onChange)
+  // Last value the editor itself reported (or accepted from outside). The
+  // `value` prop can echo back out of order while parent state settles; an
+  // echo must never `setValue` over newer model content, or real keystrokes
+  // get reverted mid-typing (dropped-character bug).
+  const lastSyncedValueRef = useRef(value)
   const lastInsertSeqRef = useRef<number | null>(null)
   const lastTransformSeqRef = useRef<number | null>(null)
 
@@ -78,9 +83,15 @@ export function MonacoMarkdownEditor({
     const model = modelRef.current
     if (!model) return
     const current = model.getValue()
-    if (current !== value) {
-      model.setValue(value)
+    if (current === value) {
+      lastSyncedValueRef.current = value
+      return
     }
+    // Prop is an echo of content this editor already produced (parent state
+    // settled after the model) — do not revert newer keystrokes.
+    if (value === lastSyncedValueRef.current) return
+    model.setValue(value)
+    lastSyncedValueRef.current = value
   }, [value])
 
   useEffect(() => {
@@ -97,6 +108,7 @@ export function MonacoMarkdownEditor({
     existing?.dispose()
 
     const model = monaco.editor.createModel(latest.current, 'markdown', uri)
+    lastSyncedValueRef.current = model.getValue()
     modelRef.current?.dispose()
     modelRef.current = model
     editor.setModel(model)
@@ -112,6 +124,7 @@ export function MonacoMarkdownEditor({
     const selection = editor.getSelection()
     const range = selection ?? model.getFullModelRange()
     editor.executeEdits('scriptor-insert', [{ range, text: insertRequest.text, forceMoveMarkers: true }])
+    lastSyncedValueRef.current = model.getValue()
     onChangeRef.current(model.getValue())
   }, [insertRequest])
 
@@ -131,6 +144,7 @@ export function MonacoMarkdownEditor({
     const position = model.getPositionAt(cursor)
     editor.setPosition(position)
     editor.revealPositionInCenter(position)
+    lastSyncedValueRef.current = markdown
     onChangeRef.current(markdown)
   }, [transformRequest])
 
@@ -206,6 +220,7 @@ export function MonacoMarkdownEditor({
     } else if (model.getValue() !== latest.current) {
       model.setValue(latest.current)
     }
+    lastSyncedValueRef.current = model.getValue()
     modelRef.current = model
     editor.setModel(model)
     if (import.meta.env.VITE_E2E_MODE === 'true') {
@@ -246,7 +261,11 @@ export function MonacoMarkdownEditor({
           scrollBeyondLastLine: false,
           quickSuggestions: { strings: true },
         }}
-        onChange={(next) => onChange(next ?? '')}
+        onChange={(next) => {
+          const nextValue = next ?? ''
+          lastSyncedValueRef.current = nextValue
+          onChange(nextValue)
+        }}
       />
     </div>
   )
