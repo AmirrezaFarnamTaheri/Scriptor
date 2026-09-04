@@ -9,6 +9,15 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- Renaming a note no longer rewrites wikilinks, markdown links, and reference definitions that a
+  note quotes inside a fenced code block or an inline code span. The rename rewriter replaced
+  matches across the whole document, so documentation *about* links was silently edited, while the
+  tag rewriter already skipped those regions; link rewriting now follows the same rule and keeps
+  every byte outside the rewritten links, including CRLF endings and trailing blank lines, intact.
+- Truncating a public error message in the daemon walks back to a UTF-8 char boundary before
+  cutting at 2048 bytes. `String::truncate` panics on a mid-character index, so an error naming a
+  note with a non-ASCII title or path long enough to hit that limit could panic the request handler
+  instead of being redacted; the ellipsis is also appended with `push` now that it is a char.
 - Task indexing writes the canonical note id into `tasks.source_note_id` again. Separating that
   column from `source_note_path` left every producer still passing a vault-relative path, and
   because the column carries a foreign key on `notes(id)` with `foreign_keys=ON`, an incremental
