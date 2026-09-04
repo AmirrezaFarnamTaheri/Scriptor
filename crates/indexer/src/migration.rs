@@ -21,6 +21,24 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
     // canonical note-id foreign key, and backfill it from the notes table.
     if current == 9 && SCHEMA_VERSION >= 10 {
         let transaction = connection.unchecked_transaction()?;
+
+        // `notes.id` has been in the schema since v1 but is a nullable TEXT primary key, so a
+        // cache can legitimately contain rows without one - and a task backfilled from such a row
+        // would point at NULL. Fill them in with exactly the format `note_id` produces
+        // ("{vault_id}:{path}") so ids computed from disk match ids stored in the cache, then index
+        // the column because every task lookup joins on it. The index is deliberately not UNIQUE: a
+        // cache that accumulated duplicate (vault_id, path) rows must still migrate, not fail here.
+        if !table_columns(&transaction, "notes")?.contains("id") {
+            // Only a cache older than the current schema files reaches this branch.
+            transaction.execute_batch("ALTER TABLE notes ADD COLUMN id TEXT;")?;
+        }
+        transaction.execute(
+            "UPDATE notes SET id = vault_id || ':' || path WHERE id IS NULL OR id = ''",
+            [],
+        )?;
+        transaction
+            .execute_batch("CREATE INDEX IF NOT EXISTS idx_notes_id ON notes(id);")?;
+
         let existing_cols = table_columns(&transaction, "tasks")?;
         if existing_cols.contains("source_note_id") && !existing_cols.contains("source_note_path") {
             transaction.execute_batch(
@@ -29,9 +47,13 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         }
         let existing_cols = table_columns(&transaction, "tasks")?;
         if !existing_cols.contains("source_note_id") {
-            transaction.execute_batch(
-                "ALTER TABLE tasks ADD COLUMN source_note_id TEXT REFERENCES notes(id) ON DELETE CASCADE;",
-            )?;
+            // No `REFERENCES notes(id) ON DELETE CASCADE` here, unlike the fresh schema: SQLite
+            // refuses to add a column carrying a REFERENCES clause while `foreign_keys` is enabled
+            // (and inside a transaction), and every pooled connection enables it - so declaring it
+            // here would make this migration fail on exactly the caches that need it. The
+            // relationship is enforced in code instead: deleting or moving a note reconciles its
+            // task rows by canonical id, and the index below makes that lookup cheap.
+            transaction.execute_batch("ALTER TABLE tasks ADD COLUMN source_note_id TEXT;")?;
         }
         transaction.execute(
             "UPDATE tasks
@@ -293,6 +315,47 @@ mod tests {
             "INSERT INTO recent_access(path, opened_at) VALUES ('a.md', 'now')",
             [],
         )?;
+        Ok(())
+    }
+
+    /// The production shape of an upgrade: pooled connections enable `foreign_keys`, and the whole
+    /// chain runs inside a transaction. SQLite refuses to add a column carrying a `REFERENCES`
+    /// clause while foreign keys are enabled, so the task column has to be added plain and the
+    /// relationship kept in code. It also supplies a note row without an id, which the migration
+    /// must backfill before any task can point at it.
+    #[test]
+    fn migrates_legacy_cache_with_foreign_keys_enabled() -> Result<(), IndexerError> {
+        let connection = open_legacy_cache(1)?;
+        connection.pragma_update(None, "foreign_keys", "ON")?;
+        connection.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count)
+             VALUES (NULL, 'v', 'a.md', 'A', 'h', '2026-01-01T00:00:00Z', 1)",
+            [],
+        )?;
+
+        migrate_cache(&connection)?;
+
+        let version: String = connection.query_row(
+            "SELECT value FROM cache_meta WHERE key = 'schema_version'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(version, SCHEMA_VERSION.to_string());
+        let id: String = connection.query_row(
+            "SELECT id FROM notes WHERE path = 'a.md'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(id, "v:a.md", "a note without an id is backfilled in `note_id`'s format");
+        let task_column: String = connection.query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert!(
+            task_column.contains("source_note_id"),
+            "the migrated cache must carry the canonical task column"
+        );
         Ok(())
     }
 

@@ -454,7 +454,9 @@ mod tests {
     fn extracts_aliases_from_yaml_block_list() {
         let markdown = "---\naliases:\n  - Friendly Name\n  - 'Alt Name'\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
-        assert_eq!(parsed.aliases, vec!["Alt Name", "Friendly Name"]);
+        // Declared order is preserved (quotes stripped), not sorted: the panel shows the
+        // aliases the author wrote, in the order they wrote them.
+        assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt Name"]);
     }
 
     #[test]

@@ -9,6 +9,14 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- Upgrading an existing index cache to the task note-id schema no longer fails. The migration added
+  `tasks.source_note_id` with a `REFERENCES notes(id) ON DELETE CASCADE` clause, which SQLite refuses
+  inside a transaction while `foreign_keys` is enabled - and every pooled connection enables it - so
+  the step that exists to fix legacy caches aborted on them instead. The column is now added plain and
+  the relationship is kept in code, as it already was for deletes and moves; `notes.id` is also
+  backfilled first, because it is a nullable text primary key that a legacy row can legitimately
+  leave empty. A new test runs the whole chain with `foreign_keys` on, which is what a real upgrade
+  looks like.
 - Opening a legacy index cache no longer fails. `read_schema_version` reported a cache that has its
   `cache_meta` table but no `schema_version` row as needing a rebuild, and because `migrate_cache`
   reads the version through the same helper, that error aborted the migration chain before it could
