@@ -1,3 +1,31 @@
+/* Collapsible status-dock chrome: the slim chevron toggle lives at the head
+   of the status summary; hiding the dock hands the rows back to the editor. */
+.dock-chrome-toggle {
+  width: 26px;
+  min-height: 26px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--ease-fast), color var(--ease-fast);
+}
+
+.dock-chrome-toggle:hover {
+  background: var(--surface-hover);
+  color: var(--ink-strong);
+}
+
+.dock-chrome-toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
 .export-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -29,9 +57,21 @@
 .status-summary {
   min-width: 0;
   display: grid;
-  grid-template-columns: auto minmax(260px, 620px) minmax(0, 1fr);
+  /* jobs | dock-chrome toggle | progress | repo-state */
+  grid-template-columns: auto auto minmax(260px, 620px) minmax(0, 1fr);
   align-items: center;
   gap: 10px;
+}
+
+/* Collapsed dock: one slim row — repo-state details live behind the toggle. */
+.status-summary .repo-state {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-strip.is-dock-collapsed .repo-state {
+  display: none;
 }
 
 .job-progress {

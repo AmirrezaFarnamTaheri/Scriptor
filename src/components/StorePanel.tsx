@@ -168,9 +168,9 @@ function McpTab({
   const interactive = onSetMcpMode !== noopSetMcpMode
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="store-stack">
       {!interactive ? (
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+        <p className="store-hint">
           MCP controls are unavailable in this surface. Open the dedicated MCP panel to change mode.
         </p>
       ) : null}
@@ -178,7 +178,7 @@ function McpTab({
       <section>
         <h3
           id="mcp-mode-label"
-          style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}
+          className="store-section-label"
         >
           MCP Mode
         </h3>
@@ -213,7 +213,7 @@ function McpTab({
                 ? <Check size={14} color="var(--accent)" />
                 : <div style={{ width: 14 }} />}
               <div>
-                <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{m.label}</div>
+                <div className="store-item-title">{m.label}</div>
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{m.description}</div>
               </div>
             </button>
@@ -224,26 +224,18 @@ function McpTab({
       {/* Tool list */}
       {mcpMode !== 'off' && (
         <section>
-          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
+          <h3 className="store-section-label">
             Available Tools ({mcpTools.length})
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
+          <div className="store-scroll-list">
             {mcpTools.map((tool) => (
               <div
                 key={tool.name}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '5px 8px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: 'var(--surface-raised)',
-                  fontSize: 'var(--text-sm)',
-                }}
+                className="store-tool-row"
               >
-                <Cpu size={12} style={{ flexShrink: 0, opacity: 0.6 }} />
-                <span style={{ fontFamily: 'monospace' }}>{tool.name}</span>
-                <span style={{ opacity: 0.5, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <Cpu size={12} className="store-icon-dim" />
+                <span className="store-mono">{tool.name}</span>
+                <span className="store-ellipsis">
                   — {tool.description}
                 </span>
               </div>
@@ -275,7 +267,7 @@ function McpTab({
           Audit Log ({mcpAuditLog.length} entries)
         </button>
         {showAudit && (
-          <div style={{ marginTop: 8, maxHeight: 160, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 3 }}>
+          <div className="store-audit-list">
             {mcpAuditLog.slice(0, 50).map((entry, i) => (
               <div
                 key={i}
@@ -303,7 +295,7 @@ function McpTab({
                 }}>
                   {entry.outcome}
                 </span>
-                <span style={{ fontFamily: 'monospace', opacity: 0.8 }}>{entry.toolName}</span>
+                <span className="store-mono-dim">{entry.toolName}</span>
               </div>
             ))}
           </div>
@@ -324,18 +316,18 @@ function FeaturesTab({
   const interactive = onToggleFeature !== noopToggleFeature
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>
+    <div className="store-stack-sm">
+      <p className="store-hint-spaced">
         Runtime controls let you pause optional background work without uninstalling anything.
         Changes take effect immediately unless marked <em>requires restart</em>.
       </p>
       {!interactive ? (
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+        <p className="store-hint">
           Feature toggles are read-only in this surface.
         </p>
       ) : null}
       {featureFlags.length === 0 ? (
-        <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', margin: 0 }}>
+        <p className="store-hint">
           No feature flags are available.
         </p>
       ) : null}
@@ -372,8 +364,8 @@ function FeaturesTab({
               ? <ToggleRight size={22} color="var(--accent)" />
               : <ToggleLeft size={22} color="var(--text-muted)" />}
           </button>
-          <div style={{ flex: '1 1 12rem', minWidth: 0, overflowWrap: 'anywhere' }}>
-            <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div className="store-fill-row">
+            <div className="store-item-title store-title-row">
               {flag.label}
               {flag.requiresRestart && (
                 <span style={{ fontSize: 'var(--text-xs)', background: 'color-mix(in srgb, var(--color-status-warning) 20%, transparent)', color: 'var(--color-status-warning)', borderRadius: 'var(--radius-sm)', padding: '1px 5px' }}>
@@ -381,7 +373,7 @@ function FeaturesTab({
                 </span>
               )}
             </div>
-            <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div className="store-item-sub">
               {flag.description}
             </div>
           </div>
@@ -400,8 +392,8 @@ function LayoutsTab({
   onApplyLayoutPreset,
 }: Pick<StorePanelProps, 'activeLayoutPresetId' | 'onApplyLayoutPreset'>) {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-muted)', marginBottom: 4 }}>
+    <div className="store-stack-sm">
+      <p className="store-hint-spaced">
         Alternate workspace layout templates. Applying one reconfigures the current
         workspace mode — split preview, stickies, and graph depth — in a single click.
       </p>
@@ -423,9 +415,9 @@ function LayoutsTab({
             }}
           >
             <LayoutTemplate size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
-            <div style={{ flex: '1 1 12rem', minWidth: 0, overflowWrap: 'anywhere' }}>
-              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{preset.name}</div>
-              <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', marginTop: 2 }}>
+            <div className="store-fill-row">
+              <div className="store-item-title">{preset.name}</div>
+              <div className="store-item-sub">
                 {preset.description}
               </div>
             </div>
@@ -519,7 +511,7 @@ function PluginsTab({
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className="store-stack">
       {/* Safe mode banner */}
       <div
         style={{
@@ -564,10 +556,10 @@ function PluginsTab({
       {/* Installed plugins */}
       {plugins.length > 0 && (
         <section>
-          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
+          <h3 className="store-section-label">
             Installed ({plugins.length})
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="store-stack-xs">
             {plugins.map((plugin) => {
               const policy = pluginPolicies[plugin.manifest.id] ?? null
               const summary = summarizePluginContributions(plugin)
@@ -591,7 +583,7 @@ function PluginsTab({
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
                     <Box size={16} style={{ marginTop: 2, flexShrink: 0, opacity: 0.7 }} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+                      <div className="store-item-title">
                         {plugin.manifest.name}
                         <span style={{ fontSize: 'var(--text-xs)', opacity: 0.5, marginLeft: 6 }}>
                           v{plugin.manifest.version}
@@ -784,10 +776,10 @@ function PluginsTab({
       {/* Marketplace */}
       {marketplaceCatalog.length > 0 && (
         <section>
-          <h3 style={{ fontSize: 'var(--text-sm)', fontWeight: 600, marginBottom: 8, color: 'var(--text-muted)' }}>
+          <h3 className="store-section-label">
             Available ({marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length})
           </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div className="store-stack-xs">
             {marketplaceCatalog
               .filter((p) => !installedIds.has(p.id))
               .map((catalog) => (
@@ -802,9 +794,9 @@ function PluginsTab({
                     gap: 10,
                   }}
                 >
-                  <Package size={16} style={{ flexShrink: 0, opacity: 0.6 }} />
+                  <Package size={16} className="store-icon-dim" />
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 600 }}>{catalog.name}</div>
+                    <div className="store-item-title">{catalog.name}</div>
                     <div style={{ fontSize: 'var(--text-xs)', opacity: 0.6 }}>{catalog.description}</div>
                   </div>
                   <button

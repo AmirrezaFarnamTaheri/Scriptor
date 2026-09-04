@@ -47,6 +47,7 @@ import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
 
 import { InlineEditorAssist } from '../editor/InlineEditorAssist'
+import { useI18n } from '../../lib/i18n'
 import { EditorTabBar } from './EditorTabBar'
 import { ExternalChangeBanner } from '../ExternalChangeBanner'
 import { TocSidebar } from '../TocSidebar'
@@ -112,6 +113,8 @@ interface EditorWorkspaceProps {
   editorMode: 'codemirror' | 'monaco'
   toggleEditorMode: () => void
   editorTheme: EditorThemeId
+  /** True when the editor theme follows the app theme (no explicit override). */
+  editorThemeSyncedToApp?: boolean
   toggleEditorTheme: () => void
   vimMode: boolean
   setVimMode: (updater: (value: boolean) => boolean) => void
@@ -219,6 +222,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     editorMode,
     toggleEditorMode,
     editorTheme,
+    editorThemeSyncedToApp = false,
     toggleEditorTheme,
     vimMode,
     setVimMode,
@@ -284,9 +288,10 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     editorSurfaceMode = 'source',
     onEditorSurfaceModeChange,
   } = props
+  const { t } = useI18n()
 
   return (
-    <section className="editor-panel" aria-label="Editor">
+    <section className="editor-panel" aria-label={t('editor.ariaLabel')}>
       <EditorTabBar
         activePath={activePath}
         openTabs={openTabs}
@@ -300,13 +305,13 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
       />
       {showFormatToolbar ? (
       <div className="editor-toolbar-wrapper">
-        <div className="format-row editor-toolbar" aria-label="Markdown tools">
-          <div className="format-group" aria-label="View mode">
+        <div className="format-row editor-toolbar" aria-label={t('editor.toolbar.markdownTools')}>
+          <div className="format-group" aria-label={t('editor.toolbar.viewMode')}>
           {(
             [
-              ['Source', 'source'],
-              ['Split', 'split'],
-              ['Preview', 'rendered'],
+              [t('editor.view.source'), 'source'],
+              [t('editor.view.split'), 'split'],
+              [t('editor.view.preview'), 'rendered'],
             ] as const
           ).map(([label, mode]) => (
             <button
@@ -319,67 +324,67 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             </button>
           ))}
         </div>
-        <div className="format-group" aria-label="Structure">
-          <button type="button" disabled={!activePath} title="Heading 1" onClick={() => applyEditorTransform('h1')}>
+        <div className="format-group" aria-label={t('editor.toolbar.structure')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.heading1')} onClick={() => applyEditorTransform('h1')}>
             <Heading1 />
           </button>
-          <button type="button" disabled={!activePath} title="Heading 2" onClick={() => applyEditorTransform('h2')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.heading2')} onClick={() => applyEditorTransform('h2')}>
             <Heading2 />
           </button>
-          <button type="button" disabled={!activePath} title="Heading 3" onClick={() => applyEditorTransform('h3')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.heading3')} onClick={() => applyEditorTransform('h3')}>
             <Heading3 />
           </button>
-          <button type="button" disabled={!activePath} title="Table of Contents" onClick={onToggleToc}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.toc')} onClick={onToggleToc}>
             <ListTree />
           </button>
-          <button type="button" disabled={!activePath} title="Frontmatter" onClick={onOpenFrontmatter}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.frontmatter')} onClick={onOpenFrontmatter}>
             <FileBox />
           </button>
-          <button type="button" disabled={!activePath} title="Move Section Up" onClick={() => applyEditorTransform('move-section-up')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.moveSectionUp')} onClick={() => applyEditorTransform('move-section-up')}>
             <ArrowUpToLine />
           </button>
-          <button type="button" disabled={!activePath} title="Move Section Down" onClick={() => applyEditorTransform('move-section-down')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.moveSectionDown')} onClick={() => applyEditorTransform('move-section-down')}>
             <ArrowDownToLine />
           </button>
         </div>
 
-        <div className="format-group" aria-label="Style and insert">
-          <button type="button" disabled={!activePath} title="Bold" onClick={() => applyEditorTransform('bold')}>
+        <div className="format-group" aria-label={t('editor.toolbar.styleAndInsert')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.bold')} onClick={() => applyEditorTransform('bold')}>
             <Bold />
           </button>
-          <button type="button" disabled={!activePath} title="Italic" onClick={() => applyEditorTransform('italic')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.italic')} onClick={() => applyEditorTransform('italic')}>
             <Italic />
           </button>
-          <button type="button" disabled={!activePath} title="Link" onClick={() => applyEditorTransform('link')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.link')} onClick={() => applyEditorTransform('link')}>
             <Link />
           </button>
           <TypographyMenu disabled={!activePath} onSelect={(action) => applyEditorTypography(action)} />
-          <button type="button" disabled={!activePath} title="Insert Table" onClick={() => applyEditorTransform('table')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.insertTable')} onClick={() => applyEditorTransform('table')}>
             <Table />
           </button>
-          <button type="button" disabled={!activePath} title="Add Row" onClick={() => applyEditorTransform('table-add-row')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.addRow')} onClick={() => applyEditorTransform('table-add-row')}>
             <Rows />
           </button>
-          <button type="button" disabled={!activePath} title="Add Column" onClick={() => applyEditorTransform('table-add-col')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.addColumn')} onClick={() => applyEditorTransform('table-add-col')}>
             <Columns />
           </button>
           <InsertMenu disabled={!activePath} onInsert={insertSnippet} />
         </div>
 
-        <div className="format-group" aria-label="Review and capture">
-          <button type="button" disabled={!activePath} title="Mark note organized (inbox triage)" onClick={onOrganizeActive}>
+        <div className="format-group" aria-label={t('editor.toolbar.reviewAndCapture')}>
+          <button type="button" disabled={!activePath} title={t('editor.transforms.markOrganized')} onClick={onOrganizeActive}>
             <CheckCircle2 />
           </button>
-          <button type="button" title="Writing Targets" onClick={onOpenWritingTargets}>
+          <button type="button" title={t('editor.transforms.writingTargets')} onClick={onOpenWritingTargets}>
             <Target />
           </button>
-          <button type="button" title="Markdown cheatsheet" aria-label="Markdown cheatsheet" onClick={onOpenCheatsheet}>
+          <button type="button" title={t('editor.transforms.cheatsheet')} aria-label={t('editor.transforms.cheatsheet')} onClick={onOpenCheatsheet}>
             <BookOpen size={16} />
           </button>
           <button
             type="button"
-            title={stickiesVisible ? 'Hide stickies' : 'Show stickies'}
-            aria-label={stickiesVisible ? 'Hide stickies' : 'Show stickies'}
+            title={stickiesVisible ? t('editor.toggles.hideStickies') : t('editor.toggles.showStickies')}
+            aria-label={stickiesVisible ? t('editor.toggles.hideStickies') : t('editor.toggles.showStickies')}
             aria-pressed={stickiesVisible}
             onClick={() => setStickiesVisible(!stickiesVisible)}
             className={stickiesVisible ? 'active' : undefined}
@@ -388,11 +393,11 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
         </div>
 
-        <div className="format-group" aria-label="Editor mode">
+        <div className="format-group" aria-label={t('editor.toolbar.editorMode')}>
           <button
             type="button"
-            title={vimMode ? 'Disable Vim keybindings' : 'Enable Vim keybindings'}
-            aria-label={vimMode ? 'Disable Vim keybindings' : 'Enable Vim keybindings'}
+            title={vimMode ? t('editor.toggles.disableVim') : t('editor.toggles.enableVim')}
+            aria-label={vimMode ? t('editor.toggles.disableVim') : t('editor.toggles.enableVim')}
             aria-pressed={vimMode}
             onClick={() => setVimMode((value) => !value)}
             className={vimMode ? 'active' : undefined}
@@ -402,8 +407,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title="Toggle Monaco editor"
-            aria-label={editorMode === 'monaco' ? 'Switch to CodeMirror editor' : 'Switch to Monaco editor'}
+            title={t('editor.toggles.toggleMonaco')}
+            aria-label={editorMode === 'monaco' ? t('editor.toggles.switchToCodeMirror') : t('editor.toggles.switchToMonaco')}
             aria-pressed={editorMode === 'monaco'}
             onClick={toggleEditorMode}
             className={editorMode === 'monaco' ? 'active' : undefined}
@@ -412,9 +417,16 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title="Toggle editor theme"
-            aria-label={editorTheme === 'dark' ? 'Switch to light editor theme' : 'Switch to dark editor theme'}
-            aria-pressed={editorTheme === 'dark'}
+            title={t('editor.toggles.toggleTheme')}
+            aria-label={
+              editorThemeSyncedToApp
+                ? t('editor.toggles.themeAutoPinLight', { current: t(`editor.toggles.theme${editorTheme === 'dark' ? 'Dark' : 'Light'}`) })
+                : t('editor.toggles.themePinned', {
+                    current: t(`editor.toggles.theme${editorTheme === 'dark' ? 'Dark' : 'Light'}`),
+                    other: editorTheme === 'dark' ? t('editor.toggles.themeLight') : t('editor.toggles.themeDark'),
+                  })
+            }
+            aria-pressed={!editorThemeSyncedToApp}
             onClick={toggleEditorTheme}
             className={editorTheme === 'dark' ? 'active' : undefined}
           >
@@ -422,8 +434,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title={spellcheck ? 'Disable spellcheck' : 'Enable spellcheck'}
-            aria-label={spellcheck ? 'Disable spellcheck' : 'Enable spellcheck'}
+            title={spellcheck ? t('editor.toggles.disableSpellcheck') : t('editor.toggles.enableSpellcheck')}
+            aria-label={spellcheck ? t('editor.toggles.disableSpellcheck') : t('editor.toggles.enableSpellcheck')}
             aria-pressed={spellcheck}
             onClick={() => setSpellcheck((value) => !value)}
             className={spellcheck ? 'active' : undefined}
@@ -432,8 +444,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title={wysiwyg ? 'Disable WYSIWYG mode' : 'Enable WYSIWYG mode'}
-            aria-label={wysiwyg ? 'Disable WYSIWYG mode' : 'Enable WYSIWYG mode'}
+            title={wysiwyg ? t('editor.toggles.disableWysiwyg') : t('editor.toggles.enableWysiwyg')}
+            aria-label={wysiwyg ? t('editor.toggles.disableWysiwyg') : t('editor.toggles.enableWysiwyg')}
             aria-pressed={wysiwyg}
             onClick={() => setWysiwyg((value) => !value)}
             className={wysiwyg ? 'active' : undefined}
@@ -442,8 +454,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title={typewriter ? 'Disable typewriter mode' : 'Enable typewriter mode'}
-            aria-label={typewriter ? 'Disable typewriter mode' : 'Enable typewriter mode'}
+            title={typewriter ? t('editor.toggles.disableTypewriter') : t('editor.toggles.enableTypewriter')}
+            aria-label={typewriter ? t('editor.toggles.disableTypewriter') : t('editor.toggles.enableTypewriter')}
             aria-pressed={typewriter}
             onClick={() => setTypewriter((value) => !value)}
             className={typewriter ? 'active' : undefined}
@@ -452,8 +464,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title={distractionFree ? 'Exit focus mode' : 'Enter focus mode'}
-            aria-label={distractionFree ? 'Exit focus mode' : 'Enter focus mode'}
+            title={distractionFree ? t('editor.toggles.exitFocus') : t('editor.toggles.enterFocus')}
+            aria-label={distractionFree ? t('editor.toggles.exitFocus') : t('editor.toggles.enterFocus')}
             aria-pressed={distractionFree}
             onClick={() => setDistractionFree((value) => !value)}
             className={distractionFree ? 'active' : undefined}
@@ -462,22 +474,22 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           </button>
           <button
             type="button"
-            title={languageTool ? 'Disable LanguageTool' : 'Enable LanguageTool'}
-            aria-label={languageTool ? 'Disable LanguageTool grammar check' : 'Enable LanguageTool grammar check'}
+            title={languageTool ? t('editor.toggles.disableLanguageTool') : t('editor.toggles.enableLanguageTool')}
+            aria-label={languageTool ? t('editor.toggles.disableLanguageToolGrammar') : t('editor.toggles.enableLanguageToolGrammar')}
             aria-pressed={languageTool}
             onClick={() => setLanguageTool((value) => !value)}
             className={languageTool ? 'active' : undefined}
           >
             <Languages size={16} />
           </button>
-          <button type="button" onClick={renameActiveNote} disabled={!activePath} title="Rename / move note" aria-label="Rename or move note">
+          <button type="button" onClick={renameActiveNote} disabled={!activePath} title={t('editor.rename.title')} aria-label={t('editor.rename.ariaLabel')}>
             <Archive />
           </button>
           <button
             type="button"
             disabled={!activePath}
-            title="Insert AI summarize callout"
-            aria-label="Insert AI summarize callout"
+            title={t('editor.aiSummarize')}
+            aria-label={t('editor.aiSummarize')}
             onClick={() => {
               insertSnippet('> [!ai] Summarize the section above.')
             }}
@@ -490,14 +502,14 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             type="button"
             className={splitPreview ? 'active' : ''}
             disabled={!activePath}
-            title="Toggle split preview"
-            aria-label="Toggle split preview"
+            title={t('editor.splitToggle')}
+            aria-label={t('editor.splitToggle')}
             aria-pressed={splitPreview}
             onClick={() => setSplitPreview((value) => !value)}
           >
             <PanelRight />
           </button>
-          <button type="button" disabled={!activePath} title="Insert horizontal rule" aria-label="Insert horizontal rule" onClick={() => insertSnippet('\n---\n')}>
+          <button type="button" disabled={!activePath} title={t('editor.insertRule')} aria-label={t('editor.insertRule')} onClick={() => insertSnippet('\n---\n')}>
             <MoreHorizontal />
           </button>
         </div>
@@ -533,7 +545,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
       >
         <article
           className="editor-surface codemirror-host editor-pane"
-          aria-label="Markdown editor"
+          aria-label={t('editor.editorAria')}
           data-line-numbers={showLineNumbers ? 'true' : 'false'}
         >
           {tocOpen && activePath ? (
@@ -551,10 +563,10 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               fallback={
                 <PanelErrorFallback
                   variant="inline"
-                  title="The editor"
-                  detail="The editor surface failed to render. Switching notes or toggling the editor engine will retry."
+                  title={t('editor.error.title')}
+                  detail={t('editor.error.detail')}
                   onRetry={editorMode === 'monaco' ? toggleEditorMode : undefined}
-                  retryLabel={editorMode === 'monaco' ? 'Switch to CodeMirror' : undefined}
+                  retryLabel={editorMode === 'monaco' ? t('editor.error.retryCodeMirror') : undefined}
                 />
               }
             >
@@ -562,7 +574,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
               fallback={
                 <div className="editor-loading-state" role="status" aria-live="polite">
                   <span className="editor-loading-shimmer" aria-hidden="true" />
-                  <span>Loading editor…</span>
+                  <span>{t('editor.loading')}</span>
                 </div>
               }
             >
@@ -618,18 +630,18 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 <FileText />
               </div>
               <div className="editor-empty-copy">
-                <h2>{hasOpenVault ? 'Start a new note' : 'Open your writing workspace'}</h2>
+                <h2>{hasOpenVault ? t('editor.empty.newNoteTitle') : t('editor.empty.openTitle')}</h2>
                 <p>
                   {hasOpenVault
-                    ? 'Create a note or choose one from the vault to begin writing.'
-                    : 'Choose a Markdown vault to write, connect ideas, and publish from one focused workspace.'}
+                    ? t('editor.empty.newNoteBody')
+                    : t('editor.empty.openBody')}
                 </p>
               </div>
               <div className="editor-empty-actions">
                 {hasOpenVault ? (
                   <button type="button" className="primary-button" onClick={onCreateNote}>
                     <FileText aria-hidden="true" />
-                    New note
+                    {t('editor.empty.newNote')}
                   </button>
                 ) : null}
                 <button
@@ -638,10 +650,10 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                   onClick={onOpenVault}
                 >
                   <FolderOpen aria-hidden="true" />
-                  {hasOpenVault ? 'Open another vault' : 'Open vault'}
+                  {hasOpenVault ? t('editor.empty.openAnother') : t('editor.empty.openVault')}
                 </button>
               </div>
-              <small>Local-first · Markdown-native · Your files stay yours</small>
+              <small>{t('editor.empty.tagline')}</small>
             </div>
           )}
         </article>
@@ -660,7 +672,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             />
             <aside
               className="editor-preview-pane"
-              aria-label="Split Markdown preview"
+              aria-label={t('editor.previewAria')}
               ref={splitPreviewScrollRef}
               tabIndex={0}
             >
@@ -670,8 +682,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 fallback={
                   <PanelErrorFallback
                     variant="inline"
-                    title="The split preview"
-                    detail="Rendering this note failed — a Markdown extension or plugin renderer may have thrown. The editor is unaffected."
+                    title={t('editor.previewError.title')}
+                    detail={t('editor.previewError.detail')}
                   />
                 }
               >
@@ -696,7 +708,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
       {showEditorStatus ? (
       <footer className="editor-status">
         <span>
-          {draftWordCount.toLocaleString()} words
+          {t('editor.status.words', { count: draftWordCount.toLocaleString() })}
           {wordCountDelta !== 0 ? (
             <small className="word-count-delta">
               {' '}
@@ -705,9 +717,9 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
             </small>
           ) : null}
         </span>
-        <span>{charCount.toLocaleString()} characters</span>
-        <span>{readingMinutes > 0 ? `${readingMinutes} min read` : '— min read'}</span>
-        <span>{isSaving ? 'Saving...' : lastSavedAt ? `Saved ${lastSavedAt}` : 'Markdown'}</span>
+        <span>{t('editor.status.characters', { count: charCount.toLocaleString() })}</span>
+        <span>{readingMinutes > 0 ? t('editor.status.minRead', { count: readingMinutes }) : t('editor.status.minReadEmpty')}</span>
+        <span>{isSaving ? t('editor.status.saving') : lastSavedAt ? t('editor.status.saved', { time: lastSavedAt }) : t('editor.status.markdown')}</span>
         <CheckCircle2 />
       </footer>
       ) : null}

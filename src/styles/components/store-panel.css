@@ -1,0 +1,116 @@
+/*
+ * StorePanel layout + typography primitives.
+ *
+ * Extracted from StorePanel.tsx inline styles: every rule here was previously
+ * duplicated inline style objects (2-4 occurrences each). Truly one-off
+ * micro-styles remain inline in the component on purpose.
+ */
+
+.store-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.store-stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.store-stack-xs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.store-scroll-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.store-audit-list {
+  margin-top: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.store-hint {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.store-hint-spaced {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.store-section-label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+
+.store-item-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.store-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.store-item-sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.store-fill-row {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.store-tool-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  font-size: var(--text-sm);
+}
+
+.store-icon-dim {
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.store-mono {
+  font-family: monospace;
+}
+
+.store-mono-dim {
+  font-family: monospace;
+  opacity: 0.8;
+}
+
+.store-ellipsis {
+  opacity: 0.5;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

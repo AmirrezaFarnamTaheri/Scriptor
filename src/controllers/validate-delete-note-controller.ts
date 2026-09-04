@@ -82,4 +82,3 @@ async function run() {
 }
 
 await run()
-console.log('Delete-note controller OK: serialized deletion, ordered success, cancellation/disk failure, best-effort reconciliation after close/rebuild/refresh failures, combined failures, and duplicate-click guard.')

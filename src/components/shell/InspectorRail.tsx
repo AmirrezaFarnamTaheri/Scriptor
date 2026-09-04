@@ -18,6 +18,7 @@ import { PreviewQABar } from '../inspector/PreviewQABar'
 import { INSPECTOR_PRESETS, type InspectorPreset } from '../../lib/inspectorPresets'
 import type { BibliographyEntry, BacklinkHit, ExportJobOutput, VaultHealthDiagnostics, VaultHealthReport } from '../../types/vault'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
+import { useI18n } from '../../lib/i18n'
 
 const StorePanel = lazy(() =>
   import('../StorePanel').then((module) => ({ default: module.StorePanel })),
@@ -145,6 +146,7 @@ export function InspectorRail({
   plugins,
   store,
 }: InspectorRailProps) {
+  const { t } = useI18n()
   const presetConfig = useMemo(
     () => INSPECTOR_PRESETS.find((entry) => entry.id === inspectorPreset) ?? INSPECTOR_PRESETS[0],
     [inspectorPreset],
@@ -154,9 +156,9 @@ export function InspectorRail({
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
 
   return (
-    <aside className="inspector-panel" aria-label="Inspector" ref={railRef}>
+    <aside className="inspector-panel" aria-label={t('inspector.ariaLabel')} ref={railRef}>
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
-      <div className="inspector-tabs" role="tablist" aria-label="Inspector mode" onKeyDown={handleInspectorTabKeys}>
+      <div className="inspector-tabs" role="tablist" aria-label={t('inspector.modeAria')} onKeyDown={handleInspectorTabKeys}>
         {(['inspector', 'preview', 'plugins'] as const).map((mode) => (
           <button
             type="button"
@@ -169,30 +171,30 @@ export function InspectorRail({
             className={activeMode === mode ? 'active' : ''}
             onClick={() => onModeChange(mode)}
           >
-            {mode[0].toUpperCase() + mode.slice(1)}
+            {t(`inspector.tabs.${mode}`)}
           </button>
         ))}
       </div>
 
       {/* ── Preset row ──────────────────────────────────────────────────────── */}
-      <div className="inspector-preset-row" aria-label="Inspector layout preset">
+      <div className="inspector-preset-row" aria-label={t('inspector.presetAria')}>
         {INSPECTOR_PRESETS.map((entry) => (
           <button
             key={entry.id}
             type="button"
             className={inspectorPreset === entry.id ? 'active' : undefined}
-            title={entry.description}
+            title={t(`inspector.preset.${entry.id}.description`)}
             aria-pressed={inspectorPreset === entry.id}
             onClick={() => onInspectorPresetChange(entry.id)}
           >
-            {entry.label}
+            {t(`inspector.preset.${entry.id}.label`)}
           </button>
         ))}
       </div>
 
       {/* ── Shared health card (visible in all modes) ───────────────────────── */}
       {showInspectorHealth ? (
-        <WidgetCard title="Note Health" action={healthAction} onAction={onOpenHealthDashboard}>
+        <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
           <div className="metric-grid">
             {healthMetrics.map(([label, value]) => (
               <div className="metric" key={label}>
@@ -238,14 +240,14 @@ export function InspectorRail({
             />
             {splitPreview ? (
               <p className="preview-sync-hint" role="status">
-                Split preview is open beside the editor with scroll sync.
+                {t('inspector.previewSyncSplit')}
               </p>
             ) : (
               <>
                 <p className="preview-sync-hint" role="status">
-                  Scroll sync is active between editor and preview.
+                  {t('inspector.previewSyncActive')}
                 </p>
-                <WidgetCard title="Preview">
+                <WidgetCard title={t('inspector.previewCard')}>
                   {activePath ? (
                     <ErrorBoundary
                       name="inspector-markdown-preview"
@@ -253,8 +255,8 @@ export function InspectorRail({
                       fallback={
                         <PanelErrorFallback
                           variant="inline"
-                          title="The preview"
-                          detail="Rendering this note failed — a Markdown extension or plugin renderer may have thrown. Switching notes will retry."
+                          title={t('inspector.previewError.title')}
+                          detail={t('inspector.previewError.detail')}
                         />
                       }
                     >
@@ -274,8 +276,8 @@ export function InspectorRail({
                   ) : (
                     <EmptyState
                       icon={<FileText />}
-                      title="No note open"
-                      description="Open a note to preview Markdown."
+                      title={t('inspector.noNoteOpen')}
+                      description={t('inspector.noNoteOpenHint')}
                     />
                   )}
                 </WidgetCard>
@@ -302,10 +304,10 @@ export function InspectorRail({
         {activeMode === 'inspector' ? (
           <>
             {presetConfig.showOutline ? (
-              <WidgetCard title="Outline">
+              <WidgetCard title={t('inspector.outline')}>
                 <div className="compact-list">
                   {inspectorOutline.length === 0 ? (
-                    <EmptyState icon={<Hash />} title="No headings yet" description="Add headings to build an outline." />
+                    <EmptyState icon={<Hash />} title={t('inspector.noHeadings')} description={t('inspector.noHeadingsHint')} />
                   ) : (
                     inspectorOutline.map((heading) => (
                       <div className="outline-row" key={`${heading.line}:${heading.label}`}>
@@ -318,7 +320,7 @@ export function InspectorRail({
                           <button
                             type="button"
                             className="icon-button"
-                            aria-label={`Rename section ${heading.label}`}
+                            aria-label={t('inspector.renameSection', { label: heading.label })}
                             onClick={() => onRenameSection(heading.label)}
                           >
                             <Pencil size={14} />
@@ -332,10 +334,10 @@ export function InspectorRail({
             ) : null}
 
             {presetConfig.showLinks ? (
-              <WidgetCard title="Outgoing Links">
+              <WidgetCard title={t('inspector.outgoingLinks')}>
                 <div className="compact-list">
                   {inspectorLinks.length === 0 ? (
-                    <EmptyState icon={<Link2 />} title="No wikilinks" description="Add [[wikilinks]] to connect notes." />
+                    <EmptyState icon={<Link2 />} title={t('inspector.noWikilinks')} description={t('inspector.noWikilinksHint')} />
                   ) : (
                     inspectorLinks.map((row) => {
                       const blockMatch = row.match(/#\^([^\]]+)$/)
@@ -349,7 +351,7 @@ export function InspectorRail({
                             <button
                               type="button"
                               className="icon-button"
-                              aria-label={`Rename block ${blockMatch[1]}`}
+                              aria-label={t('inspector.renameBlock', { label: blockMatch[1] })}
                               onClick={() => onRenameBlock(blockMatch[1])}
                             >
                               <Pencil size={14} />
@@ -364,10 +366,10 @@ export function InspectorRail({
             ) : null}
 
             {presetConfig.showBacklinks ? (
-              <WidgetCard title="Backlinks">
+              <WidgetCard title={t('inspector.backlinks')}>
                 <div className="compact-list">
                   {backlinks.length === 0 ? (
-                    <EmptyState icon={<BookOpen />} title="No backlinks yet" description="Other notes can link here with [[wikilinks]]." />
+                    <EmptyState icon={<BookOpen />} title={t('inspector.noBacklinks')} description={t('inspector.noBacklinksHint')} />
                   ) : (
                     backlinks.map((hit) => (
                       <button type="button" key={`${hit.from_path}:${hit.line}`} onClick={() => openNote(hit.from_path)}>
@@ -382,10 +384,10 @@ export function InspectorRail({
             ) : null}
 
             {presetConfig.showCitations ? (
-              <WidgetCard title="Citations">
+              <WidgetCard title={t('inspector.citations')}>
                 <div className="compact-list">
                   {citationRows.length === 0 ? (
-                    <EmptyState icon={<Quote />} title="No citations" description="Add [@citekey] references to track citations." />
+                    <EmptyState icon={<Quote />} title={t('inspector.noCitations')} description={t('inspector.noCitationsHint')} />
                   ) : (
                     citationRows.map((key) => {
                       const resolved = bibliographyKeys.has(key)
@@ -399,7 +401,7 @@ export function InspectorRail({
                             insertSnippet(`[@${key}] `)
                             logActivity(
                               resolved ? 'success' : 'error',
-                              resolved ? 'Citation resolved' : 'Unresolved citation',
+                              resolved ? t('inspector.citationResolved') : t('inspector.citationUnresolved'),
                               entry?.title ?? key,
                             )
                           }}
@@ -410,8 +412,8 @@ export function InspectorRail({
                             {resolved
                               ? entry
                                 ? `${formatInline(entry)} · ${formatBibliography(entry)}`
-                                : 'in bibliography'
-                              : 'missing'}
+                                : t('inspector.inBibliography')
+                              : t('inspector.missing')}
                           </small>
                         </button>
                       )
@@ -422,14 +424,14 @@ export function InspectorRail({
             ) : null}
 
             {presetConfig.showExportQuick ? (
-              <WidgetCard title="Publishing">
-                <p className="health-subtitle">Use the publish center for profiles, dry runs, and export history.</p>
+              <WidgetCard title={t('inspector.publishing')}>
+                <p className="health-subtitle">{t('inspector.publishingHint')}</p>
                 <button type="button" className="primary-button" onClick={onOpenPublishCenter}>
-                  Open publish center
+                  {t('inspector.openPublishCenter')}
                 </button>
               </WidgetCard>
             ) : (
-              <WidgetCard title="Export Profiles">
+              <WidgetCard title={t('inspector.exportProfiles')}>
                 <div className="export-grid">
                   {exportProfiles.map((profile) => (
                     <button
@@ -455,18 +457,18 @@ export function InspectorRail({
                     void exportWithProfile('html-standalone', true)
                   }}
                 >
-                  {isExporting ? 'Exporting...' : 'Preview export command'}
+                  {isExporting ? t('inspector.exporting') : t('inspector.previewExportCommand')}
                 </button>
                 {isExporting ? (
                   <button type="button" className="toolbar-button" onClick={() => void cancelExport()}>
-                    Cancel export
+                    {t('inspector.cancelExport')}
                   </button>
                 ) : null}
                 {exportResult ? (
                   <p className="export-result" role="status">
                     {exportResult.dry_run
-                      ? `Dry run: ${exportResult.command.join(' ')}`
-                      : `Exported to ${exportResult.artifact_path}`}
+                      ? t('inspector.dryRun', { command: exportResult.command.join(' ') })
+                      : t('inspector.exportedTo', { path: exportResult.artifact_path })}
                   </p>
                 ) : null}
               </WidgetCard>
@@ -488,12 +490,12 @@ export function InspectorRail({
             fallback={
               <PanelErrorFallback
                 variant="inline"
-                title="The plugins panel"
-                detail="A plugin contribution failed to render. Enabling safe mode from Settings disables third-party plugins."
+                title={t('inspector.pluginsError.title')}
+                detail={t('inspector.pluginsError.detail')}
               />
             }
           >
-            <Suspense fallback={<div className="panel-loading" role="status">Loading store…</div>}>
+            <Suspense fallback={<div className="panel-loading" role="status">{t('inspector.loadingStore')}</div>}>
               <StorePanel
               plugins={plugins.plugins}
               templatePacks={plugins.templatePacks}

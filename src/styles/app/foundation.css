@@ -434,6 +434,12 @@ svg {
   color: var(--ink);
 }
 
+/* Browser-default placeholder color measures ~4.2:1 on dark surfaces; pin it
+   to the secondary-text token (neutral-400, ≥8:1 on every dark background). */
+:root[data-theme='dark'] .note-search input::placeholder {
+  color: var(--color-text-secondary);
+}
+
 .kbd,
 .shortcut,
 .shortcut-badge {
