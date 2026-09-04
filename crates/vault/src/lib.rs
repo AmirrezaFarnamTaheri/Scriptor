@@ -63,7 +63,7 @@ pub use error::VaultError;
 pub use frontmatter_ops::{
     FrontmatterFieldOutput, delete_frontmatter_field, get_frontmatter_field, set_frontmatter_field,
 };
-pub use fs::{atomic_write, write_conflicted_sidecar};
+pub use fs::{atomic_write, lock_vault_update, write_conflicted_sidecar};
 pub use hash::{content_hash, content_hash_bytes, reading_time_minutes, word_count};
 pub use link_rewrite::{
     LinkRewriteApplyOutput, LinkRewritePreview, RenameLinkTarget, directory_identifier_for_path,
