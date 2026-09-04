@@ -183,7 +183,7 @@ fn restore_affected_backups(
             // The transaction rewrote this note. Restore it only while it still
             // holds exactly the bytes the transaction wrote; any other content is
             // a concurrent edit we must not clobber with a stale backup.
-            if intended_hash.as_deref() != Some(&current_hash) {
+            if intended_hash != Some(&current_hash) {
                 return Err(VaultError::HashMismatch {
                     path: note_path.clone(),
                     expected: intended_hash.cloned().unwrap_or_default(),
