@@ -9,6 +9,10 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- The layout blueprint's breakpoints now state what the CSS does: the side rails apply from `1321px`
+  (the doc said `1181px`), the inspector reflows below the editor between `821px` and `1320px` with a
+  capped height, and the topbar compacts to a two-column grid below `1500px` without ever becoming a
+  second toolbar row.
 - CI annotations now carry the test failure detail, not just the last lines of the log. A
   `cargo test --workspace` failure published only cargo's per-crate progress lines, because the
   assertion block sat above the tail window, so the check read `error: test failed` with no name.
