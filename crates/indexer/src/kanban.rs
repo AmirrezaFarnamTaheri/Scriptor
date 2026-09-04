@@ -90,8 +90,10 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
         // We do this lazily: frontmatter lines don't start with `## ` or `- [`.
 
         if let Some(col_name) = line.strip_prefix("## ") {
-            // Flush previous column.
-            if let Some((name, is_archive)) = current_column.take() {
+            // Flush previous column. `is_archive` is applied per-card inside
+            // parse_card_line; the column-level value is only tracked to compute
+            // each card's `archived` flag, so it is not needed here.
+            if let Some((name, _is_archive)) = current_column.take() {
                 push_column(&mut columns, name, std::mem::take(&mut current_cards));
             }
             let trimmed = col_name.trim().to_string();
@@ -108,7 +110,7 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
     }
 
     // Flush last column.
-    if let Some((name, is_archive)) = current_column {
+    if let Some((name, _is_archive)) = current_column {
         push_column(&mut columns, name, current_cards);
     }
 

@@ -76,7 +76,35 @@ jobs:
 
       - name: Compile desktop crate, tests, examples, and build scripts
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Compile desktop crate tests examples and build scripts" -FilePath "cargo" -ArgumentList @("check", "-p", "scriptor-desktop", "--all-targets", "--locked") -TimeoutSeconds 2400 -HeartbeatSeconds 20
+        run: |
+          # Temporary diagnostics wrapper: run cargo check and, on failure, re-emit
+          # only the compiler error diagnostics at the very end of this step's
+          # output so the GitHub failure annotation (which shows trailing lines)
+          # surfaces the real errors instead of just the summary line.
+          $ErrorActionPreference = 'Continue'
+          $env:CARGO_TERM_COLOR = 'never'
+          $logDir = $env:CI_LOG_DIR
+          if ([string]::IsNullOrWhiteSpace($logDir)) { $logDir = 'artifacts/ci-logs/desktop-check' }
+          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+          $log = Join-Path $logDir 'compile-errors.txt'
+          $out = & cargo check -p scriptor-desktop --all-targets --locked 2>&1
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $lines = @($out)
+            Write-Host ''
+            Write-Host '===== COMPILER DIAGNOSTICS ====='
+            for ($i = 0; $i -lt $lines.Count; $i++) {
+              if ($lines[$i] -match '^(error(\[|:)|warning:|  --> )') {
+                $start = [Math]::Max(0, $i - 1)
+                $end = [Math]::Min($lines.Count - 1, $i + 6)
+                for ($j = $start; $j -le $end; $j++) { Write-Host $lines[$j] }
+                Write-Host '-----'
+                $i = $end
+              }
+            }
+          }
+          $out | Set-Content -LiteralPath $log -Encoding utf8
+          exit $code
 
       - name: Run resource filesystem regression tests
         if: matrix.platform == 'linux'
