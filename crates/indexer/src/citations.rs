@@ -54,7 +54,7 @@ pub fn extract_pandoc_citations(body: &str) -> Vec<ParsedCitation> {
                     // particular, the `@domain` portion of an email address or
                     // an `@name` URL/path segment is not a citation key.
                     if previous.is_some_and(|ch| {
-                        ch.is_alphanumeric() || matches!(ch, '.' | '_' | '+' | '%' | '/' | '\')
+                        ch.is_alphanumeric() || matches!(ch, '.' | '_' | '+' | '%' | '/' | '\\')
                     }) {
                         continue;
                     }
