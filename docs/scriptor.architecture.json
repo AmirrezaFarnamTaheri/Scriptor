@@ -1,0 +1,348 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Scriptor Platform Architecture",
+    "subtitle": "Local-First Markdown Workspace, Rust 2024 Kernel, SQLite FTS5 Indexing, and MCP Agent Bridge",
+    "output": "docs/architecture.html",
+    "visual_preset": "classic",
+    "animation": "none",
+    "quality_profile": "standard",
+    "views": [
+      {
+        "id": "vault-lifecycle",
+        "label": "Vault document lifecycle",
+        "focus": [
+          "react_shell",
+          "tauri_bridge",
+          "auth_broker",
+          "vault_service",
+          "vault_fs"
+        ],
+        "note": "Follow user edits through typed bridge validation, authorization broker, and atomic vault persistence."
+      },
+      {
+        "id": "knowledge-indexing",
+        "label": "Knowledge graph & search pipeline",
+        "focus": [
+          "react_shell",
+          "tauri_bridge",
+          "vault_service",
+          "index_service",
+          "vault_fs"
+        ],
+        "note": "SQLite WAL with FTS5 maintains real-time backlink graphs and full-text index on note saves."
+      },
+      {
+        "id": "mcp-and-agents",
+        "label": "MCP bridge & automation",
+        "focus": [
+          "daemon_ipc",
+          "mcp_bridge",
+          "auth_broker",
+          "vault_service",
+          "os_tools"
+        ],
+        "note": "Model Context Protocol server enables agent tool calls with idempotency keys and audit hash chains."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "react_shell",
+      "type": "frontend",
+      "label": "React 19 Shell",
+      "sublabel": "CodeMirror 6, graph canvas, capture",
+      "pos": [
+        40,
+        205
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "tauri_bridge",
+      "type": "backend",
+      "label": "Tauri Command Bridge",
+      "sublabel": "Typed IPC adapter, argument mapping",
+      "pos": [
+        250,
+        205
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "auth_broker",
+      "type": "security",
+      "label": "Authorization Broker",
+      "sublabel": "Scope grants, native confirmation",
+      "pos": [
+        460,
+        205
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "vault_service",
+      "type": "backend",
+      "label": "Vault Kernel",
+      "sublabel": "Safe paths, watcher, atomic notes",
+      "pos": [
+        670,
+        205
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "vault_fs",
+      "type": "database",
+      "label": "Local Vault FS",
+      "sublabel": "Plain Markdown files, asset sidecars",
+      "pos": [
+        880,
+        205
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "daemon_ipc",
+      "type": "frontend",
+      "label": "CLI & TUI Client",
+      "sublabel": "Terminal REPL, headless commands",
+      "pos": [
+        40,
+        415
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "mcp_bridge",
+      "type": "backend",
+      "label": "MCP Agent Bridge",
+      "sublabel": "Model Context Protocol daemon RPC",
+      "pos": [
+        250,
+        415
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "index_service",
+      "type": "database",
+      "label": "SQLite FTS5 Indexer",
+      "sublabel": "WAL, backlinks, knowledge graph",
+      "pos": [
+        460,
+        415
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "native_git",
+      "type": "backend",
+      "label": "Native Git Queue",
+      "sublabel": "Isolated staging, 3-way merge, sync",
+      "pos": [
+        670,
+        415
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "os_tools",
+      "type": "external",
+      "label": "Process Broker",
+      "sublabel": "Sanitized env, execution bounds",
+      "pos": [
+        880,
+        415
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "pandoc_runner",
+      "type": "backend",
+      "label": "Pandoc Pipeline",
+      "sublabel": "Multi-format (PDF, LaTeX, HTML)",
+      "pos": [
+        460,
+        615
+      ],
+      "size": [
+        165,
+        68
+      ]
+    },
+    {
+      "id": "publish_runner",
+      "type": "backend",
+      "label": "Publish Engine",
+      "sublabel": "Starlight static export, hash check",
+      "pos": [
+        670,
+        615
+      ],
+      "size": [
+        165,
+        68
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Desktop Presentation & Client Plane",
+      "wraps": [
+        "react_shell",
+        "daemon_ipc",
+        "tauri_bridge"
+      ],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Rust Core Kernel & Services",
+      "wraps": [
+        "auth_broker",
+        "vault_service",
+        "index_service",
+        "native_git",
+        "pandoc_runner",
+        "publish_runner",
+        "mcp_bridge"
+      ],
+      "pad": 18
+    },
+    {
+      "kind": "region",
+      "label": "Storage & Host Subsystems",
+      "wraps": [
+        "vault_fs",
+        "os_tools"
+      ],
+      "pad": 18
+    }
+  ],
+  "connections": [
+    {
+      "from": "react_shell",
+      "to": "tauri_bridge",
+      "variant": "emphasis"
+    },
+    {
+      "from": "daemon_ipc",
+      "to": "mcp_bridge"
+    },
+    {
+      "from": "mcp_bridge",
+      "to": "tauri_bridge",
+      "route": "orthogonal-v"
+    },
+    {
+      "from": "tauri_bridge",
+      "to": "auth_broker",
+      "variant": "emphasis"
+    },
+    {
+      "from": "auth_broker",
+      "to": "vault_service",
+      "variant": "emphasis"
+    },
+    {
+      "from": "vault_service",
+      "to": "vault_fs",
+      "variant": "security"
+    },
+    {
+      "from": "vault_service",
+      "to": "index_service",
+      "route": "orthogonal-v",
+      "variant": "emphasis"
+    },
+    {
+      "from": "vault_service",
+      "to": "native_git",
+      "route": "orthogonal-v"
+    },
+    {
+      "from": "native_git",
+      "to": "vault_fs",
+      "route": "orthogonal-v",
+      "variant": "security"
+    },
+    {
+      "from": "index_service",
+      "to": "pandoc_runner",
+      "route": "orthogonal-v"
+    },
+    {
+      "from": "native_git",
+      "to": "publish_runner",
+      "route": "orthogonal-v"
+    },
+    {
+      "from": "auth_broker",
+      "to": "os_tools",
+      "route": "orthogonal-v",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Presentation",
+      "items": [
+        "React 19 / TypeScript 6 renderer with CodeMirror 6",
+        "Bi-directional links, graph canvas, and citation previews",
+        "CLI and TUI client with MCP daemon connectivity"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Rust Kernel",
+      "items": [
+        "High-performance Rust 1.96 / 2024 Edition desktop engine",
+        "SQLite WAL with FTS5 full-text indexing and backlinks",
+        "Native Git queue with isolated in-memory staging trees"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Publishing & Security",
+      "items": [
+        "Deterministic Pandoc pipeline for PDF, LaTeX, HTML, and ePub",
+        "Model Context Protocol (MCP) agent bridge with intent journals",
+        "Strict path confinement and process execution policy"
+      ]
+    }
+  ]
+}
