@@ -22,13 +22,35 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
     if current == 9 && SCHEMA_VERSION >= 10 {
         let transaction = connection.unchecked_transaction()?;
         let existing_cols = table_columns(&transaction, "tasks")?;
-        if existing_cols.contains("source_note_id") && !existing_cols.contains("source_note_path") {
+        // CREATE_TASKS in v5→v6 created both `source_note_id` and
+        // `source_note_path`, but at the time `source_note_id` actually held
+        // a vault-relative path (the FK came later). When the rename target
+        // already exists, SQLite rejects the rename, so the path data has to
+        // be moved by hand. The new FK is then built on the same column name
+        // by dropping and recreating it.
+        if existing_cols.contains("source_note_id") && !existing_cols.contains("source_note_path")
+        {
             transaction.execute_batch(
                 "ALTER TABLE tasks RENAME COLUMN source_note_id TO source_note_path;",
             )?;
-        }
-        let existing_cols = table_columns(&transaction, "tasks")?;
-        if !existing_cols.contains("source_note_id") {
+            let existing_cols = table_columns(&transaction, "tasks")?;
+            if !existing_cols.contains("source_note_id") {
+                transaction.execute_batch(
+                    "ALTER TABLE tasks ADD COLUMN source_note_id TEXT REFERENCES notes(id) ON DELETE CASCADE;",
+                )?;
+            }
+        } else if existing_cols.contains("source_note_id") && existing_cols.contains("source_note_path")
+        {
+            // The v5→v6 path: move the historical path data out of the FK
+            // column, then rebuild the column with the proper foreign key.
+            transaction.execute_batch(
+                "UPDATE tasks SET source_note_path = source_note_id WHERE source_note_path IS NULL;",
+            )?;
+            transaction.execute_batch("ALTER TABLE tasks DROP COLUMN source_note_id;")?;
+            transaction.execute_batch(
+                "ALTER TABLE tasks ADD COLUMN source_note_id TEXT REFERENCES notes(id) ON DELETE CASCADE;",
+            )?;
+        } else if !existing_cols.contains("source_note_id") {
             transaction.execute_batch(
                 "ALTER TABLE tasks ADD COLUMN source_note_id TEXT REFERENCES notes(id) ON DELETE CASCADE;",
             )?;

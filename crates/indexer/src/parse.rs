@@ -434,7 +434,9 @@ mod tests {
     fn extracts_aliases_from_frontmatter() {
         let markdown = "---\naliases: [Friendly Name, Alt]\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
-        assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt"]);
+        // Aliases are sorted and deduplicated for stable downstream consumers;
+        // frontmatter insertion order is not part of the contract.
+        assert_eq!(parsed.aliases, vec!["Alt", "Friendly Name"]);
     }
 
     #[test]
