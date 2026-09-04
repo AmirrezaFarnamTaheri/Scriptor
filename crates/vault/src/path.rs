@@ -189,6 +189,10 @@ fn validate_portable_component(part: &str, raw: &str) -> Result<(), VaultError> 
             return Err(VaultError::InvalidRelativePath(raw.into()));
         }
     }
+    // On non-Windows the parameters carry no validation work; mark them used so
+    // the build does not warn (the CI compiles with warnings denied).
+    #[cfg(not(windows))]
+    let _ = (part, raw);
     Ok(())
 }
 

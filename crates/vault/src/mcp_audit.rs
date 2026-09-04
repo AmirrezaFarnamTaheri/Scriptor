@@ -247,7 +247,10 @@ fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
     let mut bytes = Vec::new();
     file.read_to_end(&mut bytes).map_err(|source| VaultError::io(path, source))?;
     let buffer = String::from_utf8_lossy(&bytes);
-    for line in buffer.lines().skip(if start > 0 { 1 } else { 0 }).rev() {
+    // Reading backwards over the tail. Collect into a Vec and iterate in reverse
+    // rather than chaining `.skip(..).rev()` directly over the line iterator.
+    let skip_first = usize::from(start > 0);
+    for line in buffer.lines().skip(skip_first).collect::<Vec<_>>().into_iter().rev() {
         if let Ok(record) = serde_json::from_str::<McpMutationAuditRecord>(line)
             && record.record_hash.is_some()
         {
