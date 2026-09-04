@@ -9,6 +9,11 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- The daemon no longer stores an endpoint nonce that nothing reads. `main` verified each request
+  against that `DaemonState` copy and skipped authentication when it was unset; the transport now
+  compares requests against the nonce taken from the endpoint file it wrote and refuses to serve
+  without one, and the field's leftover has been removed along with the IPC source contract that
+  asserted the copy instead of the check.
 - The daemon no longer carries an endpoint nonce in `DaemonState` that nothing reads. The IPC
   contract test asserted that field's construction, which hid the point of the refactor: the
   transport now compares each request against the nonce it took from the endpoint file it just
