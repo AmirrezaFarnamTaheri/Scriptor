@@ -9,6 +9,11 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- CI annotations now carry the test failure detail, not just the last lines of the log. A
+  `cargo test --workspace` failure published only cargo's per-crate progress lines, because the
+  assertion block sat above the tail window, so the check read `error: test failed` with no name.
+  The wrapper now lifts `---- name stdout ----`, panics, assertions, and `error[E..]` lines out of
+  the whole log and appends them after the tail.
 - The `tantivy-indexer` schema-version test matched on the result instead of calling `unwrap_err()`,
   which needed `Debug` on `TantivyIndex`. The crate's test target had never compiled: clippy checks
   every target, but it kept failing on the daemon library first, so nothing reached it.

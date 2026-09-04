@@ -191,7 +191,7 @@ if ($exitCode -ne 0) {
         $tail = '...' + $tail.Substring($tail.Length - $maxTail)
     }
 
-    # A long test run buries the assertion under cargo's per-crate progress lines, so lift the
+    # A long test run buries the assertion under cargo per-crate progress lines, so lift the
     # failure detail out of the whole log instead of trusting the tail window alone.
     $detail = @(Select-String -LiteralPath $logPath -Pattern '---- .* stdout ----|panicked at |assertion|test result: FAILED|error\[E[0-9A-Z]+\]' -ErrorAction SilentlyContinue | Select-Object -Last 18 | ForEach-Object { ($_.Line -replace '^\[[^\]]+\]\s*', '').Trim() })
     if ($detail.Count -gt 0) {
