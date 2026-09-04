@@ -5941,7 +5941,7 @@ name = "scriptor-desktop"
 version = "1.0.7"
 dependencies = [
  "arboard",
- "base64 0.22.1",
+ "base64 0.23.1",
  "chrono",
  "hex",
  "mimalloc",
