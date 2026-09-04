@@ -120,7 +120,7 @@ impl McpMutationAuditRecord {
 
 pub fn append_mcp_mutation(
     root: &VaultRoot,
-    mut record: McpMutationAuditRecord,
+    record: McpMutationAuditRecord,
 ) -> Result<(), VaultError> {
     let absolute = root.root().join(DEFAULT_MCP_AUDIT_PATH);
     if let Some(parent) = absolute.parent() {
@@ -131,13 +131,30 @@ pub fn append_mcp_mutation(
     // processes. Locking only the append would still allow two writers to read
     // the same previous hash and fork the chain.
     let _lock = lock_vault_update(&absolute)?;
+    // Capture the previous hash *before* rotation: if the active file is
+    // rotated it becomes empty, and re-reading afterwards would anchor the new
+    // record to a non-existent tail and fork the chain.
     let previous_hash = read_last_record_hash(&absolute)?;
     rotate_if_needed(&absolute)?;
+    link_and_append(&absolute, previous_hash, record)
+}
+
+/// Link `record` onto the last record hash of `target` (given as
+/// `previous_hash`, already captured) and append it. Exposed as a helper so the
+/// test-suite can seed a realistic multi-segment chain with correct continuity.
+fn link_and_append(
+    target: &Path,
+    previous_hash: Option<String>,
+    mut record: McpMutationAuditRecord,
+) -> Result<(), VaultError> {
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
+    }
     record.previous_hash = previous_hash.clone();
     record.record_hash = None;
     let canonical = serde_json::to_vec(&record).map_err(VaultError::from)?;
     let mut hasher = Sha256::new();
-    if let Some(previous) = previous_hash {
+    if let Some(previous) = &previous_hash {
         hasher.update(previous.as_bytes());
     }
     hasher.update(&canonical);
@@ -147,13 +164,13 @@ pub fn append_mcp_mutation(
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
-        .open(&absolute)
-        .map_err(|source| VaultError::io(&absolute, source))?;
-    writeln!(file, "{line}").map_err(|source| VaultError::io(&absolute, source))?;
+        .open(target)
+        .map_err(|source| VaultError::io(target, source))?;
+    writeln!(file, "{line}").map_err(|source| VaultError::io(target, source))?;
     file.flush()
-        .map_err(|source| VaultError::io(&absolute, source))?;
+        .map_err(|source| VaultError::io(target, source))?;
     file.sync_data()
-        .map_err(|source| VaultError::io(&absolute, source))?;
+        .map_err(|source| VaultError::io(target, source))?;
     Ok(())
 }
 
@@ -241,6 +258,15 @@ fn read_last_record_hash(path: &Path) -> Result<Option<String>, VaultError> {
 }
 
 /// Verify the complete retained MCP mutation chain, including rotated segments.
+///
+/// Segment rotation (`rotate_if_needed`) keeps at most `DEFAULT_MCP_AUDIT_SEGMENTS`
+/// segments and prunes the oldest once the byte budget is exceeded. Pruning means
+/// the head record of the oldest *retained* segment still carries a `previous_hash`
+/// that points at the tail of the pruned predecessor. That link is intentionally
+/// not re-verifiable, so the oldest retained segment is treated as an **anchor**:
+/// we verify every record's own hash and every *subsequent* link, but do not reject
+/// an unverifiable dangling head. This keeps tamper-detection meaningful across all
+/// retained bytes while not false-positiving after a legitimate prune.
 pub fn verify_mcp_audit_chain(root: &VaultRoot) -> Result<(), VaultError> {
     let active = root.root().join(DEFAULT_MCP_AUDIT_PATH);
     let parent = active.parent().unwrap_or_else(|| Path::new("."));
@@ -262,7 +288,11 @@ pub fn verify_mcp_audit_chain(root: &VaultRoot) -> Result<(), VaultError> {
         files.push(active.clone());
     }
 
+    // `head_is_anchor` is true only for the very first record across all retained
+    // files. Its declared `previous_hash` may reference a pruned predecessor, so we
+    // accept it without a link check (its own hash is still verified below).
     let mut previous: Option<String> = None;
+    let mut head_is_anchor = true;
     for path in files {
         let file = File::open(&path).map_err(|source| VaultError::io(&path, source))?;
         for line in BufReader::new(file).lines() {
@@ -271,17 +301,24 @@ pub fn verify_mcp_audit_chain(root: &VaultRoot) -> Result<(), VaultError> {
             let record: McpMutationAuditRecord = serde_json::from_str(&line).map_err(|error| {
                 VaultError::InvalidConfig { message: format!("invalid MCP audit record in {}: {error}", path.display()) }
             })?;
-            if record.previous_hash != previous {
+            if !head_is_anchor && record.previous_hash != previous {
                 return Err(VaultError::InvalidConfig { message: format!("MCP audit chain fork/tamper detected at {}", record.id) });
             }
+            // After the first retained record every subsequent record must chain to
+            // the previous record's hash.
+            head_is_anchor = false;
             let claimed = record.record_hash.clone().ok_or_else(|| VaultError::InvalidConfig {
                 message: format!("MCP audit record {} has no hash", record.id),
             })?;
+            // Recompute the record hash from its own (possibly anchored) previous
+            // hash, so the anchor head is still integrity-checked against tampering
+            // of the retained bytes themselves.
+            let previous_for_hash = record.previous_hash.as_deref();
             let mut canonical_record = record.clone();
             canonical_record.record_hash = None;
             let canonical = serde_json::to_vec(&canonical_record)?;
             let mut hasher = Sha256::new();
-            if let Some(ref prev) = previous { hasher.update(prev.as_bytes()); }
+            if let Some(prev) = previous_for_hash { hasher.update(prev.as_bytes()); }
             hasher.update(&canonical);
             let computed = hex::encode(hasher.finalize());
             if computed != claimed {
@@ -340,6 +377,21 @@ mod tests {
 
     use super::*;
 
+    /// Append `record` to `rel` inside `root`, linking it to `previous`, and
+    /// return the new tail hash. Lets tests build a realistic chain that spans
+    /// several files exactly as rotation would produce it.
+    fn seed_with(
+        root: &VaultRoot,
+        rel: &str,
+        record: McpMutationAuditRecord,
+        previous: Option<String>,
+    ) -> Result<String, VaultError> {
+        let path = root.root().join(rel);
+        link_and_append(&path, previous, record)?;
+        read_last_record_hash(&path)?
+            .ok_or_else(|| VaultError::InvalidConfig { message: "seeded record missing hash".into() })
+    }
+
     #[test]
     fn audit_records_are_hash_chained_and_tail_is_bounded() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -387,6 +439,57 @@ mod tests {
         assert!(content.contains("recovered after interruption"));
         assert!(content.contains("\"outcome\":\"interrupted\""));
         assert!(!content.contains("\"success\":false"));
+        Ok(())
+    }
+
+    #[test]
+    fn verify_accepts_a_pruned_head_and_rejects_internal_tampering() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let dir = tempdir()?;
+        let root = VaultRoot::open(dir.path())?;
+        let mut counter = 0u32;
+        let mut intent = |tag: &str| {
+            counter += 1;
+            McpMutationAuditRecord::intent(
+                format!("{tag}-{counter}"),
+                "mcp.proposePatch",
+                "note.update",
+                Some("alpha.md".into()),
+                Some("path=alpha.md".into()),
+            )
+        };
+
+        // Build a three-file chain exactly as rotation + append produces it:
+        // the head of each new file continues from the tail of the previous one.
+        let mut previous = None;
+        previous = Some(seed_with(&root, ".scriptor/audit/mcp-mutations-0001.jsonl", intent("old"), previous)?);
+        previous = Some(seed_with(&root, ".scriptor/audit/mcp-mutations-0001.jsonl", intent("old"), previous)?);
+        previous = Some(seed_with(&root, ".scriptor/audit/mcp-mutations-0002.jsonl", intent("mid"), previous)?);
+        previous = Some(seed_with(&root, ".scriptor/audit/mcp-mutations-0002.jsonl", intent("mid"), previous)?);
+        previous = Some(seed_with(&root, DEFAULT_MCP_AUDIT_PATH, intent("act"), previous)?);
+        seed_with(&root, DEFAULT_MCP_AUDIT_PATH, intent("act"), previous)?;
+
+        // The complete retained chain verifies.
+        verify_mcp_audit_chain(&root)?;
+
+        // Simulate pruning of the oldest segment: the 0002 head now dangles to a
+        // pruned predecessor and must be accepted as an anchor (regression: this
+        // used to be reported as a fork/tamper).
+        fs::remove_file(root.root().join(".scriptor/audit/mcp-mutations-0001.jsonl"))?;
+        verify_mcp_audit_chain(&root)?;
+
+        // Tampering inside retained bytes is still detected: corrupt the active
+        // tail's note_path while leaving its hashes untouched.
+        let active_path = root.root().join(DEFAULT_MCP_AUDIT_PATH);
+        let content = fs::read_to_string(&active_path)?;
+        let mut lines: Vec<String> = content.lines().map(str::to_string).collect();
+        let mut tail: serde_json::Value = serde_json::from_str(lines.last().unwrap())?;
+        tail["note_path"] = serde_json::Value::String("tampered.md".into());
+        let rewritten = serde_json::to_string(&tail)?;
+        lines.pop();
+        lines.push(rewritten);
+        fs::write(&active_path, lines.join("\n") + "\n")?;
+        assert!(verify_mcp_audit_chain(&root).is_err());
         Ok(())
     }
 }

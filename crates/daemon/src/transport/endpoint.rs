@@ -74,7 +74,10 @@ fn hmac_sha256_simple(message: &str) -> Result<[u8; 32], IpcError> {
 }
 
 /// Constant-time HMAC comparison; length mismatch only reveals the fixed endpoint digest length.
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+// These helpers are shared with the parent `transport` module (which drives the
+// accept loop and connection handler) and its `transport::tests` submodule, so
+// they are `pub(super)` rather than private to this module.
+pub(super) fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
     use subtle::ConstantTimeEq;
     if a.len() != b.len() {
         return false;
@@ -146,7 +149,7 @@ pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
     Ok(endpoint)
 }
 
-fn persist_endpoint(endpoint: &DaemonEndpoint) -> Result<(), IpcError> {
+pub(super) fn persist_endpoint(endpoint: &DaemonEndpoint) -> Result<(), IpcError> {
     let path = endpoint_file_path()?;
     let temp_path = path.with_file_name(format!(
         "{ENDPOINT_FILE}.tmp-{}-{}",
@@ -249,7 +252,7 @@ fn verify_endpoint_process(endpoint: &DaemonEndpoint) -> Result<(), IpcError> {
     )))
 }
 
-fn resolve_name(path: &str) -> Result<Name<'_>, IpcError> {
+pub(super) fn resolve_name(path: &str) -> Result<Name<'_>, IpcError> {
     if cfg!(windows) {
         path.to_ns_name::<GenericNamespaced>()
             .map_err(|error| IpcError::Codec(error.to_string()))

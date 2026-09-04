@@ -54,6 +54,16 @@ pub fn save_note_with_options(
 ) -> Result<SaveNoteOutput, VaultError> {
     let absolute = root.resolve_relative(path)?;
 
+    // A blank/whitespace expected hash means the caller is not asserting a CAS
+    // precondition at all (for example a frontend sends an empty string when it
+    // is creating a brand-new note and has no prior hash). Normalize it to `None`
+    // so genuine create-new flows do not trip a spurious HashMismatch. Callers
+    // that genuinely require the note to be absent use
+    // `EXPECTED_MISSING_CONTENT_HASH` ("<missing>").
+    let expected_content_hash = expected_content_hash
+        .map(str::trim)
+        .filter(|value| !value.is_empty());
+
     // Snapshot the existing file once as raw bytes.  CAS and recovery must work
     // even for a legacy/non-UTF-8 `.md`; history is recorded only when the old
     // bytes are valid UTF-8.
@@ -227,6 +237,72 @@ mod tests {
         assert_eq!(output.metadata.title, "New");
         assert!(!output.dry_run);
         assert!(dir.path().join("notes/new-note.md").exists());
+    }
+
+    #[test]
+    fn empty_expected_hash_is_treated_as_no_cas() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("new-empty.md").unwrap();
+        // An empty (or blank) expected hash must not fail a create-new save.
+        for blank in ["", "   "] {
+            let output = save_note(
+                &session.descriptor.id,
+                &session.root,
+                &path,
+                "# Created\n",
+                Some(blank),
+            )
+            .unwrap();
+            assert!(!output.dry_run);
+        }
+        assert!(dir.path().join("new-empty.md").exists());
+    }
+
+    #[test]
+    fn cas_rejects_when_expected_hash_targets_a_missing_file() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("must-exist.md").unwrap();
+        // A real expected hash implies the caller believes the file already
+        // exists with that content; if it is absent the save must not silently
+        // create it (that would mask a concurrent delete).
+        let err = save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Nope\n",
+            Some("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"),
+        )
+        .unwrap_err();
+        assert!(matches!(err, VaultError::HashMismatch { .. }));
+        assert!(!dir.path().join("must-exist.md").exists());
+    }
+
+    #[test]
+    fn missing_sentinel_requires_file_to_be_absent() {
+        let dir = tempdir().unwrap();
+        let session = open_vault(dir.path()).unwrap();
+        let path = RelativeVaultPath::parse("only-once.md").unwrap();
+        // "<missing>" permits creating an absent note...
+        save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# First\n",
+            Some(EXPECTED_MISSING_CONTENT_HASH),
+        )
+        .unwrap();
+        // ...but rejects overwriting an existing one (avoids clobbering).
+        let err = save_note(
+            &session.descriptor.id,
+            &session.root,
+            &path,
+            "# Second\n",
+            Some(EXPECTED_MISSING_CONTENT_HASH),
+        )
+        .unwrap_err();
+        assert!(matches!(err, VaultError::HashMismatch { .. }));
     }
 
     #[test]

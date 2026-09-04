@@ -153,6 +153,17 @@ fn call_once(request: &mut RpcRequest, deadline: Instant) -> Result<RpcResponse,
     )))
 }
 
+/// True when the daemon rejected the request as unauthenticated, which means the
+/// endpoint snapshot we cached (including its nonce) is stale — typically the
+/// daemon restarted and minted a fresh nonce that this client does not know.
+fn is_unauthenticated(response: &RpcResponse) -> bool {
+    matches!(
+        &response.result,
+        scriptor_ipc::RpcResult::Error(scriptor_ipc::RpcError::CommandFailed { code, .. })
+            if code == "rpc.unauthenticated"
+    )
+}
+
 pub(crate) fn call_with_timeout(
     mut request: RpcRequest,
     timeout: Duration,
@@ -166,7 +177,18 @@ pub(crate) fn call_with_timeout(
 
     let deadline = Instant::now() + timeout;
     match call_once(&mut request, deadline) {
-        Ok(response) => Ok(response),
+        Ok(response) => {
+            // A daemon restart leaves our cached nonce stale. If the server
+            // responds `rpc.unauthenticated` (rather than failing the
+            // connection), the only fix is to drop the cache and reconnect with
+            // the freshly-persisted endpoint/nonce. Detect that at the RPC
+            // layer so we do not retry the same stale nonce forever.
+            if is_unauthenticated(&response) && Instant::now() < deadline {
+                invalidate_endpoint_cache();
+                return call_once(&mut request, deadline);
+            }
+            Ok(response)
+        }
         Err(error)
             if Instant::now() < deadline
                 && (is_expected_disconnect(&error) || matches!(error, IpcError::Io(_))) =>

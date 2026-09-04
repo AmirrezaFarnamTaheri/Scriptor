@@ -21,7 +21,7 @@ pub enum RenamePhase {
     FileMoveDone,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RenameTransactionManifest {
     pub version: u32,
     #[serde(default)]
@@ -157,23 +157,32 @@ fn restore_affected_backups(
         }
         let original_hash = txn.affected_original_hashes.get(note_path);
         let intended_hash = txn.affected_intended_hashes.get(note_path);
+        if intended_hash.is_none() {
+            // The transaction never rewrote this note. Its on-disk state is the
+            // user's own (whether edited externally, left untouched, or removed),
+            // so there is nothing transaction-owned for us to restore. Skipping
+            // here — instead of erroring — means a concurrent external edit to a
+            // note the rename didn't touch cannot abort rollback of the notes the
+            // transaction *did* rewrite.
+            continue;
+        }
         if note_abs.is_file() {
             let current = fs::read(&note_abs).map_err(|source| VaultError::io(&note_abs, source))?;
             let current_hash = content_hash_bytes(&current);
+            // Untouched (still the original bytes): nothing to restore.
             if original_hash.is_some_and(|hash| hash == &current_hash) {
                 continue;
             }
-            if !intended_hash.is_some_and(|hash| hash == &current_hash) {
+            // The transaction rewrote this note. Restore it only while it still
+            // holds exactly the bytes the transaction wrote; any other content is
+            // a concurrent edit we must not clobber with a stale backup.
+            if intended_hash.as_deref() != Some(&current_hash) {
                 return Err(VaultError::HashMismatch {
                     path: note_path.clone(),
-                    expected: intended_hash.cloned().unwrap_or_else(|| "transaction-owned bytes".into()),
+                    expected: intended_hash.cloned().unwrap_or_default(),
                     found: current_hash,
                 });
             }
-        } else if intended_hash.is_none() {
-            // A file the transaction never wrote disappeared externally; do not
-            // resurrect it from an old backup.
-            continue;
         }
         if let Some(parent) = note_abs.parent() {
             fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
@@ -580,6 +589,7 @@ mod tests {
             source_backup: ".scriptor/rename-txn/missing.bak".into(),
             affected_backups: BTreeMap::new(),
             affected_files: vec!["Note.md".into()],
+            ..Default::default()
         };
         write_manifest(&session.root, &manifest).unwrap();
 

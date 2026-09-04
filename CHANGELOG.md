@@ -13,6 +13,12 @@
 - Smoothed the typing path: word counting no longer allocates a word array per keystroke, draft stats and citation extraction render from deferred draft values, glass blur tiers were lightened (16px default), and reduced-transparency now strips modal and palette backdrop blurs as well.
 - Resolved the 2026-08-30 forensic review findings: OAuth stateless-probe handling, daemon outside-lock read-only scans, truthful export-history running state, chrome preference persistence and validation, top-bar i18n coverage, reduced-transparency and resize coalescing, portable Playwright web servers, a container gate that executes the contract suite, and worktree-proof source-test and version walkers.
 
+### Changed (behavior that may affect existing vaults)
+- **Vault scan no longer hides notes under `target/` and `dist/`.** Only unambiguous tool directories (`.git`, `.scriptor`, `.obsidian`, `.trash`, `node_modules`) are excluded from the recursive scan and incremental watcher. If you kept authored `.md` notes under a `target/` or `dist/` folder, they are now indexed, searchable, and resolvable again; conversely, a genuine build cache inside the vault will again generate scan/watcher activity.
+- **Path-portability restrictions are now enforced on Windows only.** NTFS alternate-data-stream aliases (`note.md::$DATA`), reserved device names (`CON`, `NUL`, `AUX`, `COM1..9`, `LPT1..9`, `CLOCK$`), and trailing dots/spaces are rejected when running on Windows (where they are unsafe). On Unix/macOS these are legal file names and are no longer rejected, so notes titled e.g. `Meeting: notes.md` work again. Vaults intended to sync to Windows should still prefer Windows-safe names.
+- **Save CAS treats a blank expected-content-hash as "no precondition".** An empty/whitespace expected hash no longer fails a create-new save; callers that genuinely require the note to be absent pass the `<missing>` sentinel, and a real hash against a missing file is still rejected (to avoid resurrecting a concurrently deleted note).
+- **MCP mutation-audit verification now anchors the oldest retained segment.** Because segment rotation prunes the oldest file, the head record of the remaining oldest segment legitimately references a pruned predecessor; verification no longer misreports that as a fork/tamper, while every retained record's own hash and all later links are still checked.
+
 ## 1.0.7 — 2026-08
 
 ### Fixed

@@ -152,6 +152,9 @@ pub use endpoint::{
     connect_authenticated_client_with_retry_observer, connect_client, default_socket_name,
     endpoint_file_path, read_endpoint, remove_endpoint_file, write_endpoint,
 };
+// Internal helpers defined in `endpoint` that the parent transport module (and
+// its `tests` submodule) drive directly.
+use endpoint::{constant_time_eq, persist_endpoint, resolve_name};
 
 /// RAII guard for one connection slot: decrements the active-connection counter
 /// on drop, including when the handler thread panics.
@@ -314,21 +317,12 @@ pub fn handle_connection(
         let request: RpcRequest =
             postcard::from_bytes(&body).map_err(|error| IpcError::Codec(error.to_string()))?;
 
-        let within_connection_budget = limiter.allow();
-        let within_global_budget = lock_recover(global_rpc_limiter()).allow();
-        if !within_connection_budget || !within_global_budget {
-            let response = RpcResponse {
-                id: request.id,
-                result: RpcResult::Error(RpcError::with_code(
-                    "rpc.rate_limited",
-                    "rate limit exceeded",
-                    true,
-                )),
-            };
-            write_response_with_timeout(&mut stream, response)?;
-            continue;
-        }
-
+        // Authenticate *before* drawing from the shared global rate budget. A
+        // local peer that can reach the socket but does not hold the nonce must
+        // not be able to spend the global budget and cause legitimate clients to
+        // be throttled. Unauthenticated frames are rejected without consuming
+        // the global budget (the per-connection limiter below still bounds each
+        // connection's own attempt rate).
         match &request.endpoint_nonce {
             Some(provided)
                 if constant_time_eq(provided.as_bytes(), expected_nonce.as_bytes()) => {}
@@ -344,6 +338,21 @@ pub fn handle_connection(
                 write_response_with_timeout(&mut stream, response)?;
                 continue;
             }
+        }
+
+        let within_connection_budget = limiter.allow();
+        let within_global_budget = lock_recover(global_rpc_limiter()).allow();
+        if !within_connection_budget || !within_global_budget {
+            let response = RpcResponse {
+                id: request.id,
+                result: RpcResult::Error(RpcError::with_code(
+                    "rpc.rate_limited",
+                    "rate limit exceeded",
+                    true,
+                )),
+            };
+            write_response_with_timeout(&mut stream, response)?;
+            continue;
         }
 
         if matches!(request.method, RpcMethod::SubscribeEvents) {
