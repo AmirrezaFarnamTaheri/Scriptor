@@ -303,7 +303,9 @@ fn apply_note_index_change(
         });
     }
 
-    let size_bytes = std::fs::metadata(&absolute)?.len();
+    let size_bytes = std::fs::metadata(&absolute)
+        .map_err(|source| IndexerError::Io { path: absolute.clone(), source })?
+        .len();
     if size_bytes > MAX_INDEXED_NOTE_BYTES {
         tracing::warn!(
             path,
