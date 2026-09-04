@@ -280,7 +280,7 @@ export function AppTopBar({
             </IconButton>
             <button type="button" className="action-button" onClick={onChooseVault}>
               <FolderOpen />
-              {t('topBar.openVault')}
+              <span className="action-button-label">{t('topBar.openVault')}</span>
             </button>
             <WorkspaceSwitcher
               recentVaults={recentVaults}
@@ -383,7 +383,7 @@ export function AppTopBar({
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
+            <IconButton className="palette-store-action" label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
           ) : null}

@@ -507,17 +507,25 @@ svg {
 .workspace-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) auto var(--inspector-width, 408px);
+  /* Side rails are capped in vw so they squeeze proportionally as the window
+     narrows. The inspector and vault sidebar stay docked beside the editor
+     instead of spilling over it or stacking onto the workspace. */
+  grid-template-columns:
+    min(var(--vault-width, 318px), 24vw)
+    auto
+    minmax(0, 1fr)
+    auto
+    min(var(--inspector-width, 408px), 32vw);
   gap: 0;
   transition: grid-template-columns 250ms var(--ease-soft);
 }
 
 .workspace-grid[data-vault-collapsed='true'] {
-  grid-template-columns: 0px 0px minmax(0, 1fr) auto var(--inspector-width, 408px);
+  grid-template-columns: 0px 0px minmax(0, 1fr) auto min(var(--inspector-width, 408px), 32vw);
 }
 
 .workspace-grid[data-inspector-collapsed='true'] {
-  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) 0px 0px;
+  grid-template-columns: min(var(--vault-width, 318px), 24vw) auto minmax(0, 1fr) 0px 0px;
 }
 
 .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
