@@ -8,6 +8,9 @@ export async function runWriteApprovedMcpHarness(): Promise<{
   const { McpRuntime } = await import('@scriptor/mcp')
   let saved: { path: string; markdown: string } | null = null
   const runtime = new McpRuntime('write-approved', {
+    // Drafts are bound to a vault identity so an approval can never be applied
+    // against a different vault; the harness has to provide one too.
+    vaultId: 'e2e-vault',
     readNote: async () => ({
       metadata: { title: 'Note', content_hash: 'abc' },
       markdown: '# Hello\n',
@@ -82,6 +85,7 @@ export async function runMcpScenario(input: McpScenarioInput): Promise<McpScenar
   const deletedPaths: string[] = []
 
   const runtime = new McpRuntime(input.mode, {
+    vaultId: 'e2e-scenario-vault',
     readNote: async (path: string) => ({
       metadata: { title: 'E2E Note', content_hash: 'hash-1' },
       markdown: `# E2E Note\n\nBody of ${path}\n`,
