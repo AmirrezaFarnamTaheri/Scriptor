@@ -9,6 +9,12 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- The daemon no longer carries an endpoint nonce in `DaemonState` that nothing reads. The IPC
+  contract test asserted that field's construction, which hid the point of the refactor: the
+  transport now compares each request against the nonce it took from the endpoint file it just
+  wrote, and refuses to serve at all when that nonce is missing, so an endpoint file that failed to
+  record a nonce can no longer leave requests unauthenticated. The contract test asserts the
+  comparison and the refusal instead of the vestigial field.
 - Loading a canvas board validates the parsed file instead of casting it. A `.canvas` file that is
   valid JSON but not a canvas document (a truncated write, an edit made outside the app) used to be
   handed straight to the renderer, where the missing layers or blocks array threw; the board is now

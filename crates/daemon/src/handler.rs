@@ -29,7 +29,6 @@ pub struct DaemonState {
     pub(crate) export_job: ExportJobRunner,
     pub(crate) vault_watcher: Option<VaultWatcher>,
     pub(crate) watcher_generation: u64,
-    pub(crate) endpoint_nonce: Option<String>,
     pub(crate) plugin_state: PluginState,
     /// Bounded per-repo worker serializing native Git mutations for this vault;
     /// replaced whenever the vault swaps so a queued op can never target the

@@ -91,13 +91,12 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     }
     let _endpoint_guard = EndpointCleanup;
 
-    let state = Arc::new(Mutex::new(DaemonState {
-        // `endpoint` itself is still needed below (the expected nonce and the
-        // recovery path that re-persists it), so the nonce is cloned rather
-        // than moved out of the struct.
-        endpoint_nonce: endpoint.nonce.clone(),
-        ..DaemonState::default()
-    }));
+    // The nonce an authenticated request must match is the local `expected_nonce`
+    // below, taken from the endpoint file this loop just wrote. It deliberately
+    // does not live in `DaemonState`: `main` read it back from there and skipped
+    // authentication entirely when the field was `None`, which let a daemon that
+    // failed to record a nonce serve every unauthenticated frame.
+    let state = Arc::new(Mutex::new(DaemonState::default()));
     let event_hub = EventHub::new();
     let active_connections = Arc::new(AtomicUsize::new(0));
     let expected_nonce = endpoint
