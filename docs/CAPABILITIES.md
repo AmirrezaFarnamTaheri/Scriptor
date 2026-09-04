@@ -16,7 +16,7 @@ The user-facing feature tour is in the main [`README.md`](../README.md) (Feature
 | Terminal UI | [`architecture/TUI_PARITY.md`](./architecture/TUI_PARITY.md) |
 | Plugin system (safe mode + marketplace) | [`architecture/PLUGIN_SYSTEM.md`](./architecture/PLUGIN_SYSTEM.md) |
 | Plugin author guide + hello-world | [`plugins/AUTHOR_GUIDE.md`](./plugins/AUTHOR_GUIDE.md) |
-| MCP 15 tools with audit JSONL | `packages/mcp/` |
+| MCP 22 tools with reviewed drafts | `packages/mcp/`; durable mutation audit: `crates/vault/src/mcp_audit.rs`, `crates/daemon/src/automation_stdio.rs` |
 | Export (Pandoc) | `crates/export-runner`, `@scriptor/export` |
 | Canvas engine (resvg worker offload) | `crates/canvas-engine`, `@scriptor/canvas` |
 | Virtualized vault tree | `src/components/app/VirtualNoteList.tsx` |

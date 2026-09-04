@@ -152,7 +152,7 @@ pub fn search_notes(
         "SELECT note_fts.note_id, notes.path, notes.title,
                 snippet(note_fts, 4, '[[', ']]', '...', 32) AS snippet
          FROM note_fts
-         JOIN notes ON notes.id = note_fts.note_id
+         JOIN notes ON notes.rowid = note_fts.rowid
          WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
          ORDER BY bm25(note_fts, 0.0, 10.0, 5.0, 3.0, 1.0)
          LIMIT ?3",
@@ -167,7 +167,31 @@ pub fn search_notes(
         })
     })?;
 
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let hits = rows.collect::<Result<Vec<_>, _>>()?;
+    if !hits.is_empty() || !eligible_fuzzy_fallback(query) || limit == 0 {
+        return Ok(hits);
+    }
+
+    crate::fuzzy::fuzzy_search_notes(cache, vault_id, query, limit as usize).map(|fuzzy| {
+        fuzzy
+            .into_iter()
+            .map(|hit| SearchHit {
+                note_id: hit.note_id,
+                path: hit.path,
+                title: hit.title,
+                snippet: String::new(),
+            })
+            .collect()
+    })
+}
+
+fn eligible_fuzzy_fallback(query: &str) -> bool {
+    let trimmed = query.trim();
+    !trimmed.is_empty()
+        && trimmed
+            .chars()
+            .all(|ch| ch.is_alphanumeric() || matches!(ch, '-' | '_' | '/'))
+        && !trimmed.chars().any(char::is_whitespace)
 }
 
 #[cfg(test)]
@@ -201,6 +225,15 @@ mod tests {
             build_fts_query("!draft alpha | beta"),
             Some("(\"alpha\" OR \"beta\"*) NOT \"draft\"".into())
         );
+    }
+
+    #[test]
+    fn fuzzy_fallback_is_limited_to_single_literal_terms() {
+        assert!(eligible_fuzzy_fallback("lifetimz"));
+        assert!(eligible_fuzzy_fallback("notes/foo"));
+        assert!(!eligible_fuzzy_fallback("alpha beta"));
+        assert!(!eligible_fuzzy_fallback("alpha|beta"));
+        assert!(!eligible_fuzzy_fallback("!draft"));
     }
 
     #[test]

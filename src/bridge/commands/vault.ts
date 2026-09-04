@@ -74,12 +74,16 @@ export async function vaultRecordRecentNote(path: string): Promise<RecentNoteEnt
   return invoke<RecentNoteEntry[]>('vault_record_recent_note', { path })
 }
 
-export async function vaultDeleteNote(path: string): Promise<{ path: string; deleted: boolean }> {
+export async function vaultDeleteNote(
+  path: string,
+  expectedContentHash?: string,
+): Promise<{ path: string; deleted: boolean }> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('delete_note', path)
   return invoke<{ path: string; deleted: boolean }>('vault_delete_note', {
     path,
     authorizationToken,
+    expectedContentHash: expectedContentHash ?? null,
   })
 }
 
@@ -134,9 +138,15 @@ export async function vaultRenameApply(
   fromPath: string,
   toPath: string,
   updateLinks: boolean,
+  expectedSourceHash?: string,
 ): Promise<RenameNoteApplyOutput> {
   requireNative()
-  return invoke<RenameNoteApplyOutput>('vault_rename_apply', { fromPath, toPath, updateLinks })
+  return invoke<RenameNoteApplyOutput>('vault_rename_apply', {
+    fromPath,
+    toPath,
+    updateLinks,
+    expectedSourceHash: expectedSourceHash ?? null,
+  })
 }
 
 export async function vaultRenameTagDryRun(oldTag: string, newTag: string): Promise<LinkRewritePreview> {

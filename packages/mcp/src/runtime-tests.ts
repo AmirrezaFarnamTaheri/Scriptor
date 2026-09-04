@@ -6,6 +6,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
   let saveCalled = false
 
   const runtime = new McpRuntime('read-only', {
+    vaultId: 'vault-read',
     async search() {
       return [{ path: 'note.md' }]
     },
@@ -72,6 +73,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
   if (!summary.ok) failures.push('read-only should allow inspectGraphSummary')
 
   const draftRuntime = new McpRuntime('draft', {
+    vaultId: 'vault-draft',
     async search() {
       return []
     },
@@ -102,6 +104,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
 
   let writeApprovedSaved = false
   const writeRuntime = new McpRuntime('write-approved', {
+    vaultId: 'vault-write',
     async search() {
       return []
     },
@@ -178,6 +181,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
 
   // Test draft reject
   const rejectTestRuntime = new McpRuntime('draft', {
+    vaultId: 'vault-reject',
     async search() { return [] },
     async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
     async backlinks() { return [] },

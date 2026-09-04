@@ -1,7 +1,7 @@
 use std::process::Child;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::error::ExportError;
 
@@ -37,11 +37,23 @@ pub fn cancel_active_export(slot: &ExportCancelSlot) -> Option<String> {
     Some(job_id)
 }
 
+pub const DEFAULT_EXPORT_TIMEOUT: Duration = Duration::from_secs(15 * 60);
+
 pub fn wait_for_child(
     slot: &ExportCancelSlot,
     job_id: &str,
     child: Child,
 ) -> Result<std::process::ExitStatus, ExportError> {
+    wait_for_child_with_timeout(slot, job_id, child, DEFAULT_EXPORT_TIMEOUT)
+}
+
+pub fn wait_for_child_with_timeout(
+    slot: &ExportCancelSlot,
+    job_id: &str,
+    child: Child,
+    timeout: Duration,
+) -> Result<std::process::ExitStatus, ExportError> {
+    let started = Instant::now();
     {
         let mut guard = lock_recover(slot);
         if let Some(previous) = guard.take() {
@@ -78,7 +90,30 @@ pub fn wait_for_child(
                 }
                 return Ok(status);
             }
-            Ok(None) => thread::sleep(Duration::from_millis(50)),
+            Ok(None) => {
+                if started.elapsed() >= timeout {
+                    let mut running = {
+                        let mut guard = lock_recover(slot);
+                        if guard
+                            .as_ref()
+                            .is_some_and(|running| running.job_id == job_id)
+                        {
+                            guard.take()
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(running) = running.as_mut() {
+                        let _ = running.child.kill();
+                        let _ = running.child.wait();
+                    }
+                    return Err(ExportError::Process(format!(
+                        "pandoc timed out after {} seconds",
+                        timeout.as_secs()
+                    )));
+                }
+                thread::sleep(Duration::from_millis(50));
+            }
             Err(source) => {
                 let mut guard = lock_recover(slot);
                 if guard

@@ -232,6 +232,14 @@ function checkProcessBoundary(file, source) {
     if (!Array.isArray(entry.negativeTests) || entry.negativeTests.length === 0 || entry.negativeTests.some((value) => typeof value !== 'string' || value.trim() === '')) {
       failures.push(`${fileName}:${line}: process exception ${id} has no valid negativeTests`)
     }
+    if (id === 'export-pandoc-job') {
+      if (!source.includes('DEFAULT_EXPORT_TIMEOUT') || !source.includes('wait_for_child_with_timeout')) {
+        failures.push(`${fileName}:${line}: export-pandoc-job claims a bounded deadline without the executable timeout mechanism`)
+      }
+      if (!source.includes('MAX_CAPTURED_PROCESS_OUTPUT_BYTES') || !source.includes('drain_pipe_bounded')) {
+        failures.push(`${fileName}:${line}: export-pandoc-job claims bounded output without bounded pipe capture`)
+      }
+    }
     if (usedProcessEntries.has(id)) failures.push(`${fileName}:${line}: process exception ${id} is reused`)
     usedProcessEntries.add(id)
   }

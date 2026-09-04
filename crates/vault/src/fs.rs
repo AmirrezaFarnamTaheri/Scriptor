@@ -157,11 +157,12 @@ pub fn write_conflicted_sidecar(
         .parent()
         .ok_or_else(|| VaultError::InvalidRelativePath(original_path.display().to_string()))?;
 
-    // Build sidecar name: strip last extension, append ".conflicted.md".
-    let stem = original_path
-        .file_stem()
+    // Preserve the full filename so files that differ only by extension never
+    // collide and multi-extension names remain recognizable.
+    let file_name = original_path
+        .file_name()
         .unwrap_or(original_path.as_os_str());
-    let sidecar_name = format!("{}.conflicted.md", stem.to_string_lossy());
+    let sidecar_name = format!("{}.conflicted.md", file_name.to_string_lossy());
     let sidecar_path = parent.join(&sidecar_name);
 
     atomic_write(&sidecar_path, conflict_content.as_bytes())?;

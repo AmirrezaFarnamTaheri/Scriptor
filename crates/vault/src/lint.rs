@@ -253,7 +253,7 @@ fn check_missing_heading(path: &str, markdown: &str) -> Vec<LintIssue> {
     let line = if frontmatter.is_some() {
         frontmatter
             .as_ref()
-            .map(|fm| fm.lines().count())
+            .map(|fm| crate::text::split_lines(fm).count())
             .unwrap_or(0)
             + 3
     } else {
@@ -277,7 +277,7 @@ fn missing_heading_edit(path: &str, markdown: &str) -> Option<TextEdit> {
 
     let title = title_from_path(path);
     let insert_line = if let Some(fm) = &frontmatter {
-        fm.lines().count() + 3
+        crate::text::split_lines(fm).count() + 3
     } else {
         1
     };
@@ -422,28 +422,26 @@ fn expected_link_definitions(body: &str, note_paths: &[String]) -> BTreeMap<Stri
         if label.is_empty() {
             continue;
         }
-        let url = resolve_wikilink_url(&label, note_paths);
-        expected.insert(label, url);
+        if let Some(url) = resolve_wikilink_url(&label, note_paths) {
+            expected.insert(label, url);
+        }
     }
 
     expected
 }
 
-fn resolve_wikilink_url(target: &str, note_paths: &[String]) -> String {
+fn resolve_wikilink_url(target: &str, note_paths: &[String]) -> Option<String> {
     let trimmed = target.trim();
     let resolution = WikilinkIndex::from_note_paths(note_paths).resolve(trimmed);
     if resolution.kind == WikilinkResolutionKind::Resolved {
         return resolution
             .path
-            .unwrap_or_else(|| trimmed.to_string())
-            .trim_end_matches(".md")
-            .to_string();
+            .map(|path| path.trim_end_matches(".md").to_string());
     }
 
-    // Keep ambiguous and unresolved identifiers verbatim. Picking an arbitrary
-    // candidate while lint-fixing would manufacture a semantically incorrect
-    // Markdown definition.
-    trimmed.trim_end_matches(".md").to_string()
+    // Do not manufacture reference definitions for unresolved or ambiguous
+    // wikilinks; leaving them unresolved preserves the user's source semantics.
+    None
 }
 
 fn has_h1(body: &str) -> bool {

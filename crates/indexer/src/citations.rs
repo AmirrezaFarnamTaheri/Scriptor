@@ -48,8 +48,19 @@ pub fn extract_pandoc_citations(body: &str) -> Vec<ParsedCitation> {
         for capture in PLAIN_KEY_RE.captures_iter(&without_brackets) {
             if let Some(key) = capture.get(1) {
                 let start = capture.get(0).map(|m| m.start()).unwrap_or(0);
-                if start > 0 && without_brackets.as_bytes().get(start - 1) == Some(&b'-') {
-                    continue;
+                if start > 0 {
+                    let previous = without_brackets[..start].chars().next_back();
+                    // Pandoc inline citations need a token boundary. In
+                    // particular, the `@domain` portion of an email address or
+                    // an `@name` URL/path segment is not a citation key.
+                    if previous.is_some_and(|ch| {
+                        ch.is_alphanumeric() || matches!(ch, '.' | '_' | '+' | '%' | '/' | '\\')
+                    }) {
+                        continue;
+                    }
+                    if previous == Some('-') {
+                        continue;
+                    }
                 }
                 push_key(key.as_str(), line_number, &mut citations, &mut seen);
             }
@@ -144,6 +155,15 @@ mod tests {
     #[test]
     fn extracts_suppress_author_inline() {
         assert_eq!(keys("As shown by -@smith04."), vec!["smith04"]);
+    }
+
+    #[test]
+    fn ignores_email_and_url_at_signs() {
+        assert_eq!(
+            keys("Contact alice@example.com or visit /users/@alice."),
+            Vec::<String>::new()
+        );
+        assert_eq!(keys("Cite @smith2026 after the email."), vec!["smith2026"]);
     }
 
     #[test]

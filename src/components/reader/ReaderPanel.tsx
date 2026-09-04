@@ -33,11 +33,18 @@ import { useReaderStore, type ReaderAnnotation } from './useReaderStore'
 import { useReaderFile } from './useReaderFile'
 import { AnnotationPopover } from './AnnotationPopover'
 import {
+  getReaderViewerLocation,
   loadReaderAnnotations,
   saveReaderAnnotations,
   type ReaderAnnotationRecord,
 } from '../../bridge/reader'
 import { createReaderAnnotationSaveQueue } from './createAnnotationSaveQueue'
+import {
+  parseReaderInboundMessage,
+  readerUrl,
+  type ReaderOutboundMessage,
+  type ReaderViewerLocation,
+} from './readerProtocol'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -51,15 +58,6 @@ export interface ReaderPanelProps {
   /** Called when the user creates a new annotation; caller persists it. */
   onAnnotationCreate?: (annotation: ReaderAnnotation) => void
 }
-
-// ── PDF.js / epub.js webview URLs (bundled under /reader/) ───────────────────
-// The app ships static html wrappers under src/assets/reader/:
-//   - pdf-viewer.html — loads pdf.js from the bundled pdfjs-dist assets
-//   - epub-viewer.html — loads epub.js
-// These communicate back via postMessage.
-const PDF_VIEWER_URL = '/reader/pdf-viewer.html'
-const EPUB_VIEWER_URL = '/reader/epub-viewer.html'
-const READER_ORIGIN = window.location.origin
 
 // ── Postmessage protocol ──────────────────────────────────────────────────────
 // Outbound (component → webview):
@@ -85,10 +83,19 @@ export function ReaderPanel({
   onAnnotationCreate,
 }: ReaderPanelProps) {
   const frameRef = useRef<HTMLIFrameElement>(null)
-  const [webviewReady, setWebviewReady] = useState(false)
+  // Wrapper state is keyed by the document type it was resolved for: the active
+  // location/ready flags are derived from that key instead of being reset from an
+  // effect, so switching documents can never render the previous viewer for a frame.
+  const [viewer, setViewer] = useState<{
+    fileType: string
+    location: ReaderViewerLocation | null
+    ready: boolean
+  } | null>(null)
   const [hasUnsavedAnnotations, setHasUnsavedAnnotations] = useState(false)
   const [closeWarning, setCloseWarning] = useState(false)
   const [annotationError, setAnnotationError] = useState<string | null>(null)
+  const readyTimerRef = useRef<number | null>(null)
+  const annotationsRef = useRef<ReaderAnnotation[]>([])
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -127,6 +134,14 @@ export function ReaderPanel({
 
   useEffect(() => () => annotationSaveQueue.reset(), [annotationSaveQueue])
 
+  useEffect(() => {
+    annotationsRef.current = annotations
+  }, [annotations])
+
+  useEffect(() => () => {
+    if (readyTimerRef.current !== null) window.clearTimeout(readyTimerRef.current)
+  }, [])
+
   const handleClose = useCallback(() => {
     if (annotationSaveQueue.hasPending()) {
       setCloseWarning(true)
@@ -141,6 +156,8 @@ export function ReaderPanel({
 
   // ── File I/O ───────────────────────────────────────────────────────────────
   const fileState = useReaderFile(filePath, vaultRoot)
+  const viewerLocation = viewer?.fileType === fileType ? viewer.location : null
+  const webviewReady = viewer?.fileType === fileType && viewer.ready
 
   useEffect(() => {
     if (!filePath || !vaultRoot) return
@@ -169,16 +186,32 @@ export function ReaderPanel({
     openFile(filePath, ft)
   }, [filePath, closeFile, openFile])
 
+  useEffect(() => {
+    if (fileType !== 'pdf' && fileType !== 'epub') return
+    let cancelled = false
+    void getReaderViewerLocation(fileType)
+      .then((location) => {
+        if (!cancelled) setViewer({ fileType, location, ready: false })
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setError(`Reader wrapper is unavailable: ${messageFor(cause)}`)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [fileType, setError])
+
   // Forward bytes to the webview once both the frame and bytes are ready.
   useEffect(() => {
     if (!webviewReady || fileState.status !== 'ready' || !frameRef.current?.contentWindow) return
+    if (!viewerLocation) return
     const bytes = fileState.bytes.slice()
     frameRef.current.contentWindow.postMessage(
       { type: 'LOAD_BYTES', bytes: bytes.buffer },
-      READER_ORIGIN,
+      viewerLocation.origin,
       [bytes.buffer],
     )
-  }, [webviewReady, fileState])
+  }, [webviewReady, fileState, viewerLocation])
 
   useEffect(() => {
     if (fileState.status === 'error') setError(fileState.message)
@@ -188,45 +221,53 @@ export function ReaderPanel({
   useEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.source !== frameRef.current?.contentWindow) return
-      const msg = e.data as { type: string; [k: string]: unknown }
+      if (!viewerLocation || e.origin !== viewerLocation.origin) return
+      const msg = parseReaderInboundMessage(e.data)
+      if (!msg) return
       switch (msg.type) {
         case 'READY':
-          setWebviewReady(true)
+          if (readyTimerRef.current !== null) {
+            window.clearTimeout(readyTimerRef.current)
+            readyTimerRef.current = null
+          }
+          setViewer((current) => (current ? { ...current, ready: true } : current))
           break
         case 'LOADED':
           setLoading(false)
           break
         case 'POSITION':
-          setPosition(String(msg.position ?? ''))
+          setPosition(msg.position)
           break
         case 'SELECTION':
-          setSelection({ anchor: String(msg.anchor), quote: String(msg.quote) })
+          setSelection({ anchor: msg.anchor, quote: msg.quote })
           openAnnotationPopover()
           break
         case 'SELECTION_CLEAR':
           setSelection(null)
           break
         case 'ERROR':
-          setError(String(msg.message))
+          setError(msg.message)
           break
       }
     }
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [setPosition, setSelection, setError, setLoading, openAnnotationPopover])
+  }, [viewerLocation, setPosition, setSelection, setError, setLoading, openAnnotationPopover])
 
   // Re-highlight existing annotations whenever webview becomes ready.
   useEffect(() => {
-    if (!webviewReady || !frameRef.current?.contentWindow) return
-    for (const ann of annotations) {
-      frameRef.current.contentWindow.postMessage({ type: 'HIGHLIGHT', annotation: ann }, READER_ORIGIN)
-    }
-  }, [webviewReady, annotations])
+    if (!webviewReady || !frameRef.current?.contentWindow || !viewerLocation) return
+    frameRef.current.contentWindow.postMessage(
+      { type: 'HIGHLIGHTS', annotations: annotationsRef.current },
+      viewerLocation.origin,
+    )
+  }, [webviewReady, filePath, viewerLocation])
 
   // ── Navigation helpers ────────────────────────────────────────────────────
-  const sendMsg = useCallback((msg: object) => {
-    frameRef.current?.contentWindow?.postMessage(msg, READER_ORIGIN)
-  }, [])
+  const sendMsg = useCallback((msg: ReaderOutboundMessage) => {
+    if (!viewerLocation) return
+    frameRef.current?.contentWindow?.postMessage(msg, viewerLocation.origin)
+  }, [viewerLocation])
 
   const handlePrev = useCallback(() => sendMsg({ type: 'GOTO', position: 'prev' }), [sendMsg])
   const handleNext = useCallback(() => sendMsg({ type: 'GOTO', position: 'next' }), [sendMsg])
@@ -270,7 +311,7 @@ export function ReaderPanel({
   )
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const viewerSrc = fileType === 'epub' ? EPUB_VIEWER_URL : PDF_VIEWER_URL
+  const viewerSrc = viewerLocation ? readerUrl(viewerLocation, window.location.origin) : null
   const fileLabel = filePath ? filePath.split('/').pop() ?? filePath : 'No file open'
 
   return (
@@ -367,7 +408,7 @@ export function ReaderPanel({
         )}
 
         {/* Viewer webview iframe */}
-        {filePath && !error && (
+        {filePath && viewerSrc && !error && (
           <iframe
             ref={frameRef}
             src={viewerSrc}
@@ -378,7 +419,11 @@ export function ReaderPanel({
             onLoad={() => {
               // The frame signals readiness via postMessage READY, not onLoad,
               // because pdf.js initialises asynchronously.
-              setWebviewReady(false)
+              setViewer((current) => (current ? { ...current, ready: false } : current))
+              if (readyTimerRef.current !== null) window.clearTimeout(readyTimerRef.current)
+              readyTimerRef.current = window.setTimeout(() => {
+                setError('Reader wrapper did not become ready. Close and reopen the document.')
+              }, 8_000)
             }}
           />
         )}

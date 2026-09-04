@@ -3,6 +3,8 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use scriptor_system_bridge::process_alive;
+
 use scriptor_daemon::{
     DaemonEndpoint, read_endpoint, reset_rpc_session, rpc_call, shared_rpc_client,
 };
@@ -105,51 +107,6 @@ fn bounded_startup_ping_timeout(now: Instant, deadline: Instant) -> Option<Durat
 /// Merely opening a Windows process handle is insufficient: a terminated process
 /// object remains openable while another handle is retained. Querying its exit
 /// code distinguishes that stale object from a genuinely running daemon.
-fn process_alive(pid: u32) -> bool {
-    if pid == 0 {
-        return false;
-    }
-
-    #[cfg(unix)]
-    {
-        // PROCESS_BROKER_EXCEPTION(cli-process-liveness-unix)
-        Command::new("kill")
-            .args(["-0", &pid.to_string()])
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status()
-            .map(|status| status.success())
-            .unwrap_or(false)
-    }
-
-    #[cfg(windows)]
-    {
-        use std::ffi::c_void;
-
-        unsafe extern "system" {
-            fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
-            fn GetExitCodeProcess(handle: *mut c_void, exit_code: *mut u32) -> i32;
-            fn CloseHandle(handle: *mut c_void) -> i32;
-        }
-
-        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-        const STILL_ACTIVE: u32 = 259;
-        // SAFETY: `pid` is a value-only OS process identifier. The returned
-        // handle is checked for null, queried with a valid out pointer, and
-        // closed exactly once before this block returns.
-        unsafe {
-            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-            if handle.is_null() {
-                return false;
-            }
-            let mut exit_code = 0u32;
-            let queried = GetExitCodeProcess(handle, &mut exit_code);
-            CloseHandle(handle);
-            queried != 0 && exit_code == STILL_ACTIVE
-        }
-    }
-}
-
 /// Recover from a transient connection failure without killing or trusting the
 /// endpoint PID as the final arbiter.
 ///

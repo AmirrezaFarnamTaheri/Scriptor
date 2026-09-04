@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use scriptor_export_runner::{
     ExportJobInput, ExportJobOutput, ExportProgressCallback, PandocDiscovery, cancel_active_export,
-    default_export_directory, discover_pandoc, run_export_job_with_cancel,
+    default_export_directory, discover_pandoc, export_artifact_stem, run_export_job_with_cancel,
 };
 use scriptor_vault::{RelativeVaultPath, VaultSession, load_plugin_state, read_note};
 use serde::{Deserialize, Serialize};
@@ -185,11 +185,7 @@ fn build_export_job_input(
     let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
     let note = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
-    let stem = note_path
-        .trim_end_matches(".md")
-        .rsplit('/')
-        .next()
-        .unwrap_or("note");
+    let stem = export_artifact_stem(note_path);
 
     let output_directory = resolve_output_directory(session, output_subdirectory)?;
 
@@ -201,7 +197,7 @@ fn build_export_job_input(
         format: format.to_string(),
         source_markdown: note.markdown,
         output_directory: output_directory.display().to_string(),
-        source_stem: stem.to_string(),
+        source_stem: stem,
         title: Some(note.metadata.title),
         dry_run,
         extra_pandoc_args,
@@ -227,11 +223,7 @@ fn build_export_job_from_markdown(
     let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
     let note = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
-    let stem = note_path
-        .trim_end_matches(".md")
-        .rsplit('/')
-        .next()
-        .unwrap_or("note");
+    let stem = export_artifact_stem(note_path);
 
     let output_directory = resolve_output_directory(session, output_subdirectory)?;
 
@@ -243,7 +235,7 @@ fn build_export_job_from_markdown(
         format: format.to_string(),
         source_markdown,
         output_directory: output_directory.display().to_string(),
-        source_stem: stem.to_string(),
+        source_stem: stem,
         title: Some(note.metadata.title),
         dry_run,
         extra_pandoc_args,

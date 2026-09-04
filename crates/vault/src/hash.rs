@@ -19,7 +19,7 @@ pub fn path_hash(relative_path: &str) -> String {
 }
 
 pub fn word_count(content: &str) -> u32 {
-    content.split_whitespace().count() as u32
+    u32::try_from(content.split_whitespace().count()).unwrap_or(u32::MAX)
 }
 
 /// Approximate reading time at 200 words per minute (minimum 1 minute when non-empty).
@@ -28,7 +28,7 @@ pub fn reading_time_minutes(content: &str) -> u32 {
     if words == 0 {
         return 0;
     }
-    (words / 200).max(1)
+    words.saturating_add(199) / 200
 }
 
 #[cfg(test)]

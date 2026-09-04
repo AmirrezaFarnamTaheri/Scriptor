@@ -1,16 +1,16 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::io;
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
+use interprocess::local_socket::ListenerOptions;
 use interprocess::local_socket::prelude::*;
-use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Name};
 use scriptor_ipc::{
-    IpcError, RateLimiter, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult,
-    ServerMessage, fuzz_corpus::is_expected_disconnect, read_frame_resyncing, write_frame,
+    IpcError, RateLimiter, RpcError, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult,
+    fuzz_corpus::is_expected_disconnect,
 };
-use scriptor_system_bridge::scriptor_data_dir;
-use serde::{Deserialize, Serialize};
 
 use scriptor_export_runner::run_export_job;
 use scriptor_indexer::rebuild_index;
@@ -21,357 +21,33 @@ use crate::handler::DaemonState;
 use crate::locks::lock_recover;
 use crate::watcher::restart_vault_watcher;
 
-const SOCKET_BASENAME: &str = "scriptor-core";
-const ENDPOINT_FILE: &str = "daemon-endpoint.json";
 const MAX_RPC_PER_CONNECTION_PER_SEC: u32 = 60;
+const MAX_RPC_GLOBAL_PER_SEC: u32 = 512;
 const MAX_CONCURRENT_CONNECTIONS: usize = 32;
+pub const DAEMON_PROTOCOL_VERSION: u32 = 1;
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const IDLE_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
+const SUBSCRIPTION_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub struct DaemonEndpoint {
-    pub socket_name: String,
-    pub pid: u32,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub nonce: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub hmac: Option<String>,
+static GLOBAL_RPC_LIMITER: OnceLock<Mutex<RateLimiter>> = OnceLock::new();
+
+fn global_rpc_limiter() -> &'static Mutex<RateLimiter> {
+    GLOBAL_RPC_LIMITER.get_or_init(|| Mutex::new(RateLimiter::per_second(MAX_RPC_GLOBAL_PER_SEC)))
 }
 
-pub fn default_socket_name() -> Result<String, IpcError> {
-    if cfg!(windows) {
-        Ok(SOCKET_BASENAME.to_string())
-    } else {
-        let data_dir =
-            scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
-        let socket_path = data_dir.join(format!("{SOCKET_BASENAME}.sock"));
-        Ok(socket_path.display().to_string())
-    }
-}
+mod endpoint;
+mod framing;
 
-pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
-    let data_dir =
-        scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
-    Ok(data_dir.join(ENDPOINT_FILE))
-}
-
-/// A failing OS random source is an environment problem, not a bug: surface it
-/// as an error so the caller can report it instead of aborting the daemon.
-fn generate_nonce() -> Result<String, IpcError> {
-    let mut bytes = [0u8; 32];
-    getrandom::fill(&mut bytes)
-        .map_err(|error| IpcError::Codec(format!("random source unavailable: {error}")))?;
-    Ok(hex::encode(bytes))
-}
-
-fn compute_endpoint_hmac(socket_name: &str, pid: u32, nonce: &str) -> Result<String, IpcError> {
-    let mac = hmac_sha256_simple(&format!("{socket_name}:{pid}:{nonce}"))?;
-    Ok(hex::encode(mac))
-}
-
-fn hmac_sha256_simple(message: &str) -> Result<[u8; 32], IpcError> {
-    use hmac::{Hmac, KeyInit, Mac};
-    use sha2::Sha256;
-
-    type HmacSha256 = Hmac<Sha256>;
-
-    let key = endpoint_hmac_key()?;
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
-        .map_err(|e| IpcError::Codec(format!("invalid HMAC key length: {e}")))?;
-    mac.update(message.as_bytes());
-    let result = mac.finalize().into_bytes();
-
-    let mut out = [0u8; 32];
-    out.copy_from_slice(&result);
-    Ok(out)
-}
-
-/// Constant-time HMAC comparison; length mismatch only reveals the fixed endpoint digest length.
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    use subtle::ConstantTimeEq;
-    if a.len() != b.len() {
-        return false;
-    }
-    a.ct_eq(b).into()
-}
-
-#[cfg(not(test))]
-const KEYCHAIN_ACCOUNT: &str = "daemon-endpoint-hmac-key";
-#[cfg(all(debug_assertions, not(test)))]
-const TEST_HMAC_KEY_ENV: &str = "SCRIPTOR_TEST_DAEMON_HMAC_KEY";
-
-fn endpoint_hmac_key() -> Result<String, IpcError> {
-    #[cfg(test)]
-    {
-        Ok("scriptor-daemon-transport-test-key-0001".to_string())
-    }
-
-    #[cfg(not(test))]
-    {
-        endpoint_hmac_key_runtime()
-    }
-}
-
-#[cfg(not(test))]
-fn endpoint_hmac_key_runtime() -> Result<String, IpcError> {
-    use scriptor_system_bridge::{keychain_get, keychain_set};
-
-    // Headless debug-only integration tests cannot rely on a desktop secret-service daemon.
-    // Release builds never compile this override and always use the operating-system keychain.
-    #[cfg(debug_assertions)]
-    if let Ok(key) = std::env::var(TEST_HMAC_KEY_ENV)
-        && key.len() >= 32
-    {
-        return Ok(key);
-    }
-
-    // The OS keychain is the sole durable authority for daemon authentication.
-    match keychain_get(KEYCHAIN_ACCOUNT) {
-        Ok(Some(key)) if !key.trim().is_empty() => return Ok(key.trim().to_string()),
-        Ok(_) => {}
-        Err(err) => {
-            return Err(IpcError::Codec(format!(
-                "daemon keychain unavailable: {err}"
-            )));
-        }
-    }
-
-    // Generate and store the current key through the keychain API.
-    let nonce = generate_nonce()?;
-    keychain_set(KEYCHAIN_ACCOUNT, &nonce).map_err(|err| {
-        IpcError::Codec(format!("cannot store daemon HMAC key in keychain: {err}"))
-    })?;
-    Ok(nonce)
-}
-
-pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
-    let nonce = generate_nonce()?;
-    let pid = std::process::id();
-    let hmac = compute_endpoint_hmac(socket_name, pid, &nonce)?;
-    let path = endpoint_file_path()?;
-    let temp_path = path.with_file_name(format!("{ENDPOINT_FILE}.tmp-{pid}-{nonce}"));
-    let endpoint = DaemonEndpoint {
-        socket_name: socket_name.to_string(),
-        pid,
-        nonce: Some(nonce),
-        hmac: Some(hmac),
-    };
-    let json = serde_json::to_string_pretty(&endpoint)
-        .map_err(|error| IpcError::Codec(error.to_string()))?;
-
-    let write_result = (|| -> Result<(), IpcError> {
-        #[cfg(unix)]
-        let mut file = {
-            use std::os::unix::fs::OpenOptionsExt;
-            let mut opts = fs::OpenOptions::new();
-            opts.write(true)
-                .create_new(true)
-                .mode(0o600)
-                .open(&temp_path)
-                .map_err(IpcError::from)?
-        };
-        #[cfg(not(unix))]
-        let mut file = fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&temp_path)
-            .map_err(IpcError::from)?;
-
-        use std::io::Write;
-        file.write_all(json.as_bytes()).map_err(IpcError::from)?;
-        file.sync_all().map_err(IpcError::from)?;
-        drop(file);
-
-        #[cfg(not(unix))]
-        match fs::remove_file(&path) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(IpcError::from(error)),
-        }
-
-        fs::rename(&temp_path, &path).map_err(IpcError::from)?;
-        Ok(())
-    })();
-
-    if let Err(error) = write_result {
-        let _ = fs::remove_file(&temp_path);
-        return Err(error);
-    }
-
-    Ok(endpoint)
-}
-
-pub fn read_endpoint() -> Result<DaemonEndpoint, IpcError> {
-    let bytes = fs::read(endpoint_file_path()?).map_err(IpcError::from)?;
-    let endpoint: DaemonEndpoint =
-        serde_json::from_slice(&bytes).map_err(|error| IpcError::Codec(error.to_string()))?;
-
-    // Verification is mandatory: an endpoint file without nonce/hmac is rejected
-    // outright so a tampered file cannot bypass authentication by omitting them.
-    let (Some(nonce), Some(hmac)) = (&endpoint.nonce, &endpoint.hmac) else {
-        return Err(IpcError::Codec(
-            "endpoint file missing nonce/hmac; refusing unauthenticated endpoint".into(),
-        ));
-    };
-    let expected_hmac = compute_endpoint_hmac(&endpoint.socket_name, endpoint.pid, nonce)?;
-    if !constant_time_eq(hmac.as_bytes(), expected_hmac.as_bytes()) {
-        return Err(IpcError::Codec(
-            "endpoint HMAC mismatch; file may be tampered".into(),
-        ));
-    }
-
-    Ok(endpoint)
-}
-
-pub fn remove_endpoint_file() -> Result<(), IpcError> {
-    let path = endpoint_file_path()?;
-    if path.exists() {
-        fs::remove_file(&path).map_err(IpcError::from)?;
-    }
-    Ok(())
-}
-
-fn process_alive(pid: u32) -> bool {
-    if pid == 0 {
-        return false;
-    }
-    #[cfg(unix)]
-    {
-        // PROCESS_BROKER_EXCEPTION(daemon-process-liveness-unix)
-        std::process::Command::new("kill")
-            .args(["-0", &pid.to_string()])
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .map(|status| status.success())
-            .unwrap_or(false)
-    }
-    #[cfg(windows)]
-    {
-        use std::ffi::c_void;
-        unsafe extern "system" {
-            fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
-            fn CloseHandle(handle: *mut c_void) -> i32;
-        }
-        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
-        // SAFETY: `pid` is not a pointer and is passed directly to Win32. The
-        // handle is null-checked and closed exactly once without escaping.
-        unsafe {
-            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
-            if handle.is_null() {
-                return false;
-            }
-            CloseHandle(handle);
-            true
-        }
-    }
-}
-
-fn verify_endpoint_process(endpoint: &DaemonEndpoint) -> Result<(), IpcError> {
-    if process_alive(endpoint.pid) {
-        return Ok(());
-    }
-    let _ = remove_endpoint_file();
-    Err(IpcError::Codec(format!(
-        "daemon endpoint stale (pid {} not running)",
-        endpoint.pid
-    )))
-}
-
-fn resolve_name(path: &str) -> Result<Name<'_>, IpcError> {
-    if cfg!(windows) {
-        path.to_ns_name::<GenericNamespaced>()
-            .map_err(|error| IpcError::Codec(error.to_string()))
-    } else {
-        Path::new(path)
-            .to_fs_name::<GenericFilePath>()
-            .map_err(|error| IpcError::Codec(error.to_string()))
-    }
-}
-
-fn retryable_endpoint_error(error: &IpcError) -> bool {
-    match error {
-        IpcError::Io(error) => matches!(
-            error.kind(),
-            std::io::ErrorKind::NotFound | std::io::ErrorKind::WouldBlock
-        ),
-        IpcError::Codec(message) => message.starts_with("daemon endpoint stale (pid "),
-        _ => false,
-    }
-}
-
-fn retryable_connect_error(error: &std::io::Error) -> bool {
-    matches!(
-        error.kind(),
-        std::io::ErrorKind::NotFound
-            | std::io::ErrorKind::WouldBlock
-            | std::io::ErrorKind::ConnectionRefused
-    )
-}
-
-fn wait_for_retry(
-    start: std::time::Instant,
-    retry_budget: std::time::Duration,
-    retry_interval: std::time::Duration,
-    error: IpcError,
-) -> Result<(), IpcError> {
-    let remaining = retry_budget.saturating_sub(start.elapsed());
-    if remaining.is_zero() {
-        return Err(error);
-    }
-    std::thread::sleep(retry_interval.min(remaining));
-    Ok(())
-}
-
-fn connect_authenticated_client_inner(
-    mut on_socket_retry: impl FnMut(&DaemonEndpoint),
-) -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
-    let start = std::time::Instant::now();
-    let retry_budget = std::time::Duration::from_millis(500);
-    let retry_interval = std::time::Duration::from_millis(10);
-    loop {
-        let endpoint = match read_endpoint() {
-            Ok(endpoint) => endpoint,
-            Err(error) if retryable_endpoint_error(&error) => {
-                wait_for_retry(start, retry_budget, retry_interval, error)?;
-                continue;
-            }
-            Err(error) => return Err(error),
-        };
-
-        if let Err(error) = verify_endpoint_process(&endpoint) {
-            if retryable_endpoint_error(&error) {
-                wait_for_retry(start, retry_budget, retry_interval, error)?;
-                continue;
-            }
-            return Err(error);
-        }
-
-        let name = resolve_name(&endpoint.socket_name)?;
-        match LocalSocketStream::connect(name.borrow()) {
-            Ok(stream) => return Ok((stream, endpoint)),
-            Err(error) if retryable_connect_error(&error) => {
-                on_socket_retry(&endpoint);
-                wait_for_retry(start, retry_budget, retry_interval, IpcError::from(error))?;
-            }
-            Err(error) => return Err(IpcError::from(error)),
-        }
-    }
-}
-
-pub fn connect_authenticated_client() -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
-    connect_authenticated_client_inner(|_| {})
-}
-
-/// Observability seam for deterministic reconnect regression tests.
-#[doc(hidden)]
-pub fn connect_authenticated_client_with_retry_observer(
-    on_socket_retry: impl FnMut(&DaemonEndpoint),
-) -> Result<(LocalSocketStream, DaemonEndpoint), IpcError> {
-    connect_authenticated_client_inner(on_socket_retry)
-}
-
-pub fn connect_client() -> Result<LocalSocketStream, IpcError> {
-    connect_authenticated_client().map(|(stream, _)| stream)
-}
+pub use endpoint::{
+    DaemonEndpoint, connect_authenticated_client, connect_authenticated_client_with_retry_observer,
+    connect_client, default_socket_name, endpoint_file_path, read_endpoint, remove_endpoint_file,
+    write_endpoint,
+};
+// Internal helpers defined in `endpoint` that the parent transport module (and
+// its `tests` submodule) drive directly.
+use endpoint::{constant_time_eq, persist_endpoint, resolve_name};
+// Frame I/O with a deadline, kept in `framing` so this module stays about RPC.
+use framing::{read_frame_with_timeout, write_event_with_timeout, write_response_with_timeout};
 
 /// RAII guard for one connection slot: decrements the active-connection counter
 /// on drop, including when the handler thread panics.
@@ -421,9 +97,60 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     }));
     let event_hub = EventHub::new();
     let active_connections = Arc::new(AtomicUsize::new(0));
+    let expected_nonce = endpoint
+        .nonce
+        .clone()
+        .ok_or_else(|| IpcError::Codec("generated endpoint is missing nonce".into()))?;
+    let mut consecutive_accept_errors = 0u32;
 
     loop {
-        let stream = listener.accept().map_err(IpcError::from)?;
+        // The endpoint is a discoverability cache, not authority. If a local
+        // peer deletes or tampers with it while the daemon is alive, restore
+        // the same authenticated endpoint rather than minting a new nonce
+        // that existing clients do not know.
+        if !endpoint_file_path()?.exists() {
+            persist_endpoint(&endpoint)?;
+        }
+
+        let mut stream = match listener.accept() {
+            Ok(stream) => {
+                consecutive_accept_errors = 0;
+                stream
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::Interrupted
+                        | io::ErrorKind::WouldBlock
+                        | io::ErrorKind::ConnectionAborted
+                ) =>
+            {
+                consecutive_accept_errors = consecutive_accept_errors.saturating_add(1);
+                std::thread::sleep(Duration::from_millis(10));
+                continue;
+            }
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::PermissionDenied | io::ErrorKind::InvalidInput
+                ) =>
+            {
+                return Err(IpcError::from(error));
+            }
+            Err(error) => {
+                consecutive_accept_errors = consecutive_accept_errors.saturating_add(1);
+                let backoff_ms = 10u64.saturating_mul(1u64 << consecutive_accept_errors.min(6));
+                tracing::warn!(
+                    target: "scriptor_daemon::transport",
+                    %error,
+                    consecutive_accept_errors,
+                    "transient local-socket accept failure; retrying",
+                );
+                std::thread::sleep(Duration::from_millis(backoff_ms.min(1_000)));
+                continue;
+            }
+        };
+        stream.set_nonblocking(true).map_err(IpcError::from)?;
         let current = active_connections.load(Ordering::SeqCst);
         if current >= MAX_CONCURRENT_CONNECTIONS {
             tracing::warn!(
@@ -437,6 +164,7 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
         }
         let state = Arc::clone(&state);
         let event_hub = Arc::clone(&event_hub);
+        let expected_nonce = expected_nonce.clone();
         active_connections.fetch_add(1, Ordering::SeqCst);
         // Decrement via a drop guard so a panicking handler cannot leak the
         // connection slot (the guard runs during unwind as well).
@@ -445,7 +173,7 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
         };
         std::thread::spawn(move || {
             let _slot = slot;
-            if let Err(error) = handle_connection(stream, &state, &event_hub) {
+            if let Err(error) = handle_connection(stream, &state, &event_hub, &expected_nonce) {
                 tracing::warn!(
                     target: "scriptor_daemon::transport",
                     %error,
@@ -460,71 +188,112 @@ pub fn handle_connection(
     mut stream: LocalSocketStream,
     state: &Arc<Mutex<DaemonState>>,
     event_hub: &Arc<EventHub>,
+    expected_nonce: &str,
 ) -> Result<(), IpcError> {
-    let event_rx = event_hub.register();
     let mut limiter = RateLimiter::per_second(MAX_RPC_PER_CONNECTION_PER_SEC);
-
-    const MAX_EVENTS_PER_DRAIN: usize = 32;
-    let drain_events =
-        |stream: &mut LocalSocketStream,
-         event_rx: &std::sync::mpsc::Receiver<scriptor_ipc::RpcEvent>| {
-            for _ in 0..MAX_EVENTS_PER_DRAIN {
-                let Ok(event) = event_rx.try_recv() else {
-                    break;
-                };
-                write_frame(stream, &ServerMessage::Event(event))?;
-            }
-            Ok::<(), IpcError>(())
-        };
+    let mut first_frame = true;
 
     loop {
-        drain_events(&mut stream, &event_rx)?;
-        let body = match read_frame_resyncing(&mut stream) {
+        let timeout = if first_frame {
+            HANDSHAKE_TIMEOUT
+        } else {
+            IDLE_REQUEST_TIMEOUT
+        };
+        let body = match read_frame_with_timeout(&mut stream, timeout) {
             Ok(body) => body,
             Err(error) if is_expected_disconnect(&error) => return Ok(()),
+            Err(IpcError::Io(error)) if error.kind() == io::ErrorKind::TimedOut => return Ok(()),
             Err(error) => return Err(error),
         };
+        first_frame = false;
         let request: RpcRequest =
             postcard::from_bytes(&body).map_err(|error| IpcError::Codec(error.to_string()))?;
 
-        if let Some(expected_nonce) = &lock_recover(state).endpoint_nonce {
-            match &request.endpoint_nonce {
-                Some(provided) if provided == expected_nonce => {}
-                _ => {
-                    let response = RpcResponse {
-                        id: request.id,
-                        result: RpcResult::failed("invalid or missing endpoint nonce"),
-                    };
-                    write_frame(&mut stream, &ServerMessage::Response(response))?;
-                    continue;
-                }
+        // Authenticate *before* drawing from the shared global rate budget. A
+        // local peer that can reach the socket but does not hold the nonce must
+        // not be able to spend the global budget and cause legitimate clients to
+        // be throttled. Unauthenticated frames are rejected without consuming
+        // the global budget (the per-connection limiter below still bounds each
+        // connection's own attempt rate).
+        match &request.endpoint_nonce {
+            Some(provided) if constant_time_eq(provided.as_bytes(), expected_nonce.as_bytes()) => {}
+            _ => {
+                let response = RpcResponse {
+                    id: request.id,
+                    result: RpcResult::Error(RpcError::with_code(
+                        "rpc.unauthenticated",
+                        "invalid or missing endpoint nonce",
+                        false,
+                    )),
+                };
+                write_response_with_timeout(&mut stream, response)?;
+                continue;
             }
         }
 
+        let within_connection_budget = limiter.allow();
+        let within_global_budget = lock_recover(global_rpc_limiter()).allow();
+        if !within_connection_budget || !within_global_budget {
+            let response = RpcResponse {
+                id: request.id,
+                result: RpcResult::Error(RpcError::with_code(
+                    "rpc.rate_limited",
+                    "rate limit exceeded",
+                    true,
+                )),
+            };
+            write_response_with_timeout(&mut stream, response)?;
+            continue;
+        }
+
         if matches!(request.method, RpcMethod::SubscribeEvents) {
+            let subscription = event_hub.register();
             let response = RpcResponse {
                 id: request.id,
                 result: RpcResult::Ok(RpcPayload::Unit),
             };
-            write_frame(&mut stream, &ServerMessage::Response(response))?;
+            write_response_with_timeout(&mut stream, response)?;
+            let (mut recv_half, mut send_half) = stream.split();
+            let (disconnect_tx, disconnect_rx) = std::sync::mpsc::sync_channel::<()>(1);
+            std::thread::spawn(move || {
+                let mut probe = [0u8; 1];
+                loop {
+                    match recv_half.read(&mut probe) {
+                        Ok(0) => {
+                            let _ = disconnect_tx.try_send(());
+                            break;
+                        }
+                        Ok(_) => {
+                            // Event subscriptions are one-way after the
+                            // acknowledgement. Unexpected client bytes close
+                            // the stream instead of becoming a second RPC lane.
+                            let _ = disconnect_tx.try_send(());
+                            break;
+                        }
+                        Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
+                            std::thread::sleep(Duration::from_millis(20));
+                        }
+                        Err(_) => {
+                            let _ = disconnect_tx.try_send(());
+                            break;
+                        }
+                    }
+                }
+            });
             loop {
-                match event_rx.recv() {
-                    Ok(event) => write_frame(&mut stream, &ServerMessage::Event(event))?,
-                    Err(_) => return Ok(()),
+                if disconnect_rx.try_recv().is_ok() {
+                    return Ok(());
+                }
+                match subscription.recv_timeout(SUBSCRIPTION_POLL_INTERVAL) {
+                    Ok(event) => write_event_with_timeout(&mut send_half, event)?,
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => continue,
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => return Ok(()),
                 }
             }
         }
 
-        let response = if limiter.allow() {
-            dispatch_request(state, request, event_hub)
-        } else {
-            RpcResponse {
-                id: request.id,
-                result: RpcResult::failed("rate limit exceeded"),
-            }
-        };
-        write_frame(&mut stream, &ServerMessage::Response(response))?;
-        drain_events(&mut stream, &event_rx)?;
+        let response = dispatch_request(state, request, event_hub);
+        write_response_with_timeout(&mut stream, response)?;
     }
 }
 
@@ -534,15 +303,44 @@ fn dispatch_request(
     event_hub: &Arc<EventHub>,
 ) -> RpcResponse {
     let id = request.id;
-    // Outside-lock work (notably synchronous export) must pass the same vault
-    // authority check before it prepares a job or releases the daemon lock.
-    if let Err(error) =
-        crate::capabilities::enforce(&lock_recover(state).plugin_state, &request.method)
+    // Commands that stay inside `DaemonState::handle` are authorized exactly
+    // once there. Only work that intentionally escapes the global state lock
+    // is checked here, immediately before the authoritative state snapshot is
+    // taken, so capability enforcement has one owner per dispatch path.
+    let runs_outside_lock = matches!(
+        &request.method,
+        RpcMethod::ExportRunNote { .. }
+            | RpcMethod::ExportRunMarkdown { .. }
+            | RpcMethod::RebuildIndex
+            | RpcMethod::GitStatus
+    ) || matches!(
+        &request.method,
+        RpcMethod::Invoke { command, .. } if command_gateway::is_outside_lock_command(command)
+    );
+    if let RpcMethod::Invoke { command, .. } = &request.method
+        && command_gateway::requires_desktop_authorization(command)
     {
         return RpcResponse {
             id,
-            result: RpcResult::Error(error),
+            result: RpcResult::Error(RpcError::with_code(
+                "authorization.desktop_required",
+                format!(
+                    "command {command} requires desktop authorization and is unavailable over daemon IPC"
+                ),
+                false,
+            )),
         };
+    }
+
+    if runs_outside_lock {
+        if let Err(error) =
+            crate::capabilities::enforce(&lock_recover(state).plugin_state, &request.method)
+        {
+            return RpcResponse {
+                id,
+                result: RpcResult::Error(error),
+            };
+        }
     }
     let response = match request.method {
         RpcMethod::Invoke {
@@ -555,7 +353,10 @@ fn dispatch_request(
             dispatch_export_sync(state, id, &request.method)
         }
         RpcMethod::RebuildIndex => dispatch_rebuild_sync(state, id),
+        RpcMethod::GitStatus => dispatch_git_status_sync(state, id),
         RpcMethod::OpenVault { .. } => {
+            let rebuild_job = { lock_recover(state).index_rebuild.clone() };
+            rebuild_job.wait();
             let response = lock_recover(state).handle(request);
             if matches!(
                 response.result,
@@ -613,9 +414,10 @@ fn dispatch_invoke_outside_lock(
             }
         }
         "indexer_rebuild" => {
+            let rebuild_job = { lock_recover(state).index_rebuild.clone() };
+            rebuild_job.wait();
             let session = {
                 let guard = lock_recover(state);
-                guard.wait_index_rebuild();
                 match guard.session().cloned() {
                     Some(session) => session,
                     None => {
@@ -634,6 +436,8 @@ fn dispatch_invoke_outside_lock(
         }
         "vault_open" => match require_invoke_str(&payload, "root_path") {
             Ok(root_path) => {
+                let rebuild_job = { lock_recover(state).index_rebuild.clone() };
+                rebuild_job.wait();
                 let output = {
                     let mut guard = lock_recover(state);
                     match guard.open_vault_invoke(root_path) {
@@ -670,6 +474,136 @@ fn dispatch_invoke_outside_lock(
         }
         "plantuml_render" => command_gateway::cmd_plantuml_render(&payload)
             .and_then(|output| serde_json::to_string(&output).map_err(|error| error.to_string())),
+        "git_status_cmd" => {
+            let root = {
+                let guard = lock_recover(state);
+                guard
+                    .require_session()
+                    .map(|session| session.root.root().to_path_buf())
+            };
+            root.and_then(|root| {
+                scriptor_native_git::git_status(&root)
+                    .map_err(|error| error.to_string())
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    })
+            })
+        }
+        "git_commit_cmd" => {
+            let files: Result<Vec<String>, String> = payload
+                .get("files")
+                .cloned()
+                .ok_or_else(|| "missing field: files".to_string())
+                .and_then(|value| serde_json::from_value(value).map_err(|error| error.to_string()));
+            let message = require_invoke_str(&payload, "message");
+            let queue = { lock_recover(state).git_queue() };
+            match (files, message, queue) {
+                (Ok(files), Ok(message), Ok(queue)) => queue
+                    .enqueue(move |root| {
+                        scriptor_native_git::git_commit_selected(root, &files, &message)
+                    })
+                    .map_err(|error| error.to_string())
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    }),
+                (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => Err(error),
+            }
+        }
+        "git_pull_cmd" => {
+            let queue = { lock_recover(state).git_queue() };
+            queue.and_then(|queue| {
+                queue
+                    .enqueue(move |root| {
+                        scriptor_native_git::git_pull(
+                            root,
+                            scriptor_native_git::PullStrategy::FastForward,
+                        )
+                    })
+                    .map_err(|error| error.to_string())
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    })
+            })
+        }
+        "git_push_cmd" => {
+            let queue = { lock_recover(state).git_queue() };
+            queue.and_then(|queue| {
+                queue
+                    .enqueue(scriptor_native_git::git_push)
+                    .map_err(|error| error.to_string())
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    })
+            })
+        }
+        "git_resolve_conflict_cmd" => {
+            let path = require_invoke_str(&payload, "path");
+            let strategy = require_invoke_str(&payload, "strategy");
+            let queue = { lock_recover(state).git_queue() };
+            match (path, strategy, queue) {
+                (Ok(path), Ok(strategy), Ok(queue)) => queue
+                    .enqueue(move |root| {
+                        scriptor_native_git::git_resolve_conflict(root, &path, &strategy)
+                    })
+                    .map_err(|error| error.to_string())
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    }),
+                (Err(error), _, _) | (_, Err(error), _) | (_, _, Err(error)) => Err(error),
+            }
+        }
+        "git_read_conflict_markers_cmd" => {
+            let path = require_invoke_str(&payload, "path");
+            let root = { lock_recover(state).session().cloned() };
+            match (path, root) {
+                (Ok(path), Some(session)) => scriptor_vault::RelativeVaultPath::parse(&path)
+                    .map_err(|error| error.to_string())
+                    .and_then(|relative| {
+                        session
+                            .root
+                            .resolve_relative(&relative)
+                            .map_err(|error| error.to_string())
+                    })
+                    .and_then(|file_path| {
+                        scriptor_native_git::read_conflict_markers(&file_path)
+                            .map_err(|error| error.to_string())
+                    })
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    }),
+                (Err(error), _) => Err(error),
+                (_, None) => Err("no vault is open; call OpenVault first".into()),
+            }
+        }
+        "git_show_head_file_cmd" => {
+            let path = require_invoke_str(&payload, "path");
+            let session = { lock_recover(state).session().cloned() };
+            match (path, session) {
+                (Ok(path), Some(session)) => scriptor_vault::RelativeVaultPath::parse(&path)
+                    .map_err(|error| error.to_string())
+                    .and_then(|relative| {
+                        session
+                            .root
+                            .resolve_relative(&relative)
+                            .map_err(|error| error.to_string())
+                    })
+                    .and_then(|resolved| {
+                        let relative = resolved
+                            .strip_prefix(session.root.root())
+                            .map_err(|error| error.to_string())?;
+                        scriptor_native_git::git_show_head_file(
+                            session.root.root(),
+                            &relative.to_string_lossy(),
+                        )
+                        .map_err(|error| error.to_string())
+                    })
+                    .and_then(|value| {
+                        serde_json::to_string(&value).map_err(|error| error.to_string())
+                    }),
+                (Err(error), _) => Err(error),
+                (_, None) => Err("no vault is open; call OpenVault first".into()),
+            }
+        }
         "indexer_resolve_wikilink" => {
             let (session, cache) = {
                 let guard = lock_recover(state);
@@ -724,6 +658,30 @@ fn dispatch_invoke_outside_lock(
     }
 }
 
+fn dispatch_git_status_sync(state: &Arc<Mutex<DaemonState>>, id: u64) -> RpcResponse {
+    let root = {
+        let guard = lock_recover(state);
+        guard
+            .require_session()
+            .map(|session| session.root.root().to_path_buf())
+    };
+    let result = root.and_then(|root| {
+        scriptor_native_git::git_status(&root)
+            .map_err(|error| error.to_string())
+            .and_then(|status| serde_json::to_string(&status).map_err(|error| error.to_string()))
+    });
+    match result {
+        Ok(json) => RpcResponse {
+            id,
+            result: RpcResult::Ok(RpcPayload::GitStatus { json }),
+        },
+        Err(message) => RpcResponse {
+            id,
+            result: RpcResult::failed(message),
+        },
+    }
+}
+
 fn require_invoke_str(payload: &serde_json::Value, key: &str) -> Result<String, String> {
     payload
         .get(key)
@@ -760,9 +718,10 @@ fn dispatch_export_sync(
 }
 
 fn dispatch_rebuild_sync(state: &Arc<Mutex<DaemonState>>, id: u64) -> RpcResponse {
+    let rebuild_job = { lock_recover(state).index_rebuild.clone() };
+    rebuild_job.wait();
     let session = {
         let guard = lock_recover(state);
-        guard.wait_index_rebuild();
         match guard.session().cloned() {
             Some(session) => session,
             None => {

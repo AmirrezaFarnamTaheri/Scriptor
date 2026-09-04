@@ -13,17 +13,24 @@ const RENDER_CACHE_LIMIT = 32
 const renderCache = new Map<string, string>()
 
 function renderCacheKey(markdown: string, options?: PreviewPipelineOptions): string {
+  const math = options?.enableMath === false ? 'a0' : 'a1'
   const breaks = options?.enableBreaks === true ? 'b1' : 'b0'
   const mermaid = options?.enableMermaid === false ? 'm0' : 'm1'
-  return `${breaks}|${mermaid}|${markdown}`
+  const plantUml = options?.enablePlantUml === false ? 'p0' : 'p1'
+  const basePath = options?.basePath ?? ''
+  return `${math}|${breaks}|${mermaid}|${plantUml}|${basePath}|${markdown}`
 }
 
 export function renderMarkdownPreview(
   markdown: string,
   options?: PreviewPipelineOptions,
 ): string {
+  // Resolver callbacks make the result context-dependent even for identical
+  // markdown and option flags. Resolve those renders every time rather than
+  // pretending a function identity can be represented by a stable cache key.
+  const cacheable = options?.fetchNote === undefined
   const key = renderCacheKey(markdown, options)
-  const cached = renderCache.get(key)
+  const cached = cacheable ? renderCache.get(key) : undefined
   if (cached !== undefined) {
     // Re-insert to keep least-recently-used ordering under the Map cap.
     renderCache.delete(key)
@@ -32,10 +39,12 @@ export function renderMarkdownPreview(
   }
   try {
     const html = renderMarkdownPipeline(markdown, options)
-    renderCache.set(key, html)
-    if (renderCache.size > RENDER_CACHE_LIMIT) {
-      const oldest = renderCache.keys().next().value
-      if (oldest !== undefined) renderCache.delete(oldest)
+    if (cacheable) {
+      renderCache.set(key, html)
+      if (renderCache.size > RENDER_CACHE_LIMIT) {
+        const oldest = renderCache.keys().next().value
+        if (oldest !== undefined) renderCache.delete(oldest)
+      }
     }
     return html
   } catch (error) {

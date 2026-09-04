@@ -1614,6 +1614,20 @@
       ]
     },
     {
+      "name": "reader_viewer_location",
+      "owner": "apps/desktop/src-tauri/src/commands/reader.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "reader_read_document",
       "owner": "apps/desktop/src-tauri/src/commands/reader.rs",
       "authorizationClass": "read-only",

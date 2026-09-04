@@ -28,15 +28,8 @@ pub fn materialize_default_csl(output_dir: &Path) -> Result<PathBuf, ExportError
     Ok(csl_path)
 }
 
-fn resolve_vault_relative(vault_root: &Path, output_dir: &Path, path: &Path) -> PathBuf {
-    if path.is_absolute() {
-        return path.to_path_buf();
-    }
-    let vault_candidate = vault_root.join(path);
-    if vault_candidate.exists() {
-        return vault_candidate;
-    }
-    output_dir.join(path)
+fn resolve_vault_file(vault_root: &Path, path: &Path) -> PathBuf {
+    vault_root.join(path)
 }
 
 fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), ExportError> {
@@ -109,27 +102,27 @@ pub fn resolve_extra_args(
         if let Some(css_path) = arg.strip_prefix("--css=") {
             validate_path_within_vault(vault_root, css_path)?;
             let path = Path::new(css_path);
-            let candidate = output_dir.join(path);
-            let absolute = if candidate.exists() {
-                candidate
+            let vault_candidate = resolve_vault_file(vault_root, path);
+            let absolute = if vault_candidate.exists() {
+                vault_candidate
             } else if path
                 .file_name()
                 .is_some_and(|name| name == "export-theme.css")
             {
                 materialize_export_theme(output_dir)?
             } else {
-                candidate
+                vault_candidate
             };
             resolved.push(format!("--css={}", absolute.display()));
         } else if let Some(bib_path) = arg.strip_prefix("--bibliography=") {
             validate_path_within_vault(vault_root, bib_path)?;
             let path = Path::new(bib_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            let absolute = resolve_vault_file(vault_root, path);
             resolved.push(format!("--bibliography={}", absolute.display()));
         } else if let Some(csl_path) = arg.strip_prefix("--csl=") {
             validate_path_within_vault(vault_root, csl_path)?;
             let path = Path::new(csl_path);
-            let candidate = resolve_vault_relative(vault_root, output_dir, path);
+            let candidate = resolve_vault_file(vault_root, path);
             let absolute = if candidate.exists() {
                 candidate
             } else if path.file_name().is_some_and(|name| name == "apa-lite.csl") {
@@ -141,12 +134,12 @@ pub fn resolve_extra_args(
         } else if let Some(ref_path) = arg.strip_prefix("--reference-doc=") {
             validate_path_within_vault(vault_root, ref_path)?;
             let path = Path::new(ref_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            let absolute = resolve_vault_file(vault_root, path);
             resolved.push(format!("--reference-doc={}", absolute.display()));
         } else if let Some(tmpl_path) = arg.strip_prefix("--template=") {
             validate_path_within_vault(vault_root, tmpl_path)?;
             let path = Path::new(tmpl_path);
-            let absolute = resolve_vault_relative(vault_root, output_dir, path);
+            let absolute = resolve_vault_file(vault_root, path);
             resolved.push(format!("--template={}", absolute.display()));
         } else {
             resolved.push(arg.clone());

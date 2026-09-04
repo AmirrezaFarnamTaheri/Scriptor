@@ -23,7 +23,7 @@
 //! - Rename → exactly one `new` + one `orphaned`.
 //! - `requireFrontmatterOptIn = true` (default) excludes notes without the flag.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::path::Path;
 
@@ -76,7 +76,7 @@ impl Default for PublishPlanOptions {
         Self {
             require_frontmatter_opt_in: true,
             include_globs: Vec::new(),
-            exclude_globs: Vec::new(),
+            exclude_globs: vec![".tmp/**".into(), "**/.tmp/**".into()],
         }
     }
 }
@@ -97,7 +97,7 @@ pub struct PublishCandidate {
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct BucketState {
     /// Vault-relative path → SHA-256 hex of the last-published content.
-    pub entries: HashMap<String, String>,
+    pub entries: BTreeMap<String, String>,
 }
 
 /// The four-bucket diff between the current vault scan and the previous
@@ -218,22 +218,24 @@ fn scan_candidates(
                 if reject_or_skip_oversized_note(&absolute, rel_str, observed_bytes, options)? {
                     continue;
                 }
-                unreachable!("oversized publish notes are either skipped or rejected")
+                return Err(PublishError::NoteTooLarge {
+                    path: rel_str.to_string(),
+                    size_bytes: observed_bytes,
+                    limit_bytes: MAX_INDEXED_NOTE_BYTES,
+                });
             }
         };
 
         // Apply the opt-in gate before sealed-content enforcement so a private,
         // non-published sealed note cannot deny publication of unrelated notes.
+        let frontmatter_probe = &bytes[..bytes.len().min(FRONTMATTER_PROBE_BYTES)];
         if options.require_frontmatter_opt_in
-            && !frontmatter_has_publish_true(&String::from_utf8_lossy(&bytes))
+            && !frontmatter_has_publish_true(&String::from_utf8_lossy(frontmatter_probe))
         {
             continue;
         }
 
-        if bytes
-            .windows(SEALED_PREFIX.len())
-            .any(|window| window == SEALED_PREFIX.as_bytes())
-        {
+        if memchr::memmem::find(&bytes, SEALED_PREFIX.as_bytes()).is_some() {
             return Err(PublishError::SealedContent {
                 path: rel_str.to_string(),
             });
@@ -300,11 +302,12 @@ fn frontmatter_probe_publish_true(text: &str) -> Option<bool> {
 
     let mut publish_true = false;
     for line in lines {
+        let line = line.trim_end_matches('\r');
         let trimmed = line.trim();
         if trimmed == "---" || trimmed == "..." {
             return Some(publish_true);
         }
-        if trimmed == "publish: true" {
+        if line == "publish: true" {
             publish_true = true;
         }
     }
@@ -327,11 +330,12 @@ pub(crate) fn frontmatter_has_publish_true(text: &str) -> bool {
 
     let mut publish_true = false;
     for line in lines {
+        let line = line.trim_end_matches('\r');
         let trimmed = line.trim();
         if trimmed == "---" || trimmed == "..." {
             return publish_true; // end of complete frontmatter
         }
-        if trimmed == "publish: true" {
+        if line == "publish: true" {
             publish_true = true;
         }
     }
@@ -409,6 +413,18 @@ mod tests {
         assert_eq!(plan.new_items.len(), 2, "only opted-in notes: {plan:?}");
         assert!(plan.changed.is_empty());
         assert!(plan.orphaned.is_empty());
+    }
+
+    #[test]
+    fn nested_publish_key_does_not_opt_note_in() {
+        let tmp = TempDir::new().unwrap();
+        write_note(
+            tmp.path(),
+            "private.md",
+            "---\ntitle: Private\ndefaults:\n  publish: true\n---\nsecret\n",
+        );
+        let plan = plan_publish(tmp.path(), &BucketState::default(), &Default::default()).unwrap();
+        assert!(plan.new_items.is_empty());
     }
 
     #[test]

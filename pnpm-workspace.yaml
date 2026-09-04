@@ -3,7 +3,10 @@
 # See https://pnpm.io/settings
 overrides:
   dompurify: ">=3.4.13"
-  "@xmldom/xmldom": ">=0.8.13"
+  # GHSA-6gmq-8vp8-gcm6 (XML External Entity / doctype handling) affects
+  # @xmldom/xmldom >=0.9.0 <=0.9.11. epubjs still pins ^0.9.8 upstream, so the
+  # override is the stopgap until it moves its own range past the patch release.
+  "@xmldom/xmldom": ">=0.9.12"
 
 packages:
   - "apps/*"

@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use scriptor_vault::{
     MAX_INDEXED_NOTE_BYTES, RelativeVaultPath, VaultRoot, atomic_write, content_hash_bytes,
+    lock_vault_update,
 };
 
 use crate::bounded_io::{BoundedRead, read_bounded};
@@ -64,11 +65,15 @@ const PNPM_LOCK_PARTS: &[&str] = &[
     include_str!("starlight-lock/part-014.txt"),
 ];
 
-pub fn resolve_output_path(vault_root: &Path, requested: &Path) -> PathBuf {
+pub fn resolve_output_path(_vault_root: &Path, requested: &Path) -> Result<PathBuf, PublishError> {
     if requested.is_absolute() {
-        requested.to_path_buf()
+        Ok(requested.to_path_buf())
     } else {
-        vault_root.parent().unwrap_or(vault_root).join(requested)
+        let cwd = std::env::current_dir().map_err(|source| PublishError::Io {
+            path: ".".into(),
+            source,
+        })?;
+        Ok(cwd.join(requested))
     }
 }
 
@@ -315,8 +320,16 @@ pub fn plan_starlight_site(
     vault_root: &Path,
     output_root: &Path,
 ) -> Result<PublishPlan, PublishError> {
+    plan_starlight_site_with_options(vault_root, output_root, &PublishPlanOptions::default())
+}
+
+pub fn plan_starlight_site_with_options(
+    vault_root: &Path,
+    output_root: &Path,
+    options: &PublishPlanOptions,
+) -> Result<PublishPlan, PublishError> {
     let (state, drifted) = load_state_read_only(vault_root, output_root)?;
-    let mut plan = plan_publish(vault_root, &state, &PublishPlanOptions::default())?;
+    let mut plan = plan_publish(vault_root, &state, options)?;
     if !drifted.is_empty() {
         let mut unchanged = Vec::with_capacity(plan.unchanged.len());
         for candidate in plan.unchanged.drain(..) {
@@ -338,21 +351,44 @@ pub fn apply_starlight_site(
     output_root: &Path,
     input: &PublishApplyInput,
 ) -> Result<PublishApplyOutput, PublishError> {
-    apply_starlight_site_with_state_writer(vault_root, output_root, input, |site, state| {
-        site.save_state(state)
-    })
+    apply_starlight_site_with_options(
+        vault_root,
+        output_root,
+        input,
+        &PublishPlanOptions::default(),
+    )
+}
+
+pub fn apply_starlight_site_with_options(
+    vault_root: &Path,
+    output_root: &Path,
+    input: &PublishApplyInput,
+    options: &PublishPlanOptions,
+) -> Result<PublishApplyOutput, PublishError> {
+    apply_starlight_site_with_state_writer(
+        vault_root,
+        output_root,
+        input,
+        options,
+        |site, state| site.save_state(state),
+    )
 }
 
 fn apply_starlight_site_with_state_writer<F>(
     vault_root: &Path,
     output_root: &Path,
     input: &PublishApplyInput,
+    options: &PublishPlanOptions,
     mut save_state: F,
 ) -> Result<PublishApplyOutput, PublishError>
 where
     F: FnMut(&StarlightSite, &BucketState) -> Result<(), PublishError>,
 {
     let site = StarlightSite::open(vault_root, output_root)?;
+    let state_target = state_path(&site.output_root)?;
+    // Hold one cross-process lock for the complete read -> apply -> persist
+    // transaction. Atomic file replacement alone does not prevent lost updates.
+    let _state_lock = lock_vault_update(&state_target)?;
     let state = site.load_state()?;
     site.ensure_scaffold()?;
     publish_apply_with_state_persistence(
@@ -360,7 +396,7 @@ where
         input,
         &site.docs_sink,
         &state,
-        &PublishPlanOptions::default(),
+        options,
         |next_state| save_state(&site, next_state),
     )
 }
@@ -516,6 +552,7 @@ mod tests {
                 to_write: vec![first, second],
                 to_delete: vec![],
             },
+            &PublishPlanOptions::default(),
             |site, state| {
                 save_calls += 1;
                 if save_calls == 2 {

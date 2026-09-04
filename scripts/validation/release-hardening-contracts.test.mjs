@@ -120,6 +120,16 @@ test('release receipt separates installer subjects from architecture trust metad
   assert.doesNotMatch(workflow, /subject-path:\s*release-evidence/)
 })
 
+test('packaged smoke re-hashes the staged daemon against its staging receipt', () => {
+  const smoke = read('scripts/release/packaged-smoke.ps1')
+  assert.match(smoke, /ConvertFrom-Json/)
+  assert.match(smoke, /Get-FileHash -LiteralPath \$sidecar -Algorithm SHA256/)
+  assert.match(smoke, /receiptData\.artifact/)
+  assert.match(smoke, /receiptData\.bytes/)
+  assert.match(smoke, /receiptData\.sha256/)
+  assert.match(smoke, /does not match staged sidecar SHA-256/)
+})
+
 test('toolbar popovers escape scroll clipping without a React positioning loop', () => {
   const portal = read('src/components/ToolbarPopover.tsx')
   const css = read('src/styles/components/toolbar-popover.css')

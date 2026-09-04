@@ -289,6 +289,9 @@ function App() {
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
+  // Pulled out of the per-render registry result so memoized callbacks can depend on the
+  // stable `useCallback` identity instead of the whole hook object.
+  const canExecutePluginCommand = plugins.canExecutePluginCommand
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
   const workspace = useVaultWorkspace({
     onSearchComplete: (hits) => {
@@ -363,6 +366,7 @@ function App() {
   })
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
+    workspace.vault?.id,
     workspace.vaultConfig,
     workspace.setVaultConfig,
     workspace.activePath,
@@ -370,6 +374,7 @@ function App() {
     plugins.contributions.exportProfiles,
     plugins.contributions.mcpTools,
     pluginCommandRuntime,
+    plugins.canExecutePluginCommand,
     hibernateMcp,
   )
   const storeSurface = useStoreSurfaceController({
@@ -696,13 +701,10 @@ function App() {
 
   const pluginCommandEntries = useMemo(
     () =>
-      plugins.plugins.flatMap((plugin) =>
-        (plugin.manifest.contributes?.commands ?? []).map((command) => ({
-          pluginId: plugin.manifest.id,
-          command,
-        })),
+      plugins.contributions.commands.flatMap((command) =>
+        command.pluginId ? [{ pluginId: command.pluginId, command }] : [],
       ),
-    [plugins.plugins],
+    [plugins.contributions.commands],
   )
 
   const setEditorSurfaceMode = useCallback(
@@ -788,10 +790,12 @@ function App() {
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
-        runPluginCommand: (command) =>
-          void runPluginCommand(command, pluginCommandRuntime, {
+        runPluginCommand: (entry) => {
+          if (!canExecutePluginCommand(entry.pluginId, entry.command.permission)) return
+          void runPluginCommand(entry.command, pluginCommandRuntime, {
             notePath: workspace.activePath,
-          }),
+          })
+        },
         deleteActiveNote: nativeReady ? () => void deleteActiveNote() : undefined,
         openRecentNote: (path) => void workspace.openNote(path),
         recentNotes,
@@ -816,6 +820,7 @@ function App() {
       }),
     [
       ai,
+      canExecutePluginCommand,
       chrome.inspectorCollapsed,
       chrome.vaultSidebarCollapsed,
       deleteActiveNote,

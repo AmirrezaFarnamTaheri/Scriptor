@@ -1,3 +1,5 @@
+use rusqlite::TransactionBehavior;
+
 use scriptor_vault::{
     MAX_INDEXED_NOTE_BYTES, NoteDocument, ScannedEntryKind, VaultSession, metadata_from_markdown,
     read_note, scan_vault_for_index,
@@ -8,11 +10,12 @@ use crate::citation::register_bibliography_keys;
 use crate::db::{IndexCache, default_cache_path};
 use crate::error::IndexerError;
 use crate::health::{CacheStatus, VaultHealthReport, build_health_report};
-use crate::links::{replace_note_links, replace_note_links_on, resolve_link_targets};
+use crate::links::{replace_note_links_on, resolve_link_targets_on};
 use crate::notes::{
-    note_needs_reindex, remove_note_from_index, session_cache_path, upsert_note, upsert_note_on,
+    note_needs_reindex, note_needs_reindex_on, remove_note_from_index_on, session_cache_path,
+    upsert_note_on,
 };
-use crate::tasks::{sync_note_tasks_from_markdown, sync_note_tasks_from_markdown_on};
+use crate::tasks::sync_note_tasks_from_markdown_on;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct RebuildSummary {
@@ -100,27 +103,28 @@ pub fn rebuild_index_with_progress(
     let mut links_written = 0u32;
     let progress_stride = (notes_total / 3).max(1) as usize;
 
-    // One transaction per chunk: 500 notes share a single WAL commit instead
-    // of paying fsync per note (SQLite group-commit dominates rebuild cost
-    // on spinning and SSD disks alike).
-    const NOTES_PER_TRANSACTION: usize = 500;
-    let conn = cache.connection()?;
+    // Keep the entire visible rebuild inside one write transaction. WAL readers
+    // continue to see the previous complete cache until this transaction commits;
+    // a parse/index failure rolls back the whole rebuild instead of publishing a
+    // half-old/half-new derived database.
+    let mut conn = cache.connection()?;
+    let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let tx = &transaction;
     let mut processed = 0usize;
+    let mut indexable_paths = std::collections::BTreeSet::<String>::new();
 
-    for chunk in note_entries.chunks(NOTES_PER_TRANSACTION) {
-        let transaction = conn.unchecked_transaction()?;
-        let tx = &transaction;
-        for entry in chunk.iter() {
-            if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
-                skipped_notes += 1;
-                tracing::warn!(
-                    path = %entry.path,
-                    size_bytes = entry.size_bytes,
-                    limit_bytes = MAX_INDEXED_NOTE_BYTES,
-                    "skipping oversized note during index rebuild"
-                );
-                continue;
-            }
+    for entry in &note_entries {
+        processed += 1;
+        if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
+            skipped_notes += 1;
+            tracing::warn!(
+                path = %entry.path,
+                size_bytes = entry.size_bytes,
+                limit_bytes = MAX_INDEXED_NOTE_BYTES,
+                "skipping oversized note during index rebuild"
+            );
+        } else {
+            indexable_paths.insert(entry.path.clone());
             let path = scriptor_vault::RelativeVaultPath::parse(&entry.path)?;
             // Reuse the content the scan already read instead of re-reading every
             // file; fall back to a fresh read if the scan did not capture it.
@@ -137,7 +141,7 @@ pub fn rebuild_index_with_progress(
                 _ => read_note(&session.descriptor.id, &session.root, &path)?,
             };
 
-            if !note_needs_reindex(&cache, &note.metadata, &note.markdown)? {
+            if !note_needs_reindex_on(tx, &note.metadata, &note.markdown)? {
                 skipped_notes += 1;
             } else {
                 upsert_note_on(tx, &note.metadata, &note.markdown)?;
@@ -150,21 +154,42 @@ pub fn rebuild_index_with_progress(
                 links_written += replace_note_links_on(tx, session, &entry.path, &note.markdown)?;
                 indexed_notes += 1;
             }
-
-            processed += 1;
-            if processed.is_multiple_of(progress_stride) || processed as u32 == notes_total {
-                emit(
-                    "indexing",
-                    processed as u32,
-                    notes_total,
-                    RebuildStatus::Running,
-                );
-            }
         }
-        transaction.commit()?;
+
+        if processed.is_multiple_of(progress_stride) || processed as u32 == notes_total {
+            emit(
+                "indexing",
+                processed as u32,
+                notes_total,
+                RebuildStatus::Running,
+            );
+        }
     }
 
-    resolve_link_targets(&cache, &session.descriptor.id)?;
+    // A full rebuild is also authoritative deletion reconciliation. Rows for
+    // deleted notes, or for notes that grew beyond the indexing budget, must
+    // not survive with stale searchable content.
+    let indexed_paths = {
+        let mut statement = tx.prepare_cached("SELECT path FROM notes WHERE vault_id = ?1")?;
+        statement
+            .query_map([&session.descriptor.id], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    for stale_path in indexed_paths {
+        if !indexable_paths.contains(&stale_path) {
+            remove_note_from_index_on(tx, &session.descriptor.id, &stale_path)?;
+        }
+    }
+
+    resolve_link_targets_on(tx, &session.descriptor.id, None)?;
+    tx.execute(
+        "DELETE FROM cache_meta WHERE key = 'fts_rebuild_required'",
+        [],
+    )?;
+    transaction.commit()?;
+
+    // Refresh planner statistics only after the atomic rebuild is published.
+    conn.execute_batch("PRAGMA optimize;")?;
 
     emit("health", notes_total, notes_total, RebuildStatus::Running);
 
@@ -252,7 +277,6 @@ pub fn incremental_notes_index_with_cache(
         }
     }
 
-    resolve_link_targets(cache, &session.descriptor.id)?;
     Ok(summary)
 }
 
@@ -265,11 +289,45 @@ fn apply_note_index_change(
     let absolute = session.root.resolve_relative(&relative)?;
 
     if !absolute.exists() {
-        return if remove_note_from_index(cache, session, path)? {
-            Ok(NoteIndexAction::Removed)
+        let mut conn = cache.connection()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let removed = remove_note_from_index_on(&tx, &session.descriptor.id, path)?;
+        if removed {
+            resolve_link_targets_on(&tx, &session.descriptor.id, None)?;
+        }
+        tx.commit()?;
+        return Ok(if removed {
+            NoteIndexAction::Removed
         } else {
-            Ok(NoteIndexAction::Skipped)
-        };
+            NoteIndexAction::Skipped
+        });
+    }
+
+    let size_bytes = std::fs::metadata(&absolute)
+        .map_err(|source| IndexerError::Io {
+            path: absolute.clone(),
+            source,
+        })?
+        .len();
+    if size_bytes > MAX_INDEXED_NOTE_BYTES {
+        tracing::warn!(
+            path,
+            size_bytes,
+            limit_bytes = MAX_INDEXED_NOTE_BYTES,
+            "removing oversized note from derived index"
+        );
+        let mut conn = cache.connection()?;
+        let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let removed = remove_note_from_index_on(&tx, &session.descriptor.id, path)?;
+        if removed {
+            resolve_link_targets_on(&tx, &session.descriptor.id, None)?;
+        }
+        tx.commit()?;
+        return Ok(if removed {
+            NoteIndexAction::Removed
+        } else {
+            NoteIndexAction::Skipped
+        });
     }
 
     let note = read_note(&session.descriptor.id, &session.root, &relative)?;
@@ -277,9 +335,44 @@ fn apply_note_index_change(
         return Ok(NoteIndexAction::Skipped);
     }
 
-    upsert_note(cache, &note.metadata, &note.markdown)?;
-    sync_note_tasks_from_markdown(cache, &session.descriptor.id, path, &note.markdown)?;
-    replace_note_links(cache, session, path, &note.markdown)?;
+    let parsed = crate::parse::parse_note_markdown(path, &note.markdown);
+    let new_aliases = serde_json::to_string(&parsed.aliases)?;
+
+    // Keep metadata, FTS, tasks, outgoing links, and link resolution in one
+    // write-intent transaction. Ordinary content edits re-resolve only the
+    // changed note's outgoing links; title/alias changes (or a new note) may
+    // affect incoming links and therefore trigger the full resolver.
+    let mut conn = cache.connection()?;
+    let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let old_identity: Option<(String, String)> = {
+        let mut statement = tx.prepare_cached(
+            "SELECT title, aliases_json FROM notes WHERE id = ?1 AND vault_id = ?2",
+        )?;
+        let mut rows =
+            statement.query(rusqlite::params![note.metadata.id, session.descriptor.id])?;
+        rows.next()?
+            .map(|row| {
+                Ok::<_, rusqlite::Error>((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .transpose()?
+    };
+    let identity_changed = old_identity
+        .as_ref()
+        .is_none_or(|(title, aliases)| title != &parsed.title || aliases != &new_aliases);
+
+    upsert_note_on(&tx, &note.metadata, &note.markdown)?;
+    sync_note_tasks_from_markdown_on(&tx, &session.descriptor.id, path, &note.markdown)?;
+    replace_note_links_on(&tx, session, path, &note.markdown)?;
+    resolve_link_targets_on(
+        &tx,
+        &session.descriptor.id,
+        if identity_changed {
+            None
+        } else {
+            Some(&note.metadata.id)
+        },
+    )?;
+    tx.commit()?;
     Ok(NoteIndexAction::Updated)
 }
 

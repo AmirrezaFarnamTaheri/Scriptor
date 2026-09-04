@@ -443,7 +443,11 @@ pub fn indexer_kanban_board(
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
     let document =
         read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-    Ok(parse_kanban(&note_path, &document.markdown))
+    let board = parse_kanban(&note_path, &document.markdown);
+    if let Some(board) = board.as_ref() {
+        scriptor_indexer::validate_board(board).map_err(|e| e.to_string())?;
+    }
+    Ok(board)
 }
 
 /// Move a kanban card to a different column by relocating the full card line.

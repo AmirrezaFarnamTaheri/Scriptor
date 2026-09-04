@@ -19,7 +19,7 @@
 //! use std::path::PathBuf;
 //! use scriptor_native_git::queue::{GitQueue, QueuedOp};
 //!
-//! let queue = GitQueue::new(PathBuf::from("/path/to/repo"));
+//! let queue = GitQueue::new(PathBuf::from("/path/to/repo")).expect("queue");
 //! let result = queue.enqueue(|root| {
 //!     // Any mutating git operation here.
 //!     Ok("done".to_string())
@@ -61,7 +61,7 @@ impl GitQueue {
     ///
     /// The worker runs until the `GitQueue` is dropped (at which point the
     /// sender channel closes and the worker exits its loop).
-    pub fn new(repo_root: PathBuf) -> Self {
+    pub fn new(repo_root: PathBuf) -> Result<Self, GitError> {
         let (sender, receiver) = mpsc::sync_channel::<Task>(MAX_PENDING_GIT_OPERATIONS);
         let root_clone = repo_root.clone();
 
@@ -79,9 +79,16 @@ impl GitQueue {
                     task(&root_clone);
                 }
             })
-            .expect("failed to spawn git queue worker thread");
+            .map_err(|error| {
+                GitError::Command(format!("failed to spawn git queue worker thread: {error}"))
+            })?;
 
-        Self { sender, repo_root }
+        Ok(Self { sender, repo_root })
+    }
+
+    /// Alias used at call sites where fallibility should be visually explicit.
+    pub fn try_new(repo_root: PathBuf) -> Result<Self, GitError> {
+        Self::new(repo_root)
     }
 
     /// Submit a git operation to be run on the worker thread.
@@ -127,7 +134,7 @@ mod tests {
     fn queue_runs_closure_on_repo_root() {
         let dir = tempdir().unwrap();
         let root = dir.path().to_path_buf();
-        let queue = GitQueue::new(root.clone());
+        let queue = GitQueue::new(root.clone()).unwrap();
 
         let result = queue
             .enqueue(|r| Ok(r.to_string_lossy().into_owned()))
@@ -140,7 +147,7 @@ mod tests {
         use std::sync::{Arc, Mutex};
 
         let dir = tempdir().unwrap();
-        let queue = GitQueue::new(dir.path().to_path_buf());
+        let queue = GitQueue::new(dir.path().to_path_buf()).unwrap();
         let log: Arc<Mutex<Vec<u32>>> = Arc::new(Mutex::new(Vec::new()));
 
         let mut handles = Vec::new();
@@ -170,7 +177,7 @@ mod tests {
     #[test]
     fn queue_propagates_errors() {
         let dir = tempdir().unwrap();
-        let queue = GitQueue::new(dir.path().to_path_buf());
+        let queue = GitQueue::new(dir.path().to_path_buf()).unwrap();
 
         let result = queue.enqueue(|_| Err::<String, _>(GitError::Command("boom".into())));
         assert!(matches!(result, Err(GitError::Command(_))));
@@ -180,7 +187,7 @@ mod tests {
     fn queue_reports_correct_repo_root() {
         let dir = tempdir().unwrap();
         let root = dir.path().to_path_buf();
-        let queue = GitQueue::new(root.clone());
+        let queue = GitQueue::new(root.clone()).unwrap();
         assert_eq!(queue.repo_root, root);
     }
 
@@ -190,7 +197,7 @@ mod tests {
         use std::sync::{Arc, Barrier};
 
         let dir = tempdir().unwrap();
-        let queue = Arc::new(GitQueue::new(dir.path().to_path_buf()));
+        let queue = Arc::new(GitQueue::new(dir.path().to_path_buf()).unwrap());
         let total_tasks = 80usize; // > MAX_PENDING_GIT_OPERATIONS (64)
 
         let gate = Arc::new(Barrier::new(2));

@@ -1,10 +1,12 @@
-export type DraftPatchStatus = 'pending' | 'approved' | 'rejected'
+export type DraftPatchStatus = 'pending' | 'applying' | 'approved' | 'rejected' | 'failed'
 export type DraftOperation = 'patch' | 'create' | 'move' | 'delete'
 
 export interface DraftPatch {
   id: string
+  vaultId: string
   notePath: string
   sourcePath?: string
+  updateLinks?: boolean
   operation: DraftOperation
   baseContentHash?: string
   proposedMarkdown: string
@@ -18,17 +20,21 @@ export interface DraftPatchQueue {
 }
 
 export function createDraftPatch(input: {
+  vaultId: string
   notePath: string
   proposedMarkdown: string
   summary: string
   baseContentHash?: string
   operation?: DraftOperation
   sourcePath?: string
+  updateLinks?: boolean
 }): DraftPatch {
   return {
     id: `draft-${crypto.randomUUID()}`,
+    vaultId: input.vaultId,
     notePath: input.notePath,
     sourcePath: input.sourcePath,
+    updateLinks: input.updateLinks,
     operation: input.operation ?? 'patch',
     baseContentHash: input.baseContentHash,
     proposedMarkdown: input.proposedMarkdown,
@@ -49,6 +55,7 @@ export function rejectDraftPatch(patch: DraftPatch): DraftPatch {
 export function runDraftTests(): string[] {
   const failures: string[] = []
   const patch = createDraftPatch({
+    vaultId: 'vault-test',
     notePath: 'note.md',
     proposedMarkdown: '# Updated',
     summary: 'Title tweak',
@@ -60,6 +67,7 @@ export function runDraftTests(): string[] {
   if (rejectDraftPatch(patch).status !== 'rejected') failures.push('draft reject')
 
   const createDraft = createDraftPatch({
+    vaultId: 'vault-test',
     notePath: 'new.md',
     proposedMarkdown: '# New',
     summary: 'Create note',
@@ -68,6 +76,7 @@ export function runDraftTests(): string[] {
   if (createDraft.operation !== 'create') failures.push('create operation')
 
   const moveDraft = createDraftPatch({
+    vaultId: 'vault-test',
     notePath: 'to.md',
     sourcePath: 'from.md',
     proposedMarkdown: '# Moved',
@@ -78,6 +87,7 @@ export function runDraftTests(): string[] {
   if (moveDraft.operation !== 'move' || moveDraft.sourcePath !== 'from.md') failures.push('move operation')
 
   const deleteDraft = createDraftPatch({
+    vaultId: 'vault-test',
     notePath: 'gone.md',
     proposedMarkdown: '',
     summary: 'Delete note',

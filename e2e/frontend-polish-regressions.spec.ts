@@ -120,7 +120,11 @@ test.describe('Frontend polish regressions', () => {
     const reader = page.getByRole('dialog', { name: 'Reader', exact: true })
     await expect(reader).toBeVisible()
     await expect(reader).toContainText('Research Paper.pdf')
-    await expect(reader.locator('iframe[title*="Research Paper.pdf"]')).toBeVisible()
+    const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
+    await expect(frame).toBeVisible()
+    const viewer = frame.contentFrame()
+    await expect(viewer.locator('#page-canvas')).toBeVisible()
+    await expect(viewer.locator('#text-layer')).toContainText('Scriptor Reader')
   })
 
   test('palette mounts reader, tasks, and kanban when their UI contracts are available', async ({ page }) => {

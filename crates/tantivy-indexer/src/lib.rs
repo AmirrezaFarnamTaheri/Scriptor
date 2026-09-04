@@ -11,6 +11,9 @@ pub mod error;
 
 pub use error::TantivyError;
 
+const SCRIPTOR_SCHEMA_VERSION: &str = "1";
+const SCRIPTOR_SCHEMA_FILE: &str = "scriptor-schema-version";
+
 pub struct SearchHit {
     pub path: String,
     pub title: String,
@@ -39,10 +42,30 @@ impl TantivyIndex {
         let body_field = schema_builder.add_text_field("body", TEXT | STORED);
         let schema = schema_builder.build();
 
+        let version_path = path.join(SCRIPTOR_SCHEMA_FILE);
         let index = if path.join("meta.json").exists() {
-            Index::open_in_dir(path)?
+            let version = std::fs::read_to_string(&version_path).map_err(|error| {
+                TantivyError::IncompatibleSchema(format!(
+                    "missing {SCRIPTOR_SCHEMA_FILE}; rebuild the evaluation index ({error})"
+                ))
+            })?;
+            if version.trim() != SCRIPTOR_SCHEMA_VERSION {
+                return Err(TantivyError::IncompatibleSchema(format!(
+                    "found version {}, expected {SCRIPTOR_SCHEMA_VERSION}; rebuild the evaluation index",
+                    version.trim()
+                )));
+            }
+            let index = Index::open_in_dir(path)?;
+            if index.schema() != schema {
+                return Err(TantivyError::IncompatibleSchema(
+                    "Tantivy field schema does not match the current Scriptor schema".into(),
+                ));
+            }
+            index
         } else {
-            Index::create_in_dir(path, schema.clone())?
+            let index = Index::create_in_dir(path, schema.clone())?;
+            std::fs::write(&version_path, format!("{SCRIPTOR_SCHEMA_VERSION}\n"))?;
+            index
         };
 
         let reader = index
@@ -350,5 +373,14 @@ mod tests {
         let hits = index.search("Rust", 10).unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].path, "notes/C++ & Rust.md");
+    }
+
+    #[test]
+    fn existing_index_requires_matching_scriptor_schema_version() {
+        let dir = tempdir().unwrap();
+        TantivyIndex::create_or_open(dir.path()).unwrap();
+        std::fs::write(dir.path().join(SCRIPTOR_SCHEMA_FILE), "999\n").unwrap();
+        let error = TantivyIndex::create_or_open(dir.path()).unwrap_err();
+        assert!(matches!(error, TantivyError::IncompatibleSchema(_)));
     }
 }

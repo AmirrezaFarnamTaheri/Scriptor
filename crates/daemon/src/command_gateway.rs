@@ -9,7 +9,8 @@ use scriptor_canvas_engine::{
     query_blocks_in_bounds, render_svg, restore_template_checkpoint, save_document, write_snapshot,
 };
 use scriptor_export_runner::{
-    ExportJobInput, ExportJobOutput, default_export_directory, discover_pandoc, run_export_job,
+    ExportJobInput, ExportJobOutput, default_export_directory, discover_pandoc,
+    export_artifact_stem, run_export_job,
 };
 use scriptor_indexer::{
     InboxPeriod, ViewNoteHit, backlinks_for_path, evaluate_view_filter_json, execute_dql_query,
@@ -577,8 +578,12 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             }))
         }
         "export_cancel" => {
-            state.export_job.cancel(None).map_err(|e| e.to_string())?;
-            Ok(json!(true))
+            let job_id = optional_str(payload, "job_id");
+            let cancelled = state
+                .export_job
+                .cancel(job_id.as_deref())
+                .map_err(|e| e.to_string())?;
+            Ok(json!(cancelled))
         }
         "export_job_status" => {
             let report = state.export_job.progress_snapshot();
@@ -607,20 +612,20 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let message = require_str(payload, "message")?;
             to_value(
                 state
-                    .git_queue()
+                    .git_queue()?
                     .enqueue(move |root| git_commit_selected(root, &files, &message))
                     .map_err(|e| e.to_string())?,
             )
         }
         "git_pull_cmd" => to_value(
             state
-                .git_queue()
+                .git_queue()?
                 .enqueue(move |root| git_pull(root, PullStrategy::FastForward))
                 .map_err(|e| e.to_string())?,
         ),
         "git_push_cmd" => to_value(
             state
-                .git_queue()
+                .git_queue()?
                 .enqueue(move |root| git_push(root))
                 .map_err(|e| e.to_string())?,
         ),
@@ -629,7 +634,7 @@ pub fn dispatch(state: &mut DaemonState, command: &str, payload: &Value) -> Resu
             let strategy = require_str(payload, "strategy")?;
             to_value(
                 state
-                    .git_queue()
+                    .git_queue()?
                     .enqueue(move |root| git_resolve_conflict(root, &path, &strategy))
                     .map_err(|e| e.to_string())?,
             )

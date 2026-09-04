@@ -21,14 +21,6 @@ use crate::plan::{
     plan_publish,
 };
 
-/// Which site generator scaffold the output directory should be initialised with.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub enum SiteTemplate {
-    AstroStarlight,
-    PlainDirectory,
-}
-
 /// A path-safe local publish sink.
 ///
 /// `output_root` is canonicalized when the sink is created. Every write/delete
@@ -115,6 +107,30 @@ impl LocalDirSink {
         Ok(Some(content_hash_bytes(&bytes)))
     }
 
+    fn read_existing(&self, rel_path: &str) -> Result<Option<Vec<u8>>, PublishError> {
+        let path = self.resolve_managed_path(rel_path)?;
+        if !path.exists() {
+            return Ok(None);
+        }
+        let metadata = std::fs::symlink_metadata(&path).map_err(|source| PublishError::Io {
+            path: rel_path.to_string(),
+            source,
+        })?;
+        if !metadata.file_type().is_file() {
+            return Err(PublishError::InvalidSelection {
+                path: rel_path.to_string(),
+                reason: "managed publish output is not a regular file".into(),
+            });
+        }
+        match read_bounded(&path, rel_path, MAX_INDEXED_NOTE_BYTES)? {
+            BoundedRead::Bytes(bytes) => Ok(Some(bytes)),
+            BoundedRead::TooLarge { .. } => Err(PublishError::InvalidSelection {
+                path: rel_path.to_string(),
+                reason: format!("managed publish output exceeds {MAX_INDEXED_NOTE_BYTES} bytes"),
+            }),
+        }
+    }
+
     pub fn write(&self, rel_path: &str, source_bytes: &[u8]) -> Result<(), PublishError> {
         #[cfg(test)]
         if self.fail_write_paths.contains(rel_path) {
@@ -189,6 +205,21 @@ struct PreparedWrite {
     rel_path: String,
     content_hash: String,
     bytes: Vec<u8>,
+}
+
+fn managed_state_key<'a>(state: &'a BucketState, rel: &str) -> Option<&'a str> {
+    if let Some((key, _)) = state.entries.get_key_value(rel) {
+        return Some(key.as_str());
+    }
+    if cfg!(windows) {
+        state
+            .entries
+            .keys()
+            .find(|key| key.eq_ignore_ascii_case(rel))
+            .map(String::as_str)
+    } else {
+        None
+    }
 }
 
 fn partial_apply_error(
@@ -273,7 +304,7 @@ fn prepare_apply(
                 current_hash: current.content_hash.clone(),
             });
         }
-        if !prior_state.entries.contains_key(rel) && sink.exists(rel)? {
+        if managed_state_key(prior_state, rel).is_none() && sink.exists(rel)? {
             return Err(PublishError::InvalidSelection {
                 path: rel.to_string(),
                 reason: "destination exists but is not managed by Scriptor publish state".into(),
@@ -299,16 +330,14 @@ fn prepare_apply(
                 current_hash,
             });
         }
-        if bytes
-            .windows(SEALED_PREFIX.len())
-            .any(|window| window == SEALED_PREFIX.as_bytes())
-        {
+        if memchr::memmem::find(&bytes, SEALED_PREFIX.as_bytes()).is_some() {
             return Err(PublishError::SealedContent {
                 path: rel.to_string(),
             });
         }
+        let frontmatter_probe = &bytes[..bytes.len().min(64 * 1024)];
         if options.require_frontmatter_opt_in
-            && !frontmatter_has_publish_true(&String::from_utf8_lossy(&bytes))
+            && !frontmatter_has_publish_true(&String::from_utf8_lossy(frontmatter_probe))
         {
             return Err(PublishError::NotOptedIn {
                 path: rel.to_string(),
@@ -381,18 +410,15 @@ where
     let mut state_changed = false;
 
     for prepared in prepared_writes {
-        let previous = new_state
-            .entries
-            .insert(prepared.rel_path.clone(), prepared.content_hash.clone());
-        if let Err(error) = persist_state(&new_state) {
-            match previous {
-                Some(hash) => {
-                    new_state.entries.insert(prepared.rel_path.clone(), hash);
-                }
-                None => {
-                    new_state.entries.remove(&prepared.rel_path);
-                }
-            }
+        let previous_output = sink.read_existing(&prepared.rel_path)?;
+        let previous_key = managed_state_key(&new_state, &prepared.rel_path).map(str::to_string);
+        let previous_hash = previous_key
+            .as_ref()
+            .and_then(|key| new_state.entries.get(key).cloned());
+
+        // Physical output is the authority: never claim ownership until the
+        // write has succeeded. A transient write failure leaves state unchanged.
+        if let Err(error) = sink.write(&prepared.rel_path, &prepared.bytes) {
             return Err(partial_apply_error(
                 error,
                 &written,
@@ -401,17 +427,53 @@ where
                 state_changed,
             ));
         }
-        state_changed = true;
 
-        if let Err(error) = sink.write(&prepared.rel_path, &prepared.bytes) {
+        if let Some(previous_key) = previous_key.as_ref()
+            && previous_key != &prepared.rel_path
+        {
+            new_state.entries.remove(previous_key);
+        }
+        new_state
+            .entries
+            .insert(prepared.rel_path.clone(), prepared.content_hash.clone());
+
+        if let Err(error) = persist_state(&new_state) {
+            // Restore the physical file so durable state and disk still agree.
+            let rollback = match previous_output {
+                Some(ref bytes) => sink.write(&prepared.rel_path, bytes),
+                None => sink.delete(&prepared.rel_path),
+            };
+            if rollback.is_ok() {
+                new_state.entries.remove(&prepared.rel_path);
+                if let (Some(key), Some(hash)) = (previous_key, previous_hash) {
+                    new_state.entries.insert(key, hash);
+                }
+                return Err(partial_apply_error(
+                    error,
+                    &written,
+                    &deleted,
+                    &new_state,
+                    state_changed,
+                ));
+            }
+            // Rollback failure is itself partial application. Preserve the
+            // recovery state matching the new physical bytes.
+            written.push(prepared.rel_path.clone());
             return Err(partial_apply_error(
                 error, &written, &deleted, &new_state, true,
             ));
         }
+        state_changed = true;
         written.push(prepared.rel_path);
     }
 
     for rel in prepared_deletes {
+        let previous_output = sink.read_existing(&rel)?;
+        let previous_key = managed_state_key(&new_state, &rel).map(str::to_string);
+        let previous_hash = previous_key
+            .as_ref()
+            .and_then(|key| new_state.entries.get(key).cloned());
+
         if let Err(error) = sink.delete(&rel) {
             return Err(partial_apply_error(
                 error,
@@ -422,19 +484,29 @@ where
             ));
         }
 
-        let removed_hash = new_state.entries.remove(&rel);
+        if let Some(previous_key) = previous_key.as_ref() {
+            new_state.entries.remove(previous_key);
+        }
         if let Err(error) = persist_state(&new_state) {
-            if let Some(hash) = removed_hash {
-                new_state.entries.insert(rel.clone(), hash);
+            let rollback = match previous_output {
+                Some(ref bytes) => sink.write(&rel, bytes),
+                None => Ok(()),
+            };
+            if rollback.is_ok() {
+                if let (Some(key), Some(hash)) = (previous_key, previous_hash) {
+                    new_state.entries.insert(key, hash);
+                }
+                return Err(partial_apply_error(
+                    error,
+                    &written,
+                    &deleted,
+                    &new_state,
+                    state_changed,
+                ));
             }
-            let mut physically_deleted = deleted.clone();
-            physically_deleted.push(rel);
+            deleted.push(rel.clone());
             return Err(partial_apply_error(
-                error,
-                &written,
-                &physically_deleted,
-                &new_state,
-                true,
+                error, &written, &deleted, &new_state, true,
             ));
         }
         state_changed = true;

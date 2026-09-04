@@ -10,12 +10,12 @@ use crate::tags::notes_for_tag;
 use crate::tasks::{TaskFilter, query_tasks};
 use crate::views::list_view_notes;
 
-/// Result cap shared by every DQL clause.
+/// Result cap returned to callers.
 const DQL_RESULT_LIMIT: usize = 200;
-
-/// How many candidate rows `path matches` may pull out of SQLite before the
-/// user-supplied regex is applied to them.
-const PATH_MATCH_SCAN_LIMIT: i64 = 5_000;
+/// Hard ceiling for intermediate candidate sets. Compound queries must never
+/// silently compute AND/NOT over an already-truncated 200-row prefix.
+const DQL_CANDIDATE_LIMIT: usize = 5_000;
+const DQL_CANDIDATE_FETCH: i64 = DQL_CANDIDATE_LIMIT as i64 + 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DqlResultRow {
@@ -105,8 +105,8 @@ fn execute_single_clause(
 
     // ── W3-3: compact operator syntax ────────────────────────────────────────
     // `path:<substring>` — notes whose vault-relative path contains the value.
-    if let Some(value) = lower.strip_prefix("path:") {
-        let value = value.trim();
+    if lower.starts_with("path:") {
+        let value = trimmed["path:".len()..].trim();
         if value.is_empty() {
             return Err(caret_error(query, 5, "path: requires a value"));
         }
@@ -114,26 +114,26 @@ fn execute_single_clause(
     }
 
     // `tag:<name>` — notes that carry the tag (with or without leading `#`).
-    if let Some(value) = lower.strip_prefix("tag:") {
-        let tag = value.trim().trim_start_matches('#');
+    if lower.starts_with("tag:") {
+        let tag = trimmed["tag:".len()..].trim().trim_start_matches('#');
         if tag.is_empty() {
             return Err(caret_error(query, 4, "tag: requires a value"));
         }
-        return notes_for_tag(cache, &session.descriptor.id, tag).map(|notes| {
-            notes
-                .into_iter()
-                .map(|note| DqlResultRow {
-                    path: note.path,
-                    title: note.title,
-                    snippet: String::new(),
-                })
-                .collect()
-        });
+        let notes = notes_for_tag(cache, &session.descriptor.id, tag)?;
+        let rows = notes
+            .into_iter()
+            .map(|note| DqlResultRow {
+                path: note.path,
+                title: note.title,
+                snippet: String::new(),
+            })
+            .collect();
+        return ensure_candidate_bound(rows, "tag");
     }
 
     // `line:<text>` — notes that contain an exact line matching the value.
-    if let Some(value) = lower.strip_prefix("line:") {
-        let value = value.trim();
+    if lower.starts_with("line:") {
+        let value = trimmed["line:".len()..].trim();
         if value.is_empty() {
             return Err(caret_error(query, 5, "line: requires a value"));
         }
@@ -157,32 +157,34 @@ fn execute_single_clause(
     }
     // ── legacy Foam-style operators (preserved, I-5) ─────────────────────────
 
-    if let Some(tag) = lower
-        .strip_prefix("path has #")
-        .or_else(|| lower.strip_prefix("path has "))
-    {
-        let tag = tag.trim_start_matches('#');
-        return notes_for_tag(cache, &session.descriptor.id, tag).map(|notes| {
-            notes
-                .into_iter()
-                .map(|note| DqlResultRow {
-                    path: note.path,
-                    title: note.title,
-                    snippet: String::new(),
-                })
-                .collect()
-        });
+    if lower.starts_with("path has #") || lower.starts_with("path has ") {
+        let prefix_len = if lower.starts_with("path has #") {
+            "path has #".len()
+        } else {
+            "path has ".len()
+        };
+        let tag = trimmed[prefix_len..].trim().trim_start_matches('#');
+        let notes = notes_for_tag(cache, &session.descriptor.id, tag)?;
+        let rows = notes
+            .into_iter()
+            .map(|note| DqlResultRow {
+                path: note.path,
+                title: note.title,
+                snippet: String::new(),
+            })
+            .collect();
+        return ensure_candidate_bound(rows, "tag");
     }
 
-    if let Some(needle) = extract_quoted_after(&lower, "title contains ") {
+    if let Some(needle) = extract_after_preserving_case(trimmed, &lower, "title contains ") {
         return title_contains(cache, &session.descriptor.id, &needle);
     }
 
-    if let Some(needle) = extract_quoted_after(&lower, "body contains ") {
+    if let Some(needle) = extract_after_preserving_case(trimmed, &lower, "body contains ") {
         return body_contains(cache, &session.descriptor.id, &needle);
     }
 
-    if let Some(pattern) = extract_regex_after(&lower, "path matches ") {
+    if let Some(pattern) = extract_regex_after_preserving_case(trimmed, &lower, "path matches ") {
         return path_matches(cache, &session.descriptor.id, &pattern);
     }
 
@@ -203,11 +205,13 @@ fn execute_single_clause(
     //   `task: status:done tag:project`
     //   `task: due:overdue`
     //   `task: due:2026-08-15`
-    if let Some(filter_str) = lower
-        .strip_prefix("task:")
-        .or_else(|| lower.strip_prefix("tasks:"))
-    {
-        let filter = parse_task_filter(filter_str.trim())?;
+    if lower.starts_with("task:") || lower.starts_with("tasks:") {
+        let prefix_len = if lower.starts_with("tasks:") {
+            "tasks:".len()
+        } else {
+            "task:".len()
+        };
+        let filter = parse_task_filter(trimmed[prefix_len..].trim())?;
         let tasks = query_tasks(cache, &session.descriptor.id, &filter, 500)?;
         return Ok(tasks
             .into_iter()
@@ -235,70 +239,43 @@ fn parse_task_filter(filter_str: &str) -> Result<TaskFilter, IndexerError> {
         return Ok(filter);
     }
 
-    // Simple tokeniser: split on spaces, each token is `key:value`.
     for token in filter_str.split_whitespace() {
-        if let Some(status) = token.strip_prefix("status:") {
-            if !status.is_empty() {
-                filter.status = Some(status.to_string());
+        let Some((raw_key, raw_value)) = token.split_once(':') else {
+            continue;
+        };
+        let key = raw_key.to_ascii_lowercase();
+        let value = raw_value.trim();
+        match key.as_str() {
+            "status" if !value.is_empty() => {
+                filter.status = Some(value.to_ascii_lowercase());
             }
-        } else if let Some(due_val) = token.strip_prefix("due:") {
-            match due_val {
-                "overdue" => {
-                    // due_before = today.
-                    let today = chrono_today();
-                    filter.due_before = Some(today);
-                }
-                date if !date.is_empty() => {
-                    // Exact date: treat as a date range [date, date].
-                    filter.due_before = Some(date.to_string());
-                    filter.due_after = Some(date.to_string());
-                }
-                _ => {}
+            "due" if value.eq_ignore_ascii_case("overdue") => {
+                filter.due_before = Some(local_yesterday());
             }
-        } else if let Some(tag) = token.strip_prefix("tag:")
-            && !tag.is_empty()
-        {
-            filter.tag = Some(tag.trim_start_matches('#').to_string());
+            "due" if !value.is_empty() => {
+                if !crate::tasks::is_valid_task_date(value) {
+                    return Err(IndexerError::InvalidQuery(format!(
+                        "invalid task due date {value:?}; expected YYYY-MM-DD"
+                    )));
+                }
+                filter.due_before = Some(value.to_string());
+                filter.due_after = Some(value.to_string());
+            }
+            "tag" if !value.is_empty() => {
+                filter.tag = Some(value.trim_start_matches('#').to_string());
+            }
+            _ => {}
         }
-        // Unknown tokens ignored for forward-compatibility.
     }
 
     Ok(filter)
 }
 
-/// Return today's date as an ISO-8601 string (YYYY-MM-DD) in the local timezone.
-/// Uses the system clock; swapped for a test stub in unit tests.
-fn chrono_today() -> String {
-    // Avoid pulling in chrono or time crates.  SQLite's `date('now')` is the
-    // canonical date source at query time; here we just need an approximate
-    // comparison value for the "overdue" filter.
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    // Gregorian approximation sufficient for overdue comparison.
-    let days = secs / 86400;
-    // Epoch = 1970-01-01; shift forward from there.
-    let (y, m, d) = epoch_days_to_ymd(days as i64);
-    format!("{y:04}-{m:02}-{d:02}")
-}
-
-/// Convert days since Unix epoch to (year, month, day).
-/// Gregorian proleptic calendar, accurate post-1582.
-fn epoch_days_to_ymd(days: i64) -> (i64, u32, u32) {
-    // Adapted from Richards' algorithm.
-    let z = days + 719468;
-    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
-    let doe = z - era * 146097;
-    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = (doy - (153 * mp + 2) / 5 + 1) as u32;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
-    let y = if m <= 2 { y + 1 } else { y };
-    (y, m, d)
+fn local_yesterday() -> String {
+    use chrono::{Duration, Local};
+    (Local::now().date_naive() - Duration::days(1))
+        .format("%Y-%m-%d")
+        .to_string()
 }
 
 fn extract_links_to_target(query: &str) -> Option<String> {
@@ -385,12 +362,11 @@ fn union_rows(left: Vec<DqlResultRow>, right: Vec<DqlResultRow>) -> Vec<DqlResul
     merged
 }
 
-fn extract_quoted_after(input: &str, prefix: &str) -> Option<String> {
-    let rest = if prefix.is_empty() {
-        input.trim()
-    } else {
-        input.strip_prefix(prefix)?.trim()
-    };
+fn extract_after_preserving_case(input: &str, lower: &str, prefix: &str) -> Option<String> {
+    if !lower.starts_with(prefix) {
+        return None;
+    }
+    let rest = input[prefix.len()..].trim();
     if let Some(inner) = rest.strip_prefix('"') {
         let end = inner.find('"')?;
         return Some(inner[..end].to_string());
@@ -399,14 +375,14 @@ fn extract_quoted_after(input: &str, prefix: &str) -> Option<String> {
         let end = inner.find('\'')?;
         return Some(inner[..end].to_string());
     }
-    if prefix.is_empty() {
-        return None;
-    }
-    Some(rest.to_string())
+    (!rest.is_empty()).then(|| rest.to_string())
 }
 
-fn extract_regex_after(input: &str, prefix: &str) -> Option<String> {
-    let rest = input.strip_prefix(prefix)?.trim();
+fn extract_regex_after_preserving_case(input: &str, lower: &str, prefix: &str) -> Option<String> {
+    if !lower.starts_with(prefix) {
+        return None;
+    }
+    let rest = input[prefix.len()..].trim();
     if rest.starts_with('/') && rest.len() > 2 {
         let end = rest[1..].find('/')?;
         return Some(rest[1..1 + end].to_string());
@@ -414,24 +390,54 @@ fn extract_regex_after(input: &str, prefix: &str) -> Option<String> {
     None
 }
 
+fn ensure_candidate_bound<T>(rows: Vec<T>, clause: &str) -> Result<Vec<T>, IndexerError> {
+    if rows.len() > DQL_CANDIDATE_LIMIT {
+        return Err(IndexerError::InvalidQuery(format!(
+            "{clause} matched more than {DQL_CANDIDATE_LIMIT} candidates; narrow the query before combining predicates"
+        )));
+    }
+    Ok(rows)
+}
+
 fn title_contains(
     cache: &IndexCache,
     vault_id: &str,
     needle: &str,
 ) -> Result<Vec<DqlResultRow>, IndexerError> {
-    let pattern = format!("%{needle}%");
     let conn = cache.connection()?;
-    let mut statement = conn.prepare(
-        "SELECT path, title FROM notes WHERE vault_id = ?1 AND title LIKE ?2 ORDER BY path LIMIT 200",
+    if needle.is_ascii() {
+        let pattern = format!("%{needle}%");
+        let mut statement = conn.prepare_cached(
+            "SELECT path, title FROM notes WHERE vault_id = ?1 AND title LIKE ?2 ORDER BY path LIMIT ?3",
+        )?;
+        let rows = statement.query_map(params![vault_id, pattern, DQL_CANDIDATE_FETCH], |row| {
+            Ok(DqlResultRow {
+                path: row.get(0)?,
+                title: row.get(1)?,
+                snippet: String::new(),
+            })
+        })?;
+        return ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "title contains");
+    }
+
+    // SQLite LIKE/NOCASE only folds ASCII. For non-ASCII identifiers, apply
+    // the same NFC + lowercase comparison used by the vault resolver.
+    let normalized = scriptor_vault::normalize_lookup_key(needle);
+    let mut statement = conn.prepare_cached(
+        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2",
     )?;
-    let rows = statement.query_map(params![vault_id, pattern], |row| {
+    let rows = statement.query_map(params![vault_id, DQL_CANDIDATE_FETCH], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
             snippet: String::new(),
         })
     })?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let rows = ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "title contains")?;
+    Ok(rows
+        .into_iter()
+        .filter(|row| scriptor_vault::normalize_lookup_key(&row.title).contains(&normalized))
+        .collect())
 }
 
 fn body_contains(
@@ -439,14 +445,15 @@ fn body_contains(
     vault_id: &str,
     needle: &str,
 ) -> Result<Vec<DqlResultRow>, IndexerError> {
-    Ok(search_notes(cache, vault_id, needle, 200)?
+    let rows = search_notes(cache, vault_id, needle, DQL_CANDIDATE_FETCH as u32)?
         .into_iter()
         .map(|hit| DqlResultRow {
             path: hit.path,
             title: hit.title,
             snippet: hit.snippet,
         })
-        .collect())
+        .collect();
+    ensure_candidate_bound(rows, "body contains")
 }
 
 fn path_matches(
@@ -465,18 +472,17 @@ fn path_matches(
     // user-supplied pattern, and the result cap matches the sibling clauses.
     let mut statement =
         conn.prepare("SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2")?;
-    let rows = statement.query_map(params![vault_id, PATH_MATCH_SCAN_LIMIT], |row| {
+    let rows = statement.query_map(params![vault_id, DQL_CANDIDATE_FETCH], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
             snippet: String::new(),
         })
     })?;
-    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    let rows = ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "path matches")?;
     Ok(rows
         .into_iter()
         .filter(|row| re.is_match(&row.path))
-        .take(DQL_RESULT_LIMIT)
         .collect())
 }
 
@@ -493,16 +499,16 @@ fn links_to(
          INNER JOIN links l ON l.from_note_id = n.id
          WHERE l.vault_id = ?1 AND (l.label LIKE ?2 OR IFNULL(l.to_path, '') LIKE ?2)
          ORDER BY n.path
-         LIMIT 200",
+         LIMIT ?3",
     )?;
-    let rows = statement.query_map(params![vault_id, pattern], |row| {
+    let rows = statement.query_map(params![vault_id, pattern, DQL_CANDIDATE_FETCH], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
             snippet: String::new(),
         })
     })?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "links to")
 }
 
 // ── W3-3 new helpers ──────────────────────────────────────────────────────────
@@ -526,21 +532,40 @@ fn path_contains(
     vault_id: &str,
     value: &str,
 ) -> Result<Vec<DqlResultRow>, IndexerError> {
-    let pattern = format!("%{value}%");
     let conn = cache.connection()?;
-    let mut stmt = conn.prepare(
-        "SELECT path, title FROM notes
-         WHERE vault_id = ?1 AND lower(path) LIKE lower(?2)
-         ORDER BY path LIMIT ?3",
+    if value.is_ascii() {
+        let pattern = format!("%{value}%");
+        let mut stmt = conn.prepare_cached(
+            "SELECT path, title FROM notes
+             WHERE vault_id = ?1 AND path LIKE ?2 COLLATE NOCASE
+             ORDER BY path LIMIT ?3",
+        )?;
+        let rows = stmt.query_map(params![vault_id, pattern, DQL_CANDIDATE_FETCH], |row| {
+            Ok(DqlResultRow {
+                path: row.get(0)?,
+                title: row.get(1)?,
+                snippet: String::new(),
+            })
+        })?;
+        return ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "path");
+    }
+
+    let normalized = scriptor_vault::normalize_lookup_key(value);
+    let mut stmt = conn.prepare_cached(
+        "SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2",
     )?;
-    let rows = stmt.query_map(params![vault_id, pattern, DQL_RESULT_LIMIT as i64], |row| {
+    let rows = stmt.query_map(params![vault_id, DQL_CANDIDATE_FETCH], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
             snippet: String::new(),
         })
     })?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let rows = ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "path")?;
+    Ok(rows
+        .into_iter()
+        .filter(|row| scriptor_vault::normalize_lookup_key(&row.path).contains(&normalized))
+        .collect())
 }
 
 /// `line:<text>` — notes that contain at least one line whose lowercased form
@@ -570,22 +595,19 @@ fn phrase_search(
         "SELECT note_fts.note_id, notes.path, notes.title,
                 snippet(note_fts, 4, '[[', ']]', '...', 32) AS snippet
          FROM note_fts
-         JOIN notes ON notes.id = note_fts.note_id
+         JOIN notes ON notes.rowid = note_fts.rowid
          WHERE note_fts MATCH ?1 AND notes.vault_id = ?2
          ORDER BY bm25(note_fts, 0.0, 10.0, 5.0, 3.0, 1.0)
          LIMIT ?3",
     )?;
-    let rows = stmt.query_map(
-        params![fts_expr, vault_id, DQL_RESULT_LIMIT as i64],
-        |row| {
-            Ok(DqlResultRow {
-                path: row.get(1)?,
-                title: row.get(2)?,
-                snippet: row.get(3)?,
-            })
-        },
-    )?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let rows = stmt.query_map(params![fts_expr, vault_id, DQL_CANDIDATE_FETCH], |row| {
+        Ok(DqlResultRow {
+            path: row.get(1)?,
+            title: row.get(2)?,
+            snippet: row.get(3)?,
+        })
+    })?;
+    ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "phrase")
 }
 
 /// `-<term>` — notes that do NOT contain `term` in their FTS body.
@@ -595,22 +617,28 @@ fn body_excludes(
     vault_id: &str,
     term: &str,
 ) -> Result<Vec<DqlResultRow>, IndexerError> {
-    let matching: std::collections::BTreeSet<String> = search_notes(cache, vault_id, term, 10_000)?
-        .into_iter()
-        .map(|h| h.path)
-        .collect();
+    let matching: std::collections::BTreeSet<String> =
+        search_notes(cache, vault_id, term, DQL_CANDIDATE_FETCH as u32)?
+            .into_iter()
+            .map(|h| h.path)
+            .collect();
 
     let conn = cache.connection()?;
     let mut stmt =
         conn.prepare("SELECT path, title FROM notes WHERE vault_id = ?1 ORDER BY path LIMIT ?2")?;
-    let rows = stmt.query_map(params![vault_id, DQL_RESULT_LIMIT as i64], |row| {
+    let rows = stmt.query_map(params![vault_id, DQL_CANDIDATE_FETCH], |row| {
         Ok(DqlResultRow {
             path: row.get(0)?,
             title: row.get(1)?,
             snippet: String::new(),
         })
     })?;
-    let rows = rows.collect::<Result<Vec<_>, _>>()?;
+    if matching.len() > DQL_CANDIDATE_LIMIT {
+        return Err(IndexerError::InvalidQuery(format!(
+            "negation matched more than {DQL_CANDIDATE_LIMIT} candidates; narrow the query"
+        )));
+    }
+    let rows = ensure_candidate_bound(rows.collect::<Result<Vec<_>, _>>()?, "negation")?;
     Ok(rows
         .into_iter()
         .filter(|r| !matching.contains(&r.path))
@@ -637,6 +665,26 @@ mod tests {
         assert_eq!(
             extract_links_to_target("links to [[Project Plan]]"),
             Some("Project Plan".to_string())
+        );
+    }
+
+    #[test]
+    fn operator_values_preserve_case() {
+        assert_eq!(
+            extract_after_preserving_case(
+                "title contains \"CamelCase\"",
+                "title contains \"camelcase\"",
+                "title contains "
+            ),
+            Some("CamelCase".to_string())
+        );
+        assert_eq!(
+            extract_regex_after_preserving_case(
+                "path matches /Project[A-Z]+/",
+                "path matches /project[a-z]+/",
+                "path matches "
+            ),
+            Some("Project[A-Z]+".to_string())
         );
     }
 
@@ -701,8 +749,15 @@ mod tests {
         let rows = path_matches(&cache, "vault-test", r"^notes/")?;
         assert_eq!(
             rows.len(),
+            DQL_RESULT_LIMIT + 50,
+            "helper must not pre-truncate before compound predicates are applied"
+        );
+        let session = test_session(dir.path());
+        let public_rows = execute_dql_query(&cache, &session, "path matches /^notes./")?;
+        assert_eq!(
+            public_rows.len(),
             DQL_RESULT_LIMIT,
-            "path matches must be bounded like its sibling clauses"
+            "public DQL results stay bounded"
         );
         Ok(())
     }

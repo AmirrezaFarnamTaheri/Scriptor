@@ -70,6 +70,7 @@ impl CitationEngine {
             .get(key)
             .ok_or_else(|| CitationError::KeyNotFound(key.to_string()))?;
 
+        let style = normalize_style(style)?;
         Ok(format_citation(entry, style))
     }
 
@@ -78,10 +79,19 @@ impl CitationEngine {
         keys: &[String],
         style: &str,
     ) -> Result<String, CitationError> {
+        let style = normalize_style(style)?;
         let entries: Vec<&Entry> = if keys.is_empty() {
             self.library.iter().collect()
         } else {
-            keys.iter().filter_map(|k| self.library.get(k)).collect()
+            let mut entries = Vec::with_capacity(keys.len());
+            for key in keys {
+                entries.push(
+                    self.library
+                        .get(key)
+                        .ok_or_else(|| CitationError::KeyNotFound(key.clone()))?,
+                );
+            }
+            entries
         };
 
         let mut output = String::new();
@@ -172,6 +182,18 @@ pub fn parse_lenient(content: &str) -> Result<Vec<CitationEntryExcerpt>, Citatio
     Ok(excerpts)
 }
 
+fn normalize_style(style: &str) -> Result<&'static str, CitationError> {
+    match style.trim().to_ascii_lowercase().as_str() {
+        "apa" | "apa7" => Ok("apa"),
+        "mla" => Ok("mla"),
+        "ieee" => Ok("ieee"),
+        "vancouver" => Ok("vancouver"),
+        "chicago" | "chicago-author-date" => Ok("chicago"),
+        "harvard" => Ok("harvard"),
+        _ => Err(CitationError::UnsupportedStyle(style.to_string())),
+    }
+}
+
 fn format_citation(entry: &Entry, style: &str) -> String {
     let authors = entry
         .authors()
@@ -214,7 +236,7 @@ fn format_bibliography_entry(entry: &Entry, style: &str) -> String {
     match style.to_lowercase().as_str() {
         "apa" | "apa7" => format!("{authors} ({year}). {title}."),
         "mla" => format!("{authors}. \"{title}.\""),
-        "ieee" => format!("{authors}, \"{title},\" {year}."),
+        "ieee" | "vancouver" => format!("{authors}, \"{title},\" {year}."),
         "chicago" | "chicago-author-date" => format!("{authors}. {year}. \"{title}.\""),
         "harvard" => format!("{authors} ({year}) '{title}'."),
         _ => format!("{authors} ({year}). {title}."),
@@ -248,6 +270,26 @@ mod tests {
         assert_eq!(info.title, Some("A Test Article".to_string()));
         assert_eq!(info.year, Some("2024".to_string()));
         assert_eq!(info.authors, vec!["Doe, John".to_string()]);
+    }
+
+    #[test]
+    fn unknown_style_is_rejected() {
+        let bib = r#"@article{doe2024, author = {Doe, John}, title = {A}, year = {2024}}"#;
+        let engine = CitationEngine::from_biblatex_str(bib).unwrap();
+        assert!(matches!(
+            engine.render_citation("doe2024", "made-up-style"),
+            Err(CitationError::UnsupportedStyle(_))
+        ));
+    }
+
+    #[test]
+    fn requested_missing_bibliography_key_is_an_error() {
+        let bib = r#"@article{doe2024, author = {Doe, John}, title = {A}, year = {2024}}"#;
+        let engine = CitationEngine::from_biblatex_str(bib).unwrap();
+        assert!(matches!(
+            engine.render_bibliography(&["missing".to_string()], "apa"),
+            Err(CitationError::KeyNotFound(key)) if key == "missing"
+        ));
     }
 
     #[test]

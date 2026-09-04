@@ -276,11 +276,13 @@ pub fn daemon_rename_apply(
     from_path: String,
     to_path: String,
     update_links: bool,
+    expected_source_hash: Option<String>,
 ) -> Result<String, String> {
     match daemon_rpc(RpcMethod::RenameNoteApply {
         from_path,
         to_path,
         update_links,
+        expected_source_hash,
     })? {
         RpcPayload::RenameApplied { json } => Ok(json),
         _ => Err("unexpected daemon rename response".into()),
@@ -430,8 +432,9 @@ pub(crate) fn bridge_rename_apply(
     from_path: String,
     to_path: String,
     update_links: bool,
+    expected_source_hash: Option<String>,
 ) -> Result<String, String> {
-    daemon_rename_apply(from_path, to_path, update_links)
+    daemon_rename_apply(from_path, to_path, update_links, expected_source_hash)
 }
 
 pub(crate) fn bridge_health_report() -> Result<String, String> {

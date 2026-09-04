@@ -43,6 +43,7 @@ const DOS_TIME = 0
 const DOS_DATE = 0x21
 const ZIP32_MAX_ENTRIES = 0xffff
 const ZIP32_MAX_SIZE = 0xffffffff
+const ARCHIVE_ROOT = 'Scriptor'
 
 function globToRegExp(glob) {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
@@ -193,9 +194,10 @@ export function buildZip(repo, output, profile = 'source-review') {
 
   const entries = []
   let totalBytes = 0
-  // Arcnames mirror the Python original: paths relative to the repository's
-  // parent, i.e. prefixed with the repo folder name ("Scriptor/...").
-  const repoRootName = path.basename(path.resolve(repo))
+  // Archive identity is independent of the checkout folder name. Release and
+  // review receipts refer to a canonical `Scriptor/...` root so the same tree
+  // produces the same entry names and bytes in `Scriptor`, `Scriptor-main`, a
+  // CI worktree, or any other physical checkout location.
   for (const file of candidates) {
     const rel = path.relative(repo, file)
     const relParts = rel.split(path.sep)
@@ -203,7 +205,7 @@ export function buildZip(repo, output, profile = 'source-review') {
     // repo root itself, while root-level FILES have a one-element path and
     // are retained.
     if (shouldSkip(relParts, path.basename(file), rules)) continue
-    const arcname = repoRootName + '/' + rel.split(path.sep).join('/')
+    const arcname = ARCHIVE_ROOT + '/' + rel.split(path.sep).join('/')
     const contents = fs.readFileSync(file)
     entries.push(zipEntry(Buffer.from(arcname, 'utf8'), contents))
     totalBytes += contents.length

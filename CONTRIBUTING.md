@@ -60,10 +60,11 @@ pnpm test:rust
 
 `pnpm test:rust` mirrors the CI Rust gate: it excludes `scriptor-desktop`
 (covered by `desktop-check.yml`) and the incubating engines
-(`scriptor-citation-engine`, `scriptor-embeddings`,
-`scriptor-tantivy-indexer`, `scriptor-wasm-runtime`) from the test run.
-Incubating crates still compile under `--workspace` checks; run their tests
-explicitly with `cargo test -p <crate>` when touching them.
+(`scriptor-embeddings`, `scriptor-tantivy-indexer`, `scriptor-wasm-runtime`)
+from the product test run, then exercises those engines separately through
+`test:rust:engines`. `scriptor-citation-engine` remains in the product test
+graph because its BibLaTeX parser is a Supported dependency of the indexer;
+only the crate's citeproc/rendering surface remains incubating.
 
 Run focused package validators and relevant Playwright suites for the changed behavior. UI changes must include keyboard, screen-reader semantics, loading/empty/error states, narrow viewport, and 200% zoom evidence.
 

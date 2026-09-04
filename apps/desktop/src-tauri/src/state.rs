@@ -67,14 +67,15 @@ pub fn set_headless_engine(state: &AppState, enabled: bool) {
 /// after a vault swap. All native Git mutations must run through this queue:
 /// its worker is the serialization guarantee; the session lease on the caller
 /// additionally blocks a vault swap until the queued operation completes.
-pub fn git_queue_handle(state: &AppState, root: &Path) -> Arc<GitQueue> {
+pub fn git_queue_handle(state: &AppState, root: &Path) -> Result<Arc<GitQueue>, String> {
     let mut guard = lock_recover(&state.git_queue, "git queue");
     match guard.as_ref() {
-        Some(queue) if queue.repo_root == root => Arc::clone(queue),
+        Some(queue) if queue.repo_root == root => Ok(Arc::clone(queue)),
         _ => {
-            let queue = Arc::new(GitQueue::new(root.to_path_buf()));
+            let queue =
+                Arc::new(GitQueue::new(root.to_path_buf()).map_err(|error| error.to_string())?);
             *guard = Some(Arc::clone(&queue));
-            queue
+            Ok(queue)
         }
     }
 }

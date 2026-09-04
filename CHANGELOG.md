@@ -9,10 +9,34 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- Recovering or aborting an interrupted note rename whose transaction manifest predates the
+  original/intended hash records again restores every rewritten note's backup and rolls the file
+  move back. Previously those manifests either kept links pointing at a file the rename never
+  created, or the rollback was rejected outright as a hash mismatch against an empty expectation.
+- Reader panels derive the viewer location and frame readiness from the document type they were
+  resolved for, instead of clearing that state from inside an effect. Switching documents no longer
+  renders the previous viewer for a frame, and the React cascading-render lint rule passes again.
+- Pinned the transitive `@xmldom/xmldom` that `epubjs` pulls into the desktop bundle to 0.9.12, so
+  `pnpm audit --prod` and the supply-chain gate no longer report GHSA-6gmq-8vp8-gcm6.
+- Restored the logged invocation of the desktop crate compile step: a Rust compile failure now keeps
+  reporting its compiler diagnostics as a check annotation, with the per-step timeout and evidence
+  log the inline wrapper had dropped.
+- Split the daemon transport module's deadline-bounded frame I/O into
+  `crates/daemon/src/transport/framing.rs`, bringing `transport.rs` back under its module-size
+  ratchet instead of leaving the split half-finished.
 - Fixed docked side panels (git, MCP, settings, knowledge) rendering beneath the sticky top bar: the dock now starts below the bar and its header and tabs are always reachable; visual baselines and README captures were regenerated for the corrected geometry.
 - Smoothed the typing path: word counting no longer allocates a word array per keystroke, draft stats and citation extraction render from deferred draft values, glass blur tiers were lightened (16px default), and reduced-transparency now strips modal and palette backdrop blurs as well.
 - Resolved the 2026-08-30 forensic review findings: OAuth stateless-probe handling, daemon outside-lock read-only scans, truthful export-history running state, chrome preference persistence and validation, top-bar i18n coverage, reduced-transparency and resize coalescing, portable Playwright web servers, a container gate that executes the contract suite, and worktree-proof source-test and version walkers.
 
+### Changed (behavior that may affect existing vaults)
+- **Vault scan no longer hides notes under `target/` and `dist/`.** Only unambiguous tool directories (`.git`, `.scriptor`, `.obsidian`, `.trash`, `node_modules`) are excluded from the recursive scan and incremental watcher. If you kept authored `.md` notes under a `target/` or `dist/` folder, they are now indexed, searchable, and resolvable again; conversely, a genuine build cache inside the vault will again generate scan/watcher activity.
+- **Path-portability restrictions are now enforced on Windows only.** NTFS alternate-data-stream aliases (`note.md::$DATA`), reserved device names (`CON`, `NUL`, `AUX`, `COM1..9`, `LPT1..9`, `CLOCK$`), and trailing dots/spaces are rejected when running on Windows (where they are unsafe). On Unix/macOS these are legal file names and are no longer rejected, so notes titled e.g. `Meeting: notes.md` work again. Vaults intended to sync to Windows should still prefer Windows-safe names.
+- **Save CAS treats a blank expected-content-hash as "no precondition".** An empty/whitespace expected hash no longer fails a create-new save; callers that genuinely require the note to be absent pass the `<missing>` sentinel, and a real hash against a missing file is still rejected (to avoid resurrecting a concurrently deleted note).
+- **MCP mutation-audit verification now anchors the oldest retained segment.** Because segment rotation prunes the oldest file, the head record of the remaining oldest segment legitimately references a pruned predecessor; verification no longer misreports that as a fork/tamper, while every retained record's own hash and all later links are still checked.
+
+- **A rename no longer overwrites a destination that appeared mid-transaction.** The create-only
+  write of the renamed note now carries the `<missing>` sentinel, so a note created at the target
+  path after the dry-run collision check fails the rename instead of being replaced by it.
 ## 1.0.7 — 2026-08
 
 ### Fixed
