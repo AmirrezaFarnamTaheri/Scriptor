@@ -9,6 +9,33 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- Task indexing writes the canonical note id into `tasks.source_note_id` again. Separating that
+  column from `source_note_path` left every producer still passing a vault-relative path, and
+  because the column carries a foreign key on `notes(id)` with `foreign_keys=ON`, an incremental
+  index (a note save, `indexer_sync_note_tasks`, a single-note rebuild) aborted with
+  `FOREIGN KEY constraint failed` and rolled the whole write transaction back — the failure the
+  Windows release smoke reported. `sync_note_tasks` now also mirrors `source_note_path` from the
+  notes row, so the navigation path no longer survives only in migrated caches while every
+  re-index leaves it null, and the task row, the DQL `task:` projector, and the desktop task
+  update all read the path from that column instead of decoding a note id as a path.
+- Deleting or moving a note out of the index reconciles its task rows by canonical note id. The
+  `tasks` filter still matched on `source_note_id` with a vault-relative path, so the retired
+  note's tasks and their tags survived in the cache and kept appearing in task queries.
+- The MCP browser end-to-end harness now binds a vault identity. The draft tools started requiring
+  a stable `vaultId` to stamp a proposal, so `mcp.proposePatch` threw inside the harness, every
+  write-approved scenario came back `mcp.invoke_failed` with an empty draft queue, and all five
+  MCP specs failed. `packages/mcp` additionally pins the new guards with behavioral tests: a
+  missing vault identity is refused, a runtime without a write bridge must not advertise its tool,
+  a draft cannot be approved twice, and a draft cannot be approved after the runtime is rebound
+  to another vault.
+- Cleared the remaining `clippy -D warnings` failures in the daemon: the outside-lock capability
+  check in `transport.rs` is a single let-chain, and the subscriber snapshot in
+  `events.rs` documents why its `collect` has to stay (it releases the lock before delivery)
+  instead of tripping `needless_collect`.
+- `scripts/validation/tui-smoke.mjs` streams the smoke output live *and* re-emits its tail when
+  the run fails. The child previously inherited stdio, so the CI annotation carried only
+  "command failed with exit code 1" and gave no way to distinguish a compile error from a
+  runtime panic.
 - Recovering or aborting an interrupted note rename whose transaction manifest predates the
   original/intended hash records again restores every rewritten note's backup and rolls the file
   move back. Previously those manifests either kept links pointing at a file the rename never
