@@ -171,14 +171,6 @@ pub(crate) fn resolve_link_targets_on(
     Ok(changed)
 }
 
-pub(crate) fn resolve_note_link_targets_on(
-    conn: &rusqlite::Connection,
-    vault_id: &str,
-    from_note_id: &str,
-) -> Result<u32, IndexerError> {
-    resolve_link_targets_on(conn, vault_id, Some(from_note_id))
-}
-
 pub fn resolve_link_targets(cache: &IndexCache, vault_id: &str) -> Result<u32, IndexerError> {
     let mut conn = cache.connection()?;
     let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;

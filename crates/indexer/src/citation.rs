@@ -147,19 +147,6 @@ pub(crate) fn known_bibliography_keys_for_cache(
     known_bibliography_keys_on(&connection, keys)
 }
 
-pub(crate) fn bibliography_contains_public(
-    cache: &IndexCache,
-    key: &str,
-) -> Result<bool, IndexerError> {
-    let connection = cache.connection()?;
-    let count: i64 = connection.query_row(
-        "SELECT COUNT(*) FROM cache_meta WHERE key = ?1",
-        params![format!("bib:{key}")],
-        |row| row.get(0),
-    )?;
-    Ok(count > 0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
