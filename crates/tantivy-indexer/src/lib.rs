@@ -380,7 +380,12 @@ mod tests {
         let dir = tempdir().unwrap();
         TantivyIndex::create_or_open(dir.path()).unwrap();
         std::fs::write(dir.path().join(SCRIPTOR_SCHEMA_FILE), "999\n").unwrap();
-        let error = TantivyIndex::create_or_open(dir.path()).unwrap_err();
-        assert!(matches!(error, TantivyError::IncompatibleSchema(_)));
+        // `TantivyIndex` deliberately does not implement `Debug` (it owns the tantivy
+        // reader and writer), so `unwrap_err()` is not available: match the result
+        // instead of requiring a debug rendering of the rejected index.
+        match TantivyIndex::create_or_open(dir.path()) {
+            Ok(_) => panic!("an index whose schema marker disagrees must be refused"),
+            Err(error) => assert!(matches!(error, TantivyError::IncompatibleSchema(_))),
+        }
     }
 }
