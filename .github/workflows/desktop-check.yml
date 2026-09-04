@@ -76,26 +76,23 @@ jobs:
 
       - name: Compile desktop crate, tests, examples, and build scripts
         shell: pwsh
+        env:
+          CARGO_TERM_COLOR: never
         run: |
-          # Temporary diagnostics wrapper: run cargo check and, on failure, re-emit
-          # only the compiler error diagnostics at the very end of this step's
-          # output so the GitHub failure annotation (which shows trailing lines)
-          # surfaces the real errors instead of just the summary line.
+          # Diagnostics wrapper: capture the full cargo output, stream it, then on
+          # failure re-emit the compiler error diagnostics last so they appear in
+          # the step's annotated tail (cargo prints errors before its summary).
           $ErrorActionPreference = 'Continue'
-          $env:CARGO_TERM_COLOR = 'never'
-          $logDir = $env:CI_LOG_DIR
-          if ([string]::IsNullOrWhiteSpace($logDir)) { $logDir = 'artifacts/ci-logs/desktop-check' }
-          New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-          $log = Join-Path $logDir 'compile-errors.txt'
-          $out = & cargo check -p scriptor-desktop --all-targets --locked 2>&1
+          $capture = & cargo check -p scriptor-desktop --all-targets --locked 2>&1
           $code = $LASTEXITCODE
+          $capture
           if ($code -ne 0) {
-            $lines = @($out)
             Write-Host ''
-            Write-Host '===== COMPILER DIAGNOSTICS ====='
+            Write-Host '===== COMPILER DIAGNOSTICS (errors/warnings) ====='
+            $lines = @($capture)
             for ($i = 0; $i -lt $lines.Count; $i++) {
-              if ($lines[$i] -match '^(error(\[|:)|warning:|  --> )') {
-                $start = [Math]::Max(0, $i - 1)
+              if ($lines[$i] -match 'error(\[|: )|warning:|  --> ') {
+                $start = [Math]::Max(0, $i - 2)
                 $end = [Math]::Min($lines.Count - 1, $i + 6)
                 for ($j = $start; $j -le $end; $j++) { Write-Host $lines[$j] }
                 Write-Host '-----'
@@ -103,7 +100,6 @@ jobs:
               }
             }
           }
-          $out | Set-Content -LiteralPath $log -Encoding utf8
           exit $code
 
       - name: Run resource filesystem regression tests
