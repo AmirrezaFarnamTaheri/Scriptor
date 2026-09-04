@@ -150,9 +150,9 @@
     "d3-force": "^3.0.0",
     "epubjs": "^0.3.93",
     "immer": "^11.1.18",
-    "lucide-react": "^1.33.0",
+    "lucide-react": "^1.37.0",
     "monaco-editor": "^0.56.0",
-    "pdfjs-dist": "^6.2.108",
+    "pdfjs-dist": "^6.3.289",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "zustand": "^5.0.15"
@@ -162,16 +162,16 @@
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.62.1",
     "@types/d3-force": "^3.0.10",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "@vitejs/plugin-react": "^6.1.0",
-    "eslint": "^10.9.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.9.1",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.4",
+    "eslint-plugin-react-refresh": "^0.5.5",
     "globals": "^17.11.0",
     "typescript": "~6.0.2",
-    "typescript-eslint": "^8.67.0",
+    "typescript-eslint": "^8.68.0",
     "vite": "^8.2.2"
   }
 }
