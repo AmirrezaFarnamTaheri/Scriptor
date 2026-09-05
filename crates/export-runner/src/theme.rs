@@ -50,9 +50,9 @@ fn validate_path_within_vault(vault_root: &Path, path: &str) -> Result<(), Expor
         )));
     }
     // Lexical containment alone is insufficient: an in-vault symlink can point
-    // at an external file, which pandoc would then read (and `--embed-resources`
-    // would inline). Canonicalize each existing prefix so a symlinked parent is
-    // caught even when the leaf does not exist yet.
+    // at an external file that pandoc would then read. Canonicalize each
+    // existing prefix so a symlinked parent is caught even when the leaf does
+    // not exist yet.
     let mut prefix = canonical_root.clone();
     for component in p.components() {
         let std::path::Component::Normal(part) = component else {
@@ -158,12 +158,8 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("temp dir");
 
-        let resolved = resolve_extra_args(
-            &dir,
-            &dir,
-            &["--embed-resources".into(), "--css=export-theme.css".into()],
-        )
-        .expect("resolve args");
+        let resolved = resolve_extra_args(&dir, &dir, &["--css=export-theme.css".into()])
+            .expect("resolve args");
 
         let css = resolved
             .iter()
@@ -256,7 +252,6 @@ mod tests {
         let secret = outside.join("secret.bib");
         fs::write(&secret, "@article{a,title={x}}").expect("secret file");
 
-        // A vault-relative name that is really a symlink to an external file.
         let link = vault.join("linked.bib");
         let linked = {
             #[cfg(unix)]
@@ -280,7 +275,6 @@ mod tests {
             "symlinked file reference escaping the vault must be rejected"
         );
 
-        // A symlinked *parent* redirecting an otherwise in-vault path.
         let dir_link = vault.join("linkeddir");
         let dir_linked = {
             #[cfg(unix)]
