@@ -16,9 +16,10 @@
 //! | v8      | task extended fields + `blocks` embedding table    | No       |
 //! | v9      | frontmatter aliases on note rows                   | No       |
 //! | v10     | canonical task source note id + explicit path       | No       |
+//! | v11     | normalize task FK integrity via transactional table rebuild | No       |
 
 /// Current on-disk schema version. Bump this constant exactly once per train step.
-pub const SCHEMA_VERSION: i32 = 10;
+pub const SCHEMA_VERSION: i32 = 11;
 
 pub const CREATE_META: &str = "
 CREATE TABLE IF NOT EXISTS cache_meta (
@@ -240,12 +241,9 @@ CREATE INDEX IF NOT EXISTS idx_srs_reviews_card ON srs_reviews(card_id);
 // ── v8: extended task fields + blocks ────────────────────────────────────────
 
 /// v8 — ADD COLUMN migrations on the `tasks` table (new fields added in W4-2/W4-3).
-/// Callers guard every ALTER with `pragma_table_info` before executing it;
-/// SQLite does not suppress duplicate-column errors. The migration transaction
-/// ensures a later failure rolls back the whole step.
-/// v7 → v8: new columns added to the `tasks` table.
-/// Each statement is a bare `ALTER TABLE … ADD COLUMN` (no IF NOT EXISTS —
-/// the migration loop guards against duplicate columns using `table_columns`).
+/// Callers guard every ALTER with a table_columns check so the step is safely
+/// idempotent even without IF NOT EXISTS (SQLite < 3.37 compat).
+/// Each tuple is `(column_name, ALTER TABLE statement)`.
 pub const MIGRATE_V7_TO_V8_TASKS: &[(&str, &str)] = &[
     (
         "line",
