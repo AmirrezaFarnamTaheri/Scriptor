@@ -3,6 +3,7 @@ use std::fs;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::lock_vault_mutation;
 use crate::hash::content_hash_bytes;
 use crate::path::{RelativeVaultPath, VaultRoot};
 
@@ -20,6 +21,15 @@ pub fn delete_note(
 }
 
 pub fn delete_note_guarded(
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    expected_content_hash: Option<&str>,
+) -> Result<DeleteNoteOutput, VaultError> {
+    let _mutation_lock = lock_vault_mutation(root.root())?;
+    delete_note_guarded_locked(root, path, expected_content_hash)
+}
+
+pub(crate) fn delete_note_guarded_locked(
     root: &VaultRoot,
     path: &RelativeVaultPath,
     expected_content_hash: Option<&str>,
