@@ -7,7 +7,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
-use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, spawn_process};
+use scriptor_system_bridge::{ProcessSpec, spawn_process};
 use uuid::Uuid;
 
 use crate::args::{ExportFormat, build_pandoc_args};
@@ -291,18 +291,15 @@ pub fn run_export_job_with_cancel(
     let started = Instant::now();
 
     // Route the converter through the shared process boundary. Pandoc's own
-    // `--sandbox` is always present in `args`; supported desktop platforms add
-    // an OS-level network sandbox as a second layer when available. The explicit
-    // unsandboxed-network override keeps export usable on hosts without bwrap or
-    // sandbox-exec; Pandoc's enforced `--sandbox` remains the reader/writer
-    // boundary on those hosts rather than silently enabling URL fetches.
+    // `--sandbox` is always present in `args`, remote-fetching flags are rejected,
+    // and only non-auto-downloading PDF engines are allowed. The generic process
+    // broker cannot promise OS-level network isolation on every desktop platform,
+    // so do not mislabel an unsandboxed Windows process as network-denied.
     let process_spec = ProcessSpec::new(&pandoc.path)
         .args(args.clone())
         .current_dir(&vault_root)
         .timeout(DEFAULT_EXPORT_TIMEOUT)
         .max_output_bytes(MAX_CAPTURED_PROCESS_OUTPUT_BYTES)
-        .network_policy(NetworkPolicy::Deny)
-        .allow_unsandboxed_network_denial(true)
         .expected_sha256(pandoc.sha256.clone());
     let mut child = spawn_process(&process_spec)
         .map_err(|error| ExportError::Process(error.to_string()))?
