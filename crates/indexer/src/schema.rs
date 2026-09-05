@@ -16,9 +16,10 @@
 //! | v8      | task extended fields + `blocks` embedding table    | No       |
 //! | v9      | frontmatter aliases on note rows                   | No       |
 //! | v10     | canonical task source note id + explicit path       | No       |
+//! | v11     | task source FK parity for upgraded caches           | No       |
 
 /// Current on-disk schema version. Bump this constant exactly once per train step.
-pub const SCHEMA_VERSION: i32 = 10;
+pub const SCHEMA_VERSION: i32 = 11;
 
 pub const CREATE_META: &str = "
 CREATE TABLE IF NOT EXISTS cache_meta (
