@@ -109,6 +109,28 @@ body:has(.unified-panel-docked) .status-strip {
   padding-right: calc(var(--unified-panel-dock-width) + 12px);
 }
 
+/* Dock header actions can be wider than the companion column (MCP's reset
+ * action plus Close is the concrete case). Let the title and action cluster
+ * wrap as two coherent groups instead of clipping or forcing horizontal scroll. */
+.unified-panel-docked .unified-panel-header {
+  flex-wrap: wrap;
+  padding: 16px 18px 14px;
+}
+
+.unified-panel-docked .unified-panel-header > :first-child {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.unified-panel-docked .unified-panel-header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.unified-panel-docked .unified-panel-body {
+  padding-inline: 18px;
+}
+
 html[dir='rtl'] .unified-panel-shell.unified-panel-docked[class] {
   right: auto;
   left: 0;
@@ -129,6 +151,11 @@ html[dir='rtl'] body:has(.unified-panel-docked) .workspace-grid {
 html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
   padding-right: 12px;
   padding-left: calc(var(--unified-panel-dock-width) + 12px);
+}
+
+html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
+  margin-right: auto;
+  margin-left: 0;
 }
 
 /* ResourceSyncPanel used viewport media queries, which do not react to the
