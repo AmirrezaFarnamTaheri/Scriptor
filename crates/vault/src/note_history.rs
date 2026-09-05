@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::VaultError;
-use crate::fs::atomic_write;
+use crate::fs::{atomic_write, lock_vault_update};
 use crate::hash::path_hash;
 use crate::path::VaultRoot;
 
@@ -106,6 +106,17 @@ pub fn append_note_history_throttled(
     content_hash: &str,
     next_markdown: Option<&str>,
 ) -> Result<NoteHistoryEntry, VaultError> {
+    let _manifest_lock = lock_vault_update(&manifest_path(root, note_path))?;
+    append_note_history_throttled_locked(root, note_path, markdown, content_hash, next_markdown)
+}
+
+fn append_note_history_throttled_locked(
+    root: &VaultRoot,
+    note_path: &str,
+    markdown: &str,
+    content_hash: &str,
+    next_markdown: Option<&str>,
+) -> Result<NoteHistoryEntry, VaultError> {
     if let Some(next) = next_markdown
         && should_skip_snapshot(root, note_path, markdown, next)
     {
@@ -119,9 +130,9 @@ pub fn append_note_history_throttled(
             return Ok(latest.clone());
         }
         // Manifest unreadable: fall through and snapshot normally.
-        return append_note_history(root, note_path, markdown, content_hash);
+        return append_note_history_locked(root, note_path, markdown, content_hash);
     }
-    append_note_history(root, note_path, markdown, content_hash)
+    append_note_history_locked(root, note_path, markdown, content_hash)
 }
 
 /// True when the newest snapshot is recent AND the edit is small enough to
@@ -157,6 +168,16 @@ fn should_skip_snapshot(
 }
 
 pub fn append_note_history(
+    root: &VaultRoot,
+    note_path: &str,
+    markdown: &str,
+    content_hash: &str,
+) -> Result<NoteHistoryEntry, VaultError> {
+    let _manifest_lock = lock_vault_update(&manifest_path(root, note_path))?;
+    append_note_history_locked(root, note_path, markdown, content_hash)
+}
+
+fn append_note_history_locked(
     root: &VaultRoot,
     note_path: &str,
     markdown: &str,
