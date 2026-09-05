@@ -12,9 +12,13 @@ async function useDockedPanels(page: Page) {
   })
 }
 
-async function openGit(page: Page) {
+async function runGitCommand(page: Page) {
   await openCommandPalette(page)
   await runCommand(page, OPEN_GIT)
+}
+
+async function openWideGitDock(page: Page) {
+  await runGitCommand(page)
   const panel = page.getByRole('complementary', { name: 'Git', exact: true })
   await expect(panel).toBeVisible({ timeout: 45_000 })
   await settleLayout(page)
@@ -33,7 +37,7 @@ test.describe('adaptive panel presentation', () => {
     const before = await editor.boundingBox()
     expect(before).not.toBeNull()
 
-    const dock = await openGit(page)
+    const dock = await openWideGitDock(page)
     const [after, dockBox, inspectorBox, footerBox] = await Promise.all([
       editor.boundingBox(),
       dock.boundingBox(),
@@ -53,7 +57,7 @@ test.describe('adaptive panel presentation', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   })
 
-  test('compact desktop keeps dock presentation as an overlay without crushing the editor', async ({ page }) => {
+  test('compact desktop converts a dock preference into a modal without changing workspace geometry', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await useDockedPanels(page)
     await launchApp(page)
@@ -64,13 +68,15 @@ test.describe('adaptive panel presentation', () => {
     const before = await editor.boundingBox()
     expect(before).not.toBeNull()
 
-    const dock = await openGit(page)
-    const [after, dockBox] = await Promise.all([editor.boundingBox(), dock.boundingBox()])
+    await runGitCommand(page)
+    const dialog = page.getByRole('dialog', { name: 'Git', exact: true })
+    await expect(dialog).toBeVisible({ timeout: 45_000 })
+    await expect(page.getByRole('complementary', { name: 'Git', exact: true })).toHaveCount(0)
+    await settleLayout(page)
+
+    const after = await editor.boundingBox()
     expect(after).not.toBeNull()
-    expect(dockBox).not.toBeNull()
     expect(Math.abs(after!.width - before!.width)).toBeLessThanOrEqual(3)
-    expect(dockBox!.width).toBeLessThanOrEqual(522)
-    expect(dockBox!.x).toBeLessThan(after!.x + after!.width)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
   })
 
@@ -79,7 +85,7 @@ test.describe('adaptive panel presentation', () => {
     await useDockedPanels(page)
     await launchApp(page)
     await waitForWorkspace(page)
-    await openGit(page)
+    await openWideGitDock(page)
 
     await openCommandPalette(page)
     await runCommand(page, OPEN_MCP)
