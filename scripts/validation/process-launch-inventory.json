@@ -69,62 +69,6 @@
       ]
     },
     {
-      "id": "export-pandoc-job",
-      "file": "crates/export-runner/src/job.rs",
-      "owner": "export-runtime",
-      "executableSource": "validated Pandoc discovery path and optional trusted hash",
-      "argumentPolicy": "typed export profile builds argument vector without shell",
-      "timeoutCancellation": "cancel slot and bounded job timeout terminate process tree",
-      "outputBounds": "stdout/stderr drained concurrently and bounded in result",
-      "reviewExpires": "2026-12-31",
-      "negativeTests": [
-        "cancel active export",
-        "large stdout does not deadlock",
-        "nonzero exit surfaces error"
-      ]
-    },
-    {
-      "id": "pandoc-version-probe",
-      "file": "crates/export-runner/src/pandoc.rs",
-      "owner": "export-runtime",
-      "executableSource": "canonicalized candidate with optional trusted hash",
-      "argumentPolicy": "fixed --version",
-      "timeoutCancellation": "short discovery probe",
-      "outputBounds": "version output parsed to first line",
-      "reviewExpires": "2026-12-31",
-      "negativeTests": [
-        "missing binary",
-        "hash mismatch",
-        "nonzero version probe"
-      ]
-    },
-    {
-      "id": "pandoc-discovery-windows",
-      "file": "crates/export-runner/src/pandoc.rs",
-      "owner": "export-runtime",
-      "executableSource": "fixed Windows where utility",
-      "argumentPolicy": "fixed pandoc lookup",
-      "timeoutCancellation": "discovery only",
-      "outputBounds": "first non-empty line only",
-      "reviewExpires": "2026-12-31",
-      "negativeTests": [
-        "empty lookup output"
-      ]
-    },
-    {
-      "id": "pandoc-discovery-unix",
-      "file": "crates/export-runner/src/pandoc.rs",
-      "owner": "export-runtime",
-      "executableSource": "fixed Unix which utility",
-      "argumentPolicy": "fixed pandoc lookup",
-      "timeoutCancellation": "discovery only",
-      "outputBounds": "first non-empty line only",
-      "reviewExpires": "2026-12-31",
-      "negativeTests": [
-        "empty lookup output"
-      ]
-    },
-    {
       "id": "mermaid-cli-render",
       "file": "crates/export-runner/src/diagram.rs",
       "owner": "export-runtime",
