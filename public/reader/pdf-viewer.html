@@ -23,6 +23,7 @@
   <script type="module">
     const MAX_PAGE_PIXELS = 16_000_000
     const MAX_PAGES = 5_000
+    const MAX_ANNOTATIONS = 5_000
     const params = new URLSearchParams(location.search)
     const configuredParentOrigin = params.get('parentOrigin')
     let parentOrigin = null
@@ -136,6 +137,19 @@
       post({ type: 'POSITION', position: String(currentPage) })
     }
 
+    async function goTo(position) {
+      if (!pdfDoc) return
+      if (position === 'prev') currentPage = Math.max(1, currentPage - 1)
+      else if (position === 'next') currentPage = Math.min(pdfDoc.numPages, currentPage + 1)
+      else currentPage = Math.max(1, Math.min(pdfDoc.numPages, Number(position) || 1))
+      await renderCurrentPage()
+    }
+
+    async function zoomBy(delta) {
+      scale = Math.max(.5, Math.min(4, scale + (Number(delta) || 0)))
+      if (pdfDoc) await renderCurrentPage()
+    }
+
     async function renderTextLayer(page, viewport) {
       const content = await page.getTextContent()
       if (!textLayer) return
@@ -194,13 +208,31 @@
     })
 
     function rangeForOffsets(start, end) {
-      const startEntry = textNodes.find((entry) => start >= entry.start && start <= entry.end)
-      const endEntry = [...textNodes].reverse().find((entry) => end >= entry.start && end <= entry.end)
+      const startEntry = textNodeForOffset(start, false)
+      const endEntry = textNodeForOffset(end, true)
       if (!startEntry || !endEntry) return null
       const range = document.createRange()
       range.setStart(startEntry.node, Math.max(0, Math.min(start - startEntry.start, startEntry.node.textContent.length)))
       range.setEnd(endEntry.node, Math.max(0, Math.min(end - endEntry.start, endEntry.node.textContent.length)))
       return range
+    }
+
+    function textNodeForOffset(offset, preferLaterBoundary) {
+      let low = 0
+      let high = textNodes.length
+      while (low < high) {
+        const mid = (low + high) >> 1
+        if (textNodes[mid].start <= offset) low = mid + 1
+        else high = mid
+      }
+      let index = Math.max(0, low - 1)
+      if (preferLaterBoundary && index + 1 < textNodes.length && textNodes[index + 1].start === offset) {
+        index += 1
+      } else if (!preferLaterBoundary && index > 0 && textNodes[index - 1].end === offset) {
+        index -= 1
+      }
+      const entry = textNodes[index]
+      return entry && offset >= entry.start && offset <= entry.end ? entry : null
     }
 
     function anchorFor(annotation) {
@@ -246,9 +278,32 @@
 
     function rememberHighlight(annotation) {
       if (!annotation || typeof annotation.id !== 'string') return
+      if (!annotations.has(annotation.id) && annotations.size >= MAX_ANNOTATIONS) return
       annotations.set(annotation.id, annotation)
       replayHighlights()
     }
+
+    function handleReaderKeydown(event) {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target
+      const tagName = target?.tagName
+      if (tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        void goTo('prev')
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        void goTo('next')
+      } else if (event.key === '+' || event.key === '=') {
+        event.preventDefault()
+        void zoomBy(.25)
+      } else if (event.key === '-') {
+        event.preventDefault()
+        void zoomBy(-.25)
+      }
+    }
+
+    document.addEventListener('keydown', handleReaderKeydown)
 
     window.addEventListener('message', async (event) => {
       if (event.source !== parent || event.origin !== parentOrigin) return
@@ -260,22 +315,19 @@
           await loadDocument(new Uint8Array(msg.bytes))
           break
         case 'GOTO':
-          if (!pdfDoc) return
-          if (msg.position === 'prev') currentPage = Math.max(1, currentPage - 1)
-          else if (msg.position === 'next') currentPage = Math.min(pdfDoc.numPages, currentPage + 1)
-          else currentPage = Math.max(1, Math.min(pdfDoc.numPages, Number(msg.position) || 1))
-          await renderCurrentPage()
+          await goTo(msg.position)
           break
         case 'ZOOM':
-          scale = Math.max(.5, Math.min(4, scale + (Number(msg.delta) || 0)))
-          if (pdfDoc) await renderCurrentPage()
+          await zoomBy(msg.delta)
           break
         case 'HIGHLIGHT':
           rememberHighlight(msg.annotation)
           break
         case 'HIGHLIGHTS':
           annotations.clear()
-          if (Array.isArray(msg.annotations)) for (const annotation of msg.annotations) rememberHighlight(annotation)
+          if (Array.isArray(msg.annotations)) {
+            for (const annotation of msg.annotations.slice(0, MAX_ANNOTATIONS)) rememberHighlight(annotation)
+          }
           replayHighlights()
           break
       }
