@@ -1,6 +1,6 @@
 use std::fs;
 
-use crate::fs::atomic_write;
+use crate::fs::{atomic_write, lock_vault_mutation};
 use crate::hash::{content_hash_bytes, path_hash};
 use crate::note_history::append_note_history_throttled;
 
@@ -42,8 +42,48 @@ pub fn save_note(
     )
 }
 
+pub(crate) fn save_note_locked(
+    vault_id: &str,
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    markdown: &str,
+    expected_content_hash: Option<&str>,
+) -> Result<SaveNoteOutput, VaultError> {
+    save_note_with_options_locked(
+        vault_id,
+        root,
+        path,
+        markdown,
+        expected_content_hash,
+        SaveNoteOptions::default(),
+    )
+}
+
 /// Saves a note with explicit options (e.g., dry-run mode).
 pub fn save_note_with_options(
+    vault_id: &str,
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    markdown: &str,
+    expected_content_hash: Option<&str>,
+    options: SaveNoteOptions,
+) -> Result<SaveNoteOutput, VaultError> {
+    let _mutation_lock = lock_vault_mutation(root.root())?;
+    save_note_with_options_locked(
+        vault_id,
+        root,
+        path,
+        markdown,
+        expected_content_hash,
+        options,
+    )
+}
+
+/// Save implementation for callers that already hold the vault-wide mutation
+/// lock (notably the staged rename transaction). Keeping this separate avoids
+/// recursively acquiring the same OS lock while preserving one serialization
+/// boundary for every public vault mutation.
+pub(crate) fn save_note_with_options_locked(
     vault_id: &str,
     root: &VaultRoot,
     path: &RelativeVaultPath,
@@ -181,6 +221,16 @@ fn backup_for_recovery(
 
 /// Restores disk state after a failed post-save index update.
 pub fn rollback_save_note(
+    vault_id: &str,
+    root: &VaultRoot,
+    path: &RelativeVaultPath,
+    previous_content_hash: Option<&str>,
+) -> Result<(), VaultError> {
+    let _mutation_lock = lock_vault_mutation(root.root())?;
+    rollback_save_note_locked(vault_id, root, path, previous_content_hash)
+}
+
+pub(crate) fn rollback_save_note_locked(
     vault_id: &str,
     root: &VaultRoot,
     path: &RelativeVaultPath,
