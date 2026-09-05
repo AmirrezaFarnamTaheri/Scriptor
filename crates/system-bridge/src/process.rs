@@ -144,6 +144,12 @@ impl ProcessSpec {
     }
 }
 
+pub struct SpawnedProcess {
+    pub child: Child,
+    pub resolved_program: PathBuf,
+    pub program_sha256: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessReceipt {
@@ -159,7 +165,7 @@ pub struct ProcessReceipt {
     pub stderr_truncated: bool,
 }
 
-pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
+pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> {
     let resolved = resolve_executable(&spec.program, spec.current_dir.as_deref())?;
     let actual_hash = if resolved.is_file() {
         Some(hash_file(&resolved)?)
@@ -193,7 +199,7 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         });
     }
 
-    let mut command = sandboxed_command(&spec, &resolved)?;
+    let mut command = sandboxed_command(spec, &resolved)?;
     configure_minimal_environment(&mut command, &spec.environment);
     if let Some(current_dir) = spec.current_dir.as_deref() {
         command.current_dir(current_dir);
@@ -204,13 +210,25 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         .stderr(Stdio::piped());
     configure_process_group(&mut command);
 
-    let started = Instant::now();
-    let mut child = command
+    let child = command
         .spawn()
         .map_err(|source| BridgeError::ProcessSpawn {
             program: resolved.clone(),
             source,
         })?;
+    Ok(SpawnedProcess {
+        child,
+        resolved_program: resolved,
+        program_sha256: actual_hash,
+    })
+}
+
+pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
+    let started = Instant::now();
+    let spawned = spawn_process(&spec)?;
+    let resolved = spawned.resolved_program;
+    let actual_hash = spawned.program_sha256;
+    let mut child = spawned.child;
     let stdout = child
         .stdout
         .take()
