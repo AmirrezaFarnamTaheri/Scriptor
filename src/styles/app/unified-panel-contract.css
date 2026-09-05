@@ -131,6 +131,21 @@ html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
   padding-left: calc(var(--unified-panel-dock-width) + 12px);
 }
 
+/* ResourceSyncPanel used viewport media queries, which do not react to the
+ * much narrower containing dock on a wide monitor. Reflow those fixed 4-column
+ * groups whenever MCP is actually docked so the Sharing & sync tab remains
+ * readable at the bounded companion width. */
+.unified-panel-docked .resource-sync-stats,
+.unified-panel-docked .resource-plan-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.unified-panel-docked .resource-sync-heading,
+.unified-panel-docked .resource-sync-section-heading,
+.unified-panel-docked .resource-plan-builder {
+  flex-direction: column;
+}
+
 /* Canvas and Graph are focus-trapped aria-modal workspaces. Give them an opaque
  * dialog surface and an actual visual modality cue; translucent content made
  * the underlying editor look interactive even though focus could not reach it. */
