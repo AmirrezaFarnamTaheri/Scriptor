@@ -49,6 +49,10 @@ pub fn build_pandoc_args(
         "-o".into(),
         output_path.display().to_string(),
         "--standalone".into(),
+        // Pandoc's own sandbox confines reader/writer file and URL access. This
+        // is enforced by Scriptor rather than delegated to user profiles so
+        // ordinary exports cannot silently read arbitrary files or fetch URLs.
+        "--sandbox".into(),
     ];
 
     if let Some(title) = title {
@@ -118,6 +122,7 @@ mod tests {
                 .any(|arg| arg.contains('&') || arg.contains('|'))
         );
         assert!(args.contains(&"-o".to_string()));
+        assert!(args.contains(&"--sandbox".to_string()));
         assert!(args.contains(&PathBuf::from("out.html").display().to_string()));
     }
 
