@@ -45,7 +45,6 @@ export function QuickCapturePanel({
       onClose={onClose}
       presentation={presentation}
       className="quick-capture-panel knowledge-filters-panel"
-      wide
     >
       <div className="quick-capture-body knowledge-filter-body">
         <section>
@@ -91,8 +90,11 @@ export function QuickCapturePanel({
                   <button type="button" className={todo.done ? 'done' : undefined} onClick={() => onToggleTodo(todo.id)}>
                     <Check size={14} />
                   </button>
-                  <input value={todo.text} onChange={(event) => onUpdateTodo(todo.id, event.target.value)} />
-                  aria-label={`Todo text: ${todo.text.slice(0, 40)}`}
+                  <input
+                    value={todo.text}
+                    aria-label={`Todo text: ${todo.text.slice(0, 40)}`}
+                    onChange={(event) => onUpdateTodo(todo.id, event.target.value)}
+                  />
                   {onCreateNoteFromTodo ? (
                     <button type="button" onClick={() => onCreateNoteFromTodo(todo.id)}>
                       To note
