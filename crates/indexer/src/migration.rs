@@ -187,6 +187,15 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         current = 10;
     }
 
+    // v10 → v11: make upgraded task tables structurally identical to fresh installs.
+    // v10 added `source_note_id` with ALTER TABLE, which could not attach the canonical
+    // `REFERENCES notes(id) ON DELETE CASCADE` contract. Rebuild both task tables inside
+    // one transaction, preserving task/tag data while nulling any legacy orphan source ids.
+    if current == 10 && SCHEMA_VERSION >= 11 {
+        migrate_v10_to_v11(connection)?;
+        current = 11;
+    }
+
     if current == SCHEMA_VERSION {
         Ok(())
     } else {
@@ -240,6 +249,70 @@ fn migrate_v4_to_v5(connection: &rusqlite::Connection) -> Result<(), IndexerErro
         [],
     )?;
     stamp_schema_version(&transaction, 5)?;
+    transaction.commit()?;
+    Ok(())
+}
+
+fn migrate_v10_to_v11(connection: &rusqlite::Connection) -> Result<(), IndexerError> {
+    let transaction = connection.unchecked_transaction()?;
+
+    // Rename the old tables first so the canonical CREATE_* statements remain the single
+    // schema definition. Index names are global in SQLite, so drop the renamed tables' old
+    // indexes before recreating the canonical names on the replacement tables.
+    transaction.execute_batch(
+        "ALTER TABLE task_tags RENAME TO task_tags_v10;
+         ALTER TABLE tasks RENAME TO tasks_v10;
+         DROP INDEX IF EXISTS idx_tasks_vault_status;
+         DROP INDEX IF EXISTS idx_tasks_vault_due;
+         DROP INDEX IF EXISTS idx_tasks_source_note;
+         DROP INDEX IF EXISTS idx_tasks_source_note_id;
+         DROP INDEX IF EXISTS idx_tasks_source_note_path;
+         DROP INDEX IF EXISTS idx_task_tags_tag;",
+    )?;
+    transaction.execute_batch(CREATE_TASKS)?;
+    transaction.execute_batch(CREATE_TASK_TAGS)?;
+
+    transaction.execute_batch(
+        "INSERT INTO tasks(
+           id, vault_id, source_note_id, source_note_path, line, title, body, status,
+           priority, due_at, scheduled_at, start_at, rrule, field_style, completed_at,
+           created_at, updated_at
+         )
+         SELECT
+           id,
+           vault_id,
+           CASE
+             WHEN source_note_id IS NULL THEN NULL
+             WHEN EXISTS (SELECT 1 FROM notes WHERE notes.id = tasks_v10.source_note_id)
+               THEN source_note_id
+             ELSE NULL
+           END,
+           source_note_path,
+           line,
+           title,
+           body,
+           status,
+           priority,
+           due_at,
+           scheduled_at,
+           start_at,
+           rrule,
+           field_style,
+           completed_at,
+           created_at,
+           updated_at
+         FROM tasks_v10;
+
+         INSERT OR IGNORE INTO task_tags(task_id, tag)
+         SELECT legacy.task_id, legacy.tag
+         FROM task_tags_v10 AS legacy
+         INNER JOIN tasks ON tasks.id = legacy.task_id;
+
+         DROP TABLE task_tags_v10;
+         DROP TABLE tasks_v10;",
+    )?;
+
+    stamp_schema_version(&transaction, 11)?;
     transaction.commit()?;
     Ok(())
 }
@@ -326,9 +399,9 @@ mod tests {
 
     /// The production shape of an upgrade: pooled connections enable `foreign_keys`, and the whole
     /// chain runs inside a transaction. SQLite refuses to add a column carrying a `REFERENCES`
-    /// clause while foreign keys are enabled, so the task column has to be added plain and the
-    /// relationship kept in code. It also supplies a note row without an id, which the migration
-    /// must backfill before any task can point at it.
+    /// clause while foreign keys are enabled, so v10 adds the column plain and v11 rebuilds the
+    /// table into the canonical foreign-key shape. It also supplies a note row without an id, which
+    /// the migration must backfill before any task can point at it.
     #[test]
     fn migrates_legacy_cache_with_foreign_keys_enabled() -> Result<(), IndexerError> {
         let connection = open_legacy_cache(1)?;
@@ -547,7 +620,7 @@ CREATE TABLE IF NOT EXISTS notes (
         migrate_cache(&connection)?;
 
         // Migration runs all pending steps from v4 through to the current
-        // SCHEMA_VERSION (currently 7).  Assert we reached the latest version.
+        // SCHEMA_VERSION. Assert we reached the latest version.
         assert_eq!(
             read_schema_version(&connection)?,
             Some(crate::schema::SCHEMA_VERSION),
@@ -581,7 +654,7 @@ CREATE TABLE IF NOT EXISTS notes (
              VALUES (?1, ?2, ?3, ?4, ?5)",
             [
                 "id-1",
-                "Résumé Tips", // diacritic in title
+                "Résumé Tips",
                 "Introduction Skills",
                 "career",
                 "Polish your résumé before applying.",
@@ -991,6 +1064,115 @@ CREATE TABLE IF NOT EXISTS notes (
         }
         migrate_cache(&connection)?;
         assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
+        Ok(())
+    }
+
+    #[test]
+    fn migration_v10_to_v11_rebuilds_tasks_with_cascade_and_preserves_tags() -> Result<(), IndexerError> {
+        let connection = Connection::open_in_memory()?;
+        apply_schema(&connection)?;
+        connection.pragma_update(None, "foreign_keys", "OFF")?;
+        connection.execute_batch(
+            "DROP TABLE task_tags;
+             DROP TABLE tasks;
+             CREATE TABLE tasks (
+               id TEXT PRIMARY KEY,
+               vault_id TEXT NOT NULL,
+               source_note_id TEXT,
+               source_note_path TEXT,
+               line INTEGER NOT NULL DEFAULT 0,
+               title TEXT NOT NULL,
+               body TEXT NOT NULL DEFAULT '',
+               status TEXT NOT NULL DEFAULT 'open',
+               priority INTEGER NOT NULL DEFAULT 0,
+               due_at TEXT,
+               scheduled_at TEXT,
+               start_at TEXT,
+               rrule TEXT,
+               field_style TEXT NOT NULL DEFAULT 'emoji',
+               completed_at TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
+             CREATE INDEX idx_tasks_vault_status ON tasks(vault_id, status);
+             CREATE INDEX idx_tasks_vault_due ON tasks(vault_id, due_at);
+             CREATE INDEX idx_tasks_source_note_id ON tasks(source_note_id);
+             CREATE INDEX idx_tasks_source_note_path ON tasks(vault_id, source_note_path);
+             CREATE TABLE task_tags (
+               task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+               tag TEXT NOT NULL,
+               PRIMARY KEY (task_id, tag)
+             );
+             CREATE INDEX idx_task_tags_tag ON task_tags(tag);
+             UPDATE cache_meta SET value = '10' WHERE key = 'schema_version';",
+        )?;
+        connection.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('v:a.md', 'v', 'a.md', 'A', 'h', 'now', 1, '[]')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, line, title, created_at, updated_at)
+             VALUES ('kept', 'v', 'v:a.md', 'a.md', 4, 'Keep', 'c', 'u')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, line, title, created_at, updated_at)
+             VALUES ('orphan', 'v', 'v:missing.md', 'missing.md', 8, 'Orphan', 'c', 'u')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO task_tags(task_id, tag) VALUES ('kept', 'work')",
+            [],
+        )?;
+        connection.pragma_update(None, "foreign_keys", "ON")?;
+
+        migrate_v10_to_v11(&connection)?;
+
+        let mut fk = connection.prepare("PRAGMA foreign_key_list(tasks)")?;
+        let rows = fk.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(6)?,
+            ))
+        })?;
+        let foreign_keys = rows.collect::<Result<Vec<_>, _>>()?;
+        assert!(foreign_keys.iter().any(|(table, from, to, on_delete)| {
+            table == "notes"
+                && from == "source_note_id"
+                && to == "id"
+                && on_delete.eq_ignore_ascii_case("cascade")
+        }));
+
+        let tag: String = connection.query_row(
+            "SELECT tag FROM task_tags WHERE task_id = 'kept'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(tag, "work");
+        let orphan_source: Option<String> = connection.query_row(
+            "SELECT source_note_id FROM tasks WHERE id = 'orphan'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(orphan_source, None);
+
+        connection.execute("DELETE FROM notes WHERE id = 'v:a.md'", [])?;
+        let kept_count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM tasks WHERE id = 'kept'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(kept_count, 0);
+        let tag_count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM task_tags WHERE task_id = 'kept'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(tag_count, 0);
+        assert_eq!(read_schema_version(&connection)?, Some(11));
         Ok(())
     }
 }
