@@ -81,6 +81,12 @@ body:has(.unified-panel-docked) {
   --unified-panel-dock-width: clamp(360px, 30vw, 440px);
 }
 
+/* A normal modal must always win if one is opened while a companion remains
+ * docked. Keep the dock in the layer immediately below the modal backdrop. */
+.dock-backdrop {
+  z-index: calc(var(--comp-modal-z, 40) - 1);
+}
+
 .unified-panel-shell.unified-panel-docked[class] {
   position: fixed;
   top: var(--topbar-bottom, 0px);
@@ -124,10 +130,10 @@ body:has(.unified-panel-docked) .workspace-grid > .inspector-collapsed-placehold
   display: none;
 }
 
-/* The dock extends to the viewport bottom, so reserve its column in the status
- * footer as well. Otherwise live Jobs/Diagnostics/Git controls remain present
- * but become visually and pointer-wise hidden underneath the dock. */
-body:has(.unified-panel-docked) .status-strip {
+/* The dock extends to the viewport bottom, so every bottom-chrome row must keep
+ * its interactive content out from under the companion rail. */
+body:has(.unified-panel-docked) .status-strip,
+body:has(.unified-panel-docked) .bottom-tabs-wrap {
   padding-right: calc(var(--unified-panel-dock-width) + 12px);
 }
 
@@ -170,7 +176,8 @@ html[dir='rtl'] body:has(.unified-panel-docked) .workspace-grid {
   padding-left: var(--unified-panel-dock-width);
 }
 
-html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
+html[dir='rtl'] body:has(.unified-panel-docked) .status-strip,
+html[dir='rtl'] body:has(.unified-panel-docked) .bottom-tabs-wrap {
   padding-right: 12px;
   padding-left: calc(var(--unified-panel-dock-width) + 12px);
 }
