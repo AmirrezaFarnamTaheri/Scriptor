@@ -73,8 +73,8 @@
 
 /* A right dock is a real companion column on roomy desktops. Keep it bounded:
  * the former 720px reservation crushed the editor/inspector into unusable
- * slivers. On compact desktops the same presentation degrades to an overlaying
- * side sheet instead of shrinking the workspace below a useful width. */
+ * slivers. UnifiedPanelShell resolves a dock preference to a modal at 1320px
+ * and below, so these reservation rules only apply where a real dock exists. */
 body:has(.unified-panel-docked) {
   --unified-panel-dock-width: clamp(360px, 30vw, 440px);
 }
@@ -161,26 +161,6 @@ html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
   z-index: var(--comp-modal-z, 40);
 }
 
-@media (max-width: 1320px) {
-  /* Side-sheet fallback: preserve the current workspace geometry when there is
-   * no longer enough horizontal room for a genuine companion column. */
-  body:has(.unified-panel-docked) .workspace-grid,
-  html[dir='rtl'] body:has(.unified-panel-docked) .workspace-grid {
-    padding-right: 0;
-    padding-left: 0;
-  }
-
-  body:has(.unified-panel-docked) .status-strip,
-  html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
-    padding-right: 12px;
-    padding-left: 12px;
-  }
-
-  .unified-panel-shell.unified-panel-docked[class] {
-    width: min(520px, 92vw);
-  }
-}
-
 @media (max-width: 640px) {
   .unified-panel-shell[class],
   .unified-panel-shell.unified-panel-wide[class],
@@ -190,16 +170,6 @@ html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
     width: calc(100vw - 16px);
     max-height: calc(100dvh - 16px);
     border-radius: var(--radius-lg);
-  }
-
-  .unified-panel-shell.unified-panel-docked[class] {
-    width: calc(100vw - 16px);
-    max-height: none;
-    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
-  }
-
-  html[dir='rtl'] .unified-panel-shell.unified-panel-docked[class] {
-    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
   }
 
   .unified-panel-shell .unified-panel-header {
