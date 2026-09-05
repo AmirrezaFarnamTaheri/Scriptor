@@ -18,6 +18,20 @@
   }
 }
 
+@media (max-width: 1100px) {
+  /* Preserve one-row desktop chrome before the true mobile breakpoint. These
+     secondary destinations remain available through the command palette and
+     mobile workspace navigation; core context and settings stay visible. */
+  .topbar .topbar-secondary-action,
+  .topbar .topbar-secondary-status {
+    display: none;
+  }
+
+  .command-search {
+    max-width: none;
+  }
+}
+
 @media (max-width: 820px) {
   .app-shell {
     min-height: 0;
@@ -306,11 +320,6 @@
     max-width: none;
   }
 
-  .topbar .topbar-secondary-action,
-  .topbar .topbar-secondary-status {
-    display: none;
-  }
-
   .workspace-mode-strip {
     grid-column: 1 / -1;
     order: 3;
@@ -419,17 +428,4 @@ html[data-ui-reflow='mobile'] .status-summary .repo-state {
   grid-column: auto;
   justify-content: flex-start;
   margin-left: 0;
-}
-
-/* Docked unified panels (portal, git, MCP, quick capture, note history) all
-   render at the shared 720px dock width (their width classes resolve there),
-   so reserve exactly that much workspace. The old reservation was a blanket
-   480px: docks visually covered the inspector and part of the editor while
-   the grid only made room for 480px, crushing the editor column. */
-.unified-panel-docked {
-  width: min(720px, 92vw);
-}
-
-body:has(.unified-panel-docked) .workspace-grid {
-  padding-right: min(720px, 92vw);
 }
