@@ -1,7 +1,6 @@
 use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
@@ -23,9 +22,8 @@ use crate::watcher::restart_vault_watcher;
 
 const MAX_RPC_PER_CONNECTION_PER_SEC: u32 = 60;
 const MAX_RPC_GLOBAL_PER_SEC: u32 = 512;
-const MAX_CONCURRENT_CONNECTIONS: usize = 32;
 pub const DAEMON_PROTOCOL_VERSION: u32 = 1;
-const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(5);
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(1_500);
 const IDLE_REQUEST_TIMEOUT: Duration = Duration::from_secs(60);
 const SUBSCRIPTION_POLL_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -37,29 +35,16 @@ fn global_rpc_limiter() -> &'static Mutex<RateLimiter> {
 
 mod endpoint;
 mod framing;
+mod limits;
 
 pub use endpoint::{
     DaemonEndpoint, connect_authenticated_client, connect_authenticated_client_with_retry_observer,
     connect_client, default_socket_name, endpoint_file_path, read_endpoint, remove_endpoint_file,
     write_endpoint,
 };
-// Internal helpers defined in `endpoint` that the parent transport module (and
-// its `tests` submodule) drive directly.
 use endpoint::{constant_time_eq, persist_endpoint, resolve_name};
-// Frame I/O with a deadline, kept in `framing` so this module stays about RPC.
 use framing::{read_frame_with_timeout, write_event_with_timeout, write_response_with_timeout};
-
-/// RAII guard for one connection slot: decrements the active-connection counter
-/// on drop, including when the handler thread panics.
-struct ConnectionSlot {
-    counter: Arc<AtomicUsize>,
-}
-
-impl Drop for ConnectionSlot {
-    fn drop(&mut self) {
-        self.counter.fetch_sub(1, Ordering::SeqCst);
-    }
-}
+use limits::{ConnectionBudget, ConnectionSlot, MAX_CONCURRENT_CONNECTIONS, MAX_PREAUTH_CONNECTIONS};
 
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
@@ -91,14 +76,10 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     }
     let _endpoint_guard = EndpointCleanup;
 
-    // The nonce an authenticated request must match is the local `expected_nonce`
-    // below, taken from the endpoint file this loop just wrote. It deliberately
-    // does not live in `DaemonState`: `main` read it back from there and skipped
-    // authentication entirely when the field was `None`, which let a daemon that
-    // failed to record a nonce serve every unauthenticated frame.
     let state = Arc::new(Mutex::new(DaemonState::default()));
     let event_hub = EventHub::new();
-    let active_connections = Arc::new(AtomicUsize::new(0));
+    let active_connections = ConnectionBudget::new(MAX_CONCURRENT_CONNECTIONS);
+    let preauth_connections = ConnectionBudget::new(MAX_PREAUTH_CONNECTIONS);
     let expected_nonce = endpoint
         .nonce
         .clone()
@@ -106,10 +87,6 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let mut consecutive_accept_errors = 0u32;
 
     loop {
-        // The endpoint is a discoverability cache, not authority. If a local
-        // peer deletes or tampers with it while the daemon is alive, restore
-        // the same authenticated endpoint rather than minting a new nonce
-        // that existing clients do not know.
         if !endpoint_file_path()?.exists() {
             persist_endpoint(&endpoint)?;
         }
@@ -153,29 +130,40 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
             }
         };
         stream.set_nonblocking(true).map_err(IpcError::from)?;
-        let current = active_connections.load(Ordering::SeqCst);
-        if current >= MAX_CONCURRENT_CONNECTIONS {
+        let Some(slot) = active_connections.try_acquire() else {
             tracing::warn!(
                 target: "scriptor_daemon::transport",
-                current,
+                current = active_connections.current(),
                 limit = MAX_CONCURRENT_CONNECTIONS,
                 "connection limit reached; rejecting incoming connection",
             );
             drop(stream);
             continue;
-        }
+        };
+        let Some(preauth_slot) = preauth_connections.try_acquire() else {
+            tracing::warn!(
+                target: "scriptor_daemon::transport",
+                current = preauth_connections.current(),
+                limit = MAX_PREAUTH_CONNECTIONS,
+                "pre-authentication connection limit reached; rejecting incoming connection",
+            );
+            drop(slot);
+            drop(stream);
+            continue;
+        };
+
         let state = Arc::clone(&state);
         let event_hub = Arc::clone(&event_hub);
         let expected_nonce = expected_nonce.clone();
-        active_connections.fetch_add(1, Ordering::SeqCst);
-        // Decrement via a drop guard so a panicking handler cannot leak the
-        // connection slot (the guard runs during unwind as well).
-        let slot = ConnectionSlot {
-            counter: Arc::clone(&active_connections),
-        };
         std::thread::spawn(move || {
             let _slot = slot;
-            if let Err(error) = handle_connection(stream, &state, &event_hub, &expected_nonce) {
+            if let Err(error) = handle_connection_with_preauth_slot(
+                stream,
+                &state,
+                &event_hub,
+                &expected_nonce,
+                Some(preauth_slot),
+            ) {
                 tracing::warn!(
                     target: "scriptor_daemon::transport",
                     %error,
@@ -187,19 +175,29 @@ pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
 }
 
 pub fn handle_connection(
-    mut stream: LocalSocketStream,
+    stream: LocalSocketStream,
     state: &Arc<Mutex<DaemonState>>,
     event_hub: &Arc<EventHub>,
     expected_nonce: &str,
 ) -> Result<(), IpcError> {
+    handle_connection_with_preauth_slot(stream, state, event_hub, expected_nonce, None)
+}
+
+fn handle_connection_with_preauth_slot(
+    mut stream: LocalSocketStream,
+    state: &Arc<Mutex<DaemonState>>,
+    event_hub: &Arc<EventHub>,
+    expected_nonce: &str,
+    mut preauth_slot: Option<ConnectionSlot>,
+) -> Result<(), IpcError> {
     let mut limiter = RateLimiter::per_second(MAX_RPC_PER_CONNECTION_PER_SEC);
-    let mut first_frame = true;
+    let mut authenticated = false;
 
     loop {
-        let timeout = if first_frame {
-            HANDSHAKE_TIMEOUT
-        } else {
+        let timeout = if authenticated {
             IDLE_REQUEST_TIMEOUT
+        } else {
+            HANDSHAKE_TIMEOUT
         };
         let body = match read_frame_with_timeout(&mut stream, timeout) {
             Ok(body) => body,
@@ -207,18 +205,18 @@ pub fn handle_connection(
             Err(IpcError::Io(error)) if error.kind() == io::ErrorKind::TimedOut => return Ok(()),
             Err(error) => return Err(error),
         };
-        first_frame = false;
         let request: RpcRequest =
             postcard::from_bytes(&body).map_err(|error| IpcError::Codec(error.to_string()))?;
 
-        // Authenticate *before* drawing from the shared global rate budget. A
-        // local peer that can reach the socket but does not hold the nonce must
-        // not be able to spend the global budget and cause legitimate clients to
-        // be throttled. Unauthenticated frames are rejected without consuming
-        // the global budget (the per-connection limiter below still bounds each
-        // connection's own attempt rate).
         match &request.endpoint_nonce {
-            Some(provided) if constant_time_eq(provided.as_bytes(), expected_nonce.as_bytes()) => {}
+            Some(provided) if constant_time_eq(provided.as_bytes(), expected_nonce.as_bytes()) => {
+                if !authenticated {
+                    authenticated = true;
+                    if let Some(slot) = preauth_slot.take() {
+                        slot.release();
+                    }
+                }
+            }
             _ => {
                 let response = RpcResponse {
                     id: request.id,
@@ -229,7 +227,7 @@ pub fn handle_connection(
                     )),
                 };
                 write_response_with_timeout(&mut stream, response)?;
-                continue;
+                return Ok(());
             }
         }
 
@@ -266,9 +264,6 @@ pub fn handle_connection(
                             break;
                         }
                         Ok(_) => {
-                            // Event subscriptions are one-way after the
-                            // acknowledgement. Unexpected client bytes close
-                            // the stream instead of becoming a second RPC lane.
                             let _ = disconnect_tx.try_send(());
                             break;
                         }
@@ -305,10 +300,6 @@ fn dispatch_request(
     event_hub: &Arc<EventHub>,
 ) -> RpcResponse {
     let id = request.id;
-    // Commands that stay inside `DaemonState::handle` are authorized exactly
-    // once there. Only work that intentionally escapes the global state lock
-    // is checked here, immediately before the authoritative state snapshot is
-    // taken, so capability enforcement has one owner per dispatch path.
     let runs_outside_lock = matches!(
         &request.method,
         RpcMethod::ExportRunNote { .. }
@@ -530,9 +521,6 @@ fn dispatch_invoke_outside_lock(
             let queue = { lock_recover(state).git_queue() };
             queue.and_then(|queue| {
                 queue
-                    // Wrapped so the queue's `&PathBuf` root coerces to the
-                    // `&Path` that `git_push` takes; the function item alone
-                    // does not satisfy the `FnOnce(&PathBuf)` bound.
                     .enqueue(|root| scriptor_native_git::git_push(root))
                     .map_err(|error| error.to_string())
                     .and_then(|value| {
