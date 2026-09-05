@@ -95,6 +95,7 @@ export function ReaderPanel({
   const [closeWarning, setCloseWarning] = useState(false)
   const [annotationError, setAnnotationError] = useState<string | null>(null)
   const [annotationsLoadedKey, setAnnotationsLoadedKey] = useState<string | null>(null)
+  const [fileReloadGeneration, setFileReloadGeneration] = useState(0)
   const readyTimerRef = useRef<number | null>(null)
 
   // ── Store ──────────────────────────────────────────────────────────────────
@@ -175,7 +176,7 @@ export function ReaderPanel({
   }, [annotationSaveQueue])
 
   // ── File I/O ───────────────────────────────────────────────────────────────
-  const fileState = useReaderFile(filePath, vaultRoot)
+  const fileState = useReaderFile(filePath, vaultRoot, fileReloadGeneration)
   const viewerLocation = viewer?.fileType === fileType ? viewer.location : null
   const webviewReady = viewer?.fileType === fileType && viewer.ready
 
@@ -443,6 +444,12 @@ export function ReaderPanel({
             sandbox="allow-scripts allow-same-origin"
             aria-label={`Document viewer: ${fileLabel}`}
             onLoad={() => {
+              // The first transfer deliberately detaches the parent ArrayBuffer to avoid
+              // duplicating large documents. If the iframe reloads afterwards, re-read the
+              // same bounded native file instead of attempting to resend a detached buffer.
+              if (fileState.status === 'ready' && fileState.bytes.buffer.byteLength === 0) {
+                setFileReloadGeneration((generation) => generation + 1)
+              }
               // The frame signals readiness via postMessage READY, not onLoad,
               // because pdf.js initialises asynchronously.
               setViewer((current) => (current ? { ...current, ready: false } : current))
