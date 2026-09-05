@@ -80,6 +80,21 @@ test.describe('adaptive panel presentation', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
   })
 
+  test('app zoom reflow also converts a physically wide viewport to modal presentation', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await useDockedPanels(page)
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:ui-zoom', '1.25')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await expect.poll(() => page.locator('html').getAttribute('data-ui-reflow')).toBe('stacked')
+
+    await runGitCommand(page)
+    await expect(page.getByRole('dialog', { name: 'Git', exact: true })).toBeVisible({ timeout: 45_000 })
+    await expect(page.getByRole('complementary', { name: 'Git', exact: true })).toHaveCount(0)
+  })
+
   test('opening another companion replaces the existing dock and legacy feature CSS cannot retake the shell', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await useDockedPanels(page)
