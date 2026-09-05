@@ -6,6 +6,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::lock_vault_mutation;
 use crate::hash::content_hash;
 use crate::link_rewrite::{RenameLinkTarget, rewrite_note_rename_links_with_resolver};
 use crate::note::read_note;
@@ -15,7 +16,7 @@ use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::rename_transaction::StagedRenameTransaction;
 use crate::scan::list_notes;
 use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
-use crate::write::save_note;
+use crate::write::save_note_locked;
 
 static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex")
@@ -136,6 +137,13 @@ pub fn rename_apply_staged_guarded(
     update_links: bool,
     expected_source_hash: Option<&str>,
 ) -> Result<(RenameNoteApplyOutput, StagedRenameTransaction), VaultError> {
+    // Serialize the full on-disk planning/write/move phase. Once the staged
+    // transaction is returned, its manifest remains present until commit/abort;
+    // independent save/delete entry points treat that manifest as a write
+    // barrier so daemon-side index reconciliation cannot admit another writer
+    // into the recovery window.
+    let _mutation_lock = lock_vault_mutation(root.root())?;
+
     if let Some(expected) = expected_source_hash {
         let current = read_note(vault_id, root, from_path)?;
         if current.metadata.content_hash != expected {
@@ -195,7 +203,8 @@ pub fn rename_apply_staged_guarded(
     for (path, (markdown, original_hash)) in &pending_writes {
         if path != from_path.as_str() {
             let relative = RelativeVaultPath::parse(path)?;
-            if let Err(error) = save_note(vault_id, root, &relative, markdown, Some(original_hash))
+            if let Err(error) =
+                save_note_locked(vault_id, root, &relative, markdown, Some(original_hash))
             {
                 let _ = staged.abort();
                 return Err(error);
@@ -215,7 +224,7 @@ pub fn rename_apply_staged_guarded(
         // missing-content sentinel: a note that appeared at the destination after
         // the dry-run collision check fails the transaction instead of being
         // overwritten by the rename.
-        save_note(
+        save_note_locked(
             vault_id,
             root,
             to_path,
