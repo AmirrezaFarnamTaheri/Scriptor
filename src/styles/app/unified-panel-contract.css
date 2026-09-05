@@ -71,10 +71,12 @@
   width: min(1080px, calc(100vw - 32px));
 }
 
-/* A right dock is a real companion column on roomy desktops. Keep it bounded:
- * the former 720px reservation crushed the editor/inspector into unusable
- * slivers. UnifiedPanelShell resolves a dock preference to a modal at 1320px
- * and below, so these reservation rules only apply where a real dock exists. */
+/* A right dock is a real companion rail on roomy desktops. Scriptor already
+ * owns a right-side Inspector rail, so a companion replaces that rail instead
+ * of appending a fourth full pane. The dock still reserves real layout width;
+ * releasing the Inspector at the same time prevents the editor from being
+ * crushed. UnifiedPanelShell resolves dock preference to a modal at 1320px and
+ * below, including effective app-zoom reflow. */
 body:has(.unified-panel-docked) {
   --unified-panel-dock-width: clamp(360px, 30vw, 440px);
 }
@@ -95,11 +97,29 @@ body:has(.unified-panel-docked) {
 }
 
 body:has(.unified-panel-docked) .workspace-grid {
+  grid-template-columns:
+    min(var(--vault-width, 318px), 24%)
+    auto
+    minmax(0, 1fr)
+    0px
+    0px;
   padding-right: var(--unified-panel-dock-width);
   transition:
     grid-template-columns 250ms var(--ease-soft),
     padding-right 220ms var(--ease-soft),
     padding-left 220ms var(--ease-soft);
+}
+
+body:has(.unified-panel-docked) .workspace-grid[data-vault-collapsed='true'] {
+  grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px;
+}
+
+/* The Inspector state itself is preserved. It yields visually while a companion
+ * owns the rail and reappears unchanged when the companion closes. */
+body:has(.unified-panel-docked) .workspace-grid > .inspector-panel,
+body:has(.unified-panel-docked) .workspace-grid > .split-pane-handle:has(+ .inspector-panel),
+body:has(.unified-panel-docked) .workspace-grid > .inspector-collapsed-placeholder {
+  display: none;
 }
 
 /* The dock extends to the viewport bottom, so reserve its column in the status
