@@ -124,22 +124,7 @@ function TabButton({
       // enters and leaves the tablist once and arrows move between tabs.
       tabIndex={active ? 0 : -1}
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        padding: '6px 14px',
-        borderRadius: 'var(--radius-sm)',
-        border: 'none',
-        cursor: 'pointer',
-        fontWeight: active ? 600 : 400,
-        background: active ? 'var(--accent)' : 'transparent',
-        color: active ? 'var(--bg)' : 'var(--text-muted)',
-        fontSize: 'var(--text-sm)',
-        transition: 'background var(--ease-fast), color var(--ease-fast)',
-        flexShrink: 0,
-        whiteSpace: 'nowrap',
-      }}
+      className={`store-tab${active ? ' active' : ''}`}
     >
       {icon}
       {label}
@@ -185,7 +170,7 @@ function McpTab({
         <div
           role="radiogroup"
           aria-labelledby="mcp-mode-label"
-          style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+          className="store-stack-xs"
         >
           {MCP_MODES.map((m) => (
             <button
@@ -195,26 +180,14 @@ function McpTab({
               aria-checked={mcpMode === m.value}
               disabled={!interactive}
               onClick={() => onSetMcpMode(m.value)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '8px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid',
-                borderColor: mcpMode === m.value ? 'var(--accent)' : 'var(--border)',
-                background: mcpMode === m.value ? 'color-mix(in srgb, var(--accent) 12%, transparent)' : 'transparent',
-                cursor: interactive ? 'pointer' : 'not-allowed',
-                opacity: interactive ? 1 : 0.6,
-                textAlign: 'left',
-              }}
+              className={`store-mode-option${mcpMode === m.value ? ' active' : ''}`}
             >
               {mcpMode === m.value
                 ? <Check size={14} color="var(--accent)" />
-                : <div style={{ width: 14 }} />}
+                : <div className="store-check-spacer" />}
               <div>
                 <div className="store-item-title">{m.label}</div>
-                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>{m.description}</div>
+                <div className="store-item-desc">{m.description}</div>
               </div>
             </button>
           ))}
@@ -250,20 +223,9 @@ function McpTab({
           type="button"
           aria-expanded={showAudit}
           onClick={() => setShowAudit((s) => !s)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 6,
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            color: 'var(--text-muted)',
-            fontSize: 'var(--text-sm)',
-            padding: 0,
-          }}
+          className="store-audit-toggle"
         >
-          <ChevronRight size={12} style={{ transform: showAudit ? 'rotate(90deg)' : 'none', transition: 'transform var(--ease-fast)' }} />
+          <ChevronRight size={12} />
           Audit Log ({mcpAuditLog.length} entries)
         </button>
         {showAudit && (
@@ -271,28 +233,9 @@ function McpTab({
             {mcpAuditLog.slice(0, 50).map((entry, i) => (
               <div
                 key={i}
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  fontSize: 'var(--text-xs)',
-                  padding: '3px 6px',
-                  borderRadius: 'var(--radius-sm)',
-                  background: entry.outcome === 'denied'
-                    ? 'color-mix(in srgb, var(--danger) 12%, transparent)'
-                    : entry.outcome === 'failed'
-                    ? 'color-mix(in srgb, var(--color-status-warning) 12%, transparent)'
-                    : 'var(--surface-raised)',
-                }}
+                className={`store-audit-row${entry.outcome === 'denied' ? ' denied' : entry.outcome === 'failed' ? ' failed' : ''}`}
               >
-                <span style={{
-                  color: entry.outcome === 'denied'
-                    ? 'var(--danger)'
-                    : entry.outcome === 'failed'
-                    ? 'var(--color-status-warning)'
-                    : 'var(--success)',
-                  fontWeight: 600,
-                  minWidth: 50,
-                }}>
+                <span className="store-audit-outcome">
                   {entry.outcome}
                 </span>
                 <span className="store-mono-dim">{entry.toolName}</span>
@@ -334,16 +277,7 @@ function FeaturesTab({
       {featureFlags.map((flag) => (
         <div
           key={flag.key}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 12,
-            padding: '10px 12px',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border)',
-            background: flag.enabled ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
-          }}
+          className={`store-flag-row${flag.enabled ? ' enabled' : ''}`}
         >
           <button
             type="button"
@@ -351,14 +285,7 @@ function FeaturesTab({
             onClick={() => onToggleFeature(flag.key, !flag.enabled)}
             aria-label={`Toggle ${flag.label}`}
             aria-pressed={flag.enabled}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: interactive ? 'pointer' : 'not-allowed',
-              opacity: interactive ? 1 : 0.5,
-              padding: 0,
-              display: 'flex',
-            }}
+            className="store-flag-toggle"
           >
             {flag.enabled
               ? <ToggleRight size={22} color="var(--accent)" />
@@ -368,7 +295,7 @@ function FeaturesTab({
             <div className="store-item-title store-title-row">
               {flag.label}
               {flag.requiresRestart && (
-                <span style={{ fontSize: 'var(--text-xs)', background: 'color-mix(in srgb, var(--color-status-warning) 20%, transparent)', color: 'var(--color-status-warning)', borderRadius: 'var(--radius-sm)', padding: '1px 5px' }}>
+                <span className="store-chip-warning">
                   restart
                 </span>
               )}
@@ -402,19 +329,9 @@ function LayoutsTab({
         return (
           <div
             key={preset.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: 12,
-              padding: '10px 12px',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid',
-              borderColor: active ? 'var(--accent)' : 'var(--border)',
-              background: active ? 'color-mix(in srgb, var(--accent) 10%, transparent)' : 'transparent',
-            }}
+            className={`store-preset-row${active ? ' active' : ''}`}
           >
-            <LayoutTemplate size={16} style={{ flexShrink: 0, opacity: 0.7 }} />
+            <LayoutTemplate size={16} className="store-icon-70" />
             <div className="store-fill-row">
               <div className="store-item-title">{preset.name}</div>
               <div className="store-item-sub">
@@ -427,17 +344,7 @@ function LayoutsTab({
               disabled={!onApplyLayoutPreset || active}
               aria-label={`Apply ${preset.name} layout`}
               aria-current={active ? 'true' : undefined}
-              style={{
-                fontSize: 'var(--text-xs)',
-                padding: '3px 10px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--accent)',
-                background: active ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
-                color: 'var(--accent)',
-                cursor: !onApplyLayoutPreset || active ? 'default' : 'pointer',
-                opacity: !onApplyLayoutPreset ? 0.4 : 1,
-                marginLeft: 'auto',
-              }}
+              className={`store-btn-apply${active ? ' active' : ''}`}
             >
               {active ? 'Active' : 'Apply'}
             </button>
@@ -513,41 +420,18 @@ function PluginsTab({
   return (
     <div className="store-stack">
       {/* Safe mode banner */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-          padding: '8px 12px',
-          borderRadius: 'var(--radius-sm)',
-          background: safeMode
-            ? 'color-mix(in srgb, var(--danger) 10%, transparent)'
-            : 'color-mix(in srgb, var(--success) 8%, transparent)',
-          border: '1px solid',
-          borderColor: safeMode
-            ? 'color-mix(in srgb, var(--danger) 30%, transparent)'
-            : 'color-mix(in srgb, var(--success) 22%, transparent)',
-        }}
-      >
+      <div className={`store-banner${safeMode ? ' danger' : ''}`}>
         {safeMode
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
-        <span style={{ flex: 1, fontSize: 'var(--text-sm)' }}>
+        <span className="store-banner-label">
           {safeMode ? 'Safe mode — all plugins disabled' : 'Plugins active'}
         </span>
         <button
           type="button"
           onClick={() => onToggleSafeMode(!safeMode)}
           aria-pressed={safeMode}
-          style={{
-            fontSize: 'var(--text-xs)',
-            background: 'none',
-            border: '1px solid currentColor',
-            borderRadius: 'var(--radius-sm)',
-            padding: '2px 8px',
-            cursor: 'pointer',
-            color: safeMode ? 'var(--danger)' : 'var(--success)',
-          }}
+          className={`store-btn-outline${safeMode ? ' danger' : ' success'}`}
         >
           {safeMode ? 'Disable' : 'Enable'} safe mode
         </button>
@@ -571,41 +455,28 @@ function PluginsTab({
               return (
                 <div
                   key={plugin.manifest.id}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 8,
-                  }}
+                  className="store-card"
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                    <Box size={16} style={{ marginTop: 2, flexShrink: 0, opacity: 0.7 }} />
-                    <div style={{ flex: 1 }}>
+                  <div className="store-card-head">
+                    <Box size={16} className="store-card-icon" />
+                    <div className="store-flex1">
                       <div className="store-item-title">
                         {plugin.manifest.name}
-                        <span style={{ fontSize: 'var(--text-xs)', opacity: 0.5, marginLeft: 6 }}>
+                        <span className="store-version">
                           v{plugin.manifest.version}
                         </span>
                       </div>
                       {plugin.manifest.description && (
-                        <div style={{ fontSize: 'var(--text-xs)', opacity: 0.6, marginTop: 2 }}>
+                        <div className="store-desc-dim store-mt2">
                           {plugin.manifest.description}
                         </div>
                       )}
                       {labels.length > 0 && (
-                        <div style={{ display: 'flex', gap: 4, marginTop: 4, flexWrap: 'wrap' }}>
+                        <div className="store-chip-row">
                           {labels.map((label) => (
                             <span
                               key={label}
-                              style={{
-                                fontSize: 'var(--text-xs)',
-                                background: 'var(--surface-raised)',
-                                borderRadius: 'var(--radius-sm)',
-                                padding: '1px 5px',
-                                opacity: 0.8,
-                              }}
+                              className="store-chip"
                             >
                               {label}
                             </span>
@@ -613,9 +484,9 @@ function PluginsTab({
                         </div>
                       )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <div className="store-inline-actions">
                       {consented ? (
-                        <Lock size={12} style={{ opacity: 0.5 }} />
+                        <Lock size={12} className="store-icon-50" />
                       ) : null}
                       <button
                         type="button"
@@ -623,16 +494,7 @@ function PluginsTab({
                         disabled={safeMode || (!plugin.enabled && !consented)}
                         aria-pressed={plugin.enabled}
                         aria-describedby={consented ? undefined : consentHintId}
-                        style={{
-                          fontSize: 'var(--text-xs)',
-                          padding: '2px 8px',
-                          borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border)',
-                          background: plugin.enabled ? 'color-mix(in srgb, var(--accent) 16%, transparent)' : 'transparent',
-                          cursor: safeMode || (!plugin.enabled && !consented) ? 'not-allowed' : 'pointer',
-                          opacity: safeMode || (!plugin.enabled && !consented) ? 0.4 : 1,
-                          color: plugin.enabled ? 'var(--accent)' : 'inherit',
-                        }}
+                        className={`store-plugin-toggle${plugin.enabled ? ' enabled' : ''}`}
                       >
                         {plugin.enabled ? 'Enabled' : 'Enable'}
                       </button>
@@ -649,23 +511,11 @@ function PluginsTab({
                   */}
                   <section
                     aria-label={`Permissions for ${plugin.manifest.name}`}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: 6,
-                      paddingTop: 8,
-                      borderTop: '1px solid var(--border)',
-                    }}
+                    className="store-permissions"
                   >
                     <div
                       id={consentHintId}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        fontSize: 'var(--text-xs)',
-                        color: consented ? 'var(--text-muted)' : 'var(--color-status-warning)',
-                      }}
+                      className={`store-consent-hint${consented ? '' : ' unconsented'}`}
                     >
                       {consented
                         ? <ShieldCheck size={12} aria-hidden="true" />
@@ -679,27 +529,12 @@ function PluginsTab({
                       </span>
                     </div>
                     {plugin.manifest.permissions.length > 0 ? (
-                      <ul
-                        style={{
-                          listStyle: 'none',
-                          margin: 0,
-                          padding: 0,
-                          display: 'flex',
-                          flexWrap: 'wrap',
-                          gap: 4,
-                        }}
-                      >
+                      <ul className="store-perm-list">
                         {plugin.manifest.permissions.map((entry) => (
                           <li
                             key={entry.permission}
                             title={entry.reason}
-                            style={{
-                              fontSize: 'var(--text-xs)',
-                              background: 'var(--surface-raised)',
-                              borderRadius: 'var(--radius-sm)',
-                              padding: '1px 5px',
-                              opacity: 0.8,
-                            }}
+                            className="store-chip"
                           >
                             {entry.permission}
                             {entry.optional ? ' (optional)' : ''}
@@ -707,7 +542,7 @@ function PluginsTab({
                         ))}
                       </ul>
                     ) : null}
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    <div className="store-actions-row">
                       {consented ? null : (
                         <button
                           type="button"
@@ -725,16 +560,7 @@ function PluginsTab({
                               onTogglePlugin(plugin.manifest.id, true)
                             }
                           }}
-                          style={{
-                            fontSize: 'var(--text-xs)',
-                            padding: '3px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: '1px solid var(--accent)',
-                            background: 'transparent',
-                            color: 'var(--accent)',
-                            cursor: canGrant ? 'pointer' : 'not-allowed',
-                            opacity: canGrant ? 1 : 0.4,
-                          }}
+                          className="store-btn-accent"
                         >
                           Review and grant for this vault
                         </button>
@@ -743,15 +569,7 @@ function PluginsTab({
                         <button
                           type="button"
                           onClick={() => onRevokeConsent(plugin.manifest.id)}
-                          style={{
-                            fontSize: 'var(--text-xs)',
-                            padding: '3px 10px',
-                            borderRadius: 'var(--radius-sm)',
-                            border: '1px solid var(--border)',
-                            background: 'transparent',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                          }}
+                          className="store-btn-muted"
                         >
                           Revoke access
                         </button>
@@ -767,7 +585,7 @@ function PluginsTab({
 
       {/* Lint summary */}
       {lintSummary && lintSummary.total > 0 && (
-        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-status-warning)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="store-lint-summary">
           <TimerReset size={12} />
           {lintSummary.total} vault health issue{lintSummary.total !== 1 ? 's' : ''}
         </div>
@@ -785,33 +603,18 @@ function PluginsTab({
               .map((catalog) => (
                 <div
                   key={catalog.id}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--border)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
+                  className="store-card-row"
                 >
                   <Package size={16} className="store-icon-dim" />
-                  <div style={{ flex: 1 }}>
+                  <div className="store-flex1">
                     <div className="store-item-title">{catalog.name}</div>
-                    <div style={{ fontSize: 'var(--text-xs)', opacity: 0.6 }}>{catalog.description}</div>
+                    <div className="store-desc-dim">{catalog.description}</div>
                   </div>
                   <button
                     type="button"
                     onClick={() => onInstallMarketplace(catalog.id)}
                     aria-label={`Install ${catalog.name}`}
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      padding: '3px 10px',
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--accent)',
-                      background: 'transparent',
-                      color: 'var(--accent)',
-                      cursor: 'pointer',
-                    }}
+                    className="store-btn-accent"
                   >
                     Install
                   </button>
@@ -871,28 +674,13 @@ export function StorePanel(props: StorePanelProps) {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        gap: 0,
-        overflow: 'hidden',
-      }}
-    >
+    <div className="store-root">
       {/* Tab bar */}
       <div
         role="tablist"
         aria-label="Store sections"
         onKeyDown={handleTabKeyDown}
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 4,
-          padding: '8px 12px',
-          borderBottom: '1px solid var(--border)',
-          flexShrink: 0,
-        }}
+        className="store-tablist"
       >
         {STORE_TABS.map((tab) => (
           <TabButton
@@ -913,11 +701,11 @@ export function StorePanel(props: StorePanelProps) {
         role="tabpanel"
         aria-labelledby={tabId(activeTab)}
         tabIndex={-1}
-        style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}
+        className="store-panel-body"
       >
         {activeTab === 'plugins' && (
           <>
-            <h2 style={{ fontSize: 'var(--text-lg)', margin: '0 0 12px' }}>Plugin marketplace</h2>
+            <h2 className="store-h2">Plugin marketplace</h2>
             <PluginsTab
               plugins={props.plugins}
               safeMode={props.safeMode}

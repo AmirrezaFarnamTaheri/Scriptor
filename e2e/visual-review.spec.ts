@@ -149,6 +149,8 @@ test.describe('visual review states', () => {
       window.localStorage.setItem('scriptor:mobile-pane', 'editor')
       window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
       window.localStorage.setItem('scriptor:split-preview', 'false')
+      // Baselines capture the full status dock; the app default is collapsed.
+      window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
       window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
     }, WORKSPACE_CHROME_PREFS)
   })

@@ -1,5 +1,10 @@
 param(
-    [switch]$SkipDesktopBuild
+    [switch]$SkipDesktopBuild,
+    # Regenerate visual baselines instead of verifying them: passes
+    # --update-snapshots to Playwright and also refreshes the visual-review
+    # (dark/tablet) baselines. Required after any intentional pixel change —
+    # run on the pinned Windows runner so fonts/rendering match CI.
+    [switch]$UpdateBaselines
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,8 +24,15 @@ $previousScreenshotMode = $env:VITE_SCREENSHOT_MODE
 $captureExitCode = 0
 try {
     $env:VITE_SCREENSHOT_MODE = 'true'
-    pnpm exec playwright test --config playwright.e2e.config.ts e2e/screenshots.spec.ts
+    $screenshotArgs = @("exec", "playwright", "test", "--config", "playwright.e2e.config.ts", "e2e/screenshots.spec.ts")
+    if ($UpdateBaselines) { $screenshotArgs += "--update-snapshots" }
+    pnpm @screenshotArgs
     $captureExitCode = $LASTEXITCODE
+    if ($UpdateBaselines -and $captureExitCode -eq 0) {
+        Write-Host "==> Refresh visual-review baselines (dark/tablet states)"
+        pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots
+        $captureExitCode = $LASTEXITCODE
+    }
 }
 finally {
     if ($null -ne $previousScreenshotMode) {
@@ -32,7 +44,9 @@ finally {
 if ($captureExitCode -ne 0) { exit $captureExitCode }
 
 $docsDir = "docs/assets/screenshots"
-$snapshotDir = "e2e/screenshots.spec.ts-snapshots"
+$snapshotDirs = @("e2e/screenshots.spec.ts-snapshots")
+if ($UpdateBaselines) { $snapshotDirs += "e2e/visual-review.spec.ts-snapshots" }
+foreach ($snapshotDir in $snapshotDirs) {
 if (Test-Path $snapshotDir) {
     Write-Host "==> Copying visual regression snapshots to $docsDir"
     New-Item -ItemType Directory -Force -Path $docsDir | Out-Null
@@ -42,6 +56,7 @@ if (Test-Path $snapshotDir) {
         Copy-Item $_.FullName $docPath -Force
         Write-Host "  copied: $($_.Name) -> $docName"
     }
+}
 }
 
 Write-Host "==> Screenshot capture complete"

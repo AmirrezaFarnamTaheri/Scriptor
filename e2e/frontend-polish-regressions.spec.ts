@@ -57,8 +57,12 @@ test.describe('Frontend polish regressions', () => {
     const dock = page.locator('.bottom-tabs-wrap')
     const outputTab = page.getByRole('tab', { name: 'Output' })
 
-    await expect(outputTab).toHaveAttribute('aria-expanded', 'false')
-    await expect(page.locator('#dock-panel-output')).toHaveCount(0)
+    // The status dock collapses by default: its tabs and panel unmount until
+    // the summary-row chevron reveals them.
+    const dockToggle = page.locator('.dock-chrome-toggle')
+    await expect(dockToggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(dock).toHaveCount(0)
+    await expect(outputTab).toHaveCount(0)
 
     await expect
       .poll(async () =>
@@ -70,6 +74,23 @@ test.describe('Frontend polish regressions', () => {
         })),
       )
       .toEqual({ viewportHeight: 900, viewportWidth: 1240, pageHeight: 900, pageWidth: 1240 })
+
+    // Revealing the dock must reflow inside the same viewport, not scroll.
+    await dockToggle.click()
+    await expect(dockToggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(dock).toBeVisible()
+    await page.waitForTimeout(300)
+
+    // Chevron-reveal force-expands the active tab's panel; collapse it again
+    // (same-tab toggle) so the dock starts clean, as the original flow expects.
+    const selectedDockTab = page.locator('.bottom-tabs [role="tab"][aria-selected="true"]')
+    if ((await selectedDockTab.getAttribute('aria-expanded')) === 'true') {
+      await selectedDockTab.click()
+    }
+    await expect(page.locator('.dock-panel')).toHaveCount(0)
+
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('#dock-panel-output')).toHaveCount(0)
 
     const [workspaceBox, editorBox, inspectorBox, statusBox, dockBox] = await Promise.all([
       workspace.boundingBox(),
@@ -85,6 +106,14 @@ test.describe('Frontend polish regressions', () => {
     expect(dockBox).not.toBeNull()
     expect((editorBox?.x ?? 0) + (editorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
     expect((inspectorBox?.x ?? 0) + (inspectorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
+    await expect
+      .poll(async () =>
+        page.evaluate(() => ({
+          pageHeight: document.documentElement.scrollHeight,
+          pageWidth: document.documentElement.scrollWidth,
+        })),
+      )
+      .toEqual({ pageHeight: 900, pageWidth: 1240 })
     expect(dockBox?.x).toBeCloseTo((statusBox?.x ?? 0) + 12, 0)
     expect(dockBox?.width ?? 0).toBeGreaterThan((statusBox?.width ?? 0) * 0.9)
 
