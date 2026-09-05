@@ -178,10 +178,26 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
   margin-left: 0;
 }
 
-/* ResourceSyncPanel used viewport media queries, which do not react to the
- * much narrower containing dock on a wide monitor. Reflow those fixed 4-column
- * groups whenever MCP is actually docked so the Sharing & sync tab remains
- * readable at the bounded companion width. */
+/* Several companion bodies were authored for a 720–920px modal. Reflow their
+ * fixed multi-column assumptions against the actual 360–440px rail instead of
+ * the viewport, because viewport media queries do not see container width. */
+.unified-panel-docked.portal-panel .portal-body {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: 0;
+}
+
+.unified-panel-docked.quick-capture-panel .quick-capture-body {
+  padding-inline: 0;
+}
+
+.unified-panel-docked.quick-capture-panel .quick-capture-section-header {
+  flex-wrap: wrap;
+}
+
+.unified-panel-docked.quick-capture-panel .quick-todo-list li {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
 .unified-panel-docked .resource-sync-stats,
 .unified-panel-docked .resource-plan-meta {
   grid-template-columns: repeat(2, minmax(0, 1fr));
