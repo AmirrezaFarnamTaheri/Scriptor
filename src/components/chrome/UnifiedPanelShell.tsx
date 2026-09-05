@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
@@ -27,6 +27,24 @@ interface UnifiedPanelShellProps {
   presentation?: PanelPresentation
 }
 
+const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
+
+function useDockViewport(): boolean {
+  const [canDock, setCanDock] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia(DOCK_MEDIA_QUERY).matches : false,
+  )
+
+  useEffect(() => {
+    const media = window.matchMedia(DOCK_MEDIA_QUERY)
+    const update = () => setCanDock(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  return canDock
+}
+
 export function UnifiedPanelShell({
   title,
   subtitle,
@@ -45,11 +63,13 @@ export function UnifiedPanelShell({
   const shellRef = useRef<HTMLElement>(null)
   const titleId = useId()
   const descriptionId = useId()
-  const docked = presentation === 'dock-right'
-  // Docked shells start below the live top bar via --topbar-bottom
-  // (measured in useTopBarHeightVar): the dock z-index sits under the
-  // bar's, so without the offset its header and tabs would slide behind
-  // the bar and become unclickable whenever the bar wraps responsively.
+  const canDock = useDockViewport()
+  const docked = presentation === 'dock-right' && canDock
+  // `dock-right` is a preference, not permission to destroy the workspace.
+  // Below the desktop docking threshold the same surface becomes a normal
+  // modal, restoring a focus trap/backdrop and preventing a nearly full-width
+  // non-modal sheet from covering still-focusable workspace controls.
+  // Wide docks start below the live app chrome via --topbar-bottom.
 
   useEscapeToClose(!docked, onClose)
   useFocusTrap(shellRef, { active: !docked })
