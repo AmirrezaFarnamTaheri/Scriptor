@@ -27,7 +27,7 @@
 }
 
 .workspace-switcher select {
-  max-width: 220px;
+  max-width: 180px;
   padding: 4px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -434,6 +434,12 @@ svg {
   color: var(--ink);
 }
 
+/* Browser-default placeholder color measures ~4.2:1 on dark surfaces; pin it
+   to the secondary-text token (neutral-400, ≥8:1 on every dark background). */
+:root[data-theme='dark'] .note-search input::placeholder {
+  color: var(--color-text-secondary);
+}
+
 .kbd,
 .shortcut,
 .shortcut-badge {
@@ -507,17 +513,63 @@ svg {
 .workspace-grid {
   min-height: 0;
   display: grid;
-  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) auto var(--inspector-width, 408px);
+  /* Side rails are capped in % of the workspace content box so they squeeze
+     proportionally as the window narrows OR when a docked side panel reserves
+     space (padding-right). The inspector and vault sidebar stay docked beside
+     the editor instead of spilling over it or stacking onto the workspace. */
+  grid-template-columns:
+    min(var(--vault-width, 318px), 24%)
+    auto
+    minmax(0, 1fr)
+    auto
+    min(var(--inspector-width, 408px), 32%);
   gap: 0;
   transition: grid-template-columns 250ms var(--ease-soft);
 }
 
 .workspace-grid[data-vault-collapsed='true'] {
-  grid-template-columns: 0px 0px minmax(0, 1fr) auto var(--inspector-width, 408px);
+  grid-template-columns: 0px 0px minmax(0, 1fr) auto min(var(--inspector-width, 408px), 32%);
 }
 
 .workspace-grid[data-inspector-collapsed='true'] {
-  grid-template-columns: var(--vault-width, 318px) auto minmax(0, 1fr) 0px 0px;
+  grid-template-columns: min(var(--vault-width, 318px), 24%) auto minmax(0, 1fr) 0px 0px;
+}
+
+/* RTL: the logical grid keeps the vault rail on the reading side, but the
+   physical resizer paddings, dock edge and directional shadows were built
+   for LTR. Mirror them so the Persian locale doesn't keep left-facing
+   artifacts (dock flushes to the wrong edge, resizers face the wrong way). */
+html[dir='rtl'] .vault-panel {
+  border-right: 0;
+  border-left: 1px solid var(--glass-border);
+  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.05);
+}
+
+html[dir='rtl'] .vault-collapsed-placeholder {
+  transform: scaleX(-1);
+}
+
+html[dir='rtl'] .inspector-collapsed-placeholder {
+  transform: scaleX(-1);
+}
+
+html[dir='rtl'] .unified-panel-docked {
+  right: auto;
+  left: 0;
+  border-left: 0;
+  border-right: 1px solid var(--border);
+  border-radius: 0 16px 16px 0;
+}
+
+html[dir='rtl'] body:has(.unified-panel-docked) .workspace-grid {
+  padding-right: 0;
+  padding-left: min(720px, 92vw);
+}
+
+html[dir='rtl'] .has-custom-tooltip:hover .custom-tooltip,
+html[dir='rtl'] .has-custom-tooltip:focus-visible .custom-tooltip {
+  opacity: 1;
+  transform: translateX(50%) translateY(0);
 }
 
 .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
@@ -712,6 +764,10 @@ svg {
 
 
 .workspace-mode-strip {
+  /* Primary navigation: never let flexbox crush this into an invisible
+     internal scroller. Neighboring sections compress instead; the bar itself
+     scrolls only as the last-resort zoom-safe fallback. */
+  flex-shrink: 0;
   min-width: 0;
   flex-wrap: nowrap;
   overflow-x: auto;

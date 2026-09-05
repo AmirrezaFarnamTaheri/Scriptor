@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
-import { Activity, CheckCircle2, ChevronDown, GitBranch, PanelRight } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Activity, CheckCircle2, ChevronDown, ChevronRight, GitBranch, PanelRight } from 'lucide-react'
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
 import { StatusDockPanel, type StatusDockTab } from '../StatusDockPanel'
 import { SubsystemToggles } from './SubsystemToggles'
+import { usePersistedBoolean } from '../../hooks/usePersistedBoolean'
+import { useI18n } from '../../lib/i18n'
 import type { ClientDiagnosticEvent } from '../../hooks/useDiagnosticsSettings'
 import type { ActivityEntry } from '../../hooks/useActivityLog'
 import type { EditorLintMessage } from '@scriptor/editor'
@@ -110,14 +112,23 @@ export function WorkspaceStatusFooter({
   onHibernateSpellcheckChange,
 }: WorkspaceStatusFooterProps) {
   const [dockExpanded, setDockExpanded] = useState(false)
+  // The dock tabs + panel collapse by default so the editor reclaims the
+  // vertical space; power users can pin it open (persisted per device).
+  const [chromeCollapsed, setChromeCollapsed] = usePersistedBoolean(
+    'scriptor:status-dock-collapsed',
+    true,
+  )
+  const { t } = useI18n()
   const previousDockTab = useRef(statusDockTab)
 
   useEffect(() => {
     if (previousDockTab.current !== statusDockTab) {
       previousDockTab.current = statusDockTab
       setDockExpanded(true)
+      // Programmatic jumps (e.g. "view jobs" from elsewhere) reveal the dock.
+      setChromeCollapsed(false)
     }
-  }, [statusDockTab])
+  }, [statusDockTab, setChromeCollapsed])
 
   const activateDockTab = (tab: StatusDockTab) => {
     if (tab === statusDockTab) {
@@ -127,28 +138,55 @@ export function WorkspaceStatusFooter({
     onStatusDockTabChange(tab)
   }
 
+  const toggleChrome = useCallback(() => {
+    if (chromeCollapsed) setDockExpanded(true)
+    setChromeCollapsed(!chromeCollapsed)
+  }, [chromeCollapsed, setChromeCollapsed])
+
   return (
-    <footer className="status-strip">
+    <footer className={`status-strip${chromeCollapsed ? ' is-dock-collapsed' : ''}`}>
       <div className="status-summary">
         <button
           type="button"
           className="jobs-button"
-          onClick={() => activateDockTab('jobs')}
+          onClick={() => {
+            if (chromeCollapsed) {
+              setChromeCollapsed(false)
+              setDockExpanded(true)
+              onStatusDockTabChange('jobs')
+            } else {
+              activateDockTab('jobs')
+            }
+          }}
           aria-pressed={statusDockTab === 'jobs'}
-          aria-expanded={statusDockTab === 'jobs' && dockExpanded}
+          aria-expanded={statusDockTab === 'jobs' && dockExpanded && !chromeCollapsed}
         >
           <PanelRight />
-          Jobs
+          {t('statusDock.jobs')}
           <ChevronDown />
+        </button>
+
+        <button
+          type="button"
+          className="dock-chrome-toggle has-custom-tooltip"
+          onClick={toggleChrome}
+          aria-expanded={!chromeCollapsed}
+          aria-controls="status-dock-chrome"
+          aria-label={chromeCollapsed ? t('statusDock.showTabs') : t('statusDock.hideTabs')}
+        >
+          {chromeCollapsed ? <ChevronRight /> : <ChevronDown />}
+          <span className="custom-tooltip" aria-hidden="true">
+            {chromeCollapsed ? t('statusDock.showTabs') : t('statusDock.hideTabs')}
+          </span>
         </button>
 
         <div
           className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
-          aria-label={workspaceStatus === 'indexing' ? `Building graph ${graphProgress}%` : `Index ready (${graphProgress}%)`}
+          aria-label={workspaceStatus === 'indexing' ? t('statusDock.buildingGraphAria', { percent: graphProgress }) : t('statusDock.indexReadyAria', { percent: graphProgress })}
         >
           <Activity />
           <div>
-            <strong>{workspaceStatus === 'indexing' ? 'Building index...' : 'Index ready'}</strong>
+            <strong>{workspaceStatus === 'indexing' ? t('statusDock.buildingIndex') : t('statusDock.indexReady')}</strong>
             <div className="progress-track">
               <span style={{ width: `${graphProgress}%` }} />
             </div>
@@ -156,8 +194,8 @@ export function WorkspaceStatusFooter({
           <span>{graphProgress}%</span>
           <small>
             {rebuildSummary
-              ? `${rebuildSummary.indexed_notes + rebuildSummary.skipped_notes} / ${noteCount} notes`
-              : `${noteCount} notes`}
+              ? t('statusDock.notesProgress', { done: rebuildSummary.indexed_notes + rebuildSummary.skipped_notes, total: noteCount })
+              : t('statusDock.notesCount', { count: noteCount })}
             {lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
           </small>
         </div>
@@ -165,15 +203,15 @@ export function WorkspaceStatusFooter({
         <div className="repo-state">
           <label
             className="diagnostics-opt-in"
-            title="When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl"
+            title={t('statusDock.diagnosticsTitle')}
           >
             <input
               type="checkbox"
               checked={diagnosticsOptIn}
               onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
-              aria-label="Send local crash diagnostics"
+              aria-label={t('statusDock.diagnosticsOptInAria')}
             />
-            <span>Diagnostics</span>
+            <span>{t('statusDock.diagnostics')}</span>
           </label>
           <span>{health?.cache_status ?? 'no vault'}</span>
           {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
@@ -191,12 +229,13 @@ export function WorkspaceStatusFooter({
             onSpellcheckChange={onHibernateSpellcheckChange}
           />
           <GitBranch />
-          <span>{vault?.name ?? 'unopened'}</span>
+          <span>{vault?.name ?? t('statusDock.unopened')}</span>
           <CheckCircle2 />
         </div>
       </div>
 
-      <div className="bottom-tabs-wrap">
+      {!chromeCollapsed ? (
+      <div className="bottom-tabs-wrap" id="status-dock-chrome">
         <StatusDockPanel
           activeTab={statusDockTab}
           onTabChange={activateDockTab}
@@ -216,6 +255,7 @@ export function WorkspaceStatusFooter({
           onCancelExport={onCancelExport}
         />
       </div>
+      ) : null}
     </footer>
   )
 }

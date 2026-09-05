@@ -80,7 +80,15 @@ const toolbarPath = join(root, 'src/components/FormatToolbar.tsx')
 
 if (existsSync(editorWorkspacePath)) {
   const editorSource = readFileSync(editorWorkspacePath, 'utf8')
-  if (!editorSource.includes('aria-label="Editor"') && !editorSource.includes('aria-labelledby=')) {
+  // The editor workspace label moved into the locale catalog (en/de/fa): the
+  // section still carries an accessible name at runtime, now localized. Accept
+  // either the literal or the translation binding; the axe-core audit covers
+  // the rendered DOM.
+  if (
+    !editorSource.includes('aria-label="Editor"') &&
+    !editorSource.includes('aria-labelledby=') &&
+    !editorSource.includes("aria-label={t('editor.ariaLabel')}")
+  ) {
     failures.push('editor workspace aria-label')
   }
 } else {

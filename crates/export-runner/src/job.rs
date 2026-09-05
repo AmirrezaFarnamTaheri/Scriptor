@@ -144,7 +144,7 @@ fn normalized_lexical(path: &Path) -> PathBuf {
 fn validate_output_dir_within_vault(
     vault_root: &Path,
     output_dir: &Path,
-) -> Result<(), ExportError> {
+) -> Result<PathBuf, ExportError> {
     let canonical_root = vault_root
         .canonicalize()
         .map_err(|source| ExportError::Io {
@@ -154,33 +154,32 @@ fn validate_output_dir_within_vault(
     let absolute = if output_dir.is_absolute() {
         output_dir.to_path_buf()
     } else {
+        if output_dir.has_root()
+            || output_dir
+                .components()
+                .any(|part| matches!(part, std::path::Component::Prefix(_)))
+        {
+            return Err(ExportError::InvalidOutput(output_dir.to_path_buf()));
+        }
         canonical_root.join(output_dir)
     };
     let normalized = normalized_lexical(&absolute);
-    if !normalized.starts_with(&canonical_root) {
+    // Canonicalize the deepest existing ancestor so ordinary Windows paths,
+    // verbatim paths, and directory links are compared in the same namespace.
+    // Keep the missing suffix for exports into a directory not created yet.
+    let ancestor = normalized
+        .ancestors()
+        .find(|path| fs::symlink_metadata(path).is_ok())
+        .ok_or_else(|| ExportError::InvalidOutput(output_dir.to_path_buf()))?;
+    let canonical = ancestor.canonicalize().map_err(|source| ExportError::Io {
+        path: ancestor.to_path_buf(),
+        source,
+    })?;
+    let resolved = canonical.join(normalized.strip_prefix(ancestor).expect("ancestor prefix"));
+    if !resolved.starts_with(&canonical_root) {
         return Err(ExportError::InvalidOutput(output_dir.to_path_buf()));
     }
-    let relative = normalized
-        .strip_prefix(&canonical_root)
-        .unwrap_or(Path::new(""));
-    let mut prefix = canonical_root.clone();
-    for component in relative.components() {
-        let std::path::Component::Normal(part) = component else {
-            continue;
-        };
-        prefix.push(part);
-        if !prefix.exists() {
-            break;
-        }
-        let canonical = prefix.canonicalize().map_err(|source| ExportError::Io {
-            path: prefix.clone(),
-            source,
-        })?;
-        if !canonical.starts_with(&canonical_root) {
-            return Err(ExportError::InvalidOutput(output_dir.to_path_buf()));
-        }
-    }
-    Ok(())
+    Ok(resolved)
 }
 
 pub fn run_export_job(input: ExportJobInput) -> Result<ExportJobOutput, ExportError> {
@@ -209,7 +208,7 @@ pub fn run_export_job_with_cancel(
     } else {
         PathBuf::from(&input.vault_root)
     };
-    validate_output_dir_within_vault(&vault_root, &output_dir)?;
+    let output_dir = validate_output_dir_within_vault(&vault_root, &output_dir)?;
     fs::create_dir_all(&output_dir).map_err(|source| ExportError::Io {
         path: output_dir.clone(),
         source,
@@ -413,6 +412,39 @@ pub fn default_export_directory(vault_root: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn output_directory_accepts_existing_and_new_vault_directories() {
+        let vault = tempfile::tempdir().expect("vault");
+        let ordinary_root = vault.path().to_string_lossy().replace(r"\\?\", "");
+        let root = Path::new(&ordinary_root);
+        assert!(validate_output_dir_within_vault(root, root).is_ok());
+        assert!(validate_output_dir_within_vault(root, &root.join("new/exports")).is_ok());
+        assert_eq!(
+            validate_output_dir_within_vault(root, Path::new("exports")).unwrap(),
+            root.canonicalize().unwrap().join("exports")
+        );
+        assert!(validate_output_dir_within_vault(root, &root.join("../outside")).is_err());
+    }
+
+    #[test]
+    fn output_directory_rejects_a_link_to_an_external_directory() {
+        let vault = tempfile::tempdir().expect("vault");
+        let outside = tempfile::tempdir().expect("outside");
+        let link = vault.path().join("linked");
+        #[cfg(windows)]
+        if let Err(error) = std::os::windows::fs::symlink_dir(outside.path(), &link) {
+            if error.raw_os_error() == Some(1314) {
+                eprintln!("directory-link test requires Windows symlink privilege");
+                return;
+            }
+            panic!("directory link: {error}");
+        }
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.path(), &link).expect("directory link");
+        assert!(validate_output_dir_within_vault(vault.path(), &link).is_err());
+        assert!(validate_output_dir_within_vault(vault.path(), &link.join("new")).is_err());
+    }
 
     #[test]
     fn artifact_path_allows_spaces_in_stem_on_windows_style_dirs() {

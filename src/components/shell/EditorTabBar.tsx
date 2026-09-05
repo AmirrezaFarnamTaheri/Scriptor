@@ -1,5 +1,7 @@
 import { RotateCcw, FileText, Pin, X } from 'lucide-react'
 
+import { useI18n } from '../../lib/i18n'
+
 export interface OpenTab {
   path: string
   title: string
@@ -30,11 +32,13 @@ export function EditorTabBar({
   onOpenTab,
   onCloseTab,
 }: EditorTabBarProps) {
+  const { t } = useI18n()
+
   return (
     <div
       className="tabs-row"
       role={openTabs.length > 0 ? 'tablist' : 'group'}
-      aria-label={openTabs.length > 0 ? 'Open notes' : 'Editor tabs'}
+      aria-label={openTabs.length > 0 ? t('editor.tabBar.openNotes') : t('editor.tabBar.editorTabs')}
     >
       {canReopenClosedTab && onReopenClosedTab ? (
         <span role="presentation">
@@ -42,15 +46,15 @@ export function EditorTabBar({
             type="button"
             className="tab-reopen"
             onClick={onReopenClosedTab}
-            aria-label="Reopen closed tab"
-            title="Reopen closed tab"
+            aria-label={t('editor.tabBar.reopen')}
+            title={t('editor.tabBar.reopen')}
           >
             <RotateCcw aria-hidden="true" />
           </button>
         </span>
       ) : null}
       {openTabs.length === 0 ? (
-        <span className="empty-tab" role="presentation">No note open</span>
+        <span className="empty-tab" role="presentation">{t('editor.tabBar.noNote')}</span>
       ) : (
         openTabs.map((tab, tabIndex) => (
           <div
@@ -86,20 +90,20 @@ export function EditorTabBar({
               <FileText aria-hidden="true" />
               <span className="tab-title">{tab.title}</span>
               {inboxPaths?.has(tab.path) ? (
-                <span className="tab-lifecycle inbox" title="In inbox">
-                  inbox
+                <span className="tab-lifecycle inbox" title={t('editor.tabBar.inbox')}>
+                  {t('editor.tabBar.inboxShort')}
                 </span>
               ) : null}
               {tab.path === activePath && isNoteDirty ? (
-                <span className="tab-dirty-dot" aria-label="Unsaved changes" title="Unsaved changes" />
+                <span className="tab-dirty-dot" aria-label={t('editor.tabBar.unsaved')} title={t('editor.tabBar.unsaved')} />
               ) : null}
             </button>
             {onTogglePinTab ? (
               <button
                 type="button"
                 className={`tab-icon-button tab-pin${tab.pinned ? ' active' : ''}`}
-                aria-label={tab.pinned ? `Unpin ${tab.title}` : `Pin ${tab.title}`}
-                title={tab.pinned ? 'Unpin tab' : 'Pin tab'}
+                aria-label={tab.pinned ? t('editor.tabBar.unpin', { title: tab.title }) : t('editor.tabBar.pin', { title: tab.title })}
+                title={tab.pinned ? t('editor.tabBar.unpinTab') : t('editor.tabBar.pinTab')}
                 onClick={() => onTogglePinTab(tab.path)}
               >
                 <Pin aria-hidden="true" />
@@ -108,8 +112,8 @@ export function EditorTabBar({
             <button
               type="button"
               className="tab-icon-button tab-close"
-              aria-label={`Close ${tab.title}`}
-              title="Close tab"
+              aria-label={t('editor.tabBar.close', { title: tab.title })}
+              title={t('editor.tabBar.closeTab')}
               onClick={() => onCloseTab(tab.path)}
             >
               <X aria-hidden="true" />

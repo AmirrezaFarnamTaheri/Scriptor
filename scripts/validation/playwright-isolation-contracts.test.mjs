@@ -17,3 +17,11 @@ test('functional and visual Playwright suites use isolated ports and build direc
   assert.match(e2e, /reuseExistingServer: false/)
   assert.match(visual, /reuseExistingServer: false/)
 })
+
+test('screenshot capture enables screenshot discovery and restores the caller environment', () => {
+  const capture = read('scripts/screenshots/capture.ps1')
+  assert.match(capture, /\$previousCaptureScreenshots\s*=\s*\$env:SCRIPTOR_CAPTURE_SCREENSHOTS/)
+  assert.match(capture, /\$env:SCRIPTOR_CAPTURE_SCREENSHOTS\s*=\s*'true'/)
+  assert.match(capture, /\$env:SCRIPTOR_CAPTURE_SCREENSHOTS\s*=\s*\$previousCaptureScreenshots/)
+  assert.match(capture, /Remove-Item Env:SCRIPTOR_CAPTURE_SCREENSHOTS/)
+})

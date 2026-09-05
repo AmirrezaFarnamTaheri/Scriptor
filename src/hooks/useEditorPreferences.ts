@@ -84,20 +84,40 @@ export function useEditorPreferences(appTheme: AppTheme, initialLayout?: Initial
     })
   }, [])
 
-  const toggleEditorTheme = useCallback(() => {
-    const next = editorTheme === 'light' ? 'dark' : 'light'
-    setEditorThemeOverride(next)
+  const storeEditorTheme = (next: EditorThemeId) => {
     try {
       window.localStorage.setItem('scriptor:editor-theme', next)
     } catch {
       // Browser storage is an enhancement; in-memory state still updates.
     }
-  }, [editorTheme])
+  }
+
+  const toggleEditorTheme = useCallback(() => {
+    // light → dark → auto (follow the app theme, clearing the override) → light.
+    // 'auto' is the default state; storage only records explicit pins.
+    if (editorThemeOverride === null) {
+      setEditorThemeOverride('light')
+      storeEditorTheme('light')
+      return
+    }
+    if (editorThemeOverride === 'light') {
+      setEditorThemeOverride('dark')
+      storeEditorTheme('dark')
+      return
+    }
+    setEditorThemeOverride(null)
+    try {
+      window.localStorage.removeItem('scriptor:editor-theme')
+    } catch {
+      // Browser storage is an enhancement; in-memory state still updates.
+    }
+  }, [editorThemeOverride])
 
   return {
     distractionFree,
     editorMode,
     editorTheme,
+    editorThemeSyncedToApp: editorThemeOverride === null,
     hibernateGit,
     hibernateGraph,
     hibernateMcp,

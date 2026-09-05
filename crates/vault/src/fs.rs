@@ -451,7 +451,10 @@ mod tests {
             "<<<<<<< ours\nour line\n||||||| base\nbase\n=======\ntheir line\n>>>>>>> theirs\n";
         let sidecar = write_conflicted_sidecar(&original, markers).unwrap();
 
-        assert_eq!(sidecar, dir.path().join("notes").join("foo.conflicted.md"));
+        assert_eq!(
+            sidecar,
+            dir.path().join("notes").join("foo.md.conflicted.md")
+        );
         assert_eq!(std::fs::read_to_string(&sidecar).unwrap(), markers);
         // Original must be untouched.
         assert_eq!(std::fs::read_to_string(&original).unwrap(), "clean content");

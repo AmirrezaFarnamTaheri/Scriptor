@@ -281,8 +281,10 @@ fn extract_aliases(frontmatter: &str) -> Vec<String> {
         index += 1;
     }
 
-    aliases.sort();
-    aliases.dedup();
+    // First occurrence wins, in the order the author wrote them: frontmatter aliases are
+    // surfaced to the user as declared, so sorting them here would reorder the note's list.
+    let mut seen = std::collections::HashSet::new();
+    aliases.retain(|alias| seen.insert(alias.clone()));
     aliases
 }
 
@@ -432,11 +434,9 @@ mod tests {
 
     #[test]
     fn extracts_aliases_from_frontmatter() {
-        let markdown = "---\naliases: [Friendly Name, Alt]\n---\n\n# Body\n";
+        let markdown = "---\naliases: [Friendly Name, Alt, Friendly Name]\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
-        // Aliases are sorted and deduplicated for stable downstream consumers;
-        // frontmatter insertion order is not part of the contract.
-        assert_eq!(parsed.aliases, vec!["Alt", "Friendly Name"]);
+        assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt"]);
     }
 
     #[test]
@@ -454,7 +454,9 @@ mod tests {
     fn extracts_aliases_from_yaml_block_list() {
         let markdown = "---\naliases:\n  - Friendly Name\n  - 'Alt Name'\n---\n\n# Body\n";
         let parsed = parse_note_markdown("Alias Target.md", markdown);
-        assert_eq!(parsed.aliases, vec!["Alt Name", "Friendly Name"]);
+        // Declared order is preserved (quotes stripped), not sorted: the panel shows the
+        // aliases the author wrote, in the order they wrote them.
+        assert_eq!(parsed.aliases, vec!["Friendly Name", "Alt Name"]);
     }
 
     #[test]

@@ -146,10 +146,15 @@ pub fn build_health_diagnostics(
             if link.kind == ParsedLinkKind::External {
                 continue;
             }
-            if !matches!(
-                wikilink_index.resolve(&link.target).kind,
-                crate::resolve::WikilinkResolutionKind::Resolved
-            ) {
+            let resolved = if link.kind == ParsedLinkKind::Asset {
+                asset_path_set.contains(&normalize_asset_reference(path, &link.target))
+            } else {
+                matches!(
+                    wikilink_index.resolve(&link.target).kind,
+                    crate::resolve::WikilinkResolutionKind::Resolved
+                )
+            };
+            if !resolved {
                 broken_links += 1;
                 issues.push(HealthIssue {
                     kind: "broken_link".into(),
@@ -254,6 +259,9 @@ pub fn build_health_diagnostics(
 fn normalize_asset_reference(note_path: &str, target: &str) -> String {
     let mut parts: Vec<&str> = note_path.split('/').collect();
     parts.pop();
+    if target.starts_with('/') {
+        parts.clear();
+    }
     for component in target.trim_start_matches('/').split('/') {
         match component {
             "" | "." => {}

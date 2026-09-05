@@ -371,6 +371,36 @@ mod tests {
         assert!(updated.markdown.contains("[[Field Notes Renamed]]"));
     }
 
+    /// The destination guard: a path that already holds a *different* note is refused by the
+    /// preview, so a plan can never promise an overwrite the apply step would reject. The same note
+    /// addressed through a differently spelled path must stay a no-op rename rather than look like
+    /// a blocked one.
+    #[test]
+    fn rename_preview_refuses_a_foreign_destination_and_keeps_rewrites_as_noop() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("Source.md"), "# Source\n").unwrap();
+        fs::write(dir.path().join("Other.md"), "# Other\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+
+        let blocked = rename_dry_run(
+            &session.descriptor.id,
+            &session.root,
+            &RelativeVaultPath::parse("Source.md").unwrap(),
+            &RelativeVaultPath::parse("Other.md").unwrap(),
+            true,
+        );
+        assert!(matches!(blocked, Err(VaultError::NoteExists(_))));
+
+        let rewritten = rename_dry_run(
+            &session.descriptor.id,
+            &session.root,
+            &RelativeVaultPath::parse("Source.md").unwrap(),
+            &RelativeVaultPath::parse("./Source.md").unwrap(),
+            true,
+        );
+        assert!(matches!(rewritten, Err(VaultError::RenameNoop)));
+    }
+
     #[test]
     fn rename_preserves_alias_and_section_links() {
         let dir = tempdir().unwrap();

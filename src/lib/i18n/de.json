@@ -62,7 +62,7 @@
     "problems": "Probleme",
     "output": "Ausgabe",
     "searchResults": "Suchergebnisse",
-    "jobs": "Aufgaben",
+    "jobs": "Jobs",
     "noOutput": "Noch keine Ausgabe.",
     "searching": "Suche läuft...",
     "noSearchResults": "Keine Suchergebnisse.",
@@ -77,7 +77,19 @@
     "idle": "Bereit",
     "cancelExport": "Export abbrechen",
     "exportHistory": "Export-Verlauf",
-    "noExports": "Noch keine Exports."
+    "noExports": "Noch keine Exports.",
+    "showTabs": "Status-Dock-Tabs anzeigen",
+    "hideTabs": "Status-Dock-Tabs ausblenden",
+    "buildingGraphAria": "Graph wird aufgebaut {{percent}}%",
+    "indexReadyAria": "Index bereit ({{percent}}%)",
+    "buildingIndex": "Index wird erstellt...",
+    "indexReady": "Index bereit",
+    "notesProgress": "{{done}} / {{total}} Notizen",
+    "notesCount": "{{count}} Notizen",
+    "diagnostics": "Diagnose",
+    "diagnosticsOptInAria": "Lokale Absturzdiagnosen senden",
+    "diagnosticsTitle": "Wenn aktiviert, werden Renderer-Fehler lokal in .scriptor/diagnostics/client.jsonl gespeichert",
+    "unopened": "nicht geöffnet"
   },
   "settings": {
     "title": "Einstellungen",
@@ -317,5 +329,188 @@
     "spellcheckGrammar": "Rechtschreibprüfung & Grammatik",
     "support": "Unterstützung",
     "diagnostics": "Diagnose"
+  },
+  "editor": {
+    "ariaLabel": "Editor",
+    "toolbar": {
+      "markdownTools": "Markdown-Werkzeuge",
+      "viewMode": "Ansichtsmodus",
+      "structure": "Struktur",
+      "styleAndInsert": "Stil und Einfügen",
+      "reviewAndCapture": "Prüfen und Erfassen",
+      "editorMode": "Editor-Modus"
+    },
+    "view": {
+      "source": "Quelle",
+      "split": "Geteilt",
+      "preview": "Vorschau"
+    },
+    "transforms": {
+      "heading1": "Überschrift 1",
+      "heading2": "Überschrift 2",
+      "heading3": "Überschrift 3",
+      "toc": "Inhaltsverzeichnis",
+      "frontmatter": "Frontmatter",
+      "moveSectionUp": "Abschnitt nach oben",
+      "moveSectionDown": "Abschnitt nach unten",
+      "bold": "Fett",
+      "italic": "Kursiv",
+      "link": "Link",
+      "insertTable": "Tabelle einfügen",
+      "addRow": "Zeile hinzufügen",
+      "addColumn": "Spalte hinzufügen",
+      "markOrganized": "Notiz als sortiert markieren (Inbox-Triage)",
+      "writingTargets": "Schreibziele",
+      "cheatsheet": "Markdown-Spickzettel"
+    },
+    "toggles": {
+      "hideStickies": "Notizzettel ausblenden",
+      "showStickies": "Notizzettel anzeigen",
+      "disableVim": "Vim-Tastenbelegung deaktivieren",
+      "enableVim": "Vim-Tastenbelegung aktivieren",
+      "toggleMonaco": "Monaco-Editor umschalten",
+      "switchToCodeMirror": "Zum CodeMirror-Editor wechseln",
+      "switchToMonaco": "Zum Monaco-Editor wechseln",
+      "toggleTheme": "Editor-Design umschalten",
+      "themeAutoPinLight": "Editor-Design: auto (folgt dem App-Design, aktuell {{current}}). Klicken, um Hell zu fixieren.",
+      "themePinned": "Editor-Design: {{current}}. Klicken, um {{other}} zu fixieren.",
+      "disableSpellcheck": "Rechtschreibprüfung deaktivieren",
+      "enableSpellcheck": "Rechtschreibprüfung aktivieren",
+      "disableWysiwyg": "WYSIWYG-Modus deaktivieren",
+      "enableWysiwyg": "WYSIWYG-Modus aktivieren",
+      "disableTypewriter": "Schreibmaschinenmodus deaktivieren",
+      "enableTypewriter": "Schreibmaschinenmodus aktivieren",
+      "exitFocus": "Fokusmodus verlassen",
+      "enterFocus": "Fokusmodus aktivieren",
+      "disableLanguageTool": "LanguageTool deaktivieren",
+      "enableLanguageTool": "LanguageTool aktivieren",
+      "disableLanguageToolGrammar": "LanguageTool-Grammatikprüfung deaktivieren",
+      "enableLanguageToolGrammar": "LanguageTool-Grammatikprüfung aktivieren",
+      "themeLight": "Hell",
+      "themeDark": "Dunkel"
+    },
+    "rename": {
+      "title": "Notiz umbenennen / verschieben",
+      "ariaLabel": "Notiz umbenennen oder verschieben"
+    },
+    "aiSummarize": "KI-Zusammenfassungs-Callout einfügen",
+    "splitToggle": "Geteilte Vorschau umschalten",
+    "insertRule": "Trennlinie einfügen",
+    "editorAria": "Markdown-Editor",
+    "error": {
+      "title": "Der Editor",
+      "detail": "Die Editor-Oberfläche konnte nicht gerendert werden. Ein Notizwechsel oder Umschalten der Editor-Engine startet einen neuen Versuch.",
+      "retryCodeMirror": "Zu CodeMirror wechseln"
+    },
+    "loading": "Editor wird geladen…",
+    "empty": {
+      "newNoteTitle": "Neue Notiz beginnen",
+      "openTitle": "Schreibbereich öffnen",
+      "newNoteBody": "Erstellen Sie eine Notiz oder wählen Sie eine aus dem Vault, um zu schreiben.",
+      "openBody": "Wählen Sie einen Markdown-Vault, um zu schreiben, Ideen zu verknüpfen und aus einem fokussierten Arbeitsbereich zu veröffentlichen.",
+      "newNote": "Neue Notiz",
+      "openAnother": "Anderen Vault öffnen",
+      "openVault": "Vault öffnen",
+      "tagline": "Lokal zuerst · Markdown-nativ · Ihre Dateien bleiben Ihre"
+    },
+    "previewAria": "Geteilte Markdown-Vorschau",
+    "previewError": {
+      "title": "Die geteilte Vorschau",
+      "detail": "Das Rendern dieser Notiz ist fehlgeschlagen – möglicherweise hat eine Markdown-Erweiterung oder ein Plugin-Renderer einen Fehler ausgelöst. Der Editor ist nicht betroffen."
+    },
+    "status": {
+      "words": "{{count}} Wörter",
+      "characters": "{{count}} Zeichen",
+      "minRead": "{{count}} Min. Lesezeit",
+      "minReadEmpty": "— Min. Lesezeit",
+      "saving": "Speichern...",
+      "saved": "Gespeichert {{time}}",
+      "markdown": "Markdown"
+    },
+    "tabBar": {
+      "openNotes": "Geöffnete Notizen",
+      "editorTabs": "Editor-Tabs",
+      "reopen": "Geschlossenen Tab wieder öffnen",
+      "noNote": "Keine Notiz geöffnet",
+      "inbox": "Im Posteingang",
+      "inboxShort": "Inbox",
+      "unsaved": "Ungespeicherte Änderungen",
+      "unpin": "{{title}} lösen",
+      "pin": "{{title}} anheften",
+      "unpinTab": "Tab lösen",
+      "pinTab": "Tab anheften",
+      "close": "{{title}} schließen",
+      "closeTab": "Tab schließen"
+    }
+  },
+  "inspector": {
+    "ariaLabel": "Inspektor",
+    "modeAria": "Inspektor-Modus",
+    "presetAria": "Inspektor-Layout-Voreinstellung",
+    "tabs": {
+      "inspector": "Inspektor",
+      "preview": "Vorschau",
+      "plugins": "Plugins"
+    },
+    "preset": {
+      "balanced": {
+        "label": "Ausgeglichen",
+        "description": "Standard-Inspektorlayout."
+      },
+      "research": {
+        "label": "Recherche",
+        "description": "Links, Rückverweise und Zitierkontext."
+      },
+      "publishing": {
+        "label": "Veröffentlichung",
+        "description": "Gliederung, Qualitätsprüfungen und Exportbereitschaft."
+      },
+      "cleanup": {
+        "label": "Aufräumen",
+        "description": "Qualitätssignale und Fokus auf Reparatur defekter Links."
+      }
+    },
+    "noteHealth": "Notizgesundheit",
+    "previewSyncSplit": "Die geteilte Vorschau ist mit Bildlauf-Synchronisierung neben dem Editor geöffnet.",
+    "previewSyncActive": "Die Bildlauf-Synchronisierung zwischen Editor und Vorschau ist aktiv.",
+    "previewCard": "Vorschau",
+    "previewError": {
+      "title": "Die Vorschau",
+      "detail": "Das Rendern dieser Notiz ist fehlgeschlagen – möglicherweise hat eine Markdown-Erweiterung oder ein Plugin-Renderer einen Fehler ausgelöst. Ein Notizwechsel startet einen neuen Versuch."
+    },
+    "noNoteOpen": "Keine Notiz geöffnet",
+    "noNoteOpenHint": "Öffnen Sie eine Notiz, um eine Markdown-Vorschau zu sehen.",
+    "outline": "Gliederung",
+    "noHeadings": "Noch keine Überschriften",
+    "noHeadingsHint": "Fügen Sie Überschriften hinzu, um eine Gliederung aufzubauen.",
+    "renameSection": "Abschnitt {{label}} umbenennen",
+    "outgoingLinks": "Ausgehende Links",
+    "noWikilinks": "Keine Wikilinks",
+    "noWikilinksHint": "Fügen Sie [[Wikilinks]] hinzu, um Notizen zu verknüpfen.",
+    "renameBlock": "Block {{label}} umbenennen",
+    "backlinks": "Rückverweise",
+    "noBacklinks": "Noch keine Rückverweise",
+    "noBacklinksHint": "Andere Notizen können mit [[Wikilinks]] hierher verlinken.",
+    "citations": "Zitate",
+    "noCitations": "Keine Zitate",
+    "noCitationsHint": "Fügen Sie [@citekey]-Verweise hinzu, um Zitate zu verfolgen.",
+    "citationResolved": "Zitat aufgelöst",
+    "citationUnresolved": "Ungelöstes Zitat",
+    "inBibliography": "in der Bibliographie",
+    "missing": "fehlt",
+    "publishing": "Veröffentlichung",
+    "publishingHint": "Verwenden Sie das Veröffentlichungszentrum für Profile, Probelaufe und den Exportverlauf.",
+    "openPublishCenter": "Veröffentlichungszentrum öffnen",
+    "exportProfiles": "Exportprofile",
+    "exporting": "Wird exportiert...",
+    "previewExportCommand": "Vorschau des Exportbefehls",
+    "cancelExport": "Export abbrechen",
+    "dryRun": "Probelauf: {{command}}",
+    "exportedTo": "Exportiert nach {{path}}",
+    "pluginsError": {
+      "title": "Das Plugin-Panel",
+      "detail": "Ein Plugin-Beitrag konnte nicht gerendert werden. Das Aktivieren des sicheren Modus in den Einstellungen deaktiviert Plugins von Drittanbietern."
+    },
+    "loadingStore": "Store wird geladen…"
   }
 }

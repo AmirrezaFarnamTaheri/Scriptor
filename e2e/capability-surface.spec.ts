@@ -49,7 +49,11 @@ test.describe('capability surfaces', () => {
     })
     await settleLayout(page)
 
-    await expect(storeTabs).toHaveCSS('overflow-x', 'auto')
+    // The sections wrap at high zoom; assert reachability rather than a
+    // particular scrolling implementation.
+    for (const name of ['Plugins', 'MCP', 'Features', 'Layouts']) {
+      await expect(storeTabs.getByRole('tab', { name, exact: true })).toBeInViewport()
+    }
     const layoutsTab = storeTabs.getByRole('tab', { name: 'Layouts' })
     await layoutsTab.evaluate((element) => element.scrollIntoView({ inline: 'nearest', block: 'nearest' }))
     await layoutsTab.click()

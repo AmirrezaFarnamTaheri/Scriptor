@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 
-import { settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
+import { openCommandPalette, runCommand, settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const RESOURCE_INVENTORY_FIXTURE = {
   generatedAtMs: 1786200000000,
@@ -149,6 +149,8 @@ test.describe('visual review states', () => {
       window.localStorage.setItem('scriptor:mobile-pane', 'editor')
       window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
       window.localStorage.setItem('scriptor:split-preview', 'false')
+      // Baselines capture the full status dock; the app default is collapsed.
+      window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
       window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
     }, WORKSPACE_CHROME_PREFS)
   })
@@ -193,8 +195,8 @@ test.describe('visual review states', () => {
   test('MCP sharing and sync inventory', async ({ page }) => {
     await openVisualWorkspace(page)
     await installResourceInventoryFixture(page)
-    const mcpButton = page.locator('.top-actions').getByRole('button', { name: /MCP|Read-only|Write/i })
-    await mcpButton.click()
+    await openCommandPalette(page)
+    await runCommand(page, 'Open MCP panel')
     const mcpPanel = page.locator('.mcp-panel')
     await expect(mcpPanel).toBeVisible()
     await mcpPanel.getByRole('tab', { name: 'Sharing & sync' }).click()

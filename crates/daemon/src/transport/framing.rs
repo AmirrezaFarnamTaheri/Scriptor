@@ -61,11 +61,23 @@ impl<T: Read> Read for DeadlineIo<'_, T> {
 
 impl<T: Write> Write for DeadlineIo<'_, T> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        if buf.is_empty() {
+            return Ok(0);
+        }
+        // The local-socket backend requests 512-byte Windows pipe buffers.
+        // A larger PIPE_NOWAIT write may make no progress even on an empty pipe.
+        let buf = if cfg!(windows) {
+            &buf[..buf.len().min(512)]
+        } else {
+            buf
+        };
         loop {
             match self.inner.write(buf) {
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => {
                     self.wait_or_timeout()?
                 }
+                // PIPE_NOWAIT reports a full output buffer as a zero-byte write.
+                Ok(0) if cfg!(windows) => self.wait_or_timeout()?,
                 result => return result,
             }
         }
@@ -138,4 +150,50 @@ pub(super) fn write_event_with_timeout<W: Write>(
         Err(error) => return Err(error),
     };
     write_encoded_with_timeout(writer, &frame, WRITE_TIMEOUT)
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_permanently_full_pipe_reaches_its_write_deadline() {
+        let mut storage = [];
+        let mut writer = io::Cursor::new(&mut storage[..]);
+        let result =
+            write_encoded_with_timeout(&mut writer, b"response", Duration::from_millis(10));
+        assert!(
+            matches!(result, Err(IpcError::Io(error)) if error.kind() == io::ErrorKind::TimedOut)
+        );
+    }
+
+    #[test]
+    fn zero_byte_pipe_writes_preserve_progress_until_the_buffer_drains() {
+        #[derive(Default)]
+        struct BackpressuredWriter {
+            bytes: Vec<u8>,
+            full: bool,
+        }
+        impl Write for BackpressuredWriter {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                if bytes.len() > 512 {
+                    return Ok(0);
+                }
+                self.full = !self.full;
+                if self.full {
+                    return Ok(0);
+                }
+                let count = bytes.len().min(512);
+                self.bytes.extend_from_slice(&bytes[..count]);
+                Ok(count)
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let mut writer = BackpressuredWriter::default();
+        let response = vec![42; 4096];
+        write_encoded_with_timeout(&mut writer, &response, Duration::from_secs(1)).unwrap();
+        assert_eq!(writer.bytes, response);
+    }
 }

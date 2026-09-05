@@ -9,6 +9,7 @@ import {
   discoverTauriCommands,
   discoverRustEnumVariants,
   renderGeneratedArtifacts,
+  generatedArtifactMatches,
 } from './generate-operation-contracts.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -24,9 +25,15 @@ test('operation catalog covers every live Tauri, daemon RPC, CLI and MCP operati
   assert.deepEqual(bySurface('mcp'), schemaNames)
 })
 
-test('generated operation-contract artifacts are byte-stable', () => {
+test('generated operation-contract comparison tolerates checkout line endings but detects drift', () => {
+  assert.equal(generatedArtifactMatches('first\r\nsecond\r\n', 'first\nsecond\n'), true)
+  assert.equal(generatedArtifactMatches('changed\r\n', 'expected\n'), false)
+  assert.equal(generatedArtifactMatches('first\n', 'first\n\n'), false)
+})
+
+test('generated operation-contract artifacts are stable across checkout line endings', () => {
   const rendered = renderGeneratedArtifacts(catalog, root)
   for (const [relative, contents] of Object.entries(rendered)) {
-    assert.equal(fs.readFileSync(path.join(root, relative), 'utf8'), contents, `${relative} is stale`)
+    assert.ok(generatedArtifactMatches(fs.readFileSync(path.join(root, relative), 'utf8'), contents), `${relative} is stale`)
   }
 })

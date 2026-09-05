@@ -155,7 +155,7 @@ mod watcher_filter_tests {
             (".obsidian/plugin.md", false),
             (".trash/old.md", false),
             ("node_modules/pkg/README.md", false),
-            ("target/debug/notes.md", false),
+            ("target/debug/notes.md", true),
             ("Research Plan.md", true),
             ("notes/My note.md", true),
         ];

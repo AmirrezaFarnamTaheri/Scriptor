@@ -92,13 +92,11 @@ fn apply_connection_pragmas(connection: &Connection) -> Result<(), rusqlite::Err
 }
 
 pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, IndexerError> {
-    let table_exists: bool = connection
-        .query_row(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cache_meta'",
-            [],
-            |row| row.get::<_, i32>(0),
-        )
-        .is_ok();
+    let table_exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cache_meta')",
+        [],
+        |row| row.get(0),
+    )?;
     if !table_exists {
         return Ok(None);
     }
@@ -115,9 +113,7 @@ pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, Index
         });
     }
 
-    // A cache_meta table without its required schema_version row is not a new
-    // database. Treat it as corrupt/stale instead of stamping the latest schema
-    // onto an unknown layout.
+    // Missing metadata in an existing cache is not evidence of a fresh schema.
     Err(IndexerError::SchemaRebuildRequired {
         found: 0,
         expected: crate::schema::SCHEMA_VERSION,
@@ -160,6 +156,29 @@ mod db_pragma_tests {
     use super::*;
     use std::sync::Arc;
     use std::thread;
+
+    #[test]
+    fn missing_schema_version_does_not_stamp_an_unknown_cache_current() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let path = temp.path().join("index.sqlite");
+        let connection = Connection::open(&path).expect("connection");
+        apply_schema(&connection).expect("schema");
+        connection
+            .execute("DELETE FROM cache_meta WHERE key = 'schema_version'", [])
+            .expect("remove version");
+        assert!(matches!(
+            IndexCache::open(&path),
+            Err(IndexerError::SchemaRebuildRequired { found: 0, .. })
+        ));
+        let version_rows: i32 = connection
+            .query_row(
+                "SELECT count(*) FROM cache_meta WHERE key = 'schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("version count");
+        assert_eq!(version_rows, 0);
+    }
 
     #[test]
     fn opens_with_wal_journal_mode() {

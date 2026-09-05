@@ -62,7 +62,7 @@
     "problems": "مشکلات",
     "output": "خروجی",
     "searchResults": "نتایج جستجو",
-    "jobs": "وظایف",
+    "jobs": "کارها",
     "noOutput": "هنوز خروجی نیست.",
     "searching": "در حال جستجو...",
     "noSearchResults": "نتیجه جستجو یافت نشد.",
@@ -77,7 +77,19 @@
     "idle": "بیکار",
     "cancelExport": "لغو صادرات",
     "exportHistory": "تاریخچه صادرات",
-    "noExports": "هنوز صادراتی نیست."
+    "noExports": "هنوز صادراتی نیست.",
+    "showTabs": "نمایش زبانه‌هایDock وضعیت",
+    "hideTabs": "پنهان کردن زبانه‌های Dock وضعیت",
+    "buildingGraphAria": "در حال ساخت گراف {{percent}}%",
+    "indexReadyAria": "اندیس آماده ({{percent}}%)",
+    "buildingIndex": "در حال ساخت اندیس...",
+    "indexReady": "اندیس آماده",
+    "notesProgress": "{{done}} / {{total}} یادداشت",
+    "notesCount": "{{count}} یادداشت",
+    "diagnostics": "عیب‌یابی",
+    "diagnosticsOptInAria": "ارسال عیب‌یابی‌های محلی خرابی",
+    "diagnosticsTitle": "وقتی فعال باشد، خطاهای رندرکننده به‌صورت محلی در .scriptor/diagnostics/client.jsonl ذخیره می‌شوند",
+    "unopened": "باز نشده"
   },
   "settings": {
     "title": "تنظیمات",
@@ -317,5 +329,188 @@
     "spellcheckGrammar": "غلطیابی املایی و دستور زبان",
     "support": "پشتیبانی",
     "diagnostics": "تشخیص"
+  },
+  "editor": {
+    "ariaLabel": "ویرایشگر",
+    "toolbar": {
+      "markdownTools": "ابزارهای مارک‌داون",
+      "viewMode": "حالت نمایش",
+      "structure": "ساختار",
+      "styleAndInsert": "سبک و درج",
+      "reviewAndCapture": "بازبینی و ثبت",
+      "editorMode": "حالت ویرایشگر"
+    },
+    "view": {
+      "source": "متن منبع",
+      "split": "تقسیم‌شده",
+      "preview": "پیش‌نمایش"
+    },
+    "transforms": {
+      "heading1": "سرتیتر ۱",
+      "heading2": "سرتیتر ۲",
+      "heading3": "سرتیتر ۳",
+      "toc": "فهرست مطالب",
+      "frontmatter": "فرانت‌متر",
+      "moveSectionUp": "انتقال بخش به بالا",
+      "moveSectionDown": "انتقال بخش به پایین",
+      "bold": "ضخیم",
+      "italic": "مورب",
+      "link": "پیوند",
+      "insertTable": "درج جدول",
+      "addRow": "افزودن ردیف",
+      "addColumn": "افزودن ستون",
+      "markOrganized": "علامت‌گذاری یادداشت به‌عنوان مرتب‌شده (پالایش صندوق ورودی)",
+      "writingTargets": "اهداف نوشتن",
+      "cheatsheet": "راهنمای سریع مارک‌داون"
+    },
+    "toggles": {
+      "hideStickies": "پنهان کردن یادداشت‌های چسبان",
+      "showStickies": "نمایش یادداشت‌های چسبان",
+      "disableVim": "غیرفعال‌سازی کلیدهای Vim",
+      "enableVim": "فعال‌سازی کلیدهای Vim",
+      "toggleMonaco": "تغییر ویرایشگر Monaco",
+      "switchToCodeMirror": "تغییر به ویرایشگر CodeMirror",
+      "switchToMonaco": "تغییر به ویرایشگر Monaco",
+      "toggleTheme": "تغییر پوسته ویرایشگر",
+      "themeAutoPinLight": "پوسته ویرایشگر: خودکار (پیروی از پوسته برنامه، در حال حاضر {{current}}). برای ثابت‌کردن روشن کلیک کنید.",
+      "themePinned": "پوسته ویرایشگر: {{current}}. برای ثابت‌کردن {{other}} کلیک کنید.",
+      "disableSpellcheck": "غیرفعال‌سازی غلط‌یابی املایی",
+      "enableSpellcheck": "فعال‌سازی غلط‌یابی املایی",
+      "disableWysiwyg": "غیرفعال‌سازی حالت WYSIWYG",
+      "enableWysiwyg": "فعال‌سازی حالت WYSIWYG",
+      "disableTypewriter": "غیرفعال‌سازی حالت ماشین‌نویسی",
+      "enableTypewriter": "فعال‌سازی حالت ماشین‌نویسی",
+      "exitFocus": "خروج از حالت تمرکز",
+      "enterFocus": "ورود به حالت تمرکز",
+      "disableLanguageTool": "غیرفعال‌سازی LanguageTool",
+      "enableLanguageTool": "فعال‌سازی LanguageTool",
+      "disableLanguageToolGrammar": "غیرفعال‌سازی بررسی دستور زبان LanguageTool",
+      "enableLanguageToolGrammar": "فعال‌سازی بررسی دستور زبان LanguageTool",
+      "themeLight": "روشن",
+      "themeDark": "تیره"
+    },
+    "rename": {
+      "title": "تغییر نام / جابه‌جایی یادداشت",
+      "ariaLabel": "تغییر نام یا جابه‌جایی یادداشت"
+    },
+    "aiSummarize": "درج کال‌اوت خلاصه‌سازی هوش مصنوعی",
+    "splitToggle": "تغییر پیش‌نمایش تقسیم‌شده",
+    "insertRule": "درج خط جداکننده",
+    "editorAria": "ویرایشگر مارک‌داون",
+    "error": {
+      "title": "ویرایشگر",
+      "detail": "رندر سطح ویرایشگر ناموفق بود. تغییر یادداشت یا تغییر موتور ویرایشگر دوباره تلاش می‌کند.",
+      "retryCodeMirror": "تغییر به CodeMirror"
+    },
+    "loading": "در حال بارگذاری ویرایشگر…",
+    "empty": {
+      "newNoteTitle": "یادداشت جدیدی آغاز کنید",
+      "openTitle": "محیط نوشتن خود را باز کنید",
+      "newNoteBody": "برای نوشتن، یادداشتی بسازید یا یکی را از گنجینه انتخاب کنید.",
+      "openBody": "یک گنجینه مارک‌داون انتخاب کنید تا بنویسید، ایده‌ها را پیوند دهید و از یک محیط متمرکز منتشر کنید.",
+      "newNote": "یادداشت جدید",
+      "openAnother": "باز کردن گنجینه دیگر",
+      "openVault": "باز کردن گنجینه",
+      "tagline": "ابتدا محلی · بومی مارک‌داون · فایل‌های شما متعلق به شماست"
+    },
+    "previewAria": "پیش‌نمایش تقسیم‌شده مارک‌داون",
+    "previewError": {
+      "title": "پیش‌نمایش تقسیم‌شده",
+      "detail": "رندر این یادداشت ناموفق بود — ممکن است یک افزونه مارک‌داون یا رندرکننده افزونه خطا ایجاد کرده باشد. ویرایشگر تحت تأثیر قرار نمی‌گیرد."
+    },
+    "status": {
+      "words": "{{count}} واژه",
+      "characters": "{{count}} نویسه",
+      "minRead": "{{count}} دقیقه مطالعه",
+      "minReadEmpty": "— دقیقه مطالعه",
+      "saving": "در حال ذخیره...",
+      "saved": "ذخیره شد {{time}}",
+      "markdown": "مارک‌داون"
+    },
+    "tabBar": {
+      "openNotes": "یادداشت‌های باز",
+      "editorTabs": "زبانه‌های ویرایشگر",
+      "reopen": "باز کردن مجدد زبانه بسته‌شده",
+      "noNote": "یادداشتی باز نیست",
+      "inbox": "در صندوق ورودی",
+      "inboxShort": "صندوق ورودی",
+      "unsaved": "تغییرات ذخیره‌نشده",
+      "unpin": "جداسازی {{title}}",
+      "pin": "سنجاق {{title}}",
+      "unpinTab": "جداسازی زبانه",
+      "pinTab": "سنجاق زبانه",
+      "close": "بستن {{title}}",
+      "closeTab": "بستن زبانه"
+    }
+  },
+  "inspector": {
+    "ariaLabel": "بازرس",
+    "modeAria": "حالت بازرس",
+    "presetAria": "پیش‌تنظیم چیدمان بازرس",
+    "tabs": {
+      "inspector": "بازرس",
+      "preview": "پیش‌نمایش",
+      "plugins": "افزونه‌ها"
+    },
+    "preset": {
+      "balanced": {
+        "label": "متعادل",
+        "description": "چیدمان پیش‌فرض بازرس."
+      },
+      "research": {
+        "label": "پژوهش",
+        "description": "پیوندها، بازپیوندها و بافت ارجاعات."
+      },
+      "publishing": {
+        "label": "انتشار",
+        "description": "طرح کلی، بررسی‌های کیفیت و آمادگی برون‌بری."
+      },
+      "cleanup": {
+        "label": "پاک‌سازی",
+        "description": "سیگنال‌های کیفیت و تمرکز بر ترمیم پیوندهای شکسته."
+      }
+    },
+    "noteHealth": "سلامت یادداشت",
+    "previewSyncSplit": "پیش‌نمایش تقسیم‌شده با همگام‌سازی پیمایش کنار ویرایشگر باز است.",
+    "previewSyncActive": "همگام‌سازی پیمایش بین ویرایشگر و پیش‌نمایش فعال است.",
+    "previewCard": "پیش‌نمایش",
+    "previewError": {
+      "title": "پیش‌نمایش",
+      "detail": "رندر این یادداشت ناموفق بود — ممکن است یک افزونه مارک‌داون یا رندرکننده افزونه خطا ایجاد کرده باشد. تغییر یادداشت دوباره تلاش می‌کند."
+    },
+    "noNoteOpen": "یادداشتی باز نیست",
+    "noNoteOpenHint": "برای پیش‌نمایش مارک‌داون، یادداشتی را باز کنید.",
+    "outline": "طرح کلی",
+    "noHeadings": "هنوز سرتیتری نیست",
+    "noHeadingsHint": "برای ساخت طرح کلی، سرتیتر اضافه کنید.",
+    "renameSection": "تغییر نام بخش {{label}}",
+    "outgoingLinks": "پیوندهای خروجی",
+    "noWikilinks": "ویکی‌پیوندی نیست",
+    "noWikilinksHint": "برای پیوند دادن یادداشت‌ها [[ویکی‌پیوند]] اضافه کنید.",
+    "renameBlock": "تغییر نام بلوک {{label}}",
+    "backlinks": "بازپیوندها",
+    "noBacklinks": "هنوز بازپیوندی نیست",
+    "noBacklinksHint": "یادداشت‌های دیگر می‌توانند با [[ویکی‌پیوندها]] به اینجا پیوند دهند.",
+    "citations": "ارجاعات",
+    "noCitations": "ارجاعی نیست",
+    "noCitationsHint": "برای پیگیری ارجاعات، ارجاع [@citekey] اضافه کنید.",
+    "citationResolved": "ارجاع حل شد",
+    "citationUnresolved": "ارجاع حل‌نشده",
+    "inBibliography": "در کتاب‌شناسی",
+    "missing": "گم‌شده",
+    "publishing": "انتشار",
+    "publishingHint": "برای پروفایل‌ها، اجرای آزمایشی و تاریخچه برون‌بری از مرکز انتشار استفاده کنید.",
+    "openPublishCenter": "باز کردن مرکز انتشار",
+    "exportProfiles": "پروفایل‌های برون‌بری",
+    "exporting": "در حال برون‌بری...",
+    "previewExportCommand": "پیش‌نمایش فرمان برون‌بری",
+    "cancelExport": "لغو برون‌بری",
+    "dryRun": "اجرای آزمایشی: {{command}}",
+    "exportedTo": "برون‌بری شد به {{path}}",
+    "pluginsError": {
+      "title": "پنل افزونه‌ها",
+      "detail": "رندر یک مشارکت افزونه ناموفق بود. فعال‌سازی حالت امن از تنظیمات، افزونه‌های شخص ثالث را غیرفعال می‌کند."
+    },
+    "loadingStore": "در حال بارگذاری فروشگاه…"
   }
 }

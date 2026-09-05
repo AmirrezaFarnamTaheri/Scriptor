@@ -1190,28 +1190,20 @@ mod tests {
             RpcResult::Ok(RpcPayload::VaultOpened { .. })
         ));
 
-        let mut max_events = 0u32;
-        for _ in 0..200 {
-            let status = state.handle(RpcRequest::new(11, RpcMethod::IndexRebuildStatus));
-            match status.result {
-                RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) => {
-                    let report: scriptor_indexer::RebuildProgressReport =
-                        serde_json::from_str(&json).expect("progress json");
-                    max_events = max_events.max(report.event_index);
-                    if report.status == scriptor_indexer::RebuildStatus::Complete {
-                        assert!(
-                            max_events >= 3,
-                            "expected >=3 progress events, got {max_events}"
-                        );
-                        return;
-                    }
-                }
-                other => panic!("unexpected response: {other:?}"),
+        state.wait_index_rebuild();
+        let status = state.handle(RpcRequest::new(11, RpcMethod::IndexRebuildStatus));
+        match status.result {
+            RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) => {
+                let report: scriptor_indexer::RebuildProgressReport =
+                    serde_json::from_str(&json).expect("progress json");
+                assert_eq!(report.status, scriptor_indexer::RebuildStatus::Complete);
+                assert!(
+                    report.event_index >= 3,
+                    "expected progress events: {report:?}"
+                );
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            other => panic!("unexpected response: {other:?}"),
         }
-
-        panic!("index rebuild did not complete in time; max_events={max_events}");
     }
 
     #[test]

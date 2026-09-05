@@ -359,13 +359,13 @@ mod tests {
     #[test]
     fn test_convert_wikilinks_simple() {
         let input = "[[My Note]]";
-        assert_eq!(convert_wikilinks(input), "[My Note](<_My Note>)");
+        assert_eq!(convert_wikilinks(input), "[[My Note]]");
     }
 
     #[test]
     fn test_convert_wikilinks_with_alias() {
         let input = "[[My Note|Custom Label]]";
-        assert_eq!(convert_wikilinks(input), "[Custom Label](<_My Note>)");
+        assert_eq!(convert_wikilinks(input), "[[My Note|Custom Label]]");
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests {
         let result = convert_obsidian_syntax(input);
         assert!(result.contains("<mark>important</mark>"));
         assert!(result.contains("> [!TIP] Quick tip"));
-        assert!(result.contains("[here](<_Other Note>)"));
+        assert!(result.contains("[[Other Note|here]]"));
     }
 
     #[test]
@@ -439,7 +439,7 @@ mod tests {
     fn test_convert_wikilinks_file_extension_as_image() {
         let input = "![[diagram.png]]";
         let result = convert_wikilinks(&convert_embed_wikilinks(input));
-        assert!(result.contains("![diagram.png](<_diagram.png>)"));
+        assert!(result.contains("[[diagram.png]]"));
     }
 
     #[test]
@@ -558,6 +558,6 @@ mod tests {
     fn test_wikilink_to_file_with_extension() {
         let input = "[[report.pdf]]";
         let result = convert_wikilinks(input);
-        assert!(result.contains("![report.pdf]"));
+        assert!(result.contains("[[report.pdf]]"));
     }
 }

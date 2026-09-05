@@ -23,6 +23,19 @@ This ledger owns every advisory temporarily ignored by `cargo-deny`. An ignore i
   the next production-capable environment must run it against the current
   advisory database before tagging.
 
+### 2026-09-05 integration audit follow-up
+
+A freshly fetched RustSec database reported no vulnerability-class advisories,
+18 unmaintained packages, and informational unsoundness advisories for `glib`
+and two `lru` versions. The terminal UI dependency was updated from `lru`
+0.18.1 to the patched 0.18.2. Tantivy 0.26.1 still resolves `lru` 0.16.4;
+updating within its compatible release range did not provide a replacement.
+The Linux Tauri stack still resolves `glib` 0.18.5, affected by
+RUSTSEC-2024-0429. These two remaining unsoundness findings are **not** added
+to the ignore list. They remain upstream dependency work and must be assessed
+before a production release. The audit disabled yanked-version lookup, so it
+does not establish that the lockfile is free of yanked releases.
+
 | Advisory | Dependency family | Reachability | Owner | Upstream | Review by | Exit condition |
 |---|---|---|---|---|---|---|
 | RUSTSEC-2024-0370 | GTK/Tauri Linux desktop stack | Linux desktop packaging and runtime | Release/Security | https://rustsec.org/advisories/RUSTSEC-2024-0370.html | 2026-10-01 | Remove when Tauri/WebKitGTK no longer resolves the affected unmaintained crate |

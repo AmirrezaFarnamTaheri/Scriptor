@@ -410,7 +410,9 @@ where
     let mut state_changed = false;
 
     for prepared in prepared_writes {
-        let previous_output = sink.read_existing(&prepared.rel_path)?;
+        let previous_output = sink.read_existing(&prepared.rel_path).map_err(|error| {
+            partial_apply_error(error, &written, &deleted, &new_state, state_changed)
+        })?;
         let previous_key = managed_state_key(&new_state, &prepared.rel_path).map(str::to_string);
         let previous_hash = previous_key
             .as_ref()
@@ -468,7 +470,9 @@ where
     }
 
     for rel in prepared_deletes {
-        let previous_output = sink.read_existing(&rel)?;
+        let previous_output = sink.read_existing(&rel).map_err(|error| {
+            partial_apply_error(error, &written, &deleted, &new_state, state_changed)
+        })?;
         let previous_key = managed_state_key(&new_state, &rel).map(str::to_string);
         let previous_hash = previous_key
             .as_ref()
@@ -608,12 +612,51 @@ mod tests {
                 assert_eq!(written, vec!["first.md"]);
                 assert!(deleted.is_empty());
                 assert!(new_state.entries.contains_key("first.md"));
-                assert!(new_state.entries.contains_key("second.md"));
+                assert!(!new_state.entries.contains_key("second.md"));
             }
             other => panic!("expected partial apply error, got {other:?}"),
         }
         assert!(out.path().join("first.md").exists());
         assert!(!out.path().join("second.md").exists());
+    }
+
+    #[test]
+    fn later_output_read_failure_retains_completed_publish_state() {
+        let vault = TempDir::new().unwrap();
+        let out = TempDir::new().unwrap();
+        vault_note(vault.path(), "first.md", &opted_in("first"));
+        vault_note(vault.path(), "second.md", &opted_in("second"));
+        let input = PublishApplyInput {
+            to_write: vec![
+                reviewed_candidate(vault.path(), "first.md"),
+                reviewed_candidate(vault.path(), "second.md"),
+            ],
+            to_delete: vec![],
+        };
+        let sink = LocalDirSink::new(out.path()).unwrap();
+        let error = publish_apply_with_state_persistence(
+            vault.path(),
+            &input,
+            &sink,
+            &BucketState::default(),
+            &Default::default(),
+            |_| {
+                // Another writer changes the next output after validation.
+                fs::create_dir(out.path().join("second.md")).unwrap();
+                Ok(())
+            },
+        )
+        .expect_err("next output is no longer a regular file");
+        match error {
+            PublishError::PartialApply {
+                written, new_state, ..
+            } => {
+                assert_eq!(written, vec!["first.md"]);
+                assert!(new_state.entries.contains_key("first.md"));
+                assert!(!new_state.entries.contains_key("second.md"));
+            }
+            other => panic!("lost completed publish state: {other:?}"),
+        }
     }
 
     #[test]

@@ -342,10 +342,20 @@ mod tests {
     fn oversized_wasm_bytes_loads() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::default();
-        // 1MB of WASM (valid header + padding) — should succeed since runtime
-        // doesn't impose a size limit beyond header validation
+        // A large, valid custom section must also compile with wasmtime enabled.
+        // Zero padding alone is not a valid sequence of WASM sections.
         let mut bytes = vec![0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
-        bytes.resize(1_000_000, 0x00);
+        bytes.push(0); // custom section
+        let mut length = 1_000_001u32; // empty name length plus data
+        loop {
+            let byte = (length & 0x7f) as u8;
+            length >>= 7;
+            bytes.push(byte | if length == 0 { 0 } else { 0x80 });
+            if length == 0 {
+                break;
+            }
+        }
+        bytes.resize(bytes.len() + 1_000_001, 0);
         let idx = runtime.load_plugin("large", &bytes, caps).unwrap();
         assert_eq!(idx, 0);
         assert_eq!(runtime.plugin_count(), 1);

@@ -224,6 +224,8 @@ body.is-split-resizing .editor-preview-pane {
 .editor-toolbar-wrapper {
   position: relative;
   z-index: 10;
+  min-width: 0;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid var(--border);
@@ -232,12 +234,14 @@ body.is-split-resizing .editor-preview-pane {
 
 .format-row.editor-toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
   min-height: 44px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  min-width: 0;
+  max-height: min(32dvh, 240px);
+  overflow-y: auto;
   background: transparent;
 }
 
@@ -253,6 +257,13 @@ body.is-split-resizing .editor-preview-pane {
   border-radius: 8px;
   background: var(--surface);
   border: 1px solid var(--border-soft, var(--border));
+}
+
+.editor-toolbar > .format-group {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .toolbar-divider {

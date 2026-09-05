@@ -294,7 +294,7 @@ mod tests {
         runner.wait();
         let report = runner.progress_snapshot();
         assert_eq!(report.job_id, job_id);
-        assert_eq!(report.status, ExportJobState::Complete);
+        assert_eq!(report.status, ExportJobState::Complete, "{report:?}");
         assert!(
             report.event_index >= 3,
             "expected >=3 progress events, got {}",

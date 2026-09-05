@@ -1,5 +1,3 @@
-import { FolderOpen } from 'lucide-react'
-
 interface WorkspaceSwitcherProps {
   recentVaults: string[]
   activeVaultPath: string | null
@@ -40,9 +38,6 @@ export function WorkspaceSwitcher({
         ))}
         <option value="__choose__">Open another vault…</option>
       </select>
-      <button type="button" className="toolbar-button" onClick={onChooseVault} title="Open vault">
-        <FolderOpen size={14} />
-      </button>
     </div>
   )
 }

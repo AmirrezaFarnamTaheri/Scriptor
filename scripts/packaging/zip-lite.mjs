@@ -18,6 +18,7 @@ import { deflateRawSync, crc32 } from 'node:zlib'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gitWorkspaceFiles } from '../lib/workspace-files.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DEFAULT_OUTPUT = path.join(path.dirname(REPO_ROOT), 'Scriptor-lite.zip')
@@ -69,13 +70,14 @@ function shouldSkip(relParts, fileName, rules) {
 
 // Pruned, symlink-safe recursive walk. Excluded directory names are never
 // entered, so oversized dependency/build trees cost zero traversal time.
-function collectFiles(root, rules, out) {
+function collectFiles(root, rules, out, includedPaths) {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) continue
     const full = path.join(root, entry.name)
+    if (includedPaths && !includedPaths.has(full)) continue
     if (entry.isDirectory()) {
       if (rules.dirs.has(entry.name)) continue
-      collectFiles(full, rules, out)
+      collectFiles(full, rules, out, includedPaths)
     } else if (entry.isFile()) {
       out.push(full)
     }
@@ -181,12 +183,22 @@ export function assembleZip(entries) {
 }
 
 export function buildZip(repo, output, profile = 'source-review') {
+  repo = path.resolve(repo)
   const rules = profileRules(profile)
   const required = validateProfileInputs(repo, profile)
   fs.mkdirSync(path.dirname(output), { recursive: true })
 
   const files = []
-  collectFiles(repo, rules, files)
+  const workspaceFiles = gitWorkspaceFiles(repo)
+  const includedPaths = workspaceFiles ? new Set() : null
+  for (const file of workspaceFiles ?? []) {
+    let current = file
+    while (current !== repo && current !== path.dirname(current)) {
+      includedPaths.add(current)
+      current = path.dirname(current)
+    }
+  }
+  collectFiles(repo, rules, files, includedPaths)
   const outResolved = path.resolve(output)
   const candidates = files
     .filter((file) => path.resolve(file) !== outResolved)

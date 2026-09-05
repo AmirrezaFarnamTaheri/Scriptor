@@ -85,10 +85,15 @@ impl<T: Read> Read for DeadlineIo<'_, T> {
 
 impl<T: Write> Write for DeadlineIo<'_, T> {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        if buffer.is_empty() {
+            return Ok(0);
+        }
+        let buffer = &buffer[..buffer.len().min(512)];
         loop {
             match self.inner.write(buffer) {
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.wait_for_io()?,
+                Ok(0) => self.wait_for_io()?,
                 result => return result,
             }
         }
@@ -211,6 +216,23 @@ pub(crate) fn call_with_timeout(
 mod tests {
     use super::*;
     use std::collections::VecDeque;
+
+    #[test]
+    fn full_request_pipe_is_bounded_by_the_rpc_deadline() {
+        let mut storage = [0u8; 2];
+        let mut writer = io::Cursor::new(&mut storage[..]);
+        let mut io = DeadlineIo::new(&mut writer, Instant::now() + Duration::from_millis(10));
+        let error = io.write_all(b"request").expect_err("pipe remains full");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(storage, *b"re");
+    }
+
+    #[test]
+    fn empty_write_returns_immediately() {
+        let mut writer = io::sink();
+        let mut io = DeadlineIo::new(&mut writer, Instant::now());
+        assert_eq!(io.write(&[]).unwrap(), 0);
+    }
 
     struct ScriptedReader {
         reads: VecDeque<io::Result<Vec<u8>>>,
