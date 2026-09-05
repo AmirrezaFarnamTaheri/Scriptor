@@ -49,6 +49,13 @@ test('validateExportProfiles accepts default profile set', () => {
   assert.deepEqual(errors, [])
 })
 
+test('default export profiles never enable remote resource embedding', () => {
+  for (const profile of DEFAULT_EXPORT_PROFILES) {
+    assert.equal(profile.extraPandocArgs?.includes('--embed-resources') ?? false, false)
+    assert.equal(profile.extraPandocArgs?.includes('--self-contained') ?? false, false)
+  }
+})
+
 test('default export profiles include reveal.js slides', () => {
   const slides = DEFAULT_EXPORT_PROFILES.find((profile) => profile.id === 'reveal-slides')
   assert.ok(slides)
