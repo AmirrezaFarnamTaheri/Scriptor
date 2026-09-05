@@ -3,18 +3,15 @@ use crate::error::ExportError;
 const ALLOWED_BOOL_FLAGS: &[&str] = &[
     "--standalone",
     "--citeproc",
-    "--embed-resources",
     "-s",
     "--toc",
     "--number-sections",
-    "--self-contained",
 ];
 
 // These fixed values select supported local PDF engines without allowing a
 // caller-controlled executable path.
 const ALLOWED_PDF_ENGINE_FLAGS: &[&str] = &[
     "--pdf-engine=pdflatex",
-    "--pdf-engine=tectonic",
     "--pdf-engine=xelatex",
 ];
 
@@ -124,7 +121,6 @@ mod tests {
     #[test]
     fn allows_profile_defaults() {
         validate_extra_args(&[
-            "--embed-resources".into(),
             "--css=export-theme.css".into(),
             "--citeproc".into(),
             "-s".into(),
@@ -136,7 +132,15 @@ mod tests {
 
     #[test]
     fn allows_only_named_pdf_engines() {
-        validate_extra_args(&["--pdf-engine=tectonic".into()]).expect("supported PDF engine");
+        validate_extra_args(&["--pdf-engine=pdflatex".into()]).expect("supported PDF engine");
+        validate_extra_args(&["--pdf-engine=xelatex".into()]).expect("supported PDF engine");
+        assert!(validate_extra_args(&["--pdf-engine=tectonic".into()]).is_err());
         assert!(validate_extra_args(&["--pdf-engine=C:/tools/custom.exe".into()]).is_err());
+    }
+
+    #[test]
+    fn rejects_resource_embedding_flags_that_can_fetch_remote_urls() {
+        assert!(validate_extra_args(&["--embed-resources".into()]).is_err());
+        assert!(validate_extra_args(&["--self-contained".into()]).is_err());
     }
 }
