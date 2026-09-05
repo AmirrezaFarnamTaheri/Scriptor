@@ -29,17 +29,32 @@ interface UnifiedPanelShellProps {
 
 const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
 
+function dockFitsViewport(media: MediaQueryList): boolean {
+  if (!media.matches) return false
+  const reflow = document.documentElement.dataset.uiReflow
+  return reflow === undefined || reflow === 'desktop'
+}
+
 function useDockViewport(): boolean {
-  const [canDock, setCanDock] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia(DOCK_MEDIA_QUERY).matches : false,
-  )
+  const [canDock, setCanDock] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return dockFitsViewport(window.matchMedia(DOCK_MEDIA_QUERY))
+  })
 
   useEffect(() => {
     const media = window.matchMedia(DOCK_MEDIA_QUERY)
-    const update = () => setCanDock(media.matches)
+    const update = () => setCanDock(dockFitsViewport(media))
+    const observer = new MutationObserver(update)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-ui-reflow'],
+    })
     update()
     media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
+    return () => {
+      media.removeEventListener('change', update)
+      observer.disconnect()
+    }
   }, [])
 
   return canDock
@@ -66,9 +81,9 @@ export function UnifiedPanelShell({
   const canDock = useDockViewport()
   const docked = presentation === 'dock-right' && canDock
   // `dock-right` is a preference, not permission to destroy the workspace.
-  // Below the desktop docking threshold the same surface becomes a normal
-  // modal, restoring a focus trap/backdrop and preventing a nearly full-width
-  // non-modal sheet from covering still-focusable workspace controls.
+  // Below the desktop docking threshold — including app-zoom reflow that media
+  // queries cannot see — the same surface becomes a normal modal, restoring a
+  // focus trap/backdrop and keeping still-focusable workspace controls visible.
   // Wide docks start below the live app chrome via --topbar-bottom.
 
   useEscapeToClose(!docked, onClose)
