@@ -37,6 +37,7 @@ function readerFileReducer(_state: ReaderFileState, action: ReaderFileAction): R
 export function useReaderFile(
   vaultRelPath: string | null,
   vaultRoot: string | null,
+  reloadGeneration = 0,
 ): ReaderFileState {
   const [state, dispatch] = useReducer(readerFileReducer, { status: 'idle' } as ReaderFileState)
 
@@ -65,7 +66,7 @@ export function useReaderFile(
     return () => {
       cancelled = true
     }
-  }, [vaultRelPath, vaultRoot])
+  }, [vaultRelPath, vaultRoot, reloadGeneration])
 
   return state
 }
