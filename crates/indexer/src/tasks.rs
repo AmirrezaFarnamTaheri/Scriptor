@@ -49,7 +49,7 @@
  * **inline editing** in the React layer — it does not re-derive indices.
  */
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use rusqlite::{Connection, TransactionBehavior, params, params_from_iter};
 use serde::{Deserialize, Serialize};
@@ -439,10 +439,17 @@ pub fn sync_note_tasks(
         .ok();
 
     let mut seen_ids: BTreeSet<String> = BTreeSet::new();
+    let mut identity_occurrences: BTreeMap<String, usize> = BTreeMap::new();
 
     for task in tasks {
-        // Stable ID: vault + note + line (so re-indexing is idempotent).
-        let id = stable_task_id(vault_id, note_id, task.line);
+        // Identity follows the authored task rather than its physical line. An unrelated
+        // insertion above a task must not reset completion history or external references.
+        // Identical task titles are disambiguated by authored occurrence order; reordering
+        // indistinguishable duplicates is intentionally treated as an identity change.
+        let identity = task_identity_key(&task.title);
+        let occurrence = identity_occurrences.entry(identity.clone()).or_default();
+        let id = stable_task_id(vault_id, note_id, &identity, *occurrence);
+        *occurrence += 1;
         seen_ids.insert(id.clone());
         existing_ids.remove(&id);
 
@@ -505,12 +512,21 @@ pub fn sync_note_tasks(
     Ok(())
 }
 
-/// Build a deterministic task ID.  Uses a UUID v5 namespace derived from
-/// vault + note + line to avoid ID collisions across vaults.
-fn stable_task_id(vault_id: &str, note_id: &str, line: usize) -> String {
-    // v5 namespace: Scriptor tasks (arbitrary fixed UUID).
+fn task_identity_key(title: &str) -> String {
+    title.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Build a deterministic task ID from semantic task identity rather than source line.
+/// Duplicate authored titles use a stable occurrence index so ordinary line movement does
+/// not churn ids while indistinguishable duplicates remain deterministic.
+fn stable_task_id(
+    vault_id: &str,
+    note_id: &str,
+    title_identity: &str,
+    occurrence: usize,
+) -> String {
     let ns = uuid::Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap();
-    let key = format!("{vault_id}:{note_id}:{line}");
+    let key = format!("{vault_id}:{note_id}:{title_identity}:{occurrence}");
     Uuid::new_v5(&ns, key.as_bytes()).to_string()
 }
 
@@ -1166,23 +1182,28 @@ mod tests {
 
     #[test]
     fn stable_task_id_is_deterministic() {
-        let a = stable_task_id("v1", "notes/foo.md", 3);
-        let b = stable_task_id("v1", "notes/foo.md", 3);
+        let a = stable_task_id("v1", "notes/foo.md", "Task", 0);
+        let b = stable_task_id("v1", "notes/foo.md", "Task", 0);
         assert_eq!(a, b);
     }
 
     #[test]
-    fn stable_task_id_differs_by_line() {
-        let a = stable_task_id("v1", "notes/foo.md", 3);
-        let b = stable_task_id("v1", "notes/foo.md", 4);
+    fn stable_task_id_differs_by_duplicate_occurrence() {
+        let a = stable_task_id("v1", "notes/foo.md", "Task", 0);
+        let b = stable_task_id("v1", "notes/foo.md", "Task", 1);
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn task_identity_normalizes_incidental_whitespace() {
+        assert_eq!(task_identity_key("Ship   release"), "Ship release");
     }
 
     #[test]
     fn rewrite_task_markdown_clears_due_date() {
         let markdown = "- [ ] Ship release 📅 2026-08-20 #work\n";
         let task = TaskRow {
-            id: stable_task_id("vault", "notes/tasks.md", 0),
+            id: stable_task_id("vault", "notes/tasks.md", "Ship release", 0),
             vault_id: "vault".into(),
             source_note_id: Some("notes/tasks.md".into()),
             source_note_path: Some("notes/tasks.md".into()),
@@ -1210,7 +1231,7 @@ mod tests {
         let markdown = "- [ ] Keep  deliberate 📅 2026-08-20 spacing\n";
         let mut task = parse_tasks_from_markdown(markdown).remove(0);
         let row = TaskRow {
-            id: stable_task_id("vault", "notes/tasks.md", 0),
+            id: stable_task_id("vault", "notes/tasks.md", "Ship release", 0),
             vault_id: "vault".into(),
             source_note_id: Some("notes/tasks.md".into()),
             source_note_path: Some("notes/tasks.md".into()),
@@ -1236,7 +1257,7 @@ mod tests {
     fn rewrite_task_markdown_rejects_stale_source_line() {
         let markdown = "- [x] Ship release 📅 2026-08-20\n";
         let task = TaskRow {
-            id: stable_task_id("vault", "notes/tasks.md", 0),
+            id: stable_task_id("vault", "notes/tasks.md", "Ship release", 0),
             vault_id: "vault".into(),
             source_note_id: Some("notes/tasks.md".into()),
             source_note_path: Some("notes/tasks.md".into()),
@@ -1351,4 +1372,64 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn task_identity_survives_unrelated_line_insert_and_preserves_completion_time() -> Result<(), IndexerError> {
+        use crate::notes::upsert_note_on;
+        use crate::open_cache_for_session;
+        use scriptor_vault::{RelativeVaultPath, metadata_from_markdown, open_vault};
+        use tempfile::tempdir;
+
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path()).expect("open vault");
+        let cache = open_cache_for_session(&session)?;
+        let relative = RelativeVaultPath::parse("notes/tasks.md")?;
+        let original = "- [x] Ship release\n";
+        let metadata = metadata_from_markdown(
+            &session.descriptor.id,
+            &relative,
+            original,
+            "2026-08-01T00:00:00Z".to_string(),
+        );
+
+        {
+            let mut conn = cache.connection()?;
+            let tx = conn.transaction()?;
+            upsert_note_on(&tx, &metadata, original)?;
+            let parsed = parse_tasks_from_markdown(original);
+            sync_note_tasks(
+                &tx,
+                &session.descriptor.id,
+                &metadata.id,
+                &parsed,
+                "2026-08-01T01:00:00Z",
+            )?;
+            tx.commit()?;
+        }
+        let first = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        assert_eq!(first.len(), 1);
+        let original_id = first[0].id.clone();
+        let completed_at = first[0].completed_at.clone();
+        assert_eq!(completed_at.as_deref(), Some("2026-08-01T01:00:00Z"));
+
+        let shifted = "Unrelated prose\n\n- [x] Ship release\n";
+        {
+            let conn = cache.connection()?;
+            let parsed = parse_tasks_from_markdown(shifted);
+            sync_note_tasks(
+                &conn,
+                &session.descriptor.id,
+                &metadata.id,
+                &parsed,
+                "2026-08-02T01:00:00Z",
+            )?;
+        }
+        let second = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].id, original_id);
+        assert_eq!(second[0].completed_at, completed_at);
+        assert_eq!(second[0].line, 2);
+        Ok(())
+    }
+
 }
