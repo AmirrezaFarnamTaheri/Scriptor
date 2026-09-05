@@ -18,7 +18,7 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  background: var(--surface-elevated);
+  background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: var(--shadow-lg);
 }
 
@@ -140,6 +140,10 @@ html[dir='rtl'] body:has(.unified-panel-docked) .status-strip {
   box-shadow:
     0 0 0 100vmax var(--overlay),
     0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
+}
+
+.canvas-overlay {
+  z-index: var(--comp-modal-z, 40);
 }
 
 @media (max-width: 1320px) {
