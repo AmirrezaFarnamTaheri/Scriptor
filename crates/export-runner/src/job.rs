@@ -1,12 +1,13 @@
 use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, ExitStatus};
 use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
+use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, spawn_process};
 use uuid::Uuid;
 
 use crate::args::{ExportFormat, build_pandoc_args};
@@ -289,13 +290,23 @@ pub fn run_export_job_with_cancel(
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let started = Instant::now();
 
-    // PROCESS_BROKER_EXCEPTION(export-pandoc-job)
-    let mut child = Command::new(&pandoc.path)
-        .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| ExportError::Process(error.to_string()))?;
+    // Route the converter through the shared process boundary. Pandoc's own
+    // `--sandbox` is always present in `args`; supported desktop platforms add
+    // an OS-level network sandbox as a second layer when available. The explicit
+    // unsandboxed-network override keeps export usable on hosts without bwrap or
+    // sandbox-exec; Pandoc's enforced `--sandbox` remains the reader/writer
+    // boundary on those hosts rather than silently enabling URL fetches.
+    let process_spec = ProcessSpec::new(&pandoc.path)
+        .args(args.clone())
+        .current_dir(&vault_root)
+        .timeout(DEFAULT_EXPORT_TIMEOUT)
+        .max_output_bytes(MAX_CAPTURED_PROCESS_OUTPUT_BYTES)
+        .network_policy(NetworkPolicy::Deny)
+        .allow_unsandboxed_network_denial(true)
+        .expected_sha256(pandoc.sha256.clone());
+    let mut child = spawn_process(&process_spec)
+        .map_err(|error| ExportError::Process(error.to_string()))?
+        .child;
 
     let stdout_pipe = child.stdout.take();
     let stderr_pipe = child.stderr.take();
