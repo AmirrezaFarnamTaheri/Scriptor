@@ -43,6 +43,18 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
     Ok(VaultUpdateLock { _file: file })
 }
 
+/// Serializes high-level vault mutations across desktop, daemon, MCP, and
+/// other processes that share the same vault root.
+///
+/// Atomic replacement protects an individual file from torn writes, but it
+/// cannot make a read/check/write sequence atomic. Operations that implement
+/// optimistic concurrency (save/delete/rename) must keep this guard alive
+/// from the first observation through the final mutation so two writers cannot
+/// both validate the same stale hash and then overwrite one another.
+pub fn lock_vault_mutation(root: &Path) -> Result<VaultUpdateLock, VaultError> {
+    lock_vault_update(&root.join(".scriptor").join("vault-mutation"))
+}
+
 /// Write `bytes` to `path` atomically: temp file in the target directory, fsync, rename.
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let parent = path
