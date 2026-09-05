@@ -1043,12 +1043,37 @@ CREATE TABLE IF NOT EXISTS notes (
         connection.execute_batch(
             "DROP TABLE task_tags;
              DROP TABLE tasks;
-             CREATE TABLE tasks(id TEXT PRIMARY KEY, vault_id TEXT, source_note_id TEXT, source_note_path TEXT);
+             CREATE TABLE tasks (
+               id TEXT PRIMARY KEY,
+               vault_id TEXT NOT NULL,
+               source_note_id TEXT,
+               source_note_path TEXT,
+               line INTEGER NOT NULL DEFAULT 0,
+               title TEXT NOT NULL,
+               body TEXT NOT NULL DEFAULT '',
+               status TEXT NOT NULL DEFAULT 'open',
+               priority INTEGER NOT NULL DEFAULT 0,
+               due_at TEXT,
+               scheduled_at TEXT,
+               start_at TEXT,
+               rrule TEXT,
+               field_style TEXT NOT NULL DEFAULT 'emoji',
+               completed_at TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
              CREATE INDEX idx_tasks_source_note ON tasks(source_note_id);
+             CREATE TABLE task_tags(
+               task_id TEXT NOT NULL,
+               tag TEXT NOT NULL,
+               PRIMARY KEY(task_id, tag)
+             );
              INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count)
              VALUES ('v:a.md', 'v', 'a.md', 'A', 'h', 'now', 1);
-             INSERT INTO tasks VALUES ('legacy', 'v', 'a.md', NULL);
-             INSERT INTO tasks VALUES ('canonical', 'v', 'v:a.md', 'a.md');
+             INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, title, created_at, updated_at)
+             VALUES ('legacy', 'v', 'a.md', NULL, 'Legacy', 'now', 'now');
+             INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, title, created_at, updated_at)
+             VALUES ('canonical', 'v', 'v:a.md', 'a.md', 'Canonical', 'now', 'now');
              UPDATE cache_meta SET value = '9' WHERE key = 'schema_version';",
         )?;
         connection.pragma_update(None, "foreign_keys", "ON")?;
