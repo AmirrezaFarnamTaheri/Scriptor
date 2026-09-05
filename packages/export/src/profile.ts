@@ -8,7 +8,7 @@ export const DEFAULT_EXPORT_PROFILES: ExportProfile[] = [
     outputDirectory: '.scriptor/exports/html',
     bibliographyPath: 'references.bib',
     cslStylePath: 'apa-lite.csl',
-    extraPandocArgs: ['--embed-resources', '--css=export-theme.css', '--citeproc'],
+    extraPandocArgs: ['--css=export-theme.css', '--citeproc'],
   },
   {
     id: 'pdf-print',
