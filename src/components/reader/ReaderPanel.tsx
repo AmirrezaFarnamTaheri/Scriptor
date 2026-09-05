@@ -94,8 +94,8 @@ export function ReaderPanel({
   const [hasUnsavedAnnotations, setHasUnsavedAnnotations] = useState(false)
   const [closeWarning, setCloseWarning] = useState(false)
   const [annotationError, setAnnotationError] = useState<string | null>(null)
+  const [annotationsLoadedKey, setAnnotationsLoadedKey] = useState<string | null>(null)
   const readyTimerRef = useRef<number | null>(null)
-  const annotationsRef = useRef<ReaderAnnotation[]>([])
 
   // ── Store ──────────────────────────────────────────────────────────────────
   const {
@@ -120,34 +120,54 @@ export function ReaderPanel({
 
   const annotationSaveQueue = useMemo(
     () =>
-    createReaderAnnotationSaveQueue({
-      saveAnnotations: saveReaderAnnotations,
-      onPersisted: (annotation) => onAnnotationCreate?.(annotation as ReaderAnnotation),
-      onError: (cause) => setAnnotationError(`Could not save annotation: ${messageFor(cause)}`),
-      onPendingChange: (pending) => {
-        setHasUnsavedAnnotations(pending)
-        if (!pending) setCloseWarning(false)
-      },
-    }),
+      createReaderAnnotationSaveQueue({
+        saveAnnotations: saveReaderAnnotations,
+        onPersisted: (annotation) => onAnnotationCreate?.(annotation as ReaderAnnotation),
+        onError: (cause) => setAnnotationError(`Could not save annotation: ${messageFor(cause)}`),
+        onPendingChange: (pending) => {
+          setHasUnsavedAnnotations(pending)
+          if (!pending) setCloseWarning(false)
+        },
+      }),
     [onAnnotationCreate],
   )
 
-  useEffect(() => () => annotationSaveQueue.reset(), [annotationSaveQueue])
-
   useEffect(() => {
-    annotationsRef.current = annotations
-  }, [annotations])
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!annotationSaveQueue.hasPending()) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [annotationSaveQueue])
+
+  useEffect(
+    () => () => {
+      // React can unmount the Reader for reasons other than its explicit Close
+      // button (vault switches, workspace replacement, app teardown). Keep the
+      // queue alive long enough to drain/retry its final snapshot rather than
+      // dropping the only in-memory copy of a just-created annotation. Window
+      // teardown is additionally guarded by the beforeunload prompt above.
+      void annotationSaveQueue.flush()
+    },
+    [annotationSaveQueue],
+  )
 
   useEffect(() => () => {
     if (readyTimerRef.current !== null) window.clearTimeout(readyTimerRef.current)
   }, [])
 
   const handleClose = useCallback(() => {
-    if (annotationSaveQueue.hasPending()) {
-      setCloseWarning(true)
-      return
-    }
-    onClose()
+    void (async () => {
+      if (annotationSaveQueue.hasPending()) {
+        setCloseWarning(true)
+        const flushed = await annotationSaveQueue.flush()
+        if (!flushed) return
+      }
+      annotationSaveQueue.reset()
+      onClose()
+    })()
   }, [annotationSaveQueue, onClose])
 
   const retryAnnotationSave = useCallback(() => {
@@ -167,6 +187,7 @@ export function ReaderPanel({
         if (!cancelled) {
           setAnnotationError(null)
           setAnnotations(saved as ReaderAnnotation[])
+          setAnnotationsLoadedKey(`${vaultRoot}\0${filePath}`)
         }
       })
       .catch((cause: unknown) => {
@@ -205,11 +226,13 @@ export function ReaderPanel({
   useEffect(() => {
     if (!webviewReady || fileState.status !== 'ready' || !frameRef.current?.contentWindow) return
     if (!viewerLocation) return
-    const bytes = fileState.bytes.slice()
+    const bytes = fileState.bytes
+    const buffer = bytes.buffer as ArrayBuffer
+    if (buffer.byteLength === 0) return
     frameRef.current.contentWindow.postMessage(
-      { type: 'LOAD_BYTES', bytes: bytes.buffer },
+      { type: 'LOAD_BYTES', bytes: buffer },
       viewerLocation.origin,
-      [bytes.buffer],
+      [buffer],
     )
   }, [webviewReady, fileState, viewerLocation])
 
@@ -254,14 +277,17 @@ export function ReaderPanel({
     return () => window.removeEventListener('message', handleMessage)
   }, [viewerLocation, setPosition, setSelection, setError, setLoading, openAnnotationPopover])
 
-  // Re-highlight existing annotations whenever webview becomes ready.
+  // Re-highlight existing annotations only once both independent async inputs
+  // are ready. If the iframe posts READY before native annotation loading
+  // finishes, the annotation state change below replays the persisted set.
   useEffect(() => {
     if (!webviewReady || !frameRef.current?.contentWindow || !viewerLocation) return
+    if (!filePath || !vaultRoot || annotationsLoadedKey !== `${vaultRoot}\0${filePath}`) return
     frameRef.current.contentWindow.postMessage(
-      { type: 'HIGHLIGHTS', annotations: annotationsRef.current },
+      { type: 'HIGHLIGHTS', annotations },
       viewerLocation.origin,
     )
-  }, [webviewReady, filePath, viewerLocation])
+  }, [annotations, annotationsLoadedKey, webviewReady, filePath, vaultRoot, viewerLocation])
 
   // ── Navigation helpers ────────────────────────────────────────────────────
   const sendMsg = useCallback((msg: ReaderOutboundMessage) => {
