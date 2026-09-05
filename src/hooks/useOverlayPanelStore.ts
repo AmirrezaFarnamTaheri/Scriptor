@@ -10,6 +10,9 @@
  * - All state is ephemeral (not persisted) — panels re-close on refresh.
  * - `togglePanel` enables keyboard shortcut implementations that don't need
  *   to know current state.
+ * - Companion panels that can occupy the right dock are mutually exclusive;
+ *   opening one closes the previous companion instead of stacking two sheets
+ *   at the same physical edge.
  * - `closeAll` is useful for "distraction-free" mode transitions.
  */
 import { useCallback, useState } from 'react'
@@ -78,6 +81,33 @@ export type OverlayPanelKey = keyof Pick<
 
 type BooleanPanelUpdater = boolean | ((current: boolean) => boolean)
 
+const COMPANION_PANEL_KEYS = new Set<OverlayPanelKey>([
+  'gitPanelOpen',
+  'mcpPanelOpen',
+  'portalOpen',
+  'quickCaptureOpen',
+  'readerOpen',
+])
+
+function applyPanelValue(
+  previous: OverlayPanelState,
+  key: OverlayPanelKey,
+  nextValue: boolean,
+): OverlayPanelState {
+  if (!nextValue || !COMPANION_PANEL_KEYS.has(key)) {
+    return previous[key] === nextValue ? previous : { ...previous, [key]: nextValue }
+  }
+
+  return {
+    ...previous,
+    gitPanelOpen: key === 'gitPanelOpen',
+    mcpPanelOpen: key === 'mcpPanelOpen',
+    portalOpen: key === 'portalOpen',
+    quickCaptureOpen: key === 'quickCaptureOpen',
+    readerOpen: key === 'readerOpen',
+  }
+}
+
 function makeInitialState(initialStickiesVisible: boolean): OverlayPanelState {
   return {
     activeMode: 'inspector',
@@ -117,24 +147,24 @@ export function useOverlayPanelStore(initialStickiesVisible = true) {
 
   /** Open a specific boolean panel. */
   const openPanel = useCallback((key: OverlayPanelKey) => {
-    setState((prev) => (prev[key] === true ? prev : { ...prev, [key]: true }))
+    setState((prev) => applyPanelValue(prev, key, true))
   }, [])
 
   /** Close a specific boolean panel. */
   const closePanel = useCallback((key: OverlayPanelKey) => {
-    setState((prev) => (prev[key] === false ? prev : { ...prev, [key]: false }))
+    setState((prev) => applyPanelValue(prev, key, false))
   }, [])
 
   /** Toggle a specific boolean panel. */
   const togglePanel = useCallback((key: OverlayPanelKey) => {
-    setState((prev) => ({ ...prev, [key]: !prev[key] }))
+    setState((prev) => applyPanelValue(prev, key, !prev[key]))
   }, [])
 
   /** Set a panel to an explicit boolean. Prefer openPanel/closePanel for clarity. */
   const setPanel = useCallback((key: OverlayPanelKey, value: BooleanPanelUpdater) => {
     setState((prev) => {
       const nextValue = typeof value === 'function' ? value(prev[key]) : value
-      return prev[key] === nextValue ? prev : { ...prev, [key]: nextValue }
+      return applyPanelValue(prev, key, nextValue)
     })
   }, [])
 
