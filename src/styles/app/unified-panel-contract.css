@@ -87,6 +87,8 @@ body:has(.unified-panel-docked) {
   right: 0;
   bottom: 0;
   width: var(--unified-panel-dock-width);
+  height: auto;
+  min-height: 0;
   max-height: none;
   border-radius: 16px 0 0 16px;
   pointer-events: auto;
