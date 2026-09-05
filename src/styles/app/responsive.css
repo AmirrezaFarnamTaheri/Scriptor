@@ -1,3 +1,7 @@
+.workspace-mode-select {
+  display: none;
+}
+
 @media (max-width: 1320px) {
   /* The workspace grid squeezes its side rails dynamically below this width
      (see `.workspace-grid` in foundation.css), so the inspector stays a
@@ -259,7 +263,9 @@
 
 @media (max-width: 640px) {
   .topbar {
+    display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
     padding: 8px 10px;
   }
 
@@ -269,6 +275,7 @@
   }
 
   .brand {
+    grid-column: 1;
     gap: 6px;
   }
 
@@ -293,16 +300,38 @@
   }
 
   .top-actions {
+    grid-column: 2;
     order: 1;
+    justify-self: end;
     max-width: none;
   }
 
+  .topbar .topbar-secondary-action,
+  .topbar .topbar-secondary-status {
+    display: none;
+  }
+
   .workspace-mode-strip {
+    grid-column: 1 / -1;
     order: 3;
+    width: 100%;
+  }
+
+  .workspace-mode-strip .workspace-mode {
+    display: none;
+  }
+
+  .workspace-mode-select {
+    display: block;
+    width: 100%;
+    min-width: 0;
   }
 
   .command-search {
+    grid-column: 1 / -1;
     order: 4;
+    width: 100%;
+    max-width: none;
     height: 42px;
   }
 
