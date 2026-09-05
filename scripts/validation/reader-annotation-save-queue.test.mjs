@@ -156,3 +156,53 @@ test('reader annotation save queue preserves an earlier document failure after s
   ])
   assert.equal(queue.hasPending(), false)
 })
+
+test('reader annotation save queue refuses reset while work is pending', async () => {
+  const save = deferred()
+  const annotation = { id: 'a', anchor: 'p1', quote: 'Alpha', body: '', color: '#1', createdAt: '2026-08-13T00:00:00.000Z' }
+  const queue = createReaderAnnotationSaveQueue({
+    saveAnnotations: async () => save.promise,
+  })
+
+  queue.enqueue('docs/file.pdf', [annotation], annotation)
+  assert.equal(queue.reset(), false)
+  assert.equal(queue.hasPending(), true)
+
+  save.resolve()
+  await flushMicrotasks()
+  assert.equal(queue.hasPending(), false)
+  assert.equal(queue.reset(), true)
+})
+
+test('reader annotation save queue flush retries a failed final snapshot before close', async () => {
+  let attempts = 0
+  const annotation = { id: 'a', anchor: 'p1', quote: 'Alpha', body: '', color: '#1', createdAt: '2026-08-13T00:00:00.000Z' }
+  const queue = createReaderAnnotationSaveQueue({
+    saveAnnotations: async () => {
+      attempts += 1
+      if (attempts === 1) throw new Error('temporary failure')
+    },
+  })
+
+  queue.enqueue('docs/file.pdf', [annotation], annotation)
+  assert.equal(await queue.flush(), true)
+  assert.equal(attempts, 2)
+  assert.equal(queue.hasPending(), false)
+})
+
+test('reader annotation save queue flush reports failure instead of discarding unsaved data', async () => {
+  let attempts = 0
+  const annotation = { id: 'a', anchor: 'p1', quote: 'Alpha', body: '', color: '#1', createdAt: '2026-08-13T00:00:00.000Z' }
+  const queue = createReaderAnnotationSaveQueue({
+    saveAnnotations: async () => {
+      attempts += 1
+      throw new Error('persistent failure')
+    },
+  })
+
+  queue.enqueue('docs/file.pdf', [annotation], annotation)
+  assert.equal(await queue.flush(), false)
+  assert.equal(attempts, 2)
+  assert.equal(queue.hasPending(), true)
+  assert.equal(queue.reset(), false)
+})
