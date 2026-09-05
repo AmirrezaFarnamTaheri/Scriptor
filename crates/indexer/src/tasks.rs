@@ -462,6 +462,7 @@ pub fn sync_note_tasks(
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12,
                      CASE WHEN ?6 = 'done' THEN ?13 ELSE NULL END, ?13, ?13, ?14)
              ON CONFLICT(id) DO UPDATE SET
+               line         = excluded.line,
                title        = excluded.title,
                status       = excluded.status,
                priority     = excluded.priority,
@@ -1431,5 +1432,4 @@ mod tests {
         assert_eq!(second[0].line, 2);
         Ok(())
     }
-
 }
