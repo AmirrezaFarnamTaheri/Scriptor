@@ -24,6 +24,7 @@ pub mod schema;
 pub mod search;
 pub mod tags;
 pub mod tasks;
+mod task_schema;
 pub mod views;
 
 pub use bibliography::{
