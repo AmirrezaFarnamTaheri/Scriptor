@@ -24,8 +24,9 @@ export interface ReaderAnnotationSaveQueue {
     annotation?: ReaderAnnotationRecord,
   ) => void
   retry: () => boolean
+  flush: () => Promise<boolean>
   hasPending: () => boolean
-  reset: () => void
+  reset: () => boolean
 }
 
 export function createReaderAnnotationSaveQueue({
@@ -116,17 +117,35 @@ export function createReaderAnnotationSaveQueue({
       return true
     },
 
+    async flush() {
+      // Let the active drain finish first. If it left failed work behind,
+      // retry that work exactly once and wait for the retry as well. Callers
+      // can then decide whether it is safe to close/unmount without silently
+      // discarding an annotation snapshot.
+      if (inFlight) await inFlight
+      if (failedSaves.size && !inFlight) {
+        for (const save of failedSaves.values()) queueSave(save)
+        failedSaves.clear()
+        inFlight = drain()
+        onPendingChange?.(true)
+        await inFlight
+      }
+      return !hasOutstandingWork()
+    },
+
     hasPending() {
       return hasOutstandingWork()
     },
 
     reset() {
+      if (hasOutstandingWork()) return false
       inFlightRelPath = null
       queuedSaves.clear()
       failedSaves.clear()
       queueOrder.length = 0
       pendingAnnotations.clear()
       onPendingChange?.(false)
+      return true
     },
   }
 }
