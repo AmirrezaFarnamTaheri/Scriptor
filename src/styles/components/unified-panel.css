@@ -94,6 +94,9 @@
   padding: 0 24px 24px;
 }
 
+/* A docked panel is a floating side sheet, not a layout column. The workspace
+   must retain its geometry while the sheet is open; callers can still interact
+   with the uncovered portion because the backdrop itself ignores pointer input. */
 .dock-backdrop {
   position: fixed;
   inset: 0;
@@ -106,7 +109,7 @@
   top: var(--topbar-bottom, 0px);
   right: 0;
   bottom: 0;
-  width: min(480px, 92vw);
+  width: min(720px, 92vw);
   max-height: none;
   border-radius: 16px 0 0 16px;
   pointer-events: auto;
@@ -115,13 +118,9 @@
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-left: 1px solid var(--border);
-  box-shadow: var(--shadow-lg);
+  box-shadow: -18px 0 48px color-mix(in srgb, #000 16%, transparent);
   will-change: opacity, transform;
   animation: dock-slide-in 220ms var(--ease-spring) both;
-}
-
-body:has(.unified-panel-docked) .workspace-grid {
-  padding-right: min(480px, 92vw);
 }
 
 /* P1 fix: Panel now slides in from the right instead of a bare opacity flash. */
