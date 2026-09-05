@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 
+import { useI18n } from '../lib/i18n'
 import type { ActivityEntry } from '../hooks/useActivityLog'
 import type { ExportJobOutput, ExportJobRecord, SearchHit } from '../types/vault'
 import { useTablistKeys } from '../hooks/useTablistKeys'
@@ -43,6 +44,7 @@ export function StatusDockPanel({
   onOpenNote,
   onCancelExport,
 }: StatusDockPanelProps) {
+  const { t } = useI18n()
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const runningJob = exportHistory.find((job) => job.status === 'running')
   const liveExportOutput = runningJob?.live_stderr ?? ''
@@ -63,7 +65,7 @@ export function StatusDockPanel({
           className={activeTab === 'problems' ? 'active' : ''}
           onClick={() => onTabChange('problems')}
         >
-          Problems <span>{problemCount}</span>
+          {t('statusDock.problems')} <span>{problemCount}</span>
         </button>
         <button
           type="button"
@@ -76,7 +78,7 @@ export function StatusDockPanel({
           className={activeTab === 'output' ? 'active' : ''}
           onClick={() => onTabChange('output')}
         >
-          Output
+          {t('statusDock.output')}
         </button>
         <button
           type="button"
@@ -89,7 +91,7 @@ export function StatusDockPanel({
           className={activeTab === 'search' ? 'active' : ''}
           onClick={() => onTabChange('search')}
         >
-          Search Results <span>{searchResults.length}</span>
+          {t('statusDock.searchResults')} <span>{searchResults.length}</span>
         </button>
         <button
           type="button"
@@ -102,7 +104,7 @@ export function StatusDockPanel({
           className={activeTab === 'jobs' ? 'active' : ''}
           onClick={() => onTabChange('jobs')}
         >
-          Jobs <span>{exportHistory.length}</span>
+          {t('statusDock.jobs')} <span>{exportHistory.length}</span>
         </button>
       </div>
 
@@ -115,10 +117,10 @@ export function StatusDockPanel({
       {activeTab === 'output' && expanded ? (
         <section className="dock-panel" id="dock-panel-output" role="tabpanel" aria-labelledby="dock-tab-output">
           <header>
-            <strong>Output</strong>
+            <strong>{t('statusDock.output')}</strong>
           </header>
           {activity.length === 0 && !exportResult ? (
-            <p className="empty-state">No output yet.</p>
+            <p className="empty-state">{t('statusDock.noOutput')}</p>
           ) : (
             <ul className="dock-list">
               {activity.map((entry) => (
@@ -130,13 +132,13 @@ export function StatusDockPanel({
               ))}
               {exportResult ? (
                 <li>
-                  <strong>Export {exportResult.dry_run ? 'dry-run' : 'complete'}</strong>
+                  <strong>{exportResult.dry_run ? t('statusDock.exportDryRun') : t('statusDock.exportComplete')}</strong>
                   <small>{exportResult.artifact_path}</small>
                 </li>
               ) : null}
               {isExporting ? (
                 <li className="activity-job">
-                  <strong>Export in progress…</strong>
+                  <strong>{t('statusDock.exportInProgress')}</strong>
                   {runningJob ? <small>{runningJob.profile_label}</small> : null}
                   {liveExportOutput ? <pre className="export-live-output">{liveExportOutput}</pre> : null}
                 </li>
@@ -149,12 +151,12 @@ export function StatusDockPanel({
       {activeTab === 'search' && expanded ? (
         <section className="dock-panel" id="dock-panel-search" role="tabpanel" aria-labelledby="dock-tab-search">
           <header>
-            <strong>Search results</strong>
+            <strong>{t('statusDock.searchResults')}</strong>
             {searchQuery ? <span>for “{searchQuery}”</span> : null}
           </header>
-          {isSearching ? <p className="empty-state">Searching…</p> : null}
+          {isSearching ? <p className="empty-state">{t('statusDock.searching')}</p> : null}
           {!isSearching && searchResults.length === 0 ? (
-            <p className="empty-state">No search results.</p>
+            <p className="empty-state">{t('statusDock.noSearchResults')}</p>
           ) : (
             <ul className="dock-list">
               {searchResults.map((hit) => (
@@ -177,29 +179,29 @@ export function StatusDockPanel({
       {activeTab === 'jobs' && expanded ? (
         <section className="dock-panel jobs-panel" id="dock-panel-jobs" role="tabpanel" aria-labelledby="dock-tab-jobs">
           <header>
-            <strong>Background jobs</strong>
+            <strong>{t('statusDock.backgroundJobs')}</strong>
           </header>
           <ul className="dock-list">
             <li className={isIndexing ? 'activity-job' : 'activity-success'}>
-              <strong>Index rebuild</strong>
-              <span>{isIndexing ? `${graphProgress}%` : 'Ready'}</span>
+              <strong>{t('statusDock.indexRebuild')}</strong>
+              <span>{isIndexing ? `${graphProgress}%` : t('statusDock.ready')}</span>
             </li>
             <li className={isExporting ? 'activity-job' : ''}>
-              <strong>Export</strong>
-              <span>{isExporting ? 'Running' : exportResult ? 'Complete' : 'Idle'}</span>
+              <strong>{t('statusDock.export')}</strong>
+              <span>{isExporting ? t('statusDock.running') : exportResult ? t('statusDock.complete') : t('statusDock.idle')}</span>
               {isExporting ? (
                 <button type="button" className="toolbar-button export-cancel-button" onClick={onCancelExport}>
-                  Cancel export
+                  {t('statusDock.cancelExport')}
                 </button>
               ) : null}
             </li>
           </ul>
 
           <header className="jobs-history-header">
-            <strong>Export history</strong>
+            <strong>{t('statusDock.exportHistory')}</strong>
           </header>
           {exportHistory.length === 0 ? (
-            <p className="empty-state">No exports yet.</p>
+            <p className="empty-state">{t('statusDock.noExports')}</p>
           ) : (
             <ul className="dock-list export-history-list">
               {exportHistory.map((job) => {

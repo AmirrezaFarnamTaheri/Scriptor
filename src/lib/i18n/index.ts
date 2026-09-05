@@ -60,6 +60,14 @@ export function applyDocumentLocale(locale: AppLocale): void {
   document.documentElement.lang = locale
 }
 
+if (typeof window !== 'undefined') {
+  try {
+    applyDocumentLocale(getStoredLocale())
+  } catch {
+    // ignore
+  }
+}
+
 export interface I18nValue {
   locale: AppLocale
   t: (key: string, params?: Record<string, string | number>) => string

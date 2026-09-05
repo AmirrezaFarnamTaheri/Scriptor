@@ -5988,6 +5988,7 @@ dependencies = [
  "chrono",
  "hex",
  "log",
+ "scriptor-system-bridge",
  "serde",
  "serde_json",
  "sha2 0.11.0",
