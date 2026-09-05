@@ -1,5 +1,8 @@
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::time::Duration;
+
+use scriptor_system_bridge::{ProcessSpec, run_process};
 
 use serde::{Deserialize, Serialize};
 
@@ -79,7 +82,7 @@ pub fn verify_binary_hash(
 /// Resolution order:
 /// 1. `SCRIPTOR_PANDOC_PATH` when set to an executable that responds to `--version`
 /// 2. `SCRIPTOR_BUNDLED_PANDOC_DIR/pandoc(.exe)` when bundled installer populated resources
-/// 3. `pandoc` on `PATH` (Windows: `where pandoc`, Unix: `which pandoc`)
+/// 3. `pandoc` resolved through the system process broker's PATH lookup
 pub fn discover_pandoc() -> Result<PandocDiscovery, ExportError> {
     discover_pandoc_with_trusted_hash(None)
 }
@@ -108,8 +111,7 @@ pub fn discover_pandoc_with_trusted_hash(
         }
     }
 
-    let path = which_pandoc().ok_or(ExportError::PandocMissing)?;
-    probe_pandoc_with_hash(&path, trusted_hash)
+    probe_pandoc_program("pandoc", trusted_hash)
 }
 
 fn bundled_pandoc_paths() -> Vec<PathBuf> {
@@ -132,67 +134,47 @@ fn probe_pandoc_with_hash(
     path: &Path,
     trusted_hash: Option<&str>,
 ) -> Result<PandocDiscovery, ExportError> {
-    let resolved_path = if path == Path::new("pandoc") {
-        which_pandoc().ok_or(ExportError::PandocMissing)?
-    } else {
-        path.to_path_buf()
-    };
-
-    if !resolved_path.exists() {
+    if !path.exists() {
         return Err(ExportError::PandocMissing);
     }
+    probe_pandoc_program(path.as_os_str().to_owned(), trusted_hash)
+}
 
-    let sha256 = verify_binary_hash(&resolved_path, trusted_hash, "pandoc")?;
-
-    // PROCESS_BROKER_EXCEPTION(pandoc-version-probe)
-    let output = Command::new(&resolved_path)
+fn probe_pandoc_program(
+    program: impl Into<OsString>,
+    trusted_hash: Option<&str>,
+) -> Result<PandocDiscovery, ExportError> {
+    let spec = ProcessSpec::new(program)
         .arg("--version")
-        .output()
-        .map_err(|_| ExportError::PandocMissing)?;
-
-    if !output.status.success() {
+        .timeout(Duration::from_secs(5))
+        .max_output_bytes(8 * 1024)
+        .expected_sha256(trusted_hash.map(str::to_owned));
+    let output = run_process(spec).map_err(|error| ExportError::Process(error.to_string()))?;
+    if output.exit_code != 0 {
         return Err(ExportError::PandocMissing);
     }
 
-    let version = String::from_utf8_lossy(&output.stdout)
+    let version = output
+        .stdout
         .lines()
         .next()
         .unwrap_or("pandoc")
         .to_string();
-
     Ok(PandocDiscovery {
-        path: resolved_path.display().to_string(),
+        path: output.resolved_program,
         version,
-        sha256,
+        sha256: output.program_sha256,
     })
 }
 
-fn which_pandoc() -> Option<PathBuf> {
-    if cfg!(windows) {
-        // PROCESS_BROKER_EXCEPTION(pandoc-discovery-windows)
-        Command::new("where")
-            .arg("pandoc")
-            .output()
-            .ok()
-            .and_then(|output| {
-                String::from_utf8_lossy(&output.stdout)
-                    .lines()
-                    .next()
-                    .map(|line| PathBuf::from(line.trim()))
-            })
-    } else {
-        // PROCESS_BROKER_EXCEPTION(pandoc-discovery-unix)
-        Command::new("which")
-            .arg("pandoc")
-            .output()
-            .ok()
-            .and_then(|output| {
-                let line = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                if line.is_empty() {
-                    None
-                } else {
-                    Some(PathBuf::from(line))
-                }
-            })
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn trusted_hash_validation_rejects_malformed_hash_before_execution() {
+        let current = std::env::current_exe().expect("current executable");
+        let error = probe_pandoc_with_hash(&current, Some("not-a-sha256")).unwrap_err();
+        assert!(error.to_string().contains("hash mismatch") || error.to_string().contains("SHA"));
     }
 }
