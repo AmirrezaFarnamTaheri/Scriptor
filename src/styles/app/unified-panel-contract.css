@@ -207,6 +207,23 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
   grid-template-columns: auto minmax(0, 1fr) auto auto;
 }
 
+.unified-panel-docked.git-panel .git-changes li {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.unified-panel-docked.git-panel .git-file-row-actions {
+  justify-content: flex-start;
+}
+
+.unified-panel-docked.mcp-panel .mcp-drafts li {
+  flex-wrap: wrap;
+}
+
+.unified-panel-docked.mcp-panel .mcp-audit li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .unified-panel-docked .resource-sync-stats,
 .unified-panel-docked .resource-plan-meta {
   grid-template-columns: repeat(2, minmax(0, 1fr));
