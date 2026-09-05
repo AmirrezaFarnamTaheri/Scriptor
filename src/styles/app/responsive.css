@@ -1,3 +1,23 @@
+/* Legacy MCP rules in inspector.css predate UnifiedPanelShell and target the
+   shell element itself. Neutralize those structural overrides here, after the
+   inspector stylesheet, so the shared shell owns sizing, scrolling, padding,
+   border, and surface treatment consistently. */
+.mcp-panel.unified-panel-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  max-height: calc(100vh - 48px);
+  border-radius: var(--radius-xl);
+  background: var(--surface-elevated);
+}
+
+.mcp-panel.unified-panel-docked {
+  max-height: none;
+  border-radius: 16px 0 0 16px;
+}
+
 .workspace-mode-select {
   display: none;
 }
