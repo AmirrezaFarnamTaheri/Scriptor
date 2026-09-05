@@ -45,6 +45,7 @@ impl IndexCache {
             } else {
                 crate::migration::migrate_cache(&connection)?;
             }
+            crate::task_schema::normalize_task_foreign_keys(&connection)?;
         }
 
         let manager = SqliteConnectionManager::file(&path)
