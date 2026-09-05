@@ -26,7 +26,7 @@ async function openWideGitDock(page: Page) {
 }
 
 test.describe('adaptive panel presentation', () => {
-  test('wide desktop uses a bounded real dock that reserves workspace and footer width', async ({ page }) => {
+  test('wide desktop uses a bounded companion rail without crushing the editor', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await useDockedPanels(page)
     await launchApp(page)
@@ -34,25 +34,26 @@ test.describe('adaptive panel presentation', () => {
     await settleLayout(page)
 
     const editor = page.locator('.editor-panel')
+    const inspector = page.locator('.inspector-panel')
     const before = await editor.boundingBox()
     expect(before).not.toBeNull()
+    await expect(inspector).toBeVisible()
 
     const dock = await openWideGitDock(page)
-    const [after, dockBox, inspectorBox, footerBox] = await Promise.all([
+    const [after, dockBox, footerBox] = await Promise.all([
       editor.boundingBox(),
       dock.boundingBox(),
-      page.locator('.inspector-panel').boundingBox(),
       page.locator('.status-summary').boundingBox(),
     ])
 
     expect(after).not.toBeNull()
     expect(dockBox).not.toBeNull()
-    expect(inspectorBox).not.toBeNull()
     expect(footerBox).not.toBeNull()
-    expect(after!.width).toBeLessThan(before!.width - 80)
+    await expect(inspector).toBeHidden()
+    expect(after!.width).toBeGreaterThan(before!.width - 120)
     expect(dockBox!.width).toBeGreaterThanOrEqual(360)
     expect(dockBox!.width).toBeLessThanOrEqual(442)
-    expect(inspectorBox!.x + inspectorBox!.width).toBeLessThanOrEqual(dockBox!.x + 2)
+    expect(after!.x + after!.width).toBeLessThanOrEqual(dockBox!.x + 2)
     expect(footerBox!.x + footerBox!.width).toBeLessThanOrEqual(dockBox!.x + 2)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   })
@@ -72,6 +73,7 @@ test.describe('adaptive panel presentation', () => {
     const dialog = page.getByRole('dialog', { name: 'Git', exact: true })
     await expect(dialog).toBeVisible({ timeout: 45_000 })
     await expect(page.getByRole('complementary', { name: 'Git', exact: true })).toHaveCount(0)
+    await expect(page.locator('.inspector-panel')).toBeVisible()
     await settleLayout(page)
 
     const after = await editor.boundingBox()
@@ -126,5 +128,14 @@ test.describe('adaptive panel presentation', () => {
       overflowX: 'hidden',
       overflowY: 'hidden',
     })
+
+    const [mcpBox, actionsBox] = await Promise.all([
+      mcp.boundingBox(),
+      mcp.locator('.unified-panel-header-actions').boundingBox(),
+    ])
+    expect(mcpBox).not.toBeNull()
+    expect(actionsBox).not.toBeNull()
+    expect(actionsBox!.x).toBeGreaterThanOrEqual(mcpBox!.x - 1)
+    expect(actionsBox!.x + actionsBox!.width).toBeLessThanOrEqual(mcpBox!.x + mcpBox!.width + 1)
   })
 })
