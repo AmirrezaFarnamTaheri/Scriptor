@@ -17,6 +17,7 @@
   <script src="./vendor/epub.min.js"></script>
   <script>
     const params = new URLSearchParams(location.search)
+    const MAX_ANNOTATIONS = 5_000
     const configuredParentOrigin = params.get('parentOrigin')
     let parentOrigin = null
     try { parentOrigin = configuredParentOrigin ? new URL(configuredParentOrigin).origin : null } catch { parentOrigin = null }
@@ -38,6 +39,7 @@
     function hardenContents(contents) {
       const frame = contents?.document?.defaultView?.frameElement
       if (frame instanceof HTMLIFrameElement) frame.setAttribute('sandbox', 'allow-same-origin')
+      contents?.document?.addEventListener('keydown', handleReaderKeydown)
       contents?.document?.addEventListener('click', (event) => {
         const link = event.target?.closest?.('a[href]')
         if (!link) return
@@ -109,6 +111,42 @@
       for (const annotation of annotations.values()) applyHighlight(annotation)
     }
 
+    async function goTo(position) {
+      if (!rendition || typeof position !== 'string') return
+      if (position === 'prev') await rendition.prev()
+      else if (position === 'next') await rendition.next()
+      else await rendition.display(position)
+    }
+
+    function zoomBy(delta) {
+      if (!rendition) return
+      const current = Number.parseFloat(rendition.themes.fontSize?.() || '100') || 100
+      const next = Math.max(60, Math.min(200, current + (Number(delta) || 0) * 100))
+      rendition.themes.fontSize(`${next}%`)
+    }
+
+    function handleReaderKeydown(event) {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target
+      const tagName = target?.tagName
+      if (tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        void goTo('prev')
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        void goTo('next')
+      } else if (event.key === '+' || event.key === '=') {
+        event.preventDefault()
+        zoomBy(.25)
+      } else if (event.key === '-') {
+        event.preventDefault()
+        zoomBy(-.25)
+      }
+    }
+
+    document.addEventListener('keydown', handleReaderKeydown)
+
     window.addEventListener('message', async (event) => {
       if (event.source !== parent || event.origin !== parentOrigin) return
       const msg = event.data
@@ -119,20 +157,14 @@
           await loadDocument(new Uint8Array(msg.bytes))
           break
         case 'GOTO':
-          if (!rendition || typeof msg.position !== 'string') return
-          if (msg.position === 'prev') await rendition.prev()
-          else if (msg.position === 'next') await rendition.next()
-          else await rendition.display(msg.position)
+          await goTo(msg.position)
           break
-        case 'ZOOM': {
-          if (!rendition) return
-          const current = Number.parseFloat(rendition.themes.fontSize?.() || '100') || 100
-          const next = Math.max(60, Math.min(200, current + (Number(msg.delta) || 0) * 100))
-          rendition.themes.fontSize(`${next}%`)
+        case 'ZOOM':
+          zoomBy(msg.delta)
           break
-        }
         case 'HIGHLIGHT':
           if (msg.annotation?.id) {
+            if (!annotations.has(msg.annotation.id) && annotations.size >= MAX_ANNOTATIONS) return
             annotations.set(msg.annotation.id, msg.annotation)
             applyHighlight(msg.annotation)
           }
@@ -140,7 +172,9 @@
         case 'HIGHLIGHTS':
           annotations.clear()
           if (Array.isArray(msg.annotations)) {
-            for (const annotation of msg.annotations) if (annotation?.id) annotations.set(annotation.id, annotation)
+            for (const annotation of msg.annotations.slice(0, MAX_ANNOTATIONS)) {
+              if (annotation?.id) annotations.set(annotation.id, annotation)
+            }
           }
           replayHighlights()
           break
