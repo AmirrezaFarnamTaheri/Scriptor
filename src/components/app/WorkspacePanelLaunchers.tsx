@@ -15,6 +15,7 @@ import type { usePluginRegistry } from '../../hooks/usePluginRegistry'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 import type { BibliographyEntry } from '../../types/vault'
 import { indexerApplyFilesystemChanges, vaultSaveAsset } from '../../bridge/commands'
+import { gmailImportedNoteTitle } from '../../lib/gmailRfc5322'
 
 type WorkspacePanelLaunchersProps = {
   workspace: ReturnType<typeof useVaultWorkspace>
@@ -190,9 +191,13 @@ export function WorkspacePanelLaunchers({
           <Suspense fallback={<PanelFallback />}>
             <GmailManagerPanel
               onClose={() => setGmailManagerOpen(false)}
-              onImportNote={async (subject, markdown) => {
-                await workspace.createNote(subject, markdown)
-                showToast?.('Imported email to vault')
+              onImportNote={async (subject, markdown, messageId) => {
+                const title = gmailImportedNoteTitle(subject, messageId)
+                const path = await workspace.createNote(title, markdown, { requireMissing: true })
+                if (!path) {
+                  throw new Error(`Could not import Gmail message ${messageId}; the target note already exists or could not be saved.`)
+                }
+                showToast?.(`Imported email to ${path}`)
               }}
             />
           </Suspense>
