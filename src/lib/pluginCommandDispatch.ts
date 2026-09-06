@@ -9,6 +9,10 @@ export interface PluginCommandRuntime {
   openCanvas?: () => void
   openBibliography?: () => void
   openGmailManager?: () => void
+  gmailConnect?: (input: unknown) => Promise<unknown>
+  gmailImport?: (input: unknown) => Promise<unknown>
+  gmailModify?: (input: unknown) => Promise<unknown>
+  gmailSend?: (input: unknown) => Promise<unknown>
   showToast?: (message: string) => void
 }
 
@@ -45,19 +49,24 @@ export async function dispatchPluginCommandId(
       runtime.showToast?.('Hello from Scriptor Plugin System!')
       return { handled: true, output: { greeting: 'Hello from Scriptor Plugin System!' } }
     case 'gmail.open':
-    case 'gmail.connect':
       if (!runtime.openGmailManager) return { handled: false }
       runtime.openGmailManager()
       return { handled: true, output: { commandId, status: 'opened' } }
+    case 'gmail.connect':
+      if (!runtime.gmailConnect) return { handled: false }
+      return { handled: true, output: await runtime.gmailConnect(context.input) }
+    case 'gmail.import':
+      if (!runtime.gmailImport) return { handled: false }
+      return { handled: true, output: await runtime.gmailImport(context.input) }
+    case 'gmail.modify':
+      if (!runtime.gmailModify) return { handled: false }
+      return { handled: true, output: await runtime.gmailModify(context.input) }
+    case 'gmail.send':
+      if (!runtime.gmailSend) return { handled: false }
+      return { handled: true, output: await runtime.gmailSend(context.input) }
     default:
       break
   }
-
-  // Gmail mailbox mutations are intentionally not generic plugin commands.
-  // They require concrete user-selected message data and native confirmation,
-  // so an unknown gmail.* command must be reported as unhandled rather than
-  // pretending that opening the panel performed the requested side effect.
-  if (commandId.startsWith('gmail.')) return { handled: false }
 
   if (commandId.startsWith('export.')) {
     const profileId = commandId.replace(/^export\./, '')
@@ -83,21 +92,33 @@ export async function dispatchPluginCommandIdAsMcpResult(
   context: PluginCommandContext = {},
 ): Promise<CommandResult> {
   const requestId = crypto.randomUUID()
-  const result = await dispatchPluginCommandId(commandId, runtime, context)
-  if (!result.handled) {
+  try {
+    const result = await dispatchPluginCommandId(commandId, runtime, context)
+    if (!result.handled) {
+      return {
+        ok: false,
+        requestId,
+        error: {
+          code: 'mcp.plugin_command_unhandled',
+          message: `No runtime handler for plugin command: ${commandId}`,
+          recoverable: true,
+        },
+      }
+    }
+    return {
+      ok: true,
+      requestId,
+      output: result.output ?? { commandId },
+    }
+  } catch (error) {
     return {
       ok: false,
       requestId,
       error: {
-        code: 'mcp.plugin_command_unhandled',
-        message: `No runtime handler for plugin command: ${commandId}`,
+        code: 'mcp.plugin_command_failed',
+        message: error instanceof Error ? error.message : String(error),
         recoverable: true,
       },
     }
-  }
-  return {
-    ok: true,
-    requestId,
-    output: result.output ?? { commandId },
   }
 }
