@@ -21,6 +21,14 @@ export interface PluginCommandContext {
   input?: unknown
 }
 
+function inputRequiredFields(output: unknown): string[] | null {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return null
+  const record = output as Record<string, unknown>
+  if (record.status !== 'input-required' || !Array.isArray(record.required)) return null
+  const required = record.required.filter((value): value is string => typeof value === 'string' && value.length > 0)
+  return required.length > 0 ? required : null
+}
+
 export async function dispatchPluginCommandId(
   commandId: string,
   runtime: PluginCommandRuntime,
@@ -101,6 +109,18 @@ export async function dispatchPluginCommandIdAsMcpResult(
         error: {
           code: 'mcp.plugin_command_unhandled',
           message: `No runtime handler for plugin command: ${commandId}`,
+          recoverable: true,
+        },
+      }
+    }
+    const required = inputRequiredFields(result.output)
+    if (required) {
+      return {
+        ok: false,
+        requestId,
+        error: {
+          code: 'mcp.plugin_command_input_required',
+          message: `Plugin command ${commandId} requires input: ${required.join(', ')}`,
           recoverable: true,
         },
       }
