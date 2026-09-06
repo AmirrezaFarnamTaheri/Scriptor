@@ -82,7 +82,6 @@ jobs:
 
           $paths = @(
             "crates/daemon/src/transport/tests.rs",
-            "e2e/visual-review.spec.ts-snapshots",
             "e2e/screenshots.spec.ts-snapshots"
           )
           $changes = git status --porcelain -- $paths
@@ -92,10 +91,15 @@ jobs:
           Write-Host $changes
 
           git config user.name "github-actions[bot]"
+          if ($LASTEXITCODE -ne 0) { throw "git config user.name failed" }
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ($LASTEXITCODE -ne 0) { throw "git config user.email failed" }
           git add -- $paths
+          if ($LASTEXITCODE -ne 0) { throw "git add failed" }
           git commit -m "fix(ci): repair Rust tests and refresh visual baselines"
+          if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          if ($LASTEXITCODE -ne 0) { throw "git push failed" }
 
       - name: Capture visual review failure context
         if: failure()
