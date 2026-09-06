@@ -805,7 +805,7 @@
 
 body {
   min-width: 320px;
-  min-height: 100dvh;
+  min-height: var(--app-viewport-height, 100dvh);
   margin: 0;
   background:
     radial-gradient(ellipse 80% 50% at 10% -10%, var(--bg-mesh-a), transparent 55%),
@@ -814,7 +814,7 @@ body {
 }
 
 #root {
-  min-height: 100dvh;
+  min-height: var(--app-viewport-height, 100dvh);
 }
 
 ::selection {

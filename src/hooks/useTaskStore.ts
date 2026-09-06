@@ -181,7 +181,7 @@ export function useTaskStore(runSourceNoteMutation?: RunSourceNoteMutation): Use
       setMutationError(null)
       setPendingTaskIds((prev) => new Set(prev).add(taskId))
       try {
-        const sourcePath = loadState.tasks.find((task) => task.id === taskId)?.sourceNoteId
+        const sourcePath = loadState.tasks.find((task) => task.id === taskId)?.sourceNotePath
         const didMutate = sourcePath && runSourceNoteMutation
           ? await runSourceNoteMutation(sourcePath, () => indexerUpdateTask(taskId, { status: newStatus }))
           : (await indexerUpdateTask(taskId, { status: newStatus }), true)
@@ -208,7 +208,7 @@ export function useTaskStore(runSourceNoteMutation?: RunSourceNoteMutation): Use
       setMutationError(null)
       setPendingTaskIds((prev) => new Set(prev).add(taskId))
       try {
-        const sourcePath = loadState.tasks.find((task) => task.id === taskId)?.sourceNoteId
+        const sourcePath = loadState.tasks.find((task) => task.id === taskId)?.sourceNotePath
         const didMutate = sourcePath && runSourceNoteMutation
           ? await runSourceNoteMutation(sourcePath, () => indexerUpdateTask(taskId, { dueAt }))
           : (await indexerUpdateTask(taskId, { dueAt }), true)

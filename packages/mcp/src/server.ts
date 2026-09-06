@@ -45,6 +45,7 @@ export interface McpServerRequest {
   params?: {
     name?: string
     arguments?: unknown
+    patchId?: string
     [key: string]: unknown
   }
 }
@@ -148,13 +149,47 @@ export async function handleMcpRequest(
 
     return jsonRpcResult(id, {
       protocolVersion: agreed,
-      capabilities: { tools: { listChanged: false } },
+      capabilities: {
+        tools: { listChanged: false },
+        experimental: { scriptorDraftApproval: true },
+      },
       serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
     })
   }
 
   if (request.method === 'ping') {
     return jsonRpcResult(id, {})
+  }
+
+
+  if (request.method === 'scriptor/drafts/list') {
+    return jsonRpcResult(id, { drafts: runtime.listDrafts() })
+  }
+
+  if (request.method === 'scriptor/drafts/approve') {
+    const patchId = request.params?.patchId
+    if (typeof patchId !== 'string' || !patchId) {
+      return jsonRpcError(id, JSON_RPC_INVALID_PARAMS, 'patchId is required')
+    }
+    const result = await runtime.approveDraft(patchId)
+    if (!result.ok) {
+      return jsonRpcError(id, mapRuntimeErrorCode(result.error.code), result.error.message, {
+        code: result.error.code,
+        recoverable: result.error.recoverable,
+      })
+    }
+    return jsonRpcResult(id, { output: result.output })
+  }
+
+  if (request.method === 'scriptor/drafts/reject') {
+    const patchId = request.params?.patchId
+    if (typeof patchId !== 'string' || !patchId) {
+      return jsonRpcError(id, JSON_RPC_INVALID_PARAMS, 'patchId is required')
+    }
+    if (!runtime.rejectDraft(patchId)) {
+      return jsonRpcError(id, JSON_RPC_INVALID_REQUEST, 'Draft patch not found or already resolved')
+    }
+    return jsonRpcResult(id, { rejected: true })
   }
 
   if (request.method === 'tools/list') {

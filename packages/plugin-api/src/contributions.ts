@@ -27,11 +27,24 @@ export function collectContributions(plugins: LoadedPlugin[]): Required<{
   const empty: PluginContributions = {}
   const merged = plugins.reduce((acc, plugin) => {
     const contributes = plugin.manifest.contributes ?? empty
-    acc.commands.push(...(contributes.commands ?? []))
+    acc.commands.push(
+      ...(contributes.commands ?? []).map((command) => ({
+        ...command,
+        pluginId: plugin.manifest.id,
+      })),
+    )
     acc.rendererExtensions.push(...(contributes.rendererExtensions ?? []))
     acc.inspectorWidgets.push(...(contributes.inspectorWidgets ?? []))
     acc.exportProfiles.push(...(contributes.exportProfiles ?? []))
-    acc.mcpTools.push(...(contributes.mcpTools ?? []))
+    acc.mcpTools.push(
+      ...(contributes.mcpTools ?? []).map((tool) => ({
+        ...tool,
+        pluginId: plugin.manifest.id,
+        permission:
+          contributes.commands?.find((command) => command.commandId === tool.commandId)?.permission ??
+          (tool.modeRequired === 'write-approved' ? 'write-approved' : 'read'),
+      })),
+    )
     acc.vaultHealthChecks.push(...(contributes.vaultHealthChecks ?? []))
     acc.templatePacks.push(...(contributes.templatePacks ?? []))
     acc.canvasTools.push(...(contributes.canvasTools ?? []))

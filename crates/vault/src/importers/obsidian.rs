@@ -12,8 +12,6 @@ use crate::write::save_note;
 
 static EMBED_WIKILINK_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"!\[\[([^\]]+?)\]\]").expect("embed wikilink regex"));
-static WIKILINK_RE: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"\[\[([^\]]+?)(?:\|([^\]]+?))?\]\]").expect("wikilink regex"));
 static HIGHLIGHT_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"==(.+?)==").expect("highlight regex"));
 
@@ -83,11 +81,15 @@ pub fn import_obsidian_vault(
             .map_err(|source| VaultError::io(&attachments_dir, source))?;
     }
 
-    for entry in WalkDir::new(obsidian_path)
-        .follow_links(false)
-        .into_iter()
-        .filter_map(|entry| entry.ok())
-    {
+    for entry_result in WalkDir::new(obsidian_path).follow_links(false).into_iter() {
+        let entry = match entry_result {
+            Ok(entry) => entry,
+            Err(error) => {
+                skipped_files += 1;
+                errors.push(format!("walk error: {error}"));
+                continue;
+            }
+        };
         let absolute = entry.path();
 
         if absolute.starts_with(obsidian_path.join(OBSIDIAN_DIR)) {
@@ -177,12 +179,19 @@ fn import_attachment(
     attachments_dir: &Path,
 ) -> Result<(), VaultError> {
     let source = obsidian_root.join(relative);
-    let file_name = relative
-        .file_name()
-        .ok_or_else(|| VaultError::InvalidConfig {
-            message: format!("Invalid attachment path: {}", relative.display()),
-        })?;
-    let dest = attachments_dir.join(file_name);
+    let relative_str = format_path(relative);
+    let safe_relative = RelativeVaultPath::parse(&relative_str)?;
+    let dest = attachments_dir.join(
+        safe_relative
+            .as_str()
+            .replace('/', std::path::MAIN_SEPARATOR_STR),
+    );
+    if dest.exists() {
+        return Err(VaultError::NoteExists(format!(
+            "_attachments/{}",
+            safe_relative.as_str()
+        )));
+    }
 
     fs::create_dir_all(dest.parent().ok_or_else(|| VaultError::InvalidConfig {
         message: "Cannot determine parent directory".to_string(),
@@ -218,20 +227,10 @@ fn convert_embed_wikilinks(markdown: &str) -> String {
 }
 
 fn convert_wikilinks(markdown: &str) -> String {
-    WIKILINK_RE
-        .replace_all(markdown, |caps: &regex::Captures| {
-            let target = &caps[1];
-            let display = caps.get(2).map(|m| m.as_str()).unwrap_or(target);
-
-            if target.contains('.') && !target.contains('#') {
-                let filename = target.rsplit('/').next().unwrap_or(target);
-                format!("![{display}](<_{filename}>)")
-            } else {
-                let clean_target = target.split('#').next().unwrap_or(target);
-                format!("[{display}](<_{clean_target}>)")
-            }
-        })
-        .into_owned()
+    // Scriptor natively supports Obsidian-style wikilinks. Preserve their
+    // target text verbatim so folder disambiguation and heading fragments keep
+    // resolving after import.
+    markdown.to_string()
 }
 
 fn convert_highlights(markdown: &str) -> String {
@@ -360,13 +359,13 @@ mod tests {
     #[test]
     fn test_convert_wikilinks_simple() {
         let input = "[[My Note]]";
-        assert_eq!(convert_wikilinks(input), "[My Note](<_My Note>)");
+        assert_eq!(convert_wikilinks(input), "[[My Note]]");
     }
 
     #[test]
     fn test_convert_wikilinks_with_alias() {
         let input = "[[My Note|Custom Label]]";
-        assert_eq!(convert_wikilinks(input), "[Custom Label](<_My Note>)");
+        assert_eq!(convert_wikilinks(input), "[[My Note|Custom Label]]");
     }
 
     #[test]
@@ -395,7 +394,7 @@ mod tests {
         let result = convert_obsidian_syntax(input);
         assert!(result.contains("<mark>important</mark>"));
         assert!(result.contains("> [!TIP] Quick tip"));
-        assert!(result.contains("[here](<_Other Note>)"));
+        assert!(result.contains("[[Other Note|here]]"));
     }
 
     #[test]
@@ -440,7 +439,7 @@ mod tests {
     fn test_convert_wikilinks_file_extension_as_image() {
         let input = "![[diagram.png]]";
         let result = convert_wikilinks(&convert_embed_wikilinks(input));
-        assert!(result.contains("![diagram.png](<_diagram.png>)"));
+        assert!(result.contains("[[diagram.png]]"));
     }
 
     #[test]
@@ -559,6 +558,6 @@ mod tests {
     fn test_wikilink_to_file_with_extension() {
         let input = "[[report.pdf]]";
         let result = convert_wikilinks(input);
-        assert!(result.contains("![report.pdf]"));
+        assert!(result.contains("[[report.pdf]]"));
     }
 }

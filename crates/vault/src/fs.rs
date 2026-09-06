@@ -3,8 +3,6 @@ use std::io::Write;
 use std::path::Path;
 use std::time::Duration;
 
-use fs4::fs_std::FileExt;
-
 use crate::error::VaultError;
 
 /// An exclusive, cross-process transaction lock for metadata files stored in a
@@ -36,10 +34,25 @@ pub fn lock_vault_update(target: &Path) -> Result<VaultUpdateLock, VaultError> {
         .truncate(false)
         .open(&lock_path)
         .map_err(|source| VaultError::io(&lock_path, source))?;
-    file.lock_exclusive()
-        .map_err(|source| VaultError::io(&lock_path, source))?;
+    // `fs4` 1.x renamed `fs_std::FileExt::lock_exclusive` to `FileExt::lock`. The call is
+    // written as a qualified path on purpose: std grew inherent `File::lock`/`unlock` methods
+    // at this project's MSRV, and an inherent method takes precedence over a trait method, so a
+    // plain `file.lock()` would silently bypass `fs4` (and leave the import unused).
+    fs4::FileExt::lock(&file).map_err(|source| VaultError::io(&lock_path, source))?;
 
     Ok(VaultUpdateLock { _file: file })
+}
+
+/// Serializes high-level vault mutations across desktop, daemon, MCP, and
+/// other processes that share the same vault root.
+///
+/// Atomic replacement protects an individual file from torn writes, but it
+/// cannot make a read/check/write sequence atomic. Operations that implement
+/// optimistic concurrency (save/delete/rename) must keep this guard alive
+/// from the first observation through the final mutation so two writers cannot
+/// both validate the same stale hash and then overwrite one another.
+pub fn lock_vault_mutation(root: &Path) -> Result<VaultUpdateLock, VaultError> {
+    lock_vault_update(&root.join(".scriptor").join("vault-mutation"))
 }
 
 /// Write `bytes` to `path` atomically: temp file in the target directory, fsync, rename.
@@ -157,11 +170,12 @@ pub fn write_conflicted_sidecar(
         .parent()
         .ok_or_else(|| VaultError::InvalidRelativePath(original_path.display().to_string()))?;
 
-    // Build sidecar name: strip last extension, append ".conflicted.md".
-    let stem = original_path
-        .file_stem()
+    // Preserve the full filename so files that differ only by extension never
+    // collide and multi-extension names remain recognizable.
+    let file_name = original_path
+        .file_name()
         .unwrap_or(original_path.as_os_str());
-    let sidecar_name = format!("{}.conflicted.md", stem.to_string_lossy());
+    let sidecar_name = format!("{}.conflicted.md", file_name.to_string_lossy());
     let sidecar_path = parent.join(&sidecar_name);
 
     atomic_write(&sidecar_path, conflict_content.as_bytes())?;
@@ -449,7 +463,10 @@ mod tests {
             "<<<<<<< ours\nour line\n||||||| base\nbase\n=======\ntheir line\n>>>>>>> theirs\n";
         let sidecar = write_conflicted_sidecar(&original, markers).unwrap();
 
-        assert_eq!(sidecar, dir.path().join("notes").join("foo.conflicted.md"));
+        assert_eq!(
+            sidecar,
+            dir.path().join("notes").join("foo.md.conflicted.md")
+        );
         assert_eq!(std::fs::read_to_string(&sidecar).unwrap(), markers);
         // Original must be untouched.
         assert_eq!(std::fs::read_to_string(&original).unwrap(), "clean content");

@@ -159,12 +159,12 @@ export function AppTopBar({
   const customizePopupRef = useRef<HTMLDivElement | null>(null)
 
   const quickActions = [
-    { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge' },
-    { id: 'publish', label: t('topBar.publish'), icon: <Globe />, onClick: onOpenPublishCenter, emphasized: workspaceMode === 'publish' },
-    { id: 'portal', label: t('topBar.portal'), icon: <LayoutDashboard />, onClick: onOpenPortal, emphasized: false },
-    { id: 'capture', label: t('topBar.capture'), icon: <Zap />, onClick: onOpenQuickCapture, emphasized: false },
-    { id: 'graph', label: t('topBar.graph'), icon: <Network />, onClick: onOpenGraph, emphasized: false },
-    { id: 'canvas', label: t('topBar.canvas'), icon: <Box />, onClick: onOpenCanvas, emphasized: false },
+    { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge', className: 'topbar-secondary-action' },
+    { id: 'publish', label: t('topBar.publish'), icon: <Globe />, onClick: onOpenPublishCenter, emphasized: workspaceMode === 'publish', className: 'topbar-quick-publish topbar-secondary-action' },
+    { id: 'portal', label: t('topBar.portal'), icon: <LayoutDashboard />, onClick: onOpenPortal, emphasized: false, className: 'topbar-secondary-action' },
+    { id: 'capture', label: t('topBar.capture'), icon: <Zap />, onClick: onOpenQuickCapture, emphasized: false, className: 'topbar-secondary-action' },
+    { id: 'graph', label: t('topBar.graph'), icon: <Network />, onClick: onOpenGraph, emphasized: false, className: 'topbar-secondary-action' },
+    { id: 'canvas', label: t('topBar.canvas'), icon: <Box />, onClick: onOpenCanvas, emphasized: false, className: 'topbar-secondary-action' },
   ]
   const statusActions = [
     { id: 'git', label: gitTitle, icon: <GitBranch />, onClick: onOpenGit },
@@ -280,7 +280,7 @@ export function AppTopBar({
             </IconButton>
             <button type="button" className="action-button" onClick={onChooseVault}>
               <FolderOpen />
-              {t('topBar.openVault')}
+              <span className="action-button-label">{t('topBar.openVault')}</span>
             </button>
             <WorkspaceSwitcher
               recentVaults={recentVaults}
@@ -293,6 +293,16 @@ export function AppTopBar({
 
         {showModeStrip ? (
           <div className="workspace-mode-strip" aria-label="Workspace mode">
+            <select
+              className="workspace-mode-select"
+              aria-label="Workspace mode"
+              value={workspaceMode}
+              onChange={(event) => onWorkspaceModeChange(event.target.value as WorkspaceMode)}
+            >
+              {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
+                <option key={mode} value={mode}>{t(MODE_LABEL_KEYS[mode])}</option>
+              ))}
+            </select>
             {(Object.keys(WORKSPACE_MODE_LABELS) as WorkspaceMode[]).map((mode) => (
               <button
                 key={mode}
@@ -329,7 +339,7 @@ export function AppTopBar({
                     key={action.id}
                     label={action.label}
                     onClick={action.onClick}
-                    className={action.emphasized ? 'emphasized' : undefined}
+                    className={`${action.className ?? ''} ${action.emphasized ? 'emphasized' : ''}`.trim() || undefined}
                   >
                     {action.icon}
                   </IconButton>
@@ -339,7 +349,7 @@ export function AppTopBar({
           {!hiddenTopBarActions.has('git') ? (
             <button
               type="button"
-              className={`status-button has-custom-tooltip ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
+              className={`topbar-secondary-status status-button has-custom-tooltip ${gitSuccess ? 'success' : ''} ${gitNeutral ? 'neutral' : ''}`}
               aria-label={gitShortcut ? `${gitTitle} (${gitShortcut})` : gitTitle}
               onClick={onOpenGit}
             >
@@ -354,7 +364,7 @@ export function AppTopBar({
           {!hiddenTopBarActions.has('mcp') ? (
             <button
               type="button"
-              className={`status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
+              className={`topbar-status-mcp status-button has-custom-tooltip${workspaceMode === 'automation' ? ' emphasized' : ''}`}
               onClick={onOpenMcp}
               aria-label={mcpLabel}
             >
@@ -383,7 +393,7 @@ export function AppTopBar({
             </IconButton>
           ) : null}
           {onOpenPluginManager && !hiddenTopBarActions.has('paletteStore') ? (
-            <IconButton label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
+            <IconButton className="palette-store-action" label={t('topBar.paletteStore')} onClick={onOpenPluginManager}>
               <Palette />
             </IconButton>
           ) : null}

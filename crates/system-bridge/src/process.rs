@@ -14,6 +14,52 @@ const POLL_INTERVAL: Duration = Duration::from_millis(25);
 const TERMINATION_GRACE: Duration = Duration::from_millis(250);
 const DEFAULT_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 
+/// Returns whether `pid` currently names a live process without spawning a
+/// helper command. This is intentionally a small OS boundary shared by the
+/// daemon and CLI so failed connection retries do not fork `kill -0` dozens
+/// of times.
+pub fn process_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+
+    #[cfg(unix)]
+    {
+        unsafe extern "C" {
+            fn kill(pid: i32, sig: i32) -> i32;
+        }
+        // SAFETY: POSIX `kill(pid, 0)` sends no signal; it only performs
+        // existence/permission checks for the numeric process id.
+        let result = unsafe { kill(pid as i32, 0) };
+        result == 0
+            || std::io::Error::last_os_error().kind() == std::io::ErrorKind::PermissionDenied
+    }
+
+    #[cfg(windows)]
+    {
+        use std::ffi::c_void;
+        unsafe extern "system" {
+            fn OpenProcess(access: u32, inherit: i32, pid: u32) -> *mut c_void;
+            fn GetExitCodeProcess(handle: *mut c_void, exit_code: *mut u32) -> i32;
+            fn CloseHandle(handle: *mut c_void) -> i32;
+        }
+        const PROCESS_QUERY_LIMITED_INFORMATION: u32 = 0x1000;
+        const STILL_ACTIVE: u32 = 259;
+        // SAFETY: Win32 receives a numeric pid; the returned handle is checked
+        // for null and closed exactly once before it can escape this function.
+        unsafe {
+            let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+            if handle.is_null() {
+                return false;
+            }
+            let mut exit_code = 0u32;
+            let queried = GetExitCodeProcess(handle, &mut exit_code);
+            CloseHandle(handle);
+            queried != 0 && exit_code == STILL_ACTIVE
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NetworkPolicy {
     Allow,
@@ -98,6 +144,12 @@ impl ProcessSpec {
     }
 }
 
+pub struct SpawnedProcess {
+    pub child: Child,
+    pub resolved_program: PathBuf,
+    pub program_sha256: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessReceipt {
@@ -113,7 +165,7 @@ pub struct ProcessReceipt {
     pub stderr_truncated: bool,
 }
 
-pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
+pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> {
     let resolved = resolve_executable(&spec.program, spec.current_dir.as_deref())?;
     let actual_hash = if resolved.is_file() {
         Some(hash_file(&resolved)?)
@@ -147,7 +199,7 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         });
     }
 
-    let mut command = sandboxed_command(&spec, &resolved)?;
+    let mut command = sandboxed_command(spec, &resolved)?;
     configure_minimal_environment(&mut command, &spec.environment);
     if let Some(current_dir) = spec.current_dir.as_deref() {
         command.current_dir(current_dir);
@@ -158,13 +210,25 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         .stderr(Stdio::piped());
     configure_process_group(&mut command);
 
-    let started = Instant::now();
-    let mut child = command
+    let child = command
         .spawn()
         .map_err(|source| BridgeError::ProcessSpawn {
             program: resolved.clone(),
             source,
         })?;
+    Ok(SpawnedProcess {
+        child,
+        resolved_program: resolved,
+        program_sha256: actual_hash,
+    })
+}
+
+pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
+    let started = Instant::now();
+    let spawned = spawn_process(&spec)?;
+    let resolved = spawned.resolved_program;
+    let actual_hash = spawned.program_sha256;
+    let mut child = spawned.child;
     let stdout = child
         .stdout
         .take()

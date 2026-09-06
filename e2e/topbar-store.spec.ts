@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-import { launchApp, settleLayout } from './helpers'
+import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
 
 test.describe('top bar customization and support', () => {
   test('customization closes with Escape, restores focus, and remains inside the viewport after zoom', async ({ page }) => {
@@ -35,6 +35,7 @@ test.describe('top bar customization and support', () => {
   })
 
   test('support uses a distinct semantic red heart in the top bar and panel', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 })
     await launchApp(page)
     await settleLayout(page)
 
@@ -49,5 +50,11 @@ test.describe('top bar customization and support', () => {
     await expect(panel).toContainText('Choose a network, then copy the wallet address.')
     await expect(panel).toContainText('Licensed under AGPL-3.0-or-later.')
     await expect(panel).not.toContainText('for non-commercial use')
+
+    await page.keyboard.press('Escape')
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await openCommandPalette(page)
+    await runCommand(page, 'Support Scriptor')
+    await expect(panel).toBeVisible()
   })
 })

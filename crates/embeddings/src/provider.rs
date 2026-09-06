@@ -63,7 +63,9 @@ impl OllamaProvider {
 
 impl EmbedProvider for OllamaProvider {
     fn embed_texts(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, EmbeddingError> {
-        self.client.embed(texts)
+        let vectors = self.client.embed(texts)?;
+        validate_batch_shape(texts.len(), self.dimension, &vectors)?;
+        Ok(vectors)
     }
 
     fn dimension(&self) -> usize {
@@ -79,6 +81,7 @@ impl EmbedProvider for OllamaProvider {
 pub struct OpenAiProvider {
     model: String,
     dimension: usize,
+    requested_dimensions: Option<usize>,
     api_key: String,
     base_url: String,
     client: reqwest::blocking::Client,
@@ -115,6 +118,7 @@ impl OpenAiProvider {
         Self {
             model: model.to_string(),
             dimension: dim,
+            requested_dimensions: dimension,
             api_key: api_key.to_string(),
             base_url: "https://api.openai.com".to_string(),
             client: reqwest::blocking::Client::builder()
@@ -137,7 +141,7 @@ impl EmbedProvider for OpenAiProvider {
         let body = OpenAiEmbedRequest {
             model: &self.model,
             input: texts,
-            dimensions: None, // use model default; override when needed
+            dimensions: self.requested_dimensions,
         };
 
         let resp = self
@@ -151,12 +155,37 @@ impl EmbedProvider for OpenAiProvider {
             .map_err(EmbeddingError::Http)?;
 
         let parsed: OpenAiEmbedResponse = resp.json().map_err(EmbeddingError::Http)?;
-        Ok(parsed.data.into_iter().map(|d| d.embedding).collect())
+        let vectors: Vec<Vec<f32>> = parsed.data.into_iter().map(|d| d.embedding).collect();
+        validate_batch_shape(texts.len(), self.dimension, &vectors)?;
+        Ok(vectors)
     }
 
     fn dimension(&self) -> usize {
         self.dimension
     }
+}
+
+fn validate_batch_shape(
+    expected_count: usize,
+    expected_dimension: usize,
+    vectors: &[Vec<f32>],
+) -> Result<(), EmbeddingError> {
+    if vectors.len() != expected_count {
+        return Err(EmbeddingError::Provider(format!(
+            "embedding provider returned {} vectors for {expected_count} inputs",
+            vectors.len()
+        )));
+    }
+    if let Some(vector) = vectors
+        .iter()
+        .find(|vector| vector.len() != expected_dimension)
+    {
+        return Err(EmbeddingError::DimensionMismatch {
+            expected: expected_dimension,
+            actual: vector.len(),
+        });
+    }
+    Ok(())
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

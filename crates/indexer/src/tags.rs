@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 
@@ -23,23 +21,26 @@ pub fn list_vault_tags(
     vault_id: &str,
 ) -> Result<Vec<TagSummary>, IndexerError> {
     let conn = cache.connection()?;
-    let mut statement = conn.prepare("SELECT tags_json FROM notes WHERE vault_id = ?1")?;
-
-    let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    let rows = statement.query_map(params![vault_id], |row| row.get::<_, String>(0))?;
-
-    for tags_json in rows {
-        let tags_json = tags_json?;
-        let tags: Vec<String> = serde_json::from_str(&tags_json)?;
-        for tag in tags {
-            *counts.entry(tag).or_insert(0) += 1;
-        }
-    }
-
-    Ok(counts
-        .into_iter()
-        .map(|(tag, note_count)| TagSummary { tag, note_count })
-        .collect())
+    let mut statement = conn.prepare_cached(
+        "SELECT tag, COUNT(*)
+         FROM (
+             SELECT json_each.value AS tag
+             FROM (
+                 SELECT tags_json FROM notes
+                 WHERE vault_id = ?1 AND json_valid(tags_json)
+             ) AS valid_notes, json_each(valid_notes.tags_json)
+         )
+         GROUP BY tag
+         ORDER BY tag",
+    )?;
+    let rows = statement.query_map(params![vault_id], |row| {
+        let count: i64 = row.get(1)?;
+        Ok(TagSummary {
+            tag: row.get(0)?,
+            note_count: usize::try_from(count).unwrap_or(usize::MAX),
+        })
+    })?;
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
 pub fn notes_for_tag(
@@ -48,28 +49,23 @@ pub fn notes_for_tag(
     tag: &str,
 ) -> Result<Vec<TaggedNote>, IndexerError> {
     let conn = cache.connection()?;
-    let mut statement = conn.prepare(
-        "SELECT path, title, tags_json FROM notes WHERE vault_id = ?1 ORDER BY title COLLATE NOCASE",
+    let mut statement = conn.prepare_cached(
+        "SELECT n.path, n.title
+         FROM notes n
+         WHERE n.vault_id = ?1
+           AND json_valid(n.tags_json)
+           AND EXISTS (
+               SELECT 1 FROM json_each(n.tags_json) AS jt WHERE jt.value = ?2
+           )
+         ORDER BY n.title COLLATE NOCASE, n.path",
     )?;
-
-    let mut notes = Vec::new();
-    let rows = statement.query_map(params![vault_id], |row| {
-        Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, String>(2)?,
-        ))
+    let rows = statement.query_map(params![vault_id, tag], |row| {
+        Ok(TaggedNote {
+            path: row.get(0)?,
+            title: row.get(1)?,
+        })
     })?;
-
-    for row in rows {
-        let (path, title, tags_json) = row?;
-        let tags: Vec<String> = serde_json::from_str(&tags_json)?;
-        if tags.iter().any(|entry| entry == tag) {
-            notes.push(TaggedNote { path, title });
-        }
-    }
-
-    Ok(notes)
+    Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
 #[cfg(test)]

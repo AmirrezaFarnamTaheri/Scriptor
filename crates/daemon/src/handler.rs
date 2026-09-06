@@ -1,19 +1,19 @@
 use std::path::PathBuf;
 
-use scriptor_export_runner::{ExportJobInput, default_export_directory};
+use scriptor_export_runner::{ExportJobInput, default_export_directory, export_artifact_stem};
 use scriptor_indexer::{
     IndexCache, backlinks_for_path, health_diagnostics_json, health_report_json,
     incremental_note_index_with_cache, incremental_notes_index_with_cache, list_note_summaries,
     open_cache_for_session, query_focused_graph, rebuild_index, search_notes,
 };
 use scriptor_ipc::{
-    NoteSummary, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult, SearchHit,
+    NoteSummary, RpcError, RpcMethod, RpcPayload, RpcRequest, RpcResponse, RpcResult, SearchHit,
 };
 use scriptor_native_git::git_status;
 use scriptor_vault::{
     PluginState, RelativeVaultPath, SaveNoteOptions, VaultSession, VaultWatcher, load_plugin_state,
-    load_vault_config, open_vault, read_note, rename_apply_staged, rollback_save_note,
-    save_note_with_options,
+    load_vault_config, open_vault, read_note, redact_sensitive_text, rename_apply_staged_guarded,
+    rollback_save_note, save_note_with_options,
 };
 
 use crate::command_gateway;
@@ -29,7 +29,6 @@ pub struct DaemonState {
     pub(crate) export_job: ExportJobRunner,
     pub(crate) vault_watcher: Option<VaultWatcher>,
     pub(crate) watcher_generation: u64,
-    pub(crate) endpoint_nonce: Option<String>,
     pub(crate) plugin_state: PluginState,
     /// Bounded per-repo worker serializing native Git mutations for this vault;
     /// replaced whenever the vault swaps so a queued op can never target the
@@ -136,7 +135,8 @@ impl DaemonState {
                 from_path,
                 to_path,
                 update_links,
-            } => self.rename_note_apply(from_path, to_path, update_links),
+                expected_source_hash,
+            } => self.rename_note_apply(from_path, to_path, update_links, expected_source_hash),
             RpcMethod::ExportStartNote {
                 note_path,
                 format,
@@ -215,16 +215,47 @@ impl DaemonState {
             id,
             result: match result {
                 Ok(payload) => RpcResult::Ok(payload),
-                Err(message) => RpcResult::failed(message),
+                Err(message) => RpcResult::Error(self.public_rpc_error(message)),
             },
         }
+    }
+
+    fn public_rpc_error(&self, message: String) -> RpcError {
+        tracing::warn!(target: "scriptor_daemon::rpc", internal_error = %message, "RPC command failed");
+
+        let mut public = redact_sensitive_text(&message);
+        if let Some(session) = self.session.as_ref() {
+            let root = session.root.root().display().to_string();
+            if !root.is_empty() {
+                public = public.replace(&root, "<vault>");
+            }
+        }
+        clamp_to_public_error_limit(&mut public);
+
+        let lower = public.to_ascii_lowercase();
+        let (code, recoverable) = if lower.contains("no vault is open") {
+            ("vault.not_open", false)
+        } else if lower.contains("hash mismatch") || lower.contains("content hash") {
+            ("vault.hash_mismatch", true)
+        } else if lower.contains("not found") {
+            ("resource.not_found", false)
+        } else if lower.contains("already running") || lower.contains("busy") {
+            ("resource.busy", true)
+        } else if lower.contains("timeout") || lower.contains("timed out") {
+            ("operation.timeout", true)
+        } else {
+            ("rpc.command_failed", false)
+        };
+        RpcError::with_code(code, public, recoverable)
     }
 
     /// Returns the bounded GitQueue worker for the current vault root. The
     /// handle lives behind a mutex (the daemon lock is NOT held when the queue
     /// runs the op, so this accessor may be called from the dispatch path) and
     /// is replaced whenever the stored root no longer matches the session.
-    pub(crate) fn git_queue(&self) -> std::sync::Arc<scriptor_native_git::queue::GitQueue> {
+    pub(crate) fn git_queue(
+        &self,
+    ) -> Result<std::sync::Arc<scriptor_native_git::queue::GitQueue>, String> {
         let mut guard = match self.git_queue.lock() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -236,19 +267,16 @@ impl DaemonState {
                 poisoned.into_inner()
             }
         };
-        let root = self
-            .session
-            .as_ref()
-            .expect("git queue requires an open vault")
-            .root
-            .root()
-            .to_path_buf();
+        let root = self.require_session()?.root.root().to_path_buf();
         match guard.as_ref() {
-            Some(queue) if queue.repo_root == root => std::sync::Arc::clone(queue),
+            Some(queue) if queue.repo_root == root => Ok(std::sync::Arc::clone(queue)),
             _ => {
-                let queue = std::sync::Arc::new(scriptor_native_git::queue::GitQueue::new(root));
+                let queue = std::sync::Arc::new(
+                    scriptor_native_git::queue::GitQueue::try_new(root)
+                        .map_err(|error| error.to_string())?,
+                );
                 *guard = Some(std::sync::Arc::clone(&queue));
-                queue
+                Ok(queue)
             }
         }
     }
@@ -339,7 +367,6 @@ impl DaemonState {
         // from the old watcher can otherwise capture the newly installed
         // session and apply old-vault paths to the new index.
         self.invalidate_vault_watcher();
-        self.index_rebuild.wait();
         self.index_cache = None;
         self.session = None;
         self.git_queue = std::sync::Mutex::new(None);
@@ -378,9 +405,11 @@ impl DaemonState {
     fn list_notes(&self) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
+        const MAX_RPC_NOTE_LIST: usize = 5_000;
         let notes = list_note_summaries(cache, &session.descriptor.id)
             .map_err(|error| error.to_string())?
             .into_iter()
+            .take(MAX_RPC_NOTE_LIST)
             .map(|entry| NoteSummary {
                 path: entry.path,
                 title: entry.title,
@@ -392,6 +421,7 @@ impl DaemonState {
     fn search_notes(&self, query: String, limit: u32) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let cache = self.require_cache()?;
+        let limit = limit.clamp(1, 200);
         let hits = search_notes(cache, &session.descriptor.id, query.trim(), limit)
             .map_err(|error| error.to_string())?
             .into_iter()
@@ -473,6 +503,7 @@ impl DaemonState {
         dry_run: bool,
     ) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
+        let cache = self.require_cache()?;
         let note_path = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
         let output = save_note_with_options(
             &session.descriptor.id,
@@ -484,8 +515,7 @@ impl DaemonState {
         )
         .map_err(|error| error.to_string())?;
         if !dry_run
-            && let Err(error) =
-                incremental_note_index_with_cache(session, self.require_cache()?, &path, &[])
+            && let Err(error) = incremental_note_index_with_cache(session, cache, &path, &[])
         {
             if let Err(rollback_error) = rollback_save_note(
                 &session.descriptor.id,
@@ -515,16 +545,18 @@ impl DaemonState {
         from_path: String,
         to_path: String,
         update_links: bool,
+        expected_source_hash: Option<String>,
     ) -> Result<RpcPayload, String> {
         let session = self.require_session()?;
         let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
         let to = RelativeVaultPath::parse(&to_path).map_err(|error| error.to_string())?;
-        let (output, staged) = rename_apply_staged(
+        let (output, staged) = rename_apply_staged_guarded(
             &session.descriptor.id,
             &session.root,
             &from,
             &to,
             update_links,
+            expected_source_hash.as_deref(),
         )
         .map_err(|error| error.to_string())?;
         if let Err(error) = incremental_notes_index_with_cache(
@@ -645,16 +677,15 @@ impl DaemonState {
         let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
         let note = read_note(&session.descriptor.id, &session.root, &relative)
             .map_err(|error| error.to_string())?;
-        let stem = note_path
-            .trim_end_matches(".md")
-            .rsplit('/')
-            .next()
-            .unwrap_or("note");
+        let stem = export_artifact_stem(note_path);
         let output_directory = match output_subdirectory {
             Some(subdir) => {
-                let _validated = RelativeVaultPath::parse(subdir)
+                let validated = RelativeVaultPath::parse(subdir)
                     .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
-                session.root.root().join(subdir)
+                session
+                    .root
+                    .resolve_relative(&validated)
+                    .map_err(|error| format!("invalid output_subdirectory: {error}"))?
             }
             None => default_export_directory(session.root.root()),
         };
@@ -662,7 +693,7 @@ impl DaemonState {
             format: format.to_string(),
             source_markdown: note.markdown,
             output_directory: output_directory.display().to_string(),
-            source_stem: stem.to_string(),
+            source_stem: stem,
             title: Some(note.metadata.title),
             dry_run,
             extra_pandoc_args: extra_pandoc_args.to_vec(),
@@ -687,16 +718,15 @@ impl DaemonState {
         job_id: Option<String>,
     ) -> Result<ExportJobInput, String> {
         let session = self.require_session()?;
-        let stem = note_path
-            .trim_end_matches(".md")
-            .rsplit('/')
-            .next()
-            .unwrap_or("note");
+        let stem = export_artifact_stem(note_path);
         let output_directory = match output_subdirectory {
             Some(subdir) => {
-                let _validated = RelativeVaultPath::parse(subdir)
+                let validated = RelativeVaultPath::parse(subdir)
                     .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
-                session.root.root().join(subdir)
+                session
+                    .root
+                    .resolve_relative(&validated)
+                    .map_err(|error| format!("invalid output_subdirectory: {error}"))?
             }
             None => default_export_directory(session.root.root()),
         };
@@ -704,7 +734,7 @@ impl DaemonState {
             format: format.to_string(),
             source_markdown: source_markdown.to_string(),
             output_directory: output_directory.display().to_string(),
-            source_stem: stem.to_string(),
+            source_stem: stem,
             title: None,
             dry_run,
             extra_pandoc_args: extra_pandoc_args.to_vec(),
@@ -717,11 +747,47 @@ impl DaemonState {
     }
 }
 
+/// Byte budget for an error message the daemon hands to a client.
+const MAX_PUBLIC_ERROR_BYTES: usize = 2_048;
+
+/// Clamp already-redacted error text to [`MAX_PUBLIC_ERROR_BYTES`] without
+/// cutting a character in half. `String::truncate` panics on a byte index that is
+/// not a char boundary, and this text is arbitrary error output that can name a
+/// note title or path in any script, so the limit walks back to the previous
+/// boundary first — the same care `is_kanban_file` and `append_bounded` take.
+fn clamp_to_public_error_limit(text: &mut String) {
+    if text.len() <= MAX_PUBLIC_ERROR_BYTES {
+        return;
+    }
+
+    let mut cut = MAX_PUBLIC_ERROR_BYTES;
+    while cut > 0 && !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    text.truncate(cut);
+    text.push('…');
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use scriptor_ipc::RpcMethod;
     use tempfile::tempdir;
+
+    #[test]
+    fn public_error_limit_walks_back_to_a_char_boundary() {
+        // Byte 2 048 lands inside the two-byte `é`, so the cut has to move back
+        // to 2 047 rather than slice the character in half.
+        let mut text = format!("{}é{}", "a".repeat(2_047), "c".repeat(64));
+        clamp_to_public_error_limit(&mut text);
+        assert_eq!(text, format!("{}…", "a".repeat(2_047)));
+
+        // Text at the limit is reported verbatim, ellipsis-free.
+        let mut exact = "b".repeat(2_048);
+        clamp_to_public_error_limit(&mut exact);
+        assert_eq!(exact, "b".repeat(2_048));
+        assert!(!exact.ends_with('…'));
+    }
 
     #[test]
     fn ping_returns_version() {
@@ -1025,6 +1091,7 @@ mod tests {
                 from_path: "alpha.md".into(),
                 to_path: "beta.md".into(),
                 update_links: false,
+                expected_source_hash: None,
             },
         ));
         match rename.result {
@@ -1123,28 +1190,20 @@ mod tests {
             RpcResult::Ok(RpcPayload::VaultOpened { .. })
         ));
 
-        let mut max_events = 0u32;
-        for _ in 0..200 {
-            let status = state.handle(RpcRequest::new(11, RpcMethod::IndexRebuildStatus));
-            match status.result {
-                RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) => {
-                    let report: scriptor_indexer::RebuildProgressReport =
-                        serde_json::from_str(&json).expect("progress json");
-                    max_events = max_events.max(report.event_index);
-                    if report.status == scriptor_indexer::RebuildStatus::Complete {
-                        assert!(
-                            max_events >= 3,
-                            "expected >=3 progress events, got {max_events}"
-                        );
-                        return;
-                    }
-                }
-                other => panic!("unexpected response: {other:?}"),
+        state.wait_index_rebuild();
+        let status = state.handle(RpcRequest::new(11, RpcMethod::IndexRebuildStatus));
+        match status.result {
+            RpcResult::Ok(RpcPayload::IndexRebuildStatus { json }) => {
+                let report: scriptor_indexer::RebuildProgressReport =
+                    serde_json::from_str(&json).expect("progress json");
+                assert_eq!(report.status, scriptor_indexer::RebuildStatus::Complete);
+                assert!(
+                    report.event_index >= 3,
+                    "expected progress events: {report:?}"
+                );
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            other => panic!("unexpected response: {other:?}"),
         }
-
-        panic!("index rebuild did not complete in time; max_events={max_events}");
     }
 
     #[test]

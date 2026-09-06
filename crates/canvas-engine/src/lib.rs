@@ -70,6 +70,9 @@ pub fn bench_snapshot_render(
 use std::path::Path;
 use std::time::Instant;
 fn summarize_benchmark_samples(samples: &[f64]) -> (f64, f64, f64) {
+    if samples.is_empty() {
+        return (0.0, 0.0, 0.0);
+    }
     let mut sorted = samples.to_vec();
     sorted.sort_by(f64::total_cmp);
     let mean = sorted.iter().sum::<f64>() / sorted.len() as f64;
@@ -135,5 +138,15 @@ pub fn bench_hit_test_frame(
         p95_ms,
         budget_ms: HIT_TEST_FRAME_BUDGET_MS,
         within_budget: mean_ms <= HIT_TEST_FRAME_BUDGET_MS as f64,
+    }
+}
+
+#[cfg(test)]
+mod benchmark_tests {
+    use super::*;
+
+    #[test]
+    fn benchmark_summary_handles_zero_iterations() {
+        assert_eq!(summarize_benchmark_samples(&[]), (0.0, 0.0, 0.0));
     }
 }

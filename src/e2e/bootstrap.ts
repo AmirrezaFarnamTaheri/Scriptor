@@ -474,7 +474,12 @@ export function installE2eBridge(): void {
       case 'vault_read_note_history_revision':
         return '# Previous revision\n'
       case 'reader_read_document':
-        return Array.from(new TextEncoder().encode('%PDF-1.4\n%Scriptor E2E fixture\n'))
+        return Array.from(createMinimalReaderPdf())
+      case 'reader_viewer_location': {
+        const documentType = String((payload as { documentType?: string }).documentType ?? 'pdf')
+        const filename = documentType === 'epub' ? 'epub-viewer.html' : 'pdf-viewer.html'
+        return { url: `/reader/${filename}`, origin: window.location.origin }
+      }
       case 'reader_load_annotations':
         return []
       case 'reader_save_annotations':
@@ -587,4 +592,30 @@ export function installE2eBridge(): void {
     // ignore storage failures in e2e mode
   }
   installE2eMcpHarness()
+}
+
+function createMinimalReaderPdf(): Uint8Array {
+  const encoder = new TextEncoder()
+  const stream = 'BT /F1 18 Tf 50 80 Td (Scriptor Reader) Tj ET\n'
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${encoder.encode(stream).length} >>\nstream\n${stream}endstream`,
+  ]
+  let source = '%PDF-1.4\n%âãÏÓ\n'
+  const offsets = [0]
+  for (let index = 0; index < objects.length; index += 1) {
+    offsets.push(encoder.encode(source).length)
+    source += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`
+  }
+  const xrefOffset = encoder.encode(source).length
+  source += `xref\n0 ${objects.length + 1}\n`
+  source += '0000000000 65535 f \n'
+  for (const offset of offsets.slice(1)) {
+    source += `${String(offset).padStart(10, '0')} 00000 n \n`
+  }
+  source += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`
+  return encoder.encode(source)
 }

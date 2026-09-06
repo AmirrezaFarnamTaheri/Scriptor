@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
 use crate::path::VaultRoot;
+use crate::scan::has_ignored_segment;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VaultWatchEvent {
@@ -71,26 +72,6 @@ impl VaultWatcher {
             _debouncer: debouncer,
         })
     }
-}
-
-/// Directory segments whose churn must never reach the index: internal
-/// metadata, VCS state, tool caches. Filtering here — before the event
-/// becomes a VaultWatchEvent — keeps external git/tool operations from
-/// flooding the incremental indexer.
-const IGNORED_SEGMENTS: &[&str] = &[
-    ".git",
-    ".scriptor",
-    ".obsidian",
-    ".trash",
-    "node_modules",
-    "target",
-    "dist",
-];
-
-fn has_ignored_segment(relative: &str) -> bool {
-    relative
-        .split('/')
-        .any(|segment| IGNORED_SEGMENTS.contains(&segment))
 }
 
 fn parse_watch_path(root: &Path, absolute: &Path) -> Option<VaultWatchEvent> {
@@ -174,7 +155,7 @@ mod watcher_filter_tests {
             (".obsidian/plugin.md", false),
             (".trash/old.md", false),
             ("node_modules/pkg/README.md", false),
-            ("target/debug/notes.md", false),
+            ("target/debug/notes.md", true),
             ("Research Plan.md", true),
             ("notes/My note.md", true),
         ];

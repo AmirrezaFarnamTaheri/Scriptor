@@ -9,10 +9,165 @@
 - Improved high-volume vault performance: wikilink resolution reads the SQLite index instead of scanning every note, full rebuilds commit in 500-note batches, the search index keeps a 256MB memory map, only the word being typed gets a prefix-match wildcard, file watchers ignore internal metadata folders, the graph canvas caches theme colors outside its draw loop, history snapshots are throttled during rapid autosaves, and preview renders are cached by content. Release builds now ship with thin LTO, stripped symbols, and the mimalloc allocator.
 
 ### Fixed
+- CSS fallback zoom compensates the workspace height, keeping the editor, inspector, and dock inside the window at both reduced and enlarged zoom.
+- Windows daemon and client writes split frames to fit the local pipe buffer and retry zero-byte writes within their existing deadlines. Large health responses no longer abort midway and leave the CLI waiting for a timeout.
+- Publishing retains completed writes and recoverable state if a later output read fails, for both write and delete phases.
+- The terminal UI's transitive LRU cache is updated to the patched release for RUSTSEC-2026-0253.
+- Editor toolbar groups wrap within the writing column instead of hiding controls beyond the inspector edge. A bounded toolbar scroll area preserves writing space on short screens; regression coverage checks all three inspector modes at desktop widths.
+- Windows export destinations resolve existing ancestors before scope comparison, accepting ordinary and verbatim paths while rejecting destinations outside the vault. Relative destinations are written under the validated vault root.
+- Jobs reopens its panel when status-dock chrome is hidden. Screenshot capture enables its intended suite, and responsive visual tests use the available Publish and MCP entry points.
+- Parallel bibliography/search tests use separate vault databases. Native regression expectations now match successful-write-only publish ownership, extension-preserving conflict sidecars, preserved wikilinks, and authored notes in generic build-named folders.
+- Cache upgrades now run every migration step through the current schema in one call. Legacy task paths survive caches with either one or both source columns; missing note IDs are backfilled before task reconciliation. Existing caches missing version metadata request recovery instead of being silently marked current.
+- Health diagnostics distinguish existing image attachments from missing note links.
+- Generated operation-contract checks tolerate Windows checkout line endings while still detecting content drift.
+- Source archives honor Git ignore rules and retain symlink-safe traversal. Packaging tests use isolated source fixtures, avoiding nondeterminism and repeated compression of live build output.
+- The store keeps its navigation near the top at high text zoom by leaving note-health and quality cards in the note inspector and preview modes.
+- The task date validator no longer accepts partial dates. It delegated to `chrono`, whose `%Y`,
+  `%m` and `%d` take any digit count, so `26-12-31` was a valid date (year 26) and `2026-1-31` was
+  too, while the renderer writes zero-padded ISO dates; the shape is now checked before the calendar
+  is. The validator's own test also asserted that `2026-12-31` was both valid and invalid, so it
+  could never pass; it now checks a one-digit month and an impossible month instead.
+- Note aliases keep the order the frontmatter declares. The parser sorted them before de-duplicating,
+  which reordered the list the author wrote (and broke the pre-existing frontmatter-alias test); the
+  de-duplication now keeps the first occurrence in place.
+- The layout blueprint matches the combined layout: side rails shrink beside the editor above the mobile breakpoint, with compact top-bar controls and independent panel scrolling.
+- CI annotations now carry the test failure detail, not just the last lines of the log. A
+  `cargo test --workspace` failure published only cargo's per-crate progress lines, because the
+  assertion block sat above the tail window, so the check read `error: test failed` with no name.
+  The wrapper now lifts `---- name stdout ----`, panics, assertions, and `error[E..]` lines out of
+  the whole log and appends them after the tail.
+- The `tantivy-indexer` schema-version test matched on the result instead of calling `unwrap_err()`,
+  which needed `Debug` on `TantivyIndex`. The crate's test target had never compiled: clippy checks
+  every target, but it kept failing on the daemon library first, so nothing reached it.
+- The daemon's transport tests import the two framing helpers they use. Moving frame I/O into
+  `transport/framing.rs` trimmed the parent module's imports, and the test module had been resolving
+  `read_frame_resyncing`/`write_frame` through that parent scope, so `scriptor-daemon (lib test)`
+  failed to compile with four `E0425` errors - invisible for a while because clippy's other errors
+  ran first and the log tail only showed those.
+- The daemon no longer stores an endpoint nonce that nothing reads. `main` verified each request
+  against that `DaemonState` copy and skipped authentication when it was unset; the transport now
+  compares requests against the nonce taken from the endpoint file it wrote and refuses to serve
+  without one, and the field's leftover has been removed along with the IPC source contract that
+  asserted the copy instead of the check.
+- Loading a canvas board validates the parsed file instead of casting it. A `.canvas` file that is
+  valid JSON but not a canvas document (a truncated write, an edit made outside the app) used to be
+  handed straight to the renderer, where the missing layers or blocks array threw; the board is now
+  left as it was and the panel says why.
+- `clip` names a new note after the captured page title even when that title has no ASCII
+  alphanumerics. The filename slug kept only ASCII letters and digits, so a Japanese, Greek, or
+  emoji title slugged to nothing and produced a note named after the timestamp alone; the title is
+  now used directly, minus path separators and control characters, with its limit counted in
+  characters so a multi-byte title cannot be cut in half.
+- `scripts/ci/invoke-logged.ps1` keeps the *end* of a failed step's log when it shortens the CI
+  annotation and strips the per-line timestamp prefixes. The old truncation kept the first 3 500
+  characters of a 20-line tail, which is exactly the part that never contains the failing
+  diagnostic, so heavy steps reported "exit code 1" with the real error cut off; the annotation now
+  also lists the last `==>` stage markers so the running step is identifiable.
+- Renaming a note no longer rewrites wikilinks, markdown links, and reference definitions that a
+  note quotes inside a fenced code block or an inline code span. The rename rewriter replaced
+  matches across the whole document, so documentation *about* links was silently edited, while the
+  tag rewriter already skipped those regions; link rewriting now follows the same rule and keeps
+  every byte outside the rewritten links, including CRLF endings and trailing blank lines, intact.
+- Truncating a public error message in the daemon walks back to a UTF-8 char boundary before
+  cutting at 2048 bytes. `String::truncate` panics on a mid-character index, so an error naming a
+  note with a non-ASCII title or path long enough to hit that limit could panic the request handler
+  instead of being redacted; the ellipsis is also appended with `push` now that it is a char.
+- Task indexing writes the canonical note id into `tasks.source_note_id` again. Separating that
+  column from `source_note_path` left every producer still passing a vault-relative path, and
+  because the column carries a foreign key on `notes(id)` with `foreign_keys=ON`, an incremental
+  index (a note save, `indexer_sync_note_tasks`, a single-note rebuild) aborted with
+  `FOREIGN KEY constraint failed` and rolled the whole write transaction back — the failure the
+  Windows release smoke reported. `sync_note_tasks` now also mirrors `source_note_path` from the
+  notes row, so the navigation path no longer survives only in migrated caches while every
+  re-index leaves it null, and the task row, the DQL `task:` projector, and the desktop task
+  update all read the path from that column instead of decoding a note id as a path.
+- Deleting or moving a note out of the index reconciles its task rows by canonical note id. The
+  `tasks` filter still matched on `source_note_id` with a vault-relative path, so the retired
+  note's tasks and their tags survived in the cache and kept appearing in task queries.
+- The MCP browser end-to-end harness now binds a vault identity. The draft tools started requiring
+  a stable `vaultId` to stamp a proposal, so `mcp.proposePatch` threw inside the harness, every
+  write-approved scenario came back `mcp.invoke_failed` with an empty draft queue, and all five
+  MCP specs failed. `packages/mcp` additionally pins the new guards with behavioral tests: a
+  missing vault identity is refused, a runtime without a write bridge must not advertise its tool,
+  a draft cannot be approved twice, and a draft cannot be approved after the runtime is rebound
+  to another vault.
+- Cleared the remaining `clippy -D warnings` failures in the daemon: the outside-lock capability
+  check in `transport.rs` is a single let-chain, and the subscriber snapshot in
+  `events.rs` documents why its `collect` has to stay (it releases the lock before delivery)
+  instead of tripping `needless_collect`.
+- `scripts/validation/tui-smoke.mjs` streams the smoke output live *and* re-emits its tail when
+  the run fails. The child previously inherited stdio, so the CI annotation carried only
+  "command failed with exit code 1" and gave no way to distinguish a compile error from a
+  runtime panic.
+- Recovering or aborting an interrupted note rename whose transaction manifest predates the
+  original/intended hash records again restores every rewritten note's backup and rolls the file
+  move back. Previously those manifests either kept links pointing at a file the rename never
+  created, or the rollback was rejected outright as a hash mismatch against an empty expectation.
+- Reader panels derive the viewer location and frame readiness from the document type they were
+  resolved for, instead of clearing that state from inside an effect. Switching documents no longer
+  renders the previous viewer for a frame, and the React cascading-render lint rule passes again.
+- Pinned the transitive `@xmldom/xmldom` that `epubjs` pulls into the desktop bundle to 0.9.12, so
+  `pnpm audit --prod` and the supply-chain gate no longer report GHSA-6gmq-8vp8-gcm6.
+- Restored the logged invocation of the desktop crate compile step: a Rust compile failure now keeps
+  reporting its compiler diagnostics as a check annotation, with the per-step timeout and evidence
+  log the inline wrapper had dropped.
+- Split the daemon transport module's deadline-bounded frame I/O into
+  `crates/daemon/src/transport/framing.rs`, bringing `transport.rs` back under its module-size
+  ratchet instead of leaving the split half-finished.
+- Adapted `crates/vault` to the `fs4` 1.x API it was bumped to (1.x has no `fs_std` module and names
+  the exclusive lock `FileExt::lock` instead of `lock_exclusive`; the call is written as a qualified
+  path because std's newer inherent `File::lock` would otherwise shadow the trait method), which was
+  the sole reason every Rust job on the branch failed: the unresolved import aborted the build before
+  any other crate was checked. With vault
+  compiling again, three further errors in the daemon transport surfaced and are fixed here: the
+  endpoint nonce is cloned into `DaemonState` instead of moved out of the endpoint that is still
+  needed for the expected nonce and endpoint recovery, the nonblocking disconnect probe reads
+  through `std::io::Read` (which the module no longer imported), and the queued `git_push` call is
+  wrapped in a closure so the queue's `&PathBuf` repository root coerces to the `&Path` the git
+  helper takes. The nested `if let` in `save_note_with_options` that
+  `cargo clippy --workspace --all-targets -- -D warnings` rejected is now a single let-chain.
+- Re-exported the guarded rename entry points (`rename_apply_guarded`, `rename_apply_staged_guarded`)
+  from `scriptor-vault`'s crate root. The rename pre-condition was added to the rename module without
+  extending the root re-export list, so the daemon's rename dispatch and the desktop
+  `vault_rename_apply` command referenced names that were never in scope; the desktop command also
+  still imported the unguarded `rename_apply` while calling the guarded form.
+- Kept the reviewed September RustSec ledger with 18 owned exceptions and its recorded evidence; integration does not reintroduce the removed `fxhash` exception.
+- The a11y smoke now accepts the editor workspace's localized `aria-label` binding alongside the old literal, so translating the shell no longer reads as a missing accessible name.
+- Closed the supply-chain audit failure that turned the `main` branch red: pnpm overrides bump `@xmldom/xmldom` to 0.9.12 (XML fragment injection via epubjs, GHSA-6gmq-8vp8-gcm6) and `dompurify` to 3.4.14 (four advisories via mermaid/monaco-editor), so `pnpm audit --prod` reports no known vulnerabilities again; the renderer XSS suite, build, and workspace e2e flows all pass against the bumped versions.
+- The store panel now renders without a single inline style object: the remaining 45 one-off styles (section tab pills, MCP mode radios, audit rows, feature-flag rows, preset cards, plugin consent sections, banners, shell/tablist/body) moved to state-variant classes in `store-panel.css`, with all four store tabs pixel-verified identical to the previous render.
+- The status footer collapses to a single slim row (~52px, down from ~105px) by default: the dock tabs and output panel unmount until the chevron next to the Jobs button reveals them, the choice persists per device, and Jobs/programmatic dock jumps still force the dock open.
+- Screenshot capture gained `-UpdateBaselines`: `pnpm screenshots:capture -UpdateBaselines` regenerates (instead of verifying) the win32 baselines and also refreshes the visual-review dark/tablet baselines and the mirrored docs PNGs in one run on the Windows runner.
+- The editor theme toggle is now three-state — auto (follow the app theme, the default) → pin light → pin dark — with `aria-pressed` and a spoken label that name the current state; an explicit pin survives app theme flips and auto tracks the app theme in both directions.
+- Smoothed the keystroke path end to end: draft stats, citation extraction, the inspector rail, and outline/lint/autocomplete work from one shared `useDeferredValue` draft so heavy re-derivation lags the keystroke instead of blocking it (the editor itself still commits immediately).
+- The editor workspace, tab strip, inspector rail, and status footer now speak the configured locale (444 keys per locale, en/de/fa): every toolbar tooltip, toggle label, empty state, export/publishing action, and status readout in those shells is translated instead of hardcoded English.
+- Dark-theme note-search placeholder text now uses the secondary text token (≥8:1 on dark surfaces) instead of the browser-default ~4.2:1.
+- E2E coverage tracks the new dock default: the width-reflow test now exercises the chevron reveal (dock unmounted → expanded → clean → Output panel) and `waitForWorkspace` no longer demands the top-bar vault badge that yields at tight widths by design.
+- The store panel's repeated flex/typography patterns moved from 32 inline style objects to shared `store-panel.css` classes; one-off micro-styles stay inline, and the leftover `console.log` in the delete-note controller validation script is gone.
+- The right inspector panel no longer overlaps or stacks on top of the editor at desktop widths: the workspace grid now squeezes its vault sidebar and inspector rails proportionally (width caps shared as percentages of the workspace), so all three columns stay docked side by side from ultrawide down to the mobile reflow, and manual resizes still win whenever they fit.
+- Hardened the Monaco wrapper against out-of-order value echoes: a stale parent-state re-render could call `setValue` over newer model content under heavy load, reverting just-typed keystrokes; external values (note switches, transforms, file reloads) still apply, echoes never do.
+- Added RTL mirroring for the Persian locale: the vault/inspector rails, docked side panel, collapsed-rail placeholders, and tooltips now flip to the right-to-left reading side instead of keeping left-facing artifacts.
+- Preview task-list checkboxes now expose an accessible name ("Open task" / "Completed task") instead of an anonymous checkbox for screen readers.
+- Docked right-hand panels (Portal, Git, MCP, quick capture, note history) now reserve their real 720px dock width instead of a blanket 480px: they no longer covered the inspector and part of the editor, and the rails share the squeeze so the editor keeps a usable column whenever a dock is open.
+- Unified the top bar into a single row: the mode strip, command search, and quick actions no longer wrap into three stacked sub-bars below 1500px (54px tall at every desktop width instead of 166px); sections compress in priority order and the top bar stays a single row.
+- Primary top-bar navigation can no longer shrink into an invisible internal scroller: the workspace-mode strip keeps its full width (all five modes always reachable), while redundant lower-priority controls yield at tight widths — the Publish quick-launch icon (still available via the Publish mode and command palette), the MCP status pill (still in the footer subsystem toggles and settings), the vault badge (repeated by the switcher and status footer), and the "Workspaces" switcher label.
+- Every modal dialog now dismisses with Escape: the Frontmatter inspector and theme customizer were the only surfaces that ignored it, leaving keyboard users trapped with only a mouse-selectable close button.
+- Removed the duplicate "Open vault" icon button inside the workspace switcher (the top bar's "Open Vault" action and the select's "Open another vault…" option already open the same dialog).
+- Publish Center no longer prints the format twice per profile ("HTMLHTML", "PDFPDF"); the format chip now appears only when it adds information beyond the profile label.
+- The store panel's Plugins/MCP/Features/Layouts tab strip wraps instead of scrolling behind a thin scrollbar, matching every other segmented control in the app.
+- The vault name badge and "Open Vault" label now ellipsize or collapse to icon-only instead of wrapping the top bar onto a second line.
 - Fixed docked side panels (git, MCP, settings, knowledge) rendering beneath the sticky top bar: the dock now starts below the bar and its header and tabs are always reachable; visual baselines and README captures were regenerated for the corrected geometry.
 - Smoothed the typing path: word counting no longer allocates a word array per keystroke, draft stats and citation extraction render from deferred draft values, glass blur tiers were lightened (16px default), and reduced-transparency now strips modal and palette backdrop blurs as well.
 - Resolved the 2026-08-30 forensic review findings: OAuth stateless-probe handling, daemon outside-lock read-only scans, truthful export-history running state, chrome preference persistence and validation, top-bar i18n coverage, reduced-transparency and resize coalescing, portable Playwright web servers, a container gate that executes the contract suite, and worktree-proof source-test and version walkers.
 
+### Changed (behavior that may affect existing vaults)
+- **Vault scan no longer hides notes under `target/` and `dist/`.** Only unambiguous tool directories (`.git`, `.scriptor`, `.obsidian`, `.trash`, `node_modules`) are excluded from the recursive scan and incremental watcher. If you kept authored `.md` notes under a `target/` or `dist/` folder, they are now indexed, searchable, and resolvable again; conversely, a genuine build cache inside the vault will again generate scan/watcher activity.
+- **Path-portability restrictions are now enforced on Windows only.** NTFS alternate-data-stream aliases (`note.md::$DATA`), reserved device names (`CON`, `NUL`, `AUX`, `COM1..9`, `LPT1..9`, `CLOCK$`), and trailing dots/spaces are rejected when running on Windows (where they are unsafe). On Unix/macOS these are legal file names and are no longer rejected, so notes titled e.g. `Meeting: notes.md` work again. Vaults intended to sync to Windows should still prefer Windows-safe names.
+- **Save CAS treats a blank expected-content-hash as "no precondition".** An empty/whitespace expected hash no longer fails a create-new save; callers that genuinely require the note to be absent pass the `<missing>` sentinel, and a real hash against a missing file is still rejected (to avoid resurrecting a concurrently deleted note).
+- **MCP mutation-audit verification now anchors the oldest retained segment.** Because segment rotation prunes the oldest file, the head record of the remaining oldest segment legitimately references a pruned predecessor; verification no longer misreports that as a fork/tamper, while every retained record's own hash and all later links are still checked.
+
+- **A rename no longer overwrites a destination that appeared mid-transaction.** The create-only
+  write of the renamed note now carries the `<missing>` sentinel, so a note created at the target
+  path after the dry-run collision check fails the rename instead of being replaced by it.
 ## 1.0.7 — 2026-08
 
 ### Fixed

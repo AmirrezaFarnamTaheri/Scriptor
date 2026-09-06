@@ -1,6 +1,10 @@
-use scriptor_vault::{ScannedEntryKind, VaultSession, note_id, read_note, scan_vault};
+use scriptor_vault::{
+    MAX_INDEXED_NOTE_BYTES, ScannedEntryKind, VaultSession, read_note, scan_vault,
+};
 
-use crate::citation::{CitationValidationSummary, validate_citations};
+use std::collections::BTreeSet;
+
+use crate::citation::{CitationValidationSummary, known_bibliography_keys_for_cache};
 use crate::db::{IndexCache, integrity_check_ok, orphaned_note_count, read_schema_version};
 use crate::error::IndexerError;
 use crate::links::count_links;
@@ -61,25 +65,67 @@ pub fn build_health_diagnostics(
         .filter(|entry| entry.kind == ScannedEntryKind::Note)
         .map(|entry| entry.path.clone())
         .collect();
+    let indexable_note_paths: Vec<String> = scanned
+        .iter()
+        .filter(|entry| {
+            entry.kind == ScannedEntryKind::Note && entry.size_bytes <= MAX_INDEXED_NOTE_BYTES
+        })
+        .map(|entry| entry.path.clone())
+        .collect();
+    let oversized_note_paths: Vec<String> = scanned
+        .iter()
+        .filter(|entry| {
+            entry.kind == ScannedEntryKind::Note && entry.size_bytes > MAX_INDEXED_NOTE_BYTES
+        })
+        .map(|entry| entry.path.clone())
+        .collect();
 
-    // Build resolution lookups once: per-link index construction was O(L*N).
+    // Build resolution lookups once: existence resolution still includes an
+    // oversized note even though its body is deliberately excluded from the
+    // derived index.
     let wikilink_index = WikilinkIndex::from_note_paths(&note_paths);
-    // Note bodies captured during the single read pass below; the orphan-asset
-    // check reuses them instead of rereading every note per asset (O(A*N) I/O).
-    let mut note_bodies: Vec<(String, String)> = Vec::with_capacity(note_paths.len());
+    let asset_paths: Vec<String> = scanned
+        .iter()
+        .filter(|entry| entry.kind == ScannedEntryKind::Asset)
+        .map(|entry| entry.path.clone())
+        .collect();
+    let asset_path_set: std::collections::BTreeSet<String> = asset_paths.iter().cloned().collect();
+    // Record references as notes are parsed; never retain every note body or
+    // compare every asset against every note.
+    let mut referenced_assets = std::collections::BTreeSet::<String>::new();
     let mut issues = Vec::new();
+    for path in &oversized_note_paths {
+        issues.push(HealthIssue {
+            kind: "oversized_note".into(),
+            path: path.clone(),
+            detail: format!(
+                "note exceeds the {} byte indexing/health parsing budget; content diagnostics are skipped",
+                MAX_INDEXED_NOTE_BYTES
+            ),
+            line: None,
+        });
+    }
     let mut title_paths = std::collections::BTreeMap::<String, Vec<(String, String)>>::new();
     let mut invalid_frontmatter = 0u32;
     let mut broken_links = 0u32;
-    let mut citation_summary = CitationValidationSummary::default();
+    let mut citation_occurrences = Vec::<(String, crate::parse::ParsedCitation)>::new();
+    let mut citation_keys = BTreeSet::<String>::new();
 
-    for path in &note_paths {
+    for path in &indexable_note_paths {
         let relative = scriptor_vault::RelativeVaultPath::parse(path)?;
         let note = read_note(&session.descriptor.id, &session.root, &relative)?;
         let parsed = parse_note_markdown(path, &note.markdown);
-        note_bodies.push((path.clone(), note.markdown.clone()));
+        for link in &parsed.links {
+            if link.kind != ParsedLinkKind::Asset {
+                continue;
+            }
+            let target = normalize_asset_reference(path, &link.target);
+            if asset_path_set.contains(&target) {
+                referenced_assets.insert(target);
+            }
+        }
         title_paths
-            .entry(parsed.title.to_lowercase())
+            .entry(scriptor_vault::normalize_lookup_key(&parsed.title))
             .or_default()
             .push((path.clone(), parsed.title.clone()));
 
@@ -100,10 +146,15 @@ pub fn build_health_diagnostics(
             if link.kind == ParsedLinkKind::External {
                 continue;
             }
-            if !matches!(
-                wikilink_index.resolve(&link.target).kind,
-                crate::resolve::WikilinkResolutionKind::Resolved
-            ) {
+            let resolved = if link.kind == ParsedLinkKind::Asset {
+                asset_path_set.contains(&normalize_asset_reference(path, &link.target))
+            } else {
+                matches!(
+                    wikilink_index.resolve(&link.target).kind,
+                    crate::resolve::WikilinkResolutionKind::Resolved
+                )
+            };
+            if !resolved {
                 broken_links += 1;
                 issues.push(HealthIssue {
                     kind: "broken_link".into(),
@@ -114,20 +165,27 @@ pub fn build_health_diagnostics(
             }
         }
 
-        let note_key = note_id(&session.descriptor.id, &relative);
-        for citation in &parsed.citation_keys {
-            let valid = crate::citation::bibliography_contains_public(cache, &citation.key)?;
-            if !valid {
-                issues.push(HealthIssue {
-                    kind: "unresolved_citation".into(),
-                    path: path.clone(),
-                    detail: format!("missing bibliography entry: {}", citation.key),
-                    line: Some(citation.line),
-                });
-            }
+        for citation in parsed.citation_keys {
+            citation_keys.insert(citation.key.clone());
+            citation_occurrences.push((path.clone(), citation));
         }
+    }
 
-        citation_summary.merge(validate_citations(cache, &note_key, &parsed.citation_keys)?);
+    let known_citation_keys = known_bibliography_keys_for_cache(cache, &citation_keys)?;
+    let mut citation_summary = CitationValidationSummary::default();
+    for (path, citation) in citation_occurrences {
+        citation_summary.total = citation_summary.total.saturating_add(1);
+        if known_citation_keys.contains(&citation.key) {
+            citation_summary.resolved = citation_summary.resolved.saturating_add(1);
+        } else {
+            citation_summary.unresolved = citation_summary.unresolved.saturating_add(1);
+            issues.push(HealthIssue {
+                kind: "unresolved_citation".into(),
+                path,
+                detail: format!("missing bibliography entry: {}", citation.key),
+                line: Some(citation.line),
+            });
+        }
     }
 
     for paths in title_paths.values() {
@@ -145,24 +203,21 @@ pub fn build_health_diagnostics(
         }
     }
 
-    let asset_paths: Vec<String> = scanned
-        .iter()
-        .filter(|entry| entry.kind == ScannedEntryKind::Asset)
-        .map(|entry| entry.path.clone())
-        .collect();
     let mut orphan_assets = 0u32;
-    for asset in &asset_paths {
-        if !note_bodies
-            .iter()
-            .any(|(_, markdown)| markdown.contains(asset))
-        {
-            orphan_assets += 1;
-            issues.push(HealthIssue {
-                kind: "orphan_asset".into(),
-                path: asset.clone(),
-                detail: "asset is not referenced by any note".into(),
-                line: None,
-            });
+    // Do not label assets orphaned when an intentionally-unparsed oversized
+    // note could reference them. A bounded health check must prefer an
+    // explicit unknown over a false-positive deletion signal.
+    if oversized_note_paths.is_empty() {
+        for asset in &asset_paths {
+            if !referenced_assets.contains(asset) {
+                orphan_assets += 1;
+                issues.push(HealthIssue {
+                    kind: "orphan_asset".into(),
+                    path: asset.clone(),
+                    detail: "asset is not referenced by any note".into(),
+                    line: None,
+                });
+            }
         }
     }
 
@@ -170,9 +225,9 @@ pub fn build_health_diagnostics(
     let indexed = indexed_note_count(cache, &session.descriptor.id)?;
     let total_words = total_word_count(cache, &session.descriptor.id)?;
     append_foam_lint_diagnostics(session, &mut issues)?;
-    append_cache_diagnostics(cache, session, &note_paths, indexed, &mut issues)?;
+    append_cache_diagnostics(cache, session, &indexable_note_paths, indexed, &mut issues)?;
     append_slow_export_diagnostics(session, &mut issues)?;
-    let cache_status = if indexed == note_paths.len() as u32
+    let cache_status = if indexed == indexable_note_paths.len() as u32
         && !issues.iter().any(|issue| {
             matches!(
                 issue.kind.as_str(),
@@ -199,6 +254,24 @@ pub fn build_health_diagnostics(
     };
 
     Ok(VaultHealthDiagnostics { summary, issues })
+}
+
+fn normalize_asset_reference(note_path: &str, target: &str) -> String {
+    let mut parts: Vec<&str> = note_path.split('/').collect();
+    parts.pop();
+    if target.starts_with('/') {
+        parts.clear();
+    }
+    for component in target.trim_start_matches('/').split('/') {
+        match component {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            value => parts.push(value),
+        }
+    }
+    parts.join("/")
 }
 
 use crate::resolve::WikilinkIndex;
@@ -243,6 +316,22 @@ fn append_cache_diagnostics(
         });
     }
 
+    let fts_rebuild_required: bool = conn
+        .query_row(
+            "SELECT EXISTS(SELECT 1 FROM cache_meta WHERE key = 'fts_rebuild_required' AND value = '1')",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(false);
+    if fts_rebuild_required {
+        issues.push(HealthIssue {
+            kind: "stale_cache".into(),
+            path: cache_rel.clone(),
+            detail: "full-text index was recreated by a schema migration and still requires a full rebuild".into(),
+            line: None,
+        });
+    }
+
     let note_count = note_paths.len() as u32;
     if indexed < note_count {
         issues.push(HealthIssue {
@@ -253,6 +342,7 @@ fn append_cache_diagnostics(
         });
     }
 
+    drop(conn);
     let orphaned = orphaned_note_count(cache, &session.descriptor.id, note_paths)?;
     if orphaned > 0 {
         issues.push(HealthIssue {

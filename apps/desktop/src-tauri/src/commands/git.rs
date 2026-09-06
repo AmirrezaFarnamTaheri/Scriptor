@@ -30,7 +30,7 @@ pub fn git_commit_cmd(
     message: String,
 ) -> Result<GitCommitOutput, String> {
     let session = active_session(&state)?;
-    let queue = git_queue_handle(&state, session.root.root());
+    let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_commit_selected(root, &files, &message))
         .map_err(|error| error.to_string())
@@ -48,7 +48,7 @@ pub fn git_pull_cmd(
         SensitiveOperation::GitPull,
         Some(&session.descriptor.id),
     )?;
-    let queue = git_queue_handle(&state, session.root.root());
+    let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_pull(root, PullStrategy::FastForward))
         .map_err(|error| error.to_string())
@@ -66,7 +66,7 @@ pub fn git_push_cmd(
         SensitiveOperation::GitPush,
         Some(&session.descriptor.id),
     )?;
-    let queue = git_queue_handle(&state, session.root.root());
+    let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_push(root))
         .map_err(|error| error.to_string())
@@ -86,7 +86,7 @@ pub fn git_resolve_conflict_cmd(
         Some(&path),
     )?;
     let session = active_session(&state)?;
-    let queue = git_queue_handle(&state, session.root.root());
+    let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_resolve_conflict(root, &path, &strategy))
         .map_err(|error| error.to_string())
@@ -106,7 +106,7 @@ pub fn git_apply_merged_conflict_cmd(
         Some(&path),
     )?;
     let session = active_session(&state)?;
-    let queue = git_queue_handle(&state, session.root.root());
+    let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_apply_merged_conflict(root, &path, &merged_markdown))
         .map_err(|error| error.to_string())

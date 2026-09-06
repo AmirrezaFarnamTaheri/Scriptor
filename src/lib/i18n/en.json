@@ -77,7 +77,20 @@
     "idle": "Idle",
     "cancelExport": "Cancel export",
     "exportHistory": "Export history",
-    "noExports": "No exports yet."
+    "noExports": "No exports yet.",
+    "showTabs": "Show status dock tabs",
+    "hideTabs": "Hide status dock tabs",
+    "buildingGraphAria": "Building graph {{percent}}%",
+    "indexReadyAria": "Index ready ({{percent}}%)",
+    "buildingIndex": "Building index...",
+    "indexReady": "Index ready",
+    "notesProgress": "{{done}} / {{total}} notes",
+    "notesCount": "{{count}} notes",
+    "diagnostics": "Diagnostics",
+    "diagnosticsOptInAria": "Send local crash diagnostics",
+    "diagnosticsTitle": "When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl",
+    "unopened": "unopened",
+    "export": "Export"
   },
   "settings": {
     "title": "Settings",
@@ -317,5 +330,188 @@
     "spellcheckGrammar": "Spellcheck & grammar",
     "support": "Support",
     "diagnostics": "Diagnostics"
+  },
+  "editor": {
+    "ariaLabel": "Editor",
+    "toolbar": {
+      "markdownTools": "Markdown tools",
+      "viewMode": "View mode",
+      "structure": "Structure",
+      "styleAndInsert": "Style and insert",
+      "reviewAndCapture": "Review and capture",
+      "editorMode": "Editor mode"
+    },
+    "view": {
+      "source": "Source",
+      "split": "Split",
+      "preview": "Preview"
+    },
+    "transforms": {
+      "heading1": "Heading 1",
+      "heading2": "Heading 2",
+      "heading3": "Heading 3",
+      "toc": "Table of Contents",
+      "frontmatter": "Frontmatter",
+      "moveSectionUp": "Move Section Up",
+      "moveSectionDown": "Move Section Down",
+      "bold": "Bold",
+      "italic": "Italic",
+      "link": "Link",
+      "insertTable": "Insert Table",
+      "addRow": "Add Row",
+      "addColumn": "Add Column",
+      "markOrganized": "Mark note organized (inbox triage)",
+      "writingTargets": "Writing Targets",
+      "cheatsheet": "Markdown cheatsheet"
+    },
+    "toggles": {
+      "hideStickies": "Hide stickies",
+      "showStickies": "Show stickies",
+      "disableVim": "Disable Vim keybindings",
+      "enableVim": "Enable Vim keybindings",
+      "toggleMonaco": "Toggle Monaco editor",
+      "switchToCodeMirror": "Switch to CodeMirror editor",
+      "switchToMonaco": "Switch to Monaco editor",
+      "toggleTheme": "Toggle editor theme",
+      "themeAutoPinLight": "Editor theme: auto (follows app theme, currently {{current}}). Click to pin light.",
+      "themePinned": "Editor theme: {{current}}. Click to pin {{other}}.",
+      "disableSpellcheck": "Disable spellcheck",
+      "enableSpellcheck": "Enable spellcheck",
+      "disableWysiwyg": "Disable WYSIWYG mode",
+      "enableWysiwyg": "Enable WYSIWYG mode",
+      "disableTypewriter": "Disable typewriter mode",
+      "enableTypewriter": "Enable typewriter mode",
+      "exitFocus": "Exit focus mode",
+      "enterFocus": "Enter focus mode",
+      "disableLanguageTool": "Disable LanguageTool",
+      "enableLanguageTool": "Enable LanguageTool",
+      "disableLanguageToolGrammar": "Disable LanguageTool grammar check",
+      "enableLanguageToolGrammar": "Enable LanguageTool grammar check",
+      "themeLight": "light",
+      "themeDark": "dark"
+    },
+    "rename": {
+      "title": "Rename / move note",
+      "ariaLabel": "Rename or move note"
+    },
+    "aiSummarize": "Insert AI summarize callout",
+    "splitToggle": "Toggle split preview",
+    "insertRule": "Insert horizontal rule",
+    "editorAria": "Markdown editor",
+    "error": {
+      "title": "The editor",
+      "detail": "The editor surface failed to render. Switching notes or toggling the editor engine will retry.",
+      "retryCodeMirror": "Switch to CodeMirror"
+    },
+    "loading": "Loading editor…",
+    "empty": {
+      "newNoteTitle": "Start a new note",
+      "openTitle": "Open your writing workspace",
+      "newNoteBody": "Create a note or choose one from the vault to begin writing.",
+      "openBody": "Choose a Markdown vault to write, connect ideas, and publish from one focused workspace.",
+      "newNote": "New note",
+      "openAnother": "Open another vault",
+      "openVault": "Open vault",
+      "tagline": "Local-first · Markdown-native · Your files stay yours"
+    },
+    "previewAria": "Split Markdown preview",
+    "previewError": {
+      "title": "The split preview",
+      "detail": "Rendering this note failed — a Markdown extension or plugin renderer may have thrown. The editor is unaffected."
+    },
+    "status": {
+      "words": "{{count}} words",
+      "characters": "{{count}} characters",
+      "minRead": "{{count}} min read",
+      "minReadEmpty": "— min read",
+      "saving": "Saving...",
+      "saved": "Saved {{time}}",
+      "markdown": "Markdown"
+    },
+    "tabBar": {
+      "openNotes": "Open notes",
+      "editorTabs": "Editor tabs",
+      "reopen": "Reopen closed tab",
+      "noNote": "No note open",
+      "inbox": "In inbox",
+      "inboxShort": "inbox",
+      "unsaved": "Unsaved changes",
+      "unpin": "Unpin {{title}}",
+      "pin": "Pin {{title}}",
+      "unpinTab": "Unpin tab",
+      "pinTab": "Pin tab",
+      "close": "Close {{title}}",
+      "closeTab": "Close tab"
+    }
+  },
+  "inspector": {
+    "ariaLabel": "Inspector",
+    "modeAria": "Inspector mode",
+    "presetAria": "Inspector layout preset",
+    "tabs": {
+      "inspector": "Inspector",
+      "preview": "Preview",
+      "plugins": "Plugins"
+    },
+    "preset": {
+      "balanced": {
+        "label": "Balanced",
+        "description": "Default inspector layout."
+      },
+      "research": {
+        "label": "Research",
+        "description": "Links, backlinks, and citation context."
+      },
+      "publishing": {
+        "label": "Publishing",
+        "description": "Outline, quality checks, and export readiness."
+      },
+      "cleanup": {
+        "label": "Cleanup",
+        "description": "Quality signals and broken-link repair focus."
+      }
+    },
+    "noteHealth": "Note Health",
+    "previewSyncSplit": "Split preview is open beside the editor with scroll sync.",
+    "previewSyncActive": "Scroll sync is active between editor and preview.",
+    "previewCard": "Preview",
+    "previewError": {
+      "title": "The preview",
+      "detail": "Rendering this note failed — a Markdown extension or plugin renderer may have thrown. Switching notes will retry."
+    },
+    "noNoteOpen": "No note open",
+    "noNoteOpenHint": "Open a note to preview Markdown.",
+    "outline": "Outline",
+    "noHeadings": "No headings yet",
+    "noHeadingsHint": "Add headings to build an outline.",
+    "renameSection": "Rename section {{label}}",
+    "outgoingLinks": "Outgoing Links",
+    "noWikilinks": "No wikilinks",
+    "noWikilinksHint": "Add [[wikilinks]] to connect notes.",
+    "renameBlock": "Rename block {{label}}",
+    "backlinks": "Backlinks",
+    "noBacklinks": "No backlinks yet",
+    "noBacklinksHint": "Other notes can link here with [[wikilinks]].",
+    "citations": "Citations",
+    "noCitations": "No citations",
+    "noCitationsHint": "Add [@citekey] references to track citations.",
+    "citationResolved": "Citation resolved",
+    "citationUnresolved": "Unresolved citation",
+    "inBibliography": "in bibliography",
+    "missing": "missing",
+    "publishing": "Publishing",
+    "publishingHint": "Use the publish center for profiles, dry runs, and export history.",
+    "openPublishCenter": "Open publish center",
+    "exportProfiles": "Export Profiles",
+    "exporting": "Exporting...",
+    "previewExportCommand": "Preview export command",
+    "cancelExport": "Cancel export",
+    "dryRun": "Dry run: {{command}}",
+    "exportedTo": "Exported to {{path}}",
+    "pluginsError": {
+      "title": "The plugins panel",
+      "detail": "A plugin contribution failed to render. Enabling safe mode from Settings disables third-party plugins."
+    },
+    "loadingStore": "Loading store…"
   }
 }

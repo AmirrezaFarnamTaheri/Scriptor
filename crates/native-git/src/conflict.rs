@@ -96,7 +96,10 @@ pub fn git_automerge_conflict_cmd(
         Ok(merge_output) => {
             // Clean merge — write and stage.
             write_resolved_conflict(&file_path, &merge_output.merged)?;
-            run_git(repo_root, &["add", "--", &input.path])?;
+            run_git(
+                repo_root,
+                &["--literal-pathspecs", "add", "--", &input.path],
+            )?;
             Ok(AutoMergeOutcome::Clean {
                 merged: merge_output.merged,
             })
@@ -213,8 +216,11 @@ pub fn git_resolve_conflict(
     } else {
         "--theirs"
     };
-    run_git(repo_root, &["checkout", stage_flag, "--", path])?;
-    run_git(repo_root, &["add", "--", path])?;
+    run_git(
+        repo_root,
+        &["--literal-pathspecs", "checkout", stage_flag, "--", path],
+    )?;
+    run_git(repo_root, &["--literal-pathspecs", "add", "--", path])?;
 
     Ok(GitConflictResolveOutput {
         path: path.to_string(),
@@ -240,7 +246,7 @@ pub fn git_apply_merged_conflict(
     }
 
     write_resolved_conflict(&file_path, merged_markdown)?;
-    run_git(repo_root, &["add", "--", path])?;
+    run_git(repo_root, &["--literal-pathspecs", "add", "--", path])?;
 
     Ok(GitConflictResolveOutput {
         path: path.to_string(),

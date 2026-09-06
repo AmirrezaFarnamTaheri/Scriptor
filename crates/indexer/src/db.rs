@@ -45,6 +45,7 @@ impl IndexCache {
             } else {
                 crate::migration::migrate_cache(&connection)?;
             }
+            crate::task_schema::normalize_task_foreign_keys(&connection)?;
         }
 
         let manager = SqliteConnectionManager::file(&path)
@@ -66,10 +67,6 @@ impl IndexCache {
             .map_err(|error| IndexerError::Pool(error.to_string()))
     }
 
-    pub fn pool(&self) -> &CachePool {
-        &self.pool
-    }
-
     pub fn shares_pool_with(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.pool, &other.pool)
     }
@@ -89,20 +86,18 @@ fn apply_connection_pragmas(connection: &Connection) -> Result<(), rusqlite::Err
     connection.pragma_update(None, "foreign_keys", "ON")?;
     // Memory-mapped reads + a generous page cache keep hot queries (FTS
     // lookups, graph walks) off the syscall path at 10k+ note scale.
-    connection.pragma_update(None, "mmap_size", 268_435_456)?;
-    connection.pragma_update(None, "cache_size", -64_000)?;
+    connection.pragma_update(None, "mmap_size", 67_108_864)?;
+    connection.pragma_update(None, "cache_size", -16_000)?;
     connection.pragma_update(None, "temp_store", "MEMORY")?;
     Ok(())
 }
 
 pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, IndexerError> {
-    let table_exists: bool = connection
-        .query_row(
-            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cache_meta'",
-            [],
-            |row| row.get::<_, i32>(0),
-        )
-        .is_ok();
+    let table_exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'cache_meta')",
+        [],
+        |row| row.get(0),
+    )?;
     if !table_exists {
         return Ok(None);
     }
@@ -112,9 +107,18 @@ pub fn read_schema_version(connection: &Connection) -> Result<Option<i32>, Index
     let mut rows = statement.query([])?;
     if let Some(row) = rows.next()? {
         let value: String = row.get(0)?;
-        return Ok(value.parse().ok());
+        return value.parse::<i32>().map(Some).map_err(|_| {
+            IndexerError::InvalidQuery(format!(
+                "cache schema_version metadata is not an integer: {value:?}"
+            ))
+        });
     }
-    Ok(None)
+
+    // Missing metadata in an existing cache is not evidence of a fresh schema.
+    Err(IndexerError::SchemaRebuildRequired {
+        found: 0,
+        expected: crate::schema::SCHEMA_VERSION,
+    })
 }
 
 pub fn integrity_check_ok(connection: &Connection) -> Result<bool, IndexerError> {
@@ -153,6 +157,29 @@ mod db_pragma_tests {
     use super::*;
     use std::sync::Arc;
     use std::thread;
+
+    #[test]
+    fn missing_schema_version_does_not_stamp_an_unknown_cache_current() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let path = temp.path().join("index.sqlite");
+        let connection = Connection::open(&path).expect("connection");
+        apply_schema(&connection).expect("schema");
+        connection
+            .execute("DELETE FROM cache_meta WHERE key = 'schema_version'", [])
+            .expect("remove version");
+        assert!(matches!(
+            IndexCache::open(&path),
+            Err(IndexerError::SchemaRebuildRequired { found: 0, .. })
+        ));
+        let version_rows: i32 = connection
+            .query_row(
+                "SELECT count(*) FROM cache_meta WHERE key = 'schema_version'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("version count");
+        assert_eq!(version_rows, 0);
+    }
 
     #[test]
     fn opens_with_wal_journal_mode() {

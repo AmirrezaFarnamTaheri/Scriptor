@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
@@ -55,14 +56,18 @@ impl Default for ExportProgressReport {
 fn apply_progress_chunk(report: &mut ExportProgressReport, chunk: &str) {
     report.event_index = report.event_index.saturating_add(1);
     report.phase = "exporting".into();
-    report.stderr_log.push_str(chunk);
+    append_bounded_utf8(&mut report.stderr_log, chunk, MAX_LIVE_STDERR_BYTES);
 }
 
 pub struct ExportJobRunner {
     cancel_slot: ExportCancelSlot,
     progress: Arc<Mutex<ExportProgressReport>>,
+    completed: Arc<Mutex<VecDeque<ExportProgressReport>>>,
     handle: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
+
+const MAX_COMPLETED_REPORTS: usize = 16;
+const MAX_LIVE_STDERR_BYTES: usize = 512 * 1024;
 
 impl Default for ExportJobRunner {
     fn default() -> Self {
@@ -75,6 +80,7 @@ impl ExportJobRunner {
         Self {
             cancel_slot: new_cancel_slot(),
             progress: Arc::new(Mutex::new(ExportProgressReport::default())),
+            completed: Arc::new(Mutex::new(VecDeque::new())),
             handle: Arc::new(Mutex::new(None)),
         }
     }
@@ -88,7 +94,13 @@ impl ExportJobRunner {
     }
 
     pub fn start(&self, mut input: ExportJobInput) -> Result<String, String> {
-        self.wait();
+        self.reap_finished();
+        {
+            let progress = lock_recover(&self.progress);
+            if progress.status == ExportJobState::Running {
+                return Err(format!("export already running: {}", progress.job_id));
+            }
+        }
 
         let job_id = input
             .job_id
@@ -110,6 +122,7 @@ impl ExportJobRunner {
         }
 
         let progress = Arc::clone(&self.progress);
+        let completed = Arc::clone(&self.completed);
         let cancel_slot = Arc::clone(&self.cancel_slot);
         let handle = thread::spawn(move || {
             let progress_cb: ExportProgressCallback = Arc::new({
@@ -128,31 +141,39 @@ impl ExportJobRunner {
 
             let result = run_export_job_with_cancel(input, Some(&cancel_slot), Some(progress_cb));
 
-            let mut guard = lock_recover(&progress);
-            match result {
-                Ok(output) => {
-                    guard.status = ExportJobState::Complete;
-                    guard.phase = "complete".into();
-                    guard.event_index = guard.event_index.saturating_add(1);
-                    guard.result_json = serde_json::to_string(&output).ok();
-                    guard.error = None;
+            let final_report = {
+                let mut guard = lock_recover(&progress);
+                match result {
+                    Ok(output) => {
+                        guard.status = ExportJobState::Complete;
+                        guard.phase = "complete".into();
+                        guard.event_index = guard.event_index.saturating_add(1);
+                        guard.result_json = serde_json::to_string(&output).ok();
+                        guard.error = None;
+                    }
+                    Err(error) => {
+                        let cancelled = error.to_string().contains("cancelled");
+                        guard.status = if cancelled {
+                            ExportJobState::Cancelled
+                        } else {
+                            ExportJobState::Failed
+                        };
+                        guard.phase = if cancelled {
+                            "cancelled".into()
+                        } else {
+                            "failed".into()
+                        };
+                        guard.event_index = guard.event_index.saturating_add(1);
+                        guard.error = Some(error.to_string());
+                        guard.result_json = None;
+                    }
                 }
-                Err(error) => {
-                    let cancelled = error.to_string().contains("cancelled");
-                    guard.status = if cancelled {
-                        ExportJobState::Cancelled
-                    } else {
-                        ExportJobState::Failed
-                    };
-                    guard.phase = if cancelled {
-                        "cancelled".into()
-                    } else {
-                        "failed".into()
-                    };
-                    guard.event_index = guard.event_index.saturating_add(1);
-                    guard.error = Some(error.to_string());
-                    guard.result_json = None;
-                }
+                guard.clone()
+            };
+            let mut history = lock_recover(&completed);
+            history.push_back(final_report);
+            while history.len() > MAX_COMPLETED_REPORTS {
+                history.pop_front();
             }
         });
 
@@ -170,12 +191,13 @@ impl ExportJobRunner {
         {
             return Ok(false);
         }
+        let active_job_id = active.job_id.clone();
         drop(active);
 
         let cancelled = cancel_active_export(&self.cancel_slot).is_some();
         if cancelled {
             let mut guard = lock_recover(&self.progress);
-            if job_id.is_none() || job_id == Some(guard.job_id.as_str()) {
+            if guard.status == ExportJobState::Running && guard.job_id == active_job_id {
                 guard.status = ExportJobState::Cancelled;
                 guard.phase = "cancelled".into();
             }
@@ -190,15 +212,58 @@ impl ExportJobRunner {
         }
     }
 
-    pub fn take_result(&self, job_id: &str) -> Option<ExportJobOutput> {
-        let guard = lock_recover(&self.progress);
-        if guard.job_id != job_id || guard.status != ExportJobState::Complete {
-            return None;
+    fn reap_finished(&self) {
+        let handle = {
+            let mut guard = lock_recover(&self.handle);
+            if guard.as_ref().is_some_and(JoinHandle::is_finished) {
+                guard.take()
+            } else {
+                None
+            }
+        };
+        if let Some(handle) = handle {
+            let _ = handle.join();
         }
-        guard
+    }
+
+    pub fn take_result(&self, job_id: &str) -> Option<ExportJobOutput> {
+        let current = lock_recover(&self.progress).clone();
+        let report = if current.job_id == job_id && current.status == ExportJobState::Complete {
+            Some(current)
+        } else {
+            lock_recover(&self.completed)
+                .iter()
+                .rev()
+                .find(|report| report.job_id == job_id && report.status == ExportJobState::Complete)
+                .cloned()
+        }?;
+        report
             .result_json
             .as_ref()
             .and_then(|json| serde_json::from_str::<ExportJobOutput>(json).ok())
+    }
+}
+
+fn append_bounded_utf8(log: &mut String, chunk: &str, max_bytes: usize) {
+    log.push_str(chunk);
+    if log.len() <= max_bytes {
+        return;
+    }
+    let mut start = log.len() - max_bytes;
+    while start < log.len() && !log.is_char_boundary(start) {
+        start += 1;
+    }
+    if start > 0 {
+        log.drain(..start);
+        log.insert_str(0, "[earlier stderr truncated]\n");
+        if log.len() > max_bytes {
+            let overflow = log.len() - max_bytes;
+            let mut trim = overflow;
+            while trim < log.len() && !log.is_char_boundary(trim) {
+                trim += 1;
+            }
+            log.drain(..trim);
+        }
     }
 }
 
@@ -229,7 +294,7 @@ mod tests {
         runner.wait();
         let report = runner.progress_snapshot();
         assert_eq!(report.job_id, job_id);
-        assert_eq!(report.status, ExportJobState::Complete);
+        assert_eq!(report.status, ExportJobState::Complete, "{report:?}");
         assert!(
             report.event_index >= 3,
             "expected >=3 progress events, got {}",

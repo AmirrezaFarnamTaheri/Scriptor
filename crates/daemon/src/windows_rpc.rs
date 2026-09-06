@@ -1,4 +1,5 @@
 use std::io::{self, Read, Write};
+use std::sync::{Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,10 +11,35 @@ use scriptor_ipc::{
     read_frame_resyncing, write_frame,
 };
 
-use crate::transport::read_endpoint;
+use crate::transport::{DaemonEndpoint, read_endpoint};
 
 const RETRY_INTERVAL: Duration = Duration::from_millis(5);
 const MAX_UNMATCHED_FRAMES: usize = 512;
+
+static ENDPOINT_CACHE: OnceLock<Mutex<Option<DaemonEndpoint>>> = OnceLock::new();
+
+fn endpoint_cache() -> &'static Mutex<Option<DaemonEndpoint>> {
+    ENDPOINT_CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn cached_endpoint() -> Result<DaemonEndpoint, IpcError> {
+    let mut guard = endpoint_cache()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(endpoint) = guard.as_ref() {
+        return Ok(endpoint.clone());
+    }
+    let endpoint = read_endpoint()?;
+    *guard = Some(endpoint.clone());
+    Ok(endpoint)
+}
+
+fn invalidate_endpoint_cache() {
+    let mut guard = endpoint_cache()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    *guard = None;
+}
 
 struct DeadlineIo<'a, T> {
     inner: &'a mut T,
@@ -59,10 +85,15 @@ impl<T: Read> Read for DeadlineIo<'_, T> {
 
 impl<T: Write> Write for DeadlineIo<'_, T> {
     fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+        if buffer.is_empty() {
+            return Ok(0);
+        }
+        let buffer = &buffer[..buffer.len().min(512)];
         loop {
             match self.inner.write(buffer) {
                 Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
                 Err(error) if error.kind() == io::ErrorKind::WouldBlock => self.wait_for_io()?,
+                Ok(0) => self.wait_for_io()?,
                 result => return result,
             }
         }
@@ -92,7 +123,7 @@ fn remaining(deadline: Instant) -> Result<Duration, IpcError> {
 }
 
 fn call_once(request: &mut RpcRequest, deadline: Instant) -> Result<RpcResponse, IpcError> {
-    let endpoint = read_endpoint()?;
+    let endpoint = cached_endpoint()?;
     request.endpoint_nonce = endpoint.nonce;
     let name = endpoint
         .socket_name
@@ -131,6 +162,17 @@ fn call_once(request: &mut RpcRequest, deadline: Instant) -> Result<RpcResponse,
     )))
 }
 
+/// True when the daemon rejected the request as unauthenticated, which means the
+/// endpoint snapshot we cached (including its nonce) is stale — typically the
+/// daemon restarted and minted a fresh nonce that this client does not know.
+fn is_unauthenticated(response: &RpcResponse) -> bool {
+    matches!(
+        &response.result,
+        scriptor_ipc::RpcResult::Error(scriptor_ipc::RpcError::CommandFailed { code, .. })
+            if code == "rpc.unauthenticated"
+    )
+}
+
 pub(crate) fn call_with_timeout(
     mut request: RpcRequest,
     timeout: Duration,
@@ -144,11 +186,26 @@ pub(crate) fn call_with_timeout(
 
     let deadline = Instant::now() + timeout;
     match call_once(&mut request, deadline) {
-        Ok(response) => Ok(response),
+        Ok(response) => {
+            // A daemon restart leaves our cached nonce stale. If the server
+            // responds `rpc.unauthenticated` (rather than failing the
+            // connection), the only fix is to drop the cache and reconnect with
+            // the freshly-persisted endpoint/nonce. Detect that at the RPC
+            // layer so we do not retry the same stale nonce forever.
+            if is_unauthenticated(&response) && Instant::now() < deadline {
+                invalidate_endpoint_cache();
+                return call_once(&mut request, deadline);
+            }
+            Ok(response)
+        }
         Err(error)
             if Instant::now() < deadline
                 && (is_expected_disconnect(&error) || matches!(error, IpcError::Io(_))) =>
         {
+            // The daemon may have restarted between calls. Drop the verified
+            // endpoint snapshot only after a connection-level failure so the
+            // normal hot path does not re-read the endpoint file/keychain.
+            invalidate_endpoint_cache();
             call_once(&mut request, deadline)
         }
         Err(error) => Err(error),
@@ -159,6 +216,23 @@ pub(crate) fn call_with_timeout(
 mod tests {
     use super::*;
     use std::collections::VecDeque;
+
+    #[test]
+    fn full_request_pipe_is_bounded_by_the_rpc_deadline() {
+        let mut storage = [0u8; 2];
+        let mut writer = io::Cursor::new(&mut storage[..]);
+        let mut io = DeadlineIo::new(&mut writer, Instant::now() + Duration::from_millis(10));
+        let error = io.write_all(b"request").expect_err("pipe remains full");
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        assert_eq!(storage, *b"re");
+    }
+
+    #[test]
+    fn empty_write_returns_immediately() {
+        let mut writer = io::sink();
+        let mut io = DeadlineIo::new(&mut writer, Instant::now());
+        assert_eq!(io.write(&[]).unwrap(), 0);
+    }
 
     struct ScriptedReader {
         reads: VecDeque<io::Result<Vec<u8>>>,

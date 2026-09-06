@@ -163,7 +163,7 @@ pub(crate) fn run_text_bundle_export(
 
 pub(crate) fn run_publish(path: PathBuf, output: PathBuf) -> CommandResult {
     let session = open_vault(&path)?;
-    let output = scriptor_publish_runner::resolve_output_path(session.root.root(), &output);
+    let output = scriptor_publish_runner::resolve_output_path(session.root.root(), &output)?;
     let plan = scriptor_publish_runner::plan_starlight_site(session.root.root(), &output)?;
     let to_write = plan
         .new_items

@@ -1,0 +1,272 @@
+/* Final cascade contract for UnifiedPanelShell.
+ *
+ * App.css imports a number of legacy panel styles that predate the shared shell
+ * and still target classes such as .knowledge-filters-panel, .git-panel, and
+ * .mcp-panel. Keep this file last so those feature styles can own their inner
+ * content without taking back responsibility for shell sizing, scrolling, or
+ * presentation.
+ */
+
+.unified-panel-shell[class] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--dialog-bg, var(--bg-elevated));
+  box-shadow: var(--shadow-lg);
+}
+
+.unified-panel-shell.unified-panel-wide[class] {
+  width: min(920px, 94vw);
+}
+
+.unified-panel-shell .unified-panel-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.unified-panel-shell .unified-panel-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.unified-panel-shell .unified-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0 24px 24px;
+}
+
+/* Task and Kanban intentionally use narrower/taller modal geometry than the
+ * generic wide shell. Their inner chrome still follows the shared contract. */
+.task-panel.unified-panel-shell {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(80dvh, 720px);
+}
+
+.kanban-panel.unified-panel-shell {
+  width: min(720px, calc(100vw - 32px));
+  max-height: min(80dvh, 720px);
+}
+
+.kanban-panel.unified-panel-shell.unified-panel-wide {
+  width: min(1080px, calc(100vw - 32px));
+}
+
+/* A right dock is a real companion rail on roomy desktops. Scriptor already
+ * owns a right-side Inspector rail, so a companion replaces that rail instead
+ * of appending a fourth full pane. The dock still reserves real layout width;
+ * releasing the Inspector at the same time prevents the editor from being
+ * crushed. UnifiedPanelShell resolves dock preference to a modal at 1320px and
+ * below, including effective app-zoom reflow. */
+body:has(.unified-panel-docked) {
+  --unified-panel-dock-width: clamp(360px, 30vw, 440px);
+}
+
+/* A normal modal must always win if one is opened while a companion remains
+ * docked. Keep the dock in the layer immediately below the modal backdrop. */
+.dock-backdrop {
+  z-index: calc(var(--comp-modal-z, 40) - 1);
+}
+
+.unified-panel-shell.unified-panel-docked[class] {
+  position: fixed;
+  top: var(--topbar-bottom, 0px);
+  right: 0;
+  bottom: 0;
+  width: var(--unified-panel-dock-width);
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  border-radius: 16px 0 0 16px;
+  pointer-events: auto;
+  z-index: 41;
+  background: var(--dialog-bg, var(--bg-elevated));
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 32px color-mix(in srgb, #000 12%, transparent);
+}
+
+body:has(.unified-panel-docked) .workspace-grid {
+  grid-template-columns:
+    min(var(--vault-width, 318px), 24%)
+    auto
+    minmax(0, 1fr)
+    0px
+    0px;
+  padding-right: var(--unified-panel-dock-width);
+  transition:
+    grid-template-columns 250ms var(--ease-soft),
+    padding-right 220ms var(--ease-soft),
+    padding-left 220ms var(--ease-soft);
+}
+
+body:has(.unified-panel-docked) .workspace-grid[data-vault-collapsed='true'] {
+  grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px;
+}
+
+/* The Inspector state itself is preserved. It yields visually while a companion
+ * owns the rail and reappears unchanged when the companion closes. */
+body:has(.unified-panel-docked) .workspace-grid > .inspector-panel,
+body:has(.unified-panel-docked) .workspace-grid > .split-pane-handle:has(+ .inspector-panel),
+body:has(.unified-panel-docked) .workspace-grid > .inspector-collapsed-placeholder {
+  display: none;
+}
+
+/* The dock extends to the viewport bottom, so every bottom-chrome row must keep
+ * its interactive content out from under the companion rail. */
+body:has(.unified-panel-docked) .status-strip,
+body:has(.unified-panel-docked) .bottom-tabs-wrap {
+  padding-right: calc(var(--unified-panel-dock-width) + 12px);
+}
+
+/* Dock header actions can be wider than the companion column (MCP's reset
+ * action plus Close is the concrete case). Let the title and action cluster
+ * wrap as two coherent groups instead of clipping or forcing horizontal scroll. */
+.unified-panel-docked .unified-panel-header {
+  flex-wrap: wrap;
+  padding: 16px 18px 14px;
+}
+
+.unified-panel-docked .unified-panel-header > :first-child {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.unified-panel-docked .unified-panel-header-actions {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.unified-panel-docked .unified-panel-body {
+  padding-inline: 18px;
+}
+
+html[dir='rtl'] .unified-panel-shell.unified-panel-docked[class] {
+  right: auto;
+  left: 0;
+  border-right: 1px solid var(--border);
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  box-shadow: 12px 0 32px color-mix(in srgb, #000 12%, transparent);
+}
+
+/* Match the high-specificity legacy RTL reservation in foundation.css, but use
+ * the same bounded dock width as LTR. This also removes the previous LTR/RTL
+ * split where only RTL still squeezed the workspace by 720px. */
+html[dir='rtl'] body:has(.unified-panel-docked) .workspace-grid {
+  padding-right: 0;
+  padding-left: var(--unified-panel-dock-width);
+}
+
+html[dir='rtl'] body:has(.unified-panel-docked) .status-strip,
+html[dir='rtl'] body:has(.unified-panel-docked) .bottom-tabs-wrap {
+  padding-right: 12px;
+  padding-left: calc(var(--unified-panel-dock-width) + 12px);
+}
+
+html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+/* Several companion bodies were authored for a 720–920px modal. Reflow their
+ * fixed multi-column assumptions against the actual 360–440px rail instead of
+ * the viewport, because viewport media queries do not see container width. */
+.unified-panel-docked.portal-panel .portal-body {
+  grid-template-columns: minmax(0, 1fr);
+  padding-inline: 0;
+}
+
+.unified-panel-docked.quick-capture-panel .quick-capture-body {
+  padding-inline: 0;
+}
+
+.unified-panel-docked.quick-capture-panel .quick-capture-section-header {
+  flex-wrap: wrap;
+}
+
+.unified-panel-docked.quick-capture-panel .quick-todo-list li {
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+}
+
+.unified-panel-docked.git-panel .git-changes li {
+  align-items: stretch;
+  flex-direction: column;
+}
+
+.unified-panel-docked.git-panel .git-file-row-actions {
+  justify-content: flex-start;
+}
+
+.unified-panel-docked.mcp-panel .mcp-drafts li {
+  flex-wrap: wrap;
+}
+
+.unified-panel-docked.mcp-panel .mcp-audit li {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.unified-panel-docked .resource-sync-stats,
+.unified-panel-docked .resource-plan-meta {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.unified-panel-docked .resource-sync-heading,
+.unified-panel-docked .resource-sync-section-heading,
+.unified-panel-docked .resource-plan-builder {
+  flex-direction: column;
+}
+
+/* Canvas and Graph are focus-trapped aria-modal workspaces. Give them an opaque
+ * dialog surface and an actual visual modality cue; translucent content made
+ * the underlying editor look interactive even though focus could not reach it. */
+.canvas-overlay,
+.graph-overlay {
+  background: var(--dialog-bg, var(--bg-elevated));
+  box-shadow:
+    0 0 0 100vmax var(--overlay),
+    0 24px 80px color-mix(in oklch, var(--ink-strong) 18%, transparent);
+}
+
+.canvas-overlay {
+  z-index: var(--comp-modal-z, 40);
+}
+
+@media (max-width: 640px) {
+  .unified-panel-shell[class],
+  .unified-panel-shell.unified-panel-wide[class],
+  .task-panel.unified-panel-shell,
+  .kanban-panel.unified-panel-shell,
+  .kanban-panel.unified-panel-shell.unified-panel-wide {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: var(--radius-lg);
+  }
+
+  .unified-panel-shell .unified-panel-header {
+    padding: 16px;
+  }
+
+  .unified-panel-shell .unified-panel-body {
+    padding-inline: 16px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}

@@ -189,7 +189,7 @@ export function SettingsPanel({
   languageToolEndpoint = 'http://localhost:8010/v2/check',
   onLanguageToolEndpointChange,
 }: SettingsPanelProps) {
-  const { locale, t, changeLocale, supportedLocales } = useI18n()
+  const { locale, t, changeLocale, supportedLocales, localeLabels } = useI18n()
   const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [status, setStatus] = useState('')
@@ -488,16 +488,16 @@ export function SettingsPanel({
         <div className="settings-section">
           <h3>{t('settings.language')}</h3>
           <label className="settings-field">
-            <span>Display language</span>
+            <span>{t('settings.displayLanguage')}</span>
             <select value={locale} onChange={(event) => changeLocale(event.target.value as typeof locale)}>
               {supportedLocales.map((entry) => (
                 <option key={entry} value={entry}>
-                  {entry === 'en' ? 'English' : entry}
+                  {localeLabels[entry] ?? entry}
                 </option>
               ))}
             </select>
           </label>
-          <p className="health-subtitle">Additional locales ship in a future release; strings are stored per device.</p>
+          <p className="health-subtitle">{t('settingsSection.additionalLocales')}</p>
         </div>
 
         <div className="settings-section">

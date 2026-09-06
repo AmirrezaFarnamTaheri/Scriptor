@@ -199,90 +199,169 @@ pub fn rewrite_note_rename_links(
     rewrite_note_rename_links_with_resolver(markdown, from, to, &resolver)
 }
 
+/// Rewrite every link outside fenced code blocks and inline code spans.
+///
+/// A rename must not edit the `[[examples]]` a note quotes in a code sample.
+/// The tag rewriter already draws that line
+/// (`rewrite_tags_in_markdown`); links have to honour it too, otherwise renaming
+/// a note silently rewrites documentation *about* links. Every pattern below is
+/// line-bounded, so masking per line cannot lose a match a whole-document pass
+/// would have found.
 pub fn rewrite_note_rename_links_with_resolver(
     markdown: &str,
     from: &RenameLinkTarget,
     to: &RenameLinkTarget,
     resolver: &WikilinkIndex,
 ) -> (String, u32) {
-    let mut edits = 0u32;
+    // A `Cell` because the counter is incremented from inside the `Fn` closure
+    // the masking hands to each line; `&mut` would not survive that aliasing.
+    let edits = std::cell::Cell::new(0u32);
     let wikilink = &*WIKILINK_RE;
     let markdown_link = &*MARKDOWN_LINK_RE;
     let reference_def = &*REFERENCE_DEF_RE;
 
-    let step_one = wikilink
-        .replace_all(markdown, |capture: &regex::Captures| {
-            let target = capture
-                .get(1)
-                .map(|value| value.as_str().trim())
-                .unwrap_or("");
-            let section = capture.get(2).map(|value| value.as_str());
-            let alias = capture.get(3).map(|value| value.as_str());
+    let rewrite_segment = |segment: &str| -> String {
+        let step_one = wikilink
+            .replace_all(segment, |capture: &regex::Captures| {
+                let target = capture
+                    .get(1)
+                    .map(|value| value.as_str().trim())
+                    .unwrap_or("");
+                let section = capture.get(2).map(|value| value.as_str());
+                let alias = capture.get(3).map(|value| value.as_str());
 
-            if !resolver.resolves_to(target, &from.path) {
-                return capture.get(0).unwrap().as_str().to_string();
-            }
-
-            edits += 1;
-            let new_target = from.replacement_identifier(target, to);
-            match (section, alias) {
-                (Some(section_value), Some(alias_value)) => {
-                    format!("[[{new_target}#{section_value}|{alias_value}]]")
+                if !resolver.resolves_to(target, &from.path) {
+                    return capture.get(0).unwrap().as_str().to_string();
                 }
-                (Some(section_value), None) => format!("[[{new_target}#{section_value}]]"),
-                (None, Some(alias_value)) => format!("[[{new_target}|{alias_value}]]"),
-                (None, None) => format!("[[{new_target}]]"),
+
+                edits.set(edits.get() + 1);
+                let new_target = from.replacement_identifier(target, to);
+                match (section, alias) {
+                    (Some(section_value), Some(alias_value)) => {
+                        format!("[[{new_target}#{section_value}|{alias_value}]]")
+                    }
+                    (Some(section_value), None) => format!("[[{new_target}#{section_value}]]"),
+                    (None, Some(alias_value)) => format!("[[{new_target}|{alias_value}]]"),
+                    (None, None) => format!("[[{new_target}]]"),
+                }
+            })
+            .into_owned();
+
+        let step_two = markdown_link
+            .replace_all(&step_one, |capture: &regex::Captures| {
+                let label = capture
+                    .name("label")
+                    .map(|value| value.as_str())
+                    .unwrap_or("");
+                let url = capture
+                    .name("url")
+                    .map(|value| value.as_str().trim())
+                    .unwrap_or("");
+                let section = capture.name("section").map(|value| value.as_str());
+
+                if !resolver.resolves_to(url, &from.path) {
+                    return capture.get(0).unwrap().as_str().to_string();
+                }
+
+                edits.set(edits.get() + 1);
+                let new_url = from.replacement_identifier(url, to);
+                match section {
+                    Some(section_value) => format!("[{label}]({new_url}#{section_value})"),
+                    None => format!("[{label}]({new_url})"),
+                }
+            })
+            .into_owned();
+
+        reference_def
+            .replace_all(&step_two, |capture: &regex::Captures| {
+                let label = capture
+                    .name("label")
+                    .map(|value| value.as_str())
+                    .unwrap_or("");
+                let url = capture
+                    .name("url")
+                    .map(|value| value.as_str().trim())
+                    .unwrap_or("");
+
+                if !resolver.resolves_to(url, &from.path) {
+                    return capture.get(0).unwrap().as_str().to_string();
+                }
+
+                edits.set(edits.get() + 1);
+                format!(
+                    "[{label}]: {new_url}",
+                    new_url = from.replacement_identifier(url, to)
+                )
+            })
+            .into_owned()
+    };
+
+    let updated = rewrite_outside_code(markdown, &rewrite_segment);
+
+    // `get` rather than `into_inner`: the masking closure still borrows the
+    // counter, so consuming it here would be a move out of a borrow.
+    (updated, edits.get())
+}
+
+/// Applies `rewrite` to every part of `markdown` that is neither inside a fenced
+/// code block nor inside an inline code span, and returns the document
+/// byte-identically everywhere else.
+fn rewrite_outside_code(markdown: &str, rewrite: &dyn Fn(&str) -> String) -> String {
+    // `split('\n')` rather than `lines()`, for the same reason
+    // `split_frontmatter` does: `lines()` drops the trailing newline and blank
+    // lines, so rejoining would rewrite the end of every note it touches.
+    let lines: Vec<&str> = crate::text::split_lines(markdown).collect();
+    let mut fence: Option<(char, usize)> = None;
+    let mut rewritten = Vec::with_capacity(lines.len());
+
+    for line in lines {
+        let trimmed = line.trim_start();
+        if let Some(marker) = trimmed.chars().next().filter(|ch| matches!(ch, '`' | '~')) {
+            let run = trimmed.chars().take_while(|ch| *ch == marker).count();
+            if run >= 3 {
+                match fence {
+                    Some((open, open_len)) if open == marker && run >= open_len => fence = None,
+                    None => fence = Some((marker, run)),
+                    Some(_) => {}
+                }
+                rewritten.push(line.to_string());
+                continue;
             }
-        })
-        .into_owned();
+        }
 
-    let step_two = markdown_link
-        .replace_all(&step_one, |capture: &regex::Captures| {
-            let label = capture
-                .name("label")
-                .map(|value| value.as_str())
-                .unwrap_or("");
-            let url = capture
-                .name("url")
-                .map(|value| value.as_str().trim())
-                .unwrap_or("");
-            let section = capture.name("section").map(|value| value.as_str());
+        rewritten.push(if fence.is_some() {
+            line.to_string()
+        } else {
+            rewrite_outside_inline_code(line, rewrite)
+        });
+    }
 
-            if !resolver.resolves_to(url, &from.path) {
-                return capture.get(0).unwrap().as_str().to_string();
-            }
+    rewritten.join("\n")
+}
 
-            edits += 1;
-            let new_url = from.replacement_identifier(url, to);
-            match section {
-                Some(section_value) => format!("[{label}]({new_url}#{section_value})"),
-                None => format!("[{label}]({new_url})"),
-            }
-        })
-        .into_owned();
-
-    let updated = reference_def
-        .replace_all(&step_two, |capture: &regex::Captures| {
-            let label = capture
-                .name("label")
-                .map(|value| value.as_str())
-                .unwrap_or("");
-            let url = capture
-                .name("url")
-                .map(|value| value.as_str().trim())
-                .unwrap_or("");
-
-            if !resolver.resolves_to(url, &from.path) {
-                return capture.get(0).unwrap().as_str().to_string();
-            }
-
-            edits += 1;
-            let new_url = from.replacement_identifier(url, to);
-            format!("[{label}]: {new_url}")
-        })
-        .into_owned();
-
-    (updated, edits)
+/// The backtick convention the tag rewriter uses: every other backtick opens or
+/// closes an inline code span, and the text inside one is never rewritten.
+fn rewrite_outside_inline_code(line: &str, rewrite: &dyn Fn(&str) -> String) -> String {
+    let mut out = String::with_capacity(line.len());
+    let mut rest = line;
+    let mut in_code = false;
+    while let Some(position) = rest.find('`') {
+        let (segment, tail) = rest.split_at(position);
+        if in_code {
+            out.push_str(segment);
+        } else {
+            out.push_str(&rewrite(segment));
+        }
+        out.push('`');
+        rest = &tail[1..];
+        in_code = !in_code;
+    }
+    if in_code {
+        out.push_str(rest);
+    } else {
+        out.push_str(&rewrite(rest));
+    }
+    out
 }
 
 pub(crate) fn split_frontmatter(markdown: &str) -> (Option<String>, String) {
@@ -299,7 +378,7 @@ pub(crate) fn split_frontmatter(markdown: &str) -> (Option<String>, String) {
     }
 
     for (index, line) in lines.iter().enumerate().skip(1) {
-        if *line == "---" {
+        if line.trim_end_matches('\r') == "---" {
             let frontmatter = lines[1..index].join("\n");
             let body = lines[(index + 1)..].join("\n");
             return (Some(frontmatter), body);
@@ -361,6 +440,54 @@ mod tests {
         assert!(edits >= 2);
         assert!(updated.contains("[[archive|Home]]"));
         assert!(updated.contains("[[archive#Intro]]"));
+    }
+
+    #[test]
+    fn rename_leaves_links_inside_code_untouched() {
+        let paths = vec!["Field Notes.md".into(), "Field Notes Renamed.md".into()];
+        let from = RenameLinkTarget::from_note_path(
+            &RelativeVaultPath::parse("Field Notes.md").unwrap(),
+            "Field Notes",
+            &paths,
+        );
+        let to = RenameLinkTarget::from_note_path(
+            &RelativeVaultPath::parse("Field Notes Renamed.md").unwrap(),
+            "Field Notes Renamed",
+            &paths,
+        );
+        let input = "See [[Field Notes]].\n\n```text\nlink syntax: [[Field Notes]]\n```\n\n\
+Inline `[[Field Notes]]` stays, and so does [a label](Field Notes.md).\n";
+
+        let (updated, edits) = rewrite_note_rename_links(input, &from, &to);
+
+        assert_eq!(
+            edits, 2,
+            "only the prose wikilink and the markdown link may be rewritten"
+        );
+        assert!(updated.contains("See [[Field Notes Renamed]]."));
+        assert!(updated.contains("link syntax: [[Field Notes]]"));
+        assert!(updated.contains("Inline `[[Field Notes]]` stays"));
+        // The rewritten target uses the note's preferred identifier, exactly as
+        // outside code; the point here is that the code sample is left alone.
+        assert!(updated.contains("[a label](Field Notes Renamed)"));
+    }
+
+    #[test]
+    fn rewrite_preserves_line_endings_and_blank_lines() {
+        let paths = vec!["a.md".into(), "b.md".into()];
+        let from = RenameLinkTarget::from_note_path(
+            &RelativeVaultPath::parse("a.md").unwrap(),
+            "a",
+            &paths,
+        );
+        let to = RenameLinkTarget::from_note_path(
+            &RelativeVaultPath::parse("b.md").unwrap(),
+            "b",
+            &paths,
+        );
+        let input = "[[a]]\r\n\r\ntrailing\r\n";
+        let (updated, _) = rewrite_note_rename_links(input, &from, &to);
+        assert_eq!(updated, "[[b]]\r\n\r\ntrailing\r\n");
     }
 
     #[test]

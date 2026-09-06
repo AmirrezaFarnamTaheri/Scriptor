@@ -90,14 +90,11 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
         // We do this lazily: frontmatter lines don't start with `## ` or `- [`.
 
         if let Some(col_name) = line.strip_prefix("## ") {
-            // Flush previous column.
-            if let Some((name, is_archive)) = current_column.take() {
-                push_column(
-                    &mut columns,
-                    name,
-                    is_archive,
-                    std::mem::take(&mut current_cards),
-                );
+            // Flush previous column. `is_archive` is applied per-card inside
+            // parse_card_line; the column-level value is only tracked to compute
+            // each card's `archived` flag, so it is not needed here.
+            if let Some((name, _is_archive)) = current_column.take() {
+                push_column(&mut columns, name, std::mem::take(&mut current_cards));
             }
             let trimmed = col_name.trim().to_string();
             let is_archive = is_archive_column(&trimmed);
@@ -113,8 +110,8 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
     }
 
     // Flush last column.
-    if let Some((name, is_archive)) = current_column {
-        push_column(&mut columns, name, is_archive, current_cards);
+    if let Some((name, _is_archive)) = current_column {
+        push_column(&mut columns, name, current_cards);
     }
 
     if columns.is_empty() {
@@ -132,7 +129,7 @@ pub fn parse_kanban(source_path: &str, markdown: &str) -> Option<KanbanBoard> {
 /// Validate that a string value would be a valid column name (non-empty, ≤120 chars).
 pub fn validate_board(board: &KanbanBoard) -> Result<(), IndexerError> {
     for col in &board.columns {
-        if col.name.is_empty() || col.name.len() > 120 {
+        if col.name.is_empty() || col.name.chars().count() > 120 {
             return Err(IndexerError::InvalidQuery(format!(
                 "kanban column name invalid: {:?}",
                 col.name
@@ -215,9 +212,13 @@ pub fn move_card_in_markdown(
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 fn is_kanban_file(markdown: &str) -> bool {
-    // Must contain `kanban-plugin:` inside the first 2 048 bytes.
-    let head = &markdown[..markdown.len().min(2048)];
-    head.contains("kanban-plugin:")
+    // Must contain `kanban-plugin:` inside the first 2 048 bytes. Never slice a
+    // UTF-8 string at an arbitrary byte boundary.
+    let mut end = markdown.len().min(2048);
+    while end > 0 && !markdown.is_char_boundary(end) {
+        end -= 1;
+    }
+    markdown[..end].contains("kanban-plugin:")
 }
 
 fn is_archive_column(name: &str) -> bool {
@@ -255,14 +256,8 @@ fn parse_card_line(line: &str, line_idx: usize, archived: bool) -> Option<Kanban
     })
 }
 
-fn push_column(
-    columns: &mut Vec<KanbanColumn>,
-    name: String,
-    is_archive: bool,
-    cards: Vec<KanbanCard>,
-) {
+fn push_column(columns: &mut Vec<KanbanColumn>, name: String, cards: Vec<KanbanCard>) {
     columns.push(KanbanColumn { name, cards });
-    let _ = is_archive; // `archived` flag is set per-card above; column-level flag unused here.
 }
 
 struct ColumnRange {

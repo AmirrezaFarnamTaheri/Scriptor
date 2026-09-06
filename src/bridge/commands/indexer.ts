@@ -152,7 +152,10 @@ export interface TaskQueryFilter {
 export interface TaskRow {
   id: string
   vaultId: string
+  /** Canonical note id (`"<vaultId>:<path>"`); never used for navigation. */
   sourceNoteId: string | null
+  /** Vault-relative path of the source note, used for navigation and rewrites. */
+  sourceNotePath: string | null
   line: number
   title: string
   status: string
@@ -163,6 +166,7 @@ export interface TaskRow {
   rrule: string | null
   fieldStyle: 'emoji' | 'dataview'
   tags: string[]
+  completedAt: string | null
   createdAt: string
   updatedAt: string
 }

@@ -56,14 +56,14 @@ pub use config::{
 pub use crypto::{
     EnvelopeHeader, decrypt, decrypt_with_passphrase, encrypt, encrypt_with_passphrase,
 };
-pub use delete::{DeleteNoteOutput, delete_note};
+pub use delete::{DeleteNoteOutput, delete_note, delete_note_guarded};
 pub use diagnostics::{redact_json_value, redact_sensitive_text};
 pub use error::VaultError;
 
 pub use frontmatter_ops::{
     FrontmatterFieldOutput, delete_frontmatter_field, get_frontmatter_field, set_frontmatter_field,
 };
-pub use fs::{atomic_write, write_conflicted_sidecar};
+pub use fs::{atomic_write, lock_vault_update, write_conflicted_sidecar};
 pub use hash::{content_hash, content_hash_bytes, reading_time_minutes, word_count};
 pub use link_rewrite::{
     LinkRewriteApplyOutput, LinkRewritePreview, RenameLinkTarget, directory_identifier_for_path,
@@ -76,13 +76,13 @@ pub use lint::{
 pub use mcp_audit::{
     DEFAULT_MCP_AUDIT_MAX_BYTES, DEFAULT_MCP_AUDIT_PATH, DEFAULT_MCP_AUDIT_SEGMENTS,
     McpMutationAuditRecord, append_mcp_mutation, read_mcp_audit_tail,
-    reconcile_pending_mcp_mutations,
+    reconcile_pending_mcp_mutations, verify_mcp_audit_chain,
 };
 pub use note::{NoteDocument, NoteMetadata, metadata_from_markdown, note_id, read_note};
 pub use note_history::{
     DEFAULT_NOTE_HISTORY_DIR, MAX_REVISIONS_PER_NOTE, NoteHistoryEntry, append_note_history,
-    append_note_history_throttled, list_note_history, read_note_history_revision,
-    restore_note_history_revision,
+    append_note_history_throttled, list_note_history, move_note_history,
+    read_note_history_revision, restore_note_history_revision,
 };
 pub use open::{
     OpenVaultOutput, VaultDescriptor, VaultSession, VaultStatus, open_vault, open_vault_output,
@@ -99,8 +99,8 @@ pub use plugin_state::{
 };
 pub use recent::{RecentNoteEntry, list_recent_notes, record_recent_note};
 pub use rename::{
-    RenameNoteApplyOutput, RenameNoteDryRunOutput, rename_apply, rename_apply_staged,
-    rename_dry_run, unresolved_link_targets,
+    RenameNoteApplyOutput, RenameNoteDryRunOutput, rename_apply, rename_apply_guarded,
+    rename_apply_staged, rename_apply_staged_guarded, rename_dry_run, unresolved_link_targets,
 };
 pub use rename_transaction::{
     RenamePhase, RenameRecoveryOutcome, RenameTransactionManifest, StagedRenameTransaction,
@@ -136,6 +136,6 @@ pub use write::{
 };
 
 pub use wikilink::{
-    WikilinkIndex, WikilinkResolution, WikilinkResolutionKind, resolve_wikilink_target,
-    resolve_wikilink_target_with_aliases,
+    WikilinkIndex, WikilinkResolution, WikilinkResolutionKind, normalize_lookup_key,
+    resolve_wikilink_target, resolve_wikilink_target_with_aliases,
 };

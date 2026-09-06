@@ -21,6 +21,16 @@ fn copied_fixture() -> (TempDir, PathBuf) {
     (dir, root)
 }
 
+fn isolated_minimal_fixture() -> TempDir {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../packages/test-fixtures/vaults/minimal");
+    for name in ["Research Plan.md", "references.bib"] {
+        fs::copy(source.join(name), dir.path().join(name)).expect("copy fixture");
+    }
+    dir
+}
+
 #[test]
 fn health_diagnostics_lists_broken_links() -> Result<(), IndexerError> {
     let (_dir, root) = copied_fixture();
@@ -123,9 +133,8 @@ fn graph_query_returns_neighbors() -> Result<(), IndexerError> {
 
 #[test]
 fn bibliography_sync_reads_fixture_references() -> Result<(), IndexerError> {
-    let minimal = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/test-fixtures/vaults/minimal");
-    let session = open_vault(minimal).map_err(IndexerError::from)?;
+    let minimal = isolated_minimal_fixture();
+    let session = open_vault(minimal.path()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
 
@@ -147,9 +156,8 @@ fn knowledge_edge_fixture_root() -> PathBuf {
 
 #[test]
 fn search_relevance_fixture_cases() -> Result<(), IndexerError> {
-    let minimal = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/test-fixtures/vaults/minimal");
-    let session = open_vault(minimal).map_err(IndexerError::from)?;
+    let minimal = isolated_minimal_fixture();
+    let session = open_vault(minimal.path()).map_err(IndexerError::from)?;
     rebuild_index(&session, &[])?;
     let cache = open_cache_for_session(&session)?;
     let hits = search_notes(&cache, &session.descriptor.id, "research", 10)?;

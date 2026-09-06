@@ -594,13 +594,10 @@ pub fn plan_daily_note(
     );
 
     let markdown = if let Some(template_rel) = &config.daily_note.template_path {
-        let template_path = vault_root.join(template_rel);
-        if template_path.exists() {
-            let template = fs::read_to_string(&template_path)
-                .map_err(|source| VaultError::io(&template_path, source))?;
-            apply_template_tokens(&template, &title, date)
-        } else {
-            default_daily_markdown(&title)
+        match load_vault_template(vault_root, &config.templates_directory, template_rel) {
+            Ok(template) => apply_template_tokens(&template, &title, date),
+            Err(VaultError::NoteNotFound(_)) => default_daily_markdown(&title),
+            Err(error) => return Err(error),
         }
     } else {
         default_daily_markdown(&title)

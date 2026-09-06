@@ -105,6 +105,37 @@ foreach ($log in @(Get-ChildItem -LiteralPath $LogDirectory -File -Filter "*.log
     }
 }
 
+Add-ContextLine ""
+Add-ContextLine "## Compiler diagnostics (errors & warnings)"
+# Cargo prints errors before warnings and the summary, so a plain log tail omits
+# the actual errors. Surface any diagnostic lines explicitly so CI failures are
+# self-explanatory in the annotated output.
+foreach ($log in @(Get-ChildItem -LiteralPath $LogDirectory -File -Filter "*.log" -ErrorAction SilentlyContinue | Sort-Object Name)) {
+    $all = @(Get-Content -LiteralPath $log.FullName -ErrorAction SilentlyContinue)
+    $markerIndexes = [System.Collections.Generic.List[int]]::new()
+    for ($i = 0; $i -lt $all.Count; $i++) {
+        # Log lines are timestamp-prefixed, so match substrings, not line start.
+        if ($all[$i] -match 'error(\[|: )|warning:|  --> ') {
+            $markerIndexes.Add($i)
+        }
+    }
+    if ($markerIndexes.Count -gt 0) {
+        Add-ContextLine ""
+        Add-ContextLine "### $($log.Name) ($($markerIndexes.Count) diagnostic markers)"
+        $handledUntil = -2
+        foreach ($idx in $markerIndexes) {
+            if ($idx -le $handledUntil) { continue }
+            $start = [Math]::Max(0, $idx - 2)
+            $end = [Math]::Min($all.Count - 1, $idx + 5)
+            for ($j = $start; $j -le $end; $j++) {
+                Add-ContextLine $all[$j]
+            }
+            Add-ContextLine "-----"
+            $handledUntil = $end
+        }
+    }
+}
+
 $lines | Set-Content -LiteralPath $contextPath -Encoding utf8
 Write-Host "Failure context log: $contextPath"
 Write-Host "::endgroup::"

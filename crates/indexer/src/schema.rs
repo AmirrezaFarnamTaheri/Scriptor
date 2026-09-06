@@ -14,9 +14,12 @@
 //! | v6      | `tasks` + `task_tags` tables                      | No       |
 //! | v7      | `annotations` + `srs_cards` + `srs_reviews`       | No       |
 //! | v8      | task extended fields + `blocks` embedding table    | No       |
+//! | v9      | frontmatter aliases on note rows                   | No       |
+//! | v10     | canonical task source note id + explicit path       | No       |
+//! | v11     | task source FK parity for upgraded caches           | No       |
 
 /// Current on-disk schema version. Bump this constant exactly once per train step.
-pub const SCHEMA_VERSION: i32 = 9;
+pub const SCHEMA_VERSION: i32 = 11;
 
 pub const CREATE_META: &str = "
 CREATE TABLE IF NOT EXISTS cache_meta (
@@ -137,14 +140,15 @@ CREATE TABLE IF NOT EXISTS recent_access (
 
 /// v6 — task rows and their multi-value tag junction table.
 ///
-/// `source_note_id` links back to the note the task was captured from (may be
-/// NULL for standalone tasks). `due_at` and `completed_at` are ISO-8601
+/// `source_note_id` is the canonical `notes.id` (NULL for standalone tasks);
+/// `source_note_path` is the vault-relative navigation path. `due_at` and `completed_at` are ISO-8601
 /// strings or NULL. `priority` is a signed integer (lower = more urgent).
 pub const CREATE_TASKS: &str = "
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
   vault_id TEXT NOT NULL,
-  source_note_id TEXT,
+  source_note_id TEXT REFERENCES notes(id) ON DELETE CASCADE,
+  source_note_path TEXT,
   -- W4-2/W4-3: extended fields added in v8.
   line INTEGER NOT NULL DEFAULT 0,
   title TEXT NOT NULL,
@@ -163,7 +167,8 @@ CREATE TABLE IF NOT EXISTS tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_vault_status ON tasks(vault_id, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_vault_due ON tasks(vault_id, due_at);
-CREATE INDEX IF NOT EXISTS idx_tasks_source_note ON tasks(source_note_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_source_note_id ON tasks(source_note_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_source_note_path ON tasks(vault_id, source_note_path);
 ";
 
 pub const CREATE_TASK_TAGS: &str = "
@@ -236,9 +241,9 @@ CREATE INDEX IF NOT EXISTS idx_srs_reviews_card ON srs_reviews(card_id);
 // ── v8: extended task fields + blocks ────────────────────────────────────────
 
 /// v8 — ADD COLUMN migrations on the `tasks` table (new fields added in W4-2/W4-3).
-/// Each ALTER TABLE is safe even if the column already exists due to SQLite's
-/// error suppression via `execute_batch` — callers must run inside a transaction
-/// so that partial failures are rolled back automatically.
+/// Callers guard every ALTER with `pragma_table_info` before executing it;
+/// SQLite does not suppress duplicate-column errors. The migration transaction
+/// ensures a later failure rolls back the whole step.
 /// v7 → v8: new columns added to the `tasks` table.
 /// Each statement is a bare `ALTER TABLE … ADD COLUMN` (no IF NOT EXISTS —
 /// the migration loop guards against duplicate columns using `table_columns`).

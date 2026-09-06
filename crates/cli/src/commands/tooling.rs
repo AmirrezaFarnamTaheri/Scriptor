@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use clap::CommandFactory;
 use scriptor_export_runner::{
-    ExportJobInput, default_export_directory, discover_pandoc, run_export_job,
+    ExportJobInput, default_export_directory, discover_pandoc, export_artifact_stem, run_export_job,
 };
 use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, detect_system_info, run_process};
 use scriptor_vault::{RelativeVaultPath, open_vault, read_note};
@@ -117,20 +117,19 @@ pub(crate) fn run_export(
     let session = open_vault(&path)?;
     let relative = RelativeVaultPath::parse(&note)?;
     let document = read_note(&session.descriptor.id, &session.root, &relative)?;
-    let stem = note
-        .trim_end_matches(".md")
-        .rsplit('/')
-        .next()
-        .unwrap_or("note");
+    let stem = export_artifact_stem(&note);
     let output_directory = match output_subdir {
-        Some(subdir) => session.root.root().join(subdir),
+        Some(subdir) => {
+            let relative = RelativeVaultPath::parse(&subdir)?;
+            session.root.resolve_relative(&relative)?
+        }
         None => default_export_directory(session.root.root()),
     };
     let input = ExportJobInput {
         format,
         source_markdown: document.markdown,
         output_directory: output_directory.display().to_string(),
-        source_stem: stem.to_string(),
+        source_stem: stem,
         title: Some(document.metadata.title),
         dry_run,
         extra_pandoc_args: extra_arg,

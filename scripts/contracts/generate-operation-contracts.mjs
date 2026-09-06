@@ -171,6 +171,10 @@ export function assertLiveParity(catalog, root) {
   compare('MCP', bySurface('mcp'), [...new Set(discoverMcpToolNames(root))].sort())
 }
 
+export function generatedArtifactMatches(actual, expected) {
+  return actual.replace(/\r\n/g, '\n') === expected.replace(/\r\n/g, '\n')
+}
+
 function main(argv) {
   const root = path.resolve(import.meta.dirname, '../..')
   const catalog = validateOperationCatalog(loadOperationCatalog(root))
@@ -181,7 +185,7 @@ function main(argv) {
   for (const [relative, contents] of Object.entries(rendered)) {
     const target = path.join(root, relative)
     if (check) {
-      if (!fs.existsSync(target) || fs.readFileSync(target, 'utf8') !== contents) {
+      if (!fs.existsSync(target) || !generatedArtifactMatches(fs.readFileSync(target, 'utf8'), contents)) {
         console.error(`stale generated operation contract: ${relative}`)
         stale = true
       }

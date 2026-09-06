@@ -18,6 +18,7 @@ import { deflateRawSync, crc32 } from 'node:zlib'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gitWorkspaceFiles } from '../lib/workspace-files.mjs'
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const DEFAULT_OUTPUT = path.join(path.dirname(REPO_ROOT), 'Scriptor-lite.zip')
@@ -43,6 +44,7 @@ const DOS_TIME = 0
 const DOS_DATE = 0x21
 const ZIP32_MAX_ENTRIES = 0xffff
 const ZIP32_MAX_SIZE = 0xffffffff
+const ARCHIVE_ROOT = 'Scriptor'
 
 function globToRegExp(glob) {
   const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')
@@ -68,13 +70,14 @@ function shouldSkip(relParts, fileName, rules) {
 
 // Pruned, symlink-safe recursive walk. Excluded directory names are never
 // entered, so oversized dependency/build trees cost zero traversal time.
-function collectFiles(root, rules, out) {
+function collectFiles(root, rules, out, includedPaths) {
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) continue
     const full = path.join(root, entry.name)
+    if (includedPaths && !includedPaths.has(full)) continue
     if (entry.isDirectory()) {
       if (rules.dirs.has(entry.name)) continue
-      collectFiles(full, rules, out)
+      collectFiles(full, rules, out, includedPaths)
     } else if (entry.isFile()) {
       out.push(full)
     }
@@ -180,12 +183,22 @@ export function assembleZip(entries) {
 }
 
 export function buildZip(repo, output, profile = 'source-review') {
+  repo = path.resolve(repo)
   const rules = profileRules(profile)
   const required = validateProfileInputs(repo, profile)
   fs.mkdirSync(path.dirname(output), { recursive: true })
 
   const files = []
-  collectFiles(repo, rules, files)
+  const workspaceFiles = gitWorkspaceFiles(repo)
+  const includedPaths = workspaceFiles ? new Set() : null
+  for (const file of workspaceFiles ?? []) {
+    let current = file
+    while (current !== repo && current !== path.dirname(current)) {
+      includedPaths.add(current)
+      current = path.dirname(current)
+    }
+  }
+  collectFiles(repo, rules, files, includedPaths)
   const outResolved = path.resolve(output)
   const candidates = files
     .filter((file) => path.resolve(file) !== outResolved)
@@ -193,9 +206,10 @@ export function buildZip(repo, output, profile = 'source-review') {
 
   const entries = []
   let totalBytes = 0
-  // Arcnames mirror the Python original: paths relative to the repository's
-  // parent, i.e. prefixed with the repo folder name ("Scriptor/...").
-  const repoRootName = path.basename(path.resolve(repo))
+  // Archive identity is independent of the checkout folder name. Release and
+  // review receipts refer to a canonical `Scriptor/...` root so the same tree
+  // produces the same entry names and bytes in `Scriptor`, `Scriptor-main`, a
+  // CI worktree, or any other physical checkout location.
   for (const file of candidates) {
     const rel = path.relative(repo, file)
     const relParts = rel.split(path.sep)
@@ -203,7 +217,7 @@ export function buildZip(repo, output, profile = 'source-review') {
     // repo root itself, while root-level FILES have a one-element path and
     // are retained.
     if (shouldSkip(relParts, path.basename(file), rules)) continue
-    const arcname = repoRootName + '/' + rel.split(path.sep).join('/')
+    const arcname = ARCHIVE_ROOT + '/' + rel.split(path.sep).join('/')
     const contents = fs.readFileSync(file)
     entries.push(zipEntry(Buffer.from(arcname, 'utf8'), contents))
     totalBytes += contents.length

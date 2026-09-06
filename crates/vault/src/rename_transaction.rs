@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
 use crate::fs::atomic_write;
-use crate::hash::path_hash;
+use crate::hash::{content_hash_bytes, path_hash};
 use crate::path::{RelativeVaultPath, VaultRoot};
 
 const TXN_DIR_NAME: &str = "rename-txn";
@@ -21,7 +21,7 @@ pub enum RenamePhase {
     FileMoveDone,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct RenameTransactionManifest {
     pub version: u32,
     #[serde(default)]
@@ -30,7 +30,13 @@ pub struct RenameTransactionManifest {
     pub to_path: String,
     pub source_backup: String,
     #[serde(default)]
+    pub source_original_hash: String,
+    #[serde(default)]
     pub affected_backups: BTreeMap<String, String>,
+    #[serde(default)]
+    pub affected_original_hashes: BTreeMap<String, String>,
+    #[serde(default)]
+    pub affected_intended_hashes: BTreeMap<String, String>,
     #[serde(default)]
     pub affected_files: Vec<String>,
 }
@@ -149,10 +155,47 @@ fn restore_affected_backups(
         if !backup_abs.is_file() {
             continue;
         }
+        let original_hash = txn.affected_original_hashes.get(note_path);
+        let intended_hash = txn.affected_intended_hashes.get(note_path);
+        // Manifests written before the intended/original hashes were recorded cannot
+        // say which notes this transaction rewrote, so they keep the pre-v3
+        // contract: restore every backup. Skipping on a missing hash there would
+        // silently keep rewritten links pointing at a file the interrupted rename
+        // never created, and recovery then deletes the backups that could fix it.
+        let hashes_recorded = !txn.affected_intended_hashes.is_empty();
+        if hashes_recorded && intended_hash.is_none() {
+            // The transaction never rewrote this note. Its on-disk state is the
+            // user's own (whether edited externally, left untouched, or removed),
+            // so there is nothing transaction-owned for us to restore. Skipping
+            // here — instead of erroring — means a concurrent external edit to a
+            // note the rename didn't touch cannot abort rollback of the notes the
+            // transaction *did* rewrite.
+            continue;
+        }
+        if hashes_recorded && note_abs.is_file() {
+            let current =
+                fs::read(&note_abs).map_err(|source| VaultError::io(&note_abs, source))?;
+            let current_hash = content_hash_bytes(&current);
+            // Untouched (still the original bytes): nothing to restore.
+            if original_hash.is_some_and(|hash| hash == &current_hash) {
+                continue;
+            }
+            // The transaction rewrote this note. Restore it only while it still
+            // holds exactly the bytes the transaction wrote; any other content is
+            // a concurrent edit we must not clobber with a stale backup.
+            if intended_hash != Some(&current_hash) {
+                return Err(VaultError::HashMismatch {
+                    path: note_path.clone(),
+                    expected: intended_hash.cloned().unwrap_or_default(),
+                    found: current_hash,
+                });
+            }
+        }
         if let Some(parent) = note_abs.parent() {
             fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
         }
-        fs::copy(&backup_abs, &note_abs).map_err(|source| VaultError::io(&note_abs, source))?;
+        let bytes = fs::read(&backup_abs).map_err(|source| VaultError::io(&backup_abs, source))?;
+        atomic_write(&note_abs, &bytes)?;
     }
     Ok(())
 }
@@ -176,6 +219,28 @@ fn rollback_file_move_and_link_writes(
     let source_backup = root.root().join(&txn.source_backup);
 
     if to_abs.is_file() {
+        // The destination may only be deleted while it still holds the bytes this
+        // transaction wrote. Manifests written before those hashes were recorded
+        // carry empty strings, which cannot vouch for anything: comparing against
+        // them would reject every legacy rollback, so they keep the pre-v3
+        // unconditional behaviour instead.
+        let intended = txn
+            .affected_intended_hashes
+            .get(&txn.from_path)
+            .map(String::as_str);
+        let original =
+            (!txn.source_original_hash.is_empty()).then_some(txn.source_original_hash.as_str());
+        if let Some(expected) = intended.or(original) {
+            let current = fs::read(&to_abs).map_err(|source| VaultError::io(&to_abs, source))?;
+            let current_hash = content_hash_bytes(&current);
+            if current_hash != expected {
+                return Err(VaultError::HashMismatch {
+                    path: txn.to_path.clone(),
+                    expected: expected.to_string(),
+                    found: current_hash,
+                });
+            }
+        }
         fs::remove_file(&to_abs).map_err(|source| VaultError::io(&to_abs, source))?;
     }
 
@@ -202,6 +267,16 @@ impl StagedRenameTransaction {
         to_path: &RelativeVaultPath,
         affected_paths: &[String],
     ) -> Result<Self, VaultError> {
+        Self::begin_with_intended(root, from_path, to_path, affected_paths, &BTreeMap::new())
+    }
+
+    pub fn begin_with_intended(
+        root: &VaultRoot,
+        from_path: &RelativeVaultPath,
+        to_path: &RelativeVaultPath,
+        affected_paths: &[String],
+        intended_hashes: &BTreeMap<String, String>,
+    ) -> Result<Self, VaultError> {
         let recovery = recover_pending_rename_transactions(root)?;
         if !recovery.reindex_paths.is_empty() {
             return Err(VaultError::InvalidConfig {
@@ -214,23 +289,28 @@ impl StagedRenameTransaction {
         fs::create_dir_all(scriptor_meta_dir(root))
             .map_err(|source| VaultError::io(scriptor_meta_dir(root), source))?;
 
-        let source_backup = backup_file(root, &dir, from_path.as_str())?;
+        let (source_backup, source_original_hash) = backup_file(root, &dir, from_path.as_str())?;
         let mut affected_backups = BTreeMap::new();
+        let mut affected_original_hashes = BTreeMap::new();
         for path in affected_paths {
             if path == from_path.as_str() || path == to_path.as_str() {
                 continue;
             }
-            let backup = backup_file(root, &dir, path)?;
+            let (backup, original_hash) = backup_file(root, &dir, path)?;
             affected_backups.insert(path.clone(), backup);
+            affected_original_hashes.insert(path.clone(), original_hash);
         }
 
         let manifest = RenameTransactionManifest {
-            version: 2,
+            version: 3,
             phase: RenamePhase::Staged,
             from_path: from_path.to_string(),
             to_path: to_path.to_string(),
             source_backup,
+            source_original_hash,
             affected_backups,
+            affected_original_hashes,
+            affected_intended_hashes: intended_hashes.clone(),
             affected_files: affected_paths.to_vec(),
         };
 
@@ -265,7 +345,11 @@ impl StagedRenameTransaction {
     }
 }
 
-fn backup_file(root: &VaultRoot, dir: &Path, relative_path: &str) -> Result<String, VaultError> {
+fn backup_file(
+    root: &VaultRoot,
+    dir: &Path,
+    relative_path: &str,
+) -> Result<(String, String), VaultError> {
     let source = root.resolve_relative(&RelativeVaultPath::parse(relative_path)?)?;
     if !source.is_file() {
         return Err(VaultError::NoteNotFound(relative_path.to_string()));
@@ -278,8 +362,12 @@ fn backup_file(root: &VaultRoot, dir: &Path, relative_path: &str) -> Result<Stri
     // path cannot collide that way.
     let backup_name = path_hash(relative_path);
     let backup_abs = dir.join(format!("{backup_name}.bak"));
-    fs::copy(&source, &backup_abs).map_err(|source| VaultError::io(&backup_abs, source))?;
-    Ok(format!(".scriptor/{TXN_DIR_NAME}/{backup_name}.bak"))
+    let bytes = fs::read(&source).map_err(|source_err| VaultError::io(&source, source_err))?;
+    atomic_write(&backup_abs, &bytes)?;
+    Ok((
+        format!(".scriptor/{TXN_DIR_NAME}/{backup_name}.bak"),
+        content_hash_bytes(&bytes),
+    ))
 }
 
 fn write_manifest(
@@ -299,18 +387,27 @@ fn cleanup_transaction(
     root: &VaultRoot,
     txn: &RenameTransactionManifest,
 ) -> Result<(), VaultError> {
-    let _ = fs::remove_file(root.root().join(&txn.source_backup));
-    for backup in txn.affected_backups.values() {
-        let _ = fs::remove_file(root.root().join(backup));
+    fn remove_if_present(path: &Path) -> Result<(), VaultError> {
+        match fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(error) => Err(VaultError::io(path, error)),
+        }
     }
-    let _ = fs::remove_file(manifest_path(root));
+
+    remove_if_present(&root.root().join(&txn.source_backup))?;
+    for backup in txn.affected_backups.values() {
+        remove_if_present(&root.root().join(backup))?;
+    }
+    remove_if_present(&manifest_path(root))?;
     let dir = txn_dir(root);
     if dir.is_dir()
         && fs::read_dir(&dir)
-            .map(|mut entries| entries.next().is_none())
-            .unwrap_or(false)
+            .map_err(|source| VaultError::io(&dir, source))?
+            .next()
+            .is_none()
     {
-        let _ = fs::remove_dir(&dir);
+        fs::remove_dir(&dir).map_err(|source| VaultError::io(&dir, source))?;
     }
     Ok(())
 }
@@ -517,10 +614,59 @@ mod tests {
             source_backup: ".scriptor/rename-txn/missing.bak".into(),
             affected_backups: BTreeMap::new(),
             affected_files: vec!["Note.md".into()],
+            ..Default::default()
         };
         write_manifest(&session.root, &manifest).unwrap();
 
         recover_pending_rename_transactions(&session.root).unwrap();
+        assert!(!manifest_path(&session.root).is_file());
+    }
+
+    /// Manifests written before the original/intended hash records existed cannot
+    /// say which notes the interrupted rename rewrote. They must still restore
+    /// every recorded backup; skipping on a missing hash would keep links that
+    /// point at a file the rename never created.
+    #[test]
+    fn legacy_manifest_recovery_restores_backups_without_hash_records() {
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("Note.md"), "# Note\n").unwrap();
+        std::fs::write(dir.path().join("Other.md"), "# Other\n\n[[Note]]\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+
+        let from = RelativeVaultPath::parse("Note.md").unwrap();
+        let to = RelativeVaultPath::parse("Renamed.md").unwrap();
+        let staged =
+            StagedRenameTransaction::begin(&session.root, &from, &to, &["Other.md".into()])
+                .unwrap();
+        let source_backup = staged.manifest.source_backup.clone();
+        let affected_backups = staged.manifest.affected_backups.clone();
+        let affected_files = staged.manifest.affected_files.clone();
+        drop(staged);
+
+        write_manifest(
+            &session.root,
+            &RenameTransactionManifest {
+                version: 2,
+                phase: RenamePhase::LinkWritesDone,
+                from_path: from.to_string(),
+                to_path: to.to_string(),
+                source_backup,
+                affected_backups,
+                affected_files,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        // The rename had already rewritten this note before it died.
+        std::fs::write(dir.path().join("Other.md"), "# Other\n\n[[Renamed]]\n").unwrap();
+
+        recover_pending_rename_transactions(&session.root).unwrap();
+
+        let other = std::fs::read_to_string(dir.path().join("Other.md")).unwrap();
+        assert!(
+            other.contains("[[Note]]"),
+            "legacy recovery skipped a note the interrupted rename rewrote: {other:?}"
+        );
         assert!(!manifest_path(&session.root).is_file());
     }
 }

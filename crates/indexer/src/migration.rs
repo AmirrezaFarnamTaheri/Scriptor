@@ -8,10 +8,6 @@ use crate::schema::{
 #[cfg(feature = "srs")]
 use crate::schema::{CREATE_SRS_CARDS, CREATE_SRS_REVIEWS};
 
-/// Optional progress callback used during v5 reindex (which forces a full FTS rebuild).
-/// Called with `(indexed_notes, total_notes)`. Pass `None` to suppress progress.
-pub type ReindexProgressFn = Box<dyn Fn(usize, usize) + Send + Sync>;
-
 /// Apply versioned migrations or return `SchemaRebuildRequired` when unsafe to migrate in place.
 ///
 /// Every step runs inside a single transaction together with its `schema_version` bump, so a
@@ -19,6 +15,7 @@ pub type ReindexProgressFn = Box<dyn Fn(usize, usize) + Send + Sync>;
 /// instead of leaving a half-migrated cache stamped as current.
 pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerError> {
     let mut current = read_schema_version(connection)?.unwrap_or(0);
+
     if current == SCHEMA_VERSION {
         return Ok(());
     }
@@ -59,10 +56,9 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
 
     // v4 → v5: drop the v4 single-column FTS table and create the v5
     // multi-column, diacritic-folding table. This is the only migration step
-    // that forces a full reindex; the caller must repopulate `note_fts` after
-    // calling this function. The `SchemaRebuildRequired` path in
-    // `open_cache_migrated` handles the repopulation automatically by
-    // deleting the cache file and starting fresh.
+    // that forces a full reindex; the migration persists an explicit
+    // `fts_rebuild_required` marker and health remains stale until
+    // `rebuild_index` successfully repopulates FTS and clears it.
     if current == 4 && SCHEMA_VERSION >= 5 {
         migrate_v4_to_v5(connection)?;
         current = 5;
@@ -125,6 +121,81 @@ pub fn migrate_cache(connection: &rusqlite::Connection) -> Result<(), IndexerErr
         current = 9;
     }
 
+    // v9 → v10: make `source_note_id` truthful. The historical column stored
+    // a vault-relative path; preserve it as `source_note_path`, add a real
+    // canonical note id, and backfill it from the notes table.
+    if current == 9 && SCHEMA_VERSION >= 10 {
+        let transaction = connection.unchecked_transaction()?;
+
+        // `notes.id` has been in the schema since v1 but is a nullable TEXT primary key, so a
+        // cache can legitimately contain rows without one - and a task backfilled from such a row
+        // would point at NULL. Fill them in with exactly the format `note_id` produces
+        // ("{vault_id}:{path}") so ids computed from disk match ids stored in the cache, then index
+        // the column because every task lookup joins on it. The index is deliberately not UNIQUE: a
+        // cache that accumulated duplicate (vault_id, path) rows must still migrate, not fail here.
+        if !table_columns(&transaction, "notes")?.contains("id") {
+            // Only a cache older than the current schema files reaches this branch.
+            transaction.execute_batch("ALTER TABLE notes ADD COLUMN id TEXT;")?;
+        }
+        transaction.execute(
+            "UPDATE notes SET id = vault_id || ':' || path WHERE id IS NULL OR id = ''",
+            [],
+        )?;
+        transaction.execute_batch("CREATE INDEX IF NOT EXISTS idx_notes_id ON notes(id);")?;
+
+        let existing_cols = table_columns(&transaction, "tasks")?;
+        if existing_cols.contains("source_note_id") && !existing_cols.contains("source_note_path") {
+            transaction.execute_batch(
+                "ALTER TABLE tasks RENAME COLUMN source_note_id TO source_note_path;",
+            )?;
+        }
+        let existing_cols = table_columns(&transaction, "tasks")?;
+        if !existing_cols.contains("source_note_id") {
+            // Legacy notes tables may lack a UNIQUE constraint on id, so adding a
+            // foreign key here would make later task writes fail. Keep the legacy
+            // relationship managed by the existing note/task reconciliation path.
+            transaction.execute_batch("ALTER TABLE tasks ADD COLUMN source_note_id TEXT;")?;
+        }
+        // Some v9 caches already have both columns. Preserve their historical
+        // path before converting source_note_id, without dropping indexed columns.
+        transaction.execute(
+            "UPDATE tasks SET source_note_path = COALESCE(
+               (SELECT notes.path FROM notes
+                WHERE notes.vault_id = tasks.vault_id AND notes.id = tasks.source_note_id LIMIT 1),
+               source_note_id)
+             WHERE source_note_path IS NULL AND source_note_id IS NOT NULL",
+            [],
+        )?;
+        transaction.execute(
+            "UPDATE tasks
+             SET source_note_id = (
+               SELECT notes.id FROM notes
+               WHERE notes.vault_id = tasks.vault_id
+                 AND notes.path = tasks.source_note_path
+               LIMIT 1
+             )
+             WHERE source_note_path IS NOT NULL",
+            [],
+        )?;
+        transaction.execute_batch(
+            "DROP INDEX IF EXISTS idx_tasks_source_note;
+             CREATE INDEX IF NOT EXISTS idx_tasks_source_note_id ON tasks(source_note_id);
+             CREATE INDEX IF NOT EXISTS idx_tasks_source_note_path ON tasks(vault_id, source_note_path);",
+        )?;
+        stamp_schema_version(&transaction, 10)?;
+        transaction.commit()?;
+        current = 10;
+    }
+
+    // v10 → v11: make upgraded task tables structurally identical to fresh installs.
+    // v10 added `source_note_id` with ALTER TABLE, which could not attach the canonical
+    // `REFERENCES notes(id) ON DELETE CASCADE` contract. Rebuild both task tables inside
+    // one transaction, preserving task/tag data while nulling any legacy orphan source ids.
+    if current == 10 && SCHEMA_VERSION >= 11 {
+        migrate_v10_to_v11(connection)?;
+        current = 11;
+    }
+
     if current == SCHEMA_VERSION {
         Ok(())
     } else {
@@ -161,20 +232,87 @@ fn apply_v2_to_v3(connection: &rusqlite::Connection) -> Result<(), IndexerError>
 /// diacritic-folding variant declared in `schema::CREATE_FTS_V5`.
 ///
 /// FTS5 virtual tables cannot be altered in place — we must drop and recreate.
-/// Because this empties the FTS index the caller **must** repopulate `note_fts`
-/// after this migration. `open_cache_migrated` handles that by using the
-/// `SchemaRebuildRequired` → delete-files → fresh-open path so the indexer
-/// re-scans the vault.
-///
-/// Progress during the rebuild is reported via the `ReindexProgressFn` passed
-/// to the indexer's rebuild command (not to this function directly).
+/// Because this empties the FTS index, the migration also persists an
+/// `fts_rebuild_required` marker. Cache health remains stale until a successful
+/// full rebuild clears that marker, and unchanged plaintext notes still force
+/// reindexing when their FTS row is absent.
 fn migrate_v4_to_v5(connection: &rusqlite::Connection) -> Result<(), IndexerError> {
     let transaction = connection.unchecked_transaction()?;
     // Drop the old FTS table; SQLite FTS5 does not support ALTER or migration.
     transaction.execute_batch("DROP TABLE IF EXISTS note_fts;")?;
-    // Create the v5 multi-column table.
+    // Create the v5 multi-column table and make the loss of derived FTS state
+    // explicit. Never stamp the cache as fully fresh merely because the schema
+    // migration itself completed.
     transaction.execute_batch(CREATE_FTS_V5)?;
+    transaction.execute(
+        "INSERT OR REPLACE INTO cache_meta(key, value) VALUES ('fts_rebuild_required', '1')",
+        [],
+    )?;
     stamp_schema_version(&transaction, 5)?;
+    transaction.commit()?;
+    Ok(())
+}
+
+fn migrate_v10_to_v11(connection: &rusqlite::Connection) -> Result<(), IndexerError> {
+    let transaction = connection.unchecked_transaction()?;
+
+    // Rename the old tables first so the canonical CREATE_* statements remain the single
+    // schema definition. Index names are global in SQLite, so drop the renamed tables' old
+    // indexes before recreating the canonical names on the replacement tables.
+    transaction.execute_batch(
+        "ALTER TABLE task_tags RENAME TO task_tags_v10;
+         ALTER TABLE tasks RENAME TO tasks_v10;
+         DROP INDEX IF EXISTS idx_tasks_vault_status;
+         DROP INDEX IF EXISTS idx_tasks_vault_due;
+         DROP INDEX IF EXISTS idx_tasks_source_note;
+         DROP INDEX IF EXISTS idx_tasks_source_note_id;
+         DROP INDEX IF EXISTS idx_tasks_source_note_path;
+         DROP INDEX IF EXISTS idx_task_tags_tag;",
+    )?;
+    transaction.execute_batch(CREATE_TASKS)?;
+    transaction.execute_batch(CREATE_TASK_TAGS)?;
+
+    transaction.execute_batch(
+        "INSERT INTO tasks(
+           id, vault_id, source_note_id, source_note_path, line, title, body, status,
+           priority, due_at, scheduled_at, start_at, rrule, field_style, completed_at,
+           created_at, updated_at
+         )
+         SELECT
+           id,
+           vault_id,
+           CASE
+             WHEN source_note_id IS NULL THEN NULL
+             WHEN EXISTS (SELECT 1 FROM notes WHERE notes.id = tasks_v10.source_note_id)
+               THEN source_note_id
+             ELSE NULL
+           END,
+           source_note_path,
+           line,
+           title,
+           body,
+           status,
+           priority,
+           due_at,
+           scheduled_at,
+           start_at,
+           rrule,
+           field_style,
+           completed_at,
+           created_at,
+           updated_at
+         FROM tasks_v10;
+
+         INSERT OR IGNORE INTO task_tags(task_id, tag)
+         SELECT legacy.task_id, legacy.tag
+         FROM task_tags_v10 AS legacy
+         INNER JOIN tasks ON tasks.id = legacy.task_id;
+
+         DROP TABLE task_tags_v10;
+         DROP TABLE tasks_v10;",
+    )?;
+
+    stamp_schema_version(&transaction, 11)?;
     transaction.commit()?;
     Ok(())
 }
@@ -256,6 +394,49 @@ mod tests {
             "INSERT INTO recent_access(path, opened_at) VALUES ('a.md', 'now')",
             [],
         )?;
+        Ok(())
+    }
+
+    /// The production shape of an upgrade: pooled connections enable `foreign_keys`, and the whole
+    /// chain runs inside a transaction. SQLite refuses to add a column carrying a `REFERENCES`
+    /// clause while foreign keys are enabled, so v10 adds the column plain and v11 rebuilds the
+    /// table into the canonical foreign-key shape. It also supplies a note row without an id, which
+    /// the migration must backfill before any task can point at it.
+    #[test]
+    fn migrates_legacy_cache_with_foreign_keys_enabled() -> Result<(), IndexerError> {
+        let connection = open_legacy_cache(1)?;
+        connection.pragma_update(None, "foreign_keys", "ON")?;
+        connection.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count)
+             VALUES (NULL, 'v', 'a.md', 'A', 'h', '2026-01-01T00:00:00Z', 1)",
+            [],
+        )?;
+
+        migrate_cache(&connection)?;
+
+        let version: String = connection.query_row(
+            "SELECT value FROM cache_meta WHERE key = 'schema_version'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(version, SCHEMA_VERSION.to_string());
+        let id: String =
+            connection.query_row("SELECT id FROM notes WHERE path = 'a.md'", [], |row| {
+                row.get(0)
+            })?;
+        assert_eq!(
+            id, "v:a.md",
+            "a note without an id is backfilled in `note_id`'s format"
+        );
+        let task_column: String = connection.query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tasks'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert!(
+            task_column.contains("source_note_id"),
+            "the migrated cache must carry the canonical task column"
+        );
         Ok(())
     }
 
@@ -439,7 +620,7 @@ CREATE TABLE IF NOT EXISTS notes (
         migrate_cache(&connection)?;
 
         // Migration runs all pending steps from v4 through to the current
-        // SCHEMA_VERSION (currently 7).  Assert we reached the latest version.
+        // SCHEMA_VERSION. Assert we reached the latest version.
         assert_eq!(
             read_schema_version(&connection)?,
             Some(crate::schema::SCHEMA_VERSION),
@@ -473,7 +654,7 @@ CREATE TABLE IF NOT EXISTS notes (
              VALUES (?1, ?2, ?3, ?4, ?5)",
             [
                 "id-1",
-                "Résumé Tips", // diacritic in title
+                "Résumé Tips",
                 "Introduction Skills",
                 "career",
                 "Polish your résumé before applying.",
@@ -800,6 +981,223 @@ CREATE TABLE IF NOT EXISTS notes (
         assert_eq!(paths, vec!["alpha.md", "beta.md"], "paths must be ordered");
         assert_eq!(aliases.len(), 1, "only alpha.md has aliases");
         assert_eq!(aliases["alpha.md"], vec!["A", "B"]);
+        Ok(())
+    }
+
+    #[test]
+    fn migration_v9_to_v10_separates_task_source_id_and_path() -> Result<(), IndexerError> {
+        let connection = Connection::open_in_memory()?;
+        apply_schema(&connection)?;
+        // Recreate the historical v9 task shape so the migration is exercised.
+        connection.execute_batch(
+            "DROP TABLE task_tags;
+             DROP TABLE tasks;
+             CREATE TABLE tasks (
+               id TEXT PRIMARY KEY,
+               vault_id TEXT NOT NULL,
+               source_note_id TEXT,
+               line INTEGER NOT NULL DEFAULT 0,
+               title TEXT NOT NULL,
+               body TEXT NOT NULL DEFAULT '',
+               status TEXT NOT NULL DEFAULT 'open',
+               priority INTEGER NOT NULL DEFAULT 0,
+               due_at TEXT,
+               scheduled_at TEXT,
+               start_at TEXT,
+               rrule TEXT,
+               field_style TEXT NOT NULL DEFAULT 'emoji',
+               completed_at TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
+             CREATE TABLE task_tags(task_id TEXT NOT NULL, tag TEXT NOT NULL, PRIMARY KEY(task_id, tag));
+             UPDATE cache_meta SET value = '9' WHERE key = 'schema_version';",
+        )?;
+        connection.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('v:notes/a.md', 'v', 'notes/a.md', 'A', 'h', 'now', 1, '[]')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO tasks(id, vault_id, source_note_id, title, created_at, updated_at)
+             VALUES ('t', 'v', 'notes/a.md', 'Task', 'now', 'now')",
+            [],
+        )?;
+
+        migrate_cache(&connection)?;
+        let (source_id, source_path): (Option<String>, Option<String>) = connection.query_row(
+            "SELECT source_note_id, source_note_path FROM tasks WHERE id = 't'",
+            [],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )?;
+        assert_eq!(source_id.as_deref(), Some("v:notes/a.md"));
+        assert_eq!(source_path.as_deref(), Some("notes/a.md"));
+        assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
+        Ok(())
+    }
+
+    #[test]
+    fn migration_preserves_legacy_paths_when_both_task_columns_exist() -> Result<(), IndexerError> {
+        let connection = Connection::open_in_memory()?;
+        apply_schema(&connection)?;
+        connection.execute_batch(
+            "DROP TABLE task_tags;
+             DROP TABLE tasks;
+             CREATE TABLE tasks (
+               id TEXT PRIMARY KEY,
+               vault_id TEXT NOT NULL,
+               source_note_id TEXT,
+               source_note_path TEXT,
+               line INTEGER NOT NULL DEFAULT 0,
+               title TEXT NOT NULL,
+               body TEXT NOT NULL DEFAULT '',
+               status TEXT NOT NULL DEFAULT 'open',
+               priority INTEGER NOT NULL DEFAULT 0,
+               due_at TEXT,
+               scheduled_at TEXT,
+               start_at TEXT,
+               rrule TEXT,
+               field_style TEXT NOT NULL DEFAULT 'emoji',
+               completed_at TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
+             CREATE INDEX idx_tasks_source_note ON tasks(source_note_id);
+             CREATE TABLE task_tags(
+               task_id TEXT NOT NULL,
+               tag TEXT NOT NULL,
+               PRIMARY KEY(task_id, tag)
+             );
+             INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count)
+             VALUES ('v:a.md', 'v', 'a.md', 'A', 'h', 'now', 1);
+             INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, title, created_at, updated_at)
+             VALUES ('legacy', 'v', 'a.md', NULL, 'Legacy', 'now', 'now');
+             INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, title, created_at, updated_at)
+             VALUES ('canonical', 'v', 'v:a.md', 'a.md', 'Canonical', 'now', 'now');
+             UPDATE cache_meta SET value = '9' WHERE key = 'schema_version';",
+        )?;
+        connection.pragma_update(None, "foreign_keys", "ON")?;
+        migrate_cache(&connection)?;
+        for task_id in ["legacy", "canonical"] {
+            let (id, path): (String, String) = connection.query_row(
+                "SELECT source_note_id, source_note_path FROM tasks WHERE id = ?1",
+                [task_id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )?;
+            assert_eq!(id, "v:a.md");
+            assert_eq!(path, "a.md");
+        }
+        migrate_cache(&connection)?;
+        assert_eq!(read_schema_version(&connection)?, Some(SCHEMA_VERSION));
+        Ok(())
+    }
+
+    #[test]
+    fn migration_v10_to_v11_rebuilds_tasks_with_cascade_and_preserves_tags()
+    -> Result<(), IndexerError> {
+        let connection = Connection::open_in_memory()?;
+        apply_schema(&connection)?;
+        connection.pragma_update(None, "foreign_keys", "OFF")?;
+        connection.execute_batch(
+            "DROP TABLE task_tags;
+             DROP TABLE tasks;
+             CREATE TABLE tasks (
+               id TEXT PRIMARY KEY,
+               vault_id TEXT NOT NULL,
+               source_note_id TEXT,
+               source_note_path TEXT,
+               line INTEGER NOT NULL DEFAULT 0,
+               title TEXT NOT NULL,
+               body TEXT NOT NULL DEFAULT '',
+               status TEXT NOT NULL DEFAULT 'open',
+               priority INTEGER NOT NULL DEFAULT 0,
+               due_at TEXT,
+               scheduled_at TEXT,
+               start_at TEXT,
+               rrule TEXT,
+               field_style TEXT NOT NULL DEFAULT 'emoji',
+               completed_at TEXT,
+               created_at TEXT NOT NULL,
+               updated_at TEXT NOT NULL
+             );
+             CREATE INDEX idx_tasks_vault_status ON tasks(vault_id, status);
+             CREATE INDEX idx_tasks_vault_due ON tasks(vault_id, due_at);
+             CREATE INDEX idx_tasks_source_note_id ON tasks(source_note_id);
+             CREATE INDEX idx_tasks_source_note_path ON tasks(vault_id, source_note_path);
+             CREATE TABLE task_tags (
+               task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+               tag TEXT NOT NULL,
+               PRIMARY KEY (task_id, tag)
+             );
+             CREATE INDEX idx_task_tags_tag ON task_tags(tag);
+             UPDATE cache_meta SET value = '10' WHERE key = 'schema_version';",
+        )?;
+        connection.execute(
+            "INSERT INTO notes(id, vault_id, path, title, content_hash, modified_at, word_count, aliases_json)
+             VALUES ('v:a.md', 'v', 'a.md', 'A', 'h', 'now', 1, '[]')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, line, title, created_at, updated_at)
+             VALUES ('kept', 'v', 'v:a.md', 'a.md', 4, 'Keep', 'c', 'u')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO tasks(id, vault_id, source_note_id, source_note_path, line, title, created_at, updated_at)
+             VALUES ('orphan', 'v', 'v:missing.md', 'missing.md', 8, 'Orphan', 'c', 'u')",
+            [],
+        )?;
+        connection.execute(
+            "INSERT INTO task_tags(task_id, tag) VALUES ('kept', 'work')",
+            [],
+        )?;
+        connection.pragma_update(None, "foreign_keys", "ON")?;
+
+        migrate_v10_to_v11(&connection)?;
+
+        let mut fk = connection.prepare("PRAGMA foreign_key_list(tasks)")?;
+        let rows = fk.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(2)?,
+                row.get::<_, String>(3)?,
+                row.get::<_, String>(4)?,
+                row.get::<_, String>(6)?,
+            ))
+        })?;
+        let foreign_keys = rows.collect::<Result<Vec<_>, _>>()?;
+        assert!(foreign_keys.iter().any(|(table, from, to, on_delete)| {
+            table == "notes"
+                && from == "source_note_id"
+                && to == "id"
+                && on_delete.eq_ignore_ascii_case("cascade")
+        }));
+
+        let tag: String = connection.query_row(
+            "SELECT tag FROM task_tags WHERE task_id = 'kept'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(tag, "work");
+        let orphan_source: Option<String> = connection.query_row(
+            "SELECT source_note_id FROM tasks WHERE id = 'orphan'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(orphan_source, None);
+
+        connection.execute("DELETE FROM notes WHERE id = 'v:a.md'", [])?;
+        let kept_count: i64 =
+            connection.query_row("SELECT COUNT(*) FROM tasks WHERE id = 'kept'", [], |row| {
+                row.get(0)
+            })?;
+        assert_eq!(kept_count, 0);
+        let tag_count: i64 = connection.query_row(
+            "SELECT COUNT(*) FROM task_tags WHERE task_id = 'kept'",
+            [],
+            |row| row.get(0),
+        )?;
+        assert_eq!(tag_count, 0);
+        assert_eq!(read_schema_version(&connection)?, Some(11));
         Ok(())
     }
 }

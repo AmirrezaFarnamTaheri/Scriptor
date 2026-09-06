@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::error::VaultError;
-use crate::fs::atomic_write;
+use crate::fs::{atomic_write, lock_vault_update};
 use crate::hash::path_hash;
 use crate::path::VaultRoot;
 
@@ -96,19 +96,29 @@ pub fn read_note_history_revision(
 const MIN_SECONDS_BETWEEN_SNAPSHOTS: u64 = 180;
 const MIN_CHARS_FOR_IMMEDIATE_SNAPSHOT: usize = 50;
 
-/// History append with a time+size throttle. `previous_markdown` is the
-/// body the snapshot would capture; when the newest revision is younger than
-/// the throttle window AND the delta is small, the append is skipped (the
-/// note body itself is already persisted by the save).
+/// History append with a time+size throttle. `markdown` is the old body being
+/// snapshotted and `next_markdown` is the replacement about to be written.
+/// A large edit snapshots immediately even inside the normal time window.
 pub fn append_note_history_throttled(
     root: &VaultRoot,
     note_path: &str,
     markdown: &str,
     content_hash: &str,
-    previous_markdown: Option<&str>,
+    next_markdown: Option<&str>,
 ) -> Result<NoteHistoryEntry, VaultError> {
-    if let Some(previous) = previous_markdown
-        && should_skip_snapshot(root, note_path, previous, markdown)
+    let _manifest_lock = lock_vault_update(&manifest_path(root, note_path))?;
+    append_note_history_throttled_locked(root, note_path, markdown, content_hash, next_markdown)
+}
+
+fn append_note_history_throttled_locked(
+    root: &VaultRoot,
+    note_path: &str,
+    markdown: &str,
+    content_hash: &str,
+    next_markdown: Option<&str>,
+) -> Result<NoteHistoryEntry, VaultError> {
+    if let Some(next) = next_markdown
+        && should_skip_snapshot(root, note_path, markdown, next)
     {
         // Return the newest existing revision so callers cannot tell the
         // difference without re-reading the manifest.
@@ -120,9 +130,9 @@ pub fn append_note_history_throttled(
             return Ok(latest.clone());
         }
         // Manifest unreadable: fall through and snapshot normally.
-        return append_note_history(root, note_path, markdown, content_hash);
+        return append_note_history_locked(root, note_path, markdown, content_hash);
     }
-    append_note_history(root, note_path, markdown, content_hash)
+    append_note_history_locked(root, note_path, markdown, content_hash)
 }
 
 /// True when the newest snapshot is recent AND the edit is small enough to
@@ -163,6 +173,16 @@ pub fn append_note_history(
     markdown: &str,
     content_hash: &str,
 ) -> Result<NoteHistoryEntry, VaultError> {
+    let _manifest_lock = lock_vault_update(&manifest_path(root, note_path))?;
+    append_note_history_locked(root, note_path, markdown, content_hash)
+}
+
+fn append_note_history_locked(
+    root: &VaultRoot,
+    note_path: &str,
+    markdown: &str,
+    content_hash: &str,
+) -> Result<NoteHistoryEntry, VaultError> {
     let dir = history_dir(root, note_path);
     fs::create_dir_all(&dir).map_err(|source| VaultError::io(&dir, source))?;
 
@@ -181,10 +201,12 @@ pub fn append_note_history(
     let mut manifest = if manifest_file.is_file() {
         let raw = fs::read_to_string(&manifest_file)
             .map_err(|source| VaultError::io(&manifest_file, source))?;
-        serde_json::from_str(&raw).unwrap_or(NoteHistoryManifest {
-            note_path: note_path.to_string(),
-            revisions: Vec::new(),
-        })
+        serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
+            message: format!(
+                "corrupt note-history manifest {}: {error}",
+                manifest_file.display()
+            ),
+        })?
     } else {
         NoteHistoryManifest {
             note_path: note_path.to_string(),
@@ -213,6 +235,44 @@ pub fn restore_note_history_revision(
     revision_id: &str,
 ) -> Result<String, VaultError> {
     read_note_history_revision(root, note_path, revision_id)
+}
+
+/// Move a note's history namespace together with a successful note rename.
+pub fn move_note_history(
+    root: &VaultRoot,
+    from_path: &str,
+    to_path: &str,
+) -> Result<(), VaultError> {
+    let from = history_dir(root, from_path);
+    if !from.exists() {
+        return Ok(());
+    }
+    let to = history_dir(root, to_path);
+    if to.exists() {
+        return Err(VaultError::InvalidConfig {
+            message: format!("history already exists for renamed note {to_path}"),
+        });
+    }
+    if let Some(parent) = to.parent() {
+        fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
+    }
+    fs::rename(&from, &to).map_err(|source| VaultError::io(&to, source))?;
+
+    let manifest_file = to.join("manifest.json");
+    if manifest_file.is_file() {
+        let raw = fs::read_to_string(&manifest_file)
+            .map_err(|source| VaultError::io(&manifest_file, source))?;
+        let mut manifest: NoteHistoryManifest =
+            serde_json::from_str(&raw).map_err(|error| VaultError::InvalidConfig {
+                message: format!("corrupt note-history manifest: {error}"),
+            })?;
+        manifest.note_path = to_path.to_string();
+        atomic_write(
+            &manifest_file,
+            serde_json::to_string_pretty(&manifest)?.as_bytes(),
+        )?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

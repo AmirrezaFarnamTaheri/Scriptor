@@ -113,7 +113,11 @@ test('daemon IPC requires the authenticated endpoint nonce on every production c
   const windowsClient = read('crates/daemon/src/windows_rpc.rs')
   const ipc = read('crates/ipc/src/lib.rs')
   const desktop = read('apps/desktop/src-tauri/src/lib.rs')
-  assert.match(transport, /endpoint_nonce:\s*endpoint\.nonce/)
+  // The authority is the transport's own expected nonce, not a copy in `DaemonState`:
+  // a daemon that cannot establish one refuses to serve, and the comparison is
+  // constant-time against that value.
+  assert.match(transport, /generated endpoint is missing nonce/)
+  assert.match(transport, /constant_time_eq\(\s*provided\.as_bytes\(\),\s*expected_nonce\.as_bytes\(\)\s*\)/)
   assert.match(transport, /invalid or missing endpoint nonce/)
   assert.match(client, /authenticated_request\.endpoint_nonce\s*=\s*connection\.endpoint_nonce\.clone\(\)/)
   assert.match(client, /subscribe\.endpoint_nonce\s*=\s*endpoint\.nonce/)

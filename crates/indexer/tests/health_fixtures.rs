@@ -6,6 +6,37 @@ use scriptor_indexer::{
 };
 use scriptor_vault::open_vault;
 
+#[test]
+fn health_accepts_existing_relative_assets_and_reports_missing_assets() -> Result<(), IndexerError>
+{
+    let fixture = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(fixture.path().join("notes")).expect("notes");
+    fs::create_dir_all(fixture.path().join("assets")).expect("assets");
+    fs::write(fixture.path().join("assets/image.png"), b"image").expect("asset");
+    fs::write(
+        fixture.path().join("notes/a.md"),
+        "# A\n\n![Present](../assets/image.png)\n![Root](/assets/image.png)\n![Missing](../assets/missing.png)\n",
+    )
+    .expect("note");
+    let session = open_vault(fixture.path())?;
+    rebuild_index(&session, &[])?;
+    let cache = open_cache_for_session(&session)?;
+    let diagnostics = build_health_diagnostics(&cache, &session)?;
+    let broken: Vec<_> = diagnostics
+        .issues
+        .iter()
+        .filter(|issue| issue.kind == "broken_link")
+        .collect();
+    assert_eq!(
+        broken.len(),
+        1,
+        "existing assets are not broken note links: {broken:?}"
+    );
+    assert!(broken[0].detail.contains("missing.png"));
+    assert_eq!(diagnostics.summary.orphan_assets, 0);
+    Ok(())
+}
+
 fn knowledge_edge_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../packages/test-fixtures/vaults/knowledge-edge-cases")

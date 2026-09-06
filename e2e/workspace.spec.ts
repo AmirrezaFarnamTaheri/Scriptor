@@ -116,7 +116,7 @@ test.describe('workspace flows', () => {
     await expect(searchPanel.getByRole('button', { name: /Research Plan/ })).toBeVisible()
     await expect(searchPanel).toContainText(E2E_SEARCH_MARKER)
 
-    await page.locator('.top-actions').getByRole('button', { name: 'Publish', exact: true }).click()
+    await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
     const publishDialog = page.getByRole('dialog', { name: 'Publish center' })
     await expect(publishDialog).toBeVisible()
 

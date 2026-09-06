@@ -1,13 +1,4 @@
 <!doctype html>
-<!--
-  epub-viewer.html — W3-8
-  Sandboxed epub.js viewer. Same postMessage protocol as pdf-viewer.html.
-
-  EPUB position is encoded as a CFI (Canonical Fragment Identifier) string.
-
-  inbound:  LOAD_BYTES | GOTO (position = CFI | 'prev' | 'next') | ZOOM | HIGHLIGHT
-  outbound: READY | POSITION (CFI) | SELECTION | SELECTION_CLEAR | ERROR
--->
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -15,128 +6,177 @@
   <title>EPUB Viewer — Scriptor</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body {
-      height: 100%;
-      background: #111827;
-      color: #e2e8f0;
-      font-family: system-ui, sans-serif;
-      overflow: hidden;
-    }
-    #epub-area {
-      width: 100%;
-      height: 100%;
-    }
-    #status {
-      color: #94a3b8;
-      font-size: 0.85rem;
-      padding: 2rem;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
+    html, body { height: 100%; background: #111827; color: #e2e8f0; font-family: system-ui, sans-serif; overflow: hidden; }
+    #epub-area { width: 100%; height: 100%; }
+    #status { color: #94a3b8; font-size: .85rem; padding: 2rem; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
   </style>
 </head>
 <body>
   <div id="epub-area"></div>
   <p id="status">Waiting for document…</p>
-
-  <script src="/reader/vendor/epub.min.js"></script>
-
+  <script src="./vendor/epub.min.js"></script>
   <script>
-    const parentOrigin = window.location.origin
-    if (typeof window.ePub !== 'function') {
-      parent.postMessage({ type: 'ERROR', message: 'Local EPUB renderer failed to load' }, parentOrigin)
-    } else {
-      parent.postMessage({ type: 'READY' }, parentOrigin)
-    }
+    const params = new URLSearchParams(location.search)
+    const MAX_ANNOTATIONS = 5_000
+    const configuredParentOrigin = params.get('parentOrigin')
+    let parentOrigin = null
+    try { parentOrigin = configuredParentOrigin ? new URL(configuredParentOrigin).origin : null } catch { parentOrigin = null }
 
     const status = document.getElementById('status')
     let book = null
     let rendition = null
+    const annotations = new Map()
 
-    // ── Load ─────────────────────────────────────────────────────────────────
+    function post(message) {
+      if (parentOrigin) parent.postMessage(message, parentOrigin)
+    }
 
-    function loadDocument(bytes) {
+    function fail(message) {
+      status.textContent = message
+      post({ type: 'ERROR', message })
+    }
+
+    function hardenContents(contents) {
+      const frame = contents?.document?.defaultView?.frameElement
+      if (frame instanceof HTMLIFrameElement) frame.setAttribute('sandbox', 'allow-same-origin')
+      contents?.document?.addEventListener('keydown', handleReaderKeydown)
+      contents?.document?.addEventListener('click', (event) => {
+        const link = event.target?.closest?.('a[href]')
+        if (!link) return
+        const href = link.getAttribute('href') || ''
+        if (/^(?:https?:|javascript:|data:)/i.test(href)) event.preventDefault()
+      }, true)
+    }
+
+    if (!parentOrigin) {
+      fail('Reader parent origin is missing or invalid')
+    } else if (typeof window.ePub !== 'function') {
+      fail('Local EPUB renderer failed to load')
+    } else {
+      post({ type: 'READY' })
+    }
+
+    async function loadDocument(bytes) {
       if (book) book.destroy()
       status.textContent = 'Loading EPUB…'
-
+      annotations.clear()
       try {
         book = ePub(bytes.buffer ?? bytes)
         rendition = book.renderTo('epub-area', {
           width: '100%',
           height: '100%',
           flow: 'paginated',
+          allowScriptedContent: false,
         })
+        rendition.hooks?.content?.register(hardenContents)
+        await rendition.display()
+        status.remove()
+        post({ type: 'POSITION', position: rendition.currentLocation()?.start?.cfi ?? '' })
+        post({ type: 'LOADED' })
 
-        rendition.display().then(() => {
-          status.remove()
-          parent.postMessage({ type: 'POSITION', position: rendition.currentLocation()?.start?.cfi ?? '' }, parentOrigin)
-          parent.postMessage({ type: 'LOADED' }, parentOrigin)
+        rendition.on('relocated', (location) => {
+          post({ type: 'POSITION', position: location?.start?.cfi ?? '' })
         })
-
-        rendition.on('locationChanged', (loc) => {
-          parent.postMessage({ type: 'POSITION', position: loc?.start?.cfi ?? '' }, parentOrigin)
+        rendition.on('locationChanged', (location) => {
+          post({ type: 'POSITION', position: location?.start?.cfi ?? '' })
         })
-
         rendition.on('selected', (cfiRange, contents) => {
           const quote = contents.window.getSelection()?.toString().trim() ?? ''
-          if (!quote) {
-            parent.postMessage({ type: 'SELECTION_CLEAR' }, parentOrigin)
-            return
-          }
-          parent.postMessage({ type: 'SELECTION', anchor: cfiRange, quote }, parentOrigin)
+          if (!quote) return post({ type: 'SELECTION_CLEAR' })
+          post({ type: 'SELECTION', anchor: cfiRange, quote })
         })
-
-        rendition.on('unselected', () => {
-          parent.postMessage({ type: 'SELECTION_CLEAR' }, parentOrigin)
-        })
-      } catch (err) {
-        parent.postMessage({ type: 'ERROR', message: err.message }, parentOrigin)
+        rendition.on('unselected', () => post({ type: 'SELECTION_CLEAR' }))
+        replayHighlights()
+      } catch (error) {
+        fail(error instanceof Error ? error.message : String(error))
       }
     }
 
-    // ── Highlight ─────────────────────────────────────────────────────────────
-
     function applyHighlight(annotation) {
-      if (!rendition) return
+      if (!rendition || !annotation || typeof annotation.anchor !== 'string') return
       try {
         rendition.annotations.highlight(
           annotation.anchor,
           {},
           null,
-          'hl',
-          { fill: annotation.color, 'fill-opacity': '0.3', 'mix-blend-mode': 'multiply' },
+          `scriptor-${annotation.id}`,
+          { fill: annotation.color || '#facc15', 'fill-opacity': '.3', 'mix-blend-mode': 'multiply' },
         )
       } catch {
-        // Anchor may be stale; the two-stage fallback is handled Rust-side.
+        // A stale CFI remains persisted but is not allowed to break the reader.
       }
     }
 
-    // ── Message handler ───────────────────────────────────────────────────────
+    function replayHighlights() {
+      for (const annotation of annotations.values()) applyHighlight(annotation)
+    }
 
-    window.addEventListener('message', (e) => {
-      const msg = e.data
-      if (!msg?.type) return
+    async function goTo(position) {
+      if (!rendition || typeof position !== 'string') return
+      if (position === 'prev') await rendition.prev()
+      else if (position === 'next') await rendition.next()
+      else await rendition.display(position)
+    }
+
+    function zoomBy(delta) {
+      if (!rendition) return
+      const current = Number.parseFloat(rendition.themes.fontSize?.() || '100') || 100
+      const next = Math.max(60, Math.min(200, current + (Number(delta) || 0) * 100))
+      rendition.themes.fontSize(`${next}%`)
+    }
+
+    function handleReaderKeydown(event) {
+      if (event.defaultPrevented || event.ctrlKey || event.metaKey || event.altKey) return
+      const target = event.target
+      const tagName = target?.tagName
+      if (tagName === 'INPUT' || tagName === 'TEXTAREA' || target?.isContentEditable) return
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        void goTo('prev')
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        void goTo('next')
+      } else if (event.key === '+' || event.key === '=') {
+        event.preventDefault()
+        zoomBy(.25)
+      } else if (event.key === '-') {
+        event.preventDefault()
+        zoomBy(-.25)
+      }
+    }
+
+    document.addEventListener('keydown', handleReaderKeydown)
+
+    window.addEventListener('message', async (event) => {
+      if (event.source !== parent || event.origin !== parentOrigin) return
+      const msg = event.data
+      if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return
       switch (msg.type) {
         case 'LOAD_BYTES':
-          loadDocument(new Uint8Array(msg.bytes))
+          if (!(msg.bytes instanceof ArrayBuffer)) return
+          await loadDocument(new Uint8Array(msg.bytes))
           break
         case 'GOTO':
-          if (!rendition) break
-          if (msg.position === 'prev') rendition.prev()
-          else if (msg.position === 'next') rendition.next()
-          else rendition.display(msg.position)
+          await goTo(msg.position)
           break
-        case 'ZOOM': {
-          if (!rendition) break
-          const cur = parseFloat(rendition.themes.fontSize() || '100%')
-          const next = Math.max(60, Math.min(200, cur + (msg.delta ?? 0) * 100))
-          rendition.themes.fontSize(`${next}%`)
+        case 'ZOOM':
+          zoomBy(msg.delta)
           break
-        }
         case 'HIGHLIGHT':
-          applyHighlight(msg.annotation)
+          if (msg.annotation?.id) {
+            if (!annotations.has(msg.annotation.id) && annotations.size >= MAX_ANNOTATIONS) return
+            annotations.set(msg.annotation.id, msg.annotation)
+            applyHighlight(msg.annotation)
+          }
+          break
+        case 'HIGHLIGHTS':
+          annotations.clear()
+          if (Array.isArray(msg.annotations)) {
+            for (const annotation of msg.annotations.slice(0, MAX_ANNOTATIONS)) {
+              if (annotation?.id) annotations.set(annotation.id, annotation)
+            }
+          }
+          replayHighlights()
           break
       }
     })

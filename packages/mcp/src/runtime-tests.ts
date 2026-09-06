@@ -6,6 +6,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
   let saveCalled = false
 
   const runtime = new McpRuntime('read-only', {
+    vaultId: 'vault-read',
     async search() {
       return [{ path: 'note.md' }]
     },
@@ -72,6 +73,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
   if (!summary.ok) failures.push('read-only should allow inspectGraphSummary')
 
   const draftRuntime = new McpRuntime('draft', {
+    vaultId: 'vault-draft',
     async search() {
       return []
     },
@@ -102,6 +104,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
 
   let writeApprovedSaved = false
   const writeRuntime = new McpRuntime('write-approved', {
+    vaultId: 'vault-write',
     async search() {
       return []
     },
@@ -178,6 +181,7 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
 
   // Test draft reject
   const rejectTestRuntime = new McpRuntime('draft', {
+    vaultId: 'vault-reject',
     async search() { return [] },
     async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
     async backlinks() { return [] },
@@ -194,6 +198,98 @@ export async function runRuntimeReadOnlyTests(): Promise<string[]> {
     if (!rejected) failures.push('rejectDraft should succeed')
   } else {
     failures.push('draft proposePatch before reject should succeed')
+  }
+
+  // A draft is only meaningful while it can be bound to a vault: without a
+  // stable `vaultId` the runtime must refuse the proposal instead of queueing
+  // a patch that no approval could ever apply.
+  const contextlessRuntime = new McpRuntime('write-approved', {
+    async search() { return [] },
+    async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
+    async backlinks() { return [] },
+    async brokenLinks() { return [] },
+    async saveNote() { return { metadata: { title: 'Note', content_hash: 'def' } } },
+  })
+  const contextlessDraft = await contextlessRuntime.invoke('mcp.proposePatch', {
+    path: 'note.md',
+    proposedMarkdown: '# Approved',
+    summary: 'no vault identity',
+    baseContentHash: 'abc',
+  })
+  if (contextlessDraft.ok) {
+    failures.push('proposePatch must require a stable vault identity')
+  } else if (!contextlessDraft.error.message.includes('vault identity')) {
+    failures.push('a missing vault id should surface the stable-identity error')
+  }
+
+  // Tools whose bridge is absent must not be advertised, otherwise a client
+  // sees a write tool that can only ever fail.
+  const noWriteBridge = new McpRuntime('write-approved', {
+    async search() { return [] },
+    async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
+    async backlinks() { return [] },
+    async brokenLinks() { return [] },
+  })
+  const advertised = noWriteBridge.listTools().map((tool) => tool.name)
+  if (advertised.includes('mcp.proposePatch')) {
+    failures.push('a runtime without a save bridge must not advertise mcp.proposePatch')
+  }
+
+  // Approval is single-use: the draft is claimed before the async write, so a
+  // second approval attempt is reported instead of applying the patch twice.
+  const secondApproval = await writeRuntime.invoke('mcp.proposePatch', {
+    path: 'once.md',
+    proposedMarkdown: '# Once',
+    summary: 'approve once',
+    baseContentHash: 'abc',
+  })
+  if (!secondApproval.ok) {
+    failures.push('write-approved should queue a draft for single-use approval')
+  } else {
+    const onceId = (secondApproval.output as DraftPatch).id
+    const first = await writeRuntime.approveDraft(onceId)
+    if (!first.ok) failures.push('the first approval of a draft should succeed')
+    const repeated = await writeRuntime.approveDraft(onceId)
+    if (repeated.ok) {
+      failures.push('a draft must not be approvable twice')
+    } else if (repeated.error.code !== 'mcp.draft_resolved') {
+      failures.push(`repeated approval should report mcp.draft_resolved, got ${repeated.error.code}`)
+    }
+  }
+
+  // A draft reviewed for one vault must not be applied after the runtime has
+  // been rebound to another vault.
+  const mismatchRuntime = new McpRuntime('write-approved', {
+    vaultId: 'vault-a',
+    async search() { return [] },
+    async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
+    async backlinks() { return [] },
+    async brokenLinks() { return [] },
+    async saveNote() { return { metadata: { title: 'Note', content_hash: 'def' } } },
+  })
+  const mismatchDraft = await mismatchRuntime.invoke('mcp.proposePatch', {
+    path: 'note.md',
+    proposedMarkdown: '# Moved elsewhere',
+    summary: 'vault switch mid-review',
+    baseContentHash: 'abc',
+  })
+  if (!mismatchDraft.ok) {
+    failures.push('a draft should be queued while the vault id is stable')
+  } else {
+    mismatchRuntime.setContext({
+      vaultId: 'vault-b',
+      async search() { return [] },
+      async readNote() { return { metadata: { title: 'Note', content_hash: 'abc' }, markdown: '# Note' } },
+      async backlinks() { return [] },
+      async brokenLinks() { return [] },
+      async saveNote() { return { metadata: { title: 'Note', content_hash: 'def' } } },
+    })
+    const wrongVault = await mismatchRuntime.approveDraft((mismatchDraft.output as DraftPatch).id)
+    if (wrongVault.ok) {
+      failures.push('a draft must not be approved against a different vault')
+    } else if (wrongVault.error.code !== 'mcp.vault_mismatch') {
+      failures.push(`cross-vault approval should report mcp.vault_mismatch, got ${wrongVault.error.code}`)
+    }
   }
 
   return failures

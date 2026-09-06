@@ -144,9 +144,7 @@ pub fn normalize_relative(raw: &str) -> Result<String, VaultError> {
                 if part == "." || part.is_empty() {
                     continue;
                 }
-                if part == ".." {
-                    return Err(VaultError::PathEscape(raw.into()));
-                }
+                validate_portable_component(&part, raw)?;
                 parts.push(part.into_owned());
             }
             Component::ParentDir => return Err(VaultError::PathEscape(raw.into())),
@@ -162,6 +160,48 @@ pub fn normalize_relative(raw: &str) -> Result<String, VaultError> {
     }
 
     Ok(parts.join("/"))
+}
+
+fn validate_portable_component(part: &str, raw: &str) -> Result<(), VaultError> {
+    // Windows namespace constraints: NTFS alternate data streams are introduced
+    // by a colon (`note.md::$DATA`), Windows forbids reserved device names
+    // (CON, PRN, AUX, NUL, CLOCK$, COM1..COM9, LPT1..LPT9) and silently strips
+    // trailing dots and spaces from names.
+    //
+    // These are real constraints *only on Windows*. Enforcing them on every
+    // platform would reject legal and common names on Unix/macOS (e.g. a note
+    // titled "Meeting: notes.md" or a `dist/docs/` folder), including in vaults
+    // that never touch Windows. We therefore reject these forms only while
+    // running on Windows, where they are actually unsafe. Vaults that must sync
+    // to Windows should still prefer Windows-safe names; see CHANGELOG.
+    #[cfg(windows)]
+    {
+        if part.contains(':') || part.ends_with('.') || part.ends_with(' ') {
+            return Err(VaultError::InvalidRelativePath(raw.into()));
+        }
+
+        let stem = part
+            .split('.')
+            .next()
+            .unwrap_or(part)
+            .trim_end_matches(['.', ' ']);
+        let upper = stem.to_ascii_uppercase();
+        let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CLOCK$")
+            || upper
+                .strip_prefix("COM")
+                .is_some_and(|n| matches!(n.parse::<u8>(), Ok(1..=9)))
+            || upper
+                .strip_prefix("LPT")
+                .is_some_and(|n| matches!(n.parse::<u8>(), Ok(1..=9)));
+        if reserved {
+            return Err(VaultError::InvalidRelativePath(raw.into()));
+        }
+    }
+    // On non-Windows the parameters carry no validation work; mark them used so
+    // the build does not warn (the CI compiles with warnings denied).
+    #[cfg(not(windows))]
+    let _ = (part, raw);
+    Ok(())
 }
 
 fn normalize_components(path: &Path) -> PathBuf {
@@ -208,6 +248,43 @@ mod tests {
     fn normalizes_nested_paths() {
         let path = RelativeVaultPath::parse("notes/./Research Plan.md").unwrap();
         assert_eq!(path.as_str(), "notes/Research Plan.md");
+    }
+
+    // On Windows these ADS/device/trailing-dot/space forms are unsafe and must be
+    // rejected. On Unix/macOS they are legal file names and must NOT be rejected
+    // (e.g. a note literally titled "Meeting: notes.md").
+    #[cfg(windows)]
+    #[test]
+    fn rejects_windows_alias_and_device_paths_on_windows() {
+        for raw in [
+            "note.md::$DATA",
+            "notes/con.md",
+            "NUL.txt",
+            "folder/COM1.log",
+            "trailing.",
+            "trailing ",
+        ] {
+            assert!(
+                RelativeVaultPath::parse(raw).is_err(),
+                "{raw} should be rejected on Windows"
+            );
+        }
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn allows_legal_unix_note_names() {
+        for raw in [
+            "Meeting: notes.md",
+            "Research: 2026 notes/plan.md",
+            "con.md",
+            "folder/COM1.log",
+        ] {
+            assert!(
+                RelativeVaultPath::parse(raw).is_ok(),
+                "{raw} should be allowed on non-Windows"
+            );
+        }
     }
 
     #[test]

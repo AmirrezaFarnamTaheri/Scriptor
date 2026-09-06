@@ -10,6 +10,22 @@ This document defines proof for the current source candidate. A release record m
 - **Pending:** required proof depends on unavailable tooling, dependencies, platform, browser, or canonical history.
 - **Failed:** the stated command executed and did not pass.
 
+## Local PR integration review — 2026-09-05
+
+Candidate: uncommitted `codex/unify-prs-repository-review`, based on PR #107 (`1f7770a51fa9b99601f5475a36db347ff42e0d54`), with PR #106 (`364ad717f67b5795e0ce4c7aa79ec613385711ae`) and PR #108 (`95cccbd2aa9780ad64275ee4675e974db261fc42`) applied and conflicts resolved. GitHub heads were rechecked during review. This is local integration evidence, not a release or remote merge record.
+
+Environment: Windows x64, PowerShell, Edge Playwright browser. Dependency network access used the user-provided local proxy. Original unrelated untracked files were preserved.
+
+- **Verified:** frozen dependency installation; production dependency audit (no reported vulnerabilities); production build and bundle budget; TypeScript contracts; warning-zero frontend lint; 192 source tests; repository governance and package validation gates.
+- **Verified on the final UI state:** 86 functional Playwright tests and 31 visual scenarios, without retries or baseline updates during the verification run. The production bundle contains 437,536 initial JavaScript gzip bytes, within its configured budget.
+- **Verified:** full workspace/all-target Rust clippy with warnings denied, formatting, product Rust tests, optional engine tests, and the WASM execution-backend tests. Follow-up publishing/export and daemon suites were rerun after their fixes (86 and 65 passing tests respectively).
+- **Regression evidence:** migration ordering and legacy task backfill; missing schema metadata; existing relative and root-relative asset references; source archive exclusion and reproducibility; CRLF generated contracts; high-zoom store navigation; Jobs reopening; toolbar controls contained within the writing column for Inspector, Preview, and Plugins at three desktop widths; valid Windows export paths and vault-relative output resolution.
+- The native run exposed shared fixture database writes and stale assertions for import, conflict-sidecar, watcher, and publish ownership behavior. These were corrected against the current source contracts rather than weakening failure checks.
+- **Verified:** release smoke, daemon smoke, and in-process TUI smoke. The release run reproduced a Windows pipe `WriteZero` failure on health diagnostics before the fix. Bounded, buffer-sized writes corrected it; the complete rerun passed including exports. Synthetic checks cover partial progress and permanently full pipes.
+- Updated visual references reflect the reviewed toolbar wrap, rail layout, store navigation, and status dock. CSS fallback zoom additionally compensates body, root, and shell height; reduced and enlarged zoom receive viewport-boundary regression coverage.
+- **Dependency limitations:** the final RustSec audit found no vulnerability-class advisories; unsoundness advisories remain for Tantivy's transitive `lru` and the Linux Tauri `glib` dependency. See the security ledger. No new advisory ignores were added. The Windows export symlink regression requires privilege unavailable here; ordinary path and traversal checks ran, but that platform-specific symlink branch was skipped.
+- **Not established:** a clean multi-platform release, Linux/macOS native runtime behavior, installer packaging, container verification, performance benchmark gates, axe accessibility gating, or a complete `cargo deny` result (the executable is unavailable here). This review does not claim the repository has no remaining defects.
+
 ## Repository-native checks
 
 Run from the repository root:

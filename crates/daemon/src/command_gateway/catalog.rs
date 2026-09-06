@@ -111,6 +111,12 @@ pub fn is_outside_lock_command(command: &str) -> bool {
         | "vault_rename_dry_run" | "vault_rename_tag_dry_run"
         | "vault_rename_section_dry_run" | "vault_rename_block_dry_run"
         | "vault_health"
+        // Git operations may block on repository I/O and mutating operations
+        // synchronously wait on the per-vault GitQueue worker. Snapshot the
+        // session/queue under the daemon lock and execute outside it.
+        | "git_status_cmd" | "git_commit_cmd" | "git_pull_cmd" | "git_push_cmd"
+        | "git_resolve_conflict_cmd" | "git_read_conflict_markers_cmd"
+        | "git_show_head_file_cmd"
     )
 }
 

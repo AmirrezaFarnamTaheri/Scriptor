@@ -34,6 +34,10 @@ pnpm desktop:dev
 
 - Reproduce bugs with a failing test before the fix.
 - Keep mutation, refactor, dependency update, and generated-file changes reviewable.
+  When a PR changes a dependency's major or minor version, audit the call sites against the
+  pinned upstream release notes in the same commit: a renamed module or method (for example
+  `fs4` 1.x moved `fs_std::FileExt::lock_exclusive` to `FileExt::lock`) compiles on no
+  platform, and the failure hides every gate behind it.
 - Route external commands through `crates/system-bridge/src/process.rs`.
 - Validate runtime JSON from `unknown`; do not add unchecked boundary assertions.
 - Add authorization classification for every new native command.
@@ -60,10 +64,11 @@ pnpm test:rust
 
 `pnpm test:rust` mirrors the CI Rust gate: it excludes `scriptor-desktop`
 (covered by `desktop-check.yml`) and the incubating engines
-(`scriptor-citation-engine`, `scriptor-embeddings`,
-`scriptor-tantivy-indexer`, `scriptor-wasm-runtime`) from the test run.
-Incubating crates still compile under `--workspace` checks; run their tests
-explicitly with `cargo test -p <crate>` when touching them.
+(`scriptor-embeddings`, `scriptor-tantivy-indexer`, `scriptor-wasm-runtime`)
+from the product test run, then exercises those engines separately through
+`test:rust:engines`. `scriptor-citation-engine` remains in the product test
+graph because its BibLaTeX parser is a Supported dependency of the indexer;
+only the crate's citeproc/rendering surface remains incubating.
 
 Run focused package validators and relevant Playwright suites for the changed behavior. UI changes must include keyboard, screen-reader semantics, loading/empty/error states, narrow viewport, and 200% zoom evidence.
 

@@ -124,6 +124,7 @@ import './styles/components/empty-state.css'
 import './styles/components/perf-hud.css'
 import './styles/components/conflict-resolver.css'
 import './styles/components/publish-center.css'
+import './styles/components/store-panel.css'
 import './styles/components/git-panel.css'
 import './styles/components/smart-collections.css'
 import './styles/components/markdown-preview.css'
@@ -247,6 +248,7 @@ function App() {
     distractionFree,
     editorMode,
     editorTheme,
+    editorThemeSyncedToApp,
     hibernateGit,
     hibernateGraph,
     hibernateMcp,
@@ -289,6 +291,9 @@ function App() {
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
+  // Pulled out of the per-render registry result so memoized callbacks can depend on the
+  // stable `useCallback` identity instead of the whole hook object.
+  const canExecutePluginCommand = plugins.canExecutePluginCommand
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
   const workspace = useVaultWorkspace({
     onSearchComplete: (hits) => {
@@ -363,6 +368,7 @@ function App() {
   })
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
+    workspace.vault?.id,
     workspace.vaultConfig,
     workspace.setVaultConfig,
     workspace.activePath,
@@ -370,6 +376,7 @@ function App() {
     plugins.contributions.exportProfiles,
     plugins.contributions.mcpTools,
     pluginCommandRuntime,
+    plugins.canExecutePluginCommand,
     hibernateMcp,
   )
   const storeSurface = useStoreSurfaceController({
@@ -489,9 +496,14 @@ function App() {
     Boolean(workspace.activePath) &&
     !showSplitPreview
 
+  // Analytics derived from the draft (TOC, lint, word counts, citations,
+  // inspector preview) render from a deferred draft so a burst of keystrokes
+  // commits the editor input first and refreshes the analytics afterwards.
+  // The editor's own controlled value stays the immediate draft.
+  const deferredDraft = useDeferredValue(workspace.draftMarkdown)
   const editorOrchestration = useEditorOrchestrationController({
     activePath: workspace.activePath,
-    draftMarkdown: workspace.draftMarkdown,
+    draftMarkdown: deferredDraft,
     activeTitle: workspace.activeNote?.metadata.title,
     activeTags: workspace.activeNote?.metadata.tags,
     vaultTags,
@@ -661,7 +673,7 @@ function App() {
   const isNoteDirty = workspace.isNoteDirty
   const { draftWordCount, wordCountDelta, charCount, readingMinutes } =
     useNoteDraftStats({
-      draftMarkdown: workspace.draftMarkdown,
+      draftMarkdown: deferredDraft,
       activeNote: workspace.activeNote,
       isNoteDirty,
     })
@@ -696,13 +708,10 @@ function App() {
 
   const pluginCommandEntries = useMemo(
     () =>
-      plugins.plugins.flatMap((plugin) =>
-        (plugin.manifest.contributes?.commands ?? []).map((command) => ({
-          pluginId: plugin.manifest.id,
-          command,
-        })),
+      plugins.contributions.commands.flatMap((command) =>
+        command.pluginId ? [{ pluginId: command.pluginId, command }] : [],
       ),
-    [plugins.plugins],
+    [plugins.contributions.commands],
   )
 
   const setEditorSurfaceMode = useCallback(
@@ -788,10 +797,12 @@ function App() {
         publishStarlight: nativeReady ? () => void publishStarlight() : undefined,
         promptText,
         pluginCommands: pluginCommandEntries,
-        runPluginCommand: (command) =>
-          void runPluginCommand(command, pluginCommandRuntime, {
+        runPluginCommand: (entry) => {
+          if (!canExecutePluginCommand(entry.pluginId, entry.command.permission)) return
+          void runPluginCommand(entry.command, pluginCommandRuntime, {
             notePath: workspace.activePath,
-          }),
+          })
+        },
         deleteActiveNote: nativeReady ? () => void deleteActiveNote() : undefined,
         openRecentNote: (path) => void workspace.openNote(path),
         recentNotes,
@@ -816,6 +827,7 @@ function App() {
       }),
     [
       ai,
+      canExecutePluginCommand,
       chrome.inspectorCollapsed,
       chrome.vaultSidebarCollapsed,
       deleteActiveNote,
@@ -870,17 +882,16 @@ function App() {
     ],
   )
 
-  // Citation key extraction re-scans the whole draft; deferring it keeps
-  // that scan off the keystroke frame for large notes.
-  const deferredCitationDraft = useDeferredValue(workspace.draftMarkdown)
+  // Citation key extraction re-scans the whole draft; it shares the deferred
+  // draft with the other analytics so everything lags the keystroke together.
   const citationRows = useMemo(() => {
-    const inline = extractPandocCitationKeys(deferredCitationDraft)
+    const inline = extractPandocCitationKeys(deferredDraft)
     const unresolved =
       workspace.healthDiagnostics?.issues
         .filter((issue) => issue.kind === 'unresolved_citation' && issue.path === workspace.activePath)
         .map((issue) => issue.detail.replace('missing bibliography entry: ', '')) ?? []
     return Array.from(new Set([...inline, ...unresolved]))
-  }, [workspace.activePath, deferredCitationDraft, workspace.healthDiagnostics])
+  }, [workspace.activePath, deferredDraft, workspace.healthDiagnostics])
 
   const { formatInline, formatBibliography } = useCiteprocPreview(bibliography, citationRows)
 
@@ -1118,6 +1129,7 @@ function App() {
           editorMode={editorMode}
           toggleEditorMode={toggleEditorMode}
           editorTheme={editorTheme}
+          editorThemeSyncedToApp={editorThemeSyncedToApp}
           toggleEditorTheme={toggleEditorTheme}
           vimMode={vimMode}
           setVimMode={setVimMode}
@@ -1206,7 +1218,7 @@ function App() {
           splitPreview={splitPreview}
           activePath={workspace.activePath}
           previewRef={previewRef}
-          draftMarkdown={workspace.draftMarkdown}
+          draftMarkdown={deferredDraft}
           previewProps={previewBridge}
           inspectorOutline={workspace.inspectorOutline}
           inspectorLinks={workspace.inspectorLinks}

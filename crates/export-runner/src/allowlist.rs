@@ -3,20 +3,14 @@ use crate::error::ExportError;
 const ALLOWED_BOOL_FLAGS: &[&str] = &[
     "--standalone",
     "--citeproc",
-    "--embed-resources",
     "-s",
     "--toc",
     "--number-sections",
-    "--self-contained",
 ];
 
 // These fixed values select supported local PDF engines without allowing a
 // caller-controlled executable path.
-const ALLOWED_PDF_ENGINE_FLAGS: &[&str] = &[
-    "--pdf-engine=pdflatex",
-    "--pdf-engine=tectonic",
-    "--pdf-engine=xelatex",
-];
+const ALLOWED_PDF_ENGINE_FLAGS: &[&str] = &["--pdf-engine=pdflatex", "--pdf-engine=xelatex"];
 
 const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--css=",
@@ -30,7 +24,7 @@ const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--highlight-style=",
 ];
 
-const ALLOWED_VALUE_FLAGS: &[&str] = &["-t", "--metadata", "--variable"];
+const ALLOWED_VALUE_FLAGS: &[&str] = &["--metadata", "--variable"];
 
 fn contains_shell_metachar(value: &str) -> bool {
     value.contains(['&', '|', ';', '`', '\n', '\r'])
@@ -117,18 +111,15 @@ mod tests {
 
     #[test]
     fn allows_bare_token_as_value_of_value_flag() {
-        validate_extra_args(&["-t".into(), "revealjs".into()]).expect("format target value");
+        assert!(validate_extra_args(&["-t".into(), "revealjs".into()]).is_err());
         validate_extra_args(&["--variable".into(), "theme:moon".into()]).expect("variable value");
     }
 
     #[test]
     fn allows_profile_defaults() {
         validate_extra_args(&[
-            "--embed-resources".into(),
             "--css=export-theme.css".into(),
             "--citeproc".into(),
-            "-t".into(),
-            "revealjs".into(),
             "-s".into(),
             "--slide-level=2".into(),
             "--standalone".into(),
@@ -138,7 +129,15 @@ mod tests {
 
     #[test]
     fn allows_only_named_pdf_engines() {
-        validate_extra_args(&["--pdf-engine=tectonic".into()]).expect("supported PDF engine");
+        validate_extra_args(&["--pdf-engine=pdflatex".into()]).expect("supported PDF engine");
+        validate_extra_args(&["--pdf-engine=xelatex".into()]).expect("supported PDF engine");
+        assert!(validate_extra_args(&["--pdf-engine=tectonic".into()]).is_err());
         assert!(validate_extra_args(&["--pdf-engine=C:/tools/custom.exe".into()]).is_err());
+    }
+
+    #[test]
+    fn rejects_resource_embedding_flags_that_can_fetch_remote_urls() {
+        assert!(validate_extra_args(&["--embed-resources".into()]).is_err());
+        assert!(validate_extra_args(&["--self-contained".into()]).is_err());
     }
 }

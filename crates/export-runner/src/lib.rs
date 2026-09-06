@@ -19,7 +19,7 @@ pub use args::ExportFormat;
 pub use error::ExportError;
 pub use job::{
     ExportJobInput, ExportJobOutput, ExportProgressCallback, default_export_directory,
-    run_export_job, run_export_job_with_cancel,
+    export_artifact_stem, run_export_job, run_export_job_with_cancel,
 };
 pub use log::{
     ExportJobLogEntry, SLOW_EXPORT_THRESHOLD_MS, count_slow_exports, export_logs_dir,

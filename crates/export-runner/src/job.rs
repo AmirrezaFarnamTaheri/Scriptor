@@ -1,16 +1,17 @@
 use std::fs;
-use std::io::{BufRead, BufReader, Read};
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, ExitStatus};
 use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
+use scriptor_system_bridge::{ProcessSpec, spawn_process};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::args::{ExportFormat, build_pandoc_args};
-use crate::cancel::{ExportCancelSlot, wait_for_child};
+use crate::cancel::{DEFAULT_EXPORT_TIMEOUT, ExportCancelSlot, wait_for_child_with_timeout};
 use crate::error::ExportError;
 use crate::log::{log_entry_from_output, write_export_log};
 use crate::pandoc::discover_pandoc_with_trusted_hash;
@@ -55,6 +56,133 @@ pub struct ExportJobOutput {
 
 pub type ExportProgressCallback = Arc<dyn Fn(&str) + Send + Sync>;
 
+const MAX_CAPTURED_PROCESS_OUTPUT_BYTES: usize = 256 * 1024;
+const PROCESS_OUTPUT_TRUNCATION_MARKER: &str = "\n...[output truncated by Scriptor]...\n";
+
+fn append_bounded(target: &mut String, chunk: &str) {
+    if target.ends_with(PROCESS_OUTPUT_TRUNCATION_MARKER) {
+        return;
+    }
+    let remaining = MAX_CAPTURED_PROCESS_OUTPUT_BYTES.saturating_sub(target.len());
+    if chunk.len() <= remaining {
+        target.push_str(chunk);
+        return;
+    }
+    if remaining > 0 {
+        let mut end = remaining.min(chunk.len());
+        while end > 0 && !chunk.is_char_boundary(end) {
+            end -= 1;
+        }
+        target.push_str(&chunk[..end]);
+    }
+    target.push_str(PROCESS_OUTPUT_TRUNCATION_MARKER);
+}
+
+fn drain_pipe_bounded<R: Read>(mut reader: R, progress: Option<ExportProgressCallback>) -> String {
+    let mut captured = String::new();
+    let mut buffer = [0u8; 8192];
+    loop {
+        match reader.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(read) => {
+                let chunk = String::from_utf8_lossy(&buffer[..read]);
+                if let Some(callback) = progress.as_ref() {
+                    callback(&chunk);
+                }
+                append_bounded(&mut captured, &chunk);
+            }
+            Err(error) => {
+                log::warn!("failed to drain export process output: {error}");
+                break;
+            }
+        }
+    }
+    captured
+}
+
+fn wait_for_child_direct(mut child: Child, timeout: Duration) -> Result<ExitStatus, ExportError> {
+    let started = Instant::now();
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return Ok(status),
+            Ok(None) if started.elapsed() < timeout => {
+                thread::sleep(Duration::from_millis(50));
+            }
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(ExportError::Process(format!(
+                    "pandoc timed out after {} seconds",
+                    timeout.as_secs()
+                )));
+            }
+            Err(source) => {
+                return Err(ExportError::Io {
+                    path: PathBuf::from("pandoc"),
+                    source,
+                });
+            }
+        }
+    }
+}
+
+fn normalized_lexical(path: &Path) -> PathBuf {
+    let mut output = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                output.pop();
+            }
+            std::path::Component::CurDir => {}
+            std::path::Component::Normal(part) => output.push(part),
+            std::path::Component::RootDir => output.push(std::path::MAIN_SEPARATOR_STR),
+            std::path::Component::Prefix(prefix) => output.push(prefix.as_os_str()),
+        }
+    }
+    output
+}
+
+fn validate_output_dir_within_vault(
+    vault_root: &Path,
+    output_dir: &Path,
+) -> Result<PathBuf, ExportError> {
+    let canonical_root = vault_root
+        .canonicalize()
+        .map_err(|source| ExportError::Io {
+            path: vault_root.to_path_buf(),
+            source,
+        })?;
+    let absolute = if output_dir.is_absolute() {
+        output_dir.to_path_buf()
+    } else {
+        if output_dir.has_root()
+            || output_dir
+                .components()
+                .any(|part| matches!(part, std::path::Component::Prefix(_)))
+        {
+            return Err(ExportError::InvalidOutput(output_dir.to_path_buf()));
+        }
+        canonical_root.join(output_dir)
+    };
+    let normalized = normalized_lexical(&absolute);
+    // Canonicalize the deepest existing ancestor so ordinary Windows paths,
+    // verbatim paths, and directory links are compared in the same namespace.
+    // Keep the missing suffix for exports into a directory not created yet.
+    let ancestor = normalized
+        .ancestors()
+        .find(|path| fs::symlink_metadata(path).is_ok())
+        .ok_or_else(|| ExportError::InvalidOutput(output_dir.to_path_buf()))?;
+    let canonical = ancestor.canonicalize().map_err(|source| ExportError::Io {
+        path: ancestor.to_path_buf(),
+        source,
+    })?;
+    let resolved = canonical.join(normalized.strip_prefix(ancestor).expect("ancestor prefix"));
+    if !resolved.starts_with(&canonical_root) {
+        return Err(ExportError::InvalidOutput(output_dir.to_path_buf()));
+    }
+    Ok(resolved)
+}
+
 pub fn run_export_job(input: ExportJobInput) -> Result<ExportJobOutput, ExportError> {
     run_export_job_with_cancel(input, None, None)
 }
@@ -76,6 +204,12 @@ pub fn run_export_job_with_cancel(
     };
 
     let output_dir = PathBuf::from(&input.output_directory);
+    let vault_root = if input.vault_root.is_empty() {
+        output_dir.clone()
+    } else {
+        PathBuf::from(&input.vault_root)
+    };
+    let output_dir = validate_output_dir_within_vault(&vault_root, &output_dir)?;
     fs::create_dir_all(&output_dir).map_err(|source| ExportError::Io {
         path: output_dir.clone(),
         source,
@@ -91,13 +225,19 @@ pub fn run_export_job_with_cancel(
         _ => return Err(ExportError::InvalidOutput(artifact_path)),
     }
 
-    let temp_dir = output_dir.join(".tmp");
-    fs::create_dir_all(&temp_dir).map_err(|source| ExportError::Io {
-        path: temp_dir.clone(),
-        source,
-    })?;
+    // Source markdown and generated diagrams are sensitive transient material. Keep
+    // them outside the vault so failed/cancelled exports cannot become publish or
+    // Git candidates. TempDir guarantees cleanup on every return path.
+    let temp_guard = tempfile::Builder::new()
+        .prefix("scriptor-export-")
+        .tempdir()
+        .map_err(|source| ExportError::Io {
+            path: std::env::temp_dir(),
+            source,
+        })?;
+    let temp_dir = temp_guard.path();
     let source_path = temp_dir.join(format!("{}.md", Uuid::new_v4()));
-    // I-3: check for sealed content before handing markdown to pandoc.
+
     let seal_mode = if input.redact_secrets {
         crate::sealed::RedactSecretsMode::Redact
     } else {
@@ -107,18 +247,17 @@ pub fn run_export_job_with_cancel(
         crate::sealed::check_or_redact(&input.source_markdown, seal_mode, &input.source_stem)
             .map_err(|e| ExportError::SealedContent(e.to_string()))?;
 
-    let (processed_markdown, _diagram_assets) =
-        crate::diagram_preprocess::preprocess_diagrams(&safe_markdown, &temp_dir)?;
+    let processed_markdown = if input.dry_run {
+        // A dry run must not render diagrams or mutate persistent storage.
+        safe_markdown
+    } else {
+        crate::diagram_preprocess::preprocess_diagrams(&safe_markdown, temp_dir)?.0
+    };
     fs::write(&source_path, &processed_markdown).map_err(|source| ExportError::Io {
         path: source_path.clone(),
         source,
     })?;
 
-    let vault_root = if input.vault_root.is_empty() {
-        output_dir.clone()
-    } else {
-        PathBuf::from(&input.vault_root)
-    };
     let resolved_extra =
         crate::theme::resolve_extra_args(&vault_root, &output_dir, &input.extra_pandoc_args)?;
     let args = build_pandoc_args(
@@ -133,7 +272,6 @@ pub fn run_export_job_with_cancel(
     command.extend(args.clone());
 
     if input.dry_run {
-        let _ = fs::remove_file(&source_path);
         return Ok(ExportJobOutput {
             job_id: Uuid::new_v4().to_string(),
             format: input.format,
@@ -152,52 +290,36 @@ pub fn run_export_job_with_cancel(
         .unwrap_or_else(|| Uuid::new_v4().to_string());
     let started = Instant::now();
 
-    // PROCESS_BROKER_EXCEPTION(export-pandoc-job)
-    let mut child = Command::new(&pandoc.path)
-        .args(&args)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|error| ExportError::Process(error.to_string()))?;
+    // Route the converter through the shared process boundary. Pandoc's own
+    // `--sandbox` is always present in `args`, remote-fetching flags are rejected,
+    // and only non-auto-downloading PDF engines are allowed. The generic process
+    // broker cannot promise OS-level network isolation on every desktop platform,
+    // so do not mislabel an unsandboxed Windows process as network-denied.
+    let process_spec = ProcessSpec::new(&pandoc.path)
+        .args(args.clone())
+        .current_dir(&vault_root)
+        .timeout(DEFAULT_EXPORT_TIMEOUT)
+        .max_output_bytes(MAX_CAPTURED_PROCESS_OUTPUT_BYTES)
+        .expected_sha256(pandoc.sha256.clone());
+    let mut child = spawn_process(&process_spec)
+        .map_err(|error| ExportError::Process(error.to_string()))?
+        .child;
 
     let stdout_pipe = child.stdout.take();
-    let mut stderr_pipe = child.stderr.take();
-    // Drain stdout concurrently: reading it only after wait() deadlocks once the
-    // child fills the OS pipe buffer (~64 KiB) with output.
-    let stdout_reader = stdout_pipe.map(|mut pipe| {
-        thread::spawn(move || {
-            let mut accumulated = String::new();
-            let _ = pipe.read_to_string(&mut accumulated);
-            accumulated
-        })
-    });
-    let stderr_reader = stderr_pipe.take().map(|pipe| {
+    let stderr_pipe = child.stderr.take();
+    // Drain both pipes concurrently while retaining only a bounded diagnostic
+    // window. This prevents a chatty converter from becoming a memory/log DoS.
+    let stdout_reader =
+        stdout_pipe.map(|pipe| thread::spawn(move || drain_pipe_bounded(pipe, None)));
+    let stderr_reader = stderr_pipe.map(|pipe| {
         let progress_cb = progress.clone();
-        thread::spawn(move || {
-            let mut accumulated = String::new();
-            let reader = BufReader::new(pipe);
-            for line in reader.lines() {
-                match line {
-                    Ok(text) => {
-                        let chunk = format!("{text}\n");
-                        accumulated.push_str(&chunk);
-                        if let Some(callback) = progress_cb.as_ref() {
-                            callback(&chunk);
-                        }
-                    }
-                    Err(_) => break,
-                }
-            }
-            accumulated
-        })
+        thread::spawn(move || drain_pipe_bounded(pipe, progress_cb))
     });
 
     let status = if let Some(slot) = cancel_slot {
-        wait_for_child(slot, &job_id, child)?
+        wait_for_child_with_timeout(slot, &job_id, child, DEFAULT_EXPORT_TIMEOUT)?
     } else {
-        child
-            .wait()
-            .map_err(|error| ExportError::Process(error.to_string()))?
+        wait_for_child_direct(child, DEFAULT_EXPORT_TIMEOUT)?
     };
 
     let stdout = stdout_reader
@@ -209,10 +331,22 @@ pub fn run_export_job_with_cancel(
 
     if !status.success() {
         if input.preserve_temp_on_failure {
-            let preserved = output_dir.join(format!("failed-{}.md", job_id));
-            let _ = fs::copy(&source_path, &preserved);
+            let failed_dir = vault_root.join(".scriptor/exports/failed");
+            if let Err(source) = fs::create_dir_all(&failed_dir) {
+                log::warn!(
+                    "failed to create preserved-export directory {}: {source}",
+                    failed_dir.display()
+                );
+            } else {
+                let preserved = failed_dir.join(format!("failed-{job_id}.md"));
+                if let Err(source) = fs::copy(&source_path, &preserved) {
+                    log::warn!(
+                        "failed to preserve export source {}: {source}",
+                        preserved.display()
+                    );
+                }
+            }
         }
-        let _ = fs::remove_file(&source_path);
         let failure_output = ExportJobOutput {
             job_id: job_id.clone(),
             format: input.format.clone(),
@@ -223,12 +357,15 @@ pub fn run_export_job_with_cancel(
             duration_ms: started.elapsed().as_millis() as u64,
             dry_run: false,
         };
-        let _ = write_export_log(&vault_root, &log_entry_from_output(&failure_output, false));
+        if let Err(error) =
+            write_export_log(&vault_root, &log_entry_from_output(&failure_output, false))
+        {
+            log::warn!("failed to write export failure log: {error}");
+        }
         return Err(ExportError::Process(format!("pandoc failed: {stderr}")));
     }
 
     validate_export_artifact(&artifact_path, format)?;
-    let _ = fs::remove_file(&source_path);
 
     let output = ExportJobOutput {
         job_id,
@@ -240,8 +377,40 @@ pub fn run_export_job_with_cancel(
         duration_ms: started.elapsed().as_millis() as u64,
         dry_run: false,
     };
-    let _ = write_export_log(&vault_root, &log_entry_from_output(&output, true));
+    if let Err(error) = write_export_log(&vault_root, &log_entry_from_output(&output, true)) {
+        log::warn!("failed to write export success log: {error}");
+    }
     Ok(output)
+}
+
+pub fn export_artifact_stem(note_path: &str) -> String {
+    use sha2::{Digest, Sha256};
+
+    let normalized = note_path.replace('\\', "/");
+    let without_md = normalized.strip_suffix(".md").unwrap_or(&normalized);
+    let readable = without_md
+        .split('/')
+        .filter(|part| !part.is_empty())
+        .map(|part| {
+            part.chars()
+                .map(|ch| {
+                    if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+                        ch
+                    } else {
+                        '-'
+                    }
+                })
+                .collect::<String>()
+        })
+        .collect::<Vec<_>>()
+        .join("--");
+    let readable = if readable.is_empty() {
+        "note".to_string()
+    } else {
+        readable
+    };
+    let digest = hex::encode(Sha256::digest(normalized.as_bytes()));
+    format!("{}-{}", readable, &digest[..10])
 }
 
 pub fn default_export_directory(vault_root: &Path) -> PathBuf {
@@ -251,6 +420,39 @@ pub fn default_export_directory(vault_root: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn output_directory_accepts_existing_and_new_vault_directories() {
+        let vault = tempfile::tempdir().expect("vault");
+        let ordinary_root = vault.path().to_string_lossy().replace(r"\\?\", "");
+        let root = Path::new(&ordinary_root);
+        assert!(validate_output_dir_within_vault(root, root).is_ok());
+        assert!(validate_output_dir_within_vault(root, &root.join("new/exports")).is_ok());
+        assert_eq!(
+            validate_output_dir_within_vault(root, Path::new("exports")).unwrap(),
+            root.canonicalize().unwrap().join("exports")
+        );
+        assert!(validate_output_dir_within_vault(root, &root.join("../outside")).is_err());
+    }
+
+    #[test]
+    fn output_directory_rejects_a_link_to_an_external_directory() {
+        let vault = tempfile::tempdir().expect("vault");
+        let outside = tempfile::tempdir().expect("outside");
+        let link = vault.path().join("linked");
+        #[cfg(windows)]
+        if let Err(error) = std::os::windows::fs::symlink_dir(outside.path(), &link) {
+            if error.raw_os_error() == Some(1314) {
+                eprintln!("directory-link test requires Windows symlink privilege");
+                return;
+            }
+            panic!("directory link: {error}");
+        }
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.path(), &link).expect("directory link");
+        assert!(validate_output_dir_within_vault(vault.path(), &link).is_err());
+        assert!(validate_output_dir_within_vault(vault.path(), &link.join("new")).is_err());
+    }
 
     #[test]
     fn artifact_path_allows_spaces_in_stem_on_windows_style_dirs() {
@@ -278,5 +480,18 @@ mod tests {
         assert!(output.artifact_path.contains("Research Plan.html"));
 
         let _ = fs::remove_dir_all(&output_dir);
+    }
+
+    #[test]
+    fn artifact_stem_preserves_path_identity() {
+        let a = export_artifact_stem("a/x.md");
+        let b = export_artifact_stem("b/x.md");
+        assert_ne!(a, b);
+        assert!(a.starts_with("a--x-"));
+        assert!(b.starts_with("b--x-"));
+        assert_ne!(
+            export_artifact_stem("y.md"),
+            export_artifact_stem("y.md.md")
+        );
     }
 }

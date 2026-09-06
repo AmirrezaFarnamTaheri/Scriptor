@@ -161,6 +161,12 @@ export class PluginRegistry {
     return Array.from(this.plugins.values()).filter((plugin) => plugin.enabled)
   }
 
+  listEnabledForVault(vaultId: string | null): LoadedPlugin[] {
+    return Array.from(this.plugins.values()).filter(
+      (plugin) => plugin.enabled && this.canEnable(plugin.manifest.id, vaultId),
+    )
+  }
+
   listAll(): LoadedPlugin[] {
     return Array.from(this.plugins.values())
   }

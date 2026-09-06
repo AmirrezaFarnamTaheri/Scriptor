@@ -5,9 +5,15 @@ pub mod executor;
 
 pub use capabilities::PluginCapabilities;
 #[cfg(feature = "wasmtime-backend")]
-use wasmtime::{Engine, Store};
+use wasmtime::{Config, Engine, Store};
 
 pub use error::WasmRuntimeError;
+
+const MAX_PLUGIN_BYTES: usize = 16 * 1024 * 1024;
+#[cfg(feature = "wasmtime-backend")]
+const MAX_PLUGIN_FUEL: u64 = 10_000_000;
+#[cfg(feature = "wasmtime-backend")]
+const MAX_PLUGIN_WALL_TIME: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// Represents a loaded WASM plugin instance with its granted capabilities.
 pub struct PluginInstance {
@@ -40,6 +46,17 @@ impl WasmPluginRuntime {
         capabilities: PluginCapabilities,
     ) -> Result<usize, WasmRuntimeError> {
         Self::validate_wasm_header(wasm_bytes)?;
+        if wasm_bytes.len() > MAX_PLUGIN_BYTES {
+            return Err(WasmRuntimeError::Load(format!(
+                "plugin is too large: {} bytes exceeds {MAX_PLUGIN_BYTES}",
+                wasm_bytes.len()
+            )));
+        }
+        #[cfg(feature = "wasmtime-backend")]
+        {
+            let engine = Self::sandbox_engine()?;
+            crate::executor::compile(&engine, wasm_bytes)?;
+        }
         let instance = PluginInstance {
             name: name.to_string(),
             capabilities,
@@ -115,9 +132,18 @@ impl WasmPluginRuntime {
         host_state: crate::executor::PluginHostState,
     ) -> Result<i32, WasmRuntimeError> {
         let plugin = self.get_plugin(plugin_idx)?;
-        let engine = Engine::default();
+        let engine = Self::sandbox_engine()?;
         let module = crate::executor::compile(&engine, &plugin.wasm_bytes)?;
+        let mut host_state = host_state;
+        // Load-time grants are authoritative. Callers may provide note/search
+        // data, but may never widen a plugin's granted capabilities.
+        host_state.capabilities = plugin.capabilities.clone();
         let mut store = Store::new(&engine, host_state);
+        store.limiter(|state| &mut state.limits);
+        store.set_fuel(MAX_PLUGIN_FUEL).map_err(|error| {
+            WasmRuntimeError::Runtime(format!("failed to configure plugin fuel: {error}"))
+        })?;
+        store.set_epoch_deadline(1);
 
         // Host imports resolve the guest memory from the caller exports, so
         // the linker needs no memory up front; the guest must export one
@@ -138,8 +164,32 @@ impl WasmPluginRuntime {
                 WasmRuntimeError::Runtime(format!("plugin does not export 'run() -> i32': {error}"))
             })?;
 
-        run.call(&mut store, ())
-            .map_err(|error| WasmRuntimeError::Runtime(format!("plugin run trapped: {error}")))
+        let (cancel_deadline, deadline_cancelled) = std::sync::mpsc::channel();
+        let deadline_engine = engine.clone();
+        let deadline = std::thread::spawn(move || {
+            if deadline_cancelled
+                .recv_timeout(MAX_PLUGIN_WALL_TIME)
+                .is_err()
+            {
+                deadline_engine.increment_epoch();
+            }
+        });
+        let result = run
+            .call(&mut store, ())
+            .map_err(|error| WasmRuntimeError::Runtime(format!("plugin run trapped: {error}")));
+        let _ = cancel_deadline.send(());
+        let _ = deadline.join();
+        result
+    }
+
+    #[cfg(feature = "wasmtime-backend")]
+    fn sandbox_engine() -> Result<Engine, WasmRuntimeError> {
+        let mut config = Config::new();
+        config.consume_fuel(true);
+        config.epoch_interruption(true);
+        Engine::new(&config).map_err(|error| {
+            WasmRuntimeError::Runtime(format!("failed to build sandbox engine: {error}"))
+        })
     }
 
     pub fn plugin_count(&self) -> usize {
@@ -153,12 +203,19 @@ impl WasmPluginRuntime {
     }
 
     fn validate_wasm_header(bytes: &[u8]) -> Result<(), WasmRuntimeError> {
-        if bytes.len() < 4 {
-            return Err(WasmRuntimeError::Load("too small to be valid WASM".into()));
+        if bytes.len() < 8 {
+            return Err(WasmRuntimeError::Load(
+                "too small to contain a WASM header and version".into(),
+            ));
         }
-        // WASM magic number: \0asm
+        // Core WebAssembly binary preamble: magic + version 1.
         if bytes[0..4] != [0x00, 0x61, 0x73, 0x6D] {
             return Err(WasmRuntimeError::Load("invalid WASM magic number".into()));
+        }
+        if bytes[4..8] != [0x01, 0x00, 0x00, 0x00] {
+            return Err(WasmRuntimeError::Load(
+                "unsupported WASM binary version".into(),
+            ));
         }
         Ok(())
     }
@@ -285,10 +342,20 @@ mod tests {
     fn oversized_wasm_bytes_loads() {
         let mut runtime = WasmPluginRuntime::new();
         let caps = PluginCapabilities::default();
-        // 1MB of WASM (valid header + padding) — should succeed since runtime
-        // doesn't impose a size limit beyond header validation
+        // A large, valid custom section must also compile with wasmtime enabled.
+        // Zero padding alone is not a valid sequence of WASM sections.
         let mut bytes = vec![0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00];
-        bytes.resize(1_000_000, 0x00);
+        bytes.push(0); // custom section
+        let mut length = 1_000_001u32; // empty name length plus data
+        loop {
+            let byte = (length & 0x7f) as u8;
+            length >>= 7;
+            bytes.push(byte | if length == 0 { 0 } else { 0x80 });
+            if length == 0 {
+                break;
+            }
+        }
+        bytes.resize(bytes.len() + 1_000_001, 0);
         let idx = runtime.load_plugin("large", &bytes, caps).unwrap();
         assert_eq!(idx, 0);
         assert_eq!(runtime.plugin_count(), 1);

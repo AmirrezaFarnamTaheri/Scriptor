@@ -43,10 +43,15 @@ async function applyZoom(factor: number): Promise<void> {
   try {
     const { getCurrentWebview } = await import('@tauri-apps/api/webview')
     await getCurrentWebview().setZoom(factor)
+    document.body.style.removeProperty('zoom')
+    document.body.style.removeProperty('--app-viewport-height')
     return
   } catch {
     // Web shell or older runtime: fall back to CSS zoom.
     document.body.style.zoom = String(factor)
+    // CSS zoom scales viewport units too; compensate so the shell still fills
+    // the physical window instead of leaving a gap or overflowing vertically.
+    document.body.style.setProperty('--app-viewport-height', `calc(100dvh / ${factor})`)
   }
 }
 

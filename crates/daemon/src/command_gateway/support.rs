@@ -1,4 +1,67 @@
 use super::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+const MAX_CONCURRENT_EXTERNAL_TOOLS: usize = 2;
+static ACTIVE_EXTERNAL_TOOLS: AtomicUsize = AtomicUsize::new(0);
+
+struct ExternalToolSlot;
+
+impl Drop for ExternalToolSlot {
+    fn drop(&mut self) {
+        ACTIVE_EXTERNAL_TOOLS.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+fn acquire_external_tool_slot() -> Result<ExternalToolSlot, String> {
+    ACTIVE_EXTERNAL_TOOLS
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            (current < MAX_CONCURRENT_EXTERNAL_TOOLS).then_some(current + 1)
+        })
+        .map_err(|_| {
+            "external tool concurrency limit reached; retry after an active job completes"
+                .to_string()
+        })?;
+    Ok(ExternalToolSlot)
+}
+
+fn trusted_tool_hash(name: &str, expected: Option<String>) -> Result<Option<String>, String> {
+    if expected
+        .as_deref()
+        .is_some_and(|value| !value.trim().is_empty())
+    {
+        return Ok(expected);
+    }
+    if environment_opt_in("SCRIPTOR_ALLOW_UNPINNED_EXTERNAL_TOOLS") {
+        tracing::warn!(
+            tool = name,
+            "running unpinned external tool under explicit local override"
+        );
+        return Ok(None);
+    }
+    Err(format!(
+        "{name} requires an explicit SHA-256 pin; configure the documented hash variable or set SCRIPTOR_ALLOW_UNPINNED_EXTERNAL_TOOLS only for a reviewed local development environment"
+    ))
+}
+
+fn verify_auxiliary_file_hash(
+    path: &Path,
+    expected: Option<String>,
+    label: &str,
+) -> Result<(), String> {
+    let expected = trusted_tool_hash(label, expected)?;
+    let Some(expected) = expected else {
+        return Ok(());
+    };
+    let actual = scriptor_system_bridge::hash_file(path).map_err(|error| error.to_string())?;
+    if !actual.eq_ignore_ascii_case(expected.trim()) {
+        return Err(format!(
+            "{label} hash mismatch: expected {} got {}",
+            expected.trim(),
+            actual
+        ));
+    }
+    Ok(())
+}
 
 pub(super) fn cmd_indexer_rebuild(state: &DaemonState) -> Result<Value, String> {
     state.index_rebuild.wait();
@@ -224,16 +287,15 @@ pub(super) fn build_export_note_input(
     let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
     let note = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
-    let stem = note_path
-        .trim_end_matches(".md")
-        .rsplit('/')
-        .next()
-        .unwrap_or("note");
+    let stem = export_artifact_stem(note_path);
     let output_directory = match output_subdirectory {
         Some(subdir) => {
-            let _validated = RelativeVaultPath::parse(subdir)
+            let validated = RelativeVaultPath::parse(subdir)
                 .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
-            session.root.root().join(subdir)
+            session
+                .root
+                .resolve_relative(&validated)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))?
         }
         None => default_export_directory(session.root.root()),
     };
@@ -241,7 +303,7 @@ pub(super) fn build_export_note_input(
         format: format.to_string(),
         source_markdown: note.markdown,
         output_directory: output_directory.display().to_string(),
-        source_stem: stem.to_string(),
+        source_stem: stem,
         title: Some(note.metadata.title),
         dry_run,
         extra_pandoc_args: extra_pandoc_args.to_vec(),
@@ -269,16 +331,15 @@ pub(super) fn build_export_markdown_input(
     let relative = RelativeVaultPath::parse(note_path).map_err(|error| error.to_string())?;
     let note = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
-    let stem = note_path
-        .trim_end_matches(".md")
-        .rsplit('/')
-        .next()
-        .unwrap_or("note");
+    let stem = export_artifact_stem(note_path);
     let output_directory = match output_subdirectory {
         Some(subdir) => {
-            let _validated = RelativeVaultPath::parse(subdir)
+            let validated = RelativeVaultPath::parse(subdir)
                 .map_err(|error| format!("invalid output_subdirectory: {error}"))?;
-            session.root.root().join(subdir)
+            session
+                .root
+                .resolve_relative(&validated)
+                .map_err(|error| format!("invalid output_subdirectory: {error}"))?
         }
         None => default_export_directory(session.root.root()),
     };
@@ -286,7 +347,7 @@ pub(super) fn build_export_markdown_input(
         format: format.to_string(),
         source_markdown: source_markdown.to_string(),
         output_directory: output_directory.display().to_string(),
-        source_stem: stem.to_string(),
+        source_stem: stem,
         title: Some(note.metadata.title),
         dry_run,
         extra_pandoc_args: extra_pandoc_args.to_vec(),
@@ -367,6 +428,8 @@ pub(crate) fn prepare_pdf_translate(
 pub(crate) fn run_prepared_pdf_translate(
     prepared: PreparedPdfTranslate,
 ) -> Result<PdfTranslateOutput, String> {
+    let _slot = acquire_external_tool_slot()?;
+    let expected_sha256 = trusted_tool_hash("pdf2zh", prepared.expected_sha256)?;
     let receipt = run_process(
         ProcessSpec::new(&prepared.program)
             .args(prepared.args)
@@ -374,7 +437,7 @@ pub(crate) fn run_prepared_pdf_translate(
             .timeout(Duration::from_secs(15 * 60))
             .max_output_bytes(512 * 1024)
             .network_policy(NetworkPolicy::Allow)
-            .expected_sha256(prepared.expected_sha256),
+            .expected_sha256(expected_sha256),
     )
     .map_err(|error| {
         format!("PDF translation failed ({error}). Install PDFMathTranslate or configure SCRIPTOR_PDF2ZH_PATH and SCRIPTOR_PDF2ZH_SHA256.")
@@ -407,6 +470,7 @@ pub(super) fn environment_opt_in(name: &str) -> bool {
 }
 
 pub(crate) fn cmd_plantuml_render(payload: &Value) -> Result<PlantUmlRenderOutput, String> {
+    let _slot = acquire_external_tool_slot()?;
     let source = require_str(payload, "source")?;
     if source.len() > 1024 * 1024 {
         return Err("PlantUML source exceeds the 1 MiB rendering limit".into());
@@ -427,6 +491,7 @@ pub(super) fn run_plantuml_candidate(
     input: &Path,
     expected_sha256: Option<String>,
 ) -> Result<(String, String), String> {
+    let expected_sha256 = trusted_tool_hash(program, expected_sha256)?;
     let receipt = run_process(
         ProcessSpec::new(program)
             .args(args)
@@ -466,6 +531,12 @@ pub(super) fn run_plantuml(input: &Path) -> Result<(String, String), String> {
     if let Ok(jar) = std::env::var("PLANTUML_JAR")
         && !jar.trim().is_empty()
     {
+        let jar_path = PathBuf::from(&jar);
+        verify_auxiliary_file_hash(
+            &jar_path,
+            std::env::var("SCRIPTOR_PLANTUML_JAR_SHA256").ok(),
+            "PlantUML JAR",
+        )?;
         return run_plantuml_candidate(
             "java",
             vec![

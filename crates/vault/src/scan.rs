@@ -6,11 +6,31 @@ use serde::{Deserialize, Serialize};
 use walkdir::WalkDir;
 
 use crate::error::VaultError;
-use crate::hash::content_hash;
+use crate::hash::content_hash_bytes;
 use crate::path::{RelativeVaultPath, VaultRoot};
 
 pub const MAX_SCAN_ENTRIES: usize = 250_000;
 pub const MAX_INDEXED_NOTE_BYTES: u64 = 16 * 1024 * 1024;
+
+/// Directory segments that must never be treated as vault content. These are
+/// unambiguous tool-internal / external state: Scriptor metadata, VCS state,
+/// editor plugin state, deleted items, and third-party dependency caches.
+///
+/// Deliberately **not** included here: `target` and `dist`. Those names are
+/// generic enough that a user may legitimately keep authored notes or assets
+/// under them (a "target/Research.md" or "dist/docs.md" folder), and silently
+/// excluding them at any depth would make real content vanish from scan,
+/// indexing, search, backlinks, and wikilink resolution without any warning.
+/// The full recursive scan and the incremental watcher both share this list, so
+/// the two never disagree about what is visible.
+pub(crate) const IGNORED_SEGMENTS: &[&str] =
+    &[".git", ".scriptor", ".obsidian", ".trash", "node_modules"];
+
+pub(crate) fn has_ignored_segment(relative: &str) -> bool {
+    relative
+        .split('/')
+        .any(|segment| IGNORED_SEGMENTS.contains(&segment))
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -121,7 +141,11 @@ fn scan_with_options(
         }
     }
 
+    // Extra roots are constrained to the vault and may overlap the primary
+    // recursive scan. Collapse duplicate paths deterministically instead of
+    // emitting duplicate notes/assets to downstream consumers.
     entries.sort_by(|left, right| left.path.cmp(&right.path));
+    entries.dedup_by(|left, right| left.path == right.path);
     Ok(entries)
 }
 
@@ -136,7 +160,10 @@ fn scan_directory(
         .follow_links(false)
         .into_iter()
         .filter_entry(|entry| {
-            entry.depth() == 0 || entry.file_name() != std::ffi::OsStr::new(".scriptor")
+            entry.depth() == 0
+                || !IGNORED_SEGMENTS
+                    .iter()
+                    .any(|ignored| entry.file_name() == std::ffi::OsStr::new(ignored))
         });
 
     for entry in walker {
@@ -153,6 +180,10 @@ fn scan_directory(
             )
         })?;
         let absolute = entry.path();
+        if entry.file_type().is_symlink() {
+            tracing::warn!(path = %absolute.display(), "skipping symlink during vault scan");
+            continue;
+        }
         if absolute == directory && path_prefix.is_empty() {
             continue;
         }
@@ -203,17 +234,21 @@ fn scan_directory(
         };
         let should_capture =
             is_note && options.include_note_content && metadata.len() <= options.max_note_bytes;
-        let content = if should_capture {
+        let (content, content_hash) = if should_capture {
             let bytes = fs::read(absolute).map_err(|source| VaultError::io(absolute, source))?;
-            Some(String::from_utf8_lossy(&bytes).into_owned())
+            let hash = content_hash_bytes(&bytes);
+            (
+                Some(String::from_utf8_lossy(&bytes).into_owned()),
+                Some(hash),
+            )
         } else {
-            None
+            (None, None)
         };
 
         entries.push(ScannedEntry {
             path: relative_suffix,
             kind,
-            content_hash: content.as_deref().map(content_hash),
+            content_hash,
             modified_at,
             size_bytes: metadata.len(),
             content,
@@ -252,6 +287,42 @@ pub fn list_notes(root: &VaultRoot) -> Result<Vec<RelativeVaultPath>, VaultError
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn scan_ignores_internal_and_tool_directories() {
+        let tmp = tempfile::tempdir().unwrap();
+        // These segments are unambiguous tool state and must never be indexed.
+        for path in [
+            ".git/hooks/README.md",
+            ".scriptor/exports/x.md",
+            ".obsidian/plugin.md",
+            ".trash/deleted.md",
+            "node_modules/pkg/README.md",
+        ] {
+            let absolute = tmp.path().join(path);
+            std::fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+            std::fs::write(absolute, "# ignored").unwrap();
+        }
+        // `target` and `dist` are generic names and must NOT hide authored
+        // content; notes under them remain visible to scan/index/wikilinks.
+        for path in ["target/debug/build.md", "dist/generated.md"] {
+            let absolute = tmp.path().join(path);
+            std::fs::create_dir_all(absolute.parent().unwrap()).unwrap();
+            std::fs::write(absolute, "# real content").unwrap();
+        }
+        std::fs::write(tmp.path().join("real.md"), "# real").unwrap();
+        let root = VaultRoot::open(tmp.path()).unwrap();
+        let notes = list_notes(&root).unwrap();
+        let mut note_paths = notes
+            .iter()
+            .map(RelativeVaultPath::as_str)
+            .collect::<Vec<_>>();
+        note_paths.sort();
+        assert_eq!(
+            note_paths,
+            vec!["dist/generated.md", "real.md", "target/debug/build.md"]
+        );
+    }
 
     #[test]
     fn metadata_scan_does_not_retain_note_bodies() {

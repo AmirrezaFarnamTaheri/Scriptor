@@ -1,4 +1,4 @@
-import { useCallback, useId, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
@@ -27,6 +27,39 @@ interface UnifiedPanelShellProps {
   presentation?: PanelPresentation
 }
 
+const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
+
+function dockFitsViewport(media: MediaQueryList): boolean {
+  if (!media.matches) return false
+  const reflow = document.documentElement.dataset.uiReflow
+  return reflow === undefined || reflow === 'desktop'
+}
+
+function useDockViewport(): boolean {
+  const [canDock, setCanDock] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return dockFitsViewport(window.matchMedia(DOCK_MEDIA_QUERY))
+  })
+
+  useEffect(() => {
+    const media = window.matchMedia(DOCK_MEDIA_QUERY)
+    const update = () => setCanDock(dockFitsViewport(media))
+    const observer = new MutationObserver(update)
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-ui-reflow'],
+    })
+    update()
+    media.addEventListener('change', update)
+    return () => {
+      media.removeEventListener('change', update)
+      observer.disconnect()
+    }
+  }, [])
+
+  return canDock
+}
+
 export function UnifiedPanelShell({
   title,
   subtitle,
@@ -45,11 +78,13 @@ export function UnifiedPanelShell({
   const shellRef = useRef<HTMLElement>(null)
   const titleId = useId()
   const descriptionId = useId()
-  const docked = presentation === 'dock-right'
-  // Docked shells start below the live top bar via --topbar-bottom
-  // (measured in useTopBarHeightVar): the dock z-index sits under the
-  // bar's, so without the offset its header and tabs would slide behind
-  // the bar and become unclickable whenever the bar wraps responsively.
+  const canDock = useDockViewport()
+  const docked = presentation === 'dock-right' && canDock
+  // `dock-right` is a preference, not permission to destroy the workspace.
+  // Below the desktop docking threshold — including app-zoom reflow that media
+  // queries cannot see — the same surface becomes a normal modal, restoring a
+  // focus trap/backdrop and keeping still-focusable workspace controls visible.
+  // Wide docks start below the live app chrome via --topbar-bottom.
 
   useEscapeToClose(!docked, onClose)
   useFocusTrap(shellRef, { active: !docked })

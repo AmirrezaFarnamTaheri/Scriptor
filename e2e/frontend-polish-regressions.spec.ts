@@ -45,6 +45,53 @@ test.describe('Git panel state selector', () => {
 })
 
 test.describe('Frontend polish regressions', () => {
+  for (const zoom of [0.7, 2]) {
+    test(`app zoom ${zoom} keeps the workspace exactly within the viewport`, async ({ page }) => {
+      await page.addInitScript((factor) => localStorage.setItem('scriptor:ui-zoom', String(factor)), zoom)
+      await launchApp(page)
+      await expect.poll(async () => page.locator('.app-shell').evaluate((shell) => Math.round(shell.getBoundingClientRect().height))).toBe(900)
+      await expect.poll(async () => page.evaluate(() => document.documentElement.scrollHeight)).toBe(900)
+    })
+  }
+
+  test('inspector modes leave every editor toolbar control inside the writing column', async ({ page }) => {
+    await launchApp(page)
+    for (const width of [1440, 1240, 1024]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const mode of ['Inspector', 'Preview', 'Plugins']) {
+        await page.locator('.inspector-tabs').getByRole('tab', { name: mode, exact: true }).click()
+        await settleLayout(page)
+        const violations = await page.evaluate(() => {
+          const editor = document.querySelector('.editor-panel')!.getBoundingClientRect()
+          const inspector = document.querySelector('.inspector-panel')!.getBoundingClientRect()
+          const chrome = document.querySelector('.app-chrome')!.getBoundingClientRect()
+          const failures: string[] = []
+          if (inspector.left < editor.right - 1) failures.push('inspector overlaps editor')
+          if (inspector.top < chrome.bottom - 1) failures.push('inspector overlaps chrome')
+          for (const button of document.querySelectorAll('.editor-toolbar button')) {
+            const bounds = button.getBoundingClientRect()
+            if (bounds.width && (bounds.left < editor.left - 1 || bounds.right > editor.right + 1)) {
+              failures.push(button.getAttribute('title') || button.textContent || 'toolbar control')
+            }
+          }
+          return failures
+        })
+        expect(violations, `${width}px / ${mode}`).toEqual([])
+      }
+    }
+  })
+
+  test('Jobs reveals its panel after the dock chrome is hidden', async ({ page }) => {
+    await launchApp(page)
+    const jobs = page.locator('.jobs-button')
+    await jobs.click()
+    await expect(page.locator('#dock-panel-jobs')).toBeVisible()
+    await page.getByRole('button', { name: 'Hide status dock tabs', exact: true }).click()
+    await expect(page.locator('#dock-panel-jobs')).toHaveCount(0)
+    await jobs.click()
+    await expect(page.locator('#dock-panel-jobs')).toBeVisible()
+  })
+
   test('workspace and status dock reflow without covering the editor at intermediate widths', async ({ page }) => {
     await page.setViewportSize({ width: 1240, height: 900 })
     await launchApp(page)
@@ -57,8 +104,12 @@ test.describe('Frontend polish regressions', () => {
     const dock = page.locator('.bottom-tabs-wrap')
     const outputTab = page.getByRole('tab', { name: 'Output' })
 
-    await expect(outputTab).toHaveAttribute('aria-expanded', 'false')
-    await expect(page.locator('#dock-panel-output')).toHaveCount(0)
+    // The status dock collapses by default: its tabs and panel unmount until
+    // the summary-row chevron reveals them.
+    const dockToggle = page.locator('.dock-chrome-toggle')
+    await expect(dockToggle).toHaveAttribute('aria-expanded', 'false')
+    await expect(dock).toHaveCount(0)
+    await expect(outputTab).toHaveCount(0)
 
     await expect
       .poll(async () =>
@@ -70,6 +121,23 @@ test.describe('Frontend polish regressions', () => {
         })),
       )
       .toEqual({ viewportHeight: 900, viewportWidth: 1240, pageHeight: 900, pageWidth: 1240 })
+
+    // Revealing the dock must reflow inside the same viewport, not scroll.
+    await dockToggle.click()
+    await expect(dockToggle).toHaveAttribute('aria-expanded', 'true')
+    await expect(dock).toBeVisible()
+    await page.waitForTimeout(300)
+
+    // Chevron-reveal force-expands the active tab's panel; collapse it again
+    // (same-tab toggle) so the dock starts clean, as the original flow expects.
+    const selectedDockTab = page.locator('.bottom-tabs [role="tab"][aria-selected="true"]')
+    if ((await selectedDockTab.getAttribute('aria-expanded')) === 'true') {
+      await selectedDockTab.click()
+    }
+    await expect(page.locator('.dock-panel')).toHaveCount(0)
+
+    await expect(outputTab).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.locator('#dock-panel-output')).toHaveCount(0)
 
     const [workspaceBox, editorBox, inspectorBox, statusBox, dockBox] = await Promise.all([
       workspace.boundingBox(),
@@ -85,6 +153,14 @@ test.describe('Frontend polish regressions', () => {
     expect(dockBox).not.toBeNull()
     expect((editorBox?.x ?? 0) + (editorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
     expect((inspectorBox?.x ?? 0) + (inspectorBox?.width ?? 0)).toBeLessThanOrEqual(1240)
+    await expect
+      .poll(async () =>
+        page.evaluate(() => ({
+          pageHeight: document.documentElement.scrollHeight,
+          pageWidth: document.documentElement.scrollWidth,
+        })),
+      )
+      .toEqual({ pageHeight: 900, pageWidth: 1240 })
     expect(dockBox?.x).toBeCloseTo((statusBox?.x ?? 0) + 12, 0)
     expect(dockBox?.width ?? 0).toBeGreaterThan((statusBox?.width ?? 0) * 0.9)
 
@@ -120,7 +196,11 @@ test.describe('Frontend polish regressions', () => {
     const reader = page.getByRole('dialog', { name: 'Reader', exact: true })
     await expect(reader).toBeVisible()
     await expect(reader).toContainText('Research Paper.pdf')
-    await expect(reader.locator('iframe[title*="Research Paper.pdf"]')).toBeVisible()
+    const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
+    await expect(frame).toBeVisible()
+    const viewer = frame.contentFrame()
+    await expect(viewer.locator('#page-canvas')).toBeVisible()
+    await expect(viewer.locator('#text-layer')).toContainText('Scriptor Reader')
   })
 
   test('palette mounts reader, tasks, and kanban when their UI contracts are available', async ({ page }) => {

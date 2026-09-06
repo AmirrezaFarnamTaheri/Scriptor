@@ -11,10 +11,10 @@ use scriptor_vault::{
     RenameNoteDryRunOutput, SaveNoteOptions, SaveNoteOutput, ScannedEntry, StatsHistoryEntry,
     TextBundleExportOutput, VaultConfig, VaultSnippet, WorkspaceSession, append_activity_log,
     append_stats_history, block_rename_apply, block_rename_dry_run, build_note_markdown,
-    delete_note, export_text_bundle, lint_vault_fix, list_note_history, list_recent_notes,
+    delete_note_guarded, export_text_bundle, lint_vault_fix, list_note_history, list_recent_notes,
     load_vault_config, load_vault_snippets, load_vault_template, open_vault, open_vault_output,
     plan_daily_note, read_activity_log, read_note, read_note_history_revision, read_stats_history,
-    read_workspace_session, record_recent_note, rename_apply, rename_dry_run, save_note,
+    read_workspace_session, record_recent_note, rename_apply_guarded, rename_dry_run, save_note,
     save_note_with_options, save_vault_config, save_vault_snippets, scan_vault_with_roots,
     section_rename_apply, section_rename_dry_run, set_frontmatter_field, tag_rename_apply,
     tag_rename_dry_run, write_workspace_session,
@@ -141,20 +141,22 @@ pub fn vault_rename_apply(
     from_path: String,
     to_path: String,
     update_links: bool,
+    expected_source_hash: Option<String>,
 ) -> Result<RenameNoteApplyOutput, String> {
     if use_headless_engine(&state) {
-        let json = bridge_rename_apply(from_path, to_path, update_links)?;
+        let json = bridge_rename_apply(from_path, to_path, update_links, expected_source_hash)?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;
     let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
     let to = RelativeVaultPath::parse(&to_path).map_err(|error| error.to_string())?;
-    rename_apply(
+    rename_apply_guarded(
         &session.descriptor.id,
         &session.root,
         &from,
         &to,
         update_links,
+        expected_source_hash.as_deref(),
     )
     .map_err(|error| error.to_string())
 }
@@ -270,6 +272,7 @@ pub fn vault_delete_note(
     state: tauri::State<AppState>,
     path: String,
     authorization_token: String,
+    expected_content_hash: Option<String>,
 ) -> Result<DeleteNoteOutput, String> {
     require_sensitive_operation(
         &state,
@@ -279,7 +282,8 @@ pub fn vault_delete_note(
     )?;
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
-    delete_note(&session.root, &relative).map_err(|error| error.to_string())
+    delete_note_guarded(&session.root, &relative, expected_content_hash.as_deref())
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { expect, test, type Page } from '@playwright/test'
 
-import { captureReadyScreenshot, settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
+import { captureReadyScreenshot, openCommandPalette, runCommand, settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const outputDir = path.join(rootDir, 'docs/assets/screenshots')
@@ -51,7 +51,9 @@ async function waitForInspectorReady(page: Page) {
 
 async function waitForFullWorkspace(page: Page) {
   await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
-  await expect(page.locator('small.vault-badge', { hasText: 'Research Vault' })).toBeVisible({
+  // The redundant badge yields to primary controls at compact desktop widths.
+  // Its resolved value plus the visible sidebar proves vault hydration.
+  await expect(page.locator('small.vault-badge')).toHaveText('Research Vault', {
     timeout: 45_000,
   })
   await waitForVaultSidebarReady(page)
@@ -137,6 +139,8 @@ test.beforeEach(async ({ page }) => {
     window.localStorage.setItem('scriptor:workspace-mode', 'writing')
     window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
     window.localStorage.setItem('scriptor:split-preview', 'false')
+    // Baselines capture the full status dock; the app default is collapsed.
+    window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
     window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
   }, WORKSPACE_CHROME_PREFS)
 })
@@ -229,8 +233,8 @@ test('git panel', async ({ page }) => {
 test('mcp panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  const mcpButton = page.locator('.top-actions').getByRole('button', { name: /MCP|Read-only|Write/i })
-  await mcpButton.click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open MCP panel')
   const mcpPanel = page.locator('.mcp-panel')
   await expect(mcpPanel).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
@@ -250,7 +254,7 @@ test('settings panel', async ({ page }) => {
 test('publish center', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.top-actions').getByRole('button', { name: 'Publish', exact: true }).click()
+  await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('publish-center'))
@@ -260,7 +264,7 @@ test('publish center', async ({ page }) => {
 test('vault health dashboard', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.top-actions').getByRole('button', { name: 'Publish', exact: true }).click()
+  await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
   await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
   await page.getByRole('button', { name: 'Close Publish center' }).click()
   await page.locator('.widget-action').getByText('Good').click()

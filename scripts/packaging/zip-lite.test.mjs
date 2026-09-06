@@ -3,16 +3,55 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
+import { execFileSync } from 'node:child_process'
 import test from 'node:test'
 
 import { assembleZip, buildZip, listZip, main } from './zip-lite.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
 
+function createSourceFixture(temp) {
+  const source = path.join(temp, 'source')
+  const { requiredPaths } = JSON.parse(fs.readFileSync(path.join(root, 'scripts/packaging/source-review-required.json'), 'utf8'))
+  for (const relative of requiredPaths) {
+    // Validate the real checkout's required inputs, but do not compress the
+    // entire live workspace repeatedly (it can change during a test run).
+    assert.ok(fs.statSync(path.join(root, relative)).isFile(), `${relative} is missing`)
+    const target = path.join(source, relative)
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, `fixture: ${relative}\n`)
+  }
+  for (const directory of ['node_modules', 'target', 'dist', 'coverage', 'test-results', 'synthetic-25k', 'screenshots.spec.ts-snapshots']) {
+    fs.mkdirSync(path.join(source, directory), { recursive: true })
+    fs.writeFileSync(path.join(source, directory, 'generated.txt'), 'generated')
+  }
+  return source
+}
+
+test('source archives honor ignored build output while including new authored files', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-zip-ignore-'))
+  try {
+    execFileSync('git', ['init', '-q', temp])
+    fs.writeFileSync(path.join(temp, '.gitignore'), 'artifacts/\ndist-visual-e2e/\n')
+    fs.writeFileSync(path.join(temp, 'new-note.md'), '# Authored\n')
+    for (const directory of ['artifacts', 'dist-visual-e2e']) {
+      fs.mkdirSync(path.join(temp, directory))
+      fs.writeFileSync(path.join(temp, directory, 'generated.bin'), 'private build output')
+    }
+    const output = path.join(temp, 'review.zip')
+    buildZip(temp, output, 'runtime-lite')
+    const entries = listZip(output)
+    assert.ok(entries.includes('Scriptor/new-note.md'))
+    assert.ok(!entries.some((entry) => entry.includes('generated.bin')))
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true })
+  }
+})
+
 function buildAndListArchive(profile = 'source-review') {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-zip-profile-'))
   const output = path.join(temp, 'Scriptor-lite.zip')
-  const { count } = buildZip(root, output, profile)
+  const { count } = buildZip(createSourceFixture(temp), output, profile)
   assert.ok(count > 0, 'archive must contain at least the profile record')
   return { temp, entries: new Set(listZip(output)), profile, output }
 }
@@ -57,8 +96,9 @@ test('archives are reproducible: identical content produces identical bytes', ()
   try {
     const first = path.join(temp, 'first.zip')
     const second = path.join(temp, 'second.zip')
-    buildZip(root, first, 'source-review')
-    buildZip(root, second, 'source-review')
+    const source = createSourceFixture(temp)
+    buildZip(source, first, 'source-review')
+    buildZip(source, second, 'source-review')
     const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex')
     assert.equal(hash(first), hash(second), 'two builds of the same tree must be byte-identical')
   } finally {

@@ -292,6 +292,18 @@ impl EmbeddingStore {
         let mut scored: Vec<(String, f32)> = Vec::new();
         for row in rows {
             let (id, blob) = row?;
+            let expected_bytes = self
+                .dimension
+                .checked_mul(std::mem::size_of::<f32>())
+                .ok_or_else(|| {
+                    EmbeddingError::Provider("embedding dimension byte size overflow".into())
+                })?;
+            if blob.len() != expected_bytes {
+                return Err(EmbeddingError::Provider(format!(
+                    "corrupt embedding vector for {id}: expected {expected_bytes} bytes, got {}",
+                    blob.len()
+                )));
+            }
             scratch.clear();
             scratch.extend(
                 blob.chunks_exact(4)

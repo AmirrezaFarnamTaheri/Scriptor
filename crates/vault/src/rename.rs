@@ -6,14 +6,17 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
+use crate::fs::lock_vault_mutation;
+use crate::hash::content_hash;
 use crate::link_rewrite::{RenameLinkTarget, rewrite_note_rename_links_with_resolver};
 use crate::note::read_note;
+use crate::note_history::move_note_history;
 use crate::patch_log::{collect_rename_backups, write_rename_patch_log};
 use crate::path::{RelativeVaultPath, VaultRoot};
 use crate::rename_transaction::StagedRenameTransaction;
 use crate::scan::list_notes;
 use crate::wikilink::{WikilinkIndex, WikilinkResolutionKind};
-use crate::write::save_note;
+use crate::write::save_note_locked;
 
 static WIKILINK_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]").expect("valid wikilink regex")
@@ -92,7 +95,25 @@ pub fn rename_apply(
     to_path: &RelativeVaultPath,
     update_links: bool,
 ) -> Result<RenameNoteApplyOutput, VaultError> {
-    let (output, staged) = rename_apply_staged(vault_id, root, from_path, to_path, update_links)?;
+    rename_apply_guarded(vault_id, root, from_path, to_path, update_links, None)
+}
+
+pub fn rename_apply_guarded(
+    vault_id: &str,
+    root: &VaultRoot,
+    from_path: &RelativeVaultPath,
+    to_path: &RelativeVaultPath,
+    update_links: bool,
+    expected_source_hash: Option<&str>,
+) -> Result<RenameNoteApplyOutput, VaultError> {
+    let (output, staged) = rename_apply_staged_guarded(
+        vault_id,
+        root,
+        from_path,
+        to_path,
+        update_links,
+        expected_source_hash,
+    )?;
     staged.commit()?;
     Ok(output)
 }
@@ -105,6 +126,34 @@ pub fn rename_apply_staged(
     to_path: &RelativeVaultPath,
     update_links: bool,
 ) -> Result<(RenameNoteApplyOutput, StagedRenameTransaction), VaultError> {
+    rename_apply_staged_guarded(vault_id, root, from_path, to_path, update_links, None)
+}
+
+pub fn rename_apply_staged_guarded(
+    vault_id: &str,
+    root: &VaultRoot,
+    from_path: &RelativeVaultPath,
+    to_path: &RelativeVaultPath,
+    update_links: bool,
+    expected_source_hash: Option<&str>,
+) -> Result<(RenameNoteApplyOutput, StagedRenameTransaction), VaultError> {
+    // Serialize the full on-disk planning/write/move phase. Once the staged
+    // transaction is returned, its manifest remains present until commit/abort;
+    // independent save/delete entry points treat that manifest as a write
+    // barrier so daemon-side index reconciliation cannot admit another writer
+    // into the recovery window.
+    let _mutation_lock = lock_vault_mutation(root.root())?;
+
+    if let Some(expected) = expected_source_hash {
+        let current = read_note(vault_id, root, from_path)?;
+        if current.metadata.content_hash != expected {
+            return Err(VaultError::HashMismatch {
+                path: from_path.to_string(),
+                expected: expected.to_string(),
+                found: current.metadata.content_hash,
+            });
+        }
+    }
     let preview = rename_dry_run(vault_id, root, from_path, to_path, update_links)?;
     let backups = collect_rename_backups(root, &preview.affected_files)?;
     let _patch = write_rename_patch_log(root, from_path.as_str(), to_path.as_str(), backups)?;
@@ -114,10 +163,7 @@ pub fn rename_apply_staged(
     let to = rename_target_for_path(vault_id, root, to_path, &note_paths)?;
     let resolver = wikilink_index_for_vault(vault_id, root, &note_paths)?;
 
-    let mut staged =
-        StagedRenameTransaction::begin(root, from_path, to_path, &preview.affected_files)?;
-
-    let mut pending_writes: BTreeMap<String, String> = BTreeMap::new();
+    let mut pending_writes: BTreeMap<String, (String, String)> = BTreeMap::new();
 
     if update_links {
         for note_path in list_notes(root)? {
@@ -125,10 +171,25 @@ pub fn rename_apply_staged(
             let (updated, edits) =
                 rewrite_note_rename_links_with_resolver(&document.markdown, &from, &to, &resolver);
             if edits > 0 && updated != document.markdown {
-                pending_writes.insert(note_path.to_string(), updated);
+                pending_writes.insert(
+                    note_path.to_string(),
+                    (updated, document.metadata.content_hash),
+                );
             }
         }
     }
+
+    let intended_hashes: BTreeMap<String, String> = pending_writes
+        .iter()
+        .map(|(path, (markdown, _))| (path.clone(), content_hash(markdown)))
+        .collect();
+    let mut staged = StagedRenameTransaction::begin_with_intended(
+        root,
+        from_path,
+        to_path,
+        &preview.affected_files,
+        &intended_hashes,
+    )?;
 
     // Record the phase *before* the writes begin. Recording it afterwards left a
     // crash mid-loop looking like `Staged`, and the `Staged` recovery path only
@@ -139,10 +200,15 @@ pub fn rename_apply_staged(
         staged.record_phase(crate::rename_transaction::RenamePhase::LinkWritesDone)?;
     }
 
-    for (path, markdown) in &pending_writes {
+    for (path, (markdown, original_hash)) in &pending_writes {
         if path != from_path.as_str() {
             let relative = RelativeVaultPath::parse(path)?;
-            save_note(vault_id, root, &relative, markdown, None)?;
+            if let Err(error) =
+                save_note_locked(vault_id, root, &relative, markdown, Some(original_hash))
+            {
+                let _ = staged.abort();
+                return Err(error);
+            }
         }
     }
 
@@ -152,8 +218,28 @@ pub fn rename_apply_staged(
         fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
     }
 
-    if let Some(updated_source) = pending_writes.get(from_path.as_str()) {
-        save_note(vault_id, root, to_path, updated_source, None)?;
+    if let Some((updated_source, original_hash)) = pending_writes.get(from_path.as_str()) {
+        // The source must still be the bytes observed during planning before it
+        // can be removed. The destination is create-only, so the write carries the
+        // missing-content sentinel: a note that appeared at the destination after
+        // the dry-run collision check fails the transaction instead of being
+        // overwritten by the rename.
+        save_note_locked(
+            vault_id,
+            root,
+            to_path,
+            updated_source,
+            Some(crate::write::EXPECTED_MISSING_CONTENT_HASH),
+        )?;
+        let current = read_note(vault_id, root, from_path)?;
+        if current.metadata.content_hash != *original_hash {
+            let _ = staged.abort();
+            return Err(VaultError::HashMismatch {
+                path: from_path.to_string(),
+                expected: original_hash.clone(),
+                found: current.metadata.content_hash,
+            });
+        }
         fs::remove_file(&from_absolute).map_err(|source| VaultError::io(&from_absolute, source))?;
     } else {
         fs::rename(&from_absolute, &to_absolute)
@@ -161,6 +247,10 @@ pub fn rename_apply_staged(
     }
 
     staged.record_phase(crate::rename_transaction::RenamePhase::FileMoveDone)?;
+    if let Err(error) = move_note_history(root, from_path.as_str(), to_path.as_str()) {
+        let _ = staged.abort();
+        return Err(error);
+    }
 
     let output = RenameNoteApplyOutput {
         from_path: from_path.to_string(),
@@ -288,6 +378,36 @@ mod tests {
         )
         .unwrap();
         assert!(updated.markdown.contains("[[Field Notes Renamed]]"));
+    }
+
+    /// The destination guard: a path that already holds a *different* note is refused by the
+    /// preview, so a plan can never promise an overwrite the apply step would reject. The same note
+    /// addressed through a differently spelled path must stay a no-op rename rather than look like
+    /// a blocked one.
+    #[test]
+    fn rename_preview_refuses_a_foreign_destination_and_keeps_rewrites_as_noop() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("Source.md"), "# Source\n").unwrap();
+        fs::write(dir.path().join("Other.md"), "# Other\n").unwrap();
+        let session = open_vault(dir.path()).unwrap();
+
+        let blocked = rename_dry_run(
+            &session.descriptor.id,
+            &session.root,
+            &RelativeVaultPath::parse("Source.md").unwrap(),
+            &RelativeVaultPath::parse("Other.md").unwrap(),
+            true,
+        );
+        assert!(matches!(blocked, Err(VaultError::NoteExists(_))));
+
+        let rewritten = rename_dry_run(
+            &session.descriptor.id,
+            &session.root,
+            &RelativeVaultPath::parse("Source.md").unwrap(),
+            &RelativeVaultPath::parse("./Source.md").unwrap(),
+            true,
+        );
+        assert!(matches!(rewritten, Err(VaultError::RenameNoop)));
     }
 
     #[test]
