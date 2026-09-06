@@ -19,9 +19,9 @@ import {
   vaultHealthDiagnostics,
   vaultReadNote,
 } from '../bridge/commands'
+import { loadPluginState, setPluginCapabilityEnabled } from '../bridge/plugin'
 import { expectRecord, expectStringArray } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
-
 
 const PLUGIN_CONSENT_STORAGE_KEY = 'scriptor:plugins:consent'
 const PLUGIN_CONSENT_SCHEMA_VERSION = 1
@@ -92,11 +92,6 @@ export function usePluginRegistry(
             registry.register(manifest)
           }
         }
-        // PluginRegistry ingests consents once, in its constructor, which runs
-        // before these manifests exist. Re-apply stored grants for plugins that
-        // have no in-memory policy yet, otherwise `canEnable` keeps refusing to
-        // activate a plugin the user already reviewed and `setEnabled` fails
-        // silently. Policies already held in memory win over storage.
         for (const [pluginId, consent] of Object.entries(readInitialPolicies())) {
           if (!registry.has(pluginId) || registry.getConsent(pluginId)) continue
           registry.setConsent(pluginId, consent)
@@ -111,6 +106,36 @@ export function usePluginRegistry(
       cancelled = true
     }
   }, [bump, registry])
+
+  // Native first-party capabilities are persisted per vault. Once manifests
+  // and consent are available, restore runtime enablement from that authority.
+  // A native-enabled capability still cannot run unless current consent allows
+  // it for this vault, so stale native state never bypasses registry policy.
+  useEffect(() => {
+    if (!manifestsReady || !activeVaultId) return
+    let cancelled = false
+    void loadPluginState()
+      .then((enabledCapabilities) => {
+        if (cancelled || !enabledCapabilities) return
+        let changed = false
+        for (const plugin of registry.listAll()) {
+          const capabilityId = plugin.manifest.capabilityId
+          if (!capabilityId) continue
+          const shouldEnable = enabledCapabilities.has(capabilityId) && registry.canEnable(plugin.manifest.id, activeVaultId)
+          if (plugin.enabled !== shouldEnable) {
+            registry.setEnabled(plugin.manifest.id, shouldEnable, activeVaultId)
+            changed = true
+          }
+        }
+        if (changed) bump()
+      })
+      .catch((error) => {
+        console.error('Failed to restore native plugin capability state', error)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [activeVaultId, bump, manifestsReady, registry])
 
   const vaultQuery = useMemo<ReadOnlyVaultQuery | null>(() => {
     if (!vaultOpen) return null
@@ -201,28 +226,64 @@ export function usePluginRegistry(
   )
 
   const setPluginEnabled = useCallback(
-    (pluginId: string, enabled: boolean) => {
-      registry.setEnabled(pluginId, enabled, activeVaultId)
-      bump()
+    async (pluginId: string, enabled: boolean): Promise<boolean> => {
+      const plugin = registry.get(pluginId)
+      if (!plugin) return false
+      if (enabled && !registry.canEnable(pluginId, activeVaultId)) {
+        bump()
+        return false
+      }
+
+      const capabilityId = plugin.manifest.capabilityId
+      try {
+        if (capabilityId) await setPluginCapabilityEnabled(capabilityId, enabled)
+        const changed = registry.setEnabled(pluginId, enabled, activeVaultId)
+        if (!changed && capabilityId && enabled) {
+          await setPluginCapabilityEnabled(capabilityId, false)
+        }
+        bump()
+        return changed
+      } catch (error) {
+        console.error(`Failed to ${enabled ? 'enable' : 'disable'} plugin ${pluginId}`, error)
+        bump()
+        return false
+      }
     },
     [activeVaultId, bump, registry],
   )
 
   const setPluginConsent = useCallback(
-    (pluginId: string, consent: PluginConsent) => {
+    async (pluginId: string, consent: PluginConsent) => {
       registry.setConsent(pluginId, consent)
       writeVersionedStorage(
         PLUGIN_CONSENT_STORAGE_KEY,
         PLUGIN_CONSENT_SCHEMA_VERSION,
         registry.exportConsents(),
       )
+      const plugin = registry.get(pluginId)
+      if (plugin?.manifest.capabilityId && !plugin.enabled) {
+        try {
+          await setPluginCapabilityEnabled(plugin.manifest.capabilityId, false)
+        } catch (error) {
+          console.error(`Failed to synchronize consent for plugin ${pluginId}`, error)
+        }
+      }
       bump()
     },
     [bump, registry],
   )
 
   const revokePluginConsent = useCallback(
-    (pluginId: string) => {
+    async (pluginId: string) => {
+      const plugin = registry.get(pluginId)
+      try {
+        if (plugin?.manifest.capabilityId) {
+          await setPluginCapabilityEnabled(plugin.manifest.capabilityId, false)
+        }
+      } catch (error) {
+        console.error(`Failed to disable native capability while revoking ${pluginId}`, error)
+        return
+      }
       registry.revokeConsent(pluginId)
       writeVersionedStorage(
         PLUGIN_CONSENT_STORAGE_KEY,
@@ -262,8 +323,7 @@ export function usePluginRegistry(
         throw new Error(`unknown marketplace listing: ${listingId}`)
       }
       if (registry.has(listing.id)) {
-        registry.setEnabled(listing.id, false, activeVaultId)
-        bump()
+        await setPluginEnabled(listing.id, false)
         return
       }
       const manifest = await resolveMarketplaceManifest(listing)
@@ -273,7 +333,7 @@ export function usePluginRegistry(
       }
       bump()
     },
-    [activeVaultId, bump, marketplaceCatalog, registry],
+    [bump, marketplaceCatalog, registry, setPluginEnabled],
   )
 
   return {
