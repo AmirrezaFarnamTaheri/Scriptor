@@ -8,7 +8,9 @@ import {
   googleGmailStartAuth,
   googleGmailTrashMessage,
 } from '../bridge/commands/google_gmail'
+import { indexerUpdateNote, vaultSaveNote } from '../bridge/commands'
 import { buildGmailMarkdown, buildRfc5322Message, gmailImportedNoteTitle } from '../lib/gmailRfc5322'
+import { defaultNotePath } from './vault/helpers'
 
 interface PluginCommandRuntimeOptions {
   refreshHealth: () => Promise<void>
@@ -76,12 +78,21 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
       return { status: 'connected', result }
     },
     gmailImport: async (input: unknown) => {
-      if (!createNote) throw new Error('Gmail import is unavailable without an open vault')
       const record = asRecord(input)
       const messageId = requiredString(record, 'messageId')
       const message = await googleGmailGetMessage(messageId)
       const title = gmailImportedNoteTitle(message.subject, message.id)
-      const path = await createNote(title, buildGmailMarkdown(message), { requireMissing: true })
+      const markdown = buildGmailMarkdown(message)
+      let path: string | null = null
+
+      if (createNote) {
+        path = await createNote(title, markdown, { requireMissing: true })
+      } else {
+        path = `Email/${defaultNotePath(title)}`
+        await vaultSaveNote(path, markdown, '<missing>')
+        await indexerUpdateNote(path)
+      }
+
       if (!path) throw new Error(`Could not import Gmail message ${messageId}; target note already exists or could not be saved`)
       showToast?.(`Imported Gmail message to ${path}`)
       return { status: 'imported', messageId, path }
