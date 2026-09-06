@@ -12,6 +12,7 @@ interface BibliographyPanelProps {
   onClose: () => void
   onInsertCitation: (key: string) => void
   onImportBibliography?: (files: FileList) => Promise<void>
+  onImportZotero?: (apiKey: string) => Promise<void>
 }
 
 export function BibliographyPanel({
@@ -20,9 +21,14 @@ export function BibliographyPanel({
   onClose,
   onInsertCitation,
   onImportBibliography,
+  onImportZotero,
 }: BibliographyPanelProps) {
   const [query, setQuery] = useState('')
   const [dropActive, setDropActive] = useState(false)
+  const [zoteroOpen, setZoteroOpen] = useState(false)
+  const [zoteroKey, setZoteroKey] = useState('')
+  const [zoteroLoading, setZoteroLoading] = useState(false)
+  const [zoteroError, setZoteroError] = useState<string | null>(null)
   useEscapeToClose(true, onClose)
 
   const filtered = useMemo(() => {
@@ -39,6 +45,22 @@ export function BibliographyPanel({
   }, [entries, query])
 
   const { formatBibliography, usingCiteproc } = useCiteprocPreview(filtered)
+
+  const handleZoteroSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!zoteroKey.trim() || !onImportZotero) return
+    setZoteroLoading(true)
+    setZoteroError(null)
+    try {
+      await onImportZotero(zoteroKey.trim())
+      setZoteroOpen(false)
+      setZoteroKey('')
+    } catch (err) {
+      setZoteroError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setZoteroLoading(false)
+    }
+  }
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -81,6 +103,41 @@ export function BibliographyPanel({
             <X />
           </button>
         </header>
+
+        {onImportZotero && (
+          <div className="bibliography-actions" style={{ marginBottom: '8px' }}>
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => setZoteroOpen((prev) => !prev)}
+              disabled={zoteroLoading}
+            >
+              {zoteroOpen ? 'Cancel Import' : 'Import from Zotero'}
+            </button>
+          </div>
+        )}
+
+        {zoteroOpen && onImportZotero && (
+          <form onSubmit={handleZoteroSubmit} className="zotero-import-form" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+            <label className="settings-field">
+              Zotero Read API Key
+              <input
+                type="password"
+                value={zoteroKey}
+                onChange={(e) => setZoteroKey(e.target.value)}
+                placeholder="Paste API key"
+                required
+                disabled={zoteroLoading}
+              />
+            </label>
+            <div>
+              <button type="submit" className="action-button" disabled={zoteroLoading || !zoteroKey.trim()}>
+                {zoteroLoading ? 'Importing...' : 'Fetch & Save to .bib'}
+              </button>
+            </div>
+            {zoteroError && <p className="preview-error" style={{ color: 'var(--color-error, #e53e3e)' }}>{zoteroError}</p>}
+          </form>
+        )}
 
         <label className="settings-field bibliography-search">
           Filter entries

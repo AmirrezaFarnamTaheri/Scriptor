@@ -51,6 +51,7 @@ export type AppCommandId =
   | 'toggle-hibernate-git'
   | 'toggle-hibernate-spellcheck'
   | 'open-plugin-manager'
+  | 'open-gmail-manager'
 
 export interface AppCommandDefinition {
   id: AppCommandId

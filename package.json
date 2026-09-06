@@ -143,6 +143,7 @@
     "@scriptor/portal": "workspace:*",
     "@scriptor/renderer": "workspace:*",
     "@scriptor/template-engine": "workspace:*",
+    "@scriptor/zotero-connector": "workspace:*",
     "@tauri-apps/api": "^2.5.0",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "chart.js": "^4.4.8",

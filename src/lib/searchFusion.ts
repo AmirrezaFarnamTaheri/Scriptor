@@ -2,16 +2,9 @@ import type { SearchHit } from '../types/vault'
 
 const RRF_K = 60
 
-function keywordRanks(hits: SearchHit[]): Map<string, number> {
-  const ranks = new Map<string, number>()
-  hits.forEach((hit, index) => ranks.set(hit.path, index + 1))
-  return ranks
-}
-
-function semanticRanks(paths: string[]): Map<string, number> {
-  const ranks = new Map<string, number>()
-  paths.forEach((path, index) => ranks.set(path, index + 1))
-  return ranks
+/** Map result paths to their one-based rank for reciprocal-rank fusion. */
+function rankMap(paths: string[]): Map<string, number> {
+  return new Map(paths.map((path, index) => [path, index + 1]))
 }
 
 /**
@@ -25,8 +18,8 @@ export function fuseKeywordAndSemantic(
   maxResults: number,
 ): SearchHit[] {
   const semanticByPath = new Map(semanticHits.map((hit) => [hit.note_path, hit]))
-  const keywordRank = keywordRanks(keywordHits)
-  const semanticRank = semanticRanks(semanticHits.map((hit) => hit.note_path))
+  const keywordRank = rankMap(keywordHits.map((hit) => hit.path))
+  const semanticRank = rankMap(semanticHits.map((hit) => hit.note_path))
 
   const fused = new Map<string, { hit: SearchHit; score: number }>()
   const consider = (hit: SearchHit) => {

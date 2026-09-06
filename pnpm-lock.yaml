@@ -57,6 +57,9 @@ importers:
       '@scriptor/template-engine':
         specifier: workspace:*
         version: link:packages/template-engine
+      '@scriptor/zotero-connector':
+        specifier: workspace:*
+        version: link:packages/zotero-connector
       '@tauri-apps/api':
         specifier: ^2.5.0
         version: 2.11.1
@@ -235,6 +238,12 @@ importers:
       '@scriptor/plugin-canvas-kit':
         specifier: workspace:*
         version: link:../plugins/canvas-kit
+      '@scriptor/plugin-gmail-manager':
+        specifier: workspace:*
+        version: link:../plugins/gmail-manager
+      '@scriptor/plugin-hello-world':
+        specifier: workspace:*
+        version: link:../plugins/hello-world
       '@scriptor/plugin-pdf-translate':
         specifier: workspace:*
         version: link:../plugins/pdf-translate

@@ -23,6 +23,10 @@ const MANIFEST_LOADERS: Record<string, () => Promise<PluginManifest>> = {
     (await import('@scriptor/plugin-publish-pack/manifest')).publishPackManifest,
   'scriptor-pdf-translate': async () =>
     (await import('@scriptor/plugin-pdf-translate/manifest')).pdfTranslateManifest,
+  'scriptor.gmail-manager': async () =>
+    (await import('@scriptor/plugin-gmail-manager/manifest')).gmailManagerManifest,
+  'hello-world': async () =>
+    (await import('@scriptor/plugin-hello-world/manifest')).helloWorldManifest,
 }
 
 export function listBundledMarketplaceCatalog(): MarketplaceListing[] {

@@ -37,6 +37,11 @@ interface UseWorkspaceNoteFactoryOptions {
   syncActiveNoteContent: (path: string) => Promise<void>
 }
 
+export interface CreateNoteOptions {
+  /** Require the target path not to exist. Prevents silent overwrites. */
+  requireMissing?: boolean
+}
+
 export function useWorkspaceNoteFactory({
   vault,
   vaultConfig,
@@ -180,7 +185,7 @@ export function useWorkspaceNoteFactory({
   )
 
   const createNote = useCallback(
-    async (title?: string, initialMarkdown?: string): Promise<string | null> => {
+    async (title?: string, initialMarkdown?: string, options: CreateNoteOptions = {}): Promise<string | null> => {
       if (!vault) {
         setError('Open a vault before creating a note.')
         return null
@@ -195,7 +200,7 @@ export function useWorkspaceNoteFactory({
         const markdown =
           initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
         setError(null)
-        await vaultSaveNote(path, markdown)
+        await vaultSaveNote(path, markdown, options.requireMissing ? '<missing>' : undefined)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)

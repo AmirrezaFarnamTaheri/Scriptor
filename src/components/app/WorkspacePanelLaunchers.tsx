@@ -2,9 +2,20 @@ import { Suspense } from 'react'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import type { ReaderPanelProps } from '../reader/ReaderPanel'
-import { CanvasPanel, KanbanPanel, PanelFallback, ReaderPanel, TaskPanel } from './lazyPanels'
+import {
+  BibliographyPanel,
+  CanvasPanel,
+  GmailManagerPanel,
+  KanbanPanel,
+  PanelFallback,
+  ReaderPanel,
+  TaskPanel,
+} from './lazyPanels'
 import type { usePluginRegistry } from '../../hooks/usePluginRegistry'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
+import type { BibliographyEntry } from '../../types/vault'
+import { indexerApplyFilesystemChanges, vaultSaveAsset } from '../../bridge/commands'
+import { gmailImportedNoteTitle } from '../../lib/gmailRfc5322'
 
 type WorkspacePanelLaunchersProps = {
   workspace: ReturnType<typeof useVaultWorkspace>
@@ -20,6 +31,13 @@ type WorkspacePanelLaunchersProps = {
   onCloseReader: () => void
   onCloseTasks: () => void
   onCloseKanban: () => void
+  bibliographyOpen?: boolean
+  bibliography?: BibliographyEntry[]
+  setBibliographyOpen?: (open: boolean) => void
+  refreshBibliography?: () => void
+  gmailManagerOpen?: boolean
+  setGmailManagerOpen?: (open: boolean) => void
+  showToast?: (message: string) => void
 }
 
 export function WorkspacePanelLaunchers({
@@ -36,7 +54,16 @@ export function WorkspacePanelLaunchers({
   onCloseReader,
   onCloseTasks,
   onCloseKanban,
+  bibliographyOpen,
+  bibliography = [],
+  setBibliographyOpen,
+  refreshBibliography,
+  gmailManagerOpen,
+  setGmailManagerOpen,
+  showToast,
 }: WorkspacePanelLaunchersProps) {
+  const gmailEnabled = plugins.activePlugins.some((plugin) => plugin.manifest.id === 'scriptor.gmail-manager')
+
   return (
     <>
       {canvasOpen && (
@@ -108,6 +135,76 @@ export function WorkspacePanelLaunchers({
           </Suspense>
         </ErrorBoundary>
       ) : null}
+
+      {bibliographyOpen && setBibliographyOpen && (
+        <ErrorBoundary
+          name="bibliography-panel"
+          fallback={<PanelErrorFallback title="The bibliography" onDismiss={() => setBibliographyOpen(false)} />}
+        >
+          <Suspense fallback={<PanelFallback />}>
+            <BibliographyPanel
+              entries={bibliography}
+              bibliographyPath={workspace.vaultConfig.export.bibliography_path}
+              onClose={() => setBibliographyOpen(false)}
+              onInsertCitation={(key) => {
+                workspace.insertSnippet(`[@${key}] `)
+                setBibliographyOpen(false)
+              }}
+              onImportBibliography={
+                nativeReady
+                  ? async (files) => {
+                      const bibPath = workspace.vaultConfig.export.bibliography_path || 'references.bib'
+                      const file = files[0]
+                      if (!file) return
+                      const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
+                      await vaultSaveAsset(bibPath, bytes)
+                      await indexerApplyFilesystemChanges([bibPath])
+                      showToast?.(`Bibliography saved to ${bibPath}`)
+                      refreshBibliography?.()
+                    }
+                  : undefined
+              }
+              onImportZotero={
+                nativeReady
+                  ? async (apiKey: string) => {
+                      const { ZoteroConnector } = await import('@scriptor/zotero-connector')
+                      const connector = new ZoteroConnector()
+                      await connector.connect(apiKey)
+                      const bibtex = await connector.exportBibTeX()
+                      const bibPath = workspace.vaultConfig.export.bibliography_path || 'references.bib'
+                      const encoder = new TextEncoder()
+                      await vaultSaveAsset(bibPath, Array.from(encoder.encode(bibtex)))
+                      await indexerApplyFilesystemChanges([bibPath])
+                      showToast?.(`Zotero library imported to ${bibPath}`)
+                      refreshBibliography?.()
+                    }
+                  : undefined
+              }
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+
+      {gmailManagerOpen && setGmailManagerOpen && nativeReady && workspace.vault && gmailEnabled && (
+        <ErrorBoundary
+          name="gmail-manager-panel"
+          fallback={<PanelErrorFallback title="Gmail Manager" onDismiss={() => setGmailManagerOpen(false)} />}
+        >
+          <Suspense fallback={<PanelFallback />}>
+            <GmailManagerPanel
+              onClose={() => setGmailManagerOpen(false)}
+              onImportNote={async (subject, markdown, messageId) => {
+                const title = gmailImportedNoteTitle(subject, messageId)
+                const path = await workspace.createNote(title, markdown, { requireMissing: true })
+                if (!path) {
+                  throw new Error(`Could not import Gmail message ${messageId}; the target note already exists or could not be saved.`)
+                }
+                showToast?.(`Imported email to ${path}`)
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
     </>
   )
 }

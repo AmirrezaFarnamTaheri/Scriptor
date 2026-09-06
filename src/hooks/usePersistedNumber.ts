@@ -1,31 +1,10 @@
-import { useEffect, useState } from 'react'
-
-const PERSIST_DEBOUNCE_MS = 200
+import { usePersistedState } from './usePersistedState'
 
 export function usePersistedNumber(key: string, defaultValue: number) {
-  const [value, setValue] = useState(() => {
-    try {
-      const raw = localStorage.getItem(key)
-      if (raw === null) return defaultValue
-      const parsed = Number(raw)
-      return Number.isFinite(parsed) ? parsed : defaultValue
-    } catch {
-      return defaultValue
-    }
+  return usePersistedState(key, defaultValue, (raw) => {
+    if (raw === null) return defaultValue
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) ? parsed : defaultValue
   })
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        localStorage.setItem(key, String(value))
-      } catch {
-        // Ignore storage failures in private browsing.
-      }
-    }, PERSIST_DEBOUNCE_MS)
-    return () => {
-      window.clearTimeout(timer)
-    }
-  }, [key, value])
-
-  return [value, setValue] as const
 }
+

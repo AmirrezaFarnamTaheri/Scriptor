@@ -8,6 +8,12 @@ export interface PluginCommandRuntime {
   setHealthDashboardOpen: (open: boolean) => void
   openCanvas?: () => void
   openBibliography?: () => void
+  openGmailManager?: () => void
+  gmailConnect?: (input: unknown) => Promise<unknown>
+  gmailImport?: (input: unknown) => Promise<unknown>
+  gmailModify?: (input: unknown) => Promise<unknown>
+  gmailSend?: (input: unknown) => Promise<unknown>
+  showToast?: (message: string) => void
 }
 
 export interface PluginCommandContext {
@@ -15,6 +21,16 @@ export interface PluginCommandContext {
   input?: unknown
 }
 
+/** Extract structured input requirements from a runtime command result. */
+function inputRequiredFields(output: unknown): string[] | null {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return null
+  const record = output as Record<string, unknown>
+  if (record.status !== 'input-required' || !Array.isArray(record.required)) return null
+  const required = record.required.filter((value): value is string => typeof value === 'string' && value.length > 0)
+  return required.length > 0 ? required : null
+}
+
+/** Dispatch one plugin command to its concrete product runtime handler. */
 export async function dispatchPluginCommandId(
   commandId: string,
   runtime: PluginCommandRuntime,
@@ -39,6 +55,25 @@ export async function dispatchPluginCommandId(
       if (!runtime.openBibliography) return { handled: false }
       runtime.openBibliography()
       return { handled: true }
+    case 'hello.greet':
+      runtime.showToast?.('Hello from Scriptor Plugin System!')
+      return { handled: true, output: { greeting: 'Hello from Scriptor Plugin System!' } }
+    case 'gmail.open':
+      if (!runtime.openGmailManager) return { handled: false }
+      runtime.openGmailManager()
+      return { handled: true, output: { commandId, status: 'opened' } }
+    case 'gmail.connect':
+      if (!runtime.gmailConnect) return { handled: false }
+      return { handled: true, output: await runtime.gmailConnect(context.input) }
+    case 'gmail.import':
+      if (!runtime.gmailImport) return { handled: false }
+      return { handled: true, output: await runtime.gmailImport(context.input) }
+    case 'gmail.modify':
+      if (!runtime.gmailModify) return { handled: false }
+      return { handled: true, output: await runtime.gmailModify(context.input) }
+    case 'gmail.send':
+      if (!runtime.gmailSend) return { handled: false }
+      return { handled: true, output: await runtime.gmailSend(context.input) }
     default:
       break
   }
@@ -61,27 +96,52 @@ export async function dispatchPluginCommandId(
   return { handled: false }
 }
 
+/** Convert plugin command dispatch into the MCP command result contract. */
 export async function dispatchPluginCommandIdAsMcpResult(
   commandId: string,
   runtime: PluginCommandRuntime,
   context: PluginCommandContext = {},
 ): Promise<CommandResult> {
   const requestId = crypto.randomUUID()
-  const result = await dispatchPluginCommandId(commandId, runtime, context)
-  if (!result.handled) {
+  try {
+    const result = await dispatchPluginCommandId(commandId, runtime, context)
+    if (!result.handled) {
+      return {
+        ok: false,
+        requestId,
+        error: {
+          code: 'mcp.plugin_command_unhandled',
+          message: `No runtime handler for plugin command: ${commandId}`,
+          recoverable: true,
+        },
+      }
+    }
+    const required = inputRequiredFields(result.output)
+    if (required) {
+      return {
+        ok: false,
+        requestId,
+        error: {
+          code: 'mcp.plugin_command_input_required',
+          message: `Plugin command ${commandId} requires input: ${required.join(', ')}`,
+          recoverable: true,
+        },
+      }
+    }
+    return {
+      ok: true,
+      requestId,
+      output: result.output ?? { commandId },
+    }
+  } catch (error) {
     return {
       ok: false,
       requestId,
       error: {
-        code: 'mcp.plugin_command_unhandled',
-        message: `No runtime handler for plugin command: ${commandId}`,
+        code: 'mcp.plugin_command_failed',
+        message: error instanceof Error ? error.message : String(error),
         recoverable: true,
       },
     }
-  }
-  return {
-    ok: true,
-    requestId,
-    output: result.output ?? { commandId },
   }
 }
