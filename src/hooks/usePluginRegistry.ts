@@ -79,8 +79,12 @@ export function usePluginRegistry(
   const [registry] = useState(() => new PluginRegistry(readInitialSafeMode(), readInitialPolicies()))
   const [revision, setRevision] = useState(0)
   const [manifestsReady, setManifestsReady] = useState(false)
+  const nativeStateMutationRevision = useRef(0)
 
   const bump = useCallback(() => setRevision((value) => value + 1), [])
+  const markNativeMutation = useCallback(() => {
+    nativeStateMutationRevision.current += 1
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -109,14 +113,19 @@ export function usePluginRegistry(
 
   // Native first-party capabilities are persisted per vault. Once manifests
   // and consent are available, restore runtime enablement from that authority.
-  // A native-enabled capability still cannot run unless current consent allows
-  // it for this vault, so stale native state never bypasses registry policy.
+  // The generation check prevents a slower startup read from overwriting a
+  // toggle/consent mutation that started after the read was issued.
   useEffect(() => {
     if (!manifestsReady || !activeVaultId) return
     let cancelled = false
+    const observedMutationRevision = nativeStateMutationRevision.current
     void loadPluginState()
       .then((enabledCapabilities) => {
-        if (cancelled || !enabledCapabilities) return
+        if (
+          cancelled
+          || !enabledCapabilities
+          || observedMutationRevision !== nativeStateMutationRevision.current
+        ) return
         let changed = false
         for (const plugin of registry.listAll()) {
           const capabilityId = plugin.manifest.capabilityId
@@ -236,9 +245,13 @@ export function usePluginRegistry(
 
       const capabilityId = plugin.manifest.capabilityId
       try {
-        if (capabilityId) await setPluginCapabilityEnabled(capabilityId, enabled)
+        if (capabilityId) {
+          markNativeMutation()
+          await setPluginCapabilityEnabled(capabilityId, enabled)
+        }
         const changed = registry.setEnabled(pluginId, enabled, activeVaultId)
         if (!changed && capabilityId && enabled) {
+          markNativeMutation()
           await setPluginCapabilityEnabled(capabilityId, false)
         }
         bump()
@@ -249,34 +262,43 @@ export function usePluginRegistry(
         return false
       }
     },
-    [activeVaultId, bump, registry],
+    [activeVaultId, bump, markNativeMutation, registry],
   )
 
   const setPluginConsent = useCallback(
     async (pluginId: string, consent: PluginConsent) => {
+      const previousConsent = registry.getConsent(pluginId)
       const wasEnabled = registry.get(pluginId)?.enabled === true
       registry.setConsent(pluginId, consent)
+      const plugin = registry.get(pluginId)
+      const needsNativeDisable = wasEnabled && plugin?.manifest.capabilityId && !plugin.enabled
+
+      if (needsNativeDisable) {
+        try {
+          markNativeMutation()
+          await setPluginCapabilityEnabled(plugin.manifest.capabilityId!, false)
+        } catch (error) {
+          console.error(`Failed to synchronize consent for plugin ${pluginId}`, error)
+          // Keep authorities aligned: the native capability is still enabled,
+          // so restore the prior runtime consent/enablement instead of persisting
+          // a policy that only one side accepted.
+          if (previousConsent) {
+            registry.setConsent(pluginId, previousConsent)
+            registry.setEnabled(pluginId, true, activeVaultId)
+          }
+          bump()
+          return
+        }
+      }
+
       writeVersionedStorage(
         PLUGIN_CONSENT_STORAGE_KEY,
         PLUGIN_CONSENT_SCHEMA_VERSION,
         registry.exportConsents(),
       )
-      const plugin = registry.get(pluginId)
-      // Consent may revoke a required permission or vault scope and therefore
-      // disable an already-running plugin. Propagate that real transition to
-      // the native authority, but do not emit a redundant disable for a plugin
-      // that was already off: Store's "grant then enable" flow starts the
-      // enable immediately and the two async native writes could otherwise race.
-      if (wasEnabled && plugin?.manifest.capabilityId && !plugin.enabled) {
-        try {
-          await setPluginCapabilityEnabled(plugin.manifest.capabilityId, false)
-        } catch (error) {
-          console.error(`Failed to synchronize consent for plugin ${pluginId}`, error)
-        }
-      }
       bump()
     },
-    [bump, registry],
+    [activeVaultId, bump, markNativeMutation, registry],
   )
 
   const revokePluginConsent = useCallback(
@@ -284,6 +306,7 @@ export function usePluginRegistry(
       const plugin = registry.get(pluginId)
       try {
         if (plugin?.manifest.capabilityId) {
+          markNativeMutation()
           await setPluginCapabilityEnabled(plugin.manifest.capabilityId, false)
         }
       } catch (error) {
@@ -298,7 +321,7 @@ export function usePluginRegistry(
       )
       bump()
     },
-    [bump, registry],
+    [bump, markNativeMutation, registry],
   )
 
   const [marketplaceCatalog, setMarketplaceCatalog] = useState<MarketplaceListing[]>(() =>
