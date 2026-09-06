@@ -2,6 +2,7 @@ import type { SearchHit } from '../types/vault'
 
 const RRF_K = 60
 
+/** Map result paths to their one-based rank for reciprocal-rank fusion. */
 function rankMap(paths: string[]): Map<string, number> {
   return new Map(paths.map((path, index) => [path, index + 1]))
 }

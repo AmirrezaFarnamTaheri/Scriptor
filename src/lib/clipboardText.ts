@@ -7,6 +7,7 @@ export async function writeClipboardText(text: string): Promise<void> {
   await copyTextToClipboard(text, isNativeBridgeAvailable() ? nativeCopyTextToClipboard : undefined)
 }
 
+/** Read plain text from the browser clipboard when that capability is available. */
 export async function readClipboardText(): Promise<string | null> {
   if (typeof navigator === 'undefined' || !navigator.clipboard?.readText) return null
   try {
