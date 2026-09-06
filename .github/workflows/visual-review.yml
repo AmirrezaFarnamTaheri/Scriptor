@@ -70,13 +70,15 @@ jobs:
 
           $transportTests = "crates/daemon/src/transport/tests.rs"
           $source = [System.IO.File]::ReadAllText($transportTests)
-          $needle = "use std::sync::Mutex;`n"
-          $replacement = "use std::sync::Mutex;`nuse std::sync::atomic::{AtomicUsize, Ordering};`n"
+          $needle = "use std::sync::Mutex;"
+          $replacement = "use std::sync::Mutex;`nuse std::sync::atomic::{AtomicUsize, Ordering};"
           if (-not $source.Contains($needle)) {
             throw "Expected daemon transport test import was not found."
           }
-          $source = $source.Replace($needle, $replacement)
-          [System.IO.File]::WriteAllText($transportTests, $source, [System.Text.UTF8Encoding]::new($false))
+          if (-not $source.Contains("use std::sync::atomic::{AtomicUsize, Ordering};")) {
+            $source = $source.Replace($needle, $replacement)
+            [System.IO.File]::WriteAllText($transportTests, $source, [System.Text.UTF8Encoding]::new($false))
+          }
 
           $paths = @(
             "crates/daemon/src/transport/tests.rs",
