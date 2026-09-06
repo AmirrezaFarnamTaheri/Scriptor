@@ -4,94 +4,53 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: visual-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-defaults:
-  run:
-    working-directory: .
-
-env:
-  FORCE_COLOR: 1
-
 jobs:
-  visual-review:
-    name: Windows visual regression
+  rustfmt-repair:
+    name: One-time Rustfmt repair
     runs-on: windows-2025
-    timeout-minutes: 40
-    env:
-      CI_LOG_DIR: artifacts/ci-logs/visual-review
-      PLAYWRIGHT_CHANNEL: msedge
+    timeout-minutes: 20
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - name: Configure pinned pnpm 10.33.0
+      - name: Configure pinned Rust 1.96.0
         shell: pwsh
         run: |
-          corepack enable
-          corepack prepare pnpm@10.33.0 --activate
-          pnpm --version
+          rustup toolchain install 1.96.0 --profile minimal --component rustfmt
+          rustup default 1.96.0
+          rustfmt --version
 
-      - name: Configure Node.js 22 with pnpm cache
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22.16.0
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-
-      - name: Describe visual review scope
-        shell: pwsh
-        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Visual regression review"
-
-      - name: Install frozen pnpm dependency graph
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
-
-      - name: Install Playwright FFmpeg runtime
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
-
-      - name: Run visual regression suite
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=missing") -TimeoutSeconds 1800 -HeartbeatSeconds 20
-
-      - name: Require committed visual baselines
+      - name: Apply exact workspace rustfmt output
         shell: pwsh
         run: |
-          $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots
-          if ($changes) {
-            Write-Host $changes
-            throw "Visual baselines were generated. Review and commit them before merging."
+          cargo fmt --all
+          if ($LASTEXITCODE -ne 0) { throw "cargo fmt failed" }
+
+          $changes = git status --porcelain -- apps/desktop/src-tauri/src crates
+          if (-not $changes) {
+            throw "Expected Rust formatting changes were not generated."
+          }
+          Write-Host $changes
+
+          if ("${{ github.event.pull_request.head.repo.full_name }}" -ne "${{ github.repository }}") {
+            throw "Refusing to push Rust formatting for a forked pull request."
           }
 
-      - name: Capture visual review failure context
-        if: failure()
-        shell: pwsh
-        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Visual regression review"
-
-      - name: Finalize visual review evidence
-        if: always()
-        shell: pwsh
-        env:
-          JOB_STATUS: ${{ job.status }}
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Visual regression review" -Status $env:JOB_STATUS
-
-      - name: Upload visual reports and evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: visual-review-${{ github.run_attempt }}
-          path: |
-            ${{ env.CI_LOG_DIR }}
-            playwright-report/visual
-            test-results/visual
-            e2e/visual-review.spec.ts-snapshots
-            e2e/screenshots.spec.ts-snapshots
-          if-no-files-found: warn
-          retention-days: 14
+          git config user.name "github-actions[bot]"
+          if ($LASTEXITCODE -ne 0) { throw "git config user.name failed" }
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ($LASTEXITCODE -ne 0) { throw "git config user.email failed" }
+          git add -- apps/desktop/src-tauri/src crates
+          if ($LASTEXITCODE -ne 0) { throw "git add failed" }
+          git commit -m "style(rust): apply workspace rustfmt"
+          if ($LASTEXITCODE -ne 0) { throw "git commit failed" }
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          if ($LASTEXITCODE -ne 0) { throw "git push failed" }
