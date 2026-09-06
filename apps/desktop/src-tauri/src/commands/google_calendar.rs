@@ -928,7 +928,10 @@ fn html_to_plain_text(html: &str) -> String {
                     _ => {}
                 }
                 if suppressed.is_none()
-                    && matches!(name, "br" | "p" | "div" | "li" | "tr" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
+                    && matches!(
+                        name,
+                        "br" | "p" | "div" | "li" | "tr" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6"
+                    )
                 {
                     output.push('\n');
                 }

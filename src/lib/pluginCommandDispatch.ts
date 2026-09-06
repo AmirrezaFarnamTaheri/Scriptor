@@ -21,6 +21,7 @@ export interface PluginCommandContext {
   input?: unknown
 }
 
+/** Extract structured input requirements from a runtime command result. */
 function inputRequiredFields(output: unknown): string[] | null {
   if (!output || typeof output !== 'object' || Array.isArray(output)) return null
   const record = output as Record<string, unknown>
@@ -29,6 +30,7 @@ function inputRequiredFields(output: unknown): string[] | null {
   return required.length > 0 ? required : null
 }
 
+/** Dispatch one plugin command to its concrete product runtime handler. */
 export async function dispatchPluginCommandId(
   commandId: string,
   runtime: PluginCommandRuntime,
@@ -94,6 +96,7 @@ export async function dispatchPluginCommandId(
   return { handled: false }
 }
 
+/** Convert plugin command dispatch into the MCP command result contract. */
 export async function dispatchPluginCommandIdAsMcpResult(
   commandId: string,
   runtime: PluginCommandRuntime,
