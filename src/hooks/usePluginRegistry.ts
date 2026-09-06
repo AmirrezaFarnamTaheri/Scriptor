@@ -254,6 +254,7 @@ export function usePluginRegistry(
 
   const setPluginConsent = useCallback(
     async (pluginId: string, consent: PluginConsent) => {
+      const wasEnabled = registry.get(pluginId)?.enabled === true
       registry.setConsent(pluginId, consent)
       writeVersionedStorage(
         PLUGIN_CONSENT_STORAGE_KEY,
@@ -261,7 +262,12 @@ export function usePluginRegistry(
         registry.exportConsents(),
       )
       const plugin = registry.get(pluginId)
-      if (plugin?.manifest.capabilityId && !plugin.enabled) {
+      // Consent may revoke a required permission or vault scope and therefore
+      // disable an already-running plugin. Propagate that real transition to
+      // the native authority, but do not emit a redundant disable for a plugin
+      // that was already off: Store's "grant then enable" flow starts the
+      // enable immediately and the two async native writes could otherwise race.
+      if (wasEnabled && plugin?.manifest.capabilityId && !plugin.enabled) {
         try {
           await setPluginCapabilityEnabled(plugin.manifest.capabilityId, false)
         } catch (error) {
