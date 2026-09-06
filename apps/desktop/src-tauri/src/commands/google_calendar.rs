@@ -41,10 +41,12 @@ const TASKS_ENDPOINT: &str = "https://tasks.googleapis.com/tasks/v1/lists";
 const GMAIL_MESSAGES_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages";
 /// Gmail batch endpoint: one multipart request carries up to
 /// `GMAIL_BATCH_MAX_CALLS` inner GETs (Google recommends staying at or
-/// below 50 parts per batch to avoid rate limiting).
-const GMAIL_BATCH_ENDPOINT: &str = "https://gmail.googleapis.com/batch";
+/// below 50 parts per batch to avoid rate limiting). Gmail's discovery
+/// document declares `batch/gmail/v1` as the batch path.
+const GMAIL_BATCH_ENDPOINT: &str = "https://gmail.googleapis.com/batch/gmail/v1";
 const GMAIL_BATCH_MAX_CALLS: usize = 50;
 const GMAIL_SEND_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+const GMAIL_MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
 
 /// `openid`/`email` are appended so the authed email can be resolved.
 const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks";
@@ -392,13 +394,9 @@ fn capture_authorization_code(
         }
 
         let body = if state_ok && has_code {
-            "<html><body style=\"font-family:sans-serif;padding:2rem\">\
-                <h2>Scriptor is now connected to Google.</h2>\
-                <p>You can close this tab and return to the app.</p></body></html>"
+            "<html><body style=\"font-family:sans-serif;padding:2rem\"><h2>Scriptor is now connected to Google.</h2><p>You can close this tab and return to the app.</p></body></html>"
         } else {
-            "<html><body style=\"font-family:sans-serif;padding:2rem\">\
-                <h2>Authorization could not be completed.</h2>\
-                <p>Please close this tab and try connecting again from the app.</p></body></html>"
+            "<html><body style=\"font-family:sans-serif;padding:2rem\"><h2>Authorization could not be completed.</h2><p>Please close this tab and try connecting again from the app.</p></body></html>"
         };
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -414,9 +412,6 @@ fn capture_authorization_code(
         if has_code {
             return Ok(code.unwrap_or_default());
         }
-        // A valid state echo without a code (user landed on the loopback from
-        // the consent screen mid-flow): keep waiting for the redirect that
-        // carries the code.
     }
 }
 
@@ -443,9 +438,6 @@ fn http_client() -> Result<reqwest::blocking::Client, String> {
         .map_err(|error| format!("failed to initialize Google HTTP client: {error}"))
 }
 
-/// Read a bounded slice of a failed response body so error messages carry the
-/// provider's diagnostic (e.g. `invalid_grant`) without risking an unbounded
-/// read. Returns a placeholder when the body is empty or unreadable.
 fn bounded_error_body(response: reqwest::blocking::Response) -> String {
     const MAX_ERROR_BODY_CHARS: usize = 512;
     match response.text() {
@@ -516,7 +508,6 @@ fn fetch_email(client: &reqwest::blocking::Client, access_token: &str) -> Result
     Ok(info.email.unwrap_or_default())
 }
 
-/// Return a currently-valid access token, refreshing it in place when expired.
 fn refresh_if_needed(
     client: &reqwest::blocking::Client,
     keychain_account: &str,
@@ -525,8 +516,6 @@ fn refresh_if_needed(
     if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
         return Ok(tokens.access_token);
     }
-    // Hold the refresh lock across read-modify-write so concurrent commands
-    // cannot race the keychain update; re-check freshness after acquiring.
     let _refresh_guard = lock_refresh_guard();
     let mut tokens = require_tokens(keychain_account)?;
     if now_ms() + EXPIRY_SKEW_SECS * 1000 < tokens.expiry_ms {
@@ -647,6 +636,8 @@ struct GmailHeader {
 #[derive(Debug, Deserialize)]
 struct GmailBody {
     data: Option<String>,
+    #[serde(rename = "attachmentId")]
+    attachment_id: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -664,6 +655,11 @@ struct GmailMessage {
     thread_id: Option<String>,
     snippet: Option<String>,
     payload: Option<GmailPayload>,
+}
+
+#[derive(Debug, Deserialize)]
+struct GmailAttachmentResponse {
+    data: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -712,7 +708,6 @@ fn map_event(event: GcalEvent, calendar_id: &str) -> CalendarEvent {
     }
 }
 
-/// Returns the datetime string and whether it is an all-day date.
 fn resolve_datetime(value: Option<EventDateTime>) -> (String, bool) {
     match value {
         Some(EventDateTime {
@@ -811,20 +806,182 @@ fn base64url_decode(value: &str) -> Result<Vec<u8>, String> {
         .map_err(|error| format!("Gmail returned an invalid message body: {error}"))
 }
 
-fn find_plain_text(payload: &GmailPayload) -> Result<Option<String>, String> {
-    if payload.mime_type.as_deref() == Some("text/plain")
-        && let Some(data) = payload.body.as_ref().and_then(|body| body.data.as_deref())
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum GmailBodySource<'a> {
+    Inline(&'a str),
+    Attachment(&'a str),
+}
+
+fn find_body_source<'a>(payload: &'a GmailPayload, mime_type: &str) -> Option<GmailBodySource<'a>> {
+    if payload.mime_type.as_deref() == Some(mime_type)
+        && let Some(body) = payload.body.as_ref()
     {
-        return String::from_utf8(base64url_decode(data)?)
-            .map(Some)
-            .map_err(|error| format!("Gmail returned non-UTF-8 plain text: {error}"));
+        if let Some(data) = body.data.as_deref().filter(|value| !value.is_empty()) {
+            return Some(GmailBodySource::Inline(data));
+        }
+        if let Some(attachment_id) = body
+            .attachment_id
+            .as_deref()
+            .filter(|value| !value.is_empty())
+        {
+            return Some(GmailBodySource::Attachment(attachment_id));
+        }
     }
     if let Some(parts) = &payload.parts {
         for part in parts {
-            if let Some(text) = find_plain_text(part)? {
-                return Ok(Some(text));
+            if let Some(source) = find_body_source(part, mime_type) {
+                return Some(source);
             }
         }
+    }
+    None
+}
+
+fn validate_gmail_attachment_id(id: &str) -> Result<(), String> {
+    if id.is_empty() || id.len() > 4096 || !id.bytes().all(|byte| byte.is_ascii_graphic()) {
+        return Err("invalid Gmail attachment identifier".into());
+    }
+    Ok(())
+}
+
+fn decode_gmail_text(data: &str) -> Result<String, String> {
+    let bytes = base64url_decode(data)?;
+    if bytes.len() > GMAIL_MAX_BODY_BYTES {
+        return Err("Gmail message body exceeds the 5 MiB text limit".into());
+    }
+    String::from_utf8(bytes)
+        .map_err(|error| format!("Gmail returned a non-UTF-8 text body: {error}"))
+}
+
+fn fetch_gmail_attachment_text(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    message_id: &str,
+    attachment_id: &str,
+) -> Result<String, String> {
+    validate_gmail_message_id(message_id)?;
+    validate_gmail_attachment_id(attachment_id)?;
+    let url = format!(
+        "{GMAIL_MESSAGES_ENDPOINT}/{}/attachments/{}",
+        percent_encode(message_id),
+        percent_encode(attachment_id)
+    );
+    let response = client
+        .get(url)
+        .bearer_auth(access_token)
+        .send()
+        .map_err(|error| format!("failed to fetch Gmail message attachment: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to fetch Gmail message attachment ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    let attachment = response
+        .json::<GmailAttachmentResponse>()
+        .map_err(|error| format!("Gmail returned an invalid attachment response: {error}"))?;
+    let data = attachment
+        .data
+        .as_deref()
+        .ok_or_else(|| "Gmail attachment response did not contain body data".to_string())?;
+    decode_gmail_text(data)
+}
+
+fn resolve_gmail_body_source(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    message_id: &str,
+    source: GmailBodySource<'_>,
+) -> Result<String, String> {
+    match source {
+        GmailBodySource::Inline(data) => decode_gmail_text(data),
+        GmailBodySource::Attachment(attachment_id) => {
+            fetch_gmail_attachment_text(client, access_token, message_id, attachment_id)
+        }
+    }
+}
+
+fn html_to_plain_text(html: &str) -> String {
+    let mut output = String::with_capacity(html.len());
+    let mut tag = String::new();
+    let mut in_tag = false;
+    let mut suppressed: Option<&'static str> = None;
+
+    for ch in html.chars() {
+        if in_tag {
+            if ch == '>' {
+                in_tag = false;
+                let normalized = tag.trim().to_ascii_lowercase();
+                let name = normalized
+                    .trim_start_matches('/')
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or_default()
+                    .trim_end_matches('/');
+                let closing = normalized.starts_with('/');
+                match (closing, name) {
+                    (false, "script") => suppressed = Some("script"),
+                    (false, "style") => suppressed = Some("style"),
+                    (true, "script") if suppressed == Some("script") => suppressed = None,
+                    (true, "style") if suppressed == Some("style") => suppressed = None,
+                    _ => {}
+                }
+                if suppressed.is_none()
+                    && matches!(name, "br" | "p" | "div" | "li" | "tr" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6")
+                {
+                    output.push('\n');
+                }
+                tag.clear();
+            } else {
+                tag.push(ch);
+            }
+            continue;
+        }
+        if ch == '<' {
+            in_tag = true;
+            tag.clear();
+        } else if suppressed.is_none() {
+            output.push(ch);
+        }
+    }
+
+    let decoded = output
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'");
+    let mut normalized = String::new();
+    for line in decoded.lines() {
+        let collapsed = line.split_whitespace().collect::<Vec<_>>().join(" ");
+        if collapsed.is_empty() {
+            if !normalized.ends_with("\n\n") && !normalized.is_empty() {
+                normalized.push('\n');
+            }
+        } else {
+            if !normalized.is_empty() && !normalized.ends_with('\n') {
+                normalized.push('\n');
+            }
+            normalized.push_str(&collapsed);
+        }
+    }
+    normalized.trim().to_string()
+}
+
+fn gmail_message_text(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    message_id: &str,
+    payload: &GmailPayload,
+) -> Result<Option<String>, String> {
+    if let Some(source) = find_body_source(payload, "text/plain") {
+        return resolve_gmail_body_source(client, access_token, message_id, source).map(Some);
+    }
+    if let Some(source) = find_body_source(payload, "text/html") {
+        let html = resolve_gmail_body_source(client, access_token, message_id, source)?;
+        return Ok(Some(html_to_plain_text(&html)));
     }
     Ok(None)
 }
@@ -845,7 +1002,6 @@ fn gmail_preview(message: GmailMessage) -> GmailMessagePreview {
     }
 }
 
-/// Run the OAuth2 PKCE loopback flow and persist the resulting tokens.
 #[tauri::command]
 pub fn google_calendar_start_auth(
     state: tauri::State<AppState>,
@@ -865,8 +1021,6 @@ pub fn google_calendar_start_auth(
     start_google_auth(client_id, OAUTH_SCOPES, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
 }
 
-/// Connect Gmail Manager. This expands the shared Google Workspace grant to
-/// include Gmail modify and send scopes; Calendar and Tasks keep working.
 #[tauri::command]
 pub fn google_gmail_start_auth(
     state: tauri::State<AppState>,
@@ -918,14 +1072,6 @@ fn validate_gmail_message_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Validate a Google Calendar calendar ID or event ID.
-///
-/// Calendar IDs are opaque strings issued by Google; they can contain
-/// alphanumeric characters, dots, hyphens, underscores, plus signs, and the
-/// `@` character (e.g. `"primary"` or `"user@gmail.com"`).  We reject empty
-/// values, overly long strings, and any byte that is not printable ASCII, as
-/// those are never valid Google-issued IDs and could indicate an injection
-/// attempt.
 fn validate_calendar_id(id: &str) -> Result<(), String> {
     if id.is_empty() || id.len() > 255 {
         return Err(format!(
@@ -941,9 +1087,6 @@ fn validate_calendar_id(id: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Validate a Google Tasks task-list ID.
-///
-/// Task-list IDs follow the same character constraints as calendar IDs.
 fn validate_task_list_id(id: &str) -> Result<(), String> {
     if id.is_empty() || id.len() > 255 {
         return Err(format!(
@@ -988,12 +1131,6 @@ fn gmail_get_message(
         .map_err(|error| format!("Gmail returned an invalid message response: {error}"))
 }
 
-/// Fetch several messages in one multipart batch request. Response parts are
-/// matched back to requests by their `Content-ID` echo
-/// (`<response-scriptor+N>`), so ordering never depends on server internals.
-/// Any failure — transport, non-success outer status, malformed multipart, a
-/// part without a successful inner status — returns `Err` so the caller can
-/// fall back to per-message fetches.
 fn gmail_batch_get_messages(
     client: &reqwest::blocking::Client,
     access_token: &str,
@@ -1046,8 +1183,6 @@ fn gmail_batch_get_chunk(
     gmail_parse_batch_response(&payload, &boundary, ids.len())
 }
 
-/// Build the multipart body: one `application/http` GET part per message id,
-/// each tagged `Content-ID: <scriptor+N>`.
 fn gmail_batch_request_body(ids: &[String]) -> Result<(String, String), String> {
     let boundary = format!("scriptor_batch_{}", uuid::Uuid::new_v4().simple());
     let mut body = String::new();
@@ -1069,7 +1204,6 @@ fn gmail_batch_request_body(ids: &[String]) -> Result<(String, String), String> 
     Ok((boundary, body))
 }
 
-/// Extract the `boundary` parameter from a Content-Type header value.
 fn parse_multipart_boundary(content_type: &str) -> Option<String> {
     for parameter in content_type.split(';').skip(1) {
         let parameter = parameter.trim();
@@ -1083,8 +1217,6 @@ fn parse_multipart_boundary(content_type: &str) -> Option<String> {
     None
 }
 
-/// Parse a batch response body into messages, ordered by the `scriptor+N`
-/// request index echoed in each part's `Content-ID`.
 fn gmail_parse_batch_response(
     payload: &str,
     boundary: &str,
@@ -1093,15 +1225,13 @@ fn gmail_parse_batch_response(
     let normalized = payload.replace("\r\n", "\n");
     let delimiter = format!("--{boundary}");
     let mut slots: Vec<Option<GmailMessage>> = (0..expected).map(|_| None).collect();
-    // Everything before the first boundary is the preamble; everything
-    // after the closing boundary is the epilogue. Neither is a part.
     for (position, segment) in normalized.split(delimiter.as_str()).enumerate() {
         if position == 0 {
             continue;
         }
         let segment = segment.trim();
         if segment.is_empty() || segment.starts_with("--") {
-            continue; // closing delimiter remainder / epilogue
+            continue;
         }
         let (index, message) = gmail_parse_batch_part(segment)?;
         let slot = index as usize;
@@ -1119,9 +1249,6 @@ fn gmail_parse_batch_response(
     Ok(messages)
 }
 
-/// Parse one multipart part: part headers, then the inner HTTP response
-/// (status line, inner headers, JSON body). Parts are normalized to LF first,
-/// so the parsing survives either line-ending style.
 fn gmail_parse_batch_part(part: &str) -> Result<(u32, GmailMessage), String> {
     let part = part.replace("\r\n", "\n");
     let (headers, inner) = part
@@ -1155,8 +1282,6 @@ fn gmail_parse_batch_part(part: &str) -> Result<(u32, GmailMessage), String> {
     Ok((index, message))
 }
 
-/// List message metadata for the selected Gmail search. This does not modify
-/// any mailbox state.
 #[tauri::command]
 pub fn google_gmail_list_messages(
     state: tauri::State<AppState>,
@@ -1200,9 +1325,6 @@ pub fn google_gmail_list_messages(
     if ids.is_empty() {
         return Ok(Vec::new());
     }
-    // One multipart batch covers the whole page (the list is clamped to 50,
-    // the recommended batch ceiling). Any failure falls back to the
-    // bounded-concurrency per-message fetches.
     let messages = match gmail_batch_get_messages(&client, &access_token, &ids) {
         Ok(messages) => messages,
         Err(batch_error) => {
@@ -1217,9 +1339,6 @@ pub fn google_gmail_list_messages(
     Ok(messages.into_iter().map(gmail_preview).collect())
 }
 
-/// Bounded-concurrency fetch: strictly sequential per-message GETs let one
-/// slow response stall the whole list behind a 30s timeout. Chunks of 8
-/// overlap request latency while staying polite to the Gmail API.
 fn gmail_fetch_messages_parallel(
     client: &reqwest::blocking::Client,
     access_token: &str,
@@ -1249,42 +1368,47 @@ fn gmail_fetch_messages_parallel(
     Ok(messages)
 }
 
-/// Fetch one message's metadata and plain-text body for preview or Markdown
-/// conversion. HTML and attachments are deliberately not executed or fetched.
 #[tauri::command]
 pub fn google_gmail_get_message(
     state: tauri::State<AppState>,
     id: String,
 ) -> Result<GmailMessageContent, String> {
     require_gmail_capability(&state)?;
+    validate_gmail_message_id(&id)?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
     let message = gmail_get_message(&client, &access_token, &id)?;
+    let message_id = message
+        .id
+        .clone()
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| id.clone());
     let headers = message
         .payload
         .as_ref()
         .and_then(|payload| payload.headers.as_deref())
         .unwrap_or_default();
+    let subject = gmail_header(headers, "Subject");
+    let from = gmail_header(headers, "From");
+    let date = gmail_header(headers, "Date");
     let plain_text = message
         .payload
         .as_ref()
-        .map(find_plain_text)
+        .map(|payload| gmail_message_text(&client, &access_token, &message_id, payload))
         .transpose()?
         .flatten()
         .unwrap_or_default();
     Ok(GmailMessageContent {
-        id: message.id.unwrap_or_default(),
+        id: message_id,
         thread_id: message.thread_id.unwrap_or_default(),
-        subject: gmail_header(headers, "Subject"),
-        from: gmail_header(headers, "From"),
-        date: gmail_header(headers, "Date"),
+        subject,
+        from,
+        date,
         snippet: message.snippet.unwrap_or_default(),
         plain_text,
     })
 }
 
-/// Apply a reviewed Gmail label transition. At least one add/remove label is
-/// required; Gmail's own IDs (for example `INBOX` and `UNREAD`) are supported.
 #[tauri::command]
 pub fn google_gmail_modify_message(
     state: tauri::State<AppState>,
@@ -1333,8 +1457,6 @@ pub fn google_gmail_modify_message(
     Ok(())
 }
 
-/// Move a message to Gmail Trash. The operation is intentionally separate from
-/// ordinary label transitions so the native consent explains its effect.
 #[tauri::command]
 pub fn google_gmail_trash_message(
     state: tauri::State<AppState>,
@@ -1366,9 +1488,6 @@ pub fn google_gmail_trash_message(
     Ok(())
 }
 
-/// Send an RFC 5322 message encoded as URL-safe base64 without padding. The
-/// caller must obtain a fresh, message-scoped authorization grant immediately
-/// before this command; Scriptor never queues or retries sent mail.
 #[tauri::command]
 pub fn google_gmail_send_message(
     state: tauri::State<AppState>,
@@ -1407,7 +1526,6 @@ pub fn google_gmail_send_message(
     Ok(())
 }
 
-/// Best-effort token revocation followed by clearing the keychain entry.
 #[tauri::command]
 pub fn google_calendar_disconnect(
     state: tauri::State<AppState>,
@@ -1430,16 +1548,12 @@ pub fn google_calendar_disconnect(
     keychain_delete(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
 }
 
-/// List upcoming events within `lookahead_days`.
 #[tauri::command]
 pub fn google_calendar_list_events(
     calendar_id: String,
     lookahead_days: i64,
 ) -> Result<Vec<CalendarEvent>, String> {
     validate_calendar_id(&calendar_id)?;
-    // Clamp lookahead to a sensible range: at least 1 day, at most 365.
-    // Negative or zero values would produce past-looking windows; very large
-    // values could generate excessively broad API queries.
     let lookahead_days = lookahead_days.clamp(1, 365);
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
@@ -1482,7 +1596,6 @@ pub fn google_calendar_list_events(
         .collect())
 }
 
-/// List tasks in the given task list.
 #[tauri::command]
 pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask>, String> {
     validate_task_list_id(&task_list_id)?;
@@ -1514,13 +1627,11 @@ pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask
         .collect())
 }
 
-/// Return the authenticated Google account email.
 #[tauri::command]
 pub fn google_calendar_get_authed_email() -> Result<String, String> {
     Ok(require_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?.email)
 }
 
-/// Create a new task in the given task list.
 #[tauri::command]
 pub fn google_calendar_create_task(
     state: tauri::State<AppState>,
@@ -1572,7 +1683,6 @@ pub fn google_calendar_create_task(
     Ok(map_task(task))
 }
 
-/// Mark a task as completed.
 #[tauri::command]
 pub fn google_calendar_complete_task(
     state: tauri::State<AppState>,
@@ -1610,7 +1720,6 @@ pub fn google_calendar_complete_task(
     Ok(())
 }
 
-/// Delete a task.
 #[tauri::command]
 pub fn google_calendar_delete_task(
     state: tauri::State<AppState>,
@@ -1653,7 +1762,6 @@ mod tests {
 
     #[test]
     fn base64url_matches_known_vector() {
-        // "foobar" → sha256 base64url is a stable reference.
         assert_eq!(base64url_encode(b""), "");
         assert_eq!(base64url_encode(b"f"), "Zg");
         assert_eq!(base64url_encode(b"fo"), "Zm8");
@@ -1724,6 +1832,14 @@ mod tests {
     }
 
     #[test]
+    fn gmail_batch_uses_documented_discovery_path() {
+        assert_eq!(
+            GMAIL_BATCH_ENDPOINT,
+            "https://gmail.googleapis.com/batch/gmail/v1"
+        );
+    }
+
+    #[test]
     fn gmail_batch_body_has_one_http_part_per_message() {
         let ids = vec!["18f4a".to_string(), "18f4b".to_string()];
         let (boundary, body) = gmail_batch_request_body(&ids).expect("body");
@@ -1740,7 +1856,6 @@ mod tests {
         );
         assert_eq!(body.matches("Content-ID: <scriptor+").count(), 2);
         assert!(body.contains(&format!("--{boundary}--")));
-        // ids are validated, so injection via message ids cannot enter a part
         assert!(gmail_batch_request_body(&["../inbox".to_string()]).is_err());
     }
 
@@ -1748,7 +1863,7 @@ mod tests {
     fn gmail_batch_response_maps_parts_by_content_id_echo() {
         let boundary = "scriptor_batch_test";
         let payload = format!(
-            "Preamble ignored.\r\n             --{boundary}\r\n             Content-Type: application/http\r\n             Content-ID: <response-scriptor+1>\r\n\r\n             HTTP/1.1 200 OK\r\n             Content-Type: application/json\r\n\r\n             {{\"id\":\"b\",\"threadId\":\"tb\",\"snippet\":\"second\"}}\r\n             --{boundary}\r\n             Content-Type: application/http\r\n             Content-ID: <response-scriptor+0>\r\n\r\n             HTTP/1.1 200 OK\r\n             Content-Type: application/json\r\n\r\n             {{\"id\":\"a\",\"threadId\":\"ta\",\"snippet\":\"first\"}}\r\n             --{boundary}--\r\n"
+            "Preamble ignored.\r\n--{boundary}\r\nContent-Type: application/http\r\nContent-ID: <response-scriptor+1>\r\n\r\nHTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{{\"id\":\"b\",\"threadId\":\"tb\",\"snippet\":\"second\"}}\r\n--{boundary}\r\nContent-Type: application/http\r\nContent-ID: <response-scriptor+0>\r\n\r\nHTTP/1.1 200 OK\r\nContent-Type: application/json\r\n\r\n{{\"id\":\"a\",\"threadId\":\"ta\",\"snippet\":\"first\"}}\r\n--{boundary}--\r\n"
         );
         let messages = gmail_parse_batch_response(&payload, boundary, 2).expect("parsed");
         assert_eq!(messages[0].id.as_deref(), Some("a"));
@@ -1759,12 +1874,12 @@ mod tests {
     fn gmail_batch_response_rejects_failing_or_missing_parts() {
         let boundary = "scriptor_batch_test";
         let failing = format!(
-            "--{boundary}\r\n             Content-ID: <response-scriptor+0>\r\n\r\n             HTTP/1.1 404 Not Found\r\n\r\n             {{\"error\":{{\"code\":404}}}}\r\n             --{boundary}--\r\n"
+            "--{boundary}\r\nContent-ID: <response-scriptor+0>\r\n\r\nHTTP/1.1 404 Not Found\r\n\r\n{{\"error\":{{\"code\":404}}}}\r\n--{boundary}--\r\n"
         );
         assert!(gmail_parse_batch_response(&failing, boundary, 1).is_err());
 
         let missing = format!(
-            "--{boundary}\r\n             Content-ID: <response-scriptor+0>\r\n\r\n             HTTP/1.1 200 OK\r\n\r\n             {{\"id\":\"a\"}}\r\n             --{boundary}--\r\n"
+            "--{boundary}\r\nContent-ID: <response-scriptor+0>\r\n\r\nHTTP/1.1 200 OK\r\n\r\n{{\"id\":\"a\"}}\r\n--{boundary}--\r\n"
         );
         assert!(gmail_parse_batch_response(&missing, boundary, 2).is_err());
     }
@@ -1780,6 +1895,55 @@ mod tests {
             Some("quoted-name".to_string())
         );
         assert_eq!(parse_multipart_boundary("application/json"), None);
+    }
+
+    #[test]
+    fn gmail_body_source_finds_inline_plain_text() {
+        let payload = GmailPayload {
+            headers: None,
+            mime_type: Some("multipart/alternative".into()),
+            body: None,
+            parts: Some(vec![GmailPayload {
+                headers: None,
+                mime_type: Some("text/plain".into()),
+                body: Some(GmailBody {
+                    data: Some("aGVsbG8".into()),
+                    attachment_id: None,
+                }),
+                parts: None,
+            }]),
+        };
+        assert_eq!(
+            find_body_source(&payload, "text/plain"),
+            Some(GmailBodySource::Inline("aGVsbG8"))
+        );
+    }
+
+    #[test]
+    fn gmail_body_source_finds_attachment_backed_plain_text() {
+        let payload = GmailPayload {
+            headers: None,
+            mime_type: Some("text/plain".into()),
+            body: Some(GmailBody {
+                data: None,
+                attachment_id: Some("ANGjdJ8_attachment".into()),
+            }),
+            parts: None,
+        };
+        assert_eq!(
+            find_body_source(&payload, "text/plain"),
+            Some(GmailBodySource::Attachment("ANGjdJ8_attachment"))
+        );
+    }
+
+    #[test]
+    fn gmail_html_fallback_removes_markup_and_active_content() {
+        let text = html_to_plain_text(
+            "<html><style>.x{color:red}</style><body><p>Hello &amp; welcome</p><script>alert('x')</script><div>Second line</div></body></html>",
+        );
+        assert_eq!(text, "Hello & welcome\nSecond line");
+        assert!(!text.contains("alert"));
+        assert!(!text.contains("color:red"));
     }
 
     #[test]
