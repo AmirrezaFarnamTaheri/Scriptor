@@ -48,18 +48,16 @@ export async function dispatchPluginCommandId(
     case 'gmail.connect':
       if (!runtime.openGmailManager) return { handled: false }
       runtime.openGmailManager()
-      return { handled: true }
+      return { handled: true, output: { commandId, status: 'opened' } }
     default:
       break
   }
 
-  if (commandId.startsWith('gmail.')) {
-    if (runtime.openGmailManager) {
-      runtime.openGmailManager()
-      return { handled: true, output: { commandId, status: 'opened' } }
-    }
-    return { handled: true, output: { commandId, status: 'ready' } }
-  }
+  // Gmail mailbox mutations are intentionally not generic plugin commands.
+  // They require concrete user-selected message data and native confirmation,
+  // so an unknown gmail.* command must be reported as unhandled rather than
+  // pretending that opening the panel performed the requested side effect.
+  if (commandId.startsWith('gmail.')) return { handled: false }
 
   if (commandId.startsWith('export.')) {
     const profileId = commandId.replace(/^export\./, '')
