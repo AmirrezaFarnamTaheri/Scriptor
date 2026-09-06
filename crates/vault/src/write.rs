@@ -71,8 +71,9 @@ pub fn save_note_with_options(
     let _mutation_lock = lock_vault_mutation(root.root())?;
     if root.root().join(".scriptor/rename-txn.json").is_file() {
         return Err(VaultError::InvalidConfig {
-            message: "vault rename transaction is still pending; retry after it commits or rolls back"
-                .into(),
+            message:
+                "vault rename transaction is still pending; retry after it commits or rolls back"
+                    .into(),
         });
     }
     save_note_with_options_locked(
@@ -235,8 +236,9 @@ pub fn rollback_save_note(
     let _mutation_lock = lock_vault_mutation(root.root())?;
     if root.root().join(".scriptor/rename-txn.json").is_file() {
         return Err(VaultError::InvalidConfig {
-            message: "vault rename transaction is still pending; retry after it commits or rolls back"
-                .into(),
+            message:
+                "vault rename transaction is still pending; retry after it commits or rolls back"
+                    .into(),
         });
     }
     rollback_save_note_locked(vault_id, root, path, previous_content_hash)

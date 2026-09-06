@@ -44,7 +44,9 @@ pub use endpoint::{
 };
 use endpoint::{constant_time_eq, persist_endpoint, resolve_name};
 use framing::{read_frame_with_timeout, write_event_with_timeout, write_response_with_timeout};
-use limits::{ConnectionBudget, ConnectionSlot, MAX_CONCURRENT_CONNECTIONS, MAX_PREAUTH_CONNECTIONS};
+use limits::{
+    ConnectionBudget, ConnectionSlot, MAX_CONCURRENT_CONNECTIONS, MAX_PREAUTH_CONNECTIONS,
+};
 
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
     let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));

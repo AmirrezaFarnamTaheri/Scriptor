@@ -154,12 +154,7 @@ fn probe_pandoc_program(
         return Err(ExportError::PandocMissing);
     }
 
-    let version = output
-        .stdout
-        .lines()
-        .next()
-        .unwrap_or("pandoc")
-        .to_string();
+    let version = output.stdout.lines().next().unwrap_or("pandoc").to_string();
     Ok(PandocDiscovery {
         path: output.resolved_program,
         version,

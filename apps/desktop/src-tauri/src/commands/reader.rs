@@ -201,10 +201,8 @@ fn load_store_for_write(root: &std::path::Path) -> Result<AnnotationStore, Strin
             let parent = path
                 .parent()
                 .ok_or("reader annotation path has no parent")?;
-            let recovery = parent.join(format!(
-                "annotations.corrupt-{}.json",
-                uuid::Uuid::new_v4()
-            ));
+            let recovery =
+                parent.join(format!("annotations.corrupt-{}.json", uuid::Uuid::new_v4()));
             std::fs::rename(&path, &recovery).map_err(|rename_error| {
                 format!(
                     "{error}; also failed to preserve the corrupt annotation store at {}: {rename_error}",
@@ -293,7 +291,9 @@ fn validate_annotations(annotations: &[ReaderAnnotationRecord]) -> Result<(), St
 fn validate_field(name: &str, value: &str, min: usize, max: usize) -> Result<(), String> {
     let len = value.len();
     if len < min || len > max {
-        return Err(format!("{name} must be between {min} and {max} UTF-8 bytes"));
+        return Err(format!(
+            "{name} must be between {min} and {max} UTF-8 bytes"
+        ));
     }
     Ok(())
 }

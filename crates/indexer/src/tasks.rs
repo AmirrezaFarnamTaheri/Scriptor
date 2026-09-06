@@ -1375,7 +1375,8 @@ mod tests {
     }
 
     #[test]
-    fn task_identity_survives_unrelated_line_insert_and_preserves_completion_time() -> Result<(), IndexerError> {
+    fn task_identity_survives_unrelated_line_insert_and_preserves_completion_time()
+    -> Result<(), IndexerError> {
         use crate::notes::upsert_note_on;
         use crate::open_cache_for_session;
         use scriptor_vault::{RelativeVaultPath, metadata_from_markdown, open_vault};

@@ -153,11 +153,10 @@ mod tests {
         assert_eq!(tag, "work");
 
         connection.execute("DELETE FROM notes WHERE id = 'v:a.md'", [])?;
-        let good_count: i64 = connection.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE id = 'good'",
-            [],
-            |row| row.get(0),
-        )?;
+        let good_count: i64 =
+            connection.query_row("SELECT COUNT(*) FROM tasks WHERE id = 'good'", [], |row| {
+                row.get(0)
+            })?;
         let tag_count: i64 = connection.query_row(
             "SELECT COUNT(*) FROM task_tags WHERE task_id = 'good'",
             [],

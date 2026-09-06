@@ -28,8 +28,9 @@ pub fn delete_note_guarded(
     let _mutation_lock = lock_vault_mutation(root.root())?;
     if root.root().join(".scriptor/rename-txn.json").is_file() {
         return Err(VaultError::InvalidConfig {
-            message: "vault rename transaction is still pending; retry after it commits or rolls back"
-                .into(),
+            message:
+                "vault rename transaction is still pending; retry after it commits or rolls back"
+                    .into(),
         });
     }
     delete_note_guarded_locked(root, path, expected_content_hash)

@@ -10,10 +10,7 @@ const ALLOWED_BOOL_FLAGS: &[&str] = &[
 
 // These fixed values select supported local PDF engines without allowing a
 // caller-controlled executable path.
-const ALLOWED_PDF_ENGINE_FLAGS: &[&str] = &[
-    "--pdf-engine=pdflatex",
-    "--pdf-engine=xelatex",
-];
+const ALLOWED_PDF_ENGINE_FLAGS: &[&str] = &["--pdf-engine=pdflatex", "--pdf-engine=xelatex"];
 
 const ALLOWED_EQ_PREFIXES: &[&str] = &[
     "--css=",

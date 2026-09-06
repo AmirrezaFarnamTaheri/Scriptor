@@ -1093,7 +1093,8 @@ CREATE TABLE IF NOT EXISTS notes (
     }
 
     #[test]
-    fn migration_v10_to_v11_rebuilds_tasks_with_cascade_and_preserves_tags() -> Result<(), IndexerError> {
+    fn migration_v10_to_v11_rebuilds_tasks_with_cascade_and_preserves_tags()
+    -> Result<(), IndexerError> {
         let connection = Connection::open_in_memory()?;
         apply_schema(&connection)?;
         connection.pragma_update(None, "foreign_keys", "OFF")?;
@@ -1185,11 +1186,10 @@ CREATE TABLE IF NOT EXISTS notes (
         assert_eq!(orphan_source, None);
 
         connection.execute("DELETE FROM notes WHERE id = 'v:a.md'", [])?;
-        let kept_count: i64 = connection.query_row(
-            "SELECT COUNT(*) FROM tasks WHERE id = 'kept'",
-            [],
-            |row| row.get(0),
-        )?;
+        let kept_count: i64 =
+            connection.query_row("SELECT COUNT(*) FROM tasks WHERE id = 'kept'", [], |row| {
+                row.get(0)
+            })?;
         assert_eq!(kept_count, 0);
         let tag_count: i64 = connection.query_row(
             "SELECT COUNT(*) FROM task_tags WHERE task_id = 'kept'",
