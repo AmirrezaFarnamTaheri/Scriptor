@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Archive,
   CheckCircle,
@@ -31,7 +31,7 @@ import type { PanelPresentation } from '../hooks/usePanelPresentation.ts'
 
 export interface GmailManagerPanelProps {
   onClose: () => void
-  onImportNote?: (subject: string, markdown: string) => Promise<void>
+  onImportNote?: (subject: string, markdown: string, messageId: string) => Promise<void>
   presentation?: PanelPresentation
 }
 
@@ -42,6 +42,11 @@ const TABS: PanelTab[] = [
   { id: 'compose', label: 'Compose' },
   { id: 'account', label: 'Account' },
 ]
+
+function effectiveGmailQuery(query: string): string {
+  const trimmed = query.trim()
+  return trimmed || 'in:inbox'
+}
 
 export function GmailManagerPanel({
   onClose,
@@ -57,9 +62,12 @@ export function GmailManagerPanel({
   const [messages, setMessages] = useState<GmailMessagePreview[]>([])
   const [selectedMessage, setSelectedMessage] = useState<GmailMessageContent | null>(null)
   const [loading, setLoading] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [loadingContent, setLoadingContent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [statusText, setStatusText] = useState<string | null>(null)
+  const refreshSequence = useRef(0)
+  const selectionSequence = useRef(0)
 
   // Compose tab state
   const [composeTo, setComposeTo] = useState('')
@@ -70,14 +78,17 @@ export function GmailManagerPanel({
   const handleRefreshMessages = useCallback(
     async (queryOverride?: string) => {
       if (!nativeReady) return
-      setLoading(true)
+      const sequence = ++refreshSequence.current
+      setRefreshing(true)
       setError(null)
       try {
-        const query = queryOverride !== undefined ? queryOverride : searchQuery
+        const query = effectiveGmailQuery(queryOverride !== undefined ? queryOverride : searchQuery)
         const items = await googleGmailListMessages(query, 25)
+        if (sequence !== refreshSequence.current) return
         setMessages(items)
         setIsAuthed(true)
       } catch (err) {
+        if (sequence !== refreshSequence.current) return
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('not authenticated') || msg.includes('no token')) {
           setIsAuthed(false)
@@ -85,7 +96,7 @@ export function GmailManagerPanel({
           setError(msg)
         }
       } finally {
-        setLoading(false)
+        if (sequence === refreshSequence.current) setRefreshing(false)
       }
     },
     [nativeReady, searchQuery],
@@ -97,7 +108,7 @@ export function GmailManagerPanel({
 
     void (async () => {
       try {
-        const items = await googleGmailListMessages('', 25)
+        const items = await googleGmailListMessages('in:inbox', 25)
         if (cancelled) return
         setMessages(items)
         setIsAuthed(true)
@@ -110,14 +121,14 @@ export function GmailManagerPanel({
           setError(msg)
         }
       } finally {
-        if (!cancelled) {
-          setCheckingAuth(false)
-        }
+        if (!cancelled) setCheckingAuth(false)
       }
     })()
 
     return () => {
       cancelled = true
+      refreshSequence.current += 1
+      selectionSequence.current += 1
     }
   }, [nativeReady])
 
@@ -132,7 +143,7 @@ export function GmailManagerPanel({
       setIsAuthed(true)
       setStatusText('Authentication successful!')
       setActiveTab('messages')
-      void handleRefreshMessages()
+      await handleRefreshMessages()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setStatusText(null)
@@ -144,8 +155,11 @@ export function GmailManagerPanel({
   const handleDisconnect = async () => {
     if (!nativeReady) return
     setLoading(true)
+    setError(null)
     try {
       await googleGmailDisconnect()
+      refreshSequence.current += 1
+      selectionSequence.current += 1
       setIsAuthed(false)
       setMessages([])
       setSelectedMessage(null)
@@ -159,21 +173,25 @@ export function GmailManagerPanel({
 
   const handleSelectMessage = async (preview: GmailMessagePreview) => {
     if (!nativeReady) return
+    const sequence = ++selectionSequence.current
     setLoadingContent(true)
     setError(null)
     try {
       const full = await googleGmailGetMessage(preview.id)
+      if (sequence !== selectionSequence.current) return
       setSelectedMessage(full)
     } catch (err) {
+      if (sequence !== selectionSequence.current) return
       setError(err instanceof Error ? err.message : String(err))
     } finally {
-      setLoadingContent(false)
+      if (sequence === selectionSequence.current) setLoadingContent(false)
     }
   }
 
   const handleImportToMarkdown = async (msg: GmailMessageContent) => {
     if (!onImportNote) return
     setLoading(true)
+    setError(null)
     try {
       const markdown = `---
 title: ${toYamlScalar(msg.subject || 'Untitled Email')}
@@ -195,9 +213,10 @@ tags:
 
 ${msg.plainText || msg.snippet}
 `
-      await onImportNote(msg.subject || 'Email', markdown)
+      await onImportNote(msg.subject || 'Email', markdown, msg.id)
       setStatusText(`Imported "${msg.subject || 'Email'}" to vault.`)
     } catch (err) {
+      setStatusText(null)
       setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
@@ -205,15 +224,17 @@ ${msg.plainText || msg.snippet}
   }
 
   const handleArchive = async (id: string) => {
-    if (!nativeReady) return
+    if (!nativeReady || loadingContent) return
     setLoading(true)
+    setError(null)
     try {
-      await googleGmailModifyMessage(id, [], ['INBOX', 'UNREAD'])
-      setMessages((prev) => prev.filter((m) => m.id !== id))
-      if (selectedMessage?.id === id) {
-        setSelectedMessage(null)
-      }
+      // Removing INBOX archives the message. Preserve UNREAD so archiving does
+      // not silently change the user's read state.
+      await googleGmailModifyMessage(id, [], ['INBOX'])
+      selectionSequence.current += 1
+      setSelectedMessage(null)
       setStatusText('Archived message.')
+      await handleRefreshMessages()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -222,15 +243,15 @@ ${msg.plainText || msg.snippet}
   }
 
   const handleTrash = async (id: string) => {
-    if (!nativeReady) return
+    if (!nativeReady || loadingContent) return
     setLoading(true)
+    setError(null)
     try {
       await googleGmailTrashMessage(id)
-      setMessages((prev) => prev.filter((m) => m.id !== id))
-      if (selectedMessage?.id === id) {
-        setSelectedMessage(null)
-      }
+      selectionSequence.current += 1
+      setSelectedMessage(null)
       setStatusText('Moved message to trash.')
+      await handleRefreshMessages()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -305,7 +326,6 @@ ${msg.plainText || msg.snippet}
           </div>
         )}
 
-        {/* Tab 1: Messages */}
         {activeTab === 'messages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
             <div>
@@ -329,7 +349,7 @@ ${msg.plainText || msg.snippet}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') void handleRefreshMessages()
+                      if (e.key === 'Enter' && !refreshing) void handleRefreshMessages()
                     }}
                     placeholder="Search Gmail (e.g. is:unread, from:colleague)..."
                     aria-label="Search Gmail messages"
@@ -348,11 +368,11 @@ ${msg.plainText || msg.snippet}
                   type="button"
                   className="toolbar-button"
                   onClick={() => void handleRefreshMessages()}
-                  disabled={loading}
+                  disabled={refreshing}
                   title="Search / Refresh"
                   aria-label="Search or refresh messages"
                 >
-                  <RefreshCw size={14} className={loading ? 'spinning' : ''} />
+                  <RefreshCw size={14} className={refreshing ? 'spinning' : ''} />
                 </button>
               </div>
             </div>
@@ -379,7 +399,6 @@ ${msg.plainText || msg.snippet}
 
             {!checkingAuth && isAuthed && (
               <div style={{ display: 'grid', gridTemplateColumns: selectedMessage ? '1fr 1fr' : '1fr', gap: '12px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                {/* Messages List */}
                 <div
                   style={{
                     border: '1px solid var(--border)',
@@ -389,7 +408,7 @@ ${msg.plainText || msg.snippet}
                     background: 'var(--surface)',
                   }}
                 >
-                  {messages.length === 0 && !loading && (
+                  {messages.length === 0 && !refreshing && (
                     <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-muted)' }}>
                       <Inbox size={28} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
                       <p>No messages found.</p>
@@ -401,6 +420,7 @@ ${msg.plainText || msg.snippet}
                       key={item.id}
                       type="button"
                       onClick={() => void handleSelectMessage(item)}
+                      disabled={loading}
                       style={{
                         display: 'block',
                         width: '100%',
@@ -410,7 +430,7 @@ ${msg.plainText || msg.snippet}
                         border: 'none',
                         background: selectedMessage?.id === item.id ? 'var(--surface-raised)' : 'transparent',
                         color: 'var(--ink)',
-                        cursor: 'pointer',
+                        cursor: loading ? 'default' : 'pointer',
                         marginBottom: '4px',
                         borderLeft: selectedMessage?.id === item.id ? '3px solid var(--color-primary, #0f766e)' : '3px solid transparent',
                       }}
@@ -429,7 +449,6 @@ ${msg.plainText || msg.snippet}
                   ))}
                 </div>
 
-                {/* Message Content Viewer */}
                 {selectedMessage && (
                   <div
                     style={{
@@ -450,6 +469,7 @@ ${msg.plainText || msg.snippet}
                               type="button"
                               className="action-button"
                               onClick={() => void handleImportToMarkdown(selectedMessage)}
+                              disabled={loading || loadingContent}
                               title="Save into current Markdown vault"
                               style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', padding: '4px 8px' }}
                             >
@@ -461,6 +481,7 @@ ${msg.plainText || msg.snippet}
                             type="button"
                             className="toolbar-button"
                             onClick={() => void handleArchive(selectedMessage.id)}
+                            disabled={loading || loadingContent}
                             title="Archive message"
                           >
                             <Archive size={14} />
@@ -469,6 +490,7 @@ ${msg.plainText || msg.snippet}
                             type="button"
                             className="toolbar-button"
                             onClick={() => void handleTrash(selectedMessage.id)}
+                            disabled={loading || loadingContent}
                             title="Move to trash"
                           >
                             <Trash2 size={14} />
@@ -482,11 +504,7 @@ ${msg.plainText || msg.snippet}
                     </div>
 
                     <div style={{ flex: 1, overflowY: 'auto', padding: '12px', whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                      {loadingContent ? (
-                        <div style={{ textAlign: 'center', padding: '24px', opacity: 0.6 }}>Loading full message...</div>
-                      ) : (
-                        selectedMessage.plainText || selectedMessage.snippet
-                      )}
+                      {selectedMessage.plainText || selectedMessage.snippet}
                     </div>
                   </div>
                 )}
@@ -495,7 +513,6 @@ ${msg.plainText || msg.snippet}
           </div>
         )}
 
-        {/* Tab 2: Compose */}
         {activeTab === 'compose' && (
           <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
             <label className="settings-field">
@@ -555,7 +572,6 @@ ${msg.plainText || msg.snippet}
           </form>
         )}
 
-        {/* Tab 3: Account */}
         {activeTab === 'account' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '540px' }}>
             <div style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)' }}>
