@@ -1,4 +1,5 @@
 const ZOTERO_API_BASE = 'https://api.zotero.org'
+const ZOTERO_PAGE_LIMIT = 100
 
 type FetchLike = typeof globalThis.fetch
 
@@ -32,12 +33,7 @@ interface ZoteroApiCollection {
   data: ZoteroCollection
 }
 
-/**
- * Read-only Zotero Web API v3 connector.
- *
- * Credentials are always sent only to Zotero's fixed HTTPS API origin. Tests
- * inject a fetch implementation rather than changing the credential origin.
- */
+/** Read-only Zotero Web API v3 connector. */
 export class ZoteroConnector {
   private apiKey = ''
   private userId: string | null = null
@@ -51,8 +47,6 @@ export class ZoteroConnector {
     const key = apiKey.trim()
     if (!key) throw new Error('Zotero API key is required')
 
-    // Verify the key at the API's unscoped current-key endpoint before
-    // retaining it as connected state.
     this.apiKey = ''
     this.userId = null
     const response = await this.request('/keys/current', undefined, key, false)
@@ -73,9 +67,7 @@ export class ZoteroConnector {
   }
 
   private ensureConnected(): string {
-    if (!this.userId || !this.apiKey) {
-      throw new Error('Not connected. Call connect() first.')
-    }
+    if (!this.userId || !this.apiKey) throw new Error('Not connected. Call connect() first.')
     return this.userId
   }
 
@@ -105,10 +97,9 @@ export class ZoteroConnector {
     this.ensureConnected()
     const allCollections: ZoteroCollection[] = []
     let start = 0
-    const limit = 100
 
     for (;;) {
-      const response = await this.request('/collections', { start: String(start), limit: String(limit) })
+      const response = await this.request('/collections', { start: String(start), limit: String(ZOTERO_PAGE_LIMIT) })
       if (!response.ok) throw new Error(`Failed to list collections: ${response.status}`)
       const data = (await response.json()) as ZoteroApiCollection[]
       for (const item of data) {
@@ -119,8 +110,8 @@ export class ZoteroConnector {
           numItems: item.data.numItems,
         })
       }
-      if (data.length < limit) break
-      start += limit
+      if (data.length < ZOTERO_PAGE_LIMIT) break
+      start += ZOTERO_PAGE_LIMIT
     }
 
     return allCollections
@@ -131,14 +122,13 @@ export class ZoteroConnector {
     const path = collectionId ? `/collections/${collectionId}/items` : '/items'
     const allItems: ZoteroItem[] = []
     let start = 0
-    const limit = 100
     const seen = new Set<string>()
 
     for (;;) {
       const response = await this.request(path, {
         itemType: '-attachment || note',
         start: String(start),
-        limit: String(limit),
+        limit: String(ZOTERO_PAGE_LIMIT),
       })
       if (!response.ok) throw new Error(`Failed to list items: ${response.status}`)
       const data = (await response.json()) as ZoteroApiItem[]
@@ -148,8 +138,8 @@ export class ZoteroConnector {
           allItems.push(item.data)
         }
       }
-      if (data.length < limit) break
-      start += limit
+      if (data.length < ZOTERO_PAGE_LIMIT) break
+      start += ZOTERO_PAGE_LIMIT
     }
 
     return allItems
@@ -158,8 +148,43 @@ export class ZoteroConnector {
   async exportBibTeX(collectionId?: string): Promise<string> {
     this.ensureConnected()
     const path = collectionId ? `/collections/${collectionId}/items` : '/items'
-    const response = await this.request(path, { format: 'bibtex', itemType: '-attachment || note' })
-    if (!response.ok) throw new Error(`Failed to export BibTeX: ${response.status}`)
-    return response.text()
+    const chunks: string[] = []
+    let start = 0
+
+    for (;;) {
+      const response = await this.request(path, {
+        format: 'bibtex',
+        itemType: '-attachment || note',
+        start: String(start),
+        limit: String(ZOTERO_PAGE_LIMIT),
+      })
+      if (!response.ok) throw new Error(`Failed to export BibTeX: ${response.status}`)
+
+      const chunk = (await response.text()).trim()
+      if (chunk) chunks.push(chunk)
+
+      const totalHeader = response.headers.get('Total-Results')
+      const total = totalHeader === null ? null : Number.parseInt(totalHeader, 10)
+      if (Number.isFinite(total) && total !== null) {
+        start += ZOTERO_PAGE_LIMIT
+        if (start >= total) break
+        continue
+      }
+
+      // Export responses are textual, so when Total-Results is unavailable we
+      // follow the standards-compliant Link rel=next header rather than trying
+      // to infer item count from BibTeX text.
+      const link = response.headers.get('Link') ?? ''
+      const nextMatch = link.match(/<([^>]+)>;\s*rel="next"/i)
+      if (!nextMatch) break
+      const nextUrl = new URL(nextMatch[1])
+      const nextStart = Number.parseInt(nextUrl.searchParams.get('start') ?? '', 10)
+      if (!Number.isSafeInteger(nextStart) || nextStart <= start) {
+        throw new Error('Zotero pagination returned an invalid next offset')
+      }
+      start = nextStart
+    }
+
+    return chunks.length > 0 ? `${chunks.join('\n\n')}\n` : ''
   }
 }
