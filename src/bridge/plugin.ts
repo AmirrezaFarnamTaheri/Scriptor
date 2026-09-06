@@ -7,10 +7,15 @@ import { DEFAULT_ENABLED_PLUGINS } from '../context/plugin-defaults.ts'
 
 type NativePluginState = { enabledPlugins: string[]; disabledPlugins: string[] }
 
-export async function savePluginState(enabledIds: Set<string> | string[], capabilityId?: string): Promise<void> {
+export async function setPluginCapabilityEnabled(capabilityId: string, enabled: boolean): Promise<void> {
   if (!isNativeBridgeAvailable()) return
   if (!capabilityId) throw new Error('capabilityId is required for vault-backed plugin state')
-  await invoke('plugin_state_set_enabled', { capabilityId, enabled: Array.from(enabledIds).includes(capabilityId) })
+  await invoke('plugin_state_set_enabled', { capabilityId, enabled })
+}
+
+export async function savePluginState(enabledIds: Set<string> | string[], capabilityId?: string): Promise<void> {
+  if (!capabilityId) throw new Error('capabilityId is required for vault-backed plugin state')
+  await setPluginCapabilityEnabled(capabilityId, Array.from(enabledIds).includes(capabilityId))
 }
 
 export async function loadPluginState(): Promise<Set<string> | null> {
