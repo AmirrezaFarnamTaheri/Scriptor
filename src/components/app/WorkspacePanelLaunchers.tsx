@@ -62,6 +62,8 @@ export function WorkspacePanelLaunchers({
   setGmailManagerOpen,
   showToast,
 }: WorkspacePanelLaunchersProps) {
+  const gmailEnabled = plugins.activePlugins.some((plugin) => plugin.manifest.id === 'scriptor.gmail-manager')
+
   return (
     <>
       {canvasOpen && (
@@ -183,7 +185,7 @@ export function WorkspacePanelLaunchers({
         </ErrorBoundary>
       )}
 
-      {gmailManagerOpen && setGmailManagerOpen && (
+      {gmailManagerOpen && setGmailManagerOpen && nativeReady && workspace.vault && gmailEnabled && (
         <ErrorBoundary
           name="gmail-manager-panel"
           fallback={<PanelErrorFallback title="Gmail Manager" onDismiss={() => setGmailManagerOpen(false)} />}
