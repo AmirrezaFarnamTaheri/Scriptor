@@ -71,7 +71,21 @@ describe('pluginCommandDispatch Gmail commands', () => {
     assert.match(result.error.message, /authorization denied/)
   })
 
-  it('opens Gmail Manager only for the explicit open command', async () => {
+  it('does not report input-required Gmail commands as successful MCP mutations', async () => {
+    const result = await dispatchPluginCommandIdAsMcpResult(
+      'gmail.send',
+      runtime({
+        gmailSend: async () => ({ status: 'input-required', required: ['to', 'subject', 'body'] }),
+      }),
+    )
+
+    assert.equal(result.ok, false)
+    if (result.ok) assert.fail('expected input-required failure')
+    assert.equal(result.error.code, 'mcp.plugin_command_input_required')
+    assert.match(result.error.message, /to, subject, body/)
+  })
+
+  it('opens Gmail Manager only for the explicit open command at dispatch level', async () => {
     let opens = 0
     const testRuntime = runtime({ openGmailManager: () => { opens += 1 } })
     const open = await dispatchPluginCommandId('gmail.open', testRuntime)
