@@ -110,6 +110,7 @@ export function BibliographyPanel({
               type="button"
               className="toolbar-button"
               onClick={() => setZoteroOpen((prev) => !prev)}
+              disabled={zoteroLoading}
             >
               {zoteroOpen ? 'Cancel Import' : 'Import from Zotero'}
             </button>

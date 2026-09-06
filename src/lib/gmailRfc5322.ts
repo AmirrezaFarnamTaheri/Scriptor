@@ -16,3 +16,12 @@ export function buildRfc5322Message(to: string, subject: string, body: string): 
   const encoder = new TextEncoder()
   return encodeBase64Url(encoder.encode(email))
 }
+
+/**
+ * Safely encodes a scalar value as a YAML double-quoted flow scalar string.
+ * Prevents YAML front-matter injection attacks from fields containing newlines,
+ * unescaped quotes, or unexpected characters.
+ */
+export function toYamlScalar(value: unknown): string {
+  return JSON.stringify(String(value ?? ''))
+}

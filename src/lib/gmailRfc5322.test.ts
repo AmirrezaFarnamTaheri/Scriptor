@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildRfc5322Message, encodeBase64Url } from './gmailRfc5322.ts'
+import { buildRfc5322Message, encodeBase64Url, toYamlScalar } from './gmailRfc5322.ts'
 
 test('encodeBase64Url formats bytes without padding and with URL-safe chars', () => {
   const input = new TextEncoder().encode('Hello >? World!')
@@ -25,4 +25,22 @@ test('buildRfc5322Message generates valid base64url encoded MIME envelope', () =
   assert.ok(decoded.includes('Subject: Test Subject\r\n'))
   assert.ok(decoded.includes('Content-Type: text/plain; charset=utf-8\r\n'))
   assert.ok(decoded.includes('Line 1\r\nLine 2\r\n'))
+})
+
+test('toYamlScalar safely encodes strings preventing YAML injection and multiline breakout', () => {
+  // Simple string
+  assert.equal(toYamlScalar('Simple Subject'), '"Simple Subject"')
+
+  // String with quotes
+  assert.equal(toYamlScalar('Email: "Urgent" update'), '"Email: \\"Urgent\\" update"')
+
+  // String with newlines that could attempt frontmatter injection
+  const injectionAttempt = 'From Name\nadmin: true\n_archived: true'
+  const scalar = toYamlScalar(injectionAttempt)
+  assert.ok(!scalar.includes('\n'), 'scalar must not contain literal newlines')
+  assert.equal(scalar, '"From Name\\nadmin: true\\n_archived: true"')
+
+  // Null or undefined
+  assert.equal(toYamlScalar(null), '""')
+  assert.equal(toYamlScalar(undefined), '""')
 })

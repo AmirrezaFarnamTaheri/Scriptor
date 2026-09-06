@@ -215,6 +215,7 @@ export function useOverlayPanelStore(initialStickiesVisible = true) {
       tasksOpen: false,
       templatePickerOpen: false,
       obsidianImportOpen: false,
+      gmailManagerOpen: false,
     }))
   }, [])
 

@@ -25,7 +25,7 @@ import {
   type GmailMessagePreview,
 } from '../bridge/commands/google_gmail.ts'
 import { isNativeBridgeAvailable } from '../bridge/platform.ts'
-import { buildRfc5322Message } from '../lib/gmailRfc5322.ts'
+import { buildRfc5322Message, toYamlScalar } from '../lib/gmailRfc5322.ts'
 import { UnifiedPanelShell, type PanelTab } from './chrome/UnifiedPanelShell.tsx'
 import type { PanelPresentation } from '../hooks/usePanelPresentation.ts'
 
@@ -48,9 +48,11 @@ export function GmailManagerPanel({
   onImportNote,
   presentation = 'modal',
 }: GmailManagerPanelProps) {
+  const nativeReady = isNativeBridgeAvailable()
   const [activeTab, setActiveTab] = useState<GmailTab>('messages')
   const [clientId, setClientId] = useState('')
   const [isAuthed, setIsAuthed] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(nativeReady)
   const [searchQuery, setSearchQuery] = useState('')
   const [messages, setMessages] = useState<GmailMessagePreview[]>([])
   const [selectedMessage, setSelectedMessage] = useState<GmailMessageContent | null>(null)
@@ -64,8 +66,6 @@ export function GmailManagerPanel({
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [sending, setSending] = useState(false)
-
-  const nativeReady = isNativeBridgeAvailable()
 
   const handleRefreshMessages = useCallback(
     async (queryOverride?: string) => {
@@ -108,6 +108,10 @@ export function GmailManagerPanel({
           setIsAuthed(false)
         } else {
           setError(msg)
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckingAuth(false)
         }
       }
     })()
@@ -171,14 +175,12 @@ export function GmailManagerPanel({
     if (!onImportNote) return
     setLoading(true)
     try {
-      const safeTitle = (msg.subject || 'Untitled Email').replace(/"/g, '\\"')
-      const safeFrom = (msg.from || 'Unknown').replace(/"/g, '\\"')
       const markdown = `---
-title: "${safeTitle}"
-from: "${safeFrom}"
-date: "${msg.date}"
-gmail_id: "${msg.id}"
-thread_id: "${msg.threadId}"
+title: ${toYamlScalar(msg.subject || 'Untitled Email')}
+from: ${toYamlScalar(msg.from || 'Unknown')}
+date: ${toYamlScalar(msg.date || '')}
+gmail_id: ${toYamlScalar(msg.id || '')}
+thread_id: ${toYamlScalar(msg.threadId || '')}
 tags:
   - email
   - gmail
@@ -306,39 +308,63 @@ ${msg.plainText || msg.snippet}
         {/* Tab 1: Messages */}
         {activeTab === 'messages' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <div style={{ position: 'relative', flex: 1 }}>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void handleRefreshMessages()
-                  }}
-                  placeholder="Search Gmail (e.g. is:unread, from:colleague)..."
-                  style={{
-                    width: '100%',
-                    padding: '6px 10px 6px 32px',
-                    borderRadius: '6px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--surface)',
-                    color: 'var(--ink)',
-                  }}
-                />
-                <Search size={16} style={{ position: 'absolute', left: 10, top: 9, opacity: 0.5 }} />
-              </div>
-              <button
-                type="button"
-                className="toolbar-button"
-                onClick={() => void handleRefreshMessages()}
-                disabled={loading}
-                title="Search / Refresh"
+            <div>
+              <label
+                htmlFor="gmail-search-input"
+                style={{
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: 500,
+                  marginBottom: '4px',
+                  color: 'var(--ink-muted)',
+                }}
               >
-                <RefreshCw size={14} className={loading ? 'spinning' : ''} />
-              </button>
+                Search Messages
+              </label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    id="gmail-search-input"
+                    type="search"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') void handleRefreshMessages()
+                    }}
+                    placeholder="Search Gmail (e.g. is:unread, from:colleague)..."
+                    aria-label="Search Gmail messages"
+                    style={{
+                      width: '100%',
+                      padding: '6px 10px 6px 32px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--surface)',
+                      color: 'var(--ink)',
+                    }}
+                  />
+                  <Search size={16} style={{ position: 'absolute', left: 10, top: 9, opacity: 0.5 }} />
+                </div>
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  onClick={() => void handleRefreshMessages()}
+                  disabled={loading}
+                  title="Search / Refresh"
+                  aria-label="Search or refresh messages"
+                >
+                  <RefreshCw size={14} className={loading ? 'spinning' : ''} />
+                </button>
+              </div>
             </div>
 
-            {!isAuthed && (
+            {checkingAuth && (
+              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-muted)' }}>
+                <RefreshCw size={24} className="spinning" style={{ margin: '0 auto 8px', opacity: 0.5 }} />
+                <p>Checking Gmail connection...</p>
+              </div>
+            )}
+
+            {!checkingAuth && !isAuthed && (
               <div className="empty-state" style={{ padding: '24px', textAlign: 'center' }}>
                 <Key size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
                 <h3>Gmail Not Connected</h3>
@@ -351,7 +377,7 @@ ${msg.plainText || msg.snippet}
               </div>
             )}
 
-            {isAuthed && (
+            {!checkingAuth && isAuthed && (
               <div style={{ display: 'grid', gridTemplateColumns: selectedMessage ? '1fr 1fr' : '1fr', gap: '12px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
                 {/* Messages List */}
                 <div
