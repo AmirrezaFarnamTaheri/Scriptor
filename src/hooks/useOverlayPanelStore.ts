@@ -49,6 +49,7 @@ export interface OverlayPanelState {
   tasksOpen: boolean
   templatePickerOpen: boolean
   obsidianImportOpen: boolean
+  gmailManagerOpen: boolean
 }
 
 export type OverlayPanelKey = keyof Pick<
@@ -77,6 +78,7 @@ export type OverlayPanelKey = keyof Pick<
   | 'tasksOpen'
   | 'templatePickerOpen'
   | 'obsidianImportOpen'
+  | 'gmailManagerOpen'
 >
 
 type BooleanPanelUpdater = boolean | ((current: boolean) => boolean)
@@ -137,6 +139,7 @@ function makeInitialState(initialStickiesVisible: boolean): OverlayPanelState {
     tasksOpen: false,
     templatePickerOpen: false,
     obsidianImportOpen: false,
+    gmailManagerOpen: false,
   }
 }
 

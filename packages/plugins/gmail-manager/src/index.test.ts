@@ -12,12 +12,13 @@ test('Gmail Manager declares a valid, manually activated plugin contract', () =>
   assert.ok(gmailManagerManifest.contributes?.commands?.some((entry) => entry.commandId === 'gmail.send'))
 })
 
-test('incubating Gmail bridge is not advertised before its command UI is composed', () => {
+test('Gmail Manager is advertised now that its command UI is composed', () => {
   const root = path.resolve(import.meta.dirname, '../../../..')
   const catalog = JSON.parse(
     fs.readFileSync(path.join(root, 'packages/plugin-api/catalog.json'), 'utf8'),
   )
-  assert.equal(catalog.some((entry: { id?: string }) => entry.id === gmailManagerManifest.id), false)
+  assert.equal(catalog.some((entry: { id?: string }) => entry.id === gmailManagerManifest.id), true)
+  assert.ok(fs.existsSync(path.join(root, 'src/components/GmailManagerPanel.tsx')))
 })
 
 test('every native Gmail command enforces the active-vault plugin capability', () => {

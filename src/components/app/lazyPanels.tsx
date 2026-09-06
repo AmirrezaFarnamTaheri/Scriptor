@@ -57,6 +57,9 @@ export const ObsidianImportDialog = lazy(() =>
 export const PluginManagerCenter = lazy(() =>
   import('../plugins/PluginManagerCenter').then((module) => ({ default: module.PluginManagerCenter })),
 )
+export const GmailManagerPanel = lazy(() =>
+  import('../GmailManagerPanel').then((module) => ({ default: module.GmailManagerPanel })),
+)
 // Conditional overlays — deferred so their code (including chart.js inside the
 // writing-targets panel) never loads until the user opens them.
 export const WritingTargetsPanel = lazy(() =>

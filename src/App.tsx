@@ -5,7 +5,6 @@ import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
-  BibliographyPanel,
   GitPanel,
   GraphPanel,
   KnowledgeWorkbench,
@@ -96,11 +95,9 @@ import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
 import {
   gitShowHeadFile,
-  indexerApplyFilesystemChanges,
   vaultReadNote,
   vaultSaveNote,
   vaultSaveConfig,
-  vaultSaveAsset,
   codeChunkRun,
 } from './bridge/commands'
 import { ConflictResolverSurface } from './components/app/ConflictResolverSurface'
@@ -179,6 +176,7 @@ function App() {
     tasksOpen,
     templatePickerOpen,
     obsidianImportOpen,
+    gmailManagerOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -206,6 +204,7 @@ function App() {
     setTasksOpen,
     setTemplatePickerOpen,
     setObsidianImportOpen,
+    setGmailManagerOpen,
     setTocOpen,
     setWritingTargetsOpen,
     renameOpen,
@@ -364,7 +363,7 @@ function App() {
   const { refreshHealth, fixVaultLint, exportWithProfile } = workspace
   const pluginCommandRuntime = usePluginCommandRuntime({
     refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
-    setCanvasOpen, setBibliographyOpen,
+    setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
   })
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
@@ -699,6 +698,7 @@ function App() {
   useEscapeToClose(quickCaptureOpen, () => setQuickCaptureOpen(false))
   useEscapeToClose(noteHistoryOpen, () => setNoteHistoryOpen(false))
   useEscapeToClose(bibliographyOpen, () => setBibliographyOpen(false))
+  useEscapeToClose(gmailManagerOpen, () => setGmailManagerOpen(false))
   useEscapeToClose(renameOpen, () => setRenameOpen(false))
 
   useEffect(() => {
@@ -790,6 +790,7 @@ function App() {
         setQuickCaptureOpen,
         setNoteHistoryOpen,
         setBibliographyOpen,
+        setGmailManagerOpen: nativeReady ? setGmailManagerOpen : undefined,
         setSnippetsOpen,
         setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
         setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
@@ -843,6 +844,7 @@ function App() {
       promptText,
       recentNotes,
       setBibliographyOpen,
+      setGmailManagerOpen,
       setCanvasOpen,
       setCheatsheetOpen,
       setEditorSurfaceMode,
@@ -1385,6 +1387,13 @@ function App() {
         }}
         onCloseTasks={() => setTasksOpen(false)}
         onCloseKanban={() => setKanbanOpen(false)}
+        bibliographyOpen={bibliographyOpen}
+        bibliography={bibliography}
+        setBibliographyOpen={setBibliographyOpen}
+        refreshBibliography={refreshBibliography}
+        gmailManagerOpen={gmailManagerOpen}
+        setGmailManagerOpen={setGmailManagerOpen}
+        showToast={showToast}
       />
 
       {commandPalette.open ? (
@@ -1718,39 +1727,6 @@ function App() {
           void workspace.refreshVault()
         }}
       />
-
-      {bibliographyOpen && (
-        <ErrorBoundary
-          name="bibliography-panel"
-          fallback={<PanelErrorFallback title="The bibliography" onDismiss={() => setBibliographyOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <BibliographyPanel
-          entries={bibliography}
-          bibliographyPath={workspace.vaultConfig.export.bibliography_path}
-          onClose={() => setBibliographyOpen(false)}
-          onInsertCitation={(key) => {
-            workspace.insertSnippet(`[@${key}] `)
-            setBibliographyOpen(false)
-          }}
-          onImportBibliography={
-            nativeReady
-              ? async (files) => {
-                  const bibPath = workspace.vaultConfig.export.bibliography_path || 'references.bib'
-                  const file = files[0]
-                  if (!file) return
-                  const bytes = Array.from(new Uint8Array(await file.arrayBuffer()))
-                  await vaultSaveAsset(bibPath, bytes)
-                  await indexerApplyFilesystemChanges([bibPath])
-                  showToast(`Bibliography saved to ${bibPath}`)
-                  void refreshBibliography()
-                }
-              : undefined
-          }
-        />
-        </Suspense>
-        </ErrorBoundary>
-      )}
 
       {knowledgeWorkbenchOpen && (
         <ErrorBoundary

@@ -8,6 +8,8 @@ export interface PluginCommandRuntime {
   setHealthDashboardOpen: (open: boolean) => void
   openCanvas?: () => void
   openBibliography?: () => void
+  openGmailManager?: () => void
+  showToast?: (message: string) => void
 }
 
 export interface PluginCommandContext {
@@ -39,8 +41,24 @@ export async function dispatchPluginCommandId(
       if (!runtime.openBibliography) return { handled: false }
       runtime.openBibliography()
       return { handled: true }
+    case 'hello.greet':
+      runtime.showToast?.('Hello from Scriptor Plugin System!')
+      return { handled: true, output: { greeting: 'Hello from Scriptor Plugin System!' } }
+    case 'gmail.open':
+    case 'gmail.connect':
+      if (!runtime.openGmailManager) return { handled: false }
+      runtime.openGmailManager()
+      return { handled: true }
     default:
       break
+  }
+
+  if (commandId.startsWith('gmail.')) {
+    if (runtime.openGmailManager) {
+      runtime.openGmailManager()
+      return { handled: true, output: { commandId, status: 'opened' } }
+    }
+    return { handled: true, output: { commandId, status: 'ready' } }
   }
 
   if (commandId.startsWith('export.')) {

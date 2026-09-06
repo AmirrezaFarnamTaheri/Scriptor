@@ -10,10 +10,22 @@ interface PluginCommandRuntimeOptions {
   setHealthDashboardOpen: (open: boolean) => void
   setCanvasOpen: (open: boolean) => void
   setBibliographyOpen: (open: boolean) => void
+  setGmailManagerOpen?: (open: boolean) => void
+  showToast?: (message: string) => void
 }
 
 export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
-  const { refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen, setCanvasOpen, setBibliographyOpen } = options
+  const {
+    refreshHealth,
+    fixVaultLint,
+    exportWithProfile,
+    setStatusDockTab,
+    setHealthDashboardOpen,
+    setCanvasOpen,
+    setBibliographyOpen,
+    setGmailManagerOpen,
+    showToast,
+  } = options
   return useMemo(() => ({
     refreshHealth: () => refreshHealth(),
     fixVaultLint: () => fixVaultLint(),
@@ -22,5 +34,7 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     setHealthDashboardOpen,
     openCanvas: () => setCanvasOpen(true),
     openBibliography: () => setBibliographyOpen(true),
-  }), [exportWithProfile, fixVaultLint, refreshHealth, setBibliographyOpen, setCanvasOpen, setHealthDashboardOpen, setStatusDockTab])
+    openGmailManager: setGmailManagerOpen ? () => setGmailManagerOpen(true) : undefined,
+    showToast,
+  }), [exportWithProfile, fixVaultLint, refreshHealth, setBibliographyOpen, setCanvasOpen, setGmailManagerOpen, setHealthDashboardOpen, setStatusDockTab, showToast])
 }

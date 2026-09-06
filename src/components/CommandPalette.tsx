@@ -4,6 +4,7 @@ import { Search } from 'lucide-react'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useI18n } from '../lib/i18n'
+import { scoreCommand } from '../lib/paletteScore'
 
 export interface PaletteCommand {
   id: string
@@ -38,33 +39,6 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
   const deferredQuery = useDeferredValue(normalizedQuery)
   const isSearchingNotes = searchingQuery === normalizedQuery
 
-  // Lightweight fuzzy scorer: returns a score > 0 when the command matches.
-  // Higher = better match. Scoring criteria:
-  //   - Exact prefix: +1000
-  //   - All query chars appear as a contiguous run: +500
-  //   - All query chars appear (subsequence): +len_matched
-  //   - No match: 0
-  function scoreCommand(cmd: PaletteCommand, needle: string): number {
-    if (!needle) return 1
-    const label = cmd.label.toLowerCase()
-    const kw = (cmd.keywords ?? []).map(k => k.toLowerCase())
-    const candidates = [label, ...kw]
-    let best = 0
-    for (const c of candidates) {
-      if (c.startsWith(needle)) { best = Math.max(best, 1000 + needle.length); continue }
-      const contig = c.includes(needle)
-      if (contig) { best = Math.max(best, 500 + needle.length); continue }
-      // Subsequence check
-      let ni = 0
-      let matched = 0
-      for (let ci = 0; ci < c.length && ni < needle.length; ci++) {
-        if (c[ci] === needle[ni]) { ni++; matched++ }
-      }
-      if (ni === needle.length) best = Math.max(best, matched)
-    }
-    return best
-  }
-
   const noteCommands = useMemo<PaletteCommand[]>(
     () =>
       (noteSearch.query === deferredQuery ? noteSearch.hits : []).map((hit) => ({
@@ -79,14 +53,13 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
   )
 
   const mergedCommands = useMemo(() => {
-    const needle = deferredQuery.toLowerCase()
     const scored = commands
-      .map(cmd => ({ cmd, score: scoreCommand(cmd, needle) }))
+      .map((cmd) => ({ cmd, score: scoreCommand(deferredQuery, cmd) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ cmd }) => ({ ...cmd, group: 'command' as const }))
 
-    if (!searchNotes || needle.length < 2) {
+    if (!searchNotes || deferredQuery.length < 2) {
       return scored
     }
     return [...scored, ...noteCommands]

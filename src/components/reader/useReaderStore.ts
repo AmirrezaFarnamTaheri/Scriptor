@@ -14,7 +14,6 @@
  */
 
 import { create } from 'zustand'
-import { immer } from 'zustand/middleware/immer'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -80,75 +79,51 @@ const INITIAL_STATE: ReaderState = {
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 
-export const useReaderStore = create<ReaderState & ReaderActions>()(
-  immer((set) => ({
-    ...INITIAL_STATE,
+export const useReaderStore = create<ReaderState & ReaderActions>()((set) => ({
+  ...INITIAL_STATE,
 
-    openFile: (vaultRelPath, fileType) =>
-      set((state) => {
-        state.filePath = vaultRelPath
-        state.fileType = fileType
-        state.position = null
-        state.selection = null
-        state.annotations = []
-        state.error = null
-        state.isLoading = true
-      }),
+  openFile: (vaultRelPath, fileType) =>
+    set({
+      filePath: vaultRelPath,
+      fileType,
+      position: null,
+      selection: null,
+      annotations: [],
+      error: null,
+      isLoading: true,
+    }),
 
-    closeFile: () =>
-      set((state) => {
-        Object.assign(state, INITIAL_STATE)
-      }),
+  closeFile: () => set({ ...INITIAL_STATE }),
 
-    setPosition: (position) =>
-      set((state) => {
-        state.position = position
-      }),
+  setPosition: (position) => set({ position }),
 
-    setSelection: (selection) =>
-      set((state) => {
-        state.selection = selection
-        if (!selection) state.annotationPopoverOpen = false
-      }),
+  setSelection: (selection) =>
+    set((state) => ({
+      selection,
+      annotationPopoverOpen: selection ? state.annotationPopoverOpen : false,
+    })),
 
-    addAnnotation: (annotation) =>
-      set((state) => {
-        state.annotations.push(annotation)
-        state.selection = null
-        state.annotationPopoverOpen = false
-      }),
+  addAnnotation: (annotation) =>
+    set((state) => ({
+      annotations: [...state.annotations, annotation],
+      selection: null,
+      annotationPopoverOpen: false,
+    })),
 
-    setAnnotations: (annotations) =>
-      set((state) => {
-        state.annotations = annotations
-      }),
+  setAnnotations: (annotations) => set({ annotations }),
 
-    removeAnnotation: (id) =>
-      set((state) => {
-        state.annotations = state.annotations.filter((a) => a.id !== id)
-      }),
+  removeAnnotation: (id) =>
+    set((state) => ({
+      annotations: state.annotations.filter((a) => a.id !== id),
+    })),
 
-    openAnnotationPopover: () =>
-      set((state) => {
-        state.annotationPopoverOpen = true
-      }),
+  openAnnotationPopover: () => set({ annotationPopoverOpen: true }),
 
-    closeAnnotationPopover: () =>
-      set((state) => {
-        state.annotationPopoverOpen = false
-      }),
+  closeAnnotationPopover: () => set({ annotationPopoverOpen: false }),
 
-    setLoading: (loading) =>
-      set((state) => {
-        state.isLoading = loading
-      }),
+  setLoading: (loading) => set({ isLoading: loading }),
 
-    setError: (error) =>
-      set((state) => {
-        state.error = error
-        state.isLoading = false
-      }),
+  setError: (error) => set({ error, isLoading: false }),
 
-    reset: () => set(() => ({ ...INITIAL_STATE })),
-  })),
-)
+  reset: () => set({ ...INITIAL_STATE }),
+}))

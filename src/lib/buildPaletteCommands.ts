@@ -1,6 +1,6 @@
 import type { PaletteCommand } from '../components/CommandPalette'
 import type { StatusDockTab } from '../components/StatusDockPanel'
-import { toPaletteCommands, type AppCommandDefinition } from './appCommandRegistry'
+import { toPaletteCommands, type AppCommandDefinition } from './appCommandRegistry.ts'
 
 export interface PaletteCommandContext {
   workspace: {
@@ -55,6 +55,7 @@ export interface PaletteCommandContext {
   setQuickCaptureOpen?: (open: boolean) => void
   setNoteHistoryOpen?: (open: boolean) => void
   setBibliographyOpen: (open: boolean) => void
+  setGmailManagerOpen?: (open: boolean) => void
   setSnippetsOpen?: (open: boolean) => void
   setTemplatePickerOpen?: (open: boolean) => void
   setObsidianImportOpen?: (open: boolean) => void
@@ -119,6 +120,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     setQuickCaptureOpen,
     setNoteHistoryOpen,
     setBibliographyOpen,
+    setGmailManagerOpen,
     setSnippetsOpen,
     setTemplatePickerOpen,
     setObsidianImportOpen,
@@ -288,6 +290,16 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     { id: 'open-quick-capture', label: 'Quick capture (scratchpad & todos)', run: () => setQuickCaptureOpen?.(true) },
     { id: 'open-note-history', label: 'Note history timeline', shortcut: 'Ctrl+Alt+H', run: () => setNoteHistoryOpen?.(true) },
     { id: 'open-bibliography', label: 'Browse bibliography', run: () => setBibliographyOpen(true) },
+    ...(setGmailManagerOpen
+      ? [
+          {
+            id: 'open-gmail-manager',
+            label: 'Open Gmail Manager',
+            keywords: ['email', 'gmail', 'mail', 'inbox', 'compose', 'google'],
+            run: () => setGmailManagerOpen(true),
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
     ...(applyEditorTransform
       ? [{ id: 'insert-footnote', label: 'Insert footnote reference', run: () => applyEditorTransform('footnote') } satisfies AppCommandDefinition]
       : []),

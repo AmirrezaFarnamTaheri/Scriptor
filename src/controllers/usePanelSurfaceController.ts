@@ -38,6 +38,7 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
     tasksOpen,
     templatePickerOpen,
     obsidianImportOpen,
+    gmailManagerOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -68,6 +69,7 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
   const setTasksOpen = useCallback((v: boolean) => setPanel('tasksOpen', v), [setPanel])
   const setTemplatePickerOpen = useCallback((v: boolean) => setPanel('templatePickerOpen', v), [setPanel])
   const setObsidianImportOpen = useCallback((v: boolean) => setPanel('obsidianImportOpen', v), [setPanel])
+  const setGmailManagerOpen = useCallback((v: boolean) => setPanel('gmailManagerOpen', v), [setPanel])
   const setTocOpen = useCallback((v: boolean | ((open: boolean) => boolean)) => setPanel('tocOpen', v), [setPanel])
   const setWritingTargetsOpen = useCallback((v: boolean) => setPanel('writingTargetsOpen', v), [setPanel])
 
@@ -146,6 +148,7 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
     tasksOpen,
     templatePickerOpen,
     obsidianImportOpen,
+    gmailManagerOpen,
     tocOpen,
     writingTargetsOpen,
     setActiveMode,
@@ -174,6 +177,7 @@ export function usePanelSurfaceController(options: PanelSurfaceControllerOptions
     setTasksOpen,
     setTemplatePickerOpen,
     setObsidianImportOpen,
+    setGmailManagerOpen,
     setTocOpen,
     setWritingTargetsOpen,
     renameOpen,

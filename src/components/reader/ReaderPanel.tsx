@@ -6,7 +6,7 @@
  *   server-less blob URL — no `pdfium`, no new native dependency per D7.
  * - The reader↔component communication is postMessage across the webview
  *   boundary; the component is never coupled to the pdf.js API directly.
- * - All mutable reader state lives in `useReaderStore` (Zustand+immer) so
+ * - All mutable reader state lives in `useReaderStore` (Zustand) so
  *   commands and external code can drive navigation without touching the DOM.
  * - Annotation writes go through the store → `onAnnotationCreate` callback →
  *   caller uses `packages/core/src/capture/` → vault I-1 write path.
