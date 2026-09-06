@@ -35,6 +35,11 @@ function requiredString(record: Record<string, unknown>, key: string): string {
   return value.trim()
 }
 
+function optionalString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key]
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
 function stringArray(record: Record<string, unknown>, key: string): string[] {
   const value = record[key]
   if (value === undefined) return []
@@ -42,6 +47,11 @@ function stringArray(record: Record<string, unknown>, key: string): string[] {
     throw new Error(`Gmail command ${key} must be an array of strings`)
   }
   return value.map((entry) => entry.trim()).filter(Boolean)
+}
+
+function inputRequired(openGmailManager: (() => void) | undefined, required: string[]) {
+  openGmailManager?.()
+  return { status: 'input-required' as const, required }
 }
 
 export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
@@ -57,6 +67,7 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     createNote,
     showToast,
   } = options
+  const openGmailManager = setGmailManagerOpen ? () => setGmailManagerOpen(true) : undefined
 
   return useMemo(() => ({
     refreshHealth: () => refreshHealth(),
@@ -66,20 +77,18 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     setHealthDashboardOpen,
     openCanvas: () => setCanvasOpen(true),
     openBibliography: () => setBibliographyOpen(true),
-    openGmailManager: setGmailManagerOpen ? () => setGmailManagerOpen(true) : undefined,
+    openGmailManager,
     gmailConnect: async (input: unknown) => {
       const record = asRecord(input)
-      const clientId = typeof record.clientId === 'string' ? record.clientId.trim() : ''
-      if (!clientId) {
-        setGmailManagerOpen?.(true)
-        return { status: 'input-required', required: ['clientId'] }
-      }
+      const clientId = optionalString(record, 'clientId')
+      if (!clientId) return inputRequired(openGmailManager, ['clientId'])
       const result = await googleGmailStartAuth(clientId)
       return { status: 'connected', result }
     },
     gmailImport: async (input: unknown) => {
       const record = asRecord(input)
-      const messageId = requiredString(record, 'messageId')
+      const messageId = optionalString(record, 'messageId')
+      if (!messageId) return inputRequired(openGmailManager, ['messageId'])
       const message = await googleGmailGetMessage(messageId)
       const title = gmailImportedNoteTitle(message.subject, message.id)
       const markdown = buildGmailMarkdown(message)
@@ -99,7 +108,8 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     },
     gmailModify: async (input: unknown) => {
       const record = asRecord(input)
-      const messageId = requiredString(record, 'messageId')
+      const messageId = optionalString(record, 'messageId')
+      if (!messageId) return inputRequired(openGmailManager, ['messageId', 'action'])
       const action = typeof record.action === 'string' ? record.action : 'labels'
       switch (action) {
         case 'archive':
@@ -128,13 +138,15 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     },
     gmailSend: async (input: unknown) => {
       const record = asRecord(input)
-      const raw = typeof record.rawMessage === 'string' && record.rawMessage.trim()
-        ? record.rawMessage.trim()
-        : buildRfc5322Message(
-            requiredString(record, 'to'),
-            requiredString(record, 'subject'),
-            requiredString(record, 'body'),
-          )
+      const rawMessage = optionalString(record, 'rawMessage')
+      if (!rawMessage && (!optionalString(record, 'to') || !optionalString(record, 'subject') || !optionalString(record, 'body'))) {
+        return inputRequired(openGmailManager, ['to', 'subject', 'body'])
+      }
+      const raw = rawMessage ?? buildRfc5322Message(
+        requiredString(record, 'to'),
+        requiredString(record, 'subject'),
+        requiredString(record, 'body'),
+      )
       await googleGmailSendMessage(raw)
       return { status: 'sent' }
     },
@@ -143,10 +155,10 @@ export function usePluginCommandRuntime(options: PluginCommandRuntimeOptions) {
     createNote,
     exportWithProfile,
     fixVaultLint,
+    openGmailManager,
     refreshHealth,
     setBibliographyOpen,
     setCanvasOpen,
-    setGmailManagerOpen,
     setHealthDashboardOpen,
     setStatusDockTab,
     showToast,
