@@ -99,6 +99,18 @@ pub fn render_plantuml_svg(source: &str) -> Result<PlantUmlRenderOutput, String>
     Ok(PlantUmlRenderOutput { svg, engine })
 }
 
+fn backup_asset_for_recovery(
+    root: &VaultRoot,
+    relative_path: &str,
+    existing: &[u8],
+) -> Result<(), String> {
+    let hash = scriptor_vault::hash::path_hash(relative_path);
+    let recovery_dir = root.root().join(".scriptor").join("recovery").join("assets");
+    fs::create_dir_all(&recovery_dir).map_err(|error| error.to_string())?;
+    let backup = recovery_dir.join(format!("{}.bak", &hash[..16]));
+    atomic_write(&backup, existing).map_err(|error| error.to_string())
+}
+
 pub fn save_vault_asset(
     root: &VaultRoot,
     relative_path: &str,
@@ -108,6 +120,23 @@ pub fn save_vault_asset(
     let absolute: PathBuf = root
         .resolve_relative(&relative)
         .map_err(|error| error.to_string())?;
+
+    // Serialize asset replacement with note/delete/rename mutations so a
+    // bibliography import cannot race another writer after observing the old
+    // bytes. Existing content is always recoverable before replacement.
+    let _mutation_lock = scriptor_vault::fs::lock_vault_mutation(root.root())
+        .map_err(|error| error.to_string())?;
+    if root.root().join(".scriptor/rename-txn.json").is_file() {
+        return Err("vault rename transaction is still pending; retry after it commits or rolls back".into());
+    }
+
+    if let Ok(existing) = fs::read(&absolute) {
+        if existing == bytes {
+            return Ok(relative.to_string());
+        }
+        backup_asset_for_recovery(root, relative.as_str(), &existing)?;
+    }
+
     if let Some(parent) = absolute.parent() {
         fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     }
