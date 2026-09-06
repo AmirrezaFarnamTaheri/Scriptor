@@ -62,4 +62,51 @@ describe('ZoteroConnector', () => {
     await assert.rejects(() => connector.connect('   '), /API key is required/)
     assert.equal(called, false)
   })
+
+  it('exports every BibTeX page using the required export limit', async () => {
+    const urls: string[] = []
+    const connector = new ZoteroConnector(async (input) => {
+      const url = String(input)
+      urls.push(url)
+      if (url.endsWith('/keys/current')) return jsonResponse({ userID: 42 })
+      const parsed = new URL(url)
+      const start = parsed.searchParams.get('start')
+      if (start === '0') {
+        return new Response('@article{first}\n', { headers: { 'Total-Results': '150' } })
+      }
+      if (start === '100') {
+        return new Response('@article{second}\n', { headers: { 'Total-Results': '150' } })
+      }
+      throw new Error(`unexpected Zotero page: ${url}`)
+    })
+
+    await connector.connect('key')
+    const bib = await connector.exportBibTeX()
+
+    assert.match(urls[1] ?? '', /format=bibtex/)
+    assert.match(urls[1] ?? '', /limit=100/)
+    assert.match(urls[1] ?? '', /start=0/)
+    assert.match(urls[2] ?? '', /start=100/)
+    assert.equal(bib, '@article{first}\n\n@article{second}\n')
+  })
+
+  it('follows Link rel=next when Total-Results is unavailable', async () => {
+    const connector = new ZoteroConnector(async (input) => {
+      const url = String(input)
+      if (url.endsWith('/keys/current')) return jsonResponse({ userID: 42 })
+      const parsed = new URL(url)
+      if (parsed.searchParams.get('start') === '0') {
+        return new Response('@book{one}\n', {
+          headers: {
+            Link: '<https://api.zotero.org/users/42/items?format=bibtex&itemType=-attachment%20%7C%7C%20note&start=100&limit=100>; rel="next"',
+          },
+        })
+      }
+      return new Response('@book{two}\n')
+    })
+
+    await connector.connect('key')
+    const bib = await connector.exportBibTeX()
+    assert.equal(bib, '@book{one}\n\n@book{two}\n')
+  })
 })
