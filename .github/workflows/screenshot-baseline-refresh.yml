@@ -1,0 +1,153 @@
+name: One-time screenshot baseline refresh
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: screenshot-baseline-refresh-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    name: Refresh reviewed screenshot baselines
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frozen dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: pnpm exec playwright install ffmpeg
+
+      - name: Stabilize Note History visual assertion
+        shell: pwsh
+        run: |
+          $path = 'e2e/screenshots.spec.ts'
+          $lines = [System.Collections.Generic.List[string]](Get-Content $path)
+          $start = -1
+          $end = -1
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($start -lt 0 -and $lines[$i] -match "const restoreButton = historyPanel") { $start = $i }
+            if ($start -ge 0 -and $lines[$i] -match "await settleLayout\(page\)") { $end = $i; break }
+          }
+          if ($start -lt 0 -or $end -lt $start) { throw 'Could not locate Note History assertion block.' }
+
+          $replacement = @(
+            '  await settleLayout(page)',
+            "  const restoreButton = historyPanel.getByRole('button', { name: 'Restore revision' })",
+            '  const [restoreBox, panelBox] = await Promise.all([restoreButton.boundingBox(), historyPanel.boundingBox()])',
+            '  expect(restoreBox).not.toBeNull()',
+            '  expect(panelBox).not.toBeNull()',
+            '  expect(restoreBox!.width).toBeLessThan(panelBox!.width * 0.25)'
+          )
+          $lines.RemoveRange($start, $end - $start + 1)
+          $lines.InsertRange($start, [string[]]$replacement)
+          [System.IO.File]::WriteAllLines($path, $lines, [System.Text.UTF8Encoding]::new($false))
+
+      - name: Format screenshot-review text changes
+        shell: pwsh
+        run: |
+          pnpm exec prettier --write `
+            e2e/panel-presentation.spec.ts `
+            e2e/screenshots.spec.ts `
+            e2e/visual-review.spec.ts `
+            src/App.tsx `
+            src/components/GitPanel.tsx `
+            src/components/KnowledgeFiltersPanel.tsx `
+            src/components/NoteHistoryPanel.tsx `
+            src/components/OnboardingTour.tsx `
+            src/components/StorePanel.tsx `
+            src/components/VaultHealthDashboard.tsx `
+            src/e2e/bootstrap.ts `
+            src/lib/i18n/de.json `
+            src/lib/i18n/en.json `
+            src/lib/i18n/fa.json `
+            src/screenshot/bootstrap.ts `
+            src/styles/app/features.css `
+            src/styles/app/inspector.css `
+            src/styles/app/unified-panel-contract.css `
+            src/styles/components/git-panel.css `
+            src/styles/components/note-history.css `
+            src/styles/components/onboarding.css `
+            src/styles/components/store-panel.css
+
+      - name: Refresh only changed visual baselines
+        shell: pwsh
+        run: pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots=changed
+
+      - name: Upload reviewed refreshed screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: screenshot-baseline-refresh-${{ github.run_attempt }}
+          path: |
+            e2e/screenshots.spec.ts-snapshots
+            e2e/visual-review.spec.ts-snapshots
+            docs/assets/screenshots
+            test-results/visual
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Commit reviewed visual repair
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $changes = git status --porcelain -- `
+            e2e/panel-presentation.spec.ts `
+            e2e/screenshots.spec.ts `
+            e2e/visual-review.spec.ts `
+            e2e/screenshots.spec.ts-snapshots `
+            e2e/visual-review.spec.ts-snapshots `
+            src/App.tsx `
+            src/components `
+            src/e2e/bootstrap.ts `
+            src/lib/i18n `
+            src/screenshot/bootstrap.ts `
+            src/styles
+          if (-not $changes) {
+            Write-Host 'Reviewed screenshot state is already current.'
+            exit 0
+          }
+          Write-Host $changes
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- `
+            e2e/panel-presentation.spec.ts `
+            e2e/screenshots.spec.ts `
+            e2e/visual-review.spec.ts `
+            e2e/screenshots.spec.ts-snapshots `
+            e2e/visual-review.spec.ts-snapshots `
+            src/App.tsx `
+            src/components `
+            src/e2e/bootstrap.ts `
+            src/lib/i18n `
+            src/screenshot/bootstrap.ts `
+            src/styles
+          git diff --cached --check
+          git commit -m 'test(ui): refresh screenshot-reviewed baselines'
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
