@@ -55,12 +55,12 @@
 
 /* Row 3: editor options + contextual note actions. */
 .editor-toolbar > .format-group:nth-child(5) {
-  grid-column: 1 / span 8;
+  grid-column: 1 / span 7;
   grid-row: 3;
 }
 
 .editor-toolbar > .inline-editor-assist {
-  grid-column: 9 / -1;
+  grid-column: 8 / -1;
   grid-row: 3;
   justify-self: end;
   margin-left: 0;
@@ -68,27 +68,26 @@
   padding-left: 0;
 }
 
-/* At the screenshot-proven inspector widths, text labels on the contextual
- * actions are what force the otherwise coherent third row into an orphaned
- * fourth row. Keep the accessible text/title, but present the four actions as
- * compact icon buttons until the writing column is genuinely wide enough. */
+/* At the screenshot-proven inspector widths, compact only the dense editor-mode
+ * icon cluster and keep the four contextual actions readable. This preserves
+ * Link / Cite / Frontmatter / Export labels without creating an orphaned row. */
 @container (max-width: 920px) {
   .editor-toolbar > .format-group:nth-child(5) > button {
-    width: 30px;
-    min-width: 30px;
+    width: 27px;
+    min-width: 27px;
     padding-inline: 0;
+  }
+
+  .inline-editor-assist {
+    gap: 4px;
   }
 
   .inline-editor-assist .toolbar-button {
-    width: 32px;
-    min-width: 32px;
-    padding-inline: 0;
-    gap: 0;
-    font-size: 0;
-  }
-
-  .inline-editor-assist .toolbar-button svg {
-    margin: 0;
+    width: auto;
+    min-width: 0;
+    padding-inline: 4px;
+    gap: 4px;
+    font-size: 11px;
   }
 }
 
