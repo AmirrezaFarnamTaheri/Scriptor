@@ -38,6 +38,7 @@ export function KnowledgeFiltersPanel({
   const [placeholders, setPlaceholders] = useState<UnresolvedLinkTarget[]>([])
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadStatus, setLoadStatus] = useState('Loading knowledge filters…')
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [triageIndex, setTriageIndex] = useState(0)
   const tabIdBase = useId()
 
@@ -74,7 +75,7 @@ export function KnowledgeFiltersPanel({
     return () => {
       cancelled = true
     }
-  }, [canBrowse])
+  }, [canBrowse, loadAttempt])
 
   const activeNotes = useMemo(() => {
     if (tab === 'orphans') return orphans
@@ -97,6 +98,12 @@ export function KnowledgeFiltersPanel({
       setTriageIndex(nextIndex)
       onOpenNote(activeNotes[nextIndex]!.path)
     }
+  }
+
+  const retryLoad = () => {
+    setLoadState('loading')
+    setLoadStatus('Loading knowledge filters…')
+    setLoadAttempt((attempt) => attempt + 1)
   }
 
   const status = useMemo(() => {
@@ -161,12 +168,15 @@ export function KnowledgeFiltersPanel({
             description="Knowledge repair uses the desktop index for orphan, dead-end, and unresolved-link detection."
           />
         ) : loadState === 'loading' ? (
-          <p className="health-subtitle knowledge-filter-loading">Loading knowledge repair data…</p>
+          <p className="health-subtitle knowledge-filter-loading" role="status">
+            Loading knowledge repair data…
+          </p>
         ) : loadState === 'error' ? (
           <EmptyState
             icon={<Filter />}
             title="Knowledge repair is unavailable"
             description={loadStatus}
+            action={{ label: 'Retry', onClick: retryLoad }}
           />
         ) : (
           <>
