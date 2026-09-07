@@ -32,12 +32,14 @@ interface OnboardingTourProps {
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
   const dialogRef = useRef<HTMLDivElement>(null)
+  const primaryActionRef = useRef<HTMLButtonElement>(null)
 
-  // Passive trap: the tour manages its own initial focus (dialog element, per step).
+  // The tour owns initial focus so keyboard users land on the forward action
+  // instead of focusing the dialog container and showing a browser-default ring.
   useFocusTrap(dialogRef, { active: true, initialFocus: false })
 
   useEffect(() => {
-    dialogRef.current?.focus()
+    primaryActionRef.current?.focus()
   }, [stepIndex])
 
   const step = STEPS[stepIndex]
@@ -51,7 +53,7 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
         role="dialog"
         aria-modal="true"
         aria-label="Product tour"
-        tabIndex={-1}
+        aria-describedby="onboarding-tour-description"
         onKeyDown={(event) => {
           if (event.key === 'Escape') {
             event.preventDefault()
@@ -60,36 +62,52 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
         }}
       >
         <header>
-          <span className="onboarding-step-label">
-            Step {stepIndex + 1} of {STEPS.length}
-          </span>
+          <div className="onboarding-progress-meta">
+            <span className="onboarding-step-label">
+              Step {stepIndex + 1} of {STEPS.length}
+            </span>
+            <progress
+              className="onboarding-progress"
+              max={STEPS.length}
+              value={stepIndex + 1}
+              aria-label={`Tour progress: step ${stepIndex + 1} of ${STEPS.length}`}
+            />
+          </div>
           <h2>{step.title}</h2>
         </header>
-        <p>{step.body}</p>
+        <p id="onboarding-tour-description">{step.body}</p>
         <footer className="onboarding-actions">
-          <button type="button" className="toolbar-button" onClick={onComplete}>
+          <button type="button" className="toolbar-button onboarding-skip" onClick={onComplete}>
             Skip tour
           </button>
-          {isLast ? (
-            <>
-              {onOpenCheatsheet ? (
-                <button type="button" className="toolbar-button" onClick={onOpenCheatsheet}>
-                  Open cheatsheet
+          <div className="onboarding-next-actions">
+            {isLast ? (
+              <>
+                {onOpenCheatsheet ? (
+                  <button type="button" className="toolbar-button" onClick={onOpenCheatsheet}>
+                    Open cheatsheet
+                  </button>
+                ) : null}
+                <button
+                  ref={primaryActionRef}
+                  type="button"
+                  className="primary-button"
+                  onClick={onComplete}
+                >
+                  Finish
                 </button>
-              ) : null}
-              <button type="button" className="primary-button" onClick={onComplete}>
-                Finish
+              </>
+            ) : (
+              <button
+                ref={primaryActionRef}
+                type="button"
+                className="primary-button"
+                onClick={() => setStepIndex((current) => Math.min(current + 1, STEPS.length - 1))}
+              >
+                Next
               </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="primary-button"
-              onClick={() => setStepIndex((current) => Math.min(current + 1, STEPS.length - 1))}
-            >
-              Next
-            </button>
-          )}
+            )}
+          </div>
         </footer>
       </div>
     </div>

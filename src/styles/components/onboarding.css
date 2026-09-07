@@ -9,7 +9,7 @@
   padding: 24px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-strong);
-  background: var(--surface-elevated);
+  background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: var(--shadow-lg);
 }
 
@@ -17,11 +17,45 @@
   margin-bottom: 12px;
 }
 
+.onboarding-progress-meta {
+  display: grid;
+  grid-template-columns: auto minmax(96px, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
 .onboarding-step-label {
   display: block;
   font-size: var(--text-xs);
   color: var(--muted);
-  margin-bottom: 6px;
+  white-space: nowrap;
+}
+
+.onboarding-progress {
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  appearance: none;
+  accent-color: var(--primary);
+}
+
+.onboarding-progress::-webkit-progress-bar {
+  border-radius: inherit;
+  background: var(--surface-muted);
+}
+
+.onboarding-progress::-webkit-progress-value {
+  border-radius: inherit;
+  background: var(--primary);
+}
+
+.onboarding-progress::-moz-progress-bar {
+  border-radius: inherit;
+  background: var(--primary);
 }
 
 .onboarding-tour h2 {
@@ -37,9 +71,27 @@
 
 .onboarding-actions {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-next-actions {
+  display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.onboarding-actions .toolbar-button,
+.onboarding-actions .primary-button {
+  min-height: 44px;
+}
+
+.onboarding-actions .primary-button {
+  width: auto;
+  min-width: 104px;
+  margin-top: 0;
 }
 
 /* Keep the tour's primary action AA-compliant across custom themes. */
@@ -48,4 +100,22 @@
   background: #075e54;
   border-color: #075e54;
   color: #fff;
+}
+
+@media (max-width: 520px) {
+  .onboarding-tour {
+    padding: 20px;
+  }
+
+  .onboarding-actions {
+    align-items: stretch;
+  }
+
+  .onboarding-next-actions {
+    flex: 1 1 auto;
+  }
+
+  .onboarding-next-actions .primary-button {
+    flex: 1 1 auto;
+  }
 }

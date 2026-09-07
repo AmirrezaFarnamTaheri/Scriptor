@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { Filter, X } from 'lucide-react'
 
 import {
@@ -9,6 +9,7 @@ import {
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { VirtualKnowledgeNoteList } from './app/VirtualKnowledgeNoteList'
+import { EmptyState } from './EmptyState'
 import type { KnowledgeNoteSummary, UnresolvedLinkTarget } from '../types/vault'
 
 interface KnowledgeFiltersPanelProps {
@@ -20,6 +21,8 @@ interface KnowledgeFiltersPanelProps {
 }
 
 type FilterTab = 'orphans' | 'dead-ends' | 'placeholders'
+
+const FILTER_TABS: FilterTab[] = ['orphans', 'dead-ends', 'placeholders']
 
 export function KnowledgeFiltersPanel({
   embedded = false,
@@ -33,8 +36,10 @@ export function KnowledgeFiltersPanel({
   const [orphans, setOrphans] = useState<KnowledgeNoteSummary[]>([])
   const [deadEnds, setDeadEnds] = useState<KnowledgeNoteSummary[]>([])
   const [placeholders, setPlaceholders] = useState<UnresolvedLinkTarget[]>([])
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadStatus, setLoadStatus] = useState('Loading knowledge filters…')
   const [triageIndex, setTriageIndex] = useState(0)
+  const tabIdBase = useId()
 
   useEscapeToClose(!embedded, onClose)
 
@@ -42,6 +47,9 @@ export function KnowledgeFiltersPanel({
     if (!canBrowse) return
 
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a renewed index load must not leave stale success/error UI visible
+    setLoadState('loading')
+    setLoadStatus('Loading knowledge filters…')
     void (async () => {
       try {
         const [orphanRows, deadEndRows, placeholderRows] = await Promise.all([
@@ -53,11 +61,11 @@ export function KnowledgeFiltersPanel({
         setOrphans(orphanRows)
         setDeadEnds(deadEndRows)
         setPlaceholders(placeholderRows)
-        setLoadStatus(
-          `${orphanRows.length} orphans · ${deadEndRows.length} dead ends · ${placeholderRows.length} unresolved targets`,
-        )
+        setLoadState('ready')
+        setLoadStatus('')
       } catch (error) {
         if (!cancelled) {
+          setLoadState('error')
           setLoadStatus(error instanceof Error ? error.message : 'Could not load knowledge filters')
         }
       }
@@ -96,86 +104,140 @@ export function KnowledgeFiltersPanel({
     return loadStatus
   }, [canBrowse, loadStatus])
 
+  const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+    if (direction === 0 && event.key !== 'Home' && event.key !== 'End') return
+    event.preventDefault()
+    const nextIndex =
+      event.key === 'Home'
+        ? 0
+        : event.key === 'End'
+          ? FILTER_TABS.length - 1
+          : (index + direction + FILTER_TABS.length) % FILTER_TABS.length
+    const nextTab = FILTER_TABS[nextIndex]!
+    setTab(nextTab)
+    event.currentTarget.parentElement
+      ?.querySelector<HTMLButtonElement>(`#${CSS.escape(`${tabIdBase}-${nextTab}`)}`)
+      ?.focus()
+  }
+
   const body = (
     <>
-      {embedded ? <p className="health-subtitle">{status}</p> : null}
-
       <div className="knowledge-filter-tabs" role="tablist" aria-label="Filter categories">
-          {(
-            [
-              ['orphans', `Orphans (${orphans.length})`],
-              ['dead-ends', `Dead ends (${deadEnds.length})`],
-              ['placeholders', `Unresolved (${placeholders.length})`],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={tab === id}
-              className={tab === id ? 'active' : undefined}
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {(
+          [
+            ['orphans', `Orphans (${orphans.length})`],
+            ['dead-ends', `Dead ends (${deadEnds.length})`],
+            ['placeholders', `Unresolved (${placeholders.length})`],
+          ] as const
+        ).map(([id, label], index) => (
+          <button
+            id={`${tabIdBase}-${id}`}
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls={`${tabIdBase}-panel`}
+            tabIndex={tab === id ? 0 : -1}
+            className={tab === id ? 'active' : undefined}
+            onClick={() => setTab(id)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
 
-        <div className="knowledge-filter-body">
-          {tab !== 'placeholders' && activeNotes.length > 0 ? (
-            <div className="knowledge-triage-bar">
-              <button type="button" className="toolbar-button" onClick={startTriage}>
-                Start triage ({activeNotes.length})
-              </button>
-              {triageNote ? (
-                <span className="health-subtitle">
-                  Triage {triageIndex + 1} of {activeNotes.length}: {triageNote.title}
-                </span>
-              ) : null}
-            </div>
-          ) : null}
-          {tab === 'placeholders' ? (
-            placeholders.length === 0 ? (
-              <p className="empty-state">No unresolved wikilink targets.</p>
-            ) : (
-              <ul className="knowledge-target-list">
-                {placeholders.map((target) => (
-                  <li key={target.target}>
-                    <strong>[[{target.target}]]</strong>
-                    <small>
-                      {target.reference_count} reference{target.reference_count === 1 ? '' : 's'}
-                    </small>
-                    {onCreateNoteFromWikilink ? (
-                      <button
-                        type="button"
-                        className="knowledge-create-note"
-                        onClick={() => onCreateNoteFromWikilink(target.target)}
-                      >
-                        Create note
-                      </button>
-                    ) : null}
-                    <div className="knowledge-target-refs">
-                      {target.referencing_paths.map((path) => (
-                        <button key={path} type="button" onClick={() => onOpenNote(path)}>
-                          {path}
+      <div
+        id={`${tabIdBase}-panel`}
+        className="knowledge-filter-body"
+        role="tabpanel"
+        aria-labelledby={`${tabIdBase}-${tab}`}
+      >
+        {!canBrowse ? (
+          <EmptyState
+            icon={<Filter />}
+            title="Open a vault to inspect link health"
+            description="Knowledge repair uses the desktop index for orphan, dead-end, and unresolved-link detection."
+          />
+        ) : loadState === 'loading' ? (
+          <p className="health-subtitle knowledge-filter-loading">Loading knowledge repair data…</p>
+        ) : loadState === 'error' ? (
+          <EmptyState
+            icon={<Filter />}
+            title="Knowledge repair is unavailable"
+            description={loadStatus}
+          />
+        ) : (
+          <>
+            {tab !== 'placeholders' && activeNotes.length > 0 ? (
+              <div className="knowledge-triage-bar">
+                <button type="button" className="toolbar-button" onClick={startTriage}>
+                  Start triage ({activeNotes.length})
+                </button>
+                {triageNote ? (
+                  <span className="health-subtitle">
+                    Triage {triageIndex + 1} of {activeNotes.length}: {triageNote.title}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
+            {tab === 'placeholders' ? (
+              placeholders.length === 0 ? (
+                <EmptyState
+                  icon={<Filter />}
+                  title="No unresolved links"
+                  description="Every wikilink target currently resolves to an indexed note."
+                />
+              ) : (
+                <ul className="knowledge-target-list">
+                  {placeholders.map((target) => (
+                    <li key={target.target}>
+                      <strong>[[{target.target}]]</strong>
+                      <small>
+                        {target.reference_count} reference{target.reference_count === 1 ? '' : 's'}
+                      </small>
+                      {onCreateNoteFromWikilink ? (
+                        <button
+                          type="button"
+                          className="knowledge-create-note"
+                          onClick={() => onCreateNoteFromWikilink(target.target)}
+                        >
+                          Create note
                         </button>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )
-          ) : activeNotes.length === 0 ? (
-            <p className="empty-state">No notes in this category.</p>
-          ) : (
-            <VirtualKnowledgeNoteList
-              notes={activeNotes}
-              onOpenNote={onOpenNote}
-              triageLabel="Next"
-              onTriageNext={triageNext}
-            />
-          )}
-        </div>
+                      ) : null}
+                      <div className="knowledge-target-refs">
+                        {target.referencing_paths.map((path) => (
+                          <button key={path} type="button" onClick={() => onOpenNote(path)}>
+                            {path}
+                          </button>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : activeNotes.length === 0 ? (
+              <EmptyState
+                icon={<Filter />}
+                title={tab === 'orphans' ? 'No orphan notes' : 'No dead-end notes'}
+                description={
+                  tab === 'orphans'
+                    ? 'Every indexed note has at least one inbound link.'
+                    : 'Every indexed note links onward to another note.'
+                }
+              />
+            ) : (
+              <VirtualKnowledgeNoteList
+                notes={activeNotes}
+                onOpenNote={onOpenNote}
+                triageLabel="Next"
+                onTriageNext={triageNext}
+              />
+            )}
+          </>
+        )}
+      </div>
     </>
   )
 

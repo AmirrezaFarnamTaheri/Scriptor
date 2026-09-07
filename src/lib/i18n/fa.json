@@ -251,6 +251,7 @@
     "statusUnavailable": "وضعیت گیت در دسترس نیست",
     "loadingStatus": "در حال بارگذاری وضعیت گیت",
     "workingTreeClean": "شاخه کاری تمیز است (تغییری وجود ندارد)",
+    "changedFile": "{{count}} فایل تغییریافته",
     "changedFiles": "{{count}} فایل تغییریافته",
     "activeNoteChanged": "یادداشت فعال تغییرات ثبت‌نشده دارد: {{note}}",
     "everythingUpToDate": "همه‌چیز به‌روز است. تمام تغییرات در {{branch}} ثبت شده‌اند.",

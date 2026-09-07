@@ -143,7 +143,6 @@ test.describe('visual review states', () => {
       window.localStorage.setItem('scriptor:app-theme', 'light')
       window.localStorage.setItem('scriptor:onboarding-complete', 'true')
       window.localStorage.setItem('scriptor:editor-mode', 'monaco')
-      window.localStorage.setItem('scriptor:editor-theme', 'light')
       window.localStorage.setItem('scriptor:headless-engine', 'false')
       window.localStorage.setItem('scriptor:workspace-mode', 'writing')
       window.localStorage.setItem('scriptor:mobile-pane', 'editor')
@@ -173,6 +172,11 @@ test.describe('visual review states', () => {
     await page.locator('.editor-toolbar').getByRole('button', { name: 'Split', exact: true }).click()
     await waitForPreviewReady(page)
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect
+      .poll(() =>
+        page.locator('.monaco-editor').evaluate((element) => getComputedStyle(element).backgroundColor),
+      )
+      .not.toBe('rgb(255, 255, 255)')
 
     await captureVisual(page, 'visual-editor-split-dark.png')
   })

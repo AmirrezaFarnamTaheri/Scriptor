@@ -39,8 +39,12 @@
 
 .git-file-path {
   display: block;
+  max-width: 100%;
+  overflow: hidden;
   color: var(--muted);
   font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .git-commit-templates {

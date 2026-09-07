@@ -146,7 +146,6 @@ export function installScreenshotBridge(): void {
     window.localStorage.setItem('scriptor:headless-engine', 'false')
     window.localStorage.setItem('scriptor.plugins.safeMode', 'false')
     window.localStorage.setItem('scriptor:editor-mode', 'monaco')
-    window.localStorage.setItem('scriptor:editor-theme', 'light')
     window.sessionStorage.setItem('scriptor.plugins.safeMode', 'false')
   } catch {
     // ignore storage failures in screenshot mode

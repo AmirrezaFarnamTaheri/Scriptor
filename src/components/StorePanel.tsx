@@ -494,6 +494,13 @@ function PluginsTab({
                         disabled={safeMode || (!plugin.enabled && !consented)}
                         aria-pressed={plugin.enabled}
                         aria-describedby={consented ? undefined : consentHintId}
+                        title={
+                          safeMode
+                            ? 'Disable safe mode before enabling plugins'
+                            : !plugin.enabled && !consented
+                              ? 'Review required permissions before enabling this plugin'
+                              : undefined
+                        }
                         className={`store-plugin-toggle${plugin.enabled ? ' enabled' : ''}`}
                       >
                         {plugin.enabled ? 'Enabled' : 'Enable'}
@@ -561,8 +568,9 @@ function PluginsTab({
                             }
                           }}
                           className="store-btn-accent"
+                          aria-label={`Review and grant permissions for ${plugin.manifest.name} in this vault`}
                         >
-                          Review and grant for this vault
+                          Review & grant
                         </button>
                       )}
                       {policy ? (
@@ -571,7 +579,7 @@ function PluginsTab({
                           onClick={() => onRevokeConsent(plugin.manifest.id)}
                           className="store-btn-muted"
                         >
-                          Revoke access
+                          {consented ? 'Revoke access' : 'Reset permissions'}
                         </button>
                       ) : null}
                     </div>
@@ -705,7 +713,7 @@ export function StorePanel(props: StorePanelProps) {
       >
         {activeTab === 'plugins' && (
           <>
-            <h2 className="store-h2">Plugin marketplace</h2>
+            <h2 className="store-h2">Plugin management</h2>
             <PluginsTab
               plugins={props.plugins}
               safeMode={props.safeMode}

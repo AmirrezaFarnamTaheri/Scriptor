@@ -929,7 +929,7 @@ function App() {
       : workspace.gitStatus?.is_repo
         ? workspace.gitStatus.clean
           ? t('git.repositoryClean')
-          : t('git.changedFiles', { count: workspace.gitStatus.changed_files.length })
+          : t(workspace.gitStatus.changed_files.length === 1 ? 'git.changedFile' : 'git.changedFiles', { count: workspace.gitStatus.changed_files.length })
         : t('git.notARepo')
   const healthMetrics = useMemo(
     () => [
@@ -938,7 +938,7 @@ function App() {
       ['Orphans', String(workspace.health?.orphan_assets ?? 0)],
       ['Duplicates', String(workspace.health?.duplicate_titles ?? 0)],
       ['Frontmatter', String(workspace.health?.invalid_frontmatter ?? 0)],
-      ['Citations', String(workspace.health?.unresolved_citations ?? 0)],
+      ['Missing cites', String(workspace.health?.unresolved_citations ?? 0)],
       ['Words', draftWordCount.toLocaleString()],
       ['Vault words', (workspace.health?.total_words ?? 0).toLocaleString()],
     ] as Array<[string, string]>,

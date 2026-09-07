@@ -33,6 +33,13 @@ interface PreviewState {
   markdown: string
 }
 
+function formatRevisionDate(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
 export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -84,6 +91,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
   }, [path, selectedId])
 
   const revisions = revisionState?.path === path ? revisionState.rows : []
+  const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
   const preview =
     previewState?.path === path && previewState.revisionId === selectedId
       ? previewState.markdown
@@ -128,7 +136,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
                   className={selectedId === revision.id ? 'active' : ''}
                   onClick={() => setSelectedId(revision.id)}
                 >
-                  <strong>{new Date(revision.saved_at).toLocaleString()}</strong>
+                  <strong>{formatRevisionDate(revision.saved_at)}</strong>
                   <span>{revision.word_count.toLocaleString()} words</span>
                   <span className="note-history-preview">{revision.preview || revision.content_hash.slice(0, 8)}</span>
                 </button>
@@ -137,7 +145,16 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
           </ul>
           <div className="note-history-preview-pane">
             <header className="note-history-preview-header">
-              <button type="button" className="primary-button" disabled={busy || !selectedId} onClick={() => void restore()}>
+              <div>
+                <strong>Revision preview</strong>
+                <span>{selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'Select a revision'}</span>
+              </div>
+              <button
+                type="button"
+                className="toolbar-button note-history-restore"
+                disabled={busy || !selectedId}
+                onClick={() => void restore()}
+              >
                 <RotateCcw size={14} />
                 Restore revision
               </button>
