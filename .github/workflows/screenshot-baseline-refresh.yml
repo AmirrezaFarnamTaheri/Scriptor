@@ -69,33 +69,6 @@ jobs:
           $lines.InsertRange($start, [string[]]$replacement)
           [System.IO.File]::WriteAllLines($path, $lines, [System.Text.UTF8Encoding]::new($false))
 
-      - name: Format screenshot-review text changes
-        shell: pwsh
-        run: |
-          pnpm exec prettier --write `
-            e2e/panel-presentation.spec.ts `
-            e2e/screenshots.spec.ts `
-            e2e/visual-review.spec.ts `
-            src/App.tsx `
-            src/components/GitPanel.tsx `
-            src/components/KnowledgeFiltersPanel.tsx `
-            src/components/NoteHistoryPanel.tsx `
-            src/components/OnboardingTour.tsx `
-            src/components/StorePanel.tsx `
-            src/components/VaultHealthDashboard.tsx `
-            src/e2e/bootstrap.ts `
-            src/lib/i18n/de.json `
-            src/lib/i18n/en.json `
-            src/lib/i18n/fa.json `
-            src/screenshot/bootstrap.ts `
-            src/styles/app/features.css `
-            src/styles/app/inspector.css `
-            src/styles/app/unified-panel-contract.css `
-            src/styles/components/git-panel.css `
-            src/styles/components/note-history.css `
-            src/styles/components/onboarding.css `
-            src/styles/components/store-panel.css
-
       - name: Refresh only changed visual baselines
         shell: pwsh
         run: pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots=changed
@@ -118,17 +91,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $changes = git status --porcelain -- `
-            e2e/panel-presentation.spec.ts `
             e2e/screenshots.spec.ts `
-            e2e/visual-review.spec.ts `
             e2e/screenshots.spec.ts-snapshots `
-            e2e/visual-review.spec.ts-snapshots `
-            src/App.tsx `
-            src/components `
-            src/e2e/bootstrap.ts `
-            src/lib/i18n `
-            src/screenshot/bootstrap.ts `
-            src/styles
+            e2e/visual-review.spec.ts-snapshots
           if (-not $changes) {
             Write-Host 'Reviewed screenshot state is already current.'
             exit 0
@@ -137,17 +102,9 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- `
-            e2e/panel-presentation.spec.ts `
             e2e/screenshots.spec.ts `
-            e2e/visual-review.spec.ts `
             e2e/screenshots.spec.ts-snapshots `
-            e2e/visual-review.spec.ts-snapshots `
-            src/App.tsx `
-            src/components `
-            src/e2e/bootstrap.ts `
-            src/lib/i18n `
-            src/screenshot/bootstrap.ts `
-            src/styles
+            e2e/visual-review.spec.ts-snapshots
           git diff --cached --check
           git commit -m 'test(ui): refresh screenshot-reviewed baselines'
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
