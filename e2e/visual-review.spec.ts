@@ -176,7 +176,7 @@ test.describe('visual review states', () => {
       .poll(() =>
         page.locator('.monaco-editor').evaluate((element) => getComputedStyle(element).backgroundColor),
       )
-      .not.toBe('rgb(255, 255, 255)')
+      .toBe('rgb(15, 23, 42)')
 
     await captureVisual(page, 'visual-editor-split-dark.png')
   })
