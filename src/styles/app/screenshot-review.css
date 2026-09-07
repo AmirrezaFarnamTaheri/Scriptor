@@ -205,3 +205,25 @@
   min-height: 56px;
   padding-block: 6px;
 }
+
+/* --- Footer subsystem status -------------------------------------------- */
+/* Five simultaneously active subsystem controls should read as quiet status
+ * indicators, not five competing primary actions. Keep the accent in the live
+ * dot and let the pill chrome remain neutral until hover/focus. */
+.subsystem-toggle-badge.active {
+  color: var(--ink);
+  border-color: var(--border);
+  background: var(--surface-muted);
+}
+
+.subsystem-toggle-badge.active::before {
+  background: var(--primary);
+  outline: none;
+}
+
+.subsystem-toggle-badge.active:hover,
+.subsystem-toggle-badge.active:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--ink-strong);
+}
