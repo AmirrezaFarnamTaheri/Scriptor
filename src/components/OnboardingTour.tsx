@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useRef, useState } from 'react'
+
+import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 
 const STEPS = [
   {
@@ -31,85 +32,70 @@ interface OnboardingTourProps {
 
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
-  const dialogRef = useRef<HTMLDivElement>(null)
   const primaryActionRef = useRef<HTMLButtonElement>(null)
-
-  // The tour owns initial focus so keyboard users land on the forward action
-  // instead of focusing the dialog container and showing a browser-default ring.
-  useFocusTrap(dialogRef, { active: true, initialFocus: false })
-
-  useEffect(() => {
-    primaryActionRef.current?.focus()
-  }, [stepIndex])
-
   const step = STEPS[stepIndex]
   const isLast = stepIndex >= STEPS.length - 1
 
+  const progress = (
+    <div className="onboarding-progress-meta">
+      <span className="onboarding-step-label">
+        Step {stepIndex + 1} of {STEPS.length}
+      </span>
+      <progress
+        className="onboarding-progress"
+        max={STEPS.length}
+        value={stepIndex + 1}
+        aria-label={`Tour progress: step ${stepIndex + 1} of ${STEPS.length}`}
+      />
+    </div>
+  )
+
   return (
-    <div className="modal-backdrop onboarding-backdrop" role="presentation">
-      <div
-        ref={dialogRef}
-        className="onboarding-tour"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Product tour"
-        aria-describedby="onboarding-tour-description"
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault()
-            onComplete()
-          }
-        }}
-      >
-        <header>
-          <div className="onboarding-progress-meta">
-            <span className="onboarding-step-label">
-              Step {stepIndex + 1} of {STEPS.length}
-            </span>
-            <progress
-              className="onboarding-progress"
-              max={STEPS.length}
-              value={stepIndex + 1}
-              aria-label={`Tour progress: step ${stepIndex + 1} of ${STEPS.length}`}
-            />
-          </div>
-          <h2>{step.title}</h2>
-        </header>
-        <p id="onboarding-tour-description">{step.body}</p>
-        <footer className="onboarding-actions">
-          <button type="button" className="toolbar-button onboarding-skip" onClick={onComplete}>
-            Skip tour
-          </button>
-          <div className="onboarding-next-actions">
-            {isLast ? (
-              <>
-                {onOpenCheatsheet ? (
-                  <button type="button" className="toolbar-button" onClick={onOpenCheatsheet}>
-                    Open cheatsheet
-                  </button>
-                ) : null}
-                <button
-                  ref={primaryActionRef}
-                  type="button"
-                  className="primary-button"
-                  onClick={onComplete}
-                >
-                  Finish
+    <UnifiedPanelShell
+      title={step.title}
+      subtitle={step.body}
+      ariaLabel="Product tour"
+      onClose={onComplete}
+      className="onboarding-tour"
+      headerMeta={progress}
+      showClose={false}
+      closeOnBackdrop={false}
+      initialFocusRef={primaryActionRef}
+      initialFocusKey={stepIndex}
+    >
+      <footer className="onboarding-actions">
+        <button type="button" className="toolbar-button onboarding-skip" onClick={onComplete}>
+          Skip tour
+        </button>
+        <div className="onboarding-next-actions">
+          {isLast ? (
+            <>
+              {onOpenCheatsheet ? (
+                <button type="button" className="toolbar-button" onClick={onOpenCheatsheet}>
+                  Open cheatsheet
                 </button>
-              </>
-            ) : (
+              ) : null}
               <button
                 ref={primaryActionRef}
                 type="button"
                 className="primary-button"
-                onClick={() => setStepIndex((current) => Math.min(current + 1, STEPS.length - 1))}
+                onClick={onComplete}
               >
-                Next
+                Finish
               </button>
-            )}
-          </div>
-        </footer>
-      </div>
-    </div>
+            </>
+          ) : (
+            <button
+              ref={primaryActionRef}
+              type="button"
+              className="primary-button"
+              onClick={() => setStepIndex((current) => Math.min(current + 1, STEPS.length - 1))}
+            >
+              Next
+            </button>
+          )}
+        </div>
+      </footer>
+    </UnifiedPanelShell>
   )
 }

@@ -70,9 +70,10 @@ test.describe('adaptive panel presentation', () => {
       .toBe(true)
     await expect(changedRow.locator('.git-file-row-actions button')).toHaveCount(2)
 
-    const repoState = await page.locator('.status-summary .repo-state').boundingBox()
-    expect(repoState).not.toBeNull()
-    expect(repoState!.x + repoState!.width).toBeLessThanOrEqual(dockBox!.x + 2)
+    const statusSummary = page.locator('.status-summary')
+    const statusBox = await statusSummary.boundingBox()
+    expect(statusBox).not.toBeNull()
+    expect(statusBox!.x + statusBox!.width).toBeLessThanOrEqual(dockBox!.x + 2)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   })
 

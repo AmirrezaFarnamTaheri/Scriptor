@@ -89,6 +89,14 @@
   min-height: 36px;
 }
 
+.note-history-preview-pane:has(.note-history-restore-confirmation) {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.note-history-restore-confirmation {
+  margin: 0 2px;
+}
+
 .note-history-markdown {
   margin: 0;
   padding: 12px;

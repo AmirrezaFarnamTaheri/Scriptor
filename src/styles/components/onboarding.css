@@ -1,20 +1,25 @@
 /* First-run onboarding tour */
 
-.onboarding-backdrop {
-  z-index: var(--comp-modal-z, 120);
-}
-
-.onboarding-tour {
+/* UnifiedPanelShell owns the backdrop, dialog semantics, Escape handling and
+ * focus trap. These rules only specialize the tour's compact presentation. */
+.onboarding-tour.unified-panel-shell[class] {
   width: min(440px, calc(100vw - 32px));
-  padding: 24px;
+  max-height: min(720px, calc(100dvh - 32px));
   border-radius: var(--radius-lg);
-  border: 1px solid var(--border-strong);
+  border-color: var(--border-strong);
   background: var(--dialog-bg, var(--bg-elevated));
-  box-shadow: var(--shadow-lg);
 }
 
-.onboarding-tour header {
-  margin-bottom: 12px;
+.onboarding-tour.unified-panel-shell .unified-panel-header {
+  display: block;
+  margin: 0;
+  padding: 24px 24px 0;
+  border-bottom: 0;
+  background: transparent;
+}
+
+.onboarding-tour.unified-panel-shell .unified-panel-header > div:first-child {
+  width: 100%;
 }
 
 .onboarding-progress-meta {
@@ -58,15 +63,20 @@
   background: var(--primary);
 }
 
-.onboarding-tour h2 {
+.onboarding-tour.unified-panel-shell .unified-panel-header h2 {
   margin: 0;
   font-size: var(--text-xl);
 }
 
-.onboarding-tour p {
-  margin: 0 0 20px;
+.onboarding-tour.unified-panel-shell .unified-panel-header .health-subtitle {
+  margin: 12px 0 20px;
   color: var(--muted);
   line-height: 1.55;
+}
+
+.onboarding-tour.unified-panel-shell .unified-panel-body {
+  padding: 0 24px 24px;
+  overflow: visible;
 }
 
 .onboarding-actions {
@@ -92,19 +102,18 @@
   width: auto;
   min-width: 104px;
   margin-top: 0;
-}
-
-/* Keep the tour's primary action AA-compliant across custom themes. */
-.onboarding-actions .primary-button {
-  /* #075e54 on white provides 7.6:1 contrast, including in the release axe audit. */
   background: #075e54;
   border-color: #075e54;
   color: #fff;
 }
 
 @media (max-width: 520px) {
-  .onboarding-tour {
-    padding: 20px;
+  .onboarding-tour.unified-panel-shell .unified-panel-header {
+    padding: 20px 20px 0;
+  }
+
+  .onboarding-tour.unified-panel-shell .unified-panel-body {
+    padding: 0 20px 20px;
   }
 
   .onboarding-actions {

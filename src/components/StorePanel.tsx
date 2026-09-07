@@ -37,6 +37,7 @@ import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
 import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -416,6 +417,7 @@ function PluginsTab({
 >) {
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
+  const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
 
   return (
     <div className="store-stack">
@@ -554,19 +556,7 @@ function PluginsTab({
                         <button
                           type="button"
                           disabled={!canGrant}
-                          onClick={() => {
-                            // Grant, then activate. Both callbacks mutate the same
-                            // registry instance synchronously, so setEnabled observes
-                            // the consent recorded one statement earlier.
-                            onReviewConsent(
-                              plugin.manifest.id,
-                              plugin.manifest.permissions.map((entry) => entry.permission),
-                              activeVaultId ? [activeVaultId] : [],
-                            )
-                            if (required.length === 0 || activeVaultId) {
-                              onTogglePlugin(plugin.manifest.id, true)
-                            }
-                          }}
+                          onClick={() => setPendingConsentPluginId(plugin.manifest.id)}
                           className="store-btn-accent"
                           aria-label={`Review and grant permissions for ${plugin.manifest.name} in this vault`}
                         >
@@ -583,6 +573,31 @@ function PluginsTab({
                         </button>
                       ) : null}
                     </div>
+                    {pendingConsentPluginId === plugin.manifest.id ? (
+                      <MutationConfirmation
+                        ariaLabel={`Confirm permissions for ${plugin.manifest.name}`}
+                        message={
+                          plugin.manifest.permissions.length > 0
+                            ? `Grant ${plugin.manifest.permissions.map((entry) => entry.permission).join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?`
+                            : `Enable ${plugin.manifest.name} for this vault?`
+                        }
+                        confirmLabel="Grant & enable"
+                        onCancel={() => setPendingConsentPluginId(null)}
+                        onConfirm={() => {
+                          onReviewConsent(
+                            plugin.manifest.id,
+                            plugin.manifest.permissions.map((entry) => entry.permission),
+                            activeVaultId ? [activeVaultId] : [],
+                          )
+                          if (required.length === 0 || activeVaultId) {
+                            onTogglePlugin(plugin.manifest.id, true)
+                          }
+                          setPendingConsentPluginId(null)
+                        }}
+                        confirmDisabled={!canGrant}
+                        className="store-permission-confirmation"
+                      />
+                    ) : null}
                   </section>
                 </div>
               )

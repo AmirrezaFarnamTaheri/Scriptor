@@ -6,6 +6,7 @@ import {
   vaultReadNoteHistoryRevision,
   vaultRestoreNoteHistoryRevision,
 } from '../bridge/commands'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 
 export interface NoteHistoryRevision {
@@ -46,6 +47,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmRestore, setConfirmRestore] = useState(false)
 
   useEffect(() => {
     if (!path) return
@@ -56,6 +58,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
         if (cancelled) return
         setRevisionState({ path: requestedPath, rows })
         setSelectedId(rows[0]?.id ?? null)
+        setConfirmRestore(false)
         setStatus('')
       })
       .catch((error: unknown) => {
@@ -104,6 +107,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
     try {
       await vaultRestoreNoteHistoryRevision(path, selectedId)
       setStatus('Revision restored.')
+      setConfirmRestore(false)
       onRestored?.()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Restore failed')
@@ -134,7 +138,10 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
                 <button
                   type="button"
                   className={selectedId === revision.id ? 'active' : ''}
-                  onClick={() => setSelectedId(revision.id)}
+                  onClick={() => {
+                    setSelectedId(revision.id)
+                    setConfirmRestore(false)
+                  }}
                 >
                   <strong>{formatRevisionDate(revision.saved_at)}</strong>
                   <span>{revision.word_count.toLocaleString()} words</span>
@@ -153,12 +160,23 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
                 type="button"
                 className="toolbar-button note-history-restore"
                 disabled={busy || !selectedId}
-                onClick={() => void restore()}
+                onClick={() => setConfirmRestore(true)}
               >
                 <RotateCcw size={14} />
                 Restore revision
               </button>
             </header>
+            {confirmRestore && selectedRevision ? (
+              <MutationConfirmation
+                ariaLabel="Confirm revision restore"
+                message={`Restore the ${formatRevisionDate(selectedRevision.saved_at)} revision? Your current note content will be replaced.`}
+                confirmLabel="Restore revision"
+                busy={busy}
+                onCancel={() => setConfirmRestore(false)}
+                onConfirm={() => void restore()}
+                className="note-history-restore-confirmation"
+              />
+            ) : null}
             <pre className="note-history-markdown">{preview || 'Select a revision to preview.'}</pre>
           </div>
         </div>

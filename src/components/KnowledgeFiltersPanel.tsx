@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
-import { Filter, X } from 'lucide-react'
+import { Filter } from 'lucide-react'
 
 import {
   indexerListDeadEnds,
@@ -7,8 +7,8 @@ import {
   indexerListUnresolvedTargets,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
-import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { VirtualKnowledgeNoteList } from './app/VirtualKnowledgeNoteList'
+import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { EmptyState } from './EmptyState'
 import type { KnowledgeNoteSummary, UnresolvedLinkTarget } from '../types/vault'
 
@@ -41,8 +41,6 @@ export function KnowledgeFiltersPanel({
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [triageIndex, setTriageIndex] = useState(0)
   const tabIdBase = useId()
-
-  useEscapeToClose(!embedded, onClose)
 
   useEffect(() => {
     if (!canBrowse) return
@@ -256,27 +254,15 @@ export function KnowledgeFiltersPanel({
   }
 
   return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section
-        className="knowledge-filters-panel"
-        role="dialog"
-        aria-label="Knowledge filters"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header>
-          <div>
-            <h2>
-              <Filter size={18} />
-              Knowledge filters
-            </h2>
-            <p className="health-subtitle">{status}</p>
-          </div>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close knowledge filters">
-            <X />
-          </button>
-        </header>
-        {body}
-      </section>
-    </div>
+    <UnifiedPanelShell
+      title="Knowledge filters"
+      subtitle={status}
+      icon={<Filter size={18} />}
+      ariaLabel="Knowledge filters"
+      onClose={onClose}
+      className="knowledge-filters-panel knowledge-filter-dialog"
+    >
+      {body}
+    </UnifiedPanelShell>
   )
 }

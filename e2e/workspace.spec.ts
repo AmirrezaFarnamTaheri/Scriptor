@@ -44,6 +44,7 @@ test.describe('workspace flows', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     const tour = page.getByRole('dialog', { name: 'Product tour' })
     await expect(tour).toBeVisible()
+    await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
     await tour.getByRole('button', { name: 'Skip tour' }).click()
     await expect(tour).toBeHidden()
     await page.reload({ waitUntil: 'domcontentloaded' })
@@ -98,6 +99,10 @@ test.describe('workspace flows', () => {
     await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')
 
     await historyPanel.getByRole('button', { name: 'Restore revision' }).click()
+    const confirmation = historyPanel.getByRole('group', { name: 'Confirm revision restore' })
+    await expect(confirmation).toBeVisible()
+    await expect(historyPanel).toBeVisible()
+    await confirmation.getByRole('button', { name: 'Restore revision' }).click()
     await expect(historyPanel).toBeHidden({ timeout: 10_000 })
   })
 
