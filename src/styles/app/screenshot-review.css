@@ -19,8 +19,9 @@
   grid-template-rows: repeat(3, minmax(36px, auto));
   align-items: center;
   gap: 6px;
-  max-height: none;
-  overflow: visible;
+  max-height: min(32dvh, 240px);
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .editor-toolbar > .format-group {
@@ -93,7 +94,8 @@
 
 /* On genuinely narrow panes, preserving every command is more important than
  * forcing dense columns. Fall back to a predictable left-aligned stack rather
- * than arbitrary flex wrapping or horizontal clipping. */
+ * than arbitrary cross-group wrapping or horizontal clipping. Individual
+ * groups may wrap internally when even their icon set cannot fit one row. */
 @container (max-width: 580px) {
   .format-row.editor-toolbar {
     grid-template-columns: minmax(0, 1fr);
@@ -105,6 +107,7 @@
     grid-column: 1 / -1;
     grid-row: auto;
     justify-self: start;
+    flex-wrap: wrap;
   }
 }
 
