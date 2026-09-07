@@ -27,7 +27,7 @@ test.describe('screenshot geometry contracts', () => {
     expect(tops[0]).toBe(tops[1])
     expect(tops[2]).toBe(tops[3])
     expect(tops[4]).toBe(tops[5])
-    expect(new Set(tops)).toHaveSize(3)
+    expect(new Set(tops).size).toBe(3)
 
     const editorRight = await page.locator('.editor-panel').evaluate((panel) => panel.getBoundingClientRect().right)
     for (const group of geometry) {
