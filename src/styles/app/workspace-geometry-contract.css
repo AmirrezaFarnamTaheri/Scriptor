@@ -1,0 +1,223 @@
+/* Final geometry contract for width-sensitive workspace chrome.
+ *
+ * App.css intentionally imports this after legacy feature/component sheets.
+ * The rules below own geometry that spans multiple subsystems and therefore
+ * cannot safely live in one component stylesheet: toolbar row composition,
+ * inspector rail metrics/QA, docked Git rows, and footer status density.
+ */
+
+/* --- Editor toolbar ------------------------------------------------------- */
+.editor-toolbar-wrapper {
+  container-type: inline-size;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.format-row.editor-toolbar {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(36px, auto));
+  align-items: center;
+  gap: 6px;
+  max-height: min(32dvh, 240px);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.editor-toolbar > .format-group {
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  justify-self: start;
+}
+
+/* Row 1: surface mode + document structure. */
+.editor-toolbar > .format-group:nth-child(1) {
+  grid-column: 1 / span 3;
+  grid-row: 1;
+}
+
+.editor-toolbar > .format-group:nth-child(2) {
+  grid-column: 4 / span 5;
+  grid-row: 1;
+}
+
+/* Row 2: formatting + review/capture. */
+.editor-toolbar > .format-group:nth-child(3) {
+  grid-column: 1 / span 7;
+  grid-row: 2;
+}
+
+.editor-toolbar > .format-group:nth-child(4) {
+  grid-column: 8 / span 3;
+  grid-row: 2;
+}
+
+/* Row 3: editor options + contextual note actions. */
+.editor-toolbar > .format-group:nth-child(5) {
+  grid-column: 1 / span 7;
+  grid-row: 3;
+}
+
+.editor-toolbar > .inline-editor-assist {
+  grid-column: 8 / -1;
+  grid-row: 3;
+  justify-self: end;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+}
+
+/* At inspector-width writing columns, compact only the dense editor-mode icon
+ * cluster and keep Link / Cite / Frontmatter / Export labels readable. */
+@container (max-width: 920px) {
+  .editor-toolbar > .format-group:nth-child(5) > button {
+    width: 27px;
+    min-width: 27px;
+    padding-inline: 0;
+  }
+
+  .inline-editor-assist {
+    gap: 4px;
+  }
+
+  .inline-editor-assist .toolbar-button {
+    width: auto;
+    min-width: 0;
+    padding-inline: 4px;
+    gap: 4px;
+    font-size: 11px;
+  }
+}
+
+/* On genuinely narrow panes, preserve every command in a predictable stack.
+ * Individual groups may wrap internally if even their icon set cannot fit. */
+@container (max-width: 580px) {
+  .format-row.editor-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+
+  .editor-toolbar > .format-group,
+  .editor-toolbar > .inline-editor-assist {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: start;
+    flex-wrap: wrap;
+  }
+}
+
+/* --- Inspector ----------------------------------------------------------- */
+/* Eight note-health metrics form a stable 4x2 matrix at rail width. */
+.inspector-panel > .widget-card .metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.inspector-panel > .widget-card .metric-grid .metric {
+  min-width: 0;
+  min-height: 46px;
+  justify-content: center;
+  padding: 6px 8px;
+  border-left: 1px solid var(--border);
+}
+
+.inspector-panel > .widget-card .metric-grid .metric:nth-child(4n + 1) {
+  border-left: 0;
+}
+
+.inspector-panel > .widget-card .metric-grid .metric:nth-child(n + 5) {
+  border-top: 1px solid var(--border);
+}
+
+.inspector-panel > .widget-card .metric-grid .metric span {
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Preview QA is status information, not a three-column toolbar. Explicit
+ * label/value rows prevent adjacent copy from visually concatenating. */
+.preview-qa-bar {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.preview-qa-bar > div {
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-qa-bar strong {
+  align-self: start;
+}
+
+.preview-qa-bar span {
+  overflow-wrap: anywhere;
+}
+
+.preview-qa-bar > .toolbar-button {
+  grid-column: 1;
+  justify-self: stretch;
+  justify-content: center;
+  width: auto;
+  margin: 8px 10px 10px;
+}
+
+/* --- Docked Git ---------------------------------------------------------- */
+/* The note title identifies Markdown files in the narrow companion rail; the
+ * duplicate .md path wastes the width needed by status and row actions. */
+.unified-panel-docked.git-panel .git-file-path {
+  display: none;
+}
+
+.unified-panel-docked.git-panel .git-file-selection label > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-panel-docked.git-panel .git-file-row-actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.unified-panel-docked.git-panel .git-file-row-actions button {
+  min-height: 28px;
+  padding-inline: 6px;
+  font-size: 11px;
+}
+
+.unified-panel-docked.git-panel .git-changes li {
+  min-height: 56px;
+  padding-block: 6px;
+}
+
+/* --- Footer subsystem status -------------------------------------------- */
+/* Simultaneously active subsystem controls are status indicators, not five
+ * competing primary actions. Accent the live dot and keep pill chrome neutral. */
+.subsystem-toggle-badge.active {
+  color: var(--ink);
+  border-color: var(--border);
+  background: var(--surface-muted);
+}
+
+.subsystem-toggle-badge.active::before {
+  background: var(--primary);
+  outline: none;
+}
+
+.subsystem-toggle-badge.active:hover,
+.subsystem-toggle-badge.active:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--ink-strong);
+}
