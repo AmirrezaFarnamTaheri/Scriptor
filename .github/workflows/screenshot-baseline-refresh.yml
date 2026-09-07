@@ -80,31 +80,47 @@ jobs:
           name: screenshot-baseline-refresh-${{ github.run_attempt }}
           path: |
             e2e/screenshots.spec.ts-snapshots
-            e2e/visual-review.spec.ts-snapshots
             docs/assets/screenshots
             test-results/visual
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Commit reviewed visual repair
+      - name: Commit reviewed visual repair and remove helper
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+
           $changes = git status --porcelain -- `
             e2e/screenshots.spec.ts `
             e2e/screenshots.spec.ts-snapshots `
-            e2e/visual-review.spec.ts-snapshots
-          if (-not $changes) {
-            Write-Host 'Reviewed screenshot state is already current.'
-            exit 0
+            docs/assets/screenshots
+          if ($LASTEXITCODE -ne 0) { throw "git status failed with exit code $LASTEXITCODE" }
+
+          if ($changes) {
+            Write-Host $changes
+          } else {
+            Write-Host 'Reviewed screenshot state is already current; only the one-time helper will be removed.'
           }
-          Write-Host $changes
+
           git config user.name 'github-actions[bot]'
+          if ($LASTEXITCODE -ne 0) { throw "git config user.name failed with exit code $LASTEXITCODE" }
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ($LASTEXITCODE -ne 0) { throw "git config user.email failed with exit code $LASTEXITCODE" }
+
           git add -- `
             e2e/screenshots.spec.ts `
             e2e/screenshots.spec.ts-snapshots `
-            e2e/visual-review.spec.ts-snapshots
+            docs/assets/screenshots
+          if ($LASTEXITCODE -ne 0) { throw "git add failed with exit code $LASTEXITCODE" }
+
+          git rm -- .github/workflows/screenshot-baseline-refresh.yml
+          if ($LASTEXITCODE -ne 0) { throw "git rm helper failed with exit code $LASTEXITCODE" }
+
           git diff --cached --check
+          if ($LASTEXITCODE -ne 0) { throw "git diff --cached --check failed with exit code $LASTEXITCODE" }
+
           git commit -m 'test(ui): refresh screenshot-reviewed baselines'
+          if ($LASTEXITCODE -ne 0) { throw "git commit failed with exit code $LASTEXITCODE" }
+
           git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
+          if ($LASTEXITCODE -ne 0) { throw "git push failed with exit code $LASTEXITCODE" }
