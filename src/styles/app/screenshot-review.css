@@ -1,0 +1,208 @@
+/* Screenshot-driven layout contracts.
+ *
+ * These rules intentionally live after the legacy feature/component sheets.
+ * They encode layout invariants that are easiest to regress when a companion
+ * rail reduces the editor's effective width: toolbar row composition, compact
+ * inspector metrics/QA, and Git rows inside the docked companion surface.
+ */
+
+/* --- Editor toolbar ------------------------------------------------------- */
+.editor-toolbar-wrapper {
+  container-type: inline-size;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.format-row.editor-toolbar {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(36px, auto));
+  align-items: center;
+  gap: 6px;
+  max-height: none;
+  overflow: visible;
+}
+
+.editor-toolbar > .format-group {
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  flex-wrap: nowrap;
+  justify-self: start;
+}
+
+/* Row 1: surface mode + document structure. */
+.editor-toolbar > .format-group:nth-child(1) {
+  grid-column: 1 / span 3;
+  grid-row: 1;
+}
+
+.editor-toolbar > .format-group:nth-child(2) {
+  grid-column: 4 / span 5;
+  grid-row: 1;
+}
+
+/* Row 2: formatting + review/capture. */
+.editor-toolbar > .format-group:nth-child(3) {
+  grid-column: 1 / span 7;
+  grid-row: 2;
+}
+
+.editor-toolbar > .format-group:nth-child(4) {
+  grid-column: 8 / span 3;
+  grid-row: 2;
+}
+
+/* Row 3: editor options + contextual note actions. */
+.editor-toolbar > .format-group:nth-child(5) {
+  grid-column: 1 / span 8;
+  grid-row: 3;
+}
+
+.editor-toolbar > .inline-editor-assist {
+  grid-column: 9 / -1;
+  grid-row: 3;
+  justify-self: end;
+  margin-left: 0;
+  margin-right: 0;
+  padding-left: 0;
+}
+
+/* At the screenshot-proven inspector widths, text labels on the contextual
+ * actions are what force the otherwise coherent third row into an orphaned
+ * fourth row. Keep the accessible text/title, but present the four actions as
+ * compact icon buttons until the writing column is genuinely wide enough. */
+@container (max-width: 920px) {
+  .editor-toolbar > .format-group:nth-child(5) > button {
+    width: 30px;
+    min-width: 30px;
+    padding-inline: 0;
+  }
+
+  .inline-editor-assist .toolbar-button {
+    width: 32px;
+    min-width: 32px;
+    padding-inline: 0;
+    gap: 0;
+    font-size: 0;
+  }
+
+  .inline-editor-assist .toolbar-button svg {
+    margin: 0;
+  }
+}
+
+/* On genuinely narrow panes, preserving every command is more important than
+ * forcing dense columns. Fall back to a predictable left-aligned stack rather
+ * than arbitrary flex wrapping or horizontal clipping. */
+@container (max-width: 580px) {
+  .format-row.editor-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+
+  .editor-toolbar > .format-group,
+  .editor-toolbar > .inline-editor-assist {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}
+
+/* --- Inspector ----------------------------------------------------------- */
+/* Eight note-health metrics form a balanced 4x2 matrix at rail width. The
+ * generic auto-fit grid produced a visually unstable 5+3 split and wrapped
+ * "Vault words" into a detached third line. */
+.inspector-panel > .widget-card .metric-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+}
+
+.inspector-panel > .widget-card .metric-grid .metric {
+  min-width: 0;
+  min-height: 46px;
+  justify-content: center;
+  padding: 6px 8px;
+  border-left: 1px solid var(--border);
+}
+
+.inspector-panel > .widget-card .metric-grid .metric:nth-child(4n + 1) {
+  border-left: 0;
+}
+
+.inspector-panel > .widget-card .metric-grid .metric:nth-child(n + 5) {
+  border-top: 1px solid var(--border);
+}
+
+.inspector-panel > .widget-card .metric-grid .metric span {
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+/* Preview QA is status information, not a three-column toolbar. Use explicit
+ * label/value rows and a full-width action so "Render / Synced" and
+ * "Export / Ready" can never visually concatenate at narrow rail widths. */
+.preview-qa-bar {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.preview-qa-bar > div {
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.preview-qa-bar strong {
+  align-self: start;
+}
+
+.preview-qa-bar span {
+  overflow-wrap: anywhere;
+}
+
+.preview-qa-bar > .toolbar-button {
+  grid-column: 1;
+  justify-self: stretch;
+  justify-content: center;
+  width: auto;
+  margin: 8px 10px 10px;
+}
+
+/* --- Docked Git ---------------------------------------------------------- */
+/* The note title already identifies Markdown files in the narrow companion
+ * rail, so repeating the full .md path wastes the exact width needed by the
+ * status and row actions. Keep the path in modal/diff contexts, but suppress
+ * only the redundant dock copy. */
+.unified-panel-docked.git-panel .git-file-path {
+  display: none;
+}
+
+.unified-panel-docked.git-panel .git-file-selection label > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.unified-panel-docked.git-panel .git-file-row-actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.unified-panel-docked.git-panel .git-file-row-actions button {
+  min-height: 28px;
+  padding-inline: 6px;
+  font-size: 11px;
+}
+
+.unified-panel-docked.git-panel .git-changes li {
+  min-height: 56px;
+  padding-block: 6px;
+}
