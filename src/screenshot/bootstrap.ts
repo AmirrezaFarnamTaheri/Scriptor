@@ -32,6 +32,7 @@ const DEFAULT_CONFIG = {
   mcp: { mode: 'read-only', disabled: false },
 }
 
+/** Installs the deterministic bridge fixture used by documentation and visual-regression captures. */
 export function installScreenshotBridge(): void {
   mockIPC((cmd, payload) => {
     switch (cmd) {

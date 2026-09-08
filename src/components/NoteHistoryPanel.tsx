@@ -34,6 +34,7 @@ interface PreviewState {
   markdown: string
 }
 
+/** Formats persisted revision timestamps for compact, locale-aware timeline display. */
 function formatRevisionDate(value: string) {
   return new Date(value).toLocaleString(undefined, {
     dateStyle: 'medium',
@@ -41,6 +42,7 @@ function formatRevisionDate(value: string) {
   })
 }
 
+/** Browses local note revisions and requires explicit confirmation before restoring content. */
 export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)

@@ -22,6 +22,7 @@ interface VaultHealthDashboardProps {
   isFixingVaultLint?: boolean
 }
 
+/** Maps a vault-health report into the stable metric grid displayed by the dashboard. */
 function metricRows(summary: VaultHealthReport) {
   return [
     ['Indexed notes', summary.indexed_notes],
@@ -36,6 +37,7 @@ function metricRows(summary: VaultHealthReport) {
   ] as const
 }
 
+/** Renders vault-health metrics, diagnostics, repair actions, and the explicit healthy state. */
 export function VaultHealthDashboard({
   diagnostics,
   inspectorWidgets = [],

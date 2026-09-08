@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 
 import { launchApp, openCommandPalette, runCommand, settleLayout } from './helpers'
 
+/** Normalizes sub-pixel layout measurements before comparing screenshot geometry. */
 function rounded(value: number) {
   return Math.round(value)
 }

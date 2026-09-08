@@ -24,6 +24,7 @@ type FilterTab = 'orphans' | 'dead-ends' | 'placeholders'
 
 const FILTER_TABS: FilterTab[] = ['orphans', 'dead-ends', 'placeholders']
 
+/** Presents indexed link-health filters with retryable loading, keyboard tabs, and triage actions. */
 export function KnowledgeFiltersPanel({
   embedded = false,
   vaultOpen,

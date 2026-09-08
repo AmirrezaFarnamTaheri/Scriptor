@@ -11,6 +11,7 @@ interface InlineEditorAssistProps {
   onOpenExport: () => void
 }
 
+/** Exposes context-aware editor shortcuts for links, citations, frontmatter, and export readiness. */
 export function InlineEditorAssist({
   activePath,
   hasFrontmatter,
