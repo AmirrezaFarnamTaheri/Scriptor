@@ -30,6 +30,7 @@ interface OnboardingTourProps {
   onOpenCheatsheet?: () => void
 }
 
+/** Guides first-run users through the workspace without permitting accidental dismissal. */
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
   const primaryActionRef = useRef<HTMLButtonElement>(null)
@@ -55,11 +56,13 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
       title={step.title}
       subtitle={step.body}
       ariaLabel="Product tour"
+      modalAriaLabel="Product tour"
       onClose={onComplete}
       className="onboarding-tour"
       headerMeta={progress}
       showClose={false}
       closeOnBackdrop={false}
+      closeOnEscape={false}
       initialFocusRef={primaryActionRef}
       initialFocusKey={stepIndex}
     >

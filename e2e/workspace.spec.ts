@@ -45,6 +45,8 @@ test.describe('workspace flows', () => {
     const tour = page.getByRole('dialog', { name: 'Product tour' })
     await expect(tour).toBeVisible()
     await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(tour).toBeVisible()
     await tour.getByRole('button', { name: 'Skip tour' }).click()
     await expect(tour).toBeHidden()
     await page.reload({ waitUntil: 'domcontentloaded' })

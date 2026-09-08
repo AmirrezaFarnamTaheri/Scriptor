@@ -25,6 +25,7 @@ interface UnifiedPanelShellProps {
   subtitle?: string
   icon?: ReactNode
   ariaLabel: string
+  modalAriaLabel?: string
   onClose: () => void
   tabs?: PanelTab[]
   activeTab?: string
@@ -33,6 +34,7 @@ interface UnifiedPanelShellProps {
   headerMeta?: ReactNode
   showClose?: boolean
   closeOnBackdrop?: boolean
+  closeOnEscape?: boolean
   initialFocusRef?: RefObject<HTMLElement | null>
   initialFocusKey?: unknown
   children: ReactNode
@@ -43,12 +45,14 @@ interface UnifiedPanelShellProps {
 
 const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
 
+/** Returns whether the current viewport and reflow mode can safely host a right dock. */
 function dockFitsViewport(media: MediaQueryList): boolean {
   if (!media.matches) return false
   const reflow = document.documentElement.dataset.uiReflow
   return reflow === undefined || reflow === 'desktop'
 }
 
+/** Tracks whether the shared panel shell may render as a dock instead of a modal. */
 function useDockViewport(): boolean {
   const [canDock, setCanDock] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -74,11 +78,13 @@ function useDockViewport(): boolean {
   return canDock
 }
 
+/** Provides shared modal/dock semantics, focus policy, tabs, and accessible labeling. */
 export function UnifiedPanelShell({
   title,
   subtitle,
   icon,
   ariaLabel,
+  modalAriaLabel,
   onClose,
   tabs,
   activeTab,
@@ -87,6 +93,7 @@ export function UnifiedPanelShell({
   headerMeta,
   showClose = true,
   closeOnBackdrop = true,
+  closeOnEscape = true,
   initialFocusRef,
   initialFocusKey,
   children,
@@ -107,7 +114,7 @@ export function UnifiedPanelShell({
 
   const resolveInitialFocus = useCallback(() => initialFocusRef?.current ?? null, [initialFocusRef])
 
-  useEscapeToClose(!docked, onClose)
+  useEscapeToClose(!docked && closeOnEscape, onClose)
   useFocusTrap(shellRef, {
     active: !docked,
     initialFocus: initialFocusRef ? resolveInitialFocus : true,
@@ -143,8 +150,8 @@ export function UnifiedPanelShell({
         className={`unified-panel-shell ${className}${wide ? ' unified-panel-wide' : ''}${docked ? ' unified-panel-docked' : ''}`}
         role={docked ? 'complementary' : 'dialog'}
         aria-modal={docked ? undefined : true}
-        aria-label={docked || ariaLabel !== title ? ariaLabel : undefined}
-        aria-labelledby={!docked && ariaLabel === title ? titleId : undefined}
+        aria-label={docked ? ariaLabel : modalAriaLabel}
+        aria-labelledby={!docked && !modalAriaLabel ? titleId : undefined}
         aria-describedby={!docked && subtitle ? descriptionId : undefined}
         tabIndex={-1}
       >
