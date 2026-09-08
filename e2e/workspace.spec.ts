@@ -100,14 +100,22 @@ test.describe('workspace flows', () => {
     await expect(historyPanel.getByText(/words/)).toBeVisible()
     await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')
 
-    const editorContentBeforeRestore = await page.locator('.monaco-editor .view-lines').innerText()
+    const readEditorContent = () =>
+      page.evaluate(() => {
+        const editor = (window as Window & {
+          __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
+        }).__scriptorE2eEditor
+        return editor?.getModel?.()?.getValue?.() ?? ''
+      })
+    const editorContentBeforeRestore = await readEditorContent()
     await historyPanel.getByRole('button', { name: 'Restore revision' }).click()
     const confirmation = historyPanel.getByRole('group', { name: 'Confirm revision restore' })
     await expect(confirmation).toBeVisible()
     await expect(historyPanel).toBeVisible()
-    await expect(page.locator('.monaco-editor .view-lines')).toHaveText(editorContentBeforeRestore)
+    await expect.poll(readEditorContent).toBe(editorContentBeforeRestore)
     await confirmation.getByRole('button', { name: 'Restore revision' }).click()
     await expect(historyPanel).toBeHidden({ timeout: 10_000 })
+    await expect.poll(readEditorContent, { timeout: 10_000 }).toBe('# Restored\n')
   })
 
   test('save note, search hit, and export HTML dry-run', async ({ page }) => {
