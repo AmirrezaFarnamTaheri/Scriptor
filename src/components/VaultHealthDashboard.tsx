@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react'
+import { Activity, CheckCircle2 } from 'lucide-react'
 
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -22,6 +22,7 @@ interface VaultHealthDashboardProps {
   isFixingVaultLint?: boolean
 }
 
+/** Maps a vault-health report into the stable metric grid displayed by the dashboard. */
 function metricRows(summary: VaultHealthReport) {
   return [
     ['Indexed notes', summary.indexed_notes],
@@ -36,6 +37,7 @@ function metricRows(summary: VaultHealthReport) {
   ] as const
 }
 
+/** Renders vault-health metrics, diagnostics, repair actions, and the explicit healthy state. */
 export function VaultHealthDashboard({
   diagnostics,
   inspectorWidgets = [],
@@ -173,11 +175,16 @@ export function VaultHealthDashboard({
               </div>
             ) : null}
 
-            <div className="health-issues">
+            <div className={`health-issues${diagnostics?.issues.length ? ' has-issues' : ' is-healthy'}`}>
               <strong>
-                {diagnostics?.issues.length
-                  ? `${diagnostics.issues.length} issue(s)`
-                  : 'No issues detected'}
+                {diagnostics?.issues.length ? (
+                  `${diagnostics.issues.length} issue(s)`
+                ) : (
+                  <>
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                    No issues detected
+                  </>
+                )}
               </strong>
               {diagnostics && diagnostics.issues.length > 0 && (
                 <ul>

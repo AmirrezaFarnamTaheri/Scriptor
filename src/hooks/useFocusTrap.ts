@@ -15,8 +15,10 @@ interface FocusTrapOptions {
   active: boolean
   /** Element to return focus to when the trap deactivates. */
   restoreTo?: HTMLElement | null
-  /** Whether to focus the first focusable element on activation (default true). */
-  initialFocus?: boolean
+  /** Whether/how to move focus when the trap activates (default: first focusable element). */
+  initialFocus?: boolean | (() => HTMLElement | null)
+  /** Re-run initial-focus behavior when a multi-step dialog advances. */
+  initialFocusKey?: unknown
 }
 
 /**
@@ -31,10 +33,13 @@ interface FocusTrapOptions {
  */
 export function useFocusTrap<T extends HTMLElement>(
   containerRef: RefObject<T | null>,
-  { active, restoreTo, initialFocus = true }: FocusTrapOptions,
+  { active, restoreTo, initialFocus = true, initialFocusKey }: FocusTrapOptions,
 ): void {
   useEffect(() => {
     if (!active) return
+    // The key intentionally participates in this effect so step changes can
+    // re-run the initial-focus cycle without rebuilding the trap API.
+    void initialFocusKey
     const container = containerRef.current
     if (!container) return
 
@@ -45,8 +50,11 @@ export function useFocusTrap<T extends HTMLElement>(
       // Defer one frame so children mount before we search for focusable nodes.
       rafId = window.requestAnimationFrame(() => {
         rafId = null
-        const first = container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
-        first?.focus()
+        const target =
+          typeof initialFocus === 'function'
+            ? initialFocus()
+            : container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
+        target?.focus()
       })
     }
 
@@ -86,5 +94,5 @@ export function useFocusTrap<T extends HTMLElement>(
       const target = restoreTo ?? previouslyFocused
       target?.focus?.()
     }
-  }, [active, containerRef, restoreTo, initialFocus])
+  }, [active, containerRef, restoreTo, initialFocus, initialFocusKey])
 }

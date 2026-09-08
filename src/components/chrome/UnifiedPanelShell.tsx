@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
@@ -16,11 +25,18 @@ interface UnifiedPanelShellProps {
   subtitle?: string
   icon?: ReactNode
   ariaLabel: string
+  modalAriaLabel?: string
   onClose: () => void
   tabs?: PanelTab[]
   activeTab?: string
   onTabChange?: (tabId: string) => void
   headerActions?: ReactNode
+  headerMeta?: ReactNode
+  showClose?: boolean
+  closeOnBackdrop?: boolean
+  closeOnEscape?: boolean
+  initialFocusRef?: RefObject<HTMLElement | null>
+  initialFocusKey?: unknown
   children: ReactNode
   className?: string
   wide?: boolean
@@ -29,12 +45,14 @@ interface UnifiedPanelShellProps {
 
 const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
 
+/** Returns whether the current viewport and reflow mode can safely host a right dock. */
 function dockFitsViewport(media: MediaQueryList): boolean {
   if (!media.matches) return false
   const reflow = document.documentElement.dataset.uiReflow
   return reflow === undefined || reflow === 'desktop'
 }
 
+/** Tracks whether the shared panel shell may render as a dock instead of a modal. */
 function useDockViewport(): boolean {
   const [canDock, setCanDock] = useState(() => {
     if (typeof window === 'undefined') return false
@@ -60,16 +78,24 @@ function useDockViewport(): boolean {
   return canDock
 }
 
+/** Provides shared modal/dock semantics, focus policy, tabs, and accessible labeling. */
 export function UnifiedPanelShell({
   title,
   subtitle,
   icon,
   ariaLabel,
+  modalAriaLabel,
   onClose,
   tabs,
   activeTab,
   onTabChange,
   headerActions,
+  headerMeta,
+  showClose = true,
+  closeOnBackdrop = true,
+  closeOnEscape = true,
+  initialFocusRef,
+  initialFocusKey,
   children,
   className = 'knowledge-filters-panel',
   wide = false,
@@ -86,8 +112,14 @@ export function UnifiedPanelShell({
   // focus trap/backdrop and keeping still-focusable workspace controls visible.
   // Wide docks start below the live app chrome via --topbar-bottom.
 
-  useEscapeToClose(!docked, onClose)
-  useFocusTrap(shellRef, { active: !docked })
+  const resolveInitialFocus = useCallback(() => initialFocusRef?.current ?? null, [initialFocusRef])
+
+  useEscapeToClose(!docked && closeOnEscape, onClose)
+  useFocusTrap(shellRef, {
+    active: !docked,
+    initialFocus: initialFocusRef ? resolveInitialFocus : true,
+    initialFocusKey,
+  })
 
   const handleTabKeyDown = useCallback((event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!tabs || !onTabChange) return
@@ -109,7 +141,7 @@ export function UnifiedPanelShell({
     <div
       className={docked ? 'dock-backdrop' : 'modal-backdrop'}
       role="presentation"
-      onMouseDown={docked ? undefined : (event) => {
+      onMouseDown={docked || !closeOnBackdrop ? undefined : (event) => {
         if (event.currentTarget === event.target) onClose()
       }}
     >
@@ -118,25 +150,30 @@ export function UnifiedPanelShell({
         className={`unified-panel-shell ${className}${wide ? ' unified-panel-wide' : ''}${docked ? ' unified-panel-docked' : ''}`}
         role={docked ? 'complementary' : 'dialog'}
         aria-modal={docked ? undefined : true}
-        aria-label={docked ? ariaLabel : undefined}
-        aria-labelledby={docked ? undefined : titleId}
+        aria-label={docked ? ariaLabel : modalAriaLabel}
+        aria-labelledby={!docked && !modalAriaLabel ? titleId : undefined}
         aria-describedby={!docked && subtitle ? descriptionId : undefined}
         tabIndex={-1}
       >
         <header className="unified-panel-header">
           <div>
+            {headerMeta}
             <h2 id={titleId}>
               {icon}
               {title}
             </h2>
             {subtitle ? <p id={descriptionId} className="health-subtitle">{subtitle}</p> : null}
           </div>
-          <div className="unified-panel-header-actions">
-            {headerActions}
-            <IconButton label={`Close ${title}`} onClick={onClose}>
-              <X aria-hidden="true" />
-            </IconButton>
-          </div>
+          {headerActions || showClose ? (
+            <div className="unified-panel-header-actions">
+              {headerActions}
+              {showClose ? (
+                <IconButton label={`Close ${title}`} onClick={onClose}>
+                  <X aria-hidden="true" />
+                </IconButton>
+              ) : null}
+            </div>
+          ) : null}
         </header>
 
         {tabs && tabs.length > 0 && activeTab && onTabChange ? (

@@ -24,7 +24,7 @@ test.describe('Git panel', () => {
     const panel = await openGitPanel(page)
     // The fixture reports branch `main` with a single modified note.
     await expect(panel.locator('.health-subtitle').first()).toContainText('main')
-    await expect(panel.locator('.git-changes')).toContainText('1 changed file(s)')
+    await expect(panel.locator('.git-changes')).toContainText('1 changed file')
     await expect(panel.locator('.git-file-path')).toHaveText('Research Plan.md')
   })
 

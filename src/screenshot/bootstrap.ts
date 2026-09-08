@@ -32,6 +32,7 @@ const DEFAULT_CONFIG = {
   mcp: { mode: 'read-only', disabled: false },
 }
 
+/** Installs the deterministic bridge fixture used by documentation and visual-regression captures. */
 export function installScreenshotBridge(): void {
   mockIPC((cmd, payload) => {
     switch (cmd) {
@@ -146,7 +147,6 @@ export function installScreenshotBridge(): void {
     window.localStorage.setItem('scriptor:headless-engine', 'false')
     window.localStorage.setItem('scriptor.plugins.safeMode', 'false')
     window.localStorage.setItem('scriptor:editor-mode', 'monaco')
-    window.localStorage.setItem('scriptor:editor-theme', 'light')
     window.sessionStorage.setItem('scriptor.plugins.safeMode', 'false')
   } catch {
     // ignore storage failures in screenshot mode

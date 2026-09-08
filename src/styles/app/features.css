@@ -136,6 +136,30 @@
   border-color: color-mix(in oklch, var(--primary) 35%, var(--border));
 }
 
+/* Repair filters are a secondary control layer inside the workbench. Keep them
+ * visually quieter and more compact than the workbench's primary tab strip so
+ * the two navigation levels do not read as competing peers. */
+.knowledge-workbench-embed .knowledge-filter-tabs {
+  gap: 4px;
+  padding: 0 0 10px;
+}
+
+.knowledge-workbench-embed .knowledge-filter-tabs button {
+  border-color: transparent;
+  border-radius: 7px;
+  background: var(--surface-muted);
+}
+
+.knowledge-workbench-embed .knowledge-filter-tabs button.active {
+  border-color: color-mix(in oklch, var(--primary) 28%, var(--border));
+  background: var(--primary-soft);
+}
+
+.knowledge-workbench-embed .knowledge-filter-body {
+  min-height: 156px;
+  padding: 6px 0 0;
+}
+
 .knowledge-filter-body {
   overflow: auto;
   padding: 12px 14px;
@@ -1077,8 +1101,8 @@
 
 .preview-qa-bar {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -1086,6 +1110,30 @@
   background: var(--surface-2);
   margin-bottom: 10px;
   font-size: 12px;
+}
+
+.preview-qa-bar > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.preview-qa-bar strong {
+  color: var(--ink-strong);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.preview-qa-bar span {
+  min-width: 0;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.preview-qa-bar > .toolbar-button {
+  grid-column: 1 / -1;
+  justify-self: end;
 }
 
 .knowledge-discover-actions {

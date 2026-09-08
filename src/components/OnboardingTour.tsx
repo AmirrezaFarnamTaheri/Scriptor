@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
-import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useRef, useState } from 'react'
+
+import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 
 const STEPS = [
   {
@@ -29,47 +30,47 @@ interface OnboardingTourProps {
   onOpenCheatsheet?: () => void
 }
 
+/** Guides first-run users through the workspace without permitting accidental dismissal. */
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
-  const dialogRef = useRef<HTMLDivElement>(null)
-
-  // Passive trap: the tour manages its own initial focus (dialog element, per step).
-  useFocusTrap(dialogRef, { active: true, initialFocus: false })
-
-  useEffect(() => {
-    dialogRef.current?.focus()
-  }, [stepIndex])
-
+  const primaryActionRef = useRef<HTMLButtonElement>(null)
   const step = STEPS[stepIndex]
   const isLast = stepIndex >= STEPS.length - 1
 
+  const progress = (
+    <div className="onboarding-progress-meta">
+      <span className="onboarding-step-label">
+        Step {stepIndex + 1} of {STEPS.length}
+      </span>
+      <progress
+        className="onboarding-progress"
+        max={STEPS.length}
+        value={stepIndex + 1}
+        aria-label={`Tour progress: step ${stepIndex + 1} of ${STEPS.length}`}
+      />
+    </div>
+  )
+
   return (
-    <div className="modal-backdrop onboarding-backdrop" role="presentation">
-      <div
-        ref={dialogRef}
-        className="onboarding-tour"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Product tour"
-        tabIndex={-1}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault()
-            onComplete()
-          }
-        }}
-      >
-        <header>
-          <span className="onboarding-step-label">
-            Step {stepIndex + 1} of {STEPS.length}
-          </span>
-          <h2>{step.title}</h2>
-        </header>
-        <p>{step.body}</p>
-        <footer className="onboarding-actions">
-          <button type="button" className="toolbar-button" onClick={onComplete}>
-            Skip tour
-          </button>
+    <UnifiedPanelShell
+      title={step.title}
+      subtitle={step.body}
+      ariaLabel="Product tour"
+      modalAriaLabel="Product tour"
+      onClose={onComplete}
+      className="onboarding-tour"
+      headerMeta={progress}
+      showClose={false}
+      closeOnBackdrop={false}
+      closeOnEscape={false}
+      initialFocusRef={primaryActionRef}
+      initialFocusKey={stepIndex}
+    >
+      <footer className="onboarding-actions">
+        <button type="button" className="toolbar-button onboarding-skip" onClick={onComplete}>
+          Skip tour
+        </button>
+        <div className="onboarding-next-actions">
           {isLast ? (
             <>
               {onOpenCheatsheet ? (
@@ -77,12 +78,18 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
                   Open cheatsheet
                 </button>
               ) : null}
-              <button type="button" className="primary-button" onClick={onComplete}>
+              <button
+                ref={primaryActionRef}
+                type="button"
+                className="primary-button"
+                onClick={onComplete}
+              >
                 Finish
               </button>
             </>
           ) : (
             <button
+              ref={primaryActionRef}
               type="button"
               className="primary-button"
               onClick={() => setStepIndex((current) => Math.min(current + 1, STEPS.length - 1))}
@@ -90,8 +97,8 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
               Next
             </button>
           )}
-        </footer>
-      </div>
-    </div>
+        </div>
+      </footer>
+    </UnifiedPanelShell>
   )
 }

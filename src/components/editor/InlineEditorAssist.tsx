@@ -11,6 +11,7 @@ interface InlineEditorAssistProps {
   onOpenExport: () => void
 }
 
+/** Exposes context-aware editor shortcuts for links, citations, frontmatter, and export readiness. */
 export function InlineEditorAssist({
   activePath,
   hasFrontmatter,
@@ -37,10 +38,10 @@ export function InlineEditorAssist({
         type="button"
         className={`toolbar-button${hasFrontmatter ? '' : ' emphasized'}`}
         onClick={onOpenFrontmatter}
-        title="Edit YAML frontmatter"
+        title={hasFrontmatter ? 'Edit YAML frontmatter' : 'Add YAML frontmatter'}
       >
         <BookOpen size={14} />
-        {hasFrontmatter ? 'Frontmatter' : 'Add frontmatter'}
+        Frontmatter
       </button>
       <button type="button" className="toolbar-button" onClick={onOpenExport} title="Export readiness">
         <FileOutput size={14} />

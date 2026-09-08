@@ -44,6 +44,9 @@ test.describe('workspace flows', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' })
     const tour = page.getByRole('dialog', { name: 'Product tour' })
     await expect(tour).toBeVisible()
+    await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(tour).toBeVisible()
     await tour.getByRole('button', { name: 'Skip tour' }).click()
     await expect(tour).toBeHidden()
     await page.reload({ waitUntil: 'domcontentloaded' })
@@ -97,8 +100,22 @@ test.describe('workspace flows', () => {
     await expect(historyPanel.getByText(/words/)).toBeVisible()
     await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')
 
+    const readEditorContent = () =>
+      page.evaluate(() => {
+        const editor = (window as Window & {
+          __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
+        }).__scriptorE2eEditor
+        return editor?.getModel?.()?.getValue?.() ?? ''
+      })
+    const editorContentBeforeRestore = await readEditorContent()
     await historyPanel.getByRole('button', { name: 'Restore revision' }).click()
+    const confirmation = historyPanel.getByRole('group', { name: 'Confirm revision restore' })
+    await expect(confirmation).toBeVisible()
+    await expect(historyPanel).toBeVisible()
+    await expect.poll(readEditorContent).toBe(editorContentBeforeRestore)
+    await confirmation.getByRole('button', { name: 'Restore revision' }).click()
     await expect(historyPanel).toBeHidden({ timeout: 10_000 })
+    await expect.poll(readEditorContent, { timeout: 10_000 }).toBe('# Restored\n')
   })
 
   test('save note, search hit, and export HTML dry-run', async ({ page }) => {

@@ -30,8 +30,8 @@ export interface GitPanelProps {
 }
 
 /** Renders repository status, selection, diff, and confirmation flows for the active vault. */
-/** Row height in px; keeps the window math simple and matches the row CSS. */
-const GIT_ROW_HEIGHT = 36
+/** Row height in px; accommodates the two-line note label and 32px row actions. */
+const GIT_ROW_HEIGHT = 56
 /** Rows rendered above/below the viewport to smooth scrolling. */
 const GIT_ROW_OVERSCAN = 8
 
@@ -241,7 +241,7 @@ export function GitPanel({
             <strong>
               {status.clean
                 ? t('git.workingTreeClean')
-                : t('git.changedFiles', { count: status.changed_files.length })}
+                : t(status.changed_files.length === 1 ? 'git.changedFile' : 'git.changedFiles', { count: status.changed_files.length })}
             </strong>
             {activePath && changedPaths.includes(activePath) ? (
               <p className="health-subtitle git-active-note">

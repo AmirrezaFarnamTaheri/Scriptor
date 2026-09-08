@@ -55,6 +55,25 @@ test.describe('adaptive panel presentation', () => {
     expect(dockBox!.width).toBeLessThanOrEqual(442)
     expect(after!.x + after!.width).toBeLessThanOrEqual(dockBox!.x + 2)
     expect(footerBox!.x + footerBox!.width).toBeLessThanOrEqual(dockBox!.x + 2)
+    await expect
+      .poll(() =>
+        page
+          .locator('.status-summary')
+          .evaluate((element) => element.scrollWidth <= element.clientWidth),
+      )
+      .toBe(true)
+
+    const changedRow = dock.locator('.git-changes li').first()
+    await expect(changedRow).toBeVisible()
+    await expect
+      .poll(() => changedRow.evaluate((element) => element.scrollHeight <= element.clientHeight))
+      .toBe(true)
+    await expect(changedRow.locator('.git-file-row-actions button')).toHaveCount(2)
+
+    const statusSummary = page.locator('.status-summary')
+    const statusBox = await statusSummary.boundingBox()
+    expect(statusBox).not.toBeNull()
+    expect(statusBox!.x + statusBox!.width).toBeLessThanOrEqual(dockBox!.x + 2)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
   })
 

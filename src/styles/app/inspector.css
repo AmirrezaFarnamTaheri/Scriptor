@@ -62,12 +62,13 @@
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow-sm);
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  transition: border-color var(--ease-fast), background var(--ease-fast), box-shadow var(--ease-fast);
 }
 
 .widget-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
 }
 
 .widget-card header {
@@ -129,6 +130,18 @@
 
 .health-metrics {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.health-issues.is-healthy > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 9px;
+  border: 1px solid color-mix(in oklch, var(--primary) 28%, var(--border));
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+  font-size: 12px;
 }
 
 .health-issues ul,
@@ -338,6 +351,55 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
   gap: 10px 0;
+}
+
+/* The health dashboard deliberately presents nine diagnostics as a readable
+ * 3x3 matrix. Keep this component contract stronger than the generic inspector
+ * metric grid above/below it so cascade order cannot compress all nine cells
+ * into one unreadable row. */
+.health-dashboard .metric-grid.health-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.health-dashboard .health-metrics .metric {
+  min-height: 60px;
+  justify-content: center;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.health-dashboard .health-metrics .metric:nth-child(-n + 3) {
+  border-top: 0;
+}
+
+.health-dashboard .health-metrics .metric:nth-child(3n + 1) {
+  border-left: 0;
+  padding-left: 12px;
+}
+
+@media (max-width: 520px) {
+  .health-dashboard .metric-grid.health-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .health-dashboard .health-metrics .metric:nth-child(-n + 3) {
+    border-top: 1px solid var(--border);
+  }
+
+  .health-dashboard .health-metrics .metric:nth-child(-n + 2) {
+    border-top: 0;
+  }
+
+  .health-dashboard .health-metrics .metric:nth-child(3n + 1) {
+    border-left: 1px solid var(--border);
+    padding-left: 10px;
+  }
+
+  .health-dashboard .health-metrics .metric:nth-child(2n + 1) {
+    border-left: 0;
+    padding-left: 12px;
+  }
 }
 
 .metric {

@@ -37,6 +37,7 @@ import { summarizeLintIssues } from '../lib/vaultLintSummary'
 import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
 import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -416,6 +417,7 @@ function PluginsTab({
 >) {
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
+  const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
 
   return (
     <div className="store-stack">
@@ -494,6 +496,13 @@ function PluginsTab({
                         disabled={safeMode || (!plugin.enabled && !consented)}
                         aria-pressed={plugin.enabled}
                         aria-describedby={consented ? undefined : consentHintId}
+                        title={
+                          safeMode
+                            ? 'Disable safe mode before enabling plugins'
+                            : !plugin.enabled && !consented
+                              ? 'Review required permissions before enabling this plugin'
+                              : undefined
+                        }
                         className={`store-plugin-toggle${plugin.enabled ? ' enabled' : ''}`}
                       >
                         {plugin.enabled ? 'Enabled' : 'Enable'}
@@ -547,22 +556,11 @@ function PluginsTab({
                         <button
                           type="button"
                           disabled={!canGrant}
-                          onClick={() => {
-                            // Grant, then activate. Both callbacks mutate the same
-                            // registry instance synchronously, so setEnabled observes
-                            // the consent recorded one statement earlier.
-                            onReviewConsent(
-                              plugin.manifest.id,
-                              plugin.manifest.permissions.map((entry) => entry.permission),
-                              activeVaultId ? [activeVaultId] : [],
-                            )
-                            if (required.length === 0 || activeVaultId) {
-                              onTogglePlugin(plugin.manifest.id, true)
-                            }
-                          }}
+                          onClick={() => setPendingConsentPluginId(plugin.manifest.id)}
                           className="store-btn-accent"
+                          aria-label={`Review and grant permissions for ${plugin.manifest.name} in this vault`}
                         >
-                          Review and grant for this vault
+                          Review & grant
                         </button>
                       )}
                       {policy ? (
@@ -571,10 +569,35 @@ function PluginsTab({
                           onClick={() => onRevokeConsent(plugin.manifest.id)}
                           className="store-btn-muted"
                         >
-                          Revoke access
+                          {consented ? 'Revoke access' : 'Reset permissions'}
                         </button>
                       ) : null}
                     </div>
+                    {pendingConsentPluginId === plugin.manifest.id ? (
+                      <MutationConfirmation
+                        ariaLabel={`Confirm permissions for ${plugin.manifest.name}`}
+                        message={
+                          plugin.manifest.permissions.length > 0
+                            ? `Grant ${plugin.manifest.permissions.map((entry) => entry.permission).join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?`
+                            : `Enable ${plugin.manifest.name} for this vault?`
+                        }
+                        confirmLabel="Grant & enable"
+                        onCancel={() => setPendingConsentPluginId(null)}
+                        onConfirm={() => {
+                          onReviewConsent(
+                            plugin.manifest.id,
+                            plugin.manifest.permissions.map((entry) => entry.permission),
+                            activeVaultId ? [activeVaultId] : [],
+                          )
+                          if (required.length === 0 || activeVaultId) {
+                            onTogglePlugin(plugin.manifest.id, true)
+                          }
+                          setPendingConsentPluginId(null)
+                        }}
+                        confirmDisabled={!canGrant}
+                        className="store-permission-confirmation"
+                      />
+                    ) : null}
                   </section>
                 </div>
               )
@@ -705,7 +728,7 @@ export function StorePanel(props: StorePanelProps) {
       >
         {activeTab === 'plugins' && (
           <>
-            <h2 className="store-h2">Plugin marketplace</h2>
+            <h2 className="store-h2">Plugin management</h2>
             <PluginsTab
               plugins={props.plugins}
               safeMode={props.safeMode}

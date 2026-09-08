@@ -584,7 +584,6 @@ export function installE2eBridge(): void {
     setDefault('scriptor:headless-engine', 'false')
     setDefault('scriptor.plugins.safeMode', 'false')
     setDefault('scriptor:editor-mode', 'monaco')
-    setDefault('scriptor:editor-theme', 'light')
     if (window.sessionStorage.getItem('scriptor.plugins.safeMode') === null) {
       window.sessionStorage.setItem('scriptor.plugins.safeMode', 'false')
     }

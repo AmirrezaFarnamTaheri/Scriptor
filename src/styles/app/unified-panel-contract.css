@@ -137,6 +137,22 @@ body:has(.unified-panel-docked) .bottom-tabs-wrap {
   padding-right: calc(var(--unified-panel-dock-width) + 12px);
 }
 
+/* A 1440px viewport with a 360–440px companion rail leaves the footer with the
+ * same effective width as a compact desktop. Viewport media queries cannot see
+ * that reduced content width, so apply the compact footer grid when a dock is
+ * actually present. This prevents subsystem pills/repository state from being
+ * clipped beneath the companion rail. */
+body:has(.unified-panel-docked) .status-summary {
+  grid-template-columns: auto auto minmax(220px, 1fr);
+}
+
+body:has(.unified-panel-docked) .status-summary .repo-state {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  margin-left: 0;
+  overflow: hidden;
+}
+
 /* Dock header actions can be wider than the companion column (MCP's reset
  * action plus Close is the concrete case). Let the title and action cluster
  * wrap as two coherent groups instead of clipping or forcing horizontal scroll. */
@@ -182,6 +198,11 @@ html[dir='rtl'] body:has(.unified-panel-docked) .bottom-tabs-wrap {
   padding-left: calc(var(--unified-panel-dock-width) + 12px);
 }
 
+html[dir='rtl'] body:has(.unified-panel-docked) .status-summary .repo-state {
+  justify-content: flex-start;
+  margin-right: 0;
+}
+
 html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
   margin-right: auto;
   margin-left: 0;
@@ -208,12 +229,12 @@ html[dir='rtl'] .unified-panel-docked .unified-panel-header-actions {
 }
 
 .unified-panel-docked.git-panel .git-changes li {
-  align-items: stretch;
-  flex-direction: column;
+  align-items: center;
 }
 
 .unified-panel-docked.git-panel .git-file-row-actions {
-  justify-content: flex-start;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
 }
 
 .unified-panel-docked.mcp-panel .mcp-drafts li {

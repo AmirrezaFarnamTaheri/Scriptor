@@ -6,6 +6,7 @@ import {
   vaultReadNoteHistoryRevision,
   vaultRestoreNoteHistoryRevision,
 } from '../bridge/commands'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 
 export interface NoteHistoryRevision {
@@ -33,12 +34,22 @@ interface PreviewState {
   markdown: string
 }
 
+/** Formats persisted revision timestamps for compact, locale-aware timeline display. */
+function formatRevisionDate(value: string) {
+  return new Date(value).toLocaleString(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  })
+}
+
+/** Browses local note revisions and requires explicit confirmation before restoring content. */
 export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
   const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+  const [confirmRestore, setConfirmRestore] = useState(false)
 
   useEffect(() => {
     if (!path) return
@@ -49,6 +60,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
         if (cancelled) return
         setRevisionState({ path: requestedPath, rows })
         setSelectedId(rows[0]?.id ?? null)
+        setConfirmRestore(false)
         setStatus('')
       })
       .catch((error: unknown) => {
@@ -84,6 +96,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
   }, [path, selectedId])
 
   const revisions = revisionState?.path === path ? revisionState.rows : []
+  const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
   const preview =
     previewState?.path === path && previewState.revisionId === selectedId
       ? previewState.markdown
@@ -96,6 +109,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
     try {
       await vaultRestoreNoteHistoryRevision(path, selectedId)
       setStatus('Revision restored.')
+      setConfirmRestore(false)
       onRestored?.()
     } catch (error) {
       setStatus(error instanceof Error ? error.message : 'Restore failed')
@@ -126,9 +140,12 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
                 <button
                   type="button"
                   className={selectedId === revision.id ? 'active' : ''}
-                  onClick={() => setSelectedId(revision.id)}
+                  onClick={() => {
+                    setSelectedId(revision.id)
+                    setConfirmRestore(false)
+                  }}
                 >
-                  <strong>{new Date(revision.saved_at).toLocaleString()}</strong>
+                  <strong>{formatRevisionDate(revision.saved_at)}</strong>
                   <span>{revision.word_count.toLocaleString()} words</span>
                   <span className="note-history-preview">{revision.preview || revision.content_hash.slice(0, 8)}</span>
                 </button>
@@ -137,11 +154,31 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
           </ul>
           <div className="note-history-preview-pane">
             <header className="note-history-preview-header">
-              <button type="button" className="primary-button" disabled={busy || !selectedId} onClick={() => void restore()}>
+              <div>
+                <strong>Revision preview</strong>
+                <span>{selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'Select a revision'}</span>
+              </div>
+              <button
+                type="button"
+                className="toolbar-button note-history-restore"
+                disabled={busy || !selectedId}
+                onClick={() => setConfirmRestore(true)}
+              >
                 <RotateCcw size={14} />
                 Restore revision
               </button>
             </header>
+            {confirmRestore && selectedRevision ? (
+              <MutationConfirmation
+                ariaLabel="Confirm revision restore"
+                message={`Restore the ${formatRevisionDate(selectedRevision.saved_at)} revision? Your current note content will be replaced.`}
+                confirmLabel="Restore revision"
+                busy={busy}
+                onCancel={() => setConfirmRestore(false)}
+                onConfirm={() => void restore()}
+                className="note-history-restore-confirmation"
+              />
+            ) : null}
             <pre className="note-history-markdown">{preview || 'Select a revision to preview.'}</pre>
           </div>
         </div>
