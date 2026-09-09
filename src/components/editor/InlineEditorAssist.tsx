@@ -1,50 +1,31 @@
-import { BookOpen, FileOutput, Link2, Quote } from 'lucide-react'
+import { FileOutput, Quote } from 'lucide-react'
 
 interface InlineEditorAssistProps {
   activePath: string | null
-  hasFrontmatter: boolean
   brokenLinkCount?: number
   citationCount?: number
-  onInsertWikilink: () => void
   onInsertCitation: () => void
-  onOpenFrontmatter: () => void
   onOpenExport: () => void
 }
 
-/** Exposes context-aware editor shortcuts for links, citations, frontmatter, and export readiness. */
+/** Exposes the two document-context actions that are not already present in the primary editor toolbar. */
 export function InlineEditorAssist({
   activePath,
-  hasFrontmatter,
   brokenLinkCount = 0,
   citationCount = 0,
-  onInsertWikilink,
   onInsertCitation,
-  onOpenFrontmatter,
   onOpenExport,
 }: InlineEditorAssistProps) {
   if (!activePath) return null
 
   return (
-    <div className="format-group inline-editor-assist" aria-label="Editor assistants">
-      <button type="button" className="toolbar-button" onClick={onInsertWikilink} title="Insert wikilink">
-        <Link2 size={14} />
-        Link
-      </button>
+    <div className="format-group inline-editor-assist" aria-label="Document actions">
       <button type="button" className="toolbar-button" onClick={onInsertCitation} title="Insert citation">
-        <Quote size={14} />
+        <Quote size={14} aria-hidden="true" />
         Cite{citationCount > 0 ? ` (${citationCount})` : ''}
       </button>
-      <button
-        type="button"
-        className={`toolbar-button${hasFrontmatter ? '' : ' emphasized'}`}
-        onClick={onOpenFrontmatter}
-        title={hasFrontmatter ? 'Edit YAML frontmatter' : 'Add YAML frontmatter'}
-      >
-        <BookOpen size={14} />
-        Frontmatter
-      </button>
-      <button type="button" className="toolbar-button" onClick={onOpenExport} title="Export readiness">
-        <FileOutput size={14} />
+      <button type="button" className="toolbar-button" onClick={onOpenExport} title="Open export center">
+        <FileOutput size={14} aria-hidden="true" />
         Export{brokenLinkCount > 0 ? ` · ${brokenLinkCount} issues` : ''}
       </button>
     </div>
