@@ -8,30 +8,33 @@ function rounded(value: number) {
 }
 
 test.describe('screenshot geometry contracts', () => {
-  test('editor toolbar keeps six control groups in three intentional rows', async ({ page }) => {
+  test('editor toolbar keeps its persistent control groups on one row', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
     await settleLayout(page)
 
-    const geometry = await page.locator('.editor-toolbar').evaluate((toolbar) => {
-      const groups = Array.from(toolbar.children).filter(
+    const toolbar = page.locator('.editor-toolbar')
+    const geometry = await toolbar.evaluate((element) => {
+      const groups = Array.from(element.children).filter(
         (node): node is HTMLElement => node instanceof HTMLElement && node.classList.contains('format-group'),
       )
-      return groups.map((group) => {
-        const rect = group.getBoundingClientRect()
-        return { top: rect.top, left: rect.left, right: rect.right, width: rect.width }
-      })
+      const toolbarRect = element.getBoundingClientRect()
+      return {
+        toolbarHeight: toolbarRect.height,
+        groups: groups.map((group) => {
+          const rect = group.getBoundingClientRect()
+          return { top: rect.top, left: rect.left, right: rect.right, width: rect.width }
+        }),
+      }
     })
 
-    expect(geometry).toHaveLength(6)
-    const tops = geometry.map((item) => rounded(item.top))
-    expect(tops[0]).toBe(tops[1])
-    expect(tops[2]).toBe(tops[3])
-    expect(tops[4]).toBe(tops[5])
-    expect(new Set(tops).size).toBe(3)
+    expect(geometry.groups).toHaveLength(3)
+    const tops = geometry.groups.map((item) => rounded(item.top))
+    expect(new Set(tops).size).toBe(1)
+    expect(rounded(geometry.toolbarHeight)).toBeLessThanOrEqual(56)
 
     const editorRight = await page.locator('.editor-panel').evaluate((panel) => panel.getBoundingClientRect().right)
-    for (const group of geometry) {
+    for (const group of geometry.groups) {
       expect(group.right).toBeLessThanOrEqual(editorRight + 1)
       expect(group.width).toBeGreaterThan(0)
     }
