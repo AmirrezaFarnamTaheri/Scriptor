@@ -113,6 +113,117 @@
   }
 }
 
+/* --- Settings ------------------------------------------------------------ */
+.settings-persistence-note {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-section-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shortcut-table {
+  display: grid;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.shortcut-table-header,
+.shortcut-table-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.shortcut-table-header {
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shortcut-table-row {
+  border-top: 1px solid var(--border);
+}
+
+.shortcut-command-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.shortcut-command-copy strong,
+.shortcut-command-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-command-copy small,
+.shortcut-effective-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.shortcut-input {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--mono);
+}
+
+.shortcut-input.invalid {
+  border-color: var(--danger);
+}
+
+.settings-field-error {
+  display: block;
+  margin-top: 4px;
+  color: var(--danger);
+}
+
+.shortcut-row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shortcut-default-badge {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .shortcut-table-header {
+    display: none;
+  }
+
+  .shortcut-table-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .shortcut-row-actions {
+    justify-content: flex-start;
+  }
+}
+
 /* --- Inspector ----------------------------------------------------------- */
 /* Eight note-health metrics form a stable 4x2 matrix at rail width. */
 .inspector-panel > .widget-card .metric-grid {
@@ -225,4 +336,21 @@
   border-color: var(--border-strong);
   background: var(--surface-raised);
   color: var(--ink-strong);
+}
+
+/* Finished indexing becomes a compact status instead of a permanent progress
+ * visualization that repeats "ready", "100%" and "n/n" at once. */
+.job-progress.is-done {
+  width: auto;
+  min-height: 32px;
+  grid-template-columns: 18px auto;
+  gap: 6px;
+  padding-inline: 8px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.job-progress.is-done .progress-track,
+.job-progress.is-done > span {
+  display: none;
 }
