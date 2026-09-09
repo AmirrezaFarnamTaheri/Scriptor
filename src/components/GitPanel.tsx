@@ -29,10 +29,7 @@ export interface GitPanelProps {
   readNoteWorking?: (path: string) => Promise<string | null>
 }
 
-/** Renders repository status, selection, diff, and confirmation flows for the active vault. */
-/** Row height in px; accommodates the two-line note label and 32px row actions. */
 const GIT_ROW_HEIGHT = 56
-/** Rows rendered above/below the viewport to smooth scrolling. */
 const GIT_ROW_OVERSCAN = 8
 
 export function GitPanel({
@@ -81,26 +78,19 @@ export function GitPanel({
   })
 
   const noteLabel = (path: string) => path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? path
-
-  // W2-4: commit-message templates rendered via the template-engine.
-  // Raw template strings may use {{date}}, {{numFiles}}, {{files}}.
   const RAW_COMMIT_TEMPLATES = [
     t('git.updateVaultNotes'),
     t('git.draftRefineActiveNote'),
     t('git.organizeLinksAndTags'),
   ]
   const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
-  // Windowed list state: only the rows intersecting the viewport mount, so a
-  // 10k-file status stays at a fixed DOM size.
   const [listScrollTop, setListScrollTop] = useState(0)
   const [listViewportHeight, setListViewportHeight] = useState(420)
   const listViewportRef = useRef<HTMLDivElement | null>(null)
 
-  // Measure the list viewport with a ResizeObserver: refs are not read
-  // during render (react-hooks/refs), so the height lands in state.
   useEffect(() => {
     const viewport = listViewportRef.current
-    if (!viewport || typeof ResizeObserver === "undefined") return
+    if (!viewport || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver((entries) => {
       for (const entry of entries) setListViewportHeight(entry.contentRect.height)
     })
@@ -116,15 +106,17 @@ export function GitPanel({
 
     let cancelled = false
     Promise.all(
-      RAW_COMMIT_TEMPLATES.map(tpl =>
-        evaluate(tpl, { context: ctx })
+      RAW_COMMIT_TEMPLATES.map((template) =>
+        evaluate(template, { context: ctx })
           .then(({ text }) => text)
-          .catch(() => tpl),
+          .catch(() => template),
       ),
-    ).then(resolved => {
+    ).then((resolved) => {
       if (!cancelled) setCommitTemplates(resolved)
     })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSelection.length, effectiveSelection.join(',')])
 
@@ -188,6 +180,9 @@ export function GitPanel({
     )
   }
 
+  const canPull = status.has_upstream && status.behind > 0 && !status.has_conflicts
+  const canPush = status.has_upstream && status.ahead > 0 && !status.has_conflicts
+
   return (
     <UnifiedPanelShell
       title={t('git.title')}
@@ -218,22 +213,27 @@ export function GitPanel({
 
       {tab === 'changes' ? (
         <>
-          <div className="git-actions">
+          <div className="git-actions" aria-label="Remote synchronization">
+            {status.has_upstream && status.ahead === 0 && status.behind === 0 ? (
+              <span className="health-subtitle">Remote is up to date.</span>
+            ) : null}
             <button
               type="button"
               className="toolbar-button"
-              disabled={isBusy || !status.has_upstream || status.has_conflicts}
+              disabled={isBusy || !canPull}
+              title={status.has_upstream && status.behind === 0 ? 'No remote commits to pull' : undefined}
               onClick={() => setPendingAction({ kind: 'pull' })}
             >
-              {t('git.pull')}
+              {t('git.pull')}{status.behind > 0 ? ` (${status.behind})` : ''}
             </button>
             <button
               type="button"
               className="toolbar-button"
-              disabled={isBusy || !status.has_upstream || status.has_conflicts}
+              disabled={isBusy || !canPush}
+              title={status.has_upstream && status.ahead === 0 ? 'No local commits to push' : undefined}
               onClick={() => setPendingAction({ kind: 'push' })}
             >
-              {t('git.push')}
+              {t('git.push')}{status.ahead > 0 ? ` (${status.ahead})` : ''}
             </button>
           </div>
 
@@ -269,25 +269,30 @@ export function GitPanel({
                     const first = Math.max(0, Math.floor(listScrollTop / GIT_ROW_HEIGHT) - GIT_ROW_OVERSCAN)
                     const visible = Math.ceil(viewport / GIT_ROW_HEIGHT) + GIT_ROW_OVERSCAN * 2
                     const last = Math.min(status.changed_files.length, first + visible)
-                    return status.changed_files.slice(first, last).map((file, offset) => (
-                      <GitFileRow
-                        key={file.path}
-                        file={file}
-                        isActive={file.path === activePath}
-                        isSelected={effectiveSelection.includes(file.path)}
-                        onToggleSelect={handleToggleSelect}
-                        onOpenNote={onOpenNote}
-                        onPreviewDiff={handlePreviewDiff}
-                        onResolveConflict={onResolveConflict}
-                        style={{
-                          position: 'absolute',
-                          top: (first + offset) * GIT_ROW_HEIGHT,
-                          left: 0,
-                          right: 0,
-                          height: GIT_ROW_HEIGHT,
-                        }}
-                      />
-                    ))
+                    return status.changed_files.slice(first, last).map((file, offset) => {
+                      const logicalIndex = first + offset
+                      return (
+                        <GitFileRow
+                          key={file.path}
+                          file={file}
+                          isActive={file.path === activePath}
+                          isSelected={effectiveSelection.includes(file.path)}
+                          onToggleSelect={handleToggleSelect}
+                          onOpenNote={onOpenNote}
+                          onPreviewDiff={handlePreviewDiff}
+                          onResolveConflict={onResolveConflict}
+                          positionInSet={logicalIndex + 1}
+                          setSize={status.changed_files.length}
+                          style={{
+                            position: 'absolute',
+                            top: logicalIndex * GIT_ROW_HEIGHT,
+                            left: 0,
+                            right: 0,
+                            height: GIT_ROW_HEIGHT,
+                          }}
+                        />
+                      )
+                    })
                   })()}
                 </ul>
               </div>
@@ -311,15 +316,18 @@ export function GitPanel({
                 <span>{t('git.commitMessagePlaceholder')}</span>
                 <input value={message} onChange={(event) => setMessage(event.target.value)} required />
               </label>
-              <div className="git-commit-templates" aria-label={t('git.commitMessagePlaceholder')}>
-                {commitTemplates.map((template) => (
-                  <button key={template} type="button" className="toolbar-button" onClick={() => setMessage(template)}>
-                    {template}
-                  </button>
-                ))}
-              </div>
+              <details className="git-commit-template-details">
+                <summary>Message suggestions</summary>
+                <div className="git-commit-templates" aria-label="Commit message suggestions">
+                  {commitTemplates.map((template) => (
+                    <button key={template} type="button" className="toolbar-button" onClick={() => setMessage(template)}>
+                      {template}
+                    </button>
+                  ))}
+                </div>
+              </details>
               <button type="submit" className="primary-button" disabled={isBusy || effectiveSelection.length === 0}>
-                {t('git.commitSelected')}
+                {t('git.commitSelected')} ({effectiveSelection.length})
               </button>
             </form>
           ) : null}
