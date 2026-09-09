@@ -1,26 +1,21 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import { launchApp, openCommandPalette, runCommand, settleLayout, waitForWorkspace } from './helpers'
 
 async function expectNoDocumentOverflow(page: Page) {
+  const width = await page.evaluate(() => document.documentElement.clientWidth)
+  const height = await page.evaluate(() => document.documentElement.clientHeight)
   await expect
     .poll(() =>
       page.evaluate(() => ({
-        clientWidth: document.documentElement.clientWidth,
         scrollWidth: document.documentElement.scrollWidth,
-        clientHeight: document.documentElement.clientHeight,
         scrollHeight: document.documentElement.scrollHeight,
       })),
     )
-    .toEqual({
-      clientWidth: await page.evaluate(() => document.documentElement.clientWidth),
-      scrollWidth: await page.evaluate(() => document.documentElement.clientWidth),
-      clientHeight: await page.evaluate(() => document.documentElement.clientHeight),
-      scrollHeight: await page.evaluate(() => document.documentElement.clientHeight),
-    })
+    .toEqual({ scrollWidth: width, scrollHeight: height })
 }
 
-async function expectDarkSurface(locator: ReturnType<Page['locator']>) {
+async function expectDarkSurface(locator: Locator) {
   await expect(locator).toBeVisible()
   const background = await locator.evaluate((element) => getComputedStyle(element).backgroundColor)
   expect(background).not.toBe('rgb(255, 255, 255)')
@@ -76,24 +71,24 @@ test.describe('visual coverage matrix', () => {
 
     await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
-    await expectDarkSurface(settings.locator('.settings-panel').first())
+    await expectDarkSurface(settings)
     await settings.getByRole('button', { name: /Close Settings/i }).click()
 
     await openCommandPalette(page)
     await runCommand(page, 'Open MCP panel')
     const mcp = page.getByRole('dialog', { name: 'MCP automation' })
-    await expectDarkSurface(mcp.locator('.mcp-panel').first())
+    await expectDarkSurface(mcp)
     await mcp.getByRole('button', { name: /Close MCP/i }).click()
 
     await openCommandPalette(page)
     await runCommand(page, 'Open graph')
     const graph = page.getByRole('dialog', { name: 'Knowledge graph' })
-    await expectDarkSurface(graph.locator('.graph-panel').first())
+    await expectDarkSurface(graph)
     await graph.getByRole('button', { name: 'Close graph' }).click()
 
-    await page.locator('.workspace-mode-strip').getByRole('button', { name: /Publish|Veröffentlichen|انتشار/ }).click()
+    await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
     const publish = page.getByRole('dialog', { name: /Export and publish|Publish center/ })
-    await expectDarkSurface(publish.locator('.publish-center').first())
+    await expectDarkSurface(publish)
     await expectNoDocumentOverflow(page)
   })
 
