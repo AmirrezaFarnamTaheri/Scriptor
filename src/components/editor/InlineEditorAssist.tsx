@@ -1,4 +1,7 @@
-import { FileOutput, Quote } from 'lucide-react'
+import { useId, useRef, useState } from 'react'
+import { FileOutput, MoreHorizontal, Quote } from 'lucide-react'
+
+import { ToolbarPopover } from '../ToolbarPopover'
 
 interface InlineEditorAssistProps {
   activePath: string | null
@@ -8,7 +11,7 @@ interface InlineEditorAssistProps {
   onOpenExport: () => void
 }
 
-/** Exposes the two document-context actions that are not already present in the primary editor toolbar. */
+/** Keeps document-scoped secondary actions available without expanding the persistent editor row. */
 export function InlineEditorAssist({
   activePath,
   brokenLinkCount = 0,
@@ -16,18 +19,61 @@ export function InlineEditorAssist({
   onInsertCitation,
   onOpenExport,
 }: InlineEditorAssistProps) {
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerId = useId()
+  const menuId = useId()
+
   if (!activePath) return null
+
+  const runAndClose = (action: () => void) => {
+    action()
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
 
   return (
     <div className="format-group inline-editor-assist" aria-label="Document actions">
-      <button type="button" className="toolbar-button" onClick={onInsertCitation} title="Insert citation">
-        <Quote size={14} aria-hidden="true" />
-        Cite{citationCount > 0 ? ` (${citationCount})` : ''}
+      <button
+        ref={triggerRef}
+        id={triggerId}
+        type="button"
+        className={open ? 'toolbar-button active' : 'toolbar-button'}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowDown') return
+          event.preventDefault()
+          setOpen(true)
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        title="More document actions"
+      >
+        <MoreHorizontal size={15} aria-hidden="true" />
+        <span className="sr-only">More document actions</span>
       </button>
-      <button type="button" className="toolbar-button" onClick={onOpenExport} title="Open export center">
-        <FileOutput size={14} aria-hidden="true" />
-        Export{brokenLinkCount > 0 ? ` · ${brokenLinkCount} issues` : ''}
-      </button>
+      <ToolbarPopover
+        open={open}
+        id={menuId}
+        className="inline-editor-assist-menu"
+        triggerRef={triggerRef}
+        labelledBy={triggerId}
+        onClose={() => setOpen(false)}
+      >
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => runAndClose(onInsertCitation)}>
+            <Quote size={14} aria-hidden="true" />
+            <span>Insert citation{citationCount > 0 ? ` (${citationCount})` : ''}</span>
+          </button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => runAndClose(onOpenExport)}>
+            <FileOutput size={14} aria-hidden="true" />
+            <span>Export / publish{brokenLinkCount > 0 ? ` · ${brokenLinkCount} issues` : ''}</span>
+          </button>
+        </li>
+      </ToolbarPopover>
     </div>
   )
 }
