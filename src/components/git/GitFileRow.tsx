@@ -10,6 +10,10 @@ export interface GitFileRowProps {
   onOpenNote?: (path: string) => void
   onPreviewDiff?: (path: string) => void
   onResolveConflict?: (path: string) => void
+  /** 1-based logical position in the full virtualized set. */
+  positionInSet?: number
+  /** Total logical rows, including unmounted virtual rows. */
+  setSize?: number
   /** Positioning styles supplied by the windowed list container. */
   style?: React.CSSProperties
 }
@@ -22,6 +26,8 @@ export const GitFileRow = React.memo(function GitFileRow({
   onOpenNote,
   onPreviewDiff,
   onResolveConflict,
+  positionInSet,
+  setSize,
   style,
 }: GitFileRowProps) {
   const { t } = useI18n()
@@ -30,7 +36,12 @@ export const GitFileRow = React.memo(function GitFileRow({
   const noteLabel = file.path.replace(/\.md$/i, '').split(/[\\/]/).pop() ?? file.path
 
   return (
-    <li className={isActive ? 'git-file-active' : undefined} style={style}>
+    <li
+      className={isActive ? 'git-file-active' : undefined}
+      style={style}
+      aria-posinset={positionInSet}
+      aria-setsize={setSize}
+    >
       <div className="git-file-selection">
         <input
           id={checkboxId}
