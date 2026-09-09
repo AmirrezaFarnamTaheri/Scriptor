@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 
-import { gitCommit, gitPull, gitPush, gitStatus } from '../bridge/commands'
+import { gitCommit, gitPull, gitPush, gitStatus, type GitPullStrategy } from '../bridge/commands'
 import type { ActivityEntry } from './useActivityLog'
 import { WorkspaceGitStatusController, vaultStatusKey } from './workspace-git-status'
 
@@ -80,20 +80,20 @@ export function useWorkspaceGit({
     [controller, logActivity, setError, vaultId],
   )
 
-  const pullRemote = useCallback(async () => {
+  const pullRemote = useCallback(async (strategy: GitPullStrategy) => {
     const targetVaultId = vaultId
     setGitMutationBusy({ vaultId: targetVaultId, active: true })
     setError(null)
     try {
       if (!targetVaultId) throw new Error('No active vault is open.')
-      const result = await gitPull(targetVaultId)
+      const result = await gitPull(targetVaultId, strategy)
       await refreshVault()
       await controller.refresh()
-      logActivity('success', 'Git pull complete', result.message)
+      logActivity('success', `Git pull complete (${strategy})`, result.message)
     } catch (caught) {
       const detail = caught instanceof Error ? caught.message : String(caught)
       setError(detail)
-      logActivity('error', 'Git pull failed', detail)
+      logActivity('error', `Git pull failed (${strategy})`, detail)
     } finally {
       setGitMutationBusy({ vaultId: targetVaultId, active: false })
     }
