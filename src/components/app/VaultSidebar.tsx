@@ -10,7 +10,6 @@ import {
   LayoutTemplate,
   Plus,
   Search,
-  Settings,
   Tags,
 } from 'lucide-react'
 import { useState, memo } from 'react'
@@ -87,7 +86,6 @@ function VaultSidebarImpl({
   onOpenFilters,
   onOpenSavedViews,
   onOpenSnippets,
-  onOpenSettings,
   onCreateDailyNote,
   onCreateDailyNoteOffset,
   dailyNoteLabel,
@@ -283,10 +281,7 @@ function VaultSidebarImpl({
         )}
       </div>
 
-      <footer className="vault-sidebar-footer">
-        <IconButton label="Settings" onClick={onOpenSettings}>
-          <Settings />
-        </IconButton>
+      <footer className="vault-sidebar-footer" aria-label="Vault utilities">
         <IconButton label="Tags" onClick={onOpenTags}>
           <Tags />
         </IconButton>
