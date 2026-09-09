@@ -1,0 +1,35 @@
+name: PR112 final IA patch
+
+on:
+  push:
+    branches:
+      - fix/visual-review-shell-and-surfaces
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: "${{ github.event.head_commit.message == 'chore(pr112): apply final IA patch' }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/visual-review-shell-and-surfaces
+          fetch-depth: 0
+
+      - name: Apply reviewed IA changes
+        run: node scripts/pr112-ia-finalize.mjs
+
+      - name: Commit final IA changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'IA patch produced no changes' >&2
+            exit 1
+          fi
+          git commit -m 'fix(ui): separate scopes, plugin views, and inspector presets'
+          git push origin HEAD:fix/visual-review-shell-and-surfaces
