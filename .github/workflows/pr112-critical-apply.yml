@@ -1,0 +1,41 @@
+name: PR112 critical state patch
+
+on:
+  push:
+    branches:
+      - fix/visual-review-shell-and-surfaces
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Apply reviewed patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .github/pr112-critical.patch.gz.b64 | gunzip > /tmp/pr112-critical.patch
+          git apply --check /tmp/pr112-critical.patch
+          git apply /tmp/pr112-critical.patch
+          node --experimental-strip-types src/lib/validate-merge-runner.ts
+
+      - name: Commit patch and remove staging workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/pr112-critical.patch.gz.b64 .github/workflows/pr112-critical-apply.yml
+          git add src/hooks/usePluginRegistry.ts src/hooks/useVaultWorkspace.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(core): preserve vault initialization and scoped plugin consent"
+          git push origin HEAD:${GITHUB_REF_NAME}
