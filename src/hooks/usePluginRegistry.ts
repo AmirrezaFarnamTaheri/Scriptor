@@ -268,8 +268,31 @@ export function usePluginRegistry(
   const setPluginConsent = useCallback(
     async (pluginId: string, consent: PluginConsent) => {
       const previousConsent = registry.getConsent(pluginId)
+      const pluginManifest = registry.get(pluginId)?.manifest
       const wasEnabled = registry.get(pluginId)?.enabled === true
-      registry.setConsent(pluginId, consent)
+      const requiredPermissions = new Set(
+        pluginManifest?.permissions.filter((entry) => !entry.optional).map((entry) => entry.permission) ?? [],
+      )
+      // The current consent UI has no independent optional-permission control.
+      // Never treat optional (notably `dangerous`) permissions as implicitly
+      // approved just because the manifest declared them.
+      const requestedRequired = consent.grantedPermissions.filter((permission) =>
+        requiredPermissions.has(permission),
+      )
+      const previousRequired = previousConsent?.grantedPermissions.filter((permission) =>
+        requiredPermissions.has(permission),
+      ) ?? []
+      const mergedConsent: PluginConsent = previousConsent
+        ? {
+            ...previousConsent,
+            ...consent,
+            grantedPermissions: Array.from(new Set([...previousRequired, ...requestedRequired])),
+            allowedVaultIds: Array.from(
+              new Set([...previousConsent.allowedVaultIds, ...consent.allowedVaultIds]),
+            ),
+          }
+        : { ...consent, grantedPermissions: requestedRequired }
+      registry.setConsent(pluginId, mergedConsent)
       const plugin = registry.get(pluginId)
       const needsNativeDisable = wasEnabled && plugin?.manifest.capabilityId && !plugin.enabled
 
@@ -304,6 +327,28 @@ export function usePluginRegistry(
   const revokePluginConsent = useCallback(
     async (pluginId: string) => {
       const plugin = registry.get(pluginId)
+      const previousConsent = registry.getConsent(pluginId)
+      if (!previousConsent) return
+
+      const remainingVaultIds = activeVaultId
+        ? previousConsent.allowedVaultIds.filter((vaultId) => vaultId !== activeVaultId)
+        : []
+
+      // Revoking the active vault should not erase consent for other vaults.
+      if (activeVaultId && remainingVaultIds.length > 0) {
+        registry.setConsent(pluginId, {
+          ...previousConsent,
+          allowedVaultIds: remainingVaultIds,
+        })
+        writeVersionedStorage(
+          PLUGIN_CONSENT_STORAGE_KEY,
+          PLUGIN_CONSENT_SCHEMA_VERSION,
+          registry.exportConsents(),
+        )
+        bump()
+        return
+      }
+
       try {
         if (plugin?.manifest.capabilityId) {
           markNativeMutation()
@@ -321,7 +366,7 @@ export function usePluginRegistry(
       )
       bump()
     },
-    [bump, markNativeMutation, registry],
+    [activeVaultId, bump, markNativeMutation, registry],
   )
 
   const [marketplaceCatalog, setMarketplaceCatalog] = useState<MarketplaceListing[]>(() =>
