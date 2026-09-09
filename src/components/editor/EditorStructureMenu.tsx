@@ -3,11 +3,14 @@ import {
   ArrowDownToLine,
   ArrowUpToLine,
   ChevronDown,
+  Columns,
   FileBox,
   Heading1,
   Heading2,
   Heading3,
   ListTree,
+  Rows,
+  Table,
 } from 'lucide-react'
 
 import type { EditorTransformAction } from '@scriptor/editor'
@@ -89,6 +92,22 @@ export function EditorStructureMenu({
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(onOpenFrontmatter)}>
             <FileBox size={14} aria-hidden="true" /> Document properties
+          </button>
+        </li>
+        <li role="separator" className="toolbar-menu-separator" />
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => run(() => onTransform('table'))}>
+            <Table size={14} aria-hidden="true" /> Insert table
+          </button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => run(() => onTransform('table-add-row'))}>
+            <Rows size={14} aria-hidden="true" /> Add table row
+          </button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => run(() => onTransform('table-add-col'))}>
+            <Columns size={14} aria-hidden="true" /> Add table column
           </button>
         </li>
         <li role="separator" className="toolbar-menu-separator" />
