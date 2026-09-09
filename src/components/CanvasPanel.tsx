@@ -9,6 +9,7 @@ import { useCanvasBoard } from '../hooks/useCanvasBoard'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { CanvasExportMenu } from './canvas/CanvasExportMenu'
 import { CanvasStage } from './canvas/CanvasStage'
+import { EmptyState } from './EmptyState'
 
 interface CanvasPanelProps {
   vaultId: string | null
@@ -220,14 +221,13 @@ export function CanvasPanel({
 
       <div className="canvas-stage">
         {blocks.length === 0 ? (
-          <section className="canvas-empty-state" aria-labelledby="canvas-empty-title">
-            <h3 id="canvas-empty-title">Start your research board</h3>
-            <p>Add a card now, or choose a template or tool above.</p>
-            <button type="button" className="primary-button" disabled={!vaultOpen} onClick={addStarterCard}>
-              <Plus aria-hidden="true" />
-              Add first card
-            </button>
-          </section>
+          <EmptyState
+            className="canvas-empty-state"
+            icon={<Plus />}
+            title="Start your research board"
+            description="Add a card now, or choose a template or tool above."
+            action={vaultOpen ? { label: 'Add first card', onClick: addStarterCard } : undefined}
+          />
         ) : null}
         <CanvasStage
           sceneJson={sceneJson}
