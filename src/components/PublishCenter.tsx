@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { FileOutput, Globe, History, Loader2 } from 'lucide-react'
+import { FileOutput, FolderOutput, Globe, History, Loader2 } from 'lucide-react'
 
 import type { ExportProfile } from '@scriptor/core/contracts/export'
 import type { DqlResultRow, CodeChunkRunResult } from '@scriptor/renderer'
@@ -27,20 +27,14 @@ interface PublishCenterProps {
   exportResult: ExportJobOutput | null
   isExporting: boolean
   nativeReady: boolean
-  /** Publish plan returned by vault_publish_plan_starlight — null until the user initiates a plan. */
   publishPlan?: PublishPlan | null
-  /** True while vault_publish_apply_starlight is running. */
   applyingPlan?: boolean
-  /** Whether the plan was built with requireFrontmatterOptIn = true (default). */
   publishRequireOptIn?: boolean
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
   onCancelExport: () => void
-  /** Initiates the read-only vault_publish_plan_starlight scan. */
   onPlanStarlight: () => void
-  /** Discards the current plan and re-runs vault_publish_plan_starlight. */
   onReplanStarlight?: () => void
-  /** Applies the reviewed plan with the given selection and orphan deletions. */
   onApplyPlan?: (selectedPaths: string[], deleteOrphans: string[]) => void
 }
 
@@ -76,7 +70,7 @@ export function PublishCenter({
   const handleApplyPlan = onApplyPlan ?? (() => {})
 
   const subtitle = useMemo(() => {
-    if (!activePath) return 'Open a note to export or publish.'
+    if (!activePath) return 'Open a note to export a file or plan a site publish.'
     if (isExporting) return `Exporting ${activePath}…`
     return `Active note: ${activePath}`
   }, [activePath, isExporting])
@@ -94,10 +88,10 @@ export function PublishCenter({
 
   return (
     <UnifiedPanelShell
-      title="Publish center"
+      title="Export & publish"
       subtitle={subtitle}
       icon={<FileOutput size={18} />}
-      ariaLabel="Publish center"
+      ariaLabel="Export and publish"
       onClose={onClose}
       className="publish-center-panel knowledge-filters-panel"
       wide
@@ -110,45 +104,46 @@ export function PublishCenter({
       }
     >
       <div className="publish-center-grid">
-        <section className="publish-center-section">
-          <h3>
-            <FileOutput size={16} />
-            Export profiles
+        <section className="publish-center-section" aria-labelledby="export-files-heading">
+          <h3 id="export-files-heading">
+            <FileOutput size={16} aria-hidden="true" />
+            Export this note
           </h3>
           <p className="health-subtitle">
-            Pandoc profiles from your vault config and installed plugins.
+            Create a file with one of the Pandoc profiles configured for this vault.
           </p>
           <ul className="publish-profile-list">
             {exportProfiles.map((profile) => (
               <li key={profile.id}>
-                <div>
-                  <strong>{profile.label}</strong>
-                  <small>
-                    {/* Defaults label profiles after their format ("HTML"); only show the
-                       format chip when it adds information beyond the label. */}
-                    {profile.format.toUpperCase() !== profile.label.toUpperCase()
-                      ? `${profile.format.toUpperCase()} · `
-                      : ''}
-                    {profile.outputDirectory}
-                  </small>
+                <div className="publish-profile-summary">
+                  <div className="publish-profile-title-row">
+                    <strong>{profile.label}</strong>
+                    <span className="publish-format-chip">{profile.format.toUpperCase()}</span>
+                  </div>
+                  <div className="publish-profile-destination">
+                    <FolderOutput size={13} aria-hidden="true" />
+                    <span>Destination</span>
+                    <code>{profile.outputDirectory}</code>
+                  </div>
                 </div>
                 <div className="publish-profile-actions">
                   <button
                     type="button"
                     className="toolbar-button"
                     disabled={!activePath || isExporting}
+                    title="Validate the export command and inputs without writing an artifact"
                     onClick={() => onExport(profile.id, true)}
                   >
-                    Dry run
+                    Preview export
                   </button>
                   <button
                     type="button"
-                    className="primary-button"
+                    className="primary-button publish-export-action"
                     disabled={!activePath || isExporting || !nativeReady}
                     onClick={() => onExport(profile.id, false)}
                   >
-                    {isExporting ? <Loader2 className="spin" size={14} /> : null}
-                    Export
+                    {isExporting ? <Loader2 className="spin" size={14} aria-hidden="true" /> : null}
+                    Export {profile.format.toUpperCase()}
                   </button>
                 </div>
               </li>
@@ -170,10 +165,10 @@ export function PublishCenter({
           <ExportPrintPreview markdown={draftMarkdown} activePath={activePath} previewProps={previewProps} />
         ) : null}
 
-        <section className="publish-center-section">
-          <h3>
-            <Globe size={16} />
-            Site publishing
+        <section className="publish-center-section" aria-labelledby="site-publishing-heading">
+          <h3 id="site-publishing-heading">
+            <Globe size={16} aria-hidden="true" />
+            Publish a documentation site
           </h3>
           {publishPlan != null ? (
             <PublishDiffView
@@ -186,7 +181,7 @@ export function PublishCenter({
           ) : (
             <>
               <p className="health-subtitle">
-                Build a Starlight documentation site from your vault notes.
+                Build and review a Starlight site plan from opted-in vault notes. This is separate from exporting the active note.
               </p>
               <button
                 type="button"
@@ -194,7 +189,7 @@ export function PublishCenter({
                 disabled={!nativeReady}
                 onClick={onPlanStarlight}
               >
-                Plan Starlight publish
+                Plan site publish
               </button>
             </>
           )}
@@ -202,11 +197,11 @@ export function PublishCenter({
 
         <section className="publish-center-section publish-center-history">
           <h3>
-            <History size={16} />
-            Recent exports
+            <History size={16} aria-hidden="true" />
+            Recent file exports
           </h3>
           {exportHistory.length === 0 ? (
-            <p className="empty-state">No exports yet for this session.</p>
+            <p className="empty-state">No file exports yet for this session.</p>
           ) : (
             <ul className="publish-history-list">
               {exportHistory.map((entry) => (
@@ -229,7 +224,7 @@ export function PublishCenter({
 
         {exportResult && !exportResult.dry_run ? (
           <section className="publish-center-section">
-            <h3>Latest export</h3>
+            <h3>Latest file export</h3>
             <p className="health-subtitle">Artifact written to disk.</p>
             <code className="publish-artifact">{exportResult.artifact_path}</code>
           </section>
