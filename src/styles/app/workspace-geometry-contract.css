@@ -9,72 +9,47 @@
 /* --- Editor toolbar ------------------------------------------------------- */
 .editor-toolbar-wrapper {
   container-type: inline-size;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: hidden visible;
 }
 
+/* The editor toolbar is one persistent command row. Secondary groups remain
+ * reachable by horizontal scrolling until their actions are progressively
+ * disclosed by their owning menus; they must never consume extra writing rows. */
 .format-row.editor-toolbar {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(36px, auto));
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
-  max-height: min(32dvh, 240px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  min-height: 44px;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 
 .editor-toolbar > .format-group {
+  flex: 0 0 auto;
   width: max-content;
-  max-width: 100%;
+  max-width: none;
   min-width: 0;
   flex-wrap: nowrap;
-  justify-self: start;
-}
-
-/* Row 1: surface mode + document structure. */
-.editor-toolbar > .format-group:nth-child(1) {
-  grid-column: 1 / span 3;
-  grid-row: 1;
-}
-
-.editor-toolbar > .format-group:nth-child(2) {
-  grid-column: 4 / span 5;
-  grid-row: 1;
-}
-
-/* Row 2: formatting + review/capture. */
-.editor-toolbar > .format-group:nth-child(3) {
-  grid-column: 1 / span 7;
-  grid-row: 2;
-}
-
-.editor-toolbar > .format-group:nth-child(4) {
-  grid-column: 8 / span 3;
-  grid-row: 2;
-}
-
-/* Row 3: editor options + contextual note actions. */
-.editor-toolbar > .format-group:nth-child(5) {
-  grid-column: 1 / span 7;
-  grid-row: 3;
 }
 
 .editor-toolbar > .inline-editor-assist {
-  grid-column: 8 / -1;
-  grid-row: 3;
-  justify-self: end;
-  margin-left: 0;
+  flex: 0 0 auto;
+  margin-left: auto;
   margin-right: 0;
   padding-left: 0;
 }
 
-/* At inspector-width writing columns, compact only the dense editor-mode icon
- * cluster and keep Link / Cite / Frontmatter / Export labels readable. */
+/* Keep labeled contextual actions concise without turning them into another
+ * toolbar row. */
 @container (max-width: 920px) {
-  .editor-toolbar > .format-group:nth-child(5) > button {
-    width: 27px;
-    min-width: 27px;
+  .editor-toolbar > .format-group:nth-child(n + 4) > button {
+    width: 30px;
+    min-width: 30px;
     padding-inline: 0;
   }
 
@@ -85,26 +60,20 @@
   .inline-editor-assist .toolbar-button {
     width: auto;
     min-width: 0;
-    padding-inline: 4px;
+    padding-inline: 5px;
     gap: 4px;
     font-size: 11px;
   }
 }
 
-/* On genuinely narrow panes, preserve every command in a predictable stack.
- * Individual groups may wrap internally if even their icon set cannot fit. */
-@container (max-width: 580px) {
-  .format-row.editor-toolbar {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-  }
-
-  .editor-toolbar > .format-group,
-  .editor-toolbar > .inline-editor-assist {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    justify-self: start;
-    flex-wrap: wrap;
+/* Coarse-pointer safety belongs in the final geometry layer so later legacy
+ * rules cannot shrink touch targets below the platform minimum. */
+@media (pointer: coarse) {
+  .format-row.editor-toolbar button,
+  .format-row.editor-toolbar [role='button'] {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
   }
 }
 
