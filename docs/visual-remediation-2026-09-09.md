@@ -8,7 +8,7 @@ This checklist tracks the second native-vision review of the Windows workspace a
 - [x] Remove semantic duplication between Source/Preview/Split and editor-option icons.
 - [x] Make active-mode, toggle, and momentary-command states visually and semantically distinct.
 - [x] Reduce global top-bar command density and consolidate duplicate entry points.
-- [ ] Clarify global search, note search, and command-palette scopes.
+- [x] Clarify global search, note search, and command-palette scopes: the global trigger is explicitly `Commands and notes`, the sidebar is note-only, and the palette explains when note search begins.
 - [x] Remove redundant `Vault`/recent-note navigation and clarify sidebar utility actions.
 - [x] Reduce split-mode chrome and preserve usable editor/preview widths.
 - [x] Simplify the two-tier bottom status/output chrome; remove duplicate Jobs affordances and completed-progress noise.
@@ -19,7 +19,7 @@ This checklist tracks the second native-vision review of the Windows workspace a
 - [x] Reconcile inspector citation metrics and clarify note-level versus vault-level metrics.
 - [x] Replace overlapping Note Health / Note quality wording with vault-scoped health and note-scoped Publish readiness.
 - [x] Remove the Preview naming collision between editor surface mode and inspector tab (`Rendered output`).
-- [ ] Clarify Inspector profile pills (Balanced / Research / Publishing / Cleanup) beyond accessibility descriptions.
+- [x] Clarify Inspector profiles as a single-choice control and surface the selected profile description without requiring a tooltip.
 - [x] Fix Publish Center terminology, profile label/path separation, and export action hierarchy.
 - [x] Make onboarding state-aware and avoid instructing users to operate blocked background controls.
 - [x] Replace raw/ambiguous merge terminology and require explicit hunk resolution before apply.
@@ -27,7 +27,7 @@ This checklist tracks the second native-vision review of the Windows workspace a
 ## P2 — individual surfaces
 
 - [x] Rework Settings into navigable sections with an explicit persistence model and less implementation jargon.
-- [ ] Separate plugin marketplace browsing from installed-plugin and permission management. The four top-level Store tabs no longer wrap, and required/optional permission state is explicit, but installed and marketplace content still share the Plugins view.
+- [x] Separate installed-plugin/permission management from marketplace browsing, while keeping the four top-level Store tabs on one row.
 - [x] Make MCP authorization levels read as security states, not ordinary tabs, and clarify vault scope.
 - [x] Turn Vault Health's healthy state into a positive summary and demote maintenance actions.
 - [x] Make Note History comparison-first and restore-second with consistent timestamps and fail-closed preview reads.
@@ -43,8 +43,8 @@ This checklist tracks the second native-vision review of the Windows workspace a
 
 - [x] Preserve 44px coarse-pointer targets through the final CSS cascade.
 - [x] Verify keyboard semantics for Canvas, graph, toolbar menus, virtualized Git rows, and security-state controls.
-- [ ] Verify dark mode for every reviewed dialog/panel, not only the main workspace. Coverage now includes Settings, MCP, Graph, and Export & publish; the remaining reviewed surfaces still need explicit dark-theme coverage.
-- [ ] Complete the visual matrix for Windows scaling, long names, large data, loading/error states, and destructive confirmations. Compact widths, mobile/tablet, Persian RTL, German expansion, several errors, and destructive flows now have coverage.
+- [ ] Verify dark mode for every reviewed dialog/panel, not only the main workspace. Automated coverage now includes Settings, MCP, Graph, Knowledge Workbench, Note History, Canvas, Plugins, Git/conflicts, and Export & publish; Vault Health/onboarding still need explicit dark-state assertions.
+- [ ] Complete the visual matrix for Windows scaling, long names, large data, loading/error states, and destructive confirmations. Compact widths, mobile/tablet, 125% app zoom, Persian RTL, German expansion, several errors, and destructive flows now have coverage.
 - [ ] Remove remaining hard-coded implementation/theme colors where semantic tokens are required. Graph and the reviewed shell paths now use semantic tokens, but repository-wide completion still needs a final sweep.
 
 ## Correctness and trust issues found during the detour
