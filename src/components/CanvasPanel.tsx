@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Plus, X } from 'lucide-react'
 import type { CanvasBlock } from '@scriptor/core/contracts/canvas'
 import type { CanvasToolContribution, TemplatePackContribution } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest, sceneBounds } from '@scriptor/canvas'
@@ -6,6 +7,7 @@ import { canvasPluginManifest, sceneBounds } from '@scriptor/canvas'
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useCanvasBoard } from '../hooks/useCanvasBoard'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { CanvasExportMenu } from './canvas/CanvasExportMenu'
 import { CanvasStage } from './canvas/CanvasStage'
 
 interface CanvasPanelProps {
@@ -108,6 +110,18 @@ export function CanvasPanel({
     )
   }
 
+  const addStarterCard = () => {
+    const maxZ = blocks.reduce((value, block) => Math.max(value, block.zIndex), 0)
+    addBlock({
+      id: crypto.randomUUID(),
+      kind: 'sticky-note',
+      layerId: defaultLayerId,
+      bounds: { x: -120, y: -70, width: 240, height: 140 },
+      zIndex: maxZ + 1,
+      contentRef: activePath ?? 'New research card',
+    })
+  }
+
   const updateBlock = (blockId: string, updater: (block: CanvasBlock) => CanvasBlock) => {
     updateDocument((current) => ({
       ...current,
@@ -138,29 +152,29 @@ export function CanvasPanel({
       <header className="canvas-header">
         <h2 id="canvas-board-title">{document.title}</h2>
         <div className="canvas-board-picker">
-          <label>
-            <span className="sr-only">Active board</span>
-            <select
-              value={activeBoardId ?? document.id}
-              disabled={!vaultOpen || boards.length === 0}
-              onChange={(event) => void switchBoard(event.target.value)}
-            >
-              {boards.length === 0 ? (
-                <option value={document.id}>{document.title}</option>
-              ) : (
-                boards.map((board) => (
+          {boards.length > 1 ? (
+            <label>
+              <span className="sr-only">Active board</span>
+              <select
+                value={activeBoardId ?? document.id}
+                disabled={!vaultOpen}
+                onChange={(event) => void switchBoard(event.target.value)}
+              >
+                {boards.map((board) => (
                   <option key={board.id} value={board.id}>
                     {board.title} ({board.blockCount})
                   </option>
-                ))
-              )}
-            </select>
-          </label>
+                ))}
+              </select>
+            </label>
+          ) : null}
           <button type="button" disabled={!vaultOpen} onClick={() => void createBoard()}>
             New board
           </button>
         </div>
-        <span>{document.blocks.length} blocks</span>
+        <span aria-label={`${document.blocks.length} canvas blocks`}>
+          {document.blocks.length} block{document.blocks.length === 1 ? '' : 's'}
+        </span>
         <div className="canvas-template-row" role="toolbar" aria-label="Canvas tools">
           <button type="button" className="toolbar-button" disabled={!canUndo} onClick={undo}>
             Undo
@@ -173,6 +187,7 @@ export function CanvasPanel({
               key={tool.id}
               type="button"
               className={activeTool === tool.id ? 'toolbar-button active' : 'toolbar-button'}
+              aria-pressed={activeTool === tool.id}
               onClick={() => setActiveTool(tool.id)}
             >
               {tool.label}
@@ -183,15 +198,10 @@ export function CanvasPanel({
               {pack.label}
             </button>
           ))}
-          <button type="button" disabled={!vaultOpen} onClick={() => void exportSnapshot('svg')}>
-            Export SVG
-          </button>
-          <button type="button" disabled={!vaultOpen} onClick={() => void exportSnapshot('png')}>
-            Export PNG
-          </button>
-          <button type="button" disabled={!vaultOpen} onClick={() => void exportSnapshot('pdf')}>
-            Export PDF
-          </button>
+          <CanvasExportMenu
+            disabled={!vaultOpen || blocks.length === 0}
+            onExport={(format) => void exportSnapshot(format)}
+          />
           {activePath ? (
             <button type="button" className="toolbar-button" disabled={selectedBlockIds.length === 0} onClick={linkSelectedToActiveNote}>
               Link to active note
@@ -204,11 +214,21 @@ export function CanvasPanel({
           ) : null}
         </div>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close canvas">
-          ×
+          <X aria-hidden="true" />
         </button>
       </header>
 
       <div className="canvas-stage">
+        {blocks.length === 0 ? (
+          <section className="canvas-empty-state" aria-labelledby="canvas-empty-title">
+            <h3 id="canvas-empty-title">Start your research board</h3>
+            <p>Add a card now, or choose a template or tool above.</p>
+            <button type="button" className="primary-button" disabled={!vaultOpen} onClick={addStarterCard}>
+              <Plus aria-hidden="true" />
+              Add first card
+            </button>
+          </section>
+        ) : null}
         <CanvasStage
           sceneJson={sceneJson}
           blocks={blocks}
@@ -229,7 +249,7 @@ export function CanvasPanel({
         />
       </div>
 
-      <footer className="canvas-footer" role="status">
+      <footer className="canvas-footer" role="status" aria-live="polite">
         <span>{status}</span>
         {selectedBlockIds.length > 0 ? (
           <>
@@ -239,7 +259,6 @@ export function CanvasPanel({
             <code>{selectedBlockIds.join(', ')}</code>
           </>
         ) : null}
-        <small className="canvas-cli-hint">CLI: scriptor canvas list · scriptor canvas snapshot</small>
       </footer>
     </div>
   )
