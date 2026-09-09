@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useId, useRef, useState, type ReactNode } from 'react'
 import {
   AlignCenter,
   Archive,
@@ -66,7 +66,7 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
     key: string,
     checked: boolean,
     label: string,
-    icon: React.ReactNode,
+    icon: ReactNode,
     action: () => void,
     disabled = false,
   ) => (
