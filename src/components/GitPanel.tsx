@@ -7,6 +7,7 @@ import { GitFileRow } from './git/GitFileRow'
 import { GitConfirmDialog } from './git/GitConfirmDialog'
 import { useGitPanelState, type GitTab } from '../hooks/useGitPanelState'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
+import type { GitPullStrategy } from '../bridge/commands/git'
 import type { GitStatus } from '../types/vault'
 import { useI18n } from '../lib/i18n'
 import { evaluate } from '@scriptor/template-engine'
@@ -21,7 +22,7 @@ export interface GitPanelProps {
   onClose: () => void
   onRefresh: () => void
   onCommit: (files: string[], message: string) => void
-  onPull: () => void
+  onPull: (strategy: GitPullStrategy) => void
   onPush: () => void
   onResolveConflict?: (path: string) => void
   onOpenNote?: (path: string) => void
@@ -84,6 +85,7 @@ export function GitPanel({
     t('git.organizeLinksAndTags'),
   ]
   const [commitTemplates, setCommitTemplates] = useState<string[]>(RAW_COMMIT_TEMPLATES)
+  const [pullStrategy, setPullStrategy] = useState<GitPullStrategy>('fast-forward')
   const [listScrollTop, setListScrollTop] = useState(0)
   const [listViewportHeight, setListViewportHeight] = useState(420)
   const listViewportRef = useRef<HTMLDivElement | null>(null)
@@ -182,6 +184,7 @@ export function GitPanel({
 
   const canPull = status.has_upstream && status.behind > 0 && !status.has_conflicts
   const canPush = status.has_upstream && status.ahead > 0 && !status.has_conflicts
+  const diverged = status.ahead > 0 && status.behind > 0
 
   return (
     <UnifiedPanelShell
@@ -217,12 +220,22 @@ export function GitPanel({
             {status.has_upstream && status.ahead === 0 && status.behind === 0 ? (
               <span className="health-subtitle">Remote is up to date.</span>
             ) : null}
+            {canPull ? (
+              <label className="git-pull-strategy">
+                <span>{diverged ? 'Diverged branches — pull strategy' : 'Pull strategy'}</span>
+                <select value={pullStrategy} onChange={(event) => setPullStrategy(event.target.value as GitPullStrategy)}>
+                  <option value="fast-forward">Fast-forward only</option>
+                  <option value="merge">Merge commit</option>
+                  <option value="rebase">Rebase local commits</option>
+                </select>
+              </label>
+            ) : null}
             <button
               type="button"
               className="toolbar-button"
               disabled={isBusy || !canPull}
               title={status.has_upstream && status.behind === 0 ? 'No remote commits to pull' : undefined}
-              onClick={() => setPendingAction({ kind: 'pull' })}
+              onClick={() => setPendingAction({ kind: 'pull', strategy: pullStrategy })}
             >
               {t('git.pull')}{status.behind > 0 ? ` (${status.behind})` : ''}
             </button>
@@ -371,7 +384,7 @@ export function GitPanel({
             if (pendingAction.kind === 'commit') {
               onCommit(pendingAction.files, pendingAction.message)
             } else if (pendingAction.kind === 'pull') {
-              onPull()
+              onPull(pendingAction.strategy)
             } else {
               onPush()
             }
