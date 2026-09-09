@@ -48,6 +48,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
   const [status, setStatus] = useState('')
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
 
@@ -79,15 +80,18 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
     let cancelled = false
     const requestedPath = path
     const requestedRevision = selectedId
+    setPreviewState(null)
+    setPreviewError(null)
     void vaultReadNoteHistoryRevision(requestedPath, requestedRevision)
       .then((markdown) => {
         if (!cancelled) {
           setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown: '' })
+          setPreviewState(null)
+          setPreviewError(error instanceof Error ? error.message : 'Could not load this revision')
         }
       })
     return () => {
@@ -97,10 +101,8 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
 
   const revisions = revisionState?.path === path ? revisionState.rows : []
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
-  const preview =
-    previewState?.path === path && previewState.revisionId === selectedId
-      ? previewState.markdown
-      : ''
+  const previewReady = previewState?.path === path && previewState.revisionId === selectedId
+  const preview = previewReady ? previewState.markdown : ''
 
   const restore = async () => {
     if (!path || !selectedId) return
@@ -161,7 +163,7 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
               <button
                 type="button"
                 className="toolbar-button note-history-restore"
-                disabled={busy || !selectedId}
+                disabled={busy || !selectedId || !previewReady || Boolean(previewError)}
                 onClick={() => setConfirmRestore(true)}
               >
                 <RotateCcw size={14} />
@@ -179,7 +181,14 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
                 className="note-history-restore-confirmation"
               />
             ) : null}
-            <pre className="note-history-markdown">{preview || 'Select a revision to preview.'}</pre>
+            {previewError ? (
+              <p className="settings-status warn" role="alert">
+                Revision preview unavailable: {previewError}. Restore is disabled until the revision can be read.
+              </p>
+            ) : null}
+            <pre className="note-history-markdown">
+              {previewReady ? preview : selectedId ? 'Loading revision…' : 'Select a revision to preview.'}
+            </pre>
           </div>
         </div>
       )}
