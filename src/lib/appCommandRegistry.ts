@@ -61,11 +61,31 @@ export interface AppCommandDefinition {
   run: () => void
 }
 
+function categoryForCommand(id: AppCommandId): string {
+  if (id === 'delete-active-note') return 'Note'
+  if (id.startsWith('editor-') || id === 'insert-footnote' || id === 'organize-active-note') return 'Editor'
+  if (id.startsWith('toggle-')) return 'Workspace'
+  if (id.startsWith('export-') || id === 'open-publish-center') return 'Export'
+  if (['rebuild-index', 'generate-link-references', 'lint-vault', 'fix-vault-lint'].includes(id)) return 'Maintenance'
+  if (id === 'focus-search') return 'Search'
+  if (id.startsWith('open-') || id === 'reopen-closed-tab' || id === 'manage-snippets' || id === 'import-obsidian-vault') return 'Open'
+  return 'Command'
+}
+
+function toneForCommand(id: AppCommandId): PaletteCommand['tone'] {
+  if (id === 'delete-active-note') return 'danger'
+  if (['rebuild-index', 'generate-link-references', 'lint-vault', 'fix-vault-lint'].includes(id)) return 'maintenance'
+  return 'default'
+}
+
 export function toPaletteCommands(definitions: AppCommandDefinition[]): PaletteCommand[] {
   return definitions.map((definition) => ({
     id: definition.id,
-    label: definition.shortcut ? `${definition.label} (${definition.shortcut})` : definition.label,
+    label: definition.label,
     keywords: definition.keywords,
+    shortcut: definition.shortcut,
+    category: categoryForCommand(definition.id),
+    tone: toneForCommand(definition.id),
     run: definition.run,
   }))
 }
