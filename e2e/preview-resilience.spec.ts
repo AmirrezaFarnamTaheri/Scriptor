@@ -21,18 +21,14 @@ test.describe('Markdown preview resilience', () => {
     const editorToolbar = page.locator('.editor-toolbar')
     await expect(editorToolbar).toBeVisible()
     const sourceButton = editorToolbar.getByRole('button', { name: 'Source', exact: true })
+    const splitButton = editorToolbar.getByRole('button', { name: 'Split', exact: true })
     await expect(sourceButton).toBeVisible()
-    if (!(await sourceButton.evaluate((button) => button.classList.contains('active')))) {
+    await expect(splitButton).toBeVisible()
+    if ((await sourceButton.getAttribute('aria-pressed')) !== 'true') {
       await sourceButton.click()
-      await expect(sourceButton).toHaveClass(/active/)
     }
-
-    const splitPreviewToggle = editorToolbar.getByRole('button', { name: 'Toggle split preview' })
-    await expect(splitPreviewToggle).toBeVisible()
-    if ((await splitPreviewToggle.getAttribute('aria-pressed')) === 'true') {
-      await splitPreviewToggle.click()
-      await expect(splitPreviewToggle).toHaveAttribute('aria-pressed', 'false')
-    }
+    await expect(sourceButton).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.locator('aside[aria-label="Split Markdown preview"]')).toHaveCount(0)
 
     await page.getByRole('tab', { name: 'Preview', exact: true }).click()
 
@@ -48,8 +44,8 @@ test.describe('Markdown preview resilience', () => {
     )
     await expect(inspectorPreview.getByRole('alert')).toHaveCount(0)
 
-    await splitPreviewToggle.click()
-    await expect(splitPreviewToggle).toHaveAttribute('aria-pressed', 'true')
+    await splitButton.click()
+    await expect(splitButton).toHaveAttribute('aria-pressed', 'true')
 
     const splitPane = page.locator('aside[aria-label="Split Markdown preview"]')
     const splitPreview = splitPane.getByRole('article', { name: 'Markdown preview' })
