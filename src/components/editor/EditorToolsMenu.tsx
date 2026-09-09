@@ -6,10 +6,12 @@ import {
   CheckCircle2,
   ChevronDown,
   Code2,
+  FileOutput,
   Focus,
   Languages,
   MoreHorizontal,
   Palette,
+  Quote,
   Sparkles,
   SpellCheck,
   StickyNote,
@@ -26,6 +28,8 @@ interface EditorToolsMenuProps {
   onOrganizeActive: () => void
   onOpenWritingTargets: () => void
   onOpenCheatsheet: () => void
+  onInsertCitation?: () => void
+  onOpenExport?: () => void
   stickiesVisible: boolean
   onToggleStickies: () => void
   editorMode: 'codemirror' | 'monaco'
@@ -125,6 +129,26 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
         <li role="none">
           <button type="button" role="menuitem" onClick={() => closeAfter(props.onOpenCheatsheet)}>
             <BookOpen size={14} aria-hidden="true" /> Markdown cheatsheet
+          </button>
+        </li>
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!props.activePath || !props.onInsertCitation}
+            onClick={() => props.onInsertCitation && closeAfter(props.onInsertCitation)}
+          >
+            <Quote size={14} aria-hidden="true" /> Insert citation
+          </button>
+        </li>
+        <li role="none">
+          <button
+            type="button"
+            role="menuitem"
+            disabled={!props.activePath || !props.onOpenExport}
+            onClick={() => props.onOpenExport && closeAfter(props.onOpenExport)}
+          >
+            <FileOutput size={14} aria-hidden="true" /> Export / publish
           </button>
         </li>
         {checkboxItem('stickies', props.stickiesVisible, 'Show sticky notes', <StickyNote size={14} aria-hidden="true" />, props.onToggleStickies)}
