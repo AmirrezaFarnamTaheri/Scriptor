@@ -418,11 +418,33 @@ function PluginsTab({
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
   const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
+  const [pluginView, setPluginView] = useState<'installed' | 'marketplace'>('installed')
 
   return (
     <div className="store-stack">
+      <div className="store-plugin-subnav" role="tablist" aria-label="Plugin views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pluginView === 'installed'}
+          className={pluginView === 'installed' ? 'active' : undefined}
+          onClick={() => setPluginView('installed')}
+        >
+          Manage installed
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pluginView === 'marketplace'}
+          className={pluginView === 'marketplace' ? 'active' : undefined}
+          onClick={() => setPluginView('marketplace')}
+        >
+          Browse plugins
+        </button>
+      </div>
+
       {/* Safe mode banner */}
-      <div className={`store-banner${safeMode ? ' danger' : ''}`}>
+      <div className={`store-banner${safeMode ? ' danger' : ''}`} hidden={pluginView !== 'installed'}>
         {safeMode
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
@@ -441,7 +463,7 @@ function PluginsTab({
 
       {/* Installed plugins */}
       {plugins.length > 0 && (
-        <section>
+        <section hidden={pluginView !== 'installed'}>
           <h3 className="store-section-label">
             Installed ({plugins.length})
           </h3>
@@ -609,7 +631,7 @@ function PluginsTab({
 
       {/* Lint summary */}
       {lintSummary && lintSummary.total > 0 && (
-        <div className="store-lint-summary">
+        <div className="store-lint-summary" hidden={pluginView !== 'installed'}>
           <TimerReset size={12} />
           {lintSummary.total} vault health issue{lintSummary.total !== 1 ? 's' : ''}
         </div>
@@ -617,9 +639,9 @@ function PluginsTab({
 
       {/* Marketplace */}
       {marketplaceCatalog.length > 0 && (
-        <section>
+        <section hidden={pluginView !== 'marketplace'}>
           <h3 className="store-section-label">
-            Available ({marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length})
+            Marketplace · {marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length} available
           </h3>
           <div className="store-stack-xs">
             {marketplaceCatalog

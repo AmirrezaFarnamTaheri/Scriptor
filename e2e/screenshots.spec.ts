@@ -351,11 +351,8 @@ test('conflict resolver modal', async ({ page }) => {
   await expect(changedRow.locator('.git-file-row-actions button')).toHaveCount(2)
   await page.waitForTimeout(500)
   const resolveBtn = gitPanel.getByRole('button', { name: /resolve/i }).first()
-  if (await resolveBtn.isVisible()) {
-    await resolveBtn.click()
-  } else {
-    await gitPanel.locator('.conflict-resolve-btn, [title*="conflict"], [title*="Resolve"]').first().click()
-  }
+  await expect(resolveBtn).toBeVisible()
+  await resolveBtn.click()
   const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
   await expect(resolver).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
@@ -374,7 +371,8 @@ test('note history panel', async ({ page }) => {
   const historyPanel = page.getByRole('dialog', { name: 'Note history' })
   await expect(historyPanel).toBeVisible()
   await expect(historyPanel.getByText(/words/)).toBeVisible()
-  await expect(historyPanel.getByText('Revision preview')).toBeVisible()
+  await expect(historyPanel.getByText('Compare before restoring')).toBeVisible()
+  await expect(historyPanel.getByLabel('Current note and selected revision comparison')).toBeVisible()
   await settleLayout(page)
   const restoreButton = historyPanel.getByRole('button', { name: 'Restore revision' })
   const [restoreBox, panelBox] = await Promise.all([restoreButton.boundingBox(), historyPanel.boundingBox()])
@@ -392,10 +390,10 @@ test('keyboard shortcut editor', async ({ page }) => {
   await waitForSettingsReady(page)
   const settings = page.getByRole('dialog', { name: 'Settings' })
   const shortcutsTab = settings.getByRole('tab', { name: /Keyboard|Shortcuts/i })
-  if (await shortcutsTab.isVisible()) {
-    await shortcutsTab.click()
-    await page.waitForTimeout(500)
-  }
+  await expect(shortcutsTab).toBeVisible()
+  await shortcutsTab.click()
+  await expect(settings.getByRole('table', { name: 'Keyboard shortcuts' })).toBeVisible()
+  await page.waitForTimeout(500)
   await captureReadyScreenshot(page, shotPath('keyboard-shortcuts'))
   await expect(page).toHaveScreenshot('keyboard-shortcuts.png', { fullPage: false })
 })

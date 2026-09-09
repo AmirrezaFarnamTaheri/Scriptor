@@ -177,20 +177,28 @@ export function InspectorRail({
       </div>
 
       {/* ── Preset row ──────────────────────────────────────────────────────── */}
-      {activeMode !== 'plugins' ? <div className="inspector-preset-row" aria-label={t('inspector.presetAria')}>
-        {INSPECTOR_PRESETS.map((entry) => (
-          <button
-            key={entry.id}
-            type="button"
-            className={inspectorPreset === entry.id ? 'active' : undefined}
-            title={t(`inspector.preset.${entry.id}.description`)}
-            aria-pressed={inspectorPreset === entry.id}
-            onClick={() => onInspectorPresetChange(entry.id)}
-          >
-            {t(`inspector.preset.${entry.id}.label`)}
-          </button>
-        ))}
-      </div> : null}
+      {activeMode !== 'plugins' ? (
+        <div className="inspector-preset-control">
+          <div className="inspector-preset-row" role="radiogroup" aria-label={t('inspector.presetAria')}>
+            {INSPECTOR_PRESETS.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                role="radio"
+                className={inspectorPreset === entry.id ? 'active' : undefined}
+                title={t(`inspector.preset.${entry.id}.description`)}
+                aria-checked={inspectorPreset === entry.id}
+                onClick={() => onInspectorPresetChange(entry.id)}
+              >
+                {t(`inspector.preset.${entry.id}.label`)}
+              </button>
+            ))}
+          </div>
+          <p className="inspector-preset-description">
+            {t(`inspector.preset.${inspectorPreset}.description`)}
+          </p>
+        </div>
+      ) : null}
 
       {/* Note context belongs to the inspector and preview, not the store. */}
       {showInspectorHealth && activeMode !== 'plugins' ? (
