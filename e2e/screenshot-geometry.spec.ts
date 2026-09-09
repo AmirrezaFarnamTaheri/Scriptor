@@ -60,7 +60,7 @@ test.describe('screenshot geometry contracts', () => {
   test('preview QA keeps labels and values separated at rail width', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
-    await page.locator('.inspector-tabs').getByRole('tab', { name: 'Preview', exact: true }).click()
+    await page.locator('.inspector-tabs').getByRole('tab', { name: 'Rendered output', exact: true }).click()
     await settleLayout(page)
 
     const qa = page.locator('.preview-qa-bar')

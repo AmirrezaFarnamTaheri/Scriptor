@@ -158,7 +158,7 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
     const inspector = page.getByRole('complementary', { name: 'Inspector' })
-    await expect(inspector.getByRole('tab', { name: 'Preview', selected: true })).toBeVisible()
+    await expect(inspector.getByRole('tab', { name: 'Rendered output', selected: true })).toBeVisible()
     await waitForPreviewReady(page)
     await expect(inspector.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
     await captureVisual(page, 'visual-inspector-preview.png')

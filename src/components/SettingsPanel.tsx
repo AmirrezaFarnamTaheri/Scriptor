@@ -4,7 +4,8 @@ import { Settings } from 'lucide-react'
 
 import { useI18n } from '../lib/i18n'
 
-import { diagnosticsExportSupportBundle, exportDiscover, vaultLoadConfig, vaultSaveConfig } from '../bridge/commands'
+import { diagnosticsExportSupportBundle, exportDiscover, vaultLoadConfig } from '../bridge/commands'
+import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
 import type { AppTheme } from '../hooks/useAppTheme'
@@ -276,7 +277,7 @@ export function SettingsPanel({
     if (!nativeReady || !configReady) return
     setStatus('Saving…')
     try {
-      await vaultSaveConfig(config)
+      await mutateVaultConfig((current) => ({ ...current, ...config, mcp: current.mcp }))
       setStatus('Vault config saved to `.scriptor/config.json`.')
       onConfigSaved?.()
     } catch (error) {

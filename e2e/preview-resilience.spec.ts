@@ -30,7 +30,7 @@ test.describe('Markdown preview resilience', () => {
     await expect(sourceButton).toHaveAttribute('aria-pressed', 'true')
     await expect(page.locator('aside[aria-label="Split Markdown preview"]')).toHaveCount(0)
 
-    await page.getByRole('tab', { name: 'Preview', exact: true }).click()
+    await page.getByRole('tab', { name: 'Rendered output', exact: true }).click()
 
     const inspectorPreview = page
       .locator('.inspector-panel')

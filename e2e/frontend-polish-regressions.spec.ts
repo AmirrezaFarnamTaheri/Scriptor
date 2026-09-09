@@ -58,7 +58,7 @@ test.describe('Frontend polish regressions', () => {
     await launchApp(page)
     for (const width of [1440, 1240, 1024]) {
       await page.setViewportSize({ width, height: 900 })
-      for (const mode of ['Inspector', 'Preview', 'Plugins']) {
+      for (const mode of ['Inspector', 'Rendered output', 'Plugins']) {
         await page.locator('.inspector-tabs').getByRole('tab', { name: mode, exact: true }).click()
         await settleLayout(page)
         const violations = await page.evaluate(() => {

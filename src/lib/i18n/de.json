@@ -448,10 +448,10 @@
   "inspector": {
     "ariaLabel": "Inspektor",
     "modeAria": "Inspektor-Modus",
-    "presetAria": "Inspektor-Layout-Voreinstellung",
+    "presetAria": "Inspektor-Inhaltsprofil",
     "tabs": {
       "inspector": "Inspektor",
-      "preview": "Vorschau",
+      "preview": "Gerenderte Ausgabe",
       "plugins": "Plugins"
     },
     "preset": {
@@ -472,7 +472,7 @@
         "description": "Qualitätssignale und Fokus auf Reparatur defekter Links."
       }
     },
-    "noteHealth": "Notiz-Integrität",
+    "noteHealth": "Tresorstatus",
     "previewSyncSplit": "Die geteilte Vorschau ist mit Bildlauf-Synchronisierung neben dem Editor geöffnet.",
     "previewSyncActive": "Die Bildlauf-Synchronisierung zwischen Editor und Vorschau ist aktiv.",
     "previewCard": "Vorschau",

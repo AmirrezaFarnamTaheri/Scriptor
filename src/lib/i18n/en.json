@@ -149,7 +149,7 @@
     "showFormatToolbar": "Show format toolbar",
     "showEditorAssist": "Show editor assist chips",
     "showEditorStatus": "Show editor status bar",
-    "showInspectorHealth": "Show inspector note health",
+    "showInspectorHealth": "Show inspector vault health",
     "showWorkspaceFooter": "Show workspace footer dock",
     "showLineNumbers": "Show line numbers",
     "collapseVaultSidebar": "Collapse vault sidebar",
@@ -305,7 +305,7 @@
     "showFormatToolbar": "Show format toolbar",
     "showEditorAssist": "Show editor assist chips",
     "showEditorStatus": "Show editor status bar",
-    "showInspectorHealth": "Show inspector note health",
+    "showInspectorHealth": "Show inspector vault health",
     "showWorkspaceFooter": "Show workspace footer dock",
     "showLineNumbers": "Show line numbers",
     "collapseVaultSidebar": "Collapse vault sidebar",
@@ -448,10 +448,10 @@
   "inspector": {
     "ariaLabel": "Inspector",
     "modeAria": "Inspector mode",
-    "presetAria": "Inspector layout preset",
+    "presetAria": "Inspector content preset",
     "tabs": {
       "inspector": "Inspector",
-      "preview": "Preview",
+      "preview": "Rendered output",
       "plugins": "Plugins"
     },
     "preset": {
@@ -472,7 +472,7 @@
         "description": "Quality signals and broken-link repair focus."
       }
     },
-    "noteHealth": "Note Health",
+    "noteHealth": "Vault health",
     "previewSyncSplit": "Split preview is open beside the editor with scroll sync.",
     "previewSyncActive": "Scroll sync is active between editor and preview.",
     "previewCard": "Preview",

@@ -451,6 +451,7 @@ function PluginsTab({
               const summary = summarizePluginContributions(plugin)
               const labels = contributionLabels(summary)
               const required = requiredPermissions(plugin)
+              const optional = plugin.manifest.permissions.filter((entry) => entry.optional)
               const consented = hasRequiredConsent(plugin, policy, activeVaultId)
               const canGrant = Boolean(activeVaultId) && !safeMode
               const consentHintId = `store-plugin-consent-${plugin.manifest.id}`
@@ -546,7 +547,7 @@ function PluginsTab({
                             className="store-chip"
                           >
                             {entry.permission}
-                            {entry.optional ? ' (optional)' : ''}
+                            {entry.optional ? ' (optional · not granted automatically)' : ' (required)'}
                           </li>
                         ))}
                       </ul>
@@ -558,9 +559,9 @@ function PluginsTab({
                           disabled={!canGrant}
                           onClick={() => setPendingConsentPluginId(plugin.manifest.id)}
                           className="store-btn-accent"
-                          aria-label={`Review and grant permissions for ${plugin.manifest.name} in this vault`}
+                          aria-label={`Review and grant required permissions for ${plugin.manifest.name} in this vault`}
                         >
-                          Review & grant
+                          Review required access
                         </button>
                       )}
                       {policy ? (
@@ -569,7 +570,7 @@ function PluginsTab({
                           onClick={() => onRevokeConsent(plugin.manifest.id)}
                           className="store-btn-muted"
                         >
-                          {consented ? 'Revoke access' : 'Reset permissions'}
+                          {consented ? 'Revoke this vault' : 'Reset permissions'}
                         </button>
                       ) : null}
                     </div>
@@ -577,16 +578,16 @@ function PluginsTab({
                       <MutationConfirmation
                         ariaLabel={`Confirm permissions for ${plugin.manifest.name}`}
                         message={
-                          plugin.manifest.permissions.length > 0
-                            ? `Grant ${plugin.manifest.permissions.map((entry) => entry.permission).join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?`
-                            : `Enable ${plugin.manifest.name} for this vault?`
+                          required.length > 0
+                            ? `Grant required ${required.join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?${optional.length > 0 ? ` Optional permissions (${optional.map((entry) => entry.permission).join(', ')}) are not granted automatically.` : ''}`
+                            : `Enable ${plugin.manifest.name} for this vault?${optional.length > 0 ? ` Optional permissions (${optional.map((entry) => entry.permission).join(', ')}) are not granted automatically.` : ''}`
                         }
-                        confirmLabel="Grant & enable"
+                        confirmLabel="Grant required access & enable"
                         onCancel={() => setPendingConsentPluginId(null)}
                         onConfirm={() => {
                           onReviewConsent(
                             plugin.manifest.id,
-                            plugin.manifest.permissions.map((entry) => entry.permission),
+                            required,
                             activeVaultId ? [activeVaultId] : [],
                           )
                           if (required.length === 0 || activeVaultId) {
