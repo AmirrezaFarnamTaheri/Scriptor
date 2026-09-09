@@ -46,6 +46,11 @@ export function KeyboardShortcutsSettingsSection() {
     setDrafts((current) => ({ ...current, [commandId]: { value: raw, error: null } }))
   }
 
+  const resetAll = () => {
+    shortcuts.resetAllShortcuts()
+    setDrafts({})
+  }
+
   return (
     <section className="settings-section keyboard-shortcuts-settings" aria-labelledby="keyboard-shortcuts-heading">
       <div className="settings-section-heading-row">
@@ -55,7 +60,7 @@ export function KeyboardShortcutsSettingsSection() {
             Customize command shortcuts. Leave a field empty to disable that shortcut; reset restores the built-in value.
           </p>
         </div>
-        <button type="button" className="toolbar-button" onClick={shortcuts.resetAllShortcuts}>
+        <button type="button" className="toolbar-button" onClick={resetAll}>
           Reset all
         </button>
       </div>
