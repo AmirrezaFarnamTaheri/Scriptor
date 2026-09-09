@@ -28,8 +28,9 @@ function clamp(value: number, minimum: number, maximum: number): number {
 }
 
 function menuItems(panel: HTMLElement): HTMLButtonElement[] {
-  return [...panel.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')]
-    .filter((item) => !item.disabled)
+  return [...panel.querySelectorAll<HTMLButtonElement>(
+    '[role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"]',
+  )].filter((item) => !item.disabled)
 }
 
 function adjacentToolbarControl(
