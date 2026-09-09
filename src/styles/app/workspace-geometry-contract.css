@@ -6,6 +6,17 @@
  * inspector rail metrics/QA, docked Git rows, and footer status density.
  */
 
+/* --- Shared action hierarchy --------------------------------------------- */
+/* Primary describes visual emphasis, not layout. Callers that genuinely need a
+ * full-width CTA must opt into that geometry locally. This prevents Publish,
+ * History, Git and merge actions from turning into oversized bars. */
+.primary-button {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding-inline: 14px;
+}
+
 /* --- Editor toolbar ------------------------------------------------------- */
 .editor-toolbar-wrapper {
   container-type: inline-size;
@@ -44,15 +55,39 @@
   padding-left: 0;
 }
 
-/* Keep labeled contextual actions concise without turning them into another
- * toolbar row. */
-@container (max-width: 920px) {
-  .editor-toolbar > .format-group:nth-child(n + 4) > button {
-    width: 30px;
-    min-width: 30px;
-    padding-inline: 0;
-  }
+/* View mode is a mutually-exclusive segmented control, not another collection
+ * of toggles. Momentary formatting actions retain the ordinary button surface. */
+.editor-view-modes {
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
 
+.editor-view-modes .view-mode {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.editor-view-modes .view-mode[aria-pressed='true'] {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--ink-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.editor-primary-formatting > .editor-structure-menu,
+.editor-primary-formatting > .editor-tools-menu,
+.editor-primary-formatting > .insert-menu,
+.editor-primary-formatting > .typography-menu,
+.canvas-export-menu {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Keep contextual actions concise without turning them into another row. */
+@container (max-width: 920px) {
   .inline-editor-assist {
     gap: 4px;
   }
@@ -70,7 +105,8 @@
  * rules cannot shrink touch targets below the platform minimum. */
 @media (pointer: coarse) {
   .format-row.editor-toolbar button,
-  .format-row.editor-toolbar [role='button'] {
+  .format-row.editor-toolbar [role='button'],
+  .toolbar-menu-popover button {
     min-width: 44px;
     min-height: 44px;
     height: 44px;
