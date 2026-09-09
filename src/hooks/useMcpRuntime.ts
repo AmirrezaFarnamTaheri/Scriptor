@@ -11,6 +11,7 @@ import {
   dispatchPluginCommandIdAsMcpResult,
   type PluginCommandRuntime,
 } from '../lib/pluginCommandDispatch'
+import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 
 import {
   indexerBacklinks,
@@ -27,7 +28,6 @@ import {
   vaultReadNote,
   vaultRenameApply,
   vaultSaveNote,
-  vaultSaveConfig,
 } from '../bridge/commands'
 import type { VaultConfig } from '../types/vault'
 
@@ -69,22 +69,32 @@ export function useMcpRuntime(
 
   const persistMcpConfig = useCallback(
     (nextMode: McpMode) => {
-      // Compute outside the updater: persisting from inside a state updater is
-      // impure, double-fires under StrictMode, and lets interleaved changes
-      // write the losing config last.
-      const nextConfig: VaultConfig = {
-        ...vaultConfig,
-        mcp: {
-          mode: nextMode === 'off' ? 'off' : nextMode,
-          disabled: nextMode === 'off',
-        },
+      const nextMcp = {
+        mode: nextMode === 'off' ? 'off' as const : nextMode,
+        disabled: nextMode === 'off',
       }
-      setVaultConfig(() => nextConfig)
+
+      // Reflect the requested state immediately, but persist it through the
+      // shared durable read-modify-write queue. The queue reloads the latest
+      // file before changing only `mcp`, so unrelated Settings or writing-target
+      // edits cannot be lost to a stale whole-object snapshot.
+      setVaultConfig((current) => ({ ...current, mcp: nextMcp }))
       if (vaultOpen) {
-        void vaultSaveConfig(nextConfig)
+        void mutateVaultConfig((current) => ({ ...current, mcp: nextMcp })).catch((error: unknown) => {
+          setLastResult({
+            ok: false,
+            requestId: crypto.randomUUID(),
+            error: {
+              code: 'mcp.config_save_failed',
+              message: error instanceof Error ? error.message : 'Could not save MCP permissions',
+              recoverable: true,
+            },
+          })
+          setSnapshot((value) => value + 1)
+        })
       }
     },
-    [setVaultConfig, vaultConfig, vaultOpen],
+    [setVaultConfig, vaultOpen],
   )
 
   const setMode = useCallback(
