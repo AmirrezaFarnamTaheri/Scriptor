@@ -11,13 +11,8 @@ import type { AppTheme } from '../hooks/useAppTheme'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useVaultBackup } from '../hooks/useVaultBackup'
-import type {
-  WorkspaceChromePrefs,
-} from '../hooks/useWorkspaceChrome'
-import {
-  DEFAULT_WORKSPACE_LAYOUTS,
-  type WorkspaceLayout,
-} from '../hooks/useWorkspaceLayout'
+import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
+import { DEFAULT_WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
 import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { PandocDiscovery, VaultConfig } from '../types/vault'
@@ -27,6 +22,7 @@ import { VaultConfigSettingsSection } from './VaultConfigSettingsSection'
 import { AppearanceSettingsSection } from './AppearanceSettingsSection'
 import { AiProviderSettings } from './AiProviderSettings'
 import { DaemonOpsPanel } from './DaemonOpsPanel'
+import { KeyboardShortcutsSettingsSection } from './KeyboardShortcutsSettingsSection'
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { VaultBackupSettings } from './VaultBackupSettings'
@@ -42,10 +38,6 @@ function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): bool
   )
 }
 
-/**
- * Layout template gallery. Applying a preset routes through the existing
- * workspace-layout save path, so no new persistence surface is introduced.
- */
 function LayoutPresetGallery({
   current,
   onApply,
@@ -143,6 +135,8 @@ interface SettingsPanelProps {
   onLanguageToolEndpointChange?: (endpoint: string) => void
 }
 
+type SettingsTab = 'general' | 'workspace' | 'shortcuts' | 'advanced'
+
 export function SettingsPanel({
   vaultOpen,
   systemInfo,
@@ -153,6 +147,7 @@ export function SettingsPanel({
   aiHasApiKey,
   aiBusy,
   aiLastError,
+  aiHttpWarning = null,
   onAiProviderChange,
   onAiEndpointChange,
   onAiSaveApiKey,
@@ -191,7 +186,11 @@ export function SettingsPanel({
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales, localeLabels } = useI18n()
   const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
+  const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
+  const [configReady, setConfigReady] = useState(false)
+  const [configLoadError, setConfigLoadError] = useState<string | null>(null)
+  const [configReloadToken, setConfigReloadToken] = useState(0)
   const [status, setStatus] = useState('')
   const [supportBundleStatus, setSupportBundleStatus] = useState('')
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
@@ -216,9 +215,18 @@ export function SettingsPanel({
   }, [config.daily_note])
 
   useEffect(() => {
-    if (!vaultOpen || !nativeReady) return
+    if (!vaultOpen || !nativeReady) {
+      setConfigReady(false)
+      setConfigLoadError(null)
+      return
+    }
+    let cancelled = false
+    setConfigReady(false)
+    setConfigLoadError(null)
+    setStatus('Loading vault configuration…')
     void vaultLoadConfig()
-      .then((loaded) =>
+      .then((loaded) => {
+        if (cancelled) return
         setConfig({
           ...DEFAULT_VAULT_CONFIG,
           ...loaded,
@@ -230,10 +238,20 @@ export function SettingsPanel({
           },
           graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
           extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
-        }),
-      )
-      .catch(() => setConfig(DEFAULT_VAULT_CONFIG))
-  }, [nativeReady, vaultOpen])
+        })
+        setConfigReady(true)
+        setStatus('Vault configuration loaded. Save is explicit.')
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return
+        setConfigReady(false)
+        setConfigLoadError(error instanceof Error ? error.message : 'Could not read vault configuration')
+        setStatus('Vault configuration was not changed.')
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [configReloadToken, nativeReady, vaultOpen])
 
   useEffect(() => {
     if (!nativeReady) return
@@ -255,7 +273,7 @@ export function SettingsPanel({
   }, [nativeReady])
 
   const saveConfig = async () => {
-    if (!nativeReady) return
+    if (!nativeReady || !configReady) return
     setStatus('Saving…')
     try {
       await vaultSaveConfig(config)
@@ -266,316 +284,341 @@ export function SettingsPanel({
     }
   }
 
+  const runtimeSection = (
+    <div className="settings-section">
+      <h3>Desktop engine</h3>
+      <p className="health-subtitle">
+        Advanced runtime details for local integrations and export tooling. Most users do not need to change these settings.
+      </p>
+      <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
+        {nativeReady ? 'Desktop integration ready' : 'Browser preview — desktop-only vault commands are unavailable'}
+      </p>
+      {nativeReady ? (
+        <>
+          <dl className="settings-grid">
+            <div>
+              <dt>Pandoc</dt>
+              <dd>{pandoc ? pandoc.version : pandocError ? 'Not found' : 'Checking…'}</dd>
+            </div>
+            <div>
+              <dt>Executable</dt>
+              <dd className="settings-path">{pandoc?.path ?? '—'}</dd>
+            </div>
+          </dl>
+          {pandocError ? (
+            <p className="settings-status warn">
+              {pandocError}. Install Pandoc or set <code>SCRIPTOR_PANDOC_PATH</code>. Windows:{' '}
+              <code>winget install JohnMacFarlane.Pandoc</code> · macOS: <code>brew install pandoc</code>
+            </p>
+          ) : null}
+          <button type="button" className="toolbar-button" onClick={() => void refreshPandoc()}>
+            Refresh Pandoc discovery
+          </button>
+          <h4 className="settings-subheading">Background desktop engine</h4>
+          <label className="diagnostics-opt-in">
+            <input
+              type="checkbox"
+              checked={headlessEngine}
+              onChange={(event) => onHeadlessEngineChange(event.target.checked)}
+            />
+            <span>Use the background engine for supported vault operations</span>
+          </label>
+          <p className="health-subtitle">
+            This can move indexing, search, graph, Git status and export work out of the main app process.
+          </p>
+          {headlessEngine ? (
+            <>
+              <p className={daemonVersion ? 'settings-status ok' : 'settings-status warn'} role="status">
+                {daemonVersion
+                  ? `Background engine connected — version ${daemonVersion}`
+                  : daemonError
+                    ? `Background engine offline — ${daemonError}`
+                    : 'Background engine status unknown'}
+              </p>
+              <div className="settings-actions">
+                <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>Refresh status</button>
+                <button type="button" className="toolbar-button" onClick={onStartDaemon}>Start engine</button>
+              </div>
+              <DaemonOpsPanel
+                activePath={activePath}
+                daemonVersion={daemonVersion}
+                daemonError={daemonError}
+                onRefresh={onRefreshDaemon}
+                onStart={onStartDaemon}
+              />
+            </>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  )
+
   return (
     <UnifiedPanelShell
       title="Settings"
-      subtitle="Desktop runtime, vault workflow, and diagnostics."
+      subtitle="Preferences are grouped by task so the writing surface stays uncluttered."
       icon={<Settings size={18} />}
       ariaLabel="Settings"
       onClose={onClose}
       className="settings-panel knowledge-filters-panel"
       wide
+      tabs={[
+        { id: 'general', label: 'General' },
+        { id: 'workspace', label: 'Workspace' },
+        { id: 'shortcuts', label: 'Keyboard shortcuts' },
+        { id: 'advanced', label: 'Advanced' },
+      ]}
+      activeTab={activeTab}
+      onTabChange={(tab) => setActiveTab(tab as SettingsTab)}
     >
-        <div className="settings-section">
-          <h3>Runtime</h3>
-          <p className="health-subtitle">
-            Updates are distributed as signed, checksum-published release artifacts. Built-in updating remains disabled until an authenticated delivery channel is configured.
+      {activeTab === 'general' ? (
+        <>
+          <p className="settings-persistence-note" role="note">
+            App preferences save immediately. Vault configuration is read from <code>.scriptor/config.json</code> and only writes when you choose Save.
           </p>
-          <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
-            {nativeReady ? 'Native Tauri bridge connected' : 'Browser preview — run `pnpm desktop:dev` for vault commands'}
-          </p>
-          {nativeReady ? (
-            <>
-              <dl className="settings-grid">
-                <div>
-                  <dt>Pandoc</dt>
-                  <dd>{pandoc ? pandoc.version : pandocError ? 'Not found' : 'Checking…'}</dd>
-                </div>
-                <div>
-                  <dt>Path</dt>
-                  <dd className="settings-path">{pandoc?.path ?? '—'}</dd>
-                </div>
-              </dl>
-              {pandocError ? (
-                <p className="settings-status warn">
-                  {pandocError}. Install Pandoc or set `SCRIPTOR_PANDOC_PATH`. Windows:{' '}
-                  <code>winget install JohnMacFarlane.Pandoc</code> · macOS:{' '}
-                  <code>brew install pandoc</code>
+
+          {vaultOpen && nativeReady ? (
+            configLoadError ? (
+              <section className="settings-section" aria-labelledby="vault-config-error-heading">
+                <h3 id="vault-config-error-heading">Vault configuration unavailable</h3>
+                <p className="settings-status warn" role="alert">
+                  {configLoadError}. Scriptor did not replace or overwrite the existing configuration.
                 </p>
-              ) : pandoc ? null : (
-                <p className="health-subtitle">Press refresh to detect Pandoc on this machine.</p>
-              )}
-              <button type="button" className="toolbar-button" onClick={() => void refreshPandoc()}>
-                Refresh Pandoc discovery
-              </button>
-              <h4 className="settings-subheading">Headless engine</h4>
-              <label className="diagnostics-opt-in">
-                <input
-                  type="checkbox"
-                  checked={headlessEngine}
-                  onChange={(event) => onHeadlessEngineChange(event.target.checked)}
-                />
-                <span>Route vault indexing through the headless engine (daemon IPC)</span>
-              </label>
-              <p className="health-subtitle">
-                When enabled, search, rebuild, backlinks, graph, health, git status, note save, rename, and export route through the daemon. Note read stays in-process.
-              </p>
-              {headlessEngine ? (
-                <>
-                  <p className={daemonVersion ? 'settings-status ok' : 'settings-status warn'} role="status">
-                    {daemonVersion
-                      ? `Daemon connected — version ${daemonVersion}`
-                      : daemonError
-                        ? `Daemon offline — ${daemonError}`
-                        : 'Daemon status unknown — refresh or start the service'}
-                  </p>
-                  <div className="settings-actions">
-                    <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>
-                      Refresh daemon status
-                    </button>
-                    <button type="button" className="toolbar-button" onClick={onStartDaemon}>
-                      Start daemon
-                    </button>
-                  </div>
-                  <DaemonOpsPanel
-                    activePath={activePath}
-                    daemonVersion={daemonVersion}
-                    daemonError={daemonError}
-                    onRefresh={onRefreshDaemon}
-                    onStart={onStartDaemon}
-                  />
-                </>
-              ) : null}
-            </>
-          ) : null}
-        </div>
-
-        {vaultOpen && nativeReady ? (
-          <VaultConfigSettingsSection
-            config={config}
-            setConfig={setConfig}
-            dailyNotePreview={dailyNotePreview}
-            status={status}
-            onSave={saveConfig}
-          />
-        ) : null}
-
-        {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} /> : null}
-
-        <AiProviderSettings
-          provider={aiProvider}
-          endpoint={aiEndpoint}
-          hasApiKey={aiHasApiKey}
-          busy={aiBusy}
-          lastError={aiLastError}
-          onProviderChange={onAiProviderChange}
-          onEndpointChange={onAiEndpointChange}
-          onSaveApiKey={onAiSaveApiKey}
-          onClearApiKey={onAiClearApiKey}
-        />
-
-        <div className="settings-section">
-          <h3>Workspace chrome</h3>
-          <label className="settings-field">
-            Panel presentation
-            <select
-              value={panelPresentation}
-              onChange={(event) => onPanelPresentationChange?.(event.target.value as PanelPresentation)}
-            >
-              <option value="modal">Centered modal</option>
-              <option value="dock-right">Docked side sheet</option>
-            </select>
-          </label>
-          {workspaceLayouts && onSaveWorkspaceLayout && onResetWorkspaceLayout ? (
-            <>
-              <p className="health-subtitle">
-                Saved layout for <strong>{workspaceMode}</strong> mode. Switch modes in the top bar to configure each layout.
-              </p>
-              <label className="diagnostics-opt-in">
-                <input
-                  type="checkbox"
-                  checked={workspaceLayouts[workspaceMode]?.splitPreview ?? false}
-                  onChange={(event) =>
-                    onSaveWorkspaceLayout(workspaceMode, {
-                      ...workspaceLayouts[workspaceMode],
-                      splitPreview: event.target.checked,
-                    })
-                  }
-                />
-                <span>Split preview</span>
-              </label>
-              <label className="diagnostics-opt-in">
-                <input
-                  type="checkbox"
-                  checked={workspaceLayouts[workspaceMode]?.showStickies ?? false}
-                  onChange={(event) =>
-                    onSaveWorkspaceLayout(workspaceMode, {
-                      ...workspaceLayouts[workspaceMode],
-                      showStickies: event.target.checked,
-                    })
-                  }
-                />
-                <span>Show sticky notes layer</span>
-              </label>
-              <label className="settings-field">
-                Graph depth
-                <input
-                  type="number"
-                  min={1}
-                  max={5}
-                  value={workspaceLayouts[workspaceMode]?.graphDepth ?? DEFAULT_WORKSPACE_LAYOUTS[workspaceMode].graphDepth}
-                  onChange={(event) =>
-                    onSaveWorkspaceLayout(workspaceMode, {
-                      ...workspaceLayouts[workspaceMode],
-                      graphDepth: Number(event.target.value),
-                    })
-                  }
-                />
-              </label>
-              <button type="button" className="toolbar-button" onClick={() => onResetWorkspaceLayout(workspaceMode)}>
-                Reset {workspaceMode} layout
-              </button>
-              <LayoutPresetGallery
-                current={workspaceLayouts[workspaceMode]}
-                onApply={(preset) => onSaveWorkspaceLayout(workspaceMode, preset.layout)}
+                <button type="button" className="toolbar-button" onClick={() => setConfigReloadToken((value) => value + 1)}>
+                  Retry loading configuration
+                </button>
+              </section>
+            ) : configReady ? (
+              <VaultConfigSettingsSection
+                config={config}
+                setConfig={setConfig}
+                dailyNotePreview={dailyNotePreview}
+                status={status}
+                onSave={saveConfig}
               />
-            </>
+            ) : (
+              <p className="empty-state" role="status">Loading vault configuration…</p>
+            )
           ) : null}
-        </div>
 
-        {workspaceChrome && onPatchWorkspaceChrome ? (
-          <AppearanceSettingsSection
-            workspaceChrome={workspaceChrome}
-            onPatchWorkspaceChrome={onPatchWorkspaceChrome}
-            onResetWorkspaceChrome={onResetWorkspaceChrome}
-            theme={theme}
-            onThemeChange={onThemeChange}
-            onReplayOnboarding={onReplayOnboarding}
+          {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} /> : null}
+
+          <AiProviderSettings
+            provider={aiProvider}
+            endpoint={aiEndpoint}
+            hasApiKey={aiHasApiKey}
+            busy={aiBusy}
+            lastError={aiLastError}
+            httpWarning={aiHttpWarning}
+            onProviderChange={onAiProviderChange}
+            onEndpointChange={onAiEndpointChange}
+            onSaveApiKey={onAiSaveApiKey}
+            onClearApiKey={onAiClearApiKey}
           />
-        ) : null}
 
-        <div className="settings-section">
-          <h3>Spellcheck &amp; grammar</h3>
-          <label className="settings-field">
-            Spellcheck locale
-            <select
-              value={selectedSpellcheckLocale}
-              onChange={(event) => onSpellcheckLocaleChange?.(event.target.value)}
-            >
-              {SUPPORTED_LOCALES.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="health-subtitle">
-            Hunspell dictionary loaded on demand. English (US) is the default; additional locales require the matching `.dic` file in `public/dictionaries/`.
-          </p>
-          <label className="settings-field">
-            LanguageTool endpoint
-            <input
-              value={languageToolEndpoint}
-              placeholder="http://localhost:8010/v2/check"
-              onChange={(event) => onLanguageToolEndpointChange?.(event.target.value)}
-            />
-          </label>
-          <p className="health-subtitle">
-            Defaults to self-hosted (port 8010) for privacy. Change to <code>https://api.languagetool.org/v2/check</code> for the cloud service — note that your text will be sent to a third-party server.
-          </p>
-        </div>
-
-        <div className="settings-section">
-          <h3>{t('settings.language')}</h3>
-          <label className="settings-field">
-            <span>{t('settings.displayLanguage')}</span>
-            <select value={locale} onChange={(event) => changeLocale(event.target.value as typeof locale)}>
-              {supportedLocales.map((entry) => (
-                <option key={entry} value={entry}>
-                  {localeLabels[entry] ?? entry}
-                </option>
-              ))}
-            </select>
-          </label>
-          <p className="health-subtitle">{t('settingsSection.additionalLocales')}</p>
-        </div>
-
-        <div className="settings-section">
-          <h3>Support</h3>
-          <p className="health-subtitle">Star the project, report issues, or contact the maintainer.</p>
-          {onOpenSupport ? (
-            <button type="button" className="toolbar-button" onClick={onOpenSupport}>
-              Open support panel
-            </button>
-          ) : null}
-        </div>
-
-        {journey && onResetJourney ? (
           <div className="settings-section">
-            <ReleaseQualityPanel
-              journey={journey}
-              timeToFirstEditMs={timeToFirstEditMs}
-              timeToFirstExportMs={timeToFirstExportMs}
-              onResetJourney={onResetJourney}
-            />
+            <h3>Spellcheck &amp; grammar</h3>
+            <label className="settings-field">
+              Spellcheck locale
+              <select
+                value={selectedSpellcheckLocale}
+                onChange={(event) => onSpellcheckLocaleChange?.(event.target.value)}
+              >
+                {SUPPORTED_LOCALES.map((loc) => (
+                  <option key={loc} value={loc}>{loc}</option>
+                ))}
+              </select>
+            </label>
+            <p className="health-subtitle">
+              Hunspell dictionaries load on demand. English (US) is the default.
+            </p>
+            <label className="settings-field">
+              LanguageTool endpoint
+              <input
+                value={languageToolEndpoint}
+                placeholder="http://localhost:8010/v2/check"
+                onChange={(event) => onLanguageToolEndpointChange?.(event.target.value)}
+              />
+            </label>
+            <p className="health-subtitle">
+              Localhost is the privacy-first default. The desktop app also supports <code>https://api.languagetool.org/v2/check</code>; using it sends text to a third party.
+            </p>
           </div>
-        ) : null}
 
-        <div className="settings-section">
-          <h3>Diagnostics</h3>
-          <label className="diagnostics-opt-in">
-            <input
-              type="checkbox"
-              checked={diagnosticsOptIn}
-              onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
+          <div className="settings-section">
+            <h3>{t('settings.language')}</h3>
+            <label className="settings-field">
+              <span>{t('settings.displayLanguage')}</span>
+              <select value={locale} onChange={(event) => changeLocale(event.target.value as typeof locale)}>
+                {supportedLocales.map((entry) => (
+                  <option key={entry} value={entry}>{localeLabels[entry] ?? entry}</option>
+                ))}
+              </select>
+            </label>
+            <p className="health-subtitle">{t('settingsSection.additionalLocales')}</p>
+          </div>
+
+          <div className="settings-section">
+            <h3>Support</h3>
+            <p className="health-subtitle">Star the project, report issues, or contact the maintainer.</p>
+            {onOpenSupport ? (
+              <button type="button" className="toolbar-button" onClick={onOpenSupport}>Open support panel</button>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+
+      {activeTab === 'workspace' ? (
+        <>
+          <div className="settings-section">
+            <h3>Workspace layout</h3>
+            <label className="settings-field">
+              Panel presentation
+              <select
+                value={panelPresentation}
+                onChange={(event) => onPanelPresentationChange?.(event.target.value as PanelPresentation)}
+              >
+                <option value="modal">Centered modal</option>
+                <option value="dock-right">Docked side sheet</option>
+              </select>
+            </label>
+            {workspaceLayouts && onSaveWorkspaceLayout && onResetWorkspaceLayout ? (
+              <>
+                <p className="health-subtitle">
+                  Saved layout for <strong>{workspaceMode}</strong> mode. Switch modes in the top bar to configure each layout.
+                </p>
+                <label className="diagnostics-opt-in">
+                  <input
+                    type="checkbox"
+                    checked={workspaceLayouts[workspaceMode]?.splitPreview ?? false}
+                    onChange={(event) =>
+                      onSaveWorkspaceLayout(workspaceMode, {
+                        ...workspaceLayouts[workspaceMode],
+                        splitPreview: event.target.checked,
+                      })
+                    }
+                  />
+                  <span>Split preview</span>
+                </label>
+                <label className="diagnostics-opt-in">
+                  <input
+                    type="checkbox"
+                    checked={workspaceLayouts[workspaceMode]?.showStickies ?? false}
+                    onChange={(event) =>
+                      onSaveWorkspaceLayout(workspaceMode, {
+                        ...workspaceLayouts[workspaceMode],
+                        showStickies: event.target.checked,
+                      })
+                    }
+                  />
+                  <span>Show sticky notes layer</span>
+                </label>
+                <label className="settings-field">
+                  Graph depth
+                  <input
+                    type="number"
+                    min={1}
+                    max={5}
+                    value={workspaceLayouts[workspaceMode]?.graphDepth ?? DEFAULT_WORKSPACE_LAYOUTS[workspaceMode].graphDepth}
+                    onChange={(event) =>
+                      onSaveWorkspaceLayout(workspaceMode, {
+                        ...workspaceLayouts[workspaceMode],
+                        graphDepth: Number(event.target.value),
+                      })
+                    }
+                  />
+                </label>
+                <button type="button" className="toolbar-button" onClick={() => onResetWorkspaceLayout(workspaceMode)}>
+                  Reset {workspaceMode} layout
+                </button>
+                <LayoutPresetGallery
+                  current={workspaceLayouts[workspaceMode]}
+                  onApply={(preset) => onSaveWorkspaceLayout(workspaceMode, preset.layout)}
+                />
+              </>
+            ) : null}
+          </div>
+
+          {workspaceChrome && onPatchWorkspaceChrome ? (
+            <AppearanceSettingsSection
+              workspaceChrome={workspaceChrome}
+              onPatchWorkspaceChrome={onPatchWorkspaceChrome}
+              onResetWorkspaceChrome={onResetWorkspaceChrome}
+              theme={theme}
+              onThemeChange={onThemeChange}
+              onReplayOnboarding={onReplayOnboarding}
             />
-            <span>Store local client diagnostics in `.scriptor/diagnostics/client.jsonl`</span>
-          </label>
-          <button
-            type="button"
-            className="toolbar-button"
-            disabled={!vaultOpen || !nativeReady}
-            onClick={() => {
-              setSupportBundleStatus('Creating support bundle…')
-              void diagnosticsExportSupportBundle()
-                .then((path) => setSupportBundleStatus(`Support bundle created: ${path}`))
-                .catch((error) =>
-                  setSupportBundleStatus(
-                    `Support bundle failed: ${error instanceof Error ? error.message : String(error)}`,
-                  ),
-                )
-            }}
-          >
-            Export redacted support bundle
-          </button>
-          {supportBundleStatus ? <p className="health-subtitle">{supportBundleStatus}</p> : null}
-        </div>
+          ) : null}
+        </>
+      ) : null}
 
-        <div className="settings-section">
-          <h3>System</h3>
-          {systemInfo ? (
-            <dl className="settings-grid">
-              <div>
-                <dt>OS</dt>
-                <dd>{systemInfo.os}</dd>
-              </div>
-              <div>
-                <dt>Architecture</dt>
-                <dd>{systemInfo.arch}</dd>
-              </div>
-              <div>
-                <dt>Family</dt>
-                <dd>{systemInfo.family}</dd>
-              </div>
-              <div>
-                <dt>Locale</dt>
-                <dd>{systemInfo.locale ?? 'unknown'}</dd>
-              </div>
-            </dl>
-          ) : (
-            <p className="empty-state">System metadata is available in the desktop shell.</p>
-          )}
-        </div>
+      {activeTab === 'shortcuts' ? <KeyboardShortcutsSettingsSection /> : null}
+
+      {activeTab === 'advanced' ? (
+        <>
+          {runtimeSection}
+
+          <div className="settings-section">
+            <h3>Updates</h3>
+            <p className="health-subtitle">
+              Updates are distributed as signed, checksum-published release artifacts. Built-in updating remains disabled until an authenticated delivery channel is configured.
+            </p>
+          </div>
+
+          {journey && onResetJourney ? (
+            <div className="settings-section">
+              <ReleaseQualityPanel
+                journey={journey}
+                timeToFirstEditMs={timeToFirstEditMs}
+                timeToFirstExportMs={timeToFirstExportMs}
+                onResetJourney={onResetJourney}
+              />
+            </div>
+          ) : null}
+
+          <div className="settings-section">
+            <h3>Diagnostics</h3>
+            <label className="diagnostics-opt-in">
+              <input
+                type="checkbox"
+                checked={diagnosticsOptIn}
+                onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
+              />
+              <span>Store local client diagnostics in <code>.scriptor/diagnostics/client.jsonl</code></span>
+            </label>
+            <button
+              type="button"
+              className="toolbar-button"
+              disabled={!vaultOpen || !nativeReady}
+              onClick={() => {
+                setSupportBundleStatus('Creating support bundle…')
+                void diagnosticsExportSupportBundle()
+                  .then((path) => setSupportBundleStatus(`Support bundle created: ${path}`))
+                  .catch((error) =>
+                    setSupportBundleStatus(`Support bundle failed: ${error instanceof Error ? error.message : String(error)}`),
+                  )
+              }}
+            >
+              Export redacted support bundle
+            </button>
+            {supportBundleStatus ? <p className="health-subtitle">{supportBundleStatus}</p> : null}
+          </div>
+
+          <div className="settings-section">
+            <h3>System information</h3>
+            {systemInfo ? (
+              <dl className="settings-grid">
+                <div><dt>OS</dt><dd>{systemInfo.os}</dd></div>
+                <div><dt>Architecture</dt><dd>{systemInfo.arch}</dd></div>
+                <div><dt>Family</dt><dd>{systemInfo.family}</dd></div>
+                <div><dt>Locale</dt><dd>{systemInfo.locale ?? 'unknown'}</dd></div>
+              </dl>
+            ) : (
+              <p className="empty-state">System metadata is available in the desktop shell.</p>
+            )}
+          </div>
+        </>
+      ) : null}
     </UnifiedPanelShell>
   )
 }
