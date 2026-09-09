@@ -7,9 +7,9 @@
   display: grid;
   place-items: start center;
   padding-top: 12vh;
-  background: var(--overlay);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: color-mix(in oklch, var(--overlay) 92%, var(--ink-strong));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   animation: fade-rise var(--ease-gentle) both;
 }
 
@@ -18,9 +18,7 @@
   width: min(640px, calc(100vw - 32px));
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: color-mix(in oklch, var(--dialog-bg, var(--bg-elevated)) 85%, transparent);
-  backdrop-filter: var(--glass-blur, blur(16px));
-  -webkit-backdrop-filter: var(--glass-blur, blur(16px));
+  background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px color-mix(in oklch, var(--border) 40%, transparent);
   overflow: hidden;
   animation: scale-in var(--ease-spring) both;
@@ -58,6 +56,16 @@
   font-weight: 400;
 }
 
+.command-palette-scope-hint {
+  margin: 0;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--border-soft, var(--border));
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .command-palette ul {
   list-style: none;
   margin: 0;
@@ -70,16 +78,16 @@
 .command-palette li button {
   width: 100%;
   text-align: left;
-  border: 0;
+  border: 1px solid transparent;
   border-radius: 10px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   background: transparent;
   color: var(--ink);
   font-size: 14px;
   transition:
     background-color 120ms var(--ease-soft),
-    color 120ms var(--ease-soft),
-    transform 120ms var(--ease-soft);
+    border-color 120ms var(--ease-soft),
+    color 120ms var(--ease-soft);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -90,8 +98,62 @@
 .command-palette li button.active,
 .command-palette li button[data-active="true"] {
   background: var(--primary-soft);
+  border-color: color-mix(in oklch, var(--primary) 22%, var(--border));
   color: var(--primary-strong);
-  transform: scale(0.995);
+}
+
+.command-palette li button[data-tone='maintenance']::before,
+.command-palette li button[data-tone='danger']::before {
+  content: '';
+  width: 3px;
+  align-self: stretch;
+  flex: 0 0 3px;
+  border-radius: 999px;
+  background: var(--warning, var(--primary));
+}
+
+.command-palette li button[data-tone='danger']::before {
+  background: var(--danger);
+}
+
+.command-palette-item-copy {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: grid;
+  gap: 2px;
+}
+
+.command-palette-item-copy strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.command-palette-item-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.command-palette-shortcut {
+  flex: 0 0 auto;
+  min-width: 48px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-bottom-color: var(--border-strong);
+  border-radius: 5px;
+  background: var(--surface-raised);
+  color: var(--muted);
+  font: 11px/1.4 var(--mono);
+  text-align: center;
+  white-space: nowrap;
 }
 
 .command-palette-hint {
@@ -102,13 +164,7 @@
 }
 
 .command-palette li button.command-palette-note-hit {
-  display: grid;
-  gap: 0.1rem;
-}
-
-.command-palette li button.command-palette-note-hit small {
-  color: var(--muted);
-  font-size: 0.75rem;
+  display: flex;
 }
 
 @media (max-width: 768px) {
