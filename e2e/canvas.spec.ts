@@ -115,7 +115,7 @@ test.describe('Canvas panel', () => {
   test('opens via command palette', async ({ page }) => {
     const panel = await openCanvas(page)
     await expect(panel.locator('.canvas-stage')).toBeVisible()
-    await expect(panel.getByRole('img', { name: 'Canvas blocks' })).toBeVisible()
+    await expect(panel.getByRole('group', { name: 'Canvas blocks' })).toBeVisible()
   })
 
   test('escape closes canvas', async ({ page }) => {
@@ -128,7 +128,7 @@ test.describe('Canvas panel', () => {
     const panel = await openCanvas(page)
     const block = await addTableBlock(panel)
     await expect(block).toHaveAttribute('aria-label', /table:/)
-    await expect(panel.locator('.canvas-header')).toContainText('1 blocks')
+    await expect(panel.locator('.canvas-header')).toContainText('1 block')
   })
 
   test('canvas has accessible toolbar', async ({ page }) => {
@@ -143,16 +143,34 @@ test.describe('Canvas panel', () => {
     await expect(panel.getByRole('button', { name: 'Close canvas' })).toBeVisible()
   })
 
-  test('canvas reports an empty board for the E2E fixture', async ({ page }) => {
+  test('empty board exposes a first action and keeps export unavailable', async ({ page }) => {
     const panel = await openCanvas(page)
     await expect(panel.locator('.canvas-block')).toHaveCount(0)
     await expect(panel.locator('.canvas-header')).toContainText('0 blocks')
+    await expect(panel.getByText('Start your research board')).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Add first card' })).toBeVisible()
+    await expect(panel.getByRole('button', { name: /^Export/ })).toBeDisabled()
+  })
+
+  test('first-action card works without a plugin drawing tool', async ({ page }) => {
+    const panel = await openCanvas(page)
+    await panel.getByRole('button', { name: 'Add first card' }).click()
+    const block = panel.locator('.canvas-block')
+    await expect(block).toHaveCount(1)
+    await expect(block).toHaveAttribute('aria-label', /sticky-note:/)
   })
 
   test('canvas viewport controls are accessible', async ({ page }) => {
     const panel = await openCanvas(page)
+    const zoomLabel = panel.locator('.canvas-zoom-label')
+    await expect(panel.getByRole('button', { name: 'Zoom out' })).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Zoom in' })).toBeVisible()
     await expect(panel.getByRole('button', { name: 'Reset view' })).toBeVisible()
-    await expect(panel.locator('.canvas-zoom-label')).toHaveText(/^\d+%$/)
+    await expect(zoomLabel).toHaveText(/^\d+%$/)
+    await panel.getByRole('button', { name: 'Zoom in' }).click()
+    await expect(zoomLabel).not.toHaveText('100%')
+    await panel.getByRole('button', { name: 'Reset view' }).click()
+    await expect(zoomLabel).toHaveText('100%')
   })
 
   test('canvas save persists state', async ({ page }) => {
@@ -181,15 +199,17 @@ test.describe('Canvas panel', () => {
     await expect(panel.locator('.canvas-block')).toHaveCount(1)
   })
 
-  test('canvas block can be selected', async ({ page }) => {
+  test('canvas block can be selected by pointer and keyboard', async ({ page }) => {
     const panel = await openCanvas(page)
     const block = await addTableBlock(panel)
     await panel.getByRole('button', { name: 'Select' }).click()
     const stage = panel.locator('.canvas-svg')
     await stage.click({ position: { x: 8, y: 8 } })
     await expect(panel.locator('.canvas-block.selected')).toHaveCount(0)
-    await block.click()
+    await block.focus()
+    await page.keyboard.press('Space')
     await expect(block).toHaveClass(/selected/)
+    await expect(block).toHaveAttribute('aria-pressed', 'true')
     await expect(panel.getByRole('status')).toContainText('Selected 1 block')
   })
 })
