@@ -30,8 +30,8 @@ export function NoteQualityCard({
 }: NoteQualityCardProps) {
   if (!activePath) {
     return (
-      <WidgetCard title="Note quality">
-        <p className="empty-state">Open a note to see quality guidance.</p>
+      <WidgetCard title="Publish readiness">
+        <p className="empty-state">Open a note to review publishing readiness.</p>
       </WidgetCard>
     )
   }
@@ -52,20 +52,20 @@ export function NoteQualityCard({
     issues.push('Unsaved edits — save before export')
   }
   if (vaultBroken) {
-    issues.push(`${health?.broken_links ?? 0} broken links in vault`)
+    issues.push(`${health?.broken_links ?? 0} broken links elsewhere in the vault`)
   }
 
   return (
-    <WidgetCard title="Note quality">
+    <WidgetCard title="Publish readiness">
       <div className="note-quality-status">
         {exportReady && issues.length === 0 ? (
           <p className="note-quality-good">
-            <CheckCircle2 size={14} />
-            Export ready
+            <CheckCircle2 size={14} aria-hidden="true" />
+            Ready to export
           </p>
         ) : (
           <p className="note-quality-warn">
-            <AlertTriangle size={14} />
+            <AlertTriangle size={14} aria-hidden="true" />
             {issues.length > 0 ? issues[0] : 'Review before publishing'}
           </p>
         )}
@@ -99,15 +99,15 @@ export function NoteQualityCard({
 
       <div className="note-quality-actions">
         <button type="button" className="toolbar-button" onClick={onOpenWorkbench}>
-          Repair queue
+          Repair issues
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenGraph}>
-          <Network size={14} />
+          <Network size={14} aria-hidden="true" />
           Graph
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenPublish}>
-          <FileOutput size={14} />
-          Publish
+          <FileOutput size={14} aria-hidden="true" />
+          Export / publish
         </button>
       </div>
     </WidgetCard>
