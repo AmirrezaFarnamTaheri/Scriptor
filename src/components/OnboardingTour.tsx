@@ -1,52 +1,61 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { formatShortcut } from '../lib/keyboardShortcuts'
 
-const STEPS = [
-  {
-    title: 'Open your vault',
-    body: 'Use Open Vault in the top bar or recent workspaces menu to load a folder of Markdown notes.',
-  },
-  {
-    title: 'Search notes',
-    body: 'Press F or use the vault search box to find text across your index.',
-  },
-  {
-    title: 'Command palette',
-    body: 'Press Ctrl+K (or click the omnibar) to run commands and open notes quickly.',
-  },
-  {
-    title: 'Inspector rail',
-    body: 'Backlinks, outline, citations, and export profiles live in the inspector on the right.',
-  },
-  {
-    title: 'Cheatsheet',
-    body: 'Open the cheatsheet any time from the toolbar for keyboard shortcuts and Markdown tips.',
-  },
-] as const
+interface TourStep {
+  title: string
+  body: string
+}
 
 interface OnboardingTourProps {
   onComplete: () => void
   onOpenCheatsheet?: () => void
 }
 
-/** Guides first-run users through the workspace without permitting accidental dismissal. */
+/** Guides first-run users without asking them to interact with controls hidden behind the modal. */
 export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourProps) {
   const [stepIndex, setStepIndex] = useState(0)
   const primaryActionRef = useRef<HTMLButtonElement>(null)
-  const step = STEPS[stepIndex]
-  const isLast = stepIndex >= STEPS.length - 1
+  const commandShortcut = useMemo(() => formatShortcut('Mod+K') ?? 'Ctrl+K', [])
+  const steps = useMemo<readonly TourStep[]>(
+    () => [
+      {
+        title: 'Your vault',
+        body: 'Scriptor works with a folder of Markdown notes. After this tour, Open Vault in the top bar lets you choose one; an already-open vault appears in the left sidebar.',
+      },
+      {
+        title: 'Search notes',
+        body: 'The search field in the vault sidebar searches note content. Press F while you are not typing to focus it quickly.',
+      },
+      {
+        title: 'Command palette',
+        body: `Press ${commandShortcut} or click the command field in the top bar to run commands and open notes quickly.`,
+      },
+      {
+        title: 'Inspector rail',
+        body: 'The right rail holds document structure, links, references, rendered output, and plugin tools. Collapse it when you want more writing space.',
+      },
+      {
+        title: 'Editor tools',
+        body: 'Frequent formatting stays in the editor bar. Less-used structure and workflow actions are grouped in the Structure, Insert, Typography, and Tools menus.',
+      },
+    ],
+    [commandShortcut],
+  )
+  const step = steps[stepIndex]
+  const isLast = stepIndex >= steps.length - 1
 
   const progress = (
     <div className="onboarding-progress-meta">
       <span className="onboarding-step-label">
-        Step {stepIndex + 1} of {STEPS.length}
+        Step {stepIndex + 1} of {steps.length}
       </span>
       <progress
         className="onboarding-progress"
-        max={STEPS.length}
+        max={steps.length}
         value={stepIndex + 1}
-        aria-label={`Tour progress: step ${stepIndex + 1} of ${STEPS.length}`}
+        aria-label={`Tour progress: step ${stepIndex + 1} of ${steps.length}`}
       />
     </div>
   )
@@ -71,6 +80,15 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
           Skip tour
         </button>
         <div className="onboarding-next-actions">
+          {stepIndex > 0 ? (
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => setStepIndex((current) => Math.max(0, current - 1))}
+            >
+              Back
+            </button>
+          ) : null}
           {isLast ? (
             <>
               {onOpenCheatsheet ? (
@@ -92,7 +110,7 @@ export function OnboardingTour({ onComplete, onOpenCheatsheet }: OnboardingTourP
               ref={primaryActionRef}
               type="button"
               className="primary-button"
-              onClick={() => setStepIndex((current) => Math.min(current + 1, STEPS.length - 1))}
+              onClick={() => setStepIndex((current) => Math.min(current + 1, steps.length - 1))}
             >
               Next
             </button>
