@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { CommandResult, McpMode, McpToolDescriptor } from '@scriptor/core'
-import { Server, Sparkles } from 'lucide-react'
+import { AlertTriangle, LockKeyhole, Server, ShieldCheck, Sparkles } from 'lucide-react'
 
 import type { DraftPatch } from '@scriptor/mcp'
 import { McpDraftDiffEditor } from './editor/McpDraftDiffEditor'
@@ -11,6 +11,29 @@ import { useI18n } from '../lib/i18n'
 import { ResourceSyncPanel } from './ResourceSyncPanel'
 
 const MODES: McpMode[] = ['off', 'read-only', 'draft', 'write-approved']
+
+const MODE_META: Record<McpMode, { label: string; description: string; risk: string }> = {
+  off: {
+    label: 'Off',
+    description: 'No MCP tool can access the active vault.',
+    risk: 'off',
+  },
+  'read-only': {
+    label: 'Read only',
+    description: 'Tools may inspect vault content but cannot prepare or write changes.',
+    risk: 'read',
+  },
+  draft: {
+    label: 'Draft changes',
+    description: 'Tools may prepare patches; writes still require explicit approval.',
+    risk: 'draft',
+  },
+  'write-approved': {
+    label: 'Approved writes',
+    description: 'Approved MCP operations may write to this vault. Use only for trusted workflows.',
+    risk: 'write',
+  },
+}
 
 type McpTab = 'recipes' | 'tools' | 'drafts' | 'audit' | 'sharing'
 
@@ -98,7 +121,7 @@ export function McpPanel({
   return (
     <UnifiedPanelShell
       title={t('mcp.title')}
-      subtitle={t('mcp.subtitle')}
+      subtitle="Authorization applies only to the active vault. Choose the maximum authority MCP tools may use here."
       icon={<Sparkles size={18} />}
       ariaLabel={t('mcp.title')}
       onClose={onClose}
@@ -111,31 +134,59 @@ export function McpPanel({
       ]}
       activeTab={tab}
       onTabChange={(next) => setTab(next as McpTab)}
-      headerActions={tab === 'sharing' ? undefined : (
-        <button type="button" className="toolbar-button" onClick={onResetPermissions}>
-          {t('mcp.resetVaultMcp')}
-        </button>
-      )}
     >
       {tab !== 'sharing' ? (
-        <div className="mcp-mode-row">
-          {MODES.map((entry) => (
-            <button
-              type="button"
-              key={entry}
-              className={mode === entry ? 'toolbar-button active' : 'toolbar-button'}
-              onClick={() => onModeChange(entry)}
-            >
-              {entry}
-            </button>
-          ))}
-          {aiEnabled && activePath && onGenerateDraft ? (
-            <button type="button" className="toolbar-button" onClick={onGenerateDraft}>
-              <Sparkles size={14} />
-              {t('mcp.generateWithAi')}
-            </button>
-          ) : null}
-        </div>
+        <section className="mcp-authorization" aria-labelledby="mcp-authorization-heading">
+          <div className="mcp-authorization-heading">
+            <div>
+              <h3 id="mcp-authorization-heading">Vault authorization</h3>
+              <p className="health-subtitle">This state is scoped to the active vault, not to Scriptor globally.</p>
+            </div>
+            <span className={`mcp-mode-summary is-${MODE_META[mode].risk}`} role="status">
+              Current: {MODE_META[mode].label}
+            </span>
+          </div>
+          <div className="mcp-mode-row" role="radiogroup" aria-label="MCP authorization level">
+            {MODES.map((entry) => {
+              const meta = MODE_META[entry]
+              const checked = mode === entry
+              return (
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  key={entry}
+                  className={checked ? 'mcp-mode-option active' : 'mcp-mode-option'}
+                  data-risk={meta.risk}
+                  onClick={() => onModeChange(entry)}
+                >
+                  <span className="mcp-mode-option-icon" aria-hidden="true">
+                    {entry === 'off' ? <LockKeyhole size={15} /> : entry === 'write-approved' ? <AlertTriangle size={15} /> : <ShieldCheck size={15} />}
+                  </span>
+                  <span className="mcp-mode-option-copy">
+                    <strong>{meta.label}</strong>
+                    <small>{meta.description}</small>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="mcp-mode-actions">
+            {aiEnabled && activePath && onGenerateDraft ? (
+              <button type="button" className="toolbar-button" onClick={onGenerateDraft}>
+                <Sparkles size={14} />
+                {t('mcp.generateWithAi')}
+              </button>
+            ) : null}
+            <details className="mcp-administration-details">
+              <summary>Administration</summary>
+              <p className="health-subtitle">Reset disables MCP for the active vault without changing other vaults.</p>
+              <button type="button" className="toolbar-button danger-button" onClick={onResetPermissions}>
+                Reset active-vault MCP authorization
+              </button>
+            </details>
+          </div>
+        </section>
       ) : null}
 
       {tab === 'sharing' ? (
@@ -269,7 +320,7 @@ export function McpPanel({
                       <div className="rename-actions">
                         <button
                           type="button"
-                          className="toolbar-button"
+                          className="primary-button"
                           disabled={mode !== 'write-approved'}
                           onClick={() => onApproveDraft(draft.id)}
                         >
