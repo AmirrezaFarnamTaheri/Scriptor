@@ -22,12 +22,20 @@
   padding: 0;
 }
 
+.toolbar-menu-popover li[role='separator'],
+.toolbar-menu-separator {
+  height: 1px;
+  margin: 5px 6px;
+  background: var(--border-soft, var(--border));
+}
+
 .toolbar-menu-popover button {
   width: 100%;
-  min-height: 32px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  gap: 8px;
   padding: 6px 10px;
   border: 0;
   border-radius: 8px;
@@ -40,4 +48,20 @@
 .toolbar-menu-popover button:focus-visible {
   background: var(--surface-muted);
   color: var(--ink-strong);
+}
+
+.toolbar-menu-popover button[aria-checked='true'] {
+  color: var(--primary-strong);
+}
+
+.toolbar-menu-check {
+  margin-left: auto;
+  color: var(--primary-strong);
+  font-weight: 700;
+}
+
+@media (pointer: coarse) {
+  .toolbar-menu-popover button {
+    min-height: 44px;
+  }
 }
