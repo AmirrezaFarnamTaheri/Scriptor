@@ -39,6 +39,7 @@ pub fn git_commit_cmd(
 #[tauri::command]
 pub fn git_pull_cmd(
     state: tauri::State<AppState>,
+    strategy: PullStrategy,
     authorization_token: String,
 ) -> Result<GitPullOutput, String> {
     let session = active_session(&state)?;
@@ -50,7 +51,7 @@ pub fn git_pull_cmd(
     )?;
     let queue = git_queue_handle(&state, session.root.root())?;
     queue
-        .enqueue(move |root| git_pull(root, PullStrategy::FastForward))
+        .enqueue(move |root| git_pull(root, strategy))
         .map_err(|error| error.to_string())
 }
 
