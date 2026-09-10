@@ -2,6 +2,11 @@ export * from '../canvas.ts'
 export * from './vault.ts'
 export { vaultOpen } from './vaultSession.ts'
 export * from './indexer.ts'
+export {
+  vaultLoadConfig,
+  vaultLoadSnippets,
+  indexerListNoteSummaries,
+} from './sessionGuardedReads.ts'
 export * from './export.ts'
 export * from './git.ts'
 export * from './daemon.ts'
