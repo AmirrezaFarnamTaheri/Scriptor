@@ -3,21 +3,29 @@ import { expect } from '@playwright/test'
 
 export const E2E_SEARCH_MARKER = 'e2e-workspace-marker'
 
+// The production workspace-chrome store is versioned. Seed the same envelope
+// shape in E2E so tests exercise their requested preferences instead of having
+// the runtime correctly quarantine the fixture as legacy/corrupt data and
+// silently fall back to defaults.
 export const WORKSPACE_CHROME_PREFS = {
-  vaultSidebarCollapsed: false,
-  inspectorCollapsed: false,
-  showFormatToolbar: true,
-  showEditorAssist: true,
-  showEditorStatus: true,
-  showInspectorHealth: true,
-  showWorkspaceFooter: true,
-  showLineNumbers: true,
-  editorFontSize: 14,
-  editorFontFamily: 'jetbrains-mono',
-  editorLineHeight: 1.55,
-  editorPaddingPx: 12,
-  previewMaxWidthCh: 72,
-  editorSurfaceMode: 'source',
+  schemaVersion: 1,
+  savedAt: '2026-01-01T00:00:00.000Z',
+  data: {
+    vaultSidebarCollapsed: false,
+    inspectorCollapsed: false,
+    showFormatToolbar: true,
+    showEditorAssist: true,
+    showEditorStatus: true,
+    showInspectorHealth: true,
+    showWorkspaceFooter: true,
+    showLineNumbers: true,
+    editorFontSize: 14,
+    editorFontFamily: 'jetbrains-mono',
+    editorLineHeight: 1.55,
+    editorPaddingPx: 12,
+    previewMaxWidthCh: 72,
+    editorSurfaceMode: 'source',
+  },
 }
 
 /**
