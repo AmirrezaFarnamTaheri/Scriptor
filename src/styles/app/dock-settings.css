@@ -51,7 +51,7 @@
   gap: 8px;
   padding: 8px 12px;
   border-top: 1px solid var(--glass-border);
-  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 -8px 24px color-mix(in oklch, var(--ink-strong) 6%, transparent);
 }
 
 .status-summary {
@@ -370,7 +370,7 @@
 }
 
 .task-row--overdue {
-  border-left: 3px solid var(--red, #ef4444);
+  border-left: 3px solid var(--danger, #ef4444);
 }
 
 .task-row__summary {
@@ -429,7 +429,7 @@
 }
 
 .task-row__due--overdue {
-  color: var(--red, #ef4444);
+  color: var(--danger, #ef4444);
   font-weight: 600;
 }
 
@@ -542,10 +542,10 @@
 }
 
 .task-status-chip--open { color: var(--muted); }
-.task-status-chip--done { color: var(--green, #22c55e); }
+.task-status-chip--done { color: var(--success, #22c55e); }
 .task-status-chip--in-progress { color: var(--accent); }
 .task-status-chip--cancelled { color: var(--muted); opacity: 0.5; }
-.task-status-chip--forwarded { color: var(--yellow, #eab308); }
+.task-status-chip--forwarded { color: var(--amber, #eab308); }
 .task-status-chip--custom { color: var(--muted); }
 
 /* ── Kanban board ────────────────────────────────────────────────────────────── */

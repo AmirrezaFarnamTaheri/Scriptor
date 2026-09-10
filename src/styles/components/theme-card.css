@@ -177,7 +177,7 @@
 
 .theme-action-btn.install-btn {
   background: var(--primary-strong, #0f766e);
-  color: white;
+  color: var(--color-text-inverse, var(--bg-elevated));
   border: 1px solid var(--primary-strong, #0f766e);
 }
 

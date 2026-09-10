@@ -298,8 +298,8 @@ ${msg.plainText || msg.snippet}
           <div
             style={{
               padding: '8px 12px',
-              backgroundColor: 'var(--color-success-bg, rgba(16, 185, 129, 0.1))',
-              color: 'var(--color-success, #10b981)',
+              backgroundColor: 'var(--color-status-success-bg, color-mix(in srgb, var(--success) 10%, transparent))',
+              color: 'var(--color-status-success, var(--success, #10b981))',
               borderRadius: '6px',
               fontSize: '0.9rem',
               display: 'flex',
@@ -316,8 +316,8 @@ ${msg.plainText || msg.snippet}
           <div
             style={{
               padding: '8px 12px',
-              backgroundColor: 'var(--color-error-bg, rgba(239, 68, 68, 0.1))',
-              color: 'var(--color-error, #ef4444)',
+              backgroundColor: 'var(--color-status-error-bg, color-mix(in srgb, var(--danger) 10%, transparent))',
+              color: 'var(--color-status-error, var(--danger, #ef4444))',
               borderRadius: '6px',
               fontSize: '0.9rem',
             }}
@@ -432,7 +432,7 @@ ${msg.plainText || msg.snippet}
                         color: 'var(--ink)',
                         cursor: loading ? 'default' : 'pointer',
                         marginBottom: '4px',
-                        borderLeft: selectedMessage?.id === item.id ? '3px solid var(--color-primary, #0f766e)' : '3px solid transparent',
+                        borderLeft: selectedMessage?.id === item.id ? '3px solid var(--color-accent-default, var(--primary, #0f766e))' : '3px solid transparent',
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '2px' }}>
@@ -585,7 +585,7 @@ ${msg.plainText || msg.snippet}
                   className="toolbar-button"
                   onClick={() => void handleDisconnect()}
                   disabled={loading}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-error)' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-status-error, var(--danger))' }}
                 >
                   <LogOut size={14} />
                   <span>Disconnect Account</span>

@@ -44,8 +44,8 @@ This checklist tracks the second native-vision review of the Windows workspace a
 - [x] Preserve 44px coarse-pointer targets through the final CSS cascade.
 - [x] Verify keyboard semantics for Canvas, graph, toolbar menus, virtualized Git rows, and security-state controls.
 - [x] Verify dark mode for every reviewed dialog/panel, not only the main workspace. Automated coverage includes Settings, MCP, Graph, Knowledge Workbench, Note History, Canvas, Plugins, Git/conflicts, Export & publish, Vault Health, and first-run onboarding, with explicit dark-surface assertions.
-- [ ] Complete the visual matrix for Windows scaling, long names, large data, loading/error states, and destructive confirmations. Compact widths, mobile/tablet, 125% app zoom, Persian RTL, German expansion, several errors, and destructive flows now have coverage.
-- [ ] Remove remaining hard-coded implementation/theme colors where semantic tokens are required. Graph and the reviewed shell paths now use semantic tokens, but repository-wide completion still needs a final sweep.
+- [x] Complete the visual matrix for Windows scaling, long names, large data, loading/error states, and destructive confirmations. Coverage now includes Windows visual regression, 125% device scale and app zoom, compact/mobile/tablet widths, large virtualized vaults with long filenames, slow-loading skeletons, editor/preview failures, destructive confirmations, Persian RTL, and German expansion.
+- [x] Remove remaining hard-coded implementation/theme colors where semantic tokens are required. The final repository sweep normalized application chrome, status colors, editor warnings, reader surfaces, error overlays, and primary-action foregrounds onto semantic/theme tokens. Literal colors that remain are intentional palette definitions, user/content colors, export/print output colors, data-visualization/category palettes, or fallback values behind semantic variables.
 
 ## Correctness and trust issues found during the detour
 

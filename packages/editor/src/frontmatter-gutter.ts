@@ -55,7 +55,7 @@ export const frontmatterGutterExtension = [
   }),
   EditorView.baseTheme({
     '.cm-frontmatter-warning': {
-      color: '#c47a00',
+      color: 'var(--color-status-warning, var(--amber, #c47a00))',
       fontWeight: '700',
       cursor: 'help',
     },

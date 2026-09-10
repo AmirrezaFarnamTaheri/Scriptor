@@ -102,9 +102,9 @@
   width: auto;
   min-width: 104px;
   margin-top: 0;
-  background: #075e54;
-  border-color: #075e54;
-  color: #fff;
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+  color: var(--color-text-inverse, var(--bg-elevated));
 }
 
 @media (max-width: 520px) {

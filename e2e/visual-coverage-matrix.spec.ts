@@ -205,4 +205,75 @@ test.describe('visual coverage matrix', () => {
     expect(editor).not.toBeNull()
     expect(editor?.width ?? 0).toBeGreaterThan(260)
   })
+
+  test('125% device scale preserves workspace geometry', async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      baseURL: String(testInfo.project.use.baseURL),
+      viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: 1.25,
+    })
+    const scaledPage = await context.newPage()
+    try {
+      await scaledPage.addInitScript(() => {
+        window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      })
+      await launchApp(scaledPage)
+      await waitForWorkspace(scaledPage)
+      await settleLayout(scaledPage)
+      await expectNoHorizontalOverflow(scaledPage)
+      const editor = await scaledPage.locator('.editor-panel').boundingBox()
+      expect(editor).not.toBeNull()
+      expect(editor?.width ?? 0).toBeGreaterThan(300)
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('slow vault loading state stays bounded before the workspace becomes ready', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      window.sessionStorage.setItem('e2e:slow-vault', '1')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 5_000 })
+    await expectNoHorizontalOverflow(page)
+    await waitForWorkspace(page)
+    await expect(page.locator('.vault-skeleton-row')).toHaveCount(0)
+  })
+
+  test('large fixture vault stays virtualized and long note names cannot widen the page', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 800 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+      window.sessionStorage.setItem('e2e:large-vault', '1')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await settleLayout(page)
+
+    const list = page.locator('.virtual-note-list')
+    await expect(list).toBeVisible()
+    expect(await list.locator(':scope > li').count()).toBeLessThan(80)
+    const dimensions = await list.evaluate((element) => ({
+      contentHeight: element.scrollHeight,
+      viewportHeight: element.parentElement?.clientHeight ?? 0,
+    }))
+    expect(dimensions.contentHeight).toBeGreaterThan(dimensions.viewportHeight * 10)
+    await expectNoHorizontalOverflow(page)
+
+    await list.evaluate((element) => {
+      const scroller = element.parentElement
+      if (!scroller) throw new Error('virtual note list scroll container missing')
+      scroller.scrollTop = scroller.scrollHeight
+      scroller.dispatchEvent(new Event('scroll'))
+    })
+    await expect(
+      list.getByRole('button', {
+        name: 'Generated research note 0600 with an intentionally long filename for truncation and virtualization coverage.md',
+      }),
+    ).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+  })
+
 })
