@@ -132,6 +132,40 @@ test.describe('visual coverage matrix', () => {
     await expectNoHorizontalOverflow(page)
   })
 
+  test('dark theme explicitly covers Vault Health', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+    })
+    await launchApp(page)
+    await waitForWorkspace(page)
+    await settleLayout(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+    await openCommandPalette(page)
+    await runCommand(page, 'Open vault health')
+    const health = page.getByRole('dialog', { name: 'Vault health' })
+    await expectDarkSurface(health)
+    await expect(health.getByRole('heading', { name: 'Vault health' })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await closeSurface(health)
+  })
+
+  test('first-run onboarding is explicitly themed in dark mode', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'false')
+    })
+    await launchApp(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+
+    const tour = page.getByRole('dialog', { name: 'Product tour' })
+    await expectDarkSurface(tour)
+    await expect(tour.getByRole('heading', { name: 'Your vault' })).toBeVisible()
+    await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
+    await expectNoHorizontalOverflow(page)
+  })
+
   test('dark conflict resolver stays themed and requires an explicit resolution', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'dark')
