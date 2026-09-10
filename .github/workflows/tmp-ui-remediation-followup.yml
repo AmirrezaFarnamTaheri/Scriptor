@@ -21,263 +21,102 @@ jobs:
       - name: Apply current-head remediation
         shell: bash
         run: |
-          cat > /tmp/ui-fix.patch <<'PATCH'
-          --- a/e2e/capability-surface.spec.ts
-          +++ b/e2e/capability-surface.spec.ts
-          @@ -36,7 +36,8 @@
-               const zenLayout = page.getByRole('button', { name: 'Apply Zen layout' })
-               await expect(zenLayout).toBeEnabled()
-               await zenLayout.click()
-          -    await expect(zenLayout).toHaveAttribute('aria-current', 'true')
-          +    await expect(page.locator('html')).toHaveClass(/scriptor-distraction-free/)
-          +    await expect(page.locator('.editor-toolbar')).toHaveCSS('pointer-events', 'none')
-             })
-           
-             test('keeps the four-section store navigable at high text zoom', async ({ page }) => {
-          --- a/src/App.tsx
-          +++ b/src/App.tsx
-          @@ -265,13 +265,11 @@
-               setLanguageToolEndpoint,
-               setSpellcheck,
-               setSpellcheckLocale,
-          -    setSplitPreview,
-               setTypewriter,
-               setVimMode,
-               setWysiwyg,
-               spellcheck,
-               spellcheckLocale,
-          -    splitPreview,
-               toggleEditorMode,
-               toggleEditorTheme,
-               typewriter,
-          --- a/src/components/InsertMenu.tsx
-          +++ b/src/components/InsertMenu.tsx
-          @@ -48,7 +48,7 @@
-                     event.preventDefault()
-                     setOpen(true)
-                   }}
-          -        aria-label="Insert content"
-          +        aria-label="Insert"
-                   title="Insert content"
-                   aria-haspopup="menu"
-                   aria-expanded={open}
-          --- a/src/components/NoteHistoryPanel.tsx
-          +++ b/src/components/NoteHistoryPanel.tsx
-          @@ -40,6 +40,17 @@
-             markdown: string
-           }
-           
-          +interface PreviewErrorState {
-          +  path: string
-          +  revisionId: string
-          +  message: string
-          +}
-          +
-          +interface CurrentErrorState {
-          +  path: string
-          +  message: string
-          +}
-          +
-           /** Formats persisted revision timestamps for compact, locale-aware timeline display. */
-           function formatRevisionDate(value: string) {
-             return new Date(value).toLocaleString(undefined, {
-          @@ -55,8 +66,8 @@
-             const [previewState, setPreviewState] = useState<PreviewState | null>(null)
-             const [currentState, setCurrentState] = useState<CurrentNoteState | null>(null)
-             const [status, setStatus] = useState('')
-          -  const [previewError, setPreviewError] = useState<string | null>(null)
-          -  const [currentError, setCurrentError] = useState<string | null>(null)
-          +  const [previewError, setPreviewError] = useState<PreviewErrorState | null>(null)
-          +  const [currentError, setCurrentError] = useState<CurrentErrorState | null>(null)
-             const [busy, setBusy] = useState(false)
-             const [confirmRestore, setConfirmRestore] = useState(false)
-           
-          @@ -64,8 +75,6 @@
-               if (!path) return
-               let cancelled = false
-               const requestedPath = path
-          -    setCurrentState(null)
-          -    setCurrentError(null)
-               void Promise.allSettled([
-                 vaultListNoteHistory(requestedPath),
-                 vaultReadNote(requestedPath),
-          @@ -83,9 +92,13 @@
-           
-                 if (currentResult.status === 'fulfilled') {
-                   setCurrentState({ path: requestedPath, markdown: currentResult.value.markdown })
-          +        setCurrentError(null)
-                 } else {
-                   setCurrentState(null)
-          -        setCurrentError(currentResult.reason instanceof Error ? currentResult.reason.message : 'Could not read the current note')
-          +        setCurrentError({
-          +          path: requestedPath,
-          +          message: currentResult.reason instanceof Error ? currentResult.reason.message : 'Could not read the current note',
-          +        })
-                 }
-                 setConfirmRestore(false)
-               })
-          @@ -94,37 +107,47 @@
-               }
-             }, [path])
-           
-          +  const loadedHistoryPath = revisionState?.path ?? null
-          +
-             useEffect(() => {
-          -    if (!path || !selectedId) return
-          +    if (!path || !selectedId || loadedHistoryPath !== path) return
-               let cancelled = false
-               const requestedPath = path
-               const requestedRevision = selectedId
-          -    setPreviewState(null)
-          -    setPreviewError(null)
-               void vaultReadNoteHistoryRevision(requestedPath, requestedRevision)
-                 .then((markdown) => {
-                   if (!cancelled) {
-                     setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })
-          +          setPreviewError(null)
-                   }
-                 })
-                 .catch((error: unknown) => {
-                   if (!cancelled) {
-                     setPreviewState(null)
-          -          setPreviewError(error instanceof Error ? error.message : 'Could not load this revision')
-          +          setPreviewError({
-          +            path: requestedPath,
-          +            revisionId: requestedRevision,
-          +            message: error instanceof Error ? error.message : 'Could not load this revision',
-          +          })
-                   }
-                 })
-               return () => {
-                 cancelled = true
-               }
-          -  }, [path, selectedId])
-          +  }, [loadedHistoryPath, path, selectedId])
-           
-          -  const revisions = revisionState?.path === path ? revisionState.rows : []
-          +  const revisions = loadedHistoryPath === path ? revisionState?.rows ?? [] : []
-             const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
-             const previewReady = previewState?.path === path && previewState.revisionId === selectedId
-             const currentReady = currentState?.path === path
-             const preview = previewReady ? previewState.markdown : ''
-             const currentMarkdown = currentReady ? currentState.markdown : ''
-          -  const canRestore = Boolean(selectedId && previewReady && currentReady && !previewError && !currentError)
-          +  const previewErrorMessage =
-          +    previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
-          +  const currentErrorMessage = currentError?.path === path ? currentError.message : null
-          +  const canRestore = Boolean(
-          +    selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
-          +  )
-           
-             const restore = async () => {
-               if (!path || !selectedId || !canRestore) return
-          @@ -205,14 +228,14 @@
-                           className="note-history-restore-confirmation"
-                         />
-                       ) : null}
-          -            {previewError ? (
-          +            {previewErrorMessage ? (
-                         <p className="settings-status warn" role="alert">
-          -                Revision preview unavailable: {previewError}. Restore is disabled until the revision can be read.
-          +                Revision preview unavailable: {previewErrorMessage}. Restore is disabled until the revision can be read.
-                         </p>
-                       ) : null}
-          -            {currentError ? (
-          +            {currentErrorMessage ? (
-                         <p className="settings-status warn" role="alert">
-          -                Current note preview unavailable: {currentError}. Restore is disabled until the current note can be compared.
-          +                Current note preview unavailable: {currentErrorMessage}. Restore is disabled until the current note can be compared.
-                         </p>
-                       ) : null}
-                       <div className="note-history-compare" aria-label="Current note and selected revision comparison">
-          --- a/src/components/SettingsPanel.tsx
-          +++ b/src/components/SettingsPanel.tsx
-          @@ -216,15 +216,8 @@
-             }, [config.daily_note])
-           
-             useEffect(() => {
-          -    if (!vaultOpen || !nativeReady) {
-          -      setConfigReady(false)
-          -      setConfigLoadError(null)
-          -      return
-          -    }
-          +    if (!vaultOpen || !nativeReady) return
-               let cancelled = false
-          -    setConfigReady(false)
-          -    setConfigLoadError(null)
-          -    setStatus('Loading vault configuration…')
-               void vaultLoadConfig()
-                 .then((loaded) => {
-                   if (cancelled) return
-          @@ -241,6 +234,7 @@
-                     extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
-                   })
-                   setConfigReady(true)
-          +        setConfigLoadError(null)
-                   setStatus('Vault configuration loaded. Save is explicit.')
-                 })
-                 .catch((error: unknown) => {
-          --- a/src/components/StatusDockPanel.tsx
-          +++ b/src/components/StatusDockPanel.tsx
-          @@ -109,7 +109,7 @@
-                 </div>
-           
-                 {activeTab === 'problems' && expanded ? (
-          -        <div id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">
-          +        <div className="dock-panel diagnostics-dock-panel" id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">
-                   {issuesPanel}
-                 </div>
-               ) : null}
-          --- a/src/hooks/useWorkspaceChrome.ts
-          +++ b/src/hooks/useWorkspaceChrome.ts
-          @@ -57,9 +57,10 @@
-             showTopBar: true,
-             showModeStrip: true,
-             showQuickActions: true,
-          -  // Workspace-mode destinations and infrequent utilities remain available in
-          -  // the command palette/customizer without competing with writing controls.
-          -  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore'],
-          +  // Workspace-mode destinations remain available in the command palette and
-          +  // customizer without competing with writing controls. Wide layouts keep the
-          +  // icon-only support/store utilities visible; responsive CSS yields them first.
-          +  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas'],
-             topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
-             topBarHiddenGroups: [],
-             topBarGroupWidths: {},
-          --- a/src/styles/app/dock-settings.css
-          +++ b/src/styles/app/dock-settings.css
-          @@ -204,6 +204,17 @@
-             overflow: auto;
-           }
-           
-          +.diagnostics-dock-panel .diagnostics-panel {
-          +  position: static;
-          +  inset: auto;
-          +  width: auto;
-          +  max-height: none;
-          +  border: 0;
-          +  border-radius: 0;
-          +  box-shadow: none;
-          +  background: transparent;
-          +}
-          +
-           .dock-panel header {
-             display: flex;
-             align-items: center;
-          --- a/src/styles/app/workspace-geometry-contract.css
-          +++ b/src/styles/app/workspace-geometry-contract.css
-          @@ -106,7 +106,7 @@
-            * than allowing controls to sit beyond the writing column. The buttons keep
-            * explicit accessible names and titles; only redundant visible labels and
-            * chevrons are removed while space is constrained. */
-          -@container (max-width: 620px) {
-          +@container (max-width: 720px) {
-             .editor-primary-formatting > .editor-structure-menu > button,
-             .editor-primary-formatting > .insert-menu > button,
-             .editor-primary-formatting > .typography-menu > button,
-          PATCH
-          git apply --check /tmp/ui-fix.patch
-          git apply /tmp/ui-fix.patch
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, count: int = 1) -> None:
+              target = Path(path)
+              text = target.read_text()
+              found = text.count(old)
+              if found < count:
+                  raise SystemExit(f"{path}: expected at least {count} occurrence(s), found {found}: {old!r}")
+              target.write_text(text.replace(old, new, count))
+
+          replace(
+              'e2e/capability-surface.spec.ts',
+              "    await expect(zenLayout).toHaveAttribute('aria-current', 'true')",
+              "    await expect(page.locator('html')).toHaveClass(/scriptor-distraction-free/)\n"
+              "    await expect(page.locator('.editor-toolbar')).toHaveCSS('pointer-events', 'none')",
+          )
+
+          replace('src/App.tsx', '    setSplitPreview,\n', '')
+          replace('src/App.tsx', '    splitPreview,\n', '')
+          replace('src/components/InsertMenu.tsx', '        aria-label="Insert content"', '        aria-label="Insert"')
+
+          history = 'src/components/NoteHistoryPanel.tsx'
+          replace(
+              history,
+              "interface CurrentNoteState {\n  path: string\n  markdown: string\n}\n\n/** Formats persisted revision timestamps",
+              "interface CurrentNoteState {\n  path: string\n  markdown: string\n}\n\n"
+              "interface PreviewErrorState {\n  path: string\n  revisionId: string\n  message: string\n}\n\n"
+              "interface CurrentErrorState {\n  path: string\n  message: string\n}\n\n"
+              "/** Formats persisted revision timestamps",
+          )
+          replace(history, '  const [previewError, setPreviewError] = useState<string | null>(null)', '  const [previewError, setPreviewError] = useState<PreviewErrorState | null>(null)')
+          replace(history, '  const [currentError, setCurrentError] = useState<string | null>(null)', '  const [currentError, setCurrentError] = useState<CurrentErrorState | null>(null)')
+          replace(history, '    setCurrentState(null)\n    setCurrentError(null)\n', '')
+          replace(
+              history,
+              '        setCurrentState({ path: requestedPath, markdown: currentResult.value.markdown })',
+              '        setCurrentState({ path: requestedPath, markdown: currentResult.value.markdown })\n        setCurrentError(null)',
+          )
+          replace(
+              history,
+              "        setCurrentError(currentResult.reason instanceof Error ? currentResult.reason.message : 'Could not read the current note')",
+              "        setCurrentError({\n          path: requestedPath,\n          message: currentResult.reason instanceof Error ? currentResult.reason.message : 'Could not read the current note',\n        })",
+          )
+          replace(history, '  }, [path])\n\n  useEffect(() => {', '  }, [path])\n\n  const loadedHistoryPath = revisionState?.path ?? null\n\n  useEffect(() => {')
+          replace(history, '    if (!path || !selectedId) return', '    if (!path || !selectedId || loadedHistoryPath !== path) return')
+          replace(history, '    setPreviewState(null)\n    setPreviewError(null)\n', '')
+          replace(
+              history,
+              '          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })',
+              '          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })\n          setPreviewError(null)',
+          )
+          replace(
+              history,
+              "          setPreviewError(error instanceof Error ? error.message : 'Could not load this revision')",
+              "          setPreviewError({\n            path: requestedPath,\n            revisionId: requestedRevision,\n            message: error instanceof Error ? error.message : 'Could not load this revision',\n          })",
+          )
+          replace(history, '  }, [path, selectedId])', '  }, [loadedHistoryPath, path, selectedId])')
+          replace(history, '  const revisions = revisionState?.path === path ? revisionState.rows : []', '  const revisions = loadedHistoryPath === path ? revisionState?.rows ?? [] : []')
+          replace(
+              history,
+              '  const canRestore = Boolean(selectedId && previewReady && currentReady && !previewError && !currentError)',
+              "  const previewErrorMessage =\n    previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null\n"
+              "  const currentErrorMessage = currentError?.path === path ? currentError.message : null\n"
+              "  const canRestore = Boolean(\n    selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,\n  )",
+          )
+          replace(history, '            {previewError ? (', '            {previewErrorMessage ? (')
+          replace(history, '                Revision preview unavailable: {previewError}. Restore is disabled until the revision can be read.', '                Revision preview unavailable: {previewErrorMessage}. Restore is disabled until the revision can be read.')
+          replace(history, '            {currentError ? (', '            {currentErrorMessage ? (')
+          replace(history, '                Current note preview unavailable: {currentError}. Restore is disabled until the current note can be compared.', '                Current note preview unavailable: {currentErrorMessage}. Restore is disabled until the current note can be compared.')
+
+          settings = 'src/components/SettingsPanel.tsx'
+          replace(
+              settings,
+              "  useEffect(() => {\n    if (!vaultOpen || !nativeReady) {\n      setConfigReady(false)\n      setConfigLoadError(null)\n      return\n    }\n    let cancelled = false\n    setConfigReady(false)\n    setConfigLoadError(null)\n    setStatus('Loading vault configuration…')\n    void vaultLoadConfig()",
+              "  useEffect(() => {\n    if (!vaultOpen || !nativeReady) return\n    let cancelled = false\n    void vaultLoadConfig()",
+          )
+          replace(settings, '        setConfigReady(true)\n        setStatus(', '        setConfigReady(true)\n        setConfigLoadError(null)\n        setStatus(')
+
+          replace(
+              'src/components/StatusDockPanel.tsx',
+              '        <div id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">',
+              '        <div className="dock-panel diagnostics-dock-panel" id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">',
+          )
+          replace(
+              'src/hooks/useWorkspaceChrome.ts',
+              "  // Workspace-mode destinations and infrequent utilities remain available in\n  // the command palette/customizer without competing with writing controls.\n  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore'],",
+              "  // Workspace-mode destinations remain available in the command palette and\n  // customizer without competing with writing controls. Wide layouts keep the\n  // icon-only support/store utilities visible; responsive CSS yields them first.\n  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas'],",
+          )
+          replace(
+              'src/styles/app/dock-settings.css',
+              '.dock-panel header {',
+              ".diagnostics-dock-panel .diagnostics-panel {\n  position: static;\n  inset: auto;\n  width: auto;\n  max-height: none;\n  border: 0;\n  border-radius: 0;\n  box-shadow: none;\n  background: transparent;\n}\n\n.dock-panel header {",
+          )
+          replace('src/styles/app/workspace-geometry-contract.css', '@container (max-width: 620px) {', '@container (max-width: 720px) {')
+          PY
           rm .github/workflows/tmp-ui-remediation-followup.yml
           git diff --check
           git config user.name 'github-actions[bot]'
