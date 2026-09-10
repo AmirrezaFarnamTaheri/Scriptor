@@ -14,6 +14,7 @@ import {
   Quote,
   Sparkles,
   SpellCheck,
+  SlidersHorizontal,
   StickyNote,
   Target,
   Terminal,
@@ -102,11 +103,15 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
           event.preventDefault()
           setOpen(true)
         }}
+        aria-label="Editor tools"
+        title="Editor tools"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        Tools <ChevronDown size={14} aria-hidden="true" />
+        <SlidersHorizontal size={14} aria-hidden="true" />
+        <span className="toolbar-menu-trigger-label">Tools</span>
+        <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
         open={open}
