@@ -34,7 +34,7 @@ import { getNextTheme, THEME_DISPLAY_NAMES } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
-import type { WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
+import { DEFAULT_WORKSPACE_CHROME, type WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
 
 interface AppTopBarProps {
   vault: VaultDescriptor | null
@@ -117,7 +117,7 @@ export function AppTopBar({
   onToggleVaultSidebar,
   inspectorCollapsed,
   onToggleInspector,
-  chrome,
+  chrome = DEFAULT_WORKSPACE_CHROME,
   onPatchChrome,
 }: AppTopBarProps) {
   const { t } = useI18n()
