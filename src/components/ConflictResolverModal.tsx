@@ -157,7 +157,7 @@ export function ConflictResolverModal({
             <p className="health-subtitle">
               Reference only. It is not mapped to individual conflicts unless exact diff3 ancestor markers are present.
             </p>
-            <pre className="numbered-conflict-pre conflict-merged-body">{basePreview}</pre>
+            <pre className="numbered-conflict-pre conflict-ancestor-body">{basePreview}</pre>
           </details>
         ) : null}
 
