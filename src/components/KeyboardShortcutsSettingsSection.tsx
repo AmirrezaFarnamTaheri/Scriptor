@@ -109,7 +109,10 @@ export function KeyboardShortcutsSettingsSection() {
                     event.preventDefault()
                     save(entry.id, entry.defaultShortcut)
                   }}
-                  onBlur={() => save(entry.id, entry.defaultShortcut)}
+                  onBlur={() => {
+                    if (!drafts[entry.id]) return
+                    save(entry.id, entry.defaultShortcut)
+                  }}
                 />
                 {draft?.error ? (
                   <small id={`shortcut-error-${entry.id}`} className="settings-field-error" role="alert">{draft.error}</small>
