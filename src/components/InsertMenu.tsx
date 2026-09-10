@@ -48,13 +48,15 @@ export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
           event.preventDefault()
           setOpen(true)
         }}
+        aria-label="Insert content"
+        title="Insert content"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        <Plus size={14} />
-        Insert
-        <ChevronDown size={14} />
+        <Plus size={14} aria-hidden="true" />
+        <span className="toolbar-menu-trigger-label">Insert</span>
+        <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
         open={open}
