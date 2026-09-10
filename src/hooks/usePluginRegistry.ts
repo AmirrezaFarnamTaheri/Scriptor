@@ -111,10 +111,6 @@ export function usePluginRegistry(
     }
   }, [bump, registry])
 
-  // Native first-party capabilities are persisted per vault. Once manifests
-  // and consent are available, restore runtime enablement from that authority.
-  // The generation check prevents a slower startup read from overwriting a
-  // toggle/consent mutation that started after the read was issued.
   useEffect(() => {
     if (!manifestsReady || !activeVaultId) return
     let cancelled = false
@@ -273,9 +269,6 @@ export function usePluginRegistry(
       const requiredPermissions = new Set(
         pluginManifest?.permissions.filter((entry) => !entry.optional).map((entry) => entry.permission) ?? [],
       )
-      // The current consent UI has no independent optional-permission control.
-      // Never treat optional (notably `dangerous`) permissions as implicitly
-      // approved just because the manifest declared them.
       const requestedRequired = consent.grantedPermissions.filter((permission) =>
         requiredPermissions.has(permission),
       )
@@ -302,9 +295,6 @@ export function usePluginRegistry(
           await setPluginCapabilityEnabled(plugin.manifest.capabilityId!, false)
         } catch (error) {
           console.error(`Failed to synchronize consent for plugin ${pluginId}`, error)
-          // Keep authorities aligned: the native capability is still enabled,
-          // so restore the prior runtime consent/enablement instead of persisting
-          // a policy that only one side accepted.
           if (previousConsent) {
             registry.setConsent(pluginId, previousConsent)
             registry.setEnabled(pluginId, true, activeVaultId)
@@ -334,8 +324,16 @@ export function usePluginRegistry(
         ? previousConsent.allowedVaultIds.filter((vaultId) => vaultId !== activeVaultId)
         : []
 
-      // Revoking the active vault should not erase consent for other vaults.
       if (activeVaultId && remainingVaultIds.length > 0) {
+        try {
+          if (plugin?.manifest.capabilityId) {
+            markNativeMutation()
+            await setPluginCapabilityEnabled(plugin.manifest.capabilityId, false)
+          }
+        } catch (error) {
+          console.error(`Failed to disable native capability while revoking ${pluginId}`, error)
+          return
+        }
         registry.setConsent(pluginId, {
           ...previousConsent,
           allowedVaultIds: remainingVaultIds,
@@ -386,7 +384,6 @@ export function usePluginRegistry(
       .then(setMarketplaceCatalog)
       .catch(() => {
         remoteCatalogRequested.current = false
-        // keep bundled catalog on remote fetch failure
       })
   }, [options.marketplaceActive])
 
