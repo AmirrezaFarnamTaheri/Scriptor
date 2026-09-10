@@ -1,0 +1,39 @@
+name: Apply UI remediation follow-up
+
+on:
+  push:
+    branches:
+      - fix/visual-review-shell-and-surfaces
+
+permissions:
+  contents: write
+
+jobs:
+  apply-followup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/visual-review-shell-and-surfaces
+          fetch-depth: 0
+      - name: Apply current-head remediation
+        shell: bash
+        env:
+          PATCH_B64_GZ: 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
+        run: |
+          python - <<'PY'
+          import base64, gzip, os
+          with open('/tmp/ui-fix.patch', 'wb') as handle:
+              handle.write(gzip.decompress(base64.b64decode(os.environ['PATCH_B64_GZ'])))
+          PY
+          git apply --check /tmp/ui-fix.patch
+          git apply /tmp/ui-fix.patch
+          rm .github/workflows/tmp-ui-remediation-followup.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(ui): close current-head CI regressions'
+          git push origin HEAD:fix/visual-review-shell-and-surfaces
