@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { Settings } from 'lucide-react'
 
@@ -37,6 +37,29 @@ function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): bool
     a.graphDepth === b.graphDepth &&
     a.distractionFree === b.distractionFree
   )
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function mergeEditedValue(current: unknown, baseline: unknown, edited: unknown): unknown {
+  if (valuesEqual(edited, baseline)) return current
+  if (!isPlainRecord(current) || !isPlainRecord(baseline) || !isPlainRecord(edited)) return edited
+
+  const next: Record<string, unknown> = { ...current }
+  for (const key of Object.keys(edited)) {
+    next[key] = mergeEditedValue(current[key], baseline[key], edited[key])
+  }
+  return next
+}
+
+function mergeEditedVaultConfig(current: VaultConfig, baseline: VaultConfig, edited: VaultConfig): VaultConfig {
+  return mergeEditedValue(current, baseline, edited) as VaultConfig
 }
 
 function LayoutPresetGallery({
@@ -189,6 +212,7 @@ export function SettingsPanel({
   const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
+  const configBaselineRef = useRef<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [configReady, setConfigReady] = useState(false)
   const [configLoadError, setConfigLoadError] = useState<string | null>(null)
   const [configReloadToken, setConfigReloadToken] = useState(0)
@@ -221,7 +245,7 @@ export function SettingsPanel({
     void vaultLoadConfig()
       .then((loaded) => {
         if (cancelled) return
-        setConfig({
+        const nextConfig: VaultConfig = {
           ...DEFAULT_VAULT_CONFIG,
           ...loaded,
           daily_note: { ...DEFAULT_VAULT_CONFIG.daily_note, ...loaded.daily_note },
@@ -232,7 +256,9 @@ export function SettingsPanel({
           },
           graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
           extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
-        })
+        }
+        configBaselineRef.current = nextConfig
+        setConfig(nextConfig)
         setConfigReady(true)
         setConfigLoadError(null)
         setStatus('Vault configuration loaded. Save is explicit.')
@@ -271,7 +297,10 @@ export function SettingsPanel({
     if (!nativeReady || !configReady) return
     setStatus('Saving…')
     try {
-      await mutateVaultConfig((current) => ({ ...current, ...config, mcp: current.mcp }))
+      const baseline = configBaselineRef.current
+      const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config))
+      configBaselineRef.current = saved
+      setConfig(saved)
       setStatus('Vault config saved to `.scriptor/config.json`.')
       onConfigSaved?.()
     } catch (error) {
