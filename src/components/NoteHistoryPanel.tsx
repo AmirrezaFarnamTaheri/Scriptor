@@ -218,13 +218,13 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
             <div className="note-history-compare" aria-label="Current note and selected revision comparison">
               <section aria-labelledby="note-history-current-heading">
                 <h3 id="note-history-current-heading">Current note</h3>
-                <pre className="note-history-markdown">
+                <pre className="note-history-markdown note-history-current-markdown">
                   {currentReady ? currentMarkdown : 'Loading current note…'}
                 </pre>
               </section>
               <section aria-labelledby="note-history-revision-heading">
                 <h3 id="note-history-revision-heading">Selected revision</h3>
-                <pre className="note-history-markdown">
+                <pre className="note-history-markdown note-history-revision-markdown">
                   {previewReady ? preview : selectedId ? 'Loading revision…' : 'Select a revision to preview.'}
                 </pre>
               </section>
