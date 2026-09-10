@@ -62,4 +62,8 @@ This checklist tracks the second native-vision review of the Windows workspace a
 
 Every checked item has at least one of: a focused unit/component test, an E2E interaction assertion, an accessibility assertion, or a visual contract covering the affected state. Screenshot tests are being tightened so an absent feature fails instead of silently capturing a fallback surface.
 
+The latest recovery pass also removed the second `splitPreview` UI authority: `chrome.editorSurfaceMode` now drives Source/Split/Rendered state, layout presets and palette toggles route through that authority, and the inspector receives the same effective state. E2E workspace-chrome fixtures now use the production versioned-storage envelope, so tests no longer silently fall back to default chrome when they intended to exercise a custom layout. Stale accessible-name and overly broad locators discovered by the prior CI run were repaired at the same time.
+
+The temporary branch-only write workflow used to atomically apply that large cross-file recovery removed itself after the successful commit; it is not part of the proposed product/CI surface.
+
 The PR remains draft until current-head CI, desktop compile, and visual-review runs are green and the unchecked items above are either implemented or explicitly split into follow-up scope with evidence.
