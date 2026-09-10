@@ -63,7 +63,7 @@ async function waitForEditorReady(page: Page) {
 }
 
 async function waitForInspectorReady(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Note Health' })).toBeVisible({ timeout: 45_000 })
+  await expect(page.getByRole('heading', { name: 'Vault health' })).toBeVisible({ timeout: 45_000 })
   await expect(page.locator('.widget-action')).toHaveText('Good', { timeout: 45_000 })
   await expect(page.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
   await settleLayout(page)

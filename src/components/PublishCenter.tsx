@@ -91,7 +91,7 @@ export function PublishCenter({
       title="Export & publish"
       subtitle={subtitle}
       icon={<FileOutput size={18} />}
-      ariaLabel="Export and publish"
+      ariaLabel="Export & publish"
       onClose={onClose}
       className="publish-center-panel knowledge-filters-panel"
       wide

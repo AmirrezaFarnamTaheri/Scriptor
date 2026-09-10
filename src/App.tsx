@@ -365,6 +365,16 @@ function App() {
     refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
     setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
   })
+  const setEditorSurfaceMode = useCallback(
+    (mode: 'source' | 'split' | 'rendered') => {
+      patchChrome({ editorSurfaceMode: mode })
+      setActiveMode(mode === 'rendered' ? 'preview' : 'inspector')
+    },
+    [patchChrome, setActiveMode],
+  )
+
+  const splitPreviewActive = chrome.editorSurfaceMode === 'split'
+
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vault?.id,
@@ -380,9 +390,9 @@ function App() {
   )
   const storeSurface = useStoreSurfaceController({
     workspaceMode,
-    currentLayout: { splitPreview, showStickies: stickiesVisible, graphDepth, distractionFree },
+    currentLayout: { splitPreview: splitPreviewActive, showStickies: stickiesVisible, graphDepth, distractionFree },
     applyLayout,
-    setSplitPreview,
+    setEditorSurfaceMode,
     setStickiesVisible,
     setGraphDepth,
     setDistractionFree,
@@ -455,8 +465,7 @@ function App() {
     () => (workspace.vault && nativeReady ? bibliographyRaw : []),
     [bibliographyRaw, nativeReady, workspace.vault],
   )
-  const showSplitPreview =
-    (chrome.editorSurfaceMode === 'split' || splitPreview) && Boolean(workspace.activePath)
+  const showSplitPreview = splitPreviewActive && Boolean(workspace.activePath)
   const {
     editorWidth: splitEditorWidth,
     dragging: splitDragging,
@@ -588,13 +597,13 @@ function App() {
   const handleWorkspaceModeChange = useCallback(
     (mode: WorkspaceMode) => {
       saveCurrentAsLayout(workspaceMode, {
-        splitPreview,
+        splitPreview: splitPreviewActive,
         showStickies: stickiesVisible,
         graphDepth,
         distractionFree,
       })
       const nextLayout = layouts[mode]
-      setSplitPreview(nextLayout.splitPreview)
+      setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')
       setStickiesVisible(nextLayout.showStickies)
       setGraphDepth(nextLayout.graphDepth)
       setDistractionFree(nextLayout.distractionFree)
@@ -615,10 +624,10 @@ function App() {
       setHealthDashboardOpen,
       setMcpPanelOpen,
       setPublishCenterOpen,
-      setSplitPreview,
+      setEditorSurfaceMode,
       setStickiesVisible,
       setWorkspaceMode,
-      splitPreview,
+      splitPreviewActive,
       stickiesVisible,
       workspaceMode,
     ],
@@ -629,7 +638,7 @@ function App() {
       resetLayout(mode)
       if (mode !== workspaceMode) return
       const nextLayout = DEFAULT_WORKSPACE_LAYOUTS[mode]
-      setSplitPreview(nextLayout.splitPreview)
+      setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')
       setStickiesVisible(nextLayout.showStickies)
       setGraphDepth(nextLayout.graphDepth)
       setDistractionFree(nextLayout.distractionFree)
@@ -638,7 +647,7 @@ function App() {
       resetLayout,
       setDistractionFree,
       setGraphDepth,
-      setSplitPreview,
+      setEditorSurfaceMode,
       setStickiesVisible,
       workspaceMode,
     ],
@@ -714,23 +723,6 @@ function App() {
     [plugins.contributions.commands],
   )
 
-  const setEditorSurfaceMode = useCallback(
-    (mode: 'source' | 'split' | 'rendered') => {
-      patchChrome({ editorSurfaceMode: mode })
-      if (mode === 'source') {
-        setSplitPreview(false)
-        setActiveMode('inspector')
-      } else if (mode === 'split') {
-        setSplitPreview(true)
-        setActiveMode('inspector')
-      } else {
-        setSplitPreview(false)
-        setActiveMode('preview')
-      }
-    },
-    [patchChrome, setActiveMode, setSplitPreview],
-  )
-
   const deleteActiveNote = useCallback(async () => {
     if (!workspace.activePath || !nativeReady) return
     await deleteNoteController.deleteNote(workspace.activePath)
@@ -769,8 +761,7 @@ function App() {
         mcp,
         graphDepth,
         graphFullVault,
-        splitPreview,
-        setSplitPreview,
+        splitPreview: splitPreviewActive,
         setStatusDockTab,
         setGraphOpen,
         setCanvasOpen,
@@ -861,14 +852,13 @@ function App() {
       setQuickCaptureOpen,
       setReaderOpen,
       setSettingsOpen,
-      setSplitPreview,
       setStatusDockTab,
       setSnippetsOpen,
       setTemplatePickerOpen,
       setObsidianImportOpen,
       setSupportOpen,
       setTasksOpen,
-      splitPreview,
+      splitPreviewActive,
       workspace,
       perfHudOpen,
       hibernateGraph,
@@ -980,7 +970,8 @@ function App() {
       </div>
       <div className="app-chrome">
         <AppTopBar
-        onPatchChrome={patchChrome}
+          chrome={chrome}
+          onPatchChrome={patchChrome}
           vault={workspace.vault}
           workspaceMode={workspaceMode}
           onWorkspaceModeChange={handleWorkspaceModeChange}
@@ -1147,8 +1138,6 @@ function App() {
           setLanguageTool={setLanguageTool}
           stickiesVisible={stickiesVisible}
           setStickiesVisible={setStickiesVisible}
-          splitPreview={splitPreview}
-          setSplitPreview={setSplitPreview}
           showSplitPreview={showSplitPreview}
           splitEditorWidth={splitEditorWidth}
           splitDragging={splitDragging}
@@ -1217,7 +1206,7 @@ function App() {
           railRef={inspectorPanelRef}
           activeMode={activeMode}
           onModeChange={setActiveMode}
-          splitPreview={splitPreview}
+          splitPreview={splitPreviewActive}
           activePath={workspace.activePath}
           previewRef={previewRef}
           draftMarkdown={deferredDraft}

@@ -100,8 +100,6 @@ interface EditorWorkspaceProps {
   setLanguageTool: (updater: (value: boolean) => boolean) => void
   stickiesVisible: boolean
   setStickiesVisible: (value: boolean) => void
-  splitPreview: boolean
-  setSplitPreview: (updater: (value: boolean) => boolean) => void
   showSplitPreview: boolean
   splitEditorWidth: string
   splitDragging: boolean

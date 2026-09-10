@@ -127,7 +127,7 @@ test.describe('visual coverage matrix', () => {
     await expectDarkSurface(page.locator('.inspector-panel'))
 
     await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
-    const publish = page.getByRole('dialog', { name: /Export and publish|Publish center/ })
+    const publish = page.getByRole('dialog', { name: /Export & publish|Publish center/ })
     await expectDarkSurface(publish)
     await expectNoHorizontalOverflow(page)
   })
