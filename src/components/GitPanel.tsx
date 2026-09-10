@@ -182,7 +182,7 @@ export function GitPanel({
     )
   }
 
-  const canPull = status.has_upstream && status.behind > 0 && !status.has_conflicts
+  const canPull = status.has_upstream && !status.has_conflicts
   const canPush = status.has_upstream && status.ahead > 0 && !status.has_conflicts
   const diverged = status.ahead > 0 && status.behind > 0
 
@@ -234,7 +234,6 @@ export function GitPanel({
               type="button"
               className="toolbar-button"
               disabled={isBusy || !canPull}
-              title={status.has_upstream && status.behind === 0 ? 'No remote commits to pull' : undefined}
               onClick={() => setPendingAction({ kind: 'pull', strategy: pullStrategy })}
             >
               {t('git.pull')}{status.behind > 0 ? ` (${status.behind})` : ''}
