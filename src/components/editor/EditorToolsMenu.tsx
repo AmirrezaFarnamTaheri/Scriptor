@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 
 import type { EditorThemeId } from '@scriptor/editor'
+import { useI18n } from '../../lib/i18n'
 import { ToolbarPopover } from '../ToolbarPopover'
 
 interface EditorToolsMenuProps {
@@ -56,6 +57,7 @@ interface EditorToolsMenuProps {
 }
 
 export function EditorToolsMenu(props: EditorToolsMenuProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerId = useId()
@@ -90,6 +92,12 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
     </li>
   )
 
+  const themeLabel = props.editorThemeSyncedToApp
+    ? t('editorTools.themeAuto')
+    : props.editorTheme === 'dark'
+      ? t('editorTools.themeDark')
+      : t('editorTools.themeLight')
+
   return (
     <div className="editor-tools-menu">
       <button
@@ -103,14 +111,14 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
           event.preventDefault()
           setOpen(true)
         }}
-        aria-label="Editor tools"
-        title="Editor tools"
+        aria-label={t('editorTools.trigger')}
+        title={t('editorTools.trigger')}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
         <SlidersHorizontal size={14} aria-hidden="true" />
-        <span className="toolbar-menu-trigger-label">Tools</span>
+        <span className="toolbar-menu-trigger-label">{t('editorTools.tools')}</span>
         <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
@@ -123,17 +131,17 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
       >
         <li role="none">
           <button type="button" role="menuitem" disabled={!props.activePath} onClick={() => closeAfter(props.onOrganizeActive)}>
-            <CheckCircle2 size={14} aria-hidden="true" /> Mark note organized
+            <CheckCircle2 size={14} aria-hidden="true" /> {t('editor.transforms.markOrganized')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => closeAfter(props.onOpenWritingTargets)}>
-            <Target size={14} aria-hidden="true" /> Writing targets
+            <Target size={14} aria-hidden="true" /> {t('editor.transforms.writingTargets')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => closeAfter(props.onOpenCheatsheet)}>
-            <BookOpen size={14} aria-hidden="true" /> Markdown cheatsheet
+            <BookOpen size={14} aria-hidden="true" /> {t('editor.transforms.cheatsheet')}
           </button>
         </li>
         <li role="none">
@@ -143,7 +151,7 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
             disabled={!props.activePath || !props.onInsertCitation}
             onClick={() => props.onInsertCitation && closeAfter(props.onInsertCitation)}
           >
-            <Quote size={14} aria-hidden="true" /> Insert citation
+            <Quote size={14} aria-hidden="true" /> {t('editorTools.insertCitation')}
           </button>
         </li>
         <li role="none">
@@ -153,51 +161,51 @@ export function EditorToolsMenu(props: EditorToolsMenuProps) {
             disabled={!props.activePath || !props.onOpenExport}
             onClick={() => props.onOpenExport && closeAfter(props.onOpenExport)}
           >
-            <FileOutput size={14} aria-hidden="true" /> Export / publish
+            <FileOutput size={14} aria-hidden="true" /> {t('editorTools.exportPublish')}
           </button>
         </li>
-        {checkboxItem('stickies', props.stickiesVisible, 'Show sticky notes', <StickyNote size={14} aria-hidden="true" />, props.onToggleStickies)}
+        {checkboxItem('stickies', props.stickiesVisible, t('editorTools.showStickyNotes'), <StickyNote size={14} aria-hidden="true" />, props.onToggleStickies)}
         <li role="separator" className="toolbar-menu-separator" />
         {checkboxItem(
           'monaco',
           props.editorMode === 'monaco',
-          'Use Monaco editor',
+          t('editorTools.useMonacoEditor'),
           <Code2 size={14} aria-hidden="true" />,
           props.onToggleEditorMode,
         )}
         {checkboxItem(
           'vim',
           props.vimMode,
-          'Vim keybindings',
+          t('editorTools.vimKeybindings'),
           <Terminal size={14} aria-hidden="true" />,
           props.onToggleVim,
           props.editorMode === 'monaco',
         )}
-        {checkboxItem('spellcheck', props.spellcheck, 'Spellcheck', <SpellCheck size={14} aria-hidden="true" />, props.onToggleSpellcheck)}
-        {checkboxItem('wysiwyg', props.wysiwyg, 'Visual Markdown', <Eye size={14} aria-hidden="true" />, props.onToggleWysiwyg)}
-        {checkboxItem('typewriter', props.typewriter, 'Typewriter mode', <AlignCenter size={14} aria-hidden="true" />, props.onToggleTypewriter)}
-        {checkboxItem('focus', props.distractionFree, 'Focus mode', <Focus size={14} aria-hidden="true" />, props.onToggleDistractionFree)}
-        {checkboxItem('language-tool', props.languageTool, 'LanguageTool grammar', <Languages size={14} aria-hidden="true" />, props.onToggleLanguageTool)}
+        {checkboxItem('spellcheck', props.spellcheck, t('editorTools.spellcheck'), <SpellCheck size={14} aria-hidden="true" />, props.onToggleSpellcheck)}
+        {checkboxItem('wysiwyg', props.wysiwyg, t('editorTools.visualMarkdown'), <Eye size={14} aria-hidden="true" />, props.onToggleWysiwyg)}
+        {checkboxItem('typewriter', props.typewriter, t('editorTools.typewriterMode'), <AlignCenter size={14} aria-hidden="true" />, props.onToggleTypewriter)}
+        {checkboxItem('focus', props.distractionFree, t('editorTools.focusMode'), <Focus size={14} aria-hidden="true" />, props.onToggleDistractionFree)}
+        {checkboxItem('language-tool', props.languageTool, t('editorTools.languageToolGrammar'), <Languages size={14} aria-hidden="true" />, props.onToggleLanguageTool)}
         <li role="none">
           <button type="button" role="menuitem" onClick={() => closeAfter(props.onToggleEditorTheme)}>
             <Palette size={14} aria-hidden="true" />
-            Editor theme: {props.editorThemeSyncedToApp ? 'Auto' : props.editorTheme === 'dark' ? 'Dark' : 'Light'}
+            {t('editorTools.editorTheme', { theme: themeLabel })}
           </button>
         </li>
         <li role="separator" className="toolbar-menu-separator" />
         <li role="none">
           <button type="button" role="menuitem" disabled={!props.activePath} onClick={() => closeAfter(props.onRenameActiveNote)}>
-            <Archive size={14} aria-hidden="true" /> Rename note
+            <Archive size={14} aria-hidden="true" /> {t('editorTools.renameNote')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" disabled={!props.activePath} onClick={() => closeAfter(props.onInsertAiSummaryPrompt)}>
-            <Sparkles size={14} aria-hidden="true" /> Insert AI summary prompt
+            <Sparkles size={14} aria-hidden="true" /> {t('editorTools.insertAiSummaryPrompt')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" disabled={!props.activePath} onClick={() => closeAfter(props.onInsertRule)}>
-            <MoreHorizontal size={14} aria-hidden="true" /> Insert horizontal rule
+            <MoreHorizontal size={14} aria-hidden="true" /> {t('editorTools.insertHorizontalRule')}
           </button>
         </li>
       </ToolbarPopover>
