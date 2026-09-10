@@ -19,7 +19,7 @@ jobs:
           ref: fix/visual-review-shell-and-surfaces
           fetch-depth: 0
 
-      - name: Apply CI and editor-surface recovery
+      - name: Apply remaining state-authority and test-contract recovery
         shell: bash
         run: |
           python3 - <<'PY'
@@ -29,12 +29,12 @@ jobs:
               p = Path(path)
               source = p.read_text()
               if old not in source:
-                  raise SystemExit(f"missing expected source in {path}: {old[:100]!r}")
+                  raise SystemExit(f"missing expected source in {path}: {old[:120]!r}")
               p.write_text(source.replace(old, new, count))
 
           app = Path('src/App.tsx')
           source = app.read_text()
-          surface_callback = """  const setEditorSurfaceMode = useCallback(
+          old_surface = """  const setEditorSurfaceMode = useCallback(
             (mode: 'source' | 'split' | 'rendered') => {
               patchChrome({ editorSurfaceMode: mode })
               if (mode === 'source') {
@@ -52,9 +52,9 @@ jobs:
           )
 
           """
-          if source.count(surface_callback) != 1:
-              raise SystemExit('unexpected editor-surface callback count')
-          source = source.replace(surface_callback, '', 1)
+          if source.count(old_surface) != 1:
+              raise SystemExit(f'unexpected editor-surface callback count: {source.count(old_surface)}')
+          source = source.replace(old_surface, '', 1)
           runtime_marker = """  const pluginCommandRuntime = usePluginCommandRuntime({
             refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
             setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
@@ -62,7 +62,16 @@ jobs:
           """
           if runtime_marker not in source:
               raise SystemExit('plugin command runtime marker missing')
-          source = source.replace(runtime_marker, runtime_marker + surface_callback + "  const splitPreviewActive = chrome.editorSurfaceMode === 'split'\n\n", 1)
+          new_surface = """  const setEditorSurfaceMode = useCallback(
+            (mode: 'source' | 'split' | 'rendered') => {
+              patchChrome({ editorSurfaceMode: mode })
+              setActiveMode(mode === 'rendered' ? 'preview' : 'inspector')
+            },
+            [patchChrome, setActiveMode],
+          )
+
+          """
+          source = source.replace(runtime_marker, runtime_marker + new_surface + "  const splitPreviewActive = chrome.editorSurfaceMode === 'split'\n\n", 1)
           source = source.replace(
               "currentLayout: { splitPreview, showStickies: stickiesVisible, graphDepth, distractionFree }",
               "currentLayout: { splitPreview: splitPreviewActive, showStickies: stickiesVisible, graphDepth, distractionFree }",
@@ -74,21 +83,20 @@ jobs:
               "  const showSplitPreview = splitPreviewActive && Boolean(workspace.activePath)\n",
               1,
           )
+          source = source.replace(
+              '        splitPreview,\n        showStickies: stickiesVisible,',
+              '        splitPreview: splitPreviewActive,\n        showStickies: stickiesVisible,',
+              1,
+          )
           if source.count('setSplitPreview(nextLayout.splitPreview)') != 2:
               raise SystemExit('workspace layout split setter count changed')
-          source = source.replace(
-              'setSplitPreview(nextLayout.splitPreview)',
-              "setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')",
-              2,
-          )
-          source = source.replace('        splitPreview,\n        showStickies: stickiesVisible,', '        splitPreview: splitPreviewActive,\n        showStickies: stickiesVisible,', 1)
+          source = source.replace('setSplitPreview(nextLayout.splitPreview)', "setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')", 2)
           source = source.replace('      setPublishCenterOpen,\n      setSplitPreview,\n      setStickiesVisible,', '      setPublishCenterOpen,\n      setEditorSurfaceMode,\n      setStickiesVisible,', 1)
           source = source.replace('      setGraphDepth,\n      setSplitPreview,\n      setStickiesVisible,\n      workspaceMode,', '      setGraphDepth,\n      setEditorSurfaceMode,\n      setStickiesVisible,\n      workspaceMode,', 1)
           source = source.replace('      setWorkspaceMode,\n      splitPreview,\n      stickiesVisible,', '      setWorkspaceMode,\n      splitPreviewActive,\n      stickiesVisible,', 1)
           source = source.replace('        graphFullVault,\n        splitPreview,\n        setSplitPreview,\n        setStatusDockTab,', '        graphFullVault,\n        splitPreview: splitPreviewActive,\n        setStatusDockTab,', 1)
           source = source.replace('      setSettingsOpen,\n      setSplitPreview,\n      setStatusDockTab,', '      setSettingsOpen,\n      setStatusDockTab,', 1)
           source = source.replace('      setTasksOpen,\n      splitPreview,\n      workspace,', '      setTasksOpen,\n      splitPreviewActive,\n      workspace,', 1)
-          source = source.replace('    splitPreview,\n    toggleEditorMode,', '    toggleEditorMode,', 1)
           source = source.replace('          splitPreview={splitPreview}\n          setSplitPreview={setSplitPreview}\n          showSplitPreview={showSplitPreview}', '          showSplitPreview={showSplitPreview}', 1)
           source = source.replace('          splitPreview={splitPreview}\n          activePath={workspace.activePath}', '          splitPreview={splitPreviewActive}\n          activePath={workspace.activePath}', 1)
           source = source.replace(
@@ -98,11 +106,7 @@ jobs:
           )
           app.write_text(source)
 
-          replace(
-              'src/hooks/useStoreSurfaceController.ts',
-              '  setSplitPreview: (updater: (current: boolean) => boolean) => void',
-              "  setEditorSurfaceMode: (mode: 'source' | 'split') => void",
-          )
+          replace('src/hooks/useStoreSurfaceController.ts', '  setSplitPreview: (updater: (current: boolean) => boolean) => void', "  setEditorSurfaceMode: (mode: 'source' | 'split') => void")
           replace('src/hooks/useStoreSurfaceController.ts', '    setSplitPreview, setStickiesVisible, setGraphDepth, setDistractionFree,', '    setEditorSurfaceMode, setStickiesVisible, setGraphDepth, setDistractionFree,')
           replace('src/hooks/useStoreSurfaceController.ts', '      setSplitPreview(() => preset.layout.splitPreview)', "      setEditorSurfaceMode(preset.layout.splitPreview ? 'split' : 'source')")
           replace('src/hooks/useStoreSurfaceController.ts', '[applyLayout, setDistractionFree, setGraphDepth, setSplitPreview, setStickiesVisible, workspaceMode]', '[applyLayout, setDistractionFree, setEditorSurfaceMode, setGraphDepth, setStickiesVisible, workspaceMode]')
@@ -113,78 +117,26 @@ jobs:
           replace('src/lib/buildPaletteCommands.test.ts', '    setSplitPreview: () => {},\n', '')
           replace('src/components/shell/EditorWorkspace.tsx', '  splitPreview: boolean\n  setSplitPreview: (updater: (value: boolean) => boolean) => void\n', '')
 
-          replace(
-              'src/components/editor/EditorStructureMenu.tsx',
-              '        aria-controls={open ? menuId : undefined}\n      >\n        Structure <ChevronDown size={14} aria-hidden="true" />\n',
-              '        aria-controls={open ? menuId : undefined}\n        title="Structure"\n      >\n        <ListTree size={14} aria-hidden="true" />\n        <span className="editor-menu-trigger-label">Structure</span>\n        <ChevronDown className="editor-menu-trigger-chevron" size={14} aria-hidden="true" />\n',
-          )
-          replace(
-              'src/components/InsertMenu.tsx',
-              '        aria-controls={open ? menuId : undefined}\n      >\n        <Plus size={14} />\n        Insert\n        <ChevronDown size={14} />\n',
-              '        aria-controls={open ? menuId : undefined}\n        title="Insert"\n      >\n        <Plus size={14} aria-hidden="true" />\n        <span className="editor-menu-trigger-label">Insert</span>\n        <ChevronDown className="editor-menu-trigger-chevron" size={14} aria-hidden="true" />\n',
-          )
-          replace('src/components/TypographyMenu.tsx', "import { ChevronDown } from 'lucide-react'", "import { ChevronDown, Type } from 'lucide-react'")
-          replace(
-              'src/components/TypographyMenu.tsx',
-              '        aria-controls={open ? menuId : undefined}\n      >\n        Typography <ChevronDown size={14} />\n',
-              '        aria-controls={open ? menuId : undefined}\n        title="Typography"\n      >\n        <Type size={14} aria-hidden="true" />\n        <span className="editor-menu-trigger-label">Typography</span>\n        <ChevronDown className="editor-menu-trigger-chevron" size={14} aria-hidden="true" />\n',
-          )
-          replace('src/components/editor/EditorToolsMenu.tsx', '  Eye,\n}', '  Eye,\n  Wrench,\n}')
-          replace(
-              'src/components/editor/EditorToolsMenu.tsx',
-              '        aria-controls={open ? menuId : undefined}\n      >\n        Tools <ChevronDown size={14} aria-hidden="true" />\n',
-              '        aria-controls={open ? menuId : undefined}\n        title="Tools"\n      >\n        <Wrench size={14} aria-hidden="true" />\n        <span className="editor-menu-trigger-label">Tools</span>\n        <ChevronDown className="editor-menu-trigger-chevron" size={14} aria-hidden="true" />\n',
-          )
-
-          geometry = Path('src/styles/app/workspace-geometry-contract.css')
-          css = geometry.read_text()
-          anchor = '/* Keep contextual actions concise without turning them into another row. */\n@container (max-width: 920px) {\n'
-          compact = '''/* Progressive disclosure: once the writing column is narrow, menu triggers
-           * collapse to stable icons while keeping their accessible names and full menus.
-           * This is actual information-architecture compaction rather than a horizontally
-           * scrolling toolbar whose right-most actions can disappear off-screen. */
-          @container (max-width: 700px) {
-            .editor-primary-formatting > .editor-structure-menu > button,
-            .editor-primary-formatting > .editor-tools-menu > button,
-            .editor-primary-formatting > .insert-menu > button,
-            .editor-primary-formatting > .typography-menu > button {
-              width: 32px;
-              min-width: 32px;
-              padding-inline: 5px;
-              gap: 0;
-            }
-
-            .editor-menu-trigger-label,
-            .editor-menu-trigger-chevron {
-              display: none;
-            }
-
-            .format-row.editor-toolbar {
-              overflow-x: hidden;
-              scrollbar-gutter: auto;
-            }
-          }
-
-          '''
-          if anchor not in css:
-              raise SystemExit('toolbar geometry anchor missing')
-          geometry.write_text(css.replace(anchor, compact + anchor, 1))
-
           replace('src/components/PublishCenter.tsx', 'ariaLabel="Export and publish"', 'ariaLabel="Export & publish"')
+
           for path in ['e2e/screenshots.spec.ts', 'e2e/visual-review.spec.ts']:
               p = Path(path)
-              p.write_text(p.read_text().replace("name: 'Note Health'", "name: 'Vault health'"))
-          p = Path('e2e/screenshots.spec.ts')
-          p.write_text(p.read_text().replace("name: 'Export and publish'", "name: 'Export & publish'").replace("name: 'Close Export and publish'", "name: 'Close Export & publish'"))
-          replace('e2e/git.spec.ts', "const merged = resolver.locator('.conflict-merged-body')", "const merged = resolver.locator('.conflict-merged-preview .conflict-merged-body')")
-          replace('e2e/workspace.spec.ts', "await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')", "await expect(historyPanel.getByLabel('Current note and selected revision comparison').locator('.note-history-markdown').nth(1)).toContainText('Previous revision')")
+              text = p.read_text()
+              if "name: 'Note Health'" not in text:
+                  raise SystemExit(f'{path}: stale Note Health selector missing')
+              p.write_text(text.replace("name: 'Note Health'", "name: 'Vault health'"))
+
           p = Path('e2e/workspace.spec.ts')
-          p.write_text(p.read_text().replace("name: 'Export and publish'", "name: 'Export & publish'"))
+          text = p.read_text()
+          text = text.replace("name: 'Export and publish'", "name: 'Export & publish'")
+          text = text.replace("await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')", "await expect(historyPanel.locator('.note-history-revision-markdown')).toContainText('Previous revision')")
+          p.write_text(text)
+
           replace('e2e/visual-coverage-matrix.spec.ts', '/Export and publish|Publish center/', '/Export & publish|Publish center/')
 
           p = Path('e2e/frontend-polish-regressions.spec.ts')
-          source = p.read_text()
-          old = '''  test('Jobs reveals its panel after the dock chrome is hidden', async ({ page }) => {
+          text = p.read_text()
+          old = """  test('Jobs reveals its panel after the dock chrome is hidden', async ({ page }) => {
             await launchApp(page)
             const jobs = page.locator('.jobs-button')
             await jobs.click()
@@ -194,8 +146,8 @@ jobs:
             await jobs.click()
             await expect(page.locator('#dock-panel-jobs')).toBeVisible()
           })
-          '''
-          new = '''  test('status summary reveals its selected panel after the dock chrome is hidden', async ({ page }) => {
+          """
+          new = """  test('status summary reveals its selected panel after the dock chrome is hidden', async ({ page }) => {
             await launchApp(page)
             const summary = page.locator('.jobs-button')
             await summary.click()
@@ -209,22 +161,12 @@ jobs:
             await summary.click()
             await expect(page.locator(`#${panelId}`)).toBeVisible()
           })
-          '''
-          if old not in source:
-              raise SystemExit('status summary regression block missing')
-          source = source.replace(old, new, 1)
-          source = source.replace("const outputTab = page.getByRole('tab', { name: 'Output' })", "const outputTab = page.locator('.bottom-tabs').getByRole('tab', { name: 'Output', exact: true })", 1)
-          p.write_text(source)
-
-          # Tests that explicitly seed chrome preferences must use the same versioned
-          # storage envelope as production; otherwise the app correctly quarantines
-          # the fixture and silently tests defaults instead of the requested state.
-          plain = "window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))"
-          enveloped = "window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify({ schemaVersion: 1, savedAt: new Date(0).toISOString(), data: chromePrefs }))"
-          for spec in Path('e2e').glob('*.spec.ts'):
-              text = spec.read_text()
-              if plain in text:
-                  spec.write_text(text.replace(plain, enveloped))
+          """
+          if old not in text:
+              raise SystemExit('status-summary regression block missing')
+          text = text.replace(old, new, 1)
+          text = text.replace("const outputTab = page.getByRole('tab', { name: 'Output' })", "const outputTab = page.locator('.bottom-tabs').getByRole('tab', { name: 'Output', exact: true })", 1)
+          p.write_text(text)
           PY
 
           rm .github/workflows/pr112-ci-recovery.yml
@@ -236,5 +178,5 @@ jobs:
           git config user.name "Farnam"
           git config user.email "taheri.farnam@gmail.com"
           git add -A
-          git commit -m "fix(ui): recover editor IA and stale visual contracts"
+          git commit -m "fix(ui): unify editor view state and repair stale E2E contracts"
           git push origin HEAD:fix/visual-review-shell-and-surfaces
