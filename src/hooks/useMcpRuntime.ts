@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { McpMode, McpToolDescriptor } from '@scriptor/core'
 import type { CommandResult } from '@scriptor/core'
 import type { McpToolContribution } from '@scriptor/core/contracts/plugin'
@@ -61,6 +61,17 @@ export function useMcpRuntime(
   )
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
   const [snapshot, setSnapshot] = useState(0)
+  const mcpMutationRevisionRef = useRef(0)
+  const optimisticMcpRef = useRef(vaultConfig.mcp)
+
+  useEffect(() => {
+    optimisticMcpRef.current = vaultConfig.mcp
+  }, [vaultConfig.mcp])
+
+  useEffect(() => {
+    mcpMutationRevisionRef.current += 1
+    optimisticMcpRef.current = vaultConfig.mcp
+  }, [vaultId])
 
   const exportProfiles = useMemo(
     () => mergePluginExportProfiles(DEFAULT_EXPORT_PROFILES, pluginExportProfiles),
@@ -73,14 +84,17 @@ export function useMcpRuntime(
         mode: nextMode === 'off' ? 'off' as const : nextMode,
         disabled: nextMode === 'off',
       }
+      const previousMcp = optimisticMcpRef.current
+      const revision = ++mcpMutationRevisionRef.current
 
-      // Reflect the requested state immediately, but persist it through the
-      // shared durable read-modify-write queue. The queue reloads the latest
-      // file before changing only `mcp`, so unrelated Settings or writing-target
-      // edits cannot be lost to a stale whole-object snapshot.
+      optimisticMcpRef.current = nextMcp
       setVaultConfig((current) => ({ ...current, mcp: nextMcp }))
       if (vaultOpen) {
         void mutateVaultConfig((current) => ({ ...current, mcp: nextMcp })).catch((error: unknown) => {
+          if (revision === mcpMutationRevisionRef.current) {
+            optimisticMcpRef.current = previousMcp
+            setVaultConfig((current) => ({ ...current, mcp: previousMcp }))
+          }
           setLastResult({
             ok: false,
             requestId: crypto.randomUUID(),
@@ -145,9 +159,6 @@ export function useMcpRuntime(
     }
   }, [exportProfiles, mode, vaultId, vaultOpen])
 
-  // One runtime for the lifetime of the hook. Recreating it on every mode
-  // toggle or daemon config push discarded all pending drafts and the entire
-  // security audit log, so mode/context are pushed in imperatively instead.
   const [runtime] = useState(() => new McpRuntime(mode, context))
 
   useEffect(() => {
@@ -252,9 +263,6 @@ export function useMcpRuntime(
         description: tool.label,
         modeRequired: tool.modeRequired,
         commandId: tool.commandId,
-        // Plugin tools bridge to arbitrary plugin commands and receive the raw
-        // MCP input (see invokeTool), so their schema must accept any object
-        // shape rather than advertise a closed, empty schema.
         inputSchema: { type: 'object' as const, properties: {}, additionalProperties: true },
       })),
     [canExecutePluginCommand, pluginMcpTools],
