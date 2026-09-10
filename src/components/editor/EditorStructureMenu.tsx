@@ -9,6 +9,7 @@ import {
   Heading2,
   Heading3,
   ListTree,
+  Pilcrow,
   Rows,
   Table,
 } from 'lucide-react'
@@ -54,11 +55,15 @@ export function EditorStructureMenu({
           event.preventDefault()
           setOpen(true)
         }}
+        aria-label="Document structure"
+        title="Document structure"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        Structure <ChevronDown size={14} aria-hidden="true" />
+        <Pilcrow size={14} aria-hidden="true" />
+        <span className="toolbar-menu-trigger-label">Structure</span>
+        <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
         open={open}
