@@ -101,6 +101,29 @@
   }
 }
 
+/* When the editor is sharing the workspace with both preview and inspector,
+ * collapse secondary menu triggers to distinct icon-sized affordances rather
+ * than allowing controls to sit beyond the writing column. The buttons keep
+ * explicit accessible names and titles; only redundant visible labels and
+ * chevrons are removed while space is constrained. */
+@container (max-width: 620px) {
+  .editor-primary-formatting > .editor-structure-menu > button,
+  .editor-primary-formatting > .insert-menu > button,
+  .editor-primary-formatting > .typography-menu > button,
+  .editor-primary-formatting > .editor-tools-menu > button {
+    width: 32px;
+    min-width: 32px;
+    padding-inline: 0;
+    justify-content: center;
+    gap: 0;
+  }
+
+  .editor-primary-formatting .toolbar-menu-trigger-label,
+  .editor-primary-formatting .toolbar-menu-trigger-chevron {
+    display: none;
+  }
+}
+
 /* Coarse-pointer safety belongs in the final geometry layer so later legacy
  * rules cannot shrink touch targets below the platform minimum. */
 @media (pointer: coarse) {
