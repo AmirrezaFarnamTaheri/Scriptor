@@ -3,6 +3,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import en from './en.json'
 import de from './de.json'
 import fa from './fa.json'
+import { getEditorToolbarTranslation } from './editorToolbarStrings'
 
 export type AppLocale = 'en' | 'de' | 'fa'
 
@@ -44,7 +45,13 @@ export function setStoredLocale(locale: AppLocale): void {
 }
 
 export function translate(locale: AppLocale, key: string): string {
-  return getNestedValue(LOCALE_DATA[locale], key) ?? getNestedValue(LOCALE_DATA.en, key) ?? key
+  return (
+    getNestedValue(LOCALE_DATA[locale], key)
+    ?? getEditorToolbarTranslation(locale, key)
+    ?? getNestedValue(LOCALE_DATA.en, key)
+    ?? getEditorToolbarTranslation('en', key)
+    ?? key
+  )
 }
 
 export function isRtl(locale: AppLocale): boolean {
