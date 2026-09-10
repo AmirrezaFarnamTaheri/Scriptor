@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Type } from 'lucide-react'
 
 import { TYPOGRAPHY_ACTIONS, type TypographyAction } from '@scriptor/editor/pure'
 import { ToolbarPopover } from './ToolbarPopover'
@@ -45,11 +45,15 @@ export function TypographyMenu({ disabled, onSelect }: TypographyMenuProps) {
           event.preventDefault()
           setOpen(true)
         }}
+        aria-label="Typography"
+        title="Typography"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        Typography <ChevronDown size={14} />
+        <Type size={14} aria-hidden="true" />
+        <span className="toolbar-menu-trigger-label">Typography</span>
+        <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
         open={open}
