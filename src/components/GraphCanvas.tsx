@@ -58,19 +58,20 @@ function directedPairKey(source: string, target: string): string {
 export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
-  const keyboardNodeIndexRef = useRef(0)
   const transformRef = useRef({ x: 0, y: 0, scale: 1 })
   const dragRef = useRef<{ startX: number; startY: number; startTx: number; startTy: number } | null>(null)
   const nodeMap = useRef(new Map<string, CanvasNode>())
   const frameRef = useRef<number | null>(null)
   const backingSizeRef = useRef({ width: 0, height: 0, dpr: 0 })
+  const [keyboardNodeIndex, setKeyboardNodeIndex] = useState(0)
+  const [keyboardFocused, setKeyboardFocused] = useState(false)
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('')
 
   useEffect(() => {
     const map = new Map<string, CanvasNode>()
     for (const node of nodes) map.set(node.id, node)
     nodeMap.current = map
-    keyboardNodeIndexRef.current = Math.min(keyboardNodeIndexRef.current, Math.max(nodes.length - 1, 0))
+    setKeyboardNodeIndex((current) => Math.min(current, Math.max(nodes.length - 1, 0)))
   }, [nodes])
 
   const primaryColor = useSemanticColor('--primary', '#6366f1')
@@ -106,6 +107,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
     const { x: tx, y: ty, scale } = transformRef.current
     const hoveredId = hoveredIdRef.current
+    const keyboardNode = keyboardFocused ? nodes[keyboardNodeIndex] : undefined
     ctx.clearRect(0, 0, width, height)
     ctx.fillStyle = surfaceColor
     ctx.fillRect(0, 0, width, height)
@@ -160,6 +162,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     for (const node of nodes) {
       const isFocus = node.path === focusPath
       const isHovered = hoveredId === node.id
+      const isKeyboardFocus = keyboardNode?.id === node.id
       const radius = isFocus || isHovered ? 18 : 14
       const fill = node.color ?? folderColor(node.path)
 
@@ -176,6 +179,14 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.stroke()
       }
 
+      if (isKeyboardFocus) {
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, isFocus ? 26 : 22, 0, Math.PI * 2)
+        ctx.strokeStyle = inkColor
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+
       ctx.fillStyle = inkColor
       ctx.font = '11px sans-serif'
       ctx.textAlign = 'center'
@@ -184,7 +195,20 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     }
 
     ctx.restore()
-  }, [nodes, edges, focusPath, width, height, primaryColor, mutedColor, inkColor, surfaceColor, reciprocalPairs])
+  }, [
+    nodes,
+    edges,
+    focusPath,
+    width,
+    height,
+    primaryColor,
+    mutedColor,
+    inkColor,
+    surfaceColor,
+    reciprocalPairs,
+    keyboardFocused,
+    keyboardNodeIndex,
+  ])
 
   useEffect(() => {
     draw()
@@ -296,29 +320,31 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
     if (nodes.length === 0) return
+    let nextIndex = keyboardNodeIndex
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       event.preventDefault()
-      keyboardNodeIndexRef.current = (keyboardNodeIndexRef.current + 1) % nodes.length
+      nextIndex = (keyboardNodeIndex + 1) % nodes.length
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
       event.preventDefault()
-      keyboardNodeIndexRef.current = (keyboardNodeIndexRef.current - 1 + nodes.length) % nodes.length
+      nextIndex = (keyboardNodeIndex - 1 + nodes.length) % nodes.length
     } else if (event.key === 'Home') {
       event.preventDefault()
-      keyboardNodeIndexRef.current = 0
+      nextIndex = 0
     } else if (event.key === 'End') {
       event.preventDefault()
-      keyboardNodeIndexRef.current = nodes.length - 1
+      nextIndex = nodes.length - 1
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
-      const node = nodes[keyboardNodeIndexRef.current]
+      const node = nodes[keyboardNodeIndex]
       if (node?.path) onSelectNode(node.path)
       return
     } else {
       return
     }
-    const node = nodes[keyboardNodeIndexRef.current]
-    if (node) setKeyboardAnnouncement(`${node.label}, node ${keyboardNodeIndexRef.current + 1} of ${nodes.length}`)
-  }, [nodes, onSelectNode])
+    setKeyboardNodeIndex(nextIndex)
+    const node = nodes[nextIndex]
+    if (node) setKeyboardAnnouncement(`${node.label}, node ${nextIndex + 1} of ${nodes.length}`)
+  }, [keyboardNodeIndex, nodes, onSelectNode])
 
   return (
     <div className="graph-canvas-accessible-shell">
@@ -328,6 +354,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         role="application"
         tabIndex={0}
         aria-label={`Knowledge graph with ${nodes.length} nodes and ${edges.length} directed edges. Use arrow keys to browse nodes and Enter to open one.`}
+        onFocus={() => setKeyboardFocused(true)}
+        onBlur={() => setKeyboardFocused(false)}
         onKeyDown={handleKeyDown}
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
