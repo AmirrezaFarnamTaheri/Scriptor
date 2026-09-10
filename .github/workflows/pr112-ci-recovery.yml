@@ -24,6 +24,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           def replace(path: str, old: str, new: str, count: int = 1) -> None:
               p = Path(path)
@@ -34,44 +35,29 @@ jobs:
 
           app = Path('src/App.tsx')
           source = app.read_text()
-          old_surface = """  const setEditorSurfaceMode = useCallback(
-            (mode: 'source' | 'split' | 'rendered') => {
-              patchChrome({ editorSurfaceMode: mode })
-              if (mode === 'source') {
-                setSplitPreview(false)
-                setActiveMode('inspector')
-              } else if (mode === 'split') {
-                setSplitPreview(true)
-                setActiveMode('inspector')
-              } else {
-                setSplitPreview(false)
-                setActiveMode('preview')
-              }
-            },
-            [patchChrome, setActiveMode, setSplitPreview],
-          )
+          start = source.find('  const setEditorSurfaceMode = useCallback(')
+          if start < 0:
+              raise SystemExit('editor-surface callback start missing')
+          end = source.find('  const deleteActiveNote = useCallback(', start)
+          if end < 0:
+              raise SystemExit('editor-surface callback end marker missing')
+          source = source[:start] + source[end:]
 
-          """
-          if source.count(old_surface) != 1:
-              raise SystemExit(f'unexpected editor-surface callback count: {source.count(old_surface)}')
-          source = source.replace(old_surface, '', 1)
-          runtime_marker = """  const pluginCommandRuntime = usePluginCommandRuntime({
-            refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
-            setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
-          })
-          """
-          if runtime_marker not in source:
-              raise SystemExit('plugin command runtime marker missing')
-          new_surface = """  const setEditorSurfaceMode = useCallback(
-            (mode: 'source' | 'split' | 'rendered') => {
-              patchChrome({ editorSurfaceMode: mode })
-              setActiveMode(mode === 'rendered' ? 'preview' : 'inspector')
-            },
-            [patchChrome, setActiveMode],
+          mcp_marker = '  const mcp = useMcpRuntime('
+          mcp_at = source.find(mcp_marker)
+          if mcp_at < 0:
+              raise SystemExit('MCP runtime marker missing')
+          new_surface = (
+              "  const setEditorSurfaceMode = useCallback(\n"
+              "    (mode: 'source' | 'split' | 'rendered') => {\n"
+              "      patchChrome({ editorSurfaceMode: mode })\n"
+              "      setActiveMode(mode === 'rendered' ? 'preview' : 'inspector')\n"
+              "    },\n"
+              "    [patchChrome, setActiveMode],\n"
+              "  )\n\n"
+              "  const splitPreviewActive = chrome.editorSurfaceMode === 'split'\n\n"
           )
-
-          """
-          source = source.replace(runtime_marker, runtime_marker + new_surface + "  const splitPreviewActive = chrome.editorSurfaceMode === 'split'\n\n", 1)
+          source = source[:mcp_at] + new_surface + source[mcp_at:]
           source = source.replace(
               "currentLayout: { splitPreview, showStickies: stickiesVisible, graphDepth, distractionFree }",
               "currentLayout: { splitPreview: splitPreviewActive, showStickies: stickiesVisible, graphDepth, distractionFree }",
@@ -83,11 +69,7 @@ jobs:
               "  const showSplitPreview = splitPreviewActive && Boolean(workspace.activePath)\n",
               1,
           )
-          source = source.replace(
-              '        splitPreview,\n        showStickies: stickiesVisible,',
-              '        splitPreview: splitPreviewActive,\n        showStickies: stickiesVisible,',
-              1,
-          )
+          source = source.replace('        splitPreview,\n        showStickies: stickiesVisible,', '        splitPreview: splitPreviewActive,\n        showStickies: stickiesVisible,', 1)
           if source.count('setSplitPreview(nextLayout.splitPreview)') != 2:
               raise SystemExit('workspace layout split setter count changed')
           source = source.replace('setSplitPreview(nextLayout.splitPreview)', "setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')", 2)
@@ -116,7 +98,6 @@ jobs:
           replace('src/lib/buildPaletteCommands.ts', 'run: () => setSplitPreview((value) => !value)', "run: () => setEditorSurfaceMode?.(splitPreview ? 'source' : 'split')")
           replace('src/lib/buildPaletteCommands.test.ts', '    setSplitPreview: () => {},\n', '')
           replace('src/components/shell/EditorWorkspace.tsx', '  splitPreview: boolean\n  setSplitPreview: (updater: (value: boolean) => boolean) => void\n', '')
-
           replace('src/components/PublishCenter.tsx', 'ariaLabel="Export and publish"', 'ariaLabel="Export & publish"')
 
           for path in ['e2e/screenshots.spec.ts', 'e2e/visual-review.spec.ts']:
@@ -131,41 +112,34 @@ jobs:
           text = text.replace("name: 'Export and publish'", "name: 'Export & publish'")
           text = text.replace("await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')", "await expect(historyPanel.locator('.note-history-revision-markdown')).toContainText('Previous revision')")
           p.write_text(text)
-
           replace('e2e/visual-coverage-matrix.spec.ts', '/Export and publish|Publish center/', '/Export & publish|Publish center/')
 
           p = Path('e2e/frontend-polish-regressions.spec.ts')
           text = p.read_text()
-          old = """  test('Jobs reveals its panel after the dock chrome is hidden', async ({ page }) => {
-            await launchApp(page)
-            const jobs = page.locator('.jobs-button')
-            await jobs.click()
-            await expect(page.locator('#dock-panel-jobs')).toBeVisible()
-            await page.getByRole('button', { name: 'Hide status dock tabs', exact: true }).click()
-            await expect(page.locator('#dock-panel-jobs')).toHaveCount(0)
-            await jobs.click()
-            await expect(page.locator('#dock-panel-jobs')).toBeVisible()
-          })
-          """
-          new = """  test('status summary reveals its selected panel after the dock chrome is hidden', async ({ page }) => {
-            await launchApp(page)
-            const summary = page.locator('.jobs-button')
-            await summary.click()
-            const selectedTab = page.locator('.bottom-tabs [role="tab"][aria-selected="true"]')
-            await expect(selectedTab).toBeVisible()
-            const panelId = await selectedTab.getAttribute('aria-controls')
-            expect(panelId).toBeTruthy()
-            await expect(page.locator(`#${panelId}`)).toBeVisible()
-            await page.getByRole('button', { name: 'Hide status dock tabs', exact: true }).click()
-            await expect(page.locator(`#${panelId}`)).toHaveCount(0)
-            await summary.click()
-            await expect(page.locator(`#${panelId}`)).toBeVisible()
-          })
-          """
-          if old not in text:
+          pattern = re.compile(r"  test\('Jobs reveals its panel after the dock chrome is hidden'.*?\n  \}\)\n\n", re.S)
+          replacement = (
+              "  test('status summary reveals its selected panel after the dock chrome is hidden', async ({ page }) => {\n"
+              "    await launchApp(page)\n"
+              "    const summary = page.locator('.jobs-button')\n"
+              "    await summary.click()\n"
+              "    const selectedTab = page.locator('.bottom-tabs [role=\"tab\"][aria-selected=\"true\"]')\n"
+              "    await expect(selectedTab).toBeVisible()\n"
+              "    const panelId = await selectedTab.getAttribute('aria-controls')\n"
+              "    expect(panelId).toBeTruthy()\n"
+              "    await expect(page.locator(`#${panelId}`)).toBeVisible()\n"
+              "    await page.getByRole('button', { name: 'Hide status dock tabs', exact: true }).click()\n"
+              "    await expect(page.locator(`#${panelId}`)).toHaveCount(0)\n"
+              "    await summary.click()\n"
+              "    await expect(page.locator(`#${panelId}`)).toBeVisible()\n"
+              "  })\n\n"
+          )
+          text, n = pattern.subn(replacement, text, count=1)
+          if n != 1:
               raise SystemExit('status-summary regression block missing')
-          text = text.replace(old, new, 1)
-          text = text.replace("const outputTab = page.getByRole('tab', { name: 'Output' })", "const outputTab = page.locator('.bottom-tabs').getByRole('tab', { name: 'Output', exact: true })", 1)
+          old_output = "const outputTab = page.getByRole('tab', { name: 'Output' })"
+          if old_output not in text:
+              raise SystemExit('broad output-tab locator missing')
+          text = text.replace(old_output, "const outputTab = page.locator('.bottom-tabs').getByRole('tab', { name: 'Output', exact: true })", 1)
           p.write_text(text)
           PY
 
