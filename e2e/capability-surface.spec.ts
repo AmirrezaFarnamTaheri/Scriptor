@@ -36,7 +36,8 @@ test.describe('capability surfaces', () => {
     const zenLayout = page.getByRole('button', { name: 'Apply Zen layout' })
     await expect(zenLayout).toBeEnabled()
     await zenLayout.click()
-    await expect(zenLayout).toHaveAttribute('aria-current', 'true')
+    await expect(page.locator('html')).toHaveClass(/scriptor-distraction-free/)
+    await expect(page.locator('.editor-toolbar')).toHaveCSS('pointer-events', 'none')
   })
 
   test('keeps the four-section store navigable at high text zoom', async ({ page }) => {

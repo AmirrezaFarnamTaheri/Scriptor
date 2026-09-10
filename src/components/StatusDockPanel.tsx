@@ -109,7 +109,7 @@ export function StatusDockPanel({
       </div>
 
       {activeTab === 'problems' && expanded ? (
-        <div id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">
+        <div className="dock-panel diagnostics-dock-panel" id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">
           {issuesPanel}
         </div>
       ) : null}

@@ -57,9 +57,10 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showTopBar: true,
   showModeStrip: true,
   showQuickActions: true,
-  // Workspace-mode destinations and infrequent utilities remain available in
-  // the command palette/customizer without competing with writing controls.
-  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore'],
+  // Workspace-mode destinations remain available in the command palette and
+  // customizer without competing with writing controls. Wide layouts keep the
+  // icon-only support/store utilities visible; responsive CSS yields them first.
+  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas'],
   topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
   topBarHiddenGroups: [],
   topBarGroupWidths: {},

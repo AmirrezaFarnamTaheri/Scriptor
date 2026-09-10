@@ -48,7 +48,7 @@ export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
           event.preventDefault()
           setOpen(true)
         }}
-        aria-label="Insert content"
+        aria-label="Insert"
         title="Insert content"
         aria-haspopup="menu"
         aria-expanded={open}

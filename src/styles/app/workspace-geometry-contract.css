@@ -106,7 +106,7 @@
  * than allowing controls to sit beyond the writing column. The buttons keep
  * explicit accessible names and titles; only redundant visible labels and
  * chevrons are removed while space is constrained. */
-@container (max-width: 620px) {
+@container (max-width: 720px) {
   .editor-primary-formatting > .editor-structure-menu > button,
   .editor-primary-formatting > .insert-menu > button,
   .editor-primary-formatting > .typography-menu > button,

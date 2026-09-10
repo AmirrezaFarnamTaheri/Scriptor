@@ -204,6 +204,17 @@
   overflow: auto;
 }
 
+.diagnostics-dock-panel .diagnostics-panel {
+  position: static;
+  inset: auto;
+  width: auto;
+  max-height: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
 .dock-panel header {
   display: flex;
   align-items: center;

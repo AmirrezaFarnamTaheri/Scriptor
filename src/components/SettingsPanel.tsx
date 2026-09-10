@@ -216,15 +216,8 @@ export function SettingsPanel({
   }, [config.daily_note])
 
   useEffect(() => {
-    if (!vaultOpen || !nativeReady) {
-      setConfigReady(false)
-      setConfigLoadError(null)
-      return
-    }
+    if (!vaultOpen || !nativeReady) return
     let cancelled = false
-    setConfigReady(false)
-    setConfigLoadError(null)
-    setStatus('Loading vault configuration…')
     void vaultLoadConfig()
       .then((loaded) => {
         if (cancelled) return
@@ -241,6 +234,7 @@ export function SettingsPanel({
           extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
         })
         setConfigReady(true)
+        setConfigLoadError(null)
         setStatus('Vault configuration loaded. Save is explicit.')
       })
       .catch((error: unknown) => {
