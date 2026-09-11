@@ -10,39 +10,20 @@ type SaveConfig = (config: VaultConfig) => Promise<void>
 /**
  * Builds a serialized read-modify-write queue for `.scriptor/config.json`.
  *
- * Every mutation reloads the latest durable config inside the queue before
- * applying its narrow update. The native active-vault session is locked for
- * the complete load/mutate/save sequence so a vault switch cannot retarget a
- * write between the load and save bridge calls.
+ * Every mutation reserves the shared active-vault session barrier as soon as
+ * it is enqueued, then reloads the latest durable config and performs its full
+ * load/mutate/save sequence while holding that barrier. Reserving immediately
+ * is important: a mutation requested for vault A must already be ahead of a
+ * later vault switch even when another config mutation is still running.
  */
 export function createVaultConfigMutationQueue(load: LoadConfig, save: SaveConfig) {
-  let tail: Promise<void> = Promise.resolve()
-
-  const mutate = (mutator: VaultConfigMutator): Promise<VaultConfig> => {
-    let resolveResult!: (value: VaultConfig) => void
-    let rejectResult!: (reason?: unknown) => void
-    const result = new Promise<VaultConfig>((resolve, reject) => {
-      resolveResult = resolve
-      rejectResult = reject
+  const mutate = (mutator: VaultConfigMutator): Promise<VaultConfig> =>
+    withVaultSessionLock(async () => {
+      const current = await load()
+      const next = mutator(current)
+      await save(next)
+      return next
     })
-
-    tail = tail
-      .catch(() => undefined)
-      .then(() =>
-        withVaultSessionLock(async () => {
-          try {
-            const current = await load()
-            const next = mutator(current)
-            await save(next)
-            resolveResult(next)
-          } catch (error) {
-            rejectResult(error)
-          }
-        }),
-      )
-
-    return result
-  }
 
   return { mutate }
 }
