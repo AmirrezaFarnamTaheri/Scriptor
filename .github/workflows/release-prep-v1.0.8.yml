@@ -134,10 +134,10 @@ jobs:
           const fs = require('fs')
           const file = 'src/components/SettingsPanel.tsx'
           let source = fs.readFileSync(file, 'utf8')
-          const oldImport = "import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'\n"
-          const newImport = "import { LayoutPresetGallery, mergeEditedVaultConfig } from './SettingsPanelHelpers'\n"
-          if (!source.includes(oldImport)) throw new Error('SettingsPanel layout preset import anchor missing')
-          source = source.replace(oldImport, newImport)
+          const eol = source.includes('\r\n') ? '\r\n' : '\n'
+          const importPattern = /import \{ LAYOUT_PRESETS, type LayoutPreset \} from '\.\.\/lib\/workspace\/layoutPresets'\r?\n/
+          if (!importPattern.test(source)) throw new Error('SettingsPanel layout preset import anchor missing')
+          source = source.replace(importPattern, `import { LayoutPresetGallery, mergeEditedVaultConfig } from './SettingsPanelHelpers'${eol}`)
           const start = source.indexOf('function matchesLayout(')
           const end = source.indexOf('interface SettingsPanelProps')
           if (start < 0 || end < 0 || end <= start) throw new Error('SettingsPanel helper extraction anchors missing')
