@@ -9,6 +9,12 @@ export default defineConfig({
   timeout: 120_000,
   // A changed visual baseline needs explicit review, never retry masking.
   retries: 0,
+  // The combined Windows CI job runs this suite immediately after 113 browser
+  // tests. A single visual worker avoids exhausting the runner's ephemeral
+  // socket/buffer pool (ERR_NO_BUFFER_SPACE) while preserving fail-fast,
+  // retry-free snapshot validation. The dedicated visual job uses the same
+  // deterministic worker count.
+  workers: process.env.CI ? 1 : undefined,
   expect: {
     timeout: 30_000,
     toHaveScreenshot: {
