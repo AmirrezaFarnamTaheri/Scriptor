@@ -215,14 +215,16 @@ export function SettingsPanel({
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const configBaselineRef = useRef<VaultConfig>(DEFAULT_VAULT_CONFIG)
-  const [configReady, setConfigReady] = useState(false)
-  const [configLoadError, setConfigLoadError] = useState<string | null>(null)
+  const [configLoadedForVaultId, setConfigLoadedForVaultId] = useState<string | null>(null)
+  const [configLoadError, setConfigLoadError] = useState<{ vaultId: string; message: string } | null>(null)
   const [configReloadToken, setConfigReloadToken] = useState(0)
   const [status, setStatus] = useState('')
   const [supportBundleStatus, setSupportBundleStatus] = useState('')
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
   const [pandocError, setPandocError] = useState<string | null>(null)
   const backup = useVaultBackup(vaultOpen && nativeReady)
+  const configReady = Boolean(vaultOpen && vaultId && configLoadedForVaultId === vaultId)
+  const visibleConfigLoadError = configLoadError?.vaultId === vaultId ? configLoadError.message : null
 
   const refreshPandoc = useCallback(async () => {
     if (!nativeReady) return
@@ -242,17 +244,8 @@ export function SettingsPanel({
   }, [config.daily_note])
 
   useEffect(() => {
-    configBaselineRef.current = DEFAULT_VAULT_CONFIG
-    setConfig(DEFAULT_VAULT_CONFIG)
-    setConfigReady(false)
-    setConfigLoadError(null)
+    if (!vaultOpen || !vaultId || !nativeReady) return
 
-    if (!vaultOpen || !vaultId || !nativeReady) {
-      setStatus('')
-      return
-    }
-
-    setStatus('Loading vault configuration…')
     let cancelled = false
     void vaultLoadConfig()
       .then((loaded) => {
@@ -271,14 +264,17 @@ export function SettingsPanel({
         }
         configBaselineRef.current = nextConfig
         setConfig(nextConfig)
-        setConfigReady(true)
+        setConfigLoadedForVaultId(vaultId)
         setConfigLoadError(null)
         setStatus('Vault configuration loaded. Save is explicit.')
       })
       .catch((error: unknown) => {
         if (cancelled) return
-        setConfigReady(false)
-        setConfigLoadError(error instanceof Error ? error.message : 'Could not read vault configuration')
+        setConfigLoadedForVaultId(null)
+        setConfigLoadError({
+          vaultId,
+          message: error instanceof Error ? error.message : 'Could not read vault configuration',
+        })
         setStatus('Vault configuration was not changed.')
       })
     return () => {
@@ -304,6 +300,15 @@ export function SettingsPanel({
       cancelled = true
     }
   }, [nativeReady])
+
+  const retryConfigLoad = () => {
+    configBaselineRef.current = DEFAULT_VAULT_CONFIG
+    setConfig(DEFAULT_VAULT_CONFIG)
+    setConfigLoadedForVaultId(null)
+    setConfigLoadError(null)
+    setStatus('')
+    setConfigReloadToken((value) => value + 1)
+  }
 
   const saveConfig = async () => {
     if (!nativeReady || !configReady) return
@@ -414,13 +419,13 @@ export function SettingsPanel({
           </p>
 
           {vaultOpen && nativeReady ? (
-            configLoadError ? (
+            visibleConfigLoadError ? (
               <section className="settings-section" aria-labelledby="vault-config-error-heading">
                 <h3 id="vault-config-error-heading">Vault configuration unavailable</h3>
                 <p className="settings-status warn" role="alert">
-                  {configLoadError}. Scriptor did not replace or overwrite the existing configuration.
+                  {visibleConfigLoadError}. Scriptor did not replace or overwrite the existing configuration.
                 </p>
-                <button type="button" className="toolbar-button" onClick={() => setConfigReloadToken((value) => value + 1)}>
+                <button type="button" className="toolbar-button" onClick={retryConfigLoad}>
                   Retry loading configuration
                 </button>
               </section>
