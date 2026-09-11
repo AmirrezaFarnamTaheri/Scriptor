@@ -71,8 +71,9 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     const map = new Map<string, CanvasNode>()
     for (const node of nodes) map.set(node.id, node)
     nodeMap.current = map
-    setKeyboardNodeIndex((current) => Math.min(current, Math.max(nodes.length - 1, 0)))
   }, [nodes])
+
+  const activeKeyboardNodeIndex = Math.min(keyboardNodeIndex, Math.max(nodes.length - 1, 0))
 
   const primaryColor = useSemanticColor('--primary', '#6366f1')
   const mutedColor = useSemanticColor('--muted', '#64748b')
@@ -107,7 +108,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
     const { x: tx, y: ty, scale } = transformRef.current
     const hoveredId = hoveredIdRef.current
-    const keyboardNode = keyboardFocused ? nodes[keyboardNodeIndex] : undefined
+    const keyboardNode = keyboardFocused ? nodes[activeKeyboardNodeIndex] : undefined
     ctx.clearRect(0, 0, width, height)
     ctx.fillStyle = surfaceColor
     ctx.fillRect(0, 0, width, height)
@@ -207,7 +208,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     surfaceColor,
     reciprocalPairs,
     keyboardFocused,
-    keyboardNodeIndex,
+    activeKeyboardNodeIndex,
   ])
 
   useEffect(() => {
@@ -320,13 +321,13 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
     if (nodes.length === 0) return
-    let nextIndex = keyboardNodeIndex
+    let nextIndex: number
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
       event.preventDefault()
-      nextIndex = (keyboardNodeIndex + 1) % nodes.length
+      nextIndex = (activeKeyboardNodeIndex + 1) % nodes.length
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
       event.preventDefault()
-      nextIndex = (keyboardNodeIndex - 1 + nodes.length) % nodes.length
+      nextIndex = (activeKeyboardNodeIndex - 1 + nodes.length) % nodes.length
     } else if (event.key === 'Home') {
       event.preventDefault()
       nextIndex = 0
@@ -335,7 +336,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       nextIndex = nodes.length - 1
     } else if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault()
-      const node = nodes[keyboardNodeIndex]
+      const node = nodes[activeKeyboardNodeIndex]
       if (node?.path) onSelectNode(node.path)
       return
     } else {
@@ -344,7 +345,7 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     setKeyboardNodeIndex(nextIndex)
     const node = nodes[nextIndex]
     if (node) setKeyboardAnnouncement(`${node.label}, node ${nextIndex + 1} of ${nodes.length}`)
-  }, [keyboardNodeIndex, nodes, onSelectNode])
+  }, [activeKeyboardNodeIndex, nodes, onSelectNode])
 
   return (
     <div className="graph-canvas-accessible-shell">

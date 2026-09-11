@@ -70,7 +70,6 @@ export function useMcpRuntime(
 
   useEffect(() => {
     mcpMutationRevisionRef.current += 1
-    optimisticMcpRef.current = vaultConfig.mcp
   }, [vaultId])
 
   const exportProfiles = useMemo(
