@@ -77,6 +77,10 @@ try {
     '--tags',
     'wcag2a,wcag2aa,wcag21aa',
     '--exit',
+    // The first-run onboarding modal intentionally fades in for 250 ms. Audit
+    // the settled UI instead of measuring transient opacity during that entrance.
+    '--load-delay',
+    '500',
     '--chrome-options=no-sandbox,headless,disable-dev-shm-usage',
     ...(driver ? ['--chromedriver-path', driver] : []),
   ])
