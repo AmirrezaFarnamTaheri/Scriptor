@@ -10,7 +10,6 @@ import {
   LayoutTemplate,
   Plus,
   Search,
-  Settings,
   Tags,
 } from 'lucide-react'
 import { useState, memo } from 'react'
@@ -63,6 +62,7 @@ interface VaultSidebarProps {
 }
 
 function VaultSidebarImpl({
+  vault,
   vaultStatus = 'idle',
   sections,
   activePath,
@@ -86,7 +86,6 @@ function VaultSidebarImpl({
   onOpenFilters,
   onOpenSavedViews,
   onOpenSnippets,
-  onOpenSettings,
   onCreateDailyNote,
   onCreateDailyNoteOffset,
   dailyNoteLabel,
@@ -100,6 +99,7 @@ function VaultSidebarImpl({
   readerDocumentPaths,
 }: VaultSidebarProps) {
   const [dropActive, setDropActive] = useState(false)
+  const visibleRecentNotes = recentNotes.filter((note) => note.path !== activePath).slice(0, 4)
 
   return (
     <aside
@@ -119,7 +119,7 @@ function VaultSidebarImpl({
       }}
     >
       <PanelHeader
-        title="Vault"
+        title={vault?.name ?? 'Vault'}
         icon={<Folder />}
         menuItems={[
           { label: 'Open vault folder', run: onChooseVault },
@@ -153,11 +153,11 @@ function VaultSidebarImpl({
         </button>
       </div>
 
-      {recentNotes.length > 0 && sidebarView === 'vault' ? (
+      {visibleRecentNotes.length > 0 && sidebarView === 'vault' ? (
         <section className="vault-recent-notes" aria-label="Recent notes">
-          <h3>Recent</h3>
+          <h3>Recent notes</h3>
           <ul>
-            {recentNotes.slice(0, 8).map((note) => (
+            {visibleRecentNotes.map((note) => (
               <li key={note.path}>
                 <button type="button" onClick={() => onOpenNote(note.path)}>
                   {note.title}
@@ -177,7 +177,9 @@ function VaultSidebarImpl({
           value={searchQuery}
           onChange={(event) => onSearchQueryChange(event.target.value)}
         />
-        <span className="shortcut">{isSearching ? '...' : 'F'}</span>
+        <kbd className="shortcut" aria-label="Shortcut: F" title="Press F to focus note search">
+          {isSearching ? '…' : 'F'}
+        </kbd>
       </label>
 
       {searchQuery.trim() ? (
@@ -279,10 +281,7 @@ function VaultSidebarImpl({
         )}
       </div>
 
-      <footer className="vault-sidebar-footer">
-        <IconButton label="Settings" onClick={onOpenSettings}>
-          <Settings />
-        </IconButton>
+      <footer className="vault-sidebar-footer" aria-label="Vault utilities">
         <IconButton label="Tags" onClick={onOpenTags}>
           <Tags />
         </IconButton>

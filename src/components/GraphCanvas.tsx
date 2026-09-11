@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 const FOLDER_COLORS = ['#6366f1', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#a855f7', '#22c55e']
 
@@ -11,25 +11,16 @@ function folderColor(path: string): string {
   return FOLDER_COLORS[hash % FOLDER_COLORS.length]
 }
 
-function semanticCanvasColor(canvas: HTMLCanvasElement, property: string, fallback: string): string {
-  const value = getComputedStyle(canvas).getPropertyValue(property).trim()
+function semanticColor(property: string, fallback: string): string {
+  const value = getComputedStyle(document.documentElement).getPropertyValue(property).trim()
   return value || fallback
 }
 
-/**
- * Resolves a CSS variable once and keeps it until the document theme
- * changes. Calling getComputedStyle inside the per-node draw loop forces a
- * style recalculation on every animation frame; this hook removes it from
- * the hot path entirely.
- */
-function useSemanticCanvasColor(property: string, fallback: string): string {
+function useSemanticColor(property: string, fallback: string): string {
   const theme = document.documentElement.dataset.theme
   return useMemo(
-    () => {
-      const canvas = document.createElement('canvas')
-      return semanticCanvasColor(canvas, property, fallback)
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme switch is the only signal that changes the variable
+    () => semanticColor(property, fallback),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- theme switch is the signal that changes semantic CSS variables
     [property, fallback, theme],
   )
 }
@@ -60,6 +51,10 @@ interface GraphCanvasProps {
   onSelectNode: (path: string) => void
 }
 
+function directedPairKey(source: string, target: string): string {
+  return source < target ? `${source}\u0000${target}` : `${target}\u0000${source}`
+}
+
 export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNode }: GraphCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const hoveredIdRef = useRef<string | null>(null)
@@ -68,14 +63,34 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
   const nodeMap = useRef(new Map<string, CanvasNode>())
   const frameRef = useRef<number | null>(null)
   const backingSizeRef = useRef({ width: 0, height: 0, dpr: 0 })
+  const [keyboardNodeIndex, setKeyboardNodeIndex] = useState(0)
+  const [keyboardFocused, setKeyboardFocused] = useState(false)
+  const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('')
 
   useEffect(() => {
     const map = new Map<string, CanvasNode>()
-    for (const n of nodes) map.set(n.id, n)
+    for (const node of nodes) map.set(node.id, node)
     nodeMap.current = map
   }, [nodes])
 
-  const primaryColor = useSemanticCanvasColor('--primary', FOLDER_COLORS[0])
+  const activeKeyboardNodeIndex = Math.min(keyboardNodeIndex, Math.max(nodes.length - 1, 0))
+
+  const primaryColor = useSemanticColor('--primary', '#6366f1')
+  const mutedColor = useSemanticColor('--muted', '#64748b')
+  const inkColor = useSemanticColor('--ink', '#1e293b')
+  const surfaceColor = useSemanticColor('--surface', '#ffffff')
+
+  const reciprocalPairs = useMemo(() => {
+    const directions = new Map<string, Set<string>>()
+    for (const edge of edges) {
+      const key = directedPairKey(edge.source, edge.target)
+      const set = directions.get(key) ?? new Set<string>()
+      set.add(`${edge.source}\u0000${edge.target}`)
+      directions.set(key, set)
+    }
+    return directions
+  }, [edges])
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
@@ -93,7 +108,10 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
     const { x: tx, y: ty, scale } = transformRef.current
     const hoveredId = hoveredIdRef.current
+    const keyboardNode = keyboardFocused ? nodes[activeKeyboardNodeIndex] : undefined
     ctx.clearRect(0, 0, width, height)
+    ctx.fillStyle = surfaceColor
+    ctx.fillRect(0, 0, width, height)
     ctx.save()
     ctx.translate(tx, ty)
     ctx.scale(scale, scale)
@@ -102,27 +120,56 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
       const src = nodeMap.current.get(edge.source)
       const tgt = nodeMap.current.get(edge.target)
       if (!src || !tgt) continue
+
+      const dx = tgt.x - src.x
+      const dy = tgt.y - src.y
+      const distance = Math.hypot(dx, dy) || 1
+      const ux = dx / distance
+      const uy = dy / distance
+      const nx = -uy
+      const ny = ux
+      const directions = reciprocalPairs.get(directedPairKey(edge.source, edge.target))
+      const reciprocal = (directions?.size ?? 0) > 1
+      const directionSign = edge.source < edge.target ? 1 : -1
+      const offset = reciprocal ? 5 * directionSign : 0
+      const startX = src.x + nx * offset
+      const startY = src.y + ny * offset
+      const targetRadius = tgt.path === focusPath ? 22 : 17
+      const endX = tgt.x + nx * offset - ux * targetRadius
+      const endY = tgt.y + ny * offset - uy * targetRadius
+      const faded = Boolean(hoveredId && hoveredId !== edge.source && hoveredId !== edge.target)
+      const edgeColor = edge.kind === 'wikilink' ? primaryColor : mutedColor
+
+      ctx.save()
+      ctx.globalAlpha = faded ? 0.2 : edge.kind === 'wikilink' ? 0.65 : 0.5
+      ctx.strokeStyle = edgeColor
+      ctx.fillStyle = edgeColor
+      ctx.lineWidth = 1.25
       ctx.beginPath()
-      ctx.moveTo(src.x, src.y)
-      ctx.lineTo(tgt.x, tgt.y)
-      ctx.strokeStyle = hoveredId && hoveredId !== edge.source && hoveredId !== edge.target
-        ? 'rgba(100,116,139,0.2)'
-        : edge.kind === 'wikilink'
-          ? 'rgba(99,102,241,0.6)'
-          : 'rgba(100,116,139,0.5)'
-      ctx.lineWidth = 1
+      ctx.moveTo(startX, startY)
+      ctx.lineTo(endX, endY)
       ctx.stroke()
+
+      const arrowSize = 6
+      ctx.beginPath()
+      ctx.moveTo(endX, endY)
+      ctx.lineTo(endX - ux * arrowSize + nx * (arrowSize * 0.6), endY - uy * arrowSize + ny * (arrowSize * 0.6))
+      ctx.lineTo(endX - ux * arrowSize - nx * (arrowSize * 0.6), endY - uy * arrowSize - ny * (arrowSize * 0.6))
+      ctx.closePath()
+      ctx.fill()
+      ctx.restore()
     }
 
     for (const node of nodes) {
       const isFocus = node.path === focusPath
       const isHovered = hoveredId === node.id
-      const r = isFocus || isHovered ? 18 : 14
+      const isKeyboardFocus = keyboardNode?.id === node.id
+      const radius = isFocus || isHovered ? 18 : 14
       const fill = node.color ?? folderColor(node.path)
 
       ctx.beginPath()
-      ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
-      ctx.fillStyle = node.unresolved ? '#94a3b8' : fill
+      ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
+      ctx.fillStyle = node.unresolved ? mutedColor : fill
       ctx.fill()
 
       if (isFocus) {
@@ -133,15 +180,36 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.stroke()
       }
 
-      ctx.fillStyle = '#1e293b'
+      if (isKeyboardFocus) {
+        ctx.beginPath()
+        ctx.arc(node.x, node.y, isFocus ? 26 : 22, 0, Math.PI * 2)
+        ctx.strokeStyle = inkColor
+        ctx.lineWidth = 2
+        ctx.stroke()
+      }
+
+      ctx.fillStyle = inkColor
       ctx.font = '11px sans-serif'
       ctx.textAlign = 'center'
-      const label = node.label.length > 18 ? `${node.label.slice(0, 17)}...` : node.label
+      const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
       ctx.fillText(label, node.x, node.y + 28)
     }
 
     ctx.restore()
-  }, [nodes, edges, focusPath, width, height, primaryColor])
+  }, [
+    nodes,
+    edges,
+    focusPath,
+    width,
+    height,
+    primaryColor,
+    mutedColor,
+    inkColor,
+    surfaceColor,
+    reciprocalPairs,
+    keyboardFocused,
+    activeKeyboardNodeIndex,
+  ])
 
   useEffect(() => {
     draw()
@@ -160,10 +228,10 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
 
   const findNodeAt = useCallback((cx: number, cy: number): CanvasNode | null => {
     for (let i = nodes.length - 1; i >= 0; i -= 1) {
-      const n = nodes[i]
-      const dx = n.x - cx
-      const dy = n.y - cy
-      if (dx * dx + dy * dy <= 20 * 20) return n
+      const node = nodes[i]
+      const dx = node.x - cx
+      const dy = node.y - cy
+      if (dx * dx + dy * dy <= 20 * 20) return node
     }
     return null
   }, [nodes])
@@ -176,13 +244,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     })
   }, [draw])
 
-  useEffect(() => {
-    return () => {
-      if (frameRef.current !== null) {
-        cancelAnimationFrame(frameRef.current)
-        frameRef.current = null
-      }
-    }
+  useEffect(() => () => {
+    if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
   }, [])
 
   useEffect(() => {
@@ -193,15 +256,15 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     return () => window.removeEventListener('mouseup', endDrag)
   }, [])
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((event: React.MouseEvent) => {
     if (dragRef.current) {
       const { startX, startY, startTx, startTy } = dragRef.current
-      transformRef.current.x = startTx + (e.clientX - startX)
-      transformRef.current.y = startTy + (e.clientY - startY)
+      transformRef.current.x = startTx + (event.clientX - startX)
+      transformRef.current.y = startTy + (event.clientY - startY)
       scheduleDraw()
       return
     }
-    const { x, y } = screenToCanvas(e.clientX, e.clientY)
+    const { x, y } = screenToCanvas(event.clientX, event.clientY)
     const node = findNodeAt(x, y)
     const newHoveredId = node?.id ?? null
     if (hoveredIdRef.current !== newHoveredId) {
@@ -212,41 +275,40 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     }
   }, [screenToCanvas, findNodeAt, scheduleDraw])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((event: React.MouseEvent) => {
     dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
       startTx: transformRef.current.x,
       startTy: transformRef.current.y,
     }
   }, [])
 
-  const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (dragRef.current) {
-      const dx = Math.abs(e.clientX - dragRef.current.startX)
-      const dy = Math.abs(e.clientY - dragRef.current.startY)
-      dragRef.current = null
-      if (dx < 3 && dy < 3) {
-        const { x, y } = screenToCanvas(e.clientX, e.clientY)
-        const node = findNodeAt(x, y)
-        if (node?.path) onSelectNode(node.path)
-      }
+  const handleMouseUp = useCallback((event: React.MouseEvent) => {
+    if (!dragRef.current) return
+    const dx = Math.abs(event.clientX - dragRef.current.startX)
+    const dy = Math.abs(event.clientY - dragRef.current.startY)
+    dragRef.current = null
+    if (dx < 3 && dy < 3) {
+      const point = screenToCanvas(event.clientX, event.clientY)
+      const node = findNodeAt(point.x, point.y)
+      if (node?.path) onSelectNode(node.path)
     }
   }, [screenToCanvas, findNodeAt, onSelectNode])
 
-  const handleWheel = useCallback((e: WheelEvent) => {
-    e.preventDefault()
-    const factor = e.deltaY < 0 ? 1.1 : 0.9
+  const handleWheel = useCallback((event: WheelEvent) => {
+    event.preventDefault()
+    const factor = event.deltaY < 0 ? 1.1 : 0.9
     const canvas = canvasRef.current
     if (!canvas) return
     const rect = canvas.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-    const t = transformRef.current
-    const newScale = Math.max(0.1, Math.min(5, t.scale * factor))
-    t.x = mx - (mx - t.x) * (newScale / t.scale)
-    t.y = my - (my - t.y) * (newScale / t.scale)
-    t.scale = newScale
+    const mx = event.clientX - rect.left
+    const my = event.clientY - rect.top
+    const transform = transformRef.current
+    const newScale = Math.max(0.1, Math.min(5, transform.scale * factor))
+    transform.x = mx - (mx - transform.x) * (newScale / transform.scale)
+    transform.y = my - (my - transform.y) * (newScale / transform.scale)
+    transform.scale = newScale
     scheduleDraw()
   }, [scheduleDraw])
 
@@ -257,13 +319,50 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     return () => canvas.removeEventListener('wheel', handleWheel)
   }, [handleWheel])
 
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLCanvasElement>) => {
+    if (nodes.length === 0) return
+    let nextIndex: number
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault()
+      nextIndex = (activeKeyboardNodeIndex + 1) % nodes.length
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      nextIndex = (activeKeyboardNodeIndex - 1 + nodes.length) % nodes.length
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      nextIndex = 0
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      nextIndex = nodes.length - 1
+    } else if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      const node = nodes[activeKeyboardNodeIndex]
+      if (node?.path) onSelectNode(node.path)
+      return
+    } else {
+      return
+    }
+    setKeyboardNodeIndex(nextIndex)
+    const node = nodes[nextIndex]
+    if (node) setKeyboardAnnouncement(`${node.label}, node ${nextIndex + 1} of ${nodes.length}`)
+  }, [activeKeyboardNodeIndex, nodes, onSelectNode])
+
   return (
-    <canvas
-      ref={canvasRef}
-      style={{ width, height, cursor: 'grab' }}
-      onMouseMove={handleMouseMove}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-    />
+    <div className="graph-canvas-accessible-shell">
+      <canvas
+        ref={canvasRef}
+        style={{ width, height, cursor: 'grab' }}
+        role="application"
+        tabIndex={0}
+        aria-label={`Knowledge graph with ${nodes.length} nodes and ${edges.length} directed edges. Use arrow keys to browse nodes and Enter to open one.`}
+        onFocus={() => setKeyboardFocused(true)}
+        onBlur={() => setKeyboardFocused(false)}
+        onKeyDown={handleKeyDown}
+        onMouseMove={handleMouseMove}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+      />
+      <span className="sr-only" aria-live="polite">{keyboardAnnouncement}</span>
+    </div>
   )
 }

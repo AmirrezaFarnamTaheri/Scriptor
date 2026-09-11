@@ -84,6 +84,35 @@ function activeConflictFixture(): string | null {
   return CONFLICT_FIXTURES[flag] ?? null
 }
 
+function activeScanFixture() {
+  if (window.sessionStorage.getItem('e2e:large-vault') !== '1') return SCREENSHOT_SCAN
+  const generated = Array.from({ length: 600 }, (_, index) => {
+    const ordinal = String(index + 1).padStart(4, '0')
+    return {
+      path: `Generated research note ${ordinal} with an intentionally long filename for truncation and virtualization coverage.md`,
+      kind: 'note' as const,
+      size_bytes: 512 + index,
+      modified_at: '2026-06-23T10:00:00Z',
+    }
+  })
+  return [...SCREENSHOT_SCAN, ...generated]
+}
+
+function activeNoteSummaries() {
+  return activeScanFixture().filter((entry) => entry.kind === 'note').map((entry) => {
+    const doc = e2eNoteDocument(entry.path)
+    return {
+      path: entry.path,
+      title: doc.metadata.title,
+      modified_at: entry.modified_at ?? '',
+      note_type: null,
+      organized: true,
+      archived: false,
+      tags: doc.metadata.tags,
+    }
+  })
+}
+
 export function installE2eBridge(): void {
   // Once a commit has been recorded, `git_status_cmd` reports a clean tree so
   // tests can assert that a commit round trip actually changed something.
@@ -214,10 +243,10 @@ export function installE2eBridge(): void {
       case 'vault_scan':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise<typeof SCREENSHOT_SCAN>((resolve) => {
-          window.setTimeout(() => resolve(SCREENSHOT_SCAN), 2500)
+          window.setTimeout(() => resolve(activeScanFixture()), 2500)
           })
         }
-        return SCREENSHOT_SCAN
+        return activeScanFixture()
       case 'indexer_rebuild':
         if (window.sessionStorage.getItem('e2e:slow-vault') === '1') {
           return new Promise((resolve) => {
@@ -234,34 +263,12 @@ export function installE2eBridge(): void {
           return new Promise((resolve) => {
           window.setTimeout(() => {
               resolve(
-                SCREENSHOT_SCAN.filter((entry) => entry.kind === 'note').map((entry) => {
-                  const doc = e2eNoteDocument(entry.path)
-                  return {
-                    path: entry.path,
-                    title: doc.metadata.title,
-                    modified_at: entry.modified_at ?? '',
-                    note_type: null,
-                    organized: true,
-                    archived: false,
-                    tags: doc.metadata.tags,
-                  }
-                }),
+                activeNoteSummaries(),
               )
           }, 2500)
           })
         }
-        return SCREENSHOT_SCAN.filter((entry) => entry.kind === 'note').map((entry) => {
-          const doc = e2eNoteDocument(entry.path)
-          return {
-            path: entry.path,
-            title: doc.metadata.title,
-            modified_at: entry.modified_at ?? '',
-            note_type: null,
-            organized: true,
-            archived: false,
-            tags: doc.metadata.tags,
-          }
-        })
+        return activeNoteSummaries()
       case 'indexer_backlinks':
         return []
       case 'indexer_graph': {

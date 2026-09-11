@@ -128,13 +128,13 @@
 .button-primary {
   background: var(--primary, #0f766e);
   border-color: var(--primary-strong, #0f766e);
-  color: #ffffff;
+  color: var(--color-text-inverse, var(--bg-elevated));
 }
 .btn-primary:hover:not(:disabled),
 .button-primary:hover:not(:disabled) {
   background: var(--primary-strong, #0d9488);
   border-color: var(--primary-strong, #0d9488);
-  color: #ffffff;
+  color: var(--color-text-inverse, var(--bg-elevated));
 }
 
 /* ── Coarse Pointer / Touch Hit Targets (WCAG 2.2 AA) ──────── */

@@ -38,6 +38,7 @@ import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
 import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
+import { useI18n } from '../lib/i18n'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -415,14 +416,37 @@ function PluginsTab({
   | 'onRevokeConsent'
   | 'onInstallMarketplace'
 >) {
+  const { t } = useI18n()
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
   const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
+  const [pluginView, setPluginView] = useState<'installed' | 'marketplace'>('installed')
 
   return (
     <div className="store-stack">
+      <div className="store-plugin-subnav" role="tablist" aria-label={t('store.pluginViews')}>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pluginView === 'installed'}
+          className={pluginView === 'installed' ? 'active' : undefined}
+          onClick={() => setPluginView('installed')}
+        >
+          {t('store.manageInstalled')}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={pluginView === 'marketplace'}
+          className={pluginView === 'marketplace' ? 'active' : undefined}
+          onClick={() => setPluginView('marketplace')}
+        >
+          {t('store.browsePlugins')}
+        </button>
+      </div>
+
       {/* Safe mode banner */}
-      <div className={`store-banner${safeMode ? ' danger' : ''}`}>
+      <div className={`store-banner${safeMode ? ' danger' : ''}`} hidden={pluginView !== 'installed'}>
         {safeMode
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
@@ -441,7 +465,7 @@ function PluginsTab({
 
       {/* Installed plugins */}
       {plugins.length > 0 && (
-        <section>
+        <section hidden={pluginView !== 'installed'}>
           <h3 className="store-section-label">
             Installed ({plugins.length})
           </h3>
@@ -451,6 +475,7 @@ function PluginsTab({
               const summary = summarizePluginContributions(plugin)
               const labels = contributionLabels(summary)
               const required = requiredPermissions(plugin)
+              const optional = plugin.manifest.permissions.filter((entry) => entry.optional)
               const consented = hasRequiredConsent(plugin, policy, activeVaultId)
               const canGrant = Boolean(activeVaultId) && !safeMode
               const consentHintId = `store-plugin-consent-${plugin.manifest.id}`
@@ -546,7 +571,7 @@ function PluginsTab({
                             className="store-chip"
                           >
                             {entry.permission}
-                            {entry.optional ? ' (optional)' : ''}
+                            {entry.optional ? ' (optional · not granted automatically)' : ' (required)'}
                           </li>
                         ))}
                       </ul>
@@ -558,9 +583,9 @@ function PluginsTab({
                           disabled={!canGrant}
                           onClick={() => setPendingConsentPluginId(plugin.manifest.id)}
                           className="store-btn-accent"
-                          aria-label={`Review and grant permissions for ${plugin.manifest.name} in this vault`}
+                          aria-label={`Review and grant required permissions for ${plugin.manifest.name} in this vault`}
                         >
-                          Review & grant
+                          Review required access
                         </button>
                       )}
                       {policy ? (
@@ -569,7 +594,7 @@ function PluginsTab({
                           onClick={() => onRevokeConsent(plugin.manifest.id)}
                           className="store-btn-muted"
                         >
-                          {consented ? 'Revoke access' : 'Reset permissions'}
+                          {consented ? 'Revoke this vault' : 'Reset permissions'}
                         </button>
                       ) : null}
                     </div>
@@ -577,16 +602,16 @@ function PluginsTab({
                       <MutationConfirmation
                         ariaLabel={`Confirm permissions for ${plugin.manifest.name}`}
                         message={
-                          plugin.manifest.permissions.length > 0
-                            ? `Grant ${plugin.manifest.permissions.map((entry) => entry.permission).join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?`
-                            : `Enable ${plugin.manifest.name} for this vault?`
+                          required.length > 0
+                            ? `Grant required ${required.join(', ')} access to ${plugin.manifest.name} for this vault and enable the plugin?${optional.length > 0 ? ` Optional permissions (${optional.map((entry) => entry.permission).join(', ')}) are not granted automatically.` : ''}`
+                            : `Enable ${plugin.manifest.name} for this vault?${optional.length > 0 ? ` Optional permissions (${optional.map((entry) => entry.permission).join(', ')}) are not granted automatically.` : ''}`
                         }
-                        confirmLabel="Grant & enable"
+                        confirmLabel="Grant required access & enable"
                         onCancel={() => setPendingConsentPluginId(null)}
                         onConfirm={() => {
                           onReviewConsent(
                             plugin.manifest.id,
-                            plugin.manifest.permissions.map((entry) => entry.permission),
+                            required,
                             activeVaultId ? [activeVaultId] : [],
                           )
                           if (required.length === 0 || activeVaultId) {
@@ -608,7 +633,7 @@ function PluginsTab({
 
       {/* Lint summary */}
       {lintSummary && lintSummary.total > 0 && (
-        <div className="store-lint-summary">
+        <div className="store-lint-summary" hidden={pluginView !== 'installed'}>
           <TimerReset size={12} />
           {lintSummary.total} vault health issue{lintSummary.total !== 1 ? 's' : ''}
         </div>
@@ -616,9 +641,9 @@ function PluginsTab({
 
       {/* Marketplace */}
       {marketplaceCatalog.length > 0 && (
-        <section>
+        <section hidden={pluginView !== 'marketplace'}>
           <h3 className="store-section-label">
-            Available ({marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length})
+            Marketplace · {marketplaceCatalog.filter((p) => !installedIds.has(p.id)).length} available
           </h3>
           <div className="store-stack-xs">
             {marketplaceCatalog

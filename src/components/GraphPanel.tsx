@@ -50,7 +50,7 @@ function loadGraphPresets(): GraphPreset[] {
 
 function defaultGraphPresets(): GraphPreset[] {
   return [
-    { id: 'local', label: 'Neighborhood (depth 2)', depth: 2, fullVault: false },
+    { id: 'local', label: 'Neighborhood', depth: 2, fullVault: false },
     { id: 'vault', label: 'Full vault', depth: 3, fullVault: true },
   ]
 }
@@ -62,6 +62,10 @@ function folderColor(path: string): string {
     hash = (hash * 31 + folder.charCodeAt(index)) >>> 0
   }
   return FOLDER_COLORS[hash % FOLDER_COLORS.length]
+}
+
+function graphPairKey(source: string, target: string): string {
+  return source < target ? `${source}\u0000${target}` : `${target}\u0000${source}`
 }
 
 interface GraphPanelProps {
@@ -188,6 +192,18 @@ export function GraphPanel({
     }
     return map
   }, [graph, layout])
+
+  const reciprocalPairs = useMemo(() => {
+    const directions = new Map<string, Set<string>>()
+    if (!graph) return directions
+    for (const edge of graph.edges) {
+      const key = graphPairKey(edge.source, edge.target)
+      const pairDirections = directions.get(key) ?? new Set<string>()
+      pairDirections.add(`${edge.source}\u0000${edge.target}`)
+      directions.set(key, pairDirections)
+    }
+    return directions
+  }, [graph])
 
   const announce = useCallback(
     (nodeId: string) => {
@@ -320,19 +336,25 @@ export function GraphPanel({
               {t('graph.workbench')}
             </button>
           ) : null}
-          {presets.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              className={depth === preset.depth && fullVault === preset.fullVault ? 'active' : undefined}
-              onClick={() => {
+          <label className="graph-preset-picker">
+            <span>{t('graph.view')}</span>
+            <select
+              value={presets.find((preset) => preset.depth === depth && preset.fullVault === fullVault)?.id ?? 'custom'}
+              onChange={(event) => {
+                const preset = presets.find((candidate) => candidate.id === event.target.value)
+                if (!preset) return
                 onDepthChange(preset.depth)
                 onRefresh(preset.fullVault)
               }}
             >
-              {preset.label}
-            </button>
-          ))}
+              {presets.map((preset) => (
+                <option key={preset.id} value={preset.id}>{preset.label}</option>
+              ))}
+              {!presets.some((preset) => preset.depth === depth && preset.fullVault === fullVault) ? (
+                <option value="custom">{t('graph.custom')}</option>
+              ) : null}
+            </select>
+          </label>
           {vaultOpen ? (
             <button
               type="button"
@@ -342,45 +364,48 @@ export function GraphPanel({
                 writeVersionedStorage(GRAPH_PRESETS_KEY, 1, presets)
               }}
             >
-              {t('actions.save')} presets
+              {t('graph.saveViews')}
             </button>
           ) : null}
-          <label>
-            {t('settings.graphDepth')}
-            <input
-              type="range"
-              min={1}
-              max={5}
-              value={depth}
-              onChange={(event) => onDepthChange(Number(event.target.value))}
-            />
-            <span>{depth}</span>
-          </label>
-          <button
-            type="button"
-            className={fullVault ? 'active' : undefined}
-            onClick={() => onRefresh(!fullVault)}
-          >
-            {fullVault ? t('graph.neighborhood', { depth }) : t('graph.vaultView')}
-          </button>
+          {!fullVault ? (
+            <label>
+              {t('settings.graphDepth')}
+              <input
+                type="range"
+                min={1}
+                max={5}
+                value={depth}
+                onChange={(event) => onDepthChange(Number(event.target.value))}
+              />
+              <span>{depth}</span>
+            </label>
+          ) : null}
         </div>
         <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
           <X aria-hidden="true" />
         </button>
       </header>
 
-      {graphGroups.length > 0 ? (
-        <div className="graph-group-legend" aria-label={t('graph.groupColors')}>
-          {graphGroups.map((group) => (
-            <span key={group.tag_prefix} className="graph-group-chip">
-              <svg className="graph-group-swatch" viewBox="0 0 10 10" aria-hidden="true">
-                <circle cx="5" cy="5" r="5" fill={group.color} />
-              </svg>
-              #{group.tag_prefix}
-            </span>
-          ))}
-        </div>
-      ) : null}
+      <div className="graph-group-legend" aria-label={t('graph.legendAria')}>
+        <span className="graph-group-chip">
+          <svg className="graph-group-swatch" viewBox="0 0 10 10" aria-hidden="true">
+            <circle cx="5" cy="5" r="4" fill="var(--primary)" />
+          </svg>
+          {t('graph.currentNote')}
+        </span>
+        <span className="graph-group-chip">
+          <span aria-hidden="true">→</span>
+          {t('graph.directedLink')}
+        </span>
+        {graphGroups.map((group) => (
+          <span key={group.tag_prefix} className="graph-group-chip">
+            <svg className="graph-group-swatch" viewBox="0 0 10 10" aria-hidden="true">
+              <circle cx="5" cy="5" r="5" fill={group.color} />
+            </svg>
+            #{group.tag_prefix}
+          </span>
+        ))}
+      </div>
 
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
@@ -400,70 +425,93 @@ export function GraphPanel({
           />
         )
       ) : (
-      <svg
-        ref={svgRef}
-        className="graph-canvas force"
-        viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-        role="application"
-        tabIndex={0}
-        aria-label={t('graph.ariaLabel')}
-        onKeyDown={handleKeyDown}
-      >
-        <title>
-          {t('graph.title')} — {t('graph.nodeCount', { count: graph.nodes.length })} · {t('graph.edgeCount', { count: graph.edges.length })}
-        </title>
-        {graph.edges.map((edge) => {
-          const source = nodeById.get(edge.source)
-          const target = nodeById.get(edge.target)
-          if (!source || !target) return null
-          return (
-            <line
-              key={edge.id}
-              x1={source.x}
-              y1={source.y}
-              x2={target.x}
-              y2={target.y}
-              className={edge.kind === 'wikilink' ? 'graph-edge wikilink' : 'graph-edge'}
-              opacity={hoveredId && hoveredId !== edge.source && hoveredId !== edge.target ? 0.25 : 0.9}
-            />
-          )
-        })}
+        <svg
+          ref={svgRef}
+          className="graph-canvas force"
+          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+          role="application"
+          tabIndex={0}
+          aria-label={t('graph.ariaLabel')}
+          onKeyDown={handleKeyDown}
+        >
+          <title>
+            {t('graph.title')} — {t('graph.nodeCount', { count: graph.nodes.length })} · {t('graph.edgeCount', { count: graph.edges.length })}
+          </title>
+          <defs>
+            <marker id="graph-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L7,3.5 L0,7 z" fill="var(--muted)" />
+            </marker>
+            <marker id="graph-arrow-wikilink" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto" markerUnits="strokeWidth">
+              <path d="M0,0 L7,3.5 L0,7 z" fill="var(--primary)" />
+            </marker>
+          </defs>
+          {graph.edges.map((edge) => {
+            const source = nodeById.get(edge.source)
+            const target = nodeById.get(edge.target)
+            if (!source || !target) return null
+            const dx = target.x - source.x
+            const dy = target.y - source.y
+            const distance = Math.hypot(dx, dy) || 1
+            const ux = dx / distance
+            const uy = dy / distance
+            const nx = -uy
+            const ny = ux
+            const reciprocal = (reciprocalPairs.get(graphPairKey(edge.source, edge.target))?.size ?? 0) > 1
+            const offset = reciprocal ? (edge.source < edge.target ? 5 : -5) : 0
+            const targetRadius = target.path === focusPath ? 20 : 16
+            const startX = source.x + nx * offset
+            const startY = source.y + ny * offset
+            const endX = target.x + nx * offset - ux * targetRadius
+            const endY = target.y + ny * offset - uy * targetRadius
+            return (
+              <line
+                key={edge.id}
+                x1={startX}
+                y1={startY}
+                x2={endX}
+                y2={endY}
+                className={edge.kind === 'wikilink' ? 'graph-edge wikilink' : 'graph-edge'}
+                markerEnd={edge.kind === 'wikilink' ? 'url(#graph-arrow-wikilink)' : 'url(#graph-arrow)'}
+                opacity={hoveredId && hoveredId !== edge.source && hoveredId !== edge.target ? 0.25 : 0.9}
+              />
+            )
+          })}
 
-        {layout.map((node) => {
-          const isFocus = node.path === focusPath
-          const isHovered = hoveredId === node.id
-          const isKeyboardFocused = focusedNodeId === node.id
-          const fillColor = node.color ?? folderColor(node.path)
-          const connectionCount = adjacency.get(node.id)?.length ?? 0
-          return (
-            <g
-              key={node.id}
-              transform={`translate(${node.x}, ${node.y})`}
-              onMouseEnter={() => setHoveredId(node.id)}
-              onMouseLeave={() => setHoveredId(null)}
-              onClick={() => {
-                if (node.path) onSelectNode(node.path)
-              }}
-              className={`${
-                node.unresolved
-                  ? 'graph-node unresolved'
-                  : isFocus
-                    ? 'graph-node focus'
-                    : 'graph-node'
-              }${node.path ? ' graph-node-interactive' : ''}`}
-              aria-label={`${node.label}, ${t('graph.connections', { count: connectionCount, plural: connectionCount === 1 ? '' : 's' })}${isFocus ? t('graph.currentFocus') : ''}`}
-            >
-              {isKeyboardFocused && (
-                <circle r={22} fill="none" className="graph-node-focus-ring" />
-              )}
-              <circle r={isFocus || isHovered ? 18 : 14} fill={fillColor} />
-              <text y={28} textAnchor="middle">
-                {node.label.length > 18 ? `${node.label.slice(0, 17)}...` : node.label}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
+          {layout.map((node) => {
+            const isFocus = node.path === focusPath
+            const isHovered = hoveredId === node.id
+            const isKeyboardFocused = focusedNodeId === node.id
+            const fillColor = node.color ?? folderColor(node.path)
+            const connectionCount = adjacency.get(node.id)?.length ?? 0
+            return (
+              <g
+                key={node.id}
+                transform={`translate(${node.x}, ${node.y})`}
+                onMouseEnter={() => setHoveredId(node.id)}
+                onMouseLeave={() => setHoveredId(null)}
+                onClick={() => {
+                  if (node.path) onSelectNode(node.path)
+                }}
+                className={`${
+                  node.unresolved
+                    ? 'graph-node unresolved'
+                    : isFocus
+                      ? 'graph-node focus'
+                      : 'graph-node'
+                }${node.path ? ' graph-node-interactive' : ''}`}
+                aria-label={`${node.label}, ${t('graph.connections', { count: connectionCount, plural: connectionCount === 1 ? '' : 's' })}${isFocus ? t('graph.currentFocus') : ''}`}
+              >
+                {isKeyboardFocused && (
+                  <circle r={22} fill="none" className="graph-node-focus-ring" />
+                )}
+                <circle r={isFocus || isHovered ? 18 : 14} fill={fillColor} />
+                <text y={28} textAnchor="middle">
+                  {node.label.length > 18 ? `${node.label.slice(0, 17)}...` : node.label}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
       )}
     </div>
   )

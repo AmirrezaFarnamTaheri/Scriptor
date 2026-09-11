@@ -4,6 +4,8 @@ import type { GitCommitOutput, GitPullOutput, GitPushOutput, GitStatus } from '.
 import { requireNative } from '../native.ts'
 import { authorizeSensitiveOperation } from './authorization.ts'
 
+export type GitPullStrategy = 'fast-forward' | 'merge' | 'rebase'
+
 export async function gitStatus(): Promise<GitStatus> {
   requireNative()
   return invoke<GitStatus>('git_status_cmd')
@@ -14,10 +16,10 @@ export async function gitCommit(files: string[], message: string): Promise<GitCo
   return invoke<GitCommitOutput>('git_commit_cmd', { files, message })
 }
 
-export async function gitPull(vaultId: string): Promise<GitPullOutput> {
+export async function gitPull(vaultId: string, strategy: GitPullStrategy): Promise<GitPullOutput> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('git_pull', vaultId)
-  return invoke<GitPullOutput>('git_pull_cmd', { authorizationToken })
+  return invoke<GitPullOutput>('git_pull_cmd', { strategy, authorizationToken })
 }
 
 export async function gitPush(vaultId: string): Promise<GitPushOutput> {

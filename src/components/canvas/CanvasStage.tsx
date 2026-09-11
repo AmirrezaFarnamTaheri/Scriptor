@@ -115,6 +115,8 @@ export function CanvasStage({
     onPointerDown,
     onPointerMove,
     onPointerUp: onViewportPointerUp,
+    zoomIn,
+    zoomOut,
     reset,
     consumePanGesture,
   } = useCanvasViewport(sceneBounds)
@@ -134,7 +136,7 @@ export function CanvasStage({
       bounds: boundsFromPoints(points),
       zIndex: maxZ + 1,
       strokePoints: points,
-      style: { stroke: '#0f172a', strokeWidth: 2.5, fill: 'transparent' },
+      style: { stroke: 'var(--ink)', strokeWidth: 2.5, fill: 'transparent' },
     })
   }
 
@@ -147,7 +149,7 @@ export function CanvasStage({
       bounds: { x: point.x - 90, y: point.y - 70, width: 220, height: 140 },
       zIndex: maxZ + 1,
       contentRef: emptyTablePayload(),
-      style: { fill: '#ffffff', stroke: '#64748b', strokeWidth: 1 },
+      style: { fill: 'var(--surface)', stroke: 'var(--border-strong)', strokeWidth: 1 },
     })
   }
 
@@ -308,17 +310,23 @@ export function CanvasStage({
 
   return (
     <div className="canvas-stage-shell">
-      <div className="canvas-viewport-controls">
+      <div className="canvas-viewport-controls" role="group" aria-label="Canvas view controls">
+        <button type="button" className="toolbar-button" onClick={zoomOut} aria-label="Zoom out">
+          −
+        </button>
+        <span className="canvas-zoom-label" aria-live="polite">{Math.round(viewport.scale * 100)}%</span>
+        <button type="button" className="toolbar-button" onClick={zoomIn} aria-label="Zoom in">
+          +
+        </button>
         <button type="button" className="toolbar-button" onClick={reset}>
           Reset view
         </button>
-        <span className="canvas-zoom-label">{Math.round(viewport.scale * 100)}%</span>
       </div>
       <svg
         ref={svgRef}
         className="canvas-svg"
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
-        role="img"
+        role="group"
         aria-label="Canvas blocks"
         onWheel={onWheel}
         onPointerDown={(event) => {
@@ -337,10 +345,10 @@ export function CanvasStage({
           void handleStagePointerUp(event)
         }}
       >
-        <rect x={sceneBounds.x} y={sceneBounds.y} width={sceneBounds.width} height={sceneBounds.height} fill="#f8fafc" />
+        <rect x={sceneBounds.x} y={sceneBounds.y} width={sceneBounds.width} height={sceneBounds.height} fill="var(--surface-muted)" />
         {blocks.map((block) => {
-          const fill = block.style?.fill ?? '#ffffff'
-          const stroke = block.style?.stroke ?? '#64748b'
+          const fill = block.style?.fill ?? 'var(--surface)'
+          const stroke = block.style?.stroke ?? 'var(--border-strong)'
           const label = block.contentRef ?? block.id
           const rx = block.kind === 'sticky-note' ? 8 : 2
           const selected = selectedBlockIds.includes(block.id)
@@ -352,8 +360,25 @@ export function CanvasStage({
               data-block-id={block.id}
               className={selected ? 'canvas-block selected' : 'canvas-block'}
               onPointerDown={(event) => handleBlockPointer(event, block)}
+              onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return
+                if (event.key !== 'Enter' && event.key !== ' ') return
+                event.preventDefault()
+                event.stopPropagation()
+                if (event.shiftKey) {
+                  const exists = selectedBlockIds.includes(block.id)
+                  onSelectBlocks(
+                    exists
+                      ? selectedBlockIds.filter((id) => id !== block.id)
+                      : [...selectedBlockIds, block.id],
+                  )
+                } else {
+                  onSelectBlocks([block.id])
+                }
+              }}
               role="button"
               tabIndex={0}
+              aria-pressed={selected}
               aria-label={`${block.kind}: ${label}`}
             >
               {isFreehand ? (
@@ -402,9 +427,9 @@ export function CanvasStage({
                   <text
                     x={block.bounds.x + 12}
                     y={block.bounds.y + 24}
-                    fontFamily="Segoe UI, sans-serif"
+                    fontFamily="var(--font-sans, Segoe UI, sans-serif)"
                     fontSize={14}
-                    fill="#0f172a"
+                    fill="var(--ink)"
                   >
                     {label}
                   </text>
@@ -414,7 +439,7 @@ export function CanvasStage({
           )
         })}
         {draftStroke.length >= 2 ? (
-          <PressureStroke points={draftStroke} stroke="#0f172a" opacity={0.92} />
+          <PressureStroke points={draftStroke} stroke="var(--ink)" opacity={0.92} />
         ) : null}
         {marquee ? (
           <rect

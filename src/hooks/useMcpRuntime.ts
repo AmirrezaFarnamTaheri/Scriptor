@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { McpMode, McpToolDescriptor } from '@scriptor/core'
 import type { CommandResult } from '@scriptor/core'
 import type { McpToolContribution } from '@scriptor/core/contracts/plugin'
@@ -11,6 +11,7 @@ import {
   dispatchPluginCommandIdAsMcpResult,
   type PluginCommandRuntime,
 } from '../lib/pluginCommandDispatch'
+import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 
 import {
   indexerBacklinks,
@@ -27,7 +28,6 @@ import {
   vaultReadNote,
   vaultRenameApply,
   vaultSaveNote,
-  vaultSaveConfig,
 } from '../bridge/commands'
 import type { VaultConfig } from '../types/vault'
 
@@ -61,6 +61,16 @@ export function useMcpRuntime(
   )
   const [lastResult, setLastResult] = useState<CommandResult | null>(null)
   const [snapshot, setSnapshot] = useState(0)
+  const mcpMutationRevisionRef = useRef(0)
+  const optimisticMcpRef = useRef(vaultConfig.mcp)
+
+  useEffect(() => {
+    optimisticMcpRef.current = vaultConfig.mcp
+  }, [vaultConfig.mcp])
+
+  useEffect(() => {
+    mcpMutationRevisionRef.current += 1
+  }, [vaultId])
 
   const exportProfiles = useMemo(
     () => mergePluginExportProfiles(DEFAULT_EXPORT_PROFILES, pluginExportProfiles),
@@ -69,22 +79,35 @@ export function useMcpRuntime(
 
   const persistMcpConfig = useCallback(
     (nextMode: McpMode) => {
-      // Compute outside the updater: persisting from inside a state updater is
-      // impure, double-fires under StrictMode, and lets interleaved changes
-      // write the losing config last.
-      const nextConfig: VaultConfig = {
-        ...vaultConfig,
-        mcp: {
-          mode: nextMode === 'off' ? 'off' : nextMode,
-          disabled: nextMode === 'off',
-        },
+      const nextMcp = {
+        mode: nextMode === 'off' ? 'off' as const : nextMode,
+        disabled: nextMode === 'off',
       }
-      setVaultConfig(() => nextConfig)
+      const previousMcp = optimisticMcpRef.current
+      const revision = ++mcpMutationRevisionRef.current
+
+      optimisticMcpRef.current = nextMcp
+      setVaultConfig((current) => ({ ...current, mcp: nextMcp }))
       if (vaultOpen) {
-        void vaultSaveConfig(nextConfig)
+        void mutateVaultConfig((current) => ({ ...current, mcp: nextMcp })).catch((error: unknown) => {
+          if (revision === mcpMutationRevisionRef.current) {
+            optimisticMcpRef.current = previousMcp
+            setVaultConfig((current) => ({ ...current, mcp: previousMcp }))
+          }
+          setLastResult({
+            ok: false,
+            requestId: crypto.randomUUID(),
+            error: {
+              code: 'mcp.config_save_failed',
+              message: error instanceof Error ? error.message : 'Could not save MCP permissions',
+              recoverable: true,
+            },
+          })
+          setSnapshot((value) => value + 1)
+        })
       }
     },
-    [setVaultConfig, vaultConfig, vaultOpen],
+    [setVaultConfig, vaultOpen],
   )
 
   const setMode = useCallback(
@@ -135,9 +158,6 @@ export function useMcpRuntime(
     }
   }, [exportProfiles, mode, vaultId, vaultOpen])
 
-  // One runtime for the lifetime of the hook. Recreating it on every mode
-  // toggle or daemon config push discarded all pending drafts and the entire
-  // security audit log, so mode/context are pushed in imperatively instead.
   const [runtime] = useState(() => new McpRuntime(mode, context))
 
   useEffect(() => {
@@ -242,9 +262,6 @@ export function useMcpRuntime(
         description: tool.label,
         modeRequired: tool.modeRequired,
         commandId: tool.commandId,
-        // Plugin tools bridge to arbitrary plugin commands and receive the raw
-        // MCP input (see invokeTool), so their schema must accept any object
-        // shape rather than advertise a closed, empty schema.
         inputSchema: { type: 'object' as const, properties: {}, additionalProperties: true },
       })),
     [canExecutePluginCommand, pluginMcpTools],

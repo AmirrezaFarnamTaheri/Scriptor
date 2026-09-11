@@ -1,10 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
-import { X } from 'lucide-react'
+import { AlertTriangle, X } from 'lucide-react'
 
 import {
   applyConflictChoices,
-  estimateBaseHunkStart,
-  extractBaseHunk,
+  areConflictChoicesComplete,
   parseConflictHunks,
   type ConflictHunkChoice,
 } from '../lib/conflictMerge'
@@ -15,14 +14,16 @@ function NumberedConflictBlock({
   title,
   text,
   startLine = 0,
+  tone,
 }: {
   title: string
   text: string
   /** 0-indexed line offset — add 1 for display. */
   startLine?: number
+  tone?: 'ours' | 'theirs' | 'base'
 }) {
   return (
-    <article className="conflict-hunk-column">
+    <article className={`conflict-hunk-column${tone ? ` is-${tone}` : ''}`}>
       <h3>{title}</h3>
       <pre className="numbered-conflict-pre">
         {text.split('\n').map((line, index) => (
@@ -41,9 +42,9 @@ function NumberedConflictBlock({
 interface ConflictResolverModalProps {
   path: string
   source: string
+  /** Whole-file ancestor kept only as an optional reference; it is never mapped heuristically to hunks. */
   basePreview?: string | null
   onResolveMerged: (mergedMarkdown: string) => void
-  onResolveQuick: (strategy: 'ours' | 'theirs') => void
   onClose: () => void
   isBusy: boolean
 }
@@ -53,22 +54,25 @@ export function ConflictResolverModal({
   source,
   basePreview,
   onResolveMerged,
-  onResolveQuick,
   onClose,
   isBusy,
 }: ConflictResolverModalProps) {
   const parsed = useMemo(() => parseConflictHunks(source), [source])
-  const [choices, setChoices] = useState<Record<number, ConflictHunkChoice>>(() =>
-    Object.fromEntries(parsed.hunks.map((hunk) => [hunk.id, 'ours' as const])),
-  )
+  const [choices, setChoices] = useState<Partial<Record<number, ConflictHunkChoice>>>({})
+  const allResolved = areConflictChoicesComplete(parsed, choices)
+  const unresolvedCount = parsed.hunks.filter((hunk) => !choices[hunk.id]).length
 
   const mergedPreview = useMemo(
-    () => applyConflictChoices(source, choices, basePreview),
-    [basePreview, choices, source],
+    () => applyConflictChoices(source, choices),
+    [choices, source],
   )
 
   const setHunkChoice = (id: number, choice: ConflictHunkChoice) => {
     setChoices((current) => ({ ...current, [id]: choice }))
+  }
+
+  const chooseAll = (choice: 'ours' | 'theirs') => {
+    setChoices(Object.fromEntries(parsed.hunks.map((hunk) => [hunk.id, choice])))
   }
 
   const dialogRef = useRef<HTMLElement>(null)
@@ -82,65 +86,63 @@ export function ConflictResolverModal({
         className="conflict-resolver conflict-resolver-3way"
         role="dialog"
         aria-modal="true"
-        aria-label="Resolve merge conflict"
+        aria-label="Resolve merge conflicts"
         onClick={(event) => event.stopPropagation()}
       >
         <header>
-          <h2>3-way merge</h2>
+          <div>
+            <h2>Resolve merge conflicts</h2>
+            <p>Choose a resolution for every conflict. Nothing is selected automatically.</p>
+          </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
             <X />
           </button>
         </header>
         <p>
-          <strong>{path}</strong> — pick a side per conflict hunk, or use quick resolve for the whole file.
+          <strong>{path}</strong>
         </p>
 
         {parsed.hunks.length === 0 ? (
-          <p className="empty-state">No conflict markers found in this file.</p>
+          <p className="empty-state">No complete conflict blocks were found. The file was left unchanged.</p>
         ) : (
           <div className="conflict-hunks">
             {parsed.hunks.map((hunk) => {
               const contentStart = hunk.startLine + 1
               const contentEnd = hunk.endLine - 1
-              const hunkBase = basePreview
-                ? extractBaseHunk(
-                    basePreview,
-                    estimateBaseHunkStart(parsed.hunks, hunk.id),
-                    Math.max(hunk.ours.split('\n').length, hunk.theirs.split('\n').length),
-                  )
-                : null
+              const availableChoices: ConflictHunkChoice[] = hunk.base === undefined
+                ? ['ours', 'theirs']
+                : ['base', 'ours', 'theirs']
               return (
-                <section key={hunk.id} className="conflict-hunk-card">
+                <section key={hunk.id} className={`conflict-hunk-card${choices[hunk.id] ? ' is-resolved' : ' is-unresolved'}`}>
                   <header className="conflict-hunk-header">
-                    <h3>
-                      Hunk {hunk.id + 1}
+                    <div>
+                      <h3>Conflict {hunk.id + 1}</h3>
                       <small>
-                        lines {contentStart}–{contentEnd}
-                        {hunk.branchLabel ? ` — ${hunk.branchLabel}` : ''}
+                        Lines {contentStart}–{contentEnd}
+                        {hunk.branchLabel ? ` · incoming ${hunk.branchLabel}` : ''}
                       </small>
-                    </h3>
+                    </div>
                     <fieldset className="conflict-hunk-choices">
-                      <legend className="sr-only">Resolution for hunk {hunk.id + 1}</legend>
-                      {(['base', 'ours', 'theirs'] as const).map((choice) => (
+                      <legend>Resolution</legend>
+                      {availableChoices.map((choice) => (
                         <label key={choice}>
                           <input
                             type="radio"
                             name={`hunk-${hunk.id}`}
-                            checked={(choices[hunk.id] ?? 'ours') === choice}
-                            disabled={choice === 'base' && !basePreview}
+                            checked={choices[hunk.id] === choice}
                             onChange={() => setHunkChoice(hunk.id, choice)}
                           />
-                          {choice === 'base' ? 'Base (ancestor)' : choice === 'ours' ? 'Ours' : 'Theirs'}
+                          {choice === 'base' ? 'Ancestor' : choice === 'ours' ? 'Keep ours' : 'Keep theirs'}
                         </label>
                       ))}
                     </fieldset>
                   </header>
-                  <div className={`conflict-preview-grid${basePreview ? ' conflict-preview-grid-3' : ''}`}>
-                    {hunkBase != null ? (
-                      <NumberedConflictBlock title="Base (ancestor)" text={hunkBase} />
+                  <div className={`conflict-preview-grid${hunk.base !== undefined ? ' conflict-preview-grid-3' : ''}`}>
+                    {hunk.base !== undefined ? (
+                      <NumberedConflictBlock title="Ancestor" text={hunk.base} tone="base" />
                     ) : null}
-                    <NumberedConflictBlock title="Ours" text={hunk.ours} startLine={hunk.startLine + 1} />
-                    <NumberedConflictBlock title="Theirs" text={hunk.theirs} startLine={hunk.startLine + 1} />
+                    <NumberedConflictBlock title="Ours" text={hunk.ours} startLine={hunk.startLine + 1} tone="ours" />
+                    <NumberedConflictBlock title="Theirs" text={hunk.theirs} startLine={hunk.startLine + 1} tone="theirs" />
                   </div>
                 </section>
               )
@@ -148,25 +150,47 @@ export function ConflictResolverModal({
           </div>
         )}
 
+        {basePreview && parsed.hunks.every((hunk) => hunk.base === undefined) ? (
+          <details className="conflict-ancestor-reference">
+            <summary>View whole-file common ancestor</summary>
+            <p className="health-subtitle">
+              Reference only. It is not mapped to individual conflicts unless exact diff3 ancestor markers are present.
+            </p>
+            <pre className="numbered-conflict-pre conflict-ancestor-body">{basePreview}</pre>
+          </details>
+        ) : null}
+
         <section className="conflict-merged-preview">
-          <h3>Merged preview</h3>
+          <div className="conflict-merged-preview-heading">
+            <h3>Merged preview</h3>
+            {unresolvedCount > 0 ? (
+              <span className="conflict-unresolved-status" role="status">
+                <AlertTriangle size={14} />
+                {unresolvedCount} unresolved
+              </span>
+            ) : (
+              <span className="conflict-resolved-status" role="status">All conflicts resolved</span>
+            )}
+          </div>
           <pre className="numbered-conflict-pre conflict-merged-body">{mergedPreview}</pre>
         </section>
 
         <footer className="conflict-resolver-actions">
-          <button type="button" className="toolbar-button" disabled={isBusy} onClick={() => onResolveQuick('ours')}>
-            Keep all ours
-          </button>
-          <button type="button" className="toolbar-button" disabled={isBusy} onClick={() => onResolveQuick('theirs')}>
-            Keep all theirs
-          </button>
+          <div className="conflict-bulk-actions" role="group" aria-label="Bulk resolution choices">
+            <button type="button" className="toolbar-button" disabled={isBusy || parsed.hunks.length === 0} onClick={() => chooseAll('ours')}>
+              Choose ours for all
+            </button>
+            <button type="button" className="toolbar-button" disabled={isBusy || parsed.hunks.length === 0} onClick={() => chooseAll('theirs')}>
+              Choose theirs for all
+            </button>
+          </div>
           <button
             type="button"
-            className="primary-button"
-            disabled={isBusy || parsed.hunks.length === 0}
+            className="primary-button conflict-apply-button"
+            disabled={isBusy || !allResolved}
             onClick={() => onResolveMerged(mergedPreview)}
           >
-            Apply merged result
+            Apply resolved file
           </button>
         </footer>
       </section>

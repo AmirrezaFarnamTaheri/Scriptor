@@ -21,8 +21,15 @@ async function languageToolDiagnostics(view: EditorView): Promise<Diagnostic[]> 
       message: match.message,
       source: `LanguageTool (${match.ruleId})`,
     }))
-  } catch {
-    return []
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'LanguageTool request failed'
+    return [{
+      from: 0,
+      to: Math.min(1, view.state.doc.length),
+      severity: 'info',
+      message: `Grammar checking is unavailable: ${detail}`,
+      source: 'LanguageTool',
+    }]
   }
 }
 

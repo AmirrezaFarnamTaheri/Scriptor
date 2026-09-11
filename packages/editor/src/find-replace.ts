@@ -48,14 +48,14 @@ export function findReplaceExtension(): Extension {
         padding: '2px 6px',
         border: '1px solid var(--border, #ccc)',
         borderRadius: '4px',
-        backgroundColor: 'var(--background, #fff)',
+        backgroundColor: 'var(--surface-raised, var(--surface, #fff))',
       },
       '.cm-search .cm-button': {
         font: 'inherit',
         padding: '2px 8px',
         border: '1px solid var(--border, #ccc)',
         borderRadius: '4px',
-        backgroundColor: 'var(--background, #fff)',
+        backgroundColor: 'var(--surface-raised, var(--surface, #fff))',
         cursor: 'pointer',
       },
       '.cm-searchMatch': {

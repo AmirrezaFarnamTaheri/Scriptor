@@ -3,8 +3,7 @@ import { test } from 'node:test'
 
 import {
   applyConflictChoices,
-  estimateBaseHunkStart,
-  extractBaseHunk,
+  areConflictChoicesComplete,
   parseConflictHunks,
 } from './conflictMerge.ts'
 import { bibliographyEntriesToCslItems } from './bibliographyToCsl.ts'
@@ -13,8 +12,9 @@ import type { BibliographyEntry } from '../types/vault.ts'
 
 const CONFLICT = ['<<<<<<< HEAD', 'ours', '=======', 'theirs', '>>>>>>> feature'].join('\n')
 
-test('applyConflictChoices resolves a balanced conflict', () => {
+test('applyConflictChoices resolves a balanced conflict only after an explicit choice', () => {
   const source = ['intro', CONFLICT, 'outro'].join('\n')
+  assert.equal(applyConflictChoices(source, {}), source, 'unresolved hunks must stay unresolved')
   assert.equal(applyConflictChoices(source, { 0: 'ours' }), ['intro', 'ours', 'outro'].join('\n'))
   assert.equal(applyConflictChoices(source, { 0: 'theirs' }), ['intro', 'theirs', 'outro'].join('\n'))
 })
@@ -32,60 +32,70 @@ test('applyConflictChoices never truncates on a missing end marker', () => {
   assert.equal(result, source)
 })
 
-test('conflict markers inside a ``` fence are not treated as markers', () => {
+test('a real conflict inside a Markdown fence is still resolvable', () => {
   const source = [
     '# Git notes',
     '',
     '```',
     '<<<<<<< HEAD',
-    'documented example',
+    'our code sample',
     '=======',
-    'other side',
+    'their code sample',
     '>>>>>>> branch',
     '```',
-    '',
-    'trailing prose',
+    'tail',
   ].join('\n')
-  assert.deepEqual(parseConflictHunks(source).hunks, [])
-  assert.equal(applyConflictChoices(source, {}), source, 'fenced sample must survive round-trip')
+  const parsed = parseConflictHunks(source)
+  assert.equal(parsed.hunks.length, 1)
+  assert.equal(parsed.hunks[0].ours, 'our code sample')
+  assert.equal(applyConflictChoices(source, { 0: 'theirs' }), [
+    '# Git notes',
+    '',
+    '```',
+    'their code sample',
+    '```',
+    'tail',
+  ].join('\n'))
 })
 
-test('conflict markers inside a ~~~ fence are not treated as markers', () => {
-  const source = ['~~~md', '<<<<<<< HEAD', 'x', '=======', 'y', '>>>>>>> b', '~~~', 'after'].join('\n')
+test('marker-looking prose without a complete block is preserved', () => {
+  const source = ['<<<<<<< example', 'not a real block', 'ordinary prose'].join('\n')
   assert.deepEqual(parseConflictHunks(source).hunks, [])
   assert.equal(applyConflictChoices(source, {}), source)
 })
 
-test('a real conflict after a fenced sample still resolves', () => {
-  const source = ['```', '<<<<<<< HEAD', '```', 'text', CONFLICT, 'end'].join('\n')
+test('diff3 ancestor content is captured and applied exactly', () => {
+  const source = [
+    'before',
+    '<<<<<<< ours',
+    'ours',
+    '||||||| ancestor',
+    'exact ancestor',
+    '=======',
+    'theirs',
+    '>>>>>>> theirs',
+    'after',
+  ].join('\n')
   const parsed = parseConflictHunks(source)
   assert.equal(parsed.hunks.length, 1)
-  assert.equal(parsed.hunks[0].ours, 'ours')
-  assert.ok(applyConflictChoices(source, { 0: 'theirs' }).includes('theirs'))
+  assert.equal(parsed.hunks[0].base, 'exact ancestor')
+  assert.equal(applyConflictChoices(source, { 0: 'base' }), ['before', 'exact ancestor', 'after'].join('\n'))
 })
 
-test('estimateBaseHunkStart corrects the offset for preceding conflicts', () => {
+test('all conflict hunks must be explicitly resolved', () => {
   const source = [CONFLICT, 'middle', CONFLICT].join('\n')
   const parsed = parseConflictHunks(source)
   assert.equal(parsed.hunks.length, 2)
-  // First hunk starts at conflicted line 0 and needs no correction.
-  assert.equal(estimateBaseHunkStart(parsed.hunks, 0), 0)
-  // Second starts at conflicted line 6; the first conflict spent 3 marker lines
-  // plus a duplicated side (5 conflicted lines for 1 base line => drift 4).
-  assert.equal(parsed.hunks[1].startLine, 6)
-  assert.equal(estimateBaseHunkStart(parsed.hunks, 1), 2)
+  assert.equal(areConflictChoicesComplete(parsed, {}), false)
+  assert.equal(areConflictChoicesComplete(parsed, { 0: 'ours' }), false)
+  assert.equal(areConflictChoicesComplete(parsed, { 0: 'base', 1: 'theirs' }), false)
+  assert.equal(applyConflictChoices(source, { 0: 'base', 1: 'theirs' }).includes('<<<<<<<'), true)
+  assert.equal(areConflictChoicesComplete(parsed, { 0: 'ours', 1: 'theirs' }), true)
 })
 
-test('choosing base on a later hunk reads the right base lines', () => {
-  const source = [CONFLICT, 'middle', CONFLICT].join('\n')
-  const base = ['ancestor-one', 'middle', 'ancestor-two'].join('\n')
-  const merged = applyConflictChoices(source, { 0: 'base', 1: 'base' }, base)
-  assert.equal(merged, ['ancestor-one', 'middle', 'ancestor-two'].join('\n'))
-})
-
-test('extractBaseHunk clamps out-of-range offsets', () => {
-  assert.equal(extractBaseHunk('a\nb', 99, 2), 'b')
-  assert.equal(extractBaseHunk('a\nb', -5, 1), 'a')
+test('applyConflictChoices preserves a side containing exactly one blank line', () => {
+  const source = ['before', '<<<<<<< ours', '', '=======', 'theirs', '>>>>>>> theirs', 'after'].join('\n')
+  assert.equal(applyConflictChoices(source, { 0: 'ours' }), ['before', '', 'after'].join('\n'))
 })
 
 // NOTE: generateTocFromMarkdown is not covered here — it imports the

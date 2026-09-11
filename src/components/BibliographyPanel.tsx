@@ -135,7 +135,7 @@ export function BibliographyPanel({
                 {zoteroLoading ? 'Importing...' : 'Fetch & Save to .bib'}
               </button>
             </div>
-            {zoteroError && <p className="preview-error" style={{ color: 'var(--color-error, #e53e3e)' }}>{zoteroError}</p>}
+            {zoteroError && <p className="preview-error" style={{ color: 'var(--color-status-error, var(--danger, #e53e3e))' }}>{zoteroError}</p>}
           </form>
         )}
 

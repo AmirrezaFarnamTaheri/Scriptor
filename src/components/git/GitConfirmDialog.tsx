@@ -1,8 +1,9 @@
+import type { GitPullStrategy } from '../../bridge/commands/git'
 import { useI18n } from '../../lib/i18n'
 
 export type PendingGitAction =
   | { kind: 'commit'; files: string[]; message: string }
-  | { kind: 'pull' }
+  | { kind: 'pull'; strategy: GitPullStrategy }
   | { kind: 'push' }
 
 export interface GitConfirmDialogProps {
@@ -10,6 +11,12 @@ export interface GitConfirmDialogProps {
   isBusy: boolean
   onCancel: () => void
   onConfirm: () => void
+}
+
+function pullStrategyKey(strategy: GitPullStrategy): string {
+  if (strategy === 'fast-forward') return 'git.pullFastForward'
+  if (strategy === 'merge') return 'git.pullMerge'
+  return 'git.pullRebase'
 }
 
 export function GitConfirmDialog({
@@ -26,7 +33,7 @@ export function GitConfirmDialog({
         {pendingAction.kind === 'commit'
           ? t('git.commitConfirm', { count: pendingAction.files.length, message: pendingAction.message })
           : pendingAction.kind === 'pull'
-            ? t('git.pullConfirm')
+            ? t('git.pullConfirmWithStrategy', { strategy: t(pullStrategyKey(pendingAction.strategy)) })
             : t('git.pushConfirm')}
       </p>
       {pendingAction.kind === 'commit' ? (

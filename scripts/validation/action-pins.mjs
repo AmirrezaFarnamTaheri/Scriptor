@@ -15,7 +15,7 @@ const approvedPins = new Map([
   ['actions/download-artifact@v8.0.1', '3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c'],
   ['actions/attest@v4.2.2', '1e69f48acb82d1966a394da916b4c1698aa569d6'],
   ['actions/upload-pages-artifact@v5.0.0', 'fc324d3547104276b827a68afc52ff2a11cc49c9'],
-  ['actions/deploy-pages@v5.0.0', 'cd2ce8fcbc39b97be8ca5fce6e763baed58fa128'],
+  ['actions/deploy-pages@v5.0.1', '368f82528645a54fb793d4d04e342629a3f51346'],
   ['Swatinem/rust-cache@v2.9.2', '6323deb102c322ba6fcbdcafc7e3dddab59af2b6'],
 ]);
 

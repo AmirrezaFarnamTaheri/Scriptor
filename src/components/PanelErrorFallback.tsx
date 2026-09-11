@@ -24,7 +24,7 @@ const cardStyle: CSSProperties = {
   color: 'var(--ink-strong)',
   fontSize: 13,
   lineHeight: 1.5,
-  boxShadow: '0 8px 28px rgb(0 0 0 / 18%)',
+  boxShadow: 'var(--shadow-lg)',
 }
 
 const titleStyle: CSSProperties = {
@@ -44,7 +44,7 @@ const overlayStyle: CSSProperties = {
   inset: 0,
   display: 'grid',
   placeItems: 'center',
-  background: 'color-mix(in srgb, var(--backdrop, #000) 35%, transparent)',
+  background: 'var(--overlay)',
   zIndex: 60,
   padding: 24,
 }

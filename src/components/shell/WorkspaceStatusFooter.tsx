@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Activity, CheckCircle2, ChevronDown, ChevronRight, GitBranch, PanelRight } from 'lucide-react'
+import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, GitBranch, PanelRight } from 'lucide-react'
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
 import { StatusDockPanel, type StatusDockTab } from '../StatusDockPanel'
@@ -112,8 +112,6 @@ export function WorkspaceStatusFooter({
   onHibernateSpellcheckChange,
 }: WorkspaceStatusFooterProps) {
   const [dockExpanded, setDockExpanded] = useState(false)
-  // The dock tabs + panel collapse by default so the editor reclaims the
-  // vertical space; power users can pin it open (persisted per device).
   const [chromeCollapsed, setChromeCollapsed] = usePersistedBoolean(
     'scriptor:status-dock-collapsed',
     true,
@@ -125,7 +123,6 @@ export function WorkspaceStatusFooter({
     if (previousDockTab.current !== statusDockTab) {
       previousDockTab.current = statusDockTab
       setDockExpanded(true)
-      // Programmatic jumps (e.g. "view jobs" from elsewhere) reveal the dock.
       setChromeCollapsed(false)
     }
   }, [statusDockTab, setChromeCollapsed])
@@ -143,26 +140,36 @@ export function WorkspaceStatusFooter({
     setChromeCollapsed(!chromeCollapsed)
   }, [chromeCollapsed, setChromeCollapsed])
 
+  const summaryTab: StatusDockTab = totalProblemCount > 0 ? 'problems' : 'jobs'
+  const indexComplete = workspaceStatus !== 'indexing' && graphProgress >= 100
+  const completedNoteCount = rebuildSummary
+    ? rebuildSummary.indexed_notes + rebuildSummary.skipped_notes
+    : noteCount
+
   return (
     <footer className={`status-strip${chromeCollapsed ? ' is-dock-collapsed' : ''}`}>
       <div className="status-summary">
         <button
           type="button"
-          className="jobs-button"
+          className={`jobs-button${totalProblemCount > 0 ? ' has-problems' : ''}`}
           onClick={() => {
             if (chromeCollapsed) {
               setChromeCollapsed(false)
               setDockExpanded(true)
-              onStatusDockTabChange('jobs')
+              onStatusDockTabChange(summaryTab)
             } else {
-              activateDockTab('jobs')
+              activateDockTab(summaryTab)
             }
           }}
-          aria-pressed={statusDockTab === 'jobs'}
-          aria-expanded={statusDockTab === 'jobs' && dockExpanded && !chromeCollapsed}
+          aria-pressed={statusDockTab === summaryTab}
+          aria-expanded={statusDockTab === summaryTab && dockExpanded && !chromeCollapsed}
         >
-          <PanelRight />
-          {t('statusDock.jobs')}
+          {totalProblemCount > 0 ? <AlertTriangle /> : <PanelRight />}
+          {totalProblemCount > 0 ? (
+            <>{t('statusDock.problems')} <span>{totalProblemCount}</span></>
+          ) : (
+            t('statusDock.backgroundJobs')
+          )}
           <ChevronDown />
         </button>
 
@@ -180,25 +187,35 @@ export function WorkspaceStatusFooter({
           </span>
         </button>
 
-        <div
-          className={`job-progress${workspaceStatus !== 'indexing' && graphProgress >= 100 ? ' is-done' : ''}`}
-          aria-label={workspaceStatus === 'indexing' ? t('statusDock.buildingGraphAria', { percent: graphProgress }) : t('statusDock.indexReadyAria', { percent: graphProgress })}
-        >
-          <Activity />
-          <div>
-            <strong>{workspaceStatus === 'indexing' ? t('statusDock.buildingIndex') : t('statusDock.indexReady')}</strong>
-            <div className="progress-track">
-              <span style={{ width: `${graphProgress}%` }} />
-            </div>
+        {indexComplete ? (
+          <div className="job-progress is-done" aria-label={t('statusDock.indexReadyAria', { percent: graphProgress })}>
+            <CheckCircle2 />
+            <strong>{t('statusDock.indexReady')}</strong>
+            <small>
+              {t('statusDock.notesCount', { count: completedNoteCount })}
+              {diagnosticsOptIn && lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
+            </small>
           </div>
-          <span>{graphProgress}%</span>
-          <small>
-            {rebuildSummary
-              ? t('statusDock.notesProgress', { done: rebuildSummary.indexed_notes + rebuildSummary.skipped_notes, total: noteCount })
-              : t('statusDock.notesCount', { count: noteCount })}
-            {lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
-          </small>
-        </div>
+        ) : (
+          <div
+            className="job-progress"
+            aria-label={t('statusDock.buildingGraphAria', { percent: graphProgress })}
+          >
+            <Activity />
+            <div>
+              <strong>{t('statusDock.buildingIndex')}</strong>
+              <div className="progress-track">
+                <span style={{ width: `${graphProgress}%` }} />
+              </div>
+            </div>
+            <span>{graphProgress}%</span>
+            <small>
+              {rebuildSummary
+                ? t('statusDock.notesProgress', { done: completedNoteCount, total: noteCount })
+                : t('statusDock.notesCount', { count: noteCount })}
+            </small>
+          </div>
+        )}
 
         <div className="repo-state">
           <label
@@ -214,8 +231,8 @@ export function WorkspaceStatusFooter({
             <span>{t('statusDock.diagnostics')}</span>
           </label>
           <span>{health?.cache_status ?? 'no vault'}</span>
-          {timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
-          {timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
+          {diagnosticsOptIn && timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
+          {diagnosticsOptIn && timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
           <SubsystemToggles
             graph={hibernateGraph}
             onGraphChange={onHibernateGraphChange}
@@ -235,26 +252,26 @@ export function WorkspaceStatusFooter({
       </div>
 
       {!chromeCollapsed ? (
-      <div className="bottom-tabs-wrap" id="status-dock-chrome">
-        <StatusDockPanel
-          activeTab={statusDockTab}
-          onTabChange={activateDockTab}
-          expanded={dockExpanded}
-          problemCount={totalProblemCount}
-          issuesPanel={<DiagnosticsPanel {...diagnosticsPanelProps} />}
-          activity={activity}
-          searchResults={searchResults}
-          searchQuery={searchQuery}
-          isSearching={isSearching}
-          exportResult={exportResult}
-          exportHistory={exportHistory}
-          isExporting={isExporting}
-          isIndexing={isIndexing}
-          graphProgress={graphProgress}
-          onOpenNote={onOpenNote}
-          onCancelExport={onCancelExport}
-        />
-      </div>
+        <div className="bottom-tabs-wrap" id="status-dock-chrome">
+          <StatusDockPanel
+            activeTab={statusDockTab}
+            onTabChange={activateDockTab}
+            expanded={dockExpanded}
+            problemCount={totalProblemCount}
+            issuesPanel={<DiagnosticsPanel {...diagnosticsPanelProps} />}
+            activity={activity}
+            searchResults={searchResults}
+            searchQuery={searchQuery}
+            isSearching={isSearching}
+            exportResult={exportResult}
+            exportHistory={exportHistory}
+            isExporting={isExporting}
+            isIndexing={isIndexing}
+            graphProgress={graphProgress}
+            onOpenNote={onOpenNote}
+            onCancelExport={onCancelExport}
+          />
+        </div>
       ) : null}
     </footer>
   )

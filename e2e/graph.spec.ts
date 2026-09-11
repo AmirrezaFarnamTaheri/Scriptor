@@ -100,8 +100,6 @@ test.describe('Graph panel', () => {
   test('depth slider controls graph depth', async ({ page }) => {
     const panel = await openGraph(page)
 
-    // The depth control is a plain range input in `.graph-controls`; require it
-    // rather than skipping silently when it cannot be found.
     const slider = panel.getByRole('slider', { name: 'Graph depth' })
     await expect(slider).toBeVisible({ timeout: 10_000 })
     const initialValue = await slider.inputValue()
@@ -110,26 +108,25 @@ test.describe('Graph panel', () => {
     await slider.fill(target)
     await expect(slider).toHaveValue(target)
     expect(target).not.toBe(initialValue)
-    // The panel echoes the current depth next to the slider.
-    await expect(panel.locator('.graph-controls label span')).toHaveText(target)
+    await expect(slider.locator('xpath=following-sibling::span')).toHaveText(target)
   })
 
-  // Renamed from "graph zoom controls are accessible": the graph panel has no
-  // zoom in/out buttons (src/components/GraphPanel.tsx) — the old test called
-  // isVisible() on two locators that never match and discarded both results.
-  // Assert the view controls that do exist instead.
   test('graph view controls are accessible', async ({ page }) => {
     const panel = await openGraph(page)
 
     const controls = panel.locator('.graph-controls')
-    await expect(controls.getByRole('button', { name: 'Neighborhood (depth 2)' })).toBeVisible()
-    await expect(controls.getByRole('button', { name: 'Full vault' })).toBeVisible()
+    const view = controls.getByRole('combobox', { name: 'View' })
+    await expect(view).toBeVisible()
+    await expect(view.getByRole('option', { name: 'Neighborhood' })).toHaveCount(1)
+    await expect(view.getByRole('option', { name: 'Full vault' })).toHaveCount(1)
     await expect(panel.getByRole('button', { name: 'Close graph' })).toBeVisible()
 
-    // Switching to the full-vault view flips the toggle button's label.
-    const viewToggle = controls.getByRole('button', { name: 'vault view' })
-    await expect(viewToggle).toBeVisible()
-    await viewToggle.click()
-    await expect(controls.getByRole('button', { name: 'vault view' })).toHaveCount(0)
+    await view.selectOption({ label: 'Full vault' })
+    await expect(view).toHaveValue('vault')
+    await expect(panel.getByRole('slider', { name: 'Graph depth' })).toHaveCount(0)
+
+    await view.selectOption({ label: 'Neighborhood' })
+    await expect(view).toHaveValue('local')
+    await expect(panel.getByRole('slider', { name: 'Graph depth' })).toBeVisible()
   })
 })

@@ -1,52 +1,81 @@
-import { BookOpen, FileOutput, Link2, Quote } from 'lucide-react'
+import { useId, useRef, useState } from 'react'
+import { FileOutput, MoreHorizontal, Quote } from 'lucide-react'
+
+import { ToolbarPopover } from '../ToolbarPopover'
+import { useI18n } from '../../lib/i18n'
 
 interface InlineEditorAssistProps {
   activePath: string | null
-  hasFrontmatter: boolean
   brokenLinkCount?: number
   citationCount?: number
-  onInsertWikilink: () => void
   onInsertCitation: () => void
-  onOpenFrontmatter: () => void
   onOpenExport: () => void
 }
 
-/** Exposes context-aware editor shortcuts for links, citations, frontmatter, and export readiness. */
+/** Keeps document-scoped secondary actions available without expanding the persistent editor row. */
 export function InlineEditorAssist({
   activePath,
-  hasFrontmatter,
   brokenLinkCount = 0,
   citationCount = 0,
-  onInsertWikilink,
   onInsertCitation,
-  onOpenFrontmatter,
   onOpenExport,
 }: InlineEditorAssistProps) {
+  const { t } = useI18n()
+  const [open, setOpen] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const triggerId = useId()
+  const menuId = useId()
+
   if (!activePath) return null
 
+  const runAndClose = (action: () => void) => {
+    action()
+    setOpen(false)
+    triggerRef.current?.focus()
+  }
+
   return (
-    <div className="format-group inline-editor-assist" aria-label="Editor assistants">
-      <button type="button" className="toolbar-button" onClick={onInsertWikilink} title="Insert wikilink">
-        <Link2 size={14} />
-        Link
-      </button>
-      <button type="button" className="toolbar-button" onClick={onInsertCitation} title="Insert citation">
-        <Quote size={14} />
-        Cite{citationCount > 0 ? ` (${citationCount})` : ''}
-      </button>
+    <div className="format-group inline-editor-assist" aria-label={t('editorAssist.documentActions')}>
       <button
+        ref={triggerRef}
+        id={triggerId}
         type="button"
-        className={`toolbar-button${hasFrontmatter ? '' : ' emphasized'}`}
-        onClick={onOpenFrontmatter}
-        title={hasFrontmatter ? 'Edit YAML frontmatter' : 'Add YAML frontmatter'}
+        className={open ? 'toolbar-button active' : 'toolbar-button'}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key !== 'ArrowDown') return
+          event.preventDefault()
+          setOpen(true)
+        }}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        title={t('editorAssist.moreActions')}
       >
-        <BookOpen size={14} />
-        Frontmatter
+        <MoreHorizontal size={15} aria-hidden="true" />
+        <span className="sr-only">{t('editorAssist.moreActions')}</span>
       </button>
-      <button type="button" className="toolbar-button" onClick={onOpenExport} title="Export readiness">
-        <FileOutput size={14} />
-        Export{brokenLinkCount > 0 ? ` · ${brokenLinkCount} issues` : ''}
-      </button>
+      <ToolbarPopover
+        open={open}
+        id={menuId}
+        className="inline-editor-assist-menu"
+        triggerRef={triggerRef}
+        labelledBy={triggerId}
+        onClose={() => setOpen(false)}
+      >
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => runAndClose(onInsertCitation)}>
+            <Quote size={14} aria-hidden="true" />
+            <span>{t('editorAssist.insertCitation')}{citationCount > 0 ? ` (${citationCount})` : ''}</span>
+          </button>
+        </li>
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => runAndClose(onOpenExport)}>
+            <FileOutput size={14} aria-hidden="true" />
+            <span>{t('editorAssist.exportPublish')}{brokenLinkCount > 0 ? ` · ${t('editorAssist.issueCount', { count: brokenLinkCount })}` : ''}</span>
+          </button>
+        </li>
+      </ToolbarPopover>
     </div>
   )
 }

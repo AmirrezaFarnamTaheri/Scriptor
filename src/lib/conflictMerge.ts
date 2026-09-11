@@ -4,6 +4,12 @@ export interface ConflictHunk {
   id: number
   ours: string
   theirs: string
+  /** Exact source lines, retained so a single blank line is distinct from an empty side. */
+  oursLines: string[]
+  theirsLines: string[]
+  /** Exact ancestor text when the source uses diff3 markers. */
+  base?: string
+  baseLines?: string[]
   branchLabel: string
   /** Line number in the source file where the `<<<<<<<` marker starts (0-indexed). */
   startLine: number
@@ -15,203 +21,147 @@ export interface ParsedConflictFile {
   hunks: ConflictHunk[]
 }
 
-const CONFLICT_START = /^<<<<<<</
-const CONFLICT_MID = /^=======/
-const CONFLICT_END = /^>>>>>>>/
+const CONFLICT_START = /^<<<<<<<(?:\s|$)/
+const CONFLICT_BASE = /^\|\|\|\|\|\|\|(?:\s|$)/
+const CONFLICT_MID = /^=======(?:\s|$)/
+const CONFLICT_END = /^>>>>>>>(?:\s|$)/
 
-/** Opening/closing token of a fenced code block (``` or ~~~, three or more). */
-const FENCE = /^(`{3,}|~{3,})/
+interface ParsedHunkAt {
+  hunk: Omit<ConflictHunk, 'id'>
+  nextLine: number
+}
 
 /**
- * Tracks fenced-code-block state across a line scan so conflict markers that
- * appear *inside* a fence (e.g. a note documenting `git` usage) are treated as
- * ordinary text rather than real conflict markers. A fence opened with ``` can
- * only be closed by ```, and likewise for ~~~.
+ * Parse one complete Git conflict block. Marker-looking prose is only treated
+ * as a conflict when a complete ordered block is present; malformed examples
+ * remain ordinary text. Diff3 ancestor sections are captured exactly instead
+ * of reconstructed from line offsets.
  */
-class FenceTracker {
-  private openChar: '`' | '~' | null = null
+function parseHunkAt(lines: string[], startLine: number): ParsedHunkAt | null {
+  if (!CONFLICT_START.test(lines[startLine] ?? '')) return null
 
-  /** Feed a line; returns true when the line is a fence delimiter. */
-  push(line: string): boolean {
-    const match = FENCE.exec(line.trim())
-    if (!match) return false
-    const char = match[1][0] as '`' | '~'
-    if (this.openChar === null) {
-      this.openChar = char
-      return true
-    }
-    if (this.openChar === char) {
-      this.openChar = null
-      return true
-    }
-    // A ~~~ line inside a ``` fence (or vice versa) is just fenced content.
-    return false
+  let index = startLine + 1
+  const oursLines: string[] = []
+  while (
+    index < lines.length &&
+    !CONFLICT_BASE.test(lines[index] ?? '') &&
+    !CONFLICT_MID.test(lines[index] ?? '')
+  ) {
+    oursLines.push(lines[index] ?? '')
+    index += 1
   }
 
-  get inFence(): boolean {
-    return this.openChar !== null
+  let baseLines: string[] | undefined
+  if (index < lines.length && CONFLICT_BASE.test(lines[index] ?? '')) {
+    baseLines = []
+    index += 1
+    while (index < lines.length && !CONFLICT_MID.test(lines[index] ?? '')) {
+      baseLines.push(lines[index] ?? '')
+      index += 1
+    }
+  }
+
+  if (index >= lines.length || !CONFLICT_MID.test(lines[index] ?? '')) return null
+  index += 1
+
+  const theirsLines: string[] = []
+  while (index < lines.length && !CONFLICT_END.test(lines[index] ?? '')) {
+    theirsLines.push(lines[index] ?? '')
+    index += 1
+  }
+  if (index >= lines.length || !CONFLICT_END.test(lines[index] ?? '')) return null
+
+  const markerLine = lines[index] ?? ''
+  const branchLabel = markerLine.replace(/^>>>>>>>\s*/, '').trim()
+  const nextLine = index + 1
+  return {
+    hunk: {
+      ours: oursLines.join('\n'),
+      theirs: theirsLines.join('\n'),
+      oursLines: [...oursLines],
+      theirsLines: [...theirsLines],
+      ...(baseLines ? { base: baseLines.join('\n'), baseLines: [...baseLines] } : {}),
+      branchLabel,
+      startLine,
+      endLine: nextLine,
+    },
+    nextLine,
   }
 }
 
-/** Parse git conflict markers into ordered hunks (ours / theirs pairs). */
+/** Parse complete Git conflict-marker blocks into ordered hunks. */
 export function parseConflictHunks(source: string): ParsedConflictFile {
   const hunks: ConflictHunk[] = []
   const lines = source.split('\n')
-  const fence = new FenceTracker()
   let index = 0
-  let hunkId = 0
 
   while (index < lines.length) {
-    const line = lines[index] ?? ''
-    if (fence.push(line) || fence.inFence || !CONFLICT_START.test(line)) {
+    if (!CONFLICT_START.test(lines[index] ?? '')) {
       index += 1
       continue
     }
-    const conflictStart = index
-    index += 1
-    const oursLines: string[] = []
-    while (index < lines.length && !CONFLICT_MID.test(lines[index] ?? '')) {
-      oursLines.push(lines[index] ?? '')
+
+    const parsed = parseHunkAt(lines, index)
+    if (!parsed) {
+      // A marker-looking line in prose or an incomplete block is not silently
+      // consumed. Move one line and keep scanning for a later complete block.
       index += 1
+      continue
     }
-    if (index >= lines.length || !CONFLICT_MID.test(lines[index] ?? '')) break
-    index += 1
-    const theirsLines: string[] = []
-    while (index < lines.length && !CONFLICT_END.test(lines[index] ?? '')) {
-      theirsLines.push(lines[index] ?? '')
-      index += 1
-    }
-    if (index >= lines.length || !CONFLICT_END.test(lines[index] ?? '')) break
-    const markerLine = lines[index] ?? ''
-    const branchLabel = markerLine.replace(/^>>>>>>>\s*/, '').trim()
-    index += 1
-    hunks.push({
-      id: hunkId,
-      ours: oursLines.join('\n'),
-      theirs: theirsLines.join('\n'),
-      branchLabel,
-      startLine: conflictStart,
-      endLine: index,
-    })
-    hunkId += 1
+
+    hunks.push({ id: hunks.length, ...parsed.hunk })
+    index = parsed.nextLine
   }
 
   return { hunks }
 }
 
-function lineCount(block: string): number {
-  return block === '' ? 0 : block.split('\n').length
+/** True only when every parsed hunk has an explicit, available resolution. */
+export function areConflictChoicesComplete(
+  parsed: ParsedConflictFile,
+  choices: Partial<Record<number, ConflictHunkChoice>>,
+): boolean {
+  return (
+    parsed.hunks.length > 0 &&
+    parsed.hunks.every((hunk) => {
+      const choice = choices[hunk.id]
+      if (choice === 'base') return hunk.base !== undefined
+      return choice === 'ours' || choice === 'theirs'
+    })
+  )
 }
 
 /**
- * How far the conflicted file has drifted from the base file after a conflict
- * block: the conflicted file spends 3 marker lines plus *both* sides, where the
- * base file held only the ancestor text (estimated as the longer side).
+ * Apply explicit per-hunk choices. Unresolved hunks are preserved verbatim so
+ * callers can never accidentally turn an untouched conflict into an implicit
+ * "ours" resolution.
  */
-function conflictDrift(oursLineCount: number, theirsLineCount: number): number {
-  const conflicted = 3 + oursLineCount + theirsLineCount
-  const base = Math.max(oursLineCount, theirsLineCount, 1)
-  return conflicted - base
-}
-
-/**
- * Estimate the line in the base (ancestor) file where a hunk's ancestor content
- * begins, correcting for the marker and duplicate-side lines contributed by all
- * preceding conflicts. Callers pass the result to {@link extractBaseHunk}.
- */
-export function estimateBaseHunkStart(hunks: ConflictHunk[], hunkId: number): number {
-  let drift = 0
-  for (const prior of hunks) {
-    if (prior.id >= hunkId) break
-    drift += conflictDrift(lineCount(prior.ours), lineCount(prior.theirs))
-  }
-  const hunk = hunks.find((candidate) => candidate.id === hunkId)
-  return Math.max(0, (hunk?.startLine ?? 0) - drift)
-}
-
-/** Apply per-hunk choices and return conflict-marker-free markdown. */
 export function applyConflictChoices(
   source: string,
-  choices: Record<number, ConflictHunkChoice>,
-  baseContent?: string | null,
+  choices: Partial<Record<number, ConflictHunkChoice>>,
 ): string {
+  const parsed = parseConflictHunks(source)
+  if (parsed.hunks.length === 0) return source
+
   const lines = source.split('\n')
   const output: string[] = []
-  const fence = new FenceTracker()
-  let index = 0
-  let hunkId = 0
-  // Running offset between the conflicted file and the base file, accumulated
-  // from every conflict resolved so far.
-  let drift = 0
+  let cursor = 0
 
-  while (index < lines.length) {
-    const line = lines[index] ?? ''
-    if (fence.push(line) || fence.inFence || !CONFLICT_START.test(line)) {
-      output.push(line)
-      index += 1
-      continue
-    }
-    const conflictStart = index
-    index += 1
-    const oursLines: string[] = []
-    while (index < lines.length && !CONFLICT_MID.test(lines[index] ?? '')) {
-      oursLines.push(lines[index] ?? '')
-      index += 1
-    }
-    if (index >= lines.length || !CONFLICT_MID.test(lines[index] ?? '')) {
-      // Unbalanced markers: emit the remainder verbatim rather than truncating
-      // the file. The user still sees the raw markers and can fix them by hand.
-      output.push(...lines.slice(conflictStart))
-      break
-    }
-    index += 1
-    const theirsLines: string[] = []
-    while (index < lines.length && !CONFLICT_END.test(lines[index] ?? '')) {
-      theirsLines.push(lines[index] ?? '')
-      index += 1
-    }
-    if (index >= lines.length || !CONFLICT_END.test(lines[index] ?? '')) {
-      output.push(...lines.slice(conflictStart))
-      break
-    }
-    index += 1
-
-    const choice = choices[hunkId] ?? 'ours'
-    if (choice === 'theirs') {
-      output.push(...theirsLines)
-    } else if (choice === 'base' && baseContent) {
-      const contentLineCount = Math.max(oursLines.length, theirsLines.length)
-      output.push(
-        extractBaseHunk(baseContent, Math.max(0, conflictStart - drift), contentLineCount),
-      )
+  for (const hunk of parsed.hunks) {
+    output.push(...lines.slice(cursor, hunk.startLine))
+    const choice = choices[hunk.id]
+    if (choice === 'ours') {
+      output.push(...hunk.oursLines)
+    } else if (choice === 'theirs') {
+      output.push(...hunk.theirsLines)
+    } else if (choice === 'base' && hunk.base !== undefined) {
+      output.push(...(hunk.baseLines ?? []))
     } else {
-      output.push(...oursLines)
+      output.push(...lines.slice(hunk.startLine, hunk.endLine))
     }
-    drift += conflictDrift(oursLines.length, theirsLines.length)
-    hunkId += 1
+    cursor = hunk.endLine
   }
 
+  output.push(...lines.slice(cursor))
   return output.join('\n')
-}
-
-/**
- * Extract the portion of the base (ancestor) file that corresponds to a conflict
- * hunk. Uses a positional heuristic: `baseStartLine` is an index into the base
- * file's lines and we return roughly the same number of content lines.
- *
- * `baseStartLine` must already be corrected for preceding conflicts — use
- * {@link estimateBaseHunkStart} rather than passing a raw conflicted-file line
- * number, otherwise the 2nd and later hunks read from the wrong offset.
- */
-export function extractBaseHunk(
-  baseContent: string,
-  baseStartLine: number,
-  contentLineCount: number,
-): string {
-  const baseLines = baseContent.split('\n')
-  if (baseLines.length === 0) return ''
-
-  const estimatedStart = Math.max(0, Math.min(baseStartLine, baseLines.length - 1))
-  const estimatedEnd = Math.min(estimatedStart + Math.max(contentLineCount, 1), baseLines.length)
-  return baseLines.slice(estimatedStart, estimatedEnd).join('\n')
 }

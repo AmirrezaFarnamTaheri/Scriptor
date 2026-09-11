@@ -3,6 +3,7 @@ import { Clock, RotateCcw } from 'lucide-react'
 
 import {
   vaultListNoteHistory,
+  vaultReadNote,
   vaultReadNoteHistoryRevision,
   vaultRestoreNoteHistoryRevision,
 } from '../bridge/commands'
@@ -34,6 +35,22 @@ interface PreviewState {
   markdown: string
 }
 
+interface CurrentNoteState {
+  path: string
+  markdown: string
+}
+
+interface PreviewErrorState {
+  path: string
+  revisionId: string
+  message: string
+}
+
+interface CurrentErrorState {
+  path: string
+  message: string
+}
+
 /** Formats persisted revision timestamps for compact, locale-aware timeline display. */
 function formatRevisionDate(value: string) {
   return new Date(value).toLocaleString(undefined, {
@@ -42,12 +59,15 @@ function formatRevisionDate(value: string) {
   })
 }
 
-/** Browses local note revisions and requires explicit confirmation before restoring content. */
+/** Browses local note revisions and requires an explicit current-vs-revision comparison before restore. */
 export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
+  const [currentState, setCurrentState] = useState<CurrentNoteState | null>(null)
   const [status, setStatus] = useState('')
+  const [previewError, setPreviewError] = useState<PreviewErrorState | null>(null)
+  const [currentError, setCurrentError] = useState<CurrentErrorState | null>(null)
   const [busy, setBusy] = useState(false)
   const [confirmRestore, setConfirmRestore] = useState(false)
 
@@ -55,27 +75,42 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
     if (!path) return
     let cancelled = false
     const requestedPath = path
-    void vaultListNoteHistory(requestedPath)
-      .then((rows) => {
-        if (cancelled) return
+    void Promise.allSettled([
+      vaultListNoteHistory(requestedPath),
+      vaultReadNote(requestedPath),
+    ]).then(([historyResult, currentResult]) => {
+      if (cancelled) return
+      if (historyResult.status === 'fulfilled') {
+        const rows = historyResult.value
         setRevisionState({ path: requestedPath, rows })
         setSelectedId(rows[0]?.id ?? null)
-        setConfirmRestore(false)
         setStatus('')
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setRevisionState({ path: requestedPath, rows: [] })
-          setStatus(error instanceof Error ? error.message : 'Could not load note history')
-        }
-      })
+      } else {
+        setRevisionState({ path: requestedPath, rows: [] })
+        setStatus(historyResult.reason instanceof Error ? historyResult.reason.message : 'Could not load note history')
+      }
+
+      if (currentResult.status === 'fulfilled') {
+        setCurrentState({ path: requestedPath, markdown: currentResult.value.markdown })
+        setCurrentError(null)
+      } else {
+        setCurrentState(null)
+        setCurrentError({
+          path: requestedPath,
+          message: currentResult.reason instanceof Error ? currentResult.reason.message : 'Could not read the current note',
+        })
+      }
+      setConfirmRestore(false)
+    })
     return () => {
       cancelled = true
     }
   }, [path])
 
+  const loadedHistoryPath = revisionState?.path ?? null
+
   useEffect(() => {
-    if (!path || !selectedId) return
+    if (!path || !selectedId || loadedHistoryPath !== path) return
     let cancelled = false
     const requestedPath = path
     const requestedRevision = selectedId
@@ -83,31 +118,44 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
       .then((markdown) => {
         if (!cancelled) {
           setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown })
+          setPreviewError(null)
         }
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setPreviewState({ path: requestedPath, revisionId: requestedRevision, markdown: '' })
+          setPreviewState(null)
+          setPreviewError({
+            path: requestedPath,
+            revisionId: requestedRevision,
+            message: error instanceof Error ? error.message : 'Could not load this revision',
+          })
         }
       })
     return () => {
       cancelled = true
     }
-  }, [path, selectedId])
+  }, [loadedHistoryPath, path, selectedId])
 
-  const revisions = revisionState?.path === path ? revisionState.rows : []
+  const revisions = loadedHistoryPath === path ? revisionState?.rows ?? [] : []
   const selectedRevision = revisions.find((revision) => revision.id === selectedId) ?? null
-  const preview =
-    previewState?.path === path && previewState.revisionId === selectedId
-      ? previewState.markdown
-      : ''
+  const previewReady = previewState?.path === path && previewState.revisionId === selectedId
+  const currentReady = currentState?.path === path
+  const preview = previewReady ? previewState.markdown : ''
+  const currentMarkdown = currentReady ? currentState.markdown : ''
+  const previewErrorMessage =
+    previewError?.path === path && previewError.revisionId === selectedId ? previewError.message : null
+  const currentErrorMessage = currentError?.path === path ? currentError.message : null
+  const canRestore = Boolean(
+    selectedId && previewReady && currentReady && !previewErrorMessage && !currentErrorMessage,
+  )
 
   const restore = async () => {
-    if (!path || !selectedId) return
+    if (!path || !selectedId || !canRestore) return
     setBusy(true)
     setStatus('Restoring revision…')
     try {
       await vaultRestoreNoteHistoryRevision(path, selectedId)
+      setCurrentState({ path, markdown: preview })
       setStatus('Revision restored.')
       setConfirmRestore(false)
       onRestored?.()
@@ -134,12 +182,13 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
         <p className="empty-state">No saved revisions yet. Edits are captured before each save.</p>
       ) : (
         <div className="note-history-layout">
-          <ul className="note-history-timeline">
+          <ul className="note-history-timeline" aria-label="Saved revisions">
             {revisions.map((revision) => (
               <li key={revision.id}>
                 <button
                   type="button"
                   className={selectedId === revision.id ? 'active' : ''}
+                  aria-pressed={selectedId === revision.id}
                   onClick={() => {
                     setSelectedId(revision.id)
                     setConfirmRestore(false)
@@ -155,13 +204,13 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
           <div className="note-history-preview-pane">
             <header className="note-history-preview-header">
               <div>
-                <strong>Revision preview</strong>
+                <strong>Compare before restoring</strong>
                 <span>{selectedRevision ? formatRevisionDate(selectedRevision.saved_at) : 'Select a revision'}</span>
               </div>
               <button
                 type="button"
                 className="toolbar-button note-history-restore"
-                disabled={busy || !selectedId}
+                disabled={busy || !canRestore}
                 onClick={() => setConfirmRestore(true)}
               >
                 <RotateCcw size={14} />
@@ -179,11 +228,34 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
                 className="note-history-restore-confirmation"
               />
             ) : null}
-            <pre className="note-history-markdown">{preview || 'Select a revision to preview.'}</pre>
+            {previewErrorMessage ? (
+              <p className="settings-status warn" role="alert">
+                Revision preview unavailable: {previewErrorMessage}. Restore is disabled until the revision can be read.
+              </p>
+            ) : null}
+            {currentErrorMessage ? (
+              <p className="settings-status warn" role="alert">
+                Current note preview unavailable: {currentErrorMessage}. Restore is disabled until the current note can be compared.
+              </p>
+            ) : null}
+            <div className="note-history-compare" aria-label="Current note and selected revision comparison">
+              <section aria-labelledby="note-history-current-heading">
+                <h3 id="note-history-current-heading">Current note</h3>
+                <pre className="note-history-markdown note-history-current-markdown">
+                  {currentReady ? currentMarkdown : 'Loading current note…'}
+                </pre>
+              </section>
+              <section aria-labelledby="note-history-revision-heading">
+                <h3 id="note-history-revision-heading">Selected revision</h3>
+                <pre className="note-history-markdown note-history-revision-markdown">
+                  {previewReady ? preview : selectedId ? 'Loading revision…' : 'Select a revision to preview.'}
+                </pre>
+              </section>
+            </div>
           </div>
         </div>
       )}
-      {status ? <p className="health-subtitle">{status}</p> : null}
+      {status ? <p className="health-subtitle" role="status">{status}</p> : null}
     </UnifiedPanelShell>
   )
 }

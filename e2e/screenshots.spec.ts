@@ -45,7 +45,7 @@ async function waitForEditorReady(page: Page) {
 }
 
 async function waitForInspectorReady(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Note Health' })).toBeVisible({ timeout: 45_000 })
+  await expect(page.getByRole('heading', { name: 'Vault health' })).toBeVisible({ timeout: 45_000 })
   await expect(page.locator('.widget-action')).toHaveText('Good', { timeout: 45_000 })
   await expect(page.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
 }
@@ -81,10 +81,9 @@ async function waitForGraphReady(page: Page) {
 async function waitForSettingsReady(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.locator('dd').first()).not.toHaveText('Checking...', { timeout: 20_000 })
-  // Version-agnostic: assert a resolved semver-ish version is rendered rather
-  // than pinning a literal that breaks on every Pandoc/app version bump.
-  await expect(dialog.getByText(/^\d+\.\d+(\.\d+)*$/).first()).toBeVisible({ timeout: 20_000 })
+  // Runtime diagnostics moved to the Advanced tab. General is the stable
+  // readiness surface for both the settings and shortcut screenshots.
+  await expect(dialog.getByRole('tab', { name: 'General', selected: true })).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(500)
 }
 
@@ -188,9 +187,7 @@ test('editor with split preview', async ({ page }) => {
 test('inspector preview', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  const splitToggle = page.getByRole('button', { name: 'Toggle split preview' })
-  if ((await splitToggle.getAttribute('aria-pressed')) === 'true') await splitToggle.click()
-  await page.getByRole('tab', { name: 'Preview' }).click()
+  await page.getByRole('tab', { name: 'Rendered output' }).click()
   await waitForPreviewReady(page)
   const qaBar = page.locator('.preview-qa-bar')
   await expect(qaBar).toBeVisible()
@@ -219,7 +216,8 @@ test('command palette', async ({ page }) => {
 test('graph panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.top-actions').getByRole('button', { name: 'Graph', exact: true }).click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open graph')
   await expect(page.getByRole('dialog', { name: 'Knowledge graph' })).toBeVisible()
   await waitForGraphReady(page)
   await captureReadyScreenshot(page, shotPath('graph'))
@@ -229,7 +227,8 @@ test('graph panel', async ({ page }) => {
 test('canvas panel', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.top-actions').getByRole('button', { name: 'Canvas', exact: true }).click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open canvas')
   await expect(page.getByRole('dialog', { name: 'Canvas' })).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('canvas'))
@@ -283,8 +282,9 @@ test('settings panel', async ({ page }) => {
 test('publish center', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open publish center')
+  await expect(page.getByRole('dialog', { name: 'Export & publish' })).toBeVisible()
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('publish-center'))
   await expect(page).toHaveScreenshot('publish-center.png', { fullPage: false })
@@ -293,10 +293,8 @@ test('publish center', async ({ page }) => {
 test('vault health dashboard', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Publish center' })).toBeVisible()
-  await page.getByRole('button', { name: 'Close Publish center' }).click()
-  await page.locator('.widget-action').getByText('Good').click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open vault health')
   const healthDashboard = page.getByRole('dialog', { name: 'Vault health' })
   await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
   const healthMetrics = healthDashboard.locator('.metric-grid.health-metrics').first().locator('.metric')
@@ -305,7 +303,7 @@ test('vault health dashboard', async ({ page }) => {
     Array.from(new Set(elements.map((element) => Math.round(element.getBoundingClientRect().top)))),
   )
   expect(metricRows).toHaveLength(3)
-  await expect(healthDashboard.getByText('No issues detected')).toBeVisible()
+  await expect(healthDashboard.getByText('Vault looks healthy')).toBeVisible()
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('vault-health'))
   await expect(page).toHaveScreenshot('vault-health.png', { fullPage: false })
@@ -314,7 +312,8 @@ test('vault health dashboard', async ({ page }) => {
 test('knowledge workbench', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.top-actions').getByRole('button', { name: 'Workbench', exact: true }).click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open knowledge workbench')
   const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
   await expect(workbench).toBeVisible()
   const orphanTab = workbench.getByRole('tab', { name: 'Orphans (0)' })
@@ -348,12 +347,9 @@ test('conflict resolver modal', async ({ page }) => {
   await expect(changedRow.locator('.git-file-row-actions button')).toHaveCount(2)
   await page.waitForTimeout(500)
   const resolveBtn = gitPanel.getByRole('button', { name: /resolve/i }).first()
-  if (await resolveBtn.isVisible()) {
-    await resolveBtn.click()
-  } else {
-    await gitPanel.locator('.conflict-resolve-btn, [title*="conflict"], [title*="Resolve"]').first().click()
-  }
-  const resolver = page.getByRole('dialog', { name: 'Resolve merge conflict' })
+  await expect(resolveBtn).toBeVisible()
+  await resolveBtn.click()
+  const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
   await expect(resolver).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
   await captureReadyScreenshot(page, shotPath('conflict-resolver'))
@@ -371,7 +367,8 @@ test('note history panel', async ({ page }) => {
   const historyPanel = page.getByRole('dialog', { name: 'Note history' })
   await expect(historyPanel).toBeVisible()
   await expect(historyPanel.getByText(/words/)).toBeVisible()
-  await expect(historyPanel.getByText('Revision preview')).toBeVisible()
+  await expect(historyPanel.getByText('Compare before restoring')).toBeVisible()
+  await expect(historyPanel.getByLabel('Current note and selected revision comparison')).toBeVisible()
   await settleLayout(page)
   const restoreButton = historyPanel.getByRole('button', { name: 'Restore revision' })
   const [restoreBox, panelBox] = await Promise.all([restoreButton.boundingBox(), historyPanel.boundingBox()])
@@ -389,10 +386,10 @@ test('keyboard shortcut editor', async ({ page }) => {
   await waitForSettingsReady(page)
   const settings = page.getByRole('dialog', { name: 'Settings' })
   const shortcutsTab = settings.getByRole('tab', { name: /Keyboard|Shortcuts/i })
-  if (await shortcutsTab.isVisible()) {
-    await shortcutsTab.click()
-    await page.waitForTimeout(500)
-  }
+  await expect(shortcutsTab).toBeVisible()
+  await shortcutsTab.click()
+  await expect(settings.getByRole('table', { name: 'Keyboard shortcuts' })).toBeVisible()
+  await page.waitForTimeout(500)
   await captureReadyScreenshot(page, shotPath('keyboard-shortcuts'))
   await expect(page).toHaveScreenshot('keyboard-shortcuts.png', { fullPage: false })
 })
@@ -401,6 +398,7 @@ test('mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1024 })
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForEditorReady(page)
+  await setEditorSurfaceMode(page, 'Preview')
   await waitForPreviewReady(page)
   const mobileNav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
   await expect(mobileNav).toBeVisible()

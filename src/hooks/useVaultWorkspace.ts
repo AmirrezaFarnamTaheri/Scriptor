@@ -167,8 +167,8 @@ export function useVaultWorkspace(options?: {
 
   const noteCount = useMemo(() => entries.filter((entry) => entry.kind === 'note').length, [entries])
 
-  const refreshVaultConfig = useCallback(async () => {
-    if (!vault) {
+  const refreshVaultConfig = useCallback(async (targetVault = vault) => {
+    if (!targetVault) {
       setVaultConfig(DEFAULT_VAULT_CONFIG)
       return
     }
@@ -191,8 +191,8 @@ export function useVaultWorkspace(options?: {
     void refreshVaultConfig()
   })
 
-  const refreshNoteSummaries = useCallback(async () => {
-    if (!vault || !isNativeBridgeAvailable()) {
+  const refreshNoteSummaries = useCallback(async (targetVault = vault) => {
+    if (!targetVault || !isNativeBridgeAvailable()) {
       setNoteSummaries([])
       return
     }
@@ -204,8 +204,8 @@ export function useVaultWorkspace(options?: {
     }
   }, [vault])
 
-  const refreshVaultSnippets = useCallback(async () => {
-    if (!vault) {
+  const refreshVaultSnippets = useCallback(async (targetVault = vault) => {
+    if (!targetVault) {
       setSnippetCatalog([])
       return
     }
@@ -466,9 +466,9 @@ export function useVaultWorkspace(options?: {
         void Promise.all([
           refreshHealth(opened.vault),
           refreshGit(opened.vault.id), // explicit target: may run before setVault commits
-          refreshVaultConfig(),
-          refreshVaultSnippets(),
-          refreshNoteSummaries()
+          refreshVaultConfig(opened.vault),
+          refreshVaultSnippets(opened.vault),
+          refreshNoteSummaries(opened.vault)
         ]).catch((err) => {
           if (requestId !== vaultOpenRequestIdRef.current) return
           console.error('Failed to load background vault services:', err)

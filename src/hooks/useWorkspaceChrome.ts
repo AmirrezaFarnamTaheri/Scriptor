@@ -57,7 +57,10 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showTopBar: true,
   showModeStrip: true,
   showQuickActions: true,
-  topBarHiddenActions: [],
+  // Workspace-mode destinations remain available in the command palette and
+  // customizer without competing with writing controls. Wide layouts keep the
+  // icon-only support/store utilities visible; responsive CSS yields them first.
+  topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas'],
   topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
   topBarHiddenGroups: [],
   topBarGroupWidths: {},
@@ -156,9 +159,6 @@ function applyVisualPrefsToElement(chrome: WorkspaceChromePrefs) {
 export function useWorkspaceChrome() {
   const [chrome, setChrome] = useState<WorkspaceChromePrefs>(() => readChrome())
 
-  // Persistence and visual application live in an effect, not inside the state
-  // updater: updaters must stay pure (they can run more than once under
-  // StrictMode and concurrent rendering, which would desynchronize storage).
   useEffect(() => {
     applyVisualPrefsToElement(chrome)
     writeVersionedStorage(STORAGE_KEY, 1, chrome)

@@ -31,7 +31,6 @@ test('buildPaletteCommands includes open-gmail-manager when setGmailManagerOpen 
     graphDepth: 1,
     graphFullVault: false,
     splitPreview: false,
-    setSplitPreview: () => {},
     setStatusDockTab: () => {},
     setGraphOpen: () => {},
     setCanvasOpen: () => {},

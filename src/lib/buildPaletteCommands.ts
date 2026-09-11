@@ -35,7 +35,6 @@ export interface PaletteCommandContext {
   graphDepth: number
   graphFullVault: boolean
   splitPreview: boolean
-  setSplitPreview: (updater: (value: boolean) => boolean) => void
   setStatusDockTab: (tab: StatusDockTab) => void
   setGraphOpen: (open: boolean) => void
   setCanvasOpen: (open: boolean) => void
@@ -100,7 +99,6 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     graphDepth,
     graphFullVault,
     splitPreview,
-    setSplitPreview,
     setStatusDockTab,
     setGraphOpen,
     setCanvasOpen,
@@ -312,11 +310,15 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
           } satisfies AppCommandDefinition,
         ]
       : []),
-    {
-      id: 'toggle-split-preview',
-      label: splitPreview ? 'Close split preview' : 'Open split preview',
-      run: () => setSplitPreview((value) => !value),
-    },
+    ...(setEditorSurfaceMode
+      ? [
+          {
+            id: 'toggle-split-preview',
+            label: splitPreview ? 'Close split preview' : 'Open split preview',
+            run: () => setEditorSurfaceMode(splitPreview ? 'source' : 'split'),
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
     ...(setHibernateGraph
       ? [
           {

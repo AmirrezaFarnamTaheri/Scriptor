@@ -3,6 +3,7 @@ import type { CanvasRect } from '@scriptor/core/contracts/canvas'
 
 const MIN_SCALE = 0.25
 const MAX_SCALE = 4
+const ZOOM_STEP = 1.15
 
 export interface CanvasViewportState {
   scale: number
@@ -41,14 +42,20 @@ export function useCanvasViewport(base: CanvasRect) {
     [],
   )
 
-  const onWheel = useCallback((event: WheelEvent<SVGSVGElement>) => {
-    event.preventDefault()
-    const delta = event.deltaY > 0 ? 0.9 : 1.1
+  const setScale = useCallback((factor: number) => {
     setViewport((current) => ({
       ...current,
-      scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, current.scale * delta)),
+      scale: Math.min(MAX_SCALE, Math.max(MIN_SCALE, current.scale * factor)),
     }))
   }, [])
+
+  const onWheel = useCallback((event: WheelEvent<SVGSVGElement>) => {
+    event.preventDefault()
+    setScale(event.deltaY > 0 ? 0.9 : 1.1)
+  }, [setScale])
+
+  const zoomIn = useCallback(() => setScale(ZOOM_STEP), [setScale])
+  const zoomOut = useCallback(() => setScale(1 / ZOOM_STEP), [setScale])
 
   const onPointerDown = useCallback((event: PointerEvent<SVGSVGElement>) => {
     if (event.button !== 0 || event.altKey) return
@@ -96,6 +103,8 @@ export function useCanvasViewport(base: CanvasRect) {
     onPointerDown,
     onPointerMove,
     onPointerUp,
+    zoomIn,
+    zoomOut,
     reset,
     consumePanGesture,
   }

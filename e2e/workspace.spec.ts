@@ -98,7 +98,7 @@ test.describe('workspace flows', () => {
     const historyPanel = page.getByRole('dialog', { name: 'Note history' })
     await expect(historyPanel).toBeVisible()
     await expect(historyPanel.getByText(/words/)).toBeVisible()
-    await expect(historyPanel.locator('.note-history-markdown')).toContainText('Previous revision')
+    await expect(historyPanel.locator('.note-history-revision-markdown')).toContainText('Previous revision')
 
     const readEditorContent = () =>
       page.evaluate(() => {
@@ -134,13 +134,13 @@ test.describe('workspace flows', () => {
     await expect(searchPanel).toContainText(E2E_SEARCH_MARKER)
 
     await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
-    const publishDialog = page.getByRole('dialog', { name: 'Publish center' })
+    const publishDialog = page.getByRole('dialog', { name: 'Export & publish' })
     await expect(publishDialog).toBeVisible()
 
     await publishDialog
       .locator('.publish-profile-list > li')
       .first()
-      .getByRole('button', { name: 'Dry run' })
+      .getByRole('button', { name: 'Preview export' })
       .click()
 
     await expect(publishDialog.getByRole('heading', { name: 'Preflight preview' })).toBeVisible({

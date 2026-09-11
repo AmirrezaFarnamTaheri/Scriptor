@@ -58,7 +58,7 @@ test.describe('Frontend polish regressions', () => {
     await launchApp(page)
     for (const width of [1440, 1240, 1024]) {
       await page.setViewportSize({ width, height: 900 })
-      for (const mode of ['Inspector', 'Preview', 'Plugins']) {
+      for (const mode of ['Inspector', 'Rendered output', 'Plugins']) {
         await page.locator('.inspector-tabs').getByRole('tab', { name: mode, exact: true }).click()
         await settleLayout(page)
         const violations = await page.evaluate(() => {
@@ -81,15 +81,25 @@ test.describe('Frontend polish regressions', () => {
     }
   })
 
-  test('Jobs reveals its panel after the dock chrome is hidden', async ({ page }) => {
+  test('status summary reveals its selected panel after the dock chrome is hidden', async ({ page }) => {
     await launchApp(page)
-    const jobs = page.locator('.jobs-button')
-    await jobs.click()
-    await expect(page.locator('#dock-panel-jobs')).toBeVisible()
+    const summary = page.locator('.jobs-button')
+    await summary.click()
+    const selectedTab = page.locator('.bottom-tabs [role="tab"][aria-selected="true"]')
+    await expect(selectedTab).toBeVisible()
+    const panelId = await selectedTab.getAttribute('aria-controls')
+    expect(panelId).toBeTruthy()
+    await expect(page.locator(`#${panelId}`)).toBeVisible()
     await page.getByRole('button', { name: 'Hide status dock tabs', exact: true }).click()
-    await expect(page.locator('#dock-panel-jobs')).toHaveCount(0)
-    await jobs.click()
-    await expect(page.locator('#dock-panel-jobs')).toBeVisible()
+    await expect(page.locator(`#${panelId}`)).toHaveCount(0)
+    await summary.click()
+    // Re-resolve the selected tab after reopening: background job updates may
+    // legitimately change the active summary tab while the dock chrome is
+    // unmounted, so the pre-collapse aria-controls value can be stale.
+    await expect(selectedTab).toBeVisible()
+    const reopenedPanelId = await selectedTab.getAttribute('aria-controls')
+    expect(reopenedPanelId).toBeTruthy()
+    await expect(page.locator(`#${reopenedPanelId}`)).toBeVisible()
   })
 
   test('workspace and status dock reflow without covering the editor at intermediate widths', async ({ page }) => {
@@ -102,7 +112,7 @@ test.describe('Frontend polish regressions', () => {
     const inspector = page.locator('.inspector-panel')
     const status = page.locator('.status-strip')
     const dock = page.locator('.bottom-tabs-wrap')
-    const outputTab = page.getByRole('tab', { name: 'Output' })
+    const outputTab = page.locator('.bottom-tabs').getByRole('tab', { name: 'Output', exact: true })
 
     // The status dock collapses by default: its tabs and panel unmount until
     // the summary-row chevron reveals them.

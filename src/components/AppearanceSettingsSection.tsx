@@ -1,4 +1,5 @@
 import type { AppTheme } from '../hooks/useAppTheme'
+import { useI18n } from '../lib/i18n'
 import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
 import { EDITOR_FONT_FAMILIES } from '../brand/support'
 import type {
@@ -26,6 +27,7 @@ export function AppearanceSettingsSection({
   onThemeChange,
   onReplayOnboarding,
 }: AppearanceSettingsSectionProps) {
+  const { t } = useI18n()
   return (
     <div className="settings-section">
       <h3>Appearance &amp; layout</h3>
@@ -115,7 +117,7 @@ export function AppearanceSettingsSection({
             ['showFormatToolbar', 'Show format toolbar'],
             ['showEditorAssist', 'Show editor assist chips'],
             ['showEditorStatus', 'Show editor status bar'],
-            ['showInspectorHealth', 'Show inspector note health'],
+            ['showInspectorHealth', t('settingsSection.showInspectorHealth')],
             ['showWorkspaceFooter', 'Show workspace footer dock'],
             ['showStatusBar', 'Show bottom status bar'],
             ['showLineNumbers', 'Show line numbers'],

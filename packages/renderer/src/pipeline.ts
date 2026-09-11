@@ -205,8 +205,42 @@ function applyPreviewOptions(markdown: string, options: PreviewPipelineOptions):
   return next
 }
 
+/**
+ * GFM only recognizes open/done checkboxes, while Scriptor's task model also
+ * supports in-progress (`[/]`), cancelled (`[-]`) and forwarded (`[>]`).
+ * Convert those states to readable GFM task rows for preview/export without
+ * mutating source Markdown. Fenced code is deliberately left byte-for-byte
+ * unchanged so documentation examples do not become live task controls.
+ */
+export function preprocessExtendedTaskStates(markdown: string): string {
+  let fence: { marker: '`' | '~'; length: number } | null = null
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const fenceMatch = /^\s*(`{3,}|~{3,})/.exec(line)
+      if (fenceMatch) {
+        const token = fenceMatch[1]
+        const marker = token[0] as '`' | '~'
+        const closesFence = /^\s*(`{3,}|~{3,})\s*$/.test(line)
+        if (!fence) fence = { marker, length: token.length }
+        else if (fence.marker === marker && token.length >= fence.length && closesFence) fence = null
+        return line
+      }
+      if (fence) return line
+
+      const taskMatch = /^(\s*[-*+]\s+)\[([/\->])\](\s+)(.*)$/.exec(line)
+      if (!taskMatch) return line
+      const [, prefix, state, spacing, body] = taskMatch
+      if (state === '/') return `${prefix}[ ]${spacing}_In progress_ — ${body}`
+      if (state === '-') return `${prefix}[x]${spacing}_Cancelled_ — ~~${body}~~`
+      return `${prefix}[ ]${spacing}_Forwarded_ — ${body}`
+    })
+    .join('\n')
+}
+
 function preprocessMarkdown(markdown: string, options: PreviewPipelineOptions): string {
   let next = applyPreviewOptions(markdown.replace(/\r\n/g, '\n'), options)
+  next = preprocessExtendedTaskStates(next)
   next = preprocessMathFences(next)
   if (options.fetchNote) {
     next = preprocessImports(next, {

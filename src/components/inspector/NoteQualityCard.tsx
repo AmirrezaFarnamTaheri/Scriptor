@@ -2,6 +2,7 @@ import { AlertTriangle, CheckCircle2, FileOutput, Network } from 'lucide-react'
 
 import { WidgetCard } from '../chrome/WorkspaceChrome'
 import type { VaultHealthReport } from '../../types/vault'
+import { useI18n } from '../../lib/i18n'
 
 interface NoteQualityCardProps {
   activePath: string | null
@@ -28,10 +29,11 @@ export function NoteQualityCard({
   onOpenPublish,
   onOpenGraph,
 }: NoteQualityCardProps) {
+  const { t } = useI18n()
   if (!activePath) {
     return (
-      <WidgetCard title="Note quality">
-        <p className="empty-state">Open a note to see quality guidance.</p>
+      <WidgetCard title={t('noteQuality.title')}>
+        <p className="empty-state">{t('noteQuality.openNote')}</p>
       </WidgetCard>
     )
   }
@@ -43,48 +45,48 @@ export function NoteQualityCard({
 
   const issues: string[] = []
   if (missingCitations.length > 0) {
-    issues.push(`${missingCitations.length} unresolved citation${missingCitations.length === 1 ? '' : 's'}`)
+    issues.push(t('noteQuality.unresolvedCitations', { count: missingCitations.length }))
   }
   if (orphanRisk) {
-    issues.push('No inbound links — consider backlinking from related notes')
+    issues.push(t('noteQuality.noInboundLinks'))
   }
   if (isNoteDirty) {
-    issues.push('Unsaved edits — save before export')
+    issues.push(t('noteQuality.unsavedEdits'))
   }
   if (vaultBroken) {
-    issues.push(`${health?.broken_links ?? 0} broken links in vault`)
+    issues.push(t('noteQuality.brokenLinksInVault', { count: health?.broken_links ?? 0 }))
   }
 
   return (
-    <WidgetCard title="Note quality">
+    <WidgetCard title={t('noteQuality.title')}>
       <div className="note-quality-status">
         {exportReady && issues.length === 0 ? (
           <p className="note-quality-good">
-            <CheckCircle2 size={14} />
-            Export ready
+            <CheckCircle2 size={14} aria-hidden="true" />
+            {t('noteQuality.readyToExport')}
           </p>
         ) : (
           <p className="note-quality-warn">
-            <AlertTriangle size={14} />
-            {issues.length > 0 ? issues[0] : 'Review before publishing'}
+            <AlertTriangle size={14} aria-hidden="true" />
+            {issues.length > 0 ? issues[0] : t('noteQuality.reviewBeforePublishing')}
           </p>
         )}
       </div>
 
       <ul className="note-quality-metrics">
         <li>
-          <span>Outbound links</span>
+          <span>{t('noteQuality.outboundLinks')}</span>
           <strong>{outboundLinks}</strong>
         </li>
         <li>
-          <span>Backlinks</span>
+          <span>{t('noteQuality.backlinks')}</span>
           <strong>{backlinkCount}</strong>
         </li>
         <li>
-          <span>Citations</span>
+          <span>{t('noteQuality.citations')}</span>
           <strong>
             {citationKeys.length}
-            {missingCitations.length > 0 ? ` (${missingCitations.length} missing)` : ''}
+            {missingCitations.length > 0 ? ` (${t('noteQuality.missingCount', { count: missingCitations.length })})` : ''}
           </strong>
         </li>
       </ul>
@@ -99,15 +101,15 @@ export function NoteQualityCard({
 
       <div className="note-quality-actions">
         <button type="button" className="toolbar-button" onClick={onOpenWorkbench}>
-          Repair queue
+          {t('noteQuality.repairIssues')}
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenGraph}>
-          <Network size={14} />
-          Graph
+          <Network size={14} aria-hidden="true" />
+          {t('noteQuality.graph')}
         </button>
         <button type="button" className="toolbar-button" onClick={onOpenPublish}>
-          <FileOutput size={14} />
-          Publish
+          <FileOutput size={14} aria-hidden="true" />
+          {t('noteQuality.exportPublish')}
         </button>
       </div>
     </WidgetCard>

@@ -1,23 +1,24 @@
 import { useId, useRef, useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Type } from 'lucide-react'
 
 import { TYPOGRAPHY_ACTIONS, type TypographyAction } from '@scriptor/editor/pure'
+import { useI18n } from '../lib/i18n'
 import { ToolbarPopover } from './ToolbarPopover'
 
-const LABELS: Record<TypographyAction, string> = {
-  zapGremlins: 'Zap gremlins',
-  stripDuplicateSpaces: 'Strip duplicate spaces',
-  removeLineBreaks: 'Remove line breaks',
-  straightenQuotes: 'Straighten quotes',
-  toDoubleQuotes: 'To double quotes',
-  doubleQuotesToSingle: 'Double → single quotes',
-  singleQuotesToDouble: 'Single → double quotes',
-  addSpacesAroundEmdashes: 'Spaces around em dashes',
-  removeSpacesAroundEmdashes: 'Remove em dash spaces',
-  toTitleCase: 'Title case',
-  toSentenceCase: 'Sentence case',
-  quotesToItalics: 'Quotes → italics',
-  italicsToQuotes: 'Italics → quotes',
+const LABEL_KEYS: Record<TypographyAction, string> = {
+  zapGremlins: 'typography.zapGremlins',
+  stripDuplicateSpaces: 'typography.stripDuplicateSpaces',
+  removeLineBreaks: 'typography.removeLineBreaks',
+  straightenQuotes: 'typography.straightenQuotes',
+  toDoubleQuotes: 'typography.toDoubleQuotes',
+  doubleQuotesToSingle: 'typography.doubleQuotesToSingle',
+  singleQuotesToDouble: 'typography.singleQuotesToDouble',
+  addSpacesAroundEmdashes: 'typography.addSpacesAroundEmdashes',
+  removeSpacesAroundEmdashes: 'typography.removeSpacesAroundEmdashes',
+  toTitleCase: 'typography.toTitleCase',
+  toSentenceCase: 'typography.toSentenceCase',
+  quotesToItalics: 'typography.quotesToItalics',
+  italicsToQuotes: 'typography.italicsToQuotes',
 }
 
 interface TypographyMenuProps {
@@ -26,6 +27,7 @@ interface TypographyMenuProps {
 }
 
 export function TypographyMenu({ disabled, onSelect }: TypographyMenuProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerId = useId()
@@ -45,11 +47,15 @@ export function TypographyMenu({ disabled, onSelect }: TypographyMenuProps) {
           event.preventDefault()
           setOpen(true)
         }}
+        aria-label={t('typography.trigger')}
+        title={t('typography.trigger')}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
-        Typography <ChevronDown size={14} />
+        <Type size={14} aria-hidden="true" />
+        <span className="toolbar-menu-trigger-label">{t('typography.trigger')}</span>
+        <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
         open={open}
@@ -70,7 +76,7 @@ export function TypographyMenu({ disabled, onSelect }: TypographyMenuProps) {
                 triggerRef.current?.focus()
               }}
             >
-              {LABELS[action]}
+              {t(LABEL_KEYS[action])}
             </button>
           </li>
         ))}

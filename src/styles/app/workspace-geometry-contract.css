@@ -6,78 +6,88 @@
  * inspector rail metrics/QA, docked Git rows, and footer status density.
  */
 
+/* --- Shared action hierarchy --------------------------------------------- */
+/* Primary describes visual emphasis, not layout. Callers that genuinely need a
+ * full-width CTA must opt into that geometry locally. This prevents Publish,
+ * History, Git and merge actions from turning into oversized bars. */
+.primary-button {
+  width: auto;
+  min-width: 0;
+  margin-top: 0;
+  padding-inline: 14px;
+}
+
 /* --- Editor toolbar ------------------------------------------------------- */
 .editor-toolbar-wrapper {
   container-type: inline-size;
-  overflow-x: hidden;
-  overflow-y: visible;
+  overflow: hidden visible;
 }
 
+/* The editor toolbar is one persistent command row. Secondary groups remain
+ * reachable by horizontal scrolling until their actions are progressively
+ * disclosed by their owning menus; they must never consume extra writing rows. */
 .format-row.editor-toolbar {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(36px, auto));
+  display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 6px;
-  max-height: min(32dvh, 240px);
-  overflow-x: hidden;
-  overflow-y: auto;
+  min-height: 44px;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
 
 .editor-toolbar > .format-group {
+  flex: 0 0 auto;
   width: max-content;
-  max-width: 100%;
+  max-width: none;
   min-width: 0;
   flex-wrap: nowrap;
-  justify-self: start;
-}
-
-/* Row 1: surface mode + document structure. */
-.editor-toolbar > .format-group:nth-child(1) {
-  grid-column: 1 / span 3;
-  grid-row: 1;
-}
-
-.editor-toolbar > .format-group:nth-child(2) {
-  grid-column: 4 / span 5;
-  grid-row: 1;
-}
-
-/* Row 2: formatting + review/capture. */
-.editor-toolbar > .format-group:nth-child(3) {
-  grid-column: 1 / span 7;
-  grid-row: 2;
-}
-
-.editor-toolbar > .format-group:nth-child(4) {
-  grid-column: 8 / span 3;
-  grid-row: 2;
-}
-
-/* Row 3: editor options + contextual note actions. */
-.editor-toolbar > .format-group:nth-child(5) {
-  grid-column: 1 / span 7;
-  grid-row: 3;
 }
 
 .editor-toolbar > .inline-editor-assist {
-  grid-column: 8 / -1;
-  grid-row: 3;
-  justify-self: end;
-  margin-left: 0;
+  flex: 0 0 auto;
+  margin-left: auto;
   margin-right: 0;
   padding-left: 0;
 }
 
-/* At inspector-width writing columns, compact only the dense editor-mode icon
- * cluster and keep Link / Cite / Frontmatter / Export labels readable. */
-@container (max-width: 920px) {
-  .editor-toolbar > .format-group:nth-child(5) > button {
-    width: 27px;
-    min-width: 27px;
-    padding-inline: 0;
-  }
+/* View mode is a mutually-exclusive segmented control, not another collection
+ * of toggles. Momentary formatting actions retain the ordinary button surface. */
+.editor-view-modes {
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
 
+.editor-view-modes .view-mode {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.editor-view-modes .view-mode[aria-pressed='true'] {
+  border-color: var(--border-strong);
+  background: var(--surface-raised);
+  color: var(--ink-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.editor-primary-formatting > .editor-structure-menu,
+.editor-primary-formatting > .editor-tools-menu,
+.editor-primary-formatting > .insert-menu,
+.editor-primary-formatting > .typography-menu,
+.canvas-export-menu {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Keep contextual actions concise without turning them into another row. */
+@container (max-width: 920px) {
   .inline-editor-assist {
     gap: 4px;
   }
@@ -85,26 +95,155 @@
   .inline-editor-assist .toolbar-button {
     width: auto;
     min-width: 0;
-    padding-inline: 4px;
+    padding-inline: 5px;
     gap: 4px;
     font-size: 11px;
   }
 }
 
-/* On genuinely narrow panes, preserve every command in a predictable stack.
- * Individual groups may wrap internally if even their icon set cannot fit. */
-@container (max-width: 580px) {
-  .format-row.editor-toolbar {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
+/* When the editor is sharing the workspace with both preview and inspector,
+ * collapse secondary menu triggers to distinct icon-sized affordances rather
+ * than allowing controls to sit beyond the writing column. The buttons keep
+ * explicit accessible names and titles; only redundant visible labels and
+ * chevrons are removed while space is constrained. */
+@container (max-width: 720px) {
+  .editor-primary-formatting > .editor-structure-menu > button,
+  .editor-primary-formatting > .insert-menu > button,
+  .editor-primary-formatting > .typography-menu > button,
+  .editor-primary-formatting > .editor-tools-menu > button {
+    width: 32px;
+    min-width: 32px;
+    padding-inline: 0;
+    justify-content: center;
+    gap: 0;
   }
 
-  .editor-toolbar > .format-group,
-  .editor-toolbar > .inline-editor-assist {
-    grid-column: 1 / -1;
-    grid-row: auto;
-    justify-self: start;
-    flex-wrap: wrap;
+  .editor-primary-formatting .toolbar-menu-trigger-label,
+  .editor-primary-formatting .toolbar-menu-trigger-chevron {
+    display: none;
+  }
+}
+
+/* Coarse-pointer safety belongs in the final geometry layer so later legacy
+ * rules cannot shrink touch targets below the platform minimum. */
+@media (pointer: coarse) {
+  .format-row.editor-toolbar button,
+  .format-row.editor-toolbar [role='button'],
+  .toolbar-menu-popover button {
+    min-width: 44px;
+    min-height: 44px;
+    height: 44px;
+  }
+}
+
+/* --- Settings ------------------------------------------------------------ */
+.settings-persistence-note {
+  margin: 12px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.settings-section-heading-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shortcut-table {
+  display: grid;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.shortcut-table-header,
+.shortcut-table-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(180px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.shortcut-table-header {
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shortcut-table-row {
+  border-top: 1px solid var(--border);
+}
+
+.shortcut-command-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.shortcut-command-copy strong,
+.shortcut-command-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.shortcut-command-copy small,
+.shortcut-effective-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.shortcut-input {
+  width: 100%;
+  min-width: 0;
+  font-family: var(--mono);
+}
+
+.shortcut-input.invalid {
+  border-color: var(--danger);
+}
+
+.settings-field-error {
+  display: block;
+  margin-top: 4px;
+  color: var(--danger);
+}
+
+.shortcut-row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.shortcut-default-badge {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  .shortcut-table-header {
+    display: none;
+  }
+
+  .shortcut-table-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .shortcut-row-actions {
+    justify-content: flex-start;
   }
 }
 
@@ -220,4 +359,21 @@
   border-color: var(--border-strong);
   background: var(--surface-raised);
   color: var(--ink-strong);
+}
+
+/* Finished indexing becomes a compact status instead of a permanent progress
+ * visualization that repeats "ready", "100%" and "n/n" at once. */
+.job-progress.is-done {
+  width: auto;
+  min-height: 32px;
+  grid-template-columns: 18px auto;
+  gap: 6px;
+  padding-inline: 8px;
+  background: transparent;
+  border-color: transparent;
+}
+
+.job-progress.is-done .progress-track,
+.job-progress.is-done > span {
+  display: none;
 }

@@ -36,7 +36,7 @@
     "switchToTheme": "تغییر به پوسته {{theme}}",
     "supportScriptor": "حمایت از اسکریپتور",
     "settings": "تنظیمات",
-    "typeCommandOrSearch": "دستور یا جستجو تایپ کنید...",
+    "typeCommandOrSearch": "فرمان‌ها و یادداشت‌ها",
     "expandSidebar": "باز کردن نوار کناری",
     "collapseSidebar": "جمع کردن نوار کناری",
     "expandInspector": "باز کردن پنل بررسی",
@@ -49,7 +49,10 @@
     "placeholder": "دستور یا یادداشت تایپ کنید...",
     "searchingNotes": "جستجوی یادداشت‌ها...",
     "noResults": "هیچ دستور یا یادداشت منطبقی یافت نشد.",
-    "ariaLabel": "پالت دستورات"
+    "ariaLabel": "پالت دستورات",
+    "scopeHint": "دستورها فوراً در دسترس‌اند؛ جستجوی یادداشت از ۲ نویسه آغاز می‌شود.",
+    "noteCategory": "یادداشت",
+    "commandCategory": "دستور"
   },
   "workspaceModes": {
     "writing": "نوشتن",
@@ -225,7 +228,24 @@
     "reject": "رد",
     "switchToWriteApproved": "برای اعمال پیش‌نویس‌ها روی خزانه، به حالت نوشتن با تأیید تغییر دهید.",
     "noToolCalls": "هنوز فراخوانی ابزاری انجام نشده است.",
-    "guidedAutomationRecipes": "الگوهای اتوماسیون راهنما"
+    "guidedAutomationRecipes": "الگوهای اتوماسیون راهنما",
+    "tabSharing": "اشتراک‌گذاری و همگام‌سازی",
+    "authorizationSubtitle": "مجوزدهی فقط برای خزانهٔ فعال اعمال می‌شود. بیشترین سطح دسترسی ابزارهای MCP را اینجا انتخاب کنید.",
+    "authorizationHeading": "مجوزدهی خزانه",
+    "authorizationScope": "این وضعیت فقط به خزانهٔ فعال مربوط است، نه به کل Scriptor.",
+    "authorizationLevelAria": "سطح مجوز MCP",
+    "currentMode": "حالت فعلی: {{mode}}",
+    "modeOff": "خاموش",
+    "modeOffDescription": "هیچ ابزار MCP به خزانهٔ فعال دسترسی ندارد.",
+    "modeReadOnly": "فقط خواندنی",
+    "modeReadOnlyDescription": "ابزارها می‌توانند محتوای خزانه را بررسی کنند اما نمی‌توانند تغییر آماده یا ثبت کنند.",
+    "modeDraft": "پیش‌نویس تغییرات",
+    "modeDraftDescription": "ابزارها می‌توانند وصله آماده کنند؛ نوشتن همچنان نیازمند تأیید صریح است.",
+    "modeWriteApproved": "نوشتن تأییدشده",
+    "modeWriteApprovedDescription": "عملیات تأییدشدهٔ MCP می‌تواند در این خزانه بنویسد. فقط برای گردش‌کارهای مورداعتماد استفاده کنید.",
+    "administration": "مدیریت",
+    "administrationDescription": "بازنشانی، MCP را برای خزانهٔ فعال غیرفعال می‌کند و خزانه‌های دیگر را تغییر نمی‌دهد.",
+    "resetActiveVaultAuthorization": "بازنشانی مجوز MCP خزانهٔ فعال"
   },
   "git": {
     "title": "گیت",
@@ -266,7 +286,18 @@
     "commitConfirm": "ثبت {{count}} فایل با پیام «{{message}}»؟",
     "pullConfirm": "دریافت تغییرات از مخزن بالادست (Pull)؟",
     "pushConfirm": "ارسال تغییرات به مخزن بالادست (Push)؟",
-    "repositoryClean": "مخزن تمیز است (تغییری وجود ندارد)"
+    "repositoryClean": "مخزن تمیز است (تغییری وجود ندارد)",
+    "remoteSynchronization": "همگام‌سازی مخزن راه‌دور",
+    "remoteUpToDate": "مخزن راه‌دور به‌روز است.",
+    "pullStrategy": "راهبرد دریافت",
+    "divergedPullStrategy": "شاخه‌های واگرا — راهبرد دریافت",
+    "pullFastForward": "فقط Fast-forward",
+    "pullMerge": "تعهد ادغام",
+    "pullRebase": "بازپایه‌گذاری تعهدهای محلی",
+    "noLocalCommitsToPush": "تعهد محلی برای ارسال وجود ندارد",
+    "messageSuggestions": "پیشنهادهای پیام",
+    "commitMessageSuggestions": "پیشنهادهای پیام تعهد",
+    "pullConfirmWithStrategy": "از upstream تنظیم‌شده دریافت شود؟ راهبرد: {{strategy}}."
   },
   "graph": {
     "title": "گراف دانش",
@@ -283,7 +314,13 @@
     "computingLayout": "در حال محاسبه چیدمان...",
     "ariaLabel": "گراف دانش",
     "closeGraph": "بستن گراف",
-    "groupColors": "رنگ‌های گروه گراف"
+    "groupColors": "رنگ‌های گروه گراف",
+    "view": "نما",
+    "custom": "سفارشی",
+    "saveViews": "ذخیرهٔ نماها",
+    "legendAria": "راهنمای گراف",
+    "currentNote": "یادداشت فعلی",
+    "directedLink": "پیوند جهت‌دار"
   },
   "knowledge": {
     "title": "میز کار دانش",
@@ -448,10 +485,10 @@
   "inspector": {
     "ariaLabel": "پنل بررسی",
     "modeAria": "حالت پنل بررسی",
-    "presetAria": "چیدمان پنل بررسی",
+    "presetAria": "نمایهٔ محتوای پنل بررسی",
     "tabs": {
       "inspector": "بررسی",
-      "preview": "پیش‌نمایش",
+      "preview": "خروجی رندرشده",
       "plugins": "افزونه‌ها"
     },
     "preset": {
@@ -472,7 +509,7 @@
         "description": "شاخص‌های کیفیت و تمرکز بر ترمیم پیوندهای شکسته."
       }
     },
-    "noteHealth": "وضعیت سلامت یادداشت",
+    "noteHealth": "سلامت خزانه",
     "previewSyncSplit": "پیش‌نمایش تقسیم‌شده با همگام‌سازی پیمایش کنار ویرایشگر باز است.",
     "previewSyncActive": "همگام‌سازی پیمایش بین ویرایشگر و پیش‌نمایش فعال است.",
     "previewCard": "پیش‌نمایش",
@@ -514,5 +551,52 @@
       "detail": "بارگذاری یکی از مؤلفه‌های افزونه ناموفق بود. با فعال‌سازی حالت امن در تنظیمات، افزونه‌های متفرقه غیرفعال می‌شوند."
     },
     "loadingStore": "در حال بارگذاری افزونه‌ها و قابلیت‌ها…"
+  },
+  "editorStructure": {
+    "ariaLabel": "ساختار سند",
+    "label": "ساختار",
+    "heading1": "عنوان ۱",
+    "heading2": "عنوان ۲",
+    "heading3": "عنوان ۳",
+    "tableOfContents": "فهرست مطالب",
+    "documentProperties": "ویژگی‌های سند",
+    "insertTable": "درج جدول",
+    "addTableRow": "افزودن سطر جدول",
+    "addTableColumn": "افزودن ستون جدول",
+    "moveSectionUp": "انتقال بخش به بالا",
+    "moveSectionDown": "انتقال بخش به پایین"
+  },
+  "store": {
+    "pluginViews": "نماهای افزونه",
+    "manageInstalled": "مدیریت نصب‌شده‌ها",
+    "browsePlugins": "مرور افزونه‌ها"
+  },
+  "canvasExport": {
+    "export": "خروجی گرفتن",
+    "exportFormat": "خروجی {{format}}"
+  },
+  "editorAssist": {
+    "documentActions": "اقدامات سند",
+    "moreActions": "اقدامات بیشتر سند",
+    "insertCitation": "درج ارجاع",
+    "exportPublish": "خروجی / انتشار",
+    "issueCount": "{{count}} مشکل"
+  },
+  "noteQuality": {
+    "title": "آمادگی انتشار",
+    "openNote": "برای بررسی آمادگی انتشار یک یادداشت باز کنید.",
+    "unresolvedCitations": "ارجاع‌های حل‌نشده: {{count}}",
+    "noInboundLinks": "پیوند ورودی وجود ندارد — از یادداشت‌های مرتبط به این یادداشت پیوند بدهید",
+    "unsavedEdits": "ویرایش‌های ذخیره‌نشده — پیش از خروجی گرفتن ذخیره کنید",
+    "brokenLinksInVault": "{{count}} پیوند خراب در بخش‌های دیگر خزانه",
+    "readyToExport": "آمادهٔ خروجی",
+    "reviewBeforePublishing": "پیش از انتشار بررسی کنید",
+    "outboundLinks": "پیوندهای خروجی",
+    "backlinks": "پس‌پیوندها",
+    "citations": "ارجاع‌ها",
+    "missingCount": "{{count}} مورد مفقود",
+    "repairIssues": "رفع مشکلات",
+    "graph": "گراف",
+    "exportPublish": "خروجی / انتشار"
   }
 }

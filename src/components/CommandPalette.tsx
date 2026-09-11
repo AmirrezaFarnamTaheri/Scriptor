@@ -11,6 +11,9 @@ export interface PaletteCommand {
   label: string
   /** Search synonyms — matched alongside the label. */
   keywords?: string[]
+  shortcut?: string
+  category?: string
+  tone?: 'default' | 'maintenance' | 'danger'
   run: () => void
   group?: 'command' | 'note'
 }
@@ -44,12 +47,14 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
       (noteSearch.query === deferredQuery ? noteSearch.hits : []).map((hit) => ({
         id: `note:${hit.path}`,
         label: hit.title,
+        category: t('commandPalette.noteCategory'),
         group: 'note' as const,
+        tone: 'default' as const,
         run: () => {
           onOpenNote?.(hit.path)
         },
       })),
-    [deferredQuery, noteSearch, onOpenNote],
+    [deferredQuery, noteSearch, onOpenNote, t],
   )
 
   const mergedCommands = useMemo(() => {
@@ -98,7 +103,6 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
     onClose()
   }
 
-
   return (
     <div
       className="command-palette-overlay"
@@ -108,7 +112,7 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
     >
       <div className="command-palette" ref={containerRef}>
         <div className="command-palette-header">
-          <Search className="command-palette-search-icon" />
+          <Search className="command-palette-search-icon" aria-hidden="true" />
           <input
             type="search"
             value={query}
@@ -137,6 +141,9 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
             autoFocus
           />
         </div>
+        <p className="command-palette-scope-hint">
+          {t('commandPalette.scopeHint')}
+        </p>
         {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => (
@@ -147,18 +154,20 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
                 role="option"
                 aria-selected={index === selectedIndex}
                 data-active={index === selectedIndex ? 'true' : undefined}
+                data-tone={command.tone ?? 'default'}
                 className={command.group === 'note' ? 'command-palette-note-hit' : undefined}
                 onClick={() => runSelected(command)}
                 onMouseEnter={() => setSelectedIndex(index)}
               >
-                {command.group === 'note' ? (
-                  <>
-                    <strong>{command.label}</strong>
-                    <small>{command.id.replace(/^note:/, '')}</small>
-                  </>
-                ) : (
-                  command.label
-                )}
+                <span className="command-palette-item-copy">
+                  <strong>{command.label}</strong>
+                  <small>
+                    {command.group === 'note'
+                      ? command.id.replace(/^note:/, '')
+                      : command.category ?? t('commandPalette.commandCategory')}
+                  </small>
+                </span>
+                {command.shortcut ? <kbd className="command-palette-shortcut">{command.shortcut}</kbd> : null}
               </button>
             </li>
           ))}

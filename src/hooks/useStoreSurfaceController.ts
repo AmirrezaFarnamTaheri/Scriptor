@@ -10,7 +10,7 @@ interface StoreSurfaceControllerOptions {
   workspaceMode: WorkspaceMode
   currentLayout: WorkspaceLayout
   applyLayout: (mode: WorkspaceMode, layout: Partial<WorkspaceLayout>) => void
-  setSplitPreview: (updater: (current: boolean) => boolean) => void
+  setEditorSurfaceMode: (mode: 'source' | 'split') => void
   setStickiesVisible: (visible: boolean) => void
   setGraphDepth: (depth: number) => void
   setDistractionFree: (enabled: boolean) => void
@@ -33,7 +33,7 @@ const FEATURE_COPY: RuntimeFeatureCopy[] = [
 export function useStoreSurfaceController(options: StoreSurfaceControllerOptions) {
   const {
     currentLayout, hibernation, setHibernation, applyLayout, workspaceMode,
-    setSplitPreview, setStickiesVisible, setGraphDepth, setDistractionFree,
+    setEditorSurfaceMode, setStickiesVisible, setGraphDepth, setDistractionFree,
   } = options
   const { splitPreview, showStickies, graphDepth, distractionFree } = currentLayout
   const { graph, mcp, watcher, git, spellcheck } = hibernation
@@ -77,12 +77,12 @@ export function useStoreSurfaceController(options: StoreSurfaceControllerOptions
   const applyLayoutPreset = useCallback(
     (preset: LayoutPreset) => {
       applyLayout(workspaceMode, preset.layout)
-      setSplitPreview(() => preset.layout.splitPreview)
+      setEditorSurfaceMode(preset.layout.splitPreview ? 'split' : 'source')
       setStickiesVisible(preset.layout.showStickies)
       setGraphDepth(preset.layout.graphDepth)
       setDistractionFree(preset.layout.distractionFree)
     },
-    [applyLayout, setDistractionFree, setGraphDepth, setSplitPreview, setStickiesVisible, workspaceMode],
+    [applyLayout, setDistractionFree, setEditorSurfaceMode, setGraphDepth, setStickiesVisible, workspaceMode],
   )
   const inspectorProps = useMemo(() => ({
     mcpMode: options.mcp.mode,

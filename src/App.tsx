@@ -93,11 +93,11 @@ import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
+import { mutateVaultConfig } from './lib/vaultConfigMutation'
 import {
   gitShowHeadFile,
   vaultReadNote,
   vaultSaveNote,
-  vaultSaveConfig,
   codeChunkRun,
 } from './bridge/commands'
 import { ConflictResolverSurface } from './components/app/ConflictResolverSurface'
@@ -265,13 +265,11 @@ function App() {
     setLanguageToolEndpoint,
     setSpellcheck,
     setSpellcheckLocale,
-    setSplitPreview,
     setTypewriter,
     setVimMode,
     setWysiwyg,
     spellcheck,
     spellcheckLocale,
-    splitPreview,
     toggleEditorMode,
     toggleEditorTheme,
     typewriter,
@@ -365,6 +363,16 @@ function App() {
     refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
     setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
   })
+  const setEditorSurfaceMode = useCallback(
+    (mode: 'source' | 'split' | 'rendered') => {
+      patchChrome({ editorSurfaceMode: mode })
+      setActiveMode(mode === 'rendered' ? 'preview' : 'inspector')
+    },
+    [patchChrome, setActiveMode],
+  )
+
+  const splitPreviewActive = chrome.editorSurfaceMode === 'split'
+
   const mcp = useMcpRuntime(
     Boolean(workspace.vault),
     workspace.vault?.id,
@@ -380,9 +388,9 @@ function App() {
   )
   const storeSurface = useStoreSurfaceController({
     workspaceMode,
-    currentLayout: { splitPreview, showStickies: stickiesVisible, graphDepth, distractionFree },
+    currentLayout: { splitPreview: splitPreviewActive, showStickies: stickiesVisible, graphDepth, distractionFree },
     applyLayout,
-    setSplitPreview,
+    setEditorSurfaceMode,
     setStickiesVisible,
     setGraphDepth,
     setDistractionFree,
@@ -455,8 +463,7 @@ function App() {
     () => (workspace.vault && nativeReady ? bibliographyRaw : []),
     [bibliographyRaw, nativeReady, workspace.vault],
   )
-  const showSplitPreview =
-    (chrome.editorSurfaceMode === 'split' || splitPreview) && Boolean(workspace.activePath)
+  const showSplitPreview = splitPreviewActive && Boolean(workspace.activePath)
   const {
     editorWidth: splitEditorWidth,
     dragging: splitDragging,
@@ -588,13 +595,13 @@ function App() {
   const handleWorkspaceModeChange = useCallback(
     (mode: WorkspaceMode) => {
       saveCurrentAsLayout(workspaceMode, {
-        splitPreview,
+        splitPreview: splitPreviewActive,
         showStickies: stickiesVisible,
         graphDepth,
         distractionFree,
       })
       const nextLayout = layouts[mode]
-      setSplitPreview(nextLayout.splitPreview)
+      setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')
       setStickiesVisible(nextLayout.showStickies)
       setGraphDepth(nextLayout.graphDepth)
       setDistractionFree(nextLayout.distractionFree)
@@ -615,10 +622,10 @@ function App() {
       setHealthDashboardOpen,
       setMcpPanelOpen,
       setPublishCenterOpen,
-      setSplitPreview,
+      setEditorSurfaceMode,
       setStickiesVisible,
       setWorkspaceMode,
-      splitPreview,
+      splitPreviewActive,
       stickiesVisible,
       workspaceMode,
     ],
@@ -629,7 +636,7 @@ function App() {
       resetLayout(mode)
       if (mode !== workspaceMode) return
       const nextLayout = DEFAULT_WORKSPACE_LAYOUTS[mode]
-      setSplitPreview(nextLayout.splitPreview)
+      setEditorSurfaceMode(nextLayout.splitPreview ? 'split' : 'source')
       setStickiesVisible(nextLayout.showStickies)
       setGraphDepth(nextLayout.graphDepth)
       setDistractionFree(nextLayout.distractionFree)
@@ -638,7 +645,7 @@ function App() {
       resetLayout,
       setDistractionFree,
       setGraphDepth,
-      setSplitPreview,
+      setEditorSurfaceMode,
       setStickiesVisible,
       workspaceMode,
     ],
@@ -714,23 +721,6 @@ function App() {
     [plugins.contributions.commands],
   )
 
-  const setEditorSurfaceMode = useCallback(
-    (mode: 'source' | 'split' | 'rendered') => {
-      patchChrome({ editorSurfaceMode: mode })
-      if (mode === 'source') {
-        setSplitPreview(false)
-        setActiveMode('inspector')
-      } else if (mode === 'split') {
-        setSplitPreview(true)
-        setActiveMode('inspector')
-      } else {
-        setSplitPreview(false)
-        setActiveMode('preview')
-      }
-    },
-    [patchChrome, setActiveMode, setSplitPreview],
-  )
-
   const deleteActiveNote = useCallback(async () => {
     if (!workspace.activePath || !nativeReady) return
     await deleteNoteController.deleteNote(workspace.activePath)
@@ -769,8 +759,7 @@ function App() {
         mcp,
         graphDepth,
         graphFullVault,
-        splitPreview,
-        setSplitPreview,
+        splitPreview: splitPreviewActive,
         setStatusDockTab,
         setGraphOpen,
         setCanvasOpen,
@@ -861,14 +850,13 @@ function App() {
       setQuickCaptureOpen,
       setReaderOpen,
       setSettingsOpen,
-      setSplitPreview,
       setStatusDockTab,
       setSnippetsOpen,
       setTemplatePickerOpen,
       setObsidianImportOpen,
       setSupportOpen,
       setTasksOpen,
-      splitPreview,
+      splitPreviewActive,
       workspace,
       perfHudOpen,
       hibernateGraph,
@@ -933,16 +921,16 @@ function App() {
         : t('git.notARepo')
   const healthMetrics = useMemo(
     () => [
-      ['Links', String(workspace.inspectorLinks.length)],
-      ['Broken', String(workspace.health?.broken_links ?? 0)],
-      ['Orphans', String(workspace.health?.orphan_assets ?? 0)],
-      ['Duplicates', String(workspace.health?.duplicate_titles ?? 0)],
-      ['Frontmatter', String(workspace.health?.invalid_frontmatter ?? 0)],
-      ['Missing cites', String(workspace.health?.unresolved_citations ?? 0)],
-      ['Words', draftWordCount.toLocaleString()],
+      ['Broken links', String(workspace.health?.broken_links ?? 0)],
+      ['Orphan assets', String(workspace.health?.orphan_assets ?? 0)],
+      ['Duplicate titles', String(workspace.health?.duplicate_titles ?? 0)],
+      ['Invalid frontmatter', String(workspace.health?.invalid_frontmatter ?? 0)],
+      ['Missing citations', String(workspace.health?.unresolved_citations ?? 0)],
+      ['Indexed notes', String(workspace.health?.indexed_notes ?? 0)],
       ['Vault words', (workspace.health?.total_words ?? 0).toLocaleString()],
+      ['Cache', workspace.health?.cache_status ?? '—'],
     ] as Array<[string, string]>,
-    [draftWordCount, workspace.health, workspace.inspectorLinks.length],
+    [workspace.health],
   )
 
   const sidebarActions = useVaultSidebarActions({
@@ -980,7 +968,8 @@ function App() {
       </div>
       <div className="app-chrome">
         <AppTopBar
-        onPatchChrome={patchChrome}
+          chrome={chrome}
+          onPatchChrome={patchChrome}
           vault={workspace.vault}
           workspaceMode={workspaceMode}
           onWorkspaceModeChange={handleWorkspaceModeChange}
@@ -1147,8 +1136,6 @@ function App() {
           setLanguageTool={setLanguageTool}
           stickiesVisible={stickiesVisible}
           setStickiesVisible={setStickiesVisible}
-          splitPreview={splitPreview}
-          setSplitPreview={setSplitPreview}
           showSplitPreview={showSplitPreview}
           splitEditorWidth={splitEditorWidth}
           splitDragging={splitDragging}
@@ -1217,7 +1204,7 @@ function App() {
           railRef={inspectorPanelRef}
           activeMode={activeMode}
           onModeChange={setActiveMode}
-          splitPreview={splitPreview}
+          splitPreview={splitPreviewActive}
           activePath={workspace.activePath}
           previewRef={previewRef}
           draftMarkdown={deferredDraft}
@@ -1514,7 +1501,7 @@ function App() {
           onCommit={(files, message) => {
             void workspace.commitFiles(files, message)
           }}
-          onPull={() => void workspace.pullRemote()}
+          onPull={(strategy) => void workspace.pullRemote(strategy)}
           onPush={() => void workspace.pushRemote()}
           onResolveConflict={(path) => setConflictPath(path)}
           onOpenNote={(path) => void workspace.openNote(path)}
@@ -1553,13 +1540,19 @@ function App() {
               },
             }))
             if (nativeReady) {
-              void vaultSaveConfig({
-                ...workspace.vaultConfig,
+              void mutateVaultConfig((current) => ({
+                ...current,
                 writing_targets: {
-                  ...workspace.vaultConfig.writing_targets,
+                  ...current.writing_targets,
                   daily_words: value,
-                  history_path: workspace.vaultConfig.writing_targets?.history_path ?? '.scriptor/stats-history.json',
+                  history_path: current.writing_targets?.history_path ?? '.scriptor/stats-history.json',
                 },
+              })).catch((error) => {
+                workspace.logActivity(
+                  'error',
+                  'Writing target save failed',
+                  error instanceof Error ? error.message : String(error),
+                )
               })
             }
           }}
@@ -1632,6 +1625,7 @@ function App() {
         <Suspense fallback={<PanelFallback />}>
           <SettingsPanel
           vaultOpen={Boolean(workspace.vault)}
+          vaultId={workspace.vault?.id ?? null}
           systemInfo={systemInfo}
           diagnosticsOptIn={diagnostics.optIn}
           onDiagnosticsOptInChange={diagnostics.setOptIn}
