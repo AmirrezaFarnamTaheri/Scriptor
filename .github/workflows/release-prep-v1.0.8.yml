@@ -53,19 +53,7 @@ jobs:
         shell: pwsh
         run: |
           @'
-          import type { WorkspaceLayout } from '../hooks/useWorkspaceLayout'
-          import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
           import type { VaultConfig } from '../types/vault'
-
-          function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): boolean {
-            if (!a) return false
-            return (
-              a.splitPreview === b.splitPreview &&
-              a.showStickies === b.showStickies &&
-              a.graphDepth === b.graphDepth &&
-              a.distractionFree === b.distractionFree
-            )
-          }
 
           function isPlainRecord(value: unknown): value is Record<string, unknown> {
             return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -88,6 +76,21 @@ jobs:
 
           export function mergeEditedVaultConfig(current: VaultConfig, baseline: VaultConfig, edited: VaultConfig): VaultConfig {
             return mergeEditedValue(current, baseline, edited) as VaultConfig
+          }
+          '@ | Set-Content -LiteralPath src/components/SettingsPanelConfig.ts -Encoding utf8
+
+          @'
+          import type { WorkspaceLayout } from '../hooks/useWorkspaceLayout'
+          import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
+
+          function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): boolean {
+            if (!a) return false
+            return (
+              a.splitPreview === b.splitPreview &&
+              a.showStickies === b.showStickies &&
+              a.graphDepth === b.graphDepth &&
+              a.distractionFree === b.distractionFree
+            )
           }
 
           export function LayoutPresetGallery({
@@ -128,7 +131,7 @@ jobs:
               </div>
             )
           }
-          '@ | Set-Content -LiteralPath src/components/SettingsPanelHelpers.tsx -Encoding utf8
+          '@ | Set-Content -LiteralPath src/components/SettingsLayoutPresetGallery.tsx -Encoding utf8
 
           @'
           const fs = require('fs')
@@ -137,7 +140,10 @@ jobs:
           const eol = source.includes('\r\n') ? '\r\n' : '\n'
           const importPattern = /import \{ LAYOUT_PRESETS, type LayoutPreset \} from '\.\.\/lib\/workspace\/layoutPresets'\r?\n/
           if (!importPattern.test(source)) throw new Error('SettingsPanel layout preset import anchor missing')
-          source = source.replace(importPattern, `import { LayoutPresetGallery, mergeEditedVaultConfig } from './SettingsPanelHelpers'${eol}`)
+          source = source.replace(
+            importPattern,
+            `import { LayoutPresetGallery } from './SettingsLayoutPresetGallery'${eol}import { mergeEditedVaultConfig } from './SettingsPanelConfig'${eol}`,
+          )
           const start = source.indexOf('function matchesLayout(')
           const end = source.indexOf('interface SettingsPanelProps')
           if (start < 0 || end < 0 || end <= start) throw new Error('SettingsPanel helper extraction anchors missing')
