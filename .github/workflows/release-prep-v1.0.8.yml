@@ -1,0 +1,119 @@
+name: Release prep v1.0.8
+
+on:
+  push:
+    branches:
+      - release/v1.0.8
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-prep-v1.0.8
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: 1
+  PLAYWRIGHT_CHANNEL: msedge
+
+jobs:
+  prepare:
+    runs-on: windows-2025
+    timeout-minutes: 50
+    steps:
+      - name: Checkout release-prep branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Configure pinned pnpm 10.33.0
+        shell: pwsh
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.33.0 --activate
+          pnpm --version
+
+      - name: Configure Node.js 22 with pnpm cache
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install frozen dependency graph
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Regenerate reviewed Windows screenshots
+        shell: pwsh
+        run: pwsh -NoProfile -File scripts/screenshots/capture.ps1 -SkipDesktopBuild -UpdateBaselines
+
+      - name: Synchronize v1.0.8 release surfaces
+        shell: pwsh
+        run: |
+          $oldVersion = (Get-Content VERSION -Raw).Trim()
+          Set-Content -LiteralPath VERSION -Value "1.0.8" -NoNewline
+          Add-Content -LiteralPath VERSION -Value ""
+          node scripts/release/version.mjs sync
+          @'
+          const fs = require('fs')
+          const path = require('path')
+          const oldVersion = process.env.OLD_VERSION
+          const nextVersion = '1.0.8'
+
+          const lockPath = 'Cargo.lock'
+          let lock = fs.readFileSync(lockPath, 'utf8')
+          lock = lock.split('[[package]]').map((block, index) => {
+            if (index === 0) return block
+            if (/\nname = "scriptor-[^"]+"/.test(block)) {
+              block = block.replace(new RegExp(`\\nversion = "${oldVersion.replace(/\./g, '\\.') }"`), `\nversion = "${nextVersion}"`)
+            }
+            return block
+          }).join('[[package]]')
+          fs.writeFileSync(lockPath, lock)
+
+          const changelogPath = 'CHANGELOG.md'
+          let changelog = fs.readFileSync(changelogPath, 'utf8')
+          if (!new RegExp(`^## ${nextVersion.replace(/\./g, '\\.') }\\b`, 'm').test(changelog)) {
+            changelog = changelog.replace(/^## Unreleased\s*$/m, `## Unreleased\n\n## ${nextVersion}`)
+          }
+          fs.writeFileSync(changelogPath, changelog)
+
+          const readmePath = 'README.md'
+          let readme = fs.readFileSync(readmePath, 'utf8')
+          readme = readme
+            .replace(`version-${oldVersion}-`, `version-${nextVersion}-`)
+            .replace(`current version is **${oldVersion}**`, `current version is **${nextVersion}**`)
+            .replace(`**Active development.** v${oldVersion} is the current early production candidate.`, `**Active development.** v${nextVersion} is the current production release.`)
+          fs.writeFileSync(readmePath, readme)
+
+          const catalogPath = path.join('docs', 'assets', 'screenshots', 'README.md')
+          let catalog = fs.readFileSync(catalogPath, 'utf8')
+          for (const file of fs.readdirSync(path.join('docs', 'assets', 'screenshots'))) {
+            if (!file.endsWith('.png')) continue
+            const kb = Math.round(fs.statSync(path.join('docs', 'assets', 'screenshots', file)).size / 1024)
+            const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+            catalog = catalog.replace(new RegExp(`(^\\| ${escaped} \\| .*? \\| )\\d+ KB( \\|.*$)`, 'm'), `$1${kb} KB$2`)
+          }
+          fs.writeFileSync(catalogPath, catalog)
+          '@ | node
+        env:
+          OLD_VERSION: ${{ env.OLD_VERSION }}
+
+      - name: Validate release prep
+        shell: pwsh
+        run: |
+          node scripts/release/version.mjs check
+          node scripts/release/verify-changelog.mjs
+          pnpm check:governance
+
+      - name: Commit prepared release candidate
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/release-prep-v1.0.8.yml
+          git add -A
+          git status --short
+          git commit -m "chore(release): prepare v1.0.8"
+          git push origin HEAD:release/v1.0.8
