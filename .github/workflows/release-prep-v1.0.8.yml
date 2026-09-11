@@ -15,6 +15,7 @@ concurrency:
 env:
   FORCE_COLOR: 1
   PLAYWRIGHT_CHANNEL: msedge
+  OLD_VERSION: 1.0.7
 
 jobs:
   prepare:
@@ -51,7 +52,6 @@ jobs:
       - name: Synchronize v1.0.8 release surfaces
         shell: pwsh
         run: |
-          $oldVersion = (Get-Content VERSION -Raw).Trim()
           Set-Content -LiteralPath VERSION -Value "1.0.8" -NoNewline
           Add-Content -LiteralPath VERSION -Value ""
           node scripts/release/version.mjs sync
@@ -66,7 +66,7 @@ jobs:
           lock = lock.split('[[package]]').map((block, index) => {
             if (index === 0) return block
             if (/\nname = "scriptor-[^"]+"/.test(block)) {
-              block = block.replace(new RegExp(`\\nversion = "${oldVersion.replace(/\./g, '\\.') }"`), `\nversion = "${nextVersion}"`)
+              block = block.replace(new RegExp(`\\nversion = "${oldVersion.replace(/\./g, '\\.')}"`), `\nversion = "${nextVersion}"`)
             }
             return block
           }).join('[[package]]')
@@ -74,7 +74,7 @@ jobs:
 
           const changelogPath = 'CHANGELOG.md'
           let changelog = fs.readFileSync(changelogPath, 'utf8')
-          if (!new RegExp(`^## ${nextVersion.replace(/\./g, '\\.') }\\b`, 'm').test(changelog)) {
+          if (!new RegExp(`^## ${nextVersion.replace(/\./g, '\\.')}\\b`, 'm').test(changelog)) {
             changelog = changelog.replace(/^## Unreleased\s*$/m, `## Unreleased\n\n## ${nextVersion}`)
           }
           fs.writeFileSync(changelogPath, changelog)
@@ -97,8 +97,6 @@ jobs:
           }
           fs.writeFileSync(catalogPath, catalog)
           '@ | node
-        env:
-          OLD_VERSION: ${{ env.OLD_VERSION }}
 
       - name: Validate release prep
         shell: pwsh
