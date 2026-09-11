@@ -45,6 +45,10 @@ jobs:
         shell: pwsh
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: pnpm exec playwright install ffmpeg
+
       - name: Regenerate reviewed Windows screenshots
         shell: pwsh
         run: pwsh -NoProfile -File scripts/screenshots/capture.ps1 -SkipDesktopBuild -UpdateBaselines
