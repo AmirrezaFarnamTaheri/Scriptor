@@ -1625,6 +1625,7 @@ function App() {
         <Suspense fallback={<PanelFallback />}>
           <SettingsPanel
           vaultOpen={Boolean(workspace.vault)}
+          vaultId={workspace.vault?.id ?? null}
           systemInfo={systemInfo}
           diagnosticsOptIn={diagnostics.optIn}
           onDiagnosticsOptInChange={diagnostics.setOptIn}

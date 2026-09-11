@@ -332,6 +332,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 onOrganizeActive={onOrganizeActive}
                 onOpenWritingTargets={onOpenWritingTargets}
                 onOpenCheatsheet={onOpenCheatsheet}
+                onInsertCitation={() => insertSnippet('[@citekey]')}
+                onOpenExport={() => onOpenPublishCenter?.()}
                 stickiesVisible={stickiesVisible}
                 onToggleStickies={() => setStickiesVisible(!stickiesVisible)}
                 editorMode={editorMode}
@@ -560,7 +562,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           <span>{t('editor.status.characters', { count: charCount.toLocaleString() })}</span>
           <span>{readingMinutes > 0 ? t('editor.status.minRead', { count: readingMinutes }) : t('editor.status.minReadEmpty')}</span>
           <span>{isSaving ? t('editor.status.saving') : lastSavedAt ? t('editor.status.saved', { time: lastSavedAt }) : t('editor.status.markdown')}</span>
-          <CheckCircle2 />
+          <CheckCircle2 aria-hidden="true" />
         </footer>
       ) : null}
     </section>

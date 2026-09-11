@@ -16,6 +16,7 @@ import {
 
 import type { EditorTransformAction } from '@scriptor/editor'
 import { ToolbarPopover } from '../ToolbarPopover'
+import { useI18n } from '../../lib/i18n'
 
 interface EditorStructureMenuProps {
   disabled?: boolean
@@ -30,6 +31,7 @@ export function EditorStructureMenu({
   onToggleToc,
   onOpenFrontmatter,
 }: EditorStructureMenuProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerId = useId()
@@ -55,14 +57,14 @@ export function EditorStructureMenu({
           event.preventDefault()
           setOpen(true)
         }}
-        aria-label="Document structure"
-        title="Document structure"
+        aria-label={t('editorStructure.ariaLabel')}
+        title={t('editorStructure.ariaLabel')}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
       >
         <Pilcrow size={14} aria-hidden="true" />
-        <span className="toolbar-menu-trigger-label">Structure</span>
+        <span className="toolbar-menu-trigger-label">{t('editorStructure.label')}</span>
         <ChevronDown className="toolbar-menu-trigger-chevron" size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
@@ -75,55 +77,55 @@ export function EditorStructureMenu({
       >
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('h1'))}>
-            <Heading1 size={14} aria-hidden="true" /> Heading 1
+            <Heading1 size={14} aria-hidden="true" /> {t('editorStructure.heading1')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('h2'))}>
-            <Heading2 size={14} aria-hidden="true" /> Heading 2
+            <Heading2 size={14} aria-hidden="true" /> {t('editorStructure.heading2')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('h3'))}>
-            <Heading3 size={14} aria-hidden="true" /> Heading 3
+            <Heading3 size={14} aria-hidden="true" /> {t('editorStructure.heading3')}
           </button>
         </li>
         <li role="separator" className="toolbar-menu-separator" />
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(onToggleToc)}>
-            <ListTree size={14} aria-hidden="true" /> Table of contents
+            <ListTree size={14} aria-hidden="true" /> {t('editorStructure.tableOfContents')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(onOpenFrontmatter)}>
-            <FileBox size={14} aria-hidden="true" /> Document properties
+            <FileBox size={14} aria-hidden="true" /> {t('editorStructure.documentProperties')}
           </button>
         </li>
         <li role="separator" className="toolbar-menu-separator" />
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('table'))}>
-            <Table size={14} aria-hidden="true" /> Insert table
+            <Table size={14} aria-hidden="true" /> {t('editorStructure.insertTable')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('table-add-row'))}>
-            <Rows size={14} aria-hidden="true" /> Add table row
+            <Rows size={14} aria-hidden="true" /> {t('editorStructure.addTableRow')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('table-add-col'))}>
-            <Columns size={14} aria-hidden="true" /> Add table column
+            <Columns size={14} aria-hidden="true" /> {t('editorStructure.addTableColumn')}
           </button>
         </li>
         <li role="separator" className="toolbar-menu-separator" />
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('move-section-up'))}>
-            <ArrowUpToLine size={14} aria-hidden="true" /> Move section up
+            <ArrowUpToLine size={14} aria-hidden="true" /> {t('editorStructure.moveSectionUp')}
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => run(() => onTransform('move-section-down'))}>
-            <ArrowDownToLine size={14} aria-hidden="true" /> Move section down
+            <ArrowDownToLine size={14} aria-hidden="true" /> {t('editorStructure.moveSectionDown')}
           </button>
         </li>
       </ToolbarPopover>

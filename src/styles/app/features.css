@@ -654,15 +654,6 @@
   text-align: left;
 }
 
-.panel-loading {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  z-index: 40;
-}
-
 .scriptor-distraction-free .workspace-header,
 .scriptor-distraction-free .vault-sidebar,
 .scriptor-distraction-free .inspector-panel,

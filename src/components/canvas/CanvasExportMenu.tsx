@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { ChevronDown, Download } from 'lucide-react'
 
 import { ToolbarPopover } from '../ToolbarPopover'
+import { useI18n } from '../../lib/i18n'
 
 interface CanvasExportMenuProps {
   disabled?: boolean
@@ -15,6 +16,7 @@ const FORMATS = [
 ] as const
 
 export function CanvasExportMenu({ disabled, onExport }: CanvasExportMenuProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerId = useId()
@@ -39,7 +41,7 @@ export function CanvasExportMenu({ disabled, onExport }: CanvasExportMenuProps) 
         aria-controls={open ? menuId : undefined}
       >
         <Download size={14} aria-hidden="true" />
-        Export
+        {t('canvasExport.export')}
         <ChevronDown size={14} aria-hidden="true" />
       </button>
       <ToolbarPopover
@@ -61,7 +63,7 @@ export function CanvasExportMenu({ disabled, onExport }: CanvasExportMenuProps) 
                 triggerRef.current?.focus()
               }}
             >
-              Export {label}
+              {t('canvasExport.exportFormat', { format: label })}
             </button>
           </li>
         ))}

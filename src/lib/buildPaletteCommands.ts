@@ -310,11 +310,15 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
           } satisfies AppCommandDefinition,
         ]
       : []),
-    {
-      id: 'toggle-split-preview',
-      label: splitPreview ? 'Close split preview' : 'Open split preview',
-      run: () => setEditorSurfaceMode?.(splitPreview ? 'source' : 'split'),
-    },
+    ...(setEditorSurfaceMode
+      ? [
+          {
+            id: 'toggle-split-preview',
+            label: splitPreview ? 'Close split preview' : 'Open split preview',
+            run: () => setEditorSurfaceMode(splitPreview ? 'source' : 'split'),
+          } satisfies AppCommandDefinition,
+        ]
+      : []),
     ...(setHibernateGraph
       ? [
           {

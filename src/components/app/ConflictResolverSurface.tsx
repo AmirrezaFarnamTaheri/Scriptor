@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-import { gitApplyMergedConflict, gitResolveConflict } from '../../bridge/commands'
+import { gitApplyMergedConflict } from '../../bridge/commands'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import { ConflictResolverModal, PanelFallback } from './lazyPanels'
@@ -42,12 +42,6 @@ export function ConflictResolverSurface({
           basePreview={conflictBasePreview}
           isBusy={isBusy}
           onClose={onClose}
-          onResolveQuick={(strategy) => {
-            void gitResolveConflict(conflictPath, strategy).then(() => {
-              onClose()
-              onResolved()
-            })
-          }}
           onResolveMerged={(mergedMarkdown) => {
             void gitApplyMergedConflict(conflictPath, mergedMarkdown).then(() => {
               onClose()

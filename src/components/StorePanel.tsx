@@ -38,6 +38,7 @@ import { LAYOUT_PRESETS } from '../lib/workspace/layoutPresets'
 import type { LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { VaultHealthDiagnostics } from '../types/vault'
 import { MutationConfirmation } from './chrome/MutationConfirmation'
+import { useI18n } from '../lib/i18n'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -415,6 +416,7 @@ function PluginsTab({
   | 'onRevokeConsent'
   | 'onInstallMarketplace'
 >) {
+  const { t } = useI18n()
   const lintSummary = healthDiagnostics ? summarizeLintIssues(healthDiagnostics.issues) : null
   const installedIds = new Set(plugins.map((p) => p.manifest.id))
   const [pendingConsentPluginId, setPendingConsentPluginId] = useState<string | null>(null)
@@ -422,7 +424,7 @@ function PluginsTab({
 
   return (
     <div className="store-stack">
-      <div className="store-plugin-subnav" role="tablist" aria-label="Plugin views">
+      <div className="store-plugin-subnav" role="tablist" aria-label={t('store.pluginViews')}>
         <button
           type="button"
           role="tab"
@@ -430,7 +432,7 @@ function PluginsTab({
           className={pluginView === 'installed' ? 'active' : undefined}
           onClick={() => setPluginView('installed')}
         >
-          Manage installed
+          {t('store.manageInstalled')}
         </button>
         <button
           type="button"
@@ -439,7 +441,7 @@ function PluginsTab({
           className={pluginView === 'marketplace' ? 'active' : undefined}
           onClick={() => setPluginView('marketplace')}
         >
-          Browse plugins
+          {t('store.browsePlugins')}
         </button>
       </div>
 

@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { FileOutput, MoreHorizontal, Quote } from 'lucide-react'
 
 import { ToolbarPopover } from '../ToolbarPopover'
+import { useI18n } from '../../lib/i18n'
 
 interface InlineEditorAssistProps {
   activePath: string | null
@@ -19,6 +20,7 @@ export function InlineEditorAssist({
   onInsertCitation,
   onOpenExport,
 }: InlineEditorAssistProps) {
+  const { t } = useI18n()
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerId = useId()
@@ -33,7 +35,7 @@ export function InlineEditorAssist({
   }
 
   return (
-    <div className="format-group inline-editor-assist" aria-label="Document actions">
+    <div className="format-group inline-editor-assist" aria-label={t('editorAssist.documentActions')}>
       <button
         ref={triggerRef}
         id={triggerId}
@@ -48,10 +50,10 @@ export function InlineEditorAssist({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        title="More document actions"
+        title={t('editorAssist.moreActions')}
       >
         <MoreHorizontal size={15} aria-hidden="true" />
-        <span className="sr-only">More document actions</span>
+        <span className="sr-only">{t('editorAssist.moreActions')}</span>
       </button>
       <ToolbarPopover
         open={open}
@@ -64,13 +66,13 @@ export function InlineEditorAssist({
         <li role="none">
           <button type="button" role="menuitem" onClick={() => runAndClose(onInsertCitation)}>
             <Quote size={14} aria-hidden="true" />
-            <span>Insert citation{citationCount > 0 ? ` (${citationCount})` : ''}</span>
+            <span>{t('editorAssist.insertCitation')}{citationCount > 0 ? ` (${citationCount})` : ''}</span>
           </button>
         </li>
         <li role="none">
           <button type="button" role="menuitem" onClick={() => runAndClose(onOpenExport)}>
             <FileOutput size={14} aria-hidden="true" />
-            <span>Export / publish{brokenLinkCount > 0 ? ` · ${brokenLinkCount} issues` : ''}</span>
+            <span>{t('editorAssist.exportPublish')}{brokenLinkCount > 0 ? ` · ${t('editorAssist.issueCount', { count: brokenLinkCount })}` : ''}</span>
           </button>
         </li>
       </ToolbarPopover>

@@ -49,7 +49,10 @@
     "placeholder": "Type a command or note...",
     "searchingNotes": "Searching notes...",
     "noResults": "No matching commands or notes.",
-    "ariaLabel": "Command palette"
+    "ariaLabel": "Command palette",
+    "scopeHint": "Commands are available immediately; note search starts after 2 characters.",
+    "noteCategory": "Note",
+    "commandCategory": "Command"
   },
   "workspaceModes": {
     "writing": "Writing",
@@ -225,7 +228,24 @@
     "reject": "Reject",
     "switchToWriteApproved": "Switch to write-approved mode to apply drafts to the vault.",
     "noToolCalls": "No tool calls yet.",
-    "guidedAutomationRecipes": "Guided automation recipes"
+    "guidedAutomationRecipes": "Guided automation recipes",
+    "tabSharing": "Sharing & sync",
+    "authorizationSubtitle": "Authorization applies only to the active vault. Choose the maximum authority MCP tools may use here.",
+    "authorizationHeading": "Vault authorization",
+    "authorizationScope": "This state is scoped to the active vault, not to Scriptor globally.",
+    "authorizationLevelAria": "MCP authorization level",
+    "currentMode": "Current: {{mode}}",
+    "modeOff": "Off",
+    "modeOffDescription": "No MCP tool can access the active vault.",
+    "modeReadOnly": "Read only",
+    "modeReadOnlyDescription": "Tools may inspect vault content but cannot prepare or write changes.",
+    "modeDraft": "Draft changes",
+    "modeDraftDescription": "Tools may prepare patches; writes still require explicit approval.",
+    "modeWriteApproved": "Approved writes",
+    "modeWriteApprovedDescription": "Approved MCP operations may write to this vault. Use only for trusted workflows.",
+    "administration": "Administration",
+    "administrationDescription": "Reset disables MCP for the active vault without changing other vaults.",
+    "resetActiveVaultAuthorization": "Reset active-vault MCP authorization"
   },
   "git": {
     "title": "Git",
@@ -266,7 +286,18 @@
     "commitConfirm": "Commit {{count}} file(s) with message “{{message}}”?",
     "pullConfirm": "Pull from the configured upstream?",
     "pushConfirm": "Push to the configured upstream?",
-    "repositoryClean": "Repository clean"
+    "repositoryClean": "Repository clean",
+    "remoteSynchronization": "Remote synchronization",
+    "remoteUpToDate": "Remote is up to date.",
+    "pullStrategy": "Pull strategy",
+    "divergedPullStrategy": "Diverged branches — pull strategy",
+    "pullFastForward": "Fast-forward only",
+    "pullMerge": "Merge commit",
+    "pullRebase": "Rebase local commits",
+    "noLocalCommitsToPush": "No local commits to push",
+    "messageSuggestions": "Message suggestions",
+    "commitMessageSuggestions": "Commit message suggestions",
+    "pullConfirmWithStrategy": "Pull from the configured upstream? Strategy: {{strategy}}."
   },
   "graph": {
     "title": "Knowledge Graph",
@@ -283,7 +314,13 @@
     "computingLayout": "Computing layout...",
     "ariaLabel": "Knowledge graph",
     "closeGraph": "Close graph",
-    "groupColors": "Graph group colors"
+    "groupColors": "Graph group colors",
+    "view": "View",
+    "custom": "Custom",
+    "saveViews": "Save views",
+    "legendAria": "Graph legend",
+    "currentNote": "Current note",
+    "directedLink": "Directed link"
   },
   "knowledge": {
     "title": "Knowledge workbench",
@@ -514,5 +551,52 @@
       "detail": "A plugin contribution failed to render. Enabling safe mode from Settings disables third-party plugins."
     },
     "loadingStore": "Loading store…"
+  },
+  "editorStructure": {
+    "ariaLabel": "Document structure",
+    "label": "Structure",
+    "heading1": "Heading 1",
+    "heading2": "Heading 2",
+    "heading3": "Heading 3",
+    "tableOfContents": "Table of contents",
+    "documentProperties": "Document properties",
+    "insertTable": "Insert table",
+    "addTableRow": "Add table row",
+    "addTableColumn": "Add table column",
+    "moveSectionUp": "Move section up",
+    "moveSectionDown": "Move section down"
+  },
+  "store": {
+    "pluginViews": "Plugin views",
+    "manageInstalled": "Manage installed",
+    "browsePlugins": "Browse plugins"
+  },
+  "canvasExport": {
+    "export": "Export",
+    "exportFormat": "Export {{format}}"
+  },
+  "editorAssist": {
+    "documentActions": "Document actions",
+    "moreActions": "More document actions",
+    "insertCitation": "Insert citation",
+    "exportPublish": "Export / publish",
+    "issueCount": "{{count}} issues"
+  },
+  "noteQuality": {
+    "title": "Publish readiness",
+    "openNote": "Open a note to review publishing readiness.",
+    "unresolvedCitations": "Unresolved citations: {{count}}",
+    "noInboundLinks": "No inbound links — consider backlinking from related notes",
+    "unsavedEdits": "Unsaved edits — save before export",
+    "brokenLinksInVault": "{{count}} broken links elsewhere in the vault",
+    "readyToExport": "Ready to export",
+    "reviewBeforePublishing": "Review before publishing",
+    "outboundLinks": "Outbound links",
+    "backlinks": "Backlinks",
+    "citations": "Citations",
+    "missingCount": "{{count}} missing",
+    "repairIssues": "Repair issues",
+    "graph": "Graph",
+    "exportPublish": "Export / publish"
   }
 }

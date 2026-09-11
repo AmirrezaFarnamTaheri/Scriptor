@@ -361,6 +361,7 @@ export function CanvasStage({
               className={selected ? 'canvas-block selected' : 'canvas-block'}
               onPointerDown={(event) => handleBlockPointer(event, block)}
               onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) return
                 if (event.key !== 'Enter' && event.key !== ' ') return
                 event.preventDefault()
                 event.stopPropagation()

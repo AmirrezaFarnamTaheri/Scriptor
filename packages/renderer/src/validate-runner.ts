@@ -21,7 +21,7 @@ import { remarkMpeCodeChunks } from './remark-mpe-code-chunks.ts'
  */
 import { auditMarkup } from './xss-test.ts'
 import './preview-budget-test.ts'
-import { renderMarkdownPipeline } from './pipeline.ts'
+import { preprocessExtendedTaskStates, renderMarkdownPipeline } from './pipeline.ts'
 import { renderMarkdownPreview } from './preview.ts'
 import { findPreviewAnchor } from './scroll-sync.ts'
 import { preprocessImports, preprocessImportsAsync } from './remark-import.ts'
@@ -186,6 +186,13 @@ test('pipeline renders task lists and footnotes', () => {
   const html = renderMarkdownPipeline('- [x] done\n- [ ] todo\n\nFoot[^1]\n\n[^1]: note')
   assert.match(html, /type="checkbox"/)
   assert.match(html, /data-footnotes|footnotes/i)
+})
+
+test('extended task preprocessing does not close a fence with trailing content', () => {
+  const source = ['```text', '```example', '- [/] stays code', '```', '- [/] becomes task'].join('\n')
+  const processed = preprocessExtendedTaskStates(source)
+  assert.match(processed, /```example\n- \[\/] stays code\n```/)
+  assert.match(processed, /- \[ \] _In progress_ — becomes task/)
 })
 
 test('pipeline preserves wikilink hrefs', () => {

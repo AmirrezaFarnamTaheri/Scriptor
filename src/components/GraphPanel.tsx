@@ -337,7 +337,7 @@ export function GraphPanel({
             </button>
           ) : null}
           <label className="graph-preset-picker">
-            <span>View</span>
+            <span>{t('graph.view')}</span>
             <select
               value={presets.find((preset) => preset.depth === depth && preset.fullVault === fullVault)?.id ?? 'custom'}
               onChange={(event) => {
@@ -351,7 +351,7 @@ export function GraphPanel({
                 <option key={preset.id} value={preset.id}>{preset.label}</option>
               ))}
               {!presets.some((preset) => preset.depth === depth && preset.fullVault === fullVault) ? (
-                <option value="custom">Custom</option>
+                <option value="custom">{t('graph.custom')}</option>
               ) : null}
             </select>
           </label>
@@ -364,7 +364,7 @@ export function GraphPanel({
                 writeVersionedStorage(GRAPH_PRESETS_KEY, 1, presets)
               }}
             >
-              {t('actions.save')} views
+              {t('graph.saveViews')}
             </button>
           ) : null}
           {!fullVault ? (
@@ -386,16 +386,16 @@ export function GraphPanel({
         </button>
       </header>
 
-      <div className="graph-group-legend" aria-label="Graph legend">
+      <div className="graph-group-legend" aria-label={t('graph.legendAria')}>
         <span className="graph-group-chip">
           <svg className="graph-group-swatch" viewBox="0 0 10 10" aria-hidden="true">
             <circle cx="5" cy="5" r="4" fill="var(--primary)" />
           </svg>
-          Current note
+          {t('graph.currentNote')}
         </span>
         <span className="graph-group-chip">
           <span aria-hidden="true">→</span>
-          Directed link
+          {t('graph.directedLink')}
         </span>
         {graphGroups.map((group) => (
           <span key={group.tag_prefix} className="graph-group-chip">

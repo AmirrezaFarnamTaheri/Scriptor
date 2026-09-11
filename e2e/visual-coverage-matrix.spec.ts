@@ -12,8 +12,23 @@ async function expectNoHorizontalOverflow(page: Page) {
 async function expectDarkSurface(locator: Locator) {
   await expect(locator).toBeVisible()
   const background = await locator.evaluate((element) => getComputedStyle(element).backgroundColor)
-  expect(background).not.toBe('rgb(255, 255, 255)')
-  expect(background).not.toBe('rgba(0, 0, 0, 0)')
+  const match = background.match(
+    /^rgba?\(\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?))?\s*\)$/,
+  )
+  expect(match, `expected an RGB background, got ${background}`).not.toBeNull()
+  const [, red = '255', green = '255', blue = '255', alpha = '1'] = match ?? []
+  expect(Number(alpha)).toBeGreaterThan(0)
+  const linearize = (channel: number) => {
+    const normalized = channel / 255
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  }
+  const luminance =
+    0.2126 * linearize(Number(red))
+    + 0.7152 * linearize(Number(green))
+    + 0.0722 * linearize(Number(blue))
+  expect(luminance).toBeLessThan(0.35)
 }
 
 async function closeSurface(surface: Locator) {
@@ -127,7 +142,7 @@ test.describe('visual coverage matrix', () => {
     await expectDarkSurface(page.locator('.inspector-panel'))
 
     await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
-    const publish = page.getByRole('dialog', { name: /Export & publish|Publish center/ })
+    const publish = page.getByRole('dialog', { name: 'Export & publish' })
     await expectDarkSurface(publish)
     await expectNoHorizontalOverflow(page)
   })

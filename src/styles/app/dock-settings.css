@@ -545,7 +545,7 @@
 .task-status-chip--done { color: var(--success, #22c55e); }
 .task-status-chip--in-progress { color: var(--accent); }
 .task-status-chip--cancelled { color: var(--muted); opacity: 0.5; }
-.task-status-chip--forwarded { color: var(--amber, #eab308); }
+.task-status-chip--forwarded { color: var(--warning, #eab308); }
 .task-status-chip--custom { color: var(--muted); }
 
 /* ── Kanban board ────────────────────────────────────────────────────────────── */

@@ -173,7 +173,7 @@ export function CanvasPanel({
             New board
           </button>
         </div>
-        <span aria-label={`${document.blocks.length} canvas blocks`}>
+        <span aria-label={`${document.blocks.length} canvas ${document.blocks.length === 1 ? 'block' : 'blocks'}`}>
           {document.blocks.length} block{document.blocks.length === 1 ? '' : 's'}
         </span>
         <div className="canvas-template-row" role="toolbar" aria-label="Canvas tools">

@@ -12,25 +12,25 @@ import { ResourceSyncPanel } from './ResourceSyncPanel'
 
 const MODES: McpMode[] = ['off', 'read-only', 'draft', 'write-approved']
 
-const MODE_META: Record<McpMode, { label: string; description: string; risk: string }> = {
+const MODE_META: Record<McpMode, { labelKey: string; descriptionKey: string; risk: string }> = {
   off: {
-    label: 'Off',
-    description: 'No MCP tool can access the active vault.',
+    labelKey: 'mcp.modeOff',
+    descriptionKey: 'mcp.modeOffDescription',
     risk: 'off',
   },
   'read-only': {
-    label: 'Read only',
-    description: 'Tools may inspect vault content but cannot prepare or write changes.',
+    labelKey: 'mcp.modeReadOnly',
+    descriptionKey: 'mcp.modeReadOnlyDescription',
     risk: 'read',
   },
   draft: {
-    label: 'Draft changes',
-    description: 'Tools may prepare patches; writes still require explicit approval.',
+    labelKey: 'mcp.modeDraft',
+    descriptionKey: 'mcp.modeDraftDescription',
     risk: 'draft',
   },
   'write-approved': {
-    label: 'Approved writes',
-    description: 'Approved MCP operations may write to this vault. Use only for trusted workflows.',
+    labelKey: 'mcp.modeWriteApproved',
+    descriptionKey: 'mcp.modeWriteApprovedDescription',
     risk: 'write',
   },
 }
@@ -121,7 +121,7 @@ export function McpPanel({
   return (
     <UnifiedPanelShell
       title={t('mcp.title')}
-      subtitle="Authorization applies only to the active vault. Choose the maximum authority MCP tools may use here."
+      subtitle={t('mcp.authorizationSubtitle')}
       icon={<Sparkles size={18} />}
       ariaLabel={t('mcp.title')}
       onClose={onClose}
@@ -130,7 +130,7 @@ export function McpPanel({
       wide
       tabs={[
         ...TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })),
-        { id: 'sharing', label: 'Sharing & sync' },
+        { id: 'sharing', label: t('mcp.tabSharing') },
       ]}
       activeTab={tab}
       onTabChange={(next) => setTab(next as McpTab)}
@@ -139,22 +139,21 @@ export function McpPanel({
         <section className="mcp-authorization" aria-labelledby="mcp-authorization-heading">
           <div className="mcp-authorization-heading">
             <div>
-              <h3 id="mcp-authorization-heading">Vault authorization</h3>
-              <p className="health-subtitle">This state is scoped to the active vault, not to Scriptor globally.</p>
+              <h3 id="mcp-authorization-heading">{t('mcp.authorizationHeading')}</h3>
+              <p className="health-subtitle">{t('mcp.authorizationScope')}</p>
             </div>
             <span className={`mcp-mode-summary is-${MODE_META[mode].risk}`} role="status">
-              Current: {MODE_META[mode].label}
+              {t('mcp.currentMode', { mode: t(MODE_META[mode].labelKey) })}
             </span>
           </div>
-          <div className="mcp-mode-row" role="radiogroup" aria-label="MCP authorization level">
+          <div className="mcp-mode-row" role="group" aria-label={t('mcp.authorizationLevelAria')}>
             {MODES.map((entry) => {
               const meta = MODE_META[entry]
               const checked = mode === entry
               return (
                 <button
                   type="button"
-                  role="radio"
-                  aria-checked={checked}
+                  aria-pressed={checked}
                   key={entry}
                   className={checked ? 'mcp-mode-option active' : 'mcp-mode-option'}
                   data-risk={meta.risk}
@@ -164,8 +163,8 @@ export function McpPanel({
                     {entry === 'off' ? <LockKeyhole size={15} /> : entry === 'write-approved' ? <AlertTriangle size={15} /> : <ShieldCheck size={15} />}
                   </span>
                   <span className="mcp-mode-option-copy">
-                    <strong>{meta.label}</strong>
-                    <small>{meta.description}</small>
+                    <strong>{t(meta.labelKey)}</strong>
+                    <small>{t(meta.descriptionKey)}</small>
                   </span>
                 </button>
               )
@@ -179,10 +178,10 @@ export function McpPanel({
               </button>
             ) : null}
             <details className="mcp-administration-details">
-              <summary>Administration</summary>
-              <p className="health-subtitle">Reset disables MCP for the active vault without changing other vaults.</p>
+              <summary>{t('mcp.administration')}</summary>
+              <p className="health-subtitle">{t('mcp.administrationDescription')}</p>
               <button type="button" className="toolbar-button danger-button" onClick={onResetPermissions}>
-                Reset active-vault MCP authorization
+                {t('mcp.resetActiveVaultAuthorization')}
               </button>
             </details>
           </div>

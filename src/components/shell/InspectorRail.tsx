@@ -154,6 +154,21 @@ export function InspectorRail({
   const missingCitations = citationRows.filter((key) => !bibliographyKeys.has(key)).length
   const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
+  const presetIds = INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`)
+  function handlePresetKeys(event: React.KeyboardEvent) {
+    const current = INSPECTOR_PRESETS.findIndex((entry) => entry.id === inspectorPreset)
+    let next = -1
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % INSPECTOR_PRESETS.length
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + INSPECTOR_PRESETS.length) % INSPECTOR_PRESETS.length
+    else if (event.key === 'Home') next = 0
+    else if (event.key === 'End') next = INSPECTOR_PRESETS.length - 1
+    if (next === -1) return
+    event.preventDefault()
+    const target = INSPECTOR_PRESETS[next]
+    if (!target) return
+    onInspectorPresetChange(target.id)
+    document.getElementById(presetIds[next] ?? '')?.focus()
+  }
 
   return (
     <aside className="inspector-panel" aria-label={t('inspector.ariaLabel')} ref={railRef}>
@@ -179,12 +194,14 @@ export function InspectorRail({
       {/* ── Preset row ──────────────────────────────────────────────────────── */}
       {activeMode !== 'plugins' ? (
         <div className="inspector-preset-control">
-          <div className="inspector-preset-row" role="radiogroup" aria-label={t('inspector.presetAria')}>
+          <div className="inspector-preset-row" role="radiogroup" aria-label={t('inspector.presetAria')} onKeyDown={handlePresetKeys}>
             {INSPECTOR_PRESETS.map((entry) => (
               <button
                 key={entry.id}
+                id={`inspector-preset-${entry.id}`}
                 type="button"
                 role="radio"
+                tabIndex={inspectorPreset === entry.id ? 0 : -1}
                 className={inspectorPreset === entry.id ? 'active' : undefined}
                 title={t(`inspector.preset.${entry.id}.description`)}
                 aria-checked={inspectorPreset === entry.id}

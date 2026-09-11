@@ -45,7 +45,6 @@ interface ConflictResolverModalProps {
   /** Whole-file ancestor kept only as an optional reference; it is never mapped heuristically to hunks. */
   basePreview?: string | null
   onResolveMerged: (mergedMarkdown: string) => void
-  onResolveQuick?: (strategy: 'ours' | 'theirs') => void
   onClose: () => void
   isBusy: boolean
 }
@@ -177,7 +176,7 @@ export function ConflictResolverModal({
         </section>
 
         <footer className="conflict-resolver-actions">
-          <div className="conflict-bulk-actions" aria-label="Bulk resolution choices">
+          <div className="conflict-bulk-actions" role="group" aria-label="Bulk resolution choices">
             <button type="button" className="toolbar-button" disabled={isBusy || parsed.hunks.length === 0} onClick={() => chooseAll('ours')}>
               Choose ours for all
             </button>

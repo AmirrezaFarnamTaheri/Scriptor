@@ -4,8 +4,12 @@ export interface ConflictHunk {
   id: number
   ours: string
   theirs: string
+  /** Exact source lines, retained so a single blank line is distinct from an empty side. */
+  oursLines: string[]
+  theirsLines: string[]
   /** Exact ancestor text when the source uses diff3 markers. */
   base?: string
+  baseLines?: string[]
   branchLabel: string
   /** Line number in the source file where the `<<<<<<<` marker starts (0-indexed). */
   startLine: number
@@ -74,7 +78,9 @@ function parseHunkAt(lines: string[], startLine: number): ParsedHunkAt | null {
     hunk: {
       ours: oursLines.join('\n'),
       theirs: theirsLines.join('\n'),
-      ...(baseLines ? { base: baseLines.join('\n') } : {}),
+      oursLines: [...oursLines],
+      theirsLines: [...theirsLines],
+      ...(baseLines ? { base: baseLines.join('\n'), baseLines: [...baseLines] } : {}),
       branchLabel,
       startLine,
       endLine: nextLine,
@@ -145,11 +151,11 @@ export function applyConflictChoices(
     output.push(...lines.slice(cursor, hunk.startLine))
     const choice = choices[hunk.id]
     if (choice === 'ours') {
-      if (hunk.ours) output.push(...hunk.ours.split('\n'))
+      output.push(...hunk.oursLines)
     } else if (choice === 'theirs') {
-      if (hunk.theirs) output.push(...hunk.theirs.split('\n'))
+      output.push(...hunk.theirsLines)
     } else if (choice === 'base' && hunk.base !== undefined) {
-      if (hunk.base) output.push(...hunk.base.split('\n'))
+      output.push(...(hunk.baseLines ?? []))
     } else {
       output.push(...lines.slice(hunk.startLine, hunk.endLine))
     }

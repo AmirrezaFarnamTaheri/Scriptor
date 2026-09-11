@@ -21,7 +21,7 @@ async function openWorkspace(page: Page, width = 1440, height = 900) {
   await settleLayout(page)
 }
 
-async function expectSingleToolbarRow(page: Page) {
+async function expectSingleToolbarRow(page: Page, requireHorizontalOverflow = false) {
   const toolbar = page.locator('.format-row.editor-toolbar')
   await expect(toolbar).toBeVisible()
   await expect(toolbar).toHaveCSS('flex-wrap', 'nowrap')
@@ -44,7 +44,8 @@ async function expectSingleToolbarRow(page: Page) {
 
   expect(geometry.distinctRows).toBe(1)
   expect(geometry.toolbarHeight).toBeLessThanOrEqual(56)
-  expect(geometry.scrollWidth).toBeGreaterThanOrEqual(geometry.clientWidth)
+  if (requireHorizontalOverflow) expect(geometry.scrollWidth).toBeGreaterThan(geometry.clientWidth)
+  else expect(geometry.scrollWidth).toBeGreaterThanOrEqual(geometry.clientWidth)
 }
 
 test.describe('editor toolbar geometry contract', () => {
@@ -55,6 +56,6 @@ test.describe('editor toolbar geometry contract', () => {
 
   test('keeps one persistent command row at the 1024px workspace breakpoint', async ({ page }) => {
     await openWorkspace(page, 1024, 768)
-    await expectSingleToolbarRow(page)
+    await expectSingleToolbarRow(page, true)
   })
 })

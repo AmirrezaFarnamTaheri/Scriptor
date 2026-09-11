@@ -49,7 +49,10 @@
     "placeholder": "Befehl oder Notiz eingeben...",
     "searchingNotes": "Notizen werden gesucht...",
     "noResults": "Keine passenden Befehle oder Notizen.",
-    "ariaLabel": "Befehlspalette"
+    "ariaLabel": "Befehlspalette",
+    "scopeHint": "Befehle sind sofort verfügbar; die Notizsuche startet ab 2 Zeichen.",
+    "noteCategory": "Notiz",
+    "commandCategory": "Befehl"
   },
   "workspaceModes": {
     "writing": "Schreiben",
@@ -225,7 +228,24 @@
     "reject": "Ablehnen",
     "switchToWriteApproved": "In den Modus für freigegebenes Schreiben wechseln, um Entwürfe auf den Tresor anzuwenden.",
     "noToolCalls": "Noch keine Werkzeugaufrufe.",
-    "guidedAutomationRecipes": "Geführte Automatisierungsabläufe"
+    "guidedAutomationRecipes": "Geführte Automatisierungsabläufe",
+    "tabSharing": "Teilen & Synchronisieren",
+    "authorizationSubtitle": "Die Autorisierung gilt nur für den aktiven Tresor. Wählen Sie hier die maximale Berechtigung für MCP-Werkzeuge.",
+    "authorizationHeading": "Tresor-Autorisierung",
+    "authorizationScope": "Dieser Zustand gilt für den aktiven Tresor, nicht global für Scriptor.",
+    "authorizationLevelAria": "MCP-Autorisierungsstufe",
+    "currentMode": "Aktuell: {{mode}}",
+    "modeOff": "Aus",
+    "modeOffDescription": "Kein MCP-Werkzeug kann auf den aktiven Tresor zugreifen.",
+    "modeReadOnly": "Nur lesen",
+    "modeReadOnlyDescription": "Werkzeuge dürfen Tresorinhalte prüfen, aber keine Änderungen vorbereiten oder schreiben.",
+    "modeDraft": "Änderungen entwerfen",
+    "modeDraftDescription": "Werkzeuge dürfen Patches vorbereiten; Schreibvorgänge erfordern weiterhin eine ausdrückliche Freigabe.",
+    "modeWriteApproved": "Freigegebene Schreibvorgänge",
+    "modeWriteApprovedDescription": "Freigegebene MCP-Vorgänge dürfen in diesen Tresor schreiben. Nur für vertrauenswürdige Abläufe verwenden.",
+    "administration": "Verwaltung",
+    "administrationDescription": "Zurücksetzen deaktiviert MCP für den aktiven Tresor, ohne andere Tresore zu ändern.",
+    "resetActiveVaultAuthorization": "MCP-Autorisierung des aktiven Tresors zurücksetzen"
   },
   "git": {
     "title": "Git",
@@ -266,7 +286,18 @@
     "commitConfirm": "{{count}} Datei(en) mit der Nachricht „{{message}}“ committen?",
     "pullConfirm": "Vom konfigurierten Upstream pullen?",
     "pushConfirm": "Zum konfigurierten Upstream pushen?",
-    "repositoryClean": "Repository sauber"
+    "repositoryClean": "Repository sauber",
+    "remoteSynchronization": "Remote-Synchronisierung",
+    "remoteUpToDate": "Remote ist aktuell.",
+    "pullStrategy": "Pull-Strategie",
+    "divergedPullStrategy": "Abweichende Branches — Pull-Strategie",
+    "pullFastForward": "Nur Fast-Forward",
+    "pullMerge": "Merge-Commit",
+    "pullRebase": "Lokale Commits rebasen",
+    "noLocalCommitsToPush": "Keine lokalen Commits zum Pushen",
+    "messageSuggestions": "Nachrichtenvorschläge",
+    "commitMessageSuggestions": "Vorschläge für Commit-Nachrichten",
+    "pullConfirmWithStrategy": "Vom konfigurierten Upstream abrufen? Strategie: {{strategy}}."
   },
   "graph": {
     "title": "Wissensgraph",
@@ -283,7 +314,13 @@
     "computingLayout": "Layout wird berechnet...",
     "ariaLabel": "Wissensgraph",
     "closeGraph": "Graph schließen",
-    "groupColors": "Graph-Gruppenfarben"
+    "groupColors": "Graph-Gruppenfarben",
+    "view": "Ansicht",
+    "custom": "Benutzerdefiniert",
+    "saveViews": "Ansichten speichern",
+    "legendAria": "Graph-Legende",
+    "currentNote": "Aktuelle Notiz",
+    "directedLink": "Gerichteter Link"
   },
   "knowledge": {
     "title": "Wissensarbeitsplatz",
@@ -514,5 +551,52 @@
       "detail": "Eine Plugin-Komponente konnte nicht gerendert werden. Das Aktivieren des sicheren Modus in den Einstellungen deaktiviert Plugins von Drittanbietern."
     },
     "loadingStore": "Erweiterungen werden geladen…"
+  },
+  "editorStructure": {
+    "ariaLabel": "Dokumentstruktur",
+    "label": "Struktur",
+    "heading1": "Überschrift 1",
+    "heading2": "Überschrift 2",
+    "heading3": "Überschrift 3",
+    "tableOfContents": "Inhaltsverzeichnis",
+    "documentProperties": "Dokumenteigenschaften",
+    "insertTable": "Tabelle einfügen",
+    "addTableRow": "Tabellenzeile hinzufügen",
+    "addTableColumn": "Tabellenspalte hinzufügen",
+    "moveSectionUp": "Abschnitt nach oben verschieben",
+    "moveSectionDown": "Abschnitt nach unten verschieben"
+  },
+  "store": {
+    "pluginViews": "Plugin-Ansichten",
+    "manageInstalled": "Installierte verwalten",
+    "browsePlugins": "Plugins durchsuchen"
+  },
+  "canvasExport": {
+    "export": "Exportieren",
+    "exportFormat": "{{format}} exportieren"
+  },
+  "editorAssist": {
+    "documentActions": "Dokumentaktionen",
+    "moreActions": "Weitere Dokumentaktionen",
+    "insertCitation": "Zitat einfügen",
+    "exportPublish": "Exportieren / veröffentlichen",
+    "issueCount": "{{count}} Probleme"
+  },
+  "noteQuality": {
+    "title": "Veröffentlichungsbereitschaft",
+    "openNote": "Öffnen Sie eine Notiz, um die Veröffentlichungsbereitschaft zu prüfen.",
+    "unresolvedCitations": "Nicht aufgelöste Zitate: {{count}}",
+    "noInboundLinks": "Keine eingehenden Links — verknüpfen Sie die Notiz aus verwandten Notizen",
+    "unsavedEdits": "Ungespeicherte Änderungen — vor dem Export speichern",
+    "brokenLinksInVault": "{{count}} defekte Links an anderer Stelle im Tresor",
+    "readyToExport": "Bereit zum Export",
+    "reviewBeforePublishing": "Vor der Veröffentlichung prüfen",
+    "outboundLinks": "Ausgehende Links",
+    "backlinks": "Backlinks",
+    "citations": "Zitate",
+    "missingCount": "{{count}} fehlen",
+    "repairIssues": "Probleme beheben",
+    "graph": "Graph",
+    "exportPublish": "Exportieren / veröffentlichen"
   }
 }

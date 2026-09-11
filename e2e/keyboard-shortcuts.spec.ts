@@ -37,6 +37,14 @@ test('settings exposes and persists keyboard shortcut editing', async ({ page })
     )
     .toContain('Alt+H')
 
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await waitForWorkspace(page)
+  await settleLayout(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  await expect(settings).toBeVisible()
+  await settings.getByRole('tab', { name: 'Keyboard shortcuts', exact: true }).click()
+  await expect(graphInput).toHaveValue('Alt+H')
+
   await settings.getByRole('button', { name: 'Reset all' }).click()
   await expect(graphInput).toHaveValue('Alt+G')
   await expect

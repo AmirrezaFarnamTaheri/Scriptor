@@ -88,7 +88,14 @@ test('all conflict hunks must be explicitly resolved', () => {
   assert.equal(parsed.hunks.length, 2)
   assert.equal(areConflictChoicesComplete(parsed, {}), false)
   assert.equal(areConflictChoicesComplete(parsed, { 0: 'ours' }), false)
+  assert.equal(areConflictChoicesComplete(parsed, { 0: 'base', 1: 'theirs' }), false)
+  assert.equal(applyConflictChoices(source, { 0: 'base', 1: 'theirs' }).includes('<<<<<<<'), true)
   assert.equal(areConflictChoicesComplete(parsed, { 0: 'ours', 1: 'theirs' }), true)
+})
+
+test('applyConflictChoices preserves a side containing exactly one blank line', () => {
+  const source = ['before', '<<<<<<< ours', '', '=======', 'theirs', '>>>>>>> theirs', 'after'].join('\n')
+  assert.equal(applyConflictChoices(source, { 0: 'ours' }), ['before', '', 'after'].join('\n'))
 })
 
 // NOTE: generateTocFromMarkdown is not covered here — it imports the

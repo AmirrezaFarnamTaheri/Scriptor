@@ -103,6 +103,7 @@ function LayoutPresetGallery({
 
 interface SettingsPanelProps {
   vaultOpen: boolean
+  vaultId: string | null
   systemInfo: SystemInfoSnapshot | null
   diagnosticsOptIn: boolean
   onDiagnosticsOptInChange: (enabled: boolean) => void
@@ -163,6 +164,7 @@ type SettingsTab = 'general' | 'workspace' | 'shortcuts' | 'advanced'
 
 export function SettingsPanel({
   vaultOpen,
+  vaultId,
   systemInfo,
   diagnosticsOptIn,
   onDiagnosticsOptInChange,
@@ -240,7 +242,17 @@ export function SettingsPanel({
   }, [config.daily_note])
 
   useEffect(() => {
-    if (!vaultOpen || !nativeReady) return
+    configBaselineRef.current = DEFAULT_VAULT_CONFIG
+    setConfig(DEFAULT_VAULT_CONFIG)
+    setConfigReady(false)
+    setConfigLoadError(null)
+
+    if (!vaultOpen || !vaultId || !nativeReady) {
+      setStatus('')
+      return
+    }
+
+    setStatus('Loading vault configuration…')
     let cancelled = false
     void vaultLoadConfig()
       .then((loaded) => {
@@ -272,7 +284,7 @@ export function SettingsPanel({
     return () => {
       cancelled = true
     }
-  }, [configReloadToken, nativeReady, vaultOpen])
+  }, [configReloadToken, nativeReady, vaultId, vaultOpen])
 
   useEffect(() => {
     if (!nativeReady) return

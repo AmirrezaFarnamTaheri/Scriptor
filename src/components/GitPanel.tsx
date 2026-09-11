@@ -216,17 +216,17 @@ export function GitPanel({
 
       {tab === 'changes' ? (
         <>
-          <div className="git-actions" aria-label="Remote synchronization">
+          <div className="git-actions" aria-label={t('git.remoteSynchronization')}>
             {status.has_upstream && status.ahead === 0 && status.behind === 0 ? (
-              <span className="health-subtitle">Remote is up to date.</span>
+              <span className="health-subtitle">{t('git.remoteUpToDate')}</span>
             ) : null}
             {canPull ? (
               <label className="git-pull-strategy">
-                <span>{diverged ? 'Diverged branches — pull strategy' : 'Pull strategy'}</span>
+                <span>{t(diverged ? 'git.divergedPullStrategy' : 'git.pullStrategy')}</span>
                 <select value={pullStrategy} onChange={(event) => setPullStrategy(event.target.value as GitPullStrategy)}>
-                  <option value="fast-forward">Fast-forward only</option>
-                  <option value="merge">Merge commit</option>
-                  <option value="rebase">Rebase local commits</option>
+                  <option value="fast-forward">{t('git.pullFastForward')}</option>
+                  <option value="merge">{t('git.pullMerge')}</option>
+                  <option value="rebase">{t('git.pullRebase')}</option>
                 </select>
               </label>
             ) : null}
@@ -242,7 +242,7 @@ export function GitPanel({
               type="button"
               className="toolbar-button"
               disabled={isBusy || !canPush}
-              title={status.has_upstream && status.ahead === 0 ? 'No local commits to push' : undefined}
+              title={status.has_upstream && status.ahead === 0 ? t('git.noLocalCommitsToPush') : undefined}
               onClick={() => setPendingAction({ kind: 'push' })}
             >
               {t('git.push')}{status.ahead > 0 ? ` (${status.ahead})` : ''}
@@ -329,8 +329,8 @@ export function GitPanel({
                 <input value={message} onChange={(event) => setMessage(event.target.value)} required />
               </label>
               <details className="git-commit-template-details">
-                <summary>Message suggestions</summary>
-                <div className="git-commit-templates" aria-label="Commit message suggestions">
+                <summary>{t('git.messageSuggestions')}</summary>
+                <div className="git-commit-templates" aria-label={t('git.commitMessageSuggestions')}>
                   {commitTemplates.map((template) => (
                     <button key={template} type="button" className="toolbar-button" onClick={() => setMessage(template)}>
                       {template}

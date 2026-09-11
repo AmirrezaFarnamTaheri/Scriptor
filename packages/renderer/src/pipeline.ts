@@ -221,8 +221,9 @@ export function preprocessExtendedTaskStates(markdown: string): string {
       if (fenceMatch) {
         const token = fenceMatch[1]
         const marker = token[0] as '`' | '~'
+        const closesFence = /^\s*(`{3,}|~{3,})\s*$/.test(line)
         if (!fence) fence = { marker, length: token.length }
-        else if (fence.marker === marker && token.length >= fence.length) fence = null
+        else if (fence.marker === marker && token.length >= fence.length && closesFence) fence = null
         return line
       }
       if (fence) return line

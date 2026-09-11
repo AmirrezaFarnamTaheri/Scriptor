@@ -47,14 +47,14 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
       (noteSearch.query === deferredQuery ? noteSearch.hits : []).map((hit) => ({
         id: `note:${hit.path}`,
         label: hit.title,
-        category: 'Note',
+        category: t('commandPalette.noteCategory'),
         group: 'note' as const,
         tone: 'default' as const,
         run: () => {
           onOpenNote?.(hit.path)
         },
       })),
-    [deferredQuery, noteSearch, onOpenNote],
+    [deferredQuery, noteSearch, onOpenNote, t],
   )
 
   const mergedCommands = useMemo(() => {
@@ -142,7 +142,7 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
           />
         </div>
         <p className="command-palette-scope-hint">
-          Commands are available immediately; note search starts after 2 characters.
+          {t('commandPalette.scopeHint')}
         </p>
         {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox">
@@ -164,7 +164,7 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
                   <small>
                     {command.group === 'note'
                       ? command.id.replace(/^note:/, '')
-                      : command.category ?? 'Command'}
+                      : command.category ?? t('commandPalette.commandCategory')}
                   </small>
                 </span>
                 {command.shortcut ? <kbd className="command-palette-shortcut">{command.shortcut}</kbd> : null}
