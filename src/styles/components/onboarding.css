@@ -33,7 +33,7 @@
 .onboarding-step-label {
   display: block;
   font-size: var(--text-xs);
-  color: var(--ink);
+  color: var(--muted);
   white-space: nowrap;
 }
 
@@ -104,7 +104,7 @@
   margin-top: 0;
   background: var(--primary-strong);
   border-color: var(--primary-strong);
-  color: var(--bg);
+  color: var(--color-text-inverse, var(--bg-elevated));
 }
 
 @media (max-width: 520px) {
