@@ -4,7 +4,7 @@
 
 **A local-first Markdown workspace for serious writing and research.**
 
-[![Version](https://img.shields.io/badge/version-1.0.7-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](VERSION)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#download)
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
@@ -63,7 +63,7 @@ See [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) for the current
 
 ## Get Scriptor
 
-Production installers are published as GitHub Release assets. The current version is **1.0.7**.
+Production installers are published as GitHub Release assets. The current version is **1.0.8**.
 
 - **Windows** — `.msi` and `.exe` (Tauri 2)
 - **macOS** — `.dmg` and `.app` (Apple Silicon and Intel)
@@ -194,7 +194,7 @@ Scriptor welcomes contributions. The full workflow, contributor expectations, an
 
 ## Project status
 
-**Active development.** v1.0.7 is the current early production candidate. Desktop, vault, indexer, knowledge, Git, export, daemon, and web surfaces are implemented and shipped. The capability ledger in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) is authoritative for what is supported, experimental, or design-only. Mobile, encrypted vaults, local embeddings, Tantivy, and the WASM host remain experimental or design-only.
+**Active development.** v1.0.8 is the current production release. Desktop, vault, indexer, knowledge, Git, export, daemon, and web surfaces are implemented and shipped. The capability ledger in [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) is authoritative for what is supported, experimental, or design-only. Mobile, encrypted vaults, local embeddings, Tantivy, and the WASM host remain experimental or design-only.
 
 ## License
 
