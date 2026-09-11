@@ -295,7 +295,7 @@ test('vault health dashboard', async ({ page }) => {
   await waitForFullWorkspace(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open vault health')
-  const healthDashboard = page.getByRole('dialog', { name: 'Vault health dashboard' })
+  const healthDashboard = page.getByRole('dialog', { name: 'Vault health' })
   await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
   const healthMetrics = healthDashboard.locator('.metric-grid.health-metrics').first().locator('.metric')
   await expect(healthMetrics).toHaveCount(9)
