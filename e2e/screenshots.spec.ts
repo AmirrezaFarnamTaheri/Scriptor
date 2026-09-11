@@ -81,10 +81,9 @@ async function waitForGraphReady(page: Page) {
 async function waitForSettingsReady(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Settings' })
   await expect(dialog).toBeVisible()
-  await expect(dialog.locator('dd').first()).not.toHaveText('Checking...', { timeout: 20_000 })
-  // Version-agnostic: assert a resolved semver-ish version is rendered rather
-  // than pinning a literal that breaks on every Pandoc/app version bump.
-  await expect(dialog.getByText(/^\d+\.\d+(\.\d+)*$/).first()).toBeVisible({ timeout: 20_000 })
+  // Runtime diagnostics moved to the Advanced tab. General is the stable
+  // readiness surface for both the settings and shortcut screenshots.
+  await expect(dialog.getByRole('tab', { name: 'General', selected: true })).toBeVisible({ timeout: 20_000 })
   await page.waitForTimeout(500)
 }
 
@@ -188,8 +187,6 @@ test('editor with split preview', async ({ page }) => {
 test('inspector preview', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  const splitToggle = page.getByRole('button', { name: 'Toggle split preview' })
-  if ((await splitToggle.getAttribute('aria-pressed')) === 'true') await splitToggle.click()
   await page.getByRole('tab', { name: 'Rendered output' }).click()
   await waitForPreviewReady(page)
   const qaBar = page.locator('.preview-qa-bar')
@@ -285,7 +282,8 @@ test('settings panel', async ({ page }) => {
 test('publish center', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open publish center')
   await expect(page.getByRole('dialog', { name: 'Export and publish' })).toBeVisible()
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('publish-center'))
@@ -295,10 +293,8 @@ test('publish center', async ({ page }) => {
 test('vault health dashboard', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
-  await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Export and publish' })).toBeVisible()
-  await page.getByRole('button', { name: 'Close Export and publish' }).click()
-  await page.locator('.widget-action').getByText('Good').click()
+  await openCommandPalette(page)
+  await runCommand(page, 'Open vault health')
   const healthDashboard = page.getByRole('dialog', { name: 'Vault health' })
   await expect(healthDashboard).toBeVisible({ timeout: 10_000 })
   const healthMetrics = healthDashboard.locator('.metric-grid.health-metrics').first().locator('.metric')
@@ -402,6 +398,7 @@ test('mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 820, height: 1024 })
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForEditorReady(page)
+  await setEditorSurfaceMode(page, 'Preview')
   await waitForPreviewReady(page)
   const mobileNav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
   await expect(mobileNav).toBeVisible()

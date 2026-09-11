@@ -240,9 +240,11 @@ export async function waitForWorkspace(page: Page) {
     await expect(vaultBadge).toBeVisible()
   }
   const vaultList = page.locator('.virtual-note-list')
-  await expect(vaultList.getByRole('button', { name: 'Research Plan.md' })).toBeVisible({
-    timeout: 45_000,
-  })
+  // A large virtualized vault may legitimately place the active note outside
+  // the mounted window. The selected tab and editor model below prove that the
+  // active note loaded; here we only require the hydrated list itself.
+  await expect(vaultList).toBeVisible({ timeout: 45_000 })
+  await expect(vaultList.locator(':scope > li').first()).toBeVisible({ timeout: 45_000 })
   await expect(page.getByRole('tab', { name: 'Research Plan', selected: true })).toBeVisible({
     timeout: 30_000,
   })
