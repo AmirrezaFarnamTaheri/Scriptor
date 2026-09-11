@@ -93,7 +93,13 @@ test.describe('Frontend polish regressions', () => {
     await page.getByRole('button', { name: 'Hide status dock tabs', exact: true }).click()
     await expect(page.locator(`#${panelId}`)).toHaveCount(0)
     await summary.click()
-    await expect(page.locator(`#${panelId}`)).toBeVisible()
+    // Re-resolve the selected tab after reopening: background job updates may
+    // legitimately change the active summary tab while the dock chrome is
+    // unmounted, so the pre-collapse aria-controls value can be stale.
+    await expect(selectedTab).toBeVisible()
+    const reopenedPanelId = await selectedTab.getAttribute('aria-controls')
+    expect(reopenedPanelId).toBeTruthy()
+    await expect(page.locator(`#${reopenedPanelId}`)).toBeVisible()
   })
 
   test('workspace and status dock reflow without covering the editor at intermediate widths', async ({ page }) => {
