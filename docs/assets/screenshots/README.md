@@ -8,7 +8,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 |---|---|---|---|
 | workspace-light.png | Reviewed light workspace baseline | 196 KB | Docs + baseline mirror |
 | workspace-dark.png | Reviewed dark workspace baseline | 136 KB | Docs + baseline mirror |
-| workspace-tablet.png | 1024px workspace breakpoint capture | 99 KB | VISUAL-REVIEW |
+| workspace-tablet.png | 1024px workspace breakpoint capture | 152 KB | VISUAL-REVIEW |
 | editor-preview.png | Reviewed split editor/preview baseline | 189 KB | Docs + baseline mirror |
 | command-palette.png | Reviewed command palette baseline | 161 KB | Docs + baseline mirror |
 | graph.png | Reviewed graph baseline | 80 KB | Docs + baseline mirror |
@@ -29,8 +29,8 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mcp-sharing-inventory.png | MCP sharing and resource inventory view | 68 KB | VISUAL-REVIEW |
 | toolbar-typography.png | Typography toolbar popover | 12 KB | VISUAL-REVIEW |
 | toolbar-insert.png | Insert toolbar popover | 11 KB | VISUAL-REVIEW |
-| mobile-inspector.png | 390px mobile inspector pane | 29 KB | VISUAL-REVIEW |
-| mobile-vault.png | 390px mobile vault pane | 40 KB | VISUAL-REVIEW |
+| mobile-inspector.png | 390px mobile inspector pane | 38 KB | VISUAL-REVIEW |
+| mobile-vault.png | 390px mobile vault pane | 78 KB | VISUAL-REVIEW |
 
 ### Freshness and acceptance
 
