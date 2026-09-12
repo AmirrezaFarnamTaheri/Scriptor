@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.0.8 - 2026-09-12
+
 ### Added
 - Opt-in semantic (embedding) search: a vault config `semantic` section enables ollama (local) or OpenAI embeddings; sync embeds only changed notes (sealed spans redacted first, deletions and model changes pruned), and search returns nearest notes for a hybrid overlay. Unconfigured vaults keep keyword-only search with no new network calls.
 - Bibliography (`.bib`) parsing now runs through the citation engine (hayagriva's BibLaTeX grammar) instead of a hand-rolled regex scan: quoted values, nested braces, and `@string` macros parse correctly, fields can no longer bleed between entries, and a file that cannot be parsed is skipped with a warning instead of failing the whole vault rebuild. Author names normalize to "Family, Given" and entry types map to their canonical CSL kinds for the citation renderer.
