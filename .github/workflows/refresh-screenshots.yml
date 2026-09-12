@@ -2,11 +2,6 @@ name: Refresh documentation screenshots
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - fix/docs-workspace-screenshot
-    paths:
-      - .github/workflows/refresh-screenshots.yml
 
 permissions:
   contents: read
@@ -107,5 +102,3 @@ jobs:
             test-results
           if-no-files-found: error
           retention-days: 14
-
-# Keep this workflow branch-scoped while the screenshot repair is reviewed.
