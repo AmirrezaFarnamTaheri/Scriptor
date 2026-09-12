@@ -1,0 +1,129 @@
+name: Finalize v1.1.0 release metadata
+
+on:
+  push:
+    branches:
+      - release/v1.1.0-final
+
+permissions:
+  contents: write
+
+jobs:
+  synchronize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: release/v1.1.0-final
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Synchronize release metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '1.1.0\n' > VERSION
+          node scripts/release/version.mjs sync
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          version = '1.1.0'
+          previous = '1.0.7'
+
+          # Cargo.lock: only update Scriptor workspace package records. External
+          # crates that happen to use 1.0.7 (for example swift-rs) stay untouched.
+          lock_path = Path('Cargo.lock')
+          lines = lock_path.read_text().splitlines(keepends=True)
+          current_name = None
+          changed = 0
+          for index, line in enumerate(lines):
+              if line == '[[package]]\n':
+                  current_name = None
+              elif current_name is None and line.startswith('name = "'):
+                  current_name = line.split('"', 2)[1]
+              elif current_name and current_name.startswith('scriptor-') and line == f'version = "{previous}"\n':
+                  lines[index] = f'version = "{version}"\n'
+                  changed += 1
+          if changed != 19:
+              raise SystemExit(f'expected 19 Scriptor Cargo.lock version updates, got {changed}')
+          lock_path.write_text(''.join(lines))
+
+          changelog_path = Path('CHANGELOG.md')
+          changelog = changelog_path.read_text()
+          marker = '# Changelog\n\n## Unreleased\n'
+          replacement = '# Changelog\n\n## Unreleased\n\n_No unreleased changes yet._\n\n## 1.1.0 — 2026-09-12\n'
+          if changelog.count(marker) != 1:
+              raise SystemExit('unexpected CHANGELOG Unreleased heading shape')
+          changelog_path.write_text(changelog.replace(marker, replacement, 1))
+
+          readme_path = Path('README.md')
+          readme = readme_path.read_text()
+          if readme.count(previous) != 3:
+              raise SystemExit(f'expected 3 README references to {previous}, got {readme.count(previous)}')
+          readme = readme.replace(f'version-{previous}-', f'version-{version}-')
+          readme = readme.replace(f'current version is **{previous}**', f'current version is **{version}**')
+          readme = readme.replace(
+              f'**Active development.** v{previous} is the current early production candidate.',
+              f'**Active development.** v{version} is the current production release.',
+          )
+          readme_path.write_text(readme)
+
+          context_path = Path('docs/architecture/c4-context.md')
+          context = context_path.read_text()
+          old_status = '**Status:** current implementation context for Scriptor `1.0.0` plus the Unreleased hardening in this tree.'
+          new_status = '**Status:** current implementation context for Scriptor `1.1.0`.'
+          if old_status not in context:
+              raise SystemExit('expected C4 release status not found')
+          context_path.write_text(context.replace(old_status, new_status, 1))
+
+          catalog_path = Path('docs/assets/screenshots/README.md')
+          catalog = catalog_path.read_text()
+          sizes = {
+              'workspace-light.png': 196,
+              'workspace-dark.png': 136,
+              'editor-preview.png': 189,
+              'command-palette.png': 161,
+              'graph.png': 80,
+              'canvas.png': 74,
+              'git-panel.png': 160,
+              'mcp-panel.png': 194,
+              'settings.png': 163,
+              'publish-center.png': 162,
+              'vault-health.png': 167,
+              'knowledge-workbench.png': 171,
+              'conflict-resolver.png': 155,
+              'note-history.png': 182,
+              'keyboard-shortcuts.png': 167,
+              'onboarding-tour.png': 177,
+              'plugins.png': 184,
+              'inspector-preview.png': 186,
+          }
+          for name, size in sizes.items():
+              pattern = rf'(^\| {re.escape(name)} \|[^\n]*?\| )\d+ KB( \|[^\n]*$)'
+              catalog, count = re.subn(pattern, rf'\g<1>{size} KB\2', catalog, count=1, flags=re.MULTILINE)
+              if count != 1:
+                  raise SystemExit(f'could not update screenshot catalog size for {name}')
+          catalog_path.write_text(catalog)
+          PY
+
+          node scripts/release/version.mjs check
+          node scripts/release/verify-changelog.mjs
+          git diff --check
+
+          # This workflow is a one-shot branch bootstrap. Remove it from the
+          # release commit so no temporary automation reaches main.
+          git rm .github/workflows/release-prep-sync.yml
+          git add -A
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(release): prepare v1.1.0'
+          git push origin HEAD:release/v1.1.0-final
