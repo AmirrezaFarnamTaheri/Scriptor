@@ -6,25 +6,25 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 
 | Screenshot | Description | Size | Used in |
 |---|---|---|---|
-| workspace-light.png | Reviewed light workspace baseline | 185 KB | Docs + baseline mirror |
-| workspace-dark.png | Reviewed dark workspace baseline | 156 KB | Docs + baseline mirror |
+| workspace-light.png | Reviewed light workspace baseline | 196 KB | Docs + baseline mirror |
+| workspace-dark.png | Reviewed dark workspace baseline | 136 KB | Docs + baseline mirror |
 | workspace-tablet.png | 1024px workspace breakpoint capture | 99 KB | VISUAL-REVIEW |
-| editor-preview.png | Reviewed split editor/preview baseline | 185 KB | Docs + baseline mirror |
-| command-palette.png | Reviewed command palette baseline | 197 KB | Docs + baseline mirror |
-| graph.png | Reviewed graph baseline | 99 KB | Docs + baseline mirror |
-| canvas.png | Spatial canvas board for visual note arrangement | 169 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| git-panel.png | Version control status, commit, pull/push | 213 KB | VISUAL-REVIEW, STORE-MIGRATION |
-| mcp-panel.png | Reviewed MCP panel baseline | 244 KB | Docs + baseline mirror |
-| settings.png | Runtime config, vault config, appearance, diagnostics | 225 KB | VISUAL-REVIEW, STORE-MIGRATION |
-| publish-center.png | Reviewed publish-center baseline | 201 KB | Docs + baseline mirror |
-| vault-health.png | Vault health dashboard with lint and health scores | 205 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
-| knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 202 KB | VISUAL-REVIEW |
-| conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 164 KB | VISUAL-REVIEW, STORE-MIGRATION |
-| note-history.png | Revision timeline with restore capability | 193 KB | VISUAL-REVIEW |
-| keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 225 KB | VISUAL-REVIEW |
-| onboarding-tour.png | First-run product tour experience | 191 KB | VISUAL-REVIEW |
-| plugins.png | Plugin marketplace discovery and management | 191 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| inspector-preview.png | Inspector preview mode with editor/preview controls | 176 KB | VISUAL-REVIEW |
+| editor-preview.png | Reviewed split editor/preview baseline | 189 KB | Docs + baseline mirror |
+| command-palette.png | Reviewed command palette baseline | 161 KB | Docs + baseline mirror |
+| graph.png | Reviewed graph baseline | 80 KB | Docs + baseline mirror |
+| canvas.png | Spatial canvas board for visual note arrangement | 74 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| git-panel.png | Version control status, commit, pull/push | 160 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| mcp-panel.png | Reviewed MCP panel baseline | 194 KB | Docs + baseline mirror |
+| settings.png | Runtime config, vault config, appearance, diagnostics | 163 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| publish-center.png | Reviewed publish-center baseline | 162 KB | Docs + baseline mirror |
+| vault-health.png | Vault health dashboard with lint and health scores | 167 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
+| knowledge-workbench.png | 5-tab knowledge hub (inbox, tags, orphans, backlinks, recent) | 171 KB | VISUAL-REVIEW |
+| conflict-resolver.png | 3-way merge UI with hunk-level ours/theirs selection | 155 KB | VISUAL-REVIEW, STORE-MIGRATION |
+| note-history.png | Revision timeline with restore capability | 182 KB | VISUAL-REVIEW |
+| keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 167 KB | VISUAL-REVIEW |
+| onboarding-tour.png | First-run product tour experience | 177 KB | VISUAL-REVIEW |
+| plugins.png | Plugin marketplace discovery and management | 184 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
+| inspector-preview.png | Inspector preview mode with editor/preview controls | 186 KB | VISUAL-REVIEW |
 | editor-recovery.png | Editor recovery fallback state | 8 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | mcp-sharing-inventory.png | MCP sharing and resource inventory view | 68 KB | VISUAL-REVIEW |
 | toolbar-typography.png | Typography toolbar popover | 12 KB | VISUAL-REVIEW |

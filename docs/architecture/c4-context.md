@@ -1,6 +1,6 @@
 # C4 Model Specification: Level 1 System Context for Scriptor
 
-**Status:** current implementation context for Scriptor `1.0.0` plus the Unreleased hardening in this tree. Experimental and design-only surfaces are governed by [`../CAPABILITY-MATURITY.md`](../CAPABILITY-MATURITY.md).
+**Status:** current implementation context for Scriptor `1.1.0`. Experimental and design-only surfaces are governed by [`../CAPABILITY-MATURITY.md`](../CAPABILITY-MATURITY.md).
 
 ## System overview
 
