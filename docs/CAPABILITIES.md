@@ -24,7 +24,7 @@ The user-facing feature tour is in the main [`README.md`](../README.md) (Feature
 | Visual regression tests | `playwright.visual.config.ts` |
 | axe-core CI gate | `check:a11y-axe` in `check:release` |
 | Documentation screenshots | `docs/assets/screenshots/` |
-| Release packaging + optional Authenticode | `scripts/release/`, `.github/workflows/release.yml` |
+| Release packaging + unsigned trust evidence | `scripts/release/`, `.github/workflows/release.yml` |
 
 ## Headless engine
 
@@ -62,6 +62,6 @@ CI mirrors these in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml).
 |----------|---------|
 | [`guides/GETTING_STARTED.md`](./guides/GETTING_STARTED.md) | First-run guide |
 | [`release/PANDOC_STRATEGY.md`](./release/PANDOC_STRATEGY.md) | Export prerequisites |
-| [`release/SIGNING.md`](./release/SIGNING.md) | Installer signing |
+| [`release/SIGNING.md`](./release/SIGNING.md) | Installer trust and signing policy |
 | [`../PRODUCT.md`](../PRODUCT.md) | Product principles |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | Release history |
