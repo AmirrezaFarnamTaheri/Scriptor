@@ -451,12 +451,15 @@ export function ReaderPanel({
                 setFileReloadGeneration((generation) => generation + 1)
               }
               // The frame signals readiness via postMessage READY, not onLoad,
-              // because pdf.js initialises asynchronously.
+              // because pdf.js initialises asynchronously. Keep the watchdog comfortably
+              // above slow local-module startup on contended or low-end systems: timing out
+              // while the bundled renderer is still loading removes the iframe and aborts
+              // an otherwise healthy request.
               setViewer((current) => (current ? { ...current, ready: false } : current))
               if (readyTimerRef.current !== null) window.clearTimeout(readyTimerRef.current)
               readyTimerRef.current = window.setTimeout(() => {
                 setError('Reader wrapper did not become ready. Close and reopen the document.')
-              }, 8_000)
+              }, 20_000)
             }}
           />
         )}

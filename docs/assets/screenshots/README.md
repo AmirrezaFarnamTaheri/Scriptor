@@ -24,7 +24,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | keyboard-shortcuts.png | Keyboard shortcut editor (settings section) | 167 KB | VISUAL-REVIEW |
 | onboarding-tour.png | First-run product tour experience | 177 KB | VISUAL-REVIEW |
 | plugins.png | Plugin marketplace discovery and management | 184 KB | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| inspector-preview.png | Inspector preview mode with editor/preview controls | 185 KB | VISUAL-REVIEW |
+| inspector-preview.png | Inspector preview mode with editor/preview controls | 186 KB | VISUAL-REVIEW |
 | editor-recovery.png | Editor recovery fallback state | 8 KB | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | mcp-sharing-inventory.png | MCP sharing and resource inventory view | 68 KB | VISUAL-REVIEW |
 | toolbar-typography.png | Typography toolbar popover | 12 KB | VISUAL-REVIEW |
