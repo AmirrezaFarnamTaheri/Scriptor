@@ -15,7 +15,6 @@ import { useVaultBackup } from '../hooks/useVaultBackup'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import { DEFAULT_WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
-import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
 import type { PandocDiscovery, VaultConfig } from '../types/vault'
 import type { SystemInfoSnapshot } from '../types/system'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
@@ -27,79 +26,8 @@ import { KeyboardShortcutsSettingsSection } from './KeyboardShortcutsSettingsSec
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { VaultBackupSettings } from './VaultBackupSettings'
+import { LayoutPresetGallery } from './LayoutPresetGallery'
 import { resolveHunspellLocale, SUPPORTED_LOCALES } from '@scriptor/editor/pure'
-
-function matchesLayout(a: WorkspaceLayout | undefined, b: WorkspaceLayout): boolean {
-  if (!a) return false
-  return (
-    a.splitPreview === b.splitPreview &&
-    a.showStickies === b.showStickies &&
-    a.graphDepth === b.graphDepth &&
-    a.distractionFree === b.distractionFree
-  )
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-function valuesEqual(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b)
-}
-
-function mergeEditedValue(current: unknown, baseline: unknown, edited: unknown): unknown {
-  if (valuesEqual(edited, baseline)) return current
-  if (!isPlainRecord(current) || !isPlainRecord(baseline) || !isPlainRecord(edited)) return edited
-
-  const next: Record<string, unknown> = { ...current }
-  for (const key of Object.keys(edited)) {
-    next[key] = mergeEditedValue(current[key], baseline[key], edited[key])
-  }
-  return next
-}
-
-function mergeEditedVaultConfig(current: VaultConfig, baseline: VaultConfig, edited: VaultConfig): VaultConfig {
-  return mergeEditedValue(current, baseline, edited) as VaultConfig
-}
-
-function LayoutPresetGallery({
-  current,
-  onApply,
-}: {
-  current: WorkspaceLayout | undefined
-  onApply: (preset: LayoutPreset) => void
-}) {
-  return (
-    <div className="settings-layout-presets">
-      <h4 className="settings-subheading">Layout templates</h4>
-      <p className="health-subtitle">
-        Apply a template to reconfigure this mode&apos;s split preview, stickies, and graph depth in one click.
-      </p>
-      <ul className="layout-preset-list">
-        {LAYOUT_PRESETS.map((preset) => {
-          const active = matchesLayout(current, preset.layout)
-          return (
-            <li key={preset.id} className="layout-preset-item">
-              <div className="layout-preset-copy">
-                <strong>{preset.name}</strong>
-                <span className="health-subtitle">{preset.description}</span>
-              </div>
-              <button
-                type="button"
-                className="toolbar-button"
-                aria-label={`Apply ${preset.name} layout template`}
-                aria-pressed={active}
-                onClick={() => onApply(preset)}
-              >
-                {active ? 'Active' : 'Apply'}
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </div>
-  )
-}
 
 interface SettingsPanelProps {
   vaultOpen: boolean
