@@ -5825,7 +5825,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-annotations"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "serde",
  "serde_json",
@@ -5834,7 +5834,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-canvas-engine"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "chrono",
  "resvg",
@@ -5851,7 +5851,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-capture"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "ammonia",
  "htmd",
@@ -5867,7 +5867,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-citation-engine"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "biblatex",
  "hayagriva",
@@ -5879,7 +5879,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-cli"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "chrono",
  "clap",
@@ -5907,7 +5907,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-daemon"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "ammonia",
  "chrono",
@@ -5938,7 +5938,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-desktop"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "arboard",
  "base64 0.23.1",
@@ -5970,7 +5970,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-embeddings"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "reqwest",
  "rusqlite",
@@ -5983,7 +5983,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-export-runner"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "chrono",
  "hex",
@@ -5999,7 +5999,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-extractor"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "pulldown-cmark",
  "serde",
@@ -6009,7 +6009,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-indexer"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "chrono",
  "r2d2",
@@ -6029,7 +6029,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-ipc"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "postcard",
  "serde",
@@ -6039,7 +6039,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-native-git"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "diffy",
  "scriptor-system-bridge",
@@ -6052,7 +6052,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-publish-runner"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "globset",
  "memchr",
@@ -6065,7 +6065,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-system-bridge"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "hex",
  "keyring",
@@ -6079,7 +6079,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-tantivy-indexer"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "tantivy",
  "tempfile",
@@ -6088,7 +6088,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-vault"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -6116,7 +6116,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-wasm-runtime"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "serde",
  "thiserror 2.0.20",
@@ -6126,7 +6126,7 @@ dependencies = [
 
 [[package]]
 name = "scriptor-xtask"
-version = "1.0.7"
+version = "1.0.8"
 dependencies = [
  "anyhow",
  "clap",
