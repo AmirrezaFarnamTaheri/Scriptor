@@ -1,0 +1,35 @@
+name: Documentation localization
+
+on:
+  pull_request:
+    paths:
+      - 'README*.md'
+      - 'docs/**/*.md'
+      - 'scripts/validation/docs-localization-contracts.mjs'
+      - '.github/workflows/docs-localization.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'README*.md'
+      - 'docs/**/*.md'
+      - 'scripts/validation/docs-localization-contracts.mjs'
+      - '.github/workflows/docs-localization.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  localization-contract:
+    name: Locale and RTL contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5d6a3e9d06c90e4b14a9148a221c8733a # v7.0.1
+      - name: Set up Node.js
+        uses: actions/setup-node@82076252e18e25a049e569a0e1f687d2e978b818 # v7.0.0
+        with:
+          node-version: 22.16.0
+      - name: Validate localized documentation
+        run: node scripts/validation/docs-localization-contracts.mjs
