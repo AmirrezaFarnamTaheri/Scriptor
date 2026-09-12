@@ -107,3 +107,5 @@ jobs:
             test-results
           if-no-files-found: error
           retention-days: 14
+
+# Keep this workflow branch-scoped while the screenshot repair is reviewed.
