@@ -1,0 +1,60 @@
+name: Release v1.0.8 after localization
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch-release:
+    name: Dispatch guarded release kickoff
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: 1.0.8
+      VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Checkout verified main commit
+        uses: actions/checkout@3d3c42e5d6a3e9d06c90e4b14a9148a221c8733a # v7.0.1
+        with:
+          ref: ${{ env.VERIFIED_SHA }}
+          fetch-depth: 1
+      - name: Confirm release version and exact main head
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n[:space:]' < VERSION)"
+          if [[ "$version" != "$RELEASE_VERSION" ]]; then
+            echo "VERSION is $version, not $RELEASE_VERSION; no release dispatch."
+            exit 0
+          fi
+
+          current_main="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "$current_main" != "$VERIFIED_SHA" ]]; then
+            echo "main advanced from verified SHA $VERIFIED_SHA to $current_main; no release dispatch."
+            exit 0
+          fi
+
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/v$RELEASE_VERSION" >/dev/null 2>&1; then
+            echo "Tag v$RELEASE_VERSION already exists; no release dispatch."
+            exit 0
+          fi
+
+          echo "RELEASE_READY=true" >> "$GITHUB_ENV"
+      - name: Dispatch release kickoff
+        if: env.RELEASE_READY == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run release-kickoff.yml --ref main -f "version=$RELEASE_VERSION"
+          echo "Dispatched Release Kickoff for v$RELEASE_VERSION from verified main SHA $VERIFIED_SHA."
