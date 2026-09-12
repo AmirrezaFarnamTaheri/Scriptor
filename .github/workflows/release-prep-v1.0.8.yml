@@ -1,0 +1,104 @@
+name: Prepare v1.0.8 release branch
+
+on:
+  push:
+    branches:
+      - release/v1.0.8-final
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: release/v1.0.8-final
+          fetch-depth: 0
+
+      - name: Configure Node.js 22
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+
+      - name: Prepare release metadata and screenshot mirrors
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '1.0.8\n' > VERSION
+          node scripts/release/version.mjs sync
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Cargo.lock contains third-party crates that also happen to be 1.0.7;
+          # update only Scriptor workspace packages.
+          lock = Path('Cargo.lock')
+          lines = lock.read_text().splitlines(True)
+          package = None
+          for index, line in enumerate(lines):
+              if line.startswith('name = '):
+                  package = line.split('=', 1)[1].strip().strip('"')
+              elif line.startswith('version = "1.0.7"') and package and package.startswith('scriptor-'):
+                  lines[index] = line.replace('1.0.7', '1.0.8')
+          lock.write_text(''.join(lines))
+
+          # Promote the accumulated Unreleased notes to the final release.
+          changelog = Path('CHANGELOG.md')
+          text = changelog.read_text()
+          marker = '# Changelog\n\n## Unreleased\n'
+          if marker not in text:
+              raise SystemExit('CHANGELOG Unreleased heading not found')
+          text = text.replace(marker, '# Changelog\n\n## Unreleased\n\n## 1.0.8 — 2026-09-12\n', 1)
+          changelog.write_text(text)
+
+          # Keep README release messaging synchronized.
+          readme = Path('README.md')
+          text = readme.read_text()
+          text = text.replace('version-1.0.7-0f766e.svg', 'version-1.0.8-0f766e.svg')
+          text = text.replace('current version is **1.0.7**', 'current version is **1.0.8**')
+          text = text.replace(
+              '**Active development.** v1.0.7 is the current early production candidate.',
+              '**Active development.** v1.0.8 is the current production release candidate.',
+          )
+          readme.write_text(text)
+
+          # Mirror every stable reviewed Windows baseline into docs/marketing.
+          source = Path('e2e/screenshots.spec.ts-snapshots')
+          dest = Path('docs/assets/screenshots')
+          for shot in source.glob('*-win32.png'):
+              doc_name = shot.name.removesuffix('-win32.png') + '.png'
+              target = dest / doc_name
+              if target.exists():
+                  target.write_bytes(shot.read_bytes())
+
+          # Keep screenshot catalog sizes accurate after the refresh.
+          catalog = dest / 'README.md'
+          text = catalog.read_text()
+          for shot in dest.glob('*.png'):
+              size_kb = round(shot.stat().st_size / 1024)
+              pattern = rf'(^\| {re.escape(shot.name)} \|[^\n]*?\| )\d+ KB( \|[^\n]*$)'
+              text = re.sub(pattern, rf'\g<1>{size_kb} KB\g<2>', text, flags=re.M)
+          catalog.write_text(text)
+          PY
+
+          node scripts/release/version.mjs check
+          node scripts/release/verify-changelog.mjs
+          git diff --check
+
+      - name: Commit final release preparation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/release-prep-v1.0.8.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet && { echo 'No release-prep changes produced' >&2; exit 1; }
+          git commit -m 'chore(release): prepare v1.0.8 final'
+          git push origin HEAD:release/v1.0.8-final
