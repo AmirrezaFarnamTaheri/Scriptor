@@ -1,0 +1,109 @@
+name: Refresh documentation screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/docs-workspace-screenshot
+    paths:
+      - .github/workflows/refresh-screenshots.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-screenshots-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: startsWith(github.ref, 'refs/heads/') && github.ref_name != github.event.repository.default_branch
+    runs-on: windows-2025
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    env:
+      PLAYWRIGHT_CHANNEL: msedge
+    steps:
+      - name: Checkout selected branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Configure package manager
+        shell: pwsh
+        run: |
+          corepack enable
+          $packageManager = (Get-Content package.json -Raw | ConvertFrom-Json).packageManager
+          corepack prepare $packageManager --activate
+          pnpm --version
+
+      - name: Configure Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Verify screenshot capture contracts
+        shell: pwsh
+        run: node --test scripts/validation/screenshot-capture-contracts.test.mjs scripts/validation/playwright-isolation-contracts.test.mjs
+
+      - name: Install frozen dependencies
+        shell: pwsh
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: pnpm exec playwright install ffmpeg
+
+      - name: Preserve previous gallery hero
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/screenshots-before | Out-Null
+          Copy-Item docs/assets/screenshots/workspace-light.png artifacts/screenshots-before/workspace-light.png
+          git rev-parse HEAD | Set-Content artifacts/screenshot-source.txt
+          pnpm exec playwright --version | Add-Content artifacts/screenshot-source.txt
+
+      - name: Regenerate current-source docs and stable Windows baselines
+        shell: pwsh
+        run: ./scripts/screenshots/capture.ps1 -SkipDesktopBuild -UpdateBaselines
+
+      - name: Verify refreshed stable baselines
+        shell: pwsh
+        run: pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots=none --workers=1
+
+      - name: Commit generated screenshot updates
+        shell: pwsh
+        env:
+          CAPTURE_BRANCH: ${{ github.ref_name }}
+        run: |
+          git add -- ':(glob)docs/assets/screenshots/*.png' ':(glob)e2e/screenshots.spec.ts-snapshots/*-win32.png'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host 'Current captures already match committed screenshots.'
+            exit 0
+          }
+          if ($LASTEXITCODE -ne 1) { exit $LASTEXITCODE }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs: refresh current-source screenshot gallery'
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          git push origin "HEAD:refs/heads/$env:CAPTURE_BRANCH"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Upload before-after and capture evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: documentation-screenshots-${{ github.run_attempt }}
+          path: |
+            artifacts/screenshots-before
+            artifacts/screenshot-source.txt
+            docs/assets/screenshots
+            e2e/screenshots.spec.ts-snapshots
+            playwright-report
+            test-results
+          if-no-files-found: error
+          retention-days: 14
