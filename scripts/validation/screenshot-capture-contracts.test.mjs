@@ -24,7 +24,7 @@ test('docs-only visual review states are copied only from fresh test output', ()
     'visual-typography-popover.png',
     'visual-insert-popover.png',
   ]) {
-    assert.match(capture, new RegExp(source.replaceAll('.', '\\.'), 'u'))
+    assert.ok(capture.includes(source), `missing docs-only capture mapping for ${source}`)
   }
   assert.match(capture, /test-results\/visual/)
 })
