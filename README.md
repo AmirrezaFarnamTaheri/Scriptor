@@ -65,9 +65,9 @@ See [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) for the current
 
 Production installers are published as GitHub Release assets. The current version is **1.0.8**.
 
-- **Windows** — `.msi` and `.exe` (Tauri 2)
-- **macOS** — `.dmg` and `.app` (Apple Silicon and Intel)
-- **Linux** — `.deb`, `.rpm`, and `.AppImage`
+- **Windows x86_64** — `.msi` and `.exe` (NSIS)
+- **macOS Apple Silicon (aarch64)** — `.dmg`
+- **Linux x86_64 and ARM64** — `.deb` and `.AppImage`
 
 > **Trust status.** The official upstream installers are intentionally **unsigned**. Releases ship with SHA-256 checksums, a CycloneDX SBOM, a release receipt, source identity evidence, and GitHub provenance attestations. See [`docs/RELEASE-SECURITY.md`](docs/RELEASE-SECURITY.md) for the full verification workflow before you install.
 
