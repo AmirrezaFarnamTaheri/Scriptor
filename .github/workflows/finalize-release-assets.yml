@@ -52,6 +52,10 @@ jobs:
         shell: pwsh
         run: pnpm install --frozen-lockfile
 
+      - name: Install Playwright FFmpeg runtime
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
+
       - name: Capture final reviewed Windows screenshots
         shell: pwsh
         run: ./scripts/screenshots/capture.ps1 -SkipDesktopBuild -UpdateBaselines
