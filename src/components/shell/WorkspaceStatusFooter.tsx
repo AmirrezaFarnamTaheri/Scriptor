@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, GitBranch, PanelRight } from 'lucide-react'
 
 import { DiagnosticsPanel } from '../DiagnosticsPanel'
@@ -74,7 +74,7 @@ interface WorkspaceStatusFooterProps {
   onHibernateSpellcheckChange: (enabled: boolean) => void
 }
 
-export function WorkspaceStatusFooter({
+function WorkspaceStatusFooterImpl({
   statusDockTab,
   onStatusDockTabChange,
   totalProblemCount,
@@ -258,7 +258,11 @@ export function WorkspaceStatusFooter({
             onTabChange={activateDockTab}
             expanded={dockExpanded}
             problemCount={totalProblemCount}
-            issuesPanel={<DiagnosticsPanel {...diagnosticsPanelProps} />}
+            issuesPanel={
+              dockExpanded && statusDockTab === 'problems' ? (
+                <DiagnosticsPanel {...diagnosticsPanelProps} />
+              ) : null
+            }
             activity={activity}
             searchResults={searchResults}
             searchQuery={searchQuery}
@@ -276,3 +280,5 @@ export function WorkspaceStatusFooter({
     </footer>
   )
 }
+
+export const WorkspaceStatusFooter = memo(WorkspaceStatusFooterImpl)

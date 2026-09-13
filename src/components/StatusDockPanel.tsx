@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 
 import { useI18n } from '../lib/i18n'
 import type { ActivityEntry } from '../hooks/useActivityLog'
@@ -26,7 +26,7 @@ interface StatusDockPanelProps {
   onCancelExport: () => void
 }
 
-export function StatusDockPanel({
+function StatusDockPanelImpl({
   activeTab,
   onTabChange,
   expanded,
@@ -247,3 +247,5 @@ export function StatusDockPanel({
     </>
   )
 }
+
+export const StatusDockPanel = memo(StatusDockPanelImpl)

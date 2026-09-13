@@ -1,4 +1,4 @@
-import { Children, cloneElement, isValidElement, useId, useRef, useState, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Settings2 } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
 
@@ -38,17 +38,21 @@ function readPreferences(): Preference[] {
 
 /** Controls declare semantic React keys so layout and translations cannot move preferences. */
 export function CustomizableToolbar({ children, extras = [] }: { children: ReactNode; extras?: Tool[] }) {
-  const tools: Tool[] = []
-  Children.forEach(children, (group) => {
-    if (!isValidElement<{ children?: ReactNode }>(group)) return
-    Children.forEach(group.props.children, (node) => {
-      if (!isValidElement<{ title?: string; 'aria-label'?: string; children?: ReactNode }>(node) || node.key == null) return
-      const label = node.props['aria-label'] ?? node.props.title ?? (typeof node.props.children === 'string' ? node.props.children : null)
-        ?? (node.key === 'typography' ? 'Typography' : 'Insert')
-      tools.push({ id: String(node.key), label, node })
+  const tools = useMemo(() => {
+    const list: Tool[] = []
+    Children.forEach(children, (group) => {
+      if (!isValidElement<{ children?: ReactNode }>(group)) return
+      Children.forEach(group.props.children, (node) => {
+        if (!isValidElement<{ title?: string; 'aria-label'?: string; children?: ReactNode }>(node) || node.key == null) return
+        const label = node.props['aria-label'] ?? node.props.title ?? (typeof node.props.children === 'string' ? node.props.children : null)
+          ?? (node.key === 'typography' ? 'Typography' : 'Insert')
+        list.push({ id: String(node.key), label, node })
+      })
     })
-  })
-  tools.push(...extras)
+    list.push(...extras)
+    return list
+  }, [children, extras])
+
   const [preferences, setPreferences] = useState(readPreferences)
   const [customizing, setCustomizing] = useState(false)
   const [open, setOpen] = useState(false)
@@ -57,11 +61,14 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
   const triggerId = useId()
-  const byId = new Map(tools.map((tool) => [tool.id, tool]))
-  const ordered = [
-    ...preferences.flatMap((pref) => { const tool = byId.get(pref.id); return tool ? [{ ...tool, ...pref }] : [] }),
-    ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: !tool.id.startsWith('extra:'), width: DEFAULT_WIDTH })),
-  ]
+
+  const ordered = useMemo(() => {
+    const byId = new Map(tools.map((tool) => [tool.id, tool]))
+    return [
+      ...preferences.flatMap((pref) => { const tool = byId.get(pref.id); return tool ? [{ ...tool, ...pref }] : [] }),
+      ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: !tool.id.startsWith('extra:'), width: DEFAULT_WIDTH })),
+    ]
+  }, [preferences, tools])
   const closeMenu = () => {
     setOpen(false)
     setSubmenu(null)

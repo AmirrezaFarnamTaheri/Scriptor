@@ -941,6 +941,20 @@ function App() {
     [workspace.health],
   )
 
+  const handleOpenReaderDocument = useCallback((path: string) => {
+    setReaderFilePath(path)
+    setReaderOpen(true)
+  }, [setReaderFilePath, setReaderOpen])
+
+  const handleOpenSnippets = useCallback(() => setSnippetsOpen(true), [setSnippetsOpen])
+  const handleOpenSettings = useCallback(() => setSettingsOpen(true), [setSettingsOpen])
+  const handleOpenRename = useCallback((path: string) => {
+    setRenameTargetPath(path)
+    setRenameOpen(true)
+  }, [setRenameTargetPath, setRenameOpen])
+  const handleOpenTemplatePicker = useCallback(() => setTemplatePickerOpen(true), [setTemplatePickerOpen])
+  const handleOpenObsidianImport = useCallback(() => setObsidianImportOpen(true), [setObsidianImportOpen])
+
   const sidebarActions = useVaultSidebarActions({
     nativeReady,
     chooseVaultFolder: workspace.chooseVaultFolder,
@@ -952,22 +966,317 @@ function App() {
     createDailyNoteForOffset: workspace.createDailyNoteForOffset,
     organizeNote: workspace.organizeNote,
     openNote: workspace.openNote,
-    openReaderDocument: (path) => {
-      setReaderFilePath(path)
-      setReaderOpen(true)
-    },
+    openReaderDocument: handleOpenReaderDocument,
     refreshVault: workspace.refreshVault,
     importDroppedFiles: workspace.importDroppedFiles,
     deleteNote: deleteNoteController.deleteNote,
     openKnowledgeWorkbench,
-    openSnippets: () => setSnippetsOpen(true),
-    openSettings: () => setSettingsOpen(true),
-    openRename: (path) => {
-      setRenameTargetPath(path)
-      setRenameOpen(true)
-    },
+    openSnippets: handleOpenSnippets,
+    openSettings: handleOpenSettings,
+    openRename: handleOpenRename,
     showToast,
   })
+
+  const handleOpenTemplatePickerAction = useMemo(
+    () => (nativeReady && workspace.vault ? handleOpenTemplatePicker : undefined),
+    [nativeReady, workspace.vault, handleOpenTemplatePicker],
+  )
+  const handleOpenObsidianImportAction = useMemo(
+    () => (nativeReady && workspace.vault ? handleOpenObsidianImport : undefined),
+    [nativeReady, workspace.vault, handleOpenObsidianImport],
+  )
+
+  const handleOpenKnowledgeWorkbenchRepair = useCallback(
+    () => openKnowledgeWorkbench('repair'),
+    [openKnowledgeWorkbench],
+  )
+  const handleOpenPublishCenter = useCallback(
+    () => setPublishCenterOpen(true),
+    [setPublishCenterOpen],
+  )
+  const handleNavigateBack = useCallback(
+    () => workspace.navigateBack(),
+    [workspace.navigateBack],
+  )
+  const handleNavigateForward = useCallback(
+    () => workspace.navigateForward(),
+    [workspace.navigateForward],
+  )
+  const handleChooseVault = useCallback(
+    () => void workspace.chooseVaultFolder(),
+    [workspace.chooseVaultFolder],
+  )
+  const handleOpenVaultAt = useCallback(
+    (path: string) => void workspace.openVaultAt(path),
+    [workspace.openVaultAt],
+  )
+  const handleOpenCommandPalette = useCallback(
+    () => commandPalette.setOpen(true),
+    [commandPalette.setOpen],
+  )
+  const handleOpenPortal = useCallback(
+    () => setPortalOpen(true),
+    [setPortalOpen],
+  )
+  const handleOpenQuickCapture = useCallback(
+    () => setQuickCaptureOpen(true),
+    [setQuickCaptureOpen],
+  )
+  const handleOpenGraph = useCallback(() => {
+    setGraphOpen(true)
+    void workspace.loadGraph(workspace.activePath)
+  }, [setGraphOpen, workspace.loadGraph, workspace.activePath])
+  const handleOpenCanvas = useCallback(
+    () => setCanvasOpen(true),
+    [setCanvasOpen],
+  )
+  const handleOpenGit = useCallback(
+    () => setGitPanelOpen(true),
+    [setGitPanelOpen],
+  )
+  const handleOpenMcp = useCallback(
+    () => setMcpPanelOpen(true),
+    [setMcpPanelOpen],
+  )
+  const handleOpenSupport = useCallback(
+    () => setSupportOpen(true),
+    [setSupportOpen],
+  )
+  const handleOpenPluginManager = useCallback(
+    () => setPluginManagerOpen(true),
+    [setPluginManagerOpen],
+  )
+  const handleToggleVaultSidebar = useCallback(
+    () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
+    [patchChrome, chrome.vaultSidebarCollapsed],
+  )
+  const handleToggleInspector = useCallback(
+    () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
+    [patchChrome, chrome.inspectorCollapsed],
+  )
+
+  const handleOpenNoteTab = useCallback(
+    (path: string) => void workspace.openNote(path),
+    [workspace.openNote],
+  )
+  const handleCloseNoteTab = useCallback(
+    (path: string) => workspace.closeTab(path),
+    [workspace.closeTab],
+  )
+  const handleUpdateDraft = useCallback(
+    (markdown: string) => {
+      journey.markFirstEdit()
+      workspace.updateDraft(markdown)
+    },
+    [journey, workspace.updateDraft],
+  )
+  const handleReloadExternalChange = useCallback(
+    () => void workspace.reloadActiveNoteFromDisk(),
+    [workspace.reloadActiveNoteFromDisk],
+  )
+  const handleToggleToc = useCallback(
+    () => setTocOpen((open) => !open),
+    [setTocOpen],
+  )
+  const handleJumpToLine = useCallback(
+    (line: number) => workspace.jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` }),
+    [workspace.jumpToOutlineHeading],
+  )
+  const handleOpenFrontmatter = useCallback(
+    () => setFrontmatterOpen(true),
+    [setFrontmatterOpen],
+  )
+  const handleOrganizeActive = useCallback(() => {
+    if (workspace.activePath) void workspace.organizeNote(workspace.activePath)
+  }, [workspace.activePath, workspace.organizeNote])
+  const handleOpenCheatsheet = useCallback(
+    () => setCheatsheetOpen(true),
+    [setCheatsheetOpen],
+  )
+  const handleOpenWritingTargets = useCallback(
+    () => setWritingTargetsOpen(true),
+    [setWritingTargetsOpen],
+  )
+  const handleInsertSnippet = useCallback(
+    (content: string) => workspace.insertSnippet(content),
+    [workspace.insertSnippet],
+  )
+  const handleSaveActiveNoteNow = useCallback(
+    () => void workspace.saveActiveNoteNow(),
+    [workspace.saveActiveNoteNow],
+  )
+  const handleRenameActiveNote = useCallback(() => {
+    setRenameTargetPath(workspace.activePath)
+    setRenameOpen(true)
+  }, [workspace.activePath, setRenameTargetPath, setRenameOpen])
+
+  const handleOpenWikilinkTarget = useCallback(
+    (target: string) => void workspace.openWikilinkTarget(target),
+    [workspace.openWikilinkTarget],
+  )
+  const handleOpenNote = useCallback(
+    (path: string) => void workspace.openNote(path),
+    [workspace.openNote],
+  )
+  const handleRenameSection = useCallback(
+    (label: string) => {
+      if (workspace.activePath) {
+        setSectionRenameTarget({
+          path: workspace.activePath,
+          label,
+        })
+      }
+    },
+    [workspace.activePath, setSectionRenameTarget],
+  )
+  const handleRenameBlock = useCallback(
+    (blockId: string) => {
+      if (workspace.activePath) {
+        setBlockRenameTarget({
+          path: workspace.activePath,
+          label: blockId,
+        })
+      }
+    },
+    [workspace.activePath, setBlockRenameTarget],
+  )
+  const handleSetStatusDockToJobs = useCallback(
+    () => setStatusDockTab('jobs'),
+    [setStatusDockTab],
+  )
+  const handleOpenHealthDashboard = useCallback(
+    () => setHealthDashboardOpen(true),
+    [setHealthDashboardOpen],
+  )
+  const handlePluginReviewConsent = useCallback(
+    (pluginId: string, grantedPermissions: any, allowedVaultIds: any) =>
+      plugins.setPluginConsent(pluginId, { grantedPermissions, allowedVaultIds }),
+    [plugins.setPluginConsent],
+  )
+  const handlePluginInstallMarketplace = useCallback(
+    (pluginId: string) => {
+      void plugins.installFromMarketplace(pluginId).catch((error) => {
+        workspace.logActivity('error', 'Plugin install failed', error instanceof Error ? error.message : String(error))
+      })
+    },
+    [plugins.installFromMarketplace, workspace.logActivity],
+  )
+
+  const inspectorPlugins = useMemo(
+    () => ({
+      plugins: plugins.plugins,
+      templatePacks: plugins.contributions.templatePacks,
+      safeMode: plugins.snapshot.safeMode,
+      healthDiagnostics: workspace.healthDiagnostics,
+      marketplaceCatalog: plugins.marketplaceCatalog,
+      activeVaultId: plugins.activeVaultId,
+      pluginPolicies: plugins.pluginPolicies,
+      onToggleSafeMode: plugins.setSafeMode,
+      onTogglePlugin: plugins.setPluginEnabled,
+      onReviewConsent: handlePluginReviewConsent,
+      onRevokeConsent: plugins.revokePluginConsent,
+      onInstallMarketplace: handlePluginInstallMarketplace,
+    }),
+    [
+      plugins.plugins,
+      plugins.contributions.templatePacks,
+      plugins.snapshot.safeMode,
+      workspace.healthDiagnostics,
+      plugins.marketplaceCatalog,
+      plugins.activeVaultId,
+      plugins.pluginPolicies,
+      plugins.setSafeMode,
+      plugins.setPluginEnabled,
+      handlePluginReviewConsent,
+      plugins.revokePluginConsent,
+      handlePluginInstallMarketplace,
+    ],
+  )
+
+  const handleCloseDiagnostics = useCallback(
+    () => setStatusDockTab('output'),
+    [setStatusDockTab],
+  )
+  const handleOpenIssue = useCallback(
+    (path: string, line?: number | null) => {
+      void workspace.openNoteAt(path, line)
+      setStatusDockTab('output')
+    },
+    [workspace.openNoteAt, setStatusDockTab],
+  )
+  const handleOpenEditorLint = useCallback(
+    (line: number) => {
+      workspace.jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` })
+      setStatusDockTab('output')
+    },
+    [workspace.jumpToOutlineHeading, setStatusDockTab],
+  )
+  const handleRebuildIndexAction = useCallback(
+    () => void workspace.rebuildIndex(),
+    [workspace.rebuildIndex],
+  )
+  const handleFixVaultLintAction = useCallback(
+    () => void workspace.fixVaultLint(),
+    [workspace.fixVaultLint],
+  )
+  const handleCancelExportAction = useCallback(
+    () => void workspace.cancelExport(),
+    [workspace.cancelExport],
+  )
+
+  const diagnosticsPanelProps = useMemo(
+    () => ({
+      issues: workspace.healthDiagnostics?.issues ?? [],
+      gitConflicts: workspace.gitStatus?.conflicted_files ?? [],
+      externalChange: workspace.externalChangeConflict,
+      clientEvents: diagnostics.optIn ? diagnostics.events : [],
+      editorLintMessages,
+      activeNotePath: workspace.activePath,
+      onClose: handleCloseDiagnostics,
+      onOpenIssue: handleOpenIssue,
+      onOpenEditorLint: handleOpenEditorLint,
+      onGenerateLinkReferences: workspace.generateLinkReferences,
+      onReloadExternalChange: handleReloadExternalChange,
+      onKeepEditingExternalChange: workspace.keepEditingAfterExternalChange,
+      onRebuildIndex: handleRebuildIndexAction,
+      onFixVaultLint: handleFixVaultLintAction,
+      isFixingVaultLint: workspace.isFixingVaultLint,
+    }),
+    [
+      workspace.healthDiagnostics?.issues,
+      workspace.gitStatus?.conflicted_files,
+      workspace.externalChangeConflict,
+      diagnostics.optIn,
+      diagnostics.events,
+      editorLintMessages,
+      workspace.activePath,
+      handleCloseDiagnostics,
+      handleOpenIssue,
+      handleOpenEditorLint,
+      workspace.generateLinkReferences,
+      handleReloadExternalChange,
+      workspace.keepEditingAfterExternalChange,
+      handleRebuildIndexAction,
+      handleFixVaultLintAction,
+      workspace.isFixingVaultLint,
+    ],
+  )
+
+  const handleSelectMobilePane = useCallback(
+    (pane: Parameters<typeof setMobilePane>[0]) => {
+      setMobilePane(pane)
+      if (pane === 'inspector') setActiveMode('inspector')
+    },
+    [setMobilePane, setActiveMode],
+  )
+
+  const handleCloseCanvas = useCallback(() => setCanvasOpen(false), [setCanvasOpen])
+  const handleCloseReader = useCallback(() => {
+    setReaderOpen(false)
+    setReaderFilePath(null)
+  }, [setReaderOpen, setReaderFilePath])
+  const handleCloseTasks = useCallback(() => setTasksOpen(false), [setTasksOpen])
+  const handleCloseKanban = useCallback(() => setKanbanOpen(false), [setKanbanOpen])
 
   return (
     <main className="app-shell" aria-label={BRAND_WORKSPACE_LABEL} data-workspace-mode={workspaceMode}>
@@ -981,24 +1290,21 @@ function App() {
           vault={workspace.vault}
           workspaceMode={workspaceMode}
           onWorkspaceModeChange={handleWorkspaceModeChange}
-          onOpenKnowledgeWorkbench={() => openKnowledgeWorkbench('repair')}
-          onOpenPublishCenter={() => setPublishCenterOpen(true)}
+          onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
+          onOpenPublishCenter={handleOpenPublishCenter}
           canNavigateBack={workspace.canNavigateBack}
           canNavigateForward={workspace.canNavigateForward}
-          onNavigateBack={() => workspace.navigateBack()}
-          onNavigateForward={() => workspace.navigateForward()}
-          onChooseVault={() => void workspace.chooseVaultFolder()}
+          onNavigateBack={handleNavigateBack}
+          onNavigateForward={handleNavigateForward}
+          onChooseVault={handleChooseVault}
           recentVaults={recentVaults.recent}
           activeVaultPath={workspace.vault?.root_path ?? null}
-          onOpenVault={(path) => void workspace.openVaultAt(path)}
-          onOpenCommandPalette={() => commandPalette.setOpen(true)}
-          onOpenPortal={() => setPortalOpen(true)}
-          onOpenQuickCapture={() => setQuickCaptureOpen(true)}
-          onOpenGraph={() => {
-            setGraphOpen(true)
-            void workspace.loadGraph(workspace.activePath)
-          }}
-          onOpenCanvas={() => setCanvasOpen(true)}
+          onOpenVault={handleOpenVaultAt}
+          onOpenCommandPalette={handleOpenCommandPalette}
+          onOpenPortal={handleOpenPortal}
+          onOpenQuickCapture={handleOpenQuickCapture}
+          onOpenGraph={handleOpenGraph}
+          onOpenCanvas={handleOpenCanvas}
           gitTitle={gitTitle}
           gitSuccess={
             !workspace.isGitStatusLoading &&
@@ -1007,18 +1313,18 @@ function App() {
             workspace.gitStatus.clean === true
           }
           gitNeutral={!workspace.isGitStatusLoading && !workspace.gitStatusError && !workspace.gitStatus?.is_repo}
-          onOpenGit={() => setGitPanelOpen(true)}
+          onOpenGit={handleOpenGit}
           mcpLabel={`MCP ${mcp.mode}`}
-          onOpenMcp={() => setMcpPanelOpen(true)}
-          onOpenSupport={() => setSupportOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onOpenPluginManager={() => setPluginManagerOpen(true)}
+          onOpenMcp={handleOpenMcp}
+          onOpenSupport={handleOpenSupport}
+          onOpenSettings={handleOpenSettings}
+          onOpenPluginManager={handleOpenPluginManager}
           theme={theme}
           onToggleTheme={toggleTheme}
           vaultSidebarCollapsed={chrome.vaultSidebarCollapsed}
-          onToggleVaultSidebar={() => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed })}
+          onToggleVaultSidebar={handleToggleVaultSidebar}
           inspectorCollapsed={chrome.inspectorCollapsed}
-          onToggleInspector={() => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed })}
+          onToggleInspector={handleToggleInspector}
         />
 
         <WorkspaceRuntimeBanners nativeReady={nativeReady} error={workspace.error} />
@@ -1058,8 +1364,8 @@ function App() {
           onChooseVault={sidebarActions.handleChooseVault}
           onCreateNote={sidebarActions.handleCreateNote}
           onCreateNoteOfType={sidebarActions.handleCreateNoteOfType}
-          onOpenTemplatePicker={nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined}
-          onOpenObsidianImport={nativeReady && workspace.vault ? () => setObsidianImportOpen(true) : undefined}
+          onOpenTemplatePicker={handleOpenTemplatePickerAction}
+          onOpenObsidianImport={handleOpenObsidianImportAction}
           onRebuildIndex={sidebarActions.handleRebuildIndex}
           onOpenTags={sidebarActions.handleOpenTags}
           onOpenFilters={sidebarActions.handleOpenFilters}
@@ -1093,7 +1399,7 @@ function App() {
 
         <EditorWorkspace
           activePath={workspace.activePath}
-          onOpenVault={() => void workspace.chooseVaultFolder()}
+          onOpenVault={handleChooseVault}
           hasOpenVault={Boolean(workspace.vault)}
           onCreateNote={sidebarActions.handleCreateNote}
           openTabs={workspace.openTabs}
@@ -1103,28 +1409,23 @@ function App() {
           canReopenClosedTab={workspace.closedTabs.length > 0}
           onReopenClosedTab={workspace.reopenClosedTab}
           onTogglePinTab={workspace.togglePinTab}
-          onOpenTab={(path) => void workspace.openNote(path)}
-          onCloseTab={(path) => workspace.closeTab(path)}
+          onOpenTab={handleOpenNoteTab}
+          onCloseTab={handleCloseNoteTab}
           draftMarkdown={workspace.draftMarkdown}
-          updateDraft={(markdown) => {
-            journey.markFirstEdit()
-            workspace.updateDraft(markdown)
-          }}
+          updateDraft={handleUpdateDraft}
           externalChangeConflict={workspace.externalChangeConflict}
-          onReloadExternalChange={() => void workspace.reloadActiveNoteFromDisk()}
+          onReloadExternalChange={handleReloadExternalChange}
           onKeepEditingExternalChange={workspace.keepEditingAfterExternalChange}
           tocOpen={tocOpen}
-          onToggleToc={() => setTocOpen((open) => !open)}
+          onToggleToc={handleToggleToc}
           tocEntries={tocEntries}
           visibleEditorLine={visibleEditorLine}
-          onJumpToLine={(line) => workspace.jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` })}
+          onJumpToLine={handleJumpToLine}
           frontmatterOpen={frontmatterOpen}
-          onOpenFrontmatter={() => setFrontmatterOpen(true)}
-          onOrganizeActive={() => {
-            if (workspace.activePath) void workspace.organizeNote(workspace.activePath)
-          }}
-          onOpenCheatsheet={() => setCheatsheetOpen(true)}
-          onOpenWritingTargets={() => setWritingTargetsOpen(true)}
+          onOpenFrontmatter={handleOpenFrontmatter}
+          onOrganizeActive={handleOrganizeActive}
+          onOpenCheatsheet={handleOpenCheatsheet}
+          onOpenWritingTargets={handleOpenWritingTargets}
           editorMode={editorMode}
           toggleEditorMode={toggleEditorMode}
           editorTheme={editorTheme}
@@ -1170,14 +1471,11 @@ function App() {
           scrollToEditorLine={workspace.scrollToEditorLine}
           saveImageFromClipboard={nativeReady ? workspace.saveVaultImage : undefined}
           previewProps={previewBridge}
-          insertSnippet={(content) => workspace.insertSnippet(content)}
+          insertSnippet={handleInsertSnippet}
           applyEditorTransform={workspace.applyEditorTransform}
           applyEditorTypography={workspace.applyEditorTypography}
-          saveActiveNoteNow={() => void workspace.saveActiveNoteNow()}
-          renameActiveNote={() => {
-            setRenameTargetPath(workspace.activePath)
-            setRenameOpen(true)
-          }}
+          saveActiveNoteNow={handleSaveActiveNoteNow}
+          renameActiveNote={handleRenameActiveNote}
           isSaving={workspace.isSaving}
           lastSavedAt={workspace.lastSavedAt}
           draftWordCount={draftWordCount}
@@ -1187,7 +1485,7 @@ function App() {
           brokenLinkCount={workspace.health?.broken_links ?? 0}
           citationCount={workspace.health?.unresolved_citations ?? 0}
           hasFrontmatter={workspace.draftMarkdown.startsWith('---')}
-          onOpenPublishCenter={() => setPublishCenterOpen(true)}
+          onOpenPublishCenter={handleOpenPublishCenter}
           showFormatToolbar={chrome.showFormatToolbar}
           showEditorAssist={chrome.showEditorAssist}
           showEditorStatus={chrome.showEditorStatus}
@@ -1221,71 +1519,36 @@ function App() {
           inspectorLinks={workspace.inspectorLinks}
           backlinks={workspace.backlinks}
           jumpToOutlineHeading={workspace.jumpToOutlineHeading}
-          openWikilinkTarget={(target) => void workspace.openWikilinkTarget(target)}
-          openNote={(path) => void workspace.openNote(path)}
-          onRenameSection={(label) =>
-            workspace.activePath &&
-            setSectionRenameTarget({
-              path: workspace.activePath,
-              label,
-            })
-          }
-          onRenameBlock={(blockId) =>
-            workspace.activePath &&
-            setBlockRenameTarget({
-              path: workspace.activePath,
-              label: blockId,
-            })
-          }
+          openWikilinkTarget={handleOpenWikilinkTarget}
+          openNote={handleOpenNote}
+          onRenameSection={handleRenameSection}
+          onRenameBlock={handleRenameBlock}
           citationRows={citationRows}
           bibliography={bibliography}
           bibliographyKeys={bibliographyKeys}
           formatInline={formatInline}
           formatBibliography={formatBibliography}
-          insertSnippet={(text) => workspace.insertSnippet(text)}
+          insertSnippet={handleInsertSnippet}
           logActivity={workspace.logActivity}
-          setStatusDockToJobs={() => setStatusDockTab('jobs')}
+          setStatusDockToJobs={handleSetStatusDockToJobs}
           exportProfiles={workspace.exportProfiles}
           exportWithProfile={workspace.exportWithProfile}
           isExporting={workspace.isExporting}
           cancelExport={workspace.cancelExport}
           exportResult={workspace.exportResult}
           healthAction={healthAction}
-          onOpenHealthDashboard={() => setHealthDashboardOpen(true)}
+          onOpenHealthDashboard={handleOpenHealthDashboard}
           healthMetrics={healthMetrics}
           health={workspace.health}
           isNoteDirty={isNoteDirty}
           inspectorPreset={inspectorPreset}
-          onInspectorPresetChange={(preset) => {
-            setInspectorPreset(preset)
-          }}
+          onInspectorPresetChange={setInspectorPreset}
           showInspectorHealth={chrome.showInspectorHealth}
-          onOpenKnowledgeWorkbench={() => openKnowledgeWorkbench('repair')}
-          onOpenPublishCenter={() => setPublishCenterOpen(true)}
-          onOpenGraph={() => {
-            setGraphOpen(true)
-            void workspace.loadGraph(workspace.activePath)
-          }}
+          onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
+          onOpenPublishCenter={handleOpenPublishCenter}
+          onOpenGraph={handleOpenGraph}
           store={storeSurface.inspectorProps}
-          plugins={{
-            plugins: plugins.plugins,
-            templatePacks: plugins.contributions.templatePacks,
-            safeMode: plugins.snapshot.safeMode,
-            healthDiagnostics: workspace.healthDiagnostics,
-            marketplaceCatalog: plugins.marketplaceCatalog,
-            activeVaultId: plugins.activeVaultId,
-            pluginPolicies: plugins.pluginPolicies,
-            onToggleSafeMode: plugins.setSafeMode,
-            onTogglePlugin: plugins.setPluginEnabled,
-            onReviewConsent: (pluginId, grantedPermissions, allowedVaultIds) =>
-              plugins.setPluginConsent(pluginId, { grantedPermissions, allowedVaultIds }),
-            onRevokeConsent: plugins.revokePluginConsent,
-            onInstallMarketplace: (pluginId) => {
-              void plugins.installFromMarketplace(pluginId).catch((error) => {
-                workspace.logActivity('error', 'Plugin install failed', error instanceof Error ? error.message : String(error))
-              })
-            },
-          }}
+          plugins={inspectorPlugins}
         />
       </section>
 
@@ -1294,29 +1557,7 @@ function App() {
         statusDockTab={statusDockTab}
         onStatusDockTabChange={setStatusDockTab}
         totalProblemCount={totalProblemCount}
-        diagnosticsPanelProps={{
-          issues: workspace.healthDiagnostics?.issues ?? [],
-          gitConflicts: workspace.gitStatus?.conflicted_files ?? [],
-          externalChange: workspace.externalChangeConflict,
-          clientEvents: diagnostics.optIn ? diagnostics.events : [],
-          editorLintMessages,
-          activeNotePath: workspace.activePath,
-          onClose: () => setStatusDockTab('output'),
-          onOpenIssue: (path, line) => {
-            void workspace.openNoteAt(path, line)
-            setStatusDockTab('output')
-          },
-          onOpenEditorLint: (line) => {
-            workspace.jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` })
-            setStatusDockTab('output')
-          },
-          onGenerateLinkReferences: workspace.generateLinkReferences,
-          onReloadExternalChange: () => void workspace.reloadActiveNoteFromDisk(),
-          onKeepEditingExternalChange: workspace.keepEditingAfterExternalChange,
-          onRebuildIndex: () => void workspace.rebuildIndex(),
-          onFixVaultLint: () => void workspace.fixVaultLint(),
-          isFixingVaultLint: workspace.isFixingVaultLint,
-        }}
+        diagnosticsPanelProps={diagnosticsPanelProps}
         activity={workspace.activityLog}
         searchResults={workspace.searchResults}
         searchQuery={workspace.searchQuery}
@@ -1326,8 +1567,8 @@ function App() {
         isExporting={workspace.isExporting}
         isIndexing={workspace.status === 'indexing'}
         graphProgress={workspace.graphProgress}
-        onOpenNote={(path) => void workspace.openNote(path)}
-        onCancelExport={() => void workspace.cancelExport()}
+        onOpenNote={handleOpenNote}
+        onCancelExport={handleCancelExportAction}
         workspaceStatus={workspace.status}
         rebuildSummary={workspace.rebuild}
         lastRebuildMs={workspace.lastRebuildMs}
@@ -1354,15 +1595,12 @@ function App() {
       <MobileWorkspaceNav
         activePane={mobilePane}
         workspaceMode={workspaceMode}
-        onSelectPane={(pane) => {
-          setMobilePane(pane)
-          if (pane === 'inspector') setActiveMode('inspector')
-        }}
-        onOpenCommand={() => commandPalette.setOpen(true)}
-        onOpenKnowledgeWorkbench={() => openKnowledgeWorkbench('repair')}
-        onOpenPublishCenter={() => setPublishCenterOpen(true)}
-        onOpenHealth={() => setHealthDashboardOpen(true)}
-        onOpenMcp={() => setMcpPanelOpen(true)}
+        onSelectPane={handleSelectMobilePane}
+        onOpenCommand={handleOpenCommandPalette}
+        onOpenKnowledgeWorkbench={handleOpenKnowledgeWorkbenchRepair}
+        onOpenPublishCenter={handleOpenPublishCenter}
+        onOpenHealth={handleOpenHealthDashboard}
+        onOpenMcp={handleOpenMcp}
       />
 
       <WorkspacePanelLaunchers
@@ -1375,13 +1613,10 @@ function App() {
         tasksOpen={tasksOpen}
         kanbanOpen={kanbanOpen}
         readerPresentation={panelPresentation}
-        onCloseCanvas={() => setCanvasOpen(false)}
-        onCloseReader={() => {
-          setReaderOpen(false)
-          setReaderFilePath(null)
-        }}
-        onCloseTasks={() => setTasksOpen(false)}
-        onCloseKanban={() => setKanbanOpen(false)}
+        onCloseCanvas={handleCloseCanvas}
+        onCloseReader={handleCloseReader}
+        onCloseTasks={handleCloseTasks}
+        onCloseKanban={handleCloseKanban}
         bibliographyOpen={bibliographyOpen}
         bibliography={bibliography}
         setBibliographyOpen={setBibliographyOpen}

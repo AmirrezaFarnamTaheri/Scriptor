@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { X } from 'lucide-react'
 
 import type { ClientDiagnosticEvent } from '../hooks/useDiagnosticsSettings'
@@ -25,7 +26,7 @@ interface DiagnosticsPanelProps {
   isFixingVaultLint?: boolean
 }
 
-export function DiagnosticsPanel({
+function DiagnosticsPanelImpl({
   issues,
   gitConflicts,
   externalChange = null,
@@ -211,3 +212,5 @@ export function DiagnosticsPanel({
     </section>
   )
 }
+
+export const DiagnosticsPanel = memo(DiagnosticsPanelImpl)

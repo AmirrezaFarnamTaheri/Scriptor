@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { memo, Suspense } from 'react'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import type { ReaderPanelProps } from '../reader/ReaderPanel'
@@ -40,7 +40,7 @@ type WorkspacePanelLaunchersProps = {
   showToast?: (message: string) => void
 }
 
-export function WorkspacePanelLaunchers({
+function WorkspacePanelLaunchersImpl({
   workspace,
   plugins,
   nativeReady,
@@ -208,3 +208,5 @@ export function WorkspacePanelLaunchers({
     </>
   )
 }
+
+export const WorkspacePanelLaunchers = memo(WorkspacePanelLaunchersImpl)

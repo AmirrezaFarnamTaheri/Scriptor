@@ -1,4 +1,4 @@
-import { lazy, Suspense, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
+import { lazy, memo, Suspense, useCallback, useMemo, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
 import {
   AlignCenter,
   Archive,
@@ -192,7 +192,7 @@ interface EditorWorkspaceProps {
   layoutLocked?: boolean
 }
 
-export function EditorWorkspace(props: EditorWorkspaceProps) {
+function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
   const {
     activePath,
     onOpenVault,
@@ -292,6 +292,70 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
   } = props
   const { t } = useI18n()
 
+  const handleApplyEditorTransform = useCallback(
+    (action: EditorTransformAction) => {
+      if (editorRef?.current && 'applyTransform' in editorRef.current) {
+        editorRef.current.applyTransform(action)
+        return
+      }
+      applyEditorTransform(action)
+    },
+    [applyEditorTransform, editorRef],
+  )
+
+  const handleApplyEditorTypography = useCallback(
+    (action: TypographyAction) => {
+      if (editorRef?.current && 'applyTypography' in editorRef.current) {
+        editorRef.current.applyTypography(action)
+        return
+      }
+      applyEditorTypography(action)
+    },
+    [applyEditorTypography, editorRef],
+  )
+
+  const handleInsertSnippet = useCallback(
+    (content: string) => {
+      if (editorRef?.current && 'insertSnippet' in editorRef.current) {
+        editorRef.current.insertSnippet(content)
+        return
+      }
+      insertSnippet(content)
+    },
+    [editorRef, insertSnippet],
+  )
+
+  const toolbarExtras = useMemo(() => [
+    ...INSERT_TOOLS.map((item) => ({
+      id: `extra:insert:${item.id}`,
+      label: item.label,
+      node: (
+        <button
+          type="button"
+          disabled={!activePath}
+          title={item.label}
+          onClick={() => handleInsertSnippet(item.content)}
+        >
+          {item.label}
+        </button>
+      ),
+    })),
+    ...Object.entries(TYPOGRAPHY_LABELS).map(([action, label]) => ({
+      id: `extra:typography:${action}`,
+      label,
+      node: (
+        <button
+          type="button"
+          disabled={!activePath}
+          title={label}
+          onClick={() => handleApplyEditorTypography(action as TypographyAction)}
+        >
+          {label}
+        </button>
+      ),
+    })),
+  ], [activePath, handleApplyEditorTypography, handleInsertSnippet])
+
   return (
     <section className="editor-panel" aria-label={t('editor.ariaLabel')}>
       <EditorTabBar
@@ -307,12 +371,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
       />
       {showFormatToolbar ? (
       <div className="editor-toolbar-wrapper">
-        <CustomizableToolbar extras={[
-          ...INSERT_TOOLS.map((item) => ({ id: `extra:insert:${item.id}`, label: item.label,
-            node: <button type="button" disabled={!activePath} title={item.label} onClick={() => insertSnippet(item.content)}>{item.label}</button> })),
-          ...Object.entries(TYPOGRAPHY_LABELS).map(([action, label]) => ({ id: `extra:typography:${action}`, label,
-            node: <button type="button" disabled={!activePath} title={label} onClick={() => applyEditorTypography(action as TypographyAction)}>{label}</button> })),
-        ]}>
+        <CustomizableToolbar extras={toolbarExtras}>
           <div className="format-group" aria-label={t('editor.toolbar.viewMode')}>
           {(
             [
@@ -332,13 +391,13 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           ))}
         </div>
         <div className="format-group" aria-label={t('editor.toolbar.structure')}>
-          <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} onClick={() => applyEditorTransform('h1')}>
+          <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
             <Heading1 />
           </button>
-          <button key="heading-2" type="button" disabled={!activePath} title={t('editor.transforms.heading2')} onClick={() => applyEditorTransform('h2')}>
+          <button key="heading-2" type="button" disabled={!activePath} title={t('editor.transforms.heading2')} onClick={() => handleApplyEditorTransform('h2')}>
             <Heading2 />
           </button>
-          <button key="heading-3" type="button" disabled={!activePath} title={t('editor.transforms.heading3')} onClick={() => applyEditorTransform('h3')}>
+          <button key="heading-3" type="button" disabled={!activePath} title={t('editor.transforms.heading3')} onClick={() => handleApplyEditorTransform('h3')}>
             <Heading3 />
           </button>
           <button key="outline" type="button" disabled={!activePath} title={t('editor.transforms.toc')} onClick={onToggleToc}>
@@ -347,35 +406,35 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           <button key="frontmatter" type="button" disabled={!activePath} title={t('editor.transforms.frontmatter')} onClick={onOpenFrontmatter}>
             <FileBox />
           </button>
-          <button key="move-section-up" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionUp')} onClick={() => applyEditorTransform('move-section-up')}>
+          <button key="move-section-up" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionUp')} onClick={() => handleApplyEditorTransform('move-section-up')}>
             <ArrowUpToLine />
           </button>
-          <button key="move-section-down" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionDown')} onClick={() => applyEditorTransform('move-section-down')}>
+          <button key="move-section-down" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionDown')} onClick={() => handleApplyEditorTransform('move-section-down')}>
             <ArrowDownToLine />
           </button>
         </div>
 
         <div className="format-group" aria-label={t('editor.toolbar.styleAndInsert')}>
-          <button key="bold" type="button" disabled={!activePath} title={t('editor.transforms.bold')} onClick={() => applyEditorTransform('bold')}>
+          <button key="bold" type="button" disabled={!activePath} title={t('editor.transforms.bold')} onClick={() => handleApplyEditorTransform('bold')}>
             <Bold />
           </button>
-          <button key="italic" type="button" disabled={!activePath} title={t('editor.transforms.italic')} onClick={() => applyEditorTransform('italic')}>
+          <button key="italic" type="button" disabled={!activePath} title={t('editor.transforms.italic')} onClick={() => handleApplyEditorTransform('italic')}>
             <Italic />
           </button>
-          <button key="link" type="button" disabled={!activePath} title={t('editor.transforms.link')} onClick={() => applyEditorTransform('link')}>
+          <button key="link" type="button" disabled={!activePath} title={t('editor.transforms.link')} onClick={() => handleApplyEditorTransform('link')}>
             <Link />
           </button>
-          <TypographyMenu key="typography" disabled={!activePath} onSelect={(action) => applyEditorTypography(action)} />
-          <button key="table" type="button" disabled={!activePath} title={t('editor.transforms.insertTable')} onClick={() => applyEditorTransform('table')}>
+          <TypographyMenu key="typography" disabled={!activePath} onSelect={handleApplyEditorTypography} />
+          <button key="table" type="button" disabled={!activePath} title={t('editor.transforms.insertTable')} onClick={() => handleApplyEditorTransform('table')}>
             <Table />
           </button>
-          <button key="table-add-row" type="button" disabled={!activePath} title={t('editor.transforms.addRow')} onClick={() => applyEditorTransform('table-add-row')}>
+          <button key="table-add-row" type="button" disabled={!activePath} title={t('editor.transforms.addRow')} onClick={() => handleApplyEditorTransform('table-add-row')}>
             <Rows />
           </button>
-          <button key="table-add-column" type="button" disabled={!activePath} title={t('editor.transforms.addColumn')} onClick={() => applyEditorTransform('table-add-col')}>
+          <button key="table-add-column" type="button" disabled={!activePath} title={t('editor.transforms.addColumn')} onClick={() => handleApplyEditorTransform('table-add-col')}>
             <Columns />
           </button>
-          <InsertMenu key="insert" disabled={!activePath} onInsert={insertSnippet} />
+          <InsertMenu key="insert" disabled={!activePath} onInsert={handleInsertSnippet} />
         </div>
 
         <div className="format-group" aria-label={t('editor.toolbar.reviewAndCapture')}>
@@ -736,3 +795,5 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     </section>
   )
 }
+
+export const EditorWorkspace = memo(EditorWorkspaceImpl)

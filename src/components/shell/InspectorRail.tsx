@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, memo, Suspense, useMemo } from 'react'
 import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
@@ -102,7 +102,7 @@ interface InspectorRailProps {
   }
 }
 
-export function InspectorRail({
+function InspectorRailImpl({
   railRef,
   activeMode,
   onModeChange,
@@ -550,3 +550,5 @@ export function InspectorRail({
     </aside>
   )
 }
+
+export const InspectorRail = memo(InspectorRailImpl)
