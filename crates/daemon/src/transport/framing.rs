@@ -117,11 +117,12 @@ pub(super) fn write_response_with_timeout<W: Write>(
     writer: &mut W,
     response: RpcResponse,
 ) -> Result<(), IpcError> {
-    let frame = match encode_server_message(&ServerMessage::Response(response.clone())) {
+    let id = response.id;
+    let frame = match encode_server_message(&ServerMessage::Response(response)) {
         Ok(frame) => frame,
         Err(IpcError::FrameTooLarge(size)) => {
             encode_server_message(&ServerMessage::Response(RpcResponse {
-                id: response.id,
+                id,
                 result: RpcResult::Error(RpcError::with_code(
                     "rpc.payload_too_large",
                     format!("response exceeds local IPC frame budget ({size} bytes)"),

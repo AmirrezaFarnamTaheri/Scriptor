@@ -92,14 +92,19 @@ impl EventHub {
     }
 
     fn broadcast(&self, event: RpcEvent) {
+        let guard = lock_recover(&self.subscribers);
+        if guard.is_empty() {
+            return;
+        }
         // The collect is deliberate: it releases the subscribers lock before any
         // delivery happens, so a blocked client cannot stall the daemon. Clippy's
         // needless_collect only sees a collected Vec that is then iterated once.
         #[allow(clippy::needless_collect)]
-        let subscribers = lock_recover(&self.subscribers)
+        let subscribers = guard
             .iter()
             .map(|(id, sender)| (*id, sender.clone()))
             .collect::<Vec<_>>();
+        drop(guard);
         let mut remove = Vec::new();
 
         for (id, sender) in subscribers {
