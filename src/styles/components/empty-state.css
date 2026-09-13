@@ -52,7 +52,7 @@
   border: 1px solid var(--border);
   color: var(--ink);
   cursor: pointer;
-  transition: background var(--ease-fast);
+  transition: background 150ms var(--ease-fast);
 }
 
 .empty-state-block .action-button:hover {

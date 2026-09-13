@@ -10,7 +10,7 @@
   background: color-mix(in oklch, var(--overlay) 92%, var(--ink-strong));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  animation: fade-rise var(--ease-gentle) both;
+  animation: overlay-fade-in 150ms var(--ease-soft) both;
 }
 
 .command-palette {
@@ -23,7 +23,7 @@
   -webkit-backdrop-filter: var(--glass-blur, blur(16px));
   box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px color-mix(in oklch, var(--border) 40%, transparent);
   overflow: hidden;
-  animation: scale-in var(--ease-spring) both;
+  animation: scale-in 180ms var(--ease-spring) both;
 }
 
 .command-palette-header {

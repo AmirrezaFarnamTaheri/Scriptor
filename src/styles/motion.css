@@ -17,11 +17,11 @@
 
 .pressable {
   transition:
-    transform var(--ease-fast),
-    background var(--ease-soft),
-    border-color var(--ease-soft),
-    box-shadow var(--ease-soft),
-    color var(--ease-soft);
+    transform 100ms var(--ease-fast),
+    background 150ms var(--ease-soft),
+    border-color 150ms var(--ease-soft),
+    box-shadow 150ms var(--ease-soft),
+    color 150ms var(--ease-soft);
 }
 
 .pressable:hover {
@@ -34,8 +34,8 @@
 
 .elevate-hover {
   transition:
-    transform var(--ease-soft),
-    box-shadow var(--ease-soft);
+    transform 150ms var(--ease-soft),
+    box-shadow 150ms var(--ease-soft);
 }
 
 .elevate-hover:hover {
@@ -75,11 +75,11 @@
 }
 
 .fade-rise {
-  animation: fade-rise var(--ease-gentle) both;
+  animation: fade-rise 180ms var(--ease-gentle) both;
 }
 
 .scale-in {
-  animation: scale-in var(--ease-soft) both;
+  animation: scale-in 180ms var(--ease-soft) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

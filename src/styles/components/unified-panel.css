@@ -10,10 +10,14 @@
   border-radius: var(--radius-xl);
   background: var(--surface-elevated);
   box-shadow: var(--shadow-lg);
-  will-change: opacity;
+  will-change: opacity, transform;
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   overflow: hidden;
+}
+
+.unified-panel-shell:not(.unified-panel-docked) {
+  animation: scale-in 180ms var(--ease-spring) both;
 }
 
 .unified-panel-wide {
