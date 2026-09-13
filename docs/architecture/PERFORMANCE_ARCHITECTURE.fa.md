@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](PERFORMANCE_ARCHITECTURE.md) · **فارسی** · [简体中文](PERFORMANCE_ARCHITECTURE.zh-CN.md) · [Русский](PERFORMANCE_ARCHITECTURE.ru.md) · [Deutsch](PERFORMANCE_ARCHITECTURE.de.md) · [Español](PERFORMANCE_ARCHITECTURE.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # معماری کارایی
@@ -69,5 +75,8 @@ Scriptor باید از workspaceهای Markdown دوران Electron سریع‌�
 | Large vault scans | Rust sequential scan با batching | Rayon parallel scan با IO backpressure. |
 | Git process overhead | Safe Git CLI adapter | wrapper مربوط به <bdi dir="ltr">`git2`</bdi>. |
 | Export throughput | یک Pandoc job queue | parallel queue با resource cap جدا برای هر profile. |
+
+</div>
+
 
 </div>

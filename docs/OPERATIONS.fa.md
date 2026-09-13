@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](OPERATIONS.md) · **فارسی** · [简体中文](OPERATIONS.zh-CN.md) · [Русский](OPERATIONS.ru.md) · [Deutsch](OPERATIONS.de.md) · [Español](OPERATIONS.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 # عملیات و عیب‌یابی
 
 ## Tracing ساخت‌یافته
@@ -25,3 +31,6 @@
 ## بسته پشتیبانی
 
 Settings → Diagnostics → **Export redacted support bundle** یک artifact پشتیبانی JSON محدود را در `.scriptor/diagnostics/` می‌نویسد. این بسته شامل هویت برنامه/سیستم، شمارش‌های تجمیعی سلامت vault و حداکثر ۱۰۰ رویداد diagnostic از قبل redactشده سمت client است. مسیر ریشه vault، مسیر یادداشت‌ها، محتوای یادداشت، بدنه requestها و credentialها عمداً حذف می‌شوند. journal تشخیصی client در 2 MiB rotate می‌شود و اندازه message/detail پیش از ذخیره‌سازی محدود می‌گردد.
+
+
+</div>

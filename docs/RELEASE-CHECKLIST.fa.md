@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](RELEASE-CHECKLIST.md) · **فارسی** · [简体中文](RELEASE-CHECKLIST.zh-CN.md) · [Русский](RELEASE-CHECKLIST.ru.md) · [Deutsch](RELEASE-CHECKLIST.de.md) · [Español](RELEASE-CHECKLIST.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # چک‌لیست Release تولیدی
@@ -92,5 +98,8 @@ Production release تا زمانی که همه موارد ضروری روی tag 
 - [ ] دستورهای single-installer در <bdi dir="ltr">`RELEASE-SECURITY.md`</bdi> با published assets verify شوند؛
 - [ ] release notes شامل unknown-publisher guidance و checksum/attestation commands باشد؛
 - [ ] changelog، capability ledger، support window و known limitations update شوند.
+
+</div>
+
 
 </div>
