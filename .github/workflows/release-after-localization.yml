@@ -25,7 +25,7 @@ jobs:
       VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Checkout verified main commit
-        uses: actions/checkout@3d3c42e5d6a3e9d06c90e4b14a9148a221c8733a # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.VERIFIED_SHA }}
           fetch-depth: 1
