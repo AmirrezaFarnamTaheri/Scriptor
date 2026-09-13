@@ -94,7 +94,7 @@ impl CitationEngine {
             entries
         };
 
-        let mut output = String::new();
+        let mut output = String::with_capacity(entries.len() * 128);
         for entry in &entries {
             let _ = writeln!(output, "{}", format_bibliography_entry(entry, style));
         }
@@ -194,18 +194,32 @@ fn normalize_style(style: &str) -> Result<&'static str, CitationError> {
     }
 }
 
-fn format_citation(entry: &Entry, style: &str) -> String {
-    let authors = entry
+fn format_authors(entry: &Entry) -> String {
+    entry
         .authors()
         .map(|people| {
-            let names: Vec<String> = people.iter().map(|p| p.name_first(false, false)).collect();
-            names.join(", ")
+            let mut buf = String::new();
+            for (idx, person) in people.iter().enumerate() {
+                if idx > 0 {
+                    buf.push_str(", ");
+                }
+                buf.push_str(&person.name_first(false, false));
+            }
+            buf
         })
-        .unwrap_or_else(|| "Unknown".to_string());
-    let year = entry
+        .unwrap_or_else(|| "Unknown".to_string())
+}
+
+fn format_year(entry: &Entry) -> String {
+    entry
         .date()
         .map(|d| d.year.to_string())
-        .unwrap_or_else(|| "n.d.".to_string());
+        .unwrap_or_else(|| "n.d.".to_string())
+}
+
+fn format_citation(entry: &Entry, style: &str) -> String {
+    let authors = format_authors(entry);
+    let year = format_year(entry);
 
     match style.to_lowercase().as_str() {
         "apa" | "apa7" => format!("({authors}, {year})"),
@@ -217,17 +231,8 @@ fn format_citation(entry: &Entry, style: &str) -> String {
 }
 
 fn format_bibliography_entry(entry: &Entry, style: &str) -> String {
-    let authors = entry
-        .authors()
-        .map(|people| {
-            let names: Vec<String> = people.iter().map(|p| p.name_first(false, false)).collect();
-            names.join(", ")
-        })
-        .unwrap_or_else(|| "Unknown".to_string());
-    let year = entry
-        .date()
-        .map(|d| d.year.to_string())
-        .unwrap_or_else(|| "n.d.".to_string());
+    let authors = format_authors(entry);
+    let year = format_year(entry);
     let title = entry
         .title()
         .map(|t| t.to_string())
