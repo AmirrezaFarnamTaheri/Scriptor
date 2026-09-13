@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { RotateCcw, FileText, Pin, X } from 'lucide-react'
 
 import { useI18n } from '../../lib/i18n'
@@ -21,7 +22,7 @@ export interface EditorTabBarProps {
   onCloseTab: (path: string) => void
 }
 
-export function EditorTabBar({
+export const EditorTabBar = memo(function EditorTabBar({
   activePath,
   openTabs,
   isNoteDirty,
@@ -123,4 +124,4 @@ export function EditorTabBar({
       )}
     </div>
   )
-}
+})
