@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](PLUGIN_SYSTEM.md) · **فارسی** · [简体中文](PLUGIN_SYSTEM.zh-CN.md) · [Русский](PLUGIN_SYSTEM.ru.md) · [Deutsch](PLUGIN_SYSTEM.de.md) · [Español](PLUGIN_SYSTEM.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # طراحی سامانه افزونه‌ها
@@ -25,6 +31,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```text
 Plugin manifest
   -> permission review
@@ -33,6 +40,7 @@ Plugin manifest
   -> command bus / renderer / export / MCP slots
   -> audit events
 ```
+</div>
 
 </div>
 
@@ -96,5 +104,8 @@ Plugin manifest
 | First-party plugins | <bdi dir="ltr">`scriptor-vault-lint`, `scriptor.canvas-kit`, `scriptor.publish-pack`</bdi> |
 | Plugin panel UI | <bdi dir="ltr">`src/components/PluginPanel.tsx`</bdi> |
 | MCP read-only plugin slot | <bdi dir="ltr">`packages/mcp`</bdi> |
+
+</div>
+
 
 </div>

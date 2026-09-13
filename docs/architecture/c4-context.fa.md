@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](c4-context.md) · **فارسی** · [简体中文](c4-context.zh-CN.md) · [Русский](c4-context.ru.md) · [Deutsch](c4-context.de.md) · [Español](c4-context.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # مشخصات مدل C4: زمینه سامانه Scriptor در سطح ۱
@@ -24,6 +30,7 @@ Scriptor یک فضای کاری دسکتاپ local-first برای دانش و ن
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```mermaid
 C4Context
     title زمینه سامانه Scriptor
@@ -42,6 +49,7 @@ C4Context
     Rel(scriptor, google, "OAuth/connect، خواندن تقویم، تغییر task", "OAuth2 PKCE + HTTPS")
     Rel(scriptor, export_tools, "عملیات محلی export تأییدشده را اجرا می‌کند", "bounded subprocess / استثنای مستند broker")
 ```
+</div>
 
 </div>
 
@@ -56,5 +64,8 @@ repository یک connector package فقط‌خواندنی برای Zotero Web AP
 3. **مرز daemon:** CLI/TUI و daemon MCP از پروتکل محلی و typed <bdi dir="ltr">`scriptor-ipc`</bdi> با endpoint metadata احراز اصالت‌شده، بررسی nonce و framing محدود استفاده می‌کنند. این مرز با Tauri renderer IPC متفاوت است.
 4. **فرایندهای خارجی:** اجراهای پشتیبانی‌شده از process broker عبور می‌کنند، مگر استثنای محدود و مستندی که همان bounds و policy را اعمال کند.
 5. **شبکه خارجی:** integrationهای Git، AI و Google اختیاری‌اند و احراز هویت اختصاصی خود را دارند. fallback شبکه‌ایِ ضمنی وجود ندارد.
+
+</div>
+
 
 </div>

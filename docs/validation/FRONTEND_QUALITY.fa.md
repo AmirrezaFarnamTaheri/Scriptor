@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](FRONTEND_QUALITY.md) · **فارسی** · [简体中文](FRONTEND_QUALITY.zh-CN.md) · [Русский](FRONTEND_QUALITY.ru.md) · [Deutsch](FRONTEND_QUALITY.de.md) · [Español](FRONTEND_QUALITY.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # استاندارد کیفیت Frontend
@@ -12,9 +18,11 @@ Scriptor یک رابط **operate** است. کیفیت یعنی hierarchy آرا�
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 npm run check:frontend-quality --silent
 ```
+</div>
 
 </div>
 
@@ -52,5 +60,8 @@ Top-bar/toolbar overflow check، viewport باریک و 200% text zoom را پو
 ## Evidence بصری ضروری
 
 مجموعه screenshotهای Playwright، workspace، editor/preview، command palette، graph، canvas، Git، MCP، settings، publish، health، knowledge، conflict resolution، history، shortcuts، mobile layout، onboarding و plugins را پوشش می‌دهد. release reviewer باید snapshotها را از frozen source دوباره تولید و diffها را بررسی کند؛ PNG تاریخی اثبات current source state نیست.
+
+</div>
+
 
 </div>

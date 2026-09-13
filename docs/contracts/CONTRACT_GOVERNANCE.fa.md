@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](CONTRACT_GOVERNANCE.md) · **فارسی** · [简体中文](CONTRACT_GOVERNANCE.zh-CN.md) · [Русский](CONTRACT_GOVERNANCE.ru.md) · [Deutsch](CONTRACT_GOVERNANCE.de.md) · [Español](CONTRACT_GOVERNANCE.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # حاکمیت Contractهای V1
@@ -22,5 +28,8 @@ contractها رابط دقیق بین renderer اسکریپتور، native modul
 | Export, preview | Core Contracts, Publication, Native Platform |
 | Canvas | Core Contracts, Canvas Experience, Native Platform |
 | MCP, plugin | Core Contracts, Automation and AI, affected capability owner |
+
+</div>
+
 
 </div>

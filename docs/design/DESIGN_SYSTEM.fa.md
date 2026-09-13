@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](DESIGN_SYSTEM.md) · **فارسی** · [简体中文](DESIGN_SYSTEM.zh-CN.md) · [Русский](DESIGN_SYSTEM.ru.md) · [Deutsch](DESIGN_SYSTEM.de.md) · [Español](DESIGN_SYSTEM.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # سیستم طراحی Scriptor
@@ -90,5 +96,8 @@
 - <bdi dir="ltr">`.pressable`</bdi> — button لمسی با spring scale در active
 - <bdi dir="ltr">`.elevate-hover`</bdi> — lift نرم روی hover
 - <bdi dir="ltr">`.fade-rise`</bdi> — entrance animation برای overlay
+
+</div>
+
 
 </div>

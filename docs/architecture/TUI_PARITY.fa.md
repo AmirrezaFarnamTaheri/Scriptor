@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](TUI_PARITY.md) · **فارسی** · [简体中文](TUI_PARITY.zh-CN.md) · [Русский](TUI_PARITY.ru.md) · [Deutsch](TUI_PARITY.de.md) · [Español](TUI_PARITY.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # ماتریس برابری TUI
@@ -45,5 +51,8 @@
 - Unit: تست‌های grapheme مربوط به <bdi dir="ltr">`safe_fit`</bdi> و assertion شبیه snapshot با نام <bdi dir="ltr">`footer_includes_git_and_health_slots`</bdi>
 - Smoke: <bdi dir="ltr">`pnpm check:tui`</bdi> و <bdi dir="ltr">`pnpm check:daemon`</bdi> برای TUI از مسیر daemon
 - CI: TUI smoke و unit testهای daemon IPC در <bdi dir="ltr">`validate-frontend`</bdi>
+
+</div>
+
 
 </div>
