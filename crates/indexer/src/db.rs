@@ -138,14 +138,18 @@ pub fn orphaned_note_count(
 ) -> Result<u32, IndexerError> {
     let conn = cache.connection()?;
     let mut statement = conn.prepare("SELECT path FROM notes WHERE vault_id = ?1")?;
-    let rows = statement.query_map([vault_id], |row| row.get::<_, String>(0))?;
-    let path_set: std::collections::BTreeSet<_> = note_paths.iter().cloned().collect();
-    let indexed_paths = rows.collect::<Result<Vec<_>, _>>()?;
-    let count = indexed_paths
-        .into_iter()
-        .filter(|path| !path_set.contains(path))
-        .count();
-    Ok(u32::try_from(count).unwrap_or(u32::MAX))
+    let mut rows = statement.query([vault_id])?;
+    let path_set: std::collections::HashSet<&str> =
+        note_paths.iter().map(std::string::String::as_str).collect();
+    let mut count = 0u32;
+    while let Some(row) = rows.next()? {
+        if let Ok(path) = row.get_ref(0)?.as_str() {
+            if !path_set.contains(path) {
+                count = count.saturating_add(1);
+            }
+        }
+    }
+    Ok(count)
 }
 
 pub fn default_cache_path(vault_root: &Path) -> PathBuf {
