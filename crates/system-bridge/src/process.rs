@@ -321,8 +321,14 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         exit_code: exit_code(status),
         duration_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
         timed_out,
-        stdout: String::from_utf8_lossy(&stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&stderr).into_owned(),
+        stdout: match String::from_utf8(stdout) {
+            Ok(s) => s,
+            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+        },
+        stderr: match String::from_utf8(stderr) {
+            Ok(s) => s,
+            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+        },
         stdout_truncated,
         stderr_truncated,
     };
