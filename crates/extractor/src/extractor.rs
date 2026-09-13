@@ -148,36 +148,34 @@ fn collect_children(
 // ── Slug ──────────────────────────────────────────────────────────────────────
 
 fn slugify(text: &str) -> String {
-    // Strip backtick spans from the text before slugifying — GitHub's anchor
-    // generator does the same for inline-code headings.
-    let stripped = text.replace('`', "");
-    let mut slug = String::with_capacity(stripped.len());
-    for ch in stripped.chars() {
-        if ch.is_alphanumeric() || ch == '_' {
-            // Underscores are preserved (GitHub anchor behaviour).
-            for lower in ch.to_lowercase() {
-                slug.push(lower);
-            }
-        } else if ch == ' ' || ch == '-' {
-            slug.push('-');
-        }
-        // Drop other characters (punctuation, special chars)
-    }
-    // Collapse consecutive hyphens
-    let mut out = String::with_capacity(slug.len());
+    // Strip backtick spans and punctuation while converting to lowercase,
+    // preserving underscores and collapsing hyphens matching GitHub anchor behavior.
+    let mut out = String::with_capacity(text.len());
     let mut prev_hyphen = false;
-    for ch in slug.chars() {
-        if ch == '-' {
+    for ch in text.chars() {
+        if ch == '`' {
+            continue;
+        }
+        if ch.is_alphanumeric() || ch == '_' {
+            if ch.is_ascii() {
+                out.push(ch.to_ascii_lowercase());
+            } else {
+                for lower in ch.to_lowercase() {
+                    out.push(lower);
+                }
+            }
+            prev_hyphen = false;
+        } else if (ch == ' ' || ch == '-') && !out.is_empty() {
             if !prev_hyphen {
                 out.push('-');
+                prev_hyphen = true;
             }
-            prev_hyphen = true;
-        } else {
-            out.push(ch);
-            prev_hyphen = false;
         }
     }
-    out.trim_matches('-').to_owned()
+    while out.ends_with('-') {
+        out.pop();
+    }
+    out
 }
 
 fn heading_level_to_u8(level: HeadingLevel) -> u8 {
