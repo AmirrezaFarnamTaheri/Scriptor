@@ -52,7 +52,7 @@ test('normal UI exposes structured sharing state without raw process streams', (
   assert.match(panel, /Already installed or contained/)
   assert.match(panel, /Reviewed synchronization plan/)
   assert.doesNotMatch(panel, /stdout|stderr|npm install|pnpm install/)
-  assert.match(mcp, /Sharing & sync/)
+  assert.match(mcp, /id: 'sharing', label: t\('mcp\.tabSharing'\)/)
   assert.match(mcp, /ResourceSyncPanel/)
 })
 
