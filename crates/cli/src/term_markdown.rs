@@ -56,7 +56,7 @@ pub fn render_markdown_lines(
                     HeadingLevel::H5 => "##### ",
                     HeadingLevel::H6 => "###### ",
                 };
-                current.push(Span::styled(prefix.to_string(), HEADING));
+                current.push(Span::styled(prefix, HEADING));
             }
             Event::End(TagEnd::Heading(_)) => {
                 flush_line(&mut lines, &mut current);
@@ -95,7 +95,7 @@ pub fn render_markdown_lines(
             Event::End(TagEnd::CodeBlock) => {
                 in_code_block = false;
                 if !code_lang.is_empty() {
-                    current.push(Span::styled("```".to_string(), CODE));
+                    current.push(Span::styled("```", CODE));
                     flush_line(&mut lines, &mut current);
                     code_lang.clear();
                 }
@@ -159,14 +159,19 @@ pub fn render_markdown_lines(
 }
 
 fn wrap_line(line: Line<'static>, width: usize) -> Line<'static> {
+    let line_width: usize = line
+        .spans
+        .iter()
+        .map(|span| UnicodeWidthStr::width(span.content.as_ref()))
+        .sum();
+    if line_width <= width {
+        return line;
+    }
     let plain: String = line
         .spans
         .iter()
         .map(|span| span.content.as_ref())
         .collect();
-    if UnicodeWidthStr::width(plain.as_str()) <= width {
-        return line;
-    }
     let fitted = safe_fit(&plain, width.saturating_sub(1));
     Line::from(Span::raw(fitted))
 }
