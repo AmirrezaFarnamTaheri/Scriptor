@@ -67,6 +67,12 @@ pub fn metadata_from_markdown(
     let organized = frontmatter_bool(markdown, &["_organized", "organized"]);
     let archived = frontmatter_bool(markdown, &["_archived", "archived"]);
     let tags = parse_frontmatter_tags(markdown);
+    let words = word_count(body_for_metrics);
+    let reading_time = if words == 0 {
+        0
+    } else {
+        words.saturating_add(199) / 200
+    };
 
     NoteMetadata {
         id: note_id(vault_id, path),
@@ -75,8 +81,8 @@ pub fn metadata_from_markdown(
         title: extract_title(body_for_metrics, path),
         content_hash: content_hash(markdown),
         modified_at,
-        word_count: word_count(body_for_metrics),
-        reading_time_minutes: reading_time_minutes(body_for_metrics),
+        word_count: words,
+        reading_time_minutes: reading_time,
         tags,
         note_type,
         organized,
