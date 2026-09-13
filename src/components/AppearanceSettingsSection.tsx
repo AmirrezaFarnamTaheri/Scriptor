@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { AppTheme } from '../hooks/useAppTheme'
 import { useI18n } from '../lib/i18n'
 import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
@@ -19,7 +20,7 @@ export interface AppearanceSettingsSectionProps {
   onReplayOnboarding?: () => void
 }
 
-export function AppearanceSettingsSection({
+export const AppearanceSettingsSection = memo(function AppearanceSettingsSection({
   workspaceChrome,
   onPatchWorkspaceChrome,
   onResetWorkspaceChrome,
@@ -196,4 +197,5 @@ export function AppearanceSettingsSection({
       </label>
     </div>
   )
-}
+})
+

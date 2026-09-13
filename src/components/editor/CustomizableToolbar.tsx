@@ -3,11 +3,13 @@ import { ArrowDown, ArrowUp, Settings2 } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
 import { useI18n } from '../../lib/i18n'
 
-interface Tool {
+export interface ToolbarTool {
   id: string
   label: string
   node: ReactNode
 }
+
+type Tool = ToolbarTool
 interface Preference {
   id: string
   pinned: boolean

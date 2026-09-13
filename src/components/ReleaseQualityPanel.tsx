@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 
 import { BENCH_SCRIPTS } from '../lib/releaseQuality'
@@ -15,7 +16,7 @@ function formatDuration(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
-export function ReleaseQualityPanel({
+export const ReleaseQualityPanel = memo(function ReleaseQualityPanel({
   journey,
   timeToFirstEditMs,
   timeToFirstExportMs,
@@ -71,4 +72,5 @@ export function ReleaseQualityPanel({
       ))}
     </div>
   )
-}
+})
+

@@ -62,7 +62,7 @@
   cursor: pointer;
   will-change: transform;
   transform: translate3d(0, 0, 0);
-  transition: transform var(--ease-fast, 150ms ease), color var(--ease-soft, 200ms ease), background var(--ease-soft, 200ms ease);
+  transition: transform 150ms var(--ease-fast), color 200ms var(--ease-soft), background 200ms var(--ease-soft);
 }
 
 .mobile-nav-item svg {

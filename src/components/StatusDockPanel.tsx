@@ -26,6 +26,8 @@ interface StatusDockPanelProps {
   onCancelExport: () => void
 }
 
+const DOCK_TABS: readonly string[] = ['problems', 'output', 'search', 'jobs']
+
 function StatusDockPanelImpl({
   activeTab,
   onTabChange,
@@ -48,7 +50,6 @@ function StatusDockPanelImpl({
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const runningJob = exportHistory.find((job) => job.status === 'running')
   const liveExportOutput = runningJob?.live_stderr ?? ''
-  const DOCK_TABS: readonly string[] = ['problems', 'output', 'search', 'jobs']
   const handleTablistKeys = useTablistKeys(DOCK_TABS, activeTab, (id) => onTabChange(id as StatusDockTab))
 
   return (

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { AiProviderId } from '../hooks/useAiProvider'
 
 interface AiProviderSettingsProps {
@@ -13,7 +14,7 @@ interface AiProviderSettingsProps {
   onClearApiKey: () => void
 }
 
-export function AiProviderSettings({
+export const AiProviderSettings = memo(function AiProviderSettings({
   provider,
   endpoint,
   hasApiKey,
@@ -71,4 +72,5 @@ export function AiProviderSettings({
       {httpWarning ? <p className="settings-status warn" role="alert">{httpWarning}</p> : null}
     </section>
   )
-}
+})
+

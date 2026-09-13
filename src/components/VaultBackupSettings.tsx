@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { HardDrive } from 'lucide-react'
 
 import type { useVaultBackup } from '../hooks/useVaultBackup'
@@ -24,7 +25,7 @@ function formatDate(iso: string): string {
   }
 }
 
-export function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
+export const VaultBackupSettings = memo(function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
   const { settings, setSettings, backups, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup } =
     backup
 
@@ -122,4 +123,5 @@ export function VaultBackupSettings({ backup }: VaultBackupSettingsProps) {
       )}
     </div>
   )
-}
+})
+

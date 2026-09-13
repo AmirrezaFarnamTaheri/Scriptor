@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { BookOpen, Network } from 'lucide-react'
 
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -53,10 +53,25 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
   const { t } = useI18n()
   const [tab, setTab] = useState<KnowledgeWorkbenchTab>(initialTab)
 
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab)
+    }
+  }, [initialTab])
+
   const handleOpenNote = useCallback((path: string) => {
     onOpenNote(path)
     onClose()
   }, [onClose, onOpenNote])
+
+  const handleTabChange = useCallback((next: string) => {
+    setTab(next as KnowledgeWorkbenchTab)
+  }, [])
+
+  const tabs = useMemo(
+    () => TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })),
+    [t],
+  )
 
   return (
     <UnifiedPanelShell
@@ -65,9 +80,9 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
       icon={<BookOpen size={18} />}
       ariaLabel={t('knowledge.title')}
       onClose={onClose}
-      tabs={TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) }))}
+      tabs={tabs}
       activeTab={tab}
-      onTabChange={(next) => setTab(next as KnowledgeWorkbenchTab)}
+      onTabChange={handleTabChange}
       className="knowledge-workbench-panel knowledge-filters-panel"
       wide
     >

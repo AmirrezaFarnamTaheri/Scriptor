@@ -102,6 +102,8 @@ interface InspectorRailProps {
   }
 }
 
+const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
+
 function InspectorRailImpl({
   railRef,
   activeMode,
@@ -152,7 +154,6 @@ function InspectorRailImpl({
     [inspectorPreset],
   )
   const missingCitations = citationRows.filter((key) => !bibliographyKeys.has(key)).length
-  const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
   const presetIds = INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`)
   function handlePresetKeys(event: React.KeyboardEvent) {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 
 import { useKeyboardShortcuts, isValidShortcut } from '../hooks/useKeyboardShortcuts'
 import { COMMAND_SHORTCUT_REGISTRY } from '../lib/commandShortcutRegistry'
@@ -9,7 +9,7 @@ interface DraftShortcut {
   error: string | null
 }
 
-export function KeyboardShortcutsSettingsSection() {
+export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsSettingsSection() {
   const shortcuts = useKeyboardShortcuts()
   const [query, setQuery] = useState('')
   const [drafts, setDrafts] = useState<Record<string, DraftShortcut>>({})
@@ -149,4 +149,4 @@ export function KeyboardShortcutsSettingsSection() {
       {visibleEntries.length === 0 ? <p className="empty-state">No commands match this search.</p> : null}
     </section>
   )
-}
+})

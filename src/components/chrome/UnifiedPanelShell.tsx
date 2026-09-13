@@ -54,13 +54,14 @@ function dockFitsViewport(media: MediaQueryList): boolean {
 }
 
 /** Tracks whether the shared panel shell may render as a dock instead of a modal. */
-function useDockViewport(): boolean {
+function useDockViewport(enabled: boolean): boolean {
   const [canDock, setCanDock] = useState(() => {
-    if (typeof window === 'undefined') return false
+    if (!enabled || typeof window === 'undefined') return false
     return dockFitsViewport(window.matchMedia(DOCK_MEDIA_QUERY))
   })
 
   useEffect(() => {
+    if (!enabled) return
     const media = window.matchMedia(DOCK_MEDIA_QUERY)
     const update = () => setCanDock(dockFitsViewport(media))
     const observer = new MutationObserver(update)
@@ -74,9 +75,9 @@ function useDockViewport(): boolean {
       media.removeEventListener('change', update)
       observer.disconnect()
     }
-  }, [])
+  }, [enabled])
 
-  return canDock
+  return enabled ? canDock : false
 }
 
 /** Provides shared modal/dock semantics, focus policy, tabs, and accessible labeling. */
@@ -103,10 +104,17 @@ function UnifiedPanelShellImpl({
   presentation = 'modal',
 }: UnifiedPanelShellProps) {
   const shellRef = useRef<HTMLElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const descriptionId = useId()
-  const canDock = useDockViewport()
+  const canDock = useDockViewport(presentation === 'dock-right')
   const docked = presentation === 'dock-right' && canDock
+
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = 0
+    }
+  }, [activeTab])
   // `dock-right` is a preference, not permission to destroy the workspace.
   // Below the desktop docking threshold — including app-zoom reflow that media
   // queries cannot see — the same surface becomes a normal modal, restoring a
@@ -204,6 +212,7 @@ function UnifiedPanelShellImpl({
         ) : null}
 
         <div
+          ref={bodyRef}
           id={activeTab ? `${titleId}-panel-${activeTab}` : undefined}
           className="unified-panel-body"
           role={activeTab ? 'tabpanel' : undefined}

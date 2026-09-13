@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react'
+import { memo, type Dispatch, type SetStateAction } from 'react'
 
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import type { VaultConfig } from '../types/vault'
@@ -12,7 +12,7 @@ interface VaultConfigSettingsSectionProps {
 }
 
 /** Owns editable vault workflow/export settings; persistence remains in SettingsPanel. */
-export function VaultConfigSettingsSection({
+export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSection({
   config,
   setConfig,
   dailyNotePreview,
@@ -324,4 +324,5 @@ export function VaultConfigSettingsSection({
       {status ? <p className="settings-status">{status}</p> : null}
     </div>
   )
-}
+})
+

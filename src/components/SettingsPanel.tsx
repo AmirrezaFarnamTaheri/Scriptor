@@ -242,7 +242,7 @@ function SettingsPanelImpl({
   }, [configReloadToken, nativeReady, vaultId, vaultOpen])
 
   useEffect(() => {
-    if (!nativeReady) return
+    if (!nativeReady || activeTab !== 'advanced') return
     let cancelled = false
     void exportDiscover()
       .then((discovered) => {
@@ -258,7 +258,7 @@ function SettingsPanelImpl({
     return () => {
       cancelled = true
     }
-  }, [nativeReady])
+  }, [activeTab, nativeReady])
 
   const retryConfigLoad = () => {
     configBaselineRef.current = DEFAULT_VAULT_CONFIG
@@ -283,75 +283,6 @@ function SettingsPanelImpl({
       setStatus(error instanceof Error ? error.message : 'Could not save config')
     }
   }
-
-  const runtimeSection = (
-    <div className="settings-section">
-      <h3>Desktop engine</h3>
-      <p className="health-subtitle">
-        Advanced runtime details for local integrations and export tooling. Most users do not need to change these settings.
-      </p>
-      <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
-        {nativeReady ? 'Desktop integration ready' : 'Browser preview — desktop-only vault commands are unavailable'}
-      </p>
-      {nativeReady ? (
-        <>
-          <dl className="settings-grid">
-            <div>
-              <dt>Pandoc</dt>
-              <dd>{pandoc ? pandoc.version : pandocError ? 'Not found' : 'Checking…'}</dd>
-            </div>
-            <div>
-              <dt>Executable</dt>
-              <dd className="settings-path">{pandoc?.path ?? '—'}</dd>
-            </div>
-          </dl>
-          {pandocError ? (
-            <p className="settings-status warn">
-              {pandocError}. Install Pandoc or set <code>SCRIPTOR_PANDOC_PATH</code>. Windows:{' '}
-              <code>winget install JohnMacFarlane.Pandoc</code> · macOS: <code>brew install pandoc</code>
-            </p>
-          ) : null}
-          <button type="button" className="toolbar-button" onClick={() => void refreshPandoc()}>
-            Refresh Pandoc discovery
-          </button>
-          <h4 className="settings-subheading">Background desktop engine</h4>
-          <label className="diagnostics-opt-in">
-            <input
-              type="checkbox"
-              checked={headlessEngine}
-              onChange={(event) => onHeadlessEngineChange(event.target.checked)}
-            />
-            <span>Use the background engine for supported vault operations</span>
-          </label>
-          <p className="health-subtitle">
-            This can move indexing, search, graph, Git status and export work out of the main app process.
-          </p>
-          {headlessEngine ? (
-            <>
-              <p className={daemonVersion ? 'settings-status ok' : 'settings-status warn'} role="status">
-                {daemonVersion
-                  ? `Background engine connected — version ${daemonVersion}`
-                  : daemonError
-                    ? `Background engine offline — ${daemonError}`
-                    : 'Background engine status unknown'}
-              </p>
-              <div className="settings-actions">
-                <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>Refresh status</button>
-                <button type="button" className="toolbar-button" onClick={onStartDaemon}>Start engine</button>
-              </div>
-              <DaemonOpsPanel
-                activePath={activePath}
-                daemonVersion={daemonVersion}
-                daemonError={daemonError}
-                onRefresh={onRefreshDaemon}
-                onStart={onStartDaemon}
-              />
-            </>
-          ) : null}
-        </>
-      ) : null}
-    </div>
-  )
 
   const handleTabChange = useCallback((tab: string) => setActiveTab(tab as SettingsTab), [])
 
@@ -553,7 +484,72 @@ function SettingsPanelImpl({
 
       {activeTab === 'advanced' ? (
         <>
-          {runtimeSection}
+          <div className="settings-section">
+            <h3>Desktop engine</h3>
+            <p className="health-subtitle">
+              Advanced runtime details for local integrations and export tooling. Most users do not need to change these settings.
+            </p>
+            <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
+              {nativeReady ? 'Desktop integration ready' : 'Browser preview — desktop-only vault commands are unavailable'}
+            </p>
+            {nativeReady ? (
+              <>
+                <dl className="settings-grid">
+                  <div>
+                    <dt>Pandoc</dt>
+                    <dd>{pandoc ? pandoc.version : pandocError ? 'Not found' : 'Checking…'}</dd>
+                  </div>
+                  <div>
+                    <dt>Executable</dt>
+                    <dd className="settings-path">{pandoc?.path ?? '—'}</dd>
+                  </div>
+                </dl>
+                {pandocError ? (
+                  <p className="settings-status warn">
+                    {pandocError}. Install Pandoc or set <code>SCRIPTOR_PANDOC_PATH</code>. Windows:{' '}
+                    <code>winget install JohnMacFarlane.Pandoc</code> · macOS: <code>brew install pandoc</code>
+                  </p>
+                ) : null}
+                <button type="button" className="toolbar-button" onClick={() => void refreshPandoc()}>
+                  Refresh Pandoc discovery
+                </button>
+                <h4 className="settings-subheading">Background desktop engine</h4>
+                <label className="diagnostics-opt-in">
+                  <input
+                    type="checkbox"
+                    checked={headlessEngine}
+                    onChange={(event) => onHeadlessEngineChange(event.target.checked)}
+                  />
+                  <span>Use the background engine for supported vault operations</span>
+                </label>
+                <p className="health-subtitle">
+                  This can move indexing, search, graph, Git status and export work out of the main app process.
+                </p>
+                {headlessEngine ? (
+                  <>
+                    <p className={daemonVersion ? 'settings-status ok' : 'settings-status warn'} role="status">
+                      {daemonVersion
+                        ? `Background engine connected — version ${daemonVersion}`
+                        : daemonError
+                          ? `Background engine offline — ${daemonError}`
+                          : 'Background engine status unknown'}
+                    </p>
+                    <div className="settings-actions">
+                      <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>Refresh status</button>
+                      <button type="button" className="toolbar-button" onClick={onStartDaemon}>Start engine</button>
+                    </div>
+                    <DaemonOpsPanel
+                      activePath={activePath}
+                      daemonVersion={daemonVersion}
+                      daemonError={daemonError}
+                      onRefresh={onRefreshDaemon}
+                      onStart={onStartDaemon}
+                    />
+                  </>
+                ) : null}
+              </>
+            ) : null}
+          </div>
 
           <div className="settings-section">
             <h3>Updates</h3>

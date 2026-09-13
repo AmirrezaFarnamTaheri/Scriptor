@@ -47,6 +47,7 @@ import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlay
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
 import { recordWritingSession } from './lib/writingTargets'
 import type { KnowledgeWorkbenchTab } from './components/KnowledgeWorkbench'
+import type { GitPullStrategy } from './bridge/commands/git'
 import { useCommandPalette } from './hooks/useCommandPalette'
 import { useAiProvider } from './hooks/useAiProvider'
 import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
@@ -698,24 +699,71 @@ function App() {
       ? 'Good'
       : 'Needs review'
 
-  useEscapeToClose(graphOpen, () => setGraphOpen(false))
-  useEscapeToClose(statusDockTab === 'problems' && totalProblemCount > 0, () => setStatusDockTab('output'))
-  useEscapeToClose(gitPanelOpen, () => setGitPanelOpen(false))
-  useEscapeToClose(healthDashboardOpen, () => setHealthDashboardOpen(false))
-  useEscapeToClose(mcpPanelOpen, () => setMcpPanelOpen(false))
-  useEscapeToClose(settingsOpen, () => setSettingsOpen(false))
-  useEscapeToClose(pluginManagerOpen, () => setPluginManagerOpen(false))
-  useEscapeToClose(knowledgeWorkbenchOpen, () => setKnowledgeWorkbenchOpen(false))
-  useEscapeToClose(publishCenterOpen, () => setPublishCenterOpen(false))
-  useEscapeToClose(snippetsOpen, () => setSnippetsOpen(false))
-  useEscapeToClose(cheatsheetOpen, () => setCheatsheetOpen(false))
-  useEscapeToClose(supportOpen, () => setSupportOpen(false))
-  useEscapeToClose(portalOpen, () => setPortalOpen(false))
-  useEscapeToClose(quickCaptureOpen, () => setQuickCaptureOpen(false))
-  useEscapeToClose(noteHistoryOpen, () => setNoteHistoryOpen(false))
-  useEscapeToClose(bibliographyOpen, () => setBibliographyOpen(false))
-  useEscapeToClose(gmailManagerOpen, () => setGmailManagerOpen(false))
-  useEscapeToClose(renameOpen, () => setRenameOpen(false))
+  const handleCloseProblemsDock = useCallback(() => setStatusDockTab('output'), [setStatusDockTab])
+  useEscapeToClose(statusDockTab === 'problems' && totalProblemCount > 0, handleCloseProblemsDock)
+
+  const handleCloseGit = useCallback(() => setGitPanelOpen(false), [setGitPanelOpen])
+  const handleRefreshGit = useCallback(() => { void workspace.refreshGit() }, [workspace.refreshGit])
+  const handleCommitGit = useCallback((files: string[], message: string) => {
+    void workspace.commitFiles(files, message)
+  }, [workspace.commitFiles])
+  const handlePullGit = useCallback((strategy: GitPullStrategy) => {
+    void workspace.pullRemote(strategy)
+  }, [workspace.pullRemote])
+  const handlePushGit = useCallback(() => { void workspace.pushRemote() }, [workspace.pushRemote])
+  const handleResolveConflictGit = useCallback((path: string) => setConflictPath(path), [setConflictPath])
+  const handleOpenNoteFromGit = useCallback((path: string) => { void workspace.openNote(path) }, [workspace.openNote])
+
+  const handleCloseHealthDashboard = useCallback(() => setHealthDashboardOpen(false), [setHealthDashboardOpen])
+  const handleOpenIssueFromHealth = useCallback((path: string) => {
+    void workspace.openNote(path)
+    setHealthDashboardOpen(false)
+  }, [workspace.openNote, setHealthDashboardOpen])
+  const handleRebuildIndexFromHealth = useCallback(() => { void workspace.rebuildIndex() }, [workspace.rebuildIndex])
+  const handleFixVaultLintFromHealth = useCallback(() => { void workspace.fixVaultLint() }, [workspace.fixVaultLint])
+  const handleOpenWorkbenchFromHealth = useCallback(() => {
+    setHealthDashboardOpen(false)
+    openKnowledgeWorkbench('repair')
+  }, [openKnowledgeWorkbench, setHealthDashboardOpen])
+  const handleGenerateLinkReferencesFromHealth = useCallback(() => {
+    workspace.generateLinkReferences()
+    setStatusDockTab('problems')
+  }, [workspace.generateLinkReferences, setStatusDockTab])
+
+  const handleCloseKnowledgeWorkbench = useCallback(() => setKnowledgeWorkbenchOpen(false), [setKnowledgeWorkbenchOpen])
+  const handleOpenNoteFromWorkbench = useCallback((path: string) => { void workspace.openNote(path) }, [workspace.openNote])
+  const handleOpenGraphFromWorkbench = useCallback(() => {
+    setKnowledgeWorkbenchOpen(false)
+    setGraphOpen(true)
+    void workspace.loadGraph(workspace.activePath)
+  }, [setKnowledgeWorkbenchOpen, setGraphOpen, workspace.loadGraph, workspace.activePath])
+  const handleCreateNoteFromWikilink = useCallback((target: string) => {
+    void workspace.createNoteFromWikilink(target)
+    setKnowledgeWorkbenchOpen(false)
+  }, [workspace.createNoteFromWikilink, setKnowledgeWorkbenchOpen])
+  const handleInsertTagFromWorkbench = useCallback((tag: string) => {
+    workspace.insertSnippet(`#${tag} `)
+  }, [workspace.insertSnippet])
+  const handleRenameTagFromWorkbench = useCallback((tag: string) => {
+    setTagRenameTag(tag)
+    workspace.clearLinkRewritePreview()
+  }, [setTagRenameTag, workspace.clearLinkRewritePreview])
+
+  const handleClosePublishCenter = useCallback(() => setPublishCenterOpen(false), [setPublishCenterOpen])
+  const handleExportFromPublishCenter = useCallback((profileId: string, dryRun?: boolean) => {
+    setStatusDockTab('jobs')
+    void workspace.exportWithProfile(profileId, dryRun)
+  }, [setStatusDockTab, workspace.exportWithProfile])
+  const handleCancelExportFromPublishCenter = useCallback(() => {
+    void workspace.cancelExport()
+  }, [workspace.cancelExport])
+  const handlePlanStarlight = useCallback(() => { void publishStarlight() }, [publishStarlight])
+  const handleReplanStarlight = useCallback(() => {
+    void publishStarlight(publishOutputPath ?? undefined)
+  }, [publishStarlight, publishOutputPath])
+  const handleApplyPlanFromPublishCenter = useCallback((selectedPaths: string[], deleteOrphans: string[]) => {
+    void applyStarlightPlan(selectedPaths, deleteOrphans)
+  }, [applyStarlightPlan])
 
   useEffect(() => {
     if (!graphOpen) return
@@ -1767,24 +1815,22 @@ function App() {
         >
         <Suspense fallback={<PanelFallback />}>
           <GitPanel
-          status={workspace.gitStatus}
-          statusError={workspace.gitStatusError}
-          isStatusLoading={workspace.isGitStatusLoading}
-          activePath={workspace.activePath}
-          isBusy={workspace.isGitBusy}
-          presentation={panelPresentation}
-          onClose={() => setGitPanelOpen(false)}
-          onRefresh={() => void workspace.refreshGit()}
-          onCommit={(files, message) => {
-            void workspace.commitFiles(files, message)
-          }}
-          onPull={(strategy) => void workspace.pullRemote(strategy)}
-          onPush={() => void workspace.pushRemote()}
-          onResolveConflict={(path) => setConflictPath(path)}
-          onOpenNote={(path) => void workspace.openNote(path)}
-          readNoteAtHead={gitReadHead}
-          readNoteWorking={gitReadWorking}
-        />
+            status={workspace.gitStatus}
+            statusError={workspace.gitStatusError}
+            isStatusLoading={workspace.isGitStatusLoading}
+            activePath={workspace.activePath}
+            isBusy={workspace.isGitBusy}
+            presentation={panelPresentation}
+            onClose={handleCloseGit}
+            onRefresh={handleRefreshGit}
+            onCommit={handleCommitGit}
+            onPull={handlePullGit}
+            onPush={handlePushGit}
+            onResolveConflict={handleResolveConflictGit}
+            onOpenNote={handleOpenNoteFromGit}
+            readNoteAtHead={gitReadHead}
+            readNoteWorking={gitReadWorking}
+          />
         </Suspense>
         </ErrorBoundary>
       )}
@@ -1852,26 +1898,17 @@ function App() {
         >
         <Suspense fallback={<PanelFallback />}>
           <VaultHealthDashboard
-          diagnostics={workspace.healthDiagnostics}
-          inspectorWidgets={plugins.contributions.inspectorWidgets}
-          vaultHealthChecks={plugins.contributions.vaultHealthChecks}
-          onClose={() => setHealthDashboardOpen(false)}
-          onOpenIssue={(path) => {
-            void workspace.openNote(path)
-            setHealthDashboardOpen(false)
-          }}
-          onRebuildIndex={() => void workspace.rebuildIndex()}
-          onFixVaultLint={() => void workspace.fixVaultLint()}
-          onOpenWorkbench={() => {
-            setHealthDashboardOpen(false)
-            openKnowledgeWorkbench('repair')
-          }}
-          onGenerateLinkReferences={() => {
-            workspace.generateLinkReferences()
-            setStatusDockTab('problems')
-          }}
-          isFixingVaultLint={workspace.isFixingVaultLint}
-        />
+            diagnostics={workspace.healthDiagnostics}
+            inspectorWidgets={plugins.contributions.inspectorWidgets}
+            vaultHealthChecks={plugins.contributions.vaultHealthChecks}
+            onClose={handleCloseHealthDashboard}
+            onOpenIssue={handleOpenIssueFromHealth}
+            onRebuildIndex={handleRebuildIndexFromHealth}
+            onFixVaultLint={handleFixVaultLintFromHealth}
+            onOpenWorkbench={handleOpenWorkbenchFromHealth}
+            onGenerateLinkReferences={handleGenerateLinkReferencesFromHealth}
+            isFixingVaultLint={workspace.isFixingVaultLint}
+          />
         </Suspense>
         </ErrorBoundary>
       )}
@@ -1985,27 +2022,16 @@ function App() {
         >
         <Suspense fallback={<PanelFallback />}>
           <KnowledgeWorkbench
-            key={knowledgeWorkbenchTab}
             vaultOpen={Boolean(workspace.vault)}
             vaultId={workspace.vault?.id}
             initialTab={knowledgeWorkbenchTab}
             activePath={workspace.activePath}
-            onClose={() => setKnowledgeWorkbenchOpen(false)}
-            onOpenNote={(path) => void workspace.openNote(path)}
-            onOpenGraph={() => {
-              setKnowledgeWorkbenchOpen(false)
-              setGraphOpen(true)
-              void workspace.loadGraph(workspace.activePath)
-            }}
-            onCreateNoteFromWikilink={(target) => {
-              void workspace.createNoteFromWikilink(target)
-              setKnowledgeWorkbenchOpen(false)
-            }}
-            onInsertTag={(tag) => workspace.insertSnippet(`#${tag} `)}
-            onRenameTag={(tag) => {
-              setTagRenameTag(tag)
-              workspace.clearLinkRewritePreview()
-            }}
+            onClose={handleCloseKnowledgeWorkbench}
+            onOpenNote={handleOpenNoteFromWorkbench}
+            onOpenGraph={handleOpenGraphFromWorkbench}
+            onCreateNoteFromWikilink={handleCreateNoteFromWikilink}
+            onInsertTag={handleInsertTagFromWorkbench}
+            onRenameTag={handleRenameTagFromWorkbench}
             promptText={promptText}
           />
         </Suspense>
@@ -2021,27 +2047,22 @@ function App() {
         <Suspense fallback={<PanelFallback />}>
           <PublishCenter
             activePath={workspace.activePath}
-            draftMarkdown={workspace.draftMarkdown}
+            draftMarkdown={deferredDraft}
             previewProps={previewBridge}
             exportProfiles={workspace.exportProfiles}
             exportHistory={workspace.exportHistory}
             exportResult={workspace.exportResult}
             isExporting={workspace.isExporting}
             nativeReady={nativeReady}
-            onClose={() => setPublishCenterOpen(false)}
-            onExport={(profileId, dryRun) => {
-              setStatusDockTab('jobs')
-              void workspace.exportWithProfile(profileId, dryRun)
-            }}
-            onCancelExport={() => void workspace.cancelExport()}
+            onClose={handleClosePublishCenter}
+            onExport={handleExportFromPublishCenter}
+            onCancelExport={handleCancelExportFromPublishCenter}
             publishPlan={publishPlan}
             applyingPlan={publishApplying}
             publishRequireOptIn
-            onPlanStarlight={() => void publishStarlight()}
-            onReplanStarlight={() => void publishStarlight(publishOutputPath ?? undefined)}
-            onApplyPlan={(selectedPaths, deleteOrphans) => {
-              void applyStarlightPlan(selectedPaths, deleteOrphans)
-            }}
+            onPlanStarlight={handlePlanStarlight}
+            onReplanStarlight={handleReplanStarlight}
+            onApplyPlan={handleApplyPlanFromPublishCenter}
           />
         </Suspense>
         </ErrorBoundary>

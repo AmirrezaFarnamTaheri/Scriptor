@@ -11,7 +11,7 @@
  * This is the canonical inspector store surface for plugins, MCP, and layouts.
  */
 
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   Box,
   Check,
@@ -698,7 +698,7 @@ const EMPTY_FEATURE_FLAGS: FeatureFlagEntry[] = []
 const noopSetMcpMode = () => {}
 const noopToggleFeature = () => {}
 
-export function StorePanel(props: StorePanelProps) {
+export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
   const [activeTab, setActiveTab] = useState<StoreTab>('plugins')
 
   /**
@@ -792,4 +792,5 @@ export function StorePanel(props: StorePanelProps) {
       </div>
     </div>
   )
-}
+})
+
