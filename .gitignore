@@ -38,6 +38,7 @@ playwright/.auth/
 .turbo/
 .cache/
 .eslintcache
+.statamcp/
 
 # Logs
 *.log

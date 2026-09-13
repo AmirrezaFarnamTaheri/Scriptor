@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::ffi::OsString;
-use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -32,74 +31,9 @@ pub struct GitStatus {
     pub conflicted_files: Vec<GitChangedFile>,
 }
 
-/// Fingerprint of the files whose change implies a different `git status`
-/// result: HEAD, the index, and every ref. Reads four stat calls instead of
-/// spawning three to four git subprocesses (~30-80ms each on Windows).
-fn status_fingerprint(repo_root: &Path) -> Option<(u128, u128, Option<u128>)> {
-    let head = fs::metadata(repo_root.join(".git").join("HEAD")).ok()?;
-    let index = fs::metadata(repo_root.join(".git").join("index")).ok()?;
-    let refs_mod = fs::read_dir(repo_root.join(".git").join("refs"))
-        .ok()?
-        .filter_map(|entry| entry.ok())
-        .filter_map(|entry| entry.metadata().ok())
-        .filter_map(|meta| meta.modified().ok())
-        .max();
-    let sys_time_to_nanos = |time: std::time::SystemTime| -> u128 {
-        time.duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    };
-    Some((
-        sys_time_to_nanos(head.modified().ok()?),
-        sys_time_to_nanos(index.modified().ok()?),
-        refs_mod.map(sys_time_to_nanos),
-    ))
-}
-
-/// Cache entry: HEAD/index/refs fingerprint plus the status it produced.
-type StatusCacheEntry = (u128, u128, Option<u128>, GitStatus);
-
-/// Process-wide status cache: one vault per daemon/desktop process, so the
-/// fingerprint alone identifies the entry. Mutations (commit, pull, push,
-/// conflict resolution) invalidate implicitly by touching .git.
-static STATUS_CACHE: std::sync::Mutex<Option<StatusCacheEntry>> = std::sync::Mutex::new(None);
-
-fn cache_get(fingerprint: &Option<(u128, u128, Option<u128>)>) -> Option<GitStatus> {
-    let fingerprint = fingerprint.as_ref()?;
-    let guard = STATUS_CACHE.lock().ok()?;
-    let (head, index, refs, status) = guard.as_ref()?;
-    if *head == fingerprint.0 && *index == fingerprint.1 && refs == &fingerprint.2 {
-        return Some(status.clone());
-    }
-    None
-}
-
-fn cache_store(fingerprint: &Option<(u128, u128, Option<u128>)>, status: &GitStatus) {
-    let Some(fingerprint) = fingerprint else {
-        return;
-    };
-    if let Ok(mut guard) = STATUS_CACHE.lock() {
-        *guard = Some((fingerprint.0, fingerprint.1, fingerprint.2, status.clone()));
-    }
-}
-
+/// Always query the working tree. HEAD/index timestamps cannot detect
+/// unstaged edits, untracked files, or distinguish repositories reliably.
 pub fn git_status(repo_root: &Path) -> Result<GitStatus, GitError> {
-    // Only real repositories get cached; the not-a-repo result is cheap and
-    // its fingerprint would be None anyway.
-    let fingerprint = if is_git_repo(repo_root).unwrap_or(false) {
-        status_fingerprint(repo_root)
-    } else {
-        None
-    };
-    if let Some(cached) = cache_get(&fingerprint) {
-        return Ok(cached);
-    }
-    let status = git_status_uncached(repo_root)?;
-    cache_store(&fingerprint, &status);
-    Ok(status)
-}
-
-fn git_status_uncached(repo_root: &Path) -> Result<GitStatus, GitError> {
     if !is_git_repo(repo_root)? {
         return Ok(GitStatus {
             is_repo: false,
@@ -165,8 +99,8 @@ pub fn git_commit_selected(
     }
 
     let selected_paths = expand_selected_paths(repo_root, files)?;
-    let head = run_git(repo_root, &["rev-parse", "HEAD"])?;
-    let branch_ref = run_git(repo_root, &["symbolic-ref", "-q", "HEAD"])?;
+    let head = git_metadata(run_git(repo_root, &["rev-parse", "HEAD"])?)?;
+    let branch_ref = git_metadata(run_git(repo_root, &["symbolic-ref", "-q", "HEAD"])?)?;
     let real_index = repository_index_path(repo_root)?;
     let original_index = std::fs::read(&real_index).ok();
     let temp_index = temporary_index_path(repo_root)?;
@@ -182,11 +116,11 @@ pub fn git_commit_selected(
     add_args.extend(selected_paths.iter().cloned());
     run_git_with_index_owned(repo_root, &temp_index, &add_args)?;
 
-    let tree = run_git_with_index(repo_root, &temp_index, &["write-tree"])?;
-    let new_commit = run_git(
+    let tree = git_metadata(run_git_with_index(repo_root, &temp_index, &["write-tree"])?)?;
+    let new_commit = git_metadata(run_git(
         repo_root,
         &["commit-tree", &tree, "-p", &head, "-m", message],
-    )?;
+    )?)?;
     run_git(repo_root, &["update-ref", &branch_ref, &new_commit, &head])?;
 
     if let Err(error) = reset_committed_paths_in_real_index(repo_root, &selected_paths) {
@@ -247,7 +181,7 @@ fn expand_selected_paths(repo_root: &Path, files: &[String]) -> Result<Vec<Strin
 }
 
 fn repository_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
-    let path = run_git(repo_root, &["rev-parse", "--git-path", "index"])?;
+    let path = git_metadata(run_git(repo_root, &["rev-parse", "--git-path", "index"])?)?;
     let path = PathBuf::from(path);
     Ok(if path.is_absolute() {
         path
@@ -313,7 +247,7 @@ fn validate_selected_path(path: &str) -> Result<(), GitError> {
 }
 
 fn temporary_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
-    let git_dir = run_git(repo_root, &["rev-parse", "--absolute-git-dir"])?;
+    let git_dir = git_metadata(run_git(repo_root, &["rev-parse", "--absolute-git-dir"])?)?;
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -364,9 +298,13 @@ fn is_git_repo(repo_root: &Path) -> Result<bool, GitError> {
 }
 
 fn current_branch(repo_root: &Path) -> Result<String, GitError> {
-    run_git(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])
+    git_metadata(run_git(repo_root, &["rev-parse", "--abbrev-ref", "HEAD"])?)
 }
 
+/// Executes Git and returns stdout exactly as emitted.  Blob reads (`git show`)
+/// are user content, so trimming here would silently alter Markdown that ends
+/// in whitespace or blank lines.  Call [`git_metadata`] at the narrow call
+/// sites that consume line-oriented identifiers and paths.
 pub(crate) fn run_git(repo_root: &Path, args: &[&str]) -> Result<String, GitError> {
     run_git_command(repo_root, args, None)
 }
@@ -386,7 +324,21 @@ fn run_git_command(
         )));
     }
 
-    Ok(output.stdout.trim().to_string())
+    Ok(output.stdout)
+}
+
+/// Removes only Git's output line terminator from identifier/path output while
+/// rejecting unexpected empty metadata before it is used as an argument.
+/// Leading or trailing spaces can be meaningful in a repository path, so this
+/// deliberately does not use `str::trim`.
+fn git_metadata(output: String) -> Result<String, GitError> {
+    let value = output
+        .trim_end_matches(['\r', '\n'])
+        .to_string();
+    if value.is_empty() {
+        return Err(GitError::Command("git returned empty metadata".into()));
+    }
+    Ok(value)
 }
 
 fn run_git_receipt(repo_root: &Path, args: &[&str]) -> Result<ProcessReceipt, GitError> {
@@ -655,10 +607,15 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
     match run_git(repo_root, &["show", &stage_spec]) {
         Ok(content) => Ok(Some(content)),
         Err(GitError::Command(_)) => {
-            let merge_head = run_git(repo_root, &["rev-parse", "-q", "MERGE_HEAD"]).ok();
-            let head = run_git(repo_root, &["rev-parse", "HEAD"]).ok();
+            let merge_head = run_git(repo_root, &["rev-parse", "-q", "MERGE_HEAD"])
+                .and_then(git_metadata)
+                .ok();
+            let head = run_git(repo_root, &["rev-parse", "HEAD"])
+                .and_then(git_metadata)
+                .ok();
             if let (Some(merge_head), Some(head)) = (merge_head, head)
                 && let Ok(base) = run_git(repo_root, &["merge-base", &head, &merge_head])
+                    .and_then(git_metadata)
             {
                 let spec = format!("{base}:{normalized}");
                 return match run_git(repo_root, &["show", &spec]) {
@@ -675,6 +632,28 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn status_refresh_detects_unstaged_changes_after_clean_read() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path();
+        super::run_git(root, &["init"]).unwrap();
+        super::run_git(root, &["config", "user.email", "test@example.invalid"]).unwrap();
+        super::run_git(root, &["config", "user.name", "Test"]).unwrap();
+        std::fs::write(root.join("note.md"), "before").unwrap();
+        super::run_git(root, &["add", "note.md"]).unwrap();
+        super::run_git(root, &["commit", "-m", "initial"]).unwrap();
+        assert!(super::git_status(root).unwrap().clean);
+        std::fs::write(root.join("note.md"), "after with different size").unwrap();
+        assert!(!super::git_status(root).unwrap().clean);
+        std::fs::write(root.join("untracked.md"), "new").unwrap();
+        assert!(
+            super::git_status(root)
+                .unwrap()
+                .changed_files
+                .iter()
+                .any(|file| file.path == "untracked.md")
+        );
+    }
     use super::*;
     use scriptor_system_bridge::BridgeError;
     use std::fs;
@@ -741,6 +720,40 @@ mod tests {
             run_git(&nonexistent_root, &["status", "--porcelain=1"]),
             Err(GitError::Process(BridgeError::ProcessSpawn { .. }))
         ));
+    }
+
+    #[test]
+    fn metadata_normalization_preserves_path_whitespace() {
+        assert_eq!(git_metadata(" .git/index \r\n".into()).unwrap(), " .git/index ");
+        assert!(git_metadata("\n".into()).is_err());
+    }
+
+    #[test]
+    fn head_and_merge_base_reads_preserve_trailing_blob_whitespace(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempdir()?;
+        let root = directory.path();
+        run_git(root, &["init", "-b", "main"])?;
+        configure_git_identity(root)?;
+
+        let base = "base line\n\n ";
+        fs::write(root.join("note.md"), base)?;
+        run_git(root, &["add", "note.md"])?;
+        run_git(root, &["commit", "-m", "base"])?;
+        assert_eq!(git_show_head_file(root, "note.md")?, Some(base.into()));
+
+        run_git(root, &["checkout", "-b", "feature"])?;
+        fs::write(root.join("note.md"), "feature line\n")?;
+        run_git(root, &["add", "note.md"])?;
+        run_git(root, &["commit", "-m", "feature"])?;
+        run_git(root, &["checkout", "main"])?;
+        fs::write(root.join("note.md"), "main line\n")?;
+        run_git(root, &["add", "note.md"])?;
+        run_git(root, &["commit", "-m", "main"])?;
+        assert!(run_git(root, &["merge", "feature"]).is_err());
+
+        assert_eq!(git_show_merge_base_file(root, "note.md")?, Some(base.into()));
+        Ok(())
     }
 
     fn configure_git_identity(repo: &Path) -> Result<(), Box<dyn std::error::Error>> {

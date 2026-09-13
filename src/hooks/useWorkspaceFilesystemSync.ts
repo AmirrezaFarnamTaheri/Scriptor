@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 
 import { isNativeBridgeAvailable } from '../bridge/platform'
 import { subscribeVaultEvents } from '../bridge/vaultEvents'
+import { createGitFocusRefresh } from './git-focus-refresh'
 import type { VaultDescriptor } from '../types/vault'
 
 interface UseWorkspaceFilesystemSyncOptions {
@@ -35,10 +36,11 @@ export function useWorkspaceFilesystemSync({
       return
     }
 
+    const refreshOnFocus = createGitFocusRefresh(refreshGit)
     const onFocus = () => {
       void checkExternalChangesRef.current()
       if (!hibernateGit) {
-        void refreshGit()
+        void refreshOnFocus()
       }
     }
 

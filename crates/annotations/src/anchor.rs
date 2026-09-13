@@ -150,6 +150,9 @@ fn fuzzy_search(body: &str, original_start: usize, quote: &str) -> Option<ByteRa
 
     // Snap window_start to the nearest char boundary.
     let window_start = snap_to_char_boundary(body, window_start);
+    // The arithmetic cap is in bytes, so it may split a multi-byte UTF-8
+    // character. Snap both slice ends before constructing the search window.
+    let window_end = snap_to_char_boundary(body, window_end);
     let window_body = &body[window_start..window_end];
 
     // Collect (byte_offset_in_window, char) pairs for the window.
@@ -476,5 +479,17 @@ mod tests {
             }
             other => panic!("expected Live or Relocated, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn fuzzy_search_does_not_panic_when_byte_window_ends_inside_unicode() {
+        // The fixed-size byte window ends between the two bytes of `é`.
+        // Stale selectors are untrusted persisted data and must resolve to an
+        // ordinary anchoring result rather than panic during string slicing.
+        let body = format!("{}é remaining text", "a".repeat(4_096));
+        let sel = text_sel(0, 1, "x");
+
+        let outcome = reanchor(&sel, &body).expect("stale selectors must not panic");
+        assert!(matches!(outcome, AnchorOutcome::Orphaned { .. }));
     }
 }

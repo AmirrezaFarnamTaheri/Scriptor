@@ -92,7 +92,6 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
     const [renderWarning, setRenderWarning] = useState<string | null>(null)
     const requestId = useRef(0)
     const workerRef = useRef<Worker | null>(null)
-    const workerFactoryRef = useRef<(() => Worker | null) | null>(null)
     const workerFallbackRef = useRef<WorkerRenderRequest | null>(null)
     const workerDeadlineRef = useRef<number | null>(null)
     const workerProvisionalRef = useRef<number | null>(null)
@@ -158,6 +157,10 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
       if (!USE_PREVIEW_WORKER || previewWorkerDisabled) return undefined
 
       const renderFallback = () => {
+        previewWorkerDisabled = true
+        workerRef.current?.terminate()
+        workerRef.current = null
+        clearWorkerDeadline()
         const fallback = workerFallbackRef.current
         if (!fallback || fallback.id !== requestId.current) return
         try {
@@ -188,9 +191,9 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         worker.onmessage = (
           event: MessageEvent<{ id: number; html?: string; error?: string }>,
         ) => {
-          clearWorkerDeadline()
           const fallback = workerFallbackRef.current
           if (event.data.id !== requestId.current || fallback?.id !== event.data.id) return
+          clearWorkerDeadline()
           if (event.data.error) {
             commitRenderFailure(event.data.error, 'Preview rendering failed')
             return
@@ -207,14 +210,12 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
         return worker
       }
 
-      workerFactoryRef.current = createWorker
       createWorker()
 
       return () => {
         clearWorkerProvisional()
         clearWorkerDeadline()
         workerFallbackRef.current = null
-        workerFactoryRef.current = null
         workerRef.current?.terminate()
         workerRef.current = null
       }
@@ -274,11 +275,18 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           }
           const workerRequest = { id: currentId, markdown: prepared, options }
           workerFallbackRef.current = workerRequest
-          const showProvisional = window.setTimeout(() => {
+          workerProvisionalRef.current = window.setTimeout(() => {
             if (requestId.current !== currentId || workerFallbackRef.current?.id !== currentId) return
-            renderOnMainThread('Showing core Markdown preview (worker starting)')
+            // Provisional content must not consume the request: a slow worker
+            // can still replace it, and its deadline must remain effective.
+            try {
+              const result = applyPreviewPostProcess(renderMarkdownPreview(prepared, options), postProcessRef.current)
+              setHtml(result.html)
+              setRenderWarning(result.warning)
+            } catch {
+              // Keep waiting for the worker; its deadline owns final recovery.
+            }
           }, PREVIEW_WORKER_PROVISIONAL_MS)
-          window.setTimeout(() => window.clearTimeout(showProvisional), PREVIEW_WORKER_TIMEOUT_MS + 100)
           try {
             worker.postMessage(workerRequest)
             workerDeadlineRef.current = window.setTimeout(() => {
@@ -292,7 +300,6 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
               if (workerRef.current === worker) {
                 worker.terminate()
                 workerRef.current = null
-                workerFactoryRef.current?.()
               }
               clearWorkerProvisional()
               previewWorkerDisabled = true
@@ -310,6 +317,7 @@ export const MarkdownPreview = forwardRef<MarkdownPreviewHandle, MarkdownPreview
           debounceTimer.current = null
         }
         clearWorkerDeadline()
+        clearWorkerProvisional()
       }
     }, [
       markdown,

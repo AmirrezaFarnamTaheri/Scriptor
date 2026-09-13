@@ -96,13 +96,14 @@ export function useWorkspaceEditor({
   } | null>(null)
 
   const saveTimer = useRef<number | null>(null)
-  const historyNavigation = useRef(false)
   const saveOverwriteRef = useRef(false)
   const navigationGenerationRef = useRef(0)
   const draftRevisionRef = useRef(0)
   const savedHashesRef = useRef(new Map<string, string>())
   const saveTailRef = useRef<Promise<void>>(Promise.resolve())
   const pendingSaveCountRef = useRef(0)
+  const pendingRefreshRef = useRef<(() => Promise<void>) | null>(null)
+  const refreshingRef = useRef(false)
   const { activePathRef, activeNoteRef, draftMarkdownRef, isSavingRef, checkExternalChangesRef } = editorRefs
 
   const resetNoteNavigation = useCallback(() => {
@@ -138,11 +139,11 @@ export function useWorkspaceEditor({
         }
         const existing = tabs.find((tab) => tab.path === path)
         if (existing) {
-          return tabs.map((tab) => (tab.path === path ? nextTab : tab))
+          return tabs.map((tab) => (tab.path === path ? { ...nextTab, pinned: tab.pinned } : tab))
         }
         return [...tabs, nextTab]
       })
-      await loadBacklinks(path)
+      void loadBacklinks(path)
       if (!isCurrent() || navigationGeneration !== navigationGenerationRef.current) return false
       if (isNativeBridgeAvailable()) {
         void vaultRecordRecentNote(path).catch(() => undefined)
@@ -165,22 +166,23 @@ export function useWorkspaceEditor({
   const openNote = useCallback(
     async (path: string, isCurrent?: () => boolean) => {
       const didLoad = await loadNote(path, isCurrent)
-      if (didLoad && !historyNavigation.current) {
+      if (didLoad) {
         recordNoteHistory(path)
       }
-      historyNavigation.current = false
     },
     [loadNote, recordNoteHistory],
   )
 
   const openNoteAt = useCallback(
     async (path: string, line?: number | null) => {
-      await openNote(path)
-      if (line && line > 0) {
+      const loading = openNote(path)
+      const navigationGeneration = navigationGenerationRef.current
+      await loading
+      if (navigationGeneration === navigationGenerationRef.current && activePathRef.current === path && line && line > 0) {
         setScrollToEditorLine(line)
       }
     },
-    [openNote],
+    [activePathRef, openNote],
   )
 
   const restoreEditorSession = useCallback(
@@ -288,8 +290,17 @@ export function useWorkspaceEditor({
       return
     }
 
+    const navigationGeneration = navigationGenerationRef.current
+    const draftRevision = draftRevisionRef.current
     try {
       const disk = await vaultReadNote(path)
+      if (
+        navigationGeneration !== navigationGenerationRef.current ||
+        draftRevision !== draftRevisionRef.current ||
+        activePathRef.current !== path ||
+        activeNoteRef.current !== note ||
+        isSavingRef.current
+      ) return
       const loadedHash = note.metadata.content_hash
       if (disk.metadata.content_hash === loadedHash) {
         setExternalChangeConflict((current) => (current?.path === path ? null : current))
@@ -334,28 +345,28 @@ export function useWorkspaceEditor({
       const closing = openTabs.find((tab) => tab.path === path)
       if (closing?.pinned && !force) return
 
-      setOpenTabs((tabs) => {
-        const tab = tabs.find((entry) => entry.path === path)
-        const nextTabs = tabs.filter((entry) => entry.path !== path)
-        if (tab) {
-          setClosedTabs((closed) => [tab, ...closed.filter((entry) => entry.path !== tab.path)].slice(0, 12))
+      const nextTabs = openTabs.filter((entry) => entry.path !== path)
+      setOpenTabs((tabs) => tabs.filter((entry) => entry.path !== path))
+      if (closing) {
+        setClosedTabs((closed) => [closing, ...closed.filter((entry) => entry.path !== path)].slice(0, 12))
+      }
+      if (activePath === path) {
+        const fallback = nextTabs.at(-1)?.path ?? null
+        if (fallback) {
+          void openNote(fallback)
+        } else {
+          navigationGenerationRef.current += 1
+          activePathRef.current = null
+          activeNoteRef.current = null
+          draftMarkdownRef.current = ''
+          setActivePath(null)
+          setActiveNote(null)
+          setDraftMarkdown('')
+          setBacklinks([])
         }
-        if (activePath === path) {
-          const fallback = nextTabs.at(-1)?.path ?? null
-          if (fallback) {
-            void openNote(fallback)
-          } else {
-            navigationGenerationRef.current += 1
-            setActivePath(null)
-            setActiveNote(null)
-            setDraftMarkdown('')
-            setBacklinks([])
-          }
-        }
-        return nextTabs
-      })
+      }
     },
-    [activePath, openNote, openTabs, setBacklinks],
+    [activePath, activePathRef, activeNoteRef, draftMarkdownRef, openNote, openTabs, setBacklinks],
   )
 
   const reopenClosedTab = useCallback(() => {
@@ -396,6 +407,27 @@ export function useWorkspaceEditor({
     [activePathRef],
   )
 
+  const scheduleSavedNoteRefresh = useCallback((refresh: () => Promise<void>) => {
+    pendingRefreshRef.current = refresh
+    if (refreshingRef.current) return
+    refreshingRef.current = true
+    void (async () => {
+      try {
+        while (pendingRefreshRef.current) {
+          const next = pendingRefreshRef.current
+          pendingRefreshRef.current = null
+          try {
+            await next()
+          } catch (caught) {
+            logActivity('error', 'Note saved, but workspace details could not refresh', String(caught))
+          }
+        }
+      } finally {
+        refreshingRef.current = false
+      }
+    })()
+  }, [logActivity])
+
   const saveRequest = useCallback(
     async (request: SaveRequest) => {
       const isCurrent = () => isSaveRequestCurrent(request)
@@ -427,18 +459,22 @@ export function useWorkspaceEditor({
           ),
         )
         setLastSavedAt(new Date().toLocaleTimeString())
-        await refreshVaultCore()
-        if (!isCurrent()) return true
-        await loadBacklinks(request.path)
-        if (!isCurrent()) return true
-        if (searchQuery.trim()) {
-          await runSearch(searchQuery)
-        }
+        // Derived workspace data must not hold the durable-write queue. Keep
+        // at most one running refresh and one latest pending refresh.
+        scheduleSavedNoteRefresh(async () => {
+          if (!isCurrent()) return
+          await refreshVaultCore()
+          if (!isCurrent()) return
+          await loadBacklinks(request.path)
+          if (isCurrent() && searchQuery.trim()) await runSearch(searchQuery)
+        })
         if (vaultConfig.export.export_on_save?.enabled && vaultConfig.export.export_on_save.profile_id) {
           const profiles = exportProfilesRef.current ?? []
           const profile = findExportProfile(profiles, vaultConfig.export.export_on_save.profile_id)
           if (profile) {
-            void exportStartNote(request.path, profile.id, false)
+            void exportStartNote(request.path, profile.id, false).catch((caught) => {
+              logActivity('error', 'Note saved, but automatic export failed', String(caught))
+            })
           }
         }
         return true
@@ -448,12 +484,14 @@ export function useWorkspaceEditor({
         if (isContentHashMismatchError(message)) {
           try {
             const disk = await vaultReadNote(request.path)
+            if (!isCurrent()) return false
             setExternalChangeConflict({
               path: request.path,
               loaded_hash: request.contentHash,
               disk_hash: disk.metadata.content_hash,
             })
           } catch {
+            if (!isCurrent()) return false
             setExternalChangeConflict({
               path: request.path,
               loaded_hash: request.contentHash,
@@ -467,7 +505,10 @@ export function useWorkspaceEditor({
         return false
       } finally {
         pendingSaveCountRef.current -= 1
-        if (pendingSaveCountRef.current === 0) setIsSaving(false)
+        if (pendingSaveCountRef.current === 0) {
+          isSavingRef.current = false
+          setIsSaving(false)
+        }
       }
     },
     [
@@ -475,11 +516,13 @@ export function useWorkspaceEditor({
       draftMarkdownRef,
       exportProfilesRef,
       isSaveRequestCurrent,
+      isSavingRef,
       loadBacklinks,
       logActivity,
       refreshVaultCore,
       runSearch,
       searchQuery,
+      scheduleSavedNoteRefresh,
       setError,
       vaultConfig,
     ],
@@ -488,6 +531,7 @@ export function useWorkspaceEditor({
   const performSave = useCallback(
     (request: SaveRequest) => {
       pendingSaveCountRef.current += 1
+      isSavingRef.current = true
       setIsSaving(true)
       const task = saveTailRef.current.then(() => saveRequest(request))
       saveTailRef.current = task.then(
@@ -496,7 +540,7 @@ export function useWorkspaceEditor({
       )
       return task
     },
-    [saveRequest],
+    [isSavingRef, saveRequest],
   )
 
   const scheduleSave = useCallback(
@@ -640,30 +684,22 @@ export function useWorkspaceEditor({
   }, [])
 
   const navigateBack = useCallback(() => {
-    setNoteNav(({ paths, index }) => {
-      if (index <= 0) return { paths, index }
-      const nextIndex = index - 1
-      const path = paths[nextIndex]
-      if (path) {
-        historyNavigation.current = true
-        void loadNote(path)
-      }
-      return { paths, index: nextIndex }
-    })
-  }, [loadNote])
+    if (noteNav.index <= 0) return
+    const index = noteNav.index - 1
+    const path = noteNav.paths[index]
+    if (!path) return
+    setNoteNav({ paths: noteNav.paths, index })
+    void loadNote(path)
+  }, [loadNote, noteNav])
 
   const navigateForward = useCallback(() => {
-    setNoteNav(({ paths, index }) => {
-      if (index >= paths.length - 1) return { paths, index }
-      const nextIndex = index + 1
-      const path = paths[nextIndex]
-      if (path) {
-        historyNavigation.current = true
-        void loadNote(path)
-      }
-      return { paths, index: nextIndex }
-    })
-  }, [loadNote])
+    if (noteNav.index >= noteNav.paths.length - 1) return
+    const index = noteNav.index + 1
+    const path = noteNav.paths[index]
+    if (!path) return
+    setNoteNav({ paths: noteNav.paths, index })
+    void loadNote(path)
+  }, [loadNote, noteNav])
 
   const inspectorOutline = useMemo(
     () => (activeNote ? extractOutline(activeNote.markdown) : []),

@@ -308,6 +308,14 @@ function App() {
     hibernateWatcher,
     hibernateGit,
   })
+  const gitReadHead = useCallback(async (path: string) => {
+    try { return await gitShowHeadFile(path) } catch { return null }
+  }, [])
+  const gitActivePath = workspace.activePath
+  const gitDraftMarkdown = workspace.draftMarkdown
+  const gitReadWorking = useCallback(async (path: string) =>
+    path === gitActivePath ? gitDraftMarkdown : (await vaultReadNote(path)).markdown,
+  [gitActivePath, gitDraftMarkdown])
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -1505,16 +1513,8 @@ function App() {
           onPush={() => void workspace.pushRemote()}
           onResolveConflict={(path) => setConflictPath(path)}
           onOpenNote={(path) => void workspace.openNote(path)}
-          readNoteAtHead={async (path) => {
-            try {
-              return await gitShowHeadFile(path)
-            } catch {
-              return null
-            }
-          }}
-          readNoteWorking={async (path) =>
-            path === workspace.activePath ? workspace.draftMarkdown : (await vaultReadNote(path)).markdown
-          }
+          readNoteAtHead={gitReadHead}
+          readNoteWorking={gitReadWorking}
         />
         </Suspense>
         </ErrorBoundary>

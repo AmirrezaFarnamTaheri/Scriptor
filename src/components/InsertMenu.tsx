@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { ChevronDown, Plus } from 'lucide-react'
 
-import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor/pure'
+import { INSERT_TOOLS } from './editor/toolbar-catalog'
 import { ToolbarPopover } from './ToolbarPopover'
 
 interface InsertMenuProps {
@@ -9,30 +9,12 @@ interface InsertMenuProps {
   onInsert: (content: string) => void
 }
 
-const TASK_LIST = '- [ ] '
-
 export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
   const [open, setOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const triggerId = useId()
   const menuId = useId()
 
-  const items = [
-    ...MERMAID_SNIPPETS.map((snippet) => ({
-      id: snippet.name,
-      label: snippet.description,
-      content: snippet.content,
-    })),
-    ...MATH_SNIPPETS.map((snippet) => ({
-      id: snippet.name,
-      label: snippet.description,
-      content: snippet.content,
-    })),
-    { id: 'task-list', label: 'Task list item', content: TASK_LIST },
-    { id: 'toc', label: 'Table of contents marker', content: '[TOC]\n\n' },
-    { id: 'dql', label: 'DQL query block', content: '```dql\npath has #tag\n```\n' },
-    { id: 'import', label: 'MPE @import', content: '@import "chapter.md"\n' },
-  ]
 
   return (
     <div className="insert-menu">
@@ -66,7 +48,7 @@ export function InsertMenu({ disabled, onInsert }: InsertMenuProps) {
         labelledBy={triggerId}
         onClose={() => setOpen(false)}
       >
-        {items.map((item) => (
+        {INSERT_TOOLS.map((item) => (
           <li key={item.id} role="none">
             <button
               type="button"

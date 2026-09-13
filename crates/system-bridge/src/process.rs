@@ -2,6 +2,7 @@ use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
+use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -12,6 +13,7 @@ use crate::{BridgeError, hash_file};
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 #[allow(dead_code)]
 const TERMINATION_GRACE: Duration = Duration::from_millis(250);
+const OUTPUT_DRAIN_GRACE: Duration = Duration::from_millis(250);
 const DEFAULT_MAX_OUTPUT_BYTES: usize = 256 * 1024;
 
 /// Returns whether `pid` currently names a live process without spawning a
@@ -224,7 +226,6 @@ pub fn spawn_process(spec: &ProcessSpec) -> Result<SpawnedProcess, BridgeError> 
 }
 
 pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
-    let started = Instant::now();
     let spawned = spawn_process(&spec)?;
     let resolved = spawned.resolved_program;
     let actual_hash = spawned.program_sha256;
@@ -243,9 +244,18 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         })?;
     let stdout_limit = spec.max_output_bytes;
     let stderr_limit = spec.max_output_bytes;
-    let stdout_reader = thread::spawn(move || read_bounded(stdout, stdout_limit));
-    let stderr_reader = thread::spawn(move || read_bounded(stderr, stderr_limit));
+    let (output_sender, output_receiver) = mpsc::channel();
+    let stdout_sender = output_sender.clone();
+    let stdout_reader = thread::spawn(move || {
+        let _ = stdout_sender.send((true, read_bounded(stdout, stdout_limit)));
+    });
+    let stderr_sender = output_sender.clone();
+    let stderr_reader = thread::spawn(move || {
+        let _ = stderr_sender.send((false, read_bounded(stderr, stderr_limit)));
+    });
+    drop(output_sender);
 
+    let started = Instant::now();
     let mut timed_out = false;
     let status = loop {
         if let Some(status) = child
@@ -268,18 +278,41 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         thread::sleep(POLL_INTERVAL);
     };
 
-    let (stdout, stdout_truncated) =
-        stdout_reader
-            .join()
-            .map_err(|_| BridgeError::ProcessPolicy {
-                message: "stdout reader thread panicked".into(),
-            })??;
-    let (stderr, stderr_truncated) =
-        stderr_reader
-            .join()
-            .map_err(|_| BridgeError::ProcessPolicy {
-                message: "stderr reader thread panicked".into(),
-            })??;
+    let drain_deadline = if timed_out {
+        Instant::now() + OUTPUT_DRAIN_GRACE
+    } else {
+        started + spec.timeout
+    };
+    let mut stdout_result = None;
+    let mut stderr_result = None;
+    while stdout_result.is_none() || stderr_result.is_none() {
+        let remaining = drain_deadline.saturating_duration_since(Instant::now());
+        match output_receiver.recv_timeout(remaining) {
+            Ok((is_stdout, result)) if is_stdout => stdout_result = Some(result),
+            Ok((_, result)) => stderr_result = Some(result),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                timed_out = true;
+                // The direct child can have exited while a descendant still owns a
+                // captured pipe. Terminating the launch tree closes those handles.
+                terminate_process_tree(&mut child);
+                break;
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => break,
+        }
+    }
+
+    // Once the process tree is terminated, its inherited pipe handles close and
+    // these joins cannot leave detached reader threads behind.
+    let _ = stdout_reader.join();
+    let _ = stderr_reader.join();
+    let (stdout, stdout_truncated) = stdout_result
+        .ok_or_else(|| BridgeError::ProcessPolicy {
+            message: "stdout reader stopped before returning output".into(),
+        })??;
+    let (stderr, stderr_truncated) = stderr_result
+        .ok_or_else(|| BridgeError::ProcessPolicy {
+            message: "stderr reader stopped before returning output".into(),
+        })??;
 
     let receipt = ProcessReceipt {
         program: Path::new(&spec.program).display().to_string(),
@@ -424,7 +457,14 @@ fn configure_process_group(command: &mut Command) {
     command.process_group(0);
 }
 
-#[cfg(not(unix))]
+#[cfg(windows)]
+fn configure_process_group(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    // Brokered tools are background operations, including Git and discovery.
+    command.creation_flags(0x08000000); // CREATE_NO_WINDOW
+}
+
+#[cfg(not(any(unix, windows)))]
 fn configure_process_group(_command: &mut Command) {}
 
 #[cfg(unix)]
@@ -440,7 +480,9 @@ fn terminate_process_tree(child: &mut Child) {
 
 #[cfg(windows)]
 fn terminate_process_tree(child: &mut Child) {
-    let _ = Command::new("taskkill")
+    let mut command = Command::new("taskkill");
+    configure_process_group(&mut command);
+    let _ = command
         .args(["/PID", &child.id().to_string(), "/T", "/F"])
         .status();
     let _ = child.kill();
@@ -548,6 +590,35 @@ fn escape_sandbox_profile_string(value: &OsStr) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn background_process_has_no_console_window() {
+        const CHILD_MARKER: &str = "SCRIPTOR_CONSOLE_TEST_CHILD";
+        if std::env::var_os(CHILD_MARKER).is_some() {
+            unsafe extern "system" {
+                fn GetConsoleWindow() -> *mut std::ffi::c_void;
+            }
+            // SAFETY: This Win32 query takes no arguments and returns a borrowed handle.
+            assert!(unsafe { GetConsoleWindow() }.is_null());
+            println!("background child has no console");
+            return;
+        }
+
+        let executable = std::env::current_exe().expect("test executable");
+        let receipt = run_process(
+            ProcessSpec::new(executable)
+                .args([
+                    "--exact",
+                    "process::tests::background_process_has_no_console_window",
+                    "--nocapture",
+                ])
+                .env(CHILD_MARKER, "1"),
+        )
+        .expect("spawn background child");
+        assert_eq!(receipt.exit_code, 0, "{}", receipt.stderr);
+        assert!(receipt.stdout.contains("background child has no console"));
+    }
 
     #[test]
     fn bounded_reader_drains_but_caps_memory() {

@@ -66,6 +66,7 @@ export function useSearchStore({
             if (requestId !== searchRequestId.current) return
             fused = fuseKeywordAndSemantic(hits, semantic, maxResults)
           } catch (error) {
+            if (requestId !== searchRequestId.current) return
             if (error instanceof SemanticUnavailableError) {
               semanticSupportedRef.current = false
             }
@@ -89,6 +90,7 @@ export function useSearchStore({
   /** Update the query and schedule a debounced search. */
   const setVaultSearchQuery = useCallback(
     (query: string) => {
+      searchRequestId.current += 1
       setSearchQuery(query)
       if (searchTimer.current) window.clearTimeout(searchTimer.current)
       if (!query.trim()) {
@@ -102,6 +104,7 @@ export function useSearchStore({
         return
       }
       searchTimer.current = window.setTimeout(() => {
+        searchTimer.current = null
         void runSearch(query)
       }, debounceMs)
     },
@@ -111,6 +114,7 @@ export function useSearchStore({
   /** Clear query, results, and any pending debounce. */
   const clearSearch = useCallback(() => {
     searchRequestId.current += 1
+    semanticSupportedRef.current = true
     setSearchQuery('')
     setSearchResults([])
     setIsSearching(false)
@@ -122,6 +126,7 @@ export function useSearchStore({
 
   useEffect(() => {
     return () => {
+      searchRequestId.current += 1
       if (searchTimer.current) window.clearTimeout(searchTimer.current)
     }
   }, [])

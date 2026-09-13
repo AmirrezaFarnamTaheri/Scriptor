@@ -1,0 +1,65 @@
+.editor-toolbar .toolbar-pinned {
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.toolbar-tool {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.toolbar-tool > button,
+.toolbar-tool > div,
+.toolbar-tool > div > button {
+  width: 100%;
+  min-width: 0;
+}
+
+.toolbar-tool > button,
+.toolbar-tool > div > button {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toolbar-customizer {
+  max-height: 40dvh;
+  overflow: auto;
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-elevated);
+}
+
+.toolbar-customize-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.toolbar-customize-row label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.toolbar-customize-row input[type='number'] {
+  width: 64px;
+}
+
+.toolbar-customize-row button {
+  flex-shrink: 0;
+}
+
+.toolbar-unpinned {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.toolbar-unpinned svg {
+  width: 16px;
+  height: 16px;
+}

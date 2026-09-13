@@ -1,0 +1,238 @@
+import { Children, cloneElement, isValidElement, useId, useRef, useState, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { ArrowDown, ArrowUp, Settings2 } from 'lucide-react'
+import { ToolbarPopover } from '../ToolbarPopover'
+
+interface Tool {
+  id: string
+  label: string
+  node: ReactNode
+}
+interface Preference {
+  id: string
+  pinned: boolean
+  width: number
+}
+const STORAGE_KEY = 'scriptor:editor-toolbar'
+const DEFAULT_WIDTH = 44
+const MIN_WIDTH = 32
+const MAX_WIDTH = 240
+
+function clampWidth(width: number): number {
+  return Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width))
+}
+
+function readPreferences(): Preference[] {
+  try {
+    const value: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
+    if (!Array.isArray(value)) return []
+    const seen = new Set<string>()
+    return value.slice(0, 200).flatMap((item: unknown) => {
+      if (!item || typeof item !== 'object' || !('id' in item) || typeof item.id !== 'string' || seen.has(item.id)) return []
+      seen.add(item.id)
+      return [{ id: item.id, pinned: !('pinned' in item) || item.pinned !== false,
+        width: 'width' in item && typeof item.width === 'number' && Number.isFinite(item.width)
+          ? clampWidth(item.width) : DEFAULT_WIDTH }]
+    })
+  } catch { return [] }
+}
+
+/** Controls declare semantic React keys so layout and translations cannot move preferences. */
+export function CustomizableToolbar({ children, extras = [] }: { children: ReactNode; extras?: Tool[] }) {
+  const tools: Tool[] = []
+  Children.forEach(children, (group) => {
+    if (!isValidElement<{ children?: ReactNode }>(group)) return
+    Children.forEach(group.props.children, (node) => {
+      if (!isValidElement<{ title?: string; 'aria-label'?: string; children?: ReactNode }>(node) || node.key == null) return
+      const label = node.props['aria-label'] ?? node.props.title ?? (typeof node.props.children === 'string' ? node.props.children : null)
+        ?? (node.key === 'typography' ? 'Typography' : 'Insert')
+      tools.push({ id: String(node.key), label, node })
+    })
+  })
+  tools.push(...extras)
+  const [preferences, setPreferences] = useState(readPreferences)
+  const [customizing, setCustomizing] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [submenu, setSubmenu] = useState<'insert' | 'typography' | null>(null)
+  const [storageError, setStorageError] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = useId()
+  const triggerId = useId()
+  const byId = new Map(tools.map((tool) => [tool.id, tool]))
+  const ordered = [
+    ...preferences.flatMap((pref) => { const tool = byId.get(pref.id); return tool ? [{ ...tool, ...pref }] : [] }),
+    ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: !tool.id.startsWith('extra:'), width: DEFAULT_WIDTH })),
+  ]
+  const closeMenu = () => {
+    setOpen(false)
+    setSubmenu(null)
+  }
+  const showSubmenu = (name: 'insert' | 'typography' | null) => {
+    setSubmenu(name)
+    requestAnimationFrame(() => document.getElementById(menuId)?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus())
+  }
+  const save = (next: typeof ordered) => {
+    const prefs = next.map(({ id, pinned, width }) => ({ id, pinned, width }))
+    setPreferences(prefs)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+      setStorageError(false)
+    } catch {
+      setStorageError(true)
+    }
+  }
+  const activateMenuTool = (node: ReactNode, event: MouseEvent<HTMLButtonElement>) => {
+    if (isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(node)) node.props.onClick?.(event)
+    closeMenu()
+    document.getElementById(triggerId)?.focus()
+  }
+  const reset = () => {
+    setPreferences([])
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+      setStorageError(false)
+    } catch {
+      setStorageError(true)
+    }
+  }
+  const updateTool = (id: string, change: Partial<Preference>) => {
+    save(ordered.map((tool) => tool.id === id ? { ...tool, ...change } : tool))
+  }
+  const moveTool = (index: number, direction: -1 | 1) => {
+    const next = [...ordered]
+    const destination = index + direction
+    ;[next[index], next[destination]] = [next[destination]!, next[index]!]
+    save(next)
+  }
+  const menuTools = ordered.filter((tool) => submenu
+    ? tool.id.startsWith(`extra:${submenu}:`)
+    : !tool.pinned)
+
+  return (
+    <>
+      <div className="format-row editor-toolbar" aria-label="Markdown tools">
+        <div className="format-group toolbar-pinned">
+          {ordered.filter((tool) => tool.pinned).map((tool) => (
+            <div
+              className="toolbar-tool"
+              key={tool.id}
+              data-tool-id={tool.id}
+              style={{ minWidth: tool.width, width: tool.width === DEFAULT_WIDTH ? undefined : tool.width }}
+            >
+              {tool.node}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          ref={triggerRef}
+          id={triggerId}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-controls={open ? menuId : undefined}
+          onClick={() => { setOpen(!open); setSubmenu(null) }}
+          onKeyDown={(event) => {
+            if (event.key !== 'ArrowDown') return
+            event.preventDefault()
+            setOpen(true)
+          }}
+        >
+          Tools
+        </button>
+        <button
+          type="button"
+          aria-label="Customize toolbar"
+          aria-expanded={customizing}
+          onClick={() => setCustomizing(!customizing)}
+        >
+          <Settings2 size={16} />
+        </button>
+        <ToolbarPopover
+          className="toolbar-tools-menu"
+          open={open}
+          id={menuId}
+          triggerRef={triggerRef}
+          labelledBy={triggerId}
+          onClose={closeMenu}
+        >
+          <li role="none">
+            <button type="button" role="menuitem" onClick={() => { closeMenu(); setCustomizing(true) }}>
+              Customize toolbar
+            </button>
+          </li>
+          {submenu && (
+            <li role="none">
+              <button type="button" role="menuitem" onClick={() => showSubmenu(null)}>Back to tools</button>
+            </li>
+          )}
+          {menuTools.map((tool) => (
+            <li role="none" key={tool.id} className="toolbar-unpinned">
+              {tool.id === 'insert' || tool.id === 'typography' ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => showSubmenu(tool.id as 'insert' | 'typography')}
+                >
+                  {tool.label}
+                </button>
+              ) : isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(tool.node) && tool.node.type === 'button' ? (
+                cloneElement(tool.node, {
+                  role: 'menuitem',
+                  children: tool.label,
+                  onClick: (event) => activateMenuTool(tool.node, event),
+                })
+              ) : null}
+            </li>
+          ))}
+        </ToolbarPopover>
+      </div>
+      {customizing && (
+        <section className="toolbar-customizer" aria-label="Customize toolbar">
+          <p>Pin tools, change their order, and set button widths in pixels.</p>
+          {storageError && <p role="status">Toolbar changes apply for this session. Browser storage is unavailable.</p>}
+          <button type="button" onClick={reset}>Reset toolbar</button>
+          <button type="button" onClick={() => setCustomizing(false)}>Done</button>
+          {ordered.map((tool, index) => (
+            <div className="toolbar-customize-row" key={tool.id}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={tool.pinned}
+                  onChange={(event) => updateTool(tool.id, { pinned: event.target.checked })}
+                />
+                {tool.label}
+              </label>
+              <button
+                type="button"
+                aria-label={`Move ${tool.label} earlier`}
+                disabled={index === 0}
+                onClick={() => moveTool(index, -1)}
+              >
+                <ArrowUp size={14} />
+              </button>
+              <button
+                type="button"
+                aria-label={`Move ${tool.label} later`}
+                disabled={index === ordered.length - 1}
+                onClick={() => moveTool(index, 1)}
+              >
+                <ArrowDown size={14} />
+              </button>
+              <input
+                type="number"
+                min={MIN_WIDTH}
+                max={MAX_WIDTH}
+                step={4}
+                aria-label={`${tool.label} width`}
+                value={tool.width}
+                onChange={(event) => {
+                  const width = event.target.valueAsNumber
+                  if (Number.isFinite(width)) updateTool(tool.id, { width: clampWidth(width) })
+                }}
+              />
+            </div>
+          ))}
+        </section>
+      )}
+    </>
+  )
+}
