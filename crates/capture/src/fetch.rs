@@ -72,7 +72,9 @@ pub fn fetch_html(url: &str, opts: &FetchOptions) -> Result<FetchResponse, Fetch
         .and_then(|value| value.to_str().ok())
         .unwrap_or("");
     let media_type = content_type.split(';').next().map(str::trim).unwrap_or("");
-    if !media_type.eq_ignore_ascii_case("text/html") {
+    if !media_type.eq_ignore_ascii_case("text/html")
+        && !media_type.eq_ignore_ascii_case("application/xhtml+xml")
+    {
         return Err(FetchError::NotHtml {
             content_type: content_type.to_owned(),
         });
@@ -93,7 +95,8 @@ pub fn fetch_html(url: &str, opts: &FetchOptions) -> Result<FetchResponse, Fetch
         });
     }
 
-    let html = String::from_utf8_lossy(&body_bytes).into_owned();
+    let html = String::from_utf8(body_bytes)
+        .unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
 
     Ok(FetchResponse { final_url, html })
 }
@@ -142,6 +145,16 @@ mod tests {
             "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 9\r\nConnection: close\r\n\r\n<p>ok</p>",
         );
         let response = fetch_html(&url, &options(9)).expect("HTML response succeeds");
+        assert_eq!(response.final_url, url);
+        assert_eq!(response.html, "<p>ok</p>");
+    }
+
+    #[test]
+    fn fetch_html_accepts_xhtml() {
+        let url = serve_once(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/xhtml+xml; charset=utf-8\r\nContent-Length: 9\r\nConnection: close\r\n\r\n<p>ok</p>",
+        );
+        let response = fetch_html(&url, &options(9)).expect("XHTML response succeeds");
         assert_eq!(response.final_url, url);
         assert_eq!(response.html, "<p>ok</p>");
     }
