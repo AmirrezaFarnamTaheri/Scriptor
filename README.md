@@ -4,7 +4,7 @@
 
 **A local-first Markdown workspace for serious writing and research.**
 
-**English** · [فارسی](README.fa.md)
+**English** · [فارسی](README.fa.md) · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
 
 [![Version](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](VERSION)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
