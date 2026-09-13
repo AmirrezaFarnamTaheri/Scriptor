@@ -229,10 +229,14 @@ fn scan_candidates(
         // Apply the opt-in gate before sealed-content enforcement so a private,
         // non-published sealed note cannot deny publication of unrelated notes.
         let frontmatter_probe = &bytes[..bytes.len().min(FRONTMATTER_PROBE_BYTES)];
-        if options.require_frontmatter_opt_in
-            && !frontmatter_has_publish_true(&String::from_utf8_lossy(frontmatter_probe))
-        {
-            continue;
+        if options.require_frontmatter_opt_in {
+            let has_publish = match std::str::from_utf8(frontmatter_probe) {
+                Ok(s) => frontmatter_has_publish_true(s),
+                Err(_) => frontmatter_has_publish_true(&String::from_utf8_lossy(frontmatter_probe)),
+            };
+            if !has_publish {
+                continue;
+            }
         }
 
         if memchr::memmem::find(&bytes, SEALED_PREFIX.as_bytes()).is_some() {

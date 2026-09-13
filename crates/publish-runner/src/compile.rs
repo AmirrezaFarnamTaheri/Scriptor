@@ -336,12 +336,16 @@ fn prepare_apply(
             });
         }
         let frontmatter_probe = &bytes[..bytes.len().min(64 * 1024)];
-        if options.require_frontmatter_opt_in
-            && !frontmatter_has_publish_true(&String::from_utf8_lossy(frontmatter_probe))
-        {
-            return Err(PublishError::NotOptedIn {
-                path: rel.to_string(),
-            });
+        if options.require_frontmatter_opt_in {
+            let has_publish = match std::str::from_utf8(frontmatter_probe) {
+                Ok(s) => frontmatter_has_publish_true(s),
+                Err(_) => frontmatter_has_publish_true(&String::from_utf8_lossy(frontmatter_probe)),
+            };
+            if !has_publish {
+                return Err(PublishError::NotOptedIn {
+                    path: rel.to_string(),
+                });
+            }
         }
 
         prepared_writes.push(PreparedWrite {
