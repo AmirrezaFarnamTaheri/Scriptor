@@ -1,23 +1,35 @@
-import { memo, Suspense } from 'react'
+import { memo, Suspense, useCallback } from 'react'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import type { ReaderPanelProps } from '../reader/ReaderPanel'
 import {
   BibliographyPanel,
   CanvasPanel,
+  GitPanel,
   GmailManagerPanel,
+  GraphPanel,
   KanbanPanel,
+  McpPanel,
   PanelFallback,
   ReaderPanel,
   TaskPanel,
 } from './lazyPanels'
 import type { usePluginRegistry } from '../../hooks/usePluginRegistry'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
+import type { useMcpRuntime } from '../../hooks/useMcpRuntime'
+import type { useAiProvider } from '../../hooks/useAiProvider'
+import type { TextPromptRequest } from '../../hooks/useTextPrompt'
 import type { BibliographyEntry } from '../../types/vault'
-import { indexerApplyFilesystemChanges, vaultSaveAsset } from '../../bridge/commands'
+import type { GitPullStrategy } from '../../bridge/commands/git'
+import {
+  gitShowHeadFile,
+  indexerApplyFilesystemChanges,
+  vaultReadNote,
+  vaultSaveAsset,
+} from '../../bridge/commands'
 import { gmailImportedNoteTitle } from '../../lib/gmailRfc5322'
 
-type WorkspacePanelLaunchersProps = {
+export type WorkspacePanelLaunchersProps = {
   workspace: ReturnType<typeof useVaultWorkspace>
   plugins: ReturnType<typeof usePluginRegistry>
   nativeReady: boolean
@@ -38,6 +50,36 @@ type WorkspacePanelLaunchersProps = {
   gmailManagerOpen?: boolean
   setGmailManagerOpen?: (open: boolean) => void
   showToast?: (message: string) => void
+
+  // Graph
+  graphOpen?: boolean
+  graphDepth?: number
+  graphFullVault?: boolean
+  setGraphDepth?: (depth: number) => void
+  setGraphFullVault?: (fullVault: boolean) => void
+  onCloseGraph?: () => void
+  onOpenWorkbenchFromGraph?: () => void
+  hibernateGraph?: boolean
+  setHibernateGraph?: (value: boolean | ((prev: boolean) => boolean)) => void
+
+  // Git
+  gitPanelOpen?: boolean
+  panelPresentation?: ReaderPanelProps['presentation']
+  onCloseGit?: () => void
+  onRefreshGit?: () => void
+  onCommitGit?: (files: string[], message: string) => void
+  onPullGit?: (strategy: GitPullStrategy) => void
+  onPushGit?: () => void
+  onResolveConflictGit?: (path: string) => void
+  onOpenNoteFromGit?: (path: string) => void
+
+  // MCP
+  mcpPanelOpen?: boolean
+  mcp?: ReturnType<typeof useMcpRuntime>
+  ai?: ReturnType<typeof useAiProvider>
+  editorTheme?: 'light' | 'dark'
+  onCloseMcp?: () => void
+  promptText?: (request: TextPromptRequest) => Promise<string | null>
 }
 
 function WorkspacePanelLaunchersImpl({
@@ -61,8 +103,48 @@ function WorkspacePanelLaunchersImpl({
   gmailManagerOpen,
   setGmailManagerOpen,
   showToast,
+  graphOpen,
+  graphDepth = 2,
+  graphFullVault = false,
+  setGraphDepth,
+  setGraphFullVault,
+  onCloseGraph,
+  onOpenWorkbenchFromGraph,
+  hibernateGraph = false,
+  setHibernateGraph,
+  gitPanelOpen,
+  panelPresentation = 'modal',
+  onCloseGit,
+  onRefreshGit,
+  onCommitGit,
+  onPullGit,
+  onPushGit,
+  onResolveConflictGit,
+  onOpenNoteFromGit,
+  mcpPanelOpen,
+  mcp,
+  ai,
+  editorTheme = 'dark',
+  onCloseMcp,
+  promptText,
 }: WorkspacePanelLaunchersProps) {
   const gmailEnabled = plugins.activePlugins.some((plugin) => plugin.manifest.id === 'scriptor.gmail-manager')
+
+  const gitReadHead = useCallback(async (path: string) => {
+    try {
+      return await gitShowHeadFile(path)
+    } catch {
+      return null
+    }
+  }, [])
+
+  const gitActivePath = workspace.activePath
+  const gitDraftMarkdown = workspace.draftMarkdown
+  const gitReadWorking = useCallback(
+    async (path: string) =>
+      path === gitActivePath ? gitDraftMarkdown : (await vaultReadNote(path)).markdown,
+    [gitActivePath, gitDraftMarkdown],
+  )
 
   return (
     <>
@@ -200,6 +282,125 @@ function WorkspacePanelLaunchersImpl({
                   throw new Error(`Could not import Gmail message ${messageId}; the target note already exists or could not be saved.`)
                 }
                 showToast?.(`Imported email to ${path}`)
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+
+      {graphOpen && (
+        <ErrorBoundary
+          name="graph-panel"
+          resetKeys={[workspace.activePath]}
+          fallback={<PanelErrorFallback title="The graph" onDismiss={onCloseGraph ?? (() => {})} />}
+        >
+          <Suspense fallback={<PanelFallback />}>
+            <GraphPanel
+              graph={workspace.graph}
+              focusPath={workspace.activePath}
+              graphGroups={workspace.vaultConfig.graph_groups ?? []}
+              vaultOpen={Boolean(workspace.vault)}
+              vaultId={workspace.vault?.id}
+              depth={graphDepth}
+              fullVault={graphFullVault}
+              onDepthChange={(depth) => setGraphDepth?.(depth)}
+              onRefresh={(fullVault) => {
+                setGraphFullVault?.(fullVault)
+                void workspace.loadGraph(fullVault ? null : workspace.activePath, {
+                  depth: graphDepth,
+                  fullVault,
+                })
+              }}
+              onSelectNode={(path) => {
+                void workspace.openNote(path)
+                void workspace.loadGraph(path, { depth: graphDepth, fullVault: graphFullVault })
+              }}
+              onClose={onCloseGraph ?? (() => {})}
+              onOpenWorkbench={() => {
+                onCloseGraph?.()
+                onOpenWorkbenchFromGraph?.()
+              }}
+              hibernated={hibernateGraph}
+              onToggleHibernate={() => setHibernateGraph?.((prev) => !prev)}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+
+      {gitPanelOpen && (
+        <ErrorBoundary
+          name="git-panel"
+          fallback={<PanelErrorFallback title="The Git panel" onDismiss={onCloseGit ?? (() => {})} />}
+        >
+          <Suspense fallback={<PanelFallback />}>
+            <GitPanel
+              status={workspace.gitStatus}
+              statusError={workspace.gitStatusError}
+              isStatusLoading={workspace.isGitStatusLoading}
+              activePath={workspace.activePath}
+              isBusy={workspace.isGitBusy}
+              presentation={panelPresentation}
+              onClose={onCloseGit ?? (() => {})}
+              onRefresh={onRefreshGit ?? (() => {})}
+              onCommit={onCommitGit ?? (() => {})}
+              onPull={onPullGit ?? (() => {})}
+              onPush={onPushGit ?? (() => {})}
+              onResolveConflict={onResolveConflictGit ?? (() => {})}
+              onOpenNote={onOpenNoteFromGit ?? (() => {})}
+              readNoteAtHead={gitReadHead}
+              readNoteWorking={gitReadWorking}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
+
+      {mcpPanelOpen && mcp && (
+        <ErrorBoundary
+          name="mcp-panel"
+          fallback={<PanelErrorFallback title="The MCP panel" onDismiss={onCloseMcp ?? (() => {})} />}
+        >
+          <Suspense fallback={<PanelFallback />}>
+            <McpPanel
+              mode={mcp.mode}
+              tools={mcp.tools}
+              audit={mcp.audit}
+              drafts={mcp.drafts}
+              lastResult={mcp.lastResult}
+              activePath={workspace.activePath}
+              editorTheme={editorTheme}
+              presentation={panelPresentation}
+              onClose={onCloseMcp ?? (() => {})}
+              onModeChange={mcp.setMode}
+              onResetPermissions={mcp.resetPermissions}
+              readNoteContent={async (path) => (await vaultReadNote(path)).markdown}
+              onInvoke={(toolName, input) => {
+                void mcp.invokeTool(toolName, input)
+              }}
+              onApproveDraft={(patchId) => {
+                void mcp.approveDraft(patchId).then((result) => {
+                  if (result?.ok) {
+                    void workspace.refreshHealth()
+                    if (workspace.activePath) {
+                      void workspace.openNote(workspace.activePath)
+                    }
+                  }
+                })
+              }}
+              onRejectDraft={mcp.rejectDraft}
+              aiEnabled={ai?.enabled ?? false}
+              onGenerateDraft={() => {
+                if (!promptText || !ai) return
+                void promptText({
+                  title: 'Assistant draft',
+                  label: 'Describe the edit you want the assistant to draft',
+                  defaultValue: '',
+                  submitLabel: 'Draft',
+                }).then((prompt) => {
+                  if (!prompt || !workspace.activePath) return
+                  void ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown).then((proposed) => {
+                    void mcp.proposeDraftForActiveNote(proposed, `AI draft: ${prompt}`)
+                  })
+                })
               }}
             />
           </Suspense>

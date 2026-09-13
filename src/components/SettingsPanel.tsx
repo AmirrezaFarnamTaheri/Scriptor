@@ -293,15 +293,19 @@ function SettingsPanelImpl({
       icon={<Settings size={18} />}
       ariaLabel="Settings"
       onClose={onClose}
+      presentation={panelPresentation}
       className="settings-panel knowledge-filters-panel"
       wide
       tabs={SETTINGS_TABS}
       activeTab={activeTab}
       onTabChange={handleTabChange}
     >
-      {activeTab === 'general' ? (
-        <>
-          <p className="settings-persistence-note" role="note">
+      <div
+        className="settings-tab-pane"
+        hidden={activeTab !== 'general'}
+        style={activeTab !== 'general' ? { display: 'none' } : undefined}
+      >
+        <p className="settings-persistence-note" role="note">
             App preferences save immediately. Vault configuration is read from <code>.scriptor/config.json</code> and only writes when you choose Save.
           </p>
 
@@ -393,11 +397,13 @@ function SettingsPanelImpl({
               <button type="button" className="toolbar-button" onClick={onOpenSupport}>Open support panel</button>
             ) : null}
           </div>
-        </>
-      ) : null}
+      </div>
 
-      {activeTab === 'workspace' ? (
-        <>
+      <div
+        className="settings-tab-pane"
+        hidden={activeTab !== 'workspace'}
+        style={activeTab !== 'workspace' ? { display: 'none' } : undefined}
+      >
           <div className="settings-section">
             <h3>Workspace layout</h3>
             <label className="settings-field">
@@ -477,13 +483,21 @@ function SettingsPanelImpl({
               onReplayOnboarding={onReplayOnboarding}
             />
           ) : null}
-        </>
-      ) : null}
+      </div>
 
-      {activeTab === 'shortcuts' ? <KeyboardShortcutsSettingsSection /> : null}
+      <div
+        className="settings-tab-pane"
+        hidden={activeTab !== 'shortcuts'}
+        style={activeTab !== 'shortcuts' ? { display: 'none' } : undefined}
+      >
+        <KeyboardShortcutsSettingsSection />
+      </div>
 
-      {activeTab === 'advanced' ? (
-        <>
+      <div
+        className="settings-tab-pane"
+        hidden={activeTab !== 'advanced'}
+        style={activeTab !== 'advanced' ? { display: 'none' } : undefined}
+      >
           <div className="settings-section">
             <h3>Desktop engine</h3>
             <p className="health-subtitle">
@@ -610,8 +624,7 @@ function SettingsPanelImpl({
               <p className="empty-state">System metadata is available in the desktop shell.</p>
             )}
           </div>
-        </>
-      ) : null}
+      </div>
     </UnifiedPanelShell>
   )
 }

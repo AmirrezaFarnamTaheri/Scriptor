@@ -12,7 +12,7 @@ import {
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
-import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { FOCUSABLE_SELECTORS, useFocusTrap } from '../../hooks/useFocusTrap'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
 import { IconButton } from './WorkspaceChrome'
 
@@ -121,12 +121,23 @@ function UnifiedPanelShellImpl({
   // focus trap/backdrop and keeping still-focusable workspace controls visible.
   // Wide docks start below the live app chrome via --topbar-bottom.
 
-  const resolveInitialFocus = useCallback(() => initialFocusRef?.current ?? null, [initialFocusRef])
+  const resolveInitialFocus = useCallback(() => {
+    if (initialFocusRef?.current) return initialFocusRef.current
+    if (tabs && tabs.length > 0 && activeTab) {
+      const activeTabEl = shellRef.current?.querySelector<HTMLElement>(
+        `#${CSS.escape(`${titleId}-tab-${activeTab}`)}`,
+      )
+      if (activeTabEl) return activeTabEl
+    }
+    const bodyEl = bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
+    if (bodyEl) return bodyEl
+    return shellRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTORS) ?? null
+  }, [activeTab, initialFocusRef, tabs, titleId])
 
   useEscapeToClose(!docked && closeOnEscape, onClose)
   useFocusTrap(shellRef, {
     active: !docked,
-    initialFocus: initialFocusRef ? resolveInitialFocus : true,
+    initialFocus: resolveInitialFocus,
     initialFocusKey,
   })
 

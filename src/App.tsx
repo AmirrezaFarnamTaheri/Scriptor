@@ -6,17 +6,9 @@ import { isNativeBridgeAvailable } from './bridge/platform'
 import { useTopBarHeightVar } from './hooks/useTopBarHeightVar'
 import { VaultSidebar } from './components/app/VaultSidebar'
 import {
-  GitPanel,
-  GraphPanel,
-  KnowledgeWorkbench,
-  McpPanel,
   PanelFallback,
-  PublishCenter,
   SettingsPanel,
-  SnippetsPanelLazy,
-  VaultHealthDashboard,
 } from './components/app/lazyPanels'
-import { parseSimpleFrontmatter } from './lib/frontmatter'
 import { isReaderDocumentPath } from './hooks/vault/helpers'
 import { buildPaletteCommands } from './lib/buildPaletteCommands'
 import { planDailyNotePreview } from './lib/knowledge/templates'
@@ -30,22 +22,14 @@ import { useNoteDraftStats } from './hooks/useNoteDraftStats'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
 import { CommandPalette } from './components/CommandPalette'
-import {
-  CheatsheetPanel,
-  OnboardingTour,
-  PerfHudOverlay,
-  SupportPanel,
-  WritingTargetsPanel,
-} from './components/app/lazyPanels'
 import { AppToast, AppToastRegion } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
-import { FrontmatterInspector } from './components/FrontmatterInspector'
 import { QuickCaptureWorkspaceLayer } from './components/app/QuickCaptureWorkspaceLayer'
+import { WorkspaceDialogLayers } from './components/app/WorkspaceDialogLayers'
 import { WorkspacePanelLaunchers } from './components/app/WorkspacePanelLaunchers'
 import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlays'
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
-import { recordWritingSession } from './lib/writingTargets'
 import type { KnowledgeWorkbenchTab } from './components/KnowledgeWorkbench'
 import type { GitPullStrategy } from './bridge/commands/git'
 import { useCommandPalette } from './hooks/useCommandPalette'
@@ -95,14 +79,11 @@ import { useJourneyMetrics } from './hooks/useJourneyMetrics'
 import { useStarlightPublishing } from './hooks/useStarlightPublishing'
 import { usePanelPresentation } from './hooks/usePanelPresentation'
 import { extractPandocCitationKeys } from './lib/citationExtract'
-import { mutateVaultConfig } from './lib/vaultConfigMutation'
 import {
-  gitShowHeadFile,
   vaultReadNote,
   vaultSaveNote,
   codeChunkRun,
 } from './bridge/commands'
-import { ConflictResolverSurface } from './components/app/ConflictResolverSurface'
 import { BRAND_WORKSPACE_LABEL } from './brand/identity'
 import { editorFontFamilyCss } from './brand/support'
 import { useI18n } from './lib/i18n'
@@ -310,14 +291,6 @@ function App() {
     hibernateWatcher,
     hibernateGit,
   })
-  const gitReadHead = useCallback(async (path: string) => {
-    try { return await gitShowHeadFile(path) } catch { return null }
-  }, [])
-  const gitActivePath = workspace.activePath
-  const gitDraftMarkdown = workspace.draftMarkdown
-  const gitReadWorking = useCallback(async (path: string) =>
-    path === gitActivePath ? gitDraftMarkdown : (await vaultReadNote(path)).markdown,
-  [gitActivePath, gitDraftMarkdown])
   const deleteNoteController = useDeleteNoteController({
     enabled: nativeReady,
     closeTab: workspace.closeTab,
@@ -1608,7 +1581,7 @@ function App() {
           splitPreview={splitPreviewActive}
           activePath={workspace.activePath}
           previewRef={previewRef}
-          draftMarkdown={deferredDraft}
+          draftMarkdown={activeMode === 'preview' ? deferredDraft : ''}
           previewProps={previewBridge}
           inspectorOutline={workspace.inspectorOutline}
           inspectorLinks={workspace.inspectorLinks}
@@ -1719,6 +1692,32 @@ function App() {
         gmailManagerOpen={gmailManagerOpen}
         setGmailManagerOpen={setGmailManagerOpen}
         showToast={showToast}
+        graphOpen={graphOpen}
+        graphDepth={graphDepth}
+        graphFullVault={graphFullVault}
+        setGraphDepth={setGraphDepth}
+        setGraphFullVault={setGraphFullVault}
+        onCloseGraph={() => setGraphOpen(false)}
+        onOpenWorkbenchFromGraph={() => {
+          setGraphOpen(false)
+          openKnowledgeWorkbench('discover')
+        }}
+        hibernateGraph={hibernateGraph}
+        setHibernateGraph={setHibernateGraph}
+        gitPanelOpen={gitPanelOpen}
+        onCloseGit={handleCloseGit}
+        onRefreshGit={handleRefreshGit}
+        onCommitGit={handleCommitGit}
+        onPullGit={handlePullGit}
+        onPushGit={handlePushGit}
+        onResolveConflictGit={handleResolveConflictGit}
+        onOpenNoteFromGit={handleOpenNoteFromGit}
+        mcpPanelOpen={mcpPanelOpen}
+        mcp={mcp}
+        ai={ai}
+        editorTheme={editorTheme}
+        onCloseMcp={() => setMcpPanelOpen(false)}
+        promptText={promptText}
       />
 
       {commandPalette.open ? (
@@ -1727,212 +1726,6 @@ function App() {
           commands={paletteCommands}
           searchNotes={handleSearchNotes}
           onOpenNote={handleOpenNoteFromPalette}
-        />
-      ) : null}
-
-      {graphOpen && (
-        <ErrorBoundary
-          name="graph-panel"
-          resetKeys={[workspace.activePath]}
-          fallback={<PanelErrorFallback title="The graph" onDismiss={() => setGraphOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <GraphPanel
-          graph={workspace.graph}
-          focusPath={workspace.activePath}
-          graphGroups={workspace.vaultConfig.graph_groups ?? []}
-          vaultOpen={Boolean(workspace.vault)}
-          vaultId={workspace.vault?.id}
-          depth={graphDepth}
-          fullVault={graphFullVault}
-          onDepthChange={setGraphDepth}
-          onRefresh={(fullVault) => {
-            setGraphFullVault(fullVault)
-            void workspace.loadGraph(fullVault ? null : workspace.activePath, {
-              depth: graphDepth,
-              fullVault,
-            })
-          }}
-          onSelectNode={(path) => {
-            void workspace.openNote(path)
-            void workspace.loadGraph(path, { depth: graphDepth, fullVault: graphFullVault })
-          }}
-          onClose={() => setGraphOpen(false)}
-          onOpenWorkbench={() => {
-            setGraphOpen(false)
-            openKnowledgeWorkbench('discover')
-          }}
-          hibernated={hibernateGraph}
-          onToggleHibernate={() => setHibernateGraph((prev) => !prev)}
-        />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {mcpPanelOpen && (
-        <ErrorBoundary
-          name="mcp-panel"
-          fallback={<PanelErrorFallback title="The MCP panel" onDismiss={() => setMcpPanelOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <McpPanel
-          mode={mcp.mode}
-          tools={mcp.tools}
-          audit={mcp.audit}
-          drafts={mcp.drafts}
-          lastResult={mcp.lastResult}
-          activePath={workspace.activePath}
-          editorTheme={editorTheme}
-          presentation={panelPresentation}
-          onClose={() => setMcpPanelOpen(false)}
-          onModeChange={mcp.setMode}
-          onResetPermissions={mcp.resetPermissions}
-          readNoteContent={async (path) => (await vaultReadNote(path)).markdown}
-          onInvoke={(toolName, input) => {
-            void mcp.invokeTool(toolName, input)
-          }}
-          onApproveDraft={(patchId) => {
-            void mcp.approveDraft(patchId).then((result) => {
-              if (result?.ok) {
-                void workspace.refreshHealth()
-                if (workspace.activePath) {
-                  void workspace.openNote(workspace.activePath)
-                }
-              }
-            })
-          }}
-          onRejectDraft={mcp.rejectDraft}
-          aiEnabled={ai.enabled}
-          onGenerateDraft={() => {
-            void promptText({
-              title: 'Assistant draft',
-              label: 'Describe the edit you want the assistant to draft',
-              defaultValue: '',
-              submitLabel: 'Draft',
-            }).then((prompt) => {
-              if (!prompt || !workspace.activePath) return
-              void ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown).then((proposed) => {
-                void mcp.proposeDraftForActiveNote(proposed, `AI draft: ${prompt}`)
-              })
-            })
-          }}
-        />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {gitPanelOpen && (
-        <ErrorBoundary
-          name="git-panel"
-          fallback={<PanelErrorFallback title="The Git panel" onDismiss={() => setGitPanelOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <GitPanel
-            status={workspace.gitStatus}
-            statusError={workspace.gitStatusError}
-            isStatusLoading={workspace.isGitStatusLoading}
-            activePath={workspace.activePath}
-            isBusy={workspace.isGitBusy}
-            presentation={panelPresentation}
-            onClose={handleCloseGit}
-            onRefresh={handleRefreshGit}
-            onCommit={handleCommitGit}
-            onPull={handlePullGit}
-            onPush={handlePushGit}
-            onResolveConflict={handleResolveConflictGit}
-            onOpenNote={handleOpenNoteFromGit}
-            readNoteAtHead={gitReadHead}
-            readNoteWorking={gitReadWorking}
-          />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {writingTargetsOpen && (
-        <ErrorBoundary
-          name="writing-targets-panel"
-          autoRetryPanelFallback={false}
-          fallback={<PanelErrorFallback title="Writing targets" onDismiss={() => setWritingTargetsOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-        <WritingTargetsPanel
-          dailyTarget={workspace.vaultConfig.writing_targets?.daily_words ?? 500}
-          wordsToday={draftWordCount}
-          onDailyTargetChange={(value) => {
-            workspace.setVaultConfig((current) => ({
-              ...current,
-              writing_targets: {
-                ...current.writing_targets,
-                daily_words: value,
-                history_path: current.writing_targets?.history_path ?? '.scriptor/stats-history.json',
-              },
-            }))
-            if (nativeReady) {
-              void mutateVaultConfig((current) => ({
-                ...current,
-                writing_targets: {
-                  ...current.writing_targets,
-                  daily_words: value,
-                  history_path: current.writing_targets?.history_path ?? '.scriptor/stats-history.json',
-                },
-              })).catch((error) => {
-                workspace.logActivity(
-                  'error',
-                  'Writing target save failed',
-                  error instanceof Error ? error.message : String(error),
-                )
-              })
-            }
-          }}
-          onClose={() => {
-            recordWritingSession(draftWordCount)
-            setWritingTargetsOpen(false)
-          }}
-        />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {conflictPath && conflictSource ? (
-        <ConflictResolverSurface
-          conflictPath={conflictPath}
-          conflictSource={conflictSource}
-          conflictBasePreview={conflictBasePreview}
-          isBusy={workspace.isGitBusy}
-          onClose={() => setConflictPath(null)}
-          onResolved={() => void workspace.refreshGit()}
-        />
-      ) : null}
-
-      {healthDashboardOpen && (
-        <ErrorBoundary
-          name="vault-health-panel"
-          fallback={<PanelErrorFallback title="Vault health" onDismiss={() => setHealthDashboardOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <VaultHealthDashboard
-            diagnostics={workspace.healthDiagnostics}
-            inspectorWidgets={plugins.contributions.inspectorWidgets}
-            vaultHealthChecks={plugins.contributions.vaultHealthChecks}
-            onClose={handleCloseHealthDashboard}
-            onOpenIssue={handleOpenIssueFromHealth}
-            onRebuildIndex={handleRebuildIndexFromHealth}
-            onFixVaultLint={handleFixVaultLintFromHealth}
-            onOpenWorkbench={handleOpenWorkbenchFromHealth}
-            onGenerateLinkReferences={handleGenerateLinkReferencesFromHealth}
-            isFixingVaultLint={workspace.isFixingVaultLint}
-          />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {frontmatterOpen && workspace.activePath ? (
-        <FrontmatterInspector
-          key={`${workspace.activePath}:${workspace.activeNote?.metadata.content_hash ?? ''}`}
-          path={workspace.activePath}
-          fields={parseSimpleFrontmatter(workspace.draftMarkdown)}
-          onClose={() => setFrontmatterOpen(false)}
-          onSaved={() => void workspace.reloadActiveNoteFromDisk()}
         />
       ) : null}
 
@@ -2027,115 +1820,57 @@ function App() {
         }}
       />
 
-      {knowledgeWorkbenchOpen && (
-        <ErrorBoundary
-          name="knowledge-workbench"
-          resetKeys={[workspace.activePath]}
-          fallback={<PanelErrorFallback title="The workbench" onDismiss={() => setKnowledgeWorkbenchOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <KnowledgeWorkbench
-            vaultOpen={Boolean(workspace.vault)}
-            vaultId={workspace.vault?.id}
-            initialTab={knowledgeWorkbenchTab}
-            activePath={workspace.activePath}
-            onClose={handleCloseKnowledgeWorkbench}
-            onOpenNote={handleOpenNoteFromWorkbench}
-            onOpenGraph={handleOpenGraphFromWorkbench}
-            onCreateNoteFromWikilink={handleCreateNoteFromWikilink}
-            onInsertTag={handleInsertTagFromWorkbench}
-            onRenameTag={handleRenameTagFromWorkbench}
-            promptText={promptText}
-          />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {publishCenterOpen && (
-        <ErrorBoundary
-          name="publish-center"
-          resetKeys={[workspace.activePath]}
-          fallback={<PanelErrorFallback title="Publish Center" onDismiss={() => setPublishCenterOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <PublishCenter
-            activePath={workspace.activePath}
-            draftMarkdown={deferredDraft}
-            previewProps={previewBridge}
-            exportProfiles={workspace.exportProfiles}
-            exportHistory={workspace.exportHistory}
-            exportResult={workspace.exportResult}
-            isExporting={workspace.isExporting}
-            nativeReady={nativeReady}
-            onClose={handleClosePublishCenter}
-            onExport={handleExportFromPublishCenter}
-            onCancelExport={handleCancelExportFromPublishCenter}
-            publishPlan={publishPlan}
-            applyingPlan={publishApplying}
-            publishRequireOptIn
-            onPlanStarlight={handlePlanStarlight}
-            onReplanStarlight={handleReplanStarlight}
-            onApplyPlan={handleApplyPlanFromPublishCenter}
-          />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {snippetsOpen && (
-        <ErrorBoundary
-          name="snippets-panel"
-          fallback={<PanelErrorFallback title="Snippets" onDismiss={() => setSnippetsOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <SnippetsPanelLazy
-          vaultOpen={Boolean(workspace.vault)}
-          onClose={() => setSnippetsOpen(false)}
-          onSaved={() => void workspace.refreshVaultSnippets()}
-        />
-        </Suspense>
-        </ErrorBoundary>
-      )}
-
-      {cheatsheetOpen ? (
-        <ErrorBoundary
-          name="cheatsheet-panel"
-          autoRetryPanelFallback={false}
-          fallback={<PanelErrorFallback title="Cheatsheet" onDismiss={() => setCheatsheetOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <CheatsheetPanel onClose={() => setCheatsheetOpen(false)} />
-        </Suspense>
-        </ErrorBoundary>
-      ) : null}
-      {onboarding.onboardingOpen ? (
-        <ErrorBoundary
-          name="onboarding-tour"
-          autoRetryPanelFallback={false}
-          fallback={<PanelErrorFallback title="Onboarding tour" onDismiss={onboarding.completeOnboarding} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <OnboardingTour
-            onComplete={onboarding.completeOnboarding}
-            onOpenCheatsheet={() => {
-              onboarding.completeOnboarding()
-              setCheatsheetOpen(true)
-            }}
-          />
-        </Suspense>
-        </ErrorBoundary>
-      ) : null}
-
-      {supportOpen ? (
-        <ErrorBoundary
-          name="support-panel"
-          autoRetryPanelFallback={false}
-          fallback={<PanelErrorFallback title="Support" onDismiss={() => setSupportOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <SupportPanel onClose={() => setSupportOpen(false)} />
-        </Suspense>
-        </ErrorBoundary>
-      ) : null}
+      <WorkspaceDialogLayers
+        workspace={workspace}
+        plugins={plugins}
+        nativeReady={nativeReady}
+        draftWordCount={draftWordCount}
+        deferredDraft={deferredDraft}
+        previewBridge={previewBridge}
+        onboarding={onboarding}
+        perfMetrics={perfMetrics}
+        writingTargetsOpen={writingTargetsOpen}
+        setWritingTargetsOpen={setWritingTargetsOpen}
+        conflictPath={conflictPath}
+        conflictSource={conflictSource}
+        conflictBasePreview={conflictBasePreview}
+        setConflictPath={setConflictPath}
+        healthDashboardOpen={healthDashboardOpen}
+        onCloseHealthDashboard={handleCloseHealthDashboard}
+        onOpenIssueFromHealth={handleOpenIssueFromHealth}
+        onRebuildIndexFromHealth={handleRebuildIndexFromHealth}
+        onFixVaultLintFromHealth={handleFixVaultLintFromHealth}
+        onOpenWorkbenchFromHealth={handleOpenWorkbenchFromHealth}
+        onGenerateLinkReferencesFromHealth={handleGenerateLinkReferencesFromHealth}
+        frontmatterOpen={frontmatterOpen}
+        setFrontmatterOpen={setFrontmatterOpen}
+        knowledgeWorkbenchOpen={knowledgeWorkbenchOpen}
+        knowledgeWorkbenchTab={knowledgeWorkbenchTab}
+        onCloseKnowledgeWorkbench={handleCloseKnowledgeWorkbench}
+        onOpenNoteFromWorkbench={handleOpenNoteFromWorkbench}
+        onOpenGraphFromWorkbench={handleOpenGraphFromWorkbench}
+        onCreateNoteFromWikilink={handleCreateNoteFromWikilink}
+        onInsertTagFromWorkbench={handleInsertTagFromWorkbench}
+        onRenameTagFromWorkbench={handleRenameTagFromWorkbench}
+        publishCenterOpen={publishCenterOpen}
+        publishPlan={publishPlan}
+        publishApplying={publishApplying}
+        onClosePublishCenter={handleClosePublishCenter}
+        onExportFromPublishCenter={handleExportFromPublishCenter}
+        onCancelExportFromPublishCenter={handleCancelExportFromPublishCenter}
+        onPlanStarlight={handlePlanStarlight}
+        onReplanStarlight={handleReplanStarlight}
+        onApplyPlanFromPublishCenter={handleApplyPlanFromPublishCenter}
+        snippetsOpen={snippetsOpen}
+        setSnippetsOpen={setSnippetsOpen}
+        cheatsheetOpen={cheatsheetOpen}
+        setCheatsheetOpen={setCheatsheetOpen}
+        supportOpen={supportOpen}
+        setSupportOpen={setSupportOpen}
+        perfHudOpen={perfHudOpen}
+        setPerfHudOpen={setPerfHudOpen}
+        promptText={promptText}
+      />
 
       {quickCaptureOpen || stickiesVisible ? (
         <QuickCaptureWorkspaceLayer
@@ -2183,18 +1918,6 @@ function App() {
           onSubmit={submitPrompt}
           onCancel={cancelPrompt}
         />
-      ) : null}
-
-      {perfHudOpen ? (
-        <ErrorBoundary
-          name="perf-hud"
-          autoRetryPanelFallback={false}
-          fallback={<PanelErrorFallback title="Performance HUD" onDismiss={() => setPerfHudOpen(false)} />}
-        >
-        <Suspense fallback={<PanelFallback />}>
-          <PerfHudOverlay metrics={perfMetrics.metrics} />
-        </Suspense>
-        </ErrorBoundary>
       ) : null}
       {toastMessage ? (
         <AppToastRegion>

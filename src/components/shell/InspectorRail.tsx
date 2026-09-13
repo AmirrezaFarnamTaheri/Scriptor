@@ -153,9 +153,15 @@ function InspectorRailImpl({
     () => INSPECTOR_PRESETS.find((entry) => entry.id === inspectorPreset) ?? INSPECTOR_PRESETS[0],
     [inspectorPreset],
   )
-  const missingCitations = citationRows.filter((key) => !bibliographyKeys.has(key)).length
+  const missingCitations = useMemo(
+    () => citationRows.filter((key) => !bibliographyKeys.has(key)).length,
+    [citationRows, bibliographyKeys],
+  )
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
-  const presetIds = INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`)
+  const presetIds = useMemo(
+    () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),
+    [],
+  )
   function handlePresetKeys(event: React.KeyboardEvent) {
     const current = INSPECTOR_PRESETS.findIndex((entry) => entry.id === inspectorPreset)
     let next = -1
