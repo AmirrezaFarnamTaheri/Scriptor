@@ -40,7 +40,6 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
         .blocks
         .iter()
         .filter(|block| layer_by_id(document, &block.layer_id).is_some_and(|layer| layer.visible))
-        .cloned()
         .collect::<Vec<_>>();
     blocks.sort_by_key(|block| block.z_index);
 
@@ -64,8 +63,8 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
         let block_id = xml_escape(&block.id);
         let label = block
             .content_ref
-            .clone()
-            .unwrap_or_else(|| block.id.clone());
+            .as_deref()
+            .unwrap_or(&block.id);
 
         match block.kind {
             CanvasBlockKind::Connector => {
@@ -79,12 +78,12 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     stroke,
                     block.bounds.x + 8.0,
                     block.bounds.y - 6.0,
-                    xml_escape(&label),
+                    xml_escape(label),
                 ));
                 continue;
             }
             CanvasBlockKind::Image => {
-                let href = block.content_ref.clone().unwrap_or_else(|| "image".into());
+                let href = block.content_ref.as_deref().unwrap_or("image");
                 svg.push_str(&format!(
                     r##"<g data-block-id="{}"><rect x="{}" y="{}" width="{}" height="{}" fill="#e2e8f0" stroke="{}" /><text x="{}" y="{}" font-size="12" fill="#475569">img: {}</text></g>"##,
                     block_id,
@@ -95,7 +94,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     stroke,
                     block.bounds.x + 12.0,
                     block.bounds.y + 24.0,
-                    xml_escape(&href),
+                    xml_escape(href),
                 ));
                 continue;
             }
@@ -110,7 +109,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     stroke,
                     block.bounds.x + 12.0,
                     block.bounds.y + 24.0,
-                    xml_escape(&label),
+                    xml_escape(label),
                 ));
                 continue;
             }
@@ -123,20 +122,15 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                 .as_ref()
                 .is_some_and(|points| points.len() >= 2)
         {
-            let points = block.stroke_points.clone().unwrap_or_default();
-            if points.len() >= 2 {
-                let path = points
-                    .iter()
-                    .enumerate()
-                    .map(|(index, point)| {
-                        if index == 0 {
-                            format!("M {} {}", point.x, point.y)
-                        } else {
-                            format!(" L {} {}", point.x, point.y)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("");
+            if let Some(points) = block.stroke_points.as_deref()
+                && points.len() >= 2
+            {
+                use std::fmt::Write;
+                let mut path = String::with_capacity(points.len() * 16);
+                for (index, point) in points.iter().enumerate() {
+                    let prefix = if index == 0 { "M" } else { " L" };
+                    let _ = write!(path, "{prefix} {} {}", point.x, point.y);
+                }
                 let stroke_width = block
                     .style
                     .as_ref()

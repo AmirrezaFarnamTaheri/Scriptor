@@ -138,11 +138,14 @@ fn encode_id(canvas_id: &str) -> Result<String, CanvasError> {
     }
 
     let mut encoded = String::with_capacity(canvas_id.len());
+    const HEX_DIGITS: &[u8; 16] = b"0123456789ABCDEF";
     for byte in canvas_id.as_bytes() {
         if byte.is_ascii_alphanumeric() || *byte == b'-' || *byte == b'_' {
             encoded.push(*byte as char);
         } else {
-            encoded.push_str(&format!("%{byte:02X}"));
+            encoded.push('%');
+            encoded.push(HEX_DIGITS[(*byte >> 4) as usize] as char);
+            encoded.push(HEX_DIGITS[(*byte & 0x0F) as usize] as char);
         }
     }
     Ok(encoded)

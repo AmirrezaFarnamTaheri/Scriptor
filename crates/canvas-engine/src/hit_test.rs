@@ -26,19 +26,19 @@ pub struct HitTestResult {
 }
 
 pub fn hit_test(document: &CanvasDocument, point: CanvasPoint) -> Option<HitTestResult> {
-    let mut candidates: Vec<&CanvasBlock> = document
+    document
         .blocks
         .iter()
         .filter(|block| is_block_selectable(document, block) && block.bounds.contains(point))
-        .collect();
-
-    candidates.sort_by_key(|right| std::cmp::Reverse(right.z_index));
-
-    candidates.first().map(|block| HitTestResult {
-        block_id: block.id.clone(),
-        layer_id: block.layer_id.clone(),
-        kind: block_kind_label(&block.kind).to_string(),
-    })
+        .fold(None, |best: Option<&CanvasBlock>, block| match best {
+            Some(curr) if curr.z_index >= block.z_index => Some(curr),
+            _ => Some(block),
+        })
+        .map(|block| HitTestResult {
+            block_id: block.id.clone(),
+            layer_id: block.layer_id.clone(),
+            kind: block_kind_label(&block.kind).to_string(),
+        })
 }
 
 pub fn query_blocks_in_bounds(
