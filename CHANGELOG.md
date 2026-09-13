@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 1.0.10 — 2026-09-13
+
+### Fixed
+- Finalized the corrected release-quality gate for the localized resource-sharing tab. The failed, unpublished v1.0.9 attempt remains traceable in the release history; this patch is the publishable successor.
+
 ## 1.0.9 — 2026-09-13
 
 ### Fixed
