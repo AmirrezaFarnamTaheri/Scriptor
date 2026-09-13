@@ -271,9 +271,14 @@ pub fn run_export_job_with_cancel(
     let mut command = vec![pandoc.path.clone()];
     command.extend(args.clone());
 
+    let job_id = input
+        .job_id
+        .clone()
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
+
     if input.dry_run {
         return Ok(ExportJobOutput {
-            job_id: Uuid::new_v4().to_string(),
+            job_id,
             format: input.format,
             artifact_path: artifact_path.display().to_string(),
             command,
@@ -284,10 +289,6 @@ pub fn run_export_job_with_cancel(
         });
     }
 
-    let job_id = input
-        .job_id
-        .clone()
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
     let started = Instant::now();
 
     // Route the converter through the shared process boundary. Pandoc's own

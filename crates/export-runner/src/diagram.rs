@@ -305,6 +305,46 @@ fn validate_binary_path(binary: &Path, env_var: &str) -> Result<(), String> {
 }
 
 fn which_binary(name: &str) -> Option<std::path::PathBuf> {
+    if let Some(path_var) = std::env::var_os("PATH") {
+        #[cfg(windows)]
+        {
+            let pathext_var = std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
+            let pathexts: Vec<String> = std::env::split_paths(&pathext_var)
+                .filter_map(|p| p.to_str().map(|s| s.to_ascii_lowercase()))
+                .collect();
+            let has_ext = Path::new(name).extension().is_some();
+
+            for dir in std::env::split_paths(&path_var) {
+                if has_ext {
+                    let candidate = dir.join(name);
+                    if candidate.is_file() {
+                        return Some(candidate);
+                    }
+                } else {
+                    for ext in &pathexts {
+                        let candidate = dir.join(format!("{name}{ext}"));
+                        if candidate.is_file() {
+                            return Some(candidate);
+                        }
+                    }
+                    let candidate = dir.join(name);
+                    if candidate.is_file() {
+                        return Some(candidate);
+                    }
+                }
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            for dir in std::env::split_paths(&path_var) {
+                let candidate = dir.join(name);
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+
     if cfg!(windows) {
         // PROCESS_BROKER_EXCEPTION(diagram-discovery-windows)
         output_with_timeout(Command::new("where").arg(name), WHICH_TIMEOUT)
