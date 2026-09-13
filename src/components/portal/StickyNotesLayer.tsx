@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { X } from 'lucide-react'
 
 import type { QuickStickyNote } from '@scriptor/portal'
@@ -9,7 +10,7 @@ interface StickyNotesLayerProps {
   onDelete: (id: string) => void
 }
 
-export function StickyNotesLayer({ stickies, visible, onUpdate, onDelete }: StickyNotesLayerProps) {
+export const StickyNotesLayer = memo(function StickyNotesLayer({ stickies, visible, onUpdate, onDelete }: StickyNotesLayerProps) {
   if (!visible || stickies.length === 0) return null
 
   return (
@@ -46,4 +47,4 @@ export function StickyNotesLayer({ stickies, visible, onUpdate, onDelete }: Stic
       ))}
     </div>
   )
-}
+})

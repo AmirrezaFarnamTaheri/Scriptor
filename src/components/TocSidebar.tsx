@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { TocEntry } from '@scriptor/editor'
 
 interface TocSidebarProps {
@@ -7,7 +8,7 @@ interface TocSidebarProps {
   onClose: () => void
 }
 
-export function TocSidebar({ entries, activeLine, onSelect, onClose }: TocSidebarProps) {
+export const TocSidebar = memo(function TocSidebar({ entries, activeLine, onSelect, onClose }: TocSidebarProps) {
   return (
     <aside className="toc-sidebar" aria-label="Table of contents">
       <header>
@@ -37,4 +38,4 @@ export function TocSidebar({ entries, activeLine, onSelect, onClose }: TocSideba
       )}
     </aside>
   )
-}
+})

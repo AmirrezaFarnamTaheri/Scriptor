@@ -18,6 +18,7 @@
 import '../../styles/components/reader-panel.css'
 
 import {
+  memo,
   useCallback,
   useEffect,
   useMemo,
@@ -75,7 +76,7 @@ export interface ReaderPanelProps {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export function ReaderPanel({
+export const ReaderPanel = memo(function ReaderPanel({
   filePath,
   vaultRoot,
   presentation = 'dock-right',
@@ -485,7 +486,7 @@ export function ReaderPanel({
       </div>
     </UnifiedPanelShell>
   )
-}
+})
 
 function messageFor(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause)
