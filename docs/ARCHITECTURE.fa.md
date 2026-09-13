@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](ARCHITECTURE.md) · **فارسی** · [简体中文](ARCHITECTURE.zh-CN.md) · [Русский](ARCHITECTURE.ru.md) · [Deutsch](ARCHITECTURE.de.md) · [Español](ARCHITECTURE.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # معماری فعلی
@@ -12,6 +18,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```text
 React renderer
   -> typed bridge commands
@@ -25,6 +32,7 @@ CLI/TUI and MCP
   -> daemon IPC (scriptor-ipc envelopes)
   -> daemon handlers and shared kernel crates
 ```
+</div>
 
 </div>
 
@@ -121,5 +129,8 @@ SQLite از WAL، foreign key، busy timeout، current-schema validation، FTS �
 ## کار معماری شناخته‌شده
 
 adapter layer هنوز composition root دارد، اما quick capture، rename transaction، deletion، telemetry، shortcut، sidebar action، auxiliary workspace data، settings vault configuration، MCP tool contract، daemon command catalog/support، daemon transport tests، CLI command-line schema و CLI benchmarks owner متمرکز دارند. decomposition بعدی از طریق vertical workflowهای characterizeشده روی typed application services انجام می‌شود، نه big-bang rewrite. capability ledger را ببینید.
+
+</div>
+
 
 </div>
