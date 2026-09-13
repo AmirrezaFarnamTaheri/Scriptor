@@ -74,7 +74,7 @@ pnpm test:e2e        # Playwright end-to-end tests
 
 <div dir="rtl" lang="fa">
 
-CI همین بررسی‌ها را در [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) تکرار می‌کند.
+<bdi dir="ltr">CI</bdi> همین بررسی‌ها را در [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) تکرار می‌کند.
 
 ## اسناد مرتبط
 

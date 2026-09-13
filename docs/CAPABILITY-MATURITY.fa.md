@@ -53,13 +53,13 @@
 
 یک قابلیت فقط وقتی به Supported ارتقا پیدا می‌کند که همه موارد زیر وجود داشته باشند:
 
-1. owner مشخص و support window؛
-2. public contract پایدار و current-schema policy؛
+1. <bdi dir="ltr">owner</bdi> مشخص و support window؛
+2. <bdi dir="ltr">public</bdi> contract پایدار و current-schema policy؛
 3. تست‌های positive، negative، restart، cancellation و recovery؛
-4. authorization/privacy model؛
-5. bounded performance evidence؛
+4. <bdi dir="ltr">authorization/privacy</bdi> model؛
+5. <bdi dir="ltr">bounded</bdi> performance evidence؛
 6. مستندات کاربر و operator؛
-7. inclusion در release و artifact verification؛
+7. <bdi dir="ltr">inclusion</bdi> در release و artifact verification؛
 8. changelog entry.
 
 </div>

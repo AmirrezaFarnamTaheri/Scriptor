@@ -4,14 +4,14 @@
 
 ## جایگاه محصول
 
-Scriptor یک فضای کاری local-first بر پایه Markdown برای نوشتن حرفه‌ای و پژوهش است. این محصول نوشتن، مدیریت شواهد، ارجاع‌دهی، پیمایش گراف، بازبینی آگاه از Git، انتشار بازتولیدپذیر و خودکارسازی مجوزمحور را کنار هم قرار می‌دهد و در عین حال فایل‌های Markdown روی دیسک را مرجع اصلی نگه می‌دارد.
+<bdi dir="ltr">Scriptor</bdi> یک فضای کاری local-first بر پایه Markdown برای نوشتن حرفه‌ای و پژوهش است. این محصول نوشتن، مدیریت شواهد، ارجاع‌دهی، پیمایش گراف، بازبینی آگاه از Git، انتشار بازتولیدپذیر و خودکارسازی مجوزمحور را کنار هم قرار می‌دهد و در عین حال فایل‌های Markdown روی دیسک را مرجع اصلی نگه می‌دارد.
 
 ## زمینه عملیاتی
 
 - برنامه دسکتاپ Tauri سطح اصلی محصول است.
 - پوسته وب برای توسعه و آزمون بصری استفاده می‌شود.
-- daemon، CLI/TUI، سرور MCP و فهرست محدود افزونه‌ها extensionهای عملیاتی همان مدل vault هستند.
-- Mobile، vaultهای رمزگذاری‌شده، embeddings، Tantivy و WASM host مطابق [`docs/CAPABILITY-MATURITY.fa.md`](docs/CAPABILITY-MATURITY.fa.md) آزمایشی یا صرفاً طراحی‌شده باقی می‌مانند.
+- <bdi dir="ltr">daemon</bdi>، CLI/TUI، سرور MCP و فهرست محدود افزونه‌ها extensionهای عملیاتی همان مدل vault هستند.
+- <bdi dir="ltr">Mobile</bdi>، vaultهای رمزگذاری‌شده، embeddings، Tantivy و WASM host مطابق [`docs/CAPABILITY-MATURITY.fa.md`](docs/CAPABILITY-MATURITY.fa.md) آزمایشی یا صرفاً طراحی‌شده باقی می‌مانند.
 
 ## شواهد موجود
 
@@ -34,7 +34,7 @@ Scriptor یک فضای کاری local-first بر پایه Markdown برای نو
 
 ## کاربران و کار اصلی
 
-Scriptor برای نویسندگان، پژوهشگران، دانشجویان، نویسندگان فنی و knowledge workerهایی است که vaultهای Markdown بلندمدت نگه می‌دارند. آن‌ها از Scriptor برای ثبت مطالب، پیوند دادن شواهد، نگارش و بازبینی متن بلند، مدیریت citation، سنجش کیفیت دانش، انتشار بازتولیدپذیر و خودکارسازی کارهای محدود بدون واگذاری مالکیت فایل‌ها استفاده می‌کنند.
+<bdi dir="ltr">Scriptor</bdi> برای نویسندگان، پژوهشگران، دانشجویان، نویسندگان فنی و knowledge workerهایی است که vaultهای Markdown بلندمدت نگه می‌دارند. آن‌ها از Scriptor برای ثبت مطالب، پیوند دادن شواهد، نگارش و بازبینی متن بلند، مدیریت citation، سنجش کیفیت دانش، انتشار بازتولیدپذیر و خودکارسازی کارهای محدود بدون واگذاری مالکیت فایل‌ها استفاده می‌کنند.
 
 ## وعده محصول
 
@@ -62,33 +62,33 @@ Scriptor برای نویسندگان، پژوهشگران، دانشجویان،
 
 - بدون از دست رفتن خاموش داده یا mutation میان vaultها؛
 - حافظه و latency محدود با رشد اندازه vault؛
-- releaseهای بازتولیدپذیر و قابل انتساب به source با trust status صریح، checksum، CycloneDX SBOM، receipt و provenance attestation؛
-- workflowهای کامل با keyboard و مطابق WCAG 2.2 AA؛
+- <bdi dir="ltr">release</bdi>های بازتولیدپذیر و قابل انتساب به source با trust status صریح، checksum، CycloneDX SBOM، receipt و provenance attestation؛
+- <bdi dir="ltr">workflow</bdi>های کامل با keyboard و مطابق WCAG 2.2 AA؛
 - مشارکت‌کننده جدید بدون «باستان‌شناسی» بتواند ownership، contractها، testها و operational evidence را پیدا کند؛
-- workflowهای اصلی کاربر بدون network خارجی کار کنند، مگر سرویس‌هایی که صریحاً opt-in شده‌اند.
+- <bdi dir="ltr">workflow</bdi>های اصلی کاربر بدون network خارجی کار کنند، مگر سرویس‌هایی که صریحاً opt-in شده‌اند.
 
 ## موارد خارج از محصول
 
-- storage اختصاصی به‌عنوان source of truth؛
+- <bdi dir="ltr">storage</bdi> اختصاصی به‌عنوان source of truth؛
 - اختیار محیطی AI یا plugin؛
-- fallback شبکه پنهان؛
-- navigation مبتنی بر chat که نوشتن را کنار بزند؛
-- dashboard chrome تزئینی که فضای کار را کم کند؛
+- <bdi dir="ltr">fallback</bdi> شبکه پنهان؛
+- <bdi dir="ltr">navigation</bdi> مبتنی بر chat که نوشتن را کنار بزند؛
+- <bdi dir="ltr">dashboard</bdi> chrome تزئینی که فضای کار را کم کند؛
 - ادعای امنیت برای prototype encryption یا third-party code بدون isolation؛
-- channelهای production که trust status عمداً unsigned نصب‌کننده upstream را پنهان یا نادرست نمایش دهند.
+- <bdi dir="ltr">channel</bdi>های production که trust status عمداً unsigned نصب‌کننده upstream را پنهان یا نادرست نمایش دهند.
 
 ## مدل عملیاتی
 
-Scriptor local-first است. renderer نسبت به اختیار native غیرقابل اعتماد فرض می‌شود. Tauri commandها، daemon RPC، MCP، external processها، Git، دسترسی keychain و backup/restore مرزهای صریح‌اند. log و audit recordهای محلی محدود و redactشده‌اند؛ mutation recordهای با integrity بالا به‌صورت hash-chain نگه‌داری می‌شوند.
+<bdi dir="ltr">Scriptor</bdi> local-first است. renderer نسبت به اختیار native غیرقابل اعتماد فرض می‌شود. Tauri commandها، daemon RPC، MCP، external processها، Git، دسترسی keychain و backup/restore مرزهای صریح‌اند. log و audit recordهای محلی محدود و redactشده‌اند؛ mutation recordهای با integrity بالا به‌صورت hash-chain نگه‌داری می‌شوند.
 
 ## سیاست roadmap
 
-Roadmap گزینه‌ها را توصیف می‌کند، نه رفتار فعلی. یک capability فقط وقتی ارتقا پیدا می‌کند که داشته باشد:
+<bdi dir="ltr">Roadmap</bdi> گزینه‌ها را توصیف می‌کند، نه رفتار فعلی. یک capability فقط وقتی ارتقا پیدا می‌کند که داشته باشد:
 
-- owner و source entry point نام‌گذاری‌شده؛
-- semantics صریح trust و failure؛
-- testهای positive، negative، restart و recovery؛
+- <bdi dir="ltr">owner</bdi> و source entry point نام‌گذاری‌شده؛
+- <bdi dir="ltr">semantics</bdi> صریح trust و failure؛
+- <bdi dir="ltr">test</bdi>های positive، negative، restart و recovery؛
 - مدل authorization/privacy؛
-- evidence عملکرد محدود؛
+- <bdi dir="ltr">evidence</bdi> عملکرد محدود؛
 - مستندات user/operator؛
 - وضعیت release inclusion و support در capability ledger.

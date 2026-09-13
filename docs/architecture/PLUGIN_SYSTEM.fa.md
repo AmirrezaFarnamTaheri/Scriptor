@@ -14,15 +14,15 @@
 
 ## هدف‌ها
 
-- Scriptor بتواند توسعه پیدا کند بدون اینکه هسته برنامه بی‌مرز و نفوذپذیر شود.
+- <bdi dir="ltr">Scriptor</bdi> بتواند توسعه پیدا کند بدون اینکه هسته برنامه بی‌مرز و نفوذپذیر شود.
 - فایل‌ها و writeهای vault با command contract محافظت شوند.
-- extensionهای first-party و marketplace همراه برنامه بتوانند command، رفتار renderer، export profile، ابزار MCP، inspector widget، بررسی سلامت vault، ابزار و blockهای Canvas و template pack اضافه کنند.
+- <bdi dir="ltr">extension</bdi>های first-party و marketplace همراه برنامه بتوانند command، رفتار renderer، export profile، ابزار MCP، inspector widget، بررسی سلامت vault، ابزار و blockهای Canvas و template pack اضافه کنند.
 - هر permission قابل مشاهده و قابل لغو باشد.
 
 ## موارد خارج از هدف
 
 - در نسخه اول plugin دسترسی خام به filesystem ندارد.
-- daemon پس‌زمینه تحت مدیریت plugin نداریم.
+- <bdi dir="ltr">daemon</bdi> پس‌زمینه تحت مدیریت plugin نداریم.
 - ابزار write مربوط به MCP بدون review نداریم.
 
 ## مدل Runtime افزونه
@@ -85,13 +85,13 @@ Plugin manifest
 
 ## دروازه‌های ایمنی
 
-- manifest افزونه پیش از load با schema اعتبارسنجی می‌شود.
+- <bdi dir="ltr">manifest</bdi> افزونه پیش از load با schema اعتبارسنجی می‌شود.
 - تغییر permission نیاز به تأیید کاربر دارد.
-- commandهای افزونه از همان command bus مربوط به UI و CLI عبور می‌کنند.
-- widgetهای افزونه فقط scoped data دریافت می‌کنند و هرگز raw vault handle نمی‌گیرند.
-- renderer extensionها ورودی sanitized دریافت می‌کنند.
+- <bdi dir="ltr">command</bdi>های افزونه از همان command bus مربوط به UI و CLI عبور می‌کنند.
+- <bdi dir="ltr">widget</bdi>های افزونه فقط scoped data دریافت می‌کنند و هرگز raw vault handle نمی‌گیرند.
+- <bdi dir="ltr">renderer</bdi> extensionها ورودی sanitized دریافت می‌کنند.
 - خرابی افزونه باعث disable شدن همان افزونه می‌شود و shell برنامه را crash نمی‌کند.
-- Safe mode با همه افزونه‌ها در حالت disabled شروع می‌شود.
+- <bdi dir="ltr">Safe</bdi> mode با همه افزونه‌ها در حالت disabled شروع می‌شود.
 
 ## قابلیت‌های عرضه‌شده
 

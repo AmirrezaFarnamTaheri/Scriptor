@@ -39,13 +39,13 @@
 - <bdi dir="ltr">`signed: false`</bdi>؛
 - <bdi dir="ltr">`notarized: false`</bdi>؛
 - <bdi dir="ltr">`signatureType: "none"`</bdi>؛
-- source commit دقیق؛
-- release channel، target platform و architecture؛
+- <bdi dir="ltr">source</bdi> commit دقیق؛
+- <bdi dir="ltr">release</bdi> channel، target platform و architecture؛
 - دستور verifier: checksum + GitHub attestation.
 
-publication job دقیقاً یک رکورد برای هر target پشتیبانی‌شده لازم دارد. رکورد missing، duplicate، unexpected، wrong-channel یا wrong-commit انتشار را متوقف می‌کند.
+<bdi dir="ltr">publication</bdi> job دقیقاً یک رکورد برای هر target پشتیبانی‌شده لازم دارد. رکورد missing، duplicate، unexpected، wrong-channel یا wrong-commit انتشار را متوقف می‌کند.
 
-release receipt با schema 4، target matrix راستی‌آزمایی‌شده را کنار source identity، toolchain metadata، checksumها و exact installer subject set قرار می‌دهد. رکورد production بدون امضا مجاز است، اما trust status گم‌شده یا با توصیف نادرست هرگز مجاز نیست.
+<bdi dir="ltr">release</bdi> receipt با schema 4، target matrix راستی‌آزمایی‌شده را کنار source identity، toolchain metadata، checksumها و exact installer subject set قرار می‌دهد. رکورد production بدون امضا مجاز است، اما trust status گم‌شده یا با توصیف نادرست هرگز مجاز نیست.
 
 ## مرز دقیق Artifact
 
@@ -56,32 +56,32 @@ release receipt با schema 4، target matrix راستی‌آزمایی‌شده
 
 محتوای unpacked AppDir، فایل‌های داخلی <bdi dir="ltr">`.app`</bdi>، script کمکی DMG، logهای CI، cache، source map، key material موقت و فایل دلخواه زیر <bdi dir="ltr">`target/release/bundle`</bdi> هرگز release subject نیستند.
 
-publication فایل‌های stagingشده را download می‌کند و rebuild انجام نمی‌دهد. سپس می‌سازد:
+<bdi dir="ltr">publication</bdi> فایل‌های stagingشده را download می‌کند و rebuild انجام نمی‌دهد. سپس می‌سازد:
 
 - <bdi dir="ltr">`SHA256SUMS`</bdi> فقط برای هفت installer subject؛
-- CycloneDX 1.6 SBOM متصل به release version و source identity؛
-- source-bound release receipt schema 4 با چهار normalized trust record؛
-- GitHub provenance و SBOM attestation برای هر installer subject.
+- <bdi dir="ltr">CycloneDX</bdi> 1.6 SBOM متصل به release version و source identity؛
+- <bdi dir="ltr">source-bound</bdi> release receipt schema 4 با چهار normalized trust record؛
+- <bdi dir="ltr">GitHub</bdi> provenance و SBOM attestation برای هر installer subject.
 
 چهار trust-status record به‌عنوان metadata منتشر و در receipt embed می‌شوند، اما installer subject نیستند و در <bdi dir="ltr">`SHA256SUMS`</bdi> قرار نمی‌گیرند.
 
 ## کنترل‌های Supply Chain
 
-- action خارجی به full commit SHA بازبینی‌شده pin می‌شود؛
-- runner label ثابت و versionهای pinشده Node، pnpm و Rust؛
-- frozen pnpm dependency installation و locked Cargo resolution؛
+- <bdi dir="ltr">action</bdi> خارجی به full commit SHA بازبینی‌شده pin می‌شود؛
+- <bdi dir="ltr">runner</bdi> label ثابت و versionهای pinشده Node، pnpm و Rust؛
+- <bdi dir="ltr">frozen</bdi> pnpm dependency installation و locked Cargo resolution؛
 - نام artifact مخصوص architecture برای جلوگیری از collision میان x86_64/aarch64؛
-- immutable tag creation با خودداری از retarget نسخه موجود؛
+- <bdi dir="ltr">immutable</bdi> tag creation با خودداری از retarget نسخه موجود؛
 - بررسی دقیق cardinality نصب‌کننده و metadata پیش از evidence generation؛
-- exact subject-set verification پیش از release upload؛
-- clean-checkout source identity متصل به release commit؛
-- diagnostics مربوط به packaging/publication نگه داشته می‌شود ولی با release asset مخلوط نمی‌شود.
+- <bdi dir="ltr">exact</bdi> subject-set verification پیش از release upload؛
+- <bdi dir="ltr">clean-checkout</bdi> source identity متصل به release commit؛
+- <bdi dir="ltr">diagnostics</bdi> مربوط به packaging/publication نگه داشته می‌شود ولی با release asset مخلوط نمی‌شود.
 
 ## راستی‌آزمایی توسط مصرف‌کننده
 
 یک installer را همراه <bdi dir="ltr">`SHA256SUMS`، `scriptor.cyclonedx.json` و `release-receipt.json`</bdi> از یک GitHub Release واحد دانلود کنید.
 
-GitHub attestation را بررسی کنید:
+<bdi dir="ltr">GitHub</bdi> attestation را بررسی کنید:
 
 </div>
 

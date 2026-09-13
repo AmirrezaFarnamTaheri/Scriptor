@@ -85,13 +85,13 @@ area.action
 | `daemon_rename_apply` | command | Headless IPC | اعمال rename و refresh index فایل‌های تحت‌تأثیر. |
 | `daemon_export_run_note`, `daemon_export_run_markdown` | command | Headless IPC | export با Pandoc از note روی disk یا Markdown preprocessشده. |
 
-wrapperهای frontend: `src/bridge/commands.ts` (بازصادرکننده `src/bridge/commands/*`)، `src/bridge/canvas.ts`، `src/bridge/native.ts`، `src/bridge/vaultEvents.ts`، `src/bridge/exportEvents.ts`، `src/hooks/useHeadlessEngine.ts`.
+<bdi dir="ltr">wrapper</bdi>های frontend: `src/bridge/commands.ts` (بازصادرکننده `src/bridge/commands/*`)، `src/bridge/canvas.ts`، `src/bridge/native.ts`، `src/bridge/vaultEvents.ts`، `src/bridge/exportEvents.ts`، `src/hooks/useHeadlessEngine.ts`.
 
-routing در headless: وقتی Settings → Headless engine فعال است، `indexer.ts`، `git.ts`، `vault.ts` برای save/rename و `export.ts` به‌جای فرمان‌های in-process به `daemon_*` delegate می‌کنند.
+<bdi dir="ltr">routing</bdi> در headless: وقتی Settings → Headless engine فعال است، `indexer.ts`، `git.ts`، `vault.ts` برای save/rename و `export.ts` به‌جای فرمان‌های in-process به `daemon_*` delegate می‌کنند.
 
 ## متدهای RPC daemon (`scriptor-daemon`)
 
-IPC با framing از نوع postcard؛ [`architecture/IPC_DAEMON.fa.md`](../architecture/IPC_DAEMON.fa.md) را ببینید.
+<bdi dir="ltr">IPC</bdi> با framing از نوع postcard؛ [`architecture/IPC_DAEMON.fa.md`](../architecture/IPC_DAEMON.fa.md) را ببینید.
 
 | متد RPC | permission | توضیح |
 |---|---|---|
@@ -121,17 +121,17 @@ IPC با framing از نوع postcard؛ [`architecture/IPC_DAEMON.fa.md`](../arc
 | `SCRIPTOR_CLI` | path اختیاری binary `scriptor`؛ default برابر `scriptor` روی `PATH` است. |
 | `SCRIPTOR_MCP_MODE` | mode permission: `off`، `read-only`، `draft` یا `write-approved`؛ default برابر `read-only` است. |
 
-implementation: `packages/mcp/src/cli-vault-context.ts` و `packages/mcp/src/stdio-server.ts`.
+<bdi dir="ltr">implementation:</bdi> `packages/mcp/src/cli-vault-context.ts` و `packages/mcp/src/stdio-server.ts`.
 
 ## checklist بازبینی فرمان
 
 هنگام افزودن command یا RPC method جدید:
 
-- owner module و permission class دارد.
-- input/output تایپ‌شده دارد؛ در صورت کاربرد contractهای Rust و TS هر دو.
-- error string یا code پایدار برای نمایش در UI دارد.
+- <bdi dir="ltr">owner</bdi> module و permission class دارد.
+- <bdi dir="ltr">input/output</bdi> تایپ‌شده دارد؛ در صورت کاربرد contractهای Rust و TS هر دو.
+- <bdi dir="ltr">error</bdi> string یا code پایدار برای نمایش در UI دارد.
 - هنگام invocation از MCP یا AI رفتار audit مشخص دارد.
-- rollback note یا declaration صریح no-mutation دارد.
-- fixture، smoke script یا پوشش unit test دارد.
+- <bdi dir="ltr">rollback</bdi> note یا declaration صریح no-mutation دارد.
+- <bdi dir="ltr">fixture</bdi>، smoke script یا پوشش unit test دارد.
 
 </div>

@@ -26,7 +26,7 @@
 
 فرمان‌های نصب در بخش **Build from source** فایل [`README.fa.md`](../README.fa.md) آمده‌اند. فهرست کامل بررسی‌های اجباری در [`CONTRIBUTING.fa.md`](../CONTRIBUTING.fa.md) است.
 
-> gateهای سریع محلی: `pnpm test:source` برای contract و governance، `pnpm check:changelog` برای guard یادداشت انتشار، `pnpm test:rust` برای gate هماهنگ با CI در Rust (بدون scriptor-desktop و موتورهای در حال incubation)، و `pnpm check:i18n` برای برابری localeها.
+> <bdi dir="ltr">gate</bdi>های سریع محلی: `pnpm test:source` برای contract و governance، `pnpm check:changelog` برای guard یادداشت انتشار، `pnpm test:rust` برای gate هماهنگ با CI در Rust (بدون scriptor-desktop و موتورهای در حال incubation)، و `pnpm check:i18n` برای برابری localeها.
 
 ## معماری در یک نگاه
 
@@ -53,7 +53,7 @@ CLI/TUI and MCP
 
 <div dir="rtl" lang="fa" align="right">
 
-renderer مرز اختیار نیست. عملیات native مستقل از وضعیت UI، scope، authorization، payloadهای runtime، pathها، policy اجرای process و cancellation را اعتبارسنجی می‌کنند.
+<bdi dir="ltr">renderer</bdi> مرز اختیار نیست. عملیات native مستقل از وضعیت UI، scope، authorization، payloadهای runtime، pathها، policy اجرای process و cancellation را اعتبارسنجی می‌کنند.
 
 ## نقاط ورود کلیدی
 

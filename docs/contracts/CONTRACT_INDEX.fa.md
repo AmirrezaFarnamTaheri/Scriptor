@@ -12,11 +12,11 @@
 
 ## قواعد Contract
 
-- contract پیش از implementation رفتار را تعریف می‌کند.
-- contract باید آن‌قدر پایدار باشد که UI، CLI، MCP و test به‌صورت مشترک استفاده کنند.
+- <bdi dir="ltr">contract</bdi> پیش از implementation رفتار را تعریف می‌کند.
+- <bdi dir="ltr">contract</bdi> باید آن‌قدر پایدار باشد که UI، CLI، MCP و test به‌صورت مشترک استفاده کنند.
 - هر command، owner، permission، input، output، error و rollback را اعلام می‌کند.
-- implementation بومی Rust نباید رفتاری خارج از TypeScript contract ایجاد کند.
-- contract می‌تواند experimental باشد، اما وضعیت باید صریح باشد.
+- <bdi dir="ltr">implementation</bdi> بومی Rust نباید رفتاری خارج از TypeScript contract ایجاد کند.
+- <bdi dir="ltr">contract</bdi> می‌تواند experimental باشد، اما وضعیت باید صریح باشد.
 
 ## Contractهای اولیه
 

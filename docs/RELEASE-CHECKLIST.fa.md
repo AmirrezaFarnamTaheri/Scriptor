@@ -12,7 +12,7 @@
 
 پیش از تأیید release، baselineهای visual capture باید review شوند. گالری مرجع در [`README.md`](../README.md) اصلی است؛ inventory کامل captureهای بررسی‌شده، یادداشت reviewer و workflow بازتولید در [`assets/screenshots/README.md`](assets/screenshots/README.md) و قواعد review و coverage مجموعه آزمون در [`VISUAL-REVIEW.md`](VISUAL-REVIEW.md) قرار دارد.
 
-Production release تا زمانی که همه موارد ضروری روی tag دقیق و bytes دقیق artifact بررسی نشده باشند blocked است.
+<bdi dir="ltr">Production</bdi> release تا زمانی که همه موارد ضروری روی tag دقیق و bytes دقیق artifact بررسی نشده باشند blocked است.
 
 ## شرایط توقف Promotion
 

@@ -11,11 +11,11 @@
 
 ## مرز محصول
 
-Scriptor v1 برای هر دغدغه ماندگار یک مرجع اختیار دارد:
+<bdi dir="ltr">Scriptor</bdi> v1 برای هر دغدغه ماندگار یک مرجع اختیار دارد:
 
-- vault مالک محتوا، تصمیم‌های capability، audit recordها و داده‌های بازیابی است؛
+- <bdi dir="ltr">vault</bdi> مالک محتوا، تصمیم‌های capability، audit recordها و داده‌های بازیابی است؛
 - آداپتورهای native هر عملیات filesystem، process، IPC و capability-sensitive را validate و authorize می‌کنند؛
-- renderer فقط مالک presentation state، چرخه عمر request و read modelهای cacheشده است؛
+- <bdi dir="ltr">renderer</bdi> فقط مالک presentation state، چرخه عمر request و read modelهای cacheشده است؛
 - قراردادهای package رابط دقیق renderer، desktop، daemon، CLI، MCP و plugin را تعریف می‌کنند.
 
 داده browser که persist می‌شود باید از envelope فعلی و validateشده استفاده کند. مقادیر نامعتبر یا منسوخ quarantine می‌شوند و هرگز به‌عنوان state زنده تفسیر نمی‌شوند. state افزونه در vault نگه‌داری می‌شود. ذخیره‌سازی Canvas از شناسه‌های canonical استفاده می‌کند و فایل‌های noncanonical را رد می‌کند.

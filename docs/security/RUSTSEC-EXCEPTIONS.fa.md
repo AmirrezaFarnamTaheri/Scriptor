@@ -17,7 +17,7 @@
 
 ### شواهد بازبینی 2026-09-03
 
-- advisoryهای ignored مربوط به GTK3/Tauri، `proc-macro-error`، `atomic-polyfill`، `paste` و `rust-unic` همچنان RustSec **INFO / unmaintained** هستند و نسخه patched ندارند. packageهای locked هنوز وجود دارند چون graph پشتیبانی‌شده Tauri/Linux یا dependency graph transitively محصول در این checkout جایگزین maintained و compatible ندارد.
+- <bdi dir="ltr">advisory</bdi>های ignored مربوط به GTK3/Tauri، `proc-macro-error`، `atomic-polyfill`، `paste` و `rust-unic` همچنان RustSec **INFO / unmaintained** هستند و نسخه patched ندارند. packageهای locked هنوز وجود دارند چون graph پشتیبانی‌شده Tauri/Linux یا dependency graph transitively محصول در این checkout جایگزین maintained و compatible ندارد.
 - `RUSTSEC-2025-0057` (`fxhash`) هم از این دفتر و هم از `deny.toml` حذف شد: `fxhash` دیگر در `Cargo.lock` نیست؛ نگه‌داشتن exception فقط reintroduction آینده را مخفی می‌کرد، نه reachability فعلی را مستند.
 - این بازبینی vulnerabilityهای تازه‌منتشرشده را suppress نمی‌کند. `cargo deny` برای advisoryهای بیرون این فهرست دقیق همچنان مرجع production است؛ محیط production-capable بعدی باید پیش از tagging آن را در برابر advisory database فعلی اجرا کند.
 

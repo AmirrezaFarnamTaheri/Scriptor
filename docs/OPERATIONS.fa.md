@@ -20,7 +20,7 @@
 - نسل/تازگی index؛
 - قطع‌شدن subscriberهای daemon؛
 - نتایج timeout/cancel/truncation فرایند؛
-- intentهای در انتظار MCP؛
+- <bdi dir="ltr">intent</bdi>های در انتظار MCP؛
 - راستی‌آزمایی backup و restore journal؛
 - وضعیت log rotation/repair.
 
@@ -30,7 +30,7 @@
 
 ## بسته پشتیبانی
 
-Settings → Diagnostics → **Export redacted support bundle** یک artifact پشتیبانی JSON محدود را در `.scriptor/diagnostics/` می‌نویسد. این بسته شامل هویت برنامه/سیستم، شمارش‌های تجمیعی سلامت vault و حداکثر ۱۰۰ رویداد diagnostic از قبل redactشده سمت client است. مسیر ریشه vault، مسیر یادداشت‌ها، محتوای یادداشت، بدنه requestها و credentialها عمداً حذف می‌شوند. journal تشخیصی client در 2 MiB rotate می‌شود و اندازه message/detail پیش از ذخیره‌سازی محدود می‌گردد.
+<bdi dir="ltr">Settings</bdi> → Diagnostics → **Export redacted support bundle** یک artifact پشتیبانی JSON محدود را در `.scriptor/diagnostics/` می‌نویسد. این بسته شامل هویت برنامه/سیستم، شمارش‌های تجمیعی سلامت vault و حداکثر ۱۰۰ رویداد diagnostic از قبل redactشده سمت client است. مسیر ریشه vault، مسیر یادداشت‌ها، محتوای یادداشت، بدنه requestها و credentialها عمداً حذف می‌شوند. journal تشخیصی client در 2 MiB rotate می‌شود و اندازه message/detail پیش از ذخیره‌سازی محدود می‌گردد.
 
 
 </div>

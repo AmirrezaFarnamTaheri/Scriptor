@@ -10,7 +10,7 @@
 
 ## نمای کلی
 
-vault با نام `example-research` یک پایگاه دانش نمونه است که همراه Scriptor ارائه می‌شود. این vault قابلیت‌های اصلی مانند wikilink، frontmatter، یادداشت روزانه، citation، template و navigation در graph را نمایش می‌دهد.
+<bdi dir="ltr">vault</bdi> با نام `example-research` یک پایگاه دانش نمونه است که همراه Scriptor ارائه می‌شود. این vault قابلیت‌های اصلی مانند wikilink، frontmatter، یادداشت روزانه، citation، template و navigation در graph را نمایش می‌دهد.
 
 ## محل
 
@@ -56,7 +56,7 @@ example-research/
 
 ### Wikilink
 
-linkهای داخلی از syntax دو براکت استفاده می‌کنند:
+<bdi dir="ltr">link</bdi>های داخلی از syntax دو براکت استفاده می‌کنند:
 
 </div>
 
@@ -73,11 +73,11 @@ linkهای داخلی از syntax دو براکت استفاده می‌کنند
 
 - `[[path]]` — link به یک note با path نسبی
 - `[[path|display text]]` — link با متن نمایشی سفارشی
-- linkها نسبت به ریشه vault resolve می‌شوند
+- <bdi dir="ltr">link</bdi>ها نسبت به ریشه vault resolve می‌شوند
 
 ### Frontmatter
 
-YAML frontmatter در ابتدای هر note metadata را فراهم می‌کند:
+<bdi dir="ltr">YAML</bdi> frontmatter در ابتدای هر note metadata را فراهم می‌کند:
 
 </div>
 
@@ -142,7 +142,7 @@ daily/2026-01-15.md
 
 ### Citation
 
-noteهای reference از `citation_key` در frontmatter استفاده می‌کنند:
+<bdi dir="ltr">note</bdi>های reference از `citation_key` در frontmatter استفاده می‌کنند:
 
 </div>
 
@@ -156,7 +156,7 @@ citation_key: einstein1905
 
 <div dir="rtl" lang="fa" align="right">
 
-citation درون‌متنی از syntax `[@key]` استفاده می‌کند:
+<bdi dir="ltr">citation</bdi> درون‌متنی از syntax `[@key]` استفاده می‌کند:
 
 </div>
 
@@ -170,21 +170,21 @@ As shown by [@einstein1905], light consists of discrete quanta.
 
 <div dir="rtl" lang="fa" align="right">
 
-exportهای vault از فایل bibliography به نام `references.bib` و یک style از CSL برای citationهای formatشده استفاده می‌کنند.
+<bdi dir="ltr">export</bdi>های vault از فایل bibliography به نام `references.bib` و یک style از CSL برای citationهای formatشده استفاده می‌کنند.
 
 ### Navigation در Graph
 
 با دکمه **Graph** در نوار بالا graph را باز کنید:
 
 - هر note یک node است.
-- Wikilinkها میان nodeها edge ایجاد می‌کنند.
-- tagها از طریق `graph_groups` در config رنگ nodeها را کنترل می‌کنند.
+- <bdi dir="ltr">Wikilink</bdi>ها میان nodeها edge ایجاد می‌کنند.
+- <bdi dir="ltr">tag</bdi>ها از طریق `graph_groups` در config رنگ nodeها را کنترل می‌کنند.
 - روی یک node کلیک کنید تا به note آن بروید.
 - با depth controlها graph را باز یا جمع کنید.
 
 ### Template
 
-templateهای `templates/` از placeholderهای `{{token}}` استفاده می‌کنند:
+<bdi dir="ltr">template</bdi>های `templates/` از placeholderهای `{{token}}` استفاده می‌کنند:
 
 </div>
 
@@ -205,19 +205,19 @@ type: note
 
 <div dir="rtl" lang="fa" align="right">
 
-tokenهای موجود:
+<bdi dir="ltr">token</bdi>های موجود:
 - `{{title}}` — عنوان note
 - `{{date}}` — تاریخ ISO فعلی
 
 ### Snippet
 
-snippetهای editor در `.scriptor/snippets.json` templateهای quick-insert را فراهم می‌کنند. prefix مانند `daily`، `meeting` یا `ref` را تایپ کنید و Tab را فشار دهید.
+<bdi dir="ltr">snippet</bdi>های editor در `.scriptor/snippets.json` templateهای quick-insert را فراهم می‌کنند. prefix مانند `daily`، `meeting` یا `ref` را تایپ کنید و Tab را فشار دهید.
 
 ## بارگذاری vault نمونه
 
 ### از داخل برنامه
 
-1. Scriptor را باز کنید.
+1. <bdi dir="ltr">Scriptor</bdi> را باز کنید.
 2. **Open Vault** را انتخاب کنید.
 3. به `packages/test-fixtures/vaults/example-research/` بروید.
 4. **Open** را بزنید.

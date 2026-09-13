@@ -12,7 +12,7 @@
 
 ## فرض اصلی کارایی
 
-Scriptor باید از workspaceهای Markdown دوران Electron سریع‌تر حس شود، چون کار سنگین از UI thread بیرون می‌رود، کد native مالک مرزهای IO و process است و state مشتق با semantics صریح rebuild cache می‌شود.
+<bdi dir="ltr">Scriptor</bdi> باید از workspaceهای Markdown دوران Electron سریع‌تر حس شود، چون کار سنگین از UI thread بیرون می‌رود، کد native مالک مرزهای IO و process است و state مشتق با semantics صریح rebuild cache می‌شود.
 
 ## پشته بهینه‌سازی
 
@@ -46,23 +46,23 @@ Scriptor باید از workspaceهای Markdown دوران Electron سریع‌�
 
 ## قواعد کارایی UI
 
-- summary مشتق را render کنید، نه ساختار خام کل vault را.
-- editor state را محلی در editor adapter نگه دارید.
-- app shell state را کم‌عمق و serializable نگه دارید.
+- <bdi dir="ltr">summary</bdi> مشتق را render کنید، نه ساختار خام کل vault را.
+- <bdi dir="ltr">editor</bdi> state را محلی در editor adapter نگه دارید.
+- <bdi dir="ltr">app</bdi> shell state را کم‌عمق و serializable نگه دارید.
 - برای file tree، backlink، job و command result از row height ثابت استفاده کنید.
-- panelهای graph، canvas، export، plugin و AI را تا زمان بازشدن defer کنید.
-- plugin widgetها را در slot محدود با data contract صریح نگه دارید.
+- <bdi dir="ltr">panel</bdi>های graph، canvas، export، plugin و AI را تا زمان بازشدن defer کنید.
+- <bdi dir="ltr">plugin</bdi> widgetها را در slot محدود با data contract صریح نگه دارید.
 - در panelهای مستقل با scroll جدا از CSS containment استفاده کنید.
-- reduced motion را رعایت کنید و از choreography هنگام page load دوری کنید.
+- <bdi dir="ltr">reduced</bdi> motion را رعایت کنید و از choreography هنگام page load دوری کنید.
 
 ## قواعد کارایی Native
 
 - یک vault path را هرگز دو بار به‌صورت موازی scan نکنید.
-- file watcher eventها را پیش از cache update batch کنید.
+- <bdi dir="ltr">file</bdi> watcher eventها را پیش از cache update batch کنید.
 - با content hash از noteهای بدون تغییر عبور کنید.
-- index updateها را داخل transactionهای SQLite اجرا کنید.
-- process arg صریح را به shell string ترجیح دهید.
-- cache rebuild را یک recovery path عادی در نظر بگیرید.
+- <bdi dir="ltr">index</bdi> updateها را داخل transactionهای SQLite اجرا کنید.
+- <bdi dir="ltr">process</bdi> arg صریح را به shell string ترجیح دهید.
+- <bdi dir="ltr">cache</bdi> rebuild را یک recovery path عادی در نظر بگیرید.
 - برای jobهای طولانی progress و نقطه cancellation منتشر کنید.
 
 ## مسیرهای ارتقا

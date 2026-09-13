@@ -41,7 +41,7 @@ pnpm cli -- export-discover
 | override با <bdi dir="ltr">`SCRIPTOR_PANDOC_PATH`</bdi> | **پشتیبانی می‌شود** | مناسب deployment سازمانی. |
 | Pandoc همراه نصب‌کننده | **اختیاری** | <bdi dir="ltr">`SCRIPTOR_BUNDLED_PANDOC_DIR` + `scripts/release/install-bundled-pandoc.ps1`</bdi> |
 
-export dry-run بدون نصب Pandoc هم کار می‌کند و فقط آرگومان‌ها را پیش‌نمایش می‌دهد. خروجی واقعی به یک binary سالم Pandoc و engineهای مربوط به فرمت، مثل LaTeX برای PDF، نیاز دارد.
+<bdi dir="ltr">export</bdi> dry-run بدون نصب Pandoc هم کار می‌کند و فقط آرگومان‌ها را پیش‌نمایش می‌دهد. خروجی واقعی به یک binary سالم Pandoc و engineهای مربوط به فرمت، مثل LaTeX برای PDF، نیاز دارد.
 
 ## راه‌اندازی پیشنهادی
 
@@ -89,7 +89,7 @@ brew install pandoc
 
 ## مرز مجوزهای GPL / AGPL برای Pandoc
 
-Pandoc تحت **GPL-2.0-or-later** و Scriptor تحت **AGPL-3.0-or-later** منتشر می‌شود. این دو مجوز برای توزیع سازگارند، اما نحوه فراخوانی Pandoc مرز مهمی است.
+<bdi dir="ltr">Pandoc</bdi> تحت **GPL-2.0-or-later** و Scriptor تحت **AGPL-3.0-or-later** منتشر می‌شود. این دو مجوز برای توزیع سازگارند، اما نحوه فراخوانی Pandoc مرز مهمی است.
 
 ### Scriptor چگونه از Pandoc استفاده می‌کند
 

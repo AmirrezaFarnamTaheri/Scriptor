@@ -10,13 +10,13 @@
 
 [English](CONTRACT_GOVERNANCE.md) · [简体中文](CONTRACT_GOVERNANCE.zh-CN.md) · [Русский](CONTRACT_GOVERNANCE.ru.md) · [Deutsch](CONTRACT_GOVERNANCE.de.md) · [Español](CONTRACT_GOVERNANCE.es.md) · **فارسی**
 
-contractها رابط دقیق بین renderer اسکریپتور، native moduleها، CLI، ابزارهای MCP، pluginها و testها هستند.
+<bdi dir="ltr">contract</bdi>ها رابط دقیق بین renderer اسکریپتور، native moduleها، CLI، ابزارهای MCP، pluginها و testها هستند.
 
 ## قواعد V1
 
 - هر command یک identifier پایدار، owner، permission level، typed input/output، typed error code، audit behavior و mutation/rollback statement دارد.
-- implementationهای Rust و TypeScript contractها در یک change packet با هم تغییر می‌کنند. native code حق ندارد رفتاری خارج از contract ایجاد کند.
-- contract نسخه v1 فقط schema اعلام‌شده خودش را می‌پذیرد. fieldهای unknown، renamed و obsolete در boundary رد می‌شوند و compatibility adapter عرضه نمی‌شود.
+- <bdi dir="ltr">implementation</bdi>های Rust و TypeScript contractها در یک change packet با هم تغییر می‌کنند. native code حق ندارد رفتاری خارج از contract ایجاد کند.
+- <bdi dir="ltr">contract</bdi> نسخه v1 فقط schema اعلام‌شده خودش را می‌پذیرد. fieldهای unknown، renamed و obsolete در boundary رد می‌شوند و compatibility adapter عرضه نمی‌شود.
 - هر contract break عمدی یک نسخه جدید محصول است و به replacement contract، behavioral test، source-contract coverage، docs، changelog baseline update و release verification نیاز دارد.
 
 ## Review ضروری

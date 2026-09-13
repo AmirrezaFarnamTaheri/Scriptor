@@ -59,13 +59,13 @@ cargo tree --workspace
 
 <div dir="rtl" lang="fa" align="right">
 
-exceptionهای RustSec suppression عمومی محسوب نمی‌شوند. تنها سطح exception مجاز، ledger versioned در [`security/RUSTSEC-EXCEPTIONS.fa.md`](security/RUSTSEC-EXCEPTIONS.fa.md) است که owner، reachability، تاریخ review و exit condition را ثبت می‌کند. vulnerability-class advisory جدید یا قابل upgrade همچنان release blocker است.
+<bdi dir="ltr">exception</bdi>های RustSec suppression عمومی محسوب نمی‌شوند. تنها سطح exception مجاز، ledger versioned در [`security/RUSTSEC-EXCEPTIONS.fa.md`](security/RUSTSEC-EXCEPTIONS.fa.md) است که owner، reachability، تاریخ review و exit condition را ثبت می‌کند. vulnerability-class advisory جدید یا قابل upgrade همچنان release blocker است.
 
-process boundary هم بخشی از security gate است: اجرای external process در production باید از system bridge تأییدشده عبور کند و با process inventory تطبیق داده شود. secrets، network، filesystem، mutationهای MCP و permissionهای plugin باید در native trust boundary خود به‌صورت fail-closed validate شوند.
+<bdi dir="ltr">process</bdi> boundary هم بخشی از security gate است: اجرای external process در production باید از system bridge تأییدشده عبور کند و با process inventory تطبیق داده شود. secrets، network، filesystem، mutationهای MCP و permissionهای plugin باید در native trust boundary خود به‌صورت fail-closed validate شوند.
 
 ## ۳. سطح Type، Contract و Boundary
 
-Scriptor از contractهای generated میان Rust و TypeScript و contractهای اضافی source استفاده می‌کند تا renderer، Tauri، daemon، CLI/TUI و MCP در payload بی‌صدا از هم diverge نشوند.
+<bdi dir="ltr">Scriptor</bdi> از contractهای generated میان Rust و TypeScript و contractهای اضافی source استفاده می‌کند تا renderer، Tauri، daemon، CLI/TUI و MCP در payload بی‌صدا از هم diverge نشوند.
 
 </div>
 
@@ -90,7 +90,7 @@ pnpm check:i18n
 
 ## ۴. Build و UI Smoke
 
-build مربوط به frontend و desktop بررسی می‌کند که surfaceهای TypeScript/React، host مربوط به Tauri و bundled assetها با هم سازگار باشند.
+<bdi dir="ltr">build</bdi> مربوط به frontend و desktop بررسی می‌کند که surfaceهای TypeScript/React، host مربوط به Tauri و bundled assetها با هم سازگار باشند.
 
 </div>
 
@@ -111,11 +111,11 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 برای evidence مخصوص desktop، مسیرهای build مربوط به Tauri روی سیستم‌عامل‌های پشتیبانی‌شده اجرا می‌شوند. سبز بودن web build به‌تنهایی desktop integration، native capability یا تولید درست installer را ثابت نمی‌کند.
 
-UI smoke حداقل باید بازکردن vault، read/write note، readiness مربوط به index/search، stateهای error/recovery و navigation اصلی را پوشش دهد. modeهای E2E و screenshot نباید وارد production bundle شوند.
+<bdi dir="ltr">UI</bdi> smoke حداقل باید بازکردن vault، read/write note، readiness مربوط به index/search، stateهای error/recovery و navigation اصلی را پوشش دهد. modeهای E2E و screenshot نباید وارد production bundle شوند.
 
 ## ۵. Test Suiteها
 
-verification ترکیبی از source contractهای سریع، testهای JavaScript/TypeScript، testهای Rust، Playwright E2E، accessibility و visual regression است. هیچ‌کدام جای دیگری را نمی‌گیرد.
+<bdi dir="ltr">verification</bdi> ترکیبی از source contractهای سریع، testهای JavaScript/TypeScript، testهای Rust، Playwright E2E، accessibility و visual regression است. هیچ‌کدام جای دیگری را نمی‌گیرد.
 
 </div>
 
@@ -138,36 +138,36 @@ pnpm check:release
 
 ### E2E و Visual
 
-Playwright برای E2E functional و visual suite stable از config و output directory جداگانه استفاده می‌کند. screenshot canonical مستندات capture تازه source فعلی است؛ Windows snapshot stable یک سطح جداگانه برای پذیرش regression است. [`assets/screenshots/README.fa.md`](assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](VISUAL-REVIEW.fa.md) را ببینید.
+<bdi dir="ltr">Playwright</bdi> برای E2E functional و visual suite stable از config و output directory جداگانه استفاده می‌کند. screenshot canonical مستندات capture تازه source فعلی است؛ Windows snapshot stable یک سطح جداگانه برای پذیرش regression است. [`assets/screenshots/README.fa.md`](assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](VISUAL-REVIEW.fa.md) را ببینید.
 
 تغییر عمدی pixel باید review و صریحاً update شود. visual tolerance سراسری برای پنهان‌کردن regression افزایش داده نمی‌شود.
 
 ### Accessibility
 
-evidence مربوط به accessibility، بررسی خودکار axe را با contractهای keyboard/focus برای modal، menu، Canvas/Graph، listهای virtualized و security-state control ترکیب می‌کند. حداقل هدف surface محصول WCAG 2.2 AA است و targetهای coarse-pointer حداقل 44×44 px می‌مانند.
+<bdi dir="ltr">evidence</bdi> مربوط به accessibility، بررسی خودکار axe را با contractهای keyboard/focus برای modal، menu، Canvas/Graph، listهای virtualized و security-state control ترکیب می‌کند. حداقل هدف surface محصول WCAG 2.2 AA است و targetهای coarse-pointer حداقل 44×44 px می‌مانند.
 
 ### Performance
 
-benchmarkها baseline versioned و threshold مشخص دارند. performance gate برای شناسایی regression در startup، indexing، search، graph، vault بزرگ و surfaceهای memory-heavy است؛ برای مقایسه مطلق hardware تصادفی طراحی نشده است.
+<bdi dir="ltr">benchmark</bdi>ها baseline versioned و threshold مشخص دارند. performance gate برای شناسایی regression در startup، indexing، search، graph، vault بزرگ و surfaceهای memory-heavy است؛ برای مقایسه مطلق hardware تصادفی طراحی نشده است.
 
 ## ۶. Packaging و راستی‌آزمایی Installer
 
-release فقط پس از packaging موفق همه platformها یک desktop release محسوب می‌شود. matrix پشتیبانی همان Windows، macOS و Linux اعلام‌شده در README و release docs است.
+<bdi dir="ltr">release</bdi> فقط پس از packaging موفق همه platformها یک desktop release محسوب می‌شود. matrix پشتیبانی همان Windows، macOS و Linux اعلام‌شده در README و release docs است.
 
-Packaging evidence مخصوصاً این موارد را بررسی می‌کند:
+<bdi dir="ltr">Packaging</bdi> evidence مخصوصاً این موارد را بررسی می‌کند:
 
-- file type و architecture مورد انتظار؛
+- <bdi dir="ltr">file</bdi> type و architecture مورد انتظار؛
 - برابری نسخه در `VERSION`، npm، Cargo و Tauri؛
 - نبود marker مربوط به E2E/fault-injection در release bundle؛
 - نام installer/bundle و checksumها؛
 - نبود symbolic link غیرمنتظره یا absolute/traversal path؛
-- association قابل بازتولید با release commit.
+- <bdi dir="ltr">association</bdi> قابل بازتولید با release commit.
 
-entry pointهای مرتبط زیر `scripts/release/` مستند شده‌اند؛ release workflow artifactهای platform را می‌سازد و بعد در یک evidence stage مشترک جمع می‌کند.
+<bdi dir="ltr">entry</bdi> pointهای مرتبط زیر `scripts/release/` مستند شده‌اند؛ release workflow artifactهای platform را می‌سازد و بعد در یک evidence stage مشترک جمع می‌کند.
 
 ## ۷. Release Evidence، SBOM و Provenance
 
-release pipeline شواهد نهایی را **پس از** دانلود همه artifactهای platform تولید می‌کند. فایل‌های مرجع شامل موارد زیر هستند:
+<bdi dir="ltr">release</bdi> pipeline شواهد نهایی را **پس از** دانلود همه artifactهای platform تولید می‌کند. فایل‌های مرجع شامل موارد زیر هستند:
 
 </div>
 
@@ -183,13 +183,13 @@ SHA256SUMS
 
 <div dir="rtl" lang="fa" align="right">
 
-verifier، receipt را allowlist دقیق می‌داند. artifact گمشده، artifact اضافی خارج از receipt، checksum تکراری، symbolic link، absolute/traversal path، source-tree drift یا SBOM metadata drift همگی promotion را متوقف می‌کنند. [`evidence/README.fa.md`](evidence/README.fa.md) و [`RELEASE-SECURITY.fa.md`](RELEASE-SECURITY.fa.md) را ببینید.
+<bdi dir="ltr">verifier</bdi>، receipt را allowlist دقیق می‌داند. artifact گمشده، artifact اضافی خارج از receipt، checksum تکراری، symbolic link، absolute/traversal path، source-tree drift یا SBOM metadata drift همگی promotion را متوقف می‌کنند. [`evidence/README.fa.md`](evidence/README.fa.md) و [`RELEASE-SECURITY.fa.md`](RELEASE-SECURITY.fa.md) را ببینید.
 
-GitHub provenance attestation و source identity ثبت‌شده فقط پس از verify موفق evidence محلی تولید می‌شوند. archive محلی بدون Git checkout canonical برای diagnosis مفید است، اما production provenance قابل قبول نیست.
+<bdi dir="ltr">GitHub</bdi> provenance attestation و source identity ثبت‌شده فقط پس از verify موفق evidence محلی تولید می‌شوند. archive محلی بدون Git checkout canonical برای diagnosis مفید است، اما production provenance قابل قبول نیست.
 
 ## راستی‌آزمایی بصری و Artifactهای مستندات
 
-screenshotهای repository artifact مستندات هستند و به‌تنهایی release را ثابت نمی‌کنند. visual evidence معتبر باید exact commit، OS/runner، browser/channel، viewport یا device scale و نتیجه Playwright suite متناظر را ثبت کند.
+<bdi dir="ltr">screenshot</bdi>های repository artifact مستندات هستند و به‌تنهایی release را ثابت نمی‌کنند. visual evidence معتبر باید exact commit، OS/runner، browser/channel، viewport یا device scale و نتیجه Playwright suite متناظر را ثبت کند.
 
 قواعد gallery، capture و review در [`assets/screenshots/README.fa.md`](assets/screenshots/README.fa.md) و [`VISUAL-REVIEW.fa.md`](VISUAL-REVIEW.fa.md) مستند شده‌اند.
 
@@ -197,8 +197,8 @@ screenshotهای repository artifact مستندات هستند و به‌تنه�
 
 - این سند repository-local evidence را ثبت می‌کند؛ تاریخ بالا به این معنا نیست که در هر session بعدی همه commandها دوباره اجرا شده‌اند.
 - یک job سبز منفرد جای زنجیره release gate متصل به exact commit را نمی‌گیرد.
-- CI log محلی یا تاریخی را نمی‌توان به commit دیگری نسبت داد.
-- evidence وابسته به platform برای packaging، signing و installer باید روی همان platform پشتیبانی‌شده یا workflow مخصوص آن تولید شود.
+- <bdi dir="ltr">CI</bdi> log محلی یا تاریخی را نمی‌توان به commit دیگری نسبت داد.
+- <bdi dir="ltr">evidence</bdi> وابسته به platform برای packaging، signing و installer باید روی همان platform پشتیبانی‌شده یا workflow مخصوص آن تولید شود.
 - وجود test، capability آزمایشی یا design-only را خودکار به production feature پشتیبانی‌شده تبدیل نمی‌کند؛ maturity ledger همچنان مرجع است.
 
 ## تفسیر Release

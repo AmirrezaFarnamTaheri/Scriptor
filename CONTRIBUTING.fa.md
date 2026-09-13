@@ -17,7 +17,7 @@
 
 ## زنجیره ابزار
 
-Gateهای محلی به Node.js نسخه 22.12 یا جدیدتر (CI روی 22.16.0 pin شده)، pnpm 10.33.0، Rust 1.96.0 و PowerShell 7 (`pwsh`) نیاز دارند. بررسی‌های دسترس‌پذیری مرورگر همچنین به ChromeDriver سازگار با نسخه نصب‌شده Chrome نیاز دارند؛ اگر به‌طور خودکار پیدا نمی‌شود، `CHROMEWEBDRIVER` را تنظیم کنید.
+<bdi dir="ltr">Gate</bdi>های محلی به Node.js نسخه 22.12 یا جدیدتر (CI روی 22.16.0 pin شده)، pnpm 10.33.0، Rust 1.96.0 و PowerShell 7 (`pwsh`) نیاز دارند. بررسی‌های دسترس‌پذیری مرورگر همچنین به ChromeDriver سازگار با نسخه نصب‌شده Chrome نیاز دارند؛ اگر به‌طور خودکار پیدا نمی‌شود، `CHROMEWEBDRIVER` را تنظیم کنید.
 
 </div>
 
@@ -56,7 +56,7 @@ pnpm desktop:dev
 - پیش از رفع bug، آن را با یک test شکست‌خورده بازتولید کنید.
 - تغییرات مربوط به mutation، refactor، به‌روزرسانی dependency و فایل‌های generated را قابل review نگه دارید. وقتی PR نسخه major یا minor یک dependency را عوض می‌کند، در همان commit محل‌های استفاده را با release noteهای upstream پین‌شده تطبیق دهید: تغییر نام module یا method (برای نمونه در `fs4` 1.x، `fs_std::FileExt::lock_exclusive` به `FileExt::lock` منتقل شد) روی هیچ پلتفرمی compile نمی‌شود و failure آن همه gateهای بعدی را پشت خود پنهان می‌کند.
 - فرمان‌های خارجی را از `crates/system-bridge/src/process.rs` عبور دهید.
-- JSON زمان اجرا را از `unknown` اعتبارسنجی کنید؛ assertion بررسی‌نشده روی boundary اضافه نکنید.
+- <bdi dir="ltr">JSON</bdi> زمان اجرا را از `unknown` اعتبارسنجی کنید؛ assertion بررسی‌نشده روی boundary اضافه نکنید.
 - برای هر native command جدید، classification مجوز را اضافه کنید.
 - برای داده‌های طولانی‌عمر یا تحت کنترل کاربر از queue، collection و output محدود استفاده کنید.
 - ابتدا فایل‌های source-of-truth را به‌روزرسانی کنید و بعد contractهای مشتق‌شده را regenerate کنید.
@@ -89,7 +89,7 @@ pnpm test:rust
 
 `pnpm test:rust` gate مربوط به Rust در CI را بازتاب می‌دهد: `scriptor-desktop` (که `desktop-check.yml` آن را پوشش می‌دهد) و engineهای در حال incubation (`scriptor-embeddings`، `scriptor-tantivy-indexer`، `scriptor-wasm-runtime`) از اجرای تست محصول کنار گذاشته می‌شوند و سپس با `test:rust:engines` جداگانه بررسی می‌شوند. `scriptor-citation-engine` در graph تست محصول باقی می‌ماند، چون parser مربوط به BibLaTeX آن یک dependency پشتیبانی‌شده indexer است؛ فقط سطح citeproc/rendering این crate همچنان در incubation است.
 
-Validatorهای هدفمند package و suiteهای مرتبط Playwright را برای رفتار تغییرکرده اجرا کنید. تغییر UI باید شواهدی برای صفحه‌کلید، semantics مربوط به screen reader، وضعیت‌های loading/empty/error، viewport باریک و بزرگ‌نمایی ۲۰۰٪ داشته باشد.
+<bdi dir="ltr">Validator</bdi>های هدفمند package و suiteهای مرتبط Playwright را برای رفتار تغییرکرده اجرا کنید. تغییر UI باید شواهدی برای صفحه‌کلید، semantics مربوط به screen reader، وضعیت‌های loading/empty/error، viewport باریک و بزرگ‌نمایی ۲۰۰٪ داشته باشد.
 
 `pnpm check:release` یک release gate گسترده است، نه سریع‌ترین حلقه feedback محلی. ابتدا بررسی‌های هدفمند بالا را اجرا کنید و سپس gate کامل را روی ماشینی با پیش‌نیازهای desktop/browser اجرا کنید.
 
@@ -100,13 +100,13 @@ Validatorهای هدفمند package و suiteهای مرتبط Playwright را �
 موارد زیر را توضیح دهید:
 
 - رفتار قابل مشاهده‌ای که تغییر کرده است؛
-- boundaryهای authority/data تحت تأثیر؛
+- <bdi dir="ltr">boundary</bdi>های authority/data تحت تأثیر؛
 - تست‌ها و فرمان‌های اجراشده همراه نتیجه؛
 - رفتار migration/rollback؛
-- screenshot برای تغییرات قابل مشاهده کاربر؛
+- <bdi dir="ltr">screenshot</bdi> برای تغییرات قابل مشاهده کاربر؛
 - پلتفرم‌های راستی‌آزمایی‌نشده یا ریسک‌های باقی‌مانده.
 
-Secret، دایرکتوری build تولیدشده، debug log یا داده شخصی vault را commit نکنید.
+<bdi dir="ltr">Secret</bdi>، دایرکتوری build تولیدشده، debug log یا داده شخصی vault را commit نکنید.
 
 ## مجوز
 

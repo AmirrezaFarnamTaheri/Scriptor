@@ -72,8 +72,8 @@
 
 آخرین recovery pass همچنین دومین authority UI با نام `splitPreview` را حذف کرد: اکنون `chrome.editorSurfaceMode` stateهای Source/Split/Rendered را هدایت می‌کند، layout preset و palette toggle از همین authority عبور می‌کنند و Inspector همان effective state را دریافت می‌کند. fixtureهای E2E مربوط به workspace chrome اکنون از production versioned-storage envelope استفاده می‌کنند، بنابراین وقتی قرار است custom layout آزمایش شود test بی‌صدا به default chrome برنمی‌گردد. accessible-name قدیمی و locatorهای بیش‌ازحد گسترده که CI قبلی پیدا کرده بود هم اصلاح شدند.
 
-workflow موقت branch-only برای write که آن recovery بزرگ cross-file را به‌طور atomic اعمال می‌کرد، پس از commit موفق خودش را حذف کرد و بخشی از product/CI surface پیشنهادی نیست.
+<bdi dir="ltr">workflow</bdi> موقت branch-only برای write که آن recovery بزرگ cross-file را به‌طور atomic اعمال می‌کرد، پس از commit موفق خودش را حذف کرد و بخشی از product/CI surface پیشنهادی نیست.
 
-PR تا زمانی draft می‌ماند که current-head CI، desktop compile و visual-review سبز شوند و همه itemهای باقی‌مانده یا پیاده‌سازی یا همراه evidence صریحاً به follow-up scope منتقل شوند.
+<bdi dir="ltr">PR</bdi> تا زمانی draft می‌ماند که current-head CI، desktop compile و visual-review سبز شوند و همه itemهای باقی‌مانده یا پیاده‌سازی یا همراه evidence صریحاً به follow-up scope منتقل شوند.
 
 </div>

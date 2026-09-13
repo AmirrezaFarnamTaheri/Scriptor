@@ -92,7 +92,7 @@ C4Container
 
 ## ماندگاری
 
-- vault Markdown و assetهای کاربر: مرجع اصلی.
+- <bdi dir="ltr">vault</bdi> Markdown و assetهای کاربر: مرجع اصلی.
 - <bdi dir="ltr">`.scriptor/cache/index.sqlite`</bdi>: state مشتق و قابل بازسازی search/graph/task/citation.
 - <bdi dir="ltr">`.scriptor/reader/annotations.json`</bdi>، sidecarهای recovery/audit و configuration: state محلی برنامه با کنترل path/atomic-write.
 - خروجی local publish و <bdi dir="ltr">`.scriptor-publish-state.json`</bdi>: state تولیدشده/مدیریت‌شده خارج از vault؛ هرگز برای source noteها مرجع نیست.

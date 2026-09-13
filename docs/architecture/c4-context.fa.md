@@ -14,7 +14,7 @@
 
 ## نمای کلی سامانه
 
-Scriptor یک فضای کاری دسکتاپ local-first برای دانش و نوشتن با Markdown است. Markdown موجود در filesystem کاربر مرجع اصلی است؛ indexهای SQLite و artifactهای تولیدشده برای publish/export حالت مشتق‌شده‌اند.
+<bdi dir="ltr">Scriptor</bdi> یک فضای کاری دسکتاپ local-first برای دانش و نوشتن با Markdown است. Markdown موجود در filesystem کاربر مرجع اصلی است؛ indexهای SQLite و artifactهای تولیدشده برای publish/export حالت مشتق‌شده‌اند.
 
 ## پرسوناها
 
@@ -55,7 +55,7 @@ C4Context
 
 <div dir="rtl" lang="fa">
 
-repository یک connector package فقط‌خواندنی برای Zotero Web API دارد، اما این package **داخل runtime منتشرشده desktop/CLI/daemon ترکیب نشده است**؛ بنابراین در این نمودار به‌عنوان رابطه فعال با سامانه خارجی نشان داده نمی‌شود.
+<bdi dir="ltr">repository</bdi> یک connector package فقط‌خواندنی برای Zotero Web API دارد، اما این package **داخل runtime منتشرشده desktop/CLI/daemon ترکیب نشده است**؛ بنابراین در این نمودار به‌عنوان رابطه فعال با سامانه خارجی نشان داده نمی‌شود.
 
 ## مرزهای اعتماد
 

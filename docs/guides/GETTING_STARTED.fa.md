@@ -8,7 +8,7 @@
 
 # شروع کار با Scriptor
 
-Scriptor یک فضای کاری دانش Markdown با رویکرد local-first است. این راهنما نصب، باز کردن نخستین vault و گردش‌کارهای اصلی روزمره را پوشش می‌دهد.
+<bdi dir="ltr">Scriptor</bdi> یک فضای کاری دانش Markdown با رویکرد local-first است. این راهنما نصب، باز کردن نخستین vault و گردش‌کارهای اصلی روزمره را پوشش می‌دهد.
 
 برای **ساخت از کد منبع**، بخش **Build from source** را در [`README.fa.md`](../../README.fa.md) ببینید.
 
@@ -28,7 +28,7 @@ Scriptor یک فضای کاری دانش Markdown با رویکرد local-first 
 
 1. **Scriptor** را اجرا کنید.
 2. **Open Vault** را انتخاب و هر پوشه‌ای را که شامل یادداشت‌های Markdown است باز کنید.
-3. Scriptor در پس‌زمینه vault را index می‌کند؛ هیچ پایگاه‌داده اختصاصی لازم نیست.
+3. <bdi dir="ltr">Scriptor</bdi> در پس‌زمینه vault را index می‌کند؛ هیچ پایگاه‌داده اختصاصی لازم نیست.
 
 فایل‌های شما روی دیسک همان Markdown معمولی باقی می‌مانند و Scriptor مستقیماً آن‌ها را می‌خواند و می‌نویسد.
 
@@ -66,7 +66,7 @@ Scriptor یک فضای کاری دانش Markdown با رویکرد local-first 
 
 ## تنظیم export
 
-Scriptor از [Pandoc](https://pandoc.org/) برای export استفاده می‌کند. برای export واقعی به HTML، PDF، DOCX، LaTeX، ePub و Reveal.js، Pandoc را روی سیستم نصب کنید:
+<bdi dir="ltr">Scriptor</bdi> از [Pandoc](https://pandoc.org/) برای export استفاده می‌کند. برای export واقعی به HTML، PDF، DOCX، LaTeX، ePub و Reveal.js، Pandoc را روی سیستم نصب کنید:
 
 </div>
 

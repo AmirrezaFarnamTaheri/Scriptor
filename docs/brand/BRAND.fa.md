@@ -59,7 +59,7 @@ pnpm icons:regenerate
 ## Wordmark
 
 - نمایش: **Sora** (`--font-display`) با weight 700 و letter-spacing برابر −0.04em
-- Gradient: کلاس `.brand-wordmark` در `src/App.css`
+- <bdi dir="ltr">Gradient:</bdi> کلاس `.brand-wordmark` در `src/App.css`
 
 ## استفاده در کد
 

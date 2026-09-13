@@ -8,7 +8,7 @@
 
 # قرارداد outcome در مرزها
 
-adapterهای boundary در Scriptor از یک algebra واحد با شش state برای outcome استفاده می‌کنند. هدف این است که نبود واقعی یک مقدار اختیاری، state ماندگار خراب، نتیجه جزئی، failure اجرا و recovery موفق همگی به یک مقدار خالی/default فروکاسته نشوند.
+<bdi dir="ltr">adapter</bdi>های boundary در Scriptor از یک algebra واحد با شش state برای outcome استفاده می‌کنند. هدف این است که نبود واقعی یک مقدار اختیاری، state ماندگار خراب، نتیجه جزئی، failure اجرا و recovery موفق همگی به یک مقدار خالی/default فروکاسته نشوند.
 
 | وضعیت | قرارداد | default مجاز است؟ |
 | --- | --- | --- |
@@ -26,7 +26,7 @@ adapterهای boundary در Scriptor از یک algebra واحد با شش state 
 1. در مرزهای authoritative از `unwrap_or_default`، `.ok()`، `filter_map(Result::ok)` یا معادل آن‌ها استفاده نکنید، مگر این‌که contract منبع صریحاً `absent-optional` را نمایش دهد.
 2. پیکربندی نامعتبر vault برابر `invalid` است، نه absence.
 3. خطای decode ردیف database برابر `failed` یا `degraded` همراه warning است و هرگز نباید بی‌صدا حذف شود.
-4. failureهای process/IPC از code ساخت‌یافته و recoverability استفاده می‌کنند، نه string بدون type.
-5. recovery پس از تعمیر atomic-write/journal برابر `recovered` است؛ اگر boundary آن را expose می‌کند receipt را منتشر یا حفظ کنید.
+4. <bdi dir="ltr">failure</bdi>های process/IPC از code ساخت‌یافته و recoverability استفاده می‌کنند، نه string بدون type.
+5. <bdi dir="ltr">recovery</bdi> پس از تعمیر atomic-write/journal برابر `recovered` است؛ اگر boundary آن را expose می‌کند receipt را منتشر یا حفظ کنید.
 
 </div>

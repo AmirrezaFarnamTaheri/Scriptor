@@ -20,16 +20,16 @@
   - مرورگر note با رویکرد keyboard-first و rendering پاک‌سازی‌شده بر اساس grapheme width
   - ورود به جست‌وجوی incremental با <bdi dir="ltr">`/`</bdi>
   - حالت‌های pane راست: preview با <bdi dir="ltr">`p`</bdi>، backlinks با <bdi dir="ltr">`b`</bdi>، graph با <bdi dir="ltr">`g`</bdi> و health با <bdi dir="ltr">`h`</bdi>؛ جابه‌جایی با <bdi dir="ltr">`Tab`</bdi>
-  - preview غنی Markdown با terminal renderer مربوط به pulldown-cmark
+  - <bdi dir="ltr">preview</bdi> غنی Markdown با terminal renderer مربوط به pulldown-cmark
   - scroll pane با <bdi dir="ltr">`PgUp` / `PgDn`</bdi>؛ overlay راهنما با <bdi dir="ltr">`?`</bdi>
-  - footer، Git branch/cleanliness و تعداد health issueها را نمایش می‌دهد
+  - <bdi dir="ltr">footer</bdi>، Git branch/cleanliness و تعداد health issueها را نمایش می‌دهد
   - backend درون‌فرایندی با <bdi dir="ltr">`scriptor-vault` + `scriptor-indexer` + `scriptor-native-git`</bdi>
 
 - <bdi dir="ltr">`cargo run -p scriptor-cli -- tui <vault> --via-daemon`</bdi>
   - همان UX که از RPC مربوط به <bdi dir="ltr">`scriptor-daemon`</bdi> عبور می‌کند: OpenVault، ListNotes، SearchNotes، ReadNote، GitStatus، HealthDiagnostics، Backlinks و GraphSummary
 
 - <bdi dir="ltr">`cargo run -p scriptor-cli -- tui <vault> --smoke-test`</bdi>
-  - validation غیرتعاملی: بازشدن vault، index، کشف note، همه حالت‌های pane و بارگذاری preview
+  - <bdi dir="ltr">validation</bdi> غیرتعاملی: بازشدن vault، index، کشف note، همه حالت‌های pane و بارگذاری preview
 
 ## نگاشت Desktop / Terminal
 

@@ -8,7 +8,7 @@
 
 # مالکیت storeهای renderer
 
-storeها مالک state موقت renderer، cacheهای read-model، هویت request، optimistic UI و state مربوط به retry هستند. آن‌ها هرگز به مرجع اختیار برای فایل‌های vault، secretها، authorization، nonceهای daemon یا اجرای native job تبدیل نمی‌شوند.
+<bdi dir="ltr">store</bdi>ها مالک state موقت renderer، cacheهای read-model، هویت request، optimistic UI و state مربوط به retry هستند. آن‌ها هرگز به مرجع اختیار برای فایل‌های vault، secretها، authorization، nonceهای daemon یا اجرای native job تبدیل نمی‌شوند.
 
 ## مالکیت فعلی
 
@@ -34,11 +34,11 @@ storeها مالک state موقت renderer، cacheهای read-model، هویت r
 
 مرزهای store با سطح‌های بازبینی‌شده در [گالری بصری](./VISUAL-REVIEW.fa.md) متناظرند:
 
-- routing پنل و دسترس‌پذیری فرمان‌ها: [command palette](assets/screenshots/command-palette.png)
-- state مربوط به graph/canvas: [Graph](assets/screenshots/graph.png) و [Canvas](assets/screenshots/canvas.png)
-- state مربوط به Git/conflict: [Git panel](assets/screenshots/git-panel.png) و [conflict resolver](assets/screenshots/conflict-resolver.png)
+- <bdi dir="ltr">routing</bdi> پنل و دسترس‌پذیری فرمان‌ها: [command palette](assets/screenshots/command-palette.png)
+- <bdi dir="ltr">state</bdi> مربوط به graph/canvas: [Graph](assets/screenshots/graph.png) و [Canvas](assets/screenshots/canvas.png)
+- <bdi dir="ltr">state</bdi> مربوط به Git/conflict: [Git panel](assets/screenshots/git-panel.png) و [conflict resolver](assets/screenshots/conflict-resolver.png)
 - MCP runtime state: [MCP panel](assets/screenshots/mcp-panel.png)
-- jobهای export/publish: [Publish center](assets/screenshots/publish-center.png)
-- preferences و plugin state: [Settings](assets/screenshots/settings.png) و [Plugins](assets/screenshots/plugins.png)
+- <bdi dir="ltr">job</bdi>های export/publish: [Publish center](assets/screenshots/publish-center.png)
+- <bdi dir="ltr">preferences</bdi> و plugin state: [Settings](assets/screenshots/settings.png) و [Plugins](assets/screenshots/plugins.png)
 
 </div>

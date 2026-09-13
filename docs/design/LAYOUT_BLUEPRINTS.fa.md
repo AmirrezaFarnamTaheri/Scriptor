@@ -38,17 +38,17 @@
 
 - **Command palette** با <bdi dir="ltr">`Ctrl+K`</bdi> در بالا-وسط overlay می‌شود و navigation اصلی power user است.
 - **Graph / Canvas / Settings** به‌صورت glass modal layer با <bdi dir="ltr">`z-index: 60+`</bdi> باز می‌شوند.
-- panelها مستقل scroll می‌شوند؛ editor از split preview با drag handle پشتیبانی می‌کند.
+- <bdi dir="ltr">panel</bdi>ها مستقل scroll می‌شوند؛ editor از split preview با drag handle پشتیبانی می‌کند.
 - گروه‌های toolbar داخل writing column wrap می‌شوند. یک area محدود vertical scroll جلوی اشغال viewport کوتاه توسط toolbar را می‌گیرد؛ controlها زیر inspector rail نمی‌روند.
 - side railها resizable هستند و تا track با عرض صفر collapse می‌شوند. عرض موثر با viewport کم می‌شود تا فضای editor حفظ شود. فرمول مرجع در <bdi dir="ltr">`src/styles/app/foundation.css`</bdi> است.
 - هر rail مستقل scroll می‌شود. cardهای note-health/quality متعلق به inspector/preview mode هستند؛ store sectionهای خودش را مستقیم نشان می‌دهد.
-- status dock پیش‌فرض collapsed است و preference کاربر را نگه می‌دارد.
+- <bdi dir="ltr">status</bdi> dock پیش‌فرض collapsed است و preference کاربر را نگه می‌دارد.
 
 ## Tablet و Desktop باریک (821px–1320px)
 
-- Vault، editor و inspector کنار هم با عرض rail پویا می‌مانند؛ inspector زیر editor stack نمی‌شود.
-- top bar تک‌ردیفه می‌ماند و controlهای کم‌اولویت فضا واگذار می‌کنند. Publish از workspace mode و support از command palette قابل دسترسی است.
-- panel کمکی dockشده عرض واقعی خود را در workspace رزرو می‌کند.
+- <bdi dir="ltr">Vault</bdi>، editor و inspector کنار هم با عرض rail پویا می‌مانند؛ inspector زیر editor stack نمی‌شود.
+- <bdi dir="ltr">top</bdi> bar تک‌ردیفه می‌ماند و controlهای کم‌اولویت فضا واگذار می‌کنند. Publish از workspace mode و support از command palette قابل دسترسی است.
+- <bdi dir="ltr">panel</bdi> کمکی dockشده عرض واقعی خود را در workspace رزرو می‌کند.
 
 ## Mobile (≤820px)
 
@@ -103,7 +103,7 @@
 
 - navigation شبیه Vim با <bdi dir="ltr">`j/k`</bdi>؛ جست‌وجو با <bdi dir="ltr">`/`</bdi>؛ help overlay با <bdi dir="ltr">`?`</bdi>.
 - <bdi dir="ltr">`PgUp`/`PgDn`</bdi> preview pane را scroll می‌کنند؛ rich Markdown rendering با pulldown-cmark.
-- daemon و in-process backend keymap یکسان دارند.
+- <bdi dir="ltr">daemon</bdi> و in-process backend keymap یکسان دارند.
 
 ## Z-index stack
 

@@ -56,7 +56,7 @@ pnpm check:a11y
 
 <div dir="rtl" lang="fa">
 
-static source checkها در CI/release gate اجرا می‌شوند. برای browser coverage:
+<bdi dir="ltr">static</bdi> source checkها در CI/release gate اجرا می‌شوند. برای browser coverage:
 
 </div>
 
@@ -74,11 +74,11 @@ pnpm test:visual
 
 <div dir="rtl" lang="fa">
 
-findingها را در release PR ثبت کنید. keyboard trap، نام گم‌شده برای primary action، از دست‌رفتن focus، contrast ناخوانا و critical/serious axe violation release را block می‌کنند.
+<bdi dir="ltr">finding</bdi>ها را در release PR ثبت کنید. keyboard trap، نام گم‌شده برای primary action، از دست‌رفتن focus، contrast ناخوانا و critical/serious axe violation release را block می‌کنند.
 
 ## محدودیت‌های شناخته‌شده (v0.1)
 
-- graph panel یک keyboard focus surface دارد با arrow navigation، Enter activation، live node summary و modal focus containment. screen-reader usability pass همچنان manual release gate است.
+- <bdi dir="ltr">graph</bdi> panel یک keyboard focus surface دارد با arrow navigation، Enter activation، live node summary و modal focus containment. screen-reader usability pass همچنان manual release gate است.
 - command palette از arrow keys، Enter و Escape پشتیبانی می‌کند (<bdi dir="ltr">`CommandPalette.tsx`</bdi>).
 
 </div>

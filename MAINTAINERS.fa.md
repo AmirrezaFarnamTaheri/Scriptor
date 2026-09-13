@@ -21,7 +21,7 @@ GitHub: [@AmirrezaFarnamTaheri](https://github.com/AmirrezaFarnamTaheri)
 - `CODEOWNERS` برای مسیرهای امنیت، release، هستهٔ Rust، frontend و مستندات؛
 - دست‌کم دو reviewer برای تغییرات release و تغییرات حساس امنیتی؛
 - گزارش فصلی مالکیت، churn و تاریخچهٔ secretها؛
-- tagهای release تغییرناپذیر و محیط‌های production محافظت‌شده.
+- <bdi dir="ltr">tag</bdi>های release تغییرناپذیر و محیط‌های production محافظت‌شده.
 
 تا زمانی که نگه‌دارندگان دیگری ثبت نشده‌اند، نگه‌دارندهٔ اصلی مسئول escalation همهٔ حوزه‌هاست. این یک ریسک تداوم پروژه است، نه ساختار تیمی استنباط‌شده.
 
@@ -41,13 +41,13 @@ bash scripts/governance/history-audit.sh . .history-audit
 
 ## اختیار انتشار
 
-releaseهای production:
+<bdi dir="ltr">release</bdi>های production:
 
 1. از tag با قالب `v<version>` که با [`VERSION`](VERSION) یکسان است آغاز می‌شوند؛
 2. باید `.github/workflows/ci.yml` و gateهای compile/package پلتفرمی را بگذرانند؛
 3. از مدل اعتماد مستندشده برای installerهای بدون امضا استفاده می‌کنند: هویت دقیق source، checksumهای SHA-256، رکوردهای trust-status وابسته به target، SBOM، release receipt و GitHub provenance attestation؛
 4. دقیقاً همان build artifactهای دانلودشده را بدون rebuild در مرحلهٔ publication promote می‌کنند؛
-5. checksumها، SBOM، release receipt، metadata اعتماد و attestationهای لازم در قرارداد release evidence را منتشر می‌کنند.
+5. <bdi dir="ltr">checksum</bdi>ها، SBOM، release receipt، metadata اعتماد و attestationهای لازم در قرارداد release evidence را منتشر می‌کنند.
 
 به [`docs/RELEASE-SECURITY.fa.md`](docs/RELEASE-SECURITY.fa.md) مراجعه کنید.
 

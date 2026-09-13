@@ -10,7 +10,7 @@
 - اثر و مرز داده/اختیاری که عبور شده است؛
 - نیازهای پیشنهادی embargo یا هماهنگی.
 
-secret واقعی یا داده شخصی شخص ثالث را وارد نکنید. گزارش‌ها در اولین زمان عملی تأیید دریافت می‌شوند؛ زمان disclosure پس از روشن شدن اثر و remediation هماهنگ می‌شود.
+<bdi dir="ltr">secret</bdi> واقعی یا داده شخصی شخص ثالث را وارد نکنید. گزارش‌ها در اولین زمان عملی تأیید دریافت می‌شوند؛ زمان disclosure پس از روشن شدن اثر و remediation هماهنگ می‌شود.
 
 ## نسخه پشتیبانی‌شده
 
@@ -28,7 +28,7 @@ secret واقعی یا داده شخصی شخص ثالث را وارد نکنی�
 
 ## داده و حریم خصوصی
 
-Scriptor local-first است و telemetry اجباری ندارد. diagnostics به‌صورت opt-in است و فقط باید فیلدهای allowlistشده و redactشده را شامل شود. Remote PlantUML و remote font غیرفعال‌اند. هر integration راه‌دور اختیاری باید endpoint و داده ارسالی را نام ببرد.
+<bdi dir="ltr">Scriptor</bdi> local-first است و telemetry اجباری ندارد. diagnostics به‌صورت opt-in است و فقط باید فیلدهای allowlistشده و redactشده را شامل شود. Remote PlantUML و remote font غیرفعال‌اند. هر integration راه‌دور اختیاری باید endpoint و داده ارسالی را نام ببرد.
 
 ## وضعیت رمزگذاری
 
@@ -41,8 +41,8 @@ Scriptor local-first است و telemetry اجباری ندارد. diagnostics ب
 
 ## سیاست dependency و CI
 
-- lockfileها ورودی validation هستند و audit jobها نباید آن‌ها را تغییر دهند؛
-- GitHub Actionهای خارجی از commit SHA کامل، immutable و بازبینی‌شده با comment نسخه دقیق استفاده می‌کنند؛
-- Node، pnpm، Rust، runnerها و ابزارهای release pin شده‌اند؛
+- <bdi dir="ltr">lockfile</bdi>ها ورودی validation هستند و audit jobها نباید آن‌ها را تغییر دهند؛
+- <bdi dir="ltr">GitHub</bdi> Actionهای خارجی از commit SHA کامل، immutable و بازبینی‌شده با comment نسخه دقیق استفاده می‌کنند؛
+- <bdi dir="ltr">Node</bdi>، pnpm، Rust، runnerها و ابزارهای release pin شده‌اند؛
 - `cargo deny`، `pnpm audit --prod`، action pin، version، boundary، docs و source-contract gateها در CI اجرا می‌شوند؛
-- dependency updateها در تغییرات جداگانه و reviewشده انجام می‌شوند.
+- <bdi dir="ltr">dependency</bdi> updateها در تغییرات جداگانه و reviewشده انجام می‌شوند.

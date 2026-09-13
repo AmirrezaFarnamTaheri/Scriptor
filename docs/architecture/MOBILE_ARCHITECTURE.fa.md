@@ -58,13 +58,13 @@ mobile application adapter
 
 موبایل فقط زمانی می‌تواند از **Design-only** به **Experimental** برود که همه موارد زیر وجود داشته باشند:
 
-- runtime/toolchain مشخص و نقطه ورود build قابل بازتولید؛
+- <bdi dir="ltr">runtime/toolchain</bdi> مشخص و نقطه ورود build قابل بازتولید؛
 - طراحی اختیار داده پلتفرم که portability Markdown را حفظ کند؛
-- threat model برای permission، background execution و secure storage؛
-- contract test برای semantics مشترک note/task/link؛
+- <bdi dir="ltr">threat</bdi> model برای permission، background execution و secure storage؛
+- <bdi dir="ltr">contract</bdi> test برای semantics مشترک note/task/link؛
 - رفتار migration/backup/recovery برای فایل‌های نوشته‌شده توسط کاربر؛
 - آزمون accessibility و lifecycle روی دست‌کم یک کلاس device واقعی؛
-- support matrix صریح در `PRODUCT.md` و `CAPABILITY-MATURITY.md`.
+- <bdi dir="ltr">support</bdi> matrix صریح در `PRODUCT.md` و `CAPABILITY-MATURITY.md`.
 
 ارتقا به **Production** علاوه بر این‌ها به release packaging، signing/trust policy، پشتیبانی crash/diagnostic، رفتار upgrade/rollback و همان استانداردهای release evidence دسکتاپ نیاز دارد.
 

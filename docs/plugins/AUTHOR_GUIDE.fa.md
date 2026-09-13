@@ -73,11 +73,11 @@ export const myManifest: PluginManifest = {
 
 ## ۲. نوع‌های Capability
 
-capabilityها در آرایه `capabilities` اعلام می‌شوند. هر capability، contribution slotهای مشخصی را فعال می‌کند.
+<bdi dir="ltr">capability</bdi>ها در آرایه `capabilities` اعلام می‌شوند. هر capability، contribution slotهای مشخصی را فعال می‌کند.
 
 ### ۲.۱ `command`
 
-command را در command palette ثبت می‌کند.
+<bdi dir="ltr">command</bdi> را در command palette ثبت می‌کند.
 
 </div>
 
@@ -110,7 +110,7 @@ contributes: {
 
 ### ۲.۲ `renderer-extension`
 
-preview renderer مربوط به Markdown را با transformation سفارشی گسترش می‌دهد.
+<bdi dir="ltr">preview</bdi> renderer مربوط به Markdown را با transformation سفارشی گسترش می‌دهد.
 
 </div>
 
@@ -174,7 +174,7 @@ contributes: {
 
 ### ۲.۴ `mcp-tool`
 
-tool را برای لایه MCP یا Model Context Protocol و integrationهای AI ارائه می‌کند.
+<bdi dir="ltr">tool</bdi> را برای لایه MCP یا Model Context Protocol و integrationهای AI ارائه می‌کند.
 
 </div>
 
@@ -207,7 +207,7 @@ contributes: {
 
 ### ۲.۵ `inspector-widget`
 
-panel را به sidebar مربوط به Inspector اضافه می‌کند.
+<bdi dir="ltr">panel</bdi> را به sidebar مربوط به Inspector اضافه می‌کند.
 
 </div>
 
@@ -238,7 +238,7 @@ contributes: {
 
 ### ۲.۶ `vault-health-check`
 
-rule تشخیصی برای گزارش health مربوط به vault تعریف می‌کند.
+<bdi dir="ltr">rule</bdi> تشخیصی برای گزارش health مربوط به vault تعریف می‌کند.
 
 </div>
 
@@ -269,7 +269,7 @@ contributes: {
 
 ### ۲.۷ `canvas-tool`
 
-tool را به toolbar مربوط به Canvas اضافه می‌کند.
+<bdi dir="ltr">tool</bdi> را به toolbar مربوط به Canvas اضافه می‌کند.
 
 </div>
 
@@ -302,7 +302,7 @@ contributes: {
 
 ### ۲.۸ `canvas-block`
 
-renderer سفارشی block برای Canvas ثبت می‌کند.
+<bdi dir="ltr">renderer</bdi> سفارشی block برای Canvas ثبت می‌کند.
 
 </div>
 
@@ -335,7 +335,7 @@ contributes: {
 
 ### ۲.۹ `template-pack`
 
-templateهای starter برای document یا Canvas را bundle می‌کند.
+<bdi dir="ltr">template</bdi>های starter برای document یا Canvas را bundle می‌کند.
 
 </div>
 
@@ -429,7 +429,7 @@ permissions: [
 
 ### flag مربوط به `optional`
 
-permission از نوع `dangerous` باید `optional: true` داشته باشد؛ یعنی plugin بدون آن هم کار می‌کند و فقط هنگام نیاز واقعی در runtime آن را درخواست می‌کند.
+<bdi dir="ltr">permission</bdi> از نوع `dangerous` باید `optional: true` داشته باشد؛ یعنی plugin بدون آن هم کار می‌کند و فقط هنگام نیاز واقعی در runtime آن را درخواست می‌کند.
 
 </div>
 
@@ -451,8 +451,8 @@ permission از نوع `dangerous` باید `optional: true` داشته باشد
 
 - **همه pluginها** در سطح registry غیرفعال‌اند.
 - تا وقتی safe mode فعال است، plugin منفرد را **نمی‌توان دوباره فعال کرد**.
-- failureهای plugin از session قبلی پاک می‌شوند.
-- safe mode مکانیسم recovery برای instability ناشی از plugin است.
+- <bdi dir="ltr">failure</bdi>های plugin از session قبلی پاک می‌شوند.
+- <bdi dir="ltr">safe</bdi> mode مکانیسم recovery برای instability ناشی از plugin است.
 
 </div>
 
@@ -610,7 +610,7 @@ pnpm check:plugins
 
 ## ۷. قواعد نام‌گذاری Plugin ID
 
-Plugin ID باید با `^[a-z0-9][a-z0-9.-]*$` match شود:
+<bdi dir="ltr">Plugin</bdi> ID باید با `^[a-z0-9][a-z0-9.-]*$` match شود:
 
 - فقط حروف **lowercase**، رقم، نقطه و hyphen.
 - شروع با حرف lowercase یا رقم.

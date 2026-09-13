@@ -27,15 +27,15 @@
 
 ## معماری لازم پیش از ارتقا
 
-1. envelope نسخه‌بندی‌شده شامل شناسه‌ها و پارامترهای الگوریتم/KDF؛
+1. <bdi dir="ltr">envelope</bdi> نسخه‌بندی‌شده شامل شناسه‌ها و پارامترهای الگوریتم/KDF؛
 2. طراحی بازیابی با OS keychain و عبارت عبور، همراه با semantics صریح برای از دست رفتن دسترسی؛
 3. راهبرد ایندکس/گراف/cache که یا رمزگذاری شده باشد یا آگاهانه از دامنه خارج شده باشد؛
-4. journal اتمیک برای migration/rekey همراه با rollback؛
-5. backup خارجی رمزگذاری‌شده و تمرین restore؛
+4. <bdi dir="ltr">journal</bdi> اتمیک برای migration/rekey همراه با rollback؛
+5. <bdi dir="ltr">backup</bdi> خارجی رمزگذاری‌شده و تمرین restore؛
 6. سیاست Git برای جلوگیری از ثبت تاریخچه plaintext؛
 7. مدیریت امن فایل‌های موقت/export؛
 8. بازبینی مستقل رمزنگاری، known-answer test، fuzzing، fault injection و آزمون migration پارامترها؛
-9. UI که وضعیت locked/unlocked و میزان نشت فراداده را دقیق بیان کند.
+9. <bdi dir="ltr">UI</bdi> که وضعیت locked/unlocked و میزان نشت فراداده را دقیق بیان کند.
 
 ## پیاده‌سازی فعلی
 

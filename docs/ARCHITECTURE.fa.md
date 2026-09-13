@@ -38,7 +38,7 @@ CLI/TUI and MCP
 
 <div dir="rtl" lang="fa">
 
-renderer یک authority boundary نیست. عملیات native مستقل از state رابط کاربری، scope، authorization، runtime payload، path، process policy و cancellation را اعتبارسنجی می‌کنند.
+<bdi dir="ltr">renderer</bdi> یک authority boundary نیست. عملیات native مستقل از state رابط کاربری، scope، authorization، runtime payload، path، process policy و cancellation را اعتبارسنجی می‌کنند.
 
 ## لایه‌ها و مالکیت
 
@@ -63,19 +63,19 @@ renderer یک authority boundary نیست. عملیات native مستقل از s
 
 ### بازکردن و index کردن vault
 
-1. renderer از typed bridge درخواست بازکردن vault می‌کند.
-2. native adapter path را اعتبارسنجی و scoped state را به‌روزرسانی می‌کند.
-3. metadata discovery از bounded content parsing جداست.
-4. indexer یک generation اعمال و notes/links/FTS را در SQLite ذخیره می‌کند.
+1. <bdi dir="ltr">renderer</bdi> از typed bridge درخواست بازکردن vault می‌کند.
+2. <bdi dir="ltr">native</bdi> adapter path را اعتبارسنجی و scoped state را به‌روزرسانی می‌کند.
+3. <bdi dir="ltr">metadata</bdi> discovery از bounded content parsing جداست.
+4. <bdi dir="ltr">indexer</bdi> یک generation اعمال و notes/links/FTS را در SQLite ذخیره می‌کند.
 5. watcher تغییرات incremental را batch می‌کند؛ overflow/error رویداد <bdi dir="ltr">`RescanRequired`</bdi> منتشر می‌کند.
-6. desktop و daemon generationهای stale را نادیده می‌گیرند و recovery یکسان full-rebuild را اجرا می‌کنند.
+6. <bdi dir="ltr">desktop</bdi> و daemon generationهای stale را نادیده می‌گیرند و recovery یکسان full-rebuild را اجرا می‌کنند.
 
 ### تغییر note از طریق MCP
 
-1. tool و vault scope را validate کنید.
+1. <bdi dir="ltr">tool</bdi> و vault scope را validate کنید.
 2. intent حاوی idempotency key و hash-chain link را persist کنید و <bdi dir="ltr">`fsync`</bdi> بزنید.
-3. atomic vault mutation را اجرا کنید.
-4. outcome را append کنید. اگر process بین intent و outcome متوقف شود، startup reconciliation رکورد pending را به‌صورت deterministic حل می‌کند.
+3. <bdi dir="ltr">atomic</bdi> vault mutation را اجرا کنید.
+4. <bdi dir="ltr">outcome</bdi> را append کنید. اگر process بین intent و outcome متوقف شود، startup reconciliation رکورد pending را به‌صورت deterministic حل می‌کند.
 
 ### Commit فایل‌های انتخاب‌شده
 
@@ -83,7 +83,7 @@ renderer یک authority boundary نیست. عملیات native مستقل از s
 
 ### خواندن اسناد vault
 
-Reader در native boundary فقط pathهای PDF/EPUB نسبی به vault را می‌پذیرد. native code پیش از برگرداندن document bytes هر path را resolve و confined می‌کند؛ renderer از assetهای همراه PDF/EPUB viewer استفاده می‌کند و annotationها را اتمیک در vault sidecar ذخیره می‌کند. فعال‌سازی Reader از command palette آغاز می‌شود و هیچ default shortcut ادعا نمی‌شود.
+<bdi dir="ltr">Reader</bdi> در native boundary فقط pathهای PDF/EPUB نسبی به vault را می‌پذیرد. native code پیش از برگرداندن document bytes هر path را resolve و confined می‌کند؛ renderer از assetهای همراه PDF/EPUB viewer استفاده می‌کند و annotationها را اتمیک در vault sidecar ذخیره می‌کند. فعال‌سازی Reader از command palette آغاز می‌شود و هیچ default shortcut ادعا نمی‌شود.
 
 ### به‌روزرسانی task و Kanban card
 
@@ -93,9 +93,9 @@ Taskها از Markdown index می‌شوند و تغییرات پیش از nativ
 
 1. desktop یا CLI از <bdi dir="ltr">`crates/publish-runner`</bdi> یک read-only plan مشتق از bounded symlink-aware vault scan می‌گیرد.
 2. فقط noteهای دارای <bdi dir="ltr">`publish: true`</bdi> candidate هستند؛ sealed content پس از opt-in gate رد می‌شود.
-3. desktop itemهای new/changed/orphaned را برای review نشان می‌دهد. Apply یک native-authorized mutation مستقل است.
-4. Apply eligibility و content hash را دوباره محاسبه می‌کند، selection stale یا ساخته renderer را رد می‌کند و فقط fresh pathهایی را حذف می‌کند که قبلاً متعلق به publish state بوده‌اند.
-5. managed output از atomic write استفاده می‌کند و traversal، symlink indirection، source/output containment و unmanaged overwrite را رد می‌کند. generated page گم‌شده یا دستی‌تغییریافته managed ownership را حفظ می‌کند، اما در plan بعدی changed دیده می‌شود تا reviewed apply آن را repair کند.
+3. <bdi dir="ltr">desktop</bdi> itemهای new/changed/orphaned را برای review نشان می‌دهد. Apply یک native-authorized mutation مستقل است.
+4. <bdi dir="ltr">Apply</bdi> eligibility و content hash را دوباره محاسبه می‌کند، selection stale یا ساخته renderer را رد می‌کند و فقط fresh pathهایی را حذف می‌کند که قبلاً متعلق به publish state بوده‌اند.
+5. <bdi dir="ltr">managed</bdi> output از atomic write استفاده می‌کند و traversal، symlink indirection، source/output containment و unmanaged overwrite را رد می‌کند. generated page گم‌شده یا دستی‌تغییریافته managed ownership را حفظ می‌کند، اما در plan بعدی changed دیده می‌شود تا reviewed apply آن را repair کند.
 
 ### فرایند خارجی
 
@@ -104,13 +104,13 @@ Taskها از Markdown index می‌شوند و تغییرات پیش از nativ
 ### Backup و restore
 
 - <bdi dir="ltr">`.scriptor/snapshots`</bdi> محلی برای recovery سریع است.
-- target خارجی backup مربوط به disaster recovery را در directory وابسته به vault تولید می‌کند.
+- <bdi dir="ltr">target</bdi> خارجی backup مربوط به disaster recovery را در directory وابسته به vault تولید می‌کند.
 - هر backup یک versioned SHA-256 manifest دارد.
-- Restore پیش از promotion، path، size، hash و vault binding را verify می‌کند و crash-visible restore journal ثبت می‌کند.
+- <bdi dir="ltr">Restore</bdi> پیش از promotion، path، size، hash و vault binding را verify می‌کند و crash-visible restore journal ثبت می‌کند.
 
 ## مدل داده و کنترل مقیاس
 
-SQLite از WAL، foreign key، busy timeout، current-schema validation، FTS و secondary index روی vault/path و link adjacency استفاده می‌کند. Graph APIها bounded هستند و BFS depth/parent/path را حفظ می‌کنند. knowledge summary و link resolution از batch/aggregate query استفاده می‌کنند. scanها file count و note size را محدود می‌کنند.
+<bdi dir="ltr">SQLite</bdi> از WAL، foreign key، busy timeout، current-schema validation، FTS و secondary index روی vault/path و link adjacency استفاده می‌کند. Graph APIها bounded هستند و BFS depth/parent/path را حفظ می‌کنند. knowledge summary و link resolution از batch/aggregate query استفاده می‌کنند. scanها file count و note size را محدود می‌کنند.
 
 ## مرزهای اعتماد و شکست
 
@@ -128,7 +128,7 @@ SQLite از WAL، foreign key، busy timeout، current-schema validation، FTS �
 
 ## کار معماری شناخته‌شده
 
-adapter layer هنوز composition root دارد، اما quick capture، rename transaction، deletion، telemetry، shortcut، sidebar action، auxiliary workspace data، settings vault configuration، MCP tool contract، daemon command catalog/support، daemon transport tests، CLI command-line schema و CLI benchmarks owner متمرکز دارند. decomposition بعدی از طریق vertical workflowهای characterizeشده روی typed application services انجام می‌شود، نه big-bang rewrite. capability ledger را ببینید.
+<bdi dir="ltr">adapter</bdi> layer هنوز composition root دارد، اما quick capture، rename transaction، deletion، telemetry، shortcut، sidebar action، auxiliary workspace data، settings vault configuration، MCP tool contract، daemon command catalog/support، daemon transport tests، CLI command-line schema و CLI benchmarks owner متمرکز دارند. decomposition بعدی از طریق vertical workflowهای characterizeشده روی typed application services انجام می‌شود، نه big-bang rewrite. capability ledger را ببینید.
 
 </div>
 
