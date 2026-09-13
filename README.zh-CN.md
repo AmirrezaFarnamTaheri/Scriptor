@@ -6,7 +6,7 @@
 
 [English](README.md) · [فارسی](README.fa.md) · **简体中文** · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
 
-[![Version](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.9-0f766e.svg)](VERSION)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#download)
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
@@ -66,7 +66,7 @@ Scriptor 面向需要长期维护的项目，例如书籍、论文、技术文�
 <a id="download"></a>
 ## 获取 Scriptor
 
-生产安装包通过 GitHub Release 发布。当前版本为 **1.0.8**。
+生产安装包通过 GitHub Release 发布。当前版本为 **1.0.9**。
 
 - **Windows x86_64** — `.msi` 和 `.exe`（NSIS）
 - **macOS Apple Silicon (aarch64)** — `.dmg`
@@ -199,7 +199,7 @@ Scriptor 欢迎社区贡献。完整工作流、贡献者要求和必须通过�
 
 ## 项目状态
 
-**积极开发中。** `v1.0.8` 是当前生产候选版本。Desktop、vault、indexer、knowledge、Git、export、daemon 和 Web 界面均已实现并发布。[`docs/CAPABILITY-MATURITY.zh-CN.md`](docs/CAPABILITY-MATURITY.zh-CN.md) 中的能力账本是判断哪些功能受支持、处于实验阶段或仅停留在设计阶段的权威依据。移动端、加密 vault、本地 embeddings、Tantivy 和 WASM host 仍属于实验性或仅设计阶段能力。
+**积极开发中。** `v1.0.9` 是当前生产候选版本。Desktop、vault、indexer、knowledge、Git、export、daemon 和 Web 界面均已实现并发布。[`docs/CAPABILITY-MATURITY.zh-CN.md`](docs/CAPABILITY-MATURITY.zh-CN.md) 中的能力账本是判断哪些功能受支持、处于实验阶段或仅停留在设计阶段的权威依据。移动端、加密 vault、本地 embeddings、Tantivy 和 WASM host 仍属于实验性或仅设计阶段能力。
 
 ## 许可证
 

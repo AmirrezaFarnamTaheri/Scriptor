@@ -6,7 +6,7 @@
 
 [English](README.md) · [فارسی](README.fa.md) · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · **Español**
 
-[![Version](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.9-0f766e.svg)](VERSION)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#download)
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
@@ -66,7 +66,7 @@ Consulta [`docs/CAPABILITY-MATURITY.es.md`](docs/CAPABILITY-MATURITY.es.md) para
 <a id="download"></a>
 ## Obtener Scriptor
 
-Los instaladores de producción se publican como assets de GitHub Release. La versión actual es **1.0.8**.
+Los instaladores de producción se publican como assets de GitHub Release. La versión actual es **1.0.9**.
 
 - **Windows x86_64** — `.msi` y `.exe` (NSIS)
 - **macOS Apple Silicon (aarch64)** — `.dmg`
@@ -199,7 +199,7 @@ Scriptor acepta contribuciones. El flujo completo, las expectativas para contrib
 
 ## Estado del proyecto
 
-**Desarrollo activo.** `v1.0.8` es el candidato actual para producción. Las superficies Desktop, vault, indexer, knowledge, Git, export, daemon y web están implementadas y distribuidas. El registro de capacidades de [`docs/CAPABILITY-MATURITY.es.md`](docs/CAPABILITY-MATURITY.es.md) es la fuente autoritativa para saber qué está soportado, qué es experimental y qué existe únicamente como diseño. Mobile, vaults cifrados, embeddings locales, Tantivy y el host WASM siguen siendo experimentales o design-only.
+**Desarrollo activo.** `v1.0.9` es el candidato actual para producción. Las superficies Desktop, vault, indexer, knowledge, Git, export, daemon y web están implementadas y distribuidas. El registro de capacidades de [`docs/CAPABILITY-MATURITY.es.md`](docs/CAPABILITY-MATURITY.es.md) es la fuente autoritativa para saber qué está soportado, qué es experimental y qué existe únicamente como diseño. Mobile, vaults cifrados, embeddings locales, Tantivy y el host WASM siguen siendo experimentales o design-only.
 
 ## Licencia
 

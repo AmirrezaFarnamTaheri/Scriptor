@@ -12,7 +12,7 @@
 
 [<bdi dir="ltr">English</bdi>](README.md) · **فارسی**
 
-[![<bdi dir="ltr">Version</bdi>](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](<bdi dir="ltr">VERSION</bdi>)
+[![<bdi dir="ltr">Version</bdi>](https://img.shields.io/badge/version-1.0.9-0f766e.svg)](<bdi dir="ltr">VERSION</bdi>)
 [![<bdi dir="ltr">License: AGPL-3.0-or-later</bdi>](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](<bdi dir="ltr">LICENSE</bdi>)
 [![<bdi dir="ltr">Platforms</bdi>](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#<bdi dir="ltr">download</bdi>)
 [![<bdi dir="ltr">Stack</bdi>](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#<bdi dir="ltr">tech-stack</bdi>)
@@ -72,7 +72,7 @@
 <a id="download"></a>
 ## دریافت <bdi dir="ltr">Scriptor</bdi>
 
-نصاب‌های نسخه تولیدی به‌عنوان دارایی‌های <bdi dir="ltr">GitHub Release</bdi> منتشر می‌شوند. نسخه فعلی **1.0.8** است.
+نصاب‌های نسخه تولیدی به‌عنوان دارایی‌های <bdi dir="ltr">GitHub Release</bdi> منتشر می‌شوند. نسخه فعلی **1.0.9** است.
 
 - **<bdi dir="ltr">Windows x86_64</bdi>** — فایل‌های `.msi` و `.exe` مبتنی بر <bdi dir="ltr">NSIS</bdi>
 - **<bdi dir="ltr">macOS Apple Silicon</bdi> (<bdi dir="ltr">aarch64</bdi>)** — فایل `.dmg`
@@ -213,7 +213,7 @@ cargo test --workspace
 
 ## وضعیت پروژه
 
-**در حال توسعه فعال.** نسخه `v1.0.8` نامزد فعلی انتشار تولیدی است. بخش‌های دسکتاپ، مخزن، نمایه‌ساز، دانش، <bdi dir="ltr">Git</bdi>، خروجی‌گیری، <bdi dir="ltr">daemon</bdi> و وب پیاده‌سازی و منتشر شده‌اند. جدول وضعیت قابلیت‌ها در [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) مرجع رسمی تشخیص قابلیت‌های پشتیبانی‌شده، آزمایشی و صرفاً طراحی‌شده است. نسخه موبایل، مخزن‌های رمزگذاری‌شده، <bdi dir="ltr">embedding</bdi>های محلی، <bdi dir="ltr">Tantivy</bdi> و میزبان <bdi dir="ltr">WASM</bdi> همچنان آزمایشی یا صرفاً در مرحله طراحی هستند.
+**در حال توسعه فعال.** نسخه `v1.0.9` نامزد فعلی انتشار تولیدی است. بخش‌های دسکتاپ، مخزن، نمایه‌ساز، دانش، <bdi dir="ltr">Git</bdi>، خروجی‌گیری، <bdi dir="ltr">daemon</bdi> و وب پیاده‌سازی و منتشر شده‌اند. جدول وضعیت قابلیت‌ها در [`docs/CAPABILITY-MATURITY.md`](docs/CAPABILITY-MATURITY.md) مرجع رسمی تشخیص قابلیت‌های پشتیبانی‌شده، آزمایشی و صرفاً طراحی‌شده است. نسخه موبایل، مخزن‌های رمزگذاری‌شده، <bdi dir="ltr">embedding</bdi>های محلی، <bdi dir="ltr">Tantivy</bdi> و میزبان <bdi dir="ltr">WASM</bdi> همچنان آزمایشی یا صرفاً در مرحله طراحی هستند.
 
 ## مجوز
 

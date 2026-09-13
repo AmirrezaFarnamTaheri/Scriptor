@@ -6,7 +6,7 @@
 
 [English](README.md) · [فارسی](README.fa.md) · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · **Deutsch** · [Español](README.es.md)
 
-[![Version](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.9-0f766e.svg)](VERSION)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#download)
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
@@ -66,7 +66,7 @@ Den aktuellen Status ausgelieferter, experimenteller und rein konzeptioneller Fu
 <a id="download"></a>
 ## Scriptor herunterladen
 
-Produktionsinstaller werden als GitHub-Release-Assets veröffentlicht. Die aktuelle Version ist **1.0.8**.
+Produktionsinstaller werden als GitHub-Release-Assets veröffentlicht. Die aktuelle Version ist **1.0.9**.
 
 - **Windows x86_64** — `.msi` und `.exe` (NSIS)
 - **macOS Apple Silicon (aarch64)** — `.dmg`
@@ -199,7 +199,7 @@ Beiträge zu Scriptor sind willkommen. Der vollständige Workflow, die Erwartung
 
 ## Projektstatus
 
-**Aktive Entwicklung.** `v1.0.8` ist der aktuelle Produktions-Release-Kandidat. Desktop-, Vault-, Indexer-, Knowledge-, Git-, Export-, daemon- und Web-Oberflächen sind implementiert und werden ausgeliefert. Das Capability-Ledger in [`docs/CAPABILITY-MATURITY.de.md`](docs/CAPABILITY-MATURITY.de.md) ist die maßgebliche Quelle dafür, was unterstützt, experimentell oder nur konzipiert ist. Mobile, verschlüsselte Vaults, lokale Embeddings, Tantivy und der WASM-Host bleiben experimentell oder design-only.
+**Aktive Entwicklung.** `v1.0.9` ist der aktuelle Produktions-Release-Kandidat. Desktop-, Vault-, Indexer-, Knowledge-, Git-, Export-, daemon- und Web-Oberflächen sind implementiert und werden ausgeliefert. Das Capability-Ledger in [`docs/CAPABILITY-MATURITY.de.md`](docs/CAPABILITY-MATURITY.de.md) ist die maßgebliche Quelle dafür, was unterstützt, experimentell oder nur konzipiert ist. Mobile, verschlüsselte Vaults, lokale Embeddings, Tantivy und der WASM-Host bleiben experimentell oder design-only.
 
 ## Lizenz
 

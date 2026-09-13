@@ -6,7 +6,7 @@
 
 [English](README.md) · [فارسی](README.fa.md) · [简体中文](README.zh-CN.md) · **Русский** · [Deutsch](README.de.md) · [Español](README.es.md)
 
-[![Version](https://img.shields.io/badge/version-1.0.8-0f766e.svg)](VERSION)
+[![Version](https://img.shields.io/badge/version-1.0.9-0f766e.svg)](VERSION)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-0f766e.svg)](LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-0f766e.svg)](#download)
 [![Stack](https://img.shields.io/badge/stack-Tauri%202%20%C2%B7%20React%2019%20%C2%B7%20Rust%201.96-0f766e.svg)](#tech-stack)
@@ -66,7 +66,7 @@ Scriptor рассчитан на долгосрочные проекты: кни
 <a id="download"></a>
 ## Скачать Scriptor
 
-Продакшен-установщики публикуются как артефакты GitHub Release. Текущая версия — **1.0.8**.
+Продакшен-установщики публикуются как артефакты GitHub Release. Текущая версия — **1.0.9**.
 
 - **Windows x86_64** — `.msi` и `.exe` (NSIS)
 - **macOS Apple Silicon (aarch64)** — `.dmg`
@@ -199,7 +199,7 @@ Scriptor приветствует вклад сообщества. Полный 
 
 ## Статус проекта
 
-**Активная разработка.** `v1.0.8` — текущий кандидат на production-релиз. Desktop, vault, indexer, knowledge, Git, export, daemon и web-поверхности реализованы и поставляются. Реестр возможностей в [`docs/CAPABILITY-MATURITY.ru.md`](docs/CAPABILITY-MATURITY.ru.md) является авторитетным источником статуса: поддерживается, экспериментально или только спроектировано. Mobile, зашифрованные vault'ы, локальные embeddings, Tantivy и WASM host остаются экспериментальными или design-only.
+**Активная разработка.** `v1.0.9` — текущий кандидат на production-релиз. Desktop, vault, indexer, knowledge, Git, export, daemon и web-поверхности реализованы и поставляются. Реестр возможностей в [`docs/CAPABILITY-MATURITY.ru.md`](docs/CAPABILITY-MATURITY.ru.md) является авторитетным источником статуса: поддерживается, экспериментально или только спроектировано. Mobile, зашифрованные vault'ы, локальные embeddings, Tantivy и WASM host остаются экспериментальными или design-only.
 
 ## Лицензия
 
