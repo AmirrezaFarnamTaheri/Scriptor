@@ -132,8 +132,8 @@ interface EditorWorkspaceProps {
   setLanguageTool: (updater: (value: boolean) => boolean) => void
   stickiesVisible: boolean
   setStickiesVisible: (value: boolean) => void
-  splitPreview: boolean
-  setSplitPreview: (updater: (value: boolean) => boolean) => void
+  splitPreview?: boolean
+  setSplitPreview?: (updater: (value: boolean) => boolean) => void
   showSplitPreview: boolean
   splitEditorWidth: string
   splitDragging: boolean
@@ -281,7 +281,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     readingMinutes,
     brokenLinkCount = 0,
     citationCount = 0,
-    hasFrontmatter = false,
+    hasFrontmatter: _hasFrontmatter = false,
     onOpenPublishCenter,
     showFormatToolbar = true,
     showEditorAssist = true,
@@ -507,12 +507,18 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
           <span className="toolbar-separator" aria-hidden="true" />
           <button key="split-preview"
             type="button"
-            className={splitPreview ? 'active' : ''}
+            className={(splitPreview ?? showSplitPreview) ? 'active' : ''}
             disabled={!activePath}
             title={t('editor.splitToggle')}
             aria-label={t('editor.splitToggle')}
-            aria-pressed={splitPreview}
-            onClick={() => setSplitPreview((value) => !value)}
+            aria-pressed={splitPreview ?? showSplitPreview}
+            onClick={() => {
+              if (setSplitPreview) {
+                setSplitPreview((value) => !value)
+              } else {
+                onEditorSurfaceModeChange?.(showSplitPreview ? 'source' : 'split')
+              }
+            }}
           >
             <PanelRight />
           </button>
@@ -525,12 +531,9 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
         {showEditorAssist ? (
         <InlineEditorAssist
           activePath={activePath}
-          hasFrontmatter={hasFrontmatter}
           brokenLinkCount={brokenLinkCount}
           citationCount={citationCount}
-          onInsertWikilink={() => insertSnippet('[[Note Title]]')}
           onInsertCitation={() => insertSnippet('[@citekey]')}
-          onOpenFrontmatter={onOpenFrontmatter}
           onOpenExport={() => onOpenPublishCenter?.()}
         />
         ) : null}
