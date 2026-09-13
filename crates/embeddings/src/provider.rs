@@ -53,11 +53,15 @@ impl OllamaProvider {
     /// `base_url` e.g. `http://localhost:11434`.
     /// `model` e.g. `nomic-embed-text`.
     /// `dimension` must match the model's output dimension (e.g. 768 for nomic).
-    pub fn new(base_url: &str, model: &str, dimension: usize) -> Self {
-        Self {
-            client: OllamaClient::new(base_url, model),
+    pub fn try_new(base_url: &str, model: &str, dimension: usize) -> Result<Self, EmbeddingError> {
+        Ok(Self {
+            client: OllamaClient::try_new(base_url, model)?,
             dimension,
-        }
+        })
+    }
+
+    pub fn new(base_url: &str, model: &str, dimension: usize) -> Self {
+        Self::try_new(base_url, model, dimension).expect("failed to build Ollama client")
     }
 }
 
@@ -110,22 +114,26 @@ impl OpenAiProvider {
     /// `api_key` — user-supplied key stored in the OS keychain (never on disk).
     /// `model` — `"text-embedding-3-small"` (1536-d) or `"text-embedding-3-large"` (3072-d).
     /// `dimension` — pass `None` to use the model default.
-    pub fn new(api_key: &str, model: &str, dimension: Option<usize>) -> Self {
+    pub fn try_new(api_key: &str, model: &str, dimension: Option<usize>) -> Result<Self, EmbeddingError> {
         let dim = dimension.unwrap_or(match model {
             "text-embedding-3-large" => 3072,
             _ => 1536, // text-embedding-3-small default
         });
-        Self {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()?;
+        Ok(Self {
             model: model.to_string(),
             dimension: dim,
             requested_dimensions: dimension,
             api_key: api_key.to_string(),
             base_url: "https://api.openai.com".to_string(),
-            client: reqwest::blocking::Client::builder()
-                .timeout(Duration::from_secs(60))
-                .build()
-                .expect("failed to build HTTP client"),
-        }
+            client,
+        })
+    }
+
+    pub fn new(api_key: &str, model: &str, dimension: Option<usize>) -> Self {
+        Self::try_new(api_key, model, dimension).expect("failed to build OpenAI client")
     }
 
     /// Override base URL for proxies / compatible local servers (e.g. LM Studio).

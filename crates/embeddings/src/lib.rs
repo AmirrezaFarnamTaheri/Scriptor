@@ -66,7 +66,7 @@ pub fn resolve_provider(
                 })?;
             Ok(Some(DaemonEmbedProvider {
                 dimension,
-                inner: Box::new(OllamaProvider::new(&base_url, &model, dimension)),
+                inner: Box::new(OllamaProvider::try_new(&base_url, &model, dimension)?),
             }))
         }
         "openai" => {
@@ -85,7 +85,7 @@ pub fn resolve_provider(
             };
             Ok(Some(DaemonEmbedProvider {
                 dimension,
-                inner: Box::new(OpenAiProvider::new(&api_key, &model, config.dimension)),
+                inner: Box::new(OpenAiProvider::try_new(&api_key, &model, config.dimension)?),
             }))
         }
         other => Err(EmbeddingError::Provider(format!(
@@ -196,23 +196,43 @@ impl EmbeddingStore {
         content_hash: Option<&str>,
         vector: &[f32],
     ) -> Result<(), EmbeddingError> {
-        if vector.len() != self.dimension {
-            return Err(EmbeddingError::DimensionMismatch {
-                expected: self.dimension,
-                actual: vector.len(),
-            });
+        self.upsert_batch(&[(id, content_hash, vector)])
+    }
+
+    /// Insert or replace a batch of embeddings inside a single transaction.
+    pub fn upsert_batch(
+        &self,
+        items: &[(&str, Option<&str>, &[f32])],
+    ) -> Result<(), EmbeddingError> {
+        for (_, _, vec) in items {
+            if vec.len() != self.dimension {
+                return Err(EmbeddingError::DimensionMismatch {
+                    expected: self.dimension,
+                    actual: vec.len(),
+                });
+            }
         }
 
-        let bytes = vector_to_bytes(vector);
-        let conn = self
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
-        conn.execute(
-            "INSERT OR REPLACE INTO embeddings (id, vector, dimension, content_hash, updated_at)
-             VALUES (?1, ?2, ?3, ?4, unixepoch())",
-            params![id, bytes, self.dimension as i64, content_hash],
-        )?;
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare_cached(
+                "INSERT OR REPLACE INTO embeddings (id, vector, dimension, content_hash, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, unixepoch())",
+            )?;
+            let mut bytes_buf = Vec::with_capacity(self.dimension * 4);
+            for (id, content_hash, vec) in items {
+                bytes_buf.clear();
+                for &f in *vec {
+                    bytes_buf.extend_from_slice(&f.to_le_bytes());
+                }
+                stmt.execute(params![*id, bytes_buf, self.dimension as i64, *content_hash])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -273,57 +293,130 @@ impl EmbeddingStore {
                 actual: vector.len(),
             });
         }
+        if k == 0 {
+            return Ok(Vec::new());
+        }
+
+        // Precompute query vector norm once
+        let mut query_norm_sq = 0.0f32;
+        for &val in vector {
+            query_norm_sq += val * val;
+        }
+        let query_norm = query_norm_sq.sqrt();
+        if query_norm == 0.0 {
+            // Query vector is zero vector: similarity with any vector is 0.0
+            let conn = self
+                .conn
+                .lock()
+                .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
+            let mut stmt = conn.prepare("SELECT id FROM embeddings WHERE dimension = ?1 LIMIT ?2")?;
+            let rows = stmt.query_map(params![self.dimension as i64, k as i64], |row| row.get::<_, String>(0))?;
+            let mut scored = Vec::with_capacity(k);
+            for row in rows {
+                scored.push((row?, 0.0f32));
+            }
+            return Ok(scored);
+        }
 
         let conn = self
             .conn
             .lock()
             .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
         let mut stmt = conn.prepare("SELECT id, vector FROM embeddings WHERE dimension = ?1")?;
-        let rows = stmt.query_map(params![self.dimension as i64], |row| {
+        let expected_bytes = self
+            .dimension
+            .checked_mul(std::mem::size_of::<f32>())
+            .ok_or_else(|| {
+                EmbeddingError::Provider("embedding dimension byte size overflow".into())
+            })?;
+
+        use std::collections::BinaryHeap;
+
+        #[derive(PartialEq)]
+        struct Candidate {
+            score: f32,
+            id: String,
+        }
+        impl Eq for Candidate {}
+        impl PartialOrd for Candidate {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+        impl Ord for Candidate {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                // Min-heap orientation: the candidate with the smallest score is "largest"
+                match other.score.partial_cmp(&self.score) {
+                    Some(std::cmp::Ordering::Equal) | None => self.id.cmp(&other.id),
+                    Some(ord) => ord,
+                }
+            }
+        }
+
+        let mut heap: BinaryHeap<Candidate> = BinaryHeap::with_capacity(k + 1);
+
+        let mut rows = stmt.query(params![self.dimension as i64])?;
+        while let Some(row) = rows.next()? {
             let id: String = row.get(0)?;
             let blob: Vec<u8> = row.get(1)?;
-            Ok((id, blob))
-        })?;
-
-        // One scratch buffer reused across rows: no per-row heap allocation,
-        // and the similarity loop runs over plain float slices so the
-        // optimizer can vectorize it.
-        let mut scratch: Vec<f32> = Vec::with_capacity(self.dimension);
-        let mut scored: Vec<(String, f32)> = Vec::new();
-        for row in rows {
-            let (id, blob) = row?;
-            let expected_bytes = self
-                .dimension
-                .checked_mul(std::mem::size_of::<f32>())
-                .ok_or_else(|| {
-                    EmbeddingError::Provider("embedding dimension byte size overflow".into())
-                })?;
             if blob.len() != expected_bytes {
                 return Err(EmbeddingError::Provider(format!(
                     "corrupt embedding vector for {id}: expected {expected_bytes} bytes, got {}",
                     blob.len()
                 )));
             }
-            scratch.clear();
-            scratch.extend(
-                blob.chunks_exact(4)
-                    .map(|chunk| f32::from_le_bytes(chunk.try_into().expect("4-byte chunk"))),
-            );
-            let sim = cosine_similarity(vector, &scratch);
-            scored.push((id, sim));
+
+            // Streaming dot product and candidate norm calculation directly from 4-byte chunks
+            let mut dot = 0.0f32;
+            let mut norm_b_sq = 0.0f32;
+            for (query_val, chunk) in vector.iter().zip(blob.chunks_exact(4)) {
+                let val = f32::from_le_bytes(chunk.try_into().expect("4-byte chunk"));
+                dot += *query_val * val;
+                norm_b_sq += val * val;
+            }
+
+            let denom = query_norm * norm_b_sq.sqrt();
+            let sim = if denom == 0.0 { 0.0 } else { dot / denom };
+
+            if heap.len() < k {
+                heap.push(Candidate { score: sim, id });
+            } else if let Some(min_top) = heap.peek() {
+                if sim > min_top.score {
+                    heap.pop();
+                    heap.push(Candidate { score: sim, id });
+                }
+            }
         }
 
-        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        scored.truncate(k);
-        Ok(scored)
+        let mut results = Vec::with_capacity(heap.len());
+        while let Some(c) = heap.pop() {
+            results.push((c.id, c.score));
+        }
+        results.reverse();
+        Ok(results)
     }
 
     pub fn delete_embedding(&self, id: &str) -> Result<(), EmbeddingError> {
-        let conn = self
+        self.delete_batch(&[id])
+    }
+
+    /// Delete a batch of embeddings by ID inside a single transaction.
+    pub fn delete_batch(&self, ids: &[&str]) -> Result<(), EmbeddingError> {
+        if ids.is_empty() {
+            return Ok(());
+        }
+        let mut conn = self
             .conn
             .lock()
             .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
-        conn.execute("DELETE FROM embeddings WHERE id = ?1", params![id])?;
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare_cached("DELETE FROM embeddings WHERE id = ?1")?;
+            for id in ids {
+                stmt.execute(params![*id])?;
+            }
+        }
+        tx.commit()?;
         Ok(())
     }
 
@@ -348,7 +441,7 @@ pub(crate) fn content_hash(text: &str) -> String {
     format!("{hash:016x}")
 }
 
-fn vector_to_bytes(v: &[f32]) -> Vec<u8> {
+pub fn vector_to_bytes(v: &[f32]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(v.len() * 4);
     for &f in v {
         bytes.extend_from_slice(&f.to_le_bytes());
@@ -356,7 +449,7 @@ fn vector_to_bytes(v: &[f32]) -> Vec<u8> {
     bytes
 }
 
-fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     let len = a.len().min(b.len());
     let mut dot = 0.0f32;
     let mut norm_a = 0.0f32;

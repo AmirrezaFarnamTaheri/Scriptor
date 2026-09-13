@@ -3,7 +3,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 pub struct OllamaClient {
-    base_url: String,
+    endpoint: String,
     model: String,
     client: reqwest::blocking::Client,
 }
@@ -20,19 +20,23 @@ struct EmbedResponse {
 }
 
 impl OllamaClient {
-    pub fn new(base_url: &str, model: &str) -> Self {
-        Self {
-            base_url: base_url.trim_end_matches('/').to_string(),
+    pub fn try_new(base_url: &str, model: &str) -> Result<Self, crate::error::EmbeddingError> {
+        let base = base_url.trim_end_matches('/');
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(120))
+            .build()?;
+        Ok(Self {
+            endpoint: format!("{base}/api/embed"),
             model: model.to_string(),
-            client: reqwest::blocking::Client::builder()
-                .timeout(Duration::from_secs(120))
-                .build()
-                .expect("failed to build HTTP client"),
-        }
+            client,
+        })
+    }
+
+    pub fn new(base_url: &str, model: &str) -> Self {
+        Self::try_new(base_url, model).expect("failed to build HTTP client")
     }
 
     pub fn embed(&self, texts: &[&str]) -> Result<Vec<Vec<f32>>, crate::error::EmbeddingError> {
-        let url = format!("{}/api/embed", self.base_url);
         let body = EmbedRequest {
             model: &self.model,
             input: texts,
@@ -41,7 +45,7 @@ impl OllamaClient {
         self.retry(|| {
             let resp = self
                 .client
-                .post(&url)
+                .post(&self.endpoint)
                 .json(&body)
                 .send()?
                 .error_for_status()?;
@@ -69,6 +73,14 @@ impl OllamaClient {
             match op() {
                 Ok(val) => return Ok(val),
                 Err(e) => {
+                    // Do not retry deterministically fatal client errors (e.g. 404 Model Not Found, 400 Bad Request).
+                    if let crate::error::EmbeddingError::Http(ref err) = e {
+                        if let Some(status) = err.status() {
+                            if status.is_client_error() {
+                                return Err(e);
+                            }
+                        }
+                    }
                     if attempt < max_retries {
                         let backoff = Duration::from_millis(500 * 2u64.pow(attempt as u32));
                         std::thread::sleep(backoff);
