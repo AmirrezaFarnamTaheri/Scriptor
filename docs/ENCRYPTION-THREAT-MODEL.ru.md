@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](ENCRYPTION-THREAT-MODEL.md) · [فارسی](ENCRYPTION-THREAT-MODEL.fa.md) · [简体中文](ENCRYPTION-THREAT-MODEL.zh-CN.md) · **Русский** · [Deutsch](ENCRYPTION-THREAT-MODEL.de.md) · [Español](ENCRYPTION-THREAT-MODEL.es.md)
+</div>
+
 # Модель угроз для зашифрованного vault
 
 **Решение:** шифрование остаётся экспериментальным. Наличие криптографических примитивов не означает наличие полноценного end-to-end зашифрованного vault-продукта.

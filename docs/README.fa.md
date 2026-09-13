@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](README.md) · **فارسی** · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 # مستندات Scriptor
 
 [English](README.md) · **فارسی** · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
@@ -61,3 +67,6 @@
 
 - [`release/SIGNING.fa.md`](release/SIGNING.fa.md)
 - [`release/PANDOC_STRATEGY.fa.md`](release/PANDOC_STRATEGY.fa.md)
+
+
+</div>

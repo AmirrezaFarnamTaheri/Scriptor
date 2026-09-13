@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](c4-container.md) · **فارسی** · [简体中文](c4-container.zh-CN.md) · [Русский](c4-container.ru.md) · [Deutsch](c4-container.de.md) · [Español](c4-container.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # نمودار Container سطح ۲ — معماری Scriptor
@@ -12,6 +18,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```mermaid
 C4Container
     title Containerهای runtime در Scriptor
@@ -61,6 +68,7 @@ C4Container
     Rel(exporter, external_tools, "export toolchain صریح را اجرا می‌کند", "bounded subprocess")
     Rel(native, network_apis, "integration call صریح opt-in", "native HTTPS")
 ```
+</div>
 
 </div>
 
@@ -88,5 +96,8 @@ C4Container
 - <bdi dir="ltr">`.scriptor/cache/index.sqlite`</bdi>: state مشتق و قابل بازسازی search/graph/task/citation.
 - <bdi dir="ltr">`.scriptor/reader/annotations.json`</bdi>، sidecarهای recovery/audit و configuration: state محلی برنامه با کنترل path/atomic-write.
 - خروجی local publish و <bdi dir="ltr">`.scriptor-publish-state.json`</bdi>: state تولیدشده/مدیریت‌شده خارج از vault؛ هرگز برای source noteها مرجع نیست.
+
+</div>
+
 
 </div>

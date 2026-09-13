@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](CAPABILITY-MATURITY.md) · **فارسی** · [简体中文](CAPABILITY-MATURITY.zh-CN.md) · [Русский](CAPABILITY-MATURITY.ru.md) · [Deutsch](CAPABILITY-MATURITY.de.md) · [Español](CAPABILITY-MATURITY.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # دفتر بلوغ قابلیت‌ها
@@ -55,5 +61,8 @@
 6. مستندات کاربر و operator؛
 7. inclusion در release و artifact verification؛
 8. changelog entry.
+
+</div>
+
 
 </div>

@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](ENCRYPTION-THREAT-MODEL.md) · **فارسی** · [简体中文](ENCRYPTION-THREAT-MODEL.zh-CN.md) · [Русский](ENCRYPTION-THREAT-MODEL.ru.md) · [Deutsch](ENCRYPTION-THREAT-MODEL.de.md) · [Español](ENCRYPTION-THREAT-MODEL.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 # مدل تهدید مخزن رمزگذاری‌شده
 
 **تصمیم:** رمزگذاری همچنان آزمایشی است. وجود primitiveهای رمزنگاری به‌معنای داشتن یک محصول مخزن رمزگذاری‌شده سرتاسری نیست.
@@ -34,3 +40,6 @@
 ## پیاده‌سازی فعلی
 
 `crates/vault/src/encryption.rs` از authenticated encryption و مشتق‌سازی عبارت عبور مبتنی بر Argon2id با بررسی نسخه و آزمون‌های منفی استفاده می‌کند. این یک ماژول کتابخانه‌ای نمونه است و به‌عنوان حالت شفاف و پشتیبانی‌شده vault متصل نشده است. مستندات محصول و امنیت باید این تمایز را حفظ کنند.
+
+
+</div>

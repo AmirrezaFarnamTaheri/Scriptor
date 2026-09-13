@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](CAPABILITIES.md) · **فارسی** · [简体中文](CAPABILITIES.zh-CN.md) · [Русский](CAPABILITIES.ru.md) · [Deutsch](CAPABILITIES.de.md) · [Español](CAPABILITIES.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # قابلیت‌های Scriptor
@@ -40,6 +46,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```powershell
 pnpm check:release   # Full local release gate (includes axe-core CI gate)
 pnpm check:daemon    # IPC smoke
@@ -61,6 +68,7 @@ pnpm test:rust       # Rust unit and integration tests
 pnpm test:visual     # Visual regression Playwright tests
 pnpm test:e2e        # Playwright end-to-end tests
 ```
+</div>
 
 </div>
 
@@ -77,5 +85,8 @@ CI همین بررسی‌ها را در [`.github/workflows/ci.yml`](../.github/
 | [`release/SIGNING.md`](./release/SIGNING.md) | سیاست اعتماد و امضای نصب‌کننده‌ها |
 | [`../PRODUCT.md`](../PRODUCT.md) | اصول محصول |
 | [`../CHANGELOG.md`](../CHANGELOG.md) | تاریخچه انتشارها |
+
+</div>
+
 
 </div>

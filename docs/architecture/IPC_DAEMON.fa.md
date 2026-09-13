@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](IPC_DAEMON.md) · **فارسی** · [简体中文](IPC_DAEMON.zh-CN.md) · [Русский](IPC_DAEMON.ru.md) · [Deutsch](IPC_DAEMON.de.md) · [Español](IPC_DAEMON.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # معماری IPC مربوط به Daemon
@@ -47,17 +53,22 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 cargo run -p scriptor-daemon -- serve
 cargo run -p scriptor-cli -- daemon ping
 cargo run -p scriptor-cli -- tui ./vault --via-daemon
 pnpm check:daemon
 ```
+</div>
 
 </div>
 
 <div dir="rtl" lang="fa">
 
 برای نمودار topology، routing مربوط به integration دسکتاپ، staging مربوط به sidecar و مسیرهای hook موتور headless، ردیف **Daemon transport** در [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) و مسیرهای bridge مستندشده در همان فایل را ببینید.
+
+</div>
+
 
 </div>

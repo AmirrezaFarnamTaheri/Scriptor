@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](ACCESSIBILITY_AUDIT.md) · **فارسی** · [简体中文](ACCESSIBILITY_AUDIT.zh-CN.md) · [Русский](ACCESSIBILITY_AUDIT.ru.md) · [Deutsch](ACCESSIBILITY_AUDIT.de.md) · [Español](ACCESSIBILITY_AUDIT.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # ممیزی دسترس‌پذیری
@@ -40,9 +46,11 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```powershell
 pnpm check:a11y
 ```
+</div>
 
 </div>
 
@@ -54,11 +62,13 @@ static source checkها در CI/release gate اجرا می‌شوند. برای 
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```powershell
 pnpm dev --host 127.0.0.1
 pnpm check:a11y-axe
 pnpm test:visual
 ```
+</div>
 
 </div>
 
@@ -70,5 +80,8 @@ findingها را در release PR ثبت کنید. keyboard trap، نام گم‌
 
 - graph panel یک keyboard focus surface دارد با arrow navigation، Enter activation، live node summary و modal focus containment. screen-reader usability pass همچنان manual release gate است.
 - command palette از arrow keys، Enter و Escape پشتیبانی می‌کند (<bdi dir="ltr">`CommandPalette.tsx`</bdi>).
+
+</div>
+
 
 </div>

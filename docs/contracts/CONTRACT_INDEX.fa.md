@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](CONTRACT_INDEX.md) · **فارسی** · [简体中文](CONTRACT_INDEX.zh-CN.md) · [Русский](CONTRACT_INDEX.ru.md) · [Deutsch](CONTRACT_INDEX.de.md) · [Español](CONTRACT_INDEX.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # فهرست Contractها
@@ -44,5 +50,8 @@
 - boolean <bdi dir="ltr">`recoverable`</bdi>؛
 - <bdi dir="ltr">`details`</bdi> اختیاری؛
 - <bdi dir="ltr">`rollbackHint`</bdi> اختیاری.
+
+</div>
+
 
 </div>

@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](FINAL-REMEDIATION-REPORT.md) · **فارسی** · [简体中文](FINAL-REMEDIATION-REPORT.zh-CN.md) · [Русский](FINAL-REMEDIATION-REPORT.ru.md) · [Deutsch](FINAL-REMEDIATION-REPORT.de.md) · [Español](FINAL-REMEDIATION-REPORT.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 # خط مبنای محصول V1
 
 **نسخه محصول:** در [`VERSION`](../VERSION) نگه‌داری می‌شود  
@@ -23,3 +29,6 @@ Scriptor v1 برای هر دغدغه ماندگار یک مرجع اختیار �
 ## بهداشت مخزن
 
 درخت منتشرشده فقط شامل مستندات فعلی محصول و اپراتور است. planهای منسوخ، review packetها، forensic snapshotها و ورودی‌های تاریخی changelog عمداً بخشی از قرارداد v1 نیستند.
+
+
+</div>

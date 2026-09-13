@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](PANDOC_STRATEGY.md) · **فارسی** · [简体中文](PANDOC_STRATEGY.zh-CN.md) · [Русский](PANDOC_STRATEGY.ru.md) · [Deutsch](PANDOC_STRATEGY.de.md) · [Español](PANDOC_STRATEGY.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # راهبرد Pandoc
@@ -17,9 +23,11 @@ Scriptor خروجی‌گیری را از طریق Pandoc و با مجموعه‌
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```powershell
 pnpm cli -- export-discover
 ```
+</div>
 
 </div>
 
@@ -43,9 +51,11 @@ export dry-run بدون نصب Pandoc هم کار می‌کند و فقط آرگ
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```powershell
 winget install --id JohnMacFarlane.Pandoc
 ```
+</div>
 
 </div>
 
@@ -57,9 +67,11 @@ winget install --id JohnMacFarlane.Pandoc
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 brew install pandoc
 ```
+</div>
 
 </div>
 
@@ -87,12 +99,14 @@ Scriptor در <bdi dir="ltr">`crates/export-runner`</bdi> با <bdi dir="ltr">`s
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```
 ┌──────────────┐   subprocess   ┌──────────────┐
 │ Scriptor      │ ─────────────→ │ pandoc        │
 │ (AGPL-3.0)   │ ←───────────── │ (GPL-2.0+)   │
 └──────────────┘   stdout/file  └──────────────┘
 ```
+</div>
 
 </div>
 
@@ -126,5 +140,8 @@ Scriptor در <bdi dir="ltr">`crates/export-runner`</bdi> با <bdi dir="ltr">`s
 - آرگومان‌های export از typeهای ساخت‌یافته Rust ساخته می‌شوند، نه با concatenation رشته shell؛
 - <bdi dir="ltr">`extra_pandoc_args`</bdi> از allowlist در <bdi dir="ltr">`export-runner`</bdi> عبور می‌کند؛
 - اگر Pandoc همراه برنامه شود، خروجی <bdi dir="ltr">`export-discover`</bdi> باید metadata نسخه pinned را برای تشخیص پشتیبانی نمایش دهد.
+
+</div>
+
 
 </div>

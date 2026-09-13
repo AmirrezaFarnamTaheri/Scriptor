@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](FINAL-REMEDIATION-REPORT.md) · [فارسی](FINAL-REMEDIATION-REPORT.fa.md) · **简体中文** · [Русский](FINAL-REMEDIATION-REPORT.ru.md) · [Deutsch](FINAL-REMEDIATION-REPORT.de.md) · [Español](FINAL-REMEDIATION-REPORT.es.md)
+</div>
+
 # V1 产品基线
 
 **产品版本：** 由 [`VERSION`](../VERSION) 跟踪  

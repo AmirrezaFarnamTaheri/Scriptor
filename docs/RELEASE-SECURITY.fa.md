@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](RELEASE-SECURITY.md) · **فارسی** · [简体中文](RELEASE-SECURITY.zh-CN.md) · [Русский](RELEASE-SECURITY.ru.md) · [Deutsch](RELEASE-SECURITY.de.md) · [Español](RELEASE-SECURITY.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # امنیت و راستی‌آزمایی Release
@@ -81,9 +87,11 @@ GitHub attestation را بررسی کنید:
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor
 ```
+</div>
 
 </div>
 
@@ -95,10 +103,12 @@ gh attestation verify <installer> --repo AmirrezaFarnamTaheri/Scriptor
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 artifact="scriptor-<version>-linux-x86_64.AppImage"
 grep -F "  $artifact" SHA256SUMS | sha256sum --check -
 ```
+</div>
 
 </div>
 
@@ -110,12 +120,14 @@ grep -F "  $artifact" SHA256SUMS | sha256sum --check -
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 artifact="scriptor-<version>-macos-aarch64.dmg"
 expected=$(awk -v name="$artifact" '$2 == name { print $1 }' SHA256SUMS)
 actual=$(shasum -a 256 "$artifact" | awk '{ print $1 }')
 test -n "$expected" && test "$actual" = "$expected"
 ```
+</div>
 
 </div>
 
@@ -127,6 +139,7 @@ test -n "$expected" && test "$actual" = "$expected"
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```powershell
 $artifact = 'scriptor-<version>-windows-x86_64-setup.exe'
 $line = Get-Content .\SHA256SUMS | Where-Object { $_ -match "  $([regex]::Escape($artifact))$" }
@@ -135,6 +148,7 @@ $expected = ($line -split '\s+', 2)[0].ToLowerInvariant()
 $actual = (Get-FileHash ".\$artifact" -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw 'Checksum verification failed.' }
 ```
+</div>
 
 </div>
 
@@ -146,15 +160,20 @@ maintainer همچنین می‌تواند هر هفت installer را در <bdi d
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 node scripts/release/verify-signing-evidence.mjs release-evidence production
 node scripts/release/verify-release-evidence.mjs release-artifacts release-evidence
 ```
+</div>
 
 </div>
 
 <div dir="rtl" lang="fa">
 
 هر checksum، SBOM، receipt، target-status record، source identity، exact-subject match یا GitHub attestation گم‌شده یا نامعتبر، production release را block می‌کند. برای installerهای رسمی upstream هیچ OS publisher signature ادعا نمی‌شود.
+
+</div>
+
 
 </div>

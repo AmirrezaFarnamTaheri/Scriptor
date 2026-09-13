@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](README.md) · **فارسی** · [简体中文](README.zh-CN.md) · [Русский](README.ru.md) · [Deutsch](README.de.md) · [Español](README.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div align="center">
 
 # Scriptor
@@ -101,6 +107,7 @@ Scriptor برای پروژه‌های بلندمدتی مثل کتاب، پای�
 
 ### راه‌اندازی اولیه
 
+<div dir="ltr">
 ```powershell
 corepack enable
 corepack prepare pnpm@10.33.0 --activate
@@ -108,18 +115,22 @@ pnpm install --frozen-lockfile
 rustup toolchain install 1.96.0 --profile minimal --component rustfmt --component clippy
 rustup default 1.96.0
 ```
+</div>
 
 ### اجرا
 
+<div dir="ltr">
 ```powershell
 pnpm web:dev          # فقط پوسته وب؛ برای توسعه و آزمون‌های بصری
 pnpm desktop:dev      # پوسته دسکتاپ Tauri
 ```
+</div>
 
 ### راستی‌آزمایی
 
 بررسی‌های سریع و بومی خود مخزن:
 
+<div dir="ltr">
 ```powershell
 pnpm version:check
 pnpm lint:actions
@@ -129,9 +140,11 @@ pnpm check:docs
 pnpm check:source
 pnpm check:frontend-quality
 ```
+</div>
 
 دروازه کامل انتشار:
 
+<div dir="ltr">
 ```powershell
 pnpm install --frozen-lockfile
 pnpm lint
@@ -141,6 +154,7 @@ cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
 ```
+</div>
 
 `pnpm check:release` اجراکننده‌های قرارداد، آزمون‌های Rust، مجموعه آزمون‌های E2E و بصری Playwright، ممیزی‌های دسترس‌پذیری، smoke testهای daemon و TUI و دروازه‌های عملکرد را اجرا می‌کند. جزئیات بسته‌بندی و راستی‌آزمایی شواهد انتشار در [`scripts/release/README.md`](scripts/release/README.md) مستند شده است.
 
@@ -208,3 +222,6 @@ Scriptor تحت مجوز **GNU AGPL-3.0-or-later** منتشر می‌شود. ا�
 ## نگه‌دارنده پروژه
 
 Amirreza "Farnam" Taheri · [taherifarnam@gmail.com](mailto:taherifarnam@gmail.com) · [GitHub](https://github.com/AmirrezaFarnamTaheri/Scriptor)
+
+
+</div>

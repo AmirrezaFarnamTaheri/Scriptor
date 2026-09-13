@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](SIGNING.md) · **فارسی** · [简体中文](SIGNING.zh-CN.md) · [Русский](SIGNING.ru.md) · [Deutsch](SIGNING.de.md) · [Español](SIGNING.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # وضعیت اعتماد انتشار و امضای توزیع‌کنندگان پایین‌دست
@@ -71,6 +77,7 @@ schema شواهد می‌تواند یک artifact درست امضاشده را �
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 node scripts/release/validate-signing-policy.mjs \
   --platform linux \
@@ -78,6 +85,7 @@ node scripts/release/validate-signing-policy.mjs \
   --channel production
 node --test scripts/release/signing-policy.test.mjs
 ```
+</div>
 
 </div>
 
@@ -89,6 +97,7 @@ node --test scripts/release/signing-policy.test.mjs
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```bash
 node scripts/release/write-signing-evidence.mjs \
   --platform linux \
@@ -99,11 +108,15 @@ node scripts/release/write-signing-evidence.mjs \
   --signature-type none \
   --verifier "unsigned artifact; verify SHA-256 and GitHub attestation"
 ```
+</div>
 
 </div>
 
 <div dir="rtl" lang="fa">
 
 با اینکه امضای ناشر پیش‌نیاز نیست، release verifier همچنان برای تمامیت و کامل‌بودن شواهد fail-closed باقی می‌ماند.
+
+</div>
+
 
 </div>

@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](ENCRYPTION-THREAT-MODEL.md) · [فارسی](ENCRYPTION-THREAT-MODEL.fa.md) · [简体中文](ENCRYPTION-THREAT-MODEL.zh-CN.md) · [Русский](ENCRYPTION-THREAT-MODEL.ru.md) · [Deutsch](ENCRYPTION-THREAT-MODEL.de.md) · **Español**
+</div>
+
 # Modelo de amenazas para vaults cifrados
 
 **Decisión:** el cifrado sigue siendo experimental. Disponer de primitivas criptográficas no equivale a ofrecer un producto de vault cifrado de extremo a extremo.

@@ -1,3 +1,9 @@
+<div dir="ltr" align="center">
+[English](LAYOUT_BLUEPRINTS.md) · **فارسی** · [简体中文](LAYOUT_BLUEPRINTS.zh-CN.md) · [Русский](LAYOUT_BLUEPRINTS.ru.md) · [Deutsch](LAYOUT_BLUEPRINTS.de.md) · [Español](LAYOUT_BLUEPRINTS.es.md)
+</div>
+
+<div dir="rtl" lang="fa" align="right">
+
 <div dir="rtl" lang="fa">
 
 # نقشه‌های Layout
@@ -12,6 +18,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │  Topbar (glass): brand · history · command search · actions │
@@ -23,6 +30,7 @@
 │  Status strip: jobs · diagnostics · repo state             │
 └─────────────────────────────────────────────────────────────┘
 ```
+</div>
 
 </div>
 
@@ -48,6 +56,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```text
 ┌─────────────────────────┐
 │  Compact topbar         │
@@ -62,6 +71,7 @@
 │  Command                │
 └─────────────────────────┘
 ```
+</div>
 
 </div>
 
@@ -77,6 +87,7 @@
 
 <div dir="ltr">
 
+<div dir="ltr">
 ```text
 ┌ Command Surface ────────────────────────────────────────────┐
 ├ Notes (34%) ──┬── Preview / Backlinks / Graph / Health ───┤
@@ -84,6 +95,7 @@
 │ Footer: status · git · health · selection · key hints      │
 └────────────────────────────────────────────────────────────┘
 ```
+</div>
 
 </div>
 
@@ -103,5 +115,8 @@
 | Overlays / modals | 60 |
 | Command palette | 70 |
 | Toasts | 80 |
+
+</div>
+
 
 </div>
