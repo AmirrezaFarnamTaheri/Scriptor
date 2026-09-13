@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](OPERATIONS.md) · [فارسی](OPERATIONS.fa.md) · **简体中文** · [Русский](OPERATIONS.ru.md) · [Deutsch](OPERATIONS.de.md) · [Español](OPERATIONS.es.md)
+</div>
+
 # 运维与诊断
 
 ## 结构化 tracing

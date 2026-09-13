@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](ENCRYPTION-THREAT-MODEL.md) · [فارسی](ENCRYPTION-THREAT-MODEL.fa.md) · **简体中文** · [Русский](ENCRYPTION-THREAT-MODEL.ru.md) · [Deutsch](ENCRYPTION-THREAT-MODEL.de.md) · [Español](ENCRYPTION-THREAT-MODEL.es.md)
+</div>
+
 # 加密 Vault 威胁模型
 
 **结论：** 加密功能仍处于实验阶段。拥有密码学原语并不等同于拥有端到端完整的加密 vault 产品。

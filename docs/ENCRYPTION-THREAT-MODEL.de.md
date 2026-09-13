@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](ENCRYPTION-THREAT-MODEL.md) · [فارسی](ENCRYPTION-THREAT-MODEL.fa.md) · [简体中文](ENCRYPTION-THREAT-MODEL.zh-CN.md) · [Русский](ENCRYPTION-THREAT-MODEL.ru.md) · **Deutsch** · [Español](ENCRYPTION-THREAT-MODEL.es.md)
+</div>
+
 # Bedrohungsmodell für verschlüsselte Vaults
 
 **Entscheidung:** Verschlüsselung bleibt experimentell. Kryptografische Primitive sind nicht gleichbedeutend mit einem vollständig Ende-zu-Ende verschlüsselten Vault-Produkt.

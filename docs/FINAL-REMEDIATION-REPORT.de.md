@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](FINAL-REMEDIATION-REPORT.md) · [فارسی](FINAL-REMEDIATION-REPORT.fa.md) · [简体中文](FINAL-REMEDIATION-REPORT.zh-CN.md) · [Русский](FINAL-REMEDIATION-REPORT.ru.md) · **Deutsch** · [Español](FINAL-REMEDIATION-REPORT.es.md)
+</div>
+
 # V1-Produktbasislinie
 
 **Produktversion:** wird in [`VERSION`](../VERSION) geführt  

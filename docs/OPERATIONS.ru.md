@@ -1,3 +1,7 @@
+<div dir="ltr" align="center">
+[English](OPERATIONS.md) · [فارسی](OPERATIONS.fa.md) · [简体中文](OPERATIONS.zh-CN.md) · **Русский** · [Deutsch](OPERATIONS.de.md) · [Español](OPERATIONS.es.md)
+</div>
+
 # Эксплуатация и диагностика
 
 ## Структурированный tracing
