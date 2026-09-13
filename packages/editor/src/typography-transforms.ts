@@ -2,25 +2,25 @@ import type { StateCommand } from '@codemirror/state'
 import type { EditorView } from '@codemirror/view'
 
 import type { TypographyAction } from './typography-actions.ts'
+import {
+  addSpacesAroundEmdashesText,
+  doubleQuotesToSingleText,
+  italicsToQuotesText,
+  quotesToItalicsText,
+  removeLineBreaksText,
+  removeSpacesAroundEmdashesText,
+  replaceDelimited,
+  singleQuotesToDoubleText,
+  straightenQuotesText,
+  stripDuplicateSpacesText,
+  toDoubleQuotesText,
+  toSentenceCaseText,
+  toTitleCaseText,
+  zapGremlinsText,
+  type TransformText,
+} from './typography-logic.ts'
 
-export type TransformText = (text: string) => string
-
-function delimit(delimiter: string): (text: string) => string[] {
-  const pattern = new RegExp(`(${delimiter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g')
-  // Splitting on a capture group keeps delimiters at odd indices and content
-  // (possibly empty) at even indices. Dropping empty chunks would shift that
-  // parity, so they are preserved and rejoin as empty strings.
-  return (text: string) => text.split(pattern)
-}
-
-export function replaceDelimited(delimiter: string, replacement: string): TransformText {
-  return (text: string) => {
-    const chunks = delimit(delimiter)(text)
-    return chunks
-      .map((chunk, index) => (index % 2 === 1 ? replacement : chunk))
-      .join('')
-  }
-}
+export { replaceDelimited, type TransformText }
 
 export function transformSelectedText(transform: TransformText): StateCommand {
   return (target) => {
@@ -38,68 +38,33 @@ export function transformSelectedText(transform: TransformText): StateCommand {
   }
 }
 
-export const zapGremlins: StateCommand = transformSelectedText((text) =>
-  text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u00AD\u200A]/g, ''),
-)
+export const zapGremlins: StateCommand = transformSelectedText(zapGremlinsText)
 
-export const stripDuplicateSpaces: StateCommand = transformSelectedText((text) =>
-  text.replace(/ {2,}/g, ' '),
-)
+export const stripDuplicateSpaces: StateCommand = transformSelectedText(stripDuplicateSpacesText)
 
-export const removeLineBreaks: StateCommand = transformSelectedText((text) =>
-  text.replace(/\r?\n/g, ' ').replace(/ {2,}/g, ' '),
-)
+export const removeLineBreaks: StateCommand = transformSelectedText(removeLineBreaksText)
 
-export const straightenQuotes: StateCommand = transformSelectedText((text) =>
-  text.replace(/[\u201C\u201D\u201E\u00AB\u00BB]/g, '"').replace(/[\u2018\u2019\u201A]/g, "'"),
-)
+export const straightenQuotes: StateCommand = transformSelectedText(straightenQuotesText)
 
-export const toDoubleQuotes: StateCommand = transformSelectedText((text) =>
-  replaceDelimited("'", '"')(replaceDelimited('`', '"')(text)),
-)
+export const toDoubleQuotes: StateCommand = transformSelectedText(toDoubleQuotesText)
 
-export const doubleQuotesToSingle: StateCommand = transformSelectedText(replaceDelimited('"', "'"))
+export const doubleQuotesToSingle: StateCommand = transformSelectedText(doubleQuotesToSingleText)
 
-export const singleQuotesToDouble: StateCommand = transformSelectedText(replaceDelimited("'", '"'))
+export const singleQuotesToDouble: StateCommand = transformSelectedText(singleQuotesToDoubleText)
 
-export const addSpacesAroundEmdashes: StateCommand = transformSelectedText((text) =>
-  text.replace(/([^ ])—/g, '$1 —').replace(/—([^ ])/g, '— $1'),
-)
+export const addSpacesAroundEmdashes: StateCommand = transformSelectedText(addSpacesAroundEmdashesText)
 
-export const removeSpacesAroundEmdashes: StateCommand = transformSelectedText((text) =>
-  text.replace(/ —/g, '—').replace(/— /g, '—'),
-)
+export const removeSpacesAroundEmdashes: StateCommand = transformSelectedText(removeSpacesAroundEmdashesText)
 
 export function toTitleCase(locale = 'en'): StateCommand {
-  const segmenter = new Intl.Segmenter(locale, { granularity: 'word' })
-  return transformSelectedText((text) => {
-    const segments = Array.from(segmenter.segment(text))
-    let output = ''
-    let cursor = 0
-    for (const segment of segments) {
-      output += text.slice(cursor, segment.index)
-      const word = segment.segment
-      if (segment.isWordLike) {
-        const [first, ...rest] = [...word]
-        output += first?.toLocaleUpperCase(locale) ?? ''
-        output += rest.join('').toLocaleLowerCase(locale)
-      } else {
-        output += word
-      }
-      cursor = segment.index + word.length
-    }
-    output += text.slice(cursor)
-    return output
-  })
+  return transformSelectedText((text) => toTitleCaseText(text, locale))
 }
 
 export function toSentenceCase(locale = 'en'): StateCommand {
   return (target) => {
     const range = target.state.selection.main
     const text = target.state.sliceDoc(range.from, range.to)
-    const lower = text.toLocaleLowerCase(locale)
-    const [first, ...rest] = lower
-    const sentence = (first?.toLocaleUpperCase(locale) ?? '') + rest.join('')
+    const sentence = toSentenceCaseText(text, locale)
     if (sentence === text) return false
     target.dispatch(
       target.state.update({
@@ -112,12 +77,10 @@ export function toSentenceCase(locale = 'en'): StateCommand {
 }
 
 export function quotesToItalics(marker: '*' | '_' = '*'): StateCommand {
-  return transformSelectedText(replaceDelimited('"', marker))
+  return transformSelectedText((text) => quotesToItalicsText(text, marker))
 }
 
-export const italicsToQuotes: StateCommand = transformSelectedText((text) =>
-  text.replace(/\*([^*]+)\*/g, '"$1"').replace(/_([^_]+)_/g, '"$1"'),
-)
+export const italicsToQuotes: StateCommand = transformSelectedText(italicsToQuotesText)
 
 export { TYPOGRAPHY_ACTIONS } from './typography-actions.ts'
 export type { TypographyAction } from './typography-actions.ts'

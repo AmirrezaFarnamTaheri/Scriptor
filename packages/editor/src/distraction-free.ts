@@ -10,6 +10,4 @@ export function distractionFreeExtension(enabled: boolean): Extension {
   })
 }
 
-export function setDistractionFreeClass(enabled: boolean): void {
-  document.documentElement.classList.toggle('scriptor-distraction-free', enabled)
-}
+export { setDistractionFreeClass } from './distraction-free-dom.ts'

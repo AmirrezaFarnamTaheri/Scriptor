@@ -188,6 +188,23 @@ function WorkspaceDialogLayersImpl({
     setWritingTargetsOpen(false)
   }, [draftWordCount, setWritingTargetsOpen])
 
+  const hasAnyDialogOpen =
+    writingTargetsOpen ||
+    Boolean(conflictPath && conflictSource) ||
+    healthDashboardOpen ||
+    (frontmatterOpen && Boolean(workspace.activePath)) ||
+    knowledgeWorkbenchOpen ||
+    publishCenterOpen ||
+    snippetsOpen ||
+    cheatsheetOpen ||
+    onboarding.onboardingOpen ||
+    supportOpen ||
+    perfHudOpen
+
+  if (!hasAnyDialogOpen) {
+    return null
+  }
+
   return (
     <>
       {writingTargetsOpen && (

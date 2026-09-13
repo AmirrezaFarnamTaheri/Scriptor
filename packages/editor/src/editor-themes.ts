@@ -2,7 +2,9 @@ import { Compartment } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
 import { oneDark } from '@codemirror/theme-one-dark'
 
-export type EditorThemeId = 'light' | 'dark'
+import type { EditorThemeId } from './editor-types.ts'
+
+export type { EditorThemeId }
 
 const themeCompartment = new Compartment()
 

@@ -20,6 +20,7 @@ export { headingToId } from './heading-id.ts'
 
 export { TYPOGRAPHY_ACTIONS } from './typography-actions.ts'
 export type { TypographyAction } from './typography-actions.ts'
+export { applyTypographyToText } from './typography-logic.ts'
 
 export { configureLanguageTool } from './language-tool-config.ts'
 export type { LanguageToolSettings } from './language-tool-config.ts'
@@ -38,28 +39,7 @@ export {
   SUPPORTED_LOCALES,
 } from './hunspell-dictionary.ts'
 
-export {
-  generateLinkReferenceDefinitions,
-  lintLinkReferences,
-  lintMarkdownDocument,
-} from './remark-lint.ts'
-export type { EditorLintMessage } from './remark-lint.ts'
-
-export {
-  addTableColumn,
-  addTableRow,
-  collectTableBlocks,
-  findTableBlock,
-  prefixHeadingLine,
-  updateTableCell,
-  wrapSelectionText,
-} from './transform-logic.ts'
-
-export {
-  expandSnippetTemplate,
-  looksLikeSnippetTemplate,
-  resolveSnippetVariables,
-} from './snippet-parser.ts'
+export { resolveSnippetVariables, expandSnippetTemplate } from './snippet-parser.ts'
 export type {
   ExpandedSnippet,
   SnippetTabStop,
@@ -73,3 +53,47 @@ export { normalizeMarkdown, roundTripEqual } from './roundtrip.ts'
 
 export { generateTocFromMarkdown, findTocEntryById } from './pure/toc.ts'
 export type { TocEntry } from './pure/toc.ts'
+
+export {
+  wrapSelectionText,
+  unwrapSelectionText,
+  prefixHeadingLine,
+  prefixBlockquoteLine,
+  isTableRow,
+  isTableSeparator,
+  parseTableRow,
+  findTableBlock,
+  formatTableRow,
+  addTableRow,
+  addTableColumn,
+  rebuildTableSegment,
+  updateTableCell,
+  collectTableBlocks,
+  tableBlockHasHeader,
+  applyTableMutation,
+} from './transform-logic.ts'
+export type { TableBlock } from './transform-logic.ts'
+
+export {
+  moveSectionLines,
+  sectionLineRange,
+  findSiblingIndex,
+} from './section-move-logic.ts'
+export type { SectionLineRange } from './section-move-logic.ts'
+
+export { nextFootnoteId, insertFootnoteIntoMarkdown } from './footnotes-logic.ts'
+
+export { setDistractionFreeClass } from './distraction-free-dom.ts'
+
+export type {
+  EditorTransformAction,
+  EditorThemeId,
+  MarkdownEditorHandle,
+} from './editor-types.ts'
+
+export {
+  lintMarkdownDocument,
+  lintLinkReferences,
+  generateLinkReferenceDefinitions,
+} from './remark-lint.ts'
+export type { EditorLintMessage } from './remark-lint.ts'

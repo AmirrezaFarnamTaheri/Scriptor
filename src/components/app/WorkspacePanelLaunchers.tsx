@@ -146,6 +146,21 @@ function WorkspacePanelLaunchersImpl({
     [gitActivePath, gitDraftMarkdown],
   )
 
+  const hasAnyPanelOpen =
+    canvasOpen ||
+    readerOpen ||
+    tasksOpen ||
+    kanbanOpen ||
+    Boolean(bibliographyOpen) ||
+    Boolean(gmailManagerOpen) ||
+    Boolean(graphOpen) ||
+    Boolean(gitPanelOpen) ||
+    Boolean(mcpPanelOpen)
+
+  if (!hasAnyPanelOpen) {
+    return null
+  }
+
   return (
     <>
       {canvasOpen && (

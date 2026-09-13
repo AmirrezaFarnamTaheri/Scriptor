@@ -1,4 +1,13 @@
-import { lazy, memo, Suspense, useCallback, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  type CSSProperties,
+  type PointerEventHandler,
+  type RefObject,
+} from 'react'
 import { CheckCircle2, FileText, FolderOpen } from 'lucide-react'
 import type {
   EditorAutocompleteContext,
@@ -255,6 +264,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     onEditorSurfaceModeChange,
   } = props
   const { t } = useI18n()
+  const deferredDraftMarkdown = useDeferredValue(draftMarkdown)
 
   const handleApplyEditorTransform = useCallback(
     (action: EditorTransformAction) => {
@@ -396,12 +406,14 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
             >
               {editorMode === 'monaco' ? (
                 <LazyMonacoMarkdownEditor
+                  ref={editorRef}
                   key={activePath}
                   notePath={activePath}
                   value={draftMarkdown}
                   onChange={updateDraft}
                   insertRequest={editorInsertRequest}
                   transformRequest={editorTransformRequest}
+                  typographyRequest={editorTypographyRequest}
                   scrollToLine={scrollToEditorLine}
                   editorTheme={editorTheme}
                   typewriter={typewriter}
@@ -505,7 +517,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
               >
               <MarkdownPreview
                 ref={previewRef}
-                markdown={draftMarkdown}
+                markdown={deferredDraftMarkdown}
                 className="markdown-preview"
                 basePath={activePath}
                 fetchNote={previewProps.fetchNote}

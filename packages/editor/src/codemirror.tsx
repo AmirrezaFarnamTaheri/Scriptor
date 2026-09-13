@@ -55,6 +55,7 @@ import {
   editorThemeExtension,
   type EditorThemeId,
 } from './editor-themes.ts'
+import type { MarkdownEditorHandle } from './editor-types.ts'
 import {
   countCharacters,
   countWords,
@@ -350,22 +351,7 @@ class CodeMirrorAdapter implements EditorAdapter {
   }
 }
 
-export interface MarkdownEditorHandle {
-  scrollToLine(line: number, focus?: boolean): void
-  getTopVisibleLine(): number
-  getScrollElement(): HTMLElement | null
-  getToc(): TocEntry[]
-  setVimMode(enabled: boolean): void
-  setSpellcheck(enabled: boolean): void
-  setLanguageTool(enabled: boolean): void
-  setWysiwyg(enabled: boolean): void
-  setTypewriter(enabled: boolean): void
-  setFocusDim(enabled: boolean): void
-  setEditorTheme(theme: EditorThemeId): void
-  applyTransform(action: EditorTransformAction): void
-  applyTypography(action: TypographyAction): void
-  insertSnippet(text: string): void
-}
+export type { MarkdownEditorHandle } from './editor-types.ts'
 
 export interface MarkdownEditorProps {
   value: string
