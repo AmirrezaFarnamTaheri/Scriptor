@@ -6,19 +6,19 @@
 
 <div dir="rtl" lang="fa" align="right">
 
-# راهنمای نویسندگان Plugin
+# راهنمای نویسندگان <bdi dir="ltr">Plugin</bdi>
 
-مرجع کامل برای ساخت plugin در Scriptor.
+مرجع کامل برای ساخت <bdi dir="ltr">plugin</bdi> در <bdi dir="ltr">Scriptor.</bdi>
 
 ## شروع سریع
 
-برای یک plugin حداقلی و عملی به [`packages/plugins/hello-world/`](../../packages/plugins/hello-world/) مراجعه کنید.
+برای یک <bdi dir="ltr">plugin</bdi> حداقلی و عملی به [`packages/plugins/hello-world/`](../../packages/plugins/hello-world/) مراجعه کنید.
 
 ---
 
-## ۱. Manifest مربوط به Plugin
+## ۱. <bdi dir="ltr">Manifest</bdi> مربوط به <bdi dir="ltr">Plugin</bdi>
 
-هر plugin یک object از نوع `PluginManifest` export می‌کند. manifest هویت، lifecycle، capabilityها، permissionها و contributionهای plugin را اعلام می‌کند.
+هر <bdi dir="ltr">plugin</bdi> یک <bdi dir="ltr">object</bdi> از نوع `PluginManifest` <bdi dir="ltr">export</bdi> می‌کند. <bdi dir="ltr">manifest</bdi> هویت، <bdi dir="ltr">lifecycle</bdi>، <bdi dir="ltr">capability</bdi>ها، <bdi dir="ltr">permission</bdi>ها و <bdi dir="ltr">contribution</bdi>های <bdi dir="ltr">plugin</bdi> را اعلام می‌کند.
 
 </div>
 
@@ -48,36 +48,36 @@ export const myManifest: PluginManifest = {
 
 | فیلد | نوع | اجباری | توضیح |
 |---|---|---|---|
-| `id` | `string` | بله | شناسه یکتای plugin. [قواعد نام‌گذاری](#۷-قواعد-نامگذاری-plugin-id) را ببینید. |
+| `id` | `string` | بله | شناسه یکتای <bdi dir="ltr">plugin.</bdi> [قواعد نام‌گذاری](#۷-قواعد-نامگذاری-plugin-id) را ببینید. |
 | `name` | `string` | بله | نام خوانا برای نمایش به کاربر. |
-| `version` | `string` | بله | نسخه semver. |
-| `apiVersion` | `string` | خیر | نسخه Plugin API. در صورت حذف، نسخه فعلی host استفاده می‌شود. [قرارداد API نسخه V1](#۸-قرارداد-api-v1) را ببینید. |
+| `version` | `string` | بله | نسخه <bdi dir="ltr">semver.</bdi> |
+| `apiVersion` | `string` | خیر | نسخه <bdi dir="ltr">Plugin API.</bdi> در صورت حذف، نسخه فعلی <bdi dir="ltr">host</bdi> استفاده می‌شود. [قرارداد <bdi dir="ltr">API</bdi> نسخه <bdi dir="ltr">V1</bdi>](#۸-قرارداد-api-v1) را ببینید. |
 | `publisher` | `string` | بله | نام نویسنده یا سازمان. |
-| `description` | `string` | بله | توضیح کوتاه plugin. |
-| `activation` | `PluginActivation[]` | بله | زمان load شدن plugin. |
-| `capabilities` | `PluginCapability[]` | بله | نوع capabilityهایی که plugin استفاده می‌کند. |
-| `permissions` | `PluginPermission[]` | بله | دسترسی موردنیاز به داده یا resource. |
-| `contributes` | `PluginContributions` | خیر | slotهای contribution مانند command و widget. |
+| `description` | `string` | بله | توضیح کوتاه <bdi dir="ltr">plugin.</bdi> |
+| `activation` | `PluginActivation[]` | بله | زمان <bdi dir="ltr">load</bdi> شدن <bdi dir="ltr">plugin.</bdi> |
+| `capabilities` | `PluginCapability[]` | بله | نوع <bdi dir="ltr">capability</bdi>هایی که <bdi dir="ltr">plugin</bdi> استفاده می‌کند. |
+| `permissions` | `PluginPermission[]` | بله | دسترسی موردنیاز به داده یا <bdi dir="ltr">resource.</bdi> |
+| `contributes` | `PluginContributions` | خیر | <bdi dir="ltr">slot</bdi>های <bdi dir="ltr">contribution</bdi> مانند <bdi dir="ltr">command</bdi> و <bdi dir="ltr">widget.</bdi> |
 
-### policyهای activation
+### <bdi dir="ltr">policy</bdi>های <bdi dir="ltr">activation</bdi>
 
 | مقدار | رفتار |
 |---|---|
-| `'manual'` | کاربر باید plugin را صریحاً فعال یا invoke کند. |
-| `'on-startup'` | plugin هنگام startup در Scriptor load می‌شود. |
-| `'on-vault-open'` | plugin هنگام باز شدن vault load می‌شود. |
+| `'manual'` | کاربر باید <bdi dir="ltr">plugin</bdi> را صریحاً فعال یا <bdi dir="ltr">invoke</bdi> کند. |
+| `'on-startup'` | <bdi dir="ltr">plugin</bdi> هنگام <bdi dir="ltr">startup</bdi> در <bdi dir="ltr">Scriptor load</bdi> می‌شود. |
+| `'on-vault-open'` | <bdi dir="ltr">plugin</bdi> هنگام باز شدن <bdi dir="ltr">vault load</bdi> می‌شود. |
 
-یک plugin می‌تواند چند policy برای activation اعلام کند؛ نخستین policy که match شود load را trigger می‌کند.
+یک <bdi dir="ltr">plugin</bdi> می‌تواند چند <bdi dir="ltr">policy</bdi> برای <bdi dir="ltr">activation</bdi> اعلام کند؛ نخستین <bdi dir="ltr">policy</bdi> که <bdi dir="ltr">match</bdi> شود <bdi dir="ltr">load</bdi> را <bdi dir="ltr">trigger</bdi> می‌کند.
 
 ---
 
-## ۲. نوع‌های Capability
+## ۲. نوع‌های <bdi dir="ltr">Capability</bdi>
 
-<bdi dir="ltr">capability</bdi>ها در آرایه `capabilities` اعلام می‌شوند. هر capability، contribution slotهای مشخصی را فعال می‌کند.
+<bdi dir="ltr">capability</bdi>ها در آرایه `capabilities` اعلام می‌شوند. هر <bdi dir="ltr">capability</bdi>، <bdi dir="ltr">contribution slot</bdi>های مشخصی را فعال می‌کند.
 
 ### ۲.۱ `command`
 
-<bdi dir="ltr">command</bdi> را در command palette ثبت می‌کند.
+<bdi dir="ltr">command</bdi> را در <bdi dir="ltr">command palette</bdi> ثبت می‌کند.
 
 </div>
 
@@ -103,14 +103,14 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `commandId` | `string` | شناسه یکتای نقطه‌دار command. |
-| `label` | `string` | نام نمایشی در command palette. |
+| `commandId` | `string` | شناسه یکتای نقطه‌دار <bdi dir="ltr">command.</bdi> |
+| `label` | `string` | نام نمایشی در <bdi dir="ltr">command palette.</bdi> |
 | `category` | `string` | گروهی مانند `Vault`، `Export` یا `Tools`. |
-| `permission` | `CommandPermission` | حداقل permission: یکی از `read`، `write-approved`، `system` یا `dangerous`. |
+| `permission` | `CommandPermission` | حداقل <bdi dir="ltr">permission:</bdi> یکی از `read`، `write-approved`، `system` یا `dangerous`. |
 
 ### ۲.۲ `renderer-extension`
 
-<bdi dir="ltr">preview</bdi> renderer مربوط به Markdown را با transformation سفارشی گسترش می‌دهد.
+<bdi dir="ltr">preview</bdi> <bdi dir="ltr">renderer</bdi> مربوط به <bdi dir="ltr">Markdown</bdi> را با <bdi dir="ltr">transformation</bdi> سفارشی گسترش می‌دهد.
 
 </div>
 
@@ -136,14 +136,14 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای extension. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">extension.</bdi> |
 | `label` | `string` | نام نمایشی. |
-| `handles` | `'block' \| 'inline' \| 'document'` | scope مربوط به transformation. |
+| `handles` | `'block' \| 'inline' \| 'document'` | <bdi dir="ltr">scope</bdi> مربوط به <bdi dir="ltr">transformation.</bdi> |
 | `priority` | `number` | عدد کوچک‌تر زودتر اجرا می‌شود. |
 
 ### ۲.۳ `export-profile`
 
-فرمت یا template جدید برای export اضافه می‌کند.
+فرمت یا <bdi dir="ltr">template</bdi> جدید برای <bdi dir="ltr">export</bdi> اضافه می‌کند.
 
 </div>
 
@@ -168,13 +168,13 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای profile. |
-| `label` | `string` | نام نمایشی در dialog مربوط به export. |
-| `format` | `ExportFormat` | فرمت target مانند `html`، `pdf` یا `wechat-html`. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">profile.</bdi> |
+| `label` | `string` | نام نمایشی در <bdi dir="ltr">dialog</bdi> مربوط به <bdi dir="ltr">export.</bdi> |
+| `format` | `ExportFormat` | فرمت <bdi dir="ltr">target</bdi> مانند `html`، `pdf` یا `wechat-html`. |
 
 ### ۲.۴ `mcp-tool`
 
-<bdi dir="ltr">tool</bdi> را برای لایه MCP یا Model Context Protocol و integrationهای AI ارائه می‌کند.
+<bdi dir="ltr">tool</bdi> را برای لایه <bdi dir="ltr">MCP</bdi> یا <bdi dir="ltr">Model Context Protocol</bdi> و <bdi dir="ltr">integration</bdi>های <bdi dir="ltr">AI</bdi> ارائه می‌کند.
 
 </div>
 
@@ -200,14 +200,14 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `name` | `string` | نام tool که از طریق MCP expose می‌شود. |
-| `label` | `string` | label خوانا. |
-| `modeRequired` | `McpMode` | mode موردنیاز MCP مانند `read`. |
-| `commandId` | `string` | commandی که tool را پیاده‌سازی می‌کند. |
+| `name` | `string` | نام <bdi dir="ltr">tool</bdi> که از طریق <bdi dir="ltr">MCP expose</bdi> می‌شود. |
+| `label` | `string` | <bdi dir="ltr">label</bdi> خوانا. |
+| `modeRequired` | `McpMode` | <bdi dir="ltr">mode</bdi> موردنیاز <bdi dir="ltr">MCP</bdi> مانند `read`. |
+| `commandId` | `string` | <bdi dir="ltr">command</bdi>ی که <bdi dir="ltr">tool</bdi> را پیاده‌سازی می‌کند. |
 
 ### ۲.۵ `inspector-widget`
 
-<bdi dir="ltr">panel</bdi> را به sidebar مربوط به Inspector اضافه می‌کند.
+<bdi dir="ltr">panel</bdi> را به <bdi dir="ltr">sidebar</bdi> مربوط به <bdi dir="ltr">Inspector</bdi> اضافه می‌کند.
 
 </div>
 
@@ -232,13 +232,13 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای widget. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">widget.</bdi> |
 | `label` | `string` | نام نمایشی. |
-| `placement` | `'note' \| 'vault' \| 'export' \| 'graph' \| 'canvas'` | محلی که widget نمایش داده می‌شود. |
+| `placement` | `'note' \| 'vault' \| 'export' \| 'graph' \| 'canvas'` | محلی که <bdi dir="ltr">widget</bdi> نمایش داده می‌شود. |
 
 ### ۲.۶ `vault-health-check`
 
-<bdi dir="ltr">rule</bdi> تشخیصی برای گزارش health مربوط به vault تعریف می‌کند.
+<bdi dir="ltr">rule</bdi> تشخیصی برای گزارش <bdi dir="ltr">health</bdi> مربوط به <bdi dir="ltr">vault</bdi> تعریف می‌کند.
 
 </div>
 
@@ -263,13 +263,13 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای check. |
-| `label` | `string` | نام نمایشی در health report. |
-| `severity` | `'info' \| 'warning' \| 'error'` | سطح severity. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">check.</bdi> |
+| `label` | `string` | نام نمایشی در <bdi dir="ltr">health report.</bdi> |
+| `severity` | `'info' \| 'warning' \| 'error'` | سطح <bdi dir="ltr">severity.</bdi> |
 
 ### ۲.۷ `canvas-tool`
 
-<bdi dir="ltr">tool</bdi> را به toolbar مربوط به Canvas اضافه می‌کند.
+<bdi dir="ltr">tool</bdi> را به <bdi dir="ltr">toolbar</bdi> مربوط به <bdi dir="ltr">Canvas</bdi> اضافه می‌کند.
 
 </div>
 
@@ -295,14 +295,14 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای tool. |
-| `label` | `string` | label در toolbar. |
-| `commandId` | `string` | command پیاده‌ساز. |
-| `toolKind` | `'select' \| 'draw' \| 'shape' \| 'connector' \| 'template' \| 'present' \| 'place'` | دسته رفتار tool. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">tool.</bdi> |
+| `label` | `string` | <bdi dir="ltr">label</bdi> در <bdi dir="ltr">toolbar.</bdi> |
+| `commandId` | `string` | <bdi dir="ltr">command</bdi> پیاده‌ساز. |
+| `toolKind` | `'select' \| 'draw' \| 'shape' \| 'connector' \| 'template' \| 'present' \| 'place'` | دسته رفتار <bdi dir="ltr">tool.</bdi> |
 
 ### ۲.۸ `canvas-block`
 
-<bdi dir="ltr">renderer</bdi> سفارشی block برای Canvas ثبت می‌کند.
+<bdi dir="ltr">renderer</bdi> سفارشی <bdi dir="ltr">block</bdi> برای <bdi dir="ltr">Canvas</bdi> ثبت می‌کند.
 
 </div>
 
@@ -328,14 +328,14 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای block. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">block.</bdi> |
 | `label` | `string` | نام نمایشی. |
-| `blockKind` | `CanvasBlockKind` | نوع block مانند `markdown` یا `image`. |
-| `rendererId` | `string` | ID مربوط به renderer. |
+| `blockKind` | `CanvasBlockKind` | نوع <bdi dir="ltr">block</bdi> مانند `markdown` یا `image`. |
+| `rendererId` | `string` | <bdi dir="ltr">ID</bdi> مربوط به <bdi dir="ltr">renderer.</bdi> |
 
 ### ۲.۹ `template-pack`
 
-<bdi dir="ltr">template</bdi>های starter برای document یا Canvas را bundle می‌کند.
+<bdi dir="ltr">template</bdi>های <bdi dir="ltr">starter</bdi> برای <bdi dir="ltr">document</bdi> یا <bdi dir="ltr">Canvas</bdi> را <bdi dir="ltr">bundle</bdi> می‌کند.
 
 </div>
 
@@ -362,17 +362,17 @@ contributes: {
 
 | فیلد | نوع | توضیح |
 |---|---|---|
-| `id` | `string` | شناسه یکتای template. |
+| `id` | `string` | شناسه یکتای <bdi dir="ltr">template.</bdi> |
 | `label` | `string` | نام نمایشی. |
-| `categories` | `string[]` | tagهای category برای filter. |
-| `canvasCompatible` | `boolean` | در Canvas قابل استفاده است یا نه. |
-| `documentCompatible` | `boolean` | در document mode قابل استفاده است یا نه. |
+| `categories` | `string[]` | <bdi dir="ltr">tag</bdi>های <bdi dir="ltr">category</bdi> برای <bdi dir="ltr">filter.</bdi> |
+| `canvasCompatible` | `boolean` | در <bdi dir="ltr">Canvas</bdi> قابل استفاده است یا نه. |
+| `documentCompatible` | `boolean` | در <bdi dir="ltr">document mode</bdi> قابل استفاده است یا نه. |
 
 ---
 
-## ۳. مدل Permission
+## ۳. مدل <bdi dir="ltr">Permission</bdi>
 
-هر plugin باید permissionهای موردنیاز را همراه با reason قابل‌فهم برای انسان اعلام کند.
+هر <bdi dir="ltr">plugin</bdi> باید <bdi dir="ltr">permission</bdi>های موردنیاز را همراه با <bdi dir="ltr">reason</bdi> قابل‌فهم برای انسان اعلام کند.
 
 </div>
 
@@ -388,28 +388,28 @@ permissions: [
 
 <div dir="rtl" lang="fa" align="right">
 
-### Permissionهای موجود
+### <bdi dir="ltr">Permission</bdi>های موجود
 
-| Permission | Scope |
+| <bdi dir="ltr">Permission</bdi> | <bdi dir="ltr">Scope</bdi> |
 |---|---|
-| `read` | query کردن contractهای command تأییدشده و metadata مربوط به vault. |
-| `write-approved` | پیشنهاد writeهایی که confirmation کاربر لازم دارند. |
-| `system` | استفاده از cacheهای مشتق‌شده و background job بدون تغییر فایل canonical. |
-| `dangerous` | warning صریح هنگام نصب + confirmation در runtime. تا زمانی که sandbox policy موجود نیست **باید `optional: true` باشد**. |
-| `network` | دسترسی HTTP. به‌صورت default مسدود است و host allowlist را مدیریت می‌کند. |
+| `read` | <bdi dir="ltr">query</bdi> کردن <bdi dir="ltr">contract</bdi>های <bdi dir="ltr">command</bdi> تأییدشده و <bdi dir="ltr">metadata</bdi> مربوط به <bdi dir="ltr">vault.</bdi> |
+| `write-approved` | پیشنهاد <bdi dir="ltr">write</bdi>هایی که <bdi dir="ltr">confirmation</bdi> کاربر لازم دارند. |
+| `system` | استفاده از <bdi dir="ltr">cache</bdi>های مشتق‌شده و <bdi dir="ltr">background job</bdi> بدون تغییر فایل <bdi dir="ltr">canonical.</bdi> |
+| `dangerous` | <bdi dir="ltr">warning</bdi> صریح هنگام نصب + <bdi dir="ltr">confirmation</bdi> در <bdi dir="ltr">runtime.</bdi> تا زمانی که <bdi dir="ltr">sandbox policy</bdi> موجود نیست **باید `optional: true` باشد**. |
+| `network` | دسترسی <bdi dir="ltr">HTTP.</bdi> به‌صورت <bdi dir="ltr">default</bdi> مسدود است و <bdi dir="ltr">host allowlist</bdi> را مدیریت می‌کند. |
 
-### Permissionهای مسدودشده در v1
+### <bdi dir="ltr">Permission</bdi>های مسدودشده در <bdi dir="ltr">v1</bdi>
 
-| Permission | دلیل |
+| <bdi dir="ltr">Permission</bdi> | دلیل |
 |---|---|
-| `external-process` | تا زمان پیاده‌سازی plugin sandbox policy در دسترس نیست. |
-| `secrets` | تا زمان پیاده‌سازی named keychain handle در دسترس نیست. |
+| `external-process` | تا زمان پیاده‌سازی <bdi dir="ltr">plugin sandbox policy</bdi> در دسترس نیست. |
+| `secrets` | تا زمان پیاده‌سازی <bdi dir="ltr">named keychain handle</bdi> در دسترس نیست. |
 
-استفاده از permission مسدودشده باعث failure در validation manifest می‌شود.
+استفاده از <bdi dir="ltr">permission</bdi> مسدودشده باعث <bdi dir="ltr">failure</bdi> در <bdi dir="ltr">validation manifest</bdi> می‌شود.
 
-### دلیل Permission
+### دلیل <bdi dir="ltr">Permission</bdi>
 
-هر permission entry **باید** `reason` غیرخالی داشته باشد. این متن هنگام نصب به کاربر نمایش داده می‌شود تا تصمیم آگاهانه بگیرد.
+هر <bdi dir="ltr">permission entry</bdi> **باید** `reason` غیرخالی داشته باشد. این متن هنگام نصب به کاربر نمایش داده می‌شود تا تصمیم آگاهانه بگیرد.
 
 </div>
 
@@ -427,9 +427,9 @@ permissions: [
 
 <div dir="rtl" lang="fa" align="right">
 
-### flag مربوط به `optional`
+### <bdi dir="ltr">flag</bdi> مربوط به `optional`
 
-<bdi dir="ltr">permission</bdi> از نوع `dangerous` باید `optional: true` داشته باشد؛ یعنی plugin بدون آن هم کار می‌کند و فقط هنگام نیاز واقعی در runtime آن را درخواست می‌کند.
+<bdi dir="ltr">permission</bdi> از نوع `dangerous` باید `optional: true` داشته باشد؛ یعنی <bdi dir="ltr">plugin</bdi> بدون آن هم کار می‌کند و فقط هنگام نیاز واقعی در <bdi dir="ltr">runtime</bdi> آن را درخواست می‌کند.
 
 </div>
 
@@ -445,14 +445,14 @@ permissions: [
 
 ---
 
-## ۴. Safe Mode
+## ۴. <bdi dir="ltr">Safe Mode</bdi>
 
-وقتی Scriptor در safe mode شروع می‌شود:
+وقتی <bdi dir="ltr">Scriptor</bdi> در <bdi dir="ltr">safe mode</bdi> شروع می‌شود:
 
-- **همه pluginها** در سطح registry غیرفعال‌اند.
-- تا وقتی safe mode فعال است، plugin منفرد را **نمی‌توان دوباره فعال کرد**.
-- <bdi dir="ltr">failure</bdi>های plugin از session قبلی پاک می‌شوند.
-- <bdi dir="ltr">safe</bdi> mode مکانیسم recovery برای instability ناشی از plugin است.
+- **همه <bdi dir="ltr">plugin</bdi>ها** در سطح <bdi dir="ltr">registry</bdi> غیرفعال‌اند.
+- تا وقتی <bdi dir="ltr">safe mode</bdi> فعال است، <bdi dir="ltr">plugin</bdi> منفرد را **نمی‌توان دوباره فعال کرد**.
+- <bdi dir="ltr">failure</bdi>های <bdi dir="ltr">plugin</bdi> از <bdi dir="ltr">session</bdi> قبلی پاک می‌شوند.
+- <bdi dir="ltr">safe</bdi> <bdi dir="ltr">mode</bdi> مکانیسم <bdi dir="ltr">recovery</bdi> برای <bdi dir="ltr">instability</bdi> ناشی از <bdi dir="ltr">plugin</bdi> است.
 
 </div>
 
@@ -470,11 +470,11 @@ registry.setEnabled('acme.my-plugin', true) // => true — now allowed
 
 <div dir="rtl" lang="fa" align="right">
 
-کاربر می‌تواند safe mode را از panel تنظیمات plugin تغییر دهد.
+کاربر می‌تواند <bdi dir="ltr">safe mode</bdi> را از <bdi dir="ltr">panel</bdi> تنظیمات <bdi dir="ltr">plugin</bdi> تغییر دهد.
 
 ---
 
-## ۵. Plugin نمونه Hello World، مرحله‌به‌مرحله
+## ۵. <bdi dir="ltr">Plugin</bdi> نمونه <bdi dir="ltr">Hello World</bdi>، مرحله‌به‌مرحله
 
 ### مرحله ۱: ساخت دایرکتوری
 
@@ -519,7 +519,7 @@ packages/plugins/hello-world/
 
 <div dir="rtl" lang="fa" align="right">
 
-### مرحله ۳: نوشتن manifest
+### مرحله ۳: نوشتن <bdi dir="ltr">manifest</bdi>
 
 </div>
 
@@ -555,7 +555,7 @@ export const helloWorldManifest: PluginManifest = {
 
 <div dir="rtl" lang="fa" align="right">
 
-### مرحله ۴: نوشتن entry point
+### مرحله ۴: نوشتن <bdi dir="ltr">entry point</bdi>
 
 </div>
 
@@ -570,7 +570,7 @@ export { helloWorldManifest } from './manifest'
 
 <div dir="rtl" lang="fa" align="right">
 
-### مرحله ۵: validation
+### مرحله ۵: <bdi dir="ltr">validation</bdi>
 
 </div>
 
@@ -584,13 +584,13 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-این command برای همه pluginها manifest validation، sandbox test و registry test را اجرا می‌کند و manifest نامعتبر را همراه دلیل گزارش می‌دهد.
+این <bdi dir="ltr">command</bdi> برای همه <bdi dir="ltr">plugin</bdi>ها <bdi dir="ltr">manifest validation</bdi>، <bdi dir="ltr">sandbox test</bdi> و <bdi dir="ltr">registry test</bdi> را اجرا می‌کند و <bdi dir="ltr">manifest</bdi> نامعتبر را همراه دلیل گزارش می‌دهد.
 
 ---
 
-## ۶. Contributionها چگونه کار می‌کنند
+## ۶. <bdi dir="ltr">Contribution</bdi>ها چگونه کار می‌کنند
 
-| Capability | Contribution slot |
+| <bdi dir="ltr">Capability</bdi> | <bdi dir="ltr">Contribution slot</bdi> |
 |---|---|
 | `command` | `commands` |
 | `renderer-extension` | `rendererExtensions` |
@@ -602,20 +602,20 @@ pnpm check:plugins
 | `canvas-block` | `canvasBlocks` |
 | `template-pack` | `templatePacks` |
 
-**قاعده:** اگر contribution slot دارای entry باشد باید capability متناظر اعلام شود. مثلاً وجود `mcpTools` بدون `mcp-tool` در `capabilities` باعث failure در validation می‌شود.
+**قاعده:** اگر <bdi dir="ltr">contribution slot</bdi> دارای <bdi dir="ltr">entry</bdi> باشد باید <bdi dir="ltr">capability</bdi> متناظر اعلام شود. مثلاً وجود `mcpTools` بدون `mcp-tool` در `capabilities` باعث <bdi dir="ltr">failure</bdi> در <bdi dir="ltr">validation</bdi> می‌شود.
 
-`collectContributions()` هنگام startup contributionهای همه pluginهای enabled را برای هر slot در یک آرایه flat merge می‌کند. سپس host آن‌ها را به command bus، renderer، export pipeline و سایر بخش‌ها می‌دهد.
+`collectContributions()` هنگام <bdi dir="ltr">startup contribution</bdi>های همه <bdi dir="ltr">plugin</bdi>های <bdi dir="ltr">enabled</bdi> را برای هر <bdi dir="ltr">slot</bdi> در یک آرایه <bdi dir="ltr">flat merge</bdi> می‌کند. سپس <bdi dir="ltr">host</bdi> آن‌ها را به <bdi dir="ltr">command bus</bdi>، <bdi dir="ltr">renderer</bdi>، <bdi dir="ltr">export pipeline</bdi> و سایر بخش‌ها می‌دهد.
 
 ---
 
-## ۷. قواعد نام‌گذاری Plugin ID
+## ۷. قواعد نام‌گذاری <bdi dir="ltr">Plugin ID</bdi>
 
-<bdi dir="ltr">Plugin</bdi> ID باید با `^[a-z0-9][a-z0-9.-]*$` match شود:
+<bdi dir="ltr">Plugin</bdi> <bdi dir="ltr">ID</bdi> باید با `^[a-z0-9][a-z0-9.-]*$` <bdi dir="ltr">match</bdi> شود:
 
-- فقط حروف **lowercase**، رقم، نقطه و hyphen.
-- شروع با حرف lowercase یا رقم.
-- بدون underscore، حرف uppercase یا فاصله.
-- نقطه برای جداسازی namespace استفاده می‌شود.
+- فقط حروف **<bdi dir="ltr">lowercase</bdi>**، رقم، نقطه و <bdi dir="ltr">hyphen.</bdi>
+- شروع با حرف <bdi dir="ltr">lowercase</bdi> یا رقم.
+- بدون <bdi dir="ltr">underscore</bdi>، حرف <bdi dir="ltr">uppercase</bdi> یا فاصله.
+- نقطه برای جداسازی <bdi dir="ltr">namespace</bdi> استفاده می‌شود.
 
 </div>
 
@@ -636,17 +636,17 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-پیشنهاد می‌شود برای جلوگیری از collision از نام سازمان به‌عنوان prefix مانند `scriptor.*` یا `acme.*` استفاده کنید.
+پیشنهاد می‌شود برای جلوگیری از <bdi dir="ltr">collision</bdi> از نام سازمان به‌عنوان <bdi dir="ltr">prefix</bdi> مانند `scriptor.*` یا `acme.*` استفاده کنید.
 
 ---
 
-## ۸. قرارداد API V1
+## ۸. قرارداد <bdi dir="ltr">API V1</bdi>
 
-نسخه فعلی Plugin API برابر **1.0.0** است.
+نسخه فعلی <bdi dir="ltr">Plugin API</bdi> برابر **1.0.0** است.
 
-- اگر `apiVersion` حذف شود نسخه host استفاده می‌شود.
-- نسخه API باید دقیقاً `1.0.0` باشد.
-- مقدار دیگر رد می‌شود؛ host هیچ compatibility adapterی load نمی‌کند.
+- اگر `apiVersion` حذف شود نسخه <bdi dir="ltr">host</bdi> استفاده می‌شود.
+- نسخه <bdi dir="ltr">API</bdi> باید دقیقاً `1.0.0` باشد.
+- مقدار دیگر رد می‌شود؛ <bdi dir="ltr">host</bdi> هیچ <bdi dir="ltr">compatibility adapter</bdi>ی <bdi dir="ltr">load</bdi> نمی‌کند.
 
 </div>
 
@@ -664,13 +664,13 @@ apiVersion: '1.0.1'  // ❌ fails validation
 
 <div dir="rtl" lang="fa" align="right">
 
-هر نسخه جدید محصول، قرارداد دقیق Plugin API خودش را منتشر می‌کند.
+هر نسخه جدید محصول، قرارداد دقیق <bdi dir="ltr">Plugin API</bdi> خودش را منتشر می‌کند.
 
 ---
 
-## ۹. تست Plugin
+## ۹. تست <bdi dir="ltr">Plugin</bdi>
 
-### اجرای validation
+### اجرای <bdi dir="ltr">validation</bdi>
 
 </div>
 
@@ -684,33 +684,33 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-این command موارد زیر را اجرا می‌کند:
+این <bdi dir="ltr">command</bdi> موارد زیر را اجرا می‌کند:
 
-1. **Manifest validation** — schema، pattern مربوط به ID، فیلدهای required، capability و permission.
-2. **Registry tests** — safe mode، enable/disable و صحت snapshot.
-3. **Sandbox tests** — capabilityهای مسدود و رفتار plugin غیرفعال.
-4. **Host sandbox tests** — دسترسی raw به filesystem رد می‌شود.
-5. **WASM host tests** — validation مربوط به manifestهای plugin در WASM.
-6. **Marketplace catalog** — catalog bundled نباید خالی باشد.
+1. **<bdi dir="ltr">Manifest validation</bdi>** — <bdi dir="ltr">schema</bdi>، <bdi dir="ltr">pattern</bdi> مربوط به <bdi dir="ltr">ID</bdi>، فیلدهای <bdi dir="ltr">required</bdi>، <bdi dir="ltr">capability</bdi> و <bdi dir="ltr">permission.</bdi>
+2. **<bdi dir="ltr">Registry tests</bdi>** — <bdi dir="ltr">safe mode</bdi>، <bdi dir="ltr">enable/disable</bdi> و صحت <bdi dir="ltr">snapshot.</bdi>
+3. **<bdi dir="ltr">Sandbox tests</bdi>** — <bdi dir="ltr">capability</bdi>های مسدود و رفتار <bdi dir="ltr">plugin</bdi> غیرفعال.
+4. **<bdi dir="ltr">Host sandbox tests</bdi>** — دسترسی <bdi dir="ltr">raw</bdi> به <bdi dir="ltr">filesystem</bdi> رد می‌شود.
+5. **<bdi dir="ltr">WASM host tests</bdi>** — <bdi dir="ltr">validation</bdi> مربوط به <bdi dir="ltr">manifest</bdi>های <bdi dir="ltr">plugin</bdi> در <bdi dir="ltr">WASM.</bdi>
+6. **<bdi dir="ltr">Marketplace catalog</bdi>** — <bdi dir="ltr">catalog bundled</bdi> نباید خالی باشد.
 
-در صورت failure، command با code برابر 1 تمام می‌شود و دلیل را چاپ می‌کند.
+در صورت <bdi dir="ltr">failure</bdi>، <bdi dir="ltr">command</bdi> با <bdi dir="ltr">code</bdi> برابر 1 تمام می‌شود و دلیل را چاپ می‌کند.
 
-### checklist تست دستی
+### <bdi dir="ltr">checklist</bdi> تست دستی
 
-- [ ] manifest بدون error از `validatePluginManifest()` عبور می‌کند.
-- [ ] plugin load می‌شود و در registry دیده می‌شود.
-- [ ] commandها در category درست command palette نمایش داده می‌شوند.
-- [ ] permissionها هنگام install به‌درستی نمایش داده می‌شوند.
-- [ ] plugin بدون crash کردن host به‌شکل clean disable می‌شود.
-- [ ] safe mode مانع load شدن plugin می‌شود.
+- [ ] <bdi dir="ltr">manifest</bdi> بدون <bdi dir="ltr">error</bdi> از `validatePluginManifest()` عبور می‌کند.
+- [ ] <bdi dir="ltr">plugin load</bdi> می‌شود و در <bdi dir="ltr">registry</bdi> دیده می‌شود.
+- [ ] <bdi dir="ltr">command</bdi>ها در <bdi dir="ltr">category</bdi> درست <bdi dir="ltr">command palette</bdi> نمایش داده می‌شوند.
+- [ ] <bdi dir="ltr">permission</bdi>ها هنگام <bdi dir="ltr">install</bdi> به‌درستی نمایش داده می‌شوند.
+- [ ] <bdi dir="ltr">plugin</bdi> بدون <bdi dir="ltr">crash</bdi> کردن <bdi dir="ltr">host</bdi> به‌شکل <bdi dir="ltr">clean disable</bdi> می‌شود.
+- [ ] <bdi dir="ltr">safe mode</bdi> مانع <bdi dir="ltr">load</bdi> شدن <bdi dir="ltr">plugin</bdi> می‌شود.
 
 ---
 
-## ۱۰. Manifestهای نمونه
+## ۱۰. <bdi dir="ltr">Manifest</bdi>های نمونه
 
-مقدارهای executable در نمونه‌های JSON عمداً ترجمه نشده‌اند تا با contract canonical API دقیقاً قابل مقایسه و copy باشند.
+مقدارهای <bdi dir="ltr">executable</bdi> در نمونه‌های <bdi dir="ltr">JSON</bdi> عمداً ترجمه نشده‌اند تا با <bdi dir="ltr">contract canonical API</bdi> دقیقاً قابل مقایسه و <bdi dir="ltr">copy</bdi> باشند.
 
-### Command Plugin
+### <bdi dir="ltr">Command Plugin</bdi>
 
 </div>
 
@@ -724,7 +724,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Renderer Extension
+### <bdi dir="ltr">Renderer Extension</bdi>
 
 </div>
 
@@ -738,7 +738,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Export Profile
+### <bdi dir="ltr">Export Profile</bdi>
 
 </div>
 
@@ -752,7 +752,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### MCP Tool
+### <bdi dir="ltr">MCP Tool</bdi>
 
 </div>
 
@@ -766,7 +766,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Inspector Widget
+### <bdi dir="ltr">Inspector Widget</bdi>
 
 </div>
 
@@ -780,7 +780,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Vault Health Check
+### <bdi dir="ltr">Vault Health Check</bdi>
 
 </div>
 
@@ -794,7 +794,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Canvas Tool
+### <bdi dir="ltr">Canvas Tool</bdi>
 
 </div>
 
@@ -808,7 +808,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Canvas Block
+### <bdi dir="ltr">Canvas Block</bdi>
 
 </div>
 
@@ -822,7 +822,7 @@ pnpm check:plugins
 
 <div dir="rtl" lang="fa" align="right">
 
-### Template Pack
+### <bdi dir="ltr">Template Pack</bdi>
 
 </div>
 
@@ -838,25 +838,25 @@ pnpm check:plugins
 
 ---
 
-## Pluginهای مرجع
+## <bdi dir="ltr">Plugin</bdi>های مرجع
 
-| Plugin | Path | Capability |
+| <bdi dir="ltr">Plugin</bdi> | <bdi dir="ltr">Path</bdi> | <bdi dir="ltr">Capability</bdi> |
 |---|---|---|
-| Hello World | [`packages/plugins/hello-world/`](../../packages/plugins/hello-world/) | `command` |
-| Canvas Kit | [`packages/plugins/canvas-kit/`](../../packages/plugins/canvas-kit/) | `canvas-tool`, `template-pack` |
-| Publish Pack | [`packages/plugins/publish-pack/`](../../packages/plugins/publish-pack/) | `renderer-extension`, `export-profile` |
-| Vault Lint | [`packages/plugins/vault-lint/`](../../packages/plugins/vault-lint/) | `inspector-widget`, `vault-health-check`, `command` |
-| PDF Translate | [`packages/plugins/pdf-translate/`](../../packages/plugins/pdf-translate/) | `command`, `export-profile` |
+| <bdi dir="ltr">Hello World</bdi> | [`packages/plugins/hello-world/`](../../packages/plugins/hello-world/) | `command` |
+| <bdi dir="ltr">Canvas Kit</bdi> | [`packages/plugins/canvas-kit/`](../../packages/plugins/canvas-kit/) | `canvas-tool`, `template-pack` |
+| <bdi dir="ltr">Publish Pack</bdi> | [`packages/plugins/publish-pack/`](../../packages/plugins/publish-pack/) | `renderer-extension`, `export-profile` |
+| <bdi dir="ltr">Vault Lint</bdi> | [`packages/plugins/vault-lint/`](../../packages/plugins/vault-lint/) | `inspector-widget`, `vault-health-check`, `command` |
+| <bdi dir="ltr">PDF Translate</bdi> | [`packages/plugins/pdf-translate/`](../../packages/plugins/pdf-translate/) | `command`, `export-profile` |
 
 ---
 
-## ارجاع به Source
+## ارجاع به <bdi dir="ltr">Source</bdi>
 
-- manifest schema: `packages/core/src/contracts/plugin.ts`
-- validation logic: `packages/plugin-api/src/manifest.ts`
-- sandbox policy: `packages/plugin-api/src/sandbox.ts`
-- plugin host: `packages/plugin-api/src/host.ts`
-- plugin registry: `packages/plugin-api/src/registry.ts`
-- contribution merging: `packages/plugin-api/src/contributions.ts`
+- <bdi dir="ltr">manifest schema:</bdi> `packages/core/src/contracts/plugin.ts`
+- <bdi dir="ltr">validation logic:</bdi> `packages/plugin-api/src/manifest.ts`
+- <bdi dir="ltr">sandbox policy:</bdi> `packages/plugin-api/src/sandbox.ts`
+- <bdi dir="ltr">plugin host:</bdi> `packages/plugin-api/src/host.ts`
+- <bdi dir="ltr">plugin registry:</bdi> `packages/plugin-api/src/registry.ts`
+- <bdi dir="ltr">contribution merging:</bdi> `packages/plugin-api/src/contributions.ts`
 
 </div>

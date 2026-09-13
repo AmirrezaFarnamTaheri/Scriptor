@@ -8,26 +8,26 @@
 
 # یادداشت‌های بازبینی بصری
 
-گالری بصری baselineهای بازبینی‌شده Windows مرجع همه screenshotهایی است که این سند درباره آن‌ها صحبت می‌کند. بخش screenshot در README، فایل `docs/assets/screenshots/README.md` و PNGهای ثبت‌شده در `docs/assets/screenshots/` مرجع اصلی هستند؛ این صفحه **روایت و انضباط بازبینی** را ثبت می‌کند، نه نسخه‌ای تکراری از تصاویر.
+گالری بصری <bdi dir="ltr">baseline</bdi>های بازبینی‌شده <bdi dir="ltr">Windows</bdi> مرجع همه <bdi dir="ltr">screenshot</bdi>هایی است که این سند درباره آن‌ها صحبت می‌کند. بخش <bdi dir="ltr">screenshot</bdi> در <bdi dir="ltr">README</bdi>، فایل `docs/assets/screenshots/README.md` و <bdi dir="ltr">PNG</bdi>های ثبت‌شده در `docs/assets/screenshots/` مرجع اصلی هستند؛ این صفحه **روایت و انضباط بازبینی** را ثبت می‌کند، نه نسخه‌ای تکراری از تصاویر.
 
 ## مجموعه آزمون بصری چه چیزهایی را تضمین می‌کند
 
-- بارگذاری lazy پنل‌ها، overflow نوار بالا، چیدمان‌های فشرده، focus پنجره‌های modal و پاک‌بودن console/network در مجموعه آزمون منبع Playwright بررسی می‌شوند و باید روی release candidate فریز‌شده دوباره اجرا شوند.
-- حالت تاریک و breakpointهای 1024 / 768 / 375 px بخشی از ماتریس‌اند؛ جفت تصویر workspace در README و captureهای responsive، baselineهای بازبینی‌شده را مستند می‌کنند.
-- جریان‌های reader، tasks و kanban توسط مجموعه regression عملکردی Playwright اجرا می‌شوند و هنگام فعال بودن سطح‌های آزمایشی آن‌ها، به‌عنوان شواهد runtime ثبت می‌شوند.
-- برای fallbackهای recovery، popoverهای صفحه‌کلید، مدیریت plugin و آمادگی indexing تصویرهای مشخصی وجود دارد که از گالری لینک شده‌اند.
+- بارگذاری <bdi dir="ltr">lazy</bdi> پنل‌ها، <bdi dir="ltr">overflow</bdi> نوار بالا، چیدمان‌های فشرده، <bdi dir="ltr">focus</bdi> پنجره‌های <bdi dir="ltr">modal</bdi> و پاک‌بودن <bdi dir="ltr">console/network</bdi> در مجموعه آزمون منبع <bdi dir="ltr">Playwright</bdi> بررسی می‌شوند و باید روی <bdi dir="ltr">release candidate</bdi> فریز‌شده دوباره اجرا شوند.
+- حالت تاریک و <bdi dir="ltr">breakpoint</bdi>های 1024 / 768 / 375 <bdi dir="ltr">px</bdi> بخشی از ماتریس‌اند؛ جفت تصویر <bdi dir="ltr">workspace</bdi> در <bdi dir="ltr">README</bdi> و <bdi dir="ltr">capture</bdi>های <bdi dir="ltr">responsive</bdi>، <bdi dir="ltr">baseline</bdi>های بازبینی‌شده را مستند می‌کنند.
+- جریان‌های <bdi dir="ltr">reader</bdi>، <bdi dir="ltr">tasks</bdi> و <bdi dir="ltr">kanban</bdi> توسط مجموعه <bdi dir="ltr">regression</bdi> عملکردی <bdi dir="ltr">Playwright</bdi> اجرا می‌شوند و هنگام فعال بودن سطح‌های آزمایشی آن‌ها، به‌عنوان شواهد <bdi dir="ltr">runtime</bdi> ثبت می‌شوند.
+- برای <bdi dir="ltr">fallback</bdi>های <bdi dir="ltr">recovery</bdi>، <bdi dir="ltr">popover</bdi>های صفحه‌کلید، مدیریت <bdi dir="ltr">plugin</bdi> و آمادگی <bdi dir="ltr">indexing</bdi> تصویرهای مشخصی وجود دارد که از گالری لینک شده‌اند.
 
 ## انضباط بازبینی
 
-- هر تغییر baseline نیازمند بررسی بصری diff و ثبت یک یادداشت بازبینی صریح در بسته تغییرات است.
-- <bdi dir="ltr">snapshot</bdi>های قدیمی فقط پس از بررسی diff توسط reviewer جایگزین می‌شوند؛ failureهای بصری هرگز با افزایش tolerance سراسری پنهان نمی‌شوند.
-- مجموعه آزمون منبع Playwright و PNGهای ثبت‌شده باید با هم سازگار باشند. PNGهای ثبت‌شده artifact مستنداتی‌اند و به‌تنهایی مدرک release نیستند. commit دقیق، مرورگر، viewport و نتیجه `pnpm test:visual` همچنان مرجع قطعی‌اند.
+- هر تغییر <bdi dir="ltr">baseline</bdi> نیازمند بررسی بصری <bdi dir="ltr">diff</bdi> و ثبت یک یادداشت بازبینی صریح در بسته تغییرات است.
+- <bdi dir="ltr">snapshot</bdi>های قدیمی فقط پس از بررسی <bdi dir="ltr">diff</bdi> توسط <bdi dir="ltr">reviewer</bdi> جایگزین می‌شوند؛ <bdi dir="ltr">failure</bdi>های بصری هرگز با افزایش <bdi dir="ltr">tolerance</bdi> سراسری پنهان نمی‌شوند.
+- مجموعه آزمون منبع <bdi dir="ltr">Playwright</bdi> و <bdi dir="ltr">PNG</bdi>های ثبت‌شده باید با هم سازگار باشند. <bdi dir="ltr">PNG</bdi>های ثبت‌شده <bdi dir="ltr">artifact</bdi> مستنداتی‌اند و به‌تنهایی مدرک <bdi dir="ltr">release</bdi> نیستند. <bdi dir="ltr">commit</bdi> دقیق، مرورگر، <bdi dir="ltr">viewport</bdi> و نتیجه `pnpm test:visual` همچنان مرجع قطعی‌اند.
 
 ## ارجاع‌های مرتبط
 
-- بخش screenshot در README — گردش کاربرمحور در workspace و سطح‌های نوشتن، دانش، بصری‌سازی، خودکارسازی و operation/publish.
-- `docs/assets/screenshots/README.md` — همه PNGهای ثبت‌شده، اندازه آن‌ها و سندهایی که به آن‌ها ارجاع می‌دهند.
-- `docs/RELEASE-CHECKLIST.md` — موارد gate بصری در زمان release.
-- `docs/VERIFICATION.md` — زنجیره شواهد verification بصری.
+- بخش <bdi dir="ltr">screenshot</bdi> در <bdi dir="ltr">README</bdi> — گردش کاربرمحور در <bdi dir="ltr">workspace</bdi> و سطح‌های نوشتن، دانش، بصری‌سازی، خودکارسازی و <bdi dir="ltr">operation/publish.</bdi>
+- `docs/assets/screenshots/README.md` — همه <bdi dir="ltr">PNG</bdi>های ثبت‌شده، اندازه آن‌ها و سندهایی که به آن‌ها ارجاع می‌دهند.
+- `docs/RELEASE-CHECKLIST.md` — موارد <bdi dir="ltr">gate</bdi> بصری در زمان <bdi dir="ltr">release.</bdi>
+- `docs/VERIFICATION.md` — زنجیره شواهد <bdi dir="ltr">verification</bdi> بصری.
 
 </div>

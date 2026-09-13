@@ -6,13 +6,13 @@
 
 <div dir="rtl" lang="fa">
 
-# نمودار Container سطح ۲ — معماری Scriptor
+# نمودار <bdi dir="ltr">Container</bdi> سطح ۲ — معماری <bdi dir="ltr">Scriptor</bdi>
 
-[English](c4-container.md) · [简体中文](c4-container.zh-CN.md) · [Русский](c4-container.ru.md) · [Deutsch](c4-container.de.md) · [Español](c4-container.es.md) · **فارسی**
+[<bdi dir="ltr">English</bdi>](c4-container.md) · [简体中文](c4-container.zh-CN.md) · [Русский](c4-container.ru.md) · [<bdi dir="ltr">Deutsch</bdi>](c4-container.de.md) · [<bdi dir="ltr">Espa</bdi>ñ<bdi dir="ltr">ol</bdi>](c4-container.es.md) · **فارسی**
 
-**وضعیت:** مدل container مربوط به پیاده‌سازی فعلی. Tantivy، embeddings، WASM، prototype موتور citation در Rust و connector کتابخانه‌ای Zotero که فقط برای ارزیابی هستند عمداً خارج از این نمودار runtime قرار دارند.
+**وضعیت:** مدل <bdi dir="ltr">container</bdi> مربوط به پیاده‌سازی فعلی. <bdi dir="ltr">Tantivy</bdi>، <bdi dir="ltr">embeddings</bdi>، <bdi dir="ltr">WASM</bdi>، <bdi dir="ltr">prototype</bdi> موتور <bdi dir="ltr">citation</bdi> در <bdi dir="ltr">Rust</bdi> و <bdi dir="ltr">connector</bdi> کتابخانه‌ای <bdi dir="ltr">Zotero</bdi> که فقط برای ارزیابی هستند عمداً خارج از این نمودار <bdi dir="ltr">runtime</bdi> قرار دارند.
 
-## نمای کلی Containerها
+## نمای کلی <bdi dir="ltr">Container</bdi>ها
 
 </div>
 
@@ -74,28 +74,28 @@ C4Container
 
 <div dir="rtl" lang="fa">
 
-## مرزهای Container
+## مرزهای <bdi dir="ltr">Container</bdi>
 
-| Container | مالکیت و invariantهای مهم |
+| <bdi dir="ltr">Container</bdi> | مالکیت و <bdi dir="ltr">invariant</bdi>های مهم |
 |---|---|
-| React renderer | فقط presentation/review؛ فراخوانی‌های native در production زیر <bdi dir="ltr">`src/bridge/`</bdi> هستند؛ دسترسی مستقیم به secret ندارد. |
-| Tauri native shell | command payload و scope را اعتبارسنجی می‌کند؛ عملیات پراثر grant بومی تازه مصرف می‌کنند. |
-| Vault kernel | authority مرجع filesystem/path، نوشتن اتمیک، scan محدود و recovery/history. |
-| Indexer | cache قابل بازسازی SQLite WAL/FTS5؛ snippetهای body در FTS5 و weightهای BM25 با alignment درست. |
-| Git service | system-git به‌صورت noninteractive اجرا می‌شود؛ mutationهای دسکتاپ از طریق application state سریال می‌شوند؛ queue قابل‌استفاده مجدد محدود است. |
-| Export runner | profileهای صریح export و مرزهای local process؛ ابزار خارجی authority مربوط به vault نیست. |
-| Publish runner | renderer فقط از plan ساخته‌شده توسط publish-runner انتخاب می‌کند؛ apply دوباره eligibility/hash را محاسبه می‌کند، اتمیک می‌نویسد و فقط orphanهای مدیریت‌شده و واقعاً stale را حذف می‌کند. |
-| Canvas engine | state محلی Canvas و عملیات مکانی؛ authority مستقل شبکه ندارد. |
-| System bridge | مرز keychain/process/OS با redaction، allowlist، محدودیت time/output و cancellation. |
-| Daemon + IPC | local transport با احراز اصالت برای همان کاربر؛ nonce مربوط به endpoint در هر request و event subscription، frame/queue محدود و تحویل event با resynchronization. |
-| CLI/TUI | adapter ترمینال؛ در صورت پشتیبانی خروجی machine-readable و بدون bypass مخفی داده برای commandهای routeشده از daemon. |
+| <bdi dir="ltr">React renderer</bdi> | فقط <bdi dir="ltr">presentation/review</bdi>؛ فراخوانی‌های <bdi dir="ltr">native</bdi> در <bdi dir="ltr">production</bdi> زیر <bdi dir="ltr">`src/bridge/`</bdi> هستند؛ دسترسی مستقیم به <bdi dir="ltr">secret</bdi> ندارد. |
+| <bdi dir="ltr">Tauri native shell</bdi> | <bdi dir="ltr">command payload</bdi> و <bdi dir="ltr">scope</bdi> را اعتبارسنجی می‌کند؛ عملیات پراثر <bdi dir="ltr">grant</bdi> بومی تازه مصرف می‌کنند. |
+| <bdi dir="ltr">Vault kernel</bdi> | <bdi dir="ltr">authority</bdi> مرجع <bdi dir="ltr">filesystem/path</bdi>، نوشتن اتمیک، <bdi dir="ltr">scan</bdi> محدود و <bdi dir="ltr">recovery/history.</bdi> |
+| <bdi dir="ltr">Indexer</bdi> | <bdi dir="ltr">cache</bdi> قابل بازسازی <bdi dir="ltr">SQLite WAL/FTS5</bdi>؛ <bdi dir="ltr">snippet</bdi>های <bdi dir="ltr">body</bdi> در <bdi dir="ltr">FTS5</bdi> و <bdi dir="ltr">weight</bdi>های <bdi dir="ltr">BM25</bdi> با <bdi dir="ltr">alignment</bdi> درست. |
+| <bdi dir="ltr">Git service</bdi> | <bdi dir="ltr">system-git</bdi> به‌صورت <bdi dir="ltr">noninteractive</bdi> اجرا می‌شود؛ <bdi dir="ltr">mutation</bdi>های دسکتاپ از طریق <bdi dir="ltr">application state</bdi> سریال می‌شوند؛ <bdi dir="ltr">queue</bdi> قابل‌استفاده مجدد محدود است. |
+| <bdi dir="ltr">Export runner</bdi> | <bdi dir="ltr">profile</bdi>های صریح <bdi dir="ltr">export</bdi> و مرزهای <bdi dir="ltr">local process</bdi>؛ ابزار خارجی <bdi dir="ltr">authority</bdi> مربوط به <bdi dir="ltr">vault</bdi> نیست. |
+| <bdi dir="ltr">Publish runner</bdi> | <bdi dir="ltr">renderer</bdi> فقط از <bdi dir="ltr">plan</bdi> ساخته‌شده توسط <bdi dir="ltr">publish-runner</bdi> انتخاب می‌کند؛ <bdi dir="ltr">apply</bdi> دوباره <bdi dir="ltr">eligibility/hash</bdi> را محاسبه می‌کند، اتمیک می‌نویسد و فقط <bdi dir="ltr">orphan</bdi>های مدیریت‌شده و واقعاً <bdi dir="ltr">stale</bdi> را حذف می‌کند. |
+| <bdi dir="ltr">Canvas engine</bdi> | <bdi dir="ltr">state</bdi> محلی <bdi dir="ltr">Canvas</bdi> و عملیات مکانی؛ <bdi dir="ltr">authority</bdi> مستقل شبکه ندارد. |
+| <bdi dir="ltr">System bridge</bdi> | مرز <bdi dir="ltr">keychain/process/OS</bdi> با <bdi dir="ltr">redaction</bdi>، <bdi dir="ltr">allowlist</bdi>، محدودیت <bdi dir="ltr">time/output</bdi> و <bdi dir="ltr">cancellation.</bdi> |
+| <bdi dir="ltr">Daemon</bdi> + <bdi dir="ltr">IPC</bdi> | <bdi dir="ltr">local transport</bdi> با احراز اصالت برای همان کاربر؛ <bdi dir="ltr">nonce</bdi> مربوط به <bdi dir="ltr">endpoint</bdi> در هر <bdi dir="ltr">request</bdi> و <bdi dir="ltr">event subscription</bdi>، <bdi dir="ltr">frame/queue</bdi> محدود و تحویل <bdi dir="ltr">event</bdi> با <bdi dir="ltr">resynchronization.</bdi> |
+| <bdi dir="ltr">CLI/TUI</bdi> | <bdi dir="ltr">adapter</bdi> ترمینال؛ در صورت پشتیبانی خروجی <bdi dir="ltr">machine-readable</bdi> و بدون <bdi dir="ltr">bypass</bdi> مخفی داده برای <bdi dir="ltr">command</bdi>های <bdi dir="ltr">route</bdi>شده از <bdi dir="ltr">daemon.</bdi> |
 
 ## ماندگاری
 
-- <bdi dir="ltr">vault</bdi> Markdown و assetهای کاربر: مرجع اصلی.
-- <bdi dir="ltr">`.scriptor/cache/index.sqlite`</bdi>: state مشتق و قابل بازسازی search/graph/task/citation.
-- <bdi dir="ltr">`.scriptor/reader/annotations.json`</bdi>، sidecarهای recovery/audit و configuration: state محلی برنامه با کنترل path/atomic-write.
-- خروجی local publish و <bdi dir="ltr">`.scriptor-publish-state.json`</bdi>: state تولیدشده/مدیریت‌شده خارج از vault؛ هرگز برای source noteها مرجع نیست.
+- <bdi dir="ltr">vault</bdi> <bdi dir="ltr">Markdown</bdi> و <bdi dir="ltr">asset</bdi>های کاربر: مرجع اصلی.
+- <bdi dir="ltr">`.scriptor/cache/index.sqlite`</bdi>: <bdi dir="ltr">state</bdi> مشتق و قابل بازسازی <bdi dir="ltr">search/graph/task/citation.</bdi>
+- <bdi dir="ltr">`.scriptor/reader/annotations.json`</bdi>، <bdi dir="ltr">sidecar</bdi>های <bdi dir="ltr">recovery/audit</bdi> و <bdi dir="ltr">configuration: state</bdi> محلی برنامه با کنترل <bdi dir="ltr">path/atomic-write.</bdi>
+- خروجی <bdi dir="ltr">local publish</bdi> و <bdi dir="ltr">`.scriptor-publish-state.json`</bdi>: <bdi dir="ltr">state</bdi> تولیدشده/مدیریت‌شده خارج از <bdi dir="ltr">vault</bdi>؛ هرگز برای <bdi dir="ltr">source note</bdi>ها مرجع نیست.
 
 </div>
 

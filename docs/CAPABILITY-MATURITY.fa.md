@@ -8,59 +8,59 @@
 
 # دفتر بلوغ قابلیت‌ها
 
-[English](CAPABILITY-MATURITY.md) · [简体中文](CAPABILITY-MATURITY.zh-CN.md) · [Русский](CAPABILITY-MATURITY.ru.md) · [Deutsch](CAPABILITY-MATURITY.de.md) · [Español](CAPABILITY-MATURITY.es.md) · **فارسی**
+[<bdi dir="ltr">English</bdi>](CAPABILITY-MATURITY.md) · [简体中文](CAPABILITY-MATURITY.zh-CN.md) · [Русский](CAPABILITY-MATURITY.ru.md) · [<bdi dir="ltr">Deutsch</bdi>](CAPABILITY-MATURITY.de.md) · [<bdi dir="ltr">Espa</bdi>ñ<bdi dir="ltr">ol</bdi>](CAPABILITY-MATURITY.es.md) · **فارسی**
 
-این دفتر مرجع رسمی برای ادعاهای پشتیبانی است. **Implemented** یعنی source وجود دارد. **Supported** علاوه بر آن به تست یکپارچه، inclusion در release، مستندات و owner مشخص نیاز دارد. **Experimental** فقط با opt-in فعال می‌شود و ممکن است تغییر کند. **Design-only** نباید به‌عنوان قابلیت در دسترس معرفی شود.
+این دفتر مرجع رسمی برای ادعاهای پشتیبانی است. **<bdi dir="ltr">Implemented</bdi>** یعنی <bdi dir="ltr">source</bdi> وجود دارد. **<bdi dir="ltr">Supported</bdi>** علاوه بر آن به تست یکپارچه، <bdi dir="ltr">inclusion</bdi> در <bdi dir="ltr">release</bdi>، مستندات و <bdi dir="ltr">owner</bdi> مشخص نیاز دارد. **<bdi dir="ltr">Experimental</bdi>** فقط با <bdi dir="ltr">opt-in</bdi> فعال می‌شود و ممکن است تغییر کند. **<bdi dir="ltr">Design-only</bdi>** نباید به‌عنوان قابلیت در دسترس معرفی شود.
 
-| قابلیت | وضعیت | Source / Evidence | وضعیت در Release |
+| قابلیت | وضعیت | <bdi dir="ltr">Source</bdi> / <bdi dir="ltr">Evidence</bdi> | وضعیت در <bdi dir="ltr">Release</bdi> |
 |---|---|---|---|
-| خواندن/نوشتن/config در vault Markdown | Supported | <bdi dir="ltr">`crates/vault/`، Tauri/daemon adapters</bdi> | Included |
-| index و search با SQLite/FTS | Supported | <bdi dir="ltr">`crates/indexer/`</bdi> | Included |
-| Backlinks/knowledge/graph | Supported, bounded | <bdi dir="ltr">`crates/indexer/src/knowledge.rs`, `graph.rs`</bdi> | Included |
-| Desktop workspace | Supported | <bdi dir="ltr">`src/`, `apps/desktop/`</bdi> | Included |
-| Reader فایل PDF/EPUB داخل vault با annotation | Experimental | <bdi dir="ltr">`src/components/reader/`, `apps/desktop/src-tauri/src/commands/reader.rs`, `.scriptor/reader/annotations.json`</bdi> | فقط desktop محلی؛ پیش از ادعای support به اثبات کامل browser/accessibility و release-gate نیاز دارد |
-| ویرایش task مبتنی بر Markdown | Experimental | <bdi dir="ltr">`crates/indexer/src/tasks.rs`, `src/components/TaskPanel.tsx`</bdi> | source Markdown را از مسیر vault write به‌روزرسانی می‌کند؛ پیش از ادعای support به end-to-end proof در محیط clean نیاز دارد |
-| Markdown Kanban | Experimental | <bdi dir="ltr">`crates/indexer/src/kanban.rs`, `src/components/KanbanPanel.tsx`</bdi> | جابه‌جایی card، خط کامل source را زیر heading درخواستی <bdi dir="ltr">`##`</bdi> منتقل می‌کند؛ پیش از ادعای support به browser-flow proof نیاز دارد |
-| CodeMirror Markdown editor | Default supported editor | <bdi dir="ltr">`packages/editor/src/codemirror.tsx`</bdi> | Included |
-| Monaco editor | Advanced/lazy editor | <bdi dir="ltr">`src/components/shell/EditorWorkspace.tsx`</bdi> | Included, non-default |
-| Git operations/conflict UI | Supported | <bdi dir="ltr">`crates/native-git/`, `src/components/GitPanel.tsx`</bdi> | Included |
-| Export/Pandoc profiles | Supported with external-tool policy | <bdi dir="ltr">`crates/export-runner/`, `packages/export/`</bdi> | Included؛ Pandoc جداست |
-| Citation parsing/bibliography UI | Supported, bounded | <bdi dir="ltr">`crates/indexer/src/citations.rs`، renderer citeproc path</bdi> | Included؛ bibliography local، بدون ادعای Zotero sync |
-| Local Starlight publishing | Experimental | <bdi dir="ltr">`crates/publish-runner/`، desktop plan/review/apply، CLI adapter</bdi> | فقط local output؛ source/security contractها pass می‌شوند اما اثبات کامل Cargo/browser برای release هنوز لازم است |
-| Canvas | Supported | <bdi dir="ltr">`crates/canvas-engine/`, `packages/canvas/`</bdi> | Included |
-| Daemon IPC / CLI / TUI | Supported | <bdi dir="ltr">`crates/daemon/`, `crates/ipc/`, `crates/cli/`</bdi> | Daemon sidecar included |
-| Canonical MCP server | Supported (legacy compatibility codecs؛ adoption مربوط به current spec صریح است) | <bdi dir="ltr">`packages/mcp/`</bdi> | Included |
-| Trusted automation stdio | Supported with audit/authorization؛ <bdi dir="ltr">`mcp-stdio`</bdi> به‌عنوان CLI alias باقی مانده | <bdi dir="ltr">`crates/daemon/src/automation_stdio.rs`</bdi> | Included |
-| Manifest-first plugins | Experimental | <bdi dir="ltr">`packages/plugin-api/`</bdi> | فقط first-party catalog |
-| External code chunks | Experimental/high-risk | process broker + user confirmation | Opt-in |
-| AI provider requests | Experimental opt-in | native keychain/network boundary | Opt-in |
-| Local recovery snapshots | Supported | <bdi dir="ltr">`commands/backup.rs`</bdi> | Included |
-| External DR backups | Supported foundation؛ drill در هر release لازم است | <bdi dir="ltr">`commands/backup.rs`</bdi> | Included |
-| Encrypted vaults | فقط Experimental primitives | <bdi dir="ltr">`crates/vault/src/encryption.rs`</bdi> | vault mode پشتیبانی‌شده نیست |
-| Rust citation-engine (BibLaTeX parsing) | Supported | <bdi dir="ltr">`crates/citation-engine/`, `crates/indexer/src/bibliography.rs`</bdi> | indexer فایل‌های <bdi dir="ltr">`.bib`</bdi> را با engine و hayagriva grammar parse می‌کند؛ fatal parse error به warning تبدیل می‌شود، failure مربوط به conversion هر entry skip می‌شود؛ citeproc rendering surface آن crate همچنان incubating است |
-| Zotero Web API connector | Experimental / library-only | <bdi dir="ltr">`packages/zotero-connector/`</bdi> | read-only library؛ داخل محصول compose نشده و sync UI عرضه‌شده ندارد |
-| Google Calendar and Tasks | Experimental desktop integration | <bdi dir="ltr">`apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/hooks/useGoogleCalendarSync.ts`</bdi> | OAuth PKCE و token در OS-keychain؛ Google client ID پیکربندی‌شده و browser-flow evidence گسترده‌تر پیش از ادعای support لازم است |
-| Gmail native bridge (manager UI composed, capability-gated) | Experimental desktop integration | <bdi dir="ltr">`apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/bridge/commands/google_gmail.ts`</bdi> | پشت capability افزونه <bdi dir="ltr">`scriptor.gmail-manager`</bdi> است؛ فقط وقتی plugin صریحاً enable شده list می‌شود و هر native command شامل read/auth دوباره capability را در boundary بررسی می‌کند؛ message listing محدود با fetch هم‌زمان |
-| Desktop Git mutation queue (GitQueue) | Integrated | <bdi dir="ltr">`crates/native-git/src/queue.rs`</bdi> | همه desktop Git mutationها وارد bounded per-repo worker می‌شوند؛ source-contracts، serialization + 64-slot backpressure را تست می‌کند؛ daemon-side Git commands همچنان با daemon state mutex سریال می‌شوند |
-| Semantic (embedding) search | Experimental opt-in | <bdi dir="ltr">`crates/embeddings/`, `crates/daemon/src/handler.rs`</bdi> | opt-in از section <bdi dir="ltr">`semantic`</bdi> در vault config (ollama local server یا OpenAI با keychain key کاربر)؛ vault sync فقط noteهای تغییرکرده را embed می‌کند و sealed spanها را ابتدا redact می‌کند؛ بدون config به keyword-only search برمی‌گردد؛ cosine query به‌صورت zero-copy روی reusable scratch buffer اجرا می‌شود |
-| Tantivy index | Evaluation | <bdi dir="ltr">`crates/tantivy-indexer/`</bdi> | از default workspace build و release binary حذف است؛ benchmark تاریخ 2026-09-01 روی release build و vault با 2k note: warm search برابر 0.0ms در برابر 7.8ms برای FTS5، هر دو بسیار کمتر از budget 100ms. با API batch commit یعنی <bdi dir="ltr">`stage_note` + `commit_batch`</bdi> ساخت index برابر 452ms در برابر حدود 8s برای FTS5 rebuild است؛ اما FTS5 همه budgetها را برآورده می‌کند و transactionally به note cache متصل است، بنابراین محصول FTS5 را نگه می‌دارد. Tantivy به‌عنوان replacement آماده برای نیاز احتمالی sub-millisecond semantic-scale search در incubating می‌ماند. مقایسه: <bdi dir="ltr">`cargo run --release -p scriptor-cli --features tantivy -- bench-tantivy <vault> <query>`</bdi> |
-| WASM plugin host | Incubating | <bdi dir="ltr">`crates/wasm-runtime/`</bdi> | خارج از default workspace build |
-| Mobile app | Design-only | <bdi dir="ltr">`docs/architecture/MOBILE_ARCHITECTURE.md`</bdi> | Not shipped |
-| Signed public plugin marketplace | Design-only | plugin graduation requirements | Not shipped |
-| Built-in self updater | Disabled | updater plugin/permission removed | Not shipped |
+| خواندن/نوشتن/<bdi dir="ltr">config</bdi> در <bdi dir="ltr">vault Markdown</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`crates/vault/`، Tauri/daemon adapters</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">index</bdi> و <bdi dir="ltr">search</bdi> با <bdi dir="ltr">SQLite/FTS</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`crates/indexer/`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Backlinks/knowledge/graph</bdi> | <bdi dir="ltr">Supported</bdi>, <bdi dir="ltr">bounded</bdi> | <bdi dir="ltr">`crates/indexer/src/knowledge.rs`, `graph.rs`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Desktop workspace</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`src/`, `apps/desktop/`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Reader</bdi> فایل <bdi dir="ltr">PDF/EPUB</bdi> داخل <bdi dir="ltr">vault</bdi> با <bdi dir="ltr">annotation</bdi> | <bdi dir="ltr">Experimental</bdi> | <bdi dir="ltr">`src/components/reader/`, `apps/desktop/src-tauri/src/commands/reader.rs`, `.scriptor/reader/annotations.json`</bdi> | فقط <bdi dir="ltr">desktop</bdi> محلی؛ پیش از ادعای <bdi dir="ltr">support</bdi> به اثبات کامل <bdi dir="ltr">browser/accessibility</bdi> و <bdi dir="ltr">release-gate</bdi> نیاز دارد |
+| ویرایش <bdi dir="ltr">task</bdi> مبتنی بر <bdi dir="ltr">Markdown</bdi> | <bdi dir="ltr">Experimental</bdi> | <bdi dir="ltr">`crates/indexer/src/tasks.rs`, `src/components/TaskPanel.tsx`</bdi> | <bdi dir="ltr">source Markdown</bdi> را از مسیر <bdi dir="ltr">vault write</bdi> به‌روزرسانی می‌کند؛ پیش از ادعای <bdi dir="ltr">support</bdi> به <bdi dir="ltr">end-to-end proof</bdi> در محیط <bdi dir="ltr">clean</bdi> نیاز دارد |
+| <bdi dir="ltr">Markdown Kanban</bdi> | <bdi dir="ltr">Experimental</bdi> | <bdi dir="ltr">`crates/indexer/src/kanban.rs`, `src/components/KanbanPanel.tsx`</bdi> | جابه‌جایی <bdi dir="ltr">card</bdi>، خط کامل <bdi dir="ltr">source</bdi> را زیر <bdi dir="ltr">heading</bdi> درخواستی <bdi dir="ltr">`##`</bdi> منتقل می‌کند؛ پیش از ادعای <bdi dir="ltr">support</bdi> به <bdi dir="ltr">browser-flow proof</bdi> نیاز دارد |
+| <bdi dir="ltr">CodeMirror Markdown editor</bdi> | <bdi dir="ltr">Default supported editor</bdi> | <bdi dir="ltr">`packages/editor/src/codemirror.tsx`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Monaco editor</bdi> | <bdi dir="ltr">Advanced/lazy editor</bdi> | <bdi dir="ltr">`src/components/shell/EditorWorkspace.tsx`</bdi> | <bdi dir="ltr">Included</bdi>, <bdi dir="ltr">non-default</bdi> |
+| <bdi dir="ltr">Git operations/conflict UI</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`crates/native-git/`, `src/components/GitPanel.tsx`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Export/Pandoc profiles</bdi> | <bdi dir="ltr">Supported with external-tool policy</bdi> | <bdi dir="ltr">`crates/export-runner/`, `packages/export/`</bdi> | <bdi dir="ltr">Included</bdi>؛ <bdi dir="ltr">Pandoc</bdi> جداست |
+| <bdi dir="ltr">Citation parsing/bibliography UI</bdi> | <bdi dir="ltr">Supported</bdi>, <bdi dir="ltr">bounded</bdi> | <bdi dir="ltr">`crates/indexer/src/citations.rs`، renderer citeproc path</bdi> | <bdi dir="ltr">Included</bdi>؛ <bdi dir="ltr">bibliography local</bdi>، بدون ادعای <bdi dir="ltr">Zotero sync</bdi> |
+| <bdi dir="ltr">Local Starlight publishing</bdi> | <bdi dir="ltr">Experimental</bdi> | <bdi dir="ltr">`crates/publish-runner/`، desktop plan/review/apply، CLI adapter</bdi> | فقط <bdi dir="ltr">local output</bdi>؛ <bdi dir="ltr">source/security contract</bdi>ها <bdi dir="ltr">pass</bdi> می‌شوند اما اثبات کامل <bdi dir="ltr">Cargo/browser</bdi> برای <bdi dir="ltr">release</bdi> هنوز لازم است |
+| <bdi dir="ltr">Canvas</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`crates/canvas-engine/`, `packages/canvas/`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Daemon IPC</bdi> / <bdi dir="ltr">CLI</bdi> / <bdi dir="ltr">TUI</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`crates/daemon/`, `crates/ipc/`, `crates/cli/`</bdi> | <bdi dir="ltr">Daemon sidecar included</bdi> |
+| <bdi dir="ltr">Canonical MCP server</bdi> | <bdi dir="ltr">Supported</bdi> (<bdi dir="ltr">legacy compatibility codecs</bdi>؛ <bdi dir="ltr">adoption</bdi> مربوط به <bdi dir="ltr">current spec</bdi> صریح است) | <bdi dir="ltr">`packages/mcp/`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Trusted automation stdio</bdi> | <bdi dir="ltr">Supported with audit/authorization</bdi>؛ <bdi dir="ltr">`mcp-stdio`</bdi> به‌عنوان <bdi dir="ltr">CLI alias</bdi> باقی مانده | <bdi dir="ltr">`crates/daemon/src/automation_stdio.rs`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Manifest-first plugins</bdi> | <bdi dir="ltr">Experimental</bdi> | <bdi dir="ltr">`packages/plugin-api/`</bdi> | فقط <bdi dir="ltr">first-party catalog</bdi> |
+| <bdi dir="ltr">External code chunks</bdi> | <bdi dir="ltr">Experimental/high-risk</bdi> | <bdi dir="ltr">process broker</bdi> + <bdi dir="ltr">user confirmation</bdi> | <bdi dir="ltr">Opt-in</bdi> |
+| <bdi dir="ltr">AI provider requests</bdi> | <bdi dir="ltr">Experimental opt-in</bdi> | <bdi dir="ltr">native keychain/network boundary</bdi> | <bdi dir="ltr">Opt-in</bdi> |
+| <bdi dir="ltr">Local recovery snapshots</bdi> | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`commands/backup.rs`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">External DR backups</bdi> | <bdi dir="ltr">Supported foundation</bdi>؛ <bdi dir="ltr">drill</bdi> در هر <bdi dir="ltr">release</bdi> لازم است | <bdi dir="ltr">`commands/backup.rs`</bdi> | <bdi dir="ltr">Included</bdi> |
+| <bdi dir="ltr">Encrypted vaults</bdi> | فقط <bdi dir="ltr">Experimental primitives</bdi> | <bdi dir="ltr">`crates/vault/src/encryption.rs`</bdi> | <bdi dir="ltr">vault mode</bdi> پشتیبانی‌شده نیست |
+| <bdi dir="ltr">Rust citation-engine</bdi> (<bdi dir="ltr">BibLaTeX parsing</bdi>) | <bdi dir="ltr">Supported</bdi> | <bdi dir="ltr">`crates/citation-engine/`, `crates/indexer/src/bibliography.rs`</bdi> | <bdi dir="ltr">indexer</bdi> فایل‌های <bdi dir="ltr">`.bib`</bdi> را با <bdi dir="ltr">engine</bdi> و <bdi dir="ltr">hayagriva grammar parse</bdi> می‌کند؛ <bdi dir="ltr">fatal parse error</bdi> به <bdi dir="ltr">warning</bdi> تبدیل می‌شود، <bdi dir="ltr">failure</bdi> مربوط به <bdi dir="ltr">conversion</bdi> هر <bdi dir="ltr">entry skip</bdi> می‌شود؛ <bdi dir="ltr">citeproc rendering surface</bdi> آن <bdi dir="ltr">crate</bdi> همچنان <bdi dir="ltr">incubating</bdi> است |
+| <bdi dir="ltr">Zotero Web API connector</bdi> | <bdi dir="ltr">Experimental</bdi> / <bdi dir="ltr">library-only</bdi> | <bdi dir="ltr">`packages/zotero-connector/`</bdi> | <bdi dir="ltr">read-only library</bdi>؛ داخل محصول <bdi dir="ltr">compose</bdi> نشده و <bdi dir="ltr">sync UI</bdi> عرضه‌شده ندارد |
+| <bdi dir="ltr">Google Calendar and Tasks</bdi> | <bdi dir="ltr">Experimental desktop integration</bdi> | <bdi dir="ltr">`apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/hooks/useGoogleCalendarSync.ts`</bdi> | <bdi dir="ltr">OAuth PKCE</bdi> و <bdi dir="ltr">token</bdi> در <bdi dir="ltr">OS-keychain</bdi>؛ <bdi dir="ltr">Google client ID</bdi> پیکربندی‌شده و <bdi dir="ltr">browser-flow evidence</bdi> گسترده‌تر پیش از ادعای <bdi dir="ltr">support</bdi> لازم است |
+| <bdi dir="ltr">Gmail native bridge</bdi> (<bdi dir="ltr">manager UI composed</bdi>, <bdi dir="ltr">capability-gated</bdi>) | <bdi dir="ltr">Experimental desktop integration</bdi> | <bdi dir="ltr">`apps/desktop/src-tauri/src/commands/google_calendar.rs`, `src/bridge/commands/google_gmail.ts`</bdi> | پشت <bdi dir="ltr">capability</bdi> افزونه <bdi dir="ltr">`scriptor.gmail-manager`</bdi> است؛ فقط وقتی <bdi dir="ltr">plugin</bdi> صریحاً <bdi dir="ltr">enable</bdi> شده <bdi dir="ltr">list</bdi> می‌شود و هر <bdi dir="ltr">native command</bdi> شامل <bdi dir="ltr">read/auth</bdi> دوباره <bdi dir="ltr">capability</bdi> را در <bdi dir="ltr">boundary</bdi> بررسی می‌کند؛ <bdi dir="ltr">message listing</bdi> محدود با <bdi dir="ltr">fetch</bdi> هم‌زمان |
+| <bdi dir="ltr">Desktop Git mutation queue</bdi> (<bdi dir="ltr">GitQueue</bdi>) | <bdi dir="ltr">Integrated</bdi> | <bdi dir="ltr">`crates/native-git/src/queue.rs`</bdi> | همه <bdi dir="ltr">desktop Git mutation</bdi>ها وارد <bdi dir="ltr">bounded per-repo worker</bdi> می‌شوند؛ <bdi dir="ltr">source-contracts</bdi>، <bdi dir="ltr">serialization</bdi> + 64-<bdi dir="ltr">slot backpressure</bdi> را تست می‌کند؛ <bdi dir="ltr">daemon-side Git commands</bdi> همچنان با <bdi dir="ltr">daemon state mutex</bdi> سریال می‌شوند |
+| <bdi dir="ltr">Semantic</bdi> (<bdi dir="ltr">embedding</bdi>) <bdi dir="ltr">search</bdi> | <bdi dir="ltr">Experimental opt-in</bdi> | <bdi dir="ltr">`crates/embeddings/`, `crates/daemon/src/handler.rs`</bdi> | <bdi dir="ltr">opt-in</bdi> از <bdi dir="ltr">section</bdi> <bdi dir="ltr">`semantic`</bdi> در <bdi dir="ltr">vault config</bdi> (<bdi dir="ltr">ollama local server</bdi> یا <bdi dir="ltr">OpenAI</bdi> با <bdi dir="ltr">keychain key</bdi> کاربر)؛ <bdi dir="ltr">vault sync</bdi> فقط <bdi dir="ltr">note</bdi>های تغییرکرده را <bdi dir="ltr">embed</bdi> می‌کند و <bdi dir="ltr">sealed span</bdi>ها را ابتدا <bdi dir="ltr">redact</bdi> می‌کند؛ بدون <bdi dir="ltr">config</bdi> به <bdi dir="ltr">keyword-only search</bdi> برمی‌گردد؛ <bdi dir="ltr">cosine query</bdi> به‌صورت <bdi dir="ltr">zero-copy</bdi> روی <bdi dir="ltr">reusable scratch buffer</bdi> اجرا می‌شود |
+| <bdi dir="ltr">Tantivy index</bdi> | <bdi dir="ltr">Evaluation</bdi> | <bdi dir="ltr">`crates/tantivy-indexer/`</bdi> | از <bdi dir="ltr">default workspace build</bdi> و <bdi dir="ltr">release binary</bdi> حذف است؛ <bdi dir="ltr">benchmark</bdi> تاریخ 2026-09-01 روی <bdi dir="ltr">release build</bdi> و <bdi dir="ltr">vault</bdi> با 2<bdi dir="ltr">k note: warm search</bdi> برابر 0.0<bdi dir="ltr">ms</bdi> در برابر 7.8<bdi dir="ltr">ms</bdi> برای <bdi dir="ltr">FTS5</bdi>، هر دو بسیار کمتر از <bdi dir="ltr">budget</bdi> 100<bdi dir="ltr">ms.</bdi> با <bdi dir="ltr">API batch commit</bdi> یعنی <bdi dir="ltr">`stage_note` + `commit_batch`</bdi> ساخت <bdi dir="ltr">index</bdi> برابر 452<bdi dir="ltr">ms</bdi> در برابر حدود 8<bdi dir="ltr">s</bdi> برای <bdi dir="ltr">FTS5 rebuild</bdi> است؛ اما <bdi dir="ltr">FTS5</bdi> همه <bdi dir="ltr">budget</bdi>ها را برآورده می‌کند و <bdi dir="ltr">transactionally</bdi> به <bdi dir="ltr">note cache</bdi> متصل است، بنابراین محصول <bdi dir="ltr">FTS5</bdi> را نگه می‌دارد. <bdi dir="ltr">Tantivy</bdi> به‌عنوان <bdi dir="ltr">replacement</bdi> آماده برای نیاز احتمالی <bdi dir="ltr">sub-millisecond semantic-scale search</bdi> در <bdi dir="ltr">incubating</bdi> می‌ماند. مقایسه: <bdi dir="ltr">`cargo run --release -p scriptor-cli --features tantivy -- bench-tantivy <vault> <query>`</bdi> |
+| <bdi dir="ltr">WASM plugin host</bdi> | <bdi dir="ltr">Incubating</bdi> | <bdi dir="ltr">`crates/wasm-runtime/`</bdi> | خارج از <bdi dir="ltr">default workspace build</bdi> |
+| <bdi dir="ltr">Mobile app</bdi> | <bdi dir="ltr">Design-only</bdi> | <bdi dir="ltr">`docs/architecture/MOBILE_ARCHITECTURE.md`</bdi> | <bdi dir="ltr">Not shipped</bdi> |
+| <bdi dir="ltr">Signed public plugin marketplace</bdi> | <bdi dir="ltr">Design-only</bdi> | <bdi dir="ltr">plugin graduation requirements</bdi> | <bdi dir="ltr">Not shipped</bdi> |
+| <bdi dir="ltr">Built-in self updater</bdi> | <bdi dir="ltr">Disabled</bdi> | <bdi dir="ltr">updater plugin/permission removed</bdi> | <bdi dir="ltr">Not shipped</bdi> |
 
-## دروازه ارتقا به Supported
+## دروازه ارتقا به <bdi dir="ltr">Supported</bdi>
 
-یک قابلیت فقط وقتی به Supported ارتقا پیدا می‌کند که همه موارد زیر وجود داشته باشند:
+یک قابلیت فقط وقتی به <bdi dir="ltr">Supported</bdi> ارتقا پیدا می‌کند که همه موارد زیر وجود داشته باشند:
 
-1. <bdi dir="ltr">owner</bdi> مشخص و support window؛
-2. <bdi dir="ltr">public</bdi> contract پایدار و current-schema policy؛
-3. تست‌های positive، negative، restart، cancellation و recovery؛
-4. <bdi dir="ltr">authorization/privacy</bdi> model؛
-5. <bdi dir="ltr">bounded</bdi> performance evidence؛
-6. مستندات کاربر و operator؛
-7. <bdi dir="ltr">inclusion</bdi> در release و artifact verification؛
-8. changelog entry.
+1. <bdi dir="ltr">owner</bdi> مشخص و <bdi dir="ltr">support window</bdi>؛
+2. <bdi dir="ltr">public</bdi> <bdi dir="ltr">contract</bdi> پایدار و <bdi dir="ltr">current-schema policy</bdi>؛
+3. تست‌های <bdi dir="ltr">positive</bdi>، <bdi dir="ltr">negative</bdi>، <bdi dir="ltr">restart</bdi>، <bdi dir="ltr">cancellation</bdi> و <bdi dir="ltr">recovery</bdi>؛
+4. <bdi dir="ltr">authorization/privacy</bdi> <bdi dir="ltr">model</bdi>؛
+5. <bdi dir="ltr">bounded</bdi> <bdi dir="ltr">performance evidence</bdi>؛
+6. مستندات کاربر و <bdi dir="ltr">operator</bdi>؛
+7. <bdi dir="ltr">inclusion</bdi> در <bdi dir="ltr">release</bdi> و <bdi dir="ltr">artifact verification</bdi>؛
+8. <bdi dir="ltr">changelog entry.</bdi>
 
 </div>
 

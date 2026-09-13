@@ -12,12 +12,12 @@
 
 1. [`PRODUCT.fa.md`](PRODUCT.fa.md)، [`DESIGN.fa.md`](DESIGN.fa.md)، [`docs/ARCHITECTURE.fa.md`](docs/ARCHITECTURE.fa.md) و [`docs/CAPABILITY-MATURITY.fa.md`](docs/CAPABILITY-MATURITY.fa.md) را بخوانید.
 2. برای آشنایی مشارکت‌کننده، نقشه دایرکتوری‌ها و نقطه‌های ورود، به [`docs/ONBOARDING.fa.md`](docs/ONBOARDING.fa.md) مراجعه کنید.
-3. برای packageهای TypeScript، [`packages/README.md`](packages/README.md) را بخوانید؛ packageها را فقط از entry pointهای اعلام‌شده import کنید.
-4. تغییرات staged، unstaged و untracked نامرتبط را دست‌نخورده نگه دارید.
+3. برای <bdi dir="ltr">package</bdi>های <bdi dir="ltr">TypeScript</bdi>، [`packages/README.md`](packages/README.md) را بخوانید؛ <bdi dir="ltr">package</bdi>ها را فقط از <bdi dir="ltr">entry point</bdi>های اعلام‌شده <bdi dir="ltr">import</bdi> کنید.
+4. تغییرات <bdi dir="ltr">staged</bdi>، <bdi dir="ltr">unstaged</bdi> و <bdi dir="ltr">untracked</bdi> نامرتبط را دست‌نخورده نگه دارید.
 
 ## زنجیره ابزار
 
-<bdi dir="ltr">Gate</bdi>های محلی به Node.js نسخه 22.12 یا جدیدتر (CI روی 22.16.0 pin شده)، pnpm 10.33.0، Rust 1.96.0 و PowerShell 7 (`pwsh`) نیاز دارند. بررسی‌های دسترس‌پذیری مرورگر همچنین به ChromeDriver سازگار با نسخه نصب‌شده Chrome نیاز دارند؛ اگر به‌طور خودکار پیدا نمی‌شود، `CHROMEWEBDRIVER` را تنظیم کنید.
+<bdi dir="ltr">Gate</bdi>های محلی به <bdi dir="ltr">Node.js</bdi> نسخه 22.12 یا جدیدتر (<bdi dir="ltr">CI</bdi> روی 22.16.0 <bdi dir="ltr">pin</bdi> شده)، <bdi dir="ltr">pnpm</bdi> 10.33.0، <bdi dir="ltr">Rust</bdi> 1.96.0 و <bdi dir="ltr">PowerShell</bdi> 7 (`pwsh`) نیاز دارند. بررسی‌های دسترس‌پذیری مرورگر همچنین به <bdi dir="ltr">ChromeDriver</bdi> سازگار با نسخه نصب‌شده <bdi dir="ltr">Chrome</bdi> نیاز دارند؛ اگر به‌طور خودکار پیدا نمی‌شود، `CHROMEWEBDRIVER` را تنظیم کنید.
 
 </div>
 
@@ -53,14 +53,14 @@ pnpm desktop:dev
 
 ## فرایند تغییر
 
-- پیش از رفع bug، آن را با یک test شکست‌خورده بازتولید کنید.
-- تغییرات مربوط به mutation، refactor، به‌روزرسانی dependency و فایل‌های generated را قابل review نگه دارید. وقتی PR نسخه major یا minor یک dependency را عوض می‌کند، در همان commit محل‌های استفاده را با release noteهای upstream پین‌شده تطبیق دهید: تغییر نام module یا method (برای نمونه در `fs4` 1.x، `fs_std::FileExt::lock_exclusive` به `FileExt::lock` منتقل شد) روی هیچ پلتفرمی compile نمی‌شود و failure آن همه gateهای بعدی را پشت خود پنهان می‌کند.
+- پیش از رفع <bdi dir="ltr">bug</bdi>، آن را با یک <bdi dir="ltr">test</bdi> شکست‌خورده بازتولید کنید.
+- تغییرات مربوط به <bdi dir="ltr">mutation</bdi>، <bdi dir="ltr">refactor</bdi>، به‌روزرسانی <bdi dir="ltr">dependency</bdi> و فایل‌های <bdi dir="ltr">generated</bdi> را قابل <bdi dir="ltr">review</bdi> نگه دارید. وقتی <bdi dir="ltr">PR</bdi> نسخه <bdi dir="ltr">major</bdi> یا <bdi dir="ltr">minor</bdi> یک <bdi dir="ltr">dependency</bdi> را عوض می‌کند، در همان <bdi dir="ltr">commit</bdi> محل‌های استفاده را با <bdi dir="ltr">release note</bdi>های <bdi dir="ltr">upstream</bdi> پین‌شده تطبیق دهید: تغییر نام <bdi dir="ltr">module</bdi> یا <bdi dir="ltr">method</bdi> (برای نمونه در `fs4` 1.<bdi dir="ltr">x</bdi>، `fs_std::FileExt::lock_exclusive` به `FileExt::lock` منتقل شد) روی هیچ پلتفرمی <bdi dir="ltr">compile</bdi> نمی‌شود و <bdi dir="ltr">failure</bdi> آن همه <bdi dir="ltr">gate</bdi>های بعدی را پشت خود پنهان می‌کند.
 - فرمان‌های خارجی را از `crates/system-bridge/src/process.rs` عبور دهید.
-- <bdi dir="ltr">JSON</bdi> زمان اجرا را از `unknown` اعتبارسنجی کنید؛ assertion بررسی‌نشده روی boundary اضافه نکنید.
-- برای هر native command جدید، classification مجوز را اضافه کنید.
-- برای داده‌های طولانی‌عمر یا تحت کنترل کاربر از queue، collection و output محدود استفاده کنید.
-- ابتدا فایل‌های source-of-truth را به‌روزرسانی کنید و بعد contractهای مشتق‌شده را regenerate کنید.
-- وقتی maturity یا support تغییر می‌کند، docs و capability ledger را هم به‌روزرسانی کنید.
+- <bdi dir="ltr">JSON</bdi> زمان اجرا را از `unknown` اعتبارسنجی کنید؛ <bdi dir="ltr">assertion</bdi> بررسی‌نشده روی <bdi dir="ltr">boundary</bdi> اضافه نکنید.
+- برای هر <bdi dir="ltr">native command</bdi> جدید، <bdi dir="ltr">classification</bdi> مجوز را اضافه کنید.
+- برای داده‌های طولانی‌عمر یا تحت کنترل کاربر از <bdi dir="ltr">queue</bdi>، <bdi dir="ltr">collection</bdi> و <bdi dir="ltr">output</bdi> محدود استفاده کنید.
+- ابتدا فایل‌های <bdi dir="ltr">source-of-truth</bdi> را به‌روزرسانی کنید و بعد <bdi dir="ltr">contract</bdi>های مشتق‌شده را <bdi dir="ltr">regenerate</bdi> کنید.
+- وقتی <bdi dir="ltr">maturity</bdi> یا <bdi dir="ltr">support</bdi> تغییر می‌کند، <bdi dir="ltr">docs</bdi> و <bdi dir="ltr">capability ledger</bdi> را هم به‌روزرسانی کنید.
 
 ## بررسی‌های الزامی
 
@@ -87,30 +87,30 @@ pnpm test:rust
 
 <div dir="rtl" lang="fa">
 
-`pnpm test:rust` gate مربوط به Rust در CI را بازتاب می‌دهد: `scriptor-desktop` (که `desktop-check.yml` آن را پوشش می‌دهد) و engineهای در حال incubation (`scriptor-embeddings`، `scriptor-tantivy-indexer`، `scriptor-wasm-runtime`) از اجرای تست محصول کنار گذاشته می‌شوند و سپس با `test:rust:engines` جداگانه بررسی می‌شوند. `scriptor-citation-engine` در graph تست محصول باقی می‌ماند، چون parser مربوط به BibLaTeX آن یک dependency پشتیبانی‌شده indexer است؛ فقط سطح citeproc/rendering این crate همچنان در incubation است.
+`pnpm test:rust` <bdi dir="ltr">gate</bdi> مربوط به <bdi dir="ltr">Rust</bdi> در <bdi dir="ltr">CI</bdi> را بازتاب می‌دهد: `scriptor-desktop` (که `desktop-check.yml` آن را پوشش می‌دهد) و <bdi dir="ltr">engine</bdi>های در حال <bdi dir="ltr">incubation</bdi> (`scriptor-embeddings`، `scriptor-tantivy-indexer`، `scriptor-wasm-runtime`) از اجرای تست محصول کنار گذاشته می‌شوند و سپس با `test:rust:engines` جداگانه بررسی می‌شوند. `scriptor-citation-engine` در <bdi dir="ltr">graph</bdi> تست محصول باقی می‌ماند، چون <bdi dir="ltr">parser</bdi> مربوط به <bdi dir="ltr">BibLaTeX</bdi> آن یک <bdi dir="ltr">dependency</bdi> پشتیبانی‌شده <bdi dir="ltr">indexer</bdi> است؛ فقط سطح <bdi dir="ltr">citeproc/rendering</bdi> این <bdi dir="ltr">crate</bdi> همچنان در <bdi dir="ltr">incubation</bdi> است.
 
-<bdi dir="ltr">Validator</bdi>های هدفمند package و suiteهای مرتبط Playwright را برای رفتار تغییرکرده اجرا کنید. تغییر UI باید شواهدی برای صفحه‌کلید، semantics مربوط به screen reader، وضعیت‌های loading/empty/error، viewport باریک و بزرگ‌نمایی ۲۰۰٪ داشته باشد.
+<bdi dir="ltr">Validator</bdi>های هدفمند <bdi dir="ltr">package</bdi> و <bdi dir="ltr">suite</bdi>های مرتبط <bdi dir="ltr">Playwright</bdi> را برای رفتار تغییرکرده اجرا کنید. تغییر <bdi dir="ltr">UI</bdi> باید شواهدی برای صفحه‌کلید، <bdi dir="ltr">semantics</bdi> مربوط به <bdi dir="ltr">screen reader</bdi>، وضعیت‌های <bdi dir="ltr">loading/empty/error</bdi>، <bdi dir="ltr">viewport</bdi> باریک و بزرگ‌نمایی ۲۰۰٪ داشته باشد.
 
-`pnpm check:release` یک release gate گسترده است، نه سریع‌ترین حلقه feedback محلی. ابتدا بررسی‌های هدفمند بالا را اجرا کنید و سپس gate کامل را روی ماشینی با پیش‌نیازهای desktop/browser اجرا کنید.
+`pnpm check:release` یک <bdi dir="ltr">release gate</bdi> گسترده است، نه سریع‌ترین حلقه <bdi dir="ltr">feedback</bdi> محلی. ابتدا بررسی‌های هدفمند بالا را اجرا کنید و سپس <bdi dir="ltr">gate</bdi> کامل را روی ماشینی با پیش‌نیازهای <bdi dir="ltr">desktop/browser</bdi> اجرا کنید.
 
-اصطلاحات مربوط به proof و gateهای platform/release در [`docs/VERIFICATION.fa.md`](docs/VERIFICATION.fa.md) تعریف شده‌اند. هرگز یک بررسی static source را به‌عنوان نتیجه compiled، packaged، native یا browser-verified توصیف نکنید.
+اصطلاحات مربوط به <bdi dir="ltr">proof</bdi> و <bdi dir="ltr">gate</bdi>های <bdi dir="ltr">platform/release</bdi> در [`docs/VERIFICATION.fa.md`](docs/VERIFICATION.fa.md) تعریف شده‌اند. هرگز یک بررسی <bdi dir="ltr">static source</bdi> را به‌عنوان نتیجه <bdi dir="ltr">compiled</bdi>، <bdi dir="ltr">packaged</bdi>، <bdi dir="ltr">native</bdi> یا <bdi dir="ltr">browser-verified</bdi> توصیف نکنید.
 
-## Pull requestها
+## <bdi dir="ltr">Pull request</bdi>ها
 
 موارد زیر را توضیح دهید:
 
 - رفتار قابل مشاهده‌ای که تغییر کرده است؛
-- <bdi dir="ltr">boundary</bdi>های authority/data تحت تأثیر؛
+- <bdi dir="ltr">boundary</bdi>های <bdi dir="ltr">authority/data</bdi> تحت تأثیر؛
 - تست‌ها و فرمان‌های اجراشده همراه نتیجه؛
-- رفتار migration/rollback؛
+- رفتار <bdi dir="ltr">migration/rollback</bdi>؛
 - <bdi dir="ltr">screenshot</bdi> برای تغییرات قابل مشاهده کاربر؛
 - پلتفرم‌های راستی‌آزمایی‌نشده یا ریسک‌های باقی‌مانده.
 
-<bdi dir="ltr">Secret</bdi>، دایرکتوری build تولیدشده، debug log یا داده شخصی vault را commit نکنید.
+<bdi dir="ltr">Secret</bdi>، دایرکتوری <bdi dir="ltr">build</bdi> تولیدشده، <bdi dir="ltr">debug log</bdi> یا داده شخصی <bdi dir="ltr">vault</bdi> را <bdi dir="ltr">commit</bdi> نکنید.
 
 ## مجوز
 
-مگر آنکه خلافش ذکر شده باشد، contributionها تحت **AGPL-3.0-or-later** مجوز می‌گیرند. با ارسال contribution اعلام می‌کنید که حق اعطای مجوز با این شرایط را دارید. سیاست مجوز جداگانه در [`COMMERCIAL-LICENSING.fa.md`](COMMERCIAL-LICENSING.fa.md) آمده است.
+مگر آنکه خلافش ذکر شده باشد، <bdi dir="ltr">contribution</bdi>ها تحت **<bdi dir="ltr">AGPL-3.0-or-later</bdi>** مجوز می‌گیرند. با ارسال <bdi dir="ltr">contribution</bdi> اعلام می‌کنید که حق اعطای مجوز با این شرایط را دارید. سیاست مجوز جداگانه در [`COMMERCIAL-LICENSING.fa.md`](COMMERCIAL-LICENSING.fa.md) آمده است.
 
 ## امنیت
 

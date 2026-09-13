@@ -8,24 +8,24 @@
 
 # معماری موبایل
 
-**بلوغ:** فقط طراحی / در حال incubation.  
-**وضعیت انتشار:** بخشی از محصول دسکتاپ پشتیبانی‌شده Scriptor 1.0 نیست.  
+**بلوغ:** فقط طراحی / در حال <bdi dir="ltr">incubation.</bdi>  
+**وضعیت انتشار:** بخشی از محصول دسکتاپ پشتیبانی‌شده <bdi dir="ltr">Scriptor</bdi> 1.0 نیست.  
 **مرجع:** [`PRODUCT.fa.md`](../../PRODUCT.fa.md) و [`CAPABILITY-MATURITY.fa.md`](../CAPABILITY-MATURITY.fa.md).
 
 ## هدف
 
-این سند مرز معماری برای کارهای آینده موبایل را ثبت می‌کند، بدون آن‌که وجود یک برنامه منتشرشده Android یا iOS را القا کند. محصول پشتیبانی‌شده Scriptor همچنان برنامه دسکتاپ Tauri روی Windows، macOS و Linux است. کار موبایل می‌تواند منطق domain قابل‌حمل و جریان‌های کاربر را نمونه‌سازی کند، اما نباید قرارداد پشتیبانی محصول را بی‌سروصدا گسترش دهد.
+این سند مرز معماری برای کارهای آینده موبایل را ثبت می‌کند، بدون آن‌که وجود یک برنامه منتشرشده <bdi dir="ltr">Android</bdi> یا <bdi dir="ltr">iOS</bdi> را القا کند. محصول پشتیبانی‌شده <bdi dir="ltr">Scriptor</bdi> همچنان برنامه دسکتاپ <bdi dir="ltr">Tauri</bdi> روی <bdi dir="ltr">Windows</bdi>، <bdi dir="ltr">macOS</bdi> و <bdi dir="ltr">Linux</bdi> است. کار موبایل می‌تواند منطق <bdi dir="ltr">domain</bdi> قابل‌حمل و جریان‌های کاربر را نمونه‌سازی کند، اما نباید قرارداد پشتیبانی محصول را بی‌سروصدا گسترش دهد.
 
 ## قرارداد معماری
 
-یک client موبایل آینده باید invariantهای همان محصول دسکتاپ را حفظ کند:
+یک <bdi dir="ltr">client</bdi> موبایل آینده باید <bdi dir="ltr">invariant</bdi>های همان محصول دسکتاپ را حفظ کند:
 
-1. **Markdown مرجع است.** یادداشت‌ها فایل‌های عادی می‌مانند؛ index موبایل مشتق‌شده و قابل بازسازی است.
-2. **منطق domain قابل‌حمل پایین‌تر از adapterهای platform می‌ماند.** parsing، semantics کار، link resolution، template، merge logic و policyهای قطعی دیگر، وقتی API آن‌ها platform-neutral است، در package/crateهای مشترک قرار می‌گیرند.
-3. **قابلیت‌های native adapterهای صریح‌اند.** file picking، background work، notification، secure storage، share sheet و رفتار lifecycle پلتفرم باید پشت مرزهای ویژه موبایل قرار گیرند.
-4. **وابستگی مخفی cloud وجود ندارد.** sync آینده اختیاری و دارای threat model جداگانه است؛ موبایل به‌صورت پیش‌فرض مدل اختیار local-first را تغییر نمی‌دهد.
-5. **مرزهای اعتماد fail-closed باقی می‌مانند.** intent خارجی، فایل importشده، اجرای plugin/tool و هر sync راه‌دور آینده نیازمند validation صریح و مصرف محدود منابع است.
-6. **برابری رفتار بر پایه contract است، نه کپی UI.** fixtureهای مشترک و contractهای generated باید semantics مربوط به note/task/link را در desktop و mobile اثبات کنند.
+1. **<bdi dir="ltr">Markdown</bdi> مرجع است.** یادداشت‌ها فایل‌های عادی می‌مانند؛ <bdi dir="ltr">index</bdi> موبایل مشتق‌شده و قابل بازسازی است.
+2. **منطق <bdi dir="ltr">domain</bdi> قابل‌حمل پایین‌تر از <bdi dir="ltr">adapter</bdi>های <bdi dir="ltr">platform</bdi> می‌ماند.** <bdi dir="ltr">parsing</bdi>، <bdi dir="ltr">semantics</bdi> کار، <bdi dir="ltr">link resolution</bdi>، <bdi dir="ltr">template</bdi>، <bdi dir="ltr">merge logic</bdi> و <bdi dir="ltr">policy</bdi>های قطعی دیگر، وقتی <bdi dir="ltr">API</bdi> آن‌ها <bdi dir="ltr">platform-neutral</bdi> است، در <bdi dir="ltr">package/crate</bdi>های مشترک قرار می‌گیرند.
+3. **قابلیت‌های <bdi dir="ltr">native adapter</bdi>های صریح‌اند.** <bdi dir="ltr">file picking</bdi>، <bdi dir="ltr">background work</bdi>، <bdi dir="ltr">notification</bdi>، <bdi dir="ltr">secure storage</bdi>، <bdi dir="ltr">share sheet</bdi> و رفتار <bdi dir="ltr">lifecycle</bdi> پلتفرم باید پشت مرزهای ویژه موبایل قرار گیرند.
+4. **وابستگی مخفی <bdi dir="ltr">cloud</bdi> وجود ندارد.** <bdi dir="ltr">sync</bdi> آینده اختیاری و دارای <bdi dir="ltr">threat model</bdi> جداگانه است؛ موبایل به‌صورت پیش‌فرض مدل اختیار <bdi dir="ltr">local-first</bdi> را تغییر نمی‌دهد.
+5. **مرزهای اعتماد <bdi dir="ltr">fail-closed</bdi> باقی می‌مانند.** <bdi dir="ltr">intent</bdi> خارجی، فایل <bdi dir="ltr">import</bdi>شده، اجرای <bdi dir="ltr">plugin/tool</bdi> و هر <bdi dir="ltr">sync</bdi> راه‌دور آینده نیازمند <bdi dir="ltr">validation</bdi> صریح و مصرف محدود منابع است.
+6. **برابری رفتار بر پایه <bdi dir="ltr">contract</bdi> است، نه کپی <bdi dir="ltr">UI.</bdi>** <bdi dir="ltr">fixture</bdi>های مشترک و <bdi dir="ltr">contract</bdi>های <bdi dir="ltr">generated</bdi> باید <bdi dir="ltr">semantics</bdi> مربوط به <bdi dir="ltr">note/task/link</bdi> را در <bdi dir="ltr">desktop</bdi> و <bdi dir="ltr">mobile</bdi> اثبات کنند.
 
 ## توپولوژی پیشنهادی
 
@@ -52,27 +52,27 @@ mobile application adapter
 
 <div dir="rtl" lang="fa" align="right">
 
-بنابراین محتوای موجود در `apps/mobile/`، هرگاه وجود داشته باشد، exploratory است. gateهای release دسکتاپ نباید آن را به‌عنوان target production مصرف کنند و توضیحات packaging نباید Android/iOS را platform انتشار پشتیبانی‌شده فعلی معرفی کنند.
+بنابراین محتوای موجود در `apps/mobile/`، هرگاه وجود داشته باشد، <bdi dir="ltr">exploratory</bdi> است. <bdi dir="ltr">gate</bdi>های <bdi dir="ltr">release</bdi> دسکتاپ نباید آن را به‌عنوان <bdi dir="ltr">target production</bdi> مصرف کنند و توضیحات <bdi dir="ltr">packaging</bdi> نباید <bdi dir="ltr">Android/iOS</bdi> را <bdi dir="ltr">platform</bdi> انتشار پشتیبانی‌شده فعلی معرفی کنند.
 
-## gateهای ارتقا
+## <bdi dir="ltr">gate</bdi>های ارتقا
 
-موبایل فقط زمانی می‌تواند از **Design-only** به **Experimental** برود که همه موارد زیر وجود داشته باشند:
+موبایل فقط زمانی می‌تواند از **<bdi dir="ltr">Design-only</bdi>** به **<bdi dir="ltr">Experimental</bdi>** برود که همه موارد زیر وجود داشته باشند:
 
-- <bdi dir="ltr">runtime/toolchain</bdi> مشخص و نقطه ورود build قابل بازتولید؛
-- طراحی اختیار داده پلتفرم که portability Markdown را حفظ کند؛
-- <bdi dir="ltr">threat</bdi> model برای permission، background execution و secure storage؛
-- <bdi dir="ltr">contract</bdi> test برای semantics مشترک note/task/link؛
-- رفتار migration/backup/recovery برای فایل‌های نوشته‌شده توسط کاربر؛
-- آزمون accessibility و lifecycle روی دست‌کم یک کلاس device واقعی؛
-- <bdi dir="ltr">support</bdi> matrix صریح در `PRODUCT.md` و `CAPABILITY-MATURITY.md`.
+- <bdi dir="ltr">runtime/toolchain</bdi> مشخص و نقطه ورود <bdi dir="ltr">build</bdi> قابل بازتولید؛
+- طراحی اختیار داده پلتفرم که <bdi dir="ltr">portability Markdown</bdi> را حفظ کند؛
+- <bdi dir="ltr">threat</bdi> <bdi dir="ltr">model</bdi> برای <bdi dir="ltr">permission</bdi>، <bdi dir="ltr">background execution</bdi> و <bdi dir="ltr">secure storage</bdi>؛
+- <bdi dir="ltr">contract</bdi> <bdi dir="ltr">test</bdi> برای <bdi dir="ltr">semantics</bdi> مشترک <bdi dir="ltr">note/task/link</bdi>؛
+- رفتار <bdi dir="ltr">migration/backup/recovery</bdi> برای فایل‌های نوشته‌شده توسط کاربر؛
+- آزمون <bdi dir="ltr">accessibility</bdi> و <bdi dir="ltr">lifecycle</bdi> روی دست‌کم یک کلاس <bdi dir="ltr">device</bdi> واقعی؛
+- <bdi dir="ltr">support</bdi> <bdi dir="ltr">matrix</bdi> صریح در `PRODUCT.md` و `CAPABILITY-MATURITY.md`.
 
-ارتقا به **Production** علاوه بر این‌ها به release packaging، signing/trust policy، پشتیبانی crash/diagnostic، رفتار upgrade/rollback و همان استانداردهای release evidence دسکتاپ نیاز دارد.
+ارتقا به **<bdi dir="ltr">Production</bdi>** علاوه بر این‌ها به <bdi dir="ltr">release packaging</bdi>، <bdi dir="ltr">signing/trust policy</bdi>، پشتیبانی <bdi dir="ltr">crash/diagnostic</bdi>، رفتار <bdi dir="ltr">upgrade/rollback</bdi> و همان استانداردهای <bdi dir="ltr">release evidence</bdi> دسکتاپ نیاز دارد.
 
-## مواردی که هدف release فعلی نیستند
+## مواردی که هدف <bdi dir="ltr">release</bdi> فعلی نیستند
 
-- هیچ ادعایی درباره feature parity Android یا iOS وجود ندارد؛
-- هیچ installer/package موبایل در مجموعه release دسکتاپ نیست؛
-- هیچ compatibility burden ویژه موبایل به internals دسکتاپ تحمیل نمی‌شود؛
-- صرفاً برای کار موبایل آینده، cloud account اجباری نمی‌شود.
+- هیچ ادعایی درباره <bdi dir="ltr">feature parity Android</bdi> یا <bdi dir="ltr">iOS</bdi> وجود ندارد؛
+- هیچ <bdi dir="ltr">installer/package</bdi> موبایل در مجموعه <bdi dir="ltr">release</bdi> دسکتاپ نیست؛
+- هیچ <bdi dir="ltr">compatibility burden</bdi> ویژه موبایل به <bdi dir="ltr">internals</bdi> دسکتاپ تحمیل نمی‌شود؛
+- صرفاً برای کار موبایل آینده، <bdi dir="ltr">cloud account</bdi> اجباری نمی‌شود.
 
 </div>

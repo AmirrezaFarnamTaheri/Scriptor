@@ -6,56 +6,56 @@
 
 <div dir="rtl" lang="fa" align="right">
 
-# screenshotهای Scriptor
+# <bdi dir="ltr">screenshot</bdi>های <bdi dir="ltr">Scriptor</bdi>
 
-<bdi dir="ltr">screenshot</bdi>های مربوط به مستندات و marketing با Playwright در حالت E2E تولید می‌شوند.
+<bdi dir="ltr">screenshot</bdi>های مربوط به مستندات و <bdi dir="ltr">marketing</bdi> با <bdi dir="ltr">Playwright</bdi> در حالت <bdi dir="ltr">E2E</bdi> تولید می‌شوند.
 
-## screenshotهای موجود
+## <bdi dir="ltr">screenshot</bdi>های موجود
 
-| screenshot | توضیح | استفاده در |
+| <bdi dir="ltr">screenshot</bdi> | توضیح | استفاده در |
 |---|---|---|
-| workspace-light.png | capture بازبینی‌شده workspace روشن | README / docs |
-| workspace-dark.png | capture بازبینی‌شده workspace تاریک | Docs + پوشش بصری stable |
-| workspace-tablet.png | breakpoint برابر 1024 px | VISUAL-REVIEW |
-| workspace-mobile.png | workspace responsive در 820 px | VISUAL-REVIEW |
-| editor-preview.png | split editor/preview بازبینی‌شده | Docs + پوشش بصری stable |
-| inspector-preview.png | Inspector preview با کنترل editor/preview | VISUAL-REVIEW |
-| command-palette.png | command palette بازبینی‌شده | Docs + پوشش بصری stable |
-| graph.png | graph بازبینی‌شده | Docs + پوشش بصری stable |
-| canvas.png | Canvas فضایی برای چیدمان بصری noteها | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| git-panel.png | status، commit، pull/push در version control | VISUAL-REVIEW, STORE-MIGRATION |
-| mcp-panel.png | panel بازبینی‌شده MCP | Docs + پوشش بصری stable |
-| settings.png | config runtime/vault، appearance، diagnostics | VISUAL-REVIEW, STORE-MIGRATION |
-| publish-center.png | Publish Center بازبینی‌شده | Docs + پوشش بصری stable |
-| vault-health.png | dashboard سلامت vault با lint و health score | VISUAL-REVIEW, RELEASE-CHECKLIST |
-| knowledge-workbench.png | Knowledge Workbench | VISUAL-REVIEW |
-| conflict-resolver.png | merge سه‌طرفه با انتخاب ours/theirs در سطح hunk | VISUAL-REVIEW, STORE-MIGRATION |
-| note-history.png | timeline revision با قابلیت restore | VISUAL-REVIEW |
-| keyboard-shortcuts.png | editor میانبرهای صفحه‌کلید | VISUAL-REVIEW |
-| onboarding-tour.png | tour اولین اجرای محصول | VISUAL-REVIEW |
-| plugins.png | discovery و مدیریت plugin | VISUAL-REVIEW, STORE-MIGRATION, CAPABILITIES |
-| editor-recovery.png | state fallback بازیابی editor | VISUAL-REVIEW, RELEASE-CHECKLIST |
-| mcp-sharing-inventory.png | نمای sharing و inventory resource در MCP | VISUAL-REVIEW |
-| toolbar-typography.png | popover مربوط به typography | VISUAL-REVIEW |
-| toolbar-insert.png | popover مربوط به insert | VISUAL-REVIEW |
-| mobile-inspector.png | pane موبایل Inspector در 390 px | VISUAL-REVIEW |
-| mobile-vault.png | pane موبایل vault در 390 px | VISUAL-REVIEW |
+| <bdi dir="ltr">workspace-light.png</bdi> | <bdi dir="ltr">capture</bdi> بازبینی‌شده <bdi dir="ltr">workspace</bdi> روشن | <bdi dir="ltr">README</bdi> / <bdi dir="ltr">docs</bdi> |
+| <bdi dir="ltr">workspace-dark.png</bdi> | <bdi dir="ltr">capture</bdi> بازبینی‌شده <bdi dir="ltr">workspace</bdi> تاریک | <bdi dir="ltr">Docs</bdi> + پوشش بصری <bdi dir="ltr">stable</bdi> |
+| <bdi dir="ltr">workspace-tablet.png</bdi> | <bdi dir="ltr">breakpoint</bdi> برابر 1024 <bdi dir="ltr">px</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">workspace-mobile.png</bdi> | <bdi dir="ltr">workspace responsive</bdi> در 820 <bdi dir="ltr">px</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">editor-preview.png</bdi> | <bdi dir="ltr">split editor/preview</bdi> بازبینی‌شده | <bdi dir="ltr">Docs</bdi> + پوشش بصری <bdi dir="ltr">stable</bdi> |
+| <bdi dir="ltr">inspector-preview.png</bdi> | <bdi dir="ltr">Inspector preview</bdi> با کنترل <bdi dir="ltr">editor/preview</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">command-palette.png</bdi> | <bdi dir="ltr">command palette</bdi> بازبینی‌شده | <bdi dir="ltr">Docs</bdi> + پوشش بصری <bdi dir="ltr">stable</bdi> |
+| <bdi dir="ltr">graph.png</bdi> | <bdi dir="ltr">graph</bdi> بازبینی‌شده | <bdi dir="ltr">Docs</bdi> + پوشش بصری <bdi dir="ltr">stable</bdi> |
+| <bdi dir="ltr">canvas.png</bdi> | <bdi dir="ltr">Canvas</bdi> فضایی برای چیدمان بصری <bdi dir="ltr">note</bdi>ها | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">STORE-MIGRATION</bdi>, <bdi dir="ltr">CAPABILITIES</bdi> |
+| <bdi dir="ltr">git-panel.png</bdi> | <bdi dir="ltr">status</bdi>، <bdi dir="ltr">commit</bdi>، <bdi dir="ltr">pull/push</bdi> در <bdi dir="ltr">version control</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">STORE-MIGRATION</bdi> |
+| <bdi dir="ltr">mcp-panel.png</bdi> | <bdi dir="ltr">panel</bdi> بازبینی‌شده <bdi dir="ltr">MCP</bdi> | <bdi dir="ltr">Docs</bdi> + پوشش بصری <bdi dir="ltr">stable</bdi> |
+| <bdi dir="ltr">settings.png</bdi> | <bdi dir="ltr">config runtime/vault</bdi>، <bdi dir="ltr">appearance</bdi>، <bdi dir="ltr">diagnostics</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">STORE-MIGRATION</bdi> |
+| <bdi dir="ltr">publish-center.png</bdi> | <bdi dir="ltr">Publish Center</bdi> بازبینی‌شده | <bdi dir="ltr">Docs</bdi> + پوشش بصری <bdi dir="ltr">stable</bdi> |
+| <bdi dir="ltr">vault-health.png</bdi> | <bdi dir="ltr">dashboard</bdi> سلامت <bdi dir="ltr">vault</bdi> با <bdi dir="ltr">lint</bdi> و <bdi dir="ltr">health score</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">RELEASE-CHECKLIST</bdi> |
+| <bdi dir="ltr">knowledge-workbench.png</bdi> | <bdi dir="ltr">Knowledge Workbench</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">conflict-resolver.png</bdi> | <bdi dir="ltr">merge</bdi> سه‌طرفه با انتخاب <bdi dir="ltr">ours/theirs</bdi> در سطح <bdi dir="ltr">hunk</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">STORE-MIGRATION</bdi> |
+| <bdi dir="ltr">note-history.png</bdi> | <bdi dir="ltr">timeline revision</bdi> با قابلیت <bdi dir="ltr">restore</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">keyboard-shortcuts.png</bdi> | <bdi dir="ltr">editor</bdi> میانبرهای صفحه‌کلید | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">onboarding-tour.png</bdi> | <bdi dir="ltr">tour</bdi> اولین اجرای محصول | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">plugins.png</bdi> | <bdi dir="ltr">discovery</bdi> و مدیریت <bdi dir="ltr">plugin</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">STORE-MIGRATION</bdi>, <bdi dir="ltr">CAPABILITIES</bdi> |
+| <bdi dir="ltr">editor-recovery.png</bdi> | <bdi dir="ltr">state fallback</bdi> بازیابی <bdi dir="ltr">editor</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi>, <bdi dir="ltr">RELEASE-CHECKLIST</bdi> |
+| <bdi dir="ltr">mcp-sharing-inventory.png</bdi> | نمای <bdi dir="ltr">sharing</bdi> و <bdi dir="ltr">inventory resource</bdi> در <bdi dir="ltr">MCP</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">toolbar-typography.png</bdi> | <bdi dir="ltr">popover</bdi> مربوط به <bdi dir="ltr">typography</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">toolbar-insert.png</bdi> | <bdi dir="ltr">popover</bdi> مربوط به <bdi dir="ltr">insert</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">mobile-inspector.png</bdi> | <bdi dir="ltr">pane</bdi> موبایل <bdi dir="ltr">Inspector</bdi> در 390 <bdi dir="ltr">px</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">mobile-vault.png</bdi> | <bdi dir="ltr">pane</bdi> موبایل <bdi dir="ltr">vault</bdi> در 390 <bdi dir="ltr">px</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 
 ### تازگی و پذیرش
 
-<bdi dir="ltr">PNG</bdi>های مستندات **capture تازه از source فعلی** هستند، نه copy از comparison baseline ذخیره‌شده Playwright. آزمون screenshot ابتدا صفحه settleشده را مستقیم در `docs/assets/screenshots/` capture می‌کند و سپس مستقل از آن `toHaveScreenshot` را در برابر Windows baselineهای stable در `e2e/screenshots.spec.ts-snapshots/` اجرا می‌کند.
+<bdi dir="ltr">PNG</bdi>های مستندات **<bdi dir="ltr">capture</bdi> تازه از <bdi dir="ltr">source</bdi> فعلی** هستند، نه <bdi dir="ltr">copy</bdi> از <bdi dir="ltr">comparison baseline</bdi> ذخیره‌شده <bdi dir="ltr">Playwright.</bdi> آزمون <bdi dir="ltr">screenshot</bdi> ابتدا صفحه <bdi dir="ltr">settle</bdi>شده را مستقیم در `docs/assets/screenshots/` <bdi dir="ltr">capture</bdi> می‌کند و سپس مستقل از آن `toHaveScreenshot` را در برابر <bdi dir="ltr">Windows baseline</bdi>های <bdi dir="ltr">stable</bdi> در `e2e/screenshots.spec.ts-snapshots/` اجرا می‌کند.
 
-این تفکیک عمدی است. baseline ذخیره‌شده می‌تواند وقتی render فعلی در محدوده visual tolerance پیکربندی‌شده تفاوت دارد همچنان پذیرفته شود؛ copy کردن baseline روی تصویر تازه مستندات باعث می‌شود docs با وجود pass بودن regression suite قدیمی بمانند.
+این تفکیک عمدی است. <bdi dir="ltr">baseline</bdi> ذخیره‌شده می‌تواند وقتی <bdi dir="ltr">render</bdi> فعلی در محدوده <bdi dir="ltr">visual tolerance</bdi> پیکربندی‌شده تفاوت دارد همچنان پذیرفته شود؛ <bdi dir="ltr">copy</bdi> کردن <bdi dir="ltr">baseline</bdi> روی تصویر تازه مستندات باعث می‌شود <bdi dir="ltr">docs</bdi> با وجود <bdi dir="ltr">pass</bdi> بودن <bdi dir="ltr">regression suite</bdi> قدیمی بمانند.
 
-<bdi dir="ltr">Windows</bdi> baselineهای stable سطح پذیرش visual regression هستند. تغییر عمدی pixel باید بازبینی و صریحاً با `--update-snapshots=all` refresh شود؛ failure بصری هرگز با افزایش tolerance سراسری پنهان نمی‌شود.
+<bdi dir="ltr">Windows</bdi> <bdi dir="ltr">baseline</bdi>های <bdi dir="ltr">stable</bdi> سطح پذیرش <bdi dir="ltr">visual regression</bdi> هستند. تغییر عمدی <bdi dir="ltr">pixel</bdi> باید بازبینی و صریحاً با `--update-snapshots=all` <bdi dir="ltr">refresh</bdi> شود؛ <bdi dir="ltr">failure</bdi> بصری هرگز با افزایش <bdi dir="ltr">tolerance</bdi> سراسری پنهان نمی‌شود.
 
-<bdi dir="ltr">capture</bdi>های responsive و state-review (`workspace-mobile`، `workspace-tablet`، vault/inspector موبایل، editor recovery، MCP sharing inventory و toolbar popoverها) از خروجی live آزمون ساخته می‌شوند و مگر آن‌که test صریحاً `toHaveScreenshot` داشته باشد، به pixel baseline stable تبدیل نمی‌شوند.
+<bdi dir="ltr">capture</bdi>های <bdi dir="ltr">responsive</bdi> و <bdi dir="ltr">state-review</bdi> (`workspace-mobile`، `workspace-tablet`، <bdi dir="ltr">vault/inspector</bdi> موبایل، <bdi dir="ltr">editor recovery</bdi>، <bdi dir="ltr">MCP sharing inventory</bdi> و <bdi dir="ltr">toolbar popover</bdi>ها) از خروجی <bdi dir="ltr">live</bdi> آزمون ساخته می‌شوند و مگر آن‌که <bdi dir="ltr">test</bdi> صریحاً `toHaveScreenshot` داشته باشد، به <bdi dir="ltr">pixel baseline stable</bdi> تبدیل نمی‌شوند.
 
 ## تولید دوباره
 
-<bdi dir="ltr">screenshot</bdi>ها با Playwright در E2E گرفته می‌شوند. mock IPC bridge داده fixture فراهم می‌کند، بنابراین vault واقعی یا binary مربوط به Tauri لازم نیست. capture پیش از نوشتن pixel مستندات منتظر fontها، imageهای visible، lazy panelها، transitionهای محدود و state غیر-degraded preview می‌ماند.
+<bdi dir="ltr">screenshot</bdi>ها با <bdi dir="ltr">Playwright</bdi> در <bdi dir="ltr">E2E</bdi> گرفته می‌شوند. <bdi dir="ltr">mock IPC bridge</bdi> داده <bdi dir="ltr">fixture</bdi> فراهم می‌کند، بنابراین <bdi dir="ltr">vault</bdi> واقعی یا <bdi dir="ltr">binary</bdi> مربوط به <bdi dir="ltr">Tauri</bdi> لازم نیست. <bdi dir="ltr">capture</bdi> پیش از نوشتن <bdi dir="ltr">pixel</bdi> مستندات منتظر <bdi dir="ltr">font</bdi>ها، <bdi dir="ltr">image</bdi>های <bdi dir="ltr">visible</bdi>، <bdi dir="ltr">lazy panel</bdi>ها، <bdi dir="ltr">transition</bdi>های محدود و <bdi dir="ltr">state</bdi> غیر-<bdi dir="ltr">degraded preview</bdi> می‌ماند.
 
-برای capture عادی محلی:
+برای <bdi dir="ltr">capture</bdi> عادی محلی:
 
 </div>
 
@@ -69,7 +69,7 @@ pnpm screenshots:capture:web
 
 <div dir="rtl" lang="fa" align="right">
 
-برای refresh عمدی بصری در محیط pinned Windows:
+برای <bdi dir="ltr">refresh</bdi> عمدی بصری در محیط <bdi dir="ltr">pinned Windows:</bdi>
 
 </div>
 
@@ -83,11 +83,11 @@ pnpm screenshots:capture:web
 
 <div dir="rtl" lang="fa" align="right">
 
-`-UpdateBaselines` همه snapshotهای stable ویندوز را با `--update-snapshots=all` دوباره تولید می‌کند، screenshotهای docs-only مربوط به state review را از خروجی تازه Playwright refresh می‌کند و captureهای مستنداتی نوشته‌شده توسط `screenshots.spec.ts` را نگه می‌دارد. این فرمان PNG baseline ذخیره‌شده را روی دایرکتوری docs **copy نمی‌کند**.
+`-UpdateBaselines` همه <bdi dir="ltr">snapshot</bdi>های <bdi dir="ltr">stable</bdi> ویندوز را با `--update-snapshots=all` دوباره تولید می‌کند، <bdi dir="ltr">screenshot</bdi>های <bdi dir="ltr">docs-only</bdi> مربوط به <bdi dir="ltr">state review</bdi> را از خروجی تازه <bdi dir="ltr">Playwright refresh</bdi> می‌کند و <bdi dir="ltr">capture</bdi>های مستنداتی نوشته‌شده توسط `screenshots.spec.ts` را نگه می‌دارد. این فرمان <bdi dir="ltr">PNG baseline</bdi> ذخیره‌شده را روی دایرکتوری <bdi dir="ltr">docs</bdi> **<bdi dir="ltr">copy</bdi> نمی‌کند**.
 
-<bdi dir="ltr">workflow</bdi> دستی **Refresh documentation screenshots** نیز وجود دارد. آن را روی review branch اجرا کنید، نه `main`. این workflow از runner pinned با نام `windows-2025` و Edge استفاده می‌کند، contract testهای capture را اجرا می‌کند، docs و Windows baselineهای stable را دوباره می‌سازد، visual suite کامل را بدون snapshot update verify می‌کند و فقط تغییرهای PNG تولیدشده را به branch انتخاب‌شده commit می‌کند.
+<bdi dir="ltr">workflow</bdi> دستی **<bdi dir="ltr">Refresh documentation screenshots</bdi>** نیز وجود دارد. آن را روی <bdi dir="ltr">review branch</bdi> اجرا کنید، نه `main`. این <bdi dir="ltr">workflow</bdi> از <bdi dir="ltr">runner pinned</bdi> با نام `windows-2025` و <bdi dir="ltr">Edge</bdi> استفاده می‌کند، <bdi dir="ltr">contract test</bdi>های <bdi dir="ltr">capture</bdi> را اجرا می‌کند، <bdi dir="ltr">docs</bdi> و <bdi dir="ltr">Windows baseline</bdi>های <bdi dir="ltr">stable</bdi> را دوباره می‌سازد، <bdi dir="ltr">visual suite</bdi> کامل را بدون <bdi dir="ltr">snapshot update verify</bdi> می‌کند و فقط تغییرهای <bdi dir="ltr">PNG</bdi> تولیدشده را به <bdi dir="ltr">branch</bdi> انتخاب‌شده <bdi dir="ltr">commit</bdi> می‌کند.
 
-### Build در حالت E2E
+### <bdi dir="ltr">Build</bdi> در حالت <bdi dir="ltr">E2E</bdi>
 
 </div>
 
@@ -101,9 +101,9 @@ pnpm exec vite build --mode e2e
 
 <div dir="rtl" lang="fa" align="right">
 
-<bdi dir="ltr">Vite</bdi> در این mode فایل `.env.e2e` را load می‌کند؛ `VITE_E2E_MODE` را در parent shell export نکنید. buildهای E2E از output directory جداگانه در configهای Playwright استفاده می‌کنند. production bundle validation اگر environment مربوط به E2E وارد release assetها شود، markerهای fault-injection ویژه test را رد می‌کند.
+<bdi dir="ltr">Vite</bdi> در این <bdi dir="ltr">mode</bdi> فایل `.env.e2e` را <bdi dir="ltr">load</bdi> می‌کند؛ `VITE_E2E_MODE` را در <bdi dir="ltr">parent shell export</bdi> نکنید. <bdi dir="ltr">build</bdi>های <bdi dir="ltr">E2E</bdi> از <bdi dir="ltr">output directory</bdi> جداگانه در <bdi dir="ltr">config</bdi>های <bdi dir="ltr">Playwright</bdi> استفاده می‌کنند. <bdi dir="ltr">production bundle validation</bdi> اگر <bdi dir="ltr">environment</bdi> مربوط به <bdi dir="ltr">E2E</bdi> وارد <bdi dir="ltr">release asset</bdi>ها شود، <bdi dir="ltr">marker</bdi>های <bdi dir="ltr">fault-injection</bdi> ویژه <bdi dir="ltr">test</bdi> را رد می‌کند.
 
-### اجرای آزمون screenshot در Playwright
+### اجرای آزمون <bdi dir="ltr">screenshot</bdi> در <bdi dir="ltr">Playwright</bdi>
 
 </div>
 
@@ -119,7 +119,7 @@ pnpm exec playwright test --config playwright.e2e.config.ts e2e/screenshots.spec
 
 <div dir="rtl" lang="fa" align="right">
 
-### override کردن browser channel
+### <bdi dir="ltr">override</bdi> کردن <bdi dir="ltr">browser channel</bdi>
 
 </div>
 
@@ -135,18 +135,18 @@ $env:PLAYWRIGHT_CHANNEL = 'chrome'
 
 ## معماری
 
-<bdi dir="ltr">pipeline</bdi> screenshot از همان E2E mock IPC bridge آزمون‌های functional استفاده می‌کند:
+<bdi dir="ltr">pipeline</bdi> <bdi dir="ltr">screenshot</bdi> از همان <bdi dir="ltr">E2E mock IPC bridge</bdi> آزمون‌های <bdi dir="ltr">functional</bdi> استفاده می‌کند:
 
-- **`playwright.e2e.config.ts`** — config Playwright برای E2E و capture مستندات
-- **`playwright.visual.config.ts`** — visual regression stable و state-review verification
-- **`e2e/screenshots.spec.ts`** — سناریوهای stable؛ capture تازه docs را می‌نویسد و baseline را validate می‌کند
-- **`e2e/visual-review.spec.ts`** — evidence مربوط به responsive و state-review
-- **`scripts/screenshots/capture.ps1`** — قرارداد deterministic برای capture/orchestration
-- **`scripts/validation/screenshot-capture-contracts.test.mjs`** — regression guard در برابر overwrite شدن capture تازه با baseline قدیمی
-- **`src/e2e/bootstrap.ts`** — mock IPC bridge برای داده vault، Git، indexer و export
-- **`src/e2e/state.ts`** — state درون‌حافظه‌ای note در mock vault
-- **`src/screenshot/fixture.ts`** — fixture مربوط به vault، scan، graph و health diagnostics
+- **`playwright.e2e.config.ts`** — <bdi dir="ltr">config Playwright</bdi> برای <bdi dir="ltr">E2E</bdi> و <bdi dir="ltr">capture</bdi> مستندات
+- **`playwright.visual.config.ts`** — <bdi dir="ltr">visual regression stable</bdi> و <bdi dir="ltr">state-review verification</bdi>
+- **`e2e/screenshots.spec.ts`** — سناریوهای <bdi dir="ltr">stable</bdi>؛ <bdi dir="ltr">capture</bdi> تازه <bdi dir="ltr">docs</bdi> را می‌نویسد و <bdi dir="ltr">baseline</bdi> را <bdi dir="ltr">validate</bdi> می‌کند
+- **`e2e/visual-review.spec.ts`** — <bdi dir="ltr">evidence</bdi> مربوط به <bdi dir="ltr">responsive</bdi> و <bdi dir="ltr">state-review</bdi>
+- **`scripts/screenshots/capture.ps1`** — قرارداد <bdi dir="ltr">deterministic</bdi> برای <bdi dir="ltr">capture/orchestration</bdi>
+- **`scripts/validation/screenshot-capture-contracts.test.mjs`** — <bdi dir="ltr">regression guard</bdi> در برابر <bdi dir="ltr">overwrite</bdi> شدن <bdi dir="ltr">capture</bdi> تازه با <bdi dir="ltr">baseline</bdi> قدیمی
+- **`src/e2e/bootstrap.ts`** — <bdi dir="ltr">mock IPC bridge</bdi> برای داده <bdi dir="ltr">vault</bdi>، <bdi dir="ltr">Git</bdi>، <bdi dir="ltr">indexer</bdi> و <bdi dir="ltr">export</bdi>
+- **`src/e2e/state.ts`** — <bdi dir="ltr">state</bdi> درون‌حافظه‌ای <bdi dir="ltr">note</bdi> در <bdi dir="ltr">mock vault</bdi>
+- **`src/screenshot/fixture.ts`** — <bdi dir="ltr">fixture</bdi> مربوط به <bdi dir="ltr">vault</bdi>، <bdi dir="ltr">scan</bdi>، <bdi dir="ltr">graph</bdi> و <bdi dir="ltr">health diagnostics</bdi>
 
-پس از تغییر UI که layout یا copy را تغییر می‌دهد، PNGها را regenerate و review کنید. browser/channel، OS، source commit، viewport و نتیجه را در release PR ثبت کنید. [`../../validation/FRONTEND_QUALITY.fa.md`](../../validation/FRONTEND_QUALITY.fa.md) را ببینید.
+پس از تغییر <bdi dir="ltr">UI</bdi> که <bdi dir="ltr">layout</bdi> یا <bdi dir="ltr">copy</bdi> را تغییر می‌دهد، <bdi dir="ltr">PNG</bdi>ها را <bdi dir="ltr">regenerate</bdi> و <bdi dir="ltr">review</bdi> کنید. <bdi dir="ltr">browser/channel</bdi>، <bdi dir="ltr">OS</bdi>، <bdi dir="ltr">source commit</bdi>، <bdi dir="ltr">viewport</bdi> و نتیجه را در <bdi dir="ltr">release PR</bdi> ثبت کنید. [`../../validation/FRONTEND_QUALITY.fa.md`](../../validation/FRONTEND_QUALITY.fa.md) را ببینید.
 
 </div>
