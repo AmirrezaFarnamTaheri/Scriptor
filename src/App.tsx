@@ -765,6 +765,19 @@ function App() {
     void applyStarlightPlan(selectedPaths, deleteOrphans)
   }, [applyStarlightPlan])
 
+  const handleCloseCommandPalette = useCallback(() => commandPalette.setOpen(false), [commandPalette.setOpen])
+  const handleSearchNotes = useMemo(() => {
+    if (!workspace.vault) return undefined
+    return (query: string) => indexerSearch(query, 12)
+  }, [Boolean(workspace.vault)])
+  const handleOpenNoteFromPalette = useCallback((path: string) => {
+    void workspace.openNote(path)
+  }, [workspace.openNote])
+
+  const handleCloseQuickCapture = useCallback(() => setQuickCaptureOpen(false), [setQuickCaptureOpen])
+  const handleClosePortal = useCallback(() => setPortalOpen(false), [setPortalOpen])
+  const handleCloseNoteHistory = useCallback(() => setNoteHistoryOpen(false), [setNoteHistoryOpen])
+
   useEffect(() => {
     if (!graphOpen) return
     void loadWorkspaceGraph(workspaceActivePath, { depth: graphDepth, fullVault: graphFullVault })
@@ -1710,10 +1723,10 @@ function App() {
 
       {commandPalette.open ? (
         <CommandPalette
-          onClose={() => commandPalette.setOpen(false)}
+          onClose={handleCloseCommandPalette}
           commands={paletteCommands}
-          searchNotes={workspace.vault ? (query) => indexerSearch(query, 12) : undefined}
-          onOpenNote={(path) => void workspace.openNote(path)}
+          searchNotes={handleSearchNotes}
+          onOpenNote={handleOpenNoteFromPalette}
         />
       ) : null}
 
@@ -2124,39 +2137,45 @@ function App() {
         </ErrorBoundary>
       ) : null}
 
-      <QuickCaptureWorkspaceLayer
-        isOpen={quickCaptureOpen}
-        stickiesVisible={stickiesVisible}
-        presentation={panelPresentation}
-        workspace={workspace}
-        workspaceStore={workspaceStore}
-        onClose={() => setQuickCaptureOpen(false)}
-      />
+      {quickCaptureOpen || stickiesVisible ? (
+        <QuickCaptureWorkspaceLayer
+          isOpen={quickCaptureOpen}
+          stickiesVisible={stickiesVisible}
+          presentation={panelPresentation}
+          workspace={workspace}
+          workspaceStore={workspaceStore}
+          onClose={handleCloseQuickCapture}
+        />
+      ) : null}
 
-      <WorkspacePortalOverlays
-        workspace={workspace}
-        workspaceStore={workspaceStore}
-        portalOpen={portalOpen}
-        noteHistoryOpen={noteHistoryOpen}
-        panelPresentation={panelPresentation === 'dock-right' ? 'dock-right' : 'modal'}
-        onClosePortal={() => setPortalOpen(false)}
-        onCloseNoteHistory={() => setNoteHistoryOpen(false)}
-      />
+      {portalOpen || noteHistoryOpen ? (
+        <WorkspacePortalOverlays
+          workspace={workspace}
+          workspaceStore={workspaceStore}
+          portalOpen={portalOpen}
+          noteHistoryOpen={noteHistoryOpen}
+          panelPresentation={panelPresentation === 'dock-right' ? 'dock-right' : 'modal'}
+          onClosePortal={handleClosePortal}
+          onCloseNoteHistory={handleCloseNoteHistory}
+        />
+      ) : null}
 
-      <WorkspaceRenameDialogs
-        workspace={workspace}
-        tag={tagRenameTag}
-        block={blockRenameTarget}
-        section={sectionRenameTarget}
-        noteOpen={renameOpen}
-        notePath={renameTargetPath}
-        setTag={setTagRenameTag}
-        setBlock={setBlockRenameTarget}
-        setSection={setSectionRenameTarget}
-        setNoteOpen={setRenameOpen}
-        setNotePath={setRenameTargetPath}
-        closeKnowledgeWorkbench={() => setKnowledgeWorkbenchOpen(false)}
-      />
+      {tagRenameTag || blockRenameTarget || sectionRenameTarget || renameOpen ? (
+        <WorkspaceRenameDialogs
+          workspace={workspace}
+          tag={tagRenameTag}
+          block={blockRenameTarget}
+          section={sectionRenameTarget}
+          noteOpen={renameOpen}
+          notePath={renameTargetPath}
+          setTag={setTagRenameTag}
+          setBlock={setBlockRenameTarget}
+          setSection={setSectionRenameTarget}
+          setNoteOpen={setRenameOpen}
+          setNotePath={setRenameTargetPath}
+          closeKnowledgeWorkbench={handleCloseKnowledgeWorkbench}
+        />
+      ) : null}
 
       {promptRequest ? (
         <TextPromptDialog

@@ -12,7 +12,7 @@ import {
   Search,
   Tags,
 } from 'lucide-react'
-import { useState, memo } from 'react'
+import { useState, memo, useMemo } from 'react'
 
 import { InboxPanel } from '../inbox/InboxPanel'
 import { VaultTreeSkeleton } from './VaultTreeSkeleton'
@@ -99,7 +99,33 @@ function VaultSidebarImpl({
   readerDocumentPaths,
 }: VaultSidebarProps) {
   const [dropActive, setDropActive] = useState(false)
-  const visibleRecentNotes = recentNotes.filter((note) => note.path !== activePath).slice(0, 4)
+  const visibleRecentNotes = useMemo(
+    () => recentNotes.filter((note) => note.path !== activePath).slice(0, 4),
+    [recentNotes, activePath],
+  )
+
+  const menuItems = useMemo(
+    () => [
+      { label: 'Open vault folder', run: onChooseVault },
+      { label: 'New note', run: onCreateNote },
+      { label: 'Rebuild index', run: onRebuildIndex },
+      { label: 'Browse tags', run: onOpenTags },
+      { label: 'Knowledge filters', run: onOpenFilters },
+      ...(onOpenSavedViews ? [{ label: 'Saved views', run: onOpenSavedViews }] : []),
+      ...(onOpenSnippets ? [{ label: 'Manage snippets', run: onOpenSnippets }] : []),
+      ...(onOpenObsidianImport ? [{ label: 'Import Obsidian vault', run: onOpenObsidianImport }] : []),
+    ],
+    [
+      onChooseVault,
+      onCreateNote,
+      onRebuildIndex,
+      onOpenTags,
+      onOpenFilters,
+      onOpenSavedViews,
+      onOpenSnippets,
+      onOpenObsidianImport,
+    ],
+  )
 
   return (
     <aside
@@ -121,16 +147,7 @@ function VaultSidebarImpl({
       <PanelHeader
         title={vault?.name ?? 'Vault'}
         icon={<Folder />}
-        menuItems={[
-          { label: 'Open vault folder', run: onChooseVault },
-          { label: 'New note', run: onCreateNote },
-          { label: 'Rebuild index', run: onRebuildIndex },
-          { label: 'Browse tags', run: onOpenTags },
-          { label: 'Knowledge filters', run: onOpenFilters },
-          ...(onOpenSavedViews ? [{ label: 'Saved views', run: onOpenSavedViews }] : []),
-          ...(onOpenSnippets ? [{ label: 'Manage snippets', run: onOpenSnippets }] : []),
-          ...(onOpenObsidianImport ? [{ label: 'Import Obsidian vault', run: onOpenObsidianImport }] : []),
-        ]}
+        menuItems={menuItems}
       />
 
       <div className="vault-nav-tabs">

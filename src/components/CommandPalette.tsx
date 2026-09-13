@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
 import { Search } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -25,7 +25,7 @@ interface CommandPaletteProps {
   onOpenNote?: (path: string) => void
 }
 
-export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
+export const CommandPalette = memo(function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -184,4 +184,4 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
       </div>
     </div>
   )
-}
+})

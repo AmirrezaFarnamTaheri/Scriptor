@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { RenameTarget } from '../../hooks/useRenameDialogStore'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 import { RenameBlockDialog } from '../RenameBlockDialog'
@@ -23,7 +24,7 @@ interface WorkspaceRenameDialogsProps {
 }
 
 /** Owns the four rename transactions and their preview/cleanup lifecycle. */
-export function WorkspaceRenameDialogs({
+export const WorkspaceRenameDialogs = memo(function WorkspaceRenameDialogs({
   workspace,
   tag,
   block,
@@ -158,4 +159,4 @@ export function WorkspaceRenameDialogs({
       ) : null}
     </>
   )
-}
+})

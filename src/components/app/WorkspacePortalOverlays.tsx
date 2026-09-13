@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { memo, Suspense } from 'react'
 import type { ComponentProps } from 'react'
 
 import { ErrorBoundary } from '../ErrorBoundary'
@@ -17,7 +17,7 @@ type WorkspacePortalOverlaysProps = {
   onCloseNoteHistory: () => void
 }
 
-export function WorkspacePortalOverlays({
+export const WorkspacePortalOverlays = memo(function WorkspacePortalOverlays({
   workspace,
   workspaceStore,
   portalOpen,
@@ -80,4 +80,4 @@ export function WorkspacePortalOverlays({
       ) : null}
     </>
   )
-}
+})
