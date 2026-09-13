@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import { FileOutput, FolderOutput, Globe, History, Loader2 } from 'lucide-react'
 
 import type { ExportProfile } from '@scriptor/core/contracts/export'
@@ -47,7 +47,7 @@ function formatStatus(entry: ExportJobRecord): string {
   return entry.status
 }
 
-export function PublishCenter({
+export const PublishCenter = memo(function PublishCenter({
   activePath,
   draftMarkdown,
   previewProps,
@@ -232,4 +232,4 @@ export function PublishCenter({
       </div>
     </UnifiedPanelShell>
   )
-}
+})

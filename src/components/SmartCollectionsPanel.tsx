@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Database, Play, Plus, Trash2 } from 'lucide-react'
 
 import { indexerExecuteDql } from '../bridge/commands'
@@ -60,7 +60,7 @@ interface SmartCollectionsPanelProps {
   onOpenNote: (path: string) => void
 }
 
-export function SmartCollectionsPanel({ embedded = false, vaultOpen, vaultId = null, onOpenNote }: SmartCollectionsPanelProps) {
+export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embedded = false, vaultOpen, vaultId = null, onOpenNote }: SmartCollectionsPanelProps) {
   const canQuery = vaultOpen && isNativeBridgeAvailable()
   const [collections, setCollections] = useState<SmartCollection[]>(() => loadCollections())
   const [activeId, setActiveId] = useState(collections[0]?.id ?? '')
@@ -248,4 +248,4 @@ export function SmartCollectionsPanel({ embedded = false, vaultOpen, vaultId = n
       </div>
     </div>
   )
-}
+})

@@ -1,19 +1,19 @@
 import { MERMAID_SNIPPETS, MATH_SNIPPETS, type TypographyAction } from '@scriptor/editor/pure'
 
 export const TYPOGRAPHY_LABELS: Record<TypographyAction, string> = {
-  zapGremlins: 'Zap gremlins',
-  stripDuplicateSpaces: 'Strip duplicate spaces',
-  removeLineBreaks: 'Remove line breaks',
-  straightenQuotes: 'Straighten quotes',
-  toDoubleQuotes: 'To double quotes',
-  doubleQuotesToSingle: 'Double → single quotes',
-  singleQuotesToDouble: 'Single → double quotes',
-  addSpacesAroundEmdashes: 'Spaces around em dashes',
-  removeSpacesAroundEmdashes: 'Remove em dash spaces',
-  toTitleCase: 'Title case',
-  toSentenceCase: 'Sentence case',
-  quotesToItalics: 'Quotes → italics',
-  italicsToQuotes: 'Italics → quotes',
+  zapGremlins: 'typography.zapGremlins',
+  stripDuplicateSpaces: 'typography.stripDuplicateSpaces',
+  removeLineBreaks: 'typography.removeLineBreaks',
+  straightenQuotes: 'typography.straightenQuotes',
+  toDoubleQuotes: 'typography.toDoubleQuotes',
+  doubleQuotesToSingle: 'typography.doubleQuotesToSingle',
+  singleQuotesToDouble: 'typography.singleQuotesToDouble',
+  addSpacesAroundEmdashes: 'typography.addSpacesAroundEmdashes',
+  removeSpacesAroundEmdashes: 'typography.removeSpacesAroundEmdashes',
+  toTitleCase: 'typography.toTitleCase',
+  toSentenceCase: 'typography.toSentenceCase',
+  quotesToItalics: 'typography.quotesToItalics',
+  italicsToQuotes: 'typography.italicsToQuotes',
 }
 
 export const INSERT_TOOLS = [

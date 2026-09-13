@@ -340,21 +340,24 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
         </button>
       ),
     })),
-    ...Object.entries(TYPOGRAPHY_LABELS).map(([action, label]) => ({
-      id: `extra:typography:${action}`,
-      label,
-      node: (
-        <button
-          type="button"
-          disabled={!activePath}
-          title={label}
-          onClick={() => handleApplyEditorTypography(action as TypographyAction)}
-        >
-          {label}
-        </button>
-      ),
-    })),
-  ], [activePath, handleApplyEditorTypography, handleInsertSnippet])
+    ...Object.entries(TYPOGRAPHY_LABELS).map(([action, labelKey]) => {
+      const label = t(labelKey)
+      return {
+        id: `extra:typography:${action}`,
+        label,
+        node: (
+          <button
+            type="button"
+            disabled={!activePath}
+            title={label}
+            onClick={() => handleApplyEditorTypography(action as TypographyAction)}
+          >
+            {label}
+          </button>
+        ),
+      }
+    }),
+  ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t])
 
   return (
     <section className="editor-panel" aria-label={t('editor.ariaLabel')}>

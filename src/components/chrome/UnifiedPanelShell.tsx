@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useId,
@@ -79,7 +80,7 @@ function useDockViewport(): boolean {
 }
 
 /** Provides shared modal/dock semantics, focus policy, tabs, and accessible labeling. */
-export function UnifiedPanelShell({
+function UnifiedPanelShellImpl({
   title,
   subtitle,
   icon,
@@ -214,3 +215,5 @@ export function UnifiedPanelShell({
     </div>
   )
 }
+
+export const UnifiedPanelShell = memo(UnifiedPanelShellImpl)

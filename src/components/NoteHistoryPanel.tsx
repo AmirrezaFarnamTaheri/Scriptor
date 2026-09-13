@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 import { Clock, RotateCcw } from 'lucide-react'
 
 import {
@@ -60,7 +60,7 @@ function formatRevisionDate(value: string) {
 }
 
 /** Browses local note revisions and requires an explicit current-vs-revision comparison before restore. */
-export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
+export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanelProps) {
   const [revisionState, setRevisionState] = useState<RevisionState | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [previewState, setPreviewState] = useState<PreviewState | null>(null)
@@ -258,4 +258,4 @@ export function NoteHistoryPanel({ path, onClose, onRestored }: NoteHistoryPanel
       {status ? <p className="health-subtitle" role="status">{status}</p> : null}
     </UnifiedPanelShell>
   )
-}
+})

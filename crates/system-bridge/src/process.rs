@@ -301,10 +301,34 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         }
     }
 
-    // Once the process tree is terminated, its inherited pipe handles close and
-    // these joins cannot leave detached reader threads behind.
-    let _ = stdout_reader.join();
-    let _ = stderr_reader.join();
+    // Wait for reader results only within a bounded grace period instead of joining
+    // indefinitely, ensuring detached or stuck readers cannot block the process execution flow.
+    join_reader_bounded(stdout_reader, OUTPUT_DRAIN_GRACE);
+    join_reader_bounded(stderr_reader, OUTPUT_DRAIN_GRACE);
+
+    if timed_out {
+        let (stdout_bytes, _) = stdout_result
+            .and_then(|res| res.ok())
+            .unwrap_or_default();
+        let (stderr_bytes, _) = stderr_result
+            .and_then(|res| res.ok())
+            .unwrap_or_default();
+        let stdout = match String::from_utf8(stdout_bytes) {
+            Ok(s) => s,
+            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+        };
+        let stderr = match String::from_utf8(stderr_bytes) {
+            Ok(s) => s,
+            Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+        };
+        return Err(BridgeError::ProcessTimeout {
+            program: resolved,
+            timeout_ms: spec.timeout.as_millis().try_into().unwrap_or(u64::MAX),
+            stdout,
+            stderr,
+        });
+    }
+
     let (stdout, stdout_truncated) = stdout_result
         .ok_or_else(|| BridgeError::ProcessPolicy {
             message: "stdout reader stopped before returning output".into(),
@@ -320,7 +344,7 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         program_sha256: actual_hash,
         exit_code: exit_code(status),
         duration_ms: started.elapsed().as_millis().try_into().unwrap_or(u64::MAX),
-        timed_out,
+        timed_out: false,
         stdout: match String::from_utf8(stdout) {
             Ok(s) => s,
             Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
@@ -333,15 +357,17 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         stderr_truncated,
     };
 
-    if timed_out {
-        return Err(BridgeError::ProcessTimeout {
-            program: resolved,
-            timeout_ms: spec.timeout.as_millis().try_into().unwrap_or(u64::MAX),
-            stdout: receipt.stdout,
-            stderr: receipt.stderr,
-        });
-    }
     Ok(receipt)
+}
+
+fn join_reader_bounded(handle: thread::JoinHandle<()>, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    while !handle.is_finished() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(5));
+    }
+    if handle.is_finished() {
+        let _ = handle.join();
+    }
 }
 
 fn configure_minimal_environment(command: &mut Command, additions: &[(OsString, OsString)]) {

@@ -82,6 +82,29 @@ test('back navigation issues one read despite replayed state updaters and record
   assert.equal(h.pending[0].path, 'a.md')
 })
 
+test('repeated back and forward calls before rerender select distinct paths', async () => {
+  const h = harness()
+  await h.open('a.md')
+  await h.open('b.md')
+  await h.open('c.md')
+  const editor = h.render()
+  editor.navigateBack()
+  editor.navigateBack()
+  assert.equal(h.pending.length, 2)
+  assert.equal(h.pending[0].path, 'b.md')
+  assert.equal(h.pending[1].path, 'a.md')
+  h.pending.shift().resolve(h.document('b.md'))
+  h.pending.shift().resolve(h.document('a.md'))
+  await new Promise(setImmediate)
+
+  const currentEditor = h.render()
+  currentEditor.navigateForward()
+  currentEditor.navigateForward()
+  assert.equal(h.pending.length, 2)
+  assert.equal(h.pending[0].path, 'b.md')
+  assert.equal(h.pending[1].path, 'c.md')
+})
+
 test('tab activation completes while backlinks are still pending and preserves pins', async () => {
   const h = harness()
   await h.open('a.md')

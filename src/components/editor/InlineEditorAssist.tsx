@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { memo, useId, useRef, useState } from 'react'
 import { FileOutput, MoreHorizontal, Quote } from 'lucide-react'
 
 import { ToolbarPopover } from '../ToolbarPopover'
@@ -13,7 +13,7 @@ interface InlineEditorAssistProps {
 }
 
 /** Keeps document-scoped secondary actions available without expanding the persistent editor row. */
-export function InlineEditorAssist({
+function InlineEditorAssistImpl({
   activePath,
   brokenLinkCount = 0,
   citationCount = 0,
@@ -79,3 +79,5 @@ export function InlineEditorAssist({
     </div>
   )
 }
+
+export const InlineEditorAssist = memo(InlineEditorAssistImpl)

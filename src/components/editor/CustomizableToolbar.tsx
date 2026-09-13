@@ -1,6 +1,7 @@
-import { Children, cloneElement, isValidElement, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, memo, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { ArrowDown, ArrowUp, Settings2 } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
+import { useI18n } from '../../lib/i18n'
 
 interface Tool {
   id: string
@@ -36,8 +37,29 @@ function readPreferences(): Preference[] {
   } catch { return [] }
 }
 
+const DEFAULT_TOOL_STYLE: CSSProperties = { minWidth: DEFAULT_WIDTH }
+
+interface PinnedToolItemProps {
+  id: string
+  width: number
+  node: ReactNode
+}
+
+const PinnedToolItem = memo(function PinnedToolItem({ id, width, node }: PinnedToolItemProps) {
+  const style = width === DEFAULT_WIDTH ? DEFAULT_TOOL_STYLE : { minWidth: width, width }
+  return (
+    <div
+      className="toolbar-tool"
+      data-tool-id={id}
+      style={style}
+    >
+      {node}
+    </div>
+  )
+})
+
 /** Controls declare semantic React keys so layout and translations cannot move preferences. */
-export function CustomizableToolbar({ children, extras = [] }: { children: ReactNode; extras?: Tool[] }) {
+function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNode; extras?: Tool[] }) {
   const tools = useMemo(() => {
     const list: Tool[] = []
     Children.forEach(children, (group) => {
@@ -54,6 +76,7 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
   }, [children, extras])
 
   const [preferences, setPreferences] = useState(readPreferences)
+  const { t } = useI18n()
   const [customizing, setCustomizing] = useState(false)
   const [open, setOpen] = useState(false)
   const [submenu, setSubmenu] = useState<'insert' | 'typography' | null>(null)
@@ -69,6 +92,12 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
       ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: !tool.id.startsWith('extra:'), width: DEFAULT_WIDTH })),
     ]
   }, [preferences, tools])
+
+  const pinnedTools = useMemo(() => ordered.filter((tool) => tool.pinned), [ordered])
+  const menuTools = useMemo(() => ordered.filter((tool) => submenu
+    ? tool.id.startsWith(`extra:${submenu}:`)
+    : !tool.pinned), [ordered, submenu])
+
   const closeMenu = () => {
     setOpen(false)
     setSubmenu(null)
@@ -110,23 +139,18 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
     ;[next[index], next[destination]] = [next[destination]!, next[index]!]
     save(next)
   }
-  const menuTools = ordered.filter((tool) => submenu
-    ? tool.id.startsWith(`extra:${submenu}:`)
-    : !tool.pinned)
 
   return (
     <>
       <div className="format-row editor-toolbar" aria-label="Markdown tools">
         <div className="format-group toolbar-pinned">
-          {ordered.filter((tool) => tool.pinned).map((tool) => (
-            <div
-              className="toolbar-tool"
+          {pinnedTools.map((tool) => (
+            <PinnedToolItem
               key={tool.id}
-              data-tool-id={tool.id}
-              style={{ minWidth: tool.width, width: tool.width === DEFAULT_WIDTH ? undefined : tool.width }}
-            >
-              {tool.node}
-            </div>
+              id={tool.id}
+              width={tool.width}
+              node={tool.node}
+            />
           ))}
         </div>
         <button
@@ -143,11 +167,12 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
             setOpen(true)
           }}
         >
-          Tools
+          {t('customizableToolbar.tools')}
         </button>
         <button
           type="button"
-          aria-label="Customize toolbar"
+          aria-label={t('customizableToolbar.customize')}
+          title={t('customizableToolbar.customize')}
           aria-expanded={customizing}
           onClick={() => setCustomizing(!customizing)}
         >
@@ -163,12 +188,12 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
         >
           <li role="none">
             <button type="button" role="menuitem" onClick={() => { closeMenu(); setCustomizing(true) }}>
-              Customize toolbar
+              {t('customizableToolbar.customize')}
             </button>
           </li>
           {submenu && (
             <li role="none">
-              <button type="button" role="menuitem" onClick={() => showSubmenu(null)}>Back to tools</button>
+              <button type="button" role="menuitem" onClick={() => showSubmenu(null)}>{t('customizableToolbar.backToTools')}</button>
             </li>
           )}
           {menuTools.map((tool) => (
@@ -193,11 +218,11 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
         </ToolbarPopover>
       </div>
       {customizing && (
-        <section className="toolbar-customizer" aria-label="Customize toolbar">
-          <p>Pin tools, change their order, and set button widths in pixels.</p>
-          {storageError && <p role="status">Toolbar changes apply for this session. Browser storage is unavailable.</p>}
-          <button type="button" onClick={reset}>Reset toolbar</button>
-          <button type="button" onClick={() => setCustomizing(false)}>Done</button>
+        <section className="toolbar-customizer" aria-label={t('customizableToolbar.customize')}>
+          <p>{t('customizableToolbar.helperText')}</p>
+          {storageError && <p role="status">{t('customizableToolbar.storageWarning')}</p>}
+          <button type="button" onClick={reset}>{t('customizableToolbar.reset')}</button>
+          <button type="button" onClick={() => setCustomizing(false)}>{t('customizableToolbar.done')}</button>
           {ordered.map((tool, index) => (
             <div className="toolbar-customize-row" key={tool.id}>
               <label>
@@ -210,7 +235,7 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
               </label>
               <button
                 type="button"
-                aria-label={`Move ${tool.label} earlier`}
+                aria-label={t('customizableToolbar.moveEarlier', { label: tool.label })}
                 disabled={index === 0}
                 onClick={() => moveTool(index, -1)}
               >
@@ -218,7 +243,7 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
               </button>
               <button
                 type="button"
-                aria-label={`Move ${tool.label} later`}
+                aria-label={t('customizableToolbar.moveLater', { label: tool.label })}
                 disabled={index === ordered.length - 1}
                 onClick={() => moveTool(index, 1)}
               >
@@ -229,7 +254,7 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
                 min={MIN_WIDTH}
                 max={MAX_WIDTH}
                 step={4}
-                aria-label={`${tool.label} width`}
+                aria-label={t('customizableToolbar.width', { label: tool.label })}
                 value={tool.width}
                 onChange={(event) => {
                   const width = event.target.valueAsNumber
@@ -243,3 +268,5 @@ export function CustomizableToolbar({ children, extras = [] }: { children: React
     </>
   )
 }
+
+export const CustomizableToolbar = memo(CustomizableToolbarImpl)

@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::error::VaultError;
-use crate::hash::{content_hash, reading_time_minutes, word_count};
+use crate::hash::{content_hash, word_count};
 use crate::link_rewrite::split_frontmatter;
 use crate::path::{RelativeVaultPath, VaultRoot};
 

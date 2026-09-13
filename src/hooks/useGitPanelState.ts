@@ -93,7 +93,7 @@ export function useGitPanelState({
     void Promise.all([readBefore, readWorking])
       .then(([head, working]) => {
         const before = head ?? ''
-        const after = working ?? ''
+        const after = readNoteWorking ? (working ?? '') : before
         if (!cancelled) setDiffState({ path: requestedPath, before, after, error: null })
       })
       .catch((error: unknown) => {

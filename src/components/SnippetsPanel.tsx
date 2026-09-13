@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Save, Trash2, X } from 'lucide-react'
 
 import { vaultLoadSnippets, vaultSaveSnippets } from '../bridge/commands'
@@ -12,7 +12,7 @@ interface SnippetsPanelProps {
   onSaved?: () => void
 }
 
-export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProps) {
+export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProps) {
   const [snippets, setSnippets] = useState<VaultSnippet[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -155,4 +155,4 @@ export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProp
       </section>
     </div>
   )
-}
+})

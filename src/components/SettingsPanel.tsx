@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { Settings } from 'lucide-react'
 import '../styles/components/settings-panel.css'
@@ -114,7 +114,14 @@ interface SettingsPanelProps {
 
 type SettingsTab = 'general' | 'workspace' | 'shortcuts' | 'advanced'
 
-export function SettingsPanel({
+const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
+  { id: 'general', label: 'General' },
+  { id: 'workspace', label: 'Workspace' },
+  { id: 'shortcuts', label: 'Keyboard shortcuts' },
+  { id: 'advanced', label: 'Advanced' },
+]
+
+function SettingsPanelImpl({
   vaultOpen,
   vaultId,
   systemInfo,
@@ -346,6 +353,8 @@ export function SettingsPanel({
     </div>
   )
 
+  const handleTabChange = useCallback((tab: string) => setActiveTab(tab as SettingsTab), [])
+
   return (
     <UnifiedPanelShell
       title="Settings"
@@ -355,14 +364,9 @@ export function SettingsPanel({
       onClose={onClose}
       className="settings-panel knowledge-filters-panel"
       wide
-      tabs={[
-        { id: 'general', label: 'General' },
-        { id: 'workspace', label: 'Workspace' },
-        { id: 'shortcuts', label: 'Keyboard shortcuts' },
-        { id: 'advanced', label: 'Advanced' },
-      ]}
+      tabs={SETTINGS_TABS}
       activeTab={activeTab}
-      onTabChange={(tab) => setActiveTab(tab as SettingsTab)}
+      onTabChange={handleTabChange}
     >
       {activeTab === 'general' ? (
         <>
@@ -615,3 +619,5 @@ export function SettingsPanel({
     </UnifiedPanelShell>
   )
 }
+
+export const SettingsPanel = memo(SettingsPanelImpl)

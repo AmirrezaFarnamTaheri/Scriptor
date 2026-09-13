@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Check, Plus, StickyNote, Trash2 } from 'lucide-react'
 
 import type { QuickTodoItem, ScratchpadState } from '@scriptor/portal'
@@ -21,7 +22,7 @@ interface QuickCapturePanelProps {
   onCreateNoteFromTodo?: (id: string) => void
 }
 
-export function QuickCapturePanel({
+export const QuickCapturePanel = memo(function QuickCapturePanel({
   scratchpad,
   todos,
   presentation = 'dock-right',
@@ -118,4 +119,4 @@ export function QuickCapturePanel({
       </div>
     </UnifiedPanelShell>
   )
-}
+})

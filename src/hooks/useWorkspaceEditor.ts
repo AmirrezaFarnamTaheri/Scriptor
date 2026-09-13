@@ -84,6 +84,7 @@ export function useWorkspaceEditor({
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null)
   const [externalChangeConflict, setExternalChangeConflict] = useState<ExternalChangeConflict | null>(null)
   const [noteNav, setNoteNav] = useState<{ paths: string[]; index: number }>({ paths: [], index: -1 })
+  const noteNavRef = useRef<{ paths: string[]; index: number }>({ paths: [], index: -1 })
   const [scrollToEditorLine, setScrollToEditorLine] = useState<number | null>(null)
   const [editorInsertRequest, setEditorInsertRequest] = useState<{ seq: number; text: string } | null>(null)
   const [editorTransformRequest, setEditorTransformRequest] = useState<{
@@ -112,7 +113,9 @@ export function useWorkspaceEditor({
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
     }
-    setNoteNav({ paths: [], index: -1 })
+    const nextNav = { paths: [], index: -1 }
+    noteNavRef.current = nextNav
+    setNoteNav(nextNav)
   }, [])
 
   const loadNote = useCallback(
@@ -155,12 +158,13 @@ export function useWorkspaceEditor({
   )
 
   const recordNoteHistory = useCallback((path: string) => {
-    setNoteNav(({ paths, index }) => {
-      if (paths[index] === path) return { paths, index }
-      const truncated = index >= 0 ? paths.slice(0, index + 1) : []
-      const nextPaths = [...truncated, path].slice(-100)
-      return { paths: nextPaths, index: nextPaths.length - 1 }
-    })
+    const current = noteNavRef.current
+    if (current.paths[current.index] === path) return
+    const truncated = current.index >= 0 ? current.paths.slice(0, current.index + 1) : []
+    const nextPaths = [...truncated, path].slice(-100)
+    const nextNav = { paths: nextPaths, index: nextPaths.length - 1 }
+    noteNavRef.current = nextNav
+    setNoteNav(nextNav)
   }, [])
 
   const openNote = useCallback(
@@ -684,22 +688,28 @@ export function useWorkspaceEditor({
   }, [])
 
   const navigateBack = useCallback(() => {
-    if (noteNav.index <= 0) return
-    const index = noteNav.index - 1
-    const path = noteNav.paths[index]
+    const current = noteNavRef.current
+    if (current.index <= 0) return
+    const index = current.index - 1
+    const path = current.paths[index]
     if (!path) return
-    setNoteNav({ paths: noteNav.paths, index })
+    const nextNav = { paths: current.paths, index }
+    noteNavRef.current = nextNav
+    setNoteNav(nextNav)
     void loadNote(path)
-  }, [loadNote, noteNav])
+  }, [loadNote])
 
   const navigateForward = useCallback(() => {
-    if (noteNav.index >= noteNav.paths.length - 1) return
-    const index = noteNav.index + 1
-    const path = noteNav.paths[index]
+    const current = noteNavRef.current
+    if (current.index >= current.paths.length - 1) return
+    const index = current.index + 1
+    const path = current.paths[index]
     if (!path) return
-    setNoteNav({ paths: noteNav.paths, index })
+    const nextNav = { paths: current.paths, index }
+    noteNavRef.current = nextNav
+    setNoteNav(nextNav)
     void loadNote(path)
-  }, [loadNote, noteNav])
+  }, [loadNote])
 
   const inspectorOutline = useMemo(
     () => (activeNote ? extractOutline(activeNote.markdown) : []),

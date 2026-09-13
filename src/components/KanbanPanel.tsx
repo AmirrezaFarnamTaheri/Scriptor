@@ -15,7 +15,7 @@
  *   its name via `columnNameToStatus()`.
  */
 
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Columns, RefreshCw } from 'lucide-react'
 
 import {
@@ -225,7 +225,7 @@ interface KanbanCardProps {
   onMoveRight: () => void
 }
 
-function KanbanCard({
+const KanbanCard = memo(function KanbanCard({
   card,
   sourcePath,
   columnName,
@@ -259,19 +259,21 @@ function KanbanCard({
       <div className="kanban-card__actions" aria-label="Move card">
         <button
           type="button"
-          className="icon-button kanban-card__move"
-          aria-label={`Move ${card.text} left`}
+          className="icon-button"
           disabled={!canMoveLeft || isPending}
           onClick={onMoveLeft}
+          title="Move to previous column"
+          aria-label="Move to previous column"
         >
           <ChevronLeft aria-hidden="true" />
         </button>
         <button
           type="button"
-          className="icon-button kanban-card__move"
-          aria-label={`Move ${card.text} right`}
+          className="icon-button"
           disabled={!canMoveRight || isPending}
           onClick={onMoveRight}
+          title="Move to next column"
+          aria-label="Move to next column"
         >
           <ChevronRight aria-hidden="true" />
         </button>
@@ -279,7 +281,7 @@ function KanbanCard({
       {isPending && <span className="health-subtitle">Moving…</span>}
     </div>
   )
-}
+})
 
 // ── KanbanColumn ──────────────────────────────────────────────────────────────
 
@@ -291,7 +293,7 @@ interface KanbanColumnProps {
   onDrop: (cardLine: number, fromColumn: string, toColumn: string) => void
 }
 
-function KanbanColumn({ column, sourcePath, columns, pendingCardLine, onDrop }: KanbanColumnProps) {
+const KanbanColumn = memo(function KanbanColumn({ column, sourcePath, columns, pendingCardLine, onDrop }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const dragCounter = useRef(0)
   const columnIndex = columns.findIndex((candidate) => candidate.name === column.name)
@@ -376,7 +378,7 @@ function KanbanColumn({ column, sourcePath, columns, pendingCardLine, onDrop }: 
       </div>
     </div>
   )
-}
+})
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
@@ -387,7 +389,7 @@ export interface KanbanPanelProps {
   runSourceNoteMutation?: (sourcePath: string, runMutation: () => Promise<void>) => Promise<boolean>
 }
 
-export function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: KanbanPanelProps) {
+export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: KanbanPanelProps) {
   const store = useKanbanStore(notePath, runSourceNoteMutation)
   const board = store.board
   const [isCompactLayout, setIsCompactLayout] = useState(() =>
@@ -499,4 +501,4 @@ export function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: Kanban
       )}
     </UnifiedPanelShell>
   )
-}
+})

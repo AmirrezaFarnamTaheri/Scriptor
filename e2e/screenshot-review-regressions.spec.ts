@@ -45,5 +45,7 @@ test('command palette surface is opaque', async ({ page }) => {
   await openCommandPalette(page)
   const palette = page.locator('.command-palette')
   await expect(palette).toBeVisible()
-  expect(await palette.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toMatch(/rgba\([^)]*,\s*0\./)
+  expect(await palette.evaluate((node) => getComputedStyle(node).backgroundColor)).not.toMatch(
+    /(?:rgba\([^)]*,\s*0(?:\.0+)?\s*\)|(?:rgb|color)\([^)]*\/\s*0(?:\.0+)?%?\s*\)|^transparent$)/,
+  )
 })

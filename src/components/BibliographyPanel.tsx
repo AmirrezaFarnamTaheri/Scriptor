@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { BookOpen, X } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -15,7 +15,7 @@ interface BibliographyPanelProps {
   onImportZotero?: (apiKey: string) => Promise<void>
 }
 
-export function BibliographyPanel({
+export const BibliographyPanel = memo(function BibliographyPanel({
   entries,
   bibliographyPath = 'references.bib',
   onClose,
@@ -167,4 +167,4 @@ export function BibliographyPanel({
       </section>
     </div>
   )
-}
+})

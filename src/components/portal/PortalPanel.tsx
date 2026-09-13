@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { ClipboardCopy, Layers, Pin, Plus, Search, Trash2, Zap } from 'lucide-react'
 
 import { formatShortcutLabel, type PortalAction, type PortalCategory, type PortalItem } from '@scriptor/portal'
@@ -30,7 +30,7 @@ function matchesQuery(item: PortalItem, query: string): boolean {
   )
 }
 
-export function PortalPanel({
+export const PortalPanel = memo(function PortalPanel({
   categories,
   itemsByCategory,
   presentation = 'dock-right',
@@ -238,4 +238,4 @@ export function PortalPanel({
       </div>
     </UnifiedPanelShell>
   )
-}
+})

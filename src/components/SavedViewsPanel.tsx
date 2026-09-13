@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Bookmark, Search, X } from 'lucide-react'
 
 import { vaultListViewNotes } from '../bridge/commands'
@@ -118,7 +118,7 @@ function buildFilterJson(input: {
   return JSON.stringify({ all: conditions })
 }
 
-export function SavedViewsPanel({
+export const SavedViewsPanel = memo(function SavedViewsPanel({
   embedded = false,
   vaultOpen,
   vaultId = null,
@@ -177,19 +177,22 @@ export function SavedViewsPanel({
   useEffect(() => {
     if (!canQuery) return
     let cancelled = false
-    void vaultListViewNotes(filterJson)
-      .then((hits) => {
-        if (cancelled) return
-        setResults(hits)
-        setStatus(`${hits.length} note${hits.length === 1 ? '' : 's'} match this view`)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        setResults([])
-        setStatus(error instanceof Error ? error.message : 'View query failed')
-      })
+    const timer = setTimeout(() => {
+      void vaultListViewNotes(filterJson)
+        .then((hits) => {
+          if (cancelled) return
+          setResults(hits)
+          setStatus(`${hits.length} note${hits.length === 1 ? '' : 's'} match this view`)
+        })
+        .catch((error: unknown) => {
+          if (cancelled) return
+          setResults([])
+          setStatus(error instanceof Error ? error.message : 'View query failed')
+        })
+    }, 150)
     return () => {
       cancelled = true
+      clearTimeout(timer)
     }
   }, [canQuery, filterJson])
 
@@ -334,4 +337,4 @@ export function SavedViewsPanel({
       </section>
     </div>
   )
-}
+})

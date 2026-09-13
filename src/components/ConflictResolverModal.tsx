@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { memo, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, X } from 'lucide-react'
 
 import {
@@ -10,7 +10,7 @@ import {
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 
-function NumberedConflictBlock({
+const NumberedConflictBlock = memo(function NumberedConflictBlock({
   title,
   text,
   startLine = 0,
@@ -37,7 +37,7 @@ function NumberedConflictBlock({
       </pre>
     </article>
   )
-}
+})
 
 interface ConflictResolverModalProps {
   path: string
@@ -49,7 +49,7 @@ interface ConflictResolverModalProps {
   isBusy: boolean
 }
 
-export function ConflictResolverModal({
+export const ConflictResolverModal = memo(function ConflictResolverModal({
   path,
   source,
   basePreview,
@@ -196,4 +196,4 @@ export function ConflictResolverModal({
       </section>
     </div>
   )
-}
+})

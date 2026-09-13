@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import {
   Chart,
   CategoryScale,
@@ -42,7 +42,7 @@ function readThemeColor(token: '--primary' | '--amber', fallback: string): strin
   return value || fallback
 }
 
-export function WritingTargetsPanel({
+export const WritingTargetsPanel = memo(function WritingTargetsPanel({
   dailyTarget,
   wordsToday,
   onDailyTargetChange,
@@ -203,4 +203,4 @@ export function WritingTargetsPanel({
       </section>
     </div>
   )
-}
+})

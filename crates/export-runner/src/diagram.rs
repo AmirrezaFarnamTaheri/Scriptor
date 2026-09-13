@@ -334,7 +334,21 @@ fn which_binary(name: &str) -> Option<std::path::PathBuf> {
                 }
             }
         }
-        #[cfg(not(windows))]
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            for dir in std::env::split_paths(&path_var) {
+                let candidate = dir.join(name);
+                if candidate.is_file()
+                    && candidate
+                        .metadata()
+                        .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
+                {
+                    return Some(candidate);
+                }
+            }
+        }
+        #[cfg(not(any(windows, unix)))]
         {
             for dir in std::env::split_paths(&path_var) {
                 let candidate = dir.join(name);

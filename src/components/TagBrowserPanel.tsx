@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { Tags, X } from 'lucide-react'
 
 import { indexerListTags, indexerNotesForTag } from '../bridge/commands'
@@ -51,7 +51,7 @@ function buildTagTree(tags: TagSummary[]): TagNode[] {
   return sortNodes(root)
 }
 
-function TagTree({
+const TagTree = memo(function TagTree({
   nodes,
   depth,
   selectedTag,
@@ -88,7 +88,7 @@ function TagTree({
       ))}
     </ul>
   )
-}
+})
 
 interface TagBrowserPanelProps {
   embedded?: boolean
@@ -99,7 +99,7 @@ interface TagBrowserPanelProps {
   onRenameTag?: (tag: string) => void
 }
 
-export function TagBrowserPanel({
+export const TagBrowserPanel = memo(function TagBrowserPanel({
   embedded = false,
   vaultOpen,
   onClose,
@@ -238,4 +238,4 @@ export function TagBrowserPanel({
       </section>
     </div>
   )
-}
+})

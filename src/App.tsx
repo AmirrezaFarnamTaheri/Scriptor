@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback, useDeferredValue, Suspense } from 'react'
+import type { PluginRuntimePolicy } from '@scriptor/plugin-api'
 import { applyRendererExtensions } from '@scriptor/renderer'
 import { indexerSearch } from './bridge/commands'
 import { isNativeBridgeAvailable } from './bridge/platform'
@@ -1055,6 +1056,35 @@ function App() {
     [patchChrome, chrome.inspectorCollapsed],
   )
 
+  const handleAiSaveApiKey = useCallback(
+    (secret: string) => void ai.saveApiKey(secret),
+    [ai.saveApiKey],
+  )
+  const handleAiClearApiKey = useCallback(
+    () => void ai.clearApiKey(),
+    [ai.clearApiKey],
+  )
+  const handleRefreshDaemon = useCallback(
+    () => void refreshDaemonStatus(),
+    [refreshDaemonStatus],
+  )
+  const handleStartDaemon = useCallback(
+    () => void startDaemon(),
+    [startDaemon],
+  )
+  const handleSettingsConfigSaved = useCallback(() => {
+    void workspace.rebuildIndex()
+    void workspace.refreshVaultConfig()
+  }, [workspace.rebuildIndex, workspace.refreshVaultConfig])
+  const handleCloseSettings = useCallback(
+    () => setSettingsOpen(false),
+    [setSettingsOpen],
+  )
+  const handleOpenSupportFromSettings = useCallback(() => {
+    setSettingsOpen(false)
+    setSupportOpen(true)
+  }, [setSettingsOpen, setSupportOpen])
+
   const handleOpenNoteTab = useCallback(
     (path: string) => void workspace.openNote(path),
     [workspace.openNote],
@@ -1149,7 +1179,11 @@ function App() {
     [setHealthDashboardOpen],
   )
   const handlePluginReviewConsent = useCallback(
-    (pluginId: string, grantedPermissions: any, allowedVaultIds: any) =>
+    (
+      pluginId: string,
+      grantedPermissions: PluginRuntimePolicy['grantedPermissions'],
+      allowedVaultIds: string[],
+    ) =>
       plugins.setPluginConsent(pluginId, { grantedPermissions, allowedVaultIds }),
     [plugins.setPluginConsent],
   )
@@ -1872,29 +1906,18 @@ function App() {
           aiHttpWarning={ai.httpWarning}
           onAiProviderChange={ai.setProvider}
           onAiEndpointChange={ai.setEndpoint}
-          onAiSaveApiKey={(secret) => {
-            void ai.saveApiKey(secret)
-          }}
-          onAiClearApiKey={() => {
-            void ai.clearApiKey()
-          }}
+          onAiSaveApiKey={handleAiSaveApiKey}
+          onAiClearApiKey={handleAiClearApiKey}
           nativeReady={nativeReady}
           headlessEngine={headlessEngine}
           onHeadlessEngineChange={setHeadlessEngine}
           daemonVersion={daemonVersion}
           daemonError={daemonError}
-          onRefreshDaemon={() => {
-            void refreshDaemonStatus()
-          }}
-          onStartDaemon={() => {
-            void startDaemon()
-          }}
+          onRefreshDaemon={handleRefreshDaemon}
+          onStartDaemon={handleStartDaemon}
           activePath={workspace.activePath}
-          onConfigSaved={() => {
-            void workspace.rebuildIndex()
-            void workspace.refreshVaultConfig()
-          }}
-          onClose={() => setSettingsOpen(false)}
+          onConfigSaved={handleSettingsConfigSaved}
+          onClose={handleCloseSettings}
           workspaceMode={workspaceMode}
           workspaceLayouts={layouts}
           onSaveWorkspaceLayout={saveCurrentAsLayout}
@@ -1925,10 +1948,7 @@ function App() {
           onSpellcheckLocaleChange={setSpellcheckLocale}
           languageToolEndpoint={languageToolEndpoint}
           onLanguageToolEndpointChange={setLanguageToolEndpoint}
-          onOpenSupport={() => {
-            setSettingsOpen(false)
-            setSupportOpen(true)
-          }}
+          onOpenSupport={handleOpenSupportFromSettings}
         />
         </Suspense>
         </ErrorBoundary>

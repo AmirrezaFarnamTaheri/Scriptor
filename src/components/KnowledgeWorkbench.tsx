@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { BookOpen, Network } from 'lucide-react'
 
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
@@ -37,7 +37,7 @@ const TABS = [
   { id: 'discover', labelKey: 'knowledge.discover' },
 ] as const
 
-export function KnowledgeWorkbench({
+export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
   vaultOpen,
   vaultId = null,
   initialTab = 'repair',
@@ -53,10 +53,10 @@ export function KnowledgeWorkbench({
   const { t } = useI18n()
   const [tab, setTab] = useState<KnowledgeWorkbenchTab>(initialTab)
 
-  const handleOpenNote = (path: string) => {
+  const handleOpenNote = useCallback((path: string) => {
     onOpenNote(path)
     onClose()
-  }
+  }, [onClose, onOpenNote])
 
   return (
     <UnifiedPanelShell
@@ -146,4 +146,4 @@ export function KnowledgeWorkbench({
       ) : null}
     </UnifiedPanelShell>
   )
-}
+})

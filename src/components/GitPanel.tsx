@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
@@ -33,7 +33,7 @@ export interface GitPanelProps {
 const GIT_ROW_HEIGHT = 56
 const GIT_ROW_OVERSCAN = 8
 
-export function GitPanel({
+export const GitPanel = memo(function GitPanel({
   status,
   statusError,
   isStatusLoading,
@@ -393,4 +393,4 @@ export function GitPanel({
       ) : null}
     </UnifiedPanelShell>
   )
-}
+})
