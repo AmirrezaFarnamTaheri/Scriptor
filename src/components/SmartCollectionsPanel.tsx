@@ -128,7 +128,6 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
   useEffect(() => {
     const requestId = ++requestIdRef.current
     if (!canQuery || !activeCollection) return
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new async query must hide stale rows immediately
     setResults([])
     setStatus(`Running "${activeCollection.label}"…`)
     void executeQuery(activeCollection, requestId)

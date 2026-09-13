@@ -60,6 +60,28 @@ const PinnedToolItem = memo(function PinnedToolItem({ id, width, node }: PinnedT
   )
 })
 
+const DEFAULT_PINNED_IDS = new Set([
+  'source',
+  'split',
+  'rendered',
+  'heading-1',
+  'heading-2',
+  'heading-3',
+  'outline',
+  'bold',
+  'italic',
+  'link',
+  'typography',
+  'insert',
+  'organize-note',
+  'writing-targets',
+  'split-preview',
+])
+
+function isDefaultPinned(id: string): boolean {
+  return DEFAULT_PINNED_IDS.has(id)
+}
+
 /** Controls declare semantic React keys so layout and translations cannot move preferences. */
 function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNode; extras?: Tool[] }) {
   const tools = useMemo(() => {
@@ -91,7 +113,7 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
     const byId = new Map(tools.map((tool) => [tool.id, tool]))
     return [
       ...preferences.flatMap((pref) => { const tool = byId.get(pref.id); return tool ? [{ ...tool, ...pref }] : [] }),
-      ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: !tool.id.startsWith('extra:'), width: DEFAULT_WIDTH })),
+      ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: isDefaultPinned(tool.id), width: DEFAULT_WIDTH })),
     ]
   }, [preferences, tools])
 

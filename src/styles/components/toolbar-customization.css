@@ -1,6 +1,8 @@
 .editor-toolbar .toolbar-pinned {
-  flex: 1;
-  overflow-x: auto;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
   min-width: 0;
 }
 

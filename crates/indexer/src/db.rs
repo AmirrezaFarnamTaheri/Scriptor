@@ -143,10 +143,10 @@ pub fn orphaned_note_count(
         note_paths.iter().map(std::string::String::as_str).collect();
     let mut count = 0u32;
     while let Some(row) = rows.next()? {
-        if let Ok(path) = row.get_ref(0)?.as_str() {
-            if !path_set.contains(path) {
-                count = count.saturating_add(1);
-            }
+        if let Ok(path) = row.get_ref(0)?.as_str()
+            && !path_set.contains(path)
+        {
+            count = count.saturating_add(1);
         }
     }
     Ok(count)

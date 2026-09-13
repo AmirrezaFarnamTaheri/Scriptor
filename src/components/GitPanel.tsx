@@ -122,6 +122,15 @@ export const GitPanel = memo(function GitPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSelection.length, effectiveSelection.join(',')])
 
+  const tabs = useMemo(
+    () => [
+      { id: 'changes', label: t('git.changes') },
+      { id: 'diff', label: t('git.headDiff') },
+    ],
+    [t],
+  )
+  const handleTabChange = useCallback((next: string) => setTab(next as GitTab), [setTab])
+
   if (panelState === 'loading') {
     return (
       <UnifiedPanelShell
@@ -185,15 +194,6 @@ export const GitPanel = memo(function GitPanel({
   const canPull = status.has_upstream && !status.has_conflicts
   const canPush = status.has_upstream && status.ahead > 0 && !status.has_conflicts
   const diverged = status.ahead > 0 && status.behind > 0
-
-  const tabs = useMemo(
-    () => [
-      { id: 'changes', label: t('git.changes') },
-      { id: 'diff', label: t('git.headDiff') },
-    ],
-    [t],
-  )
-  const handleTabChange = useCallback((next: string) => setTab(next as GitTab), [setTab])
 
   return (
     <UnifiedPanelShell

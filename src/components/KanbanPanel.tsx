@@ -120,15 +120,15 @@ function useKanbanStore(
   const activeNotePathRef = useRef(notePath)
   const previousNotePathRef = useRef<string | null>(null)
 
-  const load = useCallback((path: string) => {
+  const load = useCallback((path: string): Promise<void> => {
     if (!isNativeBridgeAvailable()) {
       dispatch({ type: 'error', message: 'Open a vault in the desktop app.' })
-      return
+      return Promise.resolve()
     }
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
     dispatch({ type: 'loading' })
-    void indexerKanbanBoard(path)
+    return indexerKanbanBoard(path)
       .then((b) => {
         if (requestId !== requestIdRef.current || activeNotePathRef.current !== path) return
         dispatch({ type: 'success', board: b })

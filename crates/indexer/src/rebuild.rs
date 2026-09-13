@@ -174,10 +174,10 @@ pub fn rebuild_index_with_progress(
         let mut rows = statement.query([&session.descriptor.id])?;
         let mut stale = Vec::new();
         while let Some(row) = rows.next()? {
-            if let Ok(path) = row.get_ref(0)?.as_str() {
-                if !indexable_paths.contains(path) {
-                    stale.push(path.to_string());
-                }
+            if let Ok(path) = row.get_ref(0)?.as_str()
+                && !indexable_paths.contains(path)
+            {
+                stale.push(path.to_string());
             }
         }
         stale

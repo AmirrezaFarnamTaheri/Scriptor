@@ -47,7 +47,6 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
     if (!canBrowse) return
 
     let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a renewed index load must not leave stale success/error UI visible
     setLoadState('loading')
     setLoadStatus('Loading knowledge filters…')
     void (async () => {

@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useMemo, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
+import { lazy, memo, Suspense, useCallback, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
 import { CheckCircle2, FileText, FolderOpen } from 'lucide-react'
 import type {
   EditorAutocompleteContext,
@@ -15,7 +15,6 @@ import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
 
 import { EditorFormatToolbar } from '../editor/EditorFormatToolbar'
-import { INSERT_TOOLS, TYPOGRAPHY_LABELS } from '../editor/toolbar-catalog'
 import { useI18n } from '../../lib/i18n'
 import { EditorTabBar } from './EditorTabBar'
 import { ExternalChangeBanner } from '../ExternalChangeBanner'
@@ -290,40 +289,6 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
     [editorRef, insertSnippet],
   )
 
-  const toolbarExtras = useMemo(() => [
-    ...INSERT_TOOLS.map((item) => ({
-      id: `extra:insert:${item.id}`,
-      label: item.label,
-      node: (
-        <button
-          type="button"
-          disabled={!activePath}
-          title={item.label}
-          onClick={() => handleInsertSnippet(item.content)}
-        >
-          {item.label}
-        </button>
-      ),
-    })),
-    ...Object.entries(TYPOGRAPHY_LABELS).map(([action, labelKey]) => {
-      const label = t(labelKey)
-      return {
-        id: `extra:typography:${action}`,
-        label,
-        node: (
-          <button
-            type="button"
-            disabled={!activePath}
-            title={label}
-            onClick={() => handleApplyEditorTypography(action as TypographyAction)}
-          >
-            {label}
-          </button>
-        ),
-      }
-    }),
-  ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t])
-
   return (
     <section className="editor-panel" aria-label={t('editor.ariaLabel')}>
       <EditorTabBar
@@ -339,7 +304,6 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
       />
       {showFormatToolbar ? (
         <EditorFormatToolbar
-          toolbarExtras={toolbarExtras}
           activePath={activePath}
           editorSurfaceMode={editorSurfaceMode}
           onEditorSurfaceModeChange={onEditorSurfaceModeChange}

@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import {
   AlignCenter,
   Archive,
@@ -33,13 +33,14 @@ import {
 import type { EditorTransformAction, TypographyAction } from '@scriptor/editor'
 
 import { CustomizableToolbar, type ToolbarTool } from './CustomizableToolbar'
+import { INSERT_TOOLS, TYPOGRAPHY_LABELS } from './toolbar-catalog'
 import { InlineEditorAssist } from './InlineEditorAssist'
 import { TypographyMenu } from '../TypographyMenu'
 import { InsertMenu } from '../InsertMenu'
 import { useI18n } from '../../lib/i18n'
 
 export interface EditorFormatToolbarProps {
-  toolbarExtras: ToolbarTool[]
+  toolbarExtras?: ToolbarTool[]
   activePath: string | null
   editorSurfaceMode: 'source' | 'split' | 'rendered'
   onEditorSurfaceModeChange?: (mode: 'source' | 'split' | 'rendered') => void
@@ -125,9 +126,43 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
 }: EditorFormatToolbarProps) {
   const { t } = useI18n()
 
+  const extras = useMemo(() => toolbarExtras ?? [
+    ...INSERT_TOOLS.map((item) => ({
+      id: `extra:insert:${item.id}`,
+      label: item.label,
+      node: (
+        <button
+          type="button"
+          disabled={!activePath}
+          title={item.label}
+          onClick={() => handleInsertSnippet(item.content)}
+        >
+          {item.label}
+        </button>
+      ),
+    })),
+    ...Object.entries(TYPOGRAPHY_LABELS).map(([action, labelKey]) => {
+      const label = t(labelKey)
+      return {
+        id: `extra:typography:${action}`,
+        label,
+        node: (
+          <button
+            type="button"
+            disabled={!activePath}
+            title={label}
+            onClick={() => handleApplyEditorTypography(action as TypographyAction)}
+          >
+            {label}
+          </button>
+        ),
+      }
+    }),
+  ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t, toolbarExtras])
+
   return (
     <div className="editor-toolbar-wrapper">
-      <CustomizableToolbar extras={toolbarExtras}>
+      <CustomizableToolbar extras={extras}>
         <div className="format-group" aria-label={t('editor.toolbar.viewMode')}>
           {(
             [
@@ -140,6 +175,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
               type="button"
               key={mode}
               className={editorSurfaceMode === mode ? 'active' : undefined}
+              aria-pressed={editorSurfaceMode === mode}
               onClick={() => onEditorSurfaceModeChange?.(mode)}
             >
               {label}

@@ -74,12 +74,11 @@ impl OllamaClient {
                 Ok(val) => return Ok(val),
                 Err(e) => {
                     // Do not retry deterministically fatal client errors (e.g. 404 Model Not Found, 400 Bad Request).
-                    if let crate::error::EmbeddingError::Http(ref err) = e {
-                        if let Some(status) = err.status() {
-                            if status.is_client_error() {
-                                return Err(e);
-                            }
-                        }
+                    if let crate::error::EmbeddingError::Http(ref err) = e
+                        && let Some(status) = err.status()
+                        && status.is_client_error()
+                    {
+                        return Err(e);
                     }
                     if attempt < max_retries {
                         let backoff = Duration::from_millis(500 * 2u64.pow(attempt as u32));

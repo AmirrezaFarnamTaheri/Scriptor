@@ -36,9 +36,12 @@ export function useFocusTrap<T extends HTMLElement>(
   { active, restoreTo, initialFocus = true, initialFocusKey }: FocusTrapOptions,
 ): void {
   const initialFocusRef = useRef(initialFocus)
-  initialFocusRef.current = initialFocus
   const restoreToRef = useRef(restoreTo)
-  restoreToRef.current = restoreTo
+
+  useEffect(() => {
+    initialFocusRef.current = initialFocus
+    restoreToRef.current = restoreTo
+  }, [initialFocus, restoreTo])
 
   useEffect(() => {
     if (!active) return

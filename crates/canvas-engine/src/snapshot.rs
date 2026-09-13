@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::error::CanvasError;
-use crate::scene::{CanvasBlockKind, CanvasDocument, CanvasRect, CanvasShapeKind, layer_by_id};
+use crate::scene::{CanvasBlockKind, CanvasDocument, CanvasRect, layer_by_id};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -116,35 +116,28 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             _ => {}
         }
 
-        if block.shape_kind == Some(CanvasShapeKind::Freehand)
-            || block
-                .stroke_points
-                .as_ref()
-                .is_some_and(|points| points.len() >= 2)
+        if let Some(points) = block.stroke_points.as_deref()
+            && points.len() >= 2
         {
-            if let Some(points) = block.stroke_points.as_deref()
-                && points.len() >= 2
-            {
-                use std::fmt::Write;
-                let mut path = String::with_capacity(points.len() * 16);
-                for (index, point) in points.iter().enumerate() {
-                    let prefix = if index == 0 { "M" } else { " L" };
-                    let _ = write!(path, "{prefix} {} {}", point.x, point.y);
-                }
-                let stroke_width = block
-                    .style
-                    .as_ref()
-                    .and_then(|style| style.stroke_width)
-                    .unwrap_or(2.0);
-                svg.push_str(&format!(
-                    r##"<g data-block-id="{}"><path d="{}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" /></g>"##,
-                    block_id,
-                    path,
-                    stroke,
-                    stroke_width,
-                ));
-                continue;
+            use std::fmt::Write;
+            let mut path = String::with_capacity(points.len() * 16);
+            for (index, point) in points.iter().enumerate() {
+                let prefix = if index == 0 { "M" } else { " L" };
+                let _ = write!(path, "{prefix} {} {}", point.x, point.y);
             }
+            let stroke_width = block
+                .style
+                .as_ref()
+                .and_then(|style| style.stroke_width)
+                .unwrap_or(2.0);
+            svg.push_str(&format!(
+                r##"<g data-block-id="{}"><path d="{}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" /></g>"##,
+                block_id,
+                path,
+                stroke,
+                stroke_width,
+            ));
+            continue;
         }
 
         let rx = match block.kind {
@@ -164,7 +157,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             stroke,
             block.bounds.x + 12.0,
             block.bounds.y + 24.0,
-            xml_escape(&label),
+            xml_escape(label),
         ));
     }
 

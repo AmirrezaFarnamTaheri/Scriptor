@@ -268,12 +268,15 @@ function App() {
     setGraphNodeCount: perfSetGraphNodeCount,
   } = perfMetrics
   const commandPalette = useCommandPalette()
+  const setCommandPaletteOpen = commandPalette.setOpen
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
   // Pulled out of the per-render registry result so memoized callbacks can depend on the
   // stable `useCallback` identity instead of the whole hook object.
   const canExecutePluginCommand = plugins.canExecutePluginCommand
+  const pluginsSetPluginConsent = plugins.setPluginConsent
+  const pluginsInstallFromMarketplace = plugins.installFromMarketplace
   const setSidebarViewRef = useRef<(view: 'vault' | 'inbox') => void>(() => {})
   const workspace = useVaultWorkspace({
     onSearchComplete: (hits) => {
@@ -340,8 +343,38 @@ function App() {
       rememberRecentVault(workspace.vault.root_path)
     }
   }, [rememberRecentVault, workspace.vault?.root_path])
-  const { activePath: workspaceActivePath, loadGraph: loadWorkspaceGraph } = workspace
-  const { refreshHealth, fixVaultLint, exportWithProfile } = workspace
+  const {
+    activePath: workspaceActivePath,
+    loadGraph: loadWorkspaceGraph,
+    refreshHealth,
+    fixVaultLint,
+    exportWithProfile,
+    refreshGit,
+    commitFiles,
+    pullRemote,
+    pushRemote,
+    openNote,
+    rebuildIndex,
+    generateLinkReferences,
+    createNoteFromWikilink,
+    insertSnippet,
+    clearLinkRewritePreview,
+    cancelExport,
+    navigateBack,
+    navigateForward,
+    chooseVaultFolder,
+    openVaultAt,
+    refreshVaultConfig,
+    openNoteAt,
+    closeTab,
+    updateDraft,
+    reloadActiveNoteFromDisk,
+    jumpToOutlineHeading,
+    organizeNote,
+    saveActiveNoteNow,
+    openWikilinkTarget,
+    logActivity: workspaceLogActivity,
+  } = workspace
   const pluginCommandRuntime = usePluginCommandRuntime({
     refreshHealth, fixVaultLint, exportWithProfile, setStatusDockTab, setHealthDashboardOpen,
     setCanvasOpen, setBibliographyOpen, setGmailManagerOpen, showToast,
@@ -382,6 +415,7 @@ function App() {
     setHibernation: { graph: setHibernateGraph, mcp: setHibernateMcp, watcher: setHibernateWatcher, git: setHibernateGit, spellcheck: setHibernateSpellcheck },
   })
   const ai = useAiProvider()
+  const { saveApiKey: aiSaveApiKey, clearApiKey: aiClearApiKey } = ai
   const diagnostics = useDiagnosticsSettings(Boolean(workspace.vault))
   const rendererExtensions = plugins.contributions.rendererExtensions
   const previewPostProcess = useCallback(
@@ -676,60 +710,60 @@ function App() {
   useEscapeToClose(statusDockTab === 'problems' && totalProblemCount > 0, handleCloseProblemsDock)
 
   const handleCloseGit = useCallback(() => setGitPanelOpen(false), [setGitPanelOpen])
-  const handleRefreshGit = useCallback(() => { void workspace.refreshGit() }, [workspace.refreshGit])
+  const handleRefreshGit = useCallback(() => { void refreshGit() }, [refreshGit])
   const handleCommitGit = useCallback((files: string[], message: string) => {
-    void workspace.commitFiles(files, message)
-  }, [workspace.commitFiles])
+    void commitFiles(files, message)
+  }, [commitFiles])
   const handlePullGit = useCallback((strategy: GitPullStrategy) => {
-    void workspace.pullRemote(strategy)
-  }, [workspace.pullRemote])
-  const handlePushGit = useCallback(() => { void workspace.pushRemote() }, [workspace.pushRemote])
+    void pullRemote(strategy)
+  }, [pullRemote])
+  const handlePushGit = useCallback(() => { void pushRemote() }, [pushRemote])
   const handleResolveConflictGit = useCallback((path: string) => setConflictPath(path), [setConflictPath])
-  const handleOpenNoteFromGit = useCallback((path: string) => { void workspace.openNote(path) }, [workspace.openNote])
+  const handleOpenNoteFromGit = useCallback((path: string) => { void openNote(path) }, [openNote])
 
   const handleCloseHealthDashboard = useCallback(() => setHealthDashboardOpen(false), [setHealthDashboardOpen])
   const handleOpenIssueFromHealth = useCallback((path: string) => {
-    void workspace.openNote(path)
+    void openNote(path)
     setHealthDashboardOpen(false)
-  }, [workspace.openNote, setHealthDashboardOpen])
-  const handleRebuildIndexFromHealth = useCallback(() => { void workspace.rebuildIndex() }, [workspace.rebuildIndex])
-  const handleFixVaultLintFromHealth = useCallback(() => { void workspace.fixVaultLint() }, [workspace.fixVaultLint])
+  }, [openNote, setHealthDashboardOpen])
+  const handleRebuildIndexFromHealth = useCallback(() => { void rebuildIndex() }, [rebuildIndex])
+  const handleFixVaultLintFromHealth = useCallback(() => { void fixVaultLint() }, [fixVaultLint])
   const handleOpenWorkbenchFromHealth = useCallback(() => {
     setHealthDashboardOpen(false)
     openKnowledgeWorkbench('repair')
   }, [openKnowledgeWorkbench, setHealthDashboardOpen])
   const handleGenerateLinkReferencesFromHealth = useCallback(() => {
-    workspace.generateLinkReferences()
+    generateLinkReferences()
     setStatusDockTab('problems')
-  }, [workspace.generateLinkReferences, setStatusDockTab])
+  }, [generateLinkReferences, setStatusDockTab])
 
   const handleCloseKnowledgeWorkbench = useCallback(() => setKnowledgeWorkbenchOpen(false), [setKnowledgeWorkbenchOpen])
-  const handleOpenNoteFromWorkbench = useCallback((path: string) => { void workspace.openNote(path) }, [workspace.openNote])
+  const handleOpenNoteFromWorkbench = useCallback((path: string) => { void openNote(path) }, [openNote])
   const handleOpenGraphFromWorkbench = useCallback(() => {
     setKnowledgeWorkbenchOpen(false)
     setGraphOpen(true)
-    void workspace.loadGraph(workspace.activePath)
-  }, [setKnowledgeWorkbenchOpen, setGraphOpen, workspace.loadGraph, workspace.activePath])
+    void loadWorkspaceGraph(workspaceActivePath)
+  }, [setKnowledgeWorkbenchOpen, setGraphOpen, loadWorkspaceGraph, workspaceActivePath])
   const handleCreateNoteFromWikilink = useCallback((target: string) => {
-    void workspace.createNoteFromWikilink(target)
+    void createNoteFromWikilink(target)
     setKnowledgeWorkbenchOpen(false)
-  }, [workspace.createNoteFromWikilink, setKnowledgeWorkbenchOpen])
+  }, [createNoteFromWikilink, setKnowledgeWorkbenchOpen])
   const handleInsertTagFromWorkbench = useCallback((tag: string) => {
-    workspace.insertSnippet(`#${tag} `)
-  }, [workspace.insertSnippet])
+    insertSnippet(`#${tag} `)
+  }, [insertSnippet])
   const handleRenameTagFromWorkbench = useCallback((tag: string) => {
     setTagRenameTag(tag)
-    workspace.clearLinkRewritePreview()
-  }, [setTagRenameTag, workspace.clearLinkRewritePreview])
+    clearLinkRewritePreview()
+  }, [setTagRenameTag, clearLinkRewritePreview])
 
   const handleClosePublishCenter = useCallback(() => setPublishCenterOpen(false), [setPublishCenterOpen])
   const handleExportFromPublishCenter = useCallback((profileId: string, dryRun?: boolean) => {
     setStatusDockTab('jobs')
-    void workspace.exportWithProfile(profileId, dryRun)
-  }, [setStatusDockTab, workspace.exportWithProfile])
+    void exportWithProfile(profileId, dryRun)
+  }, [setStatusDockTab, exportWithProfile])
   const handleCancelExportFromPublishCenter = useCallback(() => {
-    void workspace.cancelExport()
-  }, [workspace.cancelExport])
+    void cancelExport()
+  }, [cancelExport])
   const handlePlanStarlight = useCallback(() => { void publishStarlight() }, [publishStarlight])
   const handleReplanStarlight = useCallback(() => {
     void publishStarlight(publishOutputPath ?? undefined)
@@ -738,14 +772,14 @@ function App() {
     void applyStarlightPlan(selectedPaths, deleteOrphans)
   }, [applyStarlightPlan])
 
-  const handleCloseCommandPalette = useCallback(() => commandPalette.setOpen(false), [commandPalette.setOpen])
+  const handleCloseCommandPalette = useCallback(() => setCommandPaletteOpen(false), [setCommandPaletteOpen])
   const handleSearchNotes = useMemo(() => {
     if (!workspace.vault) return undefined
     return (query: string) => indexerSearch(query, 12)
-  }, [Boolean(workspace.vault)])
+  }, [workspace.vault])
   const handleOpenNoteFromPalette = useCallback((path: string) => {
-    void workspace.openNote(path)
-  }, [workspace.openNote])
+    void openNote(path)
+  }, [openNote])
 
   const handleCloseQuickCapture = useCallback(() => setQuickCaptureOpen(false), [setQuickCaptureOpen])
   const handleClosePortal = useCallback(() => setPortalOpen(false), [setPortalOpen])
@@ -1029,26 +1063,11 @@ function App() {
     () => setPublishCenterOpen(true),
     [setPublishCenterOpen],
   )
-  const handleNavigateBack = useCallback(
-    () => workspace.navigateBack(),
-    [workspace.navigateBack],
-  )
-  const handleNavigateForward = useCallback(
-    () => workspace.navigateForward(),
-    [workspace.navigateForward],
-  )
-  const handleChooseVault = useCallback(
-    () => void workspace.chooseVaultFolder(),
-    [workspace.chooseVaultFolder],
-  )
-  const handleOpenVaultAt = useCallback(
-    (path: string) => void workspace.openVaultAt(path),
-    [workspace.openVaultAt],
-  )
-  const handleOpenCommandPalette = useCallback(
-    () => commandPalette.setOpen(true),
-    [commandPalette.setOpen],
-  )
+  const handleNavigateBack = useCallback(() => navigateBack(), [navigateBack])
+  const handleNavigateForward = useCallback(() => navigateForward(), [navigateForward])
+  const handleChooseVault = useCallback(() => void chooseVaultFolder(), [chooseVaultFolder])
+  const handleOpenVaultAt = useCallback((path: string) => void openVaultAt(path), [openVaultAt])
+  const handleOpenCommandPalette = useCallback(() => setCommandPaletteOpen(true), [setCommandPaletteOpen])
   const handleOpenPortal = useCallback(
     () => setPortalOpen(true),
     [setPortalOpen],
@@ -1059,8 +1078,8 @@ function App() {
   )
   const handleOpenGraph = useCallback(() => {
     setGraphOpen(true)
-    void workspace.loadGraph(workspace.activePath)
-  }, [setGraphOpen, workspace.loadGraph, workspace.activePath])
+    void loadWorkspaceGraph(workspaceActivePath)
+  }, [setGraphOpen, loadWorkspaceGraph, workspaceActivePath])
   const handleOpenCanvas = useCallback(
     () => setCanvasOpen(true),
     [setCanvasOpen],
@@ -1090,98 +1109,50 @@ function App() {
     [patchChrome, chrome.inspectorCollapsed],
   )
 
-  const handleAiSaveApiKey = useCallback(
-    (secret: string) => void ai.saveApiKey(secret),
-    [ai.saveApiKey],
-  )
-  const handleAiClearApiKey = useCallback(
-    () => void ai.clearApiKey(),
-    [ai.clearApiKey],
-  )
-  const handleRefreshDaemon = useCallback(
-    () => void refreshDaemonStatus(),
-    [refreshDaemonStatus],
-  )
-  const handleStartDaemon = useCallback(
-    () => void startDaemon(),
-    [startDaemon],
-  )
+  const handleAiSaveApiKey = useCallback((secret: string) => void aiSaveApiKey(secret), [aiSaveApiKey])
+  const handleAiClearApiKey = useCallback(() => void aiClearApiKey(), [aiClearApiKey])
+  const handleRefreshDaemon = useCallback(() => void refreshDaemonStatus(), [refreshDaemonStatus])
+  const handleStartDaemon = useCallback(() => void startDaemon(), [startDaemon])
   const handleSettingsConfigSaved = useCallback(() => {
-    void workspace.rebuildIndex()
-    void workspace.refreshVaultConfig()
-  }, [workspace.rebuildIndex, workspace.refreshVaultConfig])
-  const handleCloseSettings = useCallback(
-    () => setSettingsOpen(false),
-    [setSettingsOpen],
-  )
+    void rebuildIndex()
+    void refreshVaultConfig()
+  }, [rebuildIndex, refreshVaultConfig])
+  const handleCloseSettings = useCallback(() => setSettingsOpen(false), [setSettingsOpen])
   const handleOpenSupportFromSettings = useCallback(() => {
     setSettingsOpen(false)
     setSupportOpen(true)
   }, [setSettingsOpen, setSupportOpen])
 
-  const handleOpenNoteTab = useCallback(
-    (path: string) => void workspace.openNote(path),
-    [workspace.openNote],
-  )
-  const handleCloseNoteTab = useCallback(
-    (path: string) => workspace.closeTab(path),
-    [workspace.closeTab],
-  )
+  const handleOpenNoteTab = useCallback((path: string) => void openNote(path), [openNote])
+  const handleCloseNoteTab = useCallback((path: string) => closeTab(path), [closeTab])
   const handleUpdateDraft = useCallback(
     (markdown: string) => {
       journey.markFirstEdit()
-      workspace.updateDraft(markdown)
+      updateDraft(markdown)
     },
-    [journey, workspace.updateDraft],
+    [journey, updateDraft],
   )
-  const handleReloadExternalChange = useCallback(
-    () => void workspace.reloadActiveNoteFromDisk(),
-    [workspace.reloadActiveNoteFromDisk],
-  )
-  const handleToggleToc = useCallback(
-    () => setTocOpen((open) => !open),
-    [setTocOpen],
-  )
+  const handleReloadExternalChange = useCallback(() => void reloadActiveNoteFromDisk(), [reloadActiveNoteFromDisk])
+  const handleToggleToc = useCallback(() => setTocOpen((open) => !open), [setTocOpen])
   const handleJumpToLine = useCallback(
-    (line: number) => workspace.jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` }),
-    [workspace.jumpToOutlineHeading],
+    (line: number) => jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` }),
+    [jumpToOutlineHeading],
   )
-  const handleOpenFrontmatter = useCallback(
-    () => setFrontmatterOpen(true),
-    [setFrontmatterOpen],
-  )
+  const handleOpenFrontmatter = useCallback(() => setFrontmatterOpen(true), [setFrontmatterOpen])
   const handleOrganizeActive = useCallback(() => {
-    if (workspace.activePath) void workspace.organizeNote(workspace.activePath)
-  }, [workspace.activePath, workspace.organizeNote])
-  const handleOpenCheatsheet = useCallback(
-    () => setCheatsheetOpen(true),
-    [setCheatsheetOpen],
-  )
-  const handleOpenWritingTargets = useCallback(
-    () => setWritingTargetsOpen(true),
-    [setWritingTargetsOpen],
-  )
-  const handleInsertSnippet = useCallback(
-    (content: string) => workspace.insertSnippet(content),
-    [workspace.insertSnippet],
-  )
-  const handleSaveActiveNoteNow = useCallback(
-    () => void workspace.saveActiveNoteNow(),
-    [workspace.saveActiveNoteNow],
-  )
+    if (workspaceActivePath) void organizeNote(workspaceActivePath)
+  }, [workspaceActivePath, organizeNote])
+  const handleOpenCheatsheet = useCallback(() => setCheatsheetOpen(true), [setCheatsheetOpen])
+  const handleOpenWritingTargets = useCallback(() => setWritingTargetsOpen(true), [setWritingTargetsOpen])
+  const handleInsertSnippet = useCallback((content: string) => insertSnippet(content), [insertSnippet])
+  const handleSaveActiveNoteNow = useCallback(() => void saveActiveNoteNow(), [saveActiveNoteNow])
   const handleRenameActiveNote = useCallback(() => {
-    setRenameTargetPath(workspace.activePath)
+    setRenameTargetPath(workspaceActivePath)
     setRenameOpen(true)
-  }, [workspace.activePath, setRenameTargetPath, setRenameOpen])
+  }, [workspaceActivePath, setRenameTargetPath, setRenameOpen])
 
-  const handleOpenWikilinkTarget = useCallback(
-    (target: string) => void workspace.openWikilinkTarget(target),
-    [workspace.openWikilinkTarget],
-  )
-  const handleOpenNote = useCallback(
-    (path: string) => void workspace.openNote(path),
-    [workspace.openNote],
-  )
+  const handleOpenWikilinkTarget = useCallback((target: string) => void openWikilinkTarget(target), [openWikilinkTarget])
+  const handleOpenNote = useCallback((path: string) => void openNote(path), [openNote])
   const handleRenameSection = useCallback(
     (label: string) => {
       if (workspace.activePath) {
@@ -1218,16 +1189,16 @@ function App() {
       grantedPermissions: PluginRuntimePolicy['grantedPermissions'],
       allowedVaultIds: string[],
     ) =>
-      plugins.setPluginConsent(pluginId, { grantedPermissions, allowedVaultIds }),
-    [plugins.setPluginConsent],
+      pluginsSetPluginConsent(pluginId, { grantedPermissions, allowedVaultIds }),
+    [pluginsSetPluginConsent],
   )
   const handlePluginInstallMarketplace = useCallback(
     (pluginId: string) => {
-      void plugins.installFromMarketplace(pluginId).catch((error) => {
-        workspace.logActivity('error', 'Plugin install failed', error instanceof Error ? error.message : String(error))
+      void pluginsInstallFromMarketplace(pluginId).catch((error) => {
+        workspaceLogActivity('error', 'Plugin install failed', error instanceof Error ? error.message : String(error))
       })
     },
-    [plugins.installFromMarketplace, workspace.logActivity],
+    [pluginsInstallFromMarketplace, workspaceLogActivity],
   )
 
   const inspectorPlugins = useMemo(
@@ -1267,29 +1238,29 @@ function App() {
   )
   const handleOpenIssue = useCallback(
     (path: string, line?: number | null) => {
-      void workspace.openNoteAt(path, line)
+      void openNoteAt(path, line)
       setStatusDockTab('output')
     },
-    [workspace.openNoteAt, setStatusDockTab],
+    [openNoteAt, setStatusDockTab],
   )
   const handleOpenEditorLint = useCallback(
     (line: number) => {
-      workspace.jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` })
+      jumpToOutlineHeading({ line, level: 1, label: `Line ${line}` })
       setStatusDockTab('output')
     },
-    [workspace.jumpToOutlineHeading, setStatusDockTab],
+    [jumpToOutlineHeading, setStatusDockTab],
   )
   const handleRebuildIndexAction = useCallback(
-    () => void workspace.rebuildIndex(),
-    [workspace.rebuildIndex],
+    () => void rebuildIndex(),
+    [rebuildIndex],
   )
   const handleFixVaultLintAction = useCallback(
-    () => void workspace.fixVaultLint(),
-    [workspace.fixVaultLint],
+    () => void fixVaultLint(),
+    [fixVaultLint],
   )
   const handleCancelExportAction = useCallback(
-    () => void workspace.cancelExport(),
-    [workspace.cancelExport],
+    () => void cancelExport(),
+    [cancelExport],
   )
 
   const diagnosticsPanelProps = useMemo(

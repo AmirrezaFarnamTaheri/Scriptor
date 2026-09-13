@@ -165,11 +165,9 @@ fn slugify(text: &str) -> String {
                 }
             }
             prev_hyphen = false;
-        } else if (ch == ' ' || ch == '-') && !out.is_empty() {
-            if !prev_hyphen {
-                out.push('-');
-                prev_hyphen = true;
-            }
+        } else if (ch == ' ' || ch == '-') && !out.is_empty() && !prev_hyphen {
+            out.push('-');
+            prev_hyphen = true;
         }
     }
     while out.ends_with('-') {

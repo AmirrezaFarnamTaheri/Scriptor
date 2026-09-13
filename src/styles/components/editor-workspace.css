@@ -234,14 +234,15 @@ body.is-split-resizing .editor-preview-pane {
 
 .format-row.editor-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
   min-height: 44px;
   min-width: 0;
-  max-height: min(32dvh, 240px);
-  overflow-y: auto;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: transparent;
 }
 
@@ -260,10 +261,10 @@ body.is-split-resizing .editor-preview-pane {
 }
 
 .editor-toolbar > .format-group {
-  flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   min-width: 0;
-  max-width: 100%;
+  max-width: none;
 }
 
 .toolbar-divider {

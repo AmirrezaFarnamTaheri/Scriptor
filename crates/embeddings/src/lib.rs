@@ -380,11 +380,11 @@ impl EmbeddingStore {
 
             if heap.len() < k {
                 heap.push(Candidate { score: sim, id });
-            } else if let Some(min_top) = heap.peek() {
-                if sim > min_top.score {
-                    heap.pop();
-                    heap.push(Candidate { score: sim, id });
-                }
+            } else if let Some(min_top) = heap.peek()
+                && sim > min_top.score
+            {
+                heap.pop();
+                heap.push(Candidate { score: sim, id });
             }
         }
 
