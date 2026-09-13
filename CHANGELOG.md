@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 1.0.9 — 2026-09-13
+
+### Fixed
+- Completed the release-quality correction that was validated on `main` after the unsuccessful 1.0.8 production run. This patch release carries the corrected source-contract evidence without moving the immutable 1.0.8 tag.
+- Made every mixed-script run in the Persian documentation bidirectionally isolated, so English product and technical terms keep their reading order inside RTL prose.
+
 ## 1.0.8 — 2026-09-12
 
 ### Added
