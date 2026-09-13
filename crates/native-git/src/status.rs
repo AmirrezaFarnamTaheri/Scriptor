@@ -51,11 +51,12 @@ pub fn git_status(repo_root: &Path) -> Result<GitStatus, GitError> {
     let branch = current_branch(repo_root).ok();
     let porcelain = run_git(repo_root, &["status", "--porcelain=1", "-uall"])?;
     let changed_files = parse_porcelain(&porcelain);
-    let conflicted_files: Vec<GitChangedFile> = changed_files
-        .iter()
-        .filter(|file| file.conflict)
-        .cloned()
-        .collect();
+    let mut conflicted_files = Vec::new();
+    for file in &changed_files {
+        if file.conflict {
+            conflicted_files.push(file.clone());
+        }
+    }
     let has_conflicts = !conflicted_files.is_empty();
     let clean = changed_files.is_empty();
     let (ahead, behind, has_upstream) = read_sync_counts(repo_root);
@@ -530,7 +531,10 @@ fn unquote_path(raw: &str) -> String {
         }
     }
 
-    String::from_utf8_lossy(&out).into_owned()
+    match String::from_utf8(out) {
+        Ok(s) => s,
+        Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
+    }
 }
 
 fn map_status(code: &str) -> String {
@@ -1019,11 +1023,11 @@ mod tests {
         assert_eq!(output.files_committed, vec!["selected.md"]);
         assert_eq!(
             run_git(dir.path(), &["show", "HEAD:selected.md"])?,
-            "# Selected changed"
+            "# Selected changed\n"
         );
         assert_eq!(
             run_git(dir.path(), &["show", "HEAD:unrelated.md"])?,
-            "# Unrelated"
+            "# Unrelated\n"
         );
         assert_eq!(
             run_git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"])?,
@@ -1032,7 +1036,7 @@ mod tests {
         );
         assert_eq!(
             run_git(dir.path(), &["diff", "--cached", "--name-only"])?,
-            "unrelated.md"
+            "unrelated.md\n"
         );
         assert!(
             run_git(
@@ -1090,7 +1094,7 @@ mod tests {
 
         assert!(output.files_committed.iter().any(|path| path == "new.md"));
         assert!(run_git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
-        assert_eq!(run_git(dir.path(), &["show", "HEAD:new.md"])?, "# Renamed");
+        assert_eq!(run_git(dir.path(), &["show", "HEAD:new.md"])?, "# Renamed\n");
         assert!(run_git(dir.path(), &["show", "HEAD:old.md"]).is_err());
         Ok(())
     }

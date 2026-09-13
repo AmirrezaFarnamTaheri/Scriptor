@@ -76,7 +76,9 @@ impl GitQueue {
             .spawn(move || {
                 // Process tasks until the sender end of the channel closes.
                 for task in receiver {
-                    task(&root_clone);
+                    let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        task(&root_clone);
+                    }));
                 }
             })
             .map_err(|error| {
