@@ -146,7 +146,7 @@ impl TantivyIndex {
         let query = query_parser.parse_query(query)?;
         let top_docs = searcher.search(&query, &TopDocs::with_limit(limit).order_by_score())?;
 
-        let mut results = Vec::new();
+        let mut results = Vec::with_capacity(top_docs.len());
         for (score, doc_address) in top_docs {
             let doc = searcher.doc::<tantivy::TantivyDocument>(doc_address)?;
             let path = doc
@@ -159,13 +159,11 @@ impl TantivyIndex {
                 .and_then(|v| v.as_str())
                 .unwrap_or("")
                 .to_string();
-            let body_snippet = doc
-                .get_first(self.body_field)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .chars()
-                .take(200)
-                .collect();
+            let body_snippet = match doc.get_first(self.body_field).and_then(|v| v.as_str()) {
+                Some(body) if body.len() <= 200 => body.to_string(),
+                Some(body) => body.chars().take(200).collect(),
+                None => String::new(),
+            };
 
             results.push(SearchHit {
                 path,
