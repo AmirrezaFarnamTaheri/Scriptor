@@ -41,6 +41,7 @@ pub fn plantuml_render(
         &authorization_token,
         SensitiveOperation::PlantUmlExecution,
         Some("local-renderer"),
+        None,
     )?;
     render_plantuml_svg(&source)
 }
@@ -112,6 +113,7 @@ pub fn ai_provider_set_api_key(
         &authorization_token,
         SensitiveOperation::KeychainWrite,
         Some(AI_PROVIDER_SCOPE),
+        None,
     )?;
     let secret = secret.trim();
     if secret.is_empty() || secret.len() > 16_384 {
@@ -130,6 +132,7 @@ pub fn ai_provider_delete_api_key(
         &authorization_token,
         SensitiveOperation::KeychainDelete,
         Some(AI_PROVIDER_SCOPE),
+        None,
     )?;
     keychain_delete(AI_PROVIDER_KEYCHAIN_ACCOUNT).map_err(|error| error.to_string())
 }
@@ -147,6 +150,7 @@ pub async fn ai_provider_propose_draft(
         &authorization_token,
         SensitiveOperation::AiNetworkRequest,
         Some(&endpoint),
+        None,
     )?;
     let endpoint = validate_ai_endpoint(&endpoint)?;
     if prompt.trim().is_empty() || prompt.len() > 64 * 1024 {

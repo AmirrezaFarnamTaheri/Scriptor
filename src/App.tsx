@@ -575,9 +575,9 @@ function App() {
   const writeVaultText = useCallback(
     async (path: string, text: string): Promise<void> => {
       if (!nativeReady) return
-      await vaultSaveNote(path, text)
+      await vaultSaveNote(path, text, undefined, undefined, workspace.vault?.id)
     },
-    [nativeReady],
+    [nativeReady, workspace.vault?.id],
   )
   const workspaceStore = useWorkspaceStore({
     vaultOpen: Boolean(workspace.vault),

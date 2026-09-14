@@ -40,6 +40,7 @@ interface SaveRequest {
   navigationGeneration: number
   draftRevision: number
   overwrite: boolean
+  vaultId: string
 }
 
 export interface WorkspaceEditorRefs {
@@ -398,6 +399,7 @@ export function useWorkspaceEditor({
         navigationGeneration: navigationGenerationRef.current,
         draftRevision: draftRevisionRef.current,
         overwrite: saveOverwriteRef.current,
+        vaultId: note.metadata.vault_id,
       }
     },
     [activeNoteRef, activePathRef],
@@ -442,6 +444,8 @@ export function useWorkspaceEditor({
           request.path,
           request.markdown,
           request.overwrite ? undefined : expectedHash,
+          undefined,
+          request.vaultId,
         )
         savedHashesRef.current.set(request.path, saved.metadata.content_hash)
         await indexerUpdateNote(request.path)

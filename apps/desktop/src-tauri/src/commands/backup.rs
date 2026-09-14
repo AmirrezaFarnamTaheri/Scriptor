@@ -368,6 +368,7 @@ pub fn vault_create_backup(
     backup_path: Option<String>,
     authorization_token: String,
 ) -> Result<VaultBackupEntry, String> {
+    let session = active_session(&state)?;
     let scope = backup_path
         .as_deref()
         .filter(|value| !value.trim().is_empty())
@@ -377,8 +378,8 @@ pub fn vault_create_backup(
         &authorization_token,
         SensitiveOperation::CreateBackup,
         Some(scope),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let vault_root = session.root.root();
     let (root, storage_kind) = backup_root(vault_root, backup_path.as_deref())?;
     fs::create_dir_all(&root).map_err(|error| error.to_string())?;
@@ -457,13 +458,14 @@ pub fn vault_delete_backup(
     backup_path: Option<String>,
     authorization_token: String,
 ) -> Result<(), String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::DeleteBackup,
         Some(&backup_name),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let (root, _) = backup_root(session.root.root(), backup_path.as_deref())?;
     fs::remove_dir_all(confined_backup_dir(&root, &backup_name)?)
         .map_err(|error| format!("Failed to delete backup: {error}"))
@@ -476,13 +478,14 @@ pub fn vault_restore_backup(
     backup_path: Option<String>,
     authorization_token: String,
 ) -> Result<String, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::RestoreBackup,
         Some(&backup_name),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let vault_root = session.root.root();
     let (root, _) = backup_root(vault_root, backup_path.as_deref())?;
     let source = confined_backup_dir(&root, &backup_name)?;

@@ -31,10 +31,11 @@ export type SensitiveOperation =
   | 'restore_backup'
   | 'restore_history'
 
-interface AuthorizationGrant {
+export interface AuthorizationGrant {
   token: string
   operation: SensitiveOperation
   scope: string | null
+  vaultId?: string | null
   expiresAtMs: number
 }
 

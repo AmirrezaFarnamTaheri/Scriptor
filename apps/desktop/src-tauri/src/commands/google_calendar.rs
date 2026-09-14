@@ -1018,6 +1018,7 @@ pub fn google_calendar_start_auth(
         &authorization_token,
         SensitiveOperation::GoogleCalendarAuth,
         Some(AUTH_SCOPE),
+        None,
     )?;
     let _ = (&calendar_id, &task_list_id);
 
@@ -1036,6 +1037,7 @@ pub fn google_gmail_start_auth(
         &authorization_token,
         SensitiveOperation::GoogleGmailAuth,
         Some(GMAIL_AUTH_SCOPE),
+        None,
     )?;
     start_google_auth(client_id, GMAIL_OAUTH_SCOPES, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
 }
@@ -1051,6 +1053,7 @@ pub fn google_gmail_disconnect(
         &authorization_token,
         SensitiveOperation::GoogleGmailDisconnect,
         Some(GMAIL_AUTH_SCOPE),
+        None,
     )?;
     if let Ok(Some(tokens)) = load_tokens(GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
         && let Ok(client) = http_client()
@@ -1437,6 +1440,7 @@ pub fn google_gmail_modify_message(
         &authorization_token,
         SensitiveOperation::GoogleGmailWrite,
         Some(&id),
+        None,
     )?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
@@ -1473,6 +1477,7 @@ pub fn google_gmail_trash_message(
         &authorization_token,
         SensitiveOperation::GoogleGmailWrite,
         Some(&id),
+        None,
     )?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
@@ -1510,6 +1515,7 @@ pub fn google_gmail_send_message(
         &authorization_token,
         SensitiveOperation::GoogleGmailSend,
         Some("gmail-send"),
+        None,
     )?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?;
@@ -1539,6 +1545,7 @@ pub fn google_calendar_disconnect(
         &authorization_token,
         SensitiveOperation::GoogleCalendarDisconnect,
         Some(AUTH_SCOPE),
+        None,
     )?;
     if let Ok(Some(tokens)) = load_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
         && let Ok(client) = http_client()
@@ -1649,6 +1656,7 @@ pub fn google_calendar_create_task(
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
         Some(TASK_SCOPE),
+        None,
     )?;
     if title.trim().is_empty() {
         return Err("task title is required".into());
@@ -1698,6 +1706,7 @@ pub fn google_calendar_complete_task(
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
         Some(TASK_SCOPE),
+        None,
     )?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
@@ -1735,6 +1744,7 @@ pub fn google_calendar_delete_task(
         &authorization_token,
         SensitiveOperation::GoogleTaskWrite,
         Some(TASK_SCOPE),
+        None,
     )?;
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;

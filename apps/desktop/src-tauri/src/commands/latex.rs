@@ -165,6 +165,7 @@ pub fn latex_compile(
         &authorization_token,
         SensitiveOperation::LatexCompilation,
         Some(&input_path),
+        None,
     )?;
 
     // Honor a cancellation requested before this compile began, then reset.

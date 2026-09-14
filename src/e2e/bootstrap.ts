@@ -197,6 +197,7 @@ export function installE2eBridge(): void {
           path?: string
           markdown?: string
           expectedContentHash?: string | null
+          expectedVaultId?: string | null
         }
         const path = String(body.path ?? 'Research Plan.md')
         const markdown = String(body.markdown ?? '')

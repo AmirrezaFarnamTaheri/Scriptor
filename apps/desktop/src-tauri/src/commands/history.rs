@@ -16,13 +16,14 @@ pub fn vault_restore_note_history_revision(
     revision_id: String,
     authorization_token: String,
 ) -> Result<SaveNoteOutput, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::RestoreHistory,
         Some(&path),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     let current = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;

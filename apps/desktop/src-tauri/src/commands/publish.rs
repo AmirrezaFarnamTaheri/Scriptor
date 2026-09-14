@@ -69,6 +69,7 @@ pub fn vault_publish_apply_starlight(
         &authorization_token,
         SensitiveOperation::PublishSite,
         Some(&authorization_scope),
+        Some(&session.descriptor.id),
     )?;
     let PublishApplyOutput {
         written, deleted, ..

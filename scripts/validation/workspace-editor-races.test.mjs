@@ -41,8 +41,8 @@ function harness() {
   const refs = Object.fromEntries(['activePath', 'activeNote', 'draftMarkdown', 'isSaving', 'checkExternalChanges'].map((key) => [`${key}Ref`, { current: null }]))
   const options = { editorRefs: refs, setError() {}, logActivity() {}, loadBacklinks: async () => {}, setBacklinks() {}, refreshVaultCore: async () => {}, searchQuery: '', runSearch: async () => {}, vaultConfig: { export: {} }, exportProfilesRef: { current: [] } }
   const render = () => { cursor = 0; effects = []; const result = module.exports.useWorkspaceEditor(options); effects.forEach((fn) => fn()); return result }
-  const document = (path, markdown = path) => ({ markdown, metadata: { title: path, content_hash: markdown } })
-  const open = async (path) => { const task = render().openNote(path); pending.shift().resolve(document(path)); await task; return render() }
+  const document = (path, markdown = path, vaultId = 'vault-alpha') => ({ markdown, metadata: { title: path, content_hash: markdown, vault_id: vaultId } })
+  const open = async (path, vaultId = 'vault-alpha') => { const task = render().openNote(path); pending.shift().resolve(document(path, path, vaultId)); await task; return render() }
   return { render, pending, refs, document, open, options, commands }
 }
 
@@ -201,3 +201,19 @@ test('bursty saves coalesce pending diagnostics to the latest refresh', async ()
   assert.equal(refreshes, 2)
   assert.equal(h.render().activeNote.markdown, 'three')
 })
+
+test('save request binds expected vault identity from active note metadata', async () => {
+  const h = harness()
+  const calls = []
+  h.commands.vaultSaveNote = async (path, markdown, expectedHash, dryRun, expectedVaultId) => {
+    calls.push({ path, markdown, expectedHash, dryRun, expectedVaultId })
+    return h.document(path, markdown, expectedVaultId)
+  }
+  h.commands.indexerUpdateNote = async () => {}
+  await h.open('a.md', 'vault-gamma')
+  h.render().updateDraft('vault bound content')
+  await h.render().saveActiveNoteNow()
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].expectedVaultId, 'vault-gamma')
+})
+

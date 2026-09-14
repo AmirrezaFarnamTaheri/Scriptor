@@ -54,6 +54,7 @@ export async function vaultSaveNote(
   markdown: string,
   expectedContentHash?: string,
   dryRun?: boolean,
+  expectedVaultId?: string,
 ): Promise<SaveNoteOutput> {
   requireNative()
   return invoke<SaveNoteOutput>('vault_save_note', {
@@ -61,6 +62,7 @@ export async function vaultSaveNote(
     markdown,
     expectedContentHash: expectedContentHash ?? null,
     dryRun: dryRun ?? false,
+    expectedVaultId: expectedVaultId ?? null,
   })
 }
 

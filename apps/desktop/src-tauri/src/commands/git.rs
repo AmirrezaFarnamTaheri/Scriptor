@@ -48,6 +48,7 @@ pub fn git_pull_cmd(
         &authorization_token,
         SensitiveOperation::GitPull,
         Some(&session.descriptor.id),
+        Some(&session.descriptor.id),
     )?;
     let queue = git_queue_handle(&state, session.root.root())?;
     queue
@@ -66,6 +67,7 @@ pub fn git_push_cmd(
         &authorization_token,
         SensitiveOperation::GitPush,
         Some(&session.descriptor.id),
+        Some(&session.descriptor.id),
     )?;
     let queue = git_queue_handle(&state, session.root.root())?;
     queue
@@ -80,13 +82,14 @@ pub fn git_resolve_conflict_cmd(
     strategy: String,
     authorization_token: String,
 ) -> Result<GitConflictResolveOutput, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::ApplyGitConflict,
         Some(&path),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_resolve_conflict(root, &path, &strategy))
@@ -100,13 +103,14 @@ pub fn git_apply_merged_conflict_cmd(
     merged_markdown: String,
     authorization_token: String,
 ) -> Result<GitConflictResolveOutput, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::ApplyGitConflict,
         Some(&path),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let queue = git_queue_handle(&state, session.root.root())?;
     queue
         .enqueue(move |root| git_apply_merged_conflict(root, &path, &merged_markdown))

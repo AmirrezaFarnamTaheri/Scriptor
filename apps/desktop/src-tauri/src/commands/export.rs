@@ -473,13 +473,14 @@ pub fn pdf_translate(
 ) -> Result<PdfTranslateOutput, String> {
     use std::path::Path;
 
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::PdfTranslation,
         Some(&input_path),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&input_path)
         .map_err(|error| format!("invalid input_path: {error}"))?;
     let resolved = session

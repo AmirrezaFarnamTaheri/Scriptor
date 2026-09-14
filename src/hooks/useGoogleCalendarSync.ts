@@ -53,6 +53,9 @@ export type CalendarSyncStatus =
 
 export type { CalendarEvent, GoogleTask }
 
+const EMPTY_EVENTS: CalendarEvent[] = []
+const EMPTY_TASKS: GoogleTask[] = []
+
 export interface VaultTaskNote {
   path: string
   tasks: Array<{
@@ -141,6 +144,7 @@ export function useGoogleCalendarSync({
   const [error, setError] = useState<string | null>(null)
   const [authedEmail, setAuthedEmail] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const syncGenerationRef = useRef(0)
 
   // `config` is typically rebuilt on every parent render, so every callback and
   // effect below keys off its primitive fields instead. Depending on the object
@@ -160,6 +164,7 @@ export function useGoogleCalendarSync({
       setError('Google OAuth client ID not configured. Set it in Settings → Calendar.')
       return
     }
+    const currentGen = ++syncGenerationRef.current
     setStatus('authorizing')
     setError(null)
     try {
@@ -168,15 +173,18 @@ export function useGoogleCalendarSync({
         calendarId,
         taskListId,
       })
+      if (currentGen !== syncGenerationRef.current) return
       setAuthedEmail(email)
       setStatus('synced')
     } catch (err) {
+      if (currentGen !== syncGenerationRef.current) return
       setError(err instanceof Error ? err.message : String(err))
       setStatus('error')
     }
   }, [clientId, calendarId, taskListId])
 
   const disconnect = useCallback(async () => {
+    syncGenerationRef.current += 1
     try {
       await googleCalendarDisconnect()
     } catch {
@@ -195,6 +203,7 @@ export function useGoogleCalendarSync({
 
   const refresh = useCallback(async () => {
     if (!enabled) return
+    const currentGen = ++syncGenerationRef.current
     setStatus('syncing')
     setError(null)
     try {
@@ -203,11 +212,13 @@ export function useGoogleCalendarSync({
         googleCalendarListTasks(taskListId),
         googleCalendarGetAuthedEmail(),
       ])
+      if (currentGen !== syncGenerationRef.current) return
       setEvents(evtsRaw)
       setTasks(tasksRaw)
       setAuthedEmail(email)
       setStatus('synced')
     } catch (err) {
+      if (currentGen !== syncGenerationRef.current) return
       const msg = err instanceof Error ? err.message : String(err)
       // Disconnected / no token → show disconnected rather than error
       if (msg.toLowerCase().includes('not authenticated') || msg.toLowerCase().includes('no token')) {
@@ -222,12 +233,14 @@ export function useGoogleCalendarSync({
   // Initial sync + interval refresh
   useEffect(() => {
     if (!enabled) return
+    syncGenerationRef.current += 1
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial sync kick-off; refresh() transitions status as an external-system sync
     void refresh()
     if (refreshIntervalSeconds > 0) {
       intervalRef.current = setInterval(() => void refresh(), refreshIntervalSeconds * 1000)
     }
     return () => {
+      syncGenerationRef.current += 1
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
@@ -241,6 +254,7 @@ export function useGoogleCalendarSync({
 
   const pushTask = useCallback(
     async (task: { title: string; notes?: string; due?: string }): Promise<GoogleTask | null> => {
+      const currentGen = syncGenerationRef.current
       try {
         const created = await googleCalendarCreateTask({
           taskListId,
@@ -248,7 +262,9 @@ export function useGoogleCalendarSync({
           notes: task.notes ?? null,
           due: task.due ?? null,
         })
-        setTasks((prev) => [...prev, created])
+        if (currentGen === syncGenerationRef.current) {
+          setTasks((prev) => [...prev, created])
+        }
         return created
       } catch {
         return null
@@ -259,15 +275,18 @@ export function useGoogleCalendarSync({
 
   const completeTask = useCallback(
     async (taskId: string) => {
+      const currentGen = syncGenerationRef.current
       try {
         await googleCalendarCompleteTask(taskListId, taskId)
-        setTasks((prev) =>
-          prev.map((t) =>
-            t.id === taskId
-              ? { ...t, status: 'completed' as const, completed: new Date().toISOString() }
-              : t,
-          ),
-        )
+        if (currentGen === syncGenerationRef.current) {
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.id === taskId
+                ? { ...t, status: 'completed' as const, completed: new Date().toISOString() }
+                : t,
+            ),
+          )
+        }
       } catch {
         // ignore; UI will re-sync on next refresh
       }
@@ -277,9 +296,12 @@ export function useGoogleCalendarSync({
 
   const deleteTask = useCallback(
     async (taskId: string) => {
+      const currentGen = syncGenerationRef.current
       try {
         await googleCalendarDeleteTask(taskListId, taskId)
-        setTasks((prev) => prev.filter((t) => t.id !== taskId))
+        if (currentGen === syncGenerationRef.current) {
+          setTasks((prev) => prev.filter((t) => t.id !== taskId))
+        }
       } catch {
         // ignore
       }
@@ -306,11 +328,11 @@ export function useGoogleCalendarSync({
   }, [events])
 
   return {
-    status,
-    events,
-    tasks,
-    error,
-    authedEmail,
+    status: enabled ? status : 'disconnected',
+    events: enabled ? events : EMPTY_EVENTS,
+    tasks: enabled ? tasks : EMPTY_TASKS,
+    error: enabled ? error : null,
+    authedEmail: enabled ? authedEmail : null,
     startAuth,
     disconnect,
     refresh,

@@ -143,7 +143,7 @@ export function useMcpRuntime(
       listUnresolvedTargets: () => indexerListUnresolvedTargets(),
       exportProfiles: async () => exportProfiles,
       saveNote: (path, markdown, expectedContentHash) =>
-        vaultSaveNote(path, markdown, expectedContentHash),
+        vaultSaveNote(path, markdown, expectedContentHash, undefined, vaultId),
       renameNote: (from, to, updateLinks, expectedSourceHash) =>
         vaultRenameApply(from, to, updateLinks ?? true, expectedSourceHash),
       deleteNote: (path, expectedContentHash) => vaultDeleteNote(path, expectedContentHash),
