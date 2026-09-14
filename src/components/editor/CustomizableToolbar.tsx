@@ -1,5 +1,6 @@
-import { Children, cloneElement, isValidElement, memo, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
-import { ArrowDown, ArrowUp, Settings2 } from 'lucide-react'
+import { Children, cloneElement, isValidElement, memo, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type CSSProperties, type MouseEvent, type ReactNode, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
+import { ArrowDown, ArrowUp, Settings2, SlidersHorizontal } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
 import { useI18n } from '../../lib/i18n'
 
@@ -14,9 +15,10 @@ interface Preference {
   id: string
   pinned: boolean
   width: number
+  hasCustomWidth?: boolean
 }
 const STORAGE_KEY = 'scriptor:editor-toolbar'
-const DEFAULT_WIDTH = 44
+const DEFAULT_WIDTH = 32
 const MIN_WIDTH = 32
 const MAX_WIDTH = 240
 
@@ -32,23 +34,28 @@ function readPreferences(): Preference[] {
     return value.slice(0, 200).flatMap((item: unknown) => {
       if (!item || typeof item !== 'object' || !('id' in item) || typeof item.id !== 'string' || seen.has(item.id)) return []
       seen.add(item.id)
-      return [{ id: item.id, pinned: !('pinned' in item) || item.pinned !== false,
-        width: 'width' in item && typeof item.width === 'number' && Number.isFinite(item.width)
-          ? clampWidth(item.width) : DEFAULT_WIDTH }]
+      const hasCustomWidth = 'width' in item && typeof item.width === 'number' && Number.isFinite(item.width)
+      return [{
+        id: item.id,
+        pinned: !('pinned' in item) || item.pinned !== false,
+        width: hasCustomWidth ? clampWidth((item as { width: number }).width) : DEFAULT_WIDTH,
+        hasCustomWidth,
+      }]
     })
   } catch { return [] }
 }
-
-const DEFAULT_TOOL_STYLE: CSSProperties = { minWidth: DEFAULT_WIDTH }
 
 interface PinnedToolItemProps {
   id: string
   width: number
   node: ReactNode
+  hasCustomWidth?: boolean
 }
 
-const PinnedToolItem = memo(function PinnedToolItem({ id, width, node }: PinnedToolItemProps) {
-  const style = width === DEFAULT_WIDTH ? DEFAULT_TOOL_STYLE : { minWidth: width, width }
+const PinnedToolItem = memo(function PinnedToolItem({ id, width, node, hasCustomWidth }: PinnedToolItemProps) {
+  const style: CSSProperties = hasCustomWidth || width !== DEFAULT_WIDTH
+    ? { minWidth: width, width }
+    : { minWidth: width }
   return (
     <div
       className="toolbar-tool"
@@ -61,29 +68,25 @@ const PinnedToolItem = memo(function PinnedToolItem({ id, width, node }: PinnedT
 })
 
 const DEFAULT_PINNED_IDS = new Set([
-  'source',
-  'split',
-  'rendered',
-  'heading-1',
-  'heading-2',
-  'heading-3',
-  'outline',
   'bold',
   'italic',
   'link',
   'typography',
   'insert',
-  'organize-note',
-  'writing-targets',
-  'split-preview',
 ])
 
 function isDefaultPinned(id: string): boolean {
   return DEFAULT_PINNED_IDS.has(id)
 }
 
+export interface CustomizableToolbarProps {
+  children: ReactNode
+  extras?: Tool[]
+  hostRef?: RefObject<HTMLElement | null>
+}
+
 /** Controls declare semantic React keys so layout and translations cannot move preferences. */
-function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNode; extras?: Tool[] }) {
+function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarProps) {
   const tools = useMemo(() => {
     const list: Tool[] = []
     Children.forEach(children, (group) => {
@@ -113,14 +116,19 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
     const byId = new Map(tools.map((tool) => [tool.id, tool]))
     return [
       ...preferences.flatMap((pref) => { const tool = byId.get(pref.id); return tool ? [{ ...tool, ...pref }] : [] }),
-      ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({ ...tool, pinned: isDefaultPinned(tool.id), width: DEFAULT_WIDTH })),
+      ...tools.filter((tool) => !preferences.some((pref) => pref.id === tool.id)).map((tool) => ({
+        ...tool,
+        pinned: isDefaultPinned(tool.id),
+        width: DEFAULT_WIDTH,
+        hasCustomWidth: false,
+      })),
     ]
   }, [preferences, tools])
 
   const pinnedTools = useMemo(() => ordered.filter((tool) => tool.pinned), [ordered])
   const menuTools = useMemo(() => ordered.filter((tool) => submenu
     ? tool.id.startsWith(`extra:${submenu}:`)
-    : !tool.pinned), [ordered, submenu])
+    : !tool.pinned && !tool.id.startsWith('extra:')), [ordered, submenu])
 
   const closeMenu = () => {
     setOpen(false)
@@ -131,10 +139,15 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
     requestAnimationFrame(() => document.getElementById(menuId)?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus())
   }
   const save = (next: typeof ordered) => {
-    const prefs = next.map(({ id, pinned, width }) => ({ id, pinned, width }))
+    const prefs = next.map(({ id, pinned, width, hasCustomWidth }) => ({
+      id,
+      pinned,
+      width,
+      ...(hasCustomWidth ? { hasCustomWidth } : {}),
+    }))
     setPreferences(prefs)
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs))
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs.map(({ id, pinned, width }) => ({ id, pinned, width }))))
       setStorageError(false)
     } catch {
       setStorageError(true)
@@ -155,7 +168,7 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
     }
   }
   const updateTool = (id: string, change: Partial<Preference>) => {
-    save(ordered.map((tool) => tool.id === id ? { ...tool, ...change } : tool))
+    save(ordered.map((tool) => tool.id === id ? { ...tool, ...change, ...(change.width !== undefined ? { hasCustomWidth: true } : {}) } : tool))
   }
   const moveTool = (index: number, direction: -1 | 1) => {
     const next = [...ordered]
@@ -166,24 +179,29 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
 
   return (
     <>
-      <div className="format-row editor-toolbar" aria-label="Markdown tools">
-        <div className="format-group toolbar-pinned">
-          {pinnedTools.map((tool) => (
-            <PinnedToolItem
-              key={tool.id}
-              id={tool.id}
-              width={tool.width}
-              node={tool.node}
-            />
-          ))}
-        </div>
+      <div
+        className="format-group editor-primary-formatting toolbar-pinned"
+        aria-label={t('editor.toolbar.styleAndInsert')}
+      >
+        {pinnedTools.map((tool) => (
+          <PinnedToolItem
+            key={tool.id}
+            id={tool.id}
+            width={tool.width}
+            node={tool.node}
+            hasCustomWidth={tool.hasCustomWidth}
+          />
+        ))}
         <button
           type="button"
           ref={triggerRef}
           id={triggerId}
+          className="toolbar-button tools-trigger"
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
+          aria-label={t('customizableToolbar.tools')}
+          title={t('customizableToolbar.tools')}
           onClick={() => { setOpen(!open); setSubmenu(null) }}
           onKeyDown={(event) => {
             if (event.key !== 'ArrowDown') return
@@ -191,57 +209,59 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
             setOpen(true)
           }}
         >
-          {t('customizableToolbar.tools')}
+          <SlidersHorizontal size={14} aria-hidden="true" />
+          <span className="toolbar-menu-trigger-label">{t('customizableToolbar.tools')}</span>
         </button>
         <button
           type="button"
+          className="toolbar-button customize-trigger"
           aria-label={t('customizableToolbar.customize')}
           title={t('customizableToolbar.customize')}
           aria-expanded={customizing}
           onClick={() => setCustomizing(!customizing)}
         >
-          <Settings2 size={16} />
+          <Settings2 size={16} aria-hidden="true" />
         </button>
-        <ToolbarPopover
-          className="toolbar-tools-menu"
-          open={open}
-          id={menuId}
-          triggerRef={triggerRef}
-          labelledBy={triggerId}
-          onClose={closeMenu}
-        >
-          <li role="none">
-            <button type="button" role="menuitem" onClick={() => { closeMenu(); setCustomizing(true) }}>
-              {t('customizableToolbar.customize')}
-            </button>
-          </li>
-          {submenu && (
-            <li role="none">
-              <button type="button" role="menuitem" onClick={() => showSubmenu(null)}>{t('customizableToolbar.backToTools')}</button>
-            </li>
-          )}
-          {menuTools.map((tool) => (
-            <li role="none" key={tool.id} className="toolbar-unpinned">
-              {tool.id === 'insert' || tool.id === 'typography' ? (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => showSubmenu(tool.id as 'insert' | 'typography')}
-                >
-                  {tool.label}
-                </button>
-              ) : isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(tool.node) && tool.node.type === 'button' ? (
-                cloneElement(tool.node, {
-                  role: 'menuitem',
-                  children: tool.label,
-                  onClick: (event) => activateMenuTool(tool.node, event),
-                })
-              ) : null}
-            </li>
-          ))}
-        </ToolbarPopover>
       </div>
-      {customizing && (
+      <ToolbarPopover
+        className="toolbar-tools-menu"
+        open={open}
+        id={menuId}
+        triggerRef={triggerRef}
+        labelledBy={triggerId}
+        onClose={closeMenu}
+      >
+        <li role="none">
+          <button type="button" role="menuitem" onClick={() => { closeMenu(); setCustomizing(true) }}>
+            {t('customizableToolbar.customize')}
+          </button>
+        </li>
+        {submenu && (
+          <li role="none">
+            <button type="button" role="menuitem" onClick={() => showSubmenu(null)}>{t('customizableToolbar.backToTools')}</button>
+          </li>
+        )}
+        {menuTools.map((tool) => (
+          <li role="none" key={tool.id} className="toolbar-unpinned">
+            {tool.id === 'insert' || tool.id === 'typography' ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => showSubmenu(tool.id as 'insert' | 'typography')}
+              >
+                {tool.label}
+              </button>
+            ) : isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(tool.node) && tool.node.type === 'button' ? (
+              cloneElement(tool.node, {
+                role: 'menuitem',
+                children: tool.label,
+                onClick: (event) => activateMenuTool(tool.node, event),
+              })
+            ) : null}
+          </li>
+        ))}
+      </ToolbarPopover>
+      {customizing && typeof document !== 'undefined' && createPortal(
         <section className="toolbar-customizer" aria-label={t('customizableToolbar.customize')}>
           <p>{t('customizableToolbar.helperText')}</p>
           {storageError && <p role="status">{t('customizableToolbar.storageWarning')}</p>}
@@ -287,7 +307,8 @@ function CustomizableToolbarImpl({ children, extras = [] }: { children: ReactNod
               />
             </div>
           ))}
-        </section>
+        </section>,
+        document.querySelector('.editor-toolbar-wrapper') ?? document.body,
       )}
     </>
   )

@@ -307,12 +307,8 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
     join_reader_bounded(stderr_reader, OUTPUT_DRAIN_GRACE);
 
     if timed_out {
-        let (stdout_bytes, _) = stdout_result
-            .and_then(|res| res.ok())
-            .unwrap_or_default();
-        let (stderr_bytes, _) = stderr_result
-            .and_then(|res| res.ok())
-            .unwrap_or_default();
+        let (stdout_bytes, _) = stdout_result.and_then(|res| res.ok()).unwrap_or_default();
+        let (stderr_bytes, _) = stderr_result.and_then(|res| res.ok()).unwrap_or_default();
         let stdout = match String::from_utf8(stdout_bytes) {
             Ok(s) => s,
             Err(e) => String::from_utf8_lossy(e.as_bytes()).into_owned(),
@@ -329,12 +325,12 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
         });
     }
 
-    let (stdout, stdout_truncated) = stdout_result
-        .ok_or_else(|| BridgeError::ProcessPolicy {
+    let (stdout, stdout_truncated) =
+        stdout_result.ok_or_else(|| BridgeError::ProcessPolicy {
             message: "stdout reader stopped before returning output".into(),
         })??;
-    let (stderr, stderr_truncated) = stderr_result
-        .ok_or_else(|| BridgeError::ProcessPolicy {
+    let (stderr, stderr_truncated) =
+        stderr_result.ok_or_else(|| BridgeError::ProcessPolicy {
             message: "stderr reader stopped before returning output".into(),
         })??;
 

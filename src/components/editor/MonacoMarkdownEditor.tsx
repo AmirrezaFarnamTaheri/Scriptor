@@ -70,6 +70,12 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     const lastInsertSeqRef = useRef<number | null>(null)
     const lastTransformSeqRef = useRef<number | null>(null)
     const lastTypographySeqRef = useRef<number | null>(null)
+    const insertRequestRef = useRef(insertRequest)
+    insertRequestRef.current = insertRequest
+    const transformRequestRef = useRef(transformRequest)
+    transformRequestRef.current = transformRequest
+    const typographyRequestRef = useRef(typographyRequest)
+    typographyRequestRef.current = typographyRequest
 
     useEffect(() => {
       onChangeRef.current = onChange
@@ -129,9 +135,9 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
 
     const handleInsertText = useCallback((text: string) => {
       const editor = editorRef.current
-      if (!editor) return
+      if (!editor) return false
       const model = editor.getModel()
-      if (!model) return
+      if (!model) return false
 
       const selection = editor.getSelection()
       const range = selection ?? model.getFullModelRange()
@@ -140,16 +146,19 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       lastSyncedValueRef.current = nextValue
       onChangeRef.current(nextValue)
       editor.focus()
+      return true
     }, [])
 
     const handleTransformAction = useCallback((action: EditorTransformAction) => {
       const editor = editorRef.current
-      if (!editor) return
+      if (!editor) return false
       const model = editor.getModel()
-      if (!model) return
+      if (!model) return false
 
       const selection = editor.getSelection()
-      if (!selection) return
+      if (!selection) return false
+
+      const beforeValue = model.getValue()
 
       const wrapSelection = (prefix: string, suffix = prefix) => {
         let range: IRange = selection
@@ -218,7 +227,10 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
 
       const toggleHeading = (level: 1 | 2 | 3) => {
         const startLine = selection.startLineNumber
-        const endLine = selection.endLineNumber
+        const endLine =
+          selection.endLineNumber > selection.startLineNumber && selection.endColumn === 1
+            ? selection.endLineNumber - 1
+            : selection.endLineNumber
         const prefix = `${'#'.repeat(level)} `
         const edits: MonacoEditor.IIdentifiedSingleEditOperation[] = []
 
@@ -244,7 +256,10 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
 
       const toggleBlockquote = () => {
         const startLine = selection.startLineNumber
-        const endLine = selection.endLineNumber
+        const endLine =
+          selection.endLineNumber > selection.startLineNumber && selection.endColumn === 1
+            ? selection.endLineNumber - 1
+            : selection.endLineNumber
         const edits: MonacoEditor.IIdentifiedSingleEditOperation[] = []
 
         for (let line = startLine; line <= endLine; line += 1) {
@@ -352,16 +367,19 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       }
 
       const nextValue = model.getValue()
-      lastSyncedValueRef.current = nextValue
-      onChangeRef.current(nextValue)
+      if (nextValue !== beforeValue) {
+        lastSyncedValueRef.current = nextValue
+        onChangeRef.current(nextValue)
+      }
       editor.focus()
+      return true
     }, [])
 
     const handleTypographyAction = useCallback((action: TypographyAction) => {
       const editor = editorRef.current
-      if (!editor) return
+      if (!editor) return false
       const model = editor.getModel()
-      if (!model) return
+      if (!model) return false
 
       const selection = editor.getSelection()
       const range = selection && !selection.isEmpty() ? selection : model.getFullModelRange()
@@ -374,6 +392,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
         onChangeRef.current(nextValue)
       }
       editor.focus()
+      return true
     }, [])
 
     useImperativeHandle(
@@ -428,22 +447,25 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     useEffect(() => {
       if (!insertRequest?.text) return
       if (lastInsertSeqRef.current === insertRequest.seq) return
-      lastInsertSeqRef.current = insertRequest.seq
-      handleInsertText(insertRequest.text)
+      if (handleInsertText(insertRequest.text)) {
+        lastInsertSeqRef.current = insertRequest.seq
+      }
     }, [insertRequest, handleInsertText])
 
     useEffect(() => {
       if (!transformRequest?.action) return
       if (lastTransformSeqRef.current === transformRequest.seq) return
-      lastTransformSeqRef.current = transformRequest.seq
-      handleTransformAction(transformRequest.action as EditorTransformAction)
+      if (handleTransformAction(transformRequest.action as EditorTransformAction)) {
+        lastTransformSeqRef.current = transformRequest.seq
+      }
     }, [transformRequest, handleTransformAction])
 
     useEffect(() => {
       if (!typographyRequest?.action) return
       if (lastTypographySeqRef.current === typographyRequest.seq) return
-      lastTypographySeqRef.current = typographyRequest.seq
-      handleTypographyAction(typographyRequest.action)
+      if (handleTypographyAction(typographyRequest.action)) {
+        lastTypographySeqRef.current = typographyRequest.seq
+      }
     }, [typographyRequest, handleTypographyAction])
 
     useEffect(() => {
@@ -524,6 +546,22 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       if (import.meta.env.VITE_E2E_MODE === 'true') {
         ;(window as Window & { __scriptorE2eEditor?: MonacoEditor.IStandaloneCodeEditor }).__scriptorE2eEditor =
           editor
+      }
+
+      if (insertRequestRef.current?.text && lastInsertSeqRef.current !== insertRequestRef.current.seq) {
+        if (handleInsertText(insertRequestRef.current.text)) {
+          lastInsertSeqRef.current = insertRequestRef.current.seq
+        }
+      }
+      if (transformRequestRef.current?.action && lastTransformSeqRef.current !== transformRequestRef.current.seq) {
+        if (handleTransformAction(transformRequestRef.current.action as EditorTransformAction)) {
+          lastTransformSeqRef.current = transformRequestRef.current.seq
+        }
+      }
+      if (typographyRequestRef.current?.action && lastTypographySeqRef.current !== typographyRequestRef.current.seq) {
+        if (handleTypographyAction(typographyRequestRef.current.action)) {
+          lastTypographySeqRef.current = typographyRequestRef.current.seq
+        }
       }
     }
 

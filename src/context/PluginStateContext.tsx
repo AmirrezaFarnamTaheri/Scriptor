@@ -38,20 +38,22 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
     if (!initialEnabledPluginIds) {
       const loadVersion = localChangeVersionRef.current
       let cancelled = false
+      const applyLoaded = (loaded: Set<string> | null) => {
+        if (cancelled || localChangeVersionRef.current !== loadVersion) return
+        if (loaded !== null) {
+          enabledPluginIdsRef.current = loaded
+          setEnabledPluginIds(loaded)
+        }
+      }
       loadPluginState()
+        .then(applyLoaded)
         .catch(() => {
           // The native bridge can briefly lag the first render; retry once
           // before surfacing an error to the user.
           window.setTimeout(() => {
             if (cancelled || localChangeVersionRef.current !== loadVersion) return
             loadPluginState()
-              .then((loaded) => {
-                if (cancelled || localChangeVersionRef.current !== loadVersion) return
-                if (loaded && loaded.size > 0) {
-                  enabledPluginIdsRef.current = loaded
-                  setEnabledPluginIds(loaded)
-                }
-              })
+              .then(applyLoaded)
               .catch((error: unknown) => {
                 if (cancelled) return
                 setPersistenceError(error instanceof Error ? error.message : 'Could not load plugin state.')

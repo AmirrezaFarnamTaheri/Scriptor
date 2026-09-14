@@ -405,17 +405,21 @@ function WorkspacePanelLaunchersImpl({
               aiEnabled={ai?.enabled ?? false}
               onGenerateDraft={() => {
                 if (!promptText || !ai) return
-                void promptText({
-                  title: 'Assistant draft',
-                  label: 'Describe the edit you want the assistant to draft',
-                  defaultValue: '',
-                  submitLabel: 'Draft',
-                }).then((prompt) => {
-                  if (!prompt || !workspace.activePath) return
-                  void ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown).then((proposed) => {
-                    void mcp.proposeDraftForActiveNote(proposed, `AI draft: ${prompt}`)
-                  })
-                })
+                void (async () => {
+                  try {
+                    const prompt = await promptText({
+                      title: 'Assistant draft',
+                      label: 'Describe the edit you want the assistant to draft',
+                      defaultValue: '',
+                      submitLabel: 'Draft',
+                    })
+                    if (!prompt || !workspace.activePath) return
+                    const proposed = await ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown)
+                    await mcp.proposeDraftForActiveNote(proposed, `AI draft: ${prompt}`)
+                  } catch (error) {
+                    showToast?.(`Assistant draft failed: ${error instanceof Error ? error.message : String(error)}`)
+                  }
+                })()
               }}
             />
           </Suspense>

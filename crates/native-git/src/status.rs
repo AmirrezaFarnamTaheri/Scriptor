@@ -333,9 +333,7 @@ fn run_git_command(
 /// Leading or trailing spaces can be meaningful in a repository path, so this
 /// deliberately does not use `str::trim`.
 fn git_metadata(output: String) -> Result<String, GitError> {
-    let value = output
-        .trim_end_matches(['\r', '\n'])
-        .to_string();
+    let value = output.trim_end_matches(['\r', '\n']).to_string();
     if value.is_empty() {
         return Err(GitError::Command("git returned empty metadata".into()));
     }
@@ -618,8 +616,8 @@ pub fn git_show_merge_base_file(repo_root: &Path, path: &str) -> Result<Option<S
                 .and_then(git_metadata)
                 .ok();
             if let (Some(merge_head), Some(head)) = (merge_head, head)
-                && let Ok(base) = run_git(repo_root, &["merge-base", &head, &merge_head])
-                    .and_then(git_metadata)
+                && let Ok(base) =
+                    run_git(repo_root, &["merge-base", &head, &merge_head]).and_then(git_metadata)
             {
                 let spec = format!("{base}:{normalized}");
                 return match run_git(repo_root, &["show", &spec]) {
@@ -728,13 +726,16 @@ mod tests {
 
     #[test]
     fn metadata_normalization_preserves_path_whitespace() {
-        assert_eq!(git_metadata(" .git/index \r\n".into()).unwrap(), " .git/index ");
+        assert_eq!(
+            git_metadata(" .git/index \r\n".into()).unwrap(),
+            " .git/index "
+        );
         assert!(git_metadata("\n".into()).is_err());
     }
 
     #[test]
-    fn head_and_merge_base_reads_preserve_trailing_blob_whitespace(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn head_and_merge_base_reads_preserve_trailing_blob_whitespace()
+    -> Result<(), Box<dyn std::error::Error>> {
         let directory = tempdir()?;
         let root = directory.path();
         run_git(root, &["init", "-b", "main"])?;
@@ -756,7 +757,10 @@ mod tests {
         run_git(root, &["commit", "-m", "main"])?;
         assert!(run_git(root, &["merge", "feature"]).is_err());
 
-        assert_eq!(git_show_merge_base_file(root, "note.md")?, Some(base.into()));
+        assert_eq!(
+            git_show_merge_base_file(root, "note.md")?,
+            Some(base.into())
+        );
         Ok(())
     }
 
@@ -1094,7 +1098,10 @@ mod tests {
 
         assert!(output.files_committed.iter().any(|path| path == "new.md"));
         assert!(run_git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
-        assert_eq!(run_git(dir.path(), &["show", "HEAD:new.md"])?, "# Renamed\n");
+        assert_eq!(
+            run_git(dir.path(), &["show", "HEAD:new.md"])?,
+            "# Renamed\n"
+        );
         assert!(run_git(dir.path(), &["show", "HEAD:old.md"]).is_err());
         Ok(())
     }

@@ -293,16 +293,23 @@ mod tests {
 
     #[test]
     fn block_math_is_wrapped_in_double_dollars() {
-        let html = "<p><math><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math></p>";
+        let html =
+            "<p><math><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math></p>";
         let md = convert(html, true, true).unwrap();
-        assert!(md.contains("$$"), "expected $$ wrapping around block math: {md}");
+        assert!(
+            md.contains("$$"),
+            "expected $$ wrapping around block math: {md}"
+        );
     }
 
     #[test]
     fn multiple_inline_math_preserved() {
         let html = "<p>Let <math><mi>a</mi></math> and <math><mi>b</mi></math> be reals.</p>";
         let md = convert(html, true, true).unwrap();
-        assert!(md.contains("$a$") && md.contains("$b$"), "both math tokens must survive: {md}");
+        assert!(
+            md.contains("$a$") && md.contains("$b$"),
+            "both math tokens must survive: {md}"
+        );
     }
 
     #[test]

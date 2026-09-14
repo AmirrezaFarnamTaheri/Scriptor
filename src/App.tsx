@@ -1652,6 +1652,7 @@ function App() {
         tasksOpen={tasksOpen}
         kanbanOpen={kanbanOpen}
         readerPresentation={panelPresentation}
+        panelPresentation={panelPresentation}
         onCloseCanvas={handleCloseCanvas}
         onCloseReader={handleCloseReader}
         onCloseTasks={handleCloseTasks}

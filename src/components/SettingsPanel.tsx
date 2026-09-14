@@ -293,7 +293,7 @@ function SettingsPanelImpl({
       icon={<Settings size={18} />}
       ariaLabel="Settings"
       onClose={onClose}
-      presentation={panelPresentation}
+      presentation="modal"
       className="settings-panel knowledge-filters-panel"
       wide
       tabs={SETTINGS_TABS}

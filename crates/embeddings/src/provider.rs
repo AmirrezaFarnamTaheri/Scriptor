@@ -114,7 +114,11 @@ impl OpenAiProvider {
     /// `api_key` — user-supplied key stored in the OS keychain (never on disk).
     /// `model` — `"text-embedding-3-small"` (1536-d) or `"text-embedding-3-large"` (3072-d).
     /// `dimension` — pass `None` to use the model default.
-    pub fn try_new(api_key: &str, model: &str, dimension: Option<usize>) -> Result<Self, EmbeddingError> {
+    pub fn try_new(
+        api_key: &str,
+        model: &str,
+        dimension: Option<usize>,
+    ) -> Result<Self, EmbeddingError> {
         let dim = dimension.unwrap_or(match model {
             "text-embedding-3-large" => 3072,
             _ => 1536, // text-embedding-3-small default

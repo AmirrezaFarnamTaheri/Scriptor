@@ -229,7 +229,12 @@ impl EmbeddingStore {
                 for &f in *vec {
                     bytes_buf.extend_from_slice(&f.to_le_bytes());
                 }
-                stmt.execute(params![*id, bytes_buf, self.dimension as i64, *content_hash])?;
+                stmt.execute(params![
+                    *id,
+                    bytes_buf,
+                    self.dimension as i64,
+                    *content_hash
+                ])?;
             }
         }
         tx.commit()?;
@@ -309,8 +314,11 @@ impl EmbeddingStore {
                 .conn
                 .lock()
                 .map_err(|e| EmbeddingError::Ollama(e.to_string()))?;
-            let mut stmt = conn.prepare("SELECT id FROM embeddings WHERE dimension = ?1 LIMIT ?2")?;
-            let rows = stmt.query_map(params![self.dimension as i64, k as i64], |row| row.get::<_, String>(0))?;
+            let mut stmt =
+                conn.prepare("SELECT id FROM embeddings WHERE dimension = ?1 LIMIT ?2")?;
+            let rows = stmt.query_map(params![self.dimension as i64, k as i64], |row| {
+                row.get::<_, String>(0)
+            })?;
             let mut scored = Vec::with_capacity(k);
             for row in rows {
                 scored.push((row?, 0.0f32));

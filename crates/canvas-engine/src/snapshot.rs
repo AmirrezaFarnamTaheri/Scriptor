@@ -4,7 +4,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::error::CanvasError;
-use crate::scene::{CanvasBlockKind, CanvasDocument, CanvasRect, layer_by_id};
+use crate::scene::{CanvasBlockKind, CanvasDocument, CanvasRect, CanvasShapeKind, layer_by_id};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -61,10 +61,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             "#64748b",
         );
         let block_id = xml_escape(&block.id);
-        let label = block
-            .content_ref
-            .as_deref()
-            .unwrap_or(&block.id);
+        let label = block.content_ref.as_deref().unwrap_or(&block.id);
 
         match block.kind {
             CanvasBlockKind::Connector => {
@@ -116,7 +113,8 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             _ => {}
         }
 
-        if let Some(points) = block.stroke_points.as_deref()
+        if matches!(block.shape_kind, Some(CanvasShapeKind::Freehand))
+            && let Some(points) = block.stroke_points.as_deref()
             && points.len() >= 2
         {
             use std::fmt::Write;
@@ -289,6 +287,23 @@ fn scene_bounds(document: &CanvasDocument) -> CanvasRect {
         min_y = min_y.min(block.bounds.y);
         max_x = max_x.max(block.bounds.x + block.bounds.width);
         max_y = max_y.max(block.bounds.y + block.bounds.height);
+
+        if matches!(block.shape_kind, Some(CanvasShapeKind::Freehand))
+            && let Some(points) = block.stroke_points.as_deref()
+        {
+            let stroke_pad = block
+                .style
+                .as_ref()
+                .and_then(|style| style.stroke_width)
+                .unwrap_or(2.0)
+                / 2.0;
+            for point in points {
+                min_x = min_x.min(point.x - stroke_pad);
+                min_y = min_y.min(point.y - stroke_pad);
+                max_x = max_x.max(point.x + stroke_pad);
+                max_y = max_y.max(point.y + stroke_pad);
+            }
+        }
     }
 
     let x = if min_x.is_finite() {

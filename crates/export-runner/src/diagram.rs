@@ -16,6 +16,9 @@ const WHICH_TIMEOUT: Duration = Duration::from_secs(10);
 /// How often the timeout loop polls the child.
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
+/// Maximum bytes read from a diagram subprocess to prevent unbounded memory growth.
+const MAX_DIAGRAM_OUTPUT_BYTES: u64 = 16 * 1024 * 1024;
+
 /// Run `command` to completion, capturing stdout/stderr, but kill it if it
 /// outlives `timeout`.
 ///
@@ -28,19 +31,25 @@ fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<O
         .stderr(Stdio::piped())
         .spawn()?;
 
-    // Drain both pipes concurrently: polling try_wait() while the child fills
-    // the pipe buffer would deadlock exactly like a plain wait() would.
+    // Drain both pipes concurrently with a bounded limit: polling try_wait() while the child
+    // fills the pipe buffer would deadlock, and unbounded reading can exhaust memory.
     let stdout_reader = child.stdout.take().map(|mut pipe| {
         std::thread::spawn(move || {
             let mut buffer = Vec::new();
-            let _ = pipe.read_to_end(&mut buffer);
+            let _ = pipe
+                .by_ref()
+                .take(MAX_DIAGRAM_OUTPUT_BYTES)
+                .read_to_end(&mut buffer);
             buffer
         })
     });
     let stderr_reader = child.stderr.take().map(|mut pipe| {
         std::thread::spawn(move || {
             let mut buffer = Vec::new();
-            let _ = pipe.read_to_end(&mut buffer);
+            let _ = pipe
+                .by_ref()
+                .take(MAX_DIAGRAM_OUTPUT_BYTES)
+                .read_to_end(&mut buffer);
             buffer
         })
     });
@@ -308,7 +317,8 @@ fn which_binary(name: &str) -> Option<std::path::PathBuf> {
     if let Some(path_var) = std::env::var_os("PATH") {
         #[cfg(windows)]
         {
-            let pathext_var = std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
+            let pathext_var =
+                std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
             let pathexts: Vec<String> = std::env::split_paths(&pathext_var)
                 .filter_map(|p| p.to_str().map(|s| s.to_ascii_lowercase()))
                 .collect();

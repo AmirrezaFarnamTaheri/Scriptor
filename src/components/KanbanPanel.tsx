@@ -259,21 +259,21 @@ const KanbanCard = memo(function KanbanCard({
       <div className="kanban-card__actions" aria-label="Move card">
         <button
           type="button"
-          className="icon-button"
+          className="icon-button kanban-card__move"
           disabled={!canMoveLeft || isPending}
           onClick={onMoveLeft}
-          title="Move to previous column"
-          aria-label="Move to previous column"
+          title={`Move ${card.text} left`}
+          aria-label={`Move ${card.text} left`}
         >
           <ChevronLeft aria-hidden="true" />
         </button>
         <button
           type="button"
-          className="icon-button"
+          className="icon-button kanban-card__move"
           disabled={!canMoveRight || isPending}
           onClick={onMoveRight}
-          title="Move to next column"
-          aria-label="Move to next column"
+          title={`Move ${card.text} right`}
+          aria-label={`Move ${card.text} right`}
         >
           <ChevronRight aria-hidden="true" />
         </button>

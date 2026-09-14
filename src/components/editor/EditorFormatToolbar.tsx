@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo, useMemo, useRef } from 'react'
 import {
   AlignCenter,
   Archive,
@@ -160,10 +160,12 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
     }),
   ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t, toolbarExtras])
 
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
   return (
-    <div className="editor-toolbar-wrapper">
-      <CustomizableToolbar extras={extras}>
-        <div className="format-group" aria-label={t('editor.toolbar.viewMode')}>
+    <div className="editor-toolbar-wrapper" ref={wrapperRef}>
+      <div className="format-row editor-toolbar" role="toolbar" aria-label={t('editor.toolbar.markdownTools')}>
+        <div className="format-group editor-view-modes" aria-label={t('editor.toolbar.viewMode')}>
           {(
             [
               [t('editor.view.source'), 'source'],
@@ -174,7 +176,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             <button
               type="button"
               key={mode}
-              className={editorSurfaceMode === mode ? 'active' : undefined}
+              className={editorSurfaceMode === mode ? 'view-mode active' : 'view-mode'}
               aria-pressed={editorSurfaceMode === mode}
               onClick={() => onEditorSurfaceModeChange?.(mode)}
             >
@@ -182,6 +184,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             </button>
           ))}
         </div>
+        <CustomizableToolbar extras={extras} hostRef={wrapperRef}>
         <div className="format-group" aria-label={t('editor.toolbar.structure')}>
           <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
             <Heading1 />
@@ -386,6 +389,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
           onOpenExport={() => onOpenPublishCenter?.()}
         />
       ) : null}
+      </div>
     </div>
   )
 })
