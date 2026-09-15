@@ -555,7 +555,11 @@ mod tests {
     fn resource_sync_grants_are_plan_scoped() {
         let broker = AuthorizationBroker::default();
         let grant = broker
-            .issue(SensitiveOperation::ResourceSync, Some("plan-a".into()), None)
+            .issue(
+                SensitiveOperation::ResourceSync,
+                Some("plan-a".into()),
+                None,
+            )
             .unwrap();
         assert!(
             broker

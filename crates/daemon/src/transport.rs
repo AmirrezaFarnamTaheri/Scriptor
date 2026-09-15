@@ -364,7 +364,9 @@ fn dispatch_request(
                 );
                 response = RpcResponse {
                     id,
-                    result: RpcResult::failed(format!("vault watcher failed to restart after OpenVault: {error}")),
+                    result: RpcResult::failed(format!(
+                        "vault watcher failed to restart after OpenVault: {error}"
+                    )),
                 };
             }
             response

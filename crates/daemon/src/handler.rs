@@ -801,7 +801,6 @@ mod tests {
         }
     }
 
-
     #[test]
     fn list_commands_excludes_operations_that_require_desktop_authorization() {
         let mut state = DaemonState::default();

@@ -668,4 +668,3 @@ mod tests {
         assert!(err.contains("vault-1"));
     }
 }
-
