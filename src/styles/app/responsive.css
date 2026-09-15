@@ -181,7 +181,7 @@
   }
 
   .workspace-switcher select {
-    max-width: 120px;
+    max-width: min(150px, 20vw);
   }
 
   .topbar {

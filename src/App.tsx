@@ -382,9 +382,8 @@ function App() {
   const setEditorSurfaceMode = useCallback(
     (mode: 'source' | 'split' | 'rendered') => {
       patchChrome({ editorSurfaceMode: mode })
-      setActiveMode(mode === 'rendered' ? 'preview' : 'inspector')
     },
-    [patchChrome, setActiveMode],
+    [patchChrome],
   )
 
   const splitPreviewActive = chrome.editorSurfaceMode === 'split'
@@ -515,9 +514,10 @@ function App() {
     (collapsed) => patchChrome({ inspectorCollapsed: collapsed })
   )
   const showInspectorPreview =
-    (chrome.editorSurfaceMode === 'rendered' || activeMode === 'preview') &&
+    activeMode === 'preview' &&
     Boolean(workspace.activePath) &&
-    !showSplitPreview
+    !showSplitPreview &&
+    chrome.editorSurfaceMode !== 'rendered'
 
   // Analytics derived from the draft (TOC, lint, word counts, citations,
   // inspector preview) render from a deferred draft so a burst of keystrokes

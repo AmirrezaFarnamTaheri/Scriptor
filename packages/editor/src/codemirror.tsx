@@ -145,7 +145,14 @@ class CodeMirrorAdapter implements EditorAdapter {
         '.cm-gutters': {
           backgroundColor: 'transparent',
           borderRight: '1px solid var(--border)',
-          color: 'var(--faint)',
+          color: 'var(--muted)',
+        },
+        '.cm-lineNumbers .cm-gutterElement': {
+          color: 'var(--muted)',
+        },
+        '.cm-lineNumbers .cm-gutterElement.cm-activeLineGutter': {
+          color: 'var(--ink-strong)',
+          fontWeight: '600',
         },
         '&.cm-focused .cm-cursor': {
           borderLeftColor: 'var(--primary)',

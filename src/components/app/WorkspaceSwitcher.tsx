@@ -5,6 +5,11 @@ interface WorkspaceSwitcherProps {
   onChooseVault: () => void
 }
 
+function getVaultLabel(vaultPath: string): string {
+  const parts = vaultPath.split(/[/\\]/).filter(Boolean)
+  return parts.length > 0 ? parts[parts.length - 1] : vaultPath
+}
+
 export function WorkspaceSwitcher({
   recentVaults,
   activeVaultPath,
@@ -32,8 +37,8 @@ export function WorkspaceSwitcher({
           Select vault
         </option>
         {recentVaults.map((path) => (
-          <option key={path} value={path}>
-            {path}
+          <option key={path} value={path} title={path}>
+            {getVaultLabel(path)}
           </option>
         ))}
         <option value="__choose__">Open another vault…</option>

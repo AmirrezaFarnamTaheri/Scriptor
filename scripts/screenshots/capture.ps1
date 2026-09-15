@@ -32,7 +32,7 @@ try {
     pnpm @screenshotArgs
     $captureExitCode = $LASTEXITCODE
 
-    if ($UpdateBaselines -and $captureExitCode -eq 0) {
+    if ($captureExitCode -eq 0) {
         Write-Host "==> Capture docs-only visual-review states"
         pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=1
         $captureExitCode = $LASTEXITCODE
