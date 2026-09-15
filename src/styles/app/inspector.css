@@ -38,7 +38,7 @@
   color: var(--muted);
   font-size: 13px;
   font-weight: 560;
-  transition: background var(--ease-soft), color var(--ease-soft), box-shadow var(--ease-soft);
+  transition: background 150ms var(--ease-soft), color 150ms var(--ease-soft), box-shadow 150ms var(--ease-soft);
 }
 
 .inspector-tabs button.active {
@@ -62,7 +62,7 @@
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--shadow-sm);
-  transition: border-color var(--ease-fast), background var(--ease-fast), box-shadow var(--ease-fast);
+  transition: border-color 150ms var(--ease-fast), background 150ms var(--ease-fast), box-shadow 150ms var(--ease-fast);
 }
 
 .widget-card:hover {

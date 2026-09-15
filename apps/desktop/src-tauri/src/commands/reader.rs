@@ -172,6 +172,9 @@ fn load_store(root: &std::path::Path) -> Result<AnnotationStore, String> {
 fn save_store(root: &std::path::Path, store: &AnnotationStore) -> Result<(), String> {
     validate_store(store)?;
     let path = annotation_store_path(root);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
+    }
     let payload = serde_json::to_vec_pretty(store).map_err(|error| error.to_string())?;
     if payload.len() as u64 > MAX_ANNOTATION_STORE_BYTES {
         return Err(format!(

@@ -1,5 +1,5 @@
 import { AlertCircle, CheckCircle2, GitBranch, RefreshCw } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { GitDiffPreview } from './GitDiffPreview'
@@ -33,7 +33,7 @@ export interface GitPanelProps {
 const GIT_ROW_HEIGHT = 56
 const GIT_ROW_OVERSCAN = 8
 
-export function GitPanel({
+export const GitPanel = memo(function GitPanel({
   status,
   statusError,
   isStatusLoading,
@@ -122,6 +122,15 @@ export function GitPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveSelection.length, effectiveSelection.join(',')])
 
+  const tabs = useMemo(
+    () => [
+      { id: 'changes', label: t('git.changes') },
+      { id: 'diff', label: t('git.headDiff') },
+    ],
+    [t],
+  )
+  const handleTabChange = useCallback((next: string) => setTab(next as GitTab), [setTab])
+
   if (panelState === 'loading') {
     return (
       <UnifiedPanelShell
@@ -196,12 +205,9 @@ export function GitPanel({
       presentation={presentation}
       className="git-panel knowledge-filters-panel"
       wide
-      tabs={[
-        { id: 'changes', label: t('git.changes') },
-        { id: 'diff', label: t('git.headDiff') },
-      ]}
+      tabs={tabs}
       activeTab={tab}
-      onTabChange={(next) => setTab(next as GitTab)}
+      onTabChange={handleTabChange}
       headerActions={
         <button type="button" className="toolbar-button" disabled={isBusy || isStatusLoading} onClick={onRefresh}>
           {t('actions.refresh')}
@@ -393,4 +399,4 @@ export function GitPanel({
       ) : null}
     </UnifiedPanelShell>
   )
-}
+})

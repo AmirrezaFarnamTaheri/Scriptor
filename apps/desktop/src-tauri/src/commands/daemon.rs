@@ -101,6 +101,7 @@ pub fn daemon_start(
         &authorization_token,
         SensitiveOperation::DaemonControl,
         Some("background-daemon"),
+        None,
     )?;
     if daemon_ping().is_ok() {
         return read_endpoint().map_err(|error| error.to_string());

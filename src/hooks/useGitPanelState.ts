@@ -91,9 +91,9 @@ export function useGitPanelState({
     const readBefore = readNoteAtHead ? readNoteAtHead(requestedPath) : Promise.resolve(null)
     const readWorking = readNoteWorking ? readNoteWorking(requestedPath) : Promise.resolve(null)
     void Promise.all([readBefore, readWorking])
-      .then(async ([head, working]) => {
+      .then(([head, working]) => {
         const before = head ?? ''
-        const after = working ?? (readNoteAtHead ? (await readNoteAtHead(requestedPath)) ?? '' : '')
+        const after = readNoteWorking ? (working ?? '') : before
         if (!cancelled) setDiffState({ path: requestedPath, before, after, error: null })
       })
       .catch((error: unknown) => {
@@ -114,7 +114,7 @@ export function useGitPanelState({
   const activeDiffState = diffState?.path === previewPath ? diffState : null
   const diffBefore = activeDiffState?.before ?? ''
   const diffAfter = activeDiffState?.after ?? ''
-  const diffStatus = activeDiffState?.error ?? (tab === 'diff' && previewPath ? t('git.loadingDiff') : '')
+  const diffStatus = activeDiffState ? activeDiffState.error ?? '' : (tab === 'diff' && previewPath ? t('git.loadingDiff') : '')
 
   return {
     panelState,

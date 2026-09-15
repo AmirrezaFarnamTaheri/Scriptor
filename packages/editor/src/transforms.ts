@@ -14,23 +14,9 @@ import {
 } from './transform-logic.ts'
 import { moveSectionDown, moveSectionUp } from './move-section.ts'
 import { insertFootnoteRef } from './footnotes.ts'
+import type { EditorTransformAction } from './editor-types.ts'
 
-export type EditorTransformAction =
-  | 'bold'
-  | 'italic'
-  | 'strikethrough'
-  | 'h1'
-  | 'h2'
-  | 'h3'
-  | 'blockquote'
-  | 'code'
-  | 'link'
-  | 'table'
-  | 'table-add-row'
-  | 'table-add-col'
-  | 'move-section-up'
-  | 'move-section-down'
-  | 'footnote'
+export type { EditorTransformAction }
 
 export function wrapText(editor: EditorView, prefix: string, suffix = prefix): void {
   const selection =

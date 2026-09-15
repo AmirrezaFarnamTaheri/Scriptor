@@ -39,7 +39,7 @@ export function useWorkspaceSession(
   const persist = useCallback(async () => {
     if (!vaultId) return
     const writes = writesRef.current
-    await writes.enqueue(vaultId, writes.generation(), () => vaultSaveWorkspaceSession(payload))
+    await writes.enqueue(vaultId, writes.generation(), () => vaultSaveWorkspaceSession(payload, vaultId))
   }, [payload, vaultId])
 
   useEffect(() => {

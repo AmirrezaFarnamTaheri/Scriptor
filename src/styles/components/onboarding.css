@@ -5,9 +5,9 @@
 .onboarding-tour.unified-panel-shell[class] {
   width: min(440px, calc(100vw - 32px));
   max-height: min(720px, calc(100dvh - 32px));
-  border-radius: var(--radius-lg);
-  border-color: var(--border-strong);
+  border: 1px solid var(--border-strong);
   background: var(--dialog-bg, var(--bg-elevated));
+  box-shadow: var(--shadow-lg);
 }
 
 .onboarding-tour.unified-panel-shell .unified-panel-header {

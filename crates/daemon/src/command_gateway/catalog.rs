@@ -132,5 +132,7 @@ pub fn requires_desktop_authorization(command: &str) -> bool {
             | "git_pull_cmd"
             | "git_push_cmd"
             | "git_resolve_conflict_cmd"
+            | "pdf_translate"
+            | "plantuml_render"
     )
 }

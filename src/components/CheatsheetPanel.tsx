@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { BookOpen, X } from 'lucide-react'
 
 import { MERMAID_SNIPPETS, MATH_SNIPPETS } from '@scriptor/editor/pure'
@@ -18,7 +19,7 @@ const MARKDOWN_REFERENCE = [
   { label: 'Find / replace', value: 'Ctrl+F / Ctrl+H' },
 ]
 
-export function CheatsheetPanel({ onClose }: CheatsheetPanelProps) {
+export const CheatsheetPanel = memo(function CheatsheetPanel({ onClose }: CheatsheetPanelProps) {
   useEscapeToClose(true, onClose)
 
   return (
@@ -84,4 +85,4 @@ export function CheatsheetPanel({ onClose }: CheatsheetPanelProps) {
       </section>
     </div>
   )
-}
+})

@@ -197,9 +197,15 @@ export function installE2eBridge(): void {
           path?: string
           markdown?: string
           expectedContentHash?: string | null
+          expectedVaultId?: string | null
         }
         const path = String(body.path ?? 'Research Plan.md')
         const markdown = String(body.markdown ?? '')
+        if (body.expectedVaultId != null && body.expectedVaultId !== 'screenshot-vault') {
+          throw new Error(
+            `stale save target: note belongs to vault '${body.expectedVaultId}', but active vault is 'screenshot-vault'`,
+          )
+        }
         if (
           window.sessionStorage.getItem('e2e:hash-mismatch') === '1' &&
           body.expectedContentHash &&

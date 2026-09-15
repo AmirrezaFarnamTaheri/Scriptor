@@ -143,9 +143,18 @@ pub fn canvas_snapshot(
 pub fn canvas_save_document(
     state: tauri::State<AppState>,
     scene_json: String,
+    expected_vault_id: Option<String>,
 ) -> Result<String, String> {
     let session = require_canvas_capability(&state)?;
+    crate::commands::vault::validate_expected_vault(
+        &session.descriptor.id,
+        expected_vault_id.as_deref(),
+    )?;
     let document = parse_document_json(&scene_json).map_err(|error| error.to_string())?;
+    crate::commands::vault::validate_expected_vault(
+        &session.descriptor.id,
+        Some(&document.vault_id),
+    )?;
     let path = save_document(session.root.root(), &document).map_err(|error| error.to_string())?;
     Ok(path.display().to_string())
 }

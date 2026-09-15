@@ -16,6 +16,9 @@ const WHICH_TIMEOUT: Duration = Duration::from_secs(10);
 /// How often the timeout loop polls the child.
 const POLL_INTERVAL: Duration = Duration::from_millis(25);
 
+/// Maximum bytes read from a diagram subprocess to prevent unbounded memory growth.
+const MAX_DIAGRAM_OUTPUT_BYTES: u64 = 16 * 1024 * 1024;
+
 /// Run `command` to completion, capturing stdout/stderr, but kill it if it
 /// outlives `timeout`.
 ///
@@ -28,19 +31,27 @@ fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<O
         .stderr(Stdio::piped())
         .spawn()?;
 
-    // Drain both pipes concurrently: polling try_wait() while the child fills
-    // the pipe buffer would deadlock exactly like a plain wait() would.
+    // Drain both pipes concurrently with a bounded limit: polling try_wait() while the child
+    // fills the pipe buffer would deadlock, and unbounded reading can exhaust memory.
     let stdout_reader = child.stdout.take().map(|mut pipe| {
         std::thread::spawn(move || {
             let mut buffer = Vec::new();
-            let _ = pipe.read_to_end(&mut buffer);
+            let _ = pipe
+                .by_ref()
+                .take(MAX_DIAGRAM_OUTPUT_BYTES)
+                .read_to_end(&mut buffer);
+            let _ = io::copy(&mut pipe, &mut io::sink());
             buffer
         })
     });
     let stderr_reader = child.stderr.take().map(|mut pipe| {
         std::thread::spawn(move || {
             let mut buffer = Vec::new();
-            let _ = pipe.read_to_end(&mut buffer);
+            let _ = pipe
+                .by_ref()
+                .take(MAX_DIAGRAM_OUTPUT_BYTES)
+                .read_to_end(&mut buffer);
+            let _ = io::copy(&mut pipe, &mut io::sink());
             buffer
         })
     });
@@ -305,6 +316,61 @@ fn validate_binary_path(binary: &Path, env_var: &str) -> Result<(), String> {
 }
 
 fn which_binary(name: &str) -> Option<std::path::PathBuf> {
+    if let Some(path_var) = std::env::var_os("PATH") {
+        #[cfg(windows)]
+        {
+            let pathext_var =
+                std::env::var_os("PATHEXT").unwrap_or_else(|| ".COM;.EXE;.BAT;.CMD".into());
+            let pathexts: Vec<String> = std::env::split_paths(&pathext_var)
+                .filter_map(|p| p.to_str().map(|s| s.to_ascii_lowercase()))
+                .collect();
+            let has_ext = Path::new(name).extension().is_some();
+
+            for dir in std::env::split_paths(&path_var) {
+                if has_ext {
+                    let candidate = dir.join(name);
+                    if candidate.is_file() {
+                        return Some(candidate);
+                    }
+                } else {
+                    for ext in &pathexts {
+                        let candidate = dir.join(format!("{name}{ext}"));
+                        if candidate.is_file() {
+                            return Some(candidate);
+                        }
+                    }
+                    let candidate = dir.join(name);
+                    if candidate.is_file() {
+                        return Some(candidate);
+                    }
+                }
+            }
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            for dir in std::env::split_paths(&path_var) {
+                let candidate = dir.join(name);
+                if candidate.is_file()
+                    && candidate
+                        .metadata()
+                        .is_ok_and(|metadata| metadata.permissions().mode() & 0o111 != 0)
+                {
+                    return Some(candidate);
+                }
+            }
+        }
+        #[cfg(not(any(windows, unix)))]
+        {
+            for dir in std::env::split_paths(&path_var) {
+                let candidate = dir.join(name);
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+    }
+
     if cfg!(windows) {
         // PROCESS_BROKER_EXCEPTION(diagram-discovery-windows)
         output_with_timeout(Command::new("where").arg(name), WHICH_TIMEOUT)

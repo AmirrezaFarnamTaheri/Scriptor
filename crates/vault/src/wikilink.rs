@@ -25,7 +25,11 @@ const DIRECTORY_INDEX_NAMES: [&str; 2] = ["index", "readme"];
 /// especially across macOS and Windows/Linux sync. Normalize before
 /// case-folding so wikilink identity does not depend on the host's spelling.
 pub fn normalize_lookup_key(value: &str) -> String {
-    let lowered: String = value.trim().nfc().flat_map(char::to_lowercase).collect();
+    let trimmed = value.trim();
+    if trimmed.is_ascii() {
+        return trimmed.to_ascii_lowercase();
+    }
+    let lowered: String = trimmed.nfc().flat_map(char::to_lowercase).collect();
     lowered.nfc().collect()
 }
 

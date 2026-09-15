@@ -119,7 +119,7 @@ export function useWorkspaceNoteFactory({
       const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), typeName, templateBody ?? null)
       setError(null)
       try {
-        await vaultSaveNote(path, markdown)
+        await vaultSaveNote(path, markdown, undefined, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)
@@ -144,7 +144,7 @@ export function useWorkspaceNoteFactory({
         const template = await vaultLoadTemplate(templatePath)
         const path = defaultNotePath(noteTitle)
         const markdown = await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, template)
-        await vaultSaveNote(path, markdown)
+        await vaultSaveNote(path, markdown, undefined, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)
@@ -171,7 +171,7 @@ export function useWorkspaceNoteFactory({
         } catch {
           // create below
         }
-        await vaultSaveNote(plan.path, plan.markdown)
+        await vaultSaveNote(plan.path, plan.markdown, undefined, undefined, vault.id)
         await indexerUpdateNote(plan.path)
         await refreshVaultCore()
         await openNote(plan.path)
@@ -200,7 +200,7 @@ export function useWorkspaceNoteFactory({
         const markdown =
           initialMarkdown ?? (await vaultBuildNoteMarkdown(noteTitle.replace(/\.md$/i, ''), null, null))
         setError(null)
-        await vaultSaveNote(path, markdown, options.requireMissing ? '<missing>' : undefined)
+        await vaultSaveNote(path, markdown, options.requireMissing ? '<missing>' : undefined, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)
@@ -238,7 +238,7 @@ export function useWorkspaceNoteFactory({
 
       setError(null)
       try {
-        await vaultSaveNote(path, markdown)
+        await vaultSaveNote(path, markdown, undefined, undefined, vault.id)
         await indexerUpdateNote(path)
         await refreshVaultCore()
         await openNote(path)

@@ -12,7 +12,7 @@
  *    workbench layout without the modal chrome.
  */
 
-import { useRef, useState } from 'react'
+import { memo, useCallback, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import {
   Calendar,
@@ -55,7 +55,7 @@ interface TaskRowItemProps {
   onOpenNote: (path: string) => void
 }
 
-function TaskRowItem({
+const TaskRowItem = memo(function TaskRowItem({
   task,
   expanded,
   isPending,
@@ -217,7 +217,7 @@ function TaskRowItem({
       )}
     </li>
   )
-}
+})
 
 // ── Filter bar ────────────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ interface FilterBarProps {
   onSetSort: (k: TaskSortKey) => void
 }
 
-function FilterBar({
+const FilterBar = memo(function FilterBar({
   filter,
   sortKey,
   onSetFilter,
@@ -310,7 +310,7 @@ function FilterBar({
       )}
     </div>
   )
-}
+})
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
@@ -322,7 +322,7 @@ export interface TaskPanelProps {
   runSourceNoteMutation?: RunSourceNoteMutation
 }
 
-export function TaskPanel({
+export const TaskPanel = memo(function TaskPanel({
   embedded = false,
   vaultOpen,
   onClose,
@@ -332,20 +332,20 @@ export function TaskPanel({
   const store = useTaskStore(runSourceNoteMutation)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  const handlePatchStatus = (taskId: string, status: string) => {
+  const handlePatchStatus = useCallback((taskId: string, status: string) => {
     // The store publishes mutationError for this surface. Consume the rejected
     // promise as well so a failed native mutation never escapes React's event
     // handler as an unhandled rejection.
     void store.patchStatus(taskId, status).catch(() => undefined)
-  }
+  }, [store])
 
-  const handlePatchDue = (taskId: string, dueAt: string | null) => {
+  const handlePatchDue = useCallback((taskId: string, dueAt: string | null) => {
     void store.patchDue(taskId, dueAt).catch(() => undefined)
-  }
+  }, [store])
 
-  const handleToggleExpand = (id: string) => {
+  const handleToggleExpand = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id))
-  }
+  }, [])
 
   if (!vaultOpen) {
     return embedded ? (
@@ -426,4 +426,4 @@ export function TaskPanel({
       {body}
     </UnifiedPanelShell>
   )
-}
+})

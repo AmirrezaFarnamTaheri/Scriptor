@@ -1,5 +1,14 @@
-import { lazy, Suspense, type CSSProperties, type PointerEventHandler, type RefObject } from 'react'
-import { Bold, CheckCircle2, FileText, FolderOpen, Italic, Link } from 'lucide-react'
+import {
+  lazy,
+  memo,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  type CSSProperties,
+  type PointerEventHandler,
+  type RefObject,
+} from 'react'
+import { CheckCircle2, FileText, FolderOpen } from 'lucide-react'
 import type {
   EditorAutocompleteContext,
   EditorThemeId,
@@ -14,15 +23,11 @@ import type { MonacoCompletionContext } from '../../lib/monaco-completions'
 
 type EditorTransformAction = import('@scriptor/editor').EditorTransformAction
 
-import { InlineEditorAssist } from '../editor/InlineEditorAssist'
-import { EditorStructureMenu } from '../editor/EditorStructureMenu'
-import { EditorToolsMenu } from '../editor/EditorToolsMenu'
+import { EditorFormatToolbar } from '../editor/EditorFormatToolbar'
 import { useI18n } from '../../lib/i18n'
 import { EditorTabBar } from './EditorTabBar'
 import { ExternalChangeBanner } from '../ExternalChangeBanner'
 import { TocSidebar } from '../TocSidebar'
-import { TypographyMenu } from '../TypographyMenu'
-import { InsertMenu } from '../InsertMenu'
 import { SplitPaneHandle } from '../SplitPaneHandle'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
@@ -100,6 +105,8 @@ interface EditorWorkspaceProps {
   setLanguageTool: (updater: (value: boolean) => boolean) => void
   stickiesVisible: boolean
   setStickiesVisible: (value: boolean) => void
+  splitPreview?: boolean
+  setSplitPreview?: (updater: (value: boolean) => boolean) => void
   showSplitPreview: boolean
   splitEditorWidth: string
   splitDragging: boolean
@@ -158,7 +165,7 @@ interface EditorWorkspaceProps {
   layoutLocked?: boolean
 }
 
-export function EditorWorkspace(props: EditorWorkspaceProps) {
+function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
   const {
     activePath,
     onOpenVault,
@@ -206,6 +213,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     setLanguageTool,
     stickiesVisible,
     setStickiesVisible,
+    splitPreview,
+    setSplitPreview,
     showSplitPreview,
     splitEditorWidth,
     splitDragging,
@@ -214,8 +223,8 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     onSplitHandlePointerUp,
     onSplitHandlePointerCancel,
     onSplitHandleDoubleClick,
-    splitRatioPct,
-    onSplitHandleNudge,
+  splitRatioPct,
+  onSplitHandleNudge,
     editorWorkspaceRef,
     splitPreviewScrollRef,
     previewRef,
@@ -245,6 +254,7 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     readingMinutes,
     brokenLinkCount = 0,
     citationCount = 0,
+    hasFrontmatter: _hasFrontmatter = false,
     onOpenPublishCenter,
     showFormatToolbar = true,
     showEditorAssist = true,
@@ -254,6 +264,40 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
     onEditorSurfaceModeChange,
   } = props
   const { t } = useI18n()
+  const deferredDraftMarkdown = useDeferredValue(draftMarkdown)
+
+  const handleApplyEditorTransform = useCallback(
+    (action: EditorTransformAction) => {
+      if (editorRef?.current && 'applyTransform' in editorRef.current) {
+        editorRef.current.applyTransform(action)
+        return
+      }
+      applyEditorTransform(action)
+    },
+    [applyEditorTransform, editorRef],
+  )
+
+  const handleApplyEditorTypography = useCallback(
+    (action: TypographyAction) => {
+      if (editorRef?.current && 'applyTypography' in editorRef.current) {
+        editorRef.current.applyTypography(action)
+        return
+      }
+      applyEditorTypography(action)
+    },
+    [applyEditorTypography, editorRef],
+  )
+
+  const handleInsertSnippet = useCallback(
+    (content: string) => {
+      if (editorRef?.current && 'insertSnippet' in editorRef.current) {
+        editorRef.current.insertSnippet(content)
+        return
+      }
+      insertSnippet(content)
+    },
+    [editorRef, insertSnippet],
+  )
 
   return (
     <section className="editor-panel" aria-label={t('editor.ariaLabel')}>
@@ -269,107 +313,47 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
         onCloseTab={onCloseTab}
       />
       {showFormatToolbar ? (
-        <div className="editor-toolbar-wrapper">
-          <div className="format-row editor-toolbar" role="toolbar" aria-label={t('editor.toolbar.markdownTools')}>
-            <div className="format-group editor-view-modes" aria-label={t('editor.toolbar.viewMode')}>
-              {(
-                [
-                  [t('editor.view.source'), 'source'],
-                  [t('editor.view.split'), 'split'],
-                  [t('editor.view.preview'), 'rendered'],
-                ] as const
-              ).map(([label, mode]) => (
-                <button
-                  type="button"
-                  key={mode}
-                  className={editorSurfaceMode === mode ? 'view-mode active' : 'view-mode'}
-                  aria-pressed={editorSurfaceMode === mode}
-                  onClick={() => onEditorSurfaceModeChange?.(mode)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="format-group editor-primary-formatting" aria-label={t('editor.toolbar.styleAndInsert')}>
-              <button
-                type="button"
-                disabled={!activePath}
-                title={t('editor.transforms.bold')}
-                aria-label={t('editor.transforms.bold')}
-                onClick={() => applyEditorTransform('bold')}
-              >
-                <Bold />
-              </button>
-              <button
-                type="button"
-                disabled={!activePath}
-                title={t('editor.transforms.italic')}
-                aria-label={t('editor.transforms.italic')}
-                onClick={() => applyEditorTransform('italic')}
-              >
-                <Italic />
-              </button>
-              <button
-                type="button"
-                disabled={!activePath}
-                title={t('editor.transforms.link')}
-                aria-label={t('editor.transforms.link')}
-                onClick={() => applyEditorTransform('link')}
-              >
-                <Link />
-              </button>
-              <EditorStructureMenu
-                disabled={!activePath}
-                onTransform={applyEditorTransform}
-                onToggleToc={onToggleToc}
-                onOpenFrontmatter={onOpenFrontmatter}
-              />
-              <InsertMenu disabled={!activePath} onInsert={insertSnippet} />
-              <TypographyMenu disabled={!activePath} onSelect={applyEditorTypography} />
-              <EditorToolsMenu
-                activePath={activePath}
-                onOrganizeActive={onOrganizeActive}
-                onOpenWritingTargets={onOpenWritingTargets}
-                onOpenCheatsheet={onOpenCheatsheet}
-                onInsertCitation={() => insertSnippet('[@citekey]')}
-                onOpenExport={() => onOpenPublishCenter?.()}
-                stickiesVisible={stickiesVisible}
-                onToggleStickies={() => setStickiesVisible(!stickiesVisible)}
-                editorMode={editorMode}
-                onToggleEditorMode={toggleEditorMode}
-                editorTheme={editorTheme}
-                editorThemeSyncedToApp={editorThemeSyncedToApp}
-                onToggleEditorTheme={toggleEditorTheme}
-                vimMode={vimMode}
-                onToggleVim={() => setVimMode((value) => !value)}
-                spellcheck={spellcheck}
-                onToggleSpellcheck={() => setSpellcheck((value) => !value)}
-                wysiwyg={wysiwyg}
-                onToggleWysiwyg={() => setWysiwyg((value) => !value)}
-                typewriter={typewriter}
-                onToggleTypewriter={() => setTypewriter((value) => !value)}
-                distractionFree={distractionFree}
-                onToggleDistractionFree={() => setDistractionFree((value) => !value)}
-                languageTool={languageTool}
-                onToggleLanguageTool={() => setLanguageTool((value) => !value)}
-                onRenameActiveNote={renameActiveNote}
-                onInsertAiSummaryPrompt={() => insertSnippet('> [!ai] Summarize the section above.')}
-                onInsertRule={() => insertSnippet('\n---\n')}
-              />
-            </div>
-
-            {showEditorAssist ? (
-              <InlineEditorAssist
-                activePath={activePath}
-                brokenLinkCount={brokenLinkCount}
-                citationCount={citationCount}
-                onInsertCitation={() => insertSnippet('[@citekey]')}
-                onOpenExport={() => onOpenPublishCenter?.()}
-              />
-            ) : null}
-          </div>
-        </div>
+        <EditorFormatToolbar
+          activePath={activePath}
+          editorSurfaceMode={editorSurfaceMode}
+          onEditorSurfaceModeChange={onEditorSurfaceModeChange}
+          handleApplyEditorTransform={handleApplyEditorTransform}
+          onToggleToc={onToggleToc}
+          onOpenFrontmatter={onOpenFrontmatter}
+          handleApplyEditorTypography={handleApplyEditorTypography}
+          handleInsertSnippet={handleInsertSnippet}
+          onOrganizeActive={onOrganizeActive}
+          onOpenWritingTargets={onOpenWritingTargets}
+          onOpenCheatsheet={onOpenCheatsheet}
+          stickiesVisible={stickiesVisible}
+          setStickiesVisible={setStickiesVisible}
+          vimMode={vimMode}
+          setVimMode={setVimMode}
+          editorMode={editorMode}
+          toggleEditorMode={toggleEditorMode}
+          editorThemeSyncedToApp={editorThemeSyncedToApp}
+          editorTheme={editorTheme}
+          toggleEditorTheme={toggleEditorTheme}
+          spellcheck={spellcheck}
+          setSpellcheck={setSpellcheck}
+          wysiwyg={wysiwyg}
+          setWysiwyg={setWysiwyg}
+          typewriter={typewriter}
+          setTypewriter={setTypewriter}
+          distractionFree={distractionFree}
+          setDistractionFree={setDistractionFree}
+          languageTool={languageTool}
+          setLanguageTool={setLanguageTool}
+          renameActiveNote={renameActiveNote}
+          insertSnippet={insertSnippet}
+          splitPreview={splitPreview}
+          showSplitPreview={showSplitPreview}
+          setSplitPreview={setSplitPreview}
+          showEditorAssist={showEditorAssist}
+          brokenLinkCount={brokenLinkCount}
+          citationCount={citationCount}
+          onOpenPublishCenter={onOpenPublishCenter}
+        />
       ) : null}
 
       {externalChangeConflict ? (
@@ -412,59 +396,61 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                 />
               }
             >
-              <Suspense
-                fallback={
-                  <div className="editor-loading-state" role="status" aria-live="polite">
-                    <span className="editor-loading-shimmer" aria-hidden="true" />
-                    <span>{t('editor.loading')}</span>
-                  </div>
-                }
-              >
-                {editorMode === 'monaco' ? (
-                  <LazyMonacoMarkdownEditor
-                    key={activePath}
-                    notePath={activePath}
-                    value={draftMarkdown}
-                    onChange={updateDraft}
-                    insertRequest={editorInsertRequest}
-                    transformRequest={editorTransformRequest}
-                    scrollToLine={scrollToEditorLine}
-                    editorTheme={editorTheme}
-                    typewriter={typewriter}
-                    distractionFree={distractionFree}
-                    showLineNumbers={showLineNumbers}
-                    completionContext={monacoCompletionContext}
-                    className="markdown-editor monaco-editor-host"
-                  />
-                ) : (
-                  <LazyCodeMirrorMarkdownEditor
-                    ref={editorRef}
-                    key={activePath}
-                    value={draftMarkdown}
-                    onChange={updateDraft}
-                    scrollToLine={scrollToEditorLine}
-                    insertRequest={editorInsertRequest}
-                    transformRequest={editorTransformRequest}
-                    typographyRequest={editorTypographyRequest}
-                    scrollSyncEnabled={scrollSyncEnabled}
-                    onVisibleLineChange={handleEditorLine}
-                    snippetContext={snippetContext}
-                    snippetCatalog={snippetCatalog}
-                    autocompleteContext={editorAutocompleteContext}
-                    vimMode={vimMode}
-                    spellcheck={spellcheck}
-                    wysiwyg={wysiwyg}
-                    typewriter={typewriter}
-                    distractionFree={distractionFree}
-                    languageTool={languageTool}
-                    editorTheme={editorTheme}
-                    onVimSave={saveActiveNoteNow}
-                    saveImageFromClipboard={saveImageFromClipboard}
-                    showLineNumbers={showLineNumbers}
-                    className="markdown-editor"
-                  />
-                )}
-              </Suspense>
+            <Suspense
+              fallback={
+                <div className="editor-loading-state" role="status" aria-live="polite">
+                  <span className="editor-loading-shimmer" aria-hidden="true" />
+                  <span>{t('editor.loading')}</span>
+                </div>
+              }
+            >
+              {editorMode === 'monaco' ? (
+                <LazyMonacoMarkdownEditor
+                  ref={editorRef}
+                  key={activePath}
+                  notePath={activePath}
+                  value={draftMarkdown}
+                  onChange={updateDraft}
+                  insertRequest={editorInsertRequest}
+                  transformRequest={editorTransformRequest}
+                  typographyRequest={editorTypographyRequest}
+                  scrollToLine={scrollToEditorLine}
+                  editorTheme={editorTheme}
+                  typewriter={typewriter}
+                  distractionFree={distractionFree}
+                  showLineNumbers={showLineNumbers}
+                  completionContext={monacoCompletionContext}
+                  className="markdown-editor monaco-editor-host"
+                />
+              ) : (
+              <LazyCodeMirrorMarkdownEditor
+                ref={editorRef}
+                key={activePath}
+                value={draftMarkdown}
+                onChange={updateDraft}
+                scrollToLine={scrollToEditorLine}
+                insertRequest={editorInsertRequest}
+                transformRequest={editorTransformRequest}
+                typographyRequest={editorTypographyRequest}
+                scrollSyncEnabled={scrollSyncEnabled}
+                onVisibleLineChange={handleEditorLine}
+                snippetContext={snippetContext}
+                snippetCatalog={snippetCatalog}
+                autocompleteContext={editorAutocompleteContext}
+                vimMode={vimMode}
+                spellcheck={spellcheck}
+                wysiwyg={wysiwyg}
+                typewriter={typewriter}
+                distractionFree={distractionFree}
+                languageTool={languageTool}
+                editorTheme={editorTheme}
+                onVimSave={saveActiveNoteNow}
+                saveImageFromClipboard={saveImageFromClipboard}
+                showLineNumbers={showLineNumbers}
+                className="markdown-editor"
+                />
+              )}
+            </Suspense>
             </ErrorBoundary>
           ) : (
             <div className="editor-empty" role="status">
@@ -529,18 +515,18 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
                   />
                 }
               >
-                <MarkdownPreview
-                  ref={previewRef}
-                  markdown={draftMarkdown}
-                  className="markdown-preview"
-                  basePath={activePath}
-                  fetchNote={previewProps.fetchNote}
-                  readVaultText={previewProps.readVaultText}
-                  executeDql={previewProps.executeDql}
-                  runCodeChunk={previewProps.runCodeChunk}
-                  postProcessHtml={previewProps.postProcessHtml}
-                  renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
-                />
+              <MarkdownPreview
+                ref={previewRef}
+                markdown={deferredDraftMarkdown}
+                className="markdown-preview"
+                basePath={activePath}
+                fetchNote={previewProps.fetchNote}
+                readVaultText={previewProps.readVaultText}
+                executeDql={previewProps.executeDql}
+                runCodeChunk={previewProps.runCodeChunk}
+                postProcessHtml={previewProps.postProcessHtml}
+                renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
+              />
               </ErrorBoundary>
             </aside>
           </>
@@ -548,23 +534,25 @@ export function EditorWorkspace(props: EditorWorkspaceProps) {
       </div>
 
       {showEditorStatus ? (
-        <footer className="editor-status">
-          <span>
-            {t('editor.status.words', { count: draftWordCount.toLocaleString() })}
-            {wordCountDelta !== 0 ? (
-              <small className="word-count-delta">
-                {' '}
-                ({wordCountDelta > 0 ? '+' : ''}
-                {wordCountDelta})
-              </small>
-            ) : null}
-          </span>
-          <span>{t('editor.status.characters', { count: charCount.toLocaleString() })}</span>
-          <span>{readingMinutes > 0 ? t('editor.status.minRead', { count: readingMinutes }) : t('editor.status.minReadEmpty')}</span>
-          <span>{isSaving ? t('editor.status.saving') : lastSavedAt ? t('editor.status.saved', { time: lastSavedAt }) : t('editor.status.markdown')}</span>
-          <CheckCircle2 aria-hidden="true" />
-        </footer>
+      <footer className="editor-status">
+        <span>
+          {t('editor.status.words', { count: draftWordCount.toLocaleString() })}
+          {wordCountDelta !== 0 ? (
+            <small className="word-count-delta">
+              {' '}
+              ({wordCountDelta > 0 ? '+' : ''}
+              {wordCountDelta})
+            </small>
+          ) : null}
+        </span>
+        <span>{t('editor.status.characters', { count: charCount.toLocaleString() })}</span>
+        <span>{readingMinutes > 0 ? t('editor.status.minRead', { count: readingMinutes }) : t('editor.status.minReadEmpty')}</span>
+        <span>{isSaving ? t('editor.status.saving') : lastSavedAt ? t('editor.status.saved', { time: lastSavedAt }) : t('editor.status.markdown')}</span>
+        <CheckCircle2 />
+      </footer>
       ) : null}
     </section>
   )
 }
+
+export const EditorWorkspace = memo(EditorWorkspaceImpl)

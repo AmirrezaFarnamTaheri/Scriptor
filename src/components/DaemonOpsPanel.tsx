@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { Activity, Database, RefreshCw, Search, Server } from 'lucide-react'
 
 import {
@@ -20,7 +20,7 @@ interface DaemonOpsPanelProps {
   onStart: () => void
 }
 
-export function DaemonOpsPanel({
+function DaemonOpsPanelImpl({
   activePath,
   daemonVersion,
   daemonError,
@@ -245,3 +245,5 @@ export function DaemonOpsPanel({
     </div>
   )
 }
+
+export const DaemonOpsPanel = memo(DaemonOpsPanelImpl)

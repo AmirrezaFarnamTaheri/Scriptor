@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { AlertTriangle, CheckCircle2, FileOutput, Network } from 'lucide-react'
 
 import { WidgetCard } from '../chrome/WorkspaceChrome'
@@ -17,7 +18,7 @@ interface NoteQualityCardProps {
   onOpenGraph: () => void
 }
 
-export function NoteQualityCard({
+export const NoteQualityCard = memo(function NoteQualityCard({
   activePath,
   health,
   outboundLinks,
@@ -114,4 +115,5 @@ export function NoteQualityCard({
       </div>
     </WidgetCard>
   )
-}
+})
+

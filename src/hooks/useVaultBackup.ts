@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   vaultCreateBackup,
@@ -198,16 +198,30 @@ export function useVaultBackup(vaultOpen: boolean) {
     }
   }, [settings.enabled, settings.intervalMinutes, vaultOpen])
 
-  return {
-    settings,
-    setSettings,
-    backups,
-    isBusy,
-    lastError,
-    lastMessage,
-    triggerBackup,
-    restoreBackup,
-    deleteBackup,
-    listBackups,
-  }
+  return useMemo(
+    () => ({
+      settings,
+      setSettings,
+      backups,
+      isBusy,
+      lastError,
+      lastMessage,
+      triggerBackup,
+      restoreBackup,
+      deleteBackup,
+      listBackups,
+    }),
+    [
+      settings,
+      setSettings,
+      backups,
+      isBusy,
+      lastError,
+      lastMessage,
+      triggerBackup,
+      restoreBackup,
+      deleteBackup,
+      listBackups,
+    ],
+  )
 }

@@ -1,7 +1,7 @@
 //! Benchmark and fixture-generation helpers for the CLI bench-* commands.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Instant;
 
 use scriptor_indexer::{open_cache_for_session, rebuild_index, search_notes};
@@ -54,7 +54,7 @@ pub(crate) struct BenchSearchReport {
 }
 
 pub(crate) fn bench_scan(
-    path: &PathBuf,
+    path: &Path,
     iterations: u32,
 ) -> Result<BenchScanReport, Box<dyn std::error::Error>> {
     if iterations == 0 {
@@ -93,7 +93,7 @@ pub(crate) fn bench_scan(
 }
 
 pub(crate) fn bench_search(
-    path: &PathBuf,
+    path: &Path,
     query: &str,
     iterations: u32,
 ) -> Result<BenchSearchReport, Box<dyn std::error::Error>> {
@@ -163,7 +163,7 @@ pub(crate) struct BenchTantivyReport {
 
 #[cfg(feature = "tantivy")]
 pub(crate) fn bench_tantivy(
-    path: &PathBuf,
+    path: &Path,
     query: &str,
     iterations: u32,
 ) -> Result<BenchTantivyReport, Box<dyn std::error::Error>> {

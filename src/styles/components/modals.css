@@ -1,5 +1,14 @@
 /* Modal and toast overlays */
 
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -9,7 +18,7 @@
   background: var(--overlay);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  animation: fade-rise var(--ease-gentle) both;
+  animation: overlay-fade-in 150ms var(--ease-soft) both;
 }
 
 /* P2: Toast region — multiple toasts stack vertically without overlap. */

@@ -1,3 +1,4 @@
+import { memo, Suspense } from 'react'
 import type { useVaultWorkspace } from '../../hooks/useVaultWorkspace'
 import type { useWorkspaceStore } from '../../hooks/useWorkspaceStore'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
@@ -5,7 +6,6 @@ import { ErrorBoundary } from '../ErrorBoundary'
 import { PanelErrorFallback } from '../PanelErrorFallback'
 import { StickyNotesLayer } from '../portal/StickyNotesLayer'
 import { PanelFallback, QuickCapturePanel } from './lazyPanels'
-import { Suspense } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 
 type VaultWorkspace = ReturnType<typeof useVaultWorkspace>
@@ -24,7 +24,7 @@ interface QuickCaptureWorkspaceLayerProps {
  * Owns quick-capture mutations and sticky-note persistence so the application
  * shell only decides whether the capture surface is visible.
  */
-export function QuickCaptureWorkspaceLayer({
+export const QuickCaptureWorkspaceLayer = memo(function QuickCaptureWorkspaceLayer({
   isOpen,
   stickiesVisible,
   presentation,
@@ -199,4 +199,4 @@ export function QuickCaptureWorkspaceLayer({
       />
     </>
   )
-}
+})

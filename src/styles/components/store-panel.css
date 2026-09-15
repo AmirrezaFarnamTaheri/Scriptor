@@ -196,7 +196,7 @@
   background: transparent;
   color: var(--text-muted);
   font-size: var(--text-sm);
-  transition: background var(--ease-fast), color var(--ease-fast);
+  transition: background 120ms var(--ease-fast), color 120ms var(--ease-fast);
   white-space: nowrap;
 }
 
@@ -254,7 +254,7 @@
 }
 
 .store-audit-toggle svg {
-  transition: transform var(--ease-fast);
+  transition: transform 120ms var(--ease-fast);
 }
 
 .store-audit-toggle[aria-expanded='true'] svg {

@@ -23,13 +23,13 @@ use tauri::AppHandle;
 
 use crate::AppState;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::{active_session, use_headless_engine, write_recover};
+use crate::state::{active_session, lock_recover, use_headless_engine, write_recover};
 
 use super::daemon::{
     bridge_health_report, bridge_reload_config, bridge_rename_apply, bridge_save_note,
 };
 use super::media::save_vault_asset;
-use super::shared::{parse_daemon_json, restart_vault_watcher};
+use super::shared::{create_vault_watcher, parse_daemon_json};
 
 #[tauri::command]
 pub fn vault_open(
@@ -45,10 +45,16 @@ pub fn vault_open(
     }
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
-    *write_recover(&state.session, "session") = Some(session.clone());
-    // The previous vault's GitQueue handle must not serve the next vault.
-    crate::state::reset_git_queue(&state);
-    restart_vault_watcher(&app, &state, &session)?;
+    let (watcher, watcher_generation) = create_vault_watcher(&app, &state, &session)?;
+    {
+        let mut session_guard = write_recover(&state.session, "session");
+        *session_guard = Some(session);
+        crate::state::reset_git_queue(&state);
+        *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
+        state
+            .vault_watcher_generation
+            .store(watcher_generation, std::sync::atomic::Ordering::Release);
+    }
     Ok(output)
 }
 
@@ -76,12 +82,14 @@ pub fn vault_save_note(
     markdown: String,
     expected_content_hash: Option<String>,
     dry_run: Option<bool>,
+    expected_vault_id: Option<String>,
 ) -> Result<SaveNoteOutput, String> {
+    let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     if use_headless_engine(&state) {
         let json = bridge_save_note(path, markdown, expected_content_hash, dry_run)?;
         return parse_daemon_json(&json);
     }
-    let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     save_note_with_options(
         &session.descriptor.id,
@@ -143,11 +151,11 @@ pub fn vault_rename_apply(
     update_links: bool,
     expected_source_hash: Option<String>,
 ) -> Result<RenameNoteApplyOutput, String> {
+    let session = active_session(&state)?;
     if use_headless_engine(&state) {
         let json = bridge_rename_apply(from_path, to_path, update_links, expected_source_hash)?;
         return parse_daemon_json(&json);
     }
-    let session = active_session(&state)?;
     let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
     let to = RelativeVaultPath::parse(&to_path).map_err(|error| error.to_string())?;
     rename_apply_guarded(
@@ -274,13 +282,14 @@ pub fn vault_delete_note(
     authorization_token: String,
     expected_content_hash: Option<String>,
 ) -> Result<DeleteNoteOutput, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::DeleteNote,
         Some(&path),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
     delete_note_guarded(&session.root, &relative, expected_content_hash.as_deref())
         .map_err(|error| error.to_string())
@@ -361,8 +370,10 @@ pub fn vault_read_workspace_session(
 pub fn vault_save_workspace_session(
     state: tauri::State<AppState>,
     session: WorkspaceSession,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
     let active = active_session(&state)?;
+    validate_expected_vault(&active.descriptor.id, expected_vault_id.as_deref())?;
     write_workspace_session(&active.root, &session).map_err(|error| error.to_string())
 }
 
@@ -434,8 +445,10 @@ pub fn vault_load_config(state: tauri::State<AppState>) -> Result<VaultConfig, S
 pub fn vault_save_snippets(
     state: tauri::State<AppState>,
     snippets: Vec<VaultSnippet>,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     save_vault_snippets(session.root.root(), &snippets).map_err(|error| error.to_string())
 }
 
@@ -513,6 +526,7 @@ pub fn vault_lint_fix(
         &authorization_token,
         SensitiveOperation::ApplyBulkFix,
         Some(&session.descriptor.id),
+        Some(&session.descriptor.id),
     )?;
     let rules = vec![
         RULE_MISSING_HEADING.to_string(),
@@ -529,10 +543,10 @@ pub fn vault_lint_fix(
 
 #[tauri::command]
 pub fn vault_health(state: tauri::State<AppState>) -> Result<String, String> {
+    let session = active_session(&state)?;
     if use_headless_engine(&state) {
         return bridge_health_report();
     }
-    let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     health_report_json(&cache, &session).map_err(|error| error.to_string())
 }
@@ -574,13 +588,14 @@ pub fn vault_import_obsidian(
     preserve_frontmatter: Option<bool>,
     authorization_token: String,
 ) -> Result<ImportResult, String> {
+    let session = active_session(&state)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::ImportVault,
         Some(&obsidian_path),
+        Some(&session.descriptor.id),
     )?;
-    let session = active_session(&state)?;
     let options = ImportObsidianOptions {
         convert_wikilinks: convert_wikilinks.unwrap_or(true),
         import_attachments: import_attachments.unwrap_or(true),
@@ -621,5 +636,38 @@ pub fn vault_export_audit_log(
             Ok(out)
         }
         _ => serde_json::to_string_pretty(&entries).map_err(|e| e.to_string()),
+    }
+}
+
+pub(crate) fn validate_expected_vault(
+    active_vault_id: &str,
+    expected_vault_id: Option<&str>,
+) -> Result<(), String> {
+    if let Some(expected) = expected_vault_id
+        && active_vault_id != expected
+    {
+        return Err(format!(
+            "stale save target: note belongs to vault '{expected}', but active vault is '{active_vault_id}'"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_expected_vault;
+
+    #[test]
+    fn validate_expected_vault_accepts_matching_and_none() {
+        assert!(validate_expected_vault("vault-1", None).is_ok());
+        assert!(validate_expected_vault("vault-1", Some("vault-1")).is_ok());
+    }
+
+    #[test]
+    fn validate_expected_vault_rejects_mismatched_vault_id() {
+        let err = validate_expected_vault("vault-1", Some("vault-2")).unwrap_err();
+        assert!(err.contains("stale save target"));
+        assert!(err.contains("vault-2"));
+        assert!(err.contains("vault-1"));
     }
 }

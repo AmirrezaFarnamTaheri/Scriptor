@@ -1,9 +1,8 @@
-import type { ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { ArrowRight, ChevronDown, MoreHorizontal } from 'lucide-react'
-import { useState } from 'react'
 
 /** Renders a compact section heading with an optional local action menu. */
-export function PanelHeader({
+export const PanelHeader = memo(function PanelHeader({
   title,
   icon,
   menuItems,
@@ -48,12 +47,12 @@ export function PanelHeader({
       ) : null}
     </div>
   )
-}
+})
 
 type HeadingLevel = 2 | 3 | 4
 
 /** Provides the shared heading and optional action treatment for dashboard widgets. */
-export function WidgetCard({
+export const WidgetCard = memo(function WidgetCard({
   title,
   action,
   onAction,
@@ -89,13 +88,13 @@ export function WidgetCard({
       {children}
     </section>
   )
-}
+})
 
 /**
  * Renders an icon-only button with a complete accessible name and a visual-only
  * tooltip. The optional shortcut is included in the button's accessible name.
  */
-export function IconButton({
+export const IconButton = memo(function IconButton({
   label,
   shortcut,
   children,
@@ -125,4 +124,4 @@ export function IconButton({
       </span>
     </button>
   )
-}
+})

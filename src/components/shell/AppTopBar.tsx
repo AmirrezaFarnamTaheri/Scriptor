@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BookOpenText,
   Box,
@@ -83,7 +83,7 @@ const MODE_LABEL_KEYS: Record<WorkspaceMode, string> = {
   automation: 'workspaceModes.automation',
 }
 
-export function AppTopBar({
+function AppTopBarImpl({
   vault,
   workspaceMode,
   onWorkspaceModeChange,
@@ -443,3 +443,5 @@ export function AppTopBar({
     </>
   )
 }
+
+export const AppTopBar = memo(AppTopBarImpl)

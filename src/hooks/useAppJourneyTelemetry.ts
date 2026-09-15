@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 interface UseAppJourneyTelemetryOptions {
   vaultOpen: boolean
@@ -62,11 +62,14 @@ export function useAppJourneyTelemetry({
     if (exportCompleted) markExport()
   }, [exportCompleted, markExport])
 
+  const prevPanelOpenRef = useRef({ git: false, mcp: false, portal: false, workbench: false })
   useEffect(() => {
-    if (gitOpen) recordPanelOpen('git')
-    if (mcpOpen) recordPanelOpen('mcp')
-    if (portalOpen) recordPanelOpen('portal')
-    if (workbenchOpen) recordPanelOpen('workbench')
+    const prev = prevPanelOpenRef.current
+    if (gitOpen && !prev.git) recordPanelOpen('git')
+    if (mcpOpen && !prev.mcp) recordPanelOpen('mcp')
+    if (portalOpen && !prev.portal) recordPanelOpen('portal')
+    if (workbenchOpen && !prev.workbench) recordPanelOpen('workbench')
+    prevPanelOpenRef.current = { git: gitOpen, mcp: mcpOpen, portal: portalOpen, workbench: workbenchOpen }
   }, [gitOpen, mcpOpen, portalOpen, recordPanelOpen, workbenchOpen])
 
   useEffect(() => {

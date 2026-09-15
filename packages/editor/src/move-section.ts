@@ -1,35 +1,9 @@
 import type { StateCommand } from '@codemirror/state'
 
-import { generateToc, type TocEntry } from './toc-field.ts'
+import { findSiblingIndex, sectionRange } from './section-move-logic.ts'
+import { generateToc } from './toc-field.ts'
 
-export function sectionRange(
-  entries: TocEntry[],
-  index: number,
-  docLength: number,
-): { from: number; to: number } {
-  const entry = entries[index]
-  let to = docLength
-  for (let candidate = index + 1; candidate < entries.length; candidate += 1) {
-    if (entries[candidate].level <= entry.level) {
-      to = entries[candidate].pos
-      break
-    }
-  }
-  return { from: entry.pos, to }
-}
-
-/**
- * Index of the adjacent sibling heading (same level, same parent) in the given
- * direction, skipping over child headings. Returns -1 when there is none.
- */
-export function findSiblingIndex(entries: TocEntry[], currentIndex: number, direction: -1 | 1): number {
-  const level = entries[currentIndex].level
-  for (let index = currentIndex + direction; index >= 0 && index < entries.length; index += direction) {
-    if (entries[index].level < level) return -1
-    if (entries[index].level === level) return index
-  }
-  return -1
-}
+export { findSiblingIndex, sectionRange }
 
 function moveSection(direction: -1 | 1): StateCommand {
   return (target) => {

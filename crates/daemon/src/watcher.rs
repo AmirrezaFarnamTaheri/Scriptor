@@ -69,10 +69,12 @@ fn apply_incremental_batch(
     session: &scriptor_vault::VaultSession,
     events: Vec<VaultWatchEvent>,
 ) {
-    let paths: Vec<String> = events.into_iter().map(|event| event.path).collect();
+    let mut paths: Vec<String> = events.into_iter().map(|event| event.path).collect();
     if paths.is_empty() {
         return;
     }
+    paths.sort_unstable();
+    paths.dedup();
     let Some(cache) = cache else {
         return;
     };

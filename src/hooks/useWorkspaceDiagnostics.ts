@@ -1,5 +1,6 @@
 import type { MutableRefObject } from 'react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { OperationGuard } from './operation-guard'
 
 import {
   indexerApplyFilesystemChanges,
@@ -49,6 +50,12 @@ export function useWorkspaceDiagnostics({
   const [lastRebuildMs, setLastRebuildMs] = useState<number | null>(null)
   const [backlinks, setBacklinks] = useState<BacklinkHit[]>([])
   const [graph, setGraph] = useState<GraphQueryOutput | null>(null)
+  const [backlinkGuard] = useState(() => new OperationGuard())
+  const [graphGuard] = useState(() => new OperationGuard())
+  useEffect(() => () => {
+    backlinkGuard.invalidate()
+    graphGuard.invalidate()
+  }, [vault?.id, backlinkGuard, graphGuard])
 
   const refreshHealth = useCallback(async (vaultOverride?: VaultDescriptor | null) => {
     const activeVault = vaultOverride ?? vault
@@ -68,28 +75,31 @@ export function useWorkspaceDiagnostics({
   }, [vault])
 
   const loadBacklinks = useCallback(async (path: string) => {
+    const ticket = backlinkGuard.issue()
     try {
       const hits = await indexerBacklinks(path)
-      setBacklinks(hits)
+      if (backlinkGuard.isCurrent(ticket) && activePathRef.current === path) setBacklinks(hits)
     } catch {
-      setBacklinks([])
+      if (backlinkGuard.isCurrent(ticket) && activePathRef.current === path) setBacklinks([])
     }
-  }, [])
+  }, [activePathRef, backlinkGuard])
 
   const loadGraph = useCallback(
     async (focusPath?: string | null, options?: { depth?: number; fullVault?: boolean }) => {
+      const ticket = graphGuard.issue()
       try {
         const data = await indexerGraph(
           options?.fullVault ? undefined : (focusPath ?? undefined),
           options?.depth ?? 2,
         )
-        setGraph(data)
+        if (graphGuard.isCurrent(ticket)) setGraph(data)
       } catch (caught) {
+        if (!graphGuard.isCurrent(ticket)) return
         setError(caught instanceof Error ? caught.message : String(caught))
         setGraph(null)
       }
     },
-    [setError],
+    [setError, graphGuard],
   )
 
   const rebuildIndex = useCallback(async () => {

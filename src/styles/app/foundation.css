@@ -338,11 +338,11 @@ svg {
   background: color-mix(in srgb, var(--glass-bg) 88%, var(--surface-muted));
   color: var(--ink);
   transition:
-    transform var(--ease-fast),
-    background var(--ease-soft),
-    border-color var(--ease-soft),
-    box-shadow var(--ease-soft),
-    color var(--ease-soft);
+    transform 100ms var(--ease-fast),
+    background 150ms var(--ease-soft),
+    border-color 150ms var(--ease-soft),
+    box-shadow 150ms var(--ease-soft),
+    color 150ms var(--ease-soft);
 }
 
 .icon-button {
@@ -416,7 +416,7 @@ svg {
   background: color-mix(in srgb, var(--glass-bg) 70%, transparent);
   box-shadow: inset 0 1px 0 var(--glass-highlight);
   cursor: pointer;
-  transition: box-shadow var(--ease-soft), border-color var(--ease-soft);
+  transition: box-shadow 150ms var(--ease-soft), border-color 150ms var(--ease-soft);
 }
 
 .command-search:hover {
@@ -485,7 +485,7 @@ svg {
   gap: 8px;
   box-shadow: var(--shadow-lg);
   z-index: 1000;
-  transition: opacity var(--ease-soft), transform var(--ease-soft);
+  transition: opacity 150ms var(--ease-soft), transform 150ms var(--ease-soft);
 }
 
 .custom-tooltip::before {

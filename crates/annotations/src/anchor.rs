@@ -150,6 +150,9 @@ fn fuzzy_search(body: &str, original_start: usize, quote: &str) -> Option<ByteRa
 
     // Snap window_start to the nearest char boundary.
     let window_start = snap_to_char_boundary(body, window_start);
+    // The arithmetic cap is in bytes, so it may split a multi-byte UTF-8
+    // character. Snap both slice ends before constructing the search window.
+    let window_end = snap_to_char_boundary(body, window_end);
     let window_body = &body[window_start..window_end];
 
     // Collect (byte_offset_in_window, char) pairs for the window.
@@ -160,19 +163,20 @@ fn fuzzy_search(body: &str, original_start: usize, quote: &str) -> Option<ByteRa
         return None;
     }
 
+    let window_chars: Vec<char> = char_offsets.iter().map(|(_, c)| *c).collect();
+
     let mut best_distance = usize::MAX;
     let mut best_start_byte: Option<usize> = None;
     let mut best_end_byte: Option<usize> = None;
 
+    let mut prev = Vec::with_capacity(quote_len + 1);
+    let mut curr = Vec::with_capacity(quote_len + 1);
+
     // Slide a window of `quote_len` chars over the window body.
     for i in 0..=(n - quote_len) {
-        // Extract candidate chars.
-        let candidate: Vec<char> = char_offsets[i..i + quote_len]
-            .iter()
-            .map(|(_, c)| *c)
-            .collect();
+        let candidate = &window_chars[i..i + quote_len];
 
-        let dist = levenshtein_chars(&quote_chars, &candidate);
+        let dist = levenshtein_chars_reusable(&quote_chars, candidate, &mut prev, &mut curr);
         if dist < best_distance {
             best_distance = dist;
             let start_byte = window_start + char_offsets[i].0;
@@ -184,10 +188,14 @@ fn fuzzy_search(body: &str, original_start: usize, quote: &str) -> Option<ByteRa
             };
             best_start_byte = Some(start_byte);
             best_end_byte = Some(end_byte);
+
+            if best_distance == 0 {
+                break;
+            }
         }
     }
 
-    let threshold_distance = (quote_len as f64 * FUZZY_THRESHOLD).ceil() as usize;
+    let threshold_distance = (quote_len as f64 * FUZZY_THRESHOLD).floor() as usize;
     if best_distance <= threshold_distance {
         let start = best_start_byte?;
         let end = best_end_byte?;
@@ -219,15 +227,21 @@ fn snap_to_char_boundary(s: &str, mut offset: usize) -> usize {
     offset
 }
 
-/// Classic Levenshtein edit-distance on `char` slices (O(m×n) time, O(min(m,n)) space).
-fn levenshtein_chars(a: &[char], b: &[char]) -> usize {
-    // We always use `b` as the "column" dimension to keep memory O(min).
+/// Reusable buffer Levenshtein edit-distance on `char` slices to avoid allocations in loops.
+fn levenshtein_chars_reusable(
+    a: &[char],
+    b: &[char],
+    prev: &mut Vec<usize>,
+    curr: &mut Vec<usize>,
+) -> usize {
     let (a, b) = if a.len() < b.len() { (b, a) } else { (a, b) };
     let m = a.len();
     let n = b.len();
 
-    let mut prev: Vec<usize> = (0..=n).collect();
-    let mut curr = vec![0usize; n + 1];
+    prev.clear();
+    prev.extend(0..=n);
+    curr.clear();
+    curr.resize(n + 1, 0);
 
     for i in 1..=m {
         curr[0] = i;
@@ -235,9 +249,17 @@ fn levenshtein_chars(a: &[char], b: &[char]) -> usize {
             let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
             curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
         }
-        std::mem::swap(&mut prev, &mut curr);
+        std::mem::swap(prev, curr);
     }
     prev[n]
+}
+
+/// Classic Levenshtein edit-distance on `char` slices (O(m×n) time, O(min(m,n)) space).
+#[cfg(test)]
+fn levenshtein_chars(a: &[char], b: &[char]) -> usize {
+    let mut prev = Vec::new();
+    let mut curr = Vec::new();
+    levenshtein_chars_reusable(a, b, &mut prev, &mut curr)
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -476,5 +498,17 @@ mod tests {
             }
             other => panic!("expected Live or Relocated, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn fuzzy_search_does_not_panic_when_byte_window_ends_inside_unicode() {
+        // The fixed-size byte window ends between the two bytes of `é`.
+        // Stale selectors are untrusted persisted data and must resolve to an
+        // ordinary anchoring result rather than panic during string slicing.
+        let body = format!("{}é remaining text", "a".repeat(4_096));
+        let sel = text_sel(0, 1, "x");
+
+        let outcome = reanchor(&sel, &body).expect("stale selectors must not panic");
+        assert!(matches!(outcome, AnchorOutcome::Orphaned { .. }));
     }
 }

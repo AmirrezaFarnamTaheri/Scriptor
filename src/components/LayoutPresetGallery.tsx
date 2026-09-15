@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import { LAYOUT_PRESETS, type LayoutPreset } from '../lib/workspace/layoutPresets'
 
@@ -16,7 +17,7 @@ interface LayoutPresetGalleryProps {
   onApply: (preset: LayoutPreset) => void
 }
 
-export function LayoutPresetGallery({ current, onApply }: LayoutPresetGalleryProps) {
+export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, onApply }: LayoutPresetGalleryProps) {
   return (
     <div className="settings-layout-presets">
       <h4 className="settings-subheading">Layout templates</h4>
@@ -47,4 +48,5 @@ export function LayoutPresetGallery({ current, onApply }: LayoutPresetGalleryPro
       </ul>
     </div>
   )
-}
+})
+

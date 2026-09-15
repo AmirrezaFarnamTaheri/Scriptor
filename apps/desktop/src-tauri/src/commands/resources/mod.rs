@@ -434,6 +434,7 @@ pub async fn resource_apply_plan(
         &authorization_token,
         SensitiveOperation::ResourceSync,
         Some(&plan_id),
+        None,
     )?;
     tauri::async_runtime::spawn_blocking(move || apply_resource_plan(plan_id, max_parallel))
         .await

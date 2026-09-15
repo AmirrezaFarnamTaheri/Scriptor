@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
 import { Search } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -25,7 +25,7 @@ interface CommandPaletteProps {
   onOpenNote?: (path: string) => void
 }
 
-export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
+export const CommandPalette = memo(function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
   const { t } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -37,6 +37,7 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const searchTimer = useRef<number | null>(null)
+  const isKeyboardNav = useRef(false)
 
   const normalizedQuery = query.trim()
   const deferredQuery = useDeferredValue(normalizedQuery)
@@ -91,6 +92,7 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
   }, [normalizedQuery, searchNotes])
 
   useEffect(() => {
+    if (!isKeyboardNav.current) return
     const active = listRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')
     active?.scrollIntoView({ block: 'nearest' })
   }, [selectedIndex, mergedCommands.length])
@@ -117,15 +119,18 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
             type="search"
             value={query}
             onChange={(event) => {
+              isKeyboardNav.current = false
               setQuery(event.target.value)
               setSelectedIndex(0)
             }}
             onKeyDown={(event) => {
               if (event.key === 'ArrowDown') {
                 event.preventDefault()
+                isKeyboardNav.current = true
                 setSelectedIndex((current) => Math.min(current + 1, Math.max(mergedCommands.length - 1, 0)))
               } else if (event.key === 'ArrowUp') {
                 event.preventDefault()
+                isKeyboardNav.current = true
                 setSelectedIndex((current) => Math.max(current - 1, 0))
               } else if (event.key === 'Enter' && mergedCommands[selectedIndex]) {
                 event.preventDefault()
@@ -157,7 +162,10 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
                 data-tone={command.tone ?? 'default'}
                 className={command.group === 'note' ? 'command-palette-note-hit' : undefined}
                 onClick={() => runSelected(command)}
-                onMouseEnter={() => setSelectedIndex(index)}
+                onMouseEnter={() => {
+                  isKeyboardNav.current = false
+                  setSelectedIndex(index)
+                }}
               >
                 <span className="command-palette-item-copy">
                   <strong>{command.label}</strong>
@@ -176,4 +184,4 @@ export function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: C
       </div>
     </div>
   )
-}
+})

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Activity, CheckCircle2 } from 'lucide-react'
 
 import { summarizeLintIssues } from '../lib/vaultLintSummary'
@@ -36,7 +37,7 @@ function metricRows(summary: VaultHealthReport) {
   ] as const
 }
 
-export function VaultHealthDashboard({
+export const VaultHealthDashboard = memo(function VaultHealthDashboard({
   diagnostics,
   inspectorWidgets = [],
   vaultHealthChecks = [],
@@ -208,4 +209,4 @@ export function VaultHealthDashboard({
       )}
     </UnifiedPanelShell>
   )
-}
+})

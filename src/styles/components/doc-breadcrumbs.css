@@ -35,7 +35,7 @@
   overflow: hidden;
   padding: var(--space-1) var(--space-1);
   text-overflow: ellipsis;
-  transition: color var(--ease-fast), background var(--ease-fast);
+  transition: color 120ms var(--ease-fast), background 120ms var(--ease-fast);
   white-space: nowrap;
 }
 

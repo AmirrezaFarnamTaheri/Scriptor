@@ -92,7 +92,7 @@ pub fn sync_vault_embeddings_with_store(
         }
         total_notes += 1;
         current.insert(entry.path.clone());
-        let Some(markdown) = entry.content.clone() else {
+        let Some(markdown) = entry.content.as_deref() else {
             // The note still exists, but its current bytes are intentionally not
             // available to the embedding pipeline. Keeping an older vector would
             // make semantic search return stale content, so invalidate it.
@@ -101,14 +101,14 @@ pub fn sync_vault_embeddings_with_store(
             }
             continue;
         };
-        let hash = crate::content_hash(&markdown);
+        let hash = crate::content_hash(markdown);
         if store.hash_for(&entry.path)?.as_deref() == Some(hash.as_str()) {
             unchanged += 1;
             continue;
         }
         let body = match text_for_note {
-            Some(project) => project(&entry.path, &markdown),
-            None => markdown.clone(),
+            Some(project) => project(&entry.path, markdown),
+            None => markdown.to_string(),
         };
         // Sealed spans must never reach an embedding provider (I-3).
         let text = check_or_redact(&body, RedactSecretsMode::Redact, &entry.path)
@@ -140,20 +140,24 @@ pub fn sync_vault_embeddings_with_store(
                 });
             }
         }
-        for (note, vector) in batch.iter().zip(vectors) {
-            store.upsert_embedding(&note.path, Some(&note.hash), &vector)?;
-            embedded += 1;
-        }
+        let items: Vec<(&str, Option<&str>, &[f32])> = batch
+            .iter()
+            .zip(&vectors)
+            .map(|(note, vec)| (note.path.as_str(), Some(note.hash.as_str()), vec.as_slice()))
+            .collect();
+        store.upsert_batch(&items)?;
+        embedded += batch.len();
     }
 
     // Remove embeddings whose notes no longer exist.
-    let mut removed = 0usize;
-    for id in store.ids()? {
-        if !current.contains(&id) {
-            store.delete_embedding(&id)?;
-            removed += 1;
-        }
-    }
+    let dead_ids: Vec<String> = store
+        .ids()?
+        .into_iter()
+        .filter(|id| !current.contains(id))
+        .collect();
+    let removed = dead_ids.len();
+    let dead_refs: Vec<&str> = dead_ids.iter().map(|s| s.as_str()).collect();
+    store.delete_batch(&dead_refs)?;
 
     Ok(SyncReport {
         total_notes,

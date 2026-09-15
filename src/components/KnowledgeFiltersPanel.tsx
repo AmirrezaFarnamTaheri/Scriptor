@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
+import { memo, useEffect, useId, useMemo, useState, type KeyboardEvent } from 'react'
 import { Filter } from 'lucide-react'
 
 import {
@@ -25,7 +25,7 @@ type FilterTab = 'orphans' | 'dead-ends' | 'placeholders'
 const FILTER_TABS: FilterTab[] = ['orphans', 'dead-ends', 'placeholders']
 
 /** Presents indexed link-health filters with retryable loading, keyboard tabs, and triage actions. */
-export function KnowledgeFiltersPanel({
+export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
   embedded = false,
   vaultOpen,
   onClose,
@@ -47,7 +47,6 @@ export function KnowledgeFiltersPanel({
     if (!canBrowse) return
 
     let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a renewed index load must not leave stale success/error UI visible
     setLoadState('loading')
     setLoadStatus('Loading knowledge filters…')
     void (async () => {
@@ -266,4 +265,5 @@ export function KnowledgeFiltersPanel({
       {body}
     </UnifiedPanelShell>
   )
-}
+})
+

@@ -1,7 +1,7 @@
-import { useEffect, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 
 // Selectors for natively focusable elements.
-const FOCUSABLE_SELECTORS = [
+export const FOCUSABLE_SELECTORS = [
   'a[href]:not([tabindex="-1"])',
   'button:not([disabled]):not([tabindex="-1"])',
   'textarea:not([disabled]):not([tabindex="-1"])',
@@ -35,6 +35,14 @@ export function useFocusTrap<T extends HTMLElement>(
   containerRef: RefObject<T | null>,
   { active, restoreTo, initialFocus = true, initialFocusKey }: FocusTrapOptions,
 ): void {
+  const initialFocusRef = useRef(initialFocus)
+  const restoreToRef = useRef(restoreTo)
+
+  useEffect(() => {
+    initialFocusRef.current = initialFocus
+    restoreToRef.current = restoreTo
+  }, [initialFocus, restoreTo])
+
   useEffect(() => {
     if (!active) return
     // The key intentionally participates in this effect so step changes can
@@ -46,13 +54,14 @@ export function useFocusTrap<T extends HTMLElement>(
     const previouslyFocused = document.activeElement as HTMLElement | null
 
     let rafId: number | null = null
-    if (initialFocus) {
+    const initFocus = initialFocusRef.current
+    if (initFocus) {
       // Defer one frame so children mount before we search for focusable nodes.
       rafId = window.requestAnimationFrame(() => {
         rafId = null
         const target =
-          typeof initialFocus === 'function'
-            ? initialFocus()
+          typeof initFocus === 'function'
+            ? initFocus()
             : container.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
         target?.focus()
       })
@@ -91,8 +100,8 @@ export function useFocusTrap<T extends HTMLElement>(
         window.cancelAnimationFrame(rafId)
       }
       document.removeEventListener('keydown', onKeyDown)
-      const target = restoreTo ?? previouslyFocused
+      const target = restoreToRef.current ?? previouslyFocused
       target?.focus?.()
     }
-  }, [active, containerRef, restoreTo, initialFocus, initialFocusKey])
+  }, [active, containerRef, initialFocusKey])
 }

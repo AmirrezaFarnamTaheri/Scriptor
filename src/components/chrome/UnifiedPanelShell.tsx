@@ -1,4 +1,5 @@
 import {
+  memo,
   useCallback,
   useEffect,
   useId,
@@ -11,7 +12,7 @@ import {
 import { X } from 'lucide-react'
 
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
-import { useFocusTrap } from '../../hooks/useFocusTrap'
+import { FOCUSABLE_SELECTORS, useFocusTrap } from '../../hooks/useFocusTrap'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
 import { IconButton } from './WorkspaceChrome'
 
@@ -53,13 +54,14 @@ function dockFitsViewport(media: MediaQueryList): boolean {
 }
 
 /** Tracks whether the shared panel shell may render as a dock instead of a modal. */
-function useDockViewport(): boolean {
+function useDockViewport(enabled: boolean): boolean {
   const [canDock, setCanDock] = useState(() => {
-    if (typeof window === 'undefined') return false
+    if (!enabled || typeof window === 'undefined') return false
     return dockFitsViewport(window.matchMedia(DOCK_MEDIA_QUERY))
   })
 
   useEffect(() => {
+    if (!enabled) return
     const media = window.matchMedia(DOCK_MEDIA_QUERY)
     const update = () => setCanDock(dockFitsViewport(media))
     const observer = new MutationObserver(update)
@@ -73,13 +75,13 @@ function useDockViewport(): boolean {
       media.removeEventListener('change', update)
       observer.disconnect()
     }
-  }, [])
+  }, [enabled])
 
-  return canDock
+  return enabled ? canDock : false
 }
 
 /** Provides shared modal/dock semantics, focus policy, tabs, and accessible labeling. */
-export function UnifiedPanelShell({
+function UnifiedPanelShellImpl({
   title,
   subtitle,
   icon,
@@ -102,22 +104,40 @@ export function UnifiedPanelShell({
   presentation = 'modal',
 }: UnifiedPanelShellProps) {
   const shellRef = useRef<HTMLElement>(null)
+  const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const descriptionId = useId()
-  const canDock = useDockViewport()
+  const canDock = useDockViewport(presentation === 'dock-right')
   const docked = presentation === 'dock-right' && canDock
+
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTop = 0
+    }
+  }, [activeTab])
   // `dock-right` is a preference, not permission to destroy the workspace.
   // Below the desktop docking threshold — including app-zoom reflow that media
   // queries cannot see — the same surface becomes a normal modal, restoring a
   // focus trap/backdrop and keeping still-focusable workspace controls visible.
   // Wide docks start below the live app chrome via --topbar-bottom.
 
-  const resolveInitialFocus = useCallback(() => initialFocusRef?.current ?? null, [initialFocusRef])
+  const resolveInitialFocus = useCallback(() => {
+    if (initialFocusRef?.current) return initialFocusRef.current
+    if (tabs && tabs.length > 0 && activeTab) {
+      const activeTabEl = shellRef.current?.querySelector<HTMLElement>(
+        `#${CSS.escape(`${titleId}-tab-${activeTab}`)}`,
+      )
+      if (activeTabEl) return activeTabEl
+    }
+    const bodyEl = bodyRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTORS)
+    if (bodyEl) return bodyEl
+    return shellRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTORS) ?? null
+  }, [activeTab, initialFocusRef, tabs, titleId])
 
   useEscapeToClose(!docked && closeOnEscape, onClose)
   useFocusTrap(shellRef, {
     active: !docked,
-    initialFocus: initialFocusRef ? resolveInitialFocus : true,
+    initialFocus: resolveInitialFocus,
     initialFocusKey,
   })
 
@@ -203,6 +223,7 @@ export function UnifiedPanelShell({
         ) : null}
 
         <div
+          ref={bodyRef}
           id={activeTab ? `${titleId}-panel-${activeTab}` : undefined}
           className="unified-panel-body"
           role={activeTab ? 'tabpanel' : undefined}
@@ -214,3 +235,5 @@ export function UnifiedPanelShell({
     </div>
   )
 }
+
+export const UnifiedPanelShell = memo(UnifiedPanelShellImpl)

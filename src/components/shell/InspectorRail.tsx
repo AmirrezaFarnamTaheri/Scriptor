@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, memo, Suspense, useMemo } from 'react'
 import { Archive, BookOpen, FileText, Hash, Link2, Pencil, Quote, Tags } from 'lucide-react'
 
 import { MarkdownPreview, type MarkdownPreviewHandle, type DqlResultRow, type CodeChunkRunResult } from '@scriptor/renderer'
@@ -102,7 +102,9 @@ interface InspectorRailProps {
   }
 }
 
-export function InspectorRail({
+const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
+
+function InspectorRailImpl({
   railRef,
   activeMode,
   onModeChange,
@@ -151,10 +153,15 @@ export function InspectorRail({
     () => INSPECTOR_PRESETS.find((entry) => entry.id === inspectorPreset) ?? INSPECTOR_PRESETS[0],
     [inspectorPreset],
   )
-  const missingCitations = citationRows.filter((key) => !bibliographyKeys.has(key)).length
-  const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
+  const missingCitations = useMemo(
+    () => citationRows.filter((key) => !bibliographyKeys.has(key)).length,
+    [citationRows, bibliographyKeys],
+  )
   const handleInspectorTabKeys = useTablistKeys(INSPECTOR_TABS, activeMode, (id) => onModeChange(id as 'inspector' | 'preview' | 'plugins'))
-  const presetIds = INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`)
+  const presetIds = useMemo(
+    () => INSPECTOR_PRESETS.map((entry) => `inspector-preset-${entry.id}`),
+    [],
+  )
   function handlePresetKeys(event: React.KeyboardEvent) {
     const current = INSPECTOR_PRESETS.findIndex((entry) => entry.id === inspectorPreset)
     let next = -1
@@ -550,3 +557,5 @@ export function InspectorRail({
     </aside>
   )
 }
+
+export const InspectorRail = memo(InspectorRailImpl)

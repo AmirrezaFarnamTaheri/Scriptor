@@ -225,7 +225,7 @@
 }
 
 .graph-node.focus text {
-  fill: white;
+  fill: var(--ink-strong);
   font-weight: 600;
 }
 

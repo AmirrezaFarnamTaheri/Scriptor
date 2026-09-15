@@ -18,7 +18,7 @@
   background: transparent;
   border: 0;
   padding: 0;
-  transition: background-color var(--ease-soft), outline-color var(--ease-soft);
+  transition: background-color 150ms var(--ease-soft), outline-color 150ms var(--ease-soft);
   z-index: 2;
 }
 
@@ -234,14 +234,15 @@ body.is-split-resizing .editor-preview-pane {
 
 .format-row.editor-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
   min-height: 44px;
   min-width: 0;
-  max-height: min(32dvh, 240px);
-  overflow-y: auto;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: transparent;
 }
 
@@ -260,10 +261,10 @@ body.is-split-resizing .editor-preview-pane {
 }
 
 .editor-toolbar > .format-group {
-  flex: 0 1 auto;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
   min-width: 0;
-  max-width: 100%;
+  max-width: none;
 }
 
 .toolbar-divider {
@@ -426,10 +427,10 @@ body.is-split-resizing .editor-preview-pane {
   border-radius: var(--radius-sm);
   color: var(--muted);
   transition:
-    background var(--ease-soft),
-    border-color var(--ease-soft),
-    color var(--ease-soft),
-    box-shadow var(--ease-soft);
+    background 150ms var(--ease-soft),
+    border-color 150ms var(--ease-soft),
+    color 150ms var(--ease-soft),
+    box-shadow 150ms var(--ease-soft);
 }
 
 .tab-item:hover:not(.active) {
@@ -482,10 +483,10 @@ body.is-split-resizing .editor-preview-pane {
   color: var(--faint);
   opacity: 0;
   transition:
-    opacity var(--ease-fast),
-    background var(--ease-fast),
-    color var(--ease-fast),
-    transform var(--ease-fast);
+    opacity 120ms var(--ease-fast),
+    background 120ms var(--ease-fast),
+    color 120ms var(--ease-fast),
+    transform 120ms var(--ease-fast);
 }
 
 .tab-reopen {

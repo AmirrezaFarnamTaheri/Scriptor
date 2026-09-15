@@ -46,6 +46,14 @@
   max-width: none;
   min-width: 0;
   flex-wrap: nowrap;
+  box-sizing: border-box;
+}
+
+.format-row.editor-toolbar button,
+.format-row.editor-toolbar .toolbar-button {
+  min-height: 32px;
+  max-height: 32px;
+  height: 32px;
 }
 
 .editor-toolbar > .inline-editor-assist {
@@ -77,10 +85,10 @@
   box-shadow: var(--shadow-sm);
 }
 
-.editor-primary-formatting > .editor-structure-menu,
-.editor-primary-formatting > .editor-tools-menu,
-.editor-primary-formatting > .insert-menu,
-.editor-primary-formatting > .typography-menu,
+.editor-primary-formatting .editor-structure-menu,
+.editor-primary-formatting .editor-tools-menu,
+.editor-primary-formatting .insert-menu,
+.editor-primary-formatting .typography-menu,
 .canvas-export-menu {
   display: inline-flex;
   align-items: center;
@@ -107,10 +115,11 @@
  * explicit accessible names and titles; only redundant visible labels and
  * chevrons are removed while space is constrained. */
 @container (max-width: 720px) {
-  .editor-primary-formatting > .editor-structure-menu > button,
-  .editor-primary-formatting > .insert-menu > button,
-  .editor-primary-formatting > .typography-menu > button,
-  .editor-primary-formatting > .editor-tools-menu > button {
+  .editor-primary-formatting .editor-structure-menu > button,
+  .editor-primary-formatting .insert-menu > button,
+  .editor-primary-formatting .typography-menu > button,
+  .editor-primary-formatting .editor-tools-menu > button,
+  .editor-primary-formatting .tools-trigger {
     width: 32px;
     min-width: 32px;
     padding-inline: 0;

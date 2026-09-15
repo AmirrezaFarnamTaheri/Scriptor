@@ -14,7 +14,7 @@ impl RateLimiter {
         Self {
             window: Duration::from_secs(1),
             max_events,
-            events: VecDeque::new(),
+            events: VecDeque::with_capacity(max_events as usize),
         }
     }
 

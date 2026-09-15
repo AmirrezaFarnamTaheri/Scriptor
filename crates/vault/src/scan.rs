@@ -236,11 +236,18 @@ fn scan_directory(
             is_note && options.include_note_content && metadata.len() <= options.max_note_bytes;
         let (content, content_hash) = if should_capture {
             let bytes = fs::read(absolute).map_err(|source| VaultError::io(absolute, source))?;
-            let hash = content_hash_bytes(&bytes);
-            (
-                Some(String::from_utf8_lossy(&bytes).into_owned()),
-                Some(hash),
-            )
+            let (content, hash) = match String::from_utf8(bytes) {
+                Ok(s) => {
+                    let hash = content_hash_bytes(s.as_bytes());
+                    (s, hash)
+                }
+                Err(e) => {
+                    let hash = content_hash_bytes(e.as_bytes());
+                    let s = String::from_utf8_lossy(e.as_bytes()).into_owned();
+                    (s, hash)
+                }
+            };
+            (Some(content), Some(hash))
         } else {
             (None, None)
         };

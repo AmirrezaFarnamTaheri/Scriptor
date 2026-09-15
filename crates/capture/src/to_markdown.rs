@@ -64,54 +64,62 @@ pub fn to_markdown(html: &str) -> Result<String, ToMarkdownError> {
 /// This is intentionally conservative: it only handles isolated `<math>` at
 /// paragraph level. Inline MathML inside prose is left as-is.
 fn preprocess_math(html: &str) -> String {
-    // We operate on raw bytes here to avoid a full parse round-trip.
-    // A production implementation would use scraper but this is sufficient
-    // for the capture crate's scope.
-    let mut result = html.to_string();
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
 
-    // Replace block math: `<p><math` … `</math></p>` → `$$…$$`.
-    // We look for the opening tag and matching close.
-    while let Some(p_start) = result.find("<p><math") {
-        let Some(close_p) = result[p_start..].find("</math></p>") else {
-            break;
+    while let Some(m_start) = rest.find("<math") {
+        let is_block = rest[..m_start].ends_with("<p>");
+        let prefix_end = if is_block {
+            m_start - "<p>".len()
+        } else {
+            m_start
         };
-        let inner_start = p_start + "<p>".len();
-        let inner_end = p_start + close_p + "</math>".len();
-        // Strip all tags inside <math>…</math> to get a text representation.
-        let math_html = &result[inner_start..inner_end];
-        let text = strip_all_tags(math_html);
-        result.replace_range(
-            p_start..p_start + close_p + "</math></p>".len(),
-            &format!("\n$${}$$\n", text.trim()),
-        );
+        result.push_str(&rest[..prefix_end]);
+
+        if let Some(m_end) = rest[m_start..].find("</math>") {
+            let after_math = &rest[m_start + m_end + "</math>".len()..];
+            if is_block && after_math.starts_with("</p>") {
+                let math_slice = &rest[m_start..m_start + m_end + "</math>".len()];
+                let text = strip_all_tags(math_slice);
+                result.push_str("\n$$");
+                result.push_str(text.trim());
+                result.push_str("$$\n");
+                rest = &after_math["</p>".len()..];
+            } else {
+                if is_block {
+                    result.push_str("<p>");
+                }
+                let inner = &rest[m_start + "<math".len()..m_start + m_end];
+                let inner = inner.split_once('>').map(|(_, val)| val).unwrap_or("");
+                let text = strip_all_tags(inner);
+                result.push('$');
+                result.push_str(text.trim());
+                result.push('$');
+                rest = after_math;
+            }
+        } else {
+            result.push_str(&rest[prefix_end..]);
+            return result;
+        }
     }
 
-    // Replace inline math: `<math` … `</math>` → `$…$`.
-    while let Some(m_start) = result.find("<math") {
-        let Some(m_end) = result[m_start..].find("</math>") else {
-            break;
-        };
-        let inner = &result[m_start + 5..m_start + m_end]; // skip `<math`
-        // Skip to `>` to find where the tag body begins.
-        let inner = inner.split_once('>').map(|(_, value)| value).unwrap_or("");
-        let text = strip_all_tags(inner);
-        result.replace_range(
-            m_start..m_start + m_end + "</math>".len(),
-            &format!("${}$", text.trim()),
-        );
-    }
-
+    result.push_str(rest);
     result
 }
 
 fn strip_math(html: &str) -> String {
-    let mut result = html.to_string();
-    while let Some(m_start) = result.find("<math") {
-        let Some(m_end) = result[m_start..].find("</math>") else {
-            break;
-        };
-        result.replace_range(m_start..m_start + m_end + "</math>".len(), "");
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(m_start) = rest.find("<math") {
+        result.push_str(&rest[..m_start]);
+        if let Some(m_end) = rest[m_start..].find("</math>") {
+            rest = &rest[m_start + m_end + "</math>".len()..];
+        } else {
+            result.push_str(&rest[m_start..]);
+            return result;
+        }
     }
+    result.push_str(rest);
     result
 }
 
@@ -170,13 +178,18 @@ fn preprocess_code_blocks(html: &str) -> String {
 }
 
 fn strip_tables(html: &str) -> String {
-    let mut result = html.to_string();
-    while let Some(t_start) = result.find("<table") {
-        let Some(t_end) = result[t_start..].find("</table>") else {
-            break;
-        };
-        result.replace_range(t_start..t_start + t_end + "</table>".len(), "");
+    let mut result = String::with_capacity(html.len());
+    let mut rest = html;
+    while let Some(t_start) = rest.find("<table") {
+        result.push_str(&rest[..t_start]);
+        if let Some(t_end) = rest[t_start..].find("</table>") {
+            rest = &rest[t_start + t_end + "</table>".len()..];
+        } else {
+            result.push_str(&rest[t_start..]);
+            return result;
+        }
     }
+    result.push_str(rest);
     result
 }
 
@@ -276,6 +289,27 @@ mod tests {
         let html = "<p>Inline <math><mi>x</mi></math> term.</p>";
         let md = convert(html, true, true).unwrap();
         assert!(md.contains('$'), "expected $ wrapping around math: {md}");
+    }
+
+    #[test]
+    fn block_math_is_wrapped_in_double_dollars() {
+        let html =
+            "<p><math><mi>E</mi><mo>=</mo><mi>m</mi><msup><mi>c</mi><mn>2</mn></msup></math></p>";
+        let md = convert(html, true, true).unwrap();
+        assert!(
+            md.contains("$$"),
+            "expected $$ wrapping around block math: {md}"
+        );
+    }
+
+    #[test]
+    fn multiple_inline_math_preserved() {
+        let html = "<p>Let <math><mi>a</mi></math> and <math><mi>b</mi></math> be reals.</p>";
+        let md = convert(html, true, true).unwrap();
+        assert!(
+            md.contains("$a$") && md.contains("$b$"),
+            "both math tokens must survive: {md}"
+        );
     }
 
     #[test]

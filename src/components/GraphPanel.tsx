@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MoonStar, Power, X } from 'lucide-react'
 
 // Classic bundled worker (vite worker.format=iife) - module workers never
@@ -88,7 +88,7 @@ interface GraphPanelProps {
 const VIEW_WIDTH = 720
 const VIEW_HEIGHT = 420
 
-export function GraphPanel({
+export const GraphPanel = memo(function GraphPanel({
   graph,
   focusPath,
   graphGroups = [],
@@ -515,4 +515,4 @@ export function GraphPanel({
       )}
     </div>
   )
-}
+})

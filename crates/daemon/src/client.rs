@@ -163,7 +163,7 @@ fn connect_client_with_timeout(
     Ok((stream, endpoint.nonce))
 }
 
-type EventHandler = Box<dyn Fn(RpcEvent) + Send + Sync>;
+type EventHandler = Arc<dyn Fn(RpcEvent) + Send + Sync>;
 
 fn connect_event_stream() -> Result<LocalSocketStream, IpcError> {
     let (mut stream, endpoint) = connect_authenticated_client()?;
@@ -174,8 +174,11 @@ fn connect_event_stream() -> Result<LocalSocketStream, IpcError> {
 }
 
 fn dispatch_event(handlers: &Arc<Mutex<Vec<EventHandler>>>, event: RpcEvent) {
-    let handlers = lock_recover(handlers);
-    for handler in handlers.iter() {
+    let handlers_snapshot = {
+        let guard = lock_recover(handlers);
+        guard.clone()
+    };
+    for handler in handlers_snapshot {
         handler(event.clone());
     }
 }
@@ -542,7 +545,7 @@ impl DaemonRpcClient {
     }
 
     pub fn register_event_handler(&self, handler: impl Fn(RpcEvent) + Send + Sync + 'static) {
-        self.inner.register_event_handler(Box::new(handler));
+        self.inner.register_event_handler(Arc::new(handler));
     }
 
     pub fn call(&self, request: RpcRequest) -> Result<RpcResponse, IpcError> {
@@ -665,5 +668,37 @@ mod tests {
             .call_with_timeout(RpcRequest::new(1, RpcMethod::Ping), Duration::ZERO)
             .expect_err("zero timeout must fail");
         assert!(is_read_timeout(&error));
+    }
+
+    #[test]
+    fn dispatch_event_allows_reentrant_handler_registration_without_deadlock() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+
+        let client = DaemonRpcClient::new();
+        let inner = &client.inner;
+        let registered_reentrant = Arc::new(AtomicBool::new(false));
+        let flag_clone = Arc::clone(&registered_reentrant);
+        let handlers_clone = Arc::clone(&inner.event_handlers);
+
+        inner.register_event_handler(Arc::new(move |_| {
+            let flag = Arc::clone(&flag_clone);
+            lock_recover(&handlers_clone).push(Arc::new(move |_| {
+                flag.store(true, Ordering::SeqCst);
+            }));
+        }));
+
+        let event = RpcEvent {
+            payload: scriptor_ipc::RpcEventPayload::ResyncRequired {
+                reason: "test".to_string(),
+            },
+        };
+
+        // First dispatch runs the outer handler and registers the inner handler reentrantly without deadlock
+        dispatch_event(&inner.event_handlers, event.clone());
+        assert!(!registered_reentrant.load(Ordering::SeqCst));
+
+        // Second dispatch triggers both the outer handler and the newly registered inner handler
+        dispatch_event(&inner.event_handlers, event);
+        assert!(registered_reentrant.load(Ordering::SeqCst));
     }
 }

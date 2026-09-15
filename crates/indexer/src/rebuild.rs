@@ -111,9 +111,9 @@ pub fn rebuild_index_with_progress(
     let transaction = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
     let tx = &transaction;
     let mut processed = 0usize;
-    let mut indexable_paths = std::collections::BTreeSet::<String>::new();
+    let mut indexable_paths = std::collections::HashSet::<String>::new();
 
-    for entry in &note_entries {
+    for entry in note_entries {
         processed += 1;
         if entry.size_bytes > MAX_INDEXED_NOTE_BYTES {
             skipped_notes += 1;
@@ -124,11 +124,10 @@ pub fn rebuild_index_with_progress(
                 "skipping oversized note during index rebuild"
             );
         } else {
-            indexable_paths.insert(entry.path.clone());
             let path = scriptor_vault::RelativeVaultPath::parse(&entry.path)?;
             // Reuse the content the scan already read instead of re-reading every
             // file; fall back to a fresh read if the scan did not capture it.
-            let note = match (entry.content.clone(), entry.modified_at.clone()) {
+            let note = match (entry.content, entry.modified_at) {
                 (Some(markdown), Some(modified_at)) => NoteDocument {
                     metadata: metadata_from_markdown(
                         &session.descriptor.id,
@@ -154,6 +153,7 @@ pub fn rebuild_index_with_progress(
                 links_written += replace_note_links_on(tx, session, &entry.path, &note.markdown)?;
                 indexed_notes += 1;
             }
+            indexable_paths.insert(entry.path);
         }
 
         if processed.is_multiple_of(progress_stride) || processed as u32 == notes_total {
@@ -169,16 +169,21 @@ pub fn rebuild_index_with_progress(
     // A full rebuild is also authoritative deletion reconciliation. Rows for
     // deleted notes, or for notes that grew beyond the indexing budget, must
     // not survive with stale searchable content.
-    let indexed_paths = {
+    let stale_paths = {
         let mut statement = tx.prepare_cached("SELECT path FROM notes WHERE vault_id = ?1")?;
-        statement
-            .query_map([&session.descriptor.id], |row| row.get::<_, String>(0))?
-            .collect::<Result<Vec<_>, _>>()?
-    };
-    for stale_path in indexed_paths {
-        if !indexable_paths.contains(&stale_path) {
-            remove_note_from_index_on(tx, &session.descriptor.id, &stale_path)?;
+        let mut rows = statement.query([&session.descriptor.id])?;
+        let mut stale = Vec::new();
+        while let Some(row) = rows.next()? {
+            if let Ok(path) = row.get_ref(0)?.as_str()
+                && !indexable_paths.contains(path)
+            {
+                stale.push(path.to_string());
+            }
         }
+        stale
+    };
+    for stale_path in stale_paths {
+        remove_note_from_index_on(tx, &session.descriptor.id, &stale_path)?;
     }
 
     resolve_link_targets_on(tx, &session.descriptor.id, None)?;

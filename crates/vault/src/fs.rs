@@ -60,6 +60,7 @@ pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), VaultError> {
     let parent = path
         .parent()
         .ok_or_else(|| VaultError::InvalidRelativePath(path.display().to_string()))?;
+    fs::create_dir_all(parent).map_err(|source| VaultError::io(parent, source))?;
 
     let temp_name = format!(".scriptor-{}.tmp", uuid::Uuid::new_v4());
     let temp_path = parent.join(temp_name);

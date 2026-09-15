@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 
 import { useI18n } from '../lib/i18n'
 import type { ActivityEntry } from '../hooks/useActivityLog'
@@ -26,7 +26,9 @@ interface StatusDockPanelProps {
   onCancelExport: () => void
 }
 
-export function StatusDockPanel({
+const DOCK_TABS: readonly string[] = ['problems', 'output', 'search', 'jobs']
+
+function StatusDockPanelImpl({
   activeTab,
   onTabChange,
   expanded,
@@ -48,7 +50,6 @@ export function StatusDockPanel({
   const [expandedJobId, setExpandedJobId] = useState<string | null>(null)
   const runningJob = exportHistory.find((job) => job.status === 'running')
   const liveExportOutput = runningJob?.live_stderr ?? ''
-  const DOCK_TABS: readonly string[] = ['problems', 'output', 'search', 'jobs']
   const handleTablistKeys = useTablistKeys(DOCK_TABS, activeTab, (id) => onTabChange(id as StatusDockTab))
 
   return (
@@ -247,3 +248,5 @@ export function StatusDockPanel({
     </>
   )
 }
+
+export const StatusDockPanel = memo(StatusDockPanelImpl)

@@ -41,9 +41,13 @@ fn max_distance(query: &str) -> usize {
 }
 
 /// Levenshtein edit distance, capped at `limit+1` for early exit.
-fn edit_distance(a: &str, b: &str, limit: usize) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
+fn edit_distance(
+    a: &[char],
+    b: &[char],
+    limit: usize,
+    prev: &mut Vec<usize>,
+    curr: &mut Vec<usize>,
+) -> usize {
     let la = a.len();
     let lb = b.len();
 
@@ -57,8 +61,10 @@ fn edit_distance(a: &str, b: &str, limit: usize) -> usize {
         return limit + 1;
     }
 
-    let mut prev: Vec<usize> = (0..=lb).collect();
-    let mut curr = vec![0usize; lb + 1];
+    prev.clear();
+    prev.extend(0..=lb);
+    curr.clear();
+    curr.resize(lb + 1, 0);
 
     for i in 1..=la {
         curr[0] = i;
@@ -72,19 +78,34 @@ fn edit_distance(a: &str, b: &str, limit: usize) -> usize {
         if row_min > limit {
             return limit + 1;
         }
-        std::mem::swap(&mut prev, &mut curr);
+        std::mem::swap(prev, curr);
     }
     prev[lb]
 }
 
 /// Best fuzzy distance between `query` and every whitespace-split token of
 /// `candidate`.  Returns `usize::MAX` when `candidate` is empty.
-fn best_token_distance(query: &str, candidate: &str) -> usize {
-    candidate
-        .split_whitespace()
-        .map(|tok| edit_distance(query, tok, max_distance(query)))
-        .min()
-        .unwrap_or(usize::MAX)
+fn best_token_distance(
+    query: &[char],
+    candidate: &str,
+    limit: usize,
+    tok_chars: &mut Vec<char>,
+    prev: &mut Vec<usize>,
+    curr: &mut Vec<usize>,
+) -> usize {
+    let mut best = usize::MAX;
+    for tok in candidate.split_whitespace() {
+        tok_chars.clear();
+        tok_chars.extend(tok.chars());
+        let dist = edit_distance(query, tok_chars, limit, prev, curr);
+        if dist < best {
+            best = dist;
+            if best == 0 {
+                break;
+            }
+        }
+    }
+    best
 }
 
 /// Run a fuzzy title/path search.
@@ -103,6 +124,7 @@ pub fn fuzzy_search_notes(
         return Ok(Vec::new());
     }
     let threshold = max_distance(&q);
+    let query_chars: Vec<char> = q.chars().collect();
 
     let conn = cache.connection()?;
     let mut stmt = conn.prepare(
@@ -129,6 +151,9 @@ pub fn fuzzy_search_notes(
     }
 
     let mut hits: Vec<FuzzyHit> = Vec::new();
+    let mut tok_chars = Vec::with_capacity(32);
+    let mut prev = Vec::with_capacity(32);
+    let mut curr = Vec::with_capacity(32);
 
     for (note_id, path, title) in candidates {
         let title_lower = normalize_lookup_key(&title);
@@ -138,8 +163,26 @@ pub fn fuzzy_search_notes(
             .unwrap_or(&path);
         let basename = normalize_lookup_key(basename);
 
-        let dist_title = best_token_distance(&q, &title_lower);
-        let dist_path = best_token_distance(&q, &basename);
+        let dist_title = best_token_distance(
+            &query_chars,
+            &title_lower,
+            threshold,
+            &mut tok_chars,
+            &mut prev,
+            &mut curr,
+        );
+        let dist_path = if dist_title == 0 {
+            0
+        } else {
+            best_token_distance(
+                &query_chars,
+                &basename,
+                threshold,
+                &mut tok_chars,
+                &mut prev,
+                &mut curr,
+            )
+        };
         let best = dist_title.min(dist_path);
 
         if best <= threshold {

@@ -35,6 +35,7 @@ pub fn semantic_search(
         &state,
         &authorization_token,
         SensitiveOperation::AiNetworkRequest,
+        Some(&query),
         None,
     )?;
     let api_key =
@@ -57,6 +58,7 @@ pub fn semantic_sync(
         &state,
         &authorization_token,
         SensitiveOperation::AiNetworkRequest,
+        Some("Re-embed changed notes for semantic search"),
         None,
     )?;
     let api_key =

@@ -205,7 +205,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         documentRef.current.id === next.id
       const saveDocument = async (payload: CanvasDocument) => {
         try {
-          const path = await canvasSaveDocument(JSON.stringify(payload))
+          const path = await canvasSaveDocument(JSON.stringify(payload), vaultId)
           if (!isCurrent()) return
           setStatus(`Saved to ${path}`)
           setActiveBoardId(next.id)
@@ -232,7 +232,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         void saveDocument(next)
       }, 400)
     },
-    [refreshBoardList, vaultOpen],
+    [refreshBoardList, vaultId, vaultOpen],
   )
 
   useEffect(() => {
@@ -277,7 +277,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       setActiveBoardId(created.id)
       if (isNativeBridgeAvailable() && vaultOpen) {
         try {
-          const path = await canvasSaveDocument(JSON.stringify(created))
+          const path = await canvasSaveDocument(JSON.stringify(created), vaultId)
           setStatus(`Created ${title} at ${path}`)
           await refreshBoardList()
         } catch (error) {

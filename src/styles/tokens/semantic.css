@@ -92,6 +92,10 @@
   --text-mono:        var(--p-text-sm);
 
   /* ── Motion ────────────────────────────────────────── */
+  --ease-fast:          var(--p-ease-out);
+  --ease-soft:          cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-gentle:        cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:        var(--p-ease-spring);
   --motion-fade:        opacity var(--p-duration-base) var(--p-ease-out);
   --motion-slide:       transform var(--p-duration-base) var(--p-ease-out);
   --motion-expand:      all var(--p-duration-slow) var(--p-ease-in-out);

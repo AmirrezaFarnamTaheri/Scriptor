@@ -11,7 +11,7 @@
   max-height: min(560px, 80vh);
   width: min(480px, 92vw);
   overflow: hidden;
-  animation: scale-in var(--ease-soft) both;
+  animation: scale-in 180ms var(--ease-soft) both;
 }
 
 .template-picker__header {
@@ -60,7 +60,7 @@
   gap: var(--space-3);
   padding: var(--space-2) var(--space-5);
   font-size: var(--text-sm);
-  transition: background var(--ease-fast);
+  transition: background 120ms var(--ease-fast);
 }
 
 .template-picker__item--active,

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { BookOpen, Command, FileOutput, LayoutGrid, PenLine, Sparkles } from 'lucide-react'
 
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
@@ -22,7 +23,7 @@ const ITEMS: { id: MobilePane; label: string; icon: typeof BookOpen }[] = [
   { id: 'command', label: 'Command', icon: Command },
 ]
 
-export function MobileWorkspaceNav({
+function MobileWorkspaceNavImpl({
   activePane,
   workspaceMode,
   onSelectPane,
@@ -78,3 +79,5 @@ export function MobileWorkspaceNav({
     </div>
   )
 }
+
+export const MobileWorkspaceNav = memo(MobileWorkspaceNavImpl)

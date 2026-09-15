@@ -15,7 +15,7 @@
  *   its name via `columnNameToStatus()`.
  */
 
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Columns, RefreshCw } from 'lucide-react'
 
 import {
@@ -120,15 +120,15 @@ function useKanbanStore(
   const activeNotePathRef = useRef(notePath)
   const previousNotePathRef = useRef<string | null>(null)
 
-  const load = useCallback((path: string) => {
+  const load = useCallback((path: string): Promise<void> => {
     if (!isNativeBridgeAvailable()) {
       dispatch({ type: 'error', message: 'Open a vault in the desktop app.' })
-      return
+      return Promise.resolve()
     }
     const requestId = requestIdRef.current + 1
     requestIdRef.current = requestId
     dispatch({ type: 'loading' })
-    void indexerKanbanBoard(path)
+    return indexerKanbanBoard(path)
       .then((b) => {
         if (requestId !== requestIdRef.current || activeNotePathRef.current !== path) return
         dispatch({ type: 'success', board: b })
@@ -225,7 +225,7 @@ interface KanbanCardProps {
   onMoveRight: () => void
 }
 
-function KanbanCard({
+const KanbanCard = memo(function KanbanCard({
   card,
   sourcePath,
   columnName,
@@ -260,18 +260,20 @@ function KanbanCard({
         <button
           type="button"
           className="icon-button kanban-card__move"
-          aria-label={`Move ${card.text} left`}
           disabled={!canMoveLeft || isPending}
           onClick={onMoveLeft}
+          title={`Move ${card.text} left`}
+          aria-label={`Move ${card.text} left`}
         >
           <ChevronLeft aria-hidden="true" />
         </button>
         <button
           type="button"
           className="icon-button kanban-card__move"
-          aria-label={`Move ${card.text} right`}
           disabled={!canMoveRight || isPending}
           onClick={onMoveRight}
+          title={`Move ${card.text} right`}
+          aria-label={`Move ${card.text} right`}
         >
           <ChevronRight aria-hidden="true" />
         </button>
@@ -279,7 +281,7 @@ function KanbanCard({
       {isPending && <span className="health-subtitle">Moving…</span>}
     </div>
   )
-}
+})
 
 // ── KanbanColumn ──────────────────────────────────────────────────────────────
 
@@ -291,7 +293,7 @@ interface KanbanColumnProps {
   onDrop: (cardLine: number, fromColumn: string, toColumn: string) => void
 }
 
-function KanbanColumn({ column, sourcePath, columns, pendingCardLine, onDrop }: KanbanColumnProps) {
+const KanbanColumn = memo(function KanbanColumn({ column, sourcePath, columns, pendingCardLine, onDrop }: KanbanColumnProps) {
   const [isDragOver, setIsDragOver] = useState(false)
   const dragCounter = useRef(0)
   const columnIndex = columns.findIndex((candidate) => candidate.name === column.name)
@@ -376,7 +378,7 @@ function KanbanColumn({ column, sourcePath, columns, pendingCardLine, onDrop }: 
       </div>
     </div>
   )
-}
+})
 
 // ── Panel ─────────────────────────────────────────────────────────────────────
 
@@ -387,7 +389,7 @@ export interface KanbanPanelProps {
   runSourceNoteMutation?: (sourcePath: string, runMutation: () => Promise<void>) => Promise<boolean>
 }
 
-export function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: KanbanPanelProps) {
+export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: KanbanPanelProps) {
   const store = useKanbanStore(notePath, runSourceNoteMutation)
   const board = store.board
   const [isCompactLayout, setIsCompactLayout] = useState(() =>
@@ -499,4 +501,4 @@ export function KanbanPanel({ notePath, onClose, runSourceNoteMutation }: Kanban
       )}
     </UnifiedPanelShell>
   )
-}
+})

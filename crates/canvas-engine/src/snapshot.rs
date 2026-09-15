@@ -40,7 +40,6 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
         .blocks
         .iter()
         .filter(|block| layer_by_id(document, &block.layer_id).is_some_and(|layer| layer.visible))
-        .cloned()
         .collect::<Vec<_>>();
     blocks.sort_by_key(|block| block.z_index);
 
@@ -62,10 +61,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             "#64748b",
         );
         let block_id = xml_escape(&block.id);
-        let label = block
-            .content_ref
-            .clone()
-            .unwrap_or_else(|| block.id.clone());
+        let label = block.content_ref.as_deref().unwrap_or(&block.id);
 
         match block.kind {
             CanvasBlockKind::Connector => {
@@ -79,12 +75,12 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     stroke,
                     block.bounds.x + 8.0,
                     block.bounds.y - 6.0,
-                    xml_escape(&label),
+                    xml_escape(label),
                 ));
                 continue;
             }
             CanvasBlockKind::Image => {
-                let href = block.content_ref.clone().unwrap_or_else(|| "image".into());
+                let href = block.content_ref.as_deref().unwrap_or("image");
                 svg.push_str(&format!(
                     r##"<g data-block-id="{}"><rect x="{}" y="{}" width="{}" height="{}" fill="#e2e8f0" stroke="{}" /><text x="{}" y="{}" font-size="12" fill="#475569">img: {}</text></g>"##,
                     block_id,
@@ -95,7 +91,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     stroke,
                     block.bounds.x + 12.0,
                     block.bounds.y + 24.0,
-                    xml_escape(&href),
+                    xml_escape(href),
                 ));
                 continue;
             }
@@ -110,47 +106,36 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
                     stroke,
                     block.bounds.x + 12.0,
                     block.bounds.y + 24.0,
-                    xml_escape(&label),
+                    xml_escape(label),
                 ));
                 continue;
             }
             _ => {}
         }
 
-        if block.shape_kind == Some(CanvasShapeKind::Freehand)
-            || block
-                .stroke_points
-                .as_ref()
-                .is_some_and(|points| points.len() >= 2)
+        if matches!(block.shape_kind, Some(CanvasShapeKind::Freehand))
+            && let Some(points) = block.stroke_points.as_deref()
+            && points.len() >= 2
         {
-            let points = block.stroke_points.clone().unwrap_or_default();
-            if points.len() >= 2 {
-                let path = points
-                    .iter()
-                    .enumerate()
-                    .map(|(index, point)| {
-                        if index == 0 {
-                            format!("M {} {}", point.x, point.y)
-                        } else {
-                            format!(" L {} {}", point.x, point.y)
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join("");
-                let stroke_width = block
-                    .style
-                    .as_ref()
-                    .and_then(|style| style.stroke_width)
-                    .unwrap_or(2.0);
-                svg.push_str(&format!(
-                    r##"<g data-block-id="{}"><path d="{}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" /></g>"##,
-                    block_id,
-                    path,
-                    stroke,
-                    stroke_width,
-                ));
-                continue;
+            use std::fmt::Write;
+            let mut path = String::with_capacity(points.len() * 16);
+            for (index, point) in points.iter().enumerate() {
+                let prefix = if index == 0 { "M" } else { " L" };
+                let _ = write!(path, "{prefix} {} {}", point.x, point.y);
             }
+            let stroke_width = block
+                .style
+                .as_ref()
+                .and_then(|style| style.stroke_width)
+                .unwrap_or(2.0);
+            svg.push_str(&format!(
+                r##"<g data-block-id="{}"><path d="{}" fill="none" stroke="{}" stroke-width="{}" stroke-linecap="round" stroke-linejoin="round" /></g>"##,
+                block_id,
+                path,
+                stroke,
+                stroke_width,
+            ));
+            continue;
         }
 
         let rx = match block.kind {
@@ -170,7 +155,7 @@ pub fn render_svg(document: &CanvasDocument, bounds: Option<CanvasRect>) -> Stri
             stroke,
             block.bounds.x + 12.0,
             block.bounds.y + 24.0,
-            xml_escape(&label),
+            xml_escape(label),
         ));
     }
 
@@ -302,6 +287,23 @@ fn scene_bounds(document: &CanvasDocument) -> CanvasRect {
         min_y = min_y.min(block.bounds.y);
         max_x = max_x.max(block.bounds.x + block.bounds.width);
         max_y = max_y.max(block.bounds.y + block.bounds.height);
+
+        if matches!(block.shape_kind, Some(CanvasShapeKind::Freehand))
+            && let Some(points) = block.stroke_points.as_deref()
+        {
+            let stroke_pad = block
+                .style
+                .as_ref()
+                .and_then(|style| style.stroke_width)
+                .unwrap_or(2.0)
+                / 2.0;
+            for point in points {
+                min_x = min_x.min(point.x - stroke_pad);
+                min_y = min_y.min(point.y - stroke_pad);
+                max_x = max_x.max(point.x + stroke_pad);
+                max_y = max_y.max(point.y + stroke_pad);
+            }
+        }
     }
 
     let x = if min_x.is_finite() {

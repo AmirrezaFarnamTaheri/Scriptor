@@ -79,12 +79,14 @@ pub fn code_chunk_run(
     code: String,
     authorization_token: String,
 ) -> Result<CodeChunkRunOutput, String> {
+    let session = active_session(&state)?;
     let lang = language.trim().to_lowercase();
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::CodeExecution,
         Some(&lang),
+        Some(&session.descriptor.id),
     )?;
     if !environment_opt_in(CODE_EXECUTION_OPT_IN) {
         return Err(format!(
@@ -95,7 +97,6 @@ pub fn code_chunk_run(
         return Err("code chunk exceeds the 4 MiB execution limit".into());
     }
 
-    let session = active_session(&state)?;
     let (binary, prefix_args) = allowed_runner(&lang).ok_or_else(|| {
         format!("unsupported code-chunk language: {language}. Allowed: powershell, pwsh, python, node, sh, cmd")
     })?;

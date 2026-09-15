@@ -441,17 +441,16 @@ fn read_frame_inner<R: std::io::Read>(reader: &mut R, resync: bool) -> Result<Ve
     let mut header = [0u8; 8];
     reader.read_exact(&mut header)?;
 
-    let partial_len = if u32::from_le_bytes(header[0..4].try_into().expect("slice")) == FRAME_MAGIC
-    {
-        header[4..8].to_vec()
+    if u32::from_le_bytes(header[0..4].try_into().expect("slice")) == FRAME_MAGIC {
+        let len = u32::from_le_bytes(header[4..8].try_into().expect("slice")) as usize;
+        read_body_len(reader, len)
     } else if resync {
         let mut scan_buf = header.to_vec();
-        sync_to_length_field(reader, &mut scan_buf)?
+        let partial_len = sync_to_length_field(reader, &mut scan_buf)?;
+        read_body_after_partial_length(reader, &partial_len)
     } else {
-        return Err(IpcError::InvalidMagic);
-    };
-
-    read_body_after_partial_length(reader, &partial_len)
+        Err(IpcError::InvalidMagic)
+    }
 }
 
 fn sync_to_length_field<R: std::io::Read>(
@@ -499,23 +498,9 @@ fn find_length_field_start_from(buf: &[u8], start_at: usize) -> Option<usize> {
         .map(|start| start + 4)
 }
 
-fn read_body_after_partial_length<R: std::io::Read>(
-    reader: &mut R,
-    partial_len: &[u8],
-) -> Result<Vec<u8>, IpcError> {
+fn read_body_len<R: std::io::Read>(reader: &mut R, len: usize) -> Result<Vec<u8>, IpcError> {
     use std::io::Read;
 
-    if partial_len.len() > 4 {
-        return Err(IpcError::Codec("length prefix longer than 4 bytes".into()));
-    }
-
-    let mut len_bytes = [0u8; 4];
-    len_bytes[..partial_len.len()].copy_from_slice(partial_len);
-    reader.read_exact(&mut len_bytes[partial_len.len()..])?;
-
-    // `len` is validated against MAX_FRAME_BYTES below, so a single exact
-    // allocation is memory-safe and removes reallocation churn on large frames.
-    let len = u32::from_le_bytes(len_bytes) as usize;
     if len > MAX_FRAME_BYTES {
         return Err(IpcError::FrameTooLarge(len));
     }
@@ -529,6 +514,22 @@ fn read_body_after_partial_length<R: std::io::Read>(
         return Err(IpcError::Codec("truncated frame body".into()));
     }
     Ok(body)
+}
+
+fn read_body_after_partial_length<R: std::io::Read>(
+    reader: &mut R,
+    partial_len: &[u8],
+) -> Result<Vec<u8>, IpcError> {
+    if partial_len.len() > 4 {
+        return Err(IpcError::Codec("length prefix longer than 4 bytes".into()));
+    }
+
+    let mut len_bytes = [0u8; 4];
+    len_bytes[..partial_len.len()].copy_from_slice(partial_len);
+    reader.read_exact(&mut len_bytes[partial_len.len()..])?;
+
+    let len = u32::from_le_bytes(len_bytes) as usize;
+    read_body_len(reader, len)
 }
 
 pub fn write_frame<W: std::io::Write, T: Serialize>(

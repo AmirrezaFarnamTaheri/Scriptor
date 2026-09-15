@@ -43,6 +43,25 @@ pub enum SensitiveOperation {
 }
 
 impl SensitiveOperation {
+    pub fn is_vault_bound(self) -> bool {
+        matches!(
+            self,
+            Self::ApplyBulkFix
+                | Self::ApplyGitConflict
+                | Self::CodeExecution
+                | Self::CreateBackup
+                | Self::DeleteBackup
+                | Self::DeleteNote
+                | Self::GitPull
+                | Self::GitPush
+                | Self::ImportVault
+                | Self::PdfTranslation
+                | Self::PublishSite
+                | Self::RestoreBackup
+                | Self::RestoreHistory
+        )
+    }
+
     fn title(self) -> &'static str {
         match self {
             Self::AiNetworkRequest => "Send note content to an AI provider",
@@ -152,19 +171,22 @@ impl SensitiveOperation {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorizationGrant {
     pub token: String,
     pub operation: SensitiveOperation,
     pub scope: Option<String>,
     pub expires_at_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vault_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
 struct StoredGrant {
     operation: SensitiveOperation,
     scope: Option<String>,
+    vault_id: Option<String>,
     expires_at_ms: u64,
 }
 
@@ -198,6 +220,7 @@ impl AuthorizationBroker {
         &self,
         operation: SensitiveOperation,
         scope: Option<String>,
+        vault_id: Option<String>,
     ) -> Result<AuthorizationGrant, String> {
         let now = Self::now_ms();
         let expires_at_ms = now.saturating_add(GRANT_TTL.as_millis() as u64);
@@ -226,6 +249,7 @@ impl AuthorizationBroker {
             StoredGrant {
                 operation,
                 scope: scope.clone(),
+                vault_id: vault_id.clone(),
                 expires_at_ms,
             },
         );
@@ -234,6 +258,7 @@ impl AuthorizationBroker {
             operation,
             scope,
             expires_at_ms,
+            vault_id,
         })
     }
 
@@ -242,6 +267,7 @@ impl AuthorizationBroker {
         token: &str,
         operation: SensitiveOperation,
         scope: Option<&str>,
+        expected_vault_id: Option<&str>,
     ) -> Result<(), String> {
         if token.len() != 36 || !token.is_ascii() {
             return Err("invalid authorization token".into());
@@ -258,6 +284,9 @@ impl AuthorizationBroker {
         if grant.scope.as_deref() != scope {
             return Err("authorization token is scoped to a different resource".into());
         }
+        if grant.vault_id.as_deref() != expected_vault_id {
+            return Err("authorization token was issued for a different vault session".into());
+        }
         grants.remove(token);
         Ok(())
     }
@@ -268,8 +297,11 @@ pub fn require_sensitive_operation(
     token: &str,
     operation: SensitiveOperation,
     scope: Option<&str>,
+    expected_vault_id: Option<&str>,
 ) -> Result<(), String> {
-    state.authorization.consume(token, operation, scope)
+    state
+        .authorization
+        .consume(token, operation, scope, expected_vault_id)
 }
 
 #[tauri::command]
@@ -279,15 +311,39 @@ pub async fn authorize_sensitive_operation(
     operation: SensitiveOperation,
     scope: Option<String>,
 ) -> Result<AuthorizationGrant, String> {
+    let (bound_vault_id, vault_name) = if operation.is_vault_bound() {
+        let session_guard = crate::state::read_recover(&state.session, "session");
+        let session = session_guard.as_ref().ok_or_else(|| {
+            format!(
+                "cannot authorize {} without an active vault session",
+                operation.title()
+            )
+        })?;
+        (
+            Some(session.descriptor.id.clone()),
+            Some(session.descriptor.name.clone()),
+        )
+    } else {
+        (None, None)
+    };
+
     let title = operation.title().to_string();
     let impact = operation.impact().to_string();
     let display_scope = scope
         .as_deref()
         .map(sanitize_scope)
         .filter(|value| !value.is_empty());
-    let message = match display_scope {
-        Some(scope) => format!("{impact}\n\nScope: {scope}\n\nApprove this one operation?"),
-        None => format!("{impact}\n\nApprove this one operation?"),
+    let message = match (display_scope, vault_name.as_deref()) {
+        (Some(scope), Some(vault)) => {
+            format!("{impact}\n\nVault: {vault}\nScope: {scope}\n\nApprove this one operation?")
+        }
+        (None, Some(vault)) => {
+            format!("{impact}\n\nVault: {vault}\n\nApprove this one operation?")
+        }
+        (Some(scope), None) => {
+            format!("{impact}\n\nScope: {scope}\n\nApprove this one operation?")
+        }
+        (None, None) => format!("{impact}\n\nApprove this one operation?"),
     };
 
     let approved = tauri::async_runtime::spawn_blocking(move || {
@@ -308,7 +364,7 @@ pub async fn authorize_sensitive_operation(
         return Err("operation cancelled by user".into());
     }
 
-    state.authorization.issue(operation, scope)
+    state.authorization.issue(operation, scope, bound_vault_id)
 }
 
 fn sanitize_scope(value: &str) -> String {
@@ -327,17 +383,31 @@ mod tests {
     fn grants_are_one_time_operation_and_scope_bound() {
         let broker = AuthorizationBroker::default();
         let grant = broker
-            .issue(SensitiveOperation::GitPush, Some("vault-a".into()))
+            .issue(
+                SensitiveOperation::GitPush,
+                Some("vault-a".into()),
+                Some("vault-1".into()),
+            )
             .unwrap();
 
         assert!(
             broker
-                .consume(&grant.token, SensitiveOperation::GitPush, Some("vault-a"))
+                .consume(
+                    &grant.token,
+                    SensitiveOperation::GitPush,
+                    Some("vault-a"),
+                    Some("vault-1")
+                )
                 .is_ok()
         );
         assert!(
             broker
-                .consume(&grant.token, SensitiveOperation::GitPush, Some("vault-a"))
+                .consume(
+                    &grant.token,
+                    SensitiveOperation::GitPush,
+                    Some("vault-a"),
+                    Some("vault-1")
+                )
                 .is_err()
         );
     }
@@ -346,14 +416,19 @@ mod tests {
     fn grants_reject_wrong_operation_or_scope() {
         let broker = AuthorizationBroker::default();
         let operation = broker
-            .issue(SensitiveOperation::GitPush, Some("vault-a".into()))
+            .issue(
+                SensitiveOperation::GitPush,
+                Some("vault-a".into()),
+                Some("vault-1".into()),
+            )
             .unwrap();
         assert!(
             broker
                 .consume(
                     &operation.token,
                     SensitiveOperation::GitPull,
-                    Some("vault-a")
+                    Some("vault-a"),
+                    Some("vault-1")
                 )
                 .is_err()
         );
@@ -362,25 +437,117 @@ mod tests {
                 .consume(
                     &operation.token,
                     SensitiveOperation::GitPush,
-                    Some("vault-a")
+                    Some("vault-a"),
+                    Some("vault-1")
                 )
                 .is_ok(),
             "a mismatched request must not consume a valid grant"
         );
 
         let scope = broker
-            .issue(SensitiveOperation::GitPush, Some("vault-a".into()))
+            .issue(
+                SensitiveOperation::GitPush,
+                Some("vault-a".into()),
+                Some("vault-1".into()),
+            )
             .unwrap();
         assert!(
             broker
-                .consume(&scope.token, SensitiveOperation::GitPush, Some("vault-b"))
+                .consume(
+                    &scope.token,
+                    SensitiveOperation::GitPush,
+                    Some("vault-b"),
+                    Some("vault-1")
+                )
                 .is_err()
         );
         assert!(
             broker
-                .consume(&scope.token, SensitiveOperation::GitPush, Some("vault-a"))
+                .consume(
+                    &scope.token,
+                    SensitiveOperation::GitPush,
+                    Some("vault-a"),
+                    Some("vault-1")
+                )
                 .is_ok(),
             "a mismatched scope must not consume a valid grant"
+        );
+    }
+
+    #[test]
+    fn grants_reject_mismatched_vault_identity() {
+        let broker = AuthorizationBroker::default();
+        let grant = broker
+            .issue(
+                SensitiveOperation::DeleteNote,
+                Some("note.md".into()),
+                Some("vault-a".into()),
+            )
+            .unwrap();
+
+        // Attempting to consume with a different active vault must fail.
+        assert!(
+            broker
+                .consume(
+                    &grant.token,
+                    SensitiveOperation::DeleteNote,
+                    Some("note.md"),
+                    Some("vault-b")
+                )
+                .is_err()
+        );
+
+        // Attempting to consume without an active vault must fail.
+        assert!(
+            broker
+                .consume(
+                    &grant.token,
+                    SensitiveOperation::DeleteNote,
+                    Some("note.md"),
+                    None
+                )
+                .is_err()
+        );
+
+        // Consuming with the matching active vault succeeds and consumes the grant.
+        assert!(
+            broker
+                .consume(
+                    &grant.token,
+                    SensitiveOperation::DeleteNote,
+                    Some("note.md"),
+                    Some("vault-a")
+                )
+                .is_ok()
+        );
+
+        // Non-vault-bound grant cannot be consumed against a vault-bound check.
+        let global_grant = broker
+            .issue(
+                SensitiveOperation::DaemonControl,
+                Some("daemon".into()),
+                None,
+            )
+            .unwrap();
+        assert!(
+            broker
+                .consume(
+                    &global_grant.token,
+                    SensitiveOperation::DaemonControl,
+                    Some("daemon"),
+                    Some("vault-a")
+                )
+                .is_err()
+        );
+        assert!(
+            broker
+                .consume(
+                    &global_grant.token,
+                    SensitiveOperation::DaemonControl,
+                    Some("daemon"),
+                    None
+                )
+                .is_ok()
         );
     }
 
@@ -388,14 +555,19 @@ mod tests {
     fn resource_sync_grants_are_plan_scoped() {
         let broker = AuthorizationBroker::default();
         let grant = broker
-            .issue(SensitiveOperation::ResourceSync, Some("plan-a".into()))
+            .issue(
+                SensitiveOperation::ResourceSync,
+                Some("plan-a".into()),
+                None,
+            )
             .unwrap();
         assert!(
             broker
                 .consume(
                     &grant.token,
                     SensitiveOperation::ResourceSync,
-                    Some("plan-b")
+                    Some("plan-b"),
+                    None
                 )
                 .is_err()
         );
@@ -408,23 +580,50 @@ mod tests {
         let broker = AuthorizationBroker::default();
         let mut tokens = Vec::new();
         for _ in 0..MAX_GRANTS {
-            let g = broker.issue(SensitiveOperation::GitPush, None).unwrap();
+            let g = broker
+                .issue(SensitiveOperation::GitPush, None, None)
+                .unwrap();
             tokens.push(g.token);
         }
 
         // The next issue attempt should return an explicit refusal rather than
         // clearing all existing grants or returning an unusable token.
-        let overflow = broker.issue(SensitiveOperation::GitPush, None);
+        let overflow = broker.issue(SensitiveOperation::GitPush, None, None);
         assert!(overflow.is_err(), "overflow issue must be rejected");
 
         // All previously issued tokens must still be live.
         for token in &tokens {
             assert!(
                 broker
-                    .consume(token, SensitiveOperation::GitPush, None)
+                    .consume(token, SensitiveOperation::GitPush, None, None)
                     .is_ok(),
                 "pre-existing grant must survive an overflow issue attempt"
             );
         }
+    }
+
+    #[test]
+    fn vault_bound_operations_flag() {
+        assert!(SensitiveOperation::DeleteNote.is_vault_bound());
+        assert!(SensitiveOperation::ApplyBulkFix.is_vault_bound());
+        assert!(SensitiveOperation::ApplyGitConflict.is_vault_bound());
+        assert!(SensitiveOperation::CreateBackup.is_vault_bound());
+        assert!(SensitiveOperation::DeleteBackup.is_vault_bound());
+        assert!(SensitiveOperation::GitPull.is_vault_bound());
+        assert!(SensitiveOperation::GitPush.is_vault_bound());
+        assert!(SensitiveOperation::ImportVault.is_vault_bound());
+        assert!(SensitiveOperation::PdfTranslation.is_vault_bound());
+        assert!(SensitiveOperation::PublishSite.is_vault_bound());
+        assert!(SensitiveOperation::RestoreBackup.is_vault_bound());
+        assert!(SensitiveOperation::RestoreHistory.is_vault_bound());
+        assert!(SensitiveOperation::CodeExecution.is_vault_bound());
+
+        assert!(!SensitiveOperation::DaemonControl.is_vault_bound());
+        assert!(!SensitiveOperation::KeychainWrite.is_vault_bound());
+        assert!(!SensitiveOperation::KeychainDelete.is_vault_bound());
+        assert!(!SensitiveOperation::GoogleCalendarAuth.is_vault_bound());
+        assert!(!SensitiveOperation::GoogleGmailAuth.is_vault_bound());
+        assert!(!SensitiveOperation::ResourceSync.is_vault_bound());
+        assert!(!SensitiveOperation::AiNetworkRequest.is_vault_bound());
     }
 }

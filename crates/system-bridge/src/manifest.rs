@@ -21,11 +21,23 @@ pub struct ReleaseManifest {
 }
 
 pub fn hash_file(path: impl AsRef<Path>) -> Result<String, BridgeError> {
-    let bytes = fs::read(path.as_ref()).map_err(|source| BridgeError::Io {
+    let mut file = fs::File::open(path.as_ref()).map_err(|source| BridgeError::Io {
         path: path.as_ref().to_path_buf(),
         source,
     })?;
-    Ok(hash_bytes(&bytes))
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 16384];
+    loop {
+        let n = file.read(&mut buffer).map_err(|source| BridgeError::Io {
+            path: path.as_ref().to_path_buf(),
+            source,
+        })?;
+        if n == 0 {
+            break;
+        }
+        hasher.update(&buffer[..n]);
+    }
+    Ok(hex::encode(hasher.finalize()))
 }
 
 pub fn hash_bytes(bytes: &[u8]) -> String {

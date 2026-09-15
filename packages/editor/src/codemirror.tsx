@@ -55,6 +55,7 @@ import {
   editorThemeExtension,
   type EditorThemeId,
 } from './editor-themes.ts'
+import type { MarkdownEditorHandle } from './editor-types.ts'
 import {
   countCharacters,
   countWords,
@@ -350,19 +351,7 @@ class CodeMirrorAdapter implements EditorAdapter {
   }
 }
 
-export interface MarkdownEditorHandle {
-  scrollToLine(line: number, focus?: boolean): void
-  getTopVisibleLine(): number
-  getScrollElement(): HTMLElement | null
-  getToc(): TocEntry[]
-  setVimMode(enabled: boolean): void
-  setSpellcheck(enabled: boolean): void
-  setLanguageTool(enabled: boolean): void
-  setWysiwyg(enabled: boolean): void
-  setTypewriter(enabled: boolean): void
-  setFocusDim(enabled: boolean): void
-  setEditorTheme(theme: EditorThemeId): void
-}
+export type { MarkdownEditorHandle } from './editor-types.ts'
 
 export interface MarkdownEditorProps {
   value: string
@@ -447,6 +436,8 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     })
   }, [onVimSave, onVimQuit])
 
+  const lastEmittedValueRef = useRef<string | null>(null)
+
   useImperativeHandle(ref, () => ({
     scrollToLine: (line, focus) => adapterRef.current?.scrollToLine(line, focus),
     getTopVisibleLine: () => adapterRef.current?.getTopVisibleLine() ?? 1,
@@ -459,6 +450,9 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
     setTypewriter: (enabled) => adapterRef.current?.setTypewriter(enabled),
     setFocusDim: (enabled) => adapterRef.current?.setFocusDim(enabled),
     setEditorTheme: (theme) => adapterRef.current?.setEditorTheme(theme),
+    applyTransform: (action) => adapterRef.current?.applyTransform(action),
+    applyTypography: (action) => adapterRef.current?.applyTypography(action),
+    insertSnippet: (text) => adapterRef.current?.insertSnippet(text),
   }))
 
   useEffect(() => {
@@ -466,7 +460,10 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
 
     const adapter = new CodeMirrorAdapter(hostRef.current, {
       initialValue: value,
-      onChange: (markdown) => onChangeRef.current(markdown),
+      onChange: (markdown) => {
+        lastEmittedValueRef.current = markdown
+        onChangeRef.current(markdown)
+      },
       readOnly,
       onVisibleLineChange: scrollSyncEnabled
         ? (line) => onVisibleLineChangeRef.current?.(line)
@@ -501,6 +498,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorPro
   }, [saveImageFromClipboard])
 
   useEffect(() => {
+    if (value === lastEmittedValueRef.current) return
     adapterRef.current?.setValue(value)
   }, [value])
 

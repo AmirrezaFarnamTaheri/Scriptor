@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import { Plus, Save, Trash2, X } from 'lucide-react'
 
 import { vaultLoadSnippets, vaultSaveSnippets } from '../bridge/commands'
@@ -8,11 +8,12 @@ import type { VaultSnippet } from '../types/vault'
 
 interface SnippetsPanelProps {
   vaultOpen: boolean
+  vaultId?: string
   onClose: () => void
   onSaved?: () => void
 }
 
-export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProps) {
+export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, onClose, onSaved }: SnippetsPanelProps) {
   const [snippets, setSnippets] = useState<VaultSnippet[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -24,13 +25,21 @@ export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProp
 
   useEffect(() => {
     if (!vaultOpen) return
+    let active = true
     void vaultLoadSnippets()
       .then((loaded) => {
+        if (!active) return
         setSnippets(loaded)
         setSelected(loaded[0]?.name ?? null)
       })
-      .catch((caught) => setError(caught instanceof Error ? caught.message : String(caught)))
-  }, [vaultOpen])
+      .catch((caught) => {
+        if (!active) return
+        setError(caught instanceof Error ? caught.message : String(caught))
+      })
+    return () => {
+      active = false
+    }
+  }, [vaultOpen, vaultId])
 
   const active = snippets.find((snippet) => snippet.name === selected) ?? null
 
@@ -58,7 +67,7 @@ export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProp
     setIsSaving(true)
     setError(null)
     try {
-      await vaultSaveSnippets(snippets)
+      await vaultSaveSnippets(snippets, vaultId)
       onSaved?.()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught))
@@ -155,4 +164,4 @@ export function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProp
       </section>
     </div>
   )
-}
+})
