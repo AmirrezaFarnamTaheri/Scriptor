@@ -28,7 +28,7 @@ pub fn plugin_state_set_enabled(
     scriptor_vault::save_plugin_state(session.root.root(), &plugin_state)
         .map_err(|error| error.to_string())?;
     if crate::state::use_headless_engine(&state) {
-        let _ = crate::commands::daemon::bridge_reload_config();
+        crate::commands::daemon::bridge_reload_config()?;
     }
     Ok(plugin_state)
 }

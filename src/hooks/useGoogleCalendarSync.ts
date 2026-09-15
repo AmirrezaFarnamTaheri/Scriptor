@@ -144,7 +144,9 @@ export function useGoogleCalendarSync({
   const [error, setError] = useState<string | null>(null)
   const [authedEmail, setAuthedEmail] = useState<string | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const syncGenerationRef = useRef(0)
+  const lifecycleGenerationRef = useRef(0)
+  const refreshGenerationRef = useRef(0)
+  const taskMutationRevisionRef = useRef(0)
 
   // `config` is typically rebuilt on every parent render, so every callback and
   // effect below keys off its primitive fields instead. Depending on the object
@@ -164,7 +166,8 @@ export function useGoogleCalendarSync({
       setError('Google OAuth client ID not configured. Set it in Settings → Calendar.')
       return
     }
-    const currentGen = ++syncGenerationRef.current
+    const currentLifecycle = lifecycleGenerationRef.current
+    const currentRefreshGen = ++refreshGenerationRef.current
     setStatus('authorizing')
     setError(null)
     try {
@@ -173,18 +176,30 @@ export function useGoogleCalendarSync({
         calendarId,
         taskListId,
       })
-      if (currentGen !== syncGenerationRef.current) return
+      if (
+        currentLifecycle !== lifecycleGenerationRef.current ||
+        currentRefreshGen !== refreshGenerationRef.current
+      ) {
+        return
+      }
       setAuthedEmail(email)
       setStatus('synced')
     } catch (err) {
-      if (currentGen !== syncGenerationRef.current) return
+      if (
+        currentLifecycle !== lifecycleGenerationRef.current ||
+        currentRefreshGen !== refreshGenerationRef.current
+      ) {
+        return
+      }
       setError(err instanceof Error ? err.message : String(err))
       setStatus('error')
     }
   }, [clientId, calendarId, taskListId])
 
   const disconnect = useCallback(async () => {
-    syncGenerationRef.current += 1
+    lifecycleGenerationRef.current += 1
+    refreshGenerationRef.current += 1
+    taskMutationRevisionRef.current += 1
     try {
       await googleCalendarDisconnect()
     } catch {
@@ -203,7 +218,9 @@ export function useGoogleCalendarSync({
 
   const refresh = useCallback(async () => {
     if (!enabled) return
-    const currentGen = ++syncGenerationRef.current
+    const currentLifecycle = lifecycleGenerationRef.current
+    const currentRefreshGen = ++refreshGenerationRef.current
+    const capturedMutationRev = taskMutationRevisionRef.current
     setStatus('syncing')
     setError(null)
     try {
@@ -212,13 +229,25 @@ export function useGoogleCalendarSync({
         googleCalendarListTasks(taskListId),
         googleCalendarGetAuthedEmail(),
       ])
-      if (currentGen !== syncGenerationRef.current) return
+      if (
+        currentLifecycle !== lifecycleGenerationRef.current ||
+        currentRefreshGen !== refreshGenerationRef.current
+      ) {
+        return
+      }
       setEvents(evtsRaw)
-      setTasks(tasksRaw)
+      if (capturedMutationRev === taskMutationRevisionRef.current) {
+        setTasks(tasksRaw)
+      }
       setAuthedEmail(email)
       setStatus('synced')
     } catch (err) {
-      if (currentGen !== syncGenerationRef.current) return
+      if (
+        currentLifecycle !== lifecycleGenerationRef.current ||
+        currentRefreshGen !== refreshGenerationRef.current
+      ) {
+        return
+      }
       const msg = err instanceof Error ? err.message : String(err)
       // Disconnected / no token → show disconnected rather than error
       if (msg.toLowerCase().includes('not authenticated') || msg.toLowerCase().includes('no token')) {
@@ -233,14 +262,14 @@ export function useGoogleCalendarSync({
   // Initial sync + interval refresh
   useEffect(() => {
     if (!enabled) return
-    syncGenerationRef.current += 1
+    lifecycleGenerationRef.current += 1
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial sync kick-off; refresh() transitions status as an external-system sync
     void refresh()
     if (refreshIntervalSeconds > 0) {
       intervalRef.current = setInterval(() => void refresh(), refreshIntervalSeconds * 1000)
     }
     return () => {
-      syncGenerationRef.current += 1
+      lifecycleGenerationRef.current += 1
       if (intervalRef.current) {
         clearInterval(intervalRef.current)
         intervalRef.current = null
@@ -254,7 +283,7 @@ export function useGoogleCalendarSync({
 
   const pushTask = useCallback(
     async (task: { title: string; notes?: string; due?: string }): Promise<GoogleTask | null> => {
-      const currentGen = syncGenerationRef.current
+      const currentLifecycle = lifecycleGenerationRef.current
       try {
         const created = await googleCalendarCreateTask({
           taskListId,
@@ -262,7 +291,8 @@ export function useGoogleCalendarSync({
           notes: task.notes ?? null,
           due: task.due ?? null,
         })
-        if (currentGen === syncGenerationRef.current) {
+        if (currentLifecycle === lifecycleGenerationRef.current) {
+          taskMutationRevisionRef.current += 1
           setTasks((prev) => [...prev, created])
         }
         return created
@@ -275,10 +305,11 @@ export function useGoogleCalendarSync({
 
   const completeTask = useCallback(
     async (taskId: string) => {
-      const currentGen = syncGenerationRef.current
+      const currentLifecycle = lifecycleGenerationRef.current
       try {
         await googleCalendarCompleteTask(taskListId, taskId)
-        if (currentGen === syncGenerationRef.current) {
+        if (currentLifecycle === lifecycleGenerationRef.current) {
+          taskMutationRevisionRef.current += 1
           setTasks((prev) =>
             prev.map((t) =>
               t.id === taskId
@@ -296,10 +327,11 @@ export function useGoogleCalendarSync({
 
   const deleteTask = useCallback(
     async (taskId: string) => {
-      const currentGen = syncGenerationRef.current
+      const currentLifecycle = lifecycleGenerationRef.current
       try {
         await googleCalendarDeleteTask(taskListId, taskId)
-        if (currentGen === syncGenerationRef.current) {
+        if (currentLifecycle === lifecycleGenerationRef.current) {
+          taskMutationRevisionRef.current += 1
           setTasks((prev) => prev.filter((t) => t.id !== taskId))
         }
       } catch {

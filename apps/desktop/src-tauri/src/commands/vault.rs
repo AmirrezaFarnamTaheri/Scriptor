@@ -45,12 +45,15 @@ pub fn vault_open(
     }
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
-    let watcher = create_vault_watcher(&app, &state, &session)?;
+    let (watcher, watcher_generation) = create_vault_watcher(&app, &state, &session)?;
     {
         let mut session_guard = write_recover(&state.session, "session");
         *session_guard = Some(session);
         crate::state::reset_git_queue(&state);
         *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
+        state
+            .vault_watcher_generation
+            .store(watcher_generation, std::sync::atomic::Ordering::Release);
     }
     Ok(output)
 }

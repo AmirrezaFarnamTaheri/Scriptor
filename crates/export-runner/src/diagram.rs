@@ -40,6 +40,7 @@ fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<O
                 .by_ref()
                 .take(MAX_DIAGRAM_OUTPUT_BYTES)
                 .read_to_end(&mut buffer);
+            let _ = io::copy(&mut pipe, &mut io::sink());
             buffer
         })
     });
@@ -50,6 +51,7 @@ fn output_with_timeout(command: &mut Command, timeout: Duration) -> io::Result<O
                 .by_ref()
                 .take(MAX_DIAGRAM_OUTPUT_BYTES)
                 .read_to_end(&mut buffer);
+            let _ = io::copy(&mut pipe, &mut io::sink());
             buffer
         })
     });

@@ -25,12 +25,20 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
 
   useEffect(() => {
     if (!vaultOpen) return
+    let active = true
     void vaultLoadSnippets()
       .then((loaded) => {
+        if (!active) return
         setSnippets(loaded)
         setSelected(loaded[0]?.name ?? null)
       })
-      .catch((caught) => setError(caught instanceof Error ? caught.message : String(caught)))
+      .catch((caught) => {
+        if (!active) return
+        setError(caught instanceof Error ? caught.message : String(caught))
+      })
+    return () => {
+      active = false
+    }
   }, [vaultOpen, vaultId])
 
   const active = snippets.find((snippet) => snippet.name === selected) ?? null

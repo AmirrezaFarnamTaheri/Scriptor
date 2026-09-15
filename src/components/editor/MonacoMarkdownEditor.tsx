@@ -71,11 +71,14 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
     const lastTransformSeqRef = useRef<number | null>(null)
     const lastTypographySeqRef = useRef<number | null>(null)
     const insertRequestRef = useRef(insertRequest)
-    insertRequestRef.current = insertRequest
     const transformRequestRef = useRef(transformRequest)
-    transformRequestRef.current = transformRequest
     const typographyRequestRef = useRef(typographyRequest)
-    typographyRequestRef.current = typographyRequest
+
+    useEffect(() => {
+      insertRequestRef.current = insertRequest
+      transformRequestRef.current = transformRequest
+      typographyRequestRef.current = typographyRequest
+    }, [insertRequest, transformRequest, typographyRequest])
 
     useEffect(() => {
       onChangeRef.current = onChange

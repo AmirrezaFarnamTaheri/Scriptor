@@ -18,27 +18,27 @@ pub(crate) fn create_vault_watcher(
     app: &AppHandle,
     state: &AppState,
     session: &VaultSession,
-) -> Result<VaultWatcher, String> {
-    let generation = state
+) -> Result<(VaultWatcher, u64), String> {
+    let next_generation = state
         .vault_watcher_generation
-        .fetch_add(1, Ordering::AcqRel)
+        .load(Ordering::Acquire)
         .saturating_add(1);
     let current_generation = state.vault_watcher_generation.clone();
     let app_handle = app.clone();
-    VaultWatcher::start(&session.root, 300, move |batch| {
-        if current_generation.load(Ordering::Acquire) != generation {
+    let watcher = VaultWatcher::start(&session.root, 300, move |batch| {
+        if current_generation.load(Ordering::Acquire) != next_generation {
             return;
         }
 
         let payload = match batch {
             VaultWatchBatch::Events(events) => VaultFilesystemChanged {
-                generation,
+                generation: next_generation,
                 events,
                 rescan_required: false,
                 reason: None,
             },
             VaultWatchBatch::RescanRequired { reason } => VaultFilesystemChanged {
-                generation,
+                generation: next_generation,
                 events: Vec::new(),
                 rescan_required: true,
                 reason: Some(reason),
@@ -48,7 +48,9 @@ pub(crate) fn create_vault_watcher(
             tracing::warn!(%error, "failed to emit vault filesystem event");
         }
     })
-    .map_err(|error| error.to_string())
+    .map_err(|error| error.to_string())?;
+
+    Ok((watcher, next_generation))
 }
 
 pub(crate) fn parse_daemon_json<T: serde::de::DeserializeOwned>(json: &str) -> Result<T, String> {
