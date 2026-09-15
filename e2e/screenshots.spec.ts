@@ -66,7 +66,7 @@ async function waitForFullWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  await expect(page.locator('.markdown-preview h1')).toContainText('Research Plan', {
+  await expect(page.locator('.markdown-preview h1').first()).toContainText('Research Plan', {
     timeout: 30_000,
   })
   await expect(page.locator('.preview-error')).toHaveCount(0)
