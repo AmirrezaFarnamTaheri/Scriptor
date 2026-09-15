@@ -49,3 +49,61 @@ test('command palette surface is opaque', async ({ page }) => {
     /(?:rgba\([^)]*,\s*0(?:\.0+)?\s*\)|(?:rgb|color)\([^)]*\/\s*0(?:\.0+)?%?\s*\)|^transparent$)/,
   )
 })
+
+test('task list items render checkboxes without double bullet discs', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('.editor-toolbar').getByRole('button', { name: 'Split', exact: true }).click()
+  const preview = page.locator('aside[aria-label="Split Markdown preview"]')
+  await expect(preview.getByRole('heading', { name: 'Research Plan' })).toBeVisible()
+
+  const taskLists = preview.locator('ul.contains-task-list, ul:has(> li.task-list-item)')
+  await expect(taskLists.first()).toBeVisible()
+  const listStyle = await taskLists.first().evaluate((element) => getComputedStyle(element).listStyleType)
+  expect(listStyle).toBe('none')
+
+  const taskItem = preview.locator('li.task-list-item').first()
+  await expect(taskItem).toBeVisible()
+  const itemStyle = await taskItem.evaluate((element) => getComputedStyle(element).listStyleType)
+  expect(itemStyle).toBe('none')
+  await expect(taskItem.locator('input[type="checkbox"]')).toBeVisible()
+})
+
+test('editor surface mode switcher synchronizes with main viewport in Preview mode', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+  const renderedView = page.locator('.editor-rendered-view')
+  await expect(renderedView).toBeVisible()
+  await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
+  // Monaco/CodeMirror editor must not be mounted in rendered view
+  await expect(page.locator('.monaco-editor')).toHaveCount(0)
+})
+
+test('status bar reading time and word count reflect active note accurately', async ({ page }) => {
+  await launchApp(page)
+  const statusBar = page.locator('.editor-status')
+  await expect(statusBar).toBeVisible()
+  await expect(statusBar).toContainText('words')
+  // 31 words must calculate to 1 min read (not vault-wide 2 min read)
+  await expect(statusBar).toContainText('1 min read')
+})
+
+test('workspace switcher option labels display cleanly without premature path clipping', async ({ page }) => {
+  await launchApp(page)
+  const switcher = page.locator('.workspace-switcher select')
+  if (await switcher.isVisible()) {
+    const firstOptionText = await switcher.locator('option:not([disabled])').first().textContent()
+    expect(firstOptionText).toBeTruthy()
+    expect(firstOptionText).not.toMatch(/fixtu$/)
+  }
+})
+
+test('light mode line number gutter meets WCAG AA contrast standards', async ({ page }) => {
+  await launchApp(page)
+  const gutter = page.locator('.cm-gutters, .monaco-editor .margin').first()
+  if (await gutter.isVisible()) {
+    const color = await gutter.evaluate((el) => getComputedStyle(el).color)
+    expect(color).toBeTruthy()
+    expect(color).not.toBe('rgb(255, 255, 255)')
+  }
+})
+

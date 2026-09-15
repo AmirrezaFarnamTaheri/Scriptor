@@ -78,7 +78,7 @@ async function waitForVisualWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  const preview = page.getByRole('article', { name: 'Markdown preview' })
+  const preview = page.getByRole('article', { name: 'Markdown preview' }).first()
   await expect(preview).toBeVisible({ timeout: 30_000 })
   await expect(preview.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
   await expect(page.locator('.preview-error')).toHaveCount(0)
@@ -86,7 +86,7 @@ async function waitForPreviewReady(page: Page) {
 }
 
 async function waitForActiveSplitPreview(page: Page) {
-  const splitPreview = page.getByRole('article', { name: 'Markdown preview' })
+  const splitPreview = page.getByRole('article', { name: 'Markdown preview' }).first()
   if (await splitPreview.isVisible()) await waitForPreviewReady(page)
 }
 
