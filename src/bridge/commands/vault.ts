@@ -104,9 +104,9 @@ export async function vaultPlanDailyNote(date?: string): Promise<DailyNotePlan> 
   return invoke<DailyNotePlan>('vault_plan_daily_note', { date: date ?? null })
 }
 
-export async function vaultSaveSnippets(snippets: VaultSnippet[]): Promise<void> {
+export async function vaultSaveSnippets(snippets: VaultSnippet[], expectedVaultId?: string | null): Promise<void> {
   requireNative()
-  await invoke('vault_save_snippets', { snippets })
+  await invoke('vault_save_snippets', { snippets, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultLoadTemplate(templatePath: string): Promise<string> {
@@ -301,9 +301,12 @@ export async function vaultReadWorkspaceSession(): Promise<WorkspaceSessionPaylo
   return invoke<WorkspaceSessionPayload>('vault_read_workspace_session')
 }
 
-export async function vaultSaveWorkspaceSession(session: WorkspaceSessionPayload): Promise<void> {
+export async function vaultSaveWorkspaceSession(
+  session: WorkspaceSessionPayload,
+  expectedVaultId?: string | null,
+): Promise<void> {
   requireNative()
-  await invoke('vault_save_workspace_session', { session })
+  await invoke('vault_save_workspace_session', { session, expectedVaultId: expectedVaultId ?? null })
 }
 
 export interface NoteHistoryRevision {

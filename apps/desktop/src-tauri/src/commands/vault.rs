@@ -23,13 +23,13 @@ use tauri::AppHandle;
 
 use crate::AppState;
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::{active_session, use_headless_engine, write_recover};
+use crate::state::{active_session, lock_recover, use_headless_engine, write_recover};
 
 use super::daemon::{
     bridge_health_report, bridge_reload_config, bridge_rename_apply, bridge_save_note,
 };
 use super::media::save_vault_asset;
-use super::shared::{parse_daemon_json, restart_vault_watcher};
+use super::shared::{create_vault_watcher, parse_daemon_json};
 
 #[tauri::command]
 pub fn vault_open(
@@ -45,10 +45,13 @@ pub fn vault_open(
     }
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
-    *write_recover(&state.session, "session") = Some(session.clone());
-    // The previous vault's GitQueue handle must not serve the next vault.
-    crate::state::reset_git_queue(&state);
-    restart_vault_watcher(&app, &state, &session)?;
+    let watcher = create_vault_watcher(&app, &state, &session)?;
+    {
+        let mut session_guard = write_recover(&state.session, "session");
+        *session_guard = Some(session);
+        crate::state::reset_git_queue(&state);
+        *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
+    }
     Ok(output)
 }
 
@@ -364,8 +367,10 @@ pub fn vault_read_workspace_session(
 pub fn vault_save_workspace_session(
     state: tauri::State<AppState>,
     session: WorkspaceSession,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
     let active = active_session(&state)?;
+    validate_expected_vault(&active.descriptor.id, expected_vault_id.as_deref())?;
     write_workspace_session(&active.root, &session).map_err(|error| error.to_string())
 }
 
@@ -437,8 +442,10 @@ pub fn vault_load_config(state: tauri::State<AppState>) -> Result<VaultConfig, S
 pub fn vault_save_snippets(
     state: tauri::State<AppState>,
     snippets: Vec<VaultSnippet>,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     save_vault_snippets(session.root.root(), &snippets).map_err(|error| error.to_string())
 }
 

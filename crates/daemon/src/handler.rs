@@ -352,6 +352,8 @@ impl DaemonState {
         self.config_generation = self.config_generation.saturating_add(1);
         let session = self.require_session()?;
         let config = load_vault_config(session.root.root()).map_err(|error| error.to_string())?;
+        self.plugin_state =
+            load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
         let json = serde_json::to_string(&config).map_err(|error| error.to_string())?;
         Ok(RpcPayload::ConfigReloaded {
             json,
@@ -363,15 +365,10 @@ impl DaemonState {
         &mut self,
         path: String,
     ) -> Result<scriptor_vault::OpenVaultOutput, String> {
-        // Invalidate before changing `session` or `index_cache`: a callback
-        // from the old watcher can otherwise capture the newly installed
-        // session and apply old-vault paths to the new index.
-        self.invalidate_vault_watcher();
-        self.index_cache = None;
-        self.session = None;
-        self.git_queue = std::sync::Mutex::new(None);
-        let mut session = open_vault(PathBuf::from(path)).map_err(|error| error.to_string())?;
-        self.plugin_state =
+        // Prepare new vault structures completely before modifying any existing state.
+        // On any failure, previous session, cache, and watcher remain fully active.
+        let mut session = open_vault(PathBuf::from(&path)).map_err(|error| error.to_string())?;
+        let plugin_state =
             load_plugin_state(session.root.root()).map_err(|error| error.to_string())?;
         let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
         if !session.pending_reindex_paths.is_empty() {
@@ -381,8 +378,13 @@ impl DaemonState {
             session.pending_reindex_paths.clear();
         }
         let output = scriptor_vault::open_vault_output(&session);
+
+        // Transactional commit: invalidate old watcher and swap state atomically
+        self.invalidate_vault_watcher();
+        self.plugin_state = plugin_state;
         self.session = Some(session.clone());
         self.index_cache = Some(cache);
+        self.git_queue = std::sync::Mutex::new(None);
         self.index_rebuild.spawn(session);
         Ok(output)
     }
@@ -799,21 +801,6 @@ mod tests {
         }
     }
 
-    #[test]
-    fn invoke_rejects_operations_that_require_desktop_authorization() {
-        let mut state = DaemonState::default();
-        let response = state.handle(RpcRequest::new(
-            2,
-            RpcMethod::Invoke {
-                command: "git_push_cmd".into(),
-                payload_json: "{}".into(),
-            },
-        ));
-        assert!(matches!(
-            response.result,
-            RpcResult::Error(error) if error.to_string().contains("desktop authorization")
-        ));
-    }
 
     #[test]
     fn list_commands_excludes_operations_that_require_desktop_authorization() {
@@ -829,6 +816,34 @@ mod tests {
                 .all(|command| !command_gateway::requires_desktop_authorization(command))
         );
         assert!(commands.iter().any(|command| command == "vault_save_note"));
+    }
+
+    #[test]
+    fn invoke_rejects_operations_that_require_desktop_authorization() {
+        let mut state = DaemonState::default();
+        for command in [
+            "pdf_translate",
+            "plantuml_render",
+            "vault_delete_note",
+            "git_push_cmd",
+        ] {
+            let response = state.handle(RpcRequest::new(
+                4,
+                RpcMethod::Invoke {
+                    command: command.into(),
+                    payload_json: "{}".into(),
+                },
+            ));
+            match response.result {
+                RpcResult::Error(error) => {
+                    assert!(
+                        error.to_string().contains("desktop authorization"),
+                        "{command} must require desktop authorization: {error}"
+                    );
+                }
+                other => panic!("expected authorization rejection for {command}: {other:?}"),
+            }
+        }
     }
 
     #[test]

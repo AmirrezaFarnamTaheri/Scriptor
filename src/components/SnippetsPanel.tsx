@@ -8,11 +8,12 @@ import type { VaultSnippet } from '../types/vault'
 
 interface SnippetsPanelProps {
   vaultOpen: boolean
+  vaultId?: string
   onClose: () => void
   onSaved?: () => void
 }
 
-export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, onClose, onSaved }: SnippetsPanelProps) {
+export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, onClose, onSaved }: SnippetsPanelProps) {
   const [snippets, setSnippets] = useState<VaultSnippet[]>([])
   const [selected, setSelected] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
@@ -30,7 +31,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, onClose, o
         setSelected(loaded[0]?.name ?? null)
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : String(caught)))
-  }, [vaultOpen])
+  }, [vaultOpen, vaultId])
 
   const active = snippets.find((snippet) => snippet.name === selected) ?? null
 
@@ -58,7 +59,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, onClose, o
     setIsSaving(true)
     setError(null)
     try {
-      await vaultSaveSnippets(snippets)
+      await vaultSaveSnippets(snippets, vaultId)
       onSaved?.()
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught))

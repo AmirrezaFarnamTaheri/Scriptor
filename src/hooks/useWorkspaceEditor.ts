@@ -106,18 +106,29 @@ export function useWorkspaceEditor({
   const pendingSaveCountRef = useRef(0)
   const pendingRefreshRef = useRef<(() => Promise<void>) | null>(null)
   const refreshingRef = useRef(false)
+  const pendingSaveRequestRef = useRef<SaveRequest | null>(null)
+  const performSaveRef = useRef<(request: SaveRequest) => Promise<boolean>>(() => Promise.resolve(false))
+  const createSaveRequestRef = useRef<(markdown: string) => SaveRequest | null>(() => null)
   const { activePathRef, activeNoteRef, draftMarkdownRef, isSavingRef, checkExternalChangesRef } = editorRefs
 
   const resetNoteNavigation = useCallback(() => {
-    navigationGenerationRef.current += 1
+    let pending = pendingSaveRequestRef.current
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
+      pendingSaveRequestRef.current = null
     }
+    if (!pending && activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown) {
+      pending = createSaveRequestRef.current(draftMarkdownRef.current)
+    }
+    if (pending) {
+      void performSaveRef.current(pending)
+    }
+    navigationGenerationRef.current += 1
     const nextNav = { paths: [], index: -1 }
     noteNavRef.current = nextNav
     setNoteNav(nextNav)
-  }, [])
+  }, [activeNoteRef, draftMarkdownRef])
 
   const loadNote = useCallback(
     async (path: string, isCurrent: () => boolean = () => true) => {
@@ -405,6 +416,10 @@ export function useWorkspaceEditor({
     [activeNoteRef, activePathRef],
   )
 
+  useEffect(() => {
+    createSaveRequestRef.current = createSaveRequest
+  }, [createSaveRequest])
+
   const isSaveRequestCurrent = useCallback(
     (request: SaveRequest) =>
       activePathRef.current === request.path &&
@@ -551,10 +566,15 @@ export function useWorkspaceEditor({
     [isSavingRef, saveRequest],
   )
 
+  useEffect(() => {
+    performSaveRef.current = performSave
+  }, [performSave])
+
   const scheduleSave = useCallback(
     (markdown: string) => {
       const request = createSaveRequest(markdown)
       if (!request) return
+      pendingSaveRequestRef.current = request
 
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current)
@@ -562,6 +582,7 @@ export function useWorkspaceEditor({
 
       saveTimer.current = window.setTimeout(() => {
         saveTimer.current = null
+        pendingSaveRequestRef.current = null
         void performSave(request)
       }, 700)
     },
@@ -596,6 +617,7 @@ export function useWorkspaceEditor({
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
+      pendingSaveRequestRef.current = null
     }
     const request = createSaveRequest(draftMarkdownRef.current)
     return request ? performSave(request) : false

@@ -5,7 +5,6 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 
 use crate::AppState;
-use crate::state::lock_recover;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct VaultFilesystemChanged {
@@ -15,20 +14,18 @@ pub(crate) struct VaultFilesystemChanged {
     reason: Option<String>,
 }
 
-pub(crate) fn restart_vault_watcher(
+pub(crate) fn create_vault_watcher(
     app: &AppHandle,
     state: &AppState,
     session: &VaultSession,
-) -> Result<(), String> {
-    *lock_recover(&state.vault_watcher, "vault watcher") = None;
-
+) -> Result<VaultWatcher, String> {
     let generation = state
         .vault_watcher_generation
         .fetch_add(1, Ordering::AcqRel)
         .saturating_add(1);
     let current_generation = state.vault_watcher_generation.clone();
     let app_handle = app.clone();
-    let watcher = VaultWatcher::start(&session.root, 300, move |batch| {
+    VaultWatcher::start(&session.root, 300, move |batch| {
         if current_generation.load(Ordering::Acquire) != generation {
             return;
         }
@@ -51,10 +48,7 @@ pub(crate) fn restart_vault_watcher(
             tracing::warn!(%error, "failed to emit vault filesystem event");
         }
     })
-    .map_err(|error| error.to_string())?;
-
-    *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
-    Ok(())
+    .map_err(|error| error.to_string())
 }
 
 pub(crate) fn parse_daemon_json<T: serde::de::DeserializeOwned>(json: &str) -> Result<T, String> {

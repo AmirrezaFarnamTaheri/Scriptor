@@ -329,6 +329,7 @@ function WorkspaceDialogLayersImpl({
           <Suspense fallback={<PanelFallback />}>
             <SnippetsPanelLazy
               vaultOpen={Boolean(workspace.vault)}
+              vaultId={workspace.vault?.id}
               onClose={() => setSnippetsOpen(false)}
               onSaved={() => void workspace.refreshVaultSnippets()}
             />

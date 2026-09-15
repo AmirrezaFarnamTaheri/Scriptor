@@ -351,17 +351,21 @@ fn dispatch_request(
         RpcMethod::OpenVault { .. } => {
             let rebuild_job = { lock_recover(state).index_rebuild.clone() };
             rebuild_job.wait();
-            let response = lock_recover(state).handle(request);
+            let mut response = lock_recover(state).handle(request);
             if matches!(
                 response.result,
                 RpcResult::Ok(RpcPayload::VaultOpened { .. })
             ) && let Err(error) = restart_vault_watcher(state)
             {
-                tracing::warn!(
+                tracing::error!(
                     target: "scriptor_daemon::transport",
                     %error,
                     "vault watcher failed to restart after OpenVault",
                 );
+                response = RpcResponse {
+                    id,
+                    result: RpcResult::failed(format!("vault watcher failed to restart after OpenVault: {error}")),
+                };
             }
             response
         }
