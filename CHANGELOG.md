@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## 1.0.11 — 2026-09-16
+
+### Added
+- Added customizable editor format toolbar with toggleable action groups, popover formatting controls, drag-and-drop ordering, and persistent toolbar settings across editing modes.
+- Added recent-vault path disambiguation in the workspace switcher so colliding folder names display their distinguishing parent directory in menus and screen-reader labels.
+
+### Fixed
+- Hardened Markdown preview mode synchronization, scroll tracking, and rendered-mode surface transitions.
+- Restored visible task list checkboxes and bullets in rendered preview mode across all application themes.
+- Improved light-mode gutter contrast, selection indicators, and responsive panel clipping boundaries.
+- Hardened daemon IPC transport connections with exponential retry backoff under loaded test and execution environments.
+
 ## 1.0.10 — 2026-09-13
 
 ### Fixed

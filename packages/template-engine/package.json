@@ -1,7 +1,7 @@
 {
   "name": "@scriptor/template-engine",
   "private": true,
-  "version": "1.0.10",
+  "version": "1.0.11",
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
