@@ -483,3 +483,17 @@ test('generateTocFromMarkdown parses heading hierarchy, rendered level, and anch
     id: 'second-heading',
   })
 })
+
+test('countWords accurately counts prose words while ignoring Markdown structural markers', async () => {
+  const { countWords, countCharacters } = await import('./adapter.ts')
+  assert.equal(countWords(''), 0)
+  assert.equal(countWords('# Heading Title'), 2)
+  assert.equal(countWords('- [ ] Uncompleted task item'), 3)
+  assert.equal(countWords('- [x] Completed task item'), 3)
+  assert.equal(countWords('> Blockquote line here'), 3)
+  assert.equal(countWords('---'), 0)
+  assert.equal(countWords('| Column A | Column B |\n|---|---|\n| Cell 1 | Cell 2 |'), 8)
+  assert.equal(countWords("Contractions like don't and well-known hyphens"), 6)
+  assert.equal(countWords('这是一个测试'), 6)
+  assert.equal(countCharacters('abc'), 3)
+})

@@ -199,7 +199,7 @@ function InspectorRailImpl({
       </div>
 
       {/* ── Preset row ──────────────────────────────────────────────────────── */}
-      {activeMode !== 'plugins' ? (
+      {activeMode === 'inspector' ? (
         <div className="inspector-preset-control">
           <div className="inspector-preset-row" role="radiogroup" aria-label={t('inspector.presetAria')} onKeyDown={handlePresetKeys}>
             {INSPECTOR_PRESETS.map((entry) => (
@@ -224,8 +224,8 @@ function InspectorRailImpl({
         </div>
       ) : null}
 
-      {/* Note context belongs to the inspector and preview, not the store. */}
-      {showInspectorHealth && activeMode !== 'plugins' ? (
+      {/* Note context belongs to the inspector tab, not above preview or store. */}
+      {showInspectorHealth && activeMode === 'inspector' ? (
         <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
           <div className="metric-grid">
             {healthMetrics.map(([label, value]) => (
@@ -238,7 +238,7 @@ function InspectorRailImpl({
         </WidgetCard>
       ) : null}
 
-      {presetConfig.showQuality && activeMode !== 'plugins' ? (
+      {presetConfig.showQuality && activeMode === 'inspector' ? (
         <NoteQualityCard
           activePath={activePath}
           health={health}
@@ -321,6 +321,37 @@ function InspectorRailImpl({
                 bibliography={bibliography}
                 onInsertBlock={(block) => insertSnippet(block)}
               />
+            ) : null}
+            {showInspectorHealth ? (
+              <details className="preview-subordinate-health">
+                <summary className="preview-subordinate-summary">
+                  <span>{t('inspector.noteHealth')}</span>
+                </summary>
+                <WidgetCard title={t('inspector.noteHealth')} action={healthAction} onAction={onOpenHealthDashboard}>
+                  <div className="metric-grid">
+                    {healthMetrics.map(([label, value]) => (
+                      <div className="metric" key={label}>
+                        <span>{label}</span>
+                        <strong>{value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                </WidgetCard>
+                {presetConfig.showQuality ? (
+                  <NoteQualityCard
+                    activePath={activePath}
+                    health={health}
+                    outboundLinks={inspectorLinks.length}
+                    backlinkCount={backlinks.length}
+                    citationKeys={citationRows}
+                    bibliographyKeys={bibliographyKeys}
+                    isNoteDirty={isNoteDirty}
+                    onOpenWorkbench={onOpenKnowledgeWorkbench}
+                    onOpenPublish={onOpenPublishCenter}
+                    onOpenGraph={onOpenGraph}
+                  />
+                ) : null}
+              </details>
             ) : null}
           </>
         ) : null}

@@ -2,13 +2,14 @@ import { memo, type Dispatch, type SetStateAction } from 'react'
 
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import type { VaultConfig } from '../types/vault'
+import { useGoogleCalendarSync } from '../hooks/useGoogleCalendarSync'
 
 interface VaultConfigSettingsSectionProps {
   config: VaultConfig
   setConfig: Dispatch<SetStateAction<VaultConfig>>
   dailyNotePreview: { path: string; title: string }
-  status: string
-  onSave: () => Promise<void>
+  status?: string
+  onSave?: () => Promise<void>
 }
 
 /** Owns editable vault workflow/export settings; persistence remains in SettingsPanel. */
@@ -16,9 +17,8 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
   config,
   setConfig,
   dailyNotePreview,
-  status,
-  onSave,
 }: VaultConfigSettingsSectionProps) {
+  const calendarSync = useGoogleCalendarSync({ config: config.calendar_sync })
   return (
     <div className="settings-section">
       <h3>Vault config</h3>
@@ -301,6 +301,101 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
         <span>Enable CRDT canvas sync (localStorage op log with cross-tab merge)</span>
       </label>
+      <h4 className="settings-subheading">Google Calendar &amp; Tasks sync</h4>
+      <label className="diagnostics-opt-in">
+        <input
+          type="checkbox"
+          checked={config.calendar_sync?.enabled ?? false}
+          onChange={(event) =>
+            setConfig((current) => ({
+              ...current,
+              calendar_sync: {
+                ...DEFAULT_VAULT_CONFIG.calendar_sync!,
+                ...current.calendar_sync,
+                enabled: event.target.checked,
+              },
+            }))
+          }
+        />
+        <span>Enable Google Calendar &amp; Tasks integration</span>
+      </label>
+      {config.calendar_sync?.enabled ? (
+        <div className="settings-subgroup">
+          <label className="settings-field">
+            Google Client ID (OAuth2)
+            <input
+              value={config.calendar_sync.google_client_id ?? ''}
+              placeholder="OAuth2 Client ID"
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  calendar_sync: {
+                    ...DEFAULT_VAULT_CONFIG.calendar_sync!,
+                    ...current.calendar_sync,
+                    google_client_id: event.target.value.trim() || null,
+                  },
+                }))
+              }
+            />
+          </label>
+          <label className="settings-field">
+            Lookahead window (days)
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={config.calendar_sync.lookahead_days ?? 7}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  calendar_sync: {
+                    ...DEFAULT_VAULT_CONFIG.calendar_sync!,
+                    ...current.calendar_sync,
+                    lookahead_days: Number(event.target.value) || 7,
+                  },
+                }))
+              }
+            />
+          </label>
+          <div className="calendar-sync-actions">
+            <span className={`publish-status publish-status-${calendarSync.status}`}>
+              {calendarSync.status.toUpperCase()}
+              {calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}
+            </span>
+            {calendarSync.status === 'disconnected' || calendarSync.status === 'error' ? (
+              <button
+                type="button"
+                className="toolbar-button"
+                onClick={() => void calendarSync.startAuth()}
+                disabled={!config.calendar_sync.google_client_id}
+              >
+                Connect Google Account
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  onClick={() => void calendarSync.refresh()}
+                  disabled={calendarSync.status === 'syncing'}
+                >
+                  Sync Now
+                </button>
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  onClick={() => void calendarSync.disconnect()}
+                >
+                  Disconnect
+                </button>
+              </>
+            )}
+            {calendarSync.error ? (
+              <small className="publish-error">{calendarSync.error}</small>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
       <h4 className="settings-subheading">Extra scan roots</h4>
       <p className="health-subtitle">Additional folders under the vault root to include in scans (one per line).</p>
       <textarea
@@ -318,10 +413,6 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
           }))
         }
       />
-      <button type="button" className="primary-button" onClick={() => void onSave()}>
-        Save vault config
-      </button>
-      {status ? <p className="settings-status">{status}</p> : null}
     </div>
   )
 })

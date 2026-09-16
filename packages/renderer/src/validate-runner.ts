@@ -195,6 +195,13 @@ test('extended task preprocessing does not close a fence with trailing content',
   assert.match(processed, /- \[ \] _In progress_ — becomes task/)
 })
 
+test('pipeline annotates extended task states with data-task-state', () => {
+  const html = renderMarkdownPipeline('- [/] in-progress task\n- [-] cancelled task\n- [>] forwarded task')
+  assert.match(html, /data-task-state="in-progress"/)
+  assert.match(html, /data-task-state="cancelled"/)
+  assert.match(html, /data-task-state="forwarded"/)
+})
+
 test('pipeline preserves wikilink hrefs', () => {
   const html = renderMarkdownPreview('Link [[Target|Label]]')
   assert.match(html, /href="#wikilink:Target"/)

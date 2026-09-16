@@ -163,14 +163,15 @@ function WorkspaceStatusFooterImpl({
           }}
           aria-pressed={statusDockTab === summaryTab}
           aria-expanded={statusDockTab === summaryTab && dockExpanded && !chromeCollapsed}
+          aria-label={totalProblemCount > 0 && chromeCollapsed ? `${t('statusDock.problems')}: ${totalProblemCount}` : t('statusDock.backgroundJobs')}
         >
-          {totalProblemCount > 0 ? <AlertTriangle /> : <PanelRight />}
-          {totalProblemCount > 0 ? (
+          {totalProblemCount > 0 ? <AlertTriangle size={14} /> : <PanelRight size={14} />}
+          {totalProblemCount > 0 && chromeCollapsed ? (
             <>{t('statusDock.problems')} <span>{totalProblemCount}</span></>
           ) : (
             t('statusDock.backgroundJobs')
           )}
-          <ChevronDown />
+          <ChevronDown size={14} aria-hidden="true" />
         </button>
 
         <button
@@ -181,7 +182,7 @@ function WorkspaceStatusFooterImpl({
           aria-controls="status-dock-chrome"
           aria-label={chromeCollapsed ? t('statusDock.showTabs') : t('statusDock.hideTabs')}
         >
-          {chromeCollapsed ? <ChevronRight /> : <ChevronDown />}
+          {chromeCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
           <span className="custom-tooltip" aria-hidden="true">
             {chromeCollapsed ? t('statusDock.showTabs') : t('statusDock.hideTabs')}
           </span>
@@ -189,12 +190,14 @@ function WorkspaceStatusFooterImpl({
 
         {indexComplete ? (
           <div className="job-progress is-done" aria-label={t('statusDock.indexReadyAria', { percent: graphProgress })}>
-            <CheckCircle2 />
-            <strong>{t('statusDock.indexReady')}</strong>
-            <small>
-              {t('statusDock.notesCount', { count: completedNoteCount })}
-              {diagnosticsOptIn && lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
-            </small>
+            <CheckCircle2 size={14} />
+            <div className="job-progress-text">
+              <strong>{t('statusDock.indexReady')}</strong>
+              <small>
+                {t('statusDock.notesCount', { count: completedNoteCount })}
+                {diagnosticsOptIn && lastRebuildMs != null ? ` · ${lastRebuildMs}ms` : ''}
+              </small>
+            </div>
           </div>
         ) : (
           <div

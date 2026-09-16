@@ -117,12 +117,19 @@
 .daily-note-nav {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 6px;
-  margin: 0 14px 10px;
+  gap: 4px;
+  margin: 0 8px 10px;
+  min-width: 0;
 }
 
 .daily-note-nav .daily-note-button {
   justify-content: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  font-size: 12px;
+  padding: 0 6px;
 }
 
 .inbox-panel {

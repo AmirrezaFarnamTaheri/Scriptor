@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::{AppState, active_session};
+use crate::state::{AppState, active_session, write_recover};
 
 const BACKUP_SCHEMA_VERSION: u32 = 2;
 const MANIFEST_FILE: &str = "scriptor-backup.json";
@@ -110,20 +110,23 @@ fn should_skip_backup_path(relative: &Path) -> bool {
     });
     match components.next() {
         Some(".git") => true,
-        Some(".scriptor") => matches!(
-            components.next(),
-            Some(
-                "snapshots"
-                    | "cache"
-                    | "exports"
-                    | "diagnostics"
-                    | "audit"
-                    | "tmp"
-                    | "restore-journal"
-                    | "rename-txn"
-                    | "recovery"
-            )
-        ),
+        Some(".scriptor") => {
+            let Some(second) = components.next() else {
+                return false;
+            };
+            second.starts_with("rename-txn")
+                || matches!(
+                    second,
+                    "snapshots"
+                        | "cache"
+                        | "exports"
+                        | "diagnostics"
+                        | "audit"
+                        | "tmp"
+                        | "restore-journal"
+                        | "recovery"
+                )
+        }
         _ => false,
     }
 }
@@ -471,6 +474,32 @@ pub fn vault_delete_backup(
         .map_err(|error| format!("Failed to delete backup: {error}"))
 }
 
+/// Recovers any interrupted restore operation left in `.scriptor/restore-journal`.
+/// Called during `vault_open` to ensure crash-recovery before mounting the session.
+pub fn recover_interrupted_restore(vault_root: &Path) {
+    let journal = vault_root.join(".scriptor").join("restore-journal");
+    if !journal.exists() {
+        return;
+    }
+    let state_file = journal.join("state");
+    let state = fs::read_to_string(&state_file)
+        .map(|s| s.trim().to_string())
+        .unwrap_or_default();
+
+    if state == "promoting" {
+        let rollback = journal.join("rollback");
+        if rollback.exists() {
+            eprintln!("[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot");
+            if let Ok(()) = clear_persistent_vault_content(vault_root) {
+                let mut ignored = Vec::new();
+                let _ = copy_tree(&rollback, vault_root, Path::new(""), &mut ignored);
+            }
+        }
+    }
+
+    let _ = fs::remove_dir_all(&journal);
+}
+
 #[tauri::command]
 pub fn vault_restore_backup(
     state: tauri::State<AppState>,
@@ -478,7 +507,12 @@ pub fn vault_restore_backup(
     backup_path: Option<String>,
     authorization_token: String,
 ) -> Result<String, String> {
-    let session = active_session(&state)?;
+    let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
+    let mut session_guard = write_recover(&state.session, "session");
+    let session = session_guard
+        .as_mut()
+        .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
+
     require_sensitive_operation(
         &state,
         &authorization_token,
@@ -486,8 +520,8 @@ pub fn vault_restore_backup(
         Some(&backup_name),
         Some(&session.descriptor.id),
     )?;
-    let vault_root = session.root.root();
-    let (root, _) = backup_root(vault_root, backup_path.as_deref())?;
+    let vault_root = session.root.root().to_path_buf();
+    let (root, _) = backup_root(&vault_root, backup_path.as_deref())?;
     let source = confined_backup_dir(&root, &backup_name)?;
     let manifest = read_and_verify_manifest(&source)?;
 
@@ -505,14 +539,14 @@ pub fn vault_restore_backup(
         copy_tree(&source, &staged, Path::new(""), &mut ignored)?;
         let _ = fs::remove_file(staged.join(MANIFEST_FILE));
         ignored.clear();
-        copy_tree(vault_root, &rollback, Path::new(""), &mut ignored)?;
+        copy_tree(&vault_root, &rollback, Path::new(""), &mut ignored)?;
         fs::write(transaction.join("state"), "promoting").map_err(|error| error.to_string())?;
-        clear_persistent_vault_content(vault_root)?;
+        clear_persistent_vault_content(&vault_root)?;
         ignored.clear();
-        if let Err(promote_error) = copy_tree(&staged, vault_root, Path::new(""), &mut ignored) {
-            let rollback_result = clear_persistent_vault_content(vault_root).and_then(|_| {
+        if let Err(promote_error) = copy_tree(&staged, &vault_root, Path::new(""), &mut ignored) {
+            let rollback_result = clear_persistent_vault_content(&vault_root).and_then(|_| {
                 ignored.clear();
-                copy_tree(&rollback, vault_root, Path::new(""), &mut ignored)
+                copy_tree(&rollback, &vault_root, Path::new(""), &mut ignored)
             });
             return match rollback_result {
                 Ok(()) => Err(format!(
@@ -531,6 +565,11 @@ pub fn vault_restore_backup(
         let _ = fs::remove_dir_all(&transaction);
     }
     result?;
+
+    let refreshed_session = scriptor_vault::open_vault(&vault_root).map_err(|e| e.to_string())?;
+    *session_guard = Some(refreshed_session);
+    crate::state::reset_git_queue(&state);
+
     Ok(format!(
         "Restored and verified {backup_name} from {}; a full index rebuild is required",
         manifest.source_vault_root
@@ -609,5 +648,60 @@ mod tests {
         write_manifest(directory.path(), &manifest).expect("manifest");
         let verified = read_and_verify_manifest(directory.path()).expect("portable manifest");
         assert_eq!(verified.source_vault_root, "/old-machine/original-vault");
+    }
+
+    #[test]
+    fn backup_skips_rename_transactions() {
+        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn-123/manifest.json")));
+        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn-abc-def/file.md")));
+        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn/manifest.json")));
+        assert!(!should_skip_backup_path(Path::new(".scriptor/config.json")));
+    }
+
+    #[test]
+    fn interrupted_restore_in_promoting_state_rolls_back_cleanly() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let vault_root = directory.path();
+        let scriptor_dir = vault_root.join(".scriptor");
+        let journal = scriptor_dir.join("restore-journal");
+        let rollback = journal.join("rollback");
+        fs::create_dir_all(&rollback).expect("create rollback");
+
+        fs::write(vault_root.join("corrupt.md"), "corrupted partial content").expect("write corrupt");
+        fs::write(rollback.join("original.md"), "# Original Note\n").expect("write original");
+        fs::write(journal.join("state"), "promoting").expect("write state");
+
+        recover_interrupted_restore(vault_root);
+
+        assert!(vault_root.join("original.md").exists());
+        assert_eq!(
+            fs::read_to_string(vault_root.join("original.md")).expect("read"),
+            "# Original Note\n"
+        );
+        assert!(!vault_root.join("corrupt.md").exists());
+        assert!(!journal.exists());
+    }
+
+    #[test]
+    fn interrupted_restore_in_preparing_state_cleans_journal_and_leaves_vault() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let vault_root = directory.path();
+        let scriptor_dir = vault_root.join(".scriptor");
+        let journal = scriptor_dir.join("restore-journal");
+        let staged = journal.join("staged");
+        fs::create_dir_all(&staged).expect("create staged");
+
+        fs::write(vault_root.join("healthy.md"), "# Healthy Note\n").expect("write healthy");
+        fs::write(staged.join("staged.md"), "# Staged Note\n").expect("write staged");
+        fs::write(journal.join("state"), "preparing").expect("write state");
+
+        recover_interrupted_restore(vault_root);
+
+        assert!(vault_root.join("healthy.md").exists());
+        assert_eq!(
+            fs::read_to_string(vault_root.join("healthy.md")).expect("read"),
+            "# Healthy Note\n"
+        );
+        assert!(!journal.exists());
     }
 }

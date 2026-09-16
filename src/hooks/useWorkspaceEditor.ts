@@ -37,7 +37,7 @@ interface SaveRequest {
   path: string
   markdown: string
   contentHash: string
-  navigationGeneration: number
+  navigationGeneration?: number
   draftRevision: number
   overwrite: boolean
   vaultId: string
@@ -108,37 +108,64 @@ export function useWorkspaceEditor({
   const refreshingRef = useRef(false)
   const pendingSaveRequestRef = useRef<SaveRequest | null>(null)
   const performSaveRef = useRef<(request: SaveRequest) => Promise<boolean>>(() => Promise.resolve(false))
-  const createSaveRequestRef = useRef<(markdown: string) => SaveRequest | null>(() => null)
+  const createSaveRequestRef = useRef<(markdown: string, customPath?: string, customVaultId?: string) => SaveRequest | null>(() => null)
+  const docVaultsRef = useRef<Map<string, string>>(new Map())
+  const draftRevisionsByDocRef = useRef<Map<string, number>>(new Map())
+  const saveTimersByDocRef = useRef<Map<string, number>>(new Map())
+  const pendingRequestsByDocRef = useRef<Map<string, SaveRequest>>(new Map())
+  const inFlightSavesByDocRef = useRef<Map<string, Promise<boolean>>>(new Map())
+  const flushPendingDocumentSaveRef = useRef<(path: string, vaultId?: string) => Promise<boolean>>(() => Promise.resolve(false))
   const { activePathRef, activeNoteRef, draftMarkdownRef, isSavingRef, checkExternalChangesRef } = editorRefs
 
   const resetNoteNavigation = useCallback(() => {
-    let pending = pendingSaveRequestRef.current
+    if (activePathRef.current) {
+      void flushPendingDocumentSaveRef.current(activePathRef.current)
+    }
+    for (const [docKey, timer] of Array.from(saveTimersByDocRef.current.entries())) {
+      window.clearTimeout(timer)
+      saveTimersByDocRef.current.delete(docKey)
+      const pending = pendingRequestsByDocRef.current.get(docKey)
+      if (pending) {
+        pendingRequestsByDocRef.current.delete(docKey)
+        void performSaveRef.current(pending)
+      }
+    }
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
       pendingSaveRequestRef.current = null
     }
-    if (!pending && activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown) {
-      pending = createSaveRequestRef.current(draftMarkdownRef.current)
-    }
-    if (pending) {
-      void performSaveRef.current(pending)
-    }
     navigationGenerationRef.current += 1
     const nextNav = { paths: [], index: -1 }
     noteNavRef.current = nextNav
     setNoteNav(nextNav)
-  }, [activeNoteRef, draftMarkdownRef])
+  }, [activePathRef])
 
   const loadNote = useCallback(
     async (path: string, isCurrent: () => boolean = () => true) => {
       if (!isCurrent()) return false
+      const currentPath = activePathRef.current
+      const currentVaultId = activeNoteRef.current?.metadata.vault_id
+      if (currentPath && currentPath !== path && currentVaultId) {
+        void flushPendingDocumentSaveRef.current(currentPath, currentVaultId)
+      }
+
+      const targetVaultId = docVaultsRef.current.get(path) ?? currentVaultId
+      if (targetVaultId) {
+        const targetDocKey = `${targetVaultId}:${path}`
+        const inFlight = inFlightSavesByDocRef.current.get(targetDocKey)
+        if (inFlight) {
+          await inFlight
+        }
+      }
+
       const navigationGeneration = ++navigationGenerationRef.current
       setError(null)
       setExternalChangeConflict(null)
       saveOverwriteRef.current = false
       const document = await vaultReadNote(path)
       if (!isCurrent() || navigationGeneration !== navigationGenerationRef.current) return false
+      docVaultsRef.current.set(path, document.metadata.vault_id)
       setActivePath(path)
       setActiveNote(document)
       setDraftMarkdown(document.markdown)
@@ -361,6 +388,11 @@ export function useWorkspaceEditor({
       const closing = openTabs.find((tab) => tab.path === path)
       if (closing?.pinned && !force) return
 
+      const targetVaultId = docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
+      if (targetVaultId) {
+        void flushPendingDocumentSaveRef.current(path, targetVaultId)
+      }
+
       const nextTabs = openTabs.filter((entry) => entry.path !== path)
       setOpenTabs((tabs) => tabs.filter((entry) => entry.path !== path))
       if (closing) {
@@ -399,18 +431,28 @@ export function useWorkspaceEditor({
   }, [])
 
   const createSaveRequest = useCallback(
-    (markdown: string): SaveRequest | null => {
-      const path = activePathRef.current
+    (
+      markdown: string,
+      customPath?: string,
+      customVaultId?: string,
+    ): SaveRequest | null => {
+      const path = customPath ?? activePathRef.current
       const note = activeNoteRef.current
-      if (!path || !note) return null
+      const vaultId =
+        customVaultId ?? (path ? docVaultsRef.current.get(path) : undefined) ?? note?.metadata.vault_id
+      if (!path || !vaultId) return null
+      const docKey = `${vaultId}:${path}`
+      const draftRevision = draftRevisionsByDocRef.current.get(docKey) ?? draftRevisionRef.current
       return {
         path,
         markdown,
-        contentHash: savedHashesRef.current.get(path) ?? note.metadata.content_hash,
+        contentHash:
+          savedHashesRef.current.get(path) ??
+          (note && note.metadata.path === path ? note.metadata.content_hash : ''),
         navigationGeneration: navigationGenerationRef.current,
-        draftRevision: draftRevisionRef.current,
+        draftRevision,
         overwrite: saveOverwriteRef.current,
-        vaultId: note.metadata.vault_id,
+        vaultId,
       }
     },
     [activeNoteRef, activePathRef],
@@ -421,11 +463,15 @@ export function useWorkspaceEditor({
   }, [createSaveRequest])
 
   const isSaveRequestCurrent = useCallback(
-    (request: SaveRequest) =>
-      activePathRef.current === request.path &&
-      navigationGenerationRef.current === request.navigationGeneration &&
-      draftRevisionRef.current === request.draftRevision,
-    [activePathRef],
+    (request: SaveRequest) => {
+      const active = activeNoteRef.current
+      if (!active || activePathRef.current !== request.path) return false
+      if (active.metadata.vault_id !== request.vaultId) return false
+      const docKey = `${request.vaultId}:${request.path}`
+      const currentRev = draftRevisionsByDocRef.current.get(docKey) ?? draftRevisionRef.current
+      return currentRev === request.draftRevision
+    },
+    [activeNoteRef, activePathRef],
   )
 
   const scheduleSavedNoteRefresh = useCallback((refresh: () => Promise<void>) => {
@@ -465,6 +511,14 @@ export function useWorkspaceEditor({
         savedHashesRef.current.set(request.path, saved.metadata.content_hash)
         await indexerUpdateNote(request.path)
 
+        setOpenTabs((tabs) =>
+          tabs.map((tab) =>
+            tab.path === request.path
+              ? { ...tab, title: saved.metadata.title, contentHash: saved.metadata.content_hash }
+              : tab,
+          ),
+        )
+
         if (!isCurrent()) return true
 
         if (request.overwrite) saveOverwriteRef.current = false
@@ -474,13 +528,6 @@ export function useWorkspaceEditor({
         setDraftMarkdown(request.markdown)
         activeNoteRef.current = document
         draftMarkdownRef.current = request.markdown
-        setOpenTabs((tabs) =>
-          tabs.map((tab) =>
-            tab.path === request.path
-              ? { ...tab, title: saved.metadata.title, contentHash: saved.metadata.content_hash }
-              : tab,
-          ),
-        )
         setLastSavedAt(new Date().toLocaleTimeString())
         // Derived workspace data must not hold the durable-write queue. Keep
         // at most one running refresh and one latest pending refresh.
@@ -502,28 +549,33 @@ export function useWorkspaceEditor({
         }
         return true
       } catch (caught) {
-        if (!isCurrent()) return false
         const message = caught instanceof Error ? caught.message : String(caught)
-        if (isContentHashMismatchError(message)) {
-          try {
-            const disk = await vaultReadNote(request.path)
-            if (!isCurrent()) return false
-            setExternalChangeConflict({
-              path: request.path,
-              loaded_hash: request.contentHash,
-              disk_hash: disk.metadata.content_hash,
-            })
-          } catch {
-            if (!isCurrent()) return false
-            setExternalChangeConflict({
-              path: request.path,
-              loaded_hash: request.contentHash,
-              disk_hash: 'unknown',
-            })
+        if (isCurrent()) {
+          if (isContentHashMismatchError(message)) {
+            try {
+              const disk = await vaultReadNote(request.path)
+              if (!isCurrent()) return false
+              setExternalChangeConflict({
+                path: request.path,
+                loaded_hash: request.contentHash,
+                disk_hash: disk.metadata.content_hash,
+              })
+            } catch {
+              if (!isCurrent()) return false
+              setExternalChangeConflict({
+                path: request.path,
+                loaded_hash: request.contentHash,
+                disk_hash: 'unknown',
+              })
+            }
+            logActivity('error', 'Save blocked — note changed on disk', request.path)
+          } else {
+            setError(message)
+            logActivity('error', `Failed to save ${request.path}`, message)
           }
-          logActivity('error', 'Save blocked — note changed on disk', request.path)
         } else {
-          setError(message)
+          logActivity('error', `Failed to save ${request.path}`, message)
+          setError(`Failed to save ${request.path}: ${message}`)
         }
         return false
       } finally {
@@ -556,11 +608,18 @@ export function useWorkspaceEditor({
       pendingSaveCountRef.current += 1
       isSavingRef.current = true
       setIsSaving(true)
+      const docKey = `${request.vaultId}:${request.path}`
       const task = saveTailRef.current.then(() => saveRequest(request))
+      inFlightSavesByDocRef.current.set(docKey, task)
       saveTailRef.current = task.then(
         () => undefined,
         () => undefined,
       )
+      void task.finally(() => {
+        if (inFlightSavesByDocRef.current.get(docKey) === task) {
+          inFlightSavesByDocRef.current.delete(docKey)
+        }
+      })
       return task
     },
     [isSavingRef, saveRequest],
@@ -570,21 +629,95 @@ export function useWorkspaceEditor({
     performSaveRef.current = performSave
   }, [performSave])
 
+  const flushPendingDocumentSave = useCallback(
+    (path: string, vaultId?: string): Promise<boolean> => {
+      const targetVaultId =
+        vaultId ?? docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
+      if (!targetVaultId) return Promise.resolve(false)
+      const docKey = `${targetVaultId}:${path}`
+      const timer = saveTimersByDocRef.current.get(docKey)
+      if (timer) {
+        window.clearTimeout(timer)
+        saveTimersByDocRef.current.delete(docKey)
+      }
+      if (saveTimer.current && activePathRef.current === path) {
+        window.clearTimeout(saveTimer.current)
+        saveTimer.current = null
+      }
+      let request: SaveRequest | null | undefined = pendingRequestsByDocRef.current.get(docKey)
+      pendingRequestsByDocRef.current.delete(docKey)
+      if (activePathRef.current === path) {
+        pendingSaveRequestRef.current = null
+      }
+
+      if (
+        !request &&
+        activePathRef.current === path &&
+        activeNoteRef.current &&
+        draftMarkdownRef.current !== activeNoteRef.current.markdown
+      ) {
+        request = createSaveRequest(draftMarkdownRef.current, path, targetVaultId)
+      }
+      if (request) {
+        return performSave(request)
+      }
+      return Promise.resolve(false)
+    },
+    [activeNoteRef, activePathRef, createSaveRequest, draftMarkdownRef, performSave],
+  )
+
+  useEffect(() => {
+    flushPendingDocumentSaveRef.current = flushPendingDocumentSave
+  }, [flushPendingDocumentSave])
+
+  const flushAllPendingSaves = useCallback(async () => {
+    if (activePathRef.current && activeNoteRef.current) {
+      void flushPendingDocumentSave(activePathRef.current, activeNoteRef.current.metadata.vault_id)
+    }
+    for (const [docKey, timer] of Array.from(saveTimersByDocRef.current.entries())) {
+      window.clearTimeout(timer)
+      saveTimersByDocRef.current.delete(docKey)
+      const pending = pendingRequestsByDocRef.current.get(docKey)
+      if (pending) {
+        pendingRequestsByDocRef.current.delete(docKey)
+        void performSave(pending)
+      }
+    }
+    await saveTailRef.current
+  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, performSave])
+
   const scheduleSave = useCallback(
     (markdown: string) => {
       const request = createSaveRequest(markdown)
       if (!request) return
+      const docKey = `${request.vaultId}:${request.path}`
+      pendingRequestsByDocRef.current.set(docKey, request)
       pendingSaveRequestRef.current = request
 
+      const existingTimer = saveTimersByDocRef.current.get(docKey)
+      if (existingTimer) {
+        window.clearTimeout(existingTimer)
+      }
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current)
       }
 
-      saveTimer.current = window.setTimeout(() => {
-        saveTimer.current = null
-        pendingSaveRequestRef.current = null
-        void performSave(request)
+      const timer = window.setTimeout(() => {
+        saveTimersByDocRef.current.delete(docKey)
+        if (saveTimer.current === timer) {
+          saveTimer.current = null
+        }
+        if (pendingSaveRequestRef.current === request) {
+          pendingSaveRequestRef.current = null
+        }
+        const pending = pendingRequestsByDocRef.current.get(docKey)
+        if (pending) {
+          pendingRequestsByDocRef.current.delete(docKey)
+          void performSave(pending)
+        }
       }, 700)
+      saveTimersByDocRef.current.set(docKey, timer)
+      saveTimer.current = timer
     },
     [createSaveRequest, performSave],
   )
@@ -614,14 +747,11 @@ export function useWorkspaceEditor({
   )
 
   const saveActiveNoteNow = useCallback(async () => {
-    if (saveTimer.current) {
-      window.clearTimeout(saveTimer.current)
-      saveTimer.current = null
-      pendingSaveRequestRef.current = null
-    }
-    const request = createSaveRequest(draftMarkdownRef.current)
-    return request ? performSave(request) : false
-  }, [createSaveRequest, draftMarkdownRef, performSave])
+    const path = activePathRef.current
+    const note = activeNoteRef.current
+    if (!path || !note) return false
+    return flushPendingDocumentSave(path, note.metadata.vault_id)
+  }, [activeNoteRef, activePathRef, flushPendingDocumentSave])
 
   const runNoteMutation = useCallback(
     async (sourcePath: string, runMutation: () => Promise<void>) => {
@@ -703,11 +833,9 @@ export function useWorkspaceEditor({
 
   useEffect(() => {
     return () => {
-      if (saveTimer.current) {
-        window.clearTimeout(saveTimer.current)
-      }
+      void flushAllPendingSaves()
     }
-  }, [])
+  }, [flushAllPendingSaves])
 
   const jumpToOutlineHeading = useCallback((heading: OutlineHeading) => {
     setScrollToEditorLine(heading.line)
@@ -792,5 +920,7 @@ export function useWorkspaceEditor({
     jumpToOutlineHeading,
     resetNoteNavigation,
     restoreEditorSession,
+    flushPendingDocumentSave,
+    flushAllPendingSaves,
   }
 }

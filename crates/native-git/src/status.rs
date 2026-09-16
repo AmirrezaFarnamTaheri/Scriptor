@@ -99,7 +99,37 @@ pub fn git_commit_selected(
         validate_selected_path(file)?;
     }
 
-    let selected_paths = expand_selected_paths(repo_root, files)?;
+    let status = git_status(repo_root)?;
+    let merge_heads = read_merge_heads(repo_root)?;
+    let is_merging = !merge_heads.is_empty();
+
+    if is_merging {
+        if status.has_conflicts {
+            return Err(GitError::Command(
+                "cannot commit while merge conflicts are unresolved".into(),
+            ));
+        }
+        let selected: HashSet<&str> = files.iter().map(String::as_str).collect();
+        for changed in &status.changed_files {
+            let original_selected = changed
+                .original_path
+                .as_deref()
+                .is_some_and(|original| selected.contains(original));
+            if !selected.contains(changed.path.as_str()) && !original_selected {
+                return Err(GitError::Command(
+                    "cannot do a partial commit during a merge".into(),
+                ));
+            }
+        }
+    }
+
+    if is_sequencer_in_progress(repo_root)? {
+        return Err(GitError::Command(
+            "cannot commit while cherry-pick or revert sequencer is in progress".into(),
+        ));
+    }
+
+    let selected_paths = expand_selected_paths(&status, files);
     let head = git_metadata(run_git(repo_root, &["rev-parse", "HEAD"])?)?;
     let branch_ref = git_metadata(run_git(repo_root, &["symbolic-ref", "-q", "HEAD"])?)?;
     let real_index = repository_index_path(repo_root)?;
@@ -118,10 +148,14 @@ pub fn git_commit_selected(
     run_git_with_index_owned(repo_root, &temp_index, &add_args)?;
 
     let tree = git_metadata(run_git_with_index(repo_root, &temp_index, &["write-tree"])?)?;
-    let new_commit = git_metadata(run_git(
-        repo_root,
-        &["commit-tree", &tree, "-p", &head, "-m", message],
-    )?)?;
+    let mut commit_args: Vec<&str> = vec!["commit-tree", &tree, "-p", &head];
+    for merge_head in &merge_heads {
+        commit_args.push("-p");
+        commit_args.push(merge_head.as_str());
+    }
+    commit_args.push("-m");
+    commit_args.push(message);
+    let new_commit = git_metadata(run_git(repo_root, &commit_args)?)?;
     run_git(repo_root, &["update-ref", &branch_ref, &new_commit, &head])?;
 
     if let Err(error) = reset_committed_paths_in_real_index(repo_root, &selected_paths) {
@@ -134,6 +168,10 @@ pub fn git_commit_selected(
         )));
     }
 
+    if is_merging {
+        clean_merge_state(repo_root);
+    }
+
     let committed = run_git(
         repo_root,
         &[
@@ -142,14 +180,17 @@ pub fn git_commit_selected(
             "--name-only",
             "-r",
             "--root",
+            "-m",
             &new_commit,
         ],
     )?;
-    let files_committed = committed
+    let mut files_committed: Vec<String> = committed
         .lines()
         .filter(|line| !line.trim().is_empty())
         .map(str::to_string)
         .collect();
+    files_committed.sort();
+    files_committed.dedup();
 
     drop(temp_index_guard);
     Ok(GitCommitOutput {
@@ -158,27 +199,71 @@ pub fn git_commit_selected(
     })
 }
 
-fn expand_selected_paths(repo_root: &Path, files: &[String]) -> Result<Vec<String>, GitError> {
-    let status = git_status(repo_root)?;
+fn read_merge_heads(repo_root: &Path) -> Result<Vec<String>, GitError> {
+    let path_raw = run_git(repo_root, &["rev-parse", "--git-path", "MERGE_HEAD"])?;
+    let path_str = git_metadata(path_raw)?;
+    let p = PathBuf::from(path_str);
+    let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+    if !abs.exists() {
+        return Ok(Vec::new());
+    }
+    let content = std::fs::read_to_string(&abs)
+        .map_err(|err| GitError::Command(format!("failed to read MERGE_HEAD: {err}")))?;
+    let heads: Vec<String> = content
+        .lines()
+        .map(|line| line.trim().to_string())
+        .filter(|line| !line.is_empty())
+        .collect();
+    Ok(heads)
+}
+
+fn clean_merge_state(repo_root: &Path) {
+    for name in &["MERGE_HEAD", "MERGE_MSG", "MERGE_MODE", "AUTO_MERGE"] {
+        if let Ok(raw) = run_git(repo_root, &["rev-parse", "--git-path", name]) {
+            if let Ok(path_str) = git_metadata(raw) {
+                let p = PathBuf::from(path_str);
+                let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+                let _ = std::fs::remove_file(abs);
+            }
+        }
+    }
+}
+
+fn is_sequencer_in_progress(repo_root: &Path) -> Result<bool, GitError> {
+    for state_file in &["CHERRY_PICK_HEAD", "REVERT_HEAD"] {
+        if let Ok(raw) = run_git(repo_root, &["rev-parse", "--git-path", state_file]) {
+            if let Ok(path_str) = git_metadata(raw) {
+                let p = PathBuf::from(path_str);
+                let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+                if abs.exists() {
+                    return Ok(true);
+                }
+            }
+        }
+    }
+    Ok(false)
+}
+
+fn expand_selected_paths(status: &GitStatus, files: &[String]) -> Vec<String> {
     let selected = files.iter().map(String::as_str).collect::<HashSet<_>>();
     let mut expanded = files.to_vec();
 
-    for changed in status.changed_files {
+    for changed in &status.changed_files {
         let original_selected = changed
             .original_path
             .as_deref()
             .is_some_and(|original| selected.contains(original));
         if selected.contains(changed.path.as_str()) || original_selected {
-            expanded.push(changed.path);
-            if let Some(original) = changed.original_path {
-                expanded.push(original);
+            expanded.push(changed.path.clone());
+            if let Some(original) = &changed.original_path {
+                expanded.push(original.clone());
             }
         }
     }
 
     expanded.sort();
     expanded.dedup();
-    Ok(expanded)
+    expanded
 }
 
 fn repository_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
@@ -1128,6 +1213,180 @@ mod tests {
         fs::write(dir.path().join(literal), "# Changed\n")?;
         let output = git_commit_selected(dir.path(), &[literal.into()], "literal path")?;
         assert_eq!(output.files_committed, vec![literal]);
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_during_merge_creates_multi_parent_commit_and_cleans_merge_head(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", "-b", "main", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("file.md"), "# Initial\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+        git_commit(dir.path(), "initial")?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["checkout", "-b", "feature"])
+            .output()?;
+        fs::write(dir.path().join("file.md"), "# Feature\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["commit", "-am", "feature commit"])
+            .output()?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["checkout", "main"])
+            .output()?;
+        fs::write(dir.path().join("file.md"), "# Main\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["commit", "-am", "main commit"])
+            .output()?;
+
+        // Trigger merge conflict
+        let merge_out = Command::new("git")
+            .current_dir(dir.path())
+            .args(["merge", "feature"])
+            .output()?;
+        assert!(!merge_out.status.success());
+
+        // Resolve conflict
+        fs::write(dir.path().join("file.md"), "# Resolved\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "file.md"])
+            .output()?;
+
+        let merge_heads_before = read_merge_heads(dir.path())?;
+        assert!(!merge_heads_before.is_empty(), "MERGE_HEAD must exist during merge");
+
+        let output = git_commit_selected(dir.path(), &["file.md".into()], "Merge resolution")?;
+        assert_eq!(output.files_committed, vec!["file.md"]);
+
+        // Verify commit has 2 parents
+        let parents = run_git(dir.path(), &["log", "-1", "--format=%P"])?;
+        let parent_hashes: Vec<&str> = parents.split_whitespace().collect();
+        assert_eq!(parent_hashes.len(), 2, "merge commit must have exactly two parents");
+
+        // Verify MERGE_HEAD was cleaned up
+        let merge_heads_after = read_merge_heads(dir.path())?;
+        assert!(merge_heads_after.is_empty(), "MERGE_HEAD must be cleaned up after merge commit");
+
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_during_merge_rejects_unresolved_conflicts(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", "-b", "main", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("file.md"), "# Initial\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+        git_commit(dir.path(), "initial")?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["checkout", "-b", "feature"])
+            .output()?;
+        fs::write(dir.path().join("file.md"), "# Feature\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["commit", "-am", "feature commit"])
+            .output()?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["checkout", "main"])
+            .output()?;
+        fs::write(dir.path().join("file.md"), "# Main\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["commit", "-am", "main commit"])
+            .output()?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["merge", "feature"])
+            .output()?;
+
+        // Do not resolve conflicts
+        let result = git_commit_selected(dir.path(), &["file.md".into()], "premature commit");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("unresolved"), "error must indicate unresolved conflicts: {err_msg}");
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_during_merge_rejects_partial_commit(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        Command::new("git")
+            .args(["init", "-b", "main", dir.path().to_str().unwrap()])
+            .output()?;
+        configure_git_identity(dir.path())?;
+        fs::write(dir.path().join("file1.md"), "# Initial 1\n")?;
+        fs::write(dir.path().join("file2.md"), "# Initial 2\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+        git_commit(dir.path(), "initial")?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["checkout", "-b", "feature"])
+            .output()?;
+        fs::write(dir.path().join("file1.md"), "# Feature 1\n")?;
+        fs::write(dir.path().join("file2.md"), "# Feature 2\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["commit", "-am", "feature commit"])
+            .output()?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["checkout", "main"])
+            .output()?;
+        fs::write(dir.path().join("file1.md"), "# Main 1\n")?;
+        fs::write(dir.path().join("file2.md"), "# Main 2\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["commit", "-am", "main commit"])
+            .output()?;
+
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["merge", "feature"])
+            .output()?;
+
+        // Resolve both
+        fs::write(dir.path().join("file1.md"), "# Resolved 1\n")?;
+        fs::write(dir.path().join("file2.md"), "# Resolved 2\n")?;
+        Command::new("git")
+            .current_dir(dir.path())
+            .args(["add", "."])
+            .output()?;
+
+        // Try to commit only file1
+        let result = git_commit_selected(dir.path(), &["file1.md".into()], "partial merge commit");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("partial commit during a merge"), "error must indicate partial commit forbidden: {err_msg}");
         Ok(())
     }
 }

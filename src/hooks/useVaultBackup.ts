@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  indexerRebuild,
   vaultCreateBackup,
   vaultDeleteBackup,
   vaultListBackups,
@@ -126,13 +127,16 @@ export function useVaultBackup(vaultOpen: boolean) {
   }, [triggerBackup])
 
   const restoreBackup = useCallback(
-    async (backupName: string) => {
+    async (backupName: string, onRestored?: () => void) => {
       if (!vaultOpen) return
       setIsBusy(true)
       setLastError(null)
       setLastMessage(null)
       try {
         const message = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
+        await indexerRebuild()
+        window.dispatchEvent(new CustomEvent('scriptor:vault-restored', { detail: { backupName } }))
+        onRestored?.()
         setLastMessage(message)
       } catch (caught) {
         setLastError(caught instanceof Error ? caught.message : 'Restore failed')

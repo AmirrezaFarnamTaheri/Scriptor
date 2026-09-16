@@ -10,6 +10,7 @@ import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { supportsPrintPagePreview } from '@scriptor/export'
 import type { ExportJobOutput, ExportJobRecord, PublishPlan } from '../types/vault'
+import { useLatexCompiler } from '../hooks/useLatexCompiler'
 
 interface PublishCenterProps {
   activePath: string | null
@@ -66,6 +67,7 @@ export const PublishCenter = memo(function PublishCenter({
   onReplanStarlight,
   onApplyPlan,
 }: PublishCenterProps) {
+  const latex = useLatexCompiler({ config: undefined, vaultRoot: null })
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})
 
@@ -101,6 +103,18 @@ export const PublishCenter = memo(function PublishCenter({
             Cancel export
           </button>
         ) : null
+      }
+      footer={
+        <div className="publish-center-footer">
+          <span className="publish-footer-status">
+            {activePath ? `Active: ${activePath}` : 'No active note open'}
+          </span>
+          {isExporting ? (
+            <button type="button" className="toolbar-button" onClick={onCancelExport}>
+              Cancel export
+            </button>
+          ) : null}
+        </div>
       }
     >
       <div className="publish-center-grid">
@@ -149,6 +163,60 @@ export const PublishCenter = memo(function PublishCenter({
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="publish-center-section" aria-labelledby="latex-compile-heading">
+          <h3 id="latex-compile-heading">
+            <FileOutput size={16} aria-hidden="true" />
+            Compile with LaTeX (Tectonic)
+          </h3>
+          <p className="health-subtitle">
+            Compile the active document or TeX file using the self-contained Tectonic TeX engine.
+          </p>
+          <div className="publish-profile-actions">
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => void latex.discoverTectonic()}
+              title="Check if Tectonic binary is detected"
+            >
+              {latex.tectonicAvailable === true
+                ? 'Tectonic detected'
+                : latex.tectonicAvailable === false
+                ? 'Tectonic not found'
+                : 'Detect Tectonic'}
+            </button>
+            <button
+              type="button"
+              className="primary-button publish-export-action"
+              disabled={!activePath || latex.activeJob?.status === 'compiling' || !nativeReady}
+              onClick={() => {
+                if (activePath) {
+                  void latex.compile({ inputPath: activePath })
+                }
+              }}
+            >
+              {latex.activeJob?.status === 'compiling' ? <Loader2 className="spin" size={14} aria-hidden="true" /> : null}
+              {latex.activeJob?.status === 'compiling' ? 'Compiling…' : 'Compile LaTeX'}
+            </button>
+            {latex.activeJob?.status === 'compiling' ? (
+              <button type="button" className="toolbar-button" onClick={latex.cancelJob}>
+                Cancel
+              </button>
+            ) : null}
+          </div>
+          {latex.activeJob ? (
+            <div className="latex-compile-status">
+              <span className={`publish-status publish-status-${latex.activeJob.status}`}>
+                {latex.activeJob.status.toUpperCase()}
+              </span>
+              {latex.activeJob.outputPath ? (
+                <code className="publish-artifact">{latex.activeJob.outputPath}</code>
+              ) : latex.activeJob.stderr ? (
+                <small className="publish-error">{latex.activeJob.stderr}</small>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         {exportResult?.dry_run && preflightProfileLabel ? (

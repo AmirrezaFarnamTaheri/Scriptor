@@ -15,6 +15,7 @@ import { promoteMermaidHtml } from './mermaid-html.ts'
 import { rehypeHeadingIds } from './rehype-heading-ids.ts'
 import { rehypeSafeStyle } from './rehype-safe-style.ts'
 import { rehypeSourceLines } from './rehype-source-lines.ts'
+import { rehypeTaskStates } from './rehype-task-states.ts'
 import { preprocessImports } from './remark-import.ts'
 import { remarkAlerts } from './remark-alerts.ts'
 import { remarkBreaks } from './remark-breaks.ts'
@@ -77,7 +78,6 @@ const sanitizeSchema = {
   ],
   attributes: {
     ...defaultSchema.attributes,
-    input: ['type', 'checked', 'disabled'],
     code: [...(defaultSchema.attributes?.code ?? []), 'className'],
     pre: [
       ...(defaultSchema.attributes?.pre ?? []),
@@ -141,7 +141,8 @@ const sanitizeSchema = {
     h5: [...(defaultSchema.attributes?.h5 ?? []), 'id'],
     h6: [...(defaultSchema.attributes?.h6 ?? []), 'id'],
     ul: [...(defaultSchema.attributes?.ul ?? []), 'className', ['className', 'markdown-toc-list']],
-    li: [...(defaultSchema.attributes?.li ?? []), 'id', 'className', ['className', 'markdown-toc-item']],
+    li: [...(defaultSchema.attributes?.li ?? []), 'id', 'className', ['className', 'markdown-toc-item'], 'dataTaskState'],
+    input: [...(defaultSchema.attributes?.input ?? []), 'type', 'checked', 'disabled', 'dataTaskState'],
     sup: [...(defaultSchema.attributes?.sup ?? []), 'id'],
     svg: [...(defaultSchema.attributes?.svg ?? []), 'xmlns', 'viewBox', 'width', 'height'],
     path: [...(defaultSchema.attributes?.path ?? []), 'd', 'fill', 'stroke'],
@@ -181,6 +182,7 @@ function createProcessor(options: PreviewPipelineOptions = {}) {
     .use(rehypeKatex)
     .use(rehypeHighlight, { detect: true, ignoreMissing: true })
     .use(rehypeHeadingIds)
+    .use(rehypeTaskStates)
     .use(rehypeSafeStyle as never)
     .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
     .use(rehypeSourceLines)

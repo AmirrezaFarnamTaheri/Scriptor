@@ -99,6 +99,26 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 0 24px 24px;
+  background:
+    linear-gradient(var(--surface-elevated) 30%, transparent),
+    linear-gradient(transparent, var(--surface-elevated) 70%) 0 100%,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.12), transparent),
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.12), transparent) 0 100%;
+  background-repeat: no-repeat;
+  background-color: var(--surface-elevated);
+  background-size: 100% 20px, 100% 20px, 100% 10px, 100% 10px;
+  background-attachment: local, local, scroll, scroll;
+}
+
+.unified-panel-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 /* A docked panel is a floating side sheet, not a layout column. The workspace

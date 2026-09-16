@@ -36,6 +36,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const saveTimer = useRef<number | null>(null)
+  const pendingSavePayloadRef = useRef<CanvasDocument | null>(null)
   const historyRef = useRef<{ past: CanvasDocument[]; future: CanvasDocument[] }>({ past: [], future: [] })
   const lastCommittedSerializedRef = useRef('')
   const persistRef = useRef<(next: CanvasDocument) => void>(() => {})
@@ -62,9 +63,17 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     return () => {
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current)
+        saveTimer.current = null
+      }
+      const pending = pendingSavePayloadRef.current
+      if (pending && isNativeBridgeAvailable() && vaultOpen) {
+        pendingSavePayloadRef.current = null
+        void canvasSaveDocument(JSON.stringify(pending), vaultId).catch((error) => {
+          console.error('Failed to flush canvas on unmount:', error)
+        })
       }
     }
-  }, [])
+  }, [vaultId, vaultOpen])
 
   const syncHistoryFlags = useCallback(() => {
     const history = historyRef.current
@@ -205,6 +214,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         documentRef.current.id === next.id
       const saveDocument = async (payload: CanvasDocument) => {
         try {
+          if (pendingSavePayloadRef.current === payload) {
+            pendingSavePayloadRef.current = null
+          }
           const path = await canvasSaveDocument(JSON.stringify(payload), vaultId)
           if (!isCurrent()) return
           setStatus(`Saved to ${path}`)
@@ -219,6 +231,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         crdt.markLocalEdit()
         const payload = crdt.snapshot(next)
         crdt.flush()
+        pendingSavePayloadRef.current = payload
         if (saveTimer.current) window.clearTimeout(saveTimer.current)
         saveTimer.current = window.setTimeout(() => {
           saveTimer.current = null
@@ -226,6 +239,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         }, 400)
         return
       }
+      pendingSavePayloadRef.current = next
       if (saveTimer.current) window.clearTimeout(saveTimer.current)
       saveTimer.current = window.setTimeout(() => {
         saveTimer.current = null
@@ -234,6 +248,25 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     },
     [refreshBoardList, vaultId, vaultOpen],
   )
+
+  const flushPendingSave = useCallback(async () => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+    const pending = pendingSavePayloadRef.current
+    if (pending && isNativeBridgeAvailable() && vaultOpen) {
+      pendingSavePayloadRef.current = null
+      try {
+        const path = await canvasSaveDocument(JSON.stringify(pending), vaultId)
+        setStatus(`Saved to ${path}`)
+        setActiveBoardId(pending.id)
+        await refreshBoardList(() => true)
+      } catch (error) {
+        setStatus(error instanceof Error ? error.message : 'Save failed')
+      }
+    }
+  }, [refreshBoardList, vaultId, vaultOpen])
 
   useEffect(() => {
     persistRef.current = persist
@@ -409,5 +442,6 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     redo,
     canUndo,
     canRedo,
+    flushPendingSave,
   }
 }

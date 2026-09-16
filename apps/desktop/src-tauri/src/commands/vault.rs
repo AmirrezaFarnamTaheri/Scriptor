@@ -43,6 +43,7 @@ pub fn vault_open(
         std::fs::create_dir_all(path)
             .map_err(|error| format!("failed to create vault folder: {error}"))?;
     }
+    super::backup::recover_interrupted_restore(path);
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
     let (watcher, watcher_generation) = create_vault_watcher(&app, &state, &session)?;

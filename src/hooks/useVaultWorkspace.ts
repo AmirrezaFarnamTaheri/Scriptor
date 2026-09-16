@@ -372,6 +372,16 @@ export function useVaultWorkspace(options?: {
     await refreshGit()
   }, [rebuildIndex, refreshGit])
 
+  useEffect(() => {
+    const handleVaultRestored = () => {
+      void refreshVault()
+    }
+    window.addEventListener('scriptor:vault-restored', handleVaultRestored)
+    return () => {
+      window.removeEventListener('scriptor:vault-restored', handleVaultRestored)
+    }
+  }, [refreshVault])
+
   const rename = useWorkspaceRename({
     activePath,
     setError,

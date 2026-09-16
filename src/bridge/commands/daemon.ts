@@ -61,9 +61,21 @@ export async function ensureDaemonReady(): Promise<DaemonEndpoint> {
   }
 }
 
+let daemonOpenTail: Promise<void> = Promise.resolve()
+let latestOpenTarget = ''
+
 export async function daemonOpenVault(rootPath: string): Promise<void> {
   requireNative()
-  await invoke('daemon_open_vault', { rootPath })
+  latestOpenTarget = rootPath
+  const task = daemonOpenTail.then(async () => {
+    if (latestOpenTarget !== rootPath) return
+    await invoke('daemon_open_vault', { rootPath })
+  })
+  daemonOpenTail = task.then(
+    () => undefined,
+    () => undefined,
+  )
+  return task
 }
 
 export async function daemonHealthDiagnostics(): Promise<VaultHealthDiagnostics> {
