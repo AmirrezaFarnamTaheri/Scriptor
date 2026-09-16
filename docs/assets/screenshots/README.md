@@ -32,6 +32,9 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | toolbar-insert.png | Insert toolbar popover | VISUAL-REVIEW |
 | mobile-inspector.png | 390px mobile inspector pane | VISUAL-REVIEW |
 | mobile-vault.png | 390px mobile vault pane | VISUAL-REVIEW |
+| workspace-rendered.png | Full rendered preview mode with markdown headings | VISUAL-REVIEW |
+| task-list-preview.png | Rendered task list items with interactive checkboxes | VISUAL-REVIEW |
+| workspace-switcher.png | Workspace switcher menu and top bar breadcrumbs | VISUAL-REVIEW |
 
 ### Freshness and acceptance
 

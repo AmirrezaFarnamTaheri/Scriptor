@@ -34,6 +34,9 @@
 | toolbar-insert.png | Insert popover | VISUAL-REVIEW |
 | mobile-inspector.png | Mobile inspector 390 px | VISUAL-REVIEW |
 | mobile-vault.png | Mobile vault 390 px | VISUAL-REVIEW |
+| workspace-rendered.png | Полный режим рендеринга предпросмотра с заголовками Markdown | VISUAL-REVIEW |
+| task-list-preview.png | Отрендеренные элементы списка задач с интерактивными чекбоксами | VISUAL-REVIEW |
+| workspace-switcher.png | Меню переключения рабочего пространства и навигационные цепочки | VISUAL-REVIEW |
 
 ### Актуальность и принятие
 

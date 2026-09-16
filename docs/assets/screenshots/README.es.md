@@ -34,6 +34,9 @@ Capturas para documentación y marketing, generadas con Playwright en modo E2E.
 | toolbar-insert.png | Popover de inserción | VISUAL-REVIEW |
 | mobile-inspector.png | Inspector móvil a 390 px | VISUAL-REVIEW |
 | mobile-vault.png | Panel vault móvil a 390 px | VISUAL-REVIEW |
+| workspace-rendered.png | Modo de vista previa renderizada completa con encabezados markdown | VISUAL-REVIEW |
+| task-list-preview.png | Elementos de lista de tareas renderizados con casillas interactivas | VISUAL-REVIEW |
+| workspace-switcher.png | Menú de cambio de espacio de trabajo y migas de pan superiores | VISUAL-REVIEW |
 
 ### Actualidad y aceptación
 

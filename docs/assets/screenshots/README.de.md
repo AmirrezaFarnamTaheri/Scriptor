@@ -34,6 +34,9 @@ Screenshots für Dokumentation und Marketing. Erzeugt mit Playwright im E2E-Modu
 | toolbar-insert.png | Insert-Popover der Toolbar | VISUAL-REVIEW |
 | mobile-inspector.png | Mobiler Inspector bei 390 px | VISUAL-REVIEW |
 | mobile-vault.png | Mobiles Vault-Panel bei 390 px | VISUAL-REVIEW |
+| workspace-rendered.png | Vollständig gerenderte Vorschau mit Markdown-Überschriften | VISUAL-REVIEW |
+| task-list-preview.png | Gerenderte Aufgabenlistenelemente mit interaktiven Kontrollkästchen | VISUAL-REVIEW |
+| workspace-switcher.png | Workspace-Umschalter und Breadcrumbs in der oberen Leiste | VISUAL-REVIEW |
 
 ### Aktualität und Akzeptanz
 

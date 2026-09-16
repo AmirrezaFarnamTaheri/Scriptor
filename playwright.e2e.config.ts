@@ -16,6 +16,12 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   expect: {
     timeout: 30_000,
+    toHaveScreenshot: {
+      animations: 'disabled',
+      caret: 'hide',
+      maxDiffPixelRatio: 0.03,
+      threshold: 0.15,
+    },
   },
   reporter: process.env.CI
     ? [
