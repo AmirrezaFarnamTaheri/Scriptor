@@ -1,13 +1,11 @@
+import { useMemo } from 'react'
+import { getVaultLabel, getDisambiguatedVaultLabels } from '../../lib/workspaceSwitcher'
+
 interface WorkspaceSwitcherProps {
   recentVaults: string[]
   activeVaultPath: string | null
   onOpenVault: (path: string) => void
   onChooseVault: () => void
-}
-
-function getVaultLabel(vaultPath: string): string {
-  const parts = vaultPath.split(/[/\\]/).filter(Boolean)
-  return parts.length > 0 ? parts[parts.length - 1] : vaultPath
 }
 
 export function WorkspaceSwitcher({
@@ -16,6 +14,8 @@ export function WorkspaceSwitcher({
   onOpenVault,
   onChooseVault,
 }: WorkspaceSwitcherProps) {
+  const vaultLabels = useMemo(() => getDisambiguatedVaultLabels(recentVaults), [recentVaults])
+
   if (recentVaults.length === 0) return null
 
   return (
@@ -38,7 +38,7 @@ export function WorkspaceSwitcher({
         </option>
         {recentVaults.map((path) => (
           <option key={path} value={path} title={path}>
-            {getVaultLabel(path)}
+            {vaultLabels.get(path) ?? getVaultLabel(path)}
           </option>
         ))}
         <option value="__choose__">Open another vault…</option>

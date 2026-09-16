@@ -74,8 +74,21 @@ test('editor surface mode switcher synchronizes with main viewport in Preview mo
   const renderedView = page.locator('.editor-rendered-view')
   await expect(renderedView).toBeVisible()
   await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
-  // Monaco/CodeMirror editor must not be mounted in rendered view
+  // Monaco editor must not be mounted in rendered view
   await expect(page.locator('.monaco-editor')).toHaveCount(0)
+})
+
+test('editor surface mode switcher synchronizes with main viewport in Preview mode with CodeMirror', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem('scriptor:editor-mode', 'codemirror')
+  })
+  await launchApp(page)
+  await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
+  const renderedView = page.locator('.editor-rendered-view')
+  await expect(renderedView).toBeVisible()
+  await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
+  // CodeMirror editor must not be mounted in rendered view
+  await expect(page.locator('.cm-editor')).toHaveCount(0)
 })
 
 test('status bar reading time and word count reflect active note accurately', async ({ page }) => {
@@ -87,13 +100,24 @@ test('status bar reading time and word count reflect active note accurately', as
   await expect(statusBar).toContainText('1 min read')
 })
 
-test('workspace switcher option labels display cleanly without premature path clipping', async ({ page }) => {
+test('workspace switcher option labels display cleanly without premature path clipping and disambiguate collisions', async ({ page }) => {
+  await page.addInitScript(() => {
+    window.localStorage.setItem(
+      'scriptor.recent-vaults',
+      JSON.stringify({
+        schemaVersion: 1,
+        savedAt: new Date().toISOString(),
+        data: ['/work/client', '/archive/client', '/docs/notes'],
+      }),
+    )
+  })
   await launchApp(page)
   const switcher = page.locator('.workspace-switcher select')
   if (await switcher.isVisible()) {
-    const firstOptionText = await switcher.locator('option:not([disabled])').first().textContent()
-    expect(firstOptionText).toBeTruthy()
-    expect(firstOptionText).not.toMatch(/fixtu$/)
+    const options = await switcher.locator('option:not([disabled]):not([value="__choose__"])').allTextContents()
+    expect(options).toContain('work/client')
+    expect(options).toContain('archive/client')
+    expect(options).toContain('notes')
   }
 })
 
