@@ -534,7 +534,9 @@ fn accepts_parallel_ping_connections() {
             if attempt > 0 {
                 std::thread::sleep(Duration::from_millis(50));
             }
-            match client.call_with_timeout(RpcRequest::new(20, RpcMethod::Ping), Duration::from_secs(5)) {
+            match client
+                .call_with_timeout(RpcRequest::new(20, RpcMethod::Ping), Duration::from_secs(5))
+            {
                 Ok(res) => return Ok(res),
                 Err(e) => last_err = Some(e),
             }
@@ -548,7 +550,9 @@ fn accepts_parallel_ping_connections() {
             if attempt > 0 {
                 std::thread::sleep(Duration::from_millis(50));
             }
-            match client.call_with_timeout(RpcRequest::new(21, RpcMethod::Ping), Duration::from_secs(5)) {
+            match client
+                .call_with_timeout(RpcRequest::new(21, RpcMethod::Ping), Duration::from_secs(5))
+            {
                 Ok(res) => return Ok(res),
                 Err(e) => last_err = Some(e),
             }
