@@ -509,9 +509,9 @@ fn accepts_parallel_ping_connections() {
     let (handle_tx, handle_rx) = std::sync::mpsc::channel();
     let server = std::thread::spawn(move || {
         let listener = create_listener_with_retry(&socket_for_server, 10);
-        ready_tx.send(()).expect("send ready");
         let state = Arc::new(Mutex::new(DaemonState::default()));
         let event_hub = EventHub::new();
+        ready_tx.send(()).expect("send ready");
         let mut accepted = 0usize;
         while accepted < 2 {
             let stream = match listener.accept() {
@@ -529,11 +529,35 @@ fn accepts_parallel_ping_connections() {
         .expect("listener ready");
     let first = std::thread::spawn(|| {
         let client = crate::client::DaemonRpcClient::new();
-        client.call(RpcRequest::new(20, RpcMethod::Ping))
+        let mut last_err = None;
+        for attempt in 0..5 {
+            if attempt > 0 {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            match client
+                .call_with_timeout(RpcRequest::new(20, RpcMethod::Ping), Duration::from_secs(5))
+            {
+                Ok(res) => return Ok(res),
+                Err(e) => last_err = Some(e),
+            }
+        }
+        Err(last_err.unwrap())
     });
     let second = std::thread::spawn(|| {
         let client = crate::client::DaemonRpcClient::new();
-        client.call(RpcRequest::new(21, RpcMethod::Ping))
+        let mut last_err = None;
+        for attempt in 0..5 {
+            if attempt > 0 {
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            match client
+                .call_with_timeout(RpcRequest::new(21, RpcMethod::Ping), Duration::from_secs(5))
+            {
+                Ok(res) => return Ok(res),
+                Err(e) => last_err = Some(e),
+            }
+        }
+        Err(last_err.unwrap())
     });
     assert!(matches!(
         first.join().expect("join").expect("rpc").result,

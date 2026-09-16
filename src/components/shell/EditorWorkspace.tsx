@@ -383,6 +383,34 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
             />
           ) : null}
           {activePath ? (
+            editorSurfaceMode === 'rendered' ? (
+              <div className="editor-rendered-view">
+                <ErrorBoundary
+                  name="rendered-markdown-preview"
+                  resetKeys={[activePath]}
+                  fallback={
+                    <PanelErrorFallback
+                      variant="inline"
+                      title={t('editor.previewError.title')}
+                      detail={t('editor.previewError.detail')}
+                    />
+                  }
+                >
+                  <MarkdownPreview
+                    ref={previewRef}
+                    markdown={deferredDraftMarkdown}
+                    className="markdown-preview"
+                    basePath={activePath}
+                    fetchNote={previewProps.fetchNote}
+                    readVaultText={previewProps.readVaultText}
+                    executeDql={previewProps.executeDql}
+                    runCodeChunk={previewProps.runCodeChunk}
+                    postProcessHtml={previewProps.postProcessHtml}
+                    renderPlantUmlLocal={previewProps.renderPlantUmlLocal}
+                  />
+                </ErrorBoundary>
+              </div>
+            ) : (
             <ErrorBoundary
               name="markdown-editor"
               resetKeys={[activePath, editorMode]}
@@ -452,6 +480,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
               )}
             </Suspense>
             </ErrorBoundary>
+            )
           ) : (
             <div className="editor-empty" role="status">
               <div className="editor-empty-icon" aria-hidden="true">

@@ -66,7 +66,7 @@ async function waitForFullWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  await expect(page.locator('.markdown-preview h1')).toContainText('Research Plan', {
+  await expect(page.locator('.markdown-preview h1').first()).toContainText('Research Plan', {
     timeout: 30_000,
   })
   await expect(page.locator('.preview-error')).toHaveCount(0)
@@ -468,3 +468,34 @@ test('plugins panel', async ({ page }) => {
   await captureReadyScreenshot(page, shotPath('plugins'))
   await expect(page).toHaveScreenshot('plugins.png', { fullPage: false })
 })
+
+test('workspace in full rendered preview mode', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await setEditorSurfaceMode(page, 'Preview')
+  const renderedView = page.locator('.editor-rendered-view')
+  await expect(renderedView).toBeVisible()
+  await expect(renderedView.locator('.markdown-preview h1')).toContainText('Research Plan')
+  await captureReadyScreenshot(page, shotPath('workspace-rendered'))
+})
+
+test('task list rendered items', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await ensureCleanStatusDock(page)
+  await setEditorSurfaceMode(page, 'Split')
+  await waitForPreviewReady(page)
+  const taskList = page.locator('.markdown-preview ul.contains-task-list, .markdown-preview ul:has(> li.task-list-item)').first()
+  await expect(taskList).toBeVisible()
+  await captureReadyScreenshot(page, shotPath('task-list-preview'))
+})
+
+test('workspace switcher and breadcrumbs', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  const topbar = page.locator('header.topbar')
+  await expect(topbar).toBeVisible()
+  await captureReadyScreenshot(page, shotPath('workspace-switcher'))
+})
+

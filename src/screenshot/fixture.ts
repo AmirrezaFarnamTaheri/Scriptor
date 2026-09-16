@@ -85,6 +85,8 @@ export const SCREENSHOT_SCAN: ScannedEntry[] = [
 export function screenshotNoteDocument(path: string): NoteDocument {
   const title = path.replace(/\.md$/i, '').split('/').pop() ?? path
   const markdown = NOTE_MARKDOWN[path] ?? `# ${title}\n\nScreenshot fixture note.\n`
+  const words = markdown.trim().length === 0 ? 0 : markdown.trim().split(/\s+/).length
+  const readingTime = words === 0 ? 0 : Math.max(1, Math.ceil(words / 200))
   return {
     metadata: {
       id: `note-${title.toLowerCase().replace(/\s+/g, '-')}`,
@@ -93,8 +95,8 @@ export function screenshotNoteDocument(path: string): NoteDocument {
       title,
       content_hash: `hash-${title}`,
       modified_at: '2026-06-23T12:00:00.000Z',
-      word_count: markdown.split(/\s+/).length,
-      reading_time_minutes: 2,
+      word_count: words,
+      reading_time_minutes: readingTime,
       tags: path === 'Research Plan.md' ? ['research'] : [],
       note_type: null,
       organized: true,

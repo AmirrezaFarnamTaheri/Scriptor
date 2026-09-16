@@ -4,7 +4,6 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
-  Command,
   Contrast,
   FolderOpen,
   GitBranch,
@@ -17,6 +16,7 @@ import {
   PanelLeft,
   PanelRight,
   Palette,
+  Search,
   Settings,
   SlidersHorizontal,
   Sun,
@@ -325,7 +325,7 @@ function AppTopBarImpl({
           onClick={onOpenCommandPalette}
           aria-label={`Open command palette (${commandShortcut})`}
         >
-          <Command aria-hidden="true" />
+          <Search aria-hidden="true" />
           <span className="command-search-placeholder">{t('topBar.typeCommandOrSearch')}</span>
           <kbd className="kbd" aria-hidden="true">{commandShortcut}</kbd>
         </button>
