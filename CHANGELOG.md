@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+## 1.0.12 — 2026-09-17
+
+### Added
+- Added Google Calendar and Tasks integration directly to the Tasks workspace, supporting bidirectional synchronization, provider status diagnostics, upcoming event listings, and idempotent task mirroring with stable source markers.
+- Added Tectonic-based LaTeX compile controls and discovery to settings and the inspector rail, featuring process tree cancellation, vault-relative output path sandboxing, and job history tracking.
+- Added recovery journaling and automatic rollback for interrupted or crashed vault restore operations.
+
+### Fixed
+- Remediated headless daemon session verification by enforcing monotonic session identity checks across all vault-relative RPC bridges to prevent daemon split-brain states.
+- Hardened Git merge commit integrity: selected-file commits now dynamically resolve MERGE_HEAD parents, use authoritative merge indexes, reject partial merge commits, clean up sequencer state transactionally, and preserve unrelated index staging.
+- Resolved editor and canvas persistence race conditions: serialized pending saves on vault switches and unmounts, eliminated note navigation hangs on clean documents, and added revision CAS guards to prevent data loss.
+- Hardened backup restoration: staged restore lifecycle events (restore-starting -> files-restored -> index-rebuild -> restored), invalidated stale persistence timers, and isolated the vault-backup-* directory namespace.
+- Improved viewport and UI responsiveness: added sticky footers to settings and publish dialogs, fixed 3-child status footer grid alignment to prevent vertical label wrapping, enforced >=44px mobile touch targets, and fixed MCP authorization card stacking.
+- Refined Markdown rendering and statistics: implemented an O(N) semantic tokenizer filtering markdown syntax from word and reading counts, and injected dataTaskState attributes for checkbox contrast.
+
 ## 1.0.11 — 2026-09-16
 
 ### Added
