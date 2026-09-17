@@ -211,8 +211,10 @@ function applyPreviewOptions(markdown: string, options: PreviewPipelineOptions):
  * GFM only recognizes open/done checkboxes, while Scriptor's task model also
  * supports in-progress (`[/]`), cancelled (`[-]`) and forwarded (`[>]`).
  * Convert those states to readable GFM task rows for preview/export without
- * mutating source Markdown. Fenced code is deliberately left byte-for-byte
- * unchanged so documentation examples do not become live task controls.
+ * mutating source Markdown. A private generated marker carries provenance into
+ * the HAST pass, where it is consumed before sanitization/stringification. This
+ * keeps ordinary prose such as `[ ] _In progress_ — ...` from being mistaken
+ * for structured task state. Fenced code is left byte-for-byte unchanged.
  */
 export function preprocessExtendedTaskStates(markdown: string): string {
   let fence: { marker: '`' | '~'; length: number } | null = null
@@ -233,9 +235,11 @@ export function preprocessExtendedTaskStates(markdown: string): string {
       const taskMatch = /^(\s*[-*+]\s+)\[([/\->])\](\s+)(.*)$/.exec(line)
       if (!taskMatch) return line
       const [, prefix, state, spacing, body] = taskMatch
-      if (state === '/') return `${prefix}[ ]${spacing}_In progress_ — ${body}`
-      if (state === '-') return `${prefix}[x]${spacing}_Cancelled_ — ~~${body}~~`
-      return `${prefix}[ ]${spacing}_Forwarded_ — ${body}`
+      const taskState = state === '/' ? 'in-progress' : state === '-' ? 'cancelled' : 'forwarded'
+      const marker = `<span data-scriptor-generated-task-state="${taskState}"></span>`
+      if (state === '/') return `${prefix}[ ]${spacing}${marker}_In progress_ — ${body}`
+      if (state === '-') return `${prefix}[x]${spacing}${marker}_Cancelled_ — ~~${body}~~`
+      return `${prefix}[ ]${spacing}${marker}_Forwarded_ — ${body}`
     })
     .join('\n')
 }
