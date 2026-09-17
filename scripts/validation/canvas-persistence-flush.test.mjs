@@ -51,6 +51,21 @@ class MockCanvasCrdtSync {
   }
 }
 
+function deferred() {
+  let resolve
+  let reject
+  const promise = new Promise((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+async function flushMicrotasks() {
+  await Promise.resolve()
+  await Promise.resolve()
+}
+
 function harness(options = {}) {
   const slots = []
   let cursor = 0
@@ -64,12 +79,7 @@ function harness(options = {}) {
       return [
         slots[i],
         (next) => {
-          if (typeof next === 'function') {
-            next(slots[i])
-            slots[i] = next(slots[i])
-          } else {
-            slots[i] = next
-          }
+          slots[i] = typeof next === 'function' ? next(slots[i]) : next
         },
       ]
     },
@@ -100,15 +110,18 @@ function harness(options = {}) {
   const saveCalls = []
   const savedDisks = new Map()
 
+  const defaultSave = async (json, vaultId) => {
+    saveCalls.push({ json, vaultId })
+    const doc = JSON.parse(json)
+    savedDisks.set(doc.id, json)
+    return `vault://${vaultId}/canvas/${doc.id}.canvas`
+  }
+
   const commands = {
     canvasListDocuments: async () => [],
     canvasLoadDocument: async (id) => savedDisks.get(id) ?? JSON.stringify({ id, title: id, layers: [], blocks: [] }),
-    canvasSaveDocument: async (json, vaultId) => {
-      saveCalls.push({ json, vaultId })
-      const doc = JSON.parse(json)
-      savedDisks.set(doc.id, json)
-      return `vault://${vaultId}/canvas/${doc.id}.canvas`
-    },
+    canvasSaveDocument: defaultSave,
+    canvasApplyTemplate: async (json) => ({ document: JSON.parse(json), blocksAdded: 0 }),
     canvasSnapshot: async () => ({ artifactPath: 'snap.png' }),
     ...options.commandOverrides,
   }
@@ -160,12 +173,19 @@ function harness(options = {}) {
     cleanupFns = []
   }
 
+  const fireTimers = () => {
+    const queued = [...timers.values()]
+    timers.clear()
+    for (const timer of queued) timer.fn()
+  }
+
   return {
     render,
     unmount,
     saveCalls,
     savedDisks,
     timers,
+    fireTimers,
     commands,
   }
 }
@@ -173,32 +193,16 @@ function harness(options = {}) {
 test('adding a card followed by immediate flushPendingSave writes board to disk', async () => {
   const h = harness()
   const board = h.render()
-
-  // Add a block to the board
   const updatedDoc = {
     ...board.document,
-    blocks: [
-      {
-        id: 'block-1',
-        layerId: 'layer-1',
-        content: 'Card 1 content',
-        x: 100,
-        y: 100,
-        width: 200,
-        height: 150,
-        zIndex: 1,
-      },
-    ],
+    blocks: [{ id: 'block-1', layerId: 'layer-1', content: 'Card 1 content', x: 100, y: 100, width: 200, height: 150, zIndex: 1 }],
   }
 
   board.updateDocument(() => updatedDoc)
-
-  // A 400ms debounce timer is scheduled
   assert.equal(h.saveCalls.length, 0)
   assert.ok(h.timers.size > 0, 'Debounced timer scheduled')
 
-  // User closes modal immediately, triggering flushPendingSave()
-  await board.flushPendingSave()
+  assert.equal(await board.flushPendingSave(), true)
 
   assert.equal(h.saveCalls.length, 1)
   const savedDoc = JSON.parse(h.saveCalls[0].json)
@@ -206,11 +210,62 @@ test('adding a card followed by immediate flushPendingSave writes board to disk'
   assert.equal(savedDoc.blocks[0].content, 'Card 1 content')
 })
 
-test('component unmount flushes pending dirty canvas edits synchronously to bridge', async () => {
-  const h = harness()
+test('an already in-flight failure cannot make flush report success', async () => {
+  let attempts = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async () => {
+        attempts++
+        throw new Error('disk full')
+      },
+    },
+  })
+  const board = h.render()
+  board.updateDocument((current) => ({ ...current, title: 'Dirty title' }))
+
+  h.fireTimers() // move the payload from pending state into the serialized tail
+  await flushMicrotasks()
+
+  const saved = await board.flushPendingSave()
+  assert.equal(saved, false)
+  assert.equal(attempts, 2, 'explicit flush retries the newest failed full-document payload once')
+})
+
+test('unmount enqueues the newest pending save behind an in-flight write', async () => {
+  const first = deferred()
+  const calls = []
+  let call = 0
+  const h = harness({
+    commandOverrides: {
+      canvasSaveDocument: async (json) => {
+        calls.push(JSON.parse(json).title)
+        call++
+        if (call === 1) return first.promise
+        return 'vault://saved'
+      },
+    },
+  })
   const board = h.render()
 
-  // Mutate board
+  board.updateDocument((current) => ({ ...current, title: 'Revision A' }))
+  h.fireTimers()
+  await flushMicrotasks()
+  assert.deepEqual(calls, ['Revision A'])
+
+  board.updateDocument((current) => ({ ...current, title: 'Revision B' }))
+  h.unmount()
+  await flushMicrotasks()
+  assert.deepEqual(calls, ['Revision A'], 'teardown must not bypass the persistence tail')
+
+  first.resolve('vault://first')
+  await flushMicrotasks()
+  await flushMicrotasks()
+  assert.deepEqual(calls, ['Revision A', 'Revision B'])
+})
+
+test('component unmount flushes pending dirty canvas edits through the queue', async () => {
+  const h = harness()
+  const board = h.render()
   const updatedDoc = {
     ...board.document,
     title: 'Updated Board Title',
@@ -219,11 +274,9 @@ test('component unmount flushes pending dirty canvas edits synchronously to brid
   board.updateDocument(() => updatedDoc)
 
   assert.equal(h.saveCalls.length, 0)
-
-  // Unmount component without explicit flush
   h.unmount()
+  await flushMicrotasks()
 
-  // Unmount cleanup must have triggered save
   assert.equal(h.saveCalls.length, 1)
   const savedDoc = JSON.parse(h.saveCalls[0].json)
   assert.equal(savedDoc.title, 'Updated Board Title')
@@ -241,6 +294,7 @@ test('CRDT edits mark local edit, flush CRDT, and save on unmount', async () => 
   board.updateDocument(() => updatedDoc)
 
   h.unmount()
+  await flushMicrotasks()
 
   assert.equal(h.saveCalls.length, 1)
   const saved = JSON.parse(h.saveCalls[0].json)
