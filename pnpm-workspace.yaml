@@ -7,6 +7,9 @@ overrides:
   # @xmldom/xmldom >=0.9.0 <=0.9.11. epubjs still pins ^0.9.8 upstream, so the
   # override is the stopgap until it moves its own range past the patch release.
   "@xmldom/xmldom": ">=0.9.12 <0.10"
+  # GHSA-f23m-r3pf-42rh & GHSA-r5fr-rjxr-66jc affect lodash-es <=4.17.23.
+  # chevrotain (pulled by mermaid 12) pins 4.17.23, so override to patched >=4.18.1.
+  lodash-es: ">=4.18.1"
 
 packages:
   - "apps/*"
