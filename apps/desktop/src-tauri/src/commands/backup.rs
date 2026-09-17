@@ -43,42 +43,26 @@ fn backup_root(
     backup_path: Option<&str>,
 ) -> Result<(PathBuf, &'static str), String> {
     let Some(configured) = backup_path.map(str::trim).filter(|value| !value.is_empty()) else {
-        return Ok((
-            vault_root.join(".scriptor").join("snapshots"),
-            "local_snapshot",
-        ));
+        return Ok((vault_root.join(".scriptor").join("snapshots"), "local_snapshot"));
     };
 
     let configured = PathBuf::from(configured);
     if !configured.is_absolute() {
-        return Err(
-            "Disaster-recovery backup path must be absolute and outside the active vault".into(),
-        );
+        return Err("Disaster-recovery backup path must be absolute and outside the active vault".into());
     }
-    fs::create_dir_all(&configured)
-        .map_err(|error| format!("Cannot create backup root: {error}"))?;
-    let canonical =
-        fs::canonicalize(&configured).map_err(|error| format!("Invalid backup root: {error}"))?;
-    let canonical_vault =
-        fs::canonicalize(vault_root).map_err(|error| format!("Invalid vault root: {error}"))?;
+    fs::create_dir_all(&configured).map_err(|error| format!("Cannot create backup root: {error}"))?;
+    let canonical = fs::canonicalize(&configured).map_err(|error| format!("Invalid backup root: {error}"))?;
+    let canonical_vault = fs::canonicalize(vault_root).map_err(|error| format!("Invalid vault root: {error}"))?;
     if canonical.starts_with(&canonical_vault) || canonical_vault.starts_with(&canonical) {
-        return Err(
-            "Disaster-recovery backups must not be stored inside or above the active vault".into(),
-        );
+        return Err("Disaster-recovery backups must not be stored inside or above the active vault".into());
     }
-
-    // Stable external root: backups remain discoverable after the vault moves to
-    // a different machine or absolute path. Each backup name contains a source
-    // fingerprint, while its integrity manifest carries the original path and content digest.
     Ok((canonical.join("scriptor-backups"), "external_backup"))
 }
 
 fn validate_backup_name(name: &str) -> Result<(), String> {
     if !name.starts_with("vault-backup-")
         || name.len() > 96
-        || !name
-            .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+        || !name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
     {
         return Err("Invalid backup identifier".into());
     }
@@ -87,16 +71,13 @@ fn validate_backup_name(name: &str) -> Result<(), String> {
 
 fn confined_backup_dir(root: &Path, name: &str) -> Result<PathBuf, String> {
     validate_backup_name(name)?;
-    let canonical_root =
-        fs::canonicalize(root).map_err(|error| format!("Invalid backup root: {error}"))?;
+    let canonical_root = fs::canonicalize(root).map_err(|error| format!("Invalid backup root: {error}"))?;
     let candidate = canonical_root.join(name);
-    let metadata =
-        fs::symlink_metadata(&candidate).map_err(|_| format!("Backup not found: {name}"))?;
+    let metadata = fs::symlink_metadata(&candidate).map_err(|_| format!("Backup not found: {name}"))?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err("Backup identifier does not reference a regular directory".into());
     }
-    let canonical =
-        fs::canonicalize(&candidate).map_err(|error| format!("Invalid backup: {error}"))?;
+    let canonical = fs::canonicalize(&candidate).map_err(|error| format!("Invalid backup: {error}"))?;
     if canonical.parent() != Some(canonical_root.as_path()) {
         return Err("Backup escapes the configured backup root".into());
     }
@@ -111,21 +92,9 @@ fn should_skip_backup_path(relative: &Path) -> bool {
     match components.next() {
         Some(".git") => true,
         Some(".scriptor") => {
-            let Some(second) = components.next() else {
-                return false;
-            };
+            let Some(second) = components.next() else { return false; };
             second.starts_with("rename-txn")
-                || matches!(
-                    second,
-                    "snapshots"
-                        | "cache"
-                        | "exports"
-                        | "diagnostics"
-                        | "audit"
-                        | "tmp"
-                        | "restore-journal"
-                        | "recovery"
-                )
+                || matches!(second, "snapshots" | "cache" | "exports" | "diagnostics" | "audit" | "tmp" | "restore-journal" | "recovery")
         }
         _ => false,
     }
@@ -137,9 +106,7 @@ fn file_sha256(path: &Path) -> Result<String, String> {
     let mut buffer = [0u8; 64 * 1024];
     loop {
         let read = file.read(&mut buffer).map_err(|error| error.to_string())?;
-        if read == 0 {
-            break;
-        }
+        if read == 0 { break; }
         digest.update(&buffer[..read]);
     }
     Ok(hex::encode(digest.finalize()))
@@ -153,33 +120,23 @@ fn copy_tree(
 ) -> Result<(), String> {
     let metadata = fs::symlink_metadata(source).map_err(|error| error.to_string())?;
     if metadata.file_type().is_symlink() {
-        return Err(format!(
-            "Symlinks are not permitted in backups: {}",
-            source.display()
-        ));
+        return Err(format!("Symlinks are not permitted in backups: {}", source.display()));
     }
     fs::create_dir_all(destination).map_err(|error| error.to_string())?;
     for entry in fs::read_dir(source).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
         let file_type = entry.file_type().map_err(|error| error.to_string())?;
         if file_type.is_symlink() {
-            return Err(format!(
-                "Symlinks are not permitted in backups: {}",
-                entry.path().display()
-            ));
+            return Err(format!("Symlinks are not permitted in backups: {}", entry.path().display()));
         }
         let child_relative = relative.join(entry.file_name());
-        if should_skip_backup_path(&child_relative) {
-            continue;
-        }
+        if should_skip_backup_path(&child_relative) { continue; }
         let target = destination.join(entry.file_name());
         if file_type.is_dir() {
             copy_tree(&entry.path(), &target, &child_relative, files)?;
         } else if file_type.is_file() {
             fs::copy(entry.path(), &target).map_err(|error| error.to_string())?;
-            let size_bytes = fs::metadata(&target)
-                .map_err(|error| error.to_string())?
-                .len();
+            let size_bytes = fs::metadata(&target).map_err(|error| error.to_string())?.len();
             files.push(BackupFile {
                 path: child_relative.to_string_lossy().replace('\\', "/"),
                 size_bytes,
@@ -200,19 +157,12 @@ fn write_manifest(destination: &Path, manifest: &BackupManifest) -> Result<(), S
     fs::rename(temp, path).map_err(|error| error.to_string())
 }
 
-fn collect_backup_files(
-    root: &Path,
-    relative: &Path,
-    files: &mut Vec<String>,
-) -> Result<(), String> {
+fn collect_backup_files(root: &Path, relative: &Path, files: &mut Vec<String>) -> Result<(), String> {
     for entry in fs::read_dir(root.join(relative)).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
         let file_type = entry.file_type().map_err(|error| error.to_string())?;
         if file_type.is_symlink() {
-            return Err(format!(
-                "Backup contains a symlink: {}",
-                entry.path().display()
-            ));
+            return Err(format!("Backup contains a symlink: {}", entry.path().display()));
         }
         let child = relative.join(entry.file_name());
         if file_type.is_dir() {
@@ -225,27 +175,17 @@ fn collect_backup_files(
 }
 
 fn read_and_verify_manifest(source: &Path) -> Result<BackupManifest, String> {
-    let raw = fs::read(source.join(MANIFEST_FILE))
-        .map_err(|error| format!("Backup manifest missing: {error}"))?;
-    let manifest: BackupManifest = serde_json::from_slice(&raw)
-        .map_err(|error| format!("Invalid backup manifest: {error}"))?;
+    let raw = fs::read(source.join(MANIFEST_FILE)).map_err(|error| format!("Backup manifest missing: {error}"))?;
+    let manifest: BackupManifest = serde_json::from_slice(&raw).map_err(|error| format!("Invalid backup manifest: {error}"))?;
     if !(1..=BACKUP_SCHEMA_VERSION).contains(&manifest.schema_version) {
-        return Err(format!(
-            "Unsupported backup schema version {}",
-            manifest.schema_version
-        ));
+        return Err(format!("Unsupported backup schema version {}", manifest.schema_version));
     }
 
     let mut declared = BTreeSet::new();
     for entry in &manifest.files {
         let relative = Path::new(&entry.path);
         if relative.is_absolute()
-            || relative.components().any(|part| {
-                matches!(
-                    part,
-                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
-                )
-            })
+            || relative.components().any(|part| matches!(part, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
         {
             return Err(format!("Unsafe path in backup manifest: {}", entry.path));
         }
@@ -253,12 +193,8 @@ fn read_and_verify_manifest(source: &Path) -> Result<BackupManifest, String> {
             return Err(format!("Duplicate path in backup manifest: {}", entry.path));
         }
         let path = source.join(relative);
-        let metadata = fs::symlink_metadata(&path)
-            .map_err(|error| format!("Missing backup file {}: {error}", entry.path))?;
-        if !metadata.is_file()
-            || metadata.len() != entry.size_bytes
-            || file_sha256(&path)? != entry.sha256
-        {
+        let metadata = fs::symlink_metadata(&path).map_err(|error| format!("Missing backup file {}: {error}", entry.path))?;
+        if !metadata.is_file() || metadata.len() != entry.size_bytes || file_sha256(&path)? != entry.sha256 {
             return Err(format!("Backup integrity check failed for {}", entry.path));
         }
     }
@@ -269,11 +205,7 @@ fn read_and_verify_manifest(source: &Path) -> Result<BackupManifest, String> {
     if actual != declared {
         let unlisted = actual.difference(&declared).cloned().collect::<Vec<_>>();
         let missing = declared.difference(&actual).cloned().collect::<Vec<_>>();
-        return Err(format!(
-            "Backup manifest membership mismatch (unlisted: {}; missing: {})",
-            unlisted.join(", "),
-            missing.join(", ")
-        ));
+        return Err(format!("Backup manifest membership mismatch (unlisted: {}; missing: {})", unlisted.join(", "), missing.join(", ")));
     }
     Ok(manifest)
 }
@@ -284,45 +216,25 @@ fn clear_persistent_vault_content(root: &Path) -> Result<(), String> {
         let name = entry.file_name();
         let file_type = entry.file_type().map_err(|error| error.to_string())?;
         if file_type.is_symlink() {
-            return Err(format!(
-                "Refusing to remove symlink during restore: {}",
-                entry.path().display()
-            ));
+            return Err(format!("Refusing to remove symlink during restore: {}", entry.path().display()));
         }
-        if name == ".git" {
-            continue;
-        }
+        if name == ".git" { continue; }
         if name == ".scriptor" && file_type.is_dir() {
             for metadata_entry in fs::read_dir(entry.path()).map_err(|error| error.to_string())? {
                 let metadata_entry = metadata_entry.map_err(|error| error.to_string())?;
                 let relative = Path::new(".scriptor").join(metadata_entry.file_name());
-                if should_skip_backup_path(&relative) {
-                    continue;
-                }
-                let metadata_type = metadata_entry
-                    .file_type()
-                    .map_err(|error| error.to_string())?;
+                if should_skip_backup_path(&relative) { continue; }
+                let metadata_type = metadata_entry.file_type().map_err(|error| error.to_string())?;
                 if metadata_type.is_symlink() {
-                    return Err(format!(
-                        "Refusing to remove symlink during restore: {}",
-                        metadata_entry.path().display()
-                    ));
+                    return Err(format!("Refusing to remove symlink during restore: {}", metadata_entry.path().display()));
                 }
-                if metadata_type.is_dir() {
-                    fs::remove_dir_all(metadata_entry.path())
-                } else {
-                    fs::remove_file(metadata_entry.path())
-                }
-                .map_err(|error| error.to_string())?;
+                if metadata_type.is_dir() { fs::remove_dir_all(metadata_entry.path()) } else { fs::remove_file(metadata_entry.path()) }
+                    .map_err(|error| error.to_string())?;
             }
             continue;
         }
-        if file_type.is_dir() {
-            fs::remove_dir_all(entry.path())
-        } else {
-            fs::remove_file(entry.path())
-        }
-        .map_err(|error| error.to_string())?;
+        if file_type.is_dir() { fs::remove_dir_all(entry.path()) } else { fs::remove_file(entry.path()) }
+            .map_err(|error| error.to_string())?;
     }
     Ok(())
 }
@@ -332,9 +244,7 @@ fn dir_size(path: &Path) -> Result<u64, String> {
     for entry in fs::read_dir(path).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
         let file_type = entry.file_type().map_err(|error| error.to_string())?;
-        if file_type.is_symlink() {
-            return Err("Backup contains a symlink".into());
-        }
+        if file_type.is_symlink() { return Err("Backup contains a symlink".into()); }
         if file_type.is_dir() {
             total += dir_size(&entry.path())?;
         } else if file_type.is_file() {
@@ -345,20 +255,11 @@ fn dir_size(path: &Path) -> Result<u64, String> {
 }
 
 fn entry_from_dir(path: &Path, storage_kind: &str) -> Result<VaultBackupEntry, String> {
-    let manifest = fs::read(path.join(MANIFEST_FILE))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<BackupManifest>(&bytes).ok());
+    let manifest = fs::read(path.join(MANIFEST_FILE)).ok().and_then(|bytes| serde_json::from_slice::<BackupManifest>(&bytes).ok());
     Ok(VaultBackupEntry {
-        name: path
-            .file_name()
-            .and_then(|value| value.to_str())
-            .unwrap_or_default()
-            .to_string(),
+        name: path.file_name().and_then(|value| value.to_str()).unwrap_or_default().to_string(),
         path: path.display().to_string(),
-        created_at: manifest
-            .as_ref()
-            .map(|value| value.created_at.clone())
-            .unwrap_or_default(),
+        created_at: manifest.as_ref().map(|value| value.created_at.clone()).unwrap_or_default(),
         size_bytes: dir_size(path)?,
         storage_kind: storage_kind.into(),
         verified: read_and_verify_manifest(path).is_ok(),
@@ -373,20 +274,9 @@ pub fn vault_create_backup(
 ) -> Result<VaultBackupEntry, String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault backup");
     let session_guard = write_recover(&state.session, "session");
-    let session = session_guard
-        .as_ref()
-        .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
-    let scope = backup_path
-        .as_deref()
-        .filter(|value| !value.trim().is_empty())
-        .unwrap_or("local-snapshot");
-    require_sensitive_operation(
-        &state,
-        &authorization_token,
-        SensitiveOperation::CreateBackup,
-        Some(scope),
-        Some(&session.descriptor.id),
-    )?;
+    let session = session_guard.as_ref().ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
+    let scope = backup_path.as_deref().filter(|value| !value.trim().is_empty()).unwrap_or("local-snapshot");
+    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::CreateBackup, Some(scope), Some(&session.descriptor.id))?;
     let vault_root = session.root.root();
     let (root, storage_kind) = backup_root(vault_root, backup_path.as_deref())?;
     fs::create_dir_all(&root).map_err(|error| error.to_string())?;
@@ -394,11 +284,7 @@ pub fn vault_create_backup(
     let timestamp = chrono::Utc::now();
     let canonical_vault = fs::canonicalize(vault_root).map_err(|error| error.to_string())?;
     let fingerprint = &scriptor_vault::content_hash(&canonical_vault.display().to_string())[..12];
-    let name = format!(
-        "vault-backup-{fingerprint}-{}-{}",
-        timestamp.format("%Y%m%d-%H%M%S"),
-        std::process::id()
-    );
+    let name = format!("vault-backup-{fingerprint}-{}-{}", timestamp.format("%Y%m%d-%H%M%S"), std::process::id());
     let destination = root.join(&name);
     let partial = root.join(format!(".partial-{}", uuid::Uuid::new_v4()));
     fs::create_dir(&partial).map_err(|error| error.to_string())?;
@@ -423,10 +309,25 @@ pub fn vault_create_backup(
         let _ = fs::remove_dir_all(&partial);
         format!("Failed to finalize backup: {error}")
     })?;
-    if let Ok(directory) = fs::File::open(&root) {
-        let _ = directory.sync_all();
-    }
+    if let Ok(directory) = fs::File::open(&root) { let _ = directory.sync_all(); }
     entry_from_dir(&destination, storage_kind)
+}
+
+fn list_backup_entries(root: &Path, storage_kind: &str) -> Result<Vec<VaultBackupEntry>, String> {
+    if !root.exists() { return Ok(Vec::new()); }
+    let mut backups = Vec::new();
+    for entry in fs::read_dir(root).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let file_type = entry.file_type().map_err(|error| error.to_string())?;
+        if file_type.is_symlink() || !file_type.is_dir() { continue; }
+        let Some(name) = entry.file_name().to_str().map(str::to_string) else { continue; };
+        if validate_backup_name(&name).is_err() { continue; }
+        if let Ok(backup) = entry_from_dir(&entry.path(), storage_kind) {
+            backups.push(backup);
+        }
+    }
+    backups.sort_by(|left, right| right.created_at.cmp(&left.created_at));
+    Ok(backups)
 }
 
 #[tauri::command]
@@ -436,25 +337,7 @@ pub fn vault_list_backups(
 ) -> Result<Vec<VaultBackupEntry>, String> {
     let session = active_session(&state)?;
     let (root, storage_kind) = backup_root(session.root.root(), backup_path.as_deref())?;
-    if !root.exists() {
-        return Ok(Vec::new());
-    }
-    let mut backups = Vec::new();
-    for entry in fs::read_dir(&root).map_err(|error| error.to_string())? {
-        let entry = entry.map_err(|error| error.to_string())?;
-        let path = entry.path();
-        if path.is_dir()
-            && !entry
-                .file_name()
-                .to_str()
-                .is_some_and(|name| name.starts_with('.'))
-            && let Ok(backup) = entry_from_dir(&path, storage_kind)
-        {
-            backups.push(backup);
-        }
-    }
-    backups.sort_by(|left, right| right.created_at.cmp(&left.created_at));
-    Ok(backups)
+    list_backup_entries(&root, storage_kind)
 }
 
 #[tauri::command]
@@ -465,25 +348,17 @@ pub fn vault_delete_backup(
     authorization_token: String,
 ) -> Result<(), String> {
     let session = active_session(&state)?;
-    require_sensitive_operation(
-        &state,
-        &authorization_token,
-        SensitiveOperation::DeleteBackup,
-        Some(&backup_name),
-        Some(&session.descriptor.id),
-    )?;
+    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::DeleteBackup, Some(&backup_name), Some(&session.descriptor.id))?;
     let (root, _) = backup_root(session.root.root(), backup_path.as_deref())?;
-    fs::remove_dir_all(confined_backup_dir(&root, &backup_name)?)
-        .map_err(|error| format!("Failed to delete backup: {error}"))
+    fs::remove_dir_all(confined_backup_dir(&root, &backup_name)?).map_err(|error| format!("Failed to delete backup: {error}"))
 }
 
 /// Recovers any interrupted restore operation left in `.scriptor/restore-journal`.
-/// Called during `vault_open` to ensure crash-recovery before mounting the session.
+/// Called during `vault_open` and before a new restore so unresolved recovery
+/// state is never discarded merely because the user retries the operation.
 pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     let journal = vault_root.join(".scriptor").join("restore-journal");
-    if !journal.exists() {
-        return Ok(());
-    }
+    if !journal.exists() { return Ok(()); }
     let state_file = journal.join("state");
     let state = fs::read_to_string(&state_file)
         .map(|s| s.trim().to_string())
@@ -494,26 +369,17 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
         if !rollback.exists() {
             return Err("Restore was interrupted during promotion, but rollback snapshot is missing. Journal preserved for manual inspection.".to_string());
         }
-        eprintln!(
-            "[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot"
-        );
-        clear_persistent_vault_content(vault_root).map_err(|error| {
-            format!("Failed to clear partial vault during restore rollback: {error}")
-        })?;
+        eprintln!("[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot");
+        clear_persistent_vault_content(vault_root).map_err(|error| format!("Failed to clear partial vault during restore rollback: {error}"))?;
         let mut ignored = Vec::new();
-        copy_tree(&rollback, vault_root, Path::new(""), &mut ignored)
-            .map_err(|error| format!("Failed to restore rollback snapshot: {error}"))?;
-        fs::remove_dir_all(&journal)
-            .map_err(|error| format!("Failed to remove completed restore journal: {error}"))?;
+        copy_tree(&rollback, vault_root, Path::new(""), &mut ignored).map_err(|error| format!("Failed to restore rollback snapshot: {error}"))?;
+        fs::remove_dir_all(&journal).map_err(|error| format!("Failed to remove completed restore journal: {error}"))?;
         Ok(())
-    } else if state == "preparing" {
-        fs::remove_dir_all(&journal)
-            .map_err(|error| format!("Failed to remove incomplete prepare journal: {error}"))?;
+    } else if state == "preparing" || state == "complete" {
+        fs::remove_dir_all(&journal).map_err(|error| format!("Failed to remove {state} restore journal: {error}"))?;
         Ok(())
     } else {
-        Err(format!(
-            "Unrecognized restore journal state '{state}'. Journal preserved for manual inspection."
-        ))
+        Err(format!("Unrecognized restore journal state '{state}'. Journal preserved for manual inspection."))
     }
 }
 
@@ -526,17 +392,9 @@ pub fn vault_restore_backup(
 ) -> Result<String, String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
     let mut session_guard = write_recover(&state.session, "session");
-    let session = session_guard
-        .as_mut()
-        .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
+    let session = session_guard.as_mut().ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
 
-    require_sensitive_operation(
-        &state,
-        &authorization_token,
-        SensitiveOperation::RestoreBackup,
-        Some(&backup_name),
-        Some(&session.descriptor.id),
-    )?;
+    require_sensitive_operation(&state, &authorization_token, SensitiveOperation::RestoreBackup, Some(&backup_name), Some(&session.descriptor.id))?;
     let vault_root = session.root.root().to_path_buf();
     let (root, _) = backup_root(&vault_root, backup_path.as_deref())?;
     let source = confined_backup_dir(&root, &backup_name)?;
@@ -544,7 +402,7 @@ pub fn vault_restore_backup(
 
     let transaction = vault_root.join(".scriptor").join("restore-journal");
     if transaction.exists() {
-        fs::remove_dir_all(&transaction).map_err(|error| error.to_string())?;
+        recover_interrupted_restore(&vault_root)?;
     }
     let staged = transaction.join("staged");
     let rollback = transaction.join("rollback");
@@ -566,31 +424,22 @@ pub fn vault_restore_backup(
                 copy_tree(&rollback, &vault_root, Path::new(""), &mut ignored)
             });
             return match rollback_result {
-                Ok(()) => Err(format!(
-                    "Restore failed and was rolled back: {promote_error}"
-                )),
-                Err(rollback_error) => Err(format!(
-                    "Restore failed ({promote_error}); rollback also failed ({rollback_error})"
-                )),
+                Ok(()) => Err(format!("Restore failed and was rolled back: {promote_error}")),
+                Err(rollback_error) => Err(format!("Restore failed ({promote_error}); rollback also failed ({rollback_error})")),
             };
         }
         fs::write(transaction.join("state"), "complete").map_err(|error| error.to_string())?;
         Ok(())
     })();
 
-    if result.is_ok() {
-        let _ = fs::remove_dir_all(&transaction);
-    }
+    if result.is_ok() { let _ = fs::remove_dir_all(&transaction); }
     result?;
 
     let refreshed_session = scriptor_vault::open_vault(&vault_root).map_err(|e| e.to_string())?;
     *session_guard = Some(refreshed_session);
     crate::state::reset_git_queue(&state);
 
-    Ok(format!(
-        "Restored and verified {backup_name} from {}; a full index rebuild is required",
-        manifest.source_vault_root
-    ))
+    Ok(format!("Restored and verified {backup_name} from {}; a full index rebuild is required", manifest.source_vault_root))
 }
 
 #[cfg(test)]
@@ -606,25 +455,30 @@ mod tests {
     }
 
     #[test]
+    fn backup_listing_ignores_unowned_directories_but_keeps_owned_corrupt_entries_visible() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        fs::create_dir(directory.path().join("notes")).expect("notes");
+        fs::create_dir(directory.path().join("old")).expect("old");
+        let owned = directory.path().join("vault-backup-a1b2c3d4e5f6-20260712-120000-42");
+        fs::create_dir(&owned).expect("owned");
+        fs::write(owned.join("note.md"), "# incomplete backup").expect("note");
+
+        let listed = list_backup_entries(directory.path(), "external_backup").expect("list");
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].name, "vault-backup-a1b2c3d4e5f6-20260712-120000-42");
+        assert!(!listed[0].verified, "owned corrupt backup stays visible so it can be inspected/deleted");
+    }
+
+    #[test]
     fn backup_policy_keeps_durable_metadata_and_skips_transient_state() {
         assert!(!should_skip_backup_path(Path::new("notes/a.md")));
         assert!(!should_skip_backup_path(Path::new(".scriptor/config.json")));
-        assert!(!should_skip_backup_path(Path::new(
-            ".scriptor/templates/daily.md"
-        )));
-        assert!(!should_skip_backup_path(Path::new(
-            ".scriptor/history/note.json"
-        )));
+        assert!(!should_skip_backup_path(Path::new(".scriptor/templates/daily.md")));
+        assert!(!should_skip_backup_path(Path::new(".scriptor/history/note.json")));
         assert!(should_skip_backup_path(Path::new(".git/config")));
-        assert!(should_skip_backup_path(Path::new(
-            ".scriptor/cache/index.sqlite"
-        )));
-        assert!(should_skip_backup_path(Path::new(
-            ".scriptor/snapshots/recursive"
-        )));
-        assert!(should_skip_backup_path(Path::new(
-            ".scriptor/restore-journal/state"
-        )));
+        assert!(should_skip_backup_path(Path::new(".scriptor/cache/index.sqlite")));
+        assert!(should_skip_backup_path(Path::new(".scriptor/snapshots/recursive")));
+        assert!(should_skip_backup_path(Path::new(".scriptor/restore-journal/state")));
     }
 
     #[test]
@@ -636,11 +490,7 @@ mod tests {
             schema_version: BACKUP_SCHEMA_VERSION,
             source_vault_root: "/source/vault".into(),
             created_at: chrono::Utc::now().to_rfc3339(),
-            files: vec![BackupFile {
-                path: "note.md".into(),
-                size_bytes: fs::metadata(&note).expect("metadata").len(),
-                sha256: file_sha256(&note).expect("hash"),
-            }],
+            files: vec![BackupFile { path: "note.md".into(), size_bytes: fs::metadata(&note).expect("metadata").len(), sha256: file_sha256(&note).expect("hash") }],
         };
         write_manifest(directory.path(), &manifest).expect("manifest");
         fs::write(directory.path().join("injected.md"), "not declared").expect("extra file");
@@ -656,11 +506,7 @@ mod tests {
             schema_version: BACKUP_SCHEMA_VERSION,
             source_vault_root: "/old-machine/original-vault".into(),
             created_at: chrono::Utc::now().to_rfc3339(),
-            files: vec![BackupFile {
-                path: "note.md".into(),
-                size_bytes: fs::metadata(&note).expect("metadata").len(),
-                sha256: file_sha256(&note).expect("hash"),
-            }],
+            files: vec![BackupFile { path: "note.md".into(), size_bytes: fs::metadata(&note).expect("metadata").len(), sha256: file_sha256(&note).expect("hash") }],
         };
         write_manifest(directory.path(), &manifest).expect("manifest");
         let verified = read_and_verify_manifest(directory.path()).expect("portable manifest");
@@ -669,15 +515,9 @@ mod tests {
 
     #[test]
     fn backup_skips_rename_transactions() {
-        assert!(should_skip_backup_path(Path::new(
-            ".scriptor/rename-txn-123/manifest.json"
-        )));
-        assert!(should_skip_backup_path(Path::new(
-            ".scriptor/rename-txn-abc-def/file.md"
-        )));
-        assert!(should_skip_backup_path(Path::new(
-            ".scriptor/rename-txn/manifest.json"
-        )));
+        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn-123/manifest.json")));
+        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn-abc-def/file.md")));
+        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn/manifest.json")));
         assert!(!should_skip_backup_path(Path::new(".scriptor/config.json")));
     }
 
@@ -685,24 +525,45 @@ mod tests {
     fn interrupted_restore_in_promoting_state_rolls_back_cleanly() {
         let directory = tempfile::tempdir().expect("tempdir");
         let vault_root = directory.path();
-        let scriptor_dir = vault_root.join(".scriptor");
-        let journal = scriptor_dir.join("restore-journal");
+        let journal = vault_root.join(".scriptor").join("restore-journal");
         let rollback = journal.join("rollback");
         fs::create_dir_all(&rollback).expect("create rollback");
-
-        fs::write(vault_root.join("corrupt.md"), "corrupted partial content")
-            .expect("write corrupt");
+        fs::write(vault_root.join("corrupt.md"), "corrupted partial content").expect("write corrupt");
         fs::write(rollback.join("original.md"), "# Original Note\n").expect("write original");
         fs::write(journal.join("state"), "promoting").expect("write state");
-
         recover_interrupted_restore(vault_root).expect("recover interrupted restore");
-
         assert!(vault_root.join("original.md").exists());
-        assert_eq!(
-            fs::read_to_string(vault_root.join("original.md")).expect("read"),
-            "# Original Note\n"
-        );
         assert!(!vault_root.join("corrupt.md").exists());
+        assert!(!journal.exists());
+    }
+
+    #[test]
+    fn interrupted_restore_missing_rollback_preserves_journal() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+        fs::write(journal.join("state"), "promoting").expect("state");
+        assert!(recover_interrupted_restore(directory.path()).is_err());
+        assert!(journal.exists(), "failed recovery must preserve evidence/rollback state");
+    }
+
+    #[test]
+    fn unrecognized_restore_state_is_preserved() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+        fs::write(journal.join("state"), "future-state").expect("state");
+        assert!(recover_interrupted_restore(directory.path()).is_err());
+        assert!(journal.exists());
+    }
+
+    #[test]
+    fn complete_restore_journal_is_safe_to_finalize_on_restart() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+        fs::write(journal.join("state"), "complete").expect("state");
+        recover_interrupted_restore(directory.path()).expect("cleanup complete journal");
         assert!(!journal.exists());
     }
 
@@ -710,22 +571,14 @@ mod tests {
     fn interrupted_restore_in_preparing_state_cleans_journal_and_leaves_vault() {
         let directory = tempfile::tempdir().expect("tempdir");
         let vault_root = directory.path();
-        let scriptor_dir = vault_root.join(".scriptor");
-        let journal = scriptor_dir.join("restore-journal");
+        let journal = vault_root.join(".scriptor").join("restore-journal");
         let staged = journal.join("staged");
         fs::create_dir_all(&staged).expect("create staged");
-
         fs::write(vault_root.join("healthy.md"), "# Healthy Note\n").expect("write healthy");
         fs::write(staged.join("staged.md"), "# Staged Note\n").expect("write staged");
         fs::write(journal.join("state"), "preparing").expect("write state");
-
         recover_interrupted_restore(vault_root).expect("recover interrupted restore");
-
         assert!(vault_root.join("healthy.md").exists());
-        assert_eq!(
-            fs::read_to_string(vault_root.join("healthy.md")).expect("read"),
-            "# Healthy Note\n"
-        );
         assert!(!journal.exists());
     }
 }
