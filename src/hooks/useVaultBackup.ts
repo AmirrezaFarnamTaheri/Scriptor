@@ -149,16 +149,17 @@ export function useVaultBackup(vaultOpen: boolean) {
       setIsBusy(true)
       setLastError(null)
       setLastMessage(null)
+      let restoreApplied = false
       try {
-        // Freeze editor persistence and wait for already-running writes before
-        // the native layer starts replacing authoritative vault files.
+        // Flush acknowledged edits, then freeze editor persistence before the
+        // native transaction starts replacing authoritative vault files.
         await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
         const message = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
+        restoreApplied = true
 
         // Reload authoritative editor/config/snippet state before allowing any
         // persistence to resume. Derived index consumers intentionally wait.
         await dispatchVaultLifecycleEvent('scriptor:vault-files-restored', { backupName })
-        onRestored?.()
 
         let indexReady = true
         try {
@@ -174,8 +175,25 @@ export function useVaultBackup(vaultOpen: boolean) {
         // attempt has reached a terminal result. Consumers can deliberately
         // remain stale/empty when `indexReady` is false.
         await dispatchVaultLifecycleEvent('scriptor:vault-restored', { backupName, indexReady })
+        onRestored?.()
       } catch (caught) {
-        setLastError(caught instanceof Error ? caught.message : 'Restore failed')
+        const message = caught instanceof Error ? caught.message : 'Restore failed'
+        if (!restoreApplied) {
+          // Native replacement never committed. Resume the original editor
+          // generation and re-arm any still-dirty in-memory draft.
+          try {
+            await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
+          } catch (resumeError) {
+            setLastError(`${message}; editor persistence could not resume: ${resumeError instanceof Error ? resumeError.message : String(resumeError)}`)
+            return
+          }
+          setLastError(message)
+        } else {
+          // The filesystem restore is already authoritative. Never label that
+          // durable operation as failed merely because UI/index resynchronizing
+          // encountered an error afterward.
+          setLastError(`Vault files were restored, but workspace resynchronization failed: ${message}`)
+        }
       } finally {
         setIsBusy(false)
       }

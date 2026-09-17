@@ -320,21 +320,6 @@ export function useWorkspaceEditor({
     logActivity('info', 'Reloaded note from disk', path)
   }, [activeNoteRef, activePathRef, discardPendingDocumentSave, draftMarkdownRef, loadBacklinks, logActivity])
 
-  const prepareForVaultReplacement = useCallback(async () => {
-    persistenceSuspendedRef.current = true
-    persistenceGenerationRef.current += 1
-    navigationGenerationRef.current += 1
-    if (saveTimer.current) window.clearTimeout(saveTimer.current)
-    saveTimer.current = null
-    pendingSaveRequestRef.current = null
-    for (const timer of saveTimersByDocRef.current.values()) window.clearTimeout(timer)
-    saveTimersByDocRef.current.clear()
-    pendingRequestsByDocRef.current.clear()
-    pendingRefreshRef.current = null
-    await saveTailRef.current
-    inFlightSavesByDocRef.current.clear()
-  }, [])
-
   const finishVaultReplacement = useCallback(async () => {
     savedHashesRef.current.clear()
     docVaultsRef.current.clear()
@@ -356,13 +341,10 @@ export function useWorkspaceEditor({
       setOpenTabs((tabs) => tabs.map((tab) => tab.path === path
         ? { ...tab, title: document.metadata.title, contentHash: document.metadata.content_hash }
         : tab))
-      void loadBacklinks(path)
       logActivity('info', 'Reloaded restored note from disk', path)
     } catch (caught) {
       const path = activePathRef.current
-      if (path) {
-        setOpenTabs((tabs) => tabs.filter((tab) => tab.path !== path))
-      }
+      if (path) setOpenTabs((tabs) => tabs.filter((tab) => tab.path !== path))
       activePathRef.current = null
       activeNoteRef.current = null
       draftMarkdownRef.current = ''
@@ -374,7 +356,7 @@ export function useWorkspaceEditor({
     } finally {
       persistenceSuspendedRef.current = false
     }
-  }, [activeNoteRef, activePathRef, draftMarkdownRef, loadBacklinks, logActivity, setBacklinks])
+  }, [activeNoteRef, activePathRef, draftMarkdownRef, logActivity, setBacklinks])
 
   const keepEditingAfterExternalChange = useCallback(() => {
     if (!externalChangeConflict) return
@@ -485,12 +467,24 @@ export function useWorkspaceEditor({
       docVaultsRef.current.delete(path)
       savedHashesRef.current.delete(path)
 
-      if (activePath === path) {
+      const wasActive = activePath === path
+      if (wasActive && force) {
+        navigationGenerationRef.current += 1
+        activePathRef.current = null
+        activeNoteRef.current = null
+        draftMarkdownRef.current = ''
+        setActivePath(null)
+        setActiveNote(null)
+        setDraftMarkdown('')
+        setBacklinks([])
+      }
+
+      if (wasActive) {
         const fallback = nextTabs.at(-1)?.path ?? null
         if (fallback) {
           const loaded = await openNote(fallback)
           if (!loaded && !force) return false
-        } else {
+        } else if (!force) {
           navigationGenerationRef.current += 1
           activePathRef.current = null
           activeNoteRef.current = null
@@ -582,9 +576,11 @@ export function useWorkspaceEditor({
   const saveRequest = useCallback(
     async (request: SaveRequest) => {
       const isCurrent = () => isSaveRequestCurrent(request)
-      if (request.persistenceGeneration !== persistenceGenerationRef.current || persistenceSuspendedRef.current) return false
-      if (isCurrent()) setError(null)
       try {
+        if (request.persistenceGeneration !== persistenceGenerationRef.current || persistenceSuspendedRef.current) {
+          return false
+        }
+        if (isCurrent()) setError(null)
         const expectedHash = savedHashesRef.current.get(request.path) ?? request.contentHash
         const saved = await vaultSaveNote(
           request.path,
@@ -598,8 +594,6 @@ export function useWorkspaceEditor({
         try {
           await indexerUpdateNote(request.path)
         } catch (caught) {
-          // Markdown durability is authoritative. A derived-index failure must
-          // not turn a completed disk save into an apparent save failure.
           logActivity('error', 'Note saved, but its search index could not refresh', caught instanceof Error ? caught.message : String(caught))
         }
 
@@ -770,6 +764,29 @@ export function useWorkspaceEditor({
     },
     [createSaveRequest, performSave],
   )
+
+  const prepareForVaultReplacement = useCallback(async () => {
+    const flushed = await flushAllPendingSaves()
+    if (!flushed) {
+      throw new Error('Could not save all pending note changes. Backup restore was cancelled and the current draft was retained.')
+    }
+    persistenceSuspendedRef.current = true
+    persistenceGenerationRef.current += 1
+    navigationGenerationRef.current += 1
+    pendingRefreshRef.current = null
+    await saveTailRef.current
+    inFlightSavesByDocRef.current.clear()
+  }, [flushAllPendingSaves])
+
+  const abortVaultReplacement = useCallback(() => {
+    if (!persistenceSuspendedRef.current) return
+    persistenceSuspendedRef.current = false
+    const path = activePathRef.current
+    const note = activeNoteRef.current
+    if (path && note && draftMarkdownRef.current !== note.markdown) {
+      scheduleSave(draftMarkdownRef.current)
+    }
+  }, [activeNoteRef, activePathRef, draftMarkdownRef, scheduleSave])
 
   const insertSnippet = useCallback((snippet: string) => {
     if (!activePath) return
@@ -947,5 +964,6 @@ export function useWorkspaceEditor({
     flushAllPendingSaves,
     prepareForVaultReplacement,
     finishVaultReplacement,
+    abortVaultReplacement,
   }
 }

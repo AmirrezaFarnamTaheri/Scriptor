@@ -104,9 +104,9 @@ function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
   }
 }
 
-function waitOnLifecycleEvent(event: Event, work: () => Promise<unknown>) {
+function waitOnLifecycleEvent(event: Event, work: () => Promise<unknown> | unknown) {
   const detail = (event as CustomEvent<VaultLifecycleEventDetail>).detail
-  const promise = work()
+  const promise = Promise.resolve().then(work)
   detail?.waitUntil?.(promise)
 }
 
@@ -339,6 +339,7 @@ export function useVaultWorkspace(options?: {
     restoreEditorSession,
     prepareForVaultReplacement,
     finishVaultReplacement,
+    abortVaultReplacement,
   } = editor
 
   const fixVaultLint = useCallback(async () => {
@@ -380,6 +381,9 @@ export function useVaultWorkspace(options?: {
     const handleRestoreStarting = (event: Event) => {
       waitOnLifecycleEvent(event, prepareForVaultReplacement)
     }
+    const handleRestoreAborted = (event: Event) => {
+      waitOnLifecycleEvent(event, abortVaultReplacement)
+    }
     const handleFilesRestored = (event: Event) => {
       waitOnLifecycleEvent(event, async () => {
         await finishVaultReplacement()
@@ -391,12 +395,17 @@ export function useVaultWorkspace(options?: {
       waitOnLifecycleEvent(event, async () => {
         if (detail?.indexReady !== false) {
           await refreshVault()
+          const path = activePathRef.current
+          if (path) await loadBacklinks(path)
+          if (searchQuery.trim()) await runSearch(searchQuery)
           return
         }
-        // The Markdown/filesystem restore succeeded, but the derived index is
-        // known stale. Do not repopulate summaries/health from the stale cache.
+        // The filesystem is authoritative after restore, but the derived index
+        // is explicitly stale. Never repopulate index-backed UI from old data.
         setNoteSummaries([])
+        setBacklinks([])
         setHealthDiagnostics(null)
+        clearSearch()
         await Promise.all([
           refreshVaultEntries(),
           refreshGit(),
@@ -407,14 +416,16 @@ export function useVaultWorkspace(options?: {
       })
     }
     window.addEventListener('scriptor:vault-restore-starting', handleRestoreStarting)
+    window.addEventListener('scriptor:vault-restore-aborted', handleRestoreAborted)
     window.addEventListener('scriptor:vault-files-restored', handleFilesRestored)
     window.addEventListener('scriptor:vault-restored', handleVaultRestored)
     return () => {
       window.removeEventListener('scriptor:vault-restore-starting', handleRestoreStarting)
+      window.removeEventListener('scriptor:vault-restore-aborted', handleRestoreAborted)
       window.removeEventListener('scriptor:vault-files-restored', handleFilesRestored)
       window.removeEventListener('scriptor:vault-restored', handleVaultRestored)
     }
-  }, [finishVaultReplacement, prepareForVaultReplacement, refreshGit, refreshVault, refreshVaultConfig, refreshVaultEntries, refreshVaultSnippets, setHealthDiagnostics])
+  }, [abortVaultReplacement, clearSearch, finishVaultReplacement, loadBacklinks, prepareForVaultReplacement, refreshGit, refreshVault, refreshVaultConfig, refreshVaultEntries, refreshVaultSnippets, runSearch, searchQuery, setBacklinks, setHealthDiagnostics])
 
   const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph })
 
@@ -631,6 +642,7 @@ export function useVaultWorkspace(options?: {
     syncActiveNoteContent: _sync,
     prepareForVaultReplacement: _prepareForVaultReplacement,
     finishVaultReplacement: _finishVaultReplacement,
+    abortVaultReplacement: _abortVaultReplacement,
     ...editorSurface
   } = editor
 
