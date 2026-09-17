@@ -27,6 +27,25 @@ const DEFAULT_SETTINGS: VaultBackupSettings = {
   backupPath: '',
 }
 
+interface VaultLifecycleEventDetail {
+  backupName: string
+  indexReady?: boolean
+  waitUntil: (promise: Promise<unknown>) => void
+}
+
+async function dispatchVaultLifecycleEvent(
+  name: string,
+  detail: Omit<VaultLifecycleEventDetail, 'waitUntil'>,
+): Promise<void> {
+  const waits: Promise<unknown>[] = []
+  const eventDetail: VaultLifecycleEventDetail = {
+    ...detail,
+    waitUntil: (promise) => waits.push(Promise.resolve(promise)),
+  }
+  window.dispatchEvent(new CustomEvent<VaultLifecycleEventDetail>(name, { detail: eventDetail }))
+  if (waits.length > 0) await Promise.all(waits)
+}
+
 function validateSettings(value: unknown): VaultBackupSettings {
   const record = expectRecord(value, 'backup settings')
   return {
@@ -105,7 +124,6 @@ export function useVaultBackup(vaultOpen: boolean) {
           await vaultDeleteBackup(old.name, settings.backupPath || undefined)
           deleted.add(old.name)
         } catch {
-          // Best-effort cleanup; keep the entry visible and report below.
           failedDeletes.push(old.name)
         }
       }
@@ -121,7 +139,6 @@ export function useVaultBackup(vaultOpen: boolean) {
   }, [vaultOpen, settings.backupPath, settings.maxSnapshots])
 
   const triggerBackupRef = useRef(triggerBackup)
-
   useEffect(() => {
     triggerBackupRef.current = triggerBackup
   }, [triggerBackup])
@@ -133,16 +150,30 @@ export function useVaultBackup(vaultOpen: boolean) {
       setLastError(null)
       setLastMessage(null)
       try {
+        // Freeze editor persistence and wait for already-running writes before
+        // the native layer starts replacing authoritative vault files.
+        await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
         const message = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
-        window.dispatchEvent(new CustomEvent('scriptor:vault-restored', { detail: { backupName } }))
+
+        // Reload authoritative editor/config/snippet state before allowing any
+        // persistence to resume. Derived index consumers intentionally wait.
+        await dispatchVaultLifecycleEvent('scriptor:vault-files-restored', { backupName })
         onRestored?.()
+
+        let indexReady = true
         try {
           await indexerRebuild()
           setLastMessage(message)
         } catch (indexerErr) {
+          indexReady = false
           console.warn('Post-restore indexer rebuild failed:', indexerErr)
           setLastMessage(`${message} (Index rebuild failed; search may be outdated until next rebuild)`)
         }
+
+        // Refresh summaries/health/graph-dependent state only after the rebuild
+        // attempt has reached a terminal result. Consumers can deliberately
+        // remain stale/empty when `indexReady` is false.
+        await dispatchVaultLifecycleEvent('scriptor:vault-restored', { backupName, indexReady })
       } catch (caught) {
         setLastError(caught instanceof Error ? caught.message : 'Restore failed')
       } finally {
@@ -220,17 +251,6 @@ export function useVaultBackup(vaultOpen: boolean) {
       deleteBackup,
       listBackups,
     }),
-    [
-      settings,
-      setSettings,
-      backups,
-      isBusy,
-      lastError,
-      lastMessage,
-      triggerBackup,
-      restoreBackup,
-      deleteBackup,
-      listBackups,
-    ],
+    [settings, setSettings, backups, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
   )
 }
