@@ -9,23 +9,13 @@
  *  - Produces PDF output with a single command
  *  - Has no separate TeX installation required
  *
- * This hook invokes Tectonic via Tauri's `shell` sidecar or `Command` API,
- * wiring compile jobs into Scriptor's existing ExportJobRecord infrastructure.
- *
- * Usage:
- *  ```tsx
- *  const { compile, status, jobs, cancelJob, clearJobs, discoverTectonic } =
- *    useLatexCompiler({ config: vaultConfig?.latex, vaultRoot })
- *  ```
+ * This hook invokes Tectonic via Tauri's native process bridge and wires
+ * compile jobs into Scriptor's existing export/job presentation.
  */
 
 import { useState, useCallback, useRef } from 'react'
 
 import { latexCancelCompile, latexCompile, latexDiscoverTectonic } from '../bridge/commands/latex.ts'
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
 
 export type LatexJobStatus = 'idle' | 'compiling' | 'success' | 'error' | 'cancelled'
 
@@ -55,7 +45,7 @@ export interface LatexCompilerOptions {
 }
 
 export interface LatexCompileRequest {
-  /** Absolute path to the .tex file to compile. */
+  /** Vault-relative source path (preferred), or an absolute path inside the active vault. */
   inputPath: string
   /** Optional output directory override. */
   outputDir?: string
@@ -64,33 +54,22 @@ export interface LatexCompileRequest {
 }
 
 export interface LatexCompilerResult {
-  /** All compile jobs (most-recent first). */
   jobs: LatexCompileJob[]
-  /** Currently running job, or null. */
   activeJob: LatexCompileJob | null
-  /** Compile a .tex file. Returns the job. */
   compile: (req: LatexCompileRequest) => Promise<LatexCompileJob>
-  /** Cancel the currently running job. */
   cancelJob: () => void
-  /** Remove finished jobs from history. */
   clearJobs: () => void
-  /** Discover tectonic on PATH, return found path or null. */
   discoverTectonic: () => Promise<string | null>
-  /** Whether tectonic was found on PATH. */
   tectonicAvailable: boolean | null
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function makeJobId(): string {
   return `latex-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
+function isCancellationError(message: string): boolean {
+  return /\b(cancelled|canceled)\b/i.test(message)
+}
 
 export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): LatexCompilerResult {
   const [jobs, setJobs] = useState<LatexCompileJob[]>([])
@@ -98,7 +77,6 @@ export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): L
   const [tectonicAvailable, setTectonicAvailable] = useState<boolean | null>(null)
   const cancelRef = useRef(false)
 
-  /** Discover tectonic binary. Tries config path first, then PATH. */
   const tectonicPath = config?.tectonic_path ?? null
   const discoverTectonic = useCallback(async (): Promise<string | null> => {
     try {
@@ -111,7 +89,6 @@ export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): L
     }
   }, [tectonicPath])
 
-  /** Compile a .tex file using Tectonic. */
   const compile = useCallback(
     async (req: LatexCompileRequest): Promise<LatexCompileJob> => {
       const id = makeJobId()
@@ -149,25 +126,31 @@ export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): L
         const finished: LatexCompileJob = {
           ...job,
           outputPath: result.output_path,
-          status: cancelRef.current ? 'cancelled' : 'success',
+          // A resolved native compile is a success even if Cancel raced with
+          // process completion. Real cancellation rejects with the canonical
+          // cancellation error below.
+          status: 'success',
           finishedAt: new Date().toISOString(),
           stdout: result.stdout,
           stderr: result.stderr,
           durationMs: result.duration_ms,
         }
 
+        cancelRef.current = false
         setActiveJob(null)
         setJobs((prev) => prev.map((j) => (j.id === id ? finished : j)))
         return finished
       } catch (err: unknown) {
         const errMsg = err instanceof Error ? err.message : String(err)
+        const cancelled = cancelRef.current || isCancellationError(errMsg)
         const failed: LatexCompileJob = {
           ...job,
-          status: 'error',
+          status: cancelled ? 'cancelled' : 'error',
           finishedAt: new Date().toISOString(),
           stderr: errMsg,
           durationMs: Date.now() - new Date(startedAt).getTime(),
         }
+        cancelRef.current = false
         setActiveJob(null)
         setJobs((prev) => prev.map((j) => (j.id === id ? failed : j)))
         return failed
