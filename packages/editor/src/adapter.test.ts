@@ -35,6 +35,9 @@ test('countWords accurately counts prose words while ignoring Markdown structura
     { input: 'English word followed by 中文测试', expected: 8 },
     { input: 'Here is prose\n```js\nconst x = 10;\nfunction test() { return x; }\n```\nBack to prose', expected: 6 },
     { input: '\u{20000}\u{20001}', expected: 2 },
+    { input: '---\ntitle: Hidden metadata\ntags: [one, two]\n---\nVisible prose only', expected: 3 },
+    { input: '\uFEFF---\ntitle: Hidden metadata\n...\nVisible after BOM', expected: 3 },
+    { input: '---\nNo closing frontmatter here\nVisible prose', expected: 6 },
   ]
   for (const { input, expected } of samples) {
     assert.equal(

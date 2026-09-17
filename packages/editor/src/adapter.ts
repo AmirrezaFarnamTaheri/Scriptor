@@ -78,10 +78,42 @@ function isWordChar(code: number, char: string): boolean {
   return NON_ASCII_WORD_PATTERN.test(char)
 }
 
+function frontmatterEndOffset(markdown: string): number {
+  const len = markdown.length
+  let start = markdown.charCodeAt(0) === 0xfeff ? 1 : 0
+  let firstEnd = start
+  while (firstEnd < len && markdown.charCodeAt(firstEnd) !== 0x0a && markdown.charCodeAt(firstEnd) !== 0x0d) {
+    firstEnd++
+  }
+  if (markdown.slice(start, firstEnd).trim() !== '---') return 0
+
+  let cursor = firstEnd
+  while (cursor < len && (markdown.charCodeAt(cursor) === 0x0a || markdown.charCodeAt(cursor) === 0x0d)) cursor++
+  while (cursor < len) {
+    let lineEnd = cursor
+    while (lineEnd < len && markdown.charCodeAt(lineEnd) !== 0x0a && markdown.charCodeAt(lineEnd) !== 0x0d) {
+      lineEnd++
+    }
+    const marker = markdown.slice(cursor, lineEnd).trim()
+    if (marker === '---' || marker === '...') {
+      let after = lineEnd
+      while (after < len && (markdown.charCodeAt(after) === 0x0a || markdown.charCodeAt(after) === 0x0d)) after++
+      return after
+    }
+    cursor = lineEnd
+    while (cursor < len && (markdown.charCodeAt(cursor) === 0x0a || markdown.charCodeAt(cursor) === 0x0d)) cursor++
+  }
+
+  // An unmatched opening `---` is just Markdown content/horizontal-rule syntax,
+  // not frontmatter. Do not silently discard the remainder of the document.
+  return 0
+}
+
 export function countWords(markdown: string): number {
   // Single-pass semantic prose word counter: strips Markdown structural tokens
-  // (headings, blockquotes, list markers, task checkboxes, hr, table fences, code blocks)
-  // and accurately counts Unicode words and CJK ideographs without intermediate token arrays.
+  // (frontmatter, headings, blockquotes, list markers, task checkboxes, hr,
+  // table fences, fenced code blocks) and counts Unicode words/CJK code points
+  // without allocating intermediate token arrays.
   let count = 0
   const len = markdown.length
   let lineStart = true
@@ -90,7 +122,7 @@ export function countWords(markdown: string): number {
   let fenceChar = ''
   let fenceLen = 0
 
-  let i = 0
+  let i = frontmatterEndOffset(markdown)
   while (i < len) {
     const code = markdown.charCodeAt(i)
 
@@ -148,7 +180,8 @@ export function countWords(markdown: string): number {
         continue
       }
 
-      // Skip blockquote markers: > followed by optional space
+      // Skip blockquote markers: > followed by optional space. Keep lineStart
+      // true so a nested list/task marker is handled on the same logical line.
       const quoteMatch = line.match(/^(?:>\s*)+/)
       if (quoteMatch) {
         i += quoteMatch[0].length
