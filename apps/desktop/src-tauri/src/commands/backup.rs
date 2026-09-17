@@ -685,7 +685,7 @@ mod tests {
         fs::write(rollback.join("original.md"), "# Original Note\n").expect("write original");
         fs::write(journal.join("state"), "promoting").expect("write state");
 
-        recover_interrupted_restore(vault_root);
+        recover_interrupted_restore(vault_root).expect("recover interrupted restore");
 
         assert!(vault_root.join("original.md").exists());
         assert_eq!(
@@ -709,7 +709,7 @@ mod tests {
         fs::write(staged.join("staged.md"), "# Staged Note\n").expect("write staged");
         fs::write(journal.join("state"), "preparing").expect("write state");
 
-        recover_interrupted_restore(vault_root);
+        recover_interrupted_restore(vault_root).expect("recover interrupted restore");
 
         assert!(vault_root.join("healthy.md").exists());
         assert_eq!(

@@ -839,11 +839,16 @@ export function useWorkspaceEditor({
     }
   }, [draftMarkdown, updateDraft])
 
+  const flushAllPendingSavesRef = useRef(flushAllPendingSaves)
+  useEffect(() => {
+    flushAllPendingSavesRef.current = flushAllPendingSaves
+  }, [flushAllPendingSaves])
+
   useEffect(() => {
     return () => {
-      void flushAllPendingSaves()
+      void flushAllPendingSavesRef.current()
     }
-  }, [flushAllPendingSaves])
+  }, [])
 
   const jumpToOutlineHeading = useCallback((heading: OutlineHeading) => {
     setScrollToEditorLine(heading.line)

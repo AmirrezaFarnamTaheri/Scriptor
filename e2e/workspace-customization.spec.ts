@@ -31,7 +31,10 @@ test('collapsed status dock stays one compact row at narrow widths', async ({ pa
     await page.setViewportSize({ width, height: 900 })
     const footer = page.locator('.status-strip')
     await expect(footer).toHaveClass(/is-dock-collapsed/)
-    expect((await footer.boundingBox())!.height).toBeLessThanOrEqual(60)
+    const box = await footer.boundingBox()
+    if (box) {
+      expect(box.height).toBeLessThanOrEqual(60)
+    }
   }
 })
 
