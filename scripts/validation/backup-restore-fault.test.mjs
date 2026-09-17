@@ -42,7 +42,7 @@ test('restore recovery preserves unresolved journals and has executable Rust fai
 
 test('backup listing owns its namespace and never surfaces arbitrary sibling directories', () => {
   assert.ok(backupRs.includes('fn list_backup_entries('))
-  assert.ok(backupRs.includes('if validate_backup_name(&name).is_err() { continue; }'))
+  assert.ok(/if validate_backup_name\(&name\)\.is_err\(\)\s*\{\s*continue;\s*\}/.test(backupRs))
   assert.ok(backupRs.includes('fn backup_listing_ignores_unowned_directories_but_keeps_owned_corrupt_entries_visible()'))
 })
 

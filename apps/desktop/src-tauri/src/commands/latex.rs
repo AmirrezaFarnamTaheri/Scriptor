@@ -271,7 +271,10 @@ mod tests {
         let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
 
         let resolved = resolve_vault_input(&canonical_vault, "papers/paper.tex").expect("resolve");
-        assert_eq!(resolved, std::fs::canonicalize(&source).expect("canonical source"));
+        assert_eq!(
+            resolved,
+            std::fs::canonicalize(&source).expect("canonical source")
+        );
 
         let outside_dir = tempfile::tempdir().expect("outside dir");
         let outside = outside_dir.path().join("outside.tex");

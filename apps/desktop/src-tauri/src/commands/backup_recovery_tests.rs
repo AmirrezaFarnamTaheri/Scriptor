@@ -16,7 +16,10 @@ fn unreadable_restore_state_preserves_journal() {
         .expect_err("a directory cannot be read as the restore state file");
 
     assert!(error.contains("Failed to read restore journal state"));
-    assert!(journal.exists(), "failed recovery must preserve the journal");
+    assert!(
+        journal.exists(),
+        "failed recovery must preserve the journal"
+    );
 }
 
 #[cfg(unix)]
@@ -29,21 +32,25 @@ fn rollback_copy_failure_after_clear_preserves_recovery_journal() {
     let journal = restore_journal(root);
     let rollback = journal.join("rollback");
     fs::create_dir_all(&rollback).expect("rollback directory");
-    fs::write(root.join("partial.md"), "partial restored generation")
-        .expect("partial vault file");
+    fs::write(root.join("partial.md"), "partial restored generation").expect("partial vault file");
     fs::write(journal.join("state"), "promoting").expect("promoting state");
 
     // copy_tree deliberately rejects symlinks. This forces the recovery path
     // to fail only after clear_persistent_vault_content has already succeeded.
-    symlink("missing-target.md", rollback.join("unsupported-link.md"))
-        .expect("rollback symlink");
+    symlink("missing-target.md", rollback.join("unsupported-link.md")).expect("rollback symlink");
 
-    let error = recover_interrupted_restore(root)
-        .expect_err("rollback copy must fail on a symlink");
+    let error =
+        recover_interrupted_restore(root).expect_err("rollback copy must fail on a symlink");
 
     assert!(error.contains("Failed to restore rollback snapshot"));
-    assert!(!root.join("partial.md").exists(), "the clear phase must have executed");
-    assert!(journal.exists(), "failed rollback copy must preserve recovery metadata");
+    assert!(
+        !root.join("partial.md").exists(),
+        "the clear phase must have executed"
+    );
+    assert!(
+        journal.exists(),
+        "failed rollback copy must preserve recovery metadata"
+    );
     assert_eq!(
         fs::read_to_string(journal.join("state")).expect("state retained"),
         "promoting"
@@ -74,13 +81,18 @@ fn journal_cleanup_failure_is_reported_and_journal_remains() {
 
     let result = recover_interrupted_restore(root);
 
-    let mut restore_permissions = fs::metadata(&scriptor).expect("metadata after recovery").permissions();
+    let mut restore_permissions = fs::metadata(&scriptor)
+        .expect("metadata after recovery")
+        .permissions();
     restore_permissions.set_mode(original_mode);
     fs::set_permissions(&scriptor, restore_permissions).expect("restore permissions");
 
     let error = result.expect_err("journal removal should fail when its parent is readonly");
     assert!(error.contains("Failed to remove completed restore journal"));
-    assert!(journal.exists(), "cleanup failure must leave the journal available for retry");
+    assert!(
+        journal.exists(),
+        "cleanup failure must leave the journal available for retry"
+    );
     assert_eq!(
         fs::read_to_string(root.join("original.md")).expect("rollback was promoted"),
         "# Original\n"

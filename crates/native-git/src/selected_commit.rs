@@ -44,12 +44,7 @@ pub fn git_commit_selected(
     let new_commit = if is_merging {
         commit_merge_index(repo_root, &status, &selected_paths, message)?
     } else {
-        commit_selected_with_temporary_index(
-            repo_root,
-            &selected_paths,
-            message,
-            &old_head,
-        )?
+        commit_selected_with_temporary_index(repo_root, &selected_paths, message, &old_head)?
     };
 
     let committed = run_git(
@@ -107,7 +102,7 @@ fn commit_merge_index(
     // provides transactional merge-state cleanup instead of hand-deleting
     // state files before the ref update.
     run_git(repo_root, &["commit", "-m", message])?;
-    git_metadata(run_git(repo_root, &["rev-parse", "HEAD"])? )
+    git_metadata(run_git(repo_root, &["rev-parse", "HEAD"])?)
 }
 
 fn commit_selected_with_temporary_index(
@@ -135,7 +130,7 @@ fn commit_selected_with_temporary_index(
     // prepare-commit-msg, commit-msg, post-commit and configured commit signing.
     // The temporary index contains only the reviewed selection.
     run_git_with_index(repo_root, &temp_index, &["commit", "-m", message])?;
-    let new_commit = git_metadata(run_git(repo_root, &["rev-parse", "HEAD"])? )?;
+    let new_commit = git_metadata(run_git(repo_root, &["rev-parse", "HEAD"])?)?;
 
     if let Err(error) = reset_committed_paths_in_real_index(repo_root, selected_paths) {
         let rollback_result = run_git(repo_root, &["update-ref", "HEAD", old_head, &new_commit]);
@@ -212,7 +207,11 @@ fn is_sequencer_in_progress(repo_root: &Path) -> Result<bool, GitError> {
 fn git_path(repo_root: &Path, name: &str) -> Result<PathBuf, GitError> {
     let raw = git_metadata(run_git(repo_root, &["rev-parse", "--git-path", name])?)?;
     let path = PathBuf::from(raw);
-    Ok(if path.is_absolute() { path } else { repo_root.join(path) })
+    Ok(if path.is_absolute() {
+        path
+    } else {
+        repo_root.join(path)
+    })
 }
 
 fn repository_index_path(repo_root: &Path) -> Result<PathBuf, GitError> {
@@ -250,10 +249,7 @@ impl Drop for TemporaryIndex {
     }
 }
 
-fn reset_committed_paths_in_real_index(
-    repo_root: &Path,
-    paths: &[String],
-) -> Result<(), GitError> {
+fn reset_committed_paths_in_real_index(repo_root: &Path, paths: &[String]) -> Result<(), GitError> {
     let mut args = vec![
         "--literal-pathspecs".to_string(),
         "reset".to_string(),
@@ -295,11 +291,7 @@ fn git_metadata(output: String) -> Result<String, GitError> {
     Ok(value)
 }
 
-fn run_git_with_index(
-    repo_root: &Path,
-    index: &Path,
-    args: &[&str],
-) -> Result<String, GitError> {
+fn run_git_with_index(repo_root: &Path, index: &Path, args: &[&str]) -> Result<String, GitError> {
     let receipt = run_git_receipt_with_index(repo_root, args, index)?;
     if receipt.exit_code != 0 {
         return Err(GitError::Command(format!(
@@ -439,13 +431,19 @@ mod tests {
         fs::write(dir.path().join("new.md"), "selected new file\n")?;
 
         let output = git_commit_selected(dir.path(), &["new.md".into()], "selected")?;
-        assert_eq!(git(dir.path(), &["show", "HEAD:new.md"] )?, "selected new file\n");
+        assert_eq!(
+            git(dir.path(), &["show", "HEAD:new.md"])?,
+            "selected new file\n"
+        );
         assert!(output.files_committed.iter().any(|path| path == "new.md"));
         assert_eq!(
-            git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"] )?,
+            git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"])?,
             unrelated_before
         );
-        assert_eq!(git(dir.path(), &["diff", "--cached", "--name-only"] )?, "unrelated.md\n");
+        assert_eq!(
+            git(dir.path(), &["diff", "--cached", "--name-only"])?,
+            "unrelated.md\n"
+        );
         Ok(())
     }
 
@@ -463,11 +461,25 @@ mod tests {
 
         git_commit_selected(dir.path(), &["file.md".into()], "merge resolution")?;
 
-        assert_eq!(git(dir.path(), &["show", "HEAD:file.md"] )?, "RESOLUTION-A\n");
-        assert_eq!(fs::read_to_string(dir.path().join("file.md"))?, "RESOLUTION-B\n");
-        assert_eq!(fs::read_to_string(dir.path().join("unrelated.md"))?, "local draft\n");
+        assert_eq!(
+            git(dir.path(), &["show", "HEAD:file.md"])?,
+            "RESOLUTION-A\n"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.path().join("file.md"))?,
+            "RESOLUTION-B\n"
+        );
+        assert_eq!(
+            fs::read_to_string(dir.path().join("unrelated.md"))?,
+            "local draft\n"
+        );
         assert!(dir.path().join("scratch.md").exists());
-        assert_eq!(git(dir.path(), &["log", "-1", "--format=%P"] )?.split_whitespace().count(), 2);
+        assert_eq!(
+            git(dir.path(), &["log", "-1", "--format=%P"])?
+                .split_whitespace()
+                .count(),
+            2
+        );
         assert!(!git_path(dir.path(), "MERGE_HEAD")?.exists());
         Ok(())
     }
@@ -489,7 +501,10 @@ mod tests {
         fs::write(dir.path().join("a.md"), "main a\n")?;
         fs::write(dir.path().join("b.md"), "main b\n")?;
         git(dir.path(), &["commit", "-am", "main"])?;
-        let _ = Command::new("git").current_dir(dir.path()).args(["merge", "feature"]).output()?;
+        let _ = Command::new("git")
+            .current_dir(dir.path())
+            .args(["merge", "feature"])
+            .output()?;
         fs::write(dir.path().join("a.md"), "resolved a\n")?;
         fs::write(dir.path().join("b.md"), "resolved b\n")?;
         git(dir.path(), &["add", "a.md", "b.md"])?;
@@ -504,8 +519,7 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn selected_commit_runs_commit_msg_hook()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_runs_commit_msg_hook() -> Result<(), Box<dyn std::error::Error>> {
         use std::os::unix::fs::PermissionsExt;
 
         let dir = tempdir()?;
@@ -522,7 +536,164 @@ mod tests {
         fs::set_permissions(&hook, permissions)?;
 
         git_commit_selected(dir.path(), &["selected.md".into()], "hooked")?;
-        assert_eq!(fs::read_to_string(dir.path().join(".git/scriptor-hook-ran"))?, "ran");
+        assert_eq!(
+            fs::read_to_string(dir.path().join(".git/scriptor-hook-ran"))?,
+            "ran"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_preserves_unrelated_staging_and_cleans_selected_path()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        init(dir.path())?;
+        fs::write(dir.path().join("selected.md"), "# Selected\n")?;
+        fs::write(dir.path().join("unrelated.md"), "# Unrelated\n")?;
+        git(dir.path(), &["add", "."])?;
+        git(dir.path(), &["commit", "-m", "initial"])?;
+
+        fs::write(dir.path().join("selected.md"), "# Selected changed\n")?;
+        fs::write(dir.path().join("unrelated.md"), "# Unrelated staged\n")?;
+        git(dir.path(), &["add", "--", "unrelated.md"])?;
+        let unrelated_stage_before =
+            git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"])?;
+
+        let output = git_commit_selected(dir.path(), &["selected.md".into()], "selected only")?;
+
+        assert_eq!(output.files_committed, vec!["selected.md"]);
+        assert_eq!(
+            git(dir.path(), &["show", "HEAD:selected.md"])?,
+            "# Selected changed\n"
+        );
+        assert_eq!(
+            git(dir.path(), &["show", "HEAD:unrelated.md"])?,
+            "# Unrelated\n"
+        );
+        assert_eq!(
+            git(dir.path(), &["ls-files", "--stage", "--", "unrelated.md"])?,
+            unrelated_stage_before,
+            "unrelated staged content must remain unchanged"
+        );
+        assert_eq!(
+            git(dir.path(), &["diff", "--cached", "--name-only"])?,
+            "unrelated.md\n"
+        );
+        assert!(
+            git(
+                dir.path(),
+                &["status", "--porcelain=1", "--", "selected.md"]
+            )?
+            .is_empty(),
+            "committed selection must be clean in both index and worktree"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_handles_deletions() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        init(dir.path())?;
+        fs::write(dir.path().join("deleted.md"), "# Delete me\n")?;
+        git(dir.path(), &["add", "."])?;
+        git(dir.path(), &["commit", "-m", "initial"])?;
+        fs::remove_file(dir.path().join("deleted.md"))?;
+
+        let output = git_commit_selected(dir.path(), &["deleted.md".into()], "delete selected")?;
+
+        assert_eq!(output.files_committed, vec!["deleted.md"]);
+        assert!(git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
+        assert!(git(dir.path(), &["show", "HEAD:deleted.md"]).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_expands_renames_to_both_paths() -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        init(dir.path())?;
+        fs::write(dir.path().join("old.md"), "# Renamed\n")?;
+        git(dir.path(), &["add", "."])?;
+        git(dir.path(), &["commit", "-m", "initial"])?;
+        git(dir.path(), &["mv", "old.md", "new.md"])?;
+
+        let output = git_commit_selected(dir.path(), &["new.md".into()], "rename selected")?;
+
+        assert!(output.files_committed.iter().any(|path| path == "new.md"));
+        assert!(git(dir.path(), &["status", "--porcelain=1"])?.is_empty());
+        assert_eq!(git(dir.path(), &["show", "HEAD:new.md"])?, "# Renamed\n");
+        assert!(git(dir.path(), &["show", "HEAD:old.md"]).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_treats_pathspec_metacharacters_literally()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        init(dir.path())?;
+        let literal = if cfg!(windows) {
+            "glob_literal[1].md"
+        } else {
+            ":(glob)literal[1].md"
+        };
+        fs::write(dir.path().join(literal), "# Literal\n")?;
+        git(dir.path(), &["add", "."])?;
+        git(dir.path(), &["commit", "-m", "initial"])?;
+        fs::write(dir.path().join(literal), "# Changed\n")?;
+        let output = git_commit_selected(dir.path(), &[literal.into()], "literal path")?;
+        assert_eq!(output.files_committed, vec![literal]);
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_during_merge_creates_multi_parent_commit_and_cleans_merge_head()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        create_conflicted_merge(dir.path())?;
+
+        // Resolve conflict
+        fs::write(dir.path().join("file.md"), "# Resolved\n")?;
+        git(dir.path(), &["add", "file.md"])?;
+
+        assert!(
+            git_path(dir.path(), "MERGE_HEAD")?.exists(),
+            "MERGE_HEAD must exist during merge"
+        );
+
+        let output = git_commit_selected(dir.path(), &["file.md".into()], "Merge resolution")?;
+        assert_eq!(output.files_committed, vec!["file.md"]);
+
+        // Verify commit has 2 parents
+        let parents = git(dir.path(), &["log", "-1", "--format=%P"])?;
+        let parent_hashes: Vec<&str> = parents.split_whitespace().collect();
+        assert_eq!(
+            parent_hashes.len(),
+            2,
+            "merge commit must have exactly two parents"
+        );
+
+        // Verify MERGE_HEAD was cleaned up
+        assert!(
+            !git_path(dir.path(), "MERGE_HEAD")?.exists(),
+            "MERGE_HEAD must be cleaned up after merge commit"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn selected_commit_during_merge_rejects_unresolved_conflicts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let dir = tempdir()?;
+        create_conflicted_merge(dir.path())?;
+
+        // Do not resolve conflicts
+        let result = git_commit_selected(dir.path(), &["file.md".into()], "premature commit");
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(
+            err_msg.contains("unresolved"),
+            "error must indicate unresolved conflicts: {err_msg}"
+        );
         Ok(())
     }
 }

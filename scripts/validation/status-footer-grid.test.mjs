@@ -40,15 +40,15 @@ test('WorkspaceStatusFooter groups indexReady into single text container and uni
     'WorkspaceStatusFooter must wrap indexReady and note count inside .job-progress-text',
   )
 
-  // Problem count in jobs-button is conditionally shown only when chrome is collapsed
+  // Problem count in jobs-button is shown when problems exist
   assert.ok(
-    tsx.includes('totalProblemCount > 0 && chromeCollapsed'),
-    'WorkspaceStatusFooter jobs-button must only duplicate Problem count text when dock chrome is collapsed',
+    tsx.includes('totalProblemCount > 0 ? ('),
+    'WorkspaceStatusFooter jobs-button must show Problem count text when problems exist',
   )
 
   // Jobs button has explicit aria-label
   assert.ok(
-    tsx.includes('aria-label={totalProblemCount > 0 && chromeCollapsed'),
+    tsx.includes('aria-label={totalProblemCount > 0 ?'),
     'WorkspaceStatusFooter jobs-button must declare explicit dynamic aria-label',
   )
 })

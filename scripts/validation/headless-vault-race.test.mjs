@@ -160,9 +160,11 @@ test('every vault-relative daemon bridge uses the verified-vault gateway', () =>
   ]) assert.ok(nativeIndexerSource.includes(call), `indexer headless path must use checked call: ${call}`)
 
   for (const call of [
-    'bridge_export_run_note(&state,', 'bridge_export_run_markdown(&state,',
-    'bridge_export_start_note(&state,', 'bridge_export_cancel(&state,',
-  ]) assert.ok(nativeExportSource.includes(call), `export headless path must use checked call: ${call}`)
+    /bridge_export_run_note\(\s*&state,/,
+    /bridge_export_run_markdown\(\s*&state,/,
+    /bridge_export_start_note\(\s*&state,/,
+    /bridge_export_cancel\(\s*&state,/,
+  ]) assert.ok(call.test(nativeExportSource), `export headless path must use checked call: ${call}`)
 
   assert.ok(nativeGitSource.includes('bridge_git_status(&state)'))
 })

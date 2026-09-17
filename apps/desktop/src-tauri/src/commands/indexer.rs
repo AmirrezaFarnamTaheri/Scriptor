@@ -208,7 +208,11 @@ pub fn indexer_resolve_wikilink(
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let (note_paths, aliases_by_path) = note_paths_and_aliases(&cache, &session.descriptor.id)
         .map_err(|error| error.to_string())?;
-    Ok(resolve_wikilink_target_with_aliases(&note_paths, &aliases_by_path, &target))
+    Ok(resolve_wikilink_target_with_aliases(
+        &note_paths,
+        &aliases_by_path,
+        &target,
+    ))
 }
 
 #[tauri::command]
@@ -324,9 +328,19 @@ pub fn indexer_query_tasks(
 ) -> Result<Vec<TaskRow>, String> {
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|e| e.to_string())?;
-    let filter = TaskFilter { status, tag, due_before, due_after };
-    query_tasks(&cache, &session.descriptor.id, &filter, limit.unwrap_or(200))
-        .map_err(|e| e.to_string())
+    let filter = TaskFilter {
+        status,
+        tag,
+        due_before,
+        due_after,
+    };
+    query_tasks(
+        &cache,
+        &session.descriptor.id,
+        &filter,
+        limit.unwrap_or(200),
+    )
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -349,12 +363,19 @@ pub fn indexer_update_task(
         .clone()
         .or_else(|| {
             let id = task.source_note_id.as_deref()?;
-            id.strip_prefix(&format!("{}:", task.vault_id)).map(str::to_owned)
+            id.strip_prefix(&format!("{}:", task.vault_id))
+                .map(str::to_owned)
         })
         .ok_or_else(|| format!("task {} has no source note", task.id))?;
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
-    let document = read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-    ensure_note_matches_index_hash(&cache, &session.descriptor.id, &note_path, &document.markdown)?;
+    let document =
+        read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
+    ensure_note_matches_index_hash(
+        &cache,
+        &session.descriptor.id,
+        &note_path,
+        &document.markdown,
+    )?;
 
     let rewritten = rewrite_task_markdown(
         &document.markdown,
@@ -384,7 +405,8 @@ pub fn indexer_sync_note_tasks(
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|e| e.to_string())?;
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
-    let document = read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
+    let document =
+        read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
     sync_note_tasks_from_markdown(
         &cache,
         &session.descriptor.id,
@@ -401,7 +423,8 @@ pub fn indexer_kanban_board(
 ) -> Result<Option<scriptor_indexer::KanbanBoard>, String> {
     let session = active_session(&state)?;
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
-    let document = read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
+    let document =
+        read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
     let board = parse_kanban(&note_path, &document.markdown);
     if let Some(board) = board.as_ref() {
         scriptor_indexer::validate_board(board).map_err(|e| e.to_string())?;
@@ -420,14 +443,23 @@ pub fn indexer_kanban_move_card(
     let status_char = if new_status.chars().count() == 1 {
         new_status.chars().next().unwrap()
     } else {
-        return Err(format!("invalid kanban status {:?}: must be a single character", new_status));
+        return Err(format!(
+            "invalid kanban status {:?}: must be a single character",
+            new_status
+        ));
     };
 
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|e| e.to_string())?;
     let relative = RelativeVaultPath::parse(&note_path).map_err(|e| e.to_string())?;
-    let document = read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
-    ensure_note_matches_index_hash(&cache, &session.descriptor.id, &note_path, &document.markdown)?;
+    let document =
+        read_note(&session.descriptor.id, &session.root, &relative).map_err(|e| e.to_string())?;
+    ensure_note_matches_index_hash(
+        &cache,
+        &session.descriptor.id,
+        &note_path,
+        &document.markdown,
+    )?;
     let new_markdown = move_card_in_markdown(&document.markdown, line, &to_column, status_char)
         .map_err(|e| e.to_string())?;
 
@@ -452,7 +484,9 @@ fn ensure_note_matches_index_hash(
 ) -> Result<(), String> {
     let indexed = load_note_metadata(cache, vault_id, note_path)
         .map_err(|e| e.to_string())?
-        .ok_or_else(|| format!("note {note_path} is not indexed; save or rebuild the index first"))?;
+        .ok_or_else(|| {
+            format!("note {note_path} is not indexed; save or rebuild the index first")
+        })?;
     let current_hash = scriptor_indexer::content_hash(markdown);
     if indexed.content_hash != current_hash {
         return Err(format!(

@@ -230,11 +230,14 @@ export function useGoogleCalendarSync({
   useEffect(() => {
     if (!enabled) return
     lifecycleGenerationRef.current += 1
-    void refresh()
+    const initialTimer = setTimeout(() => {
+      void refresh()
+    }, 0)
     if (refreshIntervalSeconds > 0) {
       intervalRef.current = setInterval(() => void refresh(), refreshIntervalSeconds * 1000)
     }
     return () => {
+      clearTimeout(initialTimer)
       lifecycleGenerationRef.current += 1
       if (intervalRef.current) {
         clearInterval(intervalRef.current)

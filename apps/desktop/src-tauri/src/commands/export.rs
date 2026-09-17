@@ -124,7 +124,9 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
             "failed" => {
                 let failed = ExportJobFailed {
                     job_id,
-                    error: report.error.unwrap_or_else(|| "daemon export failed".into()),
+                    error: report
+                        .error
+                        .unwrap_or_else(|| "daemon export failed".into()),
                 };
                 let _ = app.emit("export:failed", &failed);
                 return Ok(());

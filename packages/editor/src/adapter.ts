@@ -80,7 +80,7 @@ function isWordChar(code: number, char: string): boolean {
 
 function frontmatterEndOffset(markdown: string): number {
   const len = markdown.length
-  let start = markdown.charCodeAt(0) === 0xfeff ? 1 : 0
+  const start = markdown.charCodeAt(0) === 0xfeff ? 1 : 0
   let firstEnd = start
   while (firstEnd < len && markdown.charCodeAt(firstEnd) !== 0x0a && markdown.charCodeAt(firstEnd) !== 0x0d) {
     firstEnd++

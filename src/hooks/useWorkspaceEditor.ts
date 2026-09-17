@@ -168,12 +168,31 @@ export function useWorkspaceEditor({
     return true
   }, [activePathRef, setError])
 
+  const hasPendingSave = useCallback(
+    (path: string, vaultId?: string): boolean => {
+      const targetVaultId = vaultId ?? docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
+      if (!targetVaultId) return false
+      const docKey = `${targetVaultId}:${path}`
+      if (saveTimersByDocRef.current.has(docKey)) return true
+      if (pendingRequestsByDocRef.current.has(docKey)) return true
+      if (inFlightSavesByDocRef.current.has(docKey)) return true
+      if (
+        activePathRef.current === path &&
+        activeNoteRef.current &&
+        draftMarkdownRef.current !== activeNoteRef.current.markdown
+      ) return true
+      if (activePathRef.current === path && (saveTimer.current !== null || pendingSaveRequestRef.current !== null)) return true
+      return false
+    },
+    [activeNoteRef, activePathRef, draftMarkdownRef],
+  )
+
   const loadNote = useCallback(
     async (path: string, isCurrent: () => boolean = () => true) => {
       if (!isCurrent() || persistenceSuspendedRef.current) return false
       const currentPath = activePathRef.current
       const currentVaultId = activeNoteRef.current?.metadata.vault_id
-      if (currentPath && currentPath !== path && currentVaultId) {
+      if (currentPath && currentPath !== path && currentVaultId && hasPendingSave(currentPath, currentVaultId)) {
         const saved = await flushPendingDocumentSaveRef.current(currentPath, currentVaultId)
         if (!saved) {
           setError(`Failed to save changes to ${currentPath}. The current draft was retained and navigation was cancelled.`)
@@ -227,7 +246,7 @@ export function useWorkspaceEditor({
       }
       return true
     },
-    [activeNoteRef, activePathRef, draftMarkdownRef, loadBacklinks, setError],
+    [activeNoteRef, activePathRef, draftMarkdownRef, hasPendingSave, loadBacklinks, setError],
   )
 
   const recordNoteHistory = useCallback((path: string) => {
@@ -450,7 +469,7 @@ export function useWorkspaceEditor({
       if (closing?.pinned && !force) return false
 
       const targetVaultId = docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
-      if (targetVaultId && !force) {
+      if (targetVaultId && !force && hasPendingSave(path, targetVaultId)) {
         const saved = await flushPendingDocumentSaveRef.current(path, targetVaultId)
         if (!saved) {
           setError(`Failed to save changes to ${path} before closing. Draft retained.`)
@@ -497,7 +516,7 @@ export function useWorkspaceEditor({
       }
       return true
     },
-    [activeNoteRef, activePath, activePathRef, discardPendingDocumentSave, draftMarkdownRef, openNote, openTabs, setBacklinks, setError],
+    [activeNoteRef, activePath, activePathRef, discardPendingDocumentSave, draftMarkdownRef, hasPendingSave, openNote, openTabs, setBacklinks, setError],
   )
 
   const reopenClosedTab = useCallback(() => {
@@ -773,6 +792,12 @@ export function useWorkspaceEditor({
     persistenceSuspendedRef.current = true
     persistenceGenerationRef.current += 1
     navigationGenerationRef.current += 1
+    if (saveTimer.current) window.clearTimeout(saveTimer.current)
+    saveTimer.current = null
+    pendingSaveRequestRef.current = null
+    for (const timer of saveTimersByDocRef.current.values()) window.clearTimeout(timer)
+    saveTimersByDocRef.current.clear()
+    pendingRequestsByDocRef.current.clear()
     pendingRefreshRef.current = null
     await saveTailRef.current
     inFlightSavesByDocRef.current.clear()
@@ -838,10 +863,10 @@ export function useWorkspaceEditor({
   const updateDraft = useCallback(
     (markdown: string) => {
       draftRevisionRef.current += 1
+      setDraftMarkdown(markdown)
       const path = activePathRef.current
       const vaultId = activeNoteRef.current?.metadata.vault_id
       if (path && vaultId) draftRevisionsByDocRef.current.set(`${vaultId}:${path}`, draftRevisionRef.current)
-      setDraftMarkdown(markdown)
       draftMarkdownRef.current = markdown
       scheduleSave(markdown)
     },
@@ -889,14 +914,18 @@ export function useWorkspaceEditor({
   const navigateBack = useCallback(() => {
     const current = noteNavRef.current
     if (current.index <= 0) return
+    const prevNav = current
     const index = current.index - 1
     const path = current.paths[index]
     if (!path) return
+    const nextNav = { paths: current.paths, index }
+    noteNavRef.current = nextNav
+    setNoteNav(nextNav)
     void (async () => {
-      if (await loadNote(path)) {
-        const nextNav = { paths: current.paths, index }
-        noteNavRef.current = nextNav
-        setNoteNav(nextNav)
+      const loaded = await loadNote(path)
+      if (!loaded && noteNavRef.current === nextNav) {
+        noteNavRef.current = prevNav
+        setNoteNav(prevNav)
       }
     })()
   }, [loadNote])
@@ -904,14 +933,18 @@ export function useWorkspaceEditor({
   const navigateForward = useCallback(() => {
     const current = noteNavRef.current
     if (current.index >= current.paths.length - 1) return
+    const prevNav = current
     const index = current.index + 1
     const path = current.paths[index]
     if (!path) return
+    const nextNav = { paths: current.paths, index }
+    noteNavRef.current = nextNav
+    setNoteNav(nextNav)
     void (async () => {
-      if (await loadNote(path)) {
-        const nextNav = { paths: current.paths, index }
-        noteNavRef.current = nextNav
-        setNoteNav(nextNav)
+      const loaded = await loadNote(path)
+      if (!loaded && noteNavRef.current === nextNav) {
+        noteNavRef.current = prevNav
+        setNoteNav(prevNav)
       }
     })()
   }, [loadNote])

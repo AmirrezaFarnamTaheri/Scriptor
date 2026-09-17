@@ -74,7 +74,8 @@ pub fn git_queue_handle(state: &AppState, root: &Path) -> Result<Arc<GitQueue>, 
     match guard.as_ref() {
         Some(queue) if queue.repo_root == root => Ok(Arc::clone(queue)),
         _ => {
-            let queue = Arc::new(GitQueue::new(root.to_path_buf()).map_err(|error| error.to_string())?);
+            let queue =
+                Arc::new(GitQueue::new(root.to_path_buf()).map_err(|error| error.to_string())?);
             *guard = Some(Arc::clone(&queue));
             Ok(queue)
         }
@@ -98,7 +99,8 @@ pub fn set_daemon_vault(state: &AppState, path: String) {
 pub fn verify_daemon_vault(state: &AppState) -> Result<(), String> {
     let session = active_session_from_app_state(state)?;
     let expected = session.root.root();
-    let canonical_expected = std::fs::canonicalize(expected).unwrap_or_else(|_| expected.to_path_buf());
+    let canonical_expected =
+        std::fs::canonicalize(expected).unwrap_or_else(|_| expected.to_path_buf());
     let guard = lock_recover(&state.daemon_vault_root, "daemon vault root");
     let Some(current) = guard.as_deref() else {
         return Err(
@@ -107,7 +109,8 @@ pub fn verify_daemon_vault(state: &AppState) -> Result<(), String> {
         );
     };
     let current_path = std::path::Path::new(current);
-    let canonical_current = std::fs::canonicalize(current_path).unwrap_or_else(|_| current_path.to_path_buf());
+    let canonical_current =
+        std::fs::canonicalize(current_path).unwrap_or_else(|_| current_path.to_path_buf());
     if canonical_current != canonical_expected {
         return Err(format!(
             "Daemon session mismatch: daemon is bound to '{}', but desktop active vault is '{}'",
@@ -132,7 +135,9 @@ impl std::ops::Deref for ActiveSession<'_> {
     }
 }
 
-pub fn active_session<'a>(state: &'a tauri::State<'a, AppState>) -> Result<ActiveSession<'a>, String> {
+pub fn active_session<'a>(
+    state: &'a tauri::State<'a, AppState>,
+) -> Result<ActiveSession<'a>, String> {
     active_session_from_app_state(state)
 }
 
