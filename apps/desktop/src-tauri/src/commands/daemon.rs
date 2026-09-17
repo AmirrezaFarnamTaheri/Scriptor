@@ -120,9 +120,13 @@ pub fn daemon_start(
 }
 
 #[tauri::command]
-pub fn daemon_open_vault(root_path: String) -> Result<(), String> {
-    match daemon_rpc(RpcMethod::OpenVault { path: root_path })? {
-        RpcPayload::VaultOpened { .. } => Ok(()),
+pub fn daemon_open_vault(state: tauri::State<AppState>, root_path: String) -> Result<(), String> {
+    let _switch = crate::state::lock_recover(&state.vault_switch_lock, "daemon open vault");
+    match daemon_rpc(RpcMethod::OpenVault { path: root_path.clone() })? {
+        RpcPayload::VaultOpened { .. } => {
+            crate::state::set_daemon_vault(&state, root_path);
+            Ok(())
+        }
         _ => Err("unexpected daemon open vault response".into()),
     }
 }
@@ -421,28 +425,34 @@ pub(crate) fn bridge_git_status() -> Result<String, String> {
 }
 
 pub(crate) fn bridge_save_note(
+    state: &AppState,
     path: String,
     markdown: String,
     expected_content_hash: Option<String>,
     dry_run: Option<bool>,
 ) -> Result<String, String> {
+    crate::state::verify_daemon_vault(state)?;
     daemon_save_note(path, markdown, expected_content_hash, dry_run)
 }
 
 pub(crate) fn bridge_rename_apply(
+    state: &AppState,
     from_path: String,
     to_path: String,
     update_links: bool,
     expected_source_hash: Option<String>,
 ) -> Result<String, String> {
+    crate::state::verify_daemon_vault(state)?;
     daemon_rename_apply(from_path, to_path, update_links, expected_source_hash)
 }
 
-pub(crate) fn bridge_health_report() -> Result<String, String> {
+pub(crate) fn bridge_health_report(state: &AppState) -> Result<String, String> {
+    crate::state::verify_daemon_vault(state)?;
     daemon_health_report()
 }
 
-pub(crate) fn bridge_health_diagnostics() -> Result<String, String> {
+pub(crate) fn bridge_health_diagnostics(state: &AppState) -> Result<String, String> {
+    crate::state::verify_daemon_vault(state)?;
     daemon_health_diagnostics()
 }
 

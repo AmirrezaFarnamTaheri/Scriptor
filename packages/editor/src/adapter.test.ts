@@ -3,14 +3,6 @@ import test from 'node:test'
 
 import { countWords, countCharacters } from './adapter.ts'
 
-// Reference implementation: the original split-based counter. The streaming
-// rewrite must agree with it exactly — it feeds the live per-keystroke draft
-// stats.
-function referenceCountWords(markdown) {
-  const trimmed = markdown.trim()
-  return trimmed.length === 0 ? 0 : trimmed.split(/\s+/).length
-}
-
 test('countWords accurately counts prose words while ignoring Markdown structural markers', () => {
   const samples = [
     { input: '', expected: 0 },
@@ -27,6 +19,7 @@ test('countWords accurately counts prose words while ignoring Markdown structura
     { input: '### Subheading with multiple words', expected: 4 },
     { input: '> Blockquote line here', expected: 3 },
     { input: '>> Nested quote here', expected: 3 },
+    { input: '> - [x] Quoted task item', expected: 3 },
     { input: '- [ ] Uncompleted task item', expected: 3 },
     { input: '- [x] Completed task item', expected: 3 },
     { input: '- Simple bullet item', expected: 3 },
@@ -40,6 +33,8 @@ test('countWords accurately counts prose words while ignoring Markdown structura
     { input: "Contractions like don't and well-known hyphens", expected: 6 },
     { input: '这是一个测试', expected: 6 },
     { input: 'English word followed by 中文测试', expected: 8 },
+    { input: 'Here is prose\n```js\nconst x = 10;\nfunction test() { return x; }\n```\nBack to prose', expected: 6 },
+    { input: '\u{20000}\u{20001}', expected: 2 },
   ]
   for (const { input, expected } of samples) {
     assert.equal(

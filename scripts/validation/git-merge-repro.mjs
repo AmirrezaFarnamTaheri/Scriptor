@@ -135,7 +135,6 @@ function cleanup(dir) {
     fs.writeFileSync(path.join(dir, 'other.md'), '# Other Document\nMain edit.\n')
     git(dir, ['add', '.'])
     git(dir, ['commit', '-m', 'main commit'])
-    const mainCommit = git(dir, ['rev-parse', 'HEAD'])
 
     const mergeAttempt = tryGit(dir, ['merge', 'side'])
     assert.equal(mergeAttempt.ok, false, 'Merge with conflicting edits must fail')

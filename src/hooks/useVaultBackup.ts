@@ -134,10 +134,15 @@ export function useVaultBackup(vaultOpen: boolean) {
       setLastMessage(null)
       try {
         const message = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
-        await indexerRebuild()
         window.dispatchEvent(new CustomEvent('scriptor:vault-restored', { detail: { backupName } }))
         onRestored?.()
-        setLastMessage(message)
+        try {
+          await indexerRebuild()
+          setLastMessage(message)
+        } catch (indexerErr) {
+          console.warn('Post-restore indexer rebuild failed:', indexerErr)
+          setLastMessage(`${message} (Index rebuild failed; search may be outdated until next rebuild)`)
+        }
       } catch (caught) {
         setLastError(caught instanceof Error ? caught.message : 'Restore failed')
       } finally {

@@ -22,19 +22,28 @@ export function rehypeTaskStates() {
 
       let matchedState: 'in-progress' | 'cancelled' | 'forwarded' | null = null
 
-      for (const child of node.children) {
-        if (child.type === 'element' && child.tagName === 'em') {
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i]
+        if (child && child.type === 'element' && child.tagName === 'em') {
           const first = child.children[0]
           if (first && first.type === 'text') {
-            if (first.value === 'In progress') {
+            const nextChild = node.children[i + 1]
+            const hasDash =
+              nextChild &&
+              nextChild.type === 'text' &&
+              (nextChild.value.startsWith(' — ') ||
+                nextChild.value.startsWith(' \u2014 ') ||
+                nextChild.value.startsWith(' —'))
+
+            if (first.value === 'In progress' && hasDash) {
               matchedState = 'in-progress'
               break
             }
-            if (first.value === 'Cancelled') {
+            if (first.value === 'Cancelled' && hasDash) {
               matchedState = 'cancelled'
               break
             }
-            if (first.value === 'Forwarded') {
+            if (first.value === 'Forwarded' && hasDash) {
               matchedState = 'forwarded'
               break
             }

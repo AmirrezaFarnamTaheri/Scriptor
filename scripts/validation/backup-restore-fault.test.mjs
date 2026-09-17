@@ -18,11 +18,11 @@ test('vault_open invokes recover_interrupted_restore before session initializati
     'backup.rs must export recover_interrupted_restore',
   )
   assert.ok(
-    vaultRs.includes('super::backup::recover_interrupted_restore(path);'),
-    'vault_open must invoke recover_interrupted_restore',
+    vaultRs.includes('super::backup::recover_interrupted_restore(path)'),
+    'vault_open must invoke recover_interrupted_restore and propagate errors',
   )
   const vaultOpenIndex = vaultRs.indexOf('pub fn vault_open(')
-  const recoverIndex = vaultRs.indexOf('super::backup::recover_interrupted_restore(path);', vaultOpenIndex)
+  const recoverIndex = vaultRs.indexOf('super::backup::recover_interrupted_restore(path)', vaultOpenIndex)
   const openVaultIndex = vaultRs.indexOf('let session = open_vault(&root_path)', recoverIndex)
   assert.ok(
     vaultOpenIndex !== -1 && recoverIndex > vaultOpenIndex && openVaultIndex > recoverIndex,
@@ -44,8 +44,8 @@ test('recover_interrupted_restore handles promoting crash recovery and cleans jo
     'recover_interrupted_restore must restore files from rollback snapshot',
   )
   assert.ok(
-    backupRs.includes('let _ = fs::remove_dir_all(&journal);'),
-    'recover_interrupted_restore must always clean up the journal',
+    backupRs.includes('fs::remove_dir_all(&journal)'),
+    'recover_interrupted_restore must clean up the journal upon successful rollback',
   )
 })
 
@@ -102,5 +102,9 @@ test('useVaultWorkspace listens for scriptor:vault-restored and triggers refresh
   assert.ok(
     useVaultWorkspace.includes('void refreshVault()'),
     'useVaultWorkspace must call refreshVault on vault restored event',
+  )
+  assert.ok(
+    useVaultWorkspace.includes('void reloadActiveNoteFromDisk()'),
+    'useVaultWorkspace must call reloadActiveNoteFromDisk on vault restored event',
   )
 })

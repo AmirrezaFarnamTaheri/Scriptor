@@ -70,6 +70,10 @@
   .workspace-grid[data-inspector-collapsed='true'] {
     grid-template-columns: min(var(--vault-width, 210px), 20%) auto minmax(0, 1fr) 0px 0px;
   }
+
+  .workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true'] {
+    grid-template-columns: 0px 0px minmax(0, 1fr) 0px 0px;
+  }
 }
 
 @media (max-width: 820px) {

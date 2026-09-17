@@ -72,10 +72,9 @@ test('daemonOpenVault serializes calls and drops obsolete target if updated befo
   resolveFirstInvoke()
   await Promise.all([p1, p2])
 
-  // Because target was updated to vault-b before vault-a executed, or serialized,
-  // the final invocation must open vault-b and vault-b must be the last opened vault.
   const openedVaults = invoked.filter((x) => x.cmd === 'daemon_open_vault').map((x) => x.args.rootPath)
-  assert.equal(openedVaults[openedVaults.length - 1], '/path/to/vault-b')
+  assert.ok(!openedVaults.includes('/path/to/vault-a'), 'Obsolete vault A must be skipped and never invoked')
+  assert.deepEqual(openedVaults, ['/path/to/vault-b'])
 })
 
 test('useHeadlessEngine monotonic session guards drop stale sync and effect resolutions', async () => {
@@ -182,9 +181,10 @@ test('useHeadlessEngine monotonic session guards drop stale sync and effect reso
   resolveVaultA()
   await new Promise((r) => setTimeout(r, 20))
 
-  // Verify that Vault B is opened
+  // Verify that Vault B is opened and only Vault B reached daemonPing
   assert.ok(opened.includes('/vault/B'))
   assert.equal(opened[opened.length - 1], '/vault/B')
+  assert.equal(daemonEvents.length, 1, 'Only non-stale session B must reach daemonPing')
 
   h.unmount()
 })

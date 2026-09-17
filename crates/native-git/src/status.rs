@@ -156,20 +156,33 @@ pub fn git_commit_selected(
     commit_args.push("-m");
     commit_args.push(message);
     let new_commit = git_metadata(run_git(repo_root, &commit_args)?)?;
-    run_git(repo_root, &["update-ref", &branch_ref, &new_commit, &head])?;
+
+    let merge_backup = if is_merging {
+        let backup = prepare_merge_state_cleanup(repo_root)?;
+        apply_merge_state_cleanup(&backup)?;
+        Some(backup)
+    } else {
+        None
+    };
+
+    if let Err(update_err) = run_git(repo_root, &["update-ref", &branch_ref, &new_commit, &head]) {
+        if let Some(backup) = &merge_backup {
+            restore_merge_state(backup);
+        }
+        return Err(update_err);
+    }
 
     if let Err(error) = reset_committed_paths_in_real_index(repo_root, &selected_paths) {
         let rollback_result = run_git(repo_root, &["update-ref", &branch_ref, &head, &new_commit]);
         let restore_result = restore_index(&real_index, original_index.as_deref());
+        if let Some(backup) = &merge_backup {
+            restore_merge_state(backup);
+        }
         return Err(GitError::Command(format!(
             "failed to reconcile selected paths after commit: {error}; branch rollback: {}; index restore: {}",
             format_result(&rollback_result),
             format_result(&restore_result)
         )));
-    }
-
-    if is_merging {
-        clean_merge_state(repo_root);
     }
 
     let committed = run_git(
@@ -217,27 +230,57 @@ fn read_merge_heads(repo_root: &Path) -> Result<Vec<String>, GitError> {
     Ok(heads)
 }
 
-fn clean_merge_state(repo_root: &Path) {
+struct MergeStateBackup {
+    files: Vec<(PathBuf, Vec<u8>)>,
+}
+
+fn prepare_merge_state_cleanup(repo_root: &Path) -> Result<MergeStateBackup, GitError> {
+    let mut backup = Vec::new();
     for name in &["MERGE_HEAD", "MERGE_MSG", "MERGE_MODE", "AUTO_MERGE"] {
-        if let Ok(raw) = run_git(repo_root, &["rev-parse", "--git-path", name]) {
-            if let Ok(path_str) = git_metadata(raw) {
-                let p = PathBuf::from(path_str);
-                let abs = if p.is_absolute() { p } else { repo_root.join(p) };
-                let _ = std::fs::remove_file(abs);
+        if let Ok(raw) = run_git(repo_root, &["rev-parse", "--git-path", name])
+            && let Ok(path_str) = git_metadata(raw)
+        {
+            let p = PathBuf::from(path_str);
+            let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+            if abs.exists() {
+                let content = std::fs::read(&abs)
+                    .map_err(|err| GitError::Command(format!("failed to read merge state file {name} for backup: {err}")))?;
+                backup.push((abs, content));
             }
         }
+    }
+    Ok(MergeStateBackup { files: backup })
+}
+
+fn apply_merge_state_cleanup(backup: &MergeStateBackup) -> Result<(), GitError> {
+    for (path, _) in &backup.files {
+        if path.exists() {
+            std::fs::remove_file(path).map_err(|err| {
+                GitError::Command(format!(
+                    "failed to remove merge state file {}: {err}",
+                    path.display()
+                ))
+            })?;
+        }
+    }
+    Ok(())
+}
+
+fn restore_merge_state(backup: &MergeStateBackup) {
+    for (path, content) in &backup.files {
+        let _ = std::fs::write(path, content);
     }
 }
 
 fn is_sequencer_in_progress(repo_root: &Path) -> Result<bool, GitError> {
     for state_file in &["CHERRY_PICK_HEAD", "REVERT_HEAD"] {
-        if let Ok(raw) = run_git(repo_root, &["rev-parse", "--git-path", state_file]) {
-            if let Ok(path_str) = git_metadata(raw) {
-                let p = PathBuf::from(path_str);
-                let abs = if p.is_absolute() { p } else { repo_root.join(p) };
-                if abs.exists() {
-                    return Ok(true);
-                }
+        if let Ok(raw) = run_git(repo_root, &["rev-parse", "--git-path", state_file])
+            && let Ok(path_str) = git_metadata(raw)
+        {
+            let p = PathBuf::from(path_str);
+            let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+            if abs.exists() {
+                return Ok(true);
             }
         }
     }

@@ -117,9 +117,9 @@ export function useWorkspaceEditor({
   const flushPendingDocumentSaveRef = useRef<(path: string, vaultId?: string) => Promise<boolean>>(() => Promise.resolve(false))
   const { activePathRef, activeNoteRef, draftMarkdownRef, isSavingRef, checkExternalChangesRef } = editorRefs
 
-  const resetNoteNavigation = useCallback(() => {
+  const resetNoteNavigation = useCallback(async () => {
     if (activePathRef.current) {
-      void flushPendingDocumentSaveRef.current(activePathRef.current)
+      await flushPendingDocumentSaveRef.current(activePathRef.current)
     }
     for (const [docKey, timer] of Array.from(saveTimersByDocRef.current.entries())) {
       window.clearTimeout(timer)
@@ -127,9 +127,10 @@ export function useWorkspaceEditor({
       const pending = pendingRequestsByDocRef.current.get(docKey)
       if (pending) {
         pendingRequestsByDocRef.current.delete(docKey)
-        void performSaveRef.current(pending)
+        await performSaveRef.current(pending)
       }
     }
+    await saveTailRef.current
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
@@ -384,12 +385,18 @@ export function useWorkspaceEditor({
   }, [checkExternalChanges, checkExternalChangesRef])
 
   const closeTab = useCallback(
-    (path: string, force = false) => {
+    async (path: string, force = false): Promise<boolean> => {
       const closing = openTabs.find((tab) => tab.path === path)
-      if (closing?.pinned && !force) return
+      if (closing?.pinned && !force) return false
 
       const targetVaultId = docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
-      if (targetVaultId) {
+      if (targetVaultId && !force) {
+        const saved = await flushPendingDocumentSaveRef.current(path, targetVaultId)
+        if (!saved) {
+          setError(`Failed to save changes to ${path} before closing. Draft retained.`)
+          return false
+        }
+      } else if (targetVaultId) {
         void flushPendingDocumentSaveRef.current(path, targetVaultId)
       }
 
@@ -401,7 +408,7 @@ export function useWorkspaceEditor({
       if (activePath === path) {
         const fallback = nextTabs.at(-1)?.path ?? null
         if (fallback) {
-          void openNote(fallback)
+          await openNote(fallback)
         } else {
           navigationGenerationRef.current += 1
           activePathRef.current = null
@@ -413,8 +420,9 @@ export function useWorkspaceEditor({
           setBacklinks([])
         }
       }
+      return true
     },
-    [activePath, activePathRef, activeNoteRef, draftMarkdownRef, openNote, openTabs, setBacklinks],
+    [activeNoteRef, activePath, activePathRef, draftMarkdownRef, openNote, openTabs, setBacklinks, setError],
   )
 
   const reopenClosedTab = useCallback(() => {
@@ -661,7 +669,7 @@ export function useWorkspaceEditor({
       if (request) {
         return performSave(request)
       }
-      return Promise.resolve(false)
+      return Promise.resolve(true)
     },
     [activeNoteRef, activePathRef, createSaveRequest, draftMarkdownRef, performSave],
   )

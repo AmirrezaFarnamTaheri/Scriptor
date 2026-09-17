@@ -2,7 +2,11 @@ use std::ffi::{OsStr, OsString};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, ExitStatus, Stdio};
-use std::sync::mpsc;
+use std::sync::{
+    Arc,
+    atomic::{AtomicBool, Ordering},
+    mpsc,
+};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -79,6 +83,7 @@ pub struct ProcessSpec {
     pub expected_sha256: Option<String>,
     pub environment: Vec<(OsString, OsString)>,
     pub allow_unsandboxed_network_denial: bool,
+    pub cancel_slot: Option<Arc<AtomicBool>>,
 }
 
 impl ProcessSpec {
@@ -93,7 +98,13 @@ impl ProcessSpec {
             expected_sha256: None,
             environment: Vec::new(),
             allow_unsandboxed_network_denial: false,
+            cancel_slot: None,
         }
+    }
+
+    pub fn cancel_slot(mut self, slot: Arc<AtomicBool>) -> Self {
+        self.cancel_slot = Some(slot);
+        self
     }
 
     pub fn arg(mut self, arg: impl Into<OsString>) -> Self {
@@ -258,6 +269,14 @@ pub fn run_process(spec: ProcessSpec) -> Result<ProcessReceipt, BridgeError> {
     let started = Instant::now();
     let mut timed_out = false;
     let status = loop {
+        if let Some(cancel) = spec.cancel_slot.as_ref()
+            && cancel.load(Ordering::Relaxed)
+        {
+            terminate_process_tree(&mut child);
+            return Err(BridgeError::ProcessPolicy {
+                message: "process cancelled by caller".into(),
+            });
+        }
         if let Some(status) = child
             .try_wait()
             .map_err(|source| BridgeError::ProcessWait {

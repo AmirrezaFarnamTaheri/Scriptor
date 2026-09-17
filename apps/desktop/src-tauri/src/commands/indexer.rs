@@ -142,7 +142,7 @@ pub fn indexer_traverse_graph(
 #[tauri::command]
 pub fn indexer_health_diagnostics(state: tauri::State<AppState>) -> Result<String, String> {
     if use_headless_engine(&state) {
-        return bridge_health_diagnostics();
+        return bridge_health_diagnostics(&state);
     }
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;

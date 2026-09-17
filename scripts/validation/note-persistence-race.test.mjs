@@ -23,7 +23,6 @@ function harness() {
         slots[i],
         (next) => {
           if (typeof next === 'function') {
-            next(slots[i])
             slots[i] = next(slots[i])
           } else {
             slots[i] = next
@@ -223,10 +222,7 @@ test('closing a dirty tab immediately flushes pending draft before tab removal',
   assert.equal(h.saveCalls.filter((c) => c.path === 'note-b.md').length, 0)
 
   // Close note B tab
-  h.render().closeTab('note-b.md')
-
-  // Wait for queue flush
-  await new Promise(setImmediate)
+  await h.render().closeTab('note-b.md')
 
   const noteBSave = h.saveCalls.find((c) => c.path === 'note-b.md')
   assert.ok(noteBSave, 'Closing dirty tab flushed pending draft')
@@ -252,17 +248,16 @@ test('closing a dirty tab reports error if background save fails', async () => {
 
   // Edit note B and close tab
   h.render().updateDraft('Critical text')
-  h.render().closeTab('note-b.md')
-
-  await new Promise(setImmediate)
-  await new Promise(setImmediate)
-  await new Promise((resolve) => setTimeout(resolve, 50))
+  await h.render().closeTab('note-b.md')
 
   assert.ok(
     h.loggedErrors.some((e) => e.message.includes('note-b.md') || e.detail?.includes('permission denied')) ||
-      (h.getError() && h.getError().includes('permission denied')),
+      (h.getError() && (h.getError().includes('permission denied') || h.getError().includes('Failed to save changes'))),
     'Failure to save closing tab was logged',
   )
+  // Assert tab and draft are retained when save fails
+  assert.ok(h.render().openTabs.some((t) => t.path === 'note-b.md'), 'Tab is retained when save fails')
+  assert.equal(h.render().draftMarkdown, 'Critical text', 'Draft is retained in memory when save fails')
 })
 
 test('isSaveRequestCurrent checks document identity rather than global navigation generation', async () => {
@@ -274,10 +269,13 @@ test('isSaveRequestCurrent checks document identity rather than global navigatio
   // Trigger save
   const saveTask = h.render().saveActiveNoteNow()
 
-  // Step history without changing document
-  h.render().recordNoteHistory?.('other.md')
+  // Start openNote for note-b without awaiting it
+  const openBTask = h.render().openNote('note-b.md')
 
   const result = await saveTask
   assert.equal(result, true)
-  assert.equal(h.render().activeNote.markdown, 'content 1')
+  assert.equal(h.diskStorage.get('note-a.md').markdown, 'content 1')
+
+  await openBTask
+  assert.equal(h.render().activePath, 'note-b.md')
 })

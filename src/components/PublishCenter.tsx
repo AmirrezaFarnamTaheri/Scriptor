@@ -10,7 +10,7 @@ import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { supportsPrintPagePreview } from '@scriptor/export'
 import type { ExportJobOutput, ExportJobRecord, PublishPlan } from '../types/vault'
-import { useLatexCompiler } from '../hooks/useLatexCompiler'
+import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 
 interface PublishCenterProps {
   activePath: string | null
@@ -31,6 +31,8 @@ interface PublishCenterProps {
   publishPlan?: PublishPlan | null
   applyingPlan?: boolean
   publishRequireOptIn?: boolean
+  vaultRoot?: string | null
+  latexConfig?: LatexCompilerConfig | null
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
   onCancelExport: () => void
@@ -60,6 +62,8 @@ export const PublishCenter = memo(function PublishCenter({
   publishPlan = null,
   applyingPlan = false,
   publishRequireOptIn = true,
+  vaultRoot = null,
+  latexConfig = null,
   onClose,
   onExport,
   onCancelExport,
@@ -67,7 +71,8 @@ export const PublishCenter = memo(function PublishCenter({
   onReplanStarlight,
   onApplyPlan,
 }: PublishCenterProps) {
-  const latex = useLatexCompiler({ config: undefined, vaultRoot: null })
+  const latex = useLatexCompiler({ config: latexConfig ?? undefined, vaultRoot: vaultRoot ?? null })
+  const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})
 
@@ -171,7 +176,7 @@ export const PublishCenter = memo(function PublishCenter({
             Compile with LaTeX (Tectonic)
           </h3>
           <p className="health-subtitle">
-            Compile the active document or TeX file using the self-contained Tectonic TeX engine.
+            Compile the active TeX file using the self-contained Tectonic TeX engine.
           </p>
           <div className="publish-profile-actions">
             <button
@@ -189,9 +194,16 @@ export const PublishCenter = memo(function PublishCenter({
             <button
               type="button"
               className="primary-button publish-export-action"
-              disabled={!activePath || latex.activeJob?.status === 'compiling' || !nativeReady}
+              disabled={!activePath || !isTexDocument || latex.activeJob?.status === 'compiling' || !nativeReady}
+              title={
+                !activePath
+                  ? 'No active document selected'
+                  : !isTexDocument
+                  ? 'LaTeX compilation requires an active .tex or .ltx file'
+                  : undefined
+              }
               onClick={() => {
-                if (activePath) {
+                if (activePath && isTexDocument) {
                   void latex.compile({ inputPath: activePath })
                 }
               }}
@@ -205,6 +217,11 @@ export const PublishCenter = memo(function PublishCenter({
               </button>
             ) : null}
           </div>
+          {activePath && !isTexDocument ? (
+            <p className="health-subtitle" style={{ color: 'var(--color-text-muted)' }}>
+              Note: The active file is not a LaTeX document (.tex / .ltx). Select a .tex file to compile.
+            </p>
+          ) : null}
           {latex.activeJob ? (
             <div className="latex-compile-status">
               <span className={`publish-status publish-status-${latex.activeJob.status}`}>

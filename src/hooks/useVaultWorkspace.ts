@@ -375,12 +375,13 @@ export function useVaultWorkspace(options?: {
   useEffect(() => {
     const handleVaultRestored = () => {
       void refreshVault()
+      void reloadActiveNoteFromDisk()
     }
     window.addEventListener('scriptor:vault-restored', handleVaultRestored)
     return () => {
       window.removeEventListener('scriptor:vault-restored', handleVaultRestored)
     }
-  }, [refreshVault])
+  }, [refreshVault, reloadActiveNoteFromDisk])
 
   const rename = useWorkspaceRename({
     activePath,

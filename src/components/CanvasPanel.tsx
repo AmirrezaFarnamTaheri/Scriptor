@@ -62,8 +62,16 @@ export function CanvasPanel({
 
   const handleClose = async () => {
     try {
-      await flushPendingSave()
-    } finally {
+      const saved = await flushPendingSave()
+      if (!saved) {
+        const discard = window.confirm(
+          'Failed to save canvas changes. Do you want to close anyway and discard unsaved changes?',
+        )
+        if (!discard) return
+      }
+      onClose()
+    } catch (error) {
+      console.error('Failed to flush canvas save on close:', error)
       onClose()
     }
   }

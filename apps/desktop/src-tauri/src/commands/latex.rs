@@ -150,6 +150,13 @@ fn derive_output_path(input_path: &Path, output_dir: &Path) -> PathBuf {
     output_dir.join(file_name)
 }
 
+struct CancelGuard(std::sync::Arc<std::sync::atomic::AtomicBool>);
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
 /// Compile a `.tex` file to PDF using Tectonic.
 #[tauri::command]
 pub fn latex_compile(
@@ -168,10 +175,8 @@ pub fn latex_compile(
         None,
     )?;
 
-    // Honor a cancellation requested before this compile began, then reset.
-    if state.latex_cancel.swap(false, Ordering::SeqCst) {
-        return Err("compile cancelled before it started".into());
-    }
+    state.latex_cancel.store(false, Ordering::SeqCst);
+    let _cancel_guard = CancelGuard(std::sync::Arc::clone(&state.latex_cancel));
 
     let input = PathBuf::from(&input_path);
     if !input.is_file() {
@@ -206,10 +211,17 @@ pub fn latex_compile(
             .current_dir(&work_dir)
             .timeout(Duration::from_secs(TIMEOUT_SECS))
             .max_output_bytes(MAX_OUTPUT_BYTES)
+            .cancel_slot(std::sync::Arc::clone(&state.latex_cancel))
             // Tectonic fetches TeX Live packages over the network on demand.
             .network_policy(NetworkPolicy::Allow),
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| {
+        if state.latex_cancel.load(Ordering::Relaxed) {
+            "compile cancelled by user".to_string()
+        } else {
+            error.to_string()
+        }
+    })?;
 
     if receipt.exit_code != 0 {
         return Err(format!(

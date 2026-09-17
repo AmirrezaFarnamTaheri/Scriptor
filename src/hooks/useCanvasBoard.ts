@@ -44,6 +44,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const lifecycleGuardRef = useRef(new OperationGuard())
   const loadGuardRef = useRef(new OperationGuard())
   const saveGuardRef = useRef(new OperationGuard())
+  const saveTailRef = useRef<Promise<unknown>>(Promise.resolve())
 
   useEffect(() => {
     documentRef.current = document
@@ -212,19 +213,23 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         lifecycleGuardRef.current.isCurrent(lifecycle) &&
         saveGuardRef.current.isCurrent(save) &&
         documentRef.current.id === next.id
-      const saveDocument = async (payload: CanvasDocument) => {
-        try {
-          if (pendingSavePayloadRef.current === payload) {
-            pendingSavePayloadRef.current = null
-          }
-          const path = await canvasSaveDocument(JSON.stringify(payload), vaultId)
-          if (!isCurrent()) return
-          setStatus(`Saved to ${path}`)
-          setActiveBoardId(next.id)
-          await refreshBoardList(isCurrent)
-        } catch (error) {
-          if (isCurrent()) setStatus(error instanceof Error ? error.message : 'Save failed')
-        }
+      const saveDocument = (payload: CanvasDocument) => {
+        saveTailRef.current = saveTailRef.current
+          .catch(() => {})
+          .then(async () => {
+            try {
+              if (pendingSavePayloadRef.current === payload) {
+                pendingSavePayloadRef.current = null
+              }
+              const path = await canvasSaveDocument(JSON.stringify(payload), vaultId)
+              if (!isCurrent()) return
+              setStatus(`Saved to ${path}`)
+              setActiveBoardId(next.id)
+              await refreshBoardList(isCurrent)
+            } catch (error) {
+              if (isCurrent()) setStatus(error instanceof Error ? error.message : 'Save failed')
+            }
+          })
       }
       const crdt = crdtRef.current
       if (crdt) {
@@ -235,7 +240,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         if (saveTimer.current) window.clearTimeout(saveTimer.current)
         saveTimer.current = window.setTimeout(() => {
           saveTimer.current = null
-          void saveDocument(payload)
+          saveDocument(payload)
         }, 400)
         return
       }
@@ -243,13 +248,13 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       if (saveTimer.current) window.clearTimeout(saveTimer.current)
       saveTimer.current = window.setTimeout(() => {
         saveTimer.current = null
-        void saveDocument(next)
+        saveDocument(next)
       }, 400)
     },
     [refreshBoardList, vaultId, vaultOpen],
   )
 
-  const flushPendingSave = useCallback(async () => {
+  const flushPendingSave = useCallback(async (): Promise<boolean> => {
     if (saveTimer.current) {
       window.clearTimeout(saveTimer.current)
       saveTimer.current = null
@@ -257,14 +262,30 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     const pending = pendingSavePayloadRef.current
     if (pending && isNativeBridgeAvailable() && vaultOpen) {
       pendingSavePayloadRef.current = null
-      try {
-        const path = await canvasSaveDocument(JSON.stringify(pending), vaultId)
-        setStatus(`Saved to ${path}`)
-        setActiveBoardId(pending.id)
-        await refreshBoardList(() => true)
-      } catch (error) {
-        setStatus(error instanceof Error ? error.message : 'Save failed')
-      }
+      let ok = false
+      saveTailRef.current = saveTailRef.current
+        .catch(() => {})
+        .then(async () => {
+          try {
+            const path = await canvasSaveDocument(JSON.stringify(pending), vaultId)
+            setStatus(`Saved to ${path}`)
+            setActiveBoardId(pending.id)
+            await refreshBoardList(() => true)
+            ok = true
+          } catch (error) {
+            pendingSavePayloadRef.current = pending
+            setStatus(error instanceof Error ? error.message : 'Save failed')
+            ok = false
+          }
+        })
+      await saveTailRef.current
+      return ok
+    }
+    try {
+      await saveTailRef.current
+      return true
+    } catch {
+      return false
     }
   }, [refreshBoardList, vaultId, vaultOpen])
 

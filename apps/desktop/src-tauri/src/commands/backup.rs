@@ -371,7 +371,11 @@ pub fn vault_create_backup(
     backup_path: Option<String>,
     authorization_token: String,
 ) -> Result<VaultBackupEntry, String> {
-    let session = active_session(&state)?;
+    let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault backup");
+    let session_guard = write_recover(&state.session, "session");
+    let session = session_guard
+        .as_ref()
+        .ok_or_else(|| "No vault is open. Call vault_open first.".to_string())?;
     let scope = backup_path
         .as_deref()
         .filter(|value| !value.trim().is_empty())
@@ -438,19 +442,18 @@ pub fn vault_list_backups(
     let mut backups = Vec::new();
     for entry in fs::read_dir(&root).map_err(|error| error.to_string())? {
         let entry = entry.map_err(|error| error.to_string())?;
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if validate_backup_name(&name).is_err()
-            || !entry
-                .file_type()
-                .map_err(|error| error.to_string())?
-                .is_dir()
+        let path = entry.path();
+        if path.is_dir()
+            && !entry
+                .file_name()
+                .to_str()
+                .is_some_and(|name| name.starts_with('.'))
+            && let Ok(backup) = entry_from_dir(&path, storage_kind)
         {
-            continue;
+            backups.push(backup);
         }
-        let path = confined_backup_dir(&root, &name)?;
-        backups.push(entry_from_dir(&path, storage_kind)?);
     }
-    backups.sort_by(|left, right| right.name.cmp(&left.name));
+    backups.sort_by(|left, right| right.created_at.cmp(&left.created_at));
     Ok(backups)
 }
 
@@ -476,28 +479,39 @@ pub fn vault_delete_backup(
 
 /// Recovers any interrupted restore operation left in `.scriptor/restore-journal`.
 /// Called during `vault_open` to ensure crash-recovery before mounting the session.
-pub fn recover_interrupted_restore(vault_root: &Path) {
+pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     let journal = vault_root.join(".scriptor").join("restore-journal");
     if !journal.exists() {
-        return;
+        return Ok(());
     }
     let state_file = journal.join("state");
     let state = fs::read_to_string(&state_file)
         .map(|s| s.trim().to_string())
-        .unwrap_or_default();
+        .map_err(|error| format!("Failed to read restore journal state: {error}"))?;
 
     if state == "promoting" {
         let rollback = journal.join("rollback");
-        if rollback.exists() {
-            eprintln!("[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot");
-            if let Ok(()) = clear_persistent_vault_content(vault_root) {
-                let mut ignored = Vec::new();
-                let _ = copy_tree(&rollback, vault_root, Path::new(""), &mut ignored);
-            }
+        if !rollback.exists() {
+            return Err("Restore was interrupted during promotion, but rollback snapshot is missing. Journal preserved for manual inspection.".to_string());
         }
+        eprintln!("[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot");
+        clear_persistent_vault_content(vault_root)
+            .map_err(|error| format!("Failed to clear partial vault during restore rollback: {error}"))?;
+        let mut ignored = Vec::new();
+        copy_tree(&rollback, vault_root, Path::new(""), &mut ignored)
+            .map_err(|error| format!("Failed to restore rollback snapshot: {error}"))?;
+        fs::remove_dir_all(&journal)
+            .map_err(|error| format!("Failed to remove completed restore journal: {error}"))?;
+        Ok(())
+    } else if state == "preparing" {
+        fs::remove_dir_all(&journal)
+            .map_err(|error| format!("Failed to remove incomplete prepare journal: {error}"))?;
+        Ok(())
+    } else {
+        Err(format!(
+            "Unrecognized restore journal state '{state}'. Journal preserved for manual inspection."
+        ))
     }
-
-    let _ = fs::remove_dir_all(&journal);
 }
 
 #[tauri::command]

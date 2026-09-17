@@ -478,17 +478,82 @@
 
 ---
 
+### Task 5.3: PR #128 Lifecycle & Data Durability Review Remediation (R128-01 – R128-05)
+
+**Description:** Remediate blocking review findings on PR #128 across restore recovery, daemon session identity, and tab persistence:
+1. `recover_interrupted_restore`: Propagate recovery errors to block corrupted vaults from mounting; retain recovery journal when rollback or cleanup fails (R128-01).
+2. Daemon session identity: Verify active vault root matches daemon session in desktop bridge before dispatching note saves, renames, and health checks; enforce async vault barrier in frontend daemon client (R128-02).
+3. Tab close durability: Ensure dirty tab closure flushes in-flight document save and retains draft on save error (R128-03).
+4. Restore editor synchronization: Trigger immediate editor note reload from disk upon `scriptor:vault-restored` event (R128-04).
+5. Index rebuild decoupling: Isolate indexer rebuild errors from vault restore success notifications (R128-05).
+
+**Acceptance Criteria:**
+- [x] Failed restore recovery returns an error and preserves journal directory.
+- [x] Daemon bridge checks session identity before mutation and drops mismatched requests.
+- [x] `closeTab` awaits dirty save flush and aborts closure on save failure.
+- [x] Restoring a backup immediately reloads the active editor note and refreshes vault.
+- [x] Index rebuild failures do not report successful restore as failed.
+
+**Verification:**
+- [x] `node --test scripts/validation/backup-restore-fault.test.mjs` passes.
+- [x] `node --test scripts/validation/headless-vault-race.test.mjs` passes.
+
+---
+
+### Task 5.4: Canvas Serialization, LaTeX Lifecycle & UI Wiring (R128-06 – R128-10)
+
+**Description:** Address canvas save ordering, LaTeX cancellation safety, and UI parameter contracts:
+1. Canvas save serialization: Chain canvas persistence via promise tail to prevent interleaved writes (R128-06).
+2. Canvas close guard: `flushPendingSave` returns boolean success; close handler prompts before discarding unsaved canvas changes (R128-07).
+3. Backup snapshot isolation: Acquire exclusive session write lock and vault switch lock during backup creation (R128-08).
+4. PublishCenter LaTeX wiring: Pass `vaultRoot` and `latexConfig` from workspace config; validate active file is `.tex` before enabling compilation (R128-09).
+5. LaTeX cancellation & RAII reset: Implement `cancel_slot` atomic cancellation in `system-bridge` process runner; use RAII `CancelGuard` in desktop Tauri command to reset cancellation flag on exit (R128-10).
+
+**Acceptance Criteria:**
+- [x] Canvas writes are sequentially ordered through promise tail; close confirms before discarding.
+- [x] `vault_create_backup` takes exclusive session write lock.
+- [x] LaTeX compiler receives configured tectonic path and output directory; disables compilation for non-TeX files.
+- [x] Cancelled LaTeX compiles terminate the child process tree and reset the atomic cancellation flag.
+
+**Verification:**
+- [x] `cargo test -p scriptor-system-bridge` passes.
+- [x] `cargo check -p scriptor-desktop` passes.
+
+---
+
+### Task 5.5: Git Merge State Rollback, Word Counter Unicode & Status Footer (R128-11 – R128-14)
+
+**Description:** Address merge transaction rollback, Unicode word counting, and status footer semantics:
+1. Git merge state cleanup: Stash and restore merge state files (`MERGE_HEAD`, `MERGE_MSG`, `MERGE_MODE`) around reference updates so transaction rolls back cleanly on error (R128-11).
+2. Word counter precision: Handle astral Unicode code points (> 0xFFFF), skip fenced code block bodies, and parse list/task markers inside blockquotes (R128-13).
+3. Responsive CSS: Add `.workspace-grid[data-vault-collapsed='true'][data-inspector-collapsed='true']` tablet grid rule.
+4. Status footer semantics: Align button text and `aria-label` with the problems tab whenever `totalProblemCount > 0`.
+
+**Acceptance Criteria:**
+- [x] Git merge cleans merge state before publishing ref; restores state files on failure.
+- [x] `countWords` handles astral CJK ideographs, skips code blocks, and counts quoted tasks.
+- [x] Dual-collapsed tablet workspace maintains 0px sidebar tracks.
+- [x] Status footer jobs-button accurately reflects problem state.
+
+**Verification:**
+- [x] `cargo test -p scriptor-native-git` passes.
+- [x] `node --test packages/editor/src/adapter.test.ts` passes.
+- [x] `node --experimental-strip-types packages/renderer/src/validate-runner.ts` passes.
+- [x] `node scripts/validation/git-merge-repro.mjs` passes.
+
+---
+
 ## Final Quality Gate & Verification Checklist
 
 Before marking the entire remediation complete:
-- [ ] All unit, contract, and governance tests pass:
+- [x] All unit, contract, and governance tests pass:
   - `pnpm check:contracts`
   - `pnpm check:governance`
   - `pnpm check:source`
-- [ ] Rust crates compile and pass tests:
+- [x] Rust crates compile and pass tests:
   - `pnpm check:rust`
   - `pnpm test:rust`
-- [ ] Playwright visual review tests pass:
+- [x] Playwright visual review tests pass:
   - `pnpm screenshots:capture:web` or `npx playwright test e2e/screenshots.spec.ts --update-snapshots=none`
-- [ ] `src/App.tsx` stays strictly $\le 1950$ lines.
-- [ ] Zero placeholders or stubs exist across all touched files.
+- [x] `src/App.tsx` stays strictly $\le 1950$ lines.
+- [x] Zero placeholders or stubs exist across all touched files.

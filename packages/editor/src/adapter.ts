@@ -53,6 +53,11 @@ function isCjkCode(code: number): boolean {
   return (
     (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
     (code >= 0x3400 && code <= 0x4dbf) || // CJK Extension A
+    (code >= 0x20000 && code <= 0x2a6df) || // CJK Extension B
+    (code >= 0x2a700 && code <= 0x2b73f) || // CJK Extension C
+    (code >= 0x2b740 && code <= 0x2b81f) || // CJK Extension D
+    (code >= 0x2b820 && code <= 0x2ceaf) || // CJK Extension E
+    (code >= 0x2ceb0 && code <= 0x2ebef) || // CJK Extension F/G/H/I
     (code >= 0x3040 && code <= 0x309f) || // Hiragana
     (code >= 0x30a0 && code <= 0x30ff) || // Katakana
     (code >= 0xac00 && code <= 0xd7af)    // Hangul Syllables
@@ -81,18 +86,26 @@ export function countWords(markdown: string): number {
   const len = markdown.length
   let lineStart = true
   let inWord = false
+  let inFence = false
+  let fenceChar = ''
+  let fenceLen = 0
 
-  for (let i = 0; i < len; i++) {
+  let i = 0
+  while (i < len) {
     const code = markdown.charCodeAt(i)
 
     if (code === 0x0a || code === 0x0d) {
       lineStart = true
       inWord = false
+      i++
       continue
     }
 
     if (lineStart) {
-      if (code === 0x20 || code === 0x09) continue
+      if (code === 0x20 || code === 0x09) {
+        i++
+        continue
+      }
 
       let nextNl = i
       while (nextNl < len && markdown.charCodeAt(nextNl) !== 0x0a && markdown.charCodeAt(nextNl) !== 0x0d) {
@@ -100,31 +113,53 @@ export function countWords(markdown: string): number {
       }
       const line = markdown.slice(i, nextNl)
 
-      // Delimiter fences, horizontal rules, table separator rows
-      if (
-        /^`{3,}/.test(line) ||
-        /^~{3,}/.test(line) ||
-        /^[-*_]{3,}\s*$/.test(line) ||
-        /^\|?[\s\-:|]+\|?$/.test(line)
-      ) {
-        i = nextNl - 1
+      if (inFence) {
+        const closeMatch = line.match(/^(\s*)(`{3,}|~{3,})\s*$/)
+        if (closeMatch && closeMatch[2]!.charAt(0) === fenceChar && closeMatch[2]!.length >= fenceLen) {
+          inFence = false
+          fenceChar = ''
+          fenceLen = 0
+        }
+        i = nextNl
         lineStart = true
         inWord = false
         continue
       }
 
-      // Skip heading markers: #{1,6} followed by space
-      const headingMatch = line.match(/^#{1,6}\s+/)
-      if (headingMatch) {
-        i += headingMatch[0].length - 1
-        lineStart = false
+      const openFenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/)
+      if (openFenceMatch) {
+        inFence = true
+        fenceChar = openFenceMatch[2]!.charAt(0)
+        fenceLen = openFenceMatch[2]!.length
+        i = nextNl
+        lineStart = true
+        inWord = false
+        continue
+      }
+
+      // Delimiter fences, horizontal rules, table separator rows
+      if (
+        /^[-*_]{3,}\s*$/.test(line) ||
+        /^\|?[\s\-:|]+\|?$/.test(line)
+      ) {
+        i = nextNl
+        lineStart = true
+        inWord = false
         continue
       }
 
       // Skip blockquote markers: > followed by optional space
       const quoteMatch = line.match(/^(?:>\s*)+/)
       if (quoteMatch) {
-        i += quoteMatch[0].length - 1
+        i += quoteMatch[0].length
+        lineStart = true
+        continue
+      }
+
+      // Skip heading markers: #{1,6} followed by space
+      const headingMatch = line.match(/^#{1,6}\s+/)
+      if (headingMatch) {
+        i += headingMatch[0].length
         lineStart = false
         continue
       }
@@ -132,7 +167,7 @@ export function countWords(markdown: string): number {
       // Skip list & task markers: - [ ] or 1. [x] etc.
       const listMatch = line.match(/^(?:[-*+]|\d+[.)])\s+(?:\[[ xX/\\-]\]\s+)?/)
       if (listMatch) {
-        i += listMatch[0].length - 1
+        i += listMatch[0].length
         lineStart = false
         continue
       }
@@ -140,23 +175,40 @@ export function countWords(markdown: string): number {
       lineStart = false
     }
 
-    if (isCjkCode(code)) {
+    if (inFence) {
+      i++
+      continue
+    }
+
+    const codePoint = markdown.codePointAt(i)!
+    const charLen = codePoint > 0xffff ? 2 : 1
+    const char = markdown.slice(i, i + charLen)
+
+    if (isCjkCode(codePoint)) {
       count++
       inWord = false
-    } else if (isWordChar(code, markdown[i]!)) {
+    } else if (isWordChar(codePoint, char)) {
       if (!inWord) {
         inWord = true
         count++
       }
-    } else if ((code === 0x27 || code === 0x2d || code === 0x2019) && inWord) {
-      const nextCode = i + 1 < len ? markdown.charCodeAt(i + 1) : 0
-      const nextChar = i + 1 < len ? markdown[i + 1]! : ''
-      if (!isWordChar(nextCode, nextChar)) {
+    } else if ((codePoint === 0x27 || codePoint === 0x2d || codePoint === 0x2019) && inWord) {
+      const nextIdx = i + charLen
+      if (nextIdx < len) {
+        const nextCodePoint = markdown.codePointAt(nextIdx)!
+        const nextCharLen = nextCodePoint > 0xffff ? 2 : 1
+        const nextChar = markdown.slice(nextIdx, nextIdx + nextCharLen)
+        if (!isWordChar(nextCodePoint, nextChar)) {
+          inWord = false
+        }
+      } else {
         inWord = false
       }
     } else {
       inWord = false
     }
+
+    i += charLen
   }
 
   return count

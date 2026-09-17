@@ -63,6 +63,7 @@ export async function ensureDaemonReady(): Promise<DaemonEndpoint> {
 
 let daemonOpenTail: Promise<void> = Promise.resolve()
 let latestOpenTarget = ''
+let currentDaemonVault = ''
 
 export async function daemonOpenVault(rootPath: string): Promise<void> {
   requireNative()
@@ -70,6 +71,7 @@ export async function daemonOpenVault(rootPath: string): Promise<void> {
   const task = daemonOpenTail.then(async () => {
     if (latestOpenTarget !== rootPath) return
     await invoke('daemon_open_vault', { rootPath })
+    currentDaemonVault = rootPath
   })
   daemonOpenTail = task.then(
     () => undefined,
@@ -78,44 +80,57 @@ export async function daemonOpenVault(rootPath: string): Promise<void> {
   return task
 }
 
+async function ensureVaultBarrier(): Promise<void> {
+  if (latestOpenTarget && currentDaemonVault !== latestOpenTarget) {
+    await daemonOpenTail
+  }
+}
+
 export async function daemonHealthDiagnostics(): Promise<VaultHealthDiagnostics> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_health_diagnostics')
   return parseVaultHealthDiagnostics(payload)
 }
 
 export async function daemonHealthReport(): Promise<VaultHealthReport> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_health_report')
   return parseVaultHealthReport(payload)
 }
 
 export async function daemonRebuildIndex(): Promise<RebuildSummary> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_rebuild_index')
   return parseRebuildSummary(payload)
 }
 
 export async function daemonSearch(query: string, limit = 25): Promise<SearchHit[]> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_search', { query, limit })
   return parseSearchHits(payload)
 }
 
 export async function daemonListNoteSummaries(): Promise<NoteIndexSummary[]> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_list_note_summaries')
   return parseNoteIndexSummaries(payload)
 }
 
 export async function daemonBacklinks(path: string): Promise<BacklinkHit[]> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_backlinks', { path })
   return parseBacklinkHits(payload)
 }
 
 export async function daemonGraph(focusPath?: string | null, depth = 1): Promise<GraphQueryOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_graph', {
     focusPath: focusPath ?? null,
     depth,
@@ -125,6 +140,7 @@ export async function daemonGraph(focusPath?: string | null, depth = 1): Promise
 
 export async function daemonGitStatusJson(): Promise<string> {
   requireNative()
+  await ensureVaultBarrier()
   return invoke<string>('daemon_git_status')
 }
 
@@ -135,6 +151,7 @@ export async function daemonSaveNote(
   dryRun?: boolean,
 ): Promise<SaveNoteOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_save_note', {
     path,
     markdown,
@@ -146,6 +163,7 @@ export async function daemonSaveNote(
 
 export async function daemonUpdateNoteIndex(path: string): Promise<boolean> {
   requireNative()
+  await ensureVaultBarrier()
   return invoke<boolean>('daemon_update_note_index', { path })
 }
 
@@ -155,6 +173,7 @@ export async function daemonRenameApply(
   updateLinks: boolean,
 ): Promise<import('../../types/vault').RenameNoteApplyOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_rename_apply', {
     fromPath,
     toPath,
@@ -171,6 +190,7 @@ export async function daemonExportRunNote(
   outputSubdirectory?: string,
 ): Promise<import('../../types/vault').ExportJobOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_export_run_note', {
     notePath,
     format,
