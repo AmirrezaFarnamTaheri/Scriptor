@@ -1,6 +1,7 @@
 import { memo, type Dispatch, type SetStateAction } from 'react'
 
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
+import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import type { VaultConfig } from '../types/vault'
 import { useGoogleCalendarSync } from '../hooks/useGoogleCalendarSync'
 
@@ -19,6 +20,21 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
   dailyNotePreview,
 }: VaultConfigSettingsSectionProps) {
   const calendarSync = useGoogleCalendarSync({ config: config.calendar_sync })
+
+  const connectGoogle = async () => {
+    const calendarSyncConfig = config.calendar_sync
+    if (!calendarSyncConfig?.enabled || !calendarSyncConfig.google_client_id) return
+    // Persist only the Calendar/Tasks config before OAuth. Other unsaved
+    // Settings edits remain drafts, while external credentials can never be
+    // created against a client/calendar/task-list configuration that exists
+    // only in component state.
+    await mutateVaultConfig((current) => ({
+      ...current,
+      calendar_sync: calendarSyncConfig,
+    }))
+    await calendarSync.startAuth()
+  }
+
   return (
     <div className="settings-section">
       <h3>Vault config</h3>
@@ -357,6 +373,40 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
               }
             />
           </label>
+          <label className="diagnostics-opt-in">
+            <input
+              type="checkbox"
+              checked={config.calendar_sync.show_events_in_tasks}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  calendar_sync: {
+                    ...DEFAULT_VAULT_CONFIG.calendar_sync!,
+                    ...current.calendar_sync,
+                    show_events_in_tasks: event.target.checked,
+                  },
+                }))
+              }
+            />
+            <span>Show Calendar events in the Tasks workspace</span>
+          </label>
+          <label className="diagnostics-opt-in">
+            <input
+              type="checkbox"
+              checked={config.calendar_sync.push_vault_tasks}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  calendar_sync: {
+                    ...DEFAULT_VAULT_CONFIG.calendar_sync!,
+                    ...current.calendar_sync,
+                    push_vault_tasks: event.target.checked,
+                  },
+                }))
+              }
+            />
+            <span>Mirror open vault tasks to Google Tasks</span>
+          </label>
           <div className="calendar-sync-actions">
             <span className={`publish-status publish-status-${calendarSync.status}`}>
               {calendarSync.status.toUpperCase()}
@@ -366,10 +416,10 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
               <button
                 type="button"
                 className="toolbar-button"
-                onClick={() => void calendarSync.startAuth()}
+                onClick={() => void connectGoogle()}
                 disabled={!config.calendar_sync.google_client_id}
               >
-                Connect Google Account
+                Save Calendar config &amp; connect
               </button>
             ) : (
               <>
@@ -390,9 +440,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
                 </button>
               </>
             )}
-            {calendarSync.error ? (
-              <small className="publish-error">{calendarSync.error}</small>
-            ) : null}
+            {calendarSync.error ? <small className="publish-error">{calendarSync.error}</small> : null}
           </div>
         </div>
       ) : null}
@@ -416,4 +464,3 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
     </div>
   )
 })
-

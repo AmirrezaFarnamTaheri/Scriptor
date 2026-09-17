@@ -3,24 +3,10 @@
  * ----------------------
  * Google Calendar & Tasks integration for Scriptor.
  *
- * Design adopted from google_workspace_mcp patterns:
- *  - OAuth2 PKCE flow (no client secret stored on device)
- *  - Scoped token: calendar.readonly + tasks (configurable)
- *  - Events pulled into CalendarEvent[], push vault tasks to Google Tasks
- *  - Conforms to Google Calendar API v3 shape (from gws_mcp analysis)
- *
- * Auth flow:
- *  1. `startAuth()` → Tauri opens system browser with OAuth2 URL
- *  2. Localhost redirect captures `code` → exchanged for tokens via Tauri
- *  3. Tokens stored in OS keychain via `tauri-plugin-keyring`
- *  4. Refresh handled transparently before each API call
- *
- * Usage:
- *  ```tsx
- *  const { events, tasks, status, startAuth, disconnect, refresh,
- *          pushTask, completeTask, deleteTask } =
- *    useGoogleCalendarSync({ config: vaultConfig?.calendar_sync, vaultNotes })
- *  ```
+ * Authentication uses OAuth2 PKCE, tokens live in the OS keychain, and this
+ * hook exposes both provider state and the vault-task bridge used by the Tasks
+ * workspace. Vault task pushes carry a stable source marker so repeated syncs
+ * are idempotent from the user's perspective.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -39,10 +25,6 @@ import {
   type GoogleTask,
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalUrl } from '../lib/safeExternalUrl.ts'
-
-// ---------------------------------------------------------------------------
-// Types (aligned with Google Calendar API v3 + Tasks API v1 shapes)
-// ---------------------------------------------------------------------------
 
 export type CalendarSyncStatus =
   | 'disconnected'
@@ -77,6 +59,12 @@ export interface CalendarSyncConfig {
   capture_note_path: string | null
 }
 
+export interface VaultTaskSyncResult {
+  created: number
+  skipped: number
+  failed: number
+}
+
 export interface GoogleCalendarSyncOptions {
   config: CalendarSyncConfig | undefined
   /** Indexed vault notes with task items for push-to-Tasks. */
@@ -89,36 +77,25 @@ export interface GoogleCalendarSyncResult {
   status: CalendarSyncStatus
   events: CalendarEvent[]
   tasks: GoogleTask[]
-  /** Auth error or sync error message */
   error: string | null
-  /** Authed user email */
   authedEmail: string | null
-  /** Start the OAuth2 PKCE auth flow */
   startAuth: () => Promise<void>
-  /** Revoke tokens and clear keychain */
   disconnect: () => Promise<void>
-  /** Manually refresh events + tasks */
   refresh: () => Promise<void>
-  /** Push a new task to Google Tasks */
   pushTask: (task: { title: string; notes?: string; due?: string }) => Promise<GoogleTask | null>
-  /** Mark a Google Task as completed */
   completeTask: (taskId: string) => Promise<void>
-  /** Delete a Google Task */
   deleteTask: (taskId: string) => Promise<void>
-  /** Pull today's events as a formatted block for quick-capture */
+  /** Push unchecked vault tasks that have not already been mirrored. */
+  syncVaultTasks: () => Promise<VaultTaskSyncResult>
   todayAgendaMarkdown: () => string
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Lookahead window applied when no calendar config is present yet. */
 const DEFAULT_LOOKAHEAD_DAYS = 7
+const SOURCE_MARKER_PREFIX = 'Scriptor source:'
 
 function eventsToday(events: CalendarEvent[]): CalendarEvent[] {
   const today = formatLocalDate()
-  return events.filter((e) => e.start.startsWith(today))
+  return events.filter((event) => event.start.startsWith(today))
 }
 
 function formatTime(iso: string): string {
@@ -129,13 +106,22 @@ function formatTime(iso: string): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
+function sourceMarker(path: string, line: number): string {
+  return `${SOURCE_MARKER_PREFIX} ${path}#L${line + 1}`
+}
+
+function normalizeTaskDue(dueDate: string | null): string | undefined {
+  if (!dueDate) return undefined
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    return `${dueDate}T00:00:00.000Z`
+  }
+  const parsed = new Date(dueDate)
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
+}
 
 export function useGoogleCalendarSync({
   config,
-  vaultNotes: _vaultNotes = [],
+  vaultNotes = [],
   refreshIntervalSeconds = 300,
 }: GoogleCalendarSyncOptions): GoogleCalendarSyncResult {
   const [status, setStatus] = useState<CalendarSyncStatus>('disconnected')
@@ -147,19 +133,14 @@ export function useGoogleCalendarSync({
   const lifecycleGenerationRef = useRef(0)
   const refreshGenerationRef = useRef(0)
   const taskMutationRevisionRef = useRef(0)
+  const vaultSyncRunningRef = useRef(false)
 
-  // `config` is typically rebuilt on every parent render, so every callback and
-  // effect below keys off its primitive fields instead. Depending on the object
-  // identity would tear down and re-create the refresh interval on each render.
   const enabled = config?.enabled ?? false
   const clientId = config?.google_client_id ?? null
   const calendarId = config?.google_calendar_id ?? 'primary'
   const taskListId = config?.google_task_list_id ?? '@default'
   const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
-
-  // ---------------------------------------------------------------------------
-  // Auth
-  // ---------------------------------------------------------------------------
+  const pushVaultTasksEnabled = config?.push_vault_tasks ?? false
 
   const startAuth = useCallback(async () => {
     if (!clientId) {
@@ -179,18 +160,14 @@ export function useGoogleCalendarSync({
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) {
-        return
-      }
+      ) return
       setAuthedEmail(email)
       setStatus('synced')
     } catch (err) {
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) {
-        return
-      }
+      ) return
       setError(err instanceof Error ? err.message : String(err))
       setStatus('error')
     }
@@ -212,10 +189,6 @@ export function useGoogleCalendarSync({
     setError(null)
   }, [])
 
-  // ---------------------------------------------------------------------------
-  // Sync
-  // ---------------------------------------------------------------------------
-
   const refresh = useCallback(async () => {
     if (!enabled) return
     const currentLifecycle = lifecycleGenerationRef.current
@@ -232,9 +205,7 @@ export function useGoogleCalendarSync({
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) {
-        return
-      }
+      ) return
       setEvents(evtsRaw)
       if (capturedMutationRev === taskMutationRevisionRef.current) {
         setTasks(tasksRaw)
@@ -245,11 +216,8 @@ export function useGoogleCalendarSync({
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) {
-        return
-      }
+      ) return
       const msg = err instanceof Error ? err.message : String(err)
-      // Disconnected / no token → show disconnected rather than error
       if (msg.toLowerCase().includes('not authenticated') || msg.toLowerCase().includes('no token')) {
         setStatus('disconnected')
       } else {
@@ -259,11 +227,9 @@ export function useGoogleCalendarSync({
     }
   }, [enabled, calendarId, taskListId, lookaheadDays])
 
-  // Initial sync + interval refresh
   useEffect(() => {
     if (!enabled) return
     lifecycleGenerationRef.current += 1
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial sync kick-off; refresh() transitions status as an external-system sync
     void refresh()
     if (refreshIntervalSeconds > 0) {
       intervalRef.current = setInterval(() => void refresh(), refreshIntervalSeconds * 1000)
@@ -276,10 +242,6 @@ export function useGoogleCalendarSync({
       }
     }
   }, [enabled, refresh, refreshIntervalSeconds])
-
-  // ---------------------------------------------------------------------------
-  // Task mutations
-  // ---------------------------------------------------------------------------
 
   const pushTask = useCallback(
     async (task: { title: string; notes?: string; due?: string }): Promise<GoogleTask | null> => {
@@ -296,7 +258,10 @@ export function useGoogleCalendarSync({
           setTasks((prev) => [...prev, created])
         }
         return created
-      } catch {
+      } catch (caught) {
+        if (currentLifecycle === lifecycleGenerationRef.current) {
+          setError(caught instanceof Error ? caught.message : String(caught))
+        }
         return null
       }
     },
@@ -311,15 +276,17 @@ export function useGoogleCalendarSync({
         if (currentLifecycle === lifecycleGenerationRef.current) {
           taskMutationRevisionRef.current += 1
           setTasks((prev) =>
-            prev.map((t) =>
-              t.id === taskId
-                ? { ...t, status: 'completed' as const, completed: new Date().toISOString() }
-                : t,
+            prev.map((task) =>
+              task.id === taskId
+                ? { ...task, status: 'completed' as const, completed: new Date().toISOString() }
+                : task,
             ),
           )
         }
-      } catch {
-        // ignore; UI will re-sync on next refresh
+      } catch (caught) {
+        if (currentLifecycle === lifecycleGenerationRef.current) {
+          setError(caught instanceof Error ? caught.message : String(caught))
+        }
       }
     },
     [taskListId],
@@ -332,29 +299,78 @@ export function useGoogleCalendarSync({
         await googleCalendarDeleteTask(taskListId, taskId)
         if (currentLifecycle === lifecycleGenerationRef.current) {
           taskMutationRevisionRef.current += 1
-          setTasks((prev) => prev.filter((t) => t.id !== taskId))
+          setTasks((prev) => prev.filter((task) => task.id !== taskId))
         }
-      } catch {
-        // ignore
+      } catch (caught) {
+        if (currentLifecycle === lifecycleGenerationRef.current) {
+          setError(caught instanceof Error ? caught.message : String(caught))
+        }
       }
     },
     [taskListId],
   )
 
-  // ---------------------------------------------------------------------------
-  // Derived
-  // ---------------------------------------------------------------------------
+  const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
+    if (!enabled || status === 'disconnected' || status === 'authorizing' || vaultSyncRunningRef.current) {
+      return { created: 0, skipped: 0, failed: 0 }
+    }
+    vaultSyncRunningRef.current = true
+    const existingMarkers = new Set(
+      tasks.flatMap((task) =>
+        (task.notes ?? '')
+          .split('\n')
+          .filter((line) => line.startsWith(SOURCE_MARKER_PREFIX)),
+      ),
+    )
+    let created = 0
+    let skipped = 0
+    let failed = 0
+    try {
+      for (const note of vaultNotes) {
+        for (const task of note.tasks) {
+          if (task.checked) {
+            skipped += 1
+            continue
+          }
+          const marker = sourceMarker(note.path, task.line)
+          if (existingMarkers.has(marker)) {
+            skipped += 1
+            continue
+          }
+          const pushed = await pushTask({
+            title: task.text,
+            notes: marker,
+            due: normalizeTaskDue(task.dueDate),
+          })
+          if (pushed) {
+            existingMarkers.add(marker)
+            created += 1
+          } else {
+            failed += 1
+          }
+        }
+      }
+      return { created, skipped, failed }
+    } finally {
+      vaultSyncRunningRef.current = false
+    }
+  }, [enabled, pushTask, status, tasks, vaultNotes])
+
+  // The explicit vault setting is the user's opt-in for automatic mirroring.
+  // Idempotent source markers make repeated refresh/re-open cycles safe.
+  useEffect(() => {
+    if (!pushVaultTasksEnabled || status !== 'synced' || vaultNotes.length === 0) return
+    void syncVaultTasks()
+  }, [pushVaultTasksEnabled, status, syncVaultTasks, vaultNotes.length])
 
   const todayAgendaMarkdown = useCallback((): string => {
     const today = eventsToday(events)
     if (today.length === 0) return '> No events today.\n'
     const lines = [`## Today, ${new Date().toLocaleDateString()}\n`]
-    for (const evt of today) {
-      const time = evt.allDay ? 'All day' : `${formatTime(evt.start)} – ${formatTime(evt.end)}`
-      // Provider-supplied link: only https/http survives, so a `javascript:` or
-      // `data:` payload can never reach the rendered Markdown.
-      const joinUrl = safeExternalUrl(evt.meetingLink)
-      lines.push(`- **${evt.summary}** — ${time}${evt.location ? ` @ ${evt.location}` : ''}${joinUrl ? ` [Join](${joinUrl})` : ''}`)
+    for (const event of today) {
+      const time = event.allDay ? 'All day' : `${formatTime(event.start)} – ${formatTime(event.end)}`
+      const joinUrl = safeExternalUrl(event.meetingLink)
+      lines.push(`- **${event.summary}** — ${time}${event.location ? ` @ ${event.location}` : ''}${joinUrl ? ` [Join](${joinUrl})` : ''}`)
     }
     return lines.join('\n')
   }, [events])
@@ -371,6 +387,7 @@ export function useGoogleCalendarSync({
     pushTask,
     completeTask,
     deleteTask,
+    syncVaultTasks,
     todayAgendaMarkdown,
   }
 }

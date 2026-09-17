@@ -1,18 +1,13 @@
 /**
  * TaskPanel.tsx — W4-5 Task list + quick-edit panel.
  *
- * Architecture:
- *  - All state lives in `useTaskStore`.  The panel only maps store state
- *    to rendered elements — no local state for data (only ephemeral UI state
- *    like expanded task id and edit form visibility).
- *  - Status changes are dispatched back to the store via `patchStatus`; the
- *    store round-trips to the indexer and reloads.
- *  - `patchDue` patches the due date in-place (optimistic update + re-fetch).
- *  - The "embedded" prop allows this to be rendered inside a knowledge
- *    workbench layout without the modal chrome.
+ * The native index remains authoritative for vault tasks. When Calendar sync is
+ * enabled this panel is also the application-level Google Calendar/Tasks
+ * surface, so provider data is useful outside Settings and vault-task mirroring
+ * is wired to the complete indexed task set rather than a settings-only hook.
  */
 
-import { memo, useCallback, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import {
   Calendar,
@@ -30,20 +25,21 @@ import {
   type TaskRow,
   type TaskSortKey,
 } from '../hooks/useTaskStore'
+import {
+  useGoogleCalendarSync,
+  type CalendarSyncConfig,
+  type VaultTaskNote,
+} from '../hooks/useGoogleCalendarSync'
+import { indexerQueryTasks } from '../bridge/commands/indexer'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { TaskStatusGlyph } from './taskStatusGlyph'
 import { getStatusMeta, STATUS_ORDER } from '@scriptor/core/task'
 
-// ── Status cycle helper ────────────────────────────────────────────────────────
-
-/** Advance through the canonical status order: open → in-progress → done → open */
 function cycleStatus(current: string): string {
   const idx = STATUS_ORDER.indexOf(current)
   if (idx === -1) return 'open'
   return STATUS_ORDER[(idx + 1) % STATUS_ORDER.length]
 }
-
-// ── Task row ──────────────────────────────────────────────────────────────────
 
 interface TaskRowItemProps {
   task: TaskRow
@@ -70,7 +66,6 @@ const TaskRowItem = memo(function TaskRowItem({
     task.status !== 'cancelled' &&
     task.dueAt < formatLocalDate()
 
-  // Inline due-date edit state
   const [editingDue, setEditingDue] = useState(false)
   const [dueValue, setDueValue] = useState(task.dueAt ?? '')
   const dueDateRef = useRef<HTMLInputElement>(null)
@@ -92,7 +87,6 @@ const TaskRowItem = memo(function TaskRowItem({
   return (
     <li className={`task-row ${isOverdue ? 'task-row--overdue' : ''}`}>
       <div className="task-row__summary">
-        {/* Status cycle button */}
         <button
           type="button"
           className="task-row__checkbox"
@@ -104,7 +98,6 @@ const TaskRowItem = memo(function TaskRowItem({
           <TaskStatusGlyph status={task.status} />
         </button>
 
-        {/* Title / expand toggle */}
         <button
           type="button"
           className="task-row__title"
@@ -115,7 +108,6 @@ const TaskRowItem = memo(function TaskRowItem({
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
 
-        {/* Due date badge — click to edit inline */}
         {editingDue ? (
           <input
             ref={dueDateRef}
@@ -151,10 +143,8 @@ const TaskRowItem = memo(function TaskRowItem({
         )}
       </div>
 
-      {/* Expanded detail */}
       {expanded && (
         <div className="task-row__detail">
-          {/* Status dropdown for non-standard statuses */}
           <label className="task-row__detail-label">
             Status
             <select
@@ -163,11 +153,11 @@ const TaskRowItem = memo(function TaskRowItem({
               className="task-row__status-select"
               disabled={isPending}
             >
-              {STATUS_ORDER.map((s) => {
-                const m = getStatusMeta(s)
+              {STATUS_ORDER.map((status) => {
+                const meta = getStatusMeta(status)
                 return (
-                  <option key={s} value={s}>
-                    {m.label}
+                  <option key={status} value={status}>
+                    {meta.label}
                   </option>
                 )
               })}
@@ -176,27 +166,15 @@ const TaskRowItem = memo(function TaskRowItem({
 
           {task.tags.length > 0 && (
             <div className="task-row__tags">
-              {task.tags.map((t) => (
-                <span key={t} className="tag-badge">
-                  #{t}
-                </span>
+              {task.tags.map((tag) => (
+                <span key={tag} className="tag-badge">#{tag}</span>
               ))}
             </div>
           )}
-          {task.scheduledAt && (
-            <p className="task-row__meta">
-              <strong>Scheduled:</strong> {task.scheduledAt}
-            </p>
-          )}
-          {task.rrule && (
-            <p className="task-row__meta">
-              <strong>Recurrence:</strong> {task.rrule}
-            </p>
-          )}
+          {task.scheduledAt && <p className="task-row__meta"><strong>Scheduled:</strong> {task.scheduledAt}</p>}
+          {task.rrule && <p className="task-row__meta"><strong>Recurrence:</strong> {task.rrule}</p>}
           {task.priority !== 0 && (
-            <p className="task-row__meta">
-              <strong>Priority:</strong> {task.priority > 0 ? `+${task.priority}` : task.priority}
-            </p>
+            <p className="task-row__meta"><strong>Priority:</strong> {task.priority > 0 ? `+${task.priority}` : task.priority}</p>
           )}
           {task.sourceNotePath && (
             <button
@@ -208,18 +186,12 @@ const TaskRowItem = memo(function TaskRowItem({
               Open source note ↗
             </button>
           )}
-          {isPending && (
-            <p className="task-row__meta">
-              <strong>Saving…</strong>
-            </p>
-          )}
+          {isPending && <p className="task-row__meta"><strong>Saving…</strong></p>}
         </div>
       )}
     </li>
   )
 })
-
-// ── Filter bar ────────────────────────────────────────────────────────────────
 
 const BUILT_IN_STATUSES = STATUS_ORDER
 const SORT_OPTIONS: { value: TaskSortKey; label: string }[] = [
@@ -237,82 +209,51 @@ interface FilterBarProps {
   onSetSort: (k: TaskSortKey) => void
 }
 
-const FilterBar = memo(function FilterBar({
-  filter,
-  sortKey,
-  onSetFilter,
-  onClearFilter,
-  onSetSort,
-}: FilterBarProps) {
+const FilterBar = memo(function FilterBar({ filter, sortKey, onSetFilter, onClearFilter, onSetSort }: FilterBarProps) {
   const hasActiveFilter = !!(filter.status ?? filter.tag ?? filter.dueBefore)
   return (
     <div className="task-filter-bar">
       <Filter size={13} aria-hidden className="task-filter-bar__icon" />
-
-      {/* Status filter */}
       <label className="task-filter-bar__label">
         Status
-        <select
-          value={filter.status ?? ''}
-          onChange={(e) =>
-            onSetFilter({ status: e.target.value || undefined })
-          }
-        >
+        <select value={filter.status ?? ''} onChange={(e) => onSetFilter({ status: e.target.value || undefined })}>
           <option value="">All</option>
-          {BUILT_IN_STATUSES.map((s) => {
-            const m = getStatusMeta(s)
-            return (
-              <option key={s} value={s}>
-                {m.label}
-              </option>
-            )
+          {BUILT_IN_STATUSES.map((status) => {
+            const meta = getStatusMeta(status)
+            return <option key={status} value={status}>{meta.label}</option>
           })}
         </select>
       </label>
-
-      {/* Due-before date filter */}
       <label className="task-filter-bar__label">
         Due before
-        <input
-          type="date"
-          value={filter.dueBefore ?? ''}
-          onChange={(e) =>
-            onSetFilter({ dueBefore: e.target.value || undefined })
-          }
-        />
+        <input type="date" value={filter.dueBefore ?? ''} onChange={(e) => onSetFilter({ dueBefore: e.target.value || undefined })} />
       </label>
-
-      {/* Sort */}
       <label className="task-filter-bar__label">
         Sort
-        <select
-          value={sortKey}
-          onChange={(e) => onSetSort(e.target.value as TaskSortKey)}
-        >
-          {SORT_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
+        <select value={sortKey} onChange={(e) => onSetSort(e.target.value as TaskSortKey)}>
+          {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </label>
-
-      {/* Clear */}
-      {hasActiveFilter && (
-        <button
-          type="button"
-          className="toolbar-button"
-          onClick={onClearFilter}
-          title="Clear all filters"
-        >
-          Clear
-        </button>
-      )}
+      {hasActiveFilter && <button type="button" className="toolbar-button" onClick={onClearFilter} title="Clear all filters">Clear</button>}
     </div>
   )
 })
 
-// ── Panel ─────────────────────────────────────────────────────────────────────
+function groupVaultTasks(rows: TaskRow[]): VaultTaskNote[] {
+  const notes = new Map<string, VaultTaskNote>()
+  for (const task of rows) {
+    if (!task.sourceNotePath) continue
+    const note = notes.get(task.sourceNotePath) ?? { path: task.sourceNotePath, tasks: [] }
+    note.tasks.push({
+      text: task.title,
+      checked: task.status === 'done' || task.status === 'cancelled',
+      line: task.line,
+      dueDate: task.dueAt,
+    })
+    notes.set(task.sourceNotePath, note)
+  }
+  return [...notes.values()]
+}
 
 export interface TaskPanelProps {
   embedded?: boolean
@@ -320,6 +261,7 @@ export interface TaskPanelProps {
   onClose: () => void
   onOpenNote: (path: string) => void
   runSourceNoteMutation?: RunSourceNoteMutation
+  calendarConfig?: CalendarSyncConfig
 }
 
 export const TaskPanel = memo(function TaskPanel({
@@ -328,34 +270,130 @@ export const TaskPanel = memo(function TaskPanel({
   onClose,
   onOpenNote,
   runSourceNoteMutation,
+  calendarConfig,
 }: TaskPanelProps) {
   const store = useTaskStore(runSourceNoteMutation)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [allVaultTasks, setAllVaultTasks] = useState<TaskRow[]>([])
+  const taskRevision = store.tasks
+    .map((task) => `${task.id}:${task.updatedAt}:${task.status}:${task.dueAt ?? ''}`)
+    .sort()
+    .join('|')
+
+  // Calendar mirroring must use the complete vault task set, not whatever
+  // filter happens to be active in the local task list. The primitive revision
+  // key avoids a fetch loop caused by the store's freshly sorted array identity.
+  useEffect(() => {
+    if (!vaultOpen || !calendarConfig?.enabled) {
+      setAllVaultTasks([])
+      return
+    }
+    let cancelled = false
+    void indexerQueryTasks({}, 1000)
+      .then((rows) => {
+        if (!cancelled) setAllVaultTasks(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setAllVaultTasks([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [calendarConfig?.enabled, vaultOpen, taskRevision])
+
+  const vaultTaskNotes = useMemo(() => groupVaultTasks(allVaultTasks), [allVaultTasks])
+  const calendarSync = useGoogleCalendarSync({ config: calendarConfig, vaultNotes: vaultTaskNotes })
 
   const handlePatchStatus = useCallback((taskId: string, status: string) => {
-    // The store publishes mutationError for this surface. Consume the rejected
-    // promise as well so a failed native mutation never escapes React's event
-    // handler as an unhandled rejection.
     void store.patchStatus(taskId, status).catch(() => undefined)
   }, [store])
-
   const handlePatchDue = useCallback((taskId: string, dueAt: string | null) => {
     void store.patchDue(taskId, dueAt).catch(() => undefined)
   }, [store])
-
   const handleToggleExpand = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id))
   }, [])
 
   if (!vaultOpen) {
-    return embedded ? (
-      <p className="empty-state">Open a vault to view tasks.</p>
-    ) : null
+    return embedded ? <p className="empty-state">Open a vault to view tasks.</p> : null
   }
 
   const body = (
     <>
-      {/* Filter bar */}
+      {calendarConfig?.enabled ? (
+        <section className="settings-section" aria-label="Google Calendar and Tasks">
+          <div className="section-heading-row">
+            <div>
+              <h3>Google Calendar &amp; Tasks</h3>
+              <p className="health-subtitle">
+                {calendarSync.authedEmail ? `${calendarSync.status} · ${calendarSync.authedEmail}` : calendarSync.status}
+              </p>
+            </div>
+            <div className="calendar-sync-actions">
+              <button
+                type="button"
+                className="toolbar-button"
+                onClick={() => void calendarSync.refresh()}
+                disabled={calendarSync.status === 'syncing' || calendarSync.status === 'authorizing'}
+              >
+                <RefreshCw size={14} /> Sync Google
+              </button>
+              {calendarConfig.push_vault_tasks ? (
+                <button
+                  type="button"
+                  className="toolbar-button"
+                  onClick={() => void calendarSync.syncVaultTasks()}
+                  disabled={calendarSync.status !== 'synced'}
+                >
+                  Push vault tasks
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {calendarSync.error ? <p className="error-state">{calendarSync.error}</p> : null}
+
+          {calendarConfig.show_events_in_tasks ? (
+            <div>
+              <h4>Upcoming events</h4>
+              {calendarSync.events.length === 0 ? (
+                <p className="health-subtitle">No events in the configured lookahead window.</p>
+              ) : (
+                <ul className="compact-list">
+                  {calendarSync.events.slice(0, 8).map((event) => (
+                    <li key={event.id}>
+                      <strong>{event.summary || 'Untitled event'}</strong>{' '}
+                      <time dateTime={event.start}>{event.start}</time>
+                      {event.location ? <span> · {event.location}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          ) : null}
+
+          <div>
+            <h4>Google Tasks</h4>
+            {calendarSync.tasks.length === 0 ? (
+              <p className="health-subtitle">No Google Tasks loaded.</p>
+            ) : (
+              <ul className="compact-list">
+                {calendarSync.tasks.slice(0, 12).map((task) => (
+                  <li key={task.id}>
+                    <span>{task.title}</span>
+                    {task.due ? <time dateTime={task.due}> · {task.due}</time> : null}
+                    {task.status !== 'completed' ? (
+                      <button type="button" className="toolbar-button" onClick={() => void calendarSync.completeTask(task.id)}>
+                        Complete
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+      ) : null}
+
       <FilterBar
         filter={store.filter}
         sortKey={store.sortKey}
@@ -364,18 +402,10 @@ export const TaskPanel = memo(function TaskPanel({
         onSetSort={store.setSortKey}
       />
 
-      {/* Status/error */}
-      {store.isLoading && (
-        <p className="health-subtitle">Loading tasks…</p>
-      )}
-      {store.error && (
-        <p className="error-state">{store.error}</p>
-      )}
-      {store.mutationError && (
-        <p className="error-state">{store.mutationError}</p>
-      )}
+      {store.isLoading && <p className="health-subtitle">Loading tasks…</p>}
+      {store.error && <p className="error-state">{store.error}</p>}
+      {store.mutationError && <p className="error-state">{store.mutationError}</p>}
 
-      {/* Task list */}
       {!store.isLoading && !store.error && (
         <ul className="task-list">
           {store.tasks.length === 0 ? (
@@ -399,9 +429,7 @@ export const TaskPanel = memo(function TaskPanel({
     </>
   )
 
-  if (embedded) {
-    return <div className="knowledge-workbench-embed">{body}</div>
-  }
+  if (embedded) return <div className="knowledge-workbench-embed">{body}</div>
 
   return (
     <UnifiedPanelShell
@@ -412,14 +440,8 @@ export const TaskPanel = memo(function TaskPanel({
       onClose={onClose}
       className="task-panel"
       headerActions={(
-        <button
-          type="button"
-          className="toolbar-button"
-          aria-label="Refresh task list"
-          onClick={store.load}
-        >
-          <RefreshCw size={14} />
-          Refresh
+        <button type="button" className="toolbar-button" aria-label="Refresh task list" onClick={store.load}>
+          <RefreshCw size={14} /> Refresh
         </button>
       )}
     >

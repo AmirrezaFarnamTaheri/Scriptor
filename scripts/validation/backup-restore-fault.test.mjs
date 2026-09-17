@@ -2,109 +2,82 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const backupRsPath = new URL('../../apps/desktop/src-tauri/src/commands/backup.rs', import.meta.url)
-const vaultRsPath = new URL('../../apps/desktop/src-tauri/src/commands/vault.rs', import.meta.url)
-const useVaultBackupPath = new URL('../../src/hooks/useVaultBackup.ts', import.meta.url)
-const useVaultWorkspacePath = new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url)
+const backupRs = readFileSync(
+  new URL('../../apps/desktop/src-tauri/src/commands/backup.rs', import.meta.url),
+  'utf8',
+)
+const vaultRs = readFileSync(
+  new URL('../../apps/desktop/src-tauri/src/commands/vault.rs', import.meta.url),
+  'utf8',
+)
+const useVaultBackup = readFileSync(
+  new URL('../../src/hooks/useVaultBackup.ts', import.meta.url),
+  'utf8',
+)
+const useVaultWorkspace = readFileSync(
+  new URL('../../src/hooks/useVaultWorkspace.ts', import.meta.url),
+  'utf8',
+)
+const workspaceEditor = readFileSync(
+  new URL('../../src/hooks/useWorkspaceEditor.ts', import.meta.url),
+  'utf8',
+)
 
-const backupRs = readFileSync(backupRsPath, 'utf8')
-const vaultRs = readFileSync(vaultRsPath, 'utf8')
-const useVaultBackup = readFileSync(useVaultBackupPath, 'utf8')
-const useVaultWorkspace = readFileSync(useVaultWorkspacePath, 'utf8')
-
-test('vault_open invokes recover_interrupted_restore before session initialization', () => {
-  assert.ok(
-    backupRs.includes('pub fn recover_interrupted_restore(vault_root: &Path)'),
-    'backup.rs must export recover_interrupted_restore',
-  )
-  assert.ok(
-    vaultRs.includes('super::backup::recover_interrupted_restore(path)'),
-    'vault_open must invoke recover_interrupted_restore and propagate errors',
-  )
+test('vault_open blocks session initialization until interrupted restore recovery succeeds', () => {
   const vaultOpenIndex = vaultRs.indexOf('pub fn vault_open(')
   const recoverIndex = vaultRs.indexOf('super::backup::recover_interrupted_restore(path)', vaultOpenIndex)
   const openVaultIndex = vaultRs.indexOf('let session = open_vault(&root_path)', recoverIndex)
-  assert.ok(
-    vaultOpenIndex !== -1 && recoverIndex > vaultOpenIndex && openVaultIndex > recoverIndex,
-    'recover_interrupted_restore must be called before open_vault in vault_open',
-  )
+  assert.ok(vaultOpenIndex !== -1 && recoverIndex > vaultOpenIndex && openVaultIndex > recoverIndex)
+  assert.ok(vaultRs.includes('.map_err(|error| format!("Failed to recover interrupted restore: {error}"))?'))
 })
 
-test('recover_interrupted_restore handles promoting crash recovery and cleans journal', () => {
-  assert.ok(
-    backupRs.includes('if state == "promoting" {'),
-    'recover_interrupted_restore must handle promoting state',
-  )
-  assert.ok(
-    backupRs.includes('clear_persistent_vault_content(vault_root)'),
-    'recover_interrupted_restore must clear corrupted vault state before rollback',
-  )
-  assert.ok(
-    backupRs.includes('copy_tree(&rollback, vault_root, Path::new(""), &mut ignored)'),
-    'recover_interrupted_restore must restore files from rollback snapshot',
-  )
-  assert.ok(
-    backupRs.includes('fs::remove_dir_all(&journal)'),
-    'recover_interrupted_restore must clean up the journal upon successful rollback',
-  )
+test('restore recovery preserves unresolved journals and has executable Rust failure-path coverage', () => {
+  assert.ok(backupRs.includes('rollback snapshot is missing. Journal preserved for manual inspection.'))
+  assert.ok(backupRs.includes('Unrecognized restore journal state'))
+  assert.ok(backupRs.includes('fn interrupted_restore_missing_rollback_preserves_journal()'))
+  assert.ok(backupRs.includes('fn unrecognized_restore_state_is_preserved()'))
+  assert.ok(backupRs.includes('fn interrupted_restore_in_promoting_state_rolls_back_cleanly()'))
+  assert.ok(backupRs.includes('fn complete_restore_journal_is_safe_to_finalize_on_restart()'))
 })
 
-test('vault_restore_backup serializes exclusive access and refreshes session', () => {
-  assert.ok(
-    backupRs.includes('let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");'),
-    'vault_restore_backup must acquire vault_switch_lock',
-  )
-  assert.ok(
-    backupRs.includes('let mut session_guard = write_recover(&state.session, "session");'),
-    'vault_restore_backup must acquire exclusive write lock on session',
-  )
-  assert.ok(
-    backupRs.includes('let refreshed_session = scriptor_vault::open_vault(&vault_root)'),
-    'vault_restore_backup must reload session after restore',
-  )
-  assert.ok(
-    backupRs.includes('crate::state::reset_git_queue(&state);'),
-    'vault_restore_backup must reset Git queue handle',
-  )
+test('backup listing owns its namespace and never surfaces arbitrary sibling directories', () => {
+  assert.ok(backupRs.includes('fn list_backup_entries('))
+  assert.ok(backupRs.includes('if validate_backup_name(&name).is_err() { continue; }'))
+  assert.ok(backupRs.includes('fn backup_listing_ignores_unowned_directories_but_keeps_owned_corrupt_entries_visible()'))
 })
 
-test('should_skip_backup_path excludes rename transactions and recovery journals', () => {
+test('backup creation and restore serialize against vault session mutation', () => {
+  const createStart = backupRs.indexOf('pub fn vault_create_backup(')
+  const restoreStart = backupRs.indexOf('pub fn vault_restore_backup(')
   assert.ok(
-    backupRs.includes('second.starts_with("rename-txn")'),
-    'should_skip_backup_path must exclude rename-txn directories',
+    backupRs.indexOf('lock_recover(&state.vault_switch_lock, "vault backup")', createStart) > createStart,
   )
+  assert.ok(backupRs.indexOf('write_recover(&state.session, "session")', createStart) > createStart)
   assert.ok(
-    backupRs.includes('"restore-journal"'),
-    'should_skip_backup_path must exclude restore-journal',
+    backupRs.indexOf('lock_recover(&state.vault_switch_lock, "vault switch")', restoreStart) > restoreStart,
   )
+  assert.ok(backupRs.indexOf('write_recover(&state.session, "session")', restoreStart) > restoreStart)
 })
 
-test('useVaultBackup rebuilds index, emits event, and fires callback on restore', () => {
-  assert.ok(
-    useVaultBackup.includes('await indexerRebuild()'),
-    'useVaultBackup must trigger index rebuild upon restore',
-  )
-  assert.ok(
-    useVaultBackup.includes("window.dispatchEvent(new CustomEvent('scriptor:vault-restored'"),
-    'useVaultBackup must dispatch scriptor:vault-restored event',
-  )
-  assert.ok(
-    useVaultBackup.includes('onRestored?.()'),
-    'useVaultBackup must invoke optional onRestored callback',
-  )
-})
+test('restore lifecycle freezes persistence before replacement and refreshes derived state only after rebuild terminal state', () => {
+  const startEvent = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-restore-starting'")
+  const nativeRestore = useVaultBackup.indexOf('await vaultRestoreBackup(', startEvent)
+  const filesRestored = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-files-restored'", nativeRestore)
+  const rebuild = useVaultBackup.indexOf('await indexerRebuild()', filesRestored)
+  const finished = useVaultBackup.indexOf("dispatchVaultLifecycleEvent('scriptor:vault-restored'", rebuild)
+  assert.ok(startEvent !== -1 && nativeRestore > startEvent && filesRestored > nativeRestore && rebuild > filesRestored && finished > rebuild)
 
-test('useVaultWorkspace listens for scriptor:vault-restored and triggers refreshVault', () => {
-  assert.ok(
-    useVaultWorkspace.includes("window.addEventListener('scriptor:vault-restored'"),
-    'useVaultWorkspace must listen for scriptor:vault-restored',
-  )
-  assert.ok(
-    useVaultWorkspace.includes('void refreshVault()'),
-    'useVaultWorkspace must call refreshVault on vault restored event',
-  )
-  assert.ok(
-    useVaultWorkspace.includes('void reloadActiveNoteFromDisk()'),
-    'useVaultWorkspace must call reloadActiveNoteFromDisk on vault restored event',
-  )
+  assert.ok(workspaceEditor.includes('persistenceGenerationRef.current += 1'))
+  assert.ok(workspaceEditor.includes('saveTimersByDocRef.current.clear()'))
+  assert.ok(workspaceEditor.includes('pendingRequestsByDocRef.current.clear()'))
+  assert.ok(workspaceEditor.includes('await saveTailRef.current'))
+
+  assert.ok(useVaultWorkspace.includes("window.addEventListener('scriptor:vault-restore-starting'"))
+  assert.ok(useVaultWorkspace.includes("window.addEventListener('scriptor:vault-files-restored'"))
+  assert.ok(useVaultWorkspace.includes("window.addEventListener('scriptor:vault-restored'"))
+  assert.ok(useVaultWorkspace.includes('if (detail?.indexReady !== false)'))
+  assert.ok(useVaultWorkspace.includes('await refreshVault()'))
+  assert.ok(useVaultWorkspace.includes('setNoteSummaries([])'))
+  assert.ok(useVaultWorkspace.includes('refreshVaultConfig()'))
+  assert.ok(useVaultWorkspace.includes('refreshVaultSnippets()'))
 })

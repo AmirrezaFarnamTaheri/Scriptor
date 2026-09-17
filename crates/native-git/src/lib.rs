@@ -4,7 +4,8 @@ pub mod conflict;
 pub mod error;
 pub mod merge3;
 pub mod queue;
-pub mod status;
+mod selected_commit;
+mod status;
 pub mod sync;
 
 pub use conflict::{
@@ -14,8 +15,9 @@ pub use conflict::{
 pub use error::GitError;
 pub use merge3::{ConflictPolicy, MergeOutput, merge3};
 pub use queue::{GitQueue, QueuedOp};
+pub use selected_commit::git_commit_selected;
 pub use status::{
-    GitChangedFile, GitCommitOutput, GitStatus, git_commit_selected, git_show_head_file,
-    git_show_merge_base_file, git_status,
+    GitChangedFile, GitCommitOutput, GitStatus, git_show_head_file, git_show_merge_base_file,
+    git_status,
 };
 pub use sync::{GitPullOutput, GitPushOutput, PullStrategy, git_pull, git_push};

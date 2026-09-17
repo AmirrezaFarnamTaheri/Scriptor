@@ -16,7 +16,7 @@ use super::shared::parse_daemon_json;
 #[tauri::command]
 pub fn git_status_cmd(state: tauri::State<AppState>) -> Result<GitStatus, String> {
     if use_headless_engine(&state) {
-        let json = bridge_git_status()?;
+        let json = bridge_git_status(&state)?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;

@@ -6,7 +6,7 @@ use scriptor_export_runner::{
 };
 use scriptor_vault::{RelativeVaultPath, VaultSession, load_plugin_state, read_note};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
 use crate::AppState;
@@ -63,22 +63,17 @@ struct DaemonExportProgressReport {
     event_index: u32,
     result_json: Option<String>,
     error: Option<String>,
-    /// Live pandoc stderr accumulated by the daemon job; `default` keeps the
-    /// poller working against sidecars that predate the field.
     #[serde(default)]
     stderr_log: Option<String>,
 }
 
 pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Result<(), String> {
     let mut last_event_index = 0u32;
-    // The daemon accumulates pandoc stderr into its progress report; stream
-    // whatever grew since the last poll as stderr chunks, exactly like the
-    // in-process export path does, so the export history shows live output
-    // in the headless engine too.
     let mut emitted_stderr = 0usize;
     loop {
         std::thread::sleep(std::time::Duration::from_millis(100));
-        let json = bridge_export_job_status()?;
+        let state = app.state::<AppState>();
+        let json = bridge_export_job_status(&state)?;
         let report = parse_daemon_json::<DaemonExportProgressReport>(&json)?;
         if report.job_id != job_id {
             return Err(format!(
@@ -129,9 +124,7 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
             "failed" => {
                 let failed = ExportJobFailed {
                     job_id,
-                    error: report
-                        .error
-                        .unwrap_or_else(|| "daemon export failed".into()),
+                    error: report.error.unwrap_or_else(|| "daemon export failed".into()),
                 };
                 let _ = app.emit("export:failed", &failed);
                 return Ok(());
@@ -149,13 +142,6 @@ pub(crate) fn poll_headless_export_job(app: &AppHandle, job_id: String) -> Resul
     }
 }
 
-/// Resolve a caller-supplied export subdirectory against the vault root.
-///
-/// Delegates to `VaultRoot::resolve_relative`, which rejects absolute paths and
-/// traversal *and* canonicalizes every existing path prefix. The prefix walk
-/// matters here because the directory is created afterwards: a lexical
-/// `starts_with` check would still follow an existing symlinked parent that
-/// redirects the export outside the vault.
 fn resolve_output_directory(
     session: &VaultSession,
     output_subdirectory: Option<String>,
@@ -186,9 +172,7 @@ fn build_export_job_input(
     let note = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
     let stem = export_artifact_stem(note_path);
-
     let output_directory = resolve_output_directory(session, output_subdirectory)?;
-
     let config = scriptor_vault::load_vault_config(session.root.root())
         .map_err(|error| error.to_string())?;
     let trusted_pandoc_hash = config.trusted_binaries.and_then(|tb| tb.pandoc_hash);
@@ -224,9 +208,7 @@ fn build_export_job_from_markdown(
     let note = read_note(&session.descriptor.id, &session.root, &relative)
         .map_err(|error| error.to_string())?;
     let stem = export_artifact_stem(note_path);
-
     let output_directory = resolve_output_directory(session, output_subdirectory)?;
-
     let config = scriptor_vault::load_vault_config(session.root.root())
         .map_err(|error| error.to_string())?;
     let trusted_pandoc_hash = config.trusted_binaries.and_then(|tb| tb.pandoc_hash);
@@ -265,6 +247,7 @@ pub fn export_run_note(
     require_export_capability(&state)?;
     if use_headless_engine(&state) {
         let json = bridge_export_run_note(
+            &state,
             note_path,
             format,
             dry_run,
@@ -283,7 +266,6 @@ pub fn export_run_note(
         output_subdirectory,
         None,
     )?;
-
     run_export_job_with_cancel(input, Some(&state.export_cancel), None)
         .map_err(|error| error.to_string())
 }
@@ -301,6 +283,7 @@ pub fn export_run_markdown(
     require_export_capability(&state)?;
     if use_headless_engine(&state) {
         let json = bridge_export_run_markdown(
+            &state,
             note_path,
             source_markdown,
             format,
@@ -351,7 +334,9 @@ pub async fn export_start_note(
         tauri::async_runtime::spawn(async move {
             let app_for_poll = app_handle.clone();
             let blocking = tauri::async_runtime::spawn_blocking(move || {
+                let state = app_for_poll.state::<AppState>();
                 bridge_export_start_note(
+                    &state,
                     note_path,
                     format,
                     dry_run,
@@ -450,7 +435,7 @@ pub async fn export_start_note(
 pub fn export_cancel(state: tauri::State<AppState>) -> Result<bool, String> {
     require_export_capability(&state)?;
     if use_headless_engine(&state) {
-        bridge_export_cancel(None)?;
+        bridge_export_cancel(&state, None)?;
         return Ok(true);
     }
     Ok(cancel_active_export(&state.export_cancel).is_some())

@@ -499,7 +499,7 @@ pub fn vault_save_config_cmd(
     let session = active_session(&state)?;
     save_vault_config(session.root.root(), &config).map_err(|error| error.to_string())?;
     if use_headless_engine(&state) {
-        bridge_reload_config()?;
+        bridge_reload_config(&state)?;
     }
     Ok(())
 }

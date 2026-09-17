@@ -212,6 +212,7 @@ function WorkspacePanelLaunchersImpl({
               onClose={onCloseTasks}
               onOpenNote={(path) => void workspace.openNote(path)}
               runSourceNoteMutation={workspace.runNoteMutation}
+              calendarConfig={workspace.vaultConfig.calendar_sync}
             />
           </Suspense>
         </ErrorBoundary>
