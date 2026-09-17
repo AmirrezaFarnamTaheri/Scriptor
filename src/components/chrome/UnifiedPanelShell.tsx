@@ -42,6 +42,7 @@ interface UnifiedPanelShellProps {
   className?: string
   wide?: boolean
   presentation?: PanelPresentation
+  footer?: ReactNode
 }
 
 const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
@@ -102,6 +103,7 @@ function UnifiedPanelShellImpl({
   className = 'knowledge-filters-panel',
   wide = false,
   presentation = 'modal',
+  footer,
 }: UnifiedPanelShellProps) {
   const shellRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
@@ -231,6 +233,8 @@ function UnifiedPanelShellImpl({
         >
           {children}
         </div>
+
+        {footer ? <footer className="unified-panel-footer">{footer}</footer> : null}
       </section>
     </div>
   )

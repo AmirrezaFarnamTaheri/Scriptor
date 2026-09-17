@@ -22,6 +22,7 @@ interface CanvasPanelProps {
   onOpenNote?: (path: string) => void
 }
 
+/** Renders the interactive canvas workspace and flushes pending edits before close. */
 export function CanvasPanel({
   vaultId,
   vaultOpen,
@@ -55,11 +56,28 @@ export function CanvasPanel({
     redo,
     canUndo,
     canRedo,
+    flushPendingSave,
   } = useCanvasBoard(vaultId, vaultOpen, crdtEnabled)
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([])
   const [activeTool, setActiveTool] = useState(canvasTools[0]?.id ?? 'select')
 
-  useEscapeToClose(true, onClose)
+  const handleClose = async () => {
+    try {
+      const saved = await flushPendingSave()
+      if (!saved) {
+        const discard = window.confirm(
+          'Failed to save canvas changes. Do you want to close anyway and discard unsaved changes?',
+        )
+        if (!discard) return
+      }
+      onClose()
+    } catch (error) {
+      console.error('Failed to flush canvas save on close:', error)
+      onClose()
+    }
+  }
+
+  useEscapeToClose(true, () => void handleClose())
   useFocusTrap(dialogRef, { active: true })
 
   useEffect(() => {
@@ -214,7 +232,7 @@ export function CanvasPanel({
             </button>
           ) : null}
         </div>
-        <button type="button" className="icon-button" onClick={onClose} aria-label="Close canvas">
+        <button type="button" className="icon-button" onClick={() => void handleClose()} aria-label="Close canvas">
           <X aria-hidden="true" />
         </button>
       </header>

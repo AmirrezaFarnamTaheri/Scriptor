@@ -43,6 +43,8 @@ pub fn vault_open(
         std::fs::create_dir_all(path)
             .map_err(|error| format!("failed to create vault folder: {error}"))?;
     }
+    super::backup::recover_interrupted_restore(path)
+        .map_err(|error| format!("Failed to recover interrupted restore: {error}"))?;
     let session = open_vault(&root_path).map_err(|error| error.to_string())?;
     let output = open_vault_output(&session);
     let (watcher, watcher_generation) = create_vault_watcher(&app, &state, &session)?;
@@ -50,6 +52,7 @@ pub fn vault_open(
         let mut session_guard = write_recover(&state.session, "session");
         *session_guard = Some(session);
         crate::state::reset_git_queue(&state);
+        crate::state::reset_daemon_vault(&state);
         *lock_recover(&state.vault_watcher, "vault watcher") = Some(watcher);
         state
             .vault_watcher_generation
@@ -87,7 +90,7 @@ pub fn vault_save_note(
     let session = active_session(&state)?;
     validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     if use_headless_engine(&state) {
-        let json = bridge_save_note(path, markdown, expected_content_hash, dry_run)?;
+        let json = bridge_save_note(&state, path, markdown, expected_content_hash, dry_run)?;
         return parse_daemon_json(&json);
     }
     let relative = RelativeVaultPath::parse(&path).map_err(|error| error.to_string())?;
@@ -153,7 +156,13 @@ pub fn vault_rename_apply(
 ) -> Result<RenameNoteApplyOutput, String> {
     let session = active_session(&state)?;
     if use_headless_engine(&state) {
-        let json = bridge_rename_apply(from_path, to_path, update_links, expected_source_hash)?;
+        let json = bridge_rename_apply(
+            &state,
+            from_path,
+            to_path,
+            update_links,
+            expected_source_hash,
+        )?;
         return parse_daemon_json(&json);
     }
     let from = RelativeVaultPath::parse(&from_path).map_err(|error| error.to_string())?;
@@ -490,7 +499,7 @@ pub fn vault_save_config_cmd(
     let session = active_session(&state)?;
     save_vault_config(session.root.root(), &config).map_err(|error| error.to_string())?;
     if use_headless_engine(&state) {
-        bridge_reload_config()?;
+        bridge_reload_config(&state)?;
     }
     Ok(())
 }
@@ -545,7 +554,7 @@ pub fn vault_lint_fix(
 pub fn vault_health(state: tauri::State<AppState>) -> Result<String, String> {
     let session = active_session(&state)?;
     if use_headless_engine(&state) {
-        return bridge_health_report();
+        return bridge_health_report(&state);
     }
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     health_report_json(&cache, &session).map_err(|error| error.to_string())

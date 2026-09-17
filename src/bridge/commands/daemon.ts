@@ -61,49 +61,85 @@ export async function ensureDaemonReady(): Promise<DaemonEndpoint> {
   }
 }
 
+let daemonOpenTail: Promise<void> = Promise.resolve()
+let latestOpenTarget = ''
+let currentDaemonVault = ''
+
+/** Serializes daemon vault switches and discards targets superseded before dispatch. */
 export async function daemonOpenVault(rootPath: string): Promise<void> {
   requireNative()
-  await invoke('daemon_open_vault', { rootPath })
+  latestOpenTarget = rootPath
+  const task = daemonOpenTail.then(async () => {
+    if (latestOpenTarget !== rootPath) return
+    await invoke('daemon_open_vault', { rootPath })
+    currentDaemonVault = rootPath
+  })
+  daemonOpenTail = task.then(
+    () => undefined,
+    () => undefined,
+  )
+  return task
 }
 
+/** Waits until the daemon has finished switching to the latest requested vault. */
+async function ensureVaultBarrier(): Promise<void> {
+  if (latestOpenTarget && currentDaemonVault !== latestOpenTarget) {
+    await daemonOpenTail
+  }
+}
+
+/** Returns parsed health diagnostics for the daemon's verified vault session. */
 export async function daemonHealthDiagnostics(): Promise<VaultHealthDiagnostics> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_health_diagnostics')
   return parseVaultHealthDiagnostics(payload)
 }
 
+/** Returns the parsed health report for the daemon's verified vault session. */
 export async function daemonHealthReport(): Promise<VaultHealthReport> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_health_report')
   return parseVaultHealthReport(payload)
 }
 
+/** Rebuilds the daemon index after pending vault switches have settled. */
 export async function daemonRebuildIndex(): Promise<RebuildSummary> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_rebuild_index')
   return parseRebuildSummary(payload)
 }
 
+/** Searches the daemon index in the verified vault session. */
 export async function daemonSearch(query: string, limit = 25): Promise<SearchHit[]> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_search', { query, limit })
   return parseSearchHits(payload)
 }
 
+/** Lists indexed note summaries from the verified daemon vault. */
 export async function daemonListNoteSummaries(): Promise<NoteIndexSummary[]> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_list_note_summaries')
   return parseNoteIndexSummaries(payload)
 }
 
+/** Lists backlinks for a vault-relative note through the verified daemon session. */
 export async function daemonBacklinks(path: string): Promise<BacklinkHit[]> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_backlinks', { path })
   return parseBacklinkHits(payload)
 }
 
+/** Queries the verified daemon vault's graph around an optional focus note. */
 export async function daemonGraph(focusPath?: string | null, depth = 1): Promise<GraphQueryOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_graph', {
     focusPath: focusPath ?? null,
     depth,
@@ -111,11 +147,14 @@ export async function daemonGraph(focusPath?: string | null, depth = 1): Promise
   return parseGraphQueryOutput(payload)
 }
 
+/** Returns serialized Git status for the verified daemon vault. */
 export async function daemonGitStatusJson(): Promise<string> {
   requireNative()
+  await ensureVaultBarrier()
   return invoke<string>('daemon_git_status')
 }
 
+/** Saves a note through the verified daemon vault and validates the response. */
 export async function daemonSaveNote(
   path: string,
   markdown: string,
@@ -123,6 +162,7 @@ export async function daemonSaveNote(
   dryRun?: boolean,
 ): Promise<SaveNoteOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_save_note', {
     path,
     markdown,
@@ -132,17 +172,21 @@ export async function daemonSaveNote(
   return parseSaveNoteOutput(payload)
 }
 
+/** Updates one note in the verified daemon vault's index. */
 export async function daemonUpdateNoteIndex(path: string): Promise<boolean> {
   requireNative()
+  await ensureVaultBarrier()
   return invoke<boolean>('daemon_update_note_index', { path })
 }
 
+/** Applies a note rename through the verified daemon vault. */
 export async function daemonRenameApply(
   fromPath: string,
   toPath: string,
   updateLinks: boolean,
 ): Promise<import('../../types/vault').RenameNoteApplyOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_rename_apply', {
     fromPath,
     toPath,
@@ -151,6 +195,7 @@ export async function daemonRenameApply(
   return parseRenameNoteApplyOutput(payload)
 }
 
+/** Starts a note export through the verified daemon vault. */
 export async function daemonExportRunNote(
   notePath: string,
   format: string,
@@ -159,6 +204,7 @@ export async function daemonExportRunNote(
   outputSubdirectory?: string,
 ): Promise<import('../../types/vault').ExportJobOutput> {
   requireNative()
+  await ensureVaultBarrier()
   const payload = await invoke<string>('daemon_export_run_note', {
     notePath,
     format,

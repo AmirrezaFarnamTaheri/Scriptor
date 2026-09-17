@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import {
   daemonOpenVault,
@@ -15,11 +15,13 @@ interface UseHeadlessEngineOptions {
   settingsOpen: boolean
 }
 
+/** Coordinates the persisted headless-engine setting with the active daemon vault. */
 export function useHeadlessEngine({ vaultRootPath, settingsOpen }: UseHeadlessEngineOptions) {
   const [headlessEngine, setHeadlessEngine] = usePersistedBoolean('scriptor:headless-engine', false)
   const [daemonVersion, setDaemonVersion] = useState<string | null>(null)
   const [daemonError, setDaemonError] = useState<string | null>(null)
   const nativeReady = isNativeBridgeAvailable()
+  const headlessSessionRef = useRef(0)
 
   useEffect(() => {
     if (!nativeReady) {
@@ -60,26 +62,34 @@ export function useHeadlessEngine({ vaultRootPath, settingsOpen }: UseHeadlessEn
     if (!nativeReady || !headlessEngine || !vaultRootPath) {
       return
     }
+    const currentSession = ++headlessSessionRef.current
     await ensureDaemonReady()
+    if (headlessSessionRef.current !== currentSession) return
     await daemonOpenVault(vaultRootPath)
+    if (headlessSessionRef.current !== currentSession) return
     await refreshDaemonStatus()
   }, [headlessEngine, nativeReady, refreshDaemonStatus, vaultRootPath])
 
   useEffect(() => {
     if (!nativeReady || !headlessEngine || !vaultRootPath) return
+    const currentSession = ++headlessSessionRef.current
     let cancelled = false
-    void ensureDaemonReady()
-      .then(() => daemonOpenVault(vaultRootPath))
-      .then(() => daemonPing())
-      .then((ping) => {
-        if (!cancelled) {
-          setDaemonVersion(ping.version)
-          setDaemonError(null)
+    void (async () => {
+      try {
+        await ensureDaemonReady()
+        if (cancelled || headlessSessionRef.current !== currentSession) return
+        await daemonOpenVault(vaultRootPath)
+        if (cancelled || headlessSessionRef.current !== currentSession) return
+        const ping = await daemonPing()
+        if (cancelled || headlessSessionRef.current !== currentSession) return
+        setDaemonVersion(ping.version)
+        setDaemonError(null)
+      } catch (error: unknown) {
+        if (!cancelled && headlessSessionRef.current === currentSession) {
+          setDaemonError(error instanceof Error ? error.message : String(error))
         }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setDaemonError(error instanceof Error ? error.message : String(error))
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }

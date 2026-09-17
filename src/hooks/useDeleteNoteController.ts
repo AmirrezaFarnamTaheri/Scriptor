@@ -8,7 +8,7 @@ import {
 
 interface UseDeleteNoteControllerOptions {
   enabled: boolean
-  closeTab: (path: string) => void
+  closeTab: (path: string, force?: boolean) => Promise<boolean>
   rebuildIndex: () => Promise<unknown>
   refreshVault: () => Promise<unknown>
   showToast: (message: string) => void

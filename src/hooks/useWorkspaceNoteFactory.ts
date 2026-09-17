@@ -33,7 +33,7 @@ interface UseWorkspaceNoteFactoryOptions {
   logActivity: (kind: ActivityEntry['kind'], message: string, detail?: string) => void
   refreshVaultCore: () => Promise<void>
   refreshNoteSummaries: () => Promise<void>
-  openNote: (path: string) => Promise<void>
+  openNote: (path: string, isCurrent?: () => boolean) => Promise<unknown>
   syncActiveNoteContent: (path: string) => Promise<void>
 }
 

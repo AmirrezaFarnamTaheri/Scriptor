@@ -374,15 +374,46 @@
  * visualization that repeats "ready", "100%" and "n/n" at once. */
 .job-progress.is-done {
   width: auto;
-  min-height: 32px;
-  grid-template-columns: 18px auto;
+  min-height: 24px;
+  max-height: 28px;
+  display: inline-flex;
+  align-items: center;
   gap: 6px;
   padding-inline: 8px;
   background: transparent;
   border-color: transparent;
+  white-space: nowrap;
+}
+
+.job-progress.is-done > svg {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+.job-progress.is-done .job-progress-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.job-progress.is-done .job-progress-text strong {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.job-progress.is-done .job-progress-text small {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
 }
 
 .job-progress.is-done .progress-track,
-.job-progress.is-done > span {
+.job-progress.is-done > span:not(.job-progress-text) {
   display: none;
 }

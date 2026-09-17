@@ -14,12 +14,9 @@ use scriptor_system_bridge::{NetworkPolicy, ProcessSpec, run_process};
 use serde::Serialize;
 
 use crate::authorization::{SensitiveOperation, require_sensitive_operation};
-use crate::state::AppState;
+use crate::state::{AppState, active_session};
 
-/// Tectonic can emit verbose logs while fetching packages; allow more headroom
-/// than the code-chunk runner but still bound the captured output.
 const MAX_OUTPUT_BYTES: usize = 512 * 1024;
-/// First runs may download a package bundle; give the engine generous time.
 const TIMEOUT_SECS: u64 = 180;
 
 #[derive(Debug, Serialize)]
@@ -38,7 +35,6 @@ fn mark_truncated(value: String, truncated: bool) -> String {
     }
 }
 
-/// Candidate executable names to probe on `PATH` (Windows adds the `.exe` form).
 fn tectonic_binary_names() -> &'static [&'static str] {
     if cfg!(windows) {
         &["tectonic.exe", "tectonic"]
@@ -47,7 +43,6 @@ fn tectonic_binary_names() -> &'static [&'static str] {
     }
 }
 
-/// Resolve `tectonic` on the process `PATH`, returning the first match.
 fn find_on_path() -> Option<PathBuf> {
     let path_var = std::env::var_os("PATH")?;
     for dir in std::env::split_paths(&path_var) {
@@ -61,10 +56,6 @@ fn find_on_path() -> Option<PathBuf> {
     None
 }
 
-/// Whether `path`'s file name is a recognized Tectonic executable. Guards
-/// against a caller pointing `tectonic_path` at an arbitrary binary: the
-/// compile authorization scope covers only the input document, so the
-/// executable that actually runs must be Tectonic and nothing else.
 fn is_tectonic_binary(path: &Path) -> bool {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -77,9 +68,6 @@ fn is_tectonic_binary(path: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Resolve a usable Tectonic binary from an explicit config path or `PATH`.
-/// An explicit path is honored only when it both exists and is named
-/// `tectonic`/`tectonic.exe`; otherwise resolution falls back to `PATH`.
 fn resolve_tectonic(config_path: Option<&str>) -> Option<PathBuf> {
     if let Some(raw) = config_path.map(str::trim).filter(|value| !value.is_empty()) {
         let candidate = PathBuf::from(raw);
@@ -90,11 +78,6 @@ fn resolve_tectonic(config_path: Option<&str>) -> Option<PathBuf> {
     find_on_path()
 }
 
-/// Engine flags the frontend is permitted to forward. Anything outside this
-/// allow-list is rejected so an approved "compile" cannot be repurposed to
-/// change the output target, input, or engine behavior beyond what consent
-/// covered. Value-bearing flags (`--flag value`) are accepted as their own
-/// argument; the value that follows is not interpreted as a flag.
 const ALLOWED_EXTRA_FLAGS: &[&str] = &[
     "--keep-logs",
     "--keep-intermediates",
@@ -103,9 +86,6 @@ const ALLOWED_EXTRA_FLAGS: &[&str] = &[
     "--print",
 ];
 
-/// Validate caller-supplied extra flags against {@link ALLOWED_EXTRA_FLAGS}.
-/// Returns the trimmed, non-empty flags on success or the first offending
-/// token on rejection.
 fn sanitize_extra_flags(flags: Vec<String>) -> Result<Vec<String>, String> {
     let mut accepted = Vec::with_capacity(flags.len());
     for flag in flags {
@@ -113,7 +93,6 @@ fn sanitize_extra_flags(flags: Vec<String>) -> Result<Vec<String>, String> {
         if trimmed.is_empty() {
             continue;
         }
-        // Compare only the flag name, not any `=value` suffix.
         let name = trimmed.split('=').next().unwrap_or(trimmed);
         if !ALLOWED_EXTRA_FLAGS.contains(&name) {
             return Err(format!("unsupported LaTeX engine flag: {trimmed}"));
@@ -123,23 +102,18 @@ fn sanitize_extra_flags(flags: Vec<String>) -> Result<Vec<String>, String> {
     Ok(accepted)
 }
 
-/// Discover the Tectonic engine. Tries the configured path first, then `PATH`.
-/// Returns the resolved absolute path, or `None` when Tectonic is unavailable.
-/// Read-only probe — no authorization required.
 #[tauri::command]
 pub fn latex_discover_tectonic(config_path: Option<String>) -> Option<String> {
     resolve_tectonic(config_path.as_deref()).map(|path| path.display().to_string())
 }
 
-/// Best-effort cancellation. `run_process` runs synchronously and cannot
-/// interrupt an in-flight external engine, so this only aborts a compile that
-/// has not yet launched. Returns whether a cancellation was newly requested.
+/// Request cancellation of the active compile. `run_process` observes this
+/// shared slot and terminates the Tectonic process tree when possible.
 #[tauri::command]
 pub fn latex_cancel_compile(state: tauri::State<AppState>) -> bool {
     !state.latex_cancel.swap(true, Ordering::SeqCst)
 }
 
-/// Derive the PDF output path Tectonic writes for `input_path` under `output_dir`.
 fn derive_output_path(input_path: &Path, output_dir: &Path) -> PathBuf {
     let stem = input_path
         .file_stem()
@@ -150,7 +124,39 @@ fn derive_output_path(input_path: &Path, output_dir: &Path) -> PathBuf {
     output_dir.join(file_name)
 }
 
-/// Compile a `.tex` file to PDF using Tectonic.
+fn resolve_vault_input(vault_root: &Path, input_path: &str) -> Result<PathBuf, String> {
+    let requested = PathBuf::from(input_path);
+    let candidate = if requested.is_absolute() {
+        requested
+    } else {
+        vault_root.join(requested)
+    };
+    let canonical = std::fs::canonicalize(&candidate)
+        .map_err(|error| format!("LaTeX source not found: {input_path}: {error}"))?;
+    if !canonical.starts_with(vault_root) {
+        return Err("LaTeX source must be inside the active vault".to_string());
+    }
+    if !canonical.is_file() {
+        return Err(format!("LaTeX source not found: {input_path}"));
+    }
+    let extension = canonical
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if !matches!(extension.to_ascii_lowercase().as_str(), "tex" | "ltx") {
+        return Err("LaTeX compilation requires a .tex or .ltx source file".to_string());
+    }
+    Ok(canonical)
+}
+
+struct CancelGuard(std::sync::Arc<std::sync::atomic::AtomicBool>);
+impl Drop for CancelGuard {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Compile a `.tex`/`.ltx` file inside the active vault to PDF using Tectonic.
 #[tauri::command]
 pub fn latex_compile(
     state: tauri::State<AppState>,
@@ -160,23 +166,26 @@ pub fn latex_compile(
     extra_flags: Vec<String>,
     authorization_token: String,
 ) -> Result<LatexCompileOutput, String> {
+    // Resolve relative paths against the authoritative native vault rather than
+    // the desktop process CWD. Canonicalization also rejects symlinks/traversal
+    // that escape the active vault.
+    let session = active_session(&state)?;
+    let canonical_vault = std::fs::canonicalize(session.root.root())
+        .map_err(|error| format!("Invalid active vault root: {error}"))?;
+    let vault_id = session.descriptor.id.clone();
+    drop(session);
+    let input = resolve_vault_input(&canonical_vault, &input_path)?;
+
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::LatexCompilation,
-        Some(&input_path),
-        None,
+        Some(&input.display().to_string()),
+        Some(&vault_id),
     )?;
 
-    // Honor a cancellation requested before this compile began, then reset.
-    if state.latex_cancel.swap(false, Ordering::SeqCst) {
-        return Err("compile cancelled before it started".into());
-    }
-
-    let input = PathBuf::from(&input_path);
-    if !input.is_file() {
-        return Err(format!("LaTeX source not found: {input_path}"));
-    }
+    state.latex_cancel.store(false, Ordering::SeqCst);
+    let _cancel_guard = CancelGuard(std::sync::Arc::clone(&state.latex_cancel));
 
     let binary = resolve_tectonic(tectonic_path.as_deref()).ok_or_else(|| {
         "Tectonic was not found. Install it or set the LaTeX engine path in vault settings."
@@ -206,10 +215,16 @@ pub fn latex_compile(
             .current_dir(&work_dir)
             .timeout(Duration::from_secs(TIMEOUT_SECS))
             .max_output_bytes(MAX_OUTPUT_BYTES)
-            // Tectonic fetches TeX Live packages over the network on demand.
+            .cancel_slot(std::sync::Arc::clone(&state.latex_cancel))
             .network_policy(NetworkPolicy::Allow),
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| {
+        if state.latex_cancel.load(Ordering::Relaxed) {
+            "compile cancelled by user".to_string()
+        } else {
+            error.to_string()
+        }
+    })?;
 
     if receipt.exit_code != 0 {
         return Err(format!(
@@ -244,5 +259,28 @@ mod tests {
     fn falls_back_to_document_when_stem_missing() {
         let out = derive_output_path(Path::new("/vault/"), Path::new("/out"));
         assert!(out.ends_with("document.pdf") || out.ends_with("vault.pdf"));
+    }
+
+    #[test]
+    fn resolves_relative_input_inside_vault_and_rejects_escape() {
+        let vault = tempfile::tempdir().expect("vault");
+        let nested = vault.path().join("papers");
+        std::fs::create_dir_all(&nested).expect("papers");
+        let source = nested.join("paper.tex");
+        std::fs::write(&source, "\\documentclass{article}").expect("source");
+        let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
+
+        let resolved = resolve_vault_input(&canonical_vault, "papers/paper.tex").expect("resolve");
+        assert_eq!(
+            resolved,
+            std::fs::canonicalize(&source).expect("canonical source")
+        );
+
+        let outside_dir = tempfile::tempdir().expect("outside dir");
+        let outside = outside_dir.path().join("outside.tex");
+        std::fs::write(&outside, "\\documentclass{article}").expect("outside source");
+        let error = resolve_vault_input(&canonical_vault, outside.to_string_lossy().as_ref())
+            .expect_err("outside source must be rejected");
+        assert!(error.contains("inside the active vault"));
     }
 }

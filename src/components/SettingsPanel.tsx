@@ -121,6 +121,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: 'advanced', label: 'Advanced' },
 ]
 
+/** Renders the tabbed application and vault settings surface. */
 function SettingsPanelImpl({
   vaultOpen,
   vaultId,
@@ -299,6 +300,16 @@ function SettingsPanelImpl({
       tabs={SETTINGS_TABS}
       activeTab={activeTab}
       onTabChange={handleTabChange}
+      footer={
+        activeTab === 'general' && vaultOpen && nativeReady && configReady ? (
+          <div className="settings-footer-actions">
+            {status ? <span className="settings-status" role="status">{status}</span> : null}
+            <button type="button" className="primary-button" onClick={() => void saveConfig()}>
+              Save vault config
+            </button>
+          </div>
+        ) : null
+      }
     >
       <div
         className="settings-tab-pane"

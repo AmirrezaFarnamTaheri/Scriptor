@@ -40,7 +40,7 @@ fn require_graph_capability<'a>(
 #[tauri::command]
 pub fn indexer_rebuild(state: tauri::State<AppState>) -> Result<RebuildSummary, String> {
     if use_headless_engine(&state) {
-        let json = bridge_rebuild_index()?;
+        let json = bridge_rebuild_index(&state)?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;
@@ -50,7 +50,7 @@ pub fn indexer_rebuild(state: tauri::State<AppState>) -> Result<RebuildSummary, 
 #[tauri::command]
 pub fn indexer_update_note(state: tauri::State<AppState>, path: String) -> Result<bool, String> {
     if use_headless_engine(&state) {
-        return bridge_update_note_index(path);
+        return bridge_update_note_index(&state, path);
     }
     let session = active_session(&state)?;
     incremental_note_index(&session, &path, &[]).map_err(|error| error.to_string())
@@ -72,7 +72,7 @@ pub fn indexer_search(
     limit: Option<u32>,
 ) -> Result<Vec<SearchHit>, String> {
     if use_headless_engine(&state) {
-        let json = bridge_search(query, limit.unwrap_or(25))?;
+        let json = bridge_search(&state, query, limit.unwrap_or(25))?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;
@@ -87,7 +87,7 @@ pub fn indexer_backlinks(
     path: String,
 ) -> Result<Vec<BacklinkHit>, String> {
     if use_headless_engine(&state) {
-        let json = bridge_backlinks(path)?;
+        let json = bridge_backlinks(&state, path)?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;
@@ -103,7 +103,7 @@ pub fn indexer_graph(
 ) -> Result<GraphQueryOutput, String> {
     let session = require_graph_capability(&state)?;
     if use_headless_engine(&state) {
-        let json = bridge_graph(focus_path, depth.unwrap_or(1))?;
+        let json = bridge_graph(&state, focus_path, depth.unwrap_or(1))?;
         return parse_daemon_json(&json);
     }
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
@@ -142,7 +142,7 @@ pub fn indexer_traverse_graph(
 #[tauri::command]
 pub fn indexer_health_diagnostics(state: tauri::State<AppState>) -> Result<String, String> {
     if use_headless_engine(&state) {
-        return bridge_health_diagnostics();
+        return bridge_health_diagnostics(&state);
     }
     let session = active_session(&state)?;
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
@@ -171,7 +171,7 @@ pub fn indexer_list_note_summaries(
     state: tauri::State<AppState>,
 ) -> Result<Vec<NoteIndexSummary>, String> {
     if use_headless_engine(&state) {
-        let json = bridge_list_note_summaries()?;
+        let json = bridge_list_note_summaries(&state)?;
         return parse_daemon_json(&json);
     }
     let session = active_session(&state)?;
@@ -205,8 +205,6 @@ pub fn indexer_resolve_wikilink(
     target: String,
 ) -> Result<WikilinkResolution, String> {
     let session = active_session(&state)?;
-    // SQLite fast path: aliases_json is maintained by the indexer (v9+), so
-    // resolution is one indexed query instead of an O(n) disk scan.
     let cache = open_cache_for_session(&session).map_err(|error| error.to_string())?;
     let (note_paths, aliases_by_path) = note_paths_and_aliases(&cache, &session.descriptor.id)
         .map_err(|error| error.to_string())?;
@@ -285,9 +283,6 @@ pub struct NoteMetaHit {
     pub exists: bool,
 }
 
-/// Resolve lightweight metadata (title, modification time, existence) for a
-/// batch of vault-relative note paths. Read-only; unknown or unreadable paths
-/// are reported as non-existent rather than failing the whole batch.
 #[tauri::command]
 pub fn indexer_batch_note_meta(
     state: tauri::State<AppState>,
@@ -322,12 +317,6 @@ pub fn indexer_batch_note_meta(
     Ok(hits)
 }
 
-// ── W4: Task commands ─────────────────────────────────────────────────────────
-
-/// Query tasks from the vault's SQLite cache with optional filter parameters.
-///
-/// All filter fields are optional; pass `null` to omit.  `limit` caps the
-/// number of rows returned (default 200).
 #[tauri::command]
 pub fn indexer_query_tasks(
     state: tauri::State<AppState>,
@@ -354,12 +343,6 @@ pub fn indexer_query_tasks(
     .map_err(|e| e.to_string())
 }
 
-/// Patch the `status` and/or `due_at` of a task identified by its stable ID.
-///
-/// After the index update, the source note is NOT rewritten here — that is
-/// handled by a follow-up `indexer_sync_note_tasks` call triggered by the
-/// frontend (or a direct vault-save).  This keeps the Tauri command boundary
-/// thin and avoids race conditions with the editor.
 #[tauri::command]
 pub fn indexer_update_task(
     state: tauri::State<AppState>,
@@ -379,8 +362,6 @@ pub fn indexer_update_task(
         .source_note_path
         .clone()
         .or_else(|| {
-            // Rows written before `source_note_path` was mirrored still carry a
-            // canonical note id, whose prefix is exactly the vault id.
             let id = task.source_note_id.as_deref()?;
             id.strip_prefix(&format!("{}:", task.vault_id))
                 .map(str::to_owned)
@@ -416,8 +397,6 @@ pub fn indexer_update_task(
     Ok(())
 }
 
-/// Re-sync tasks for a single note path. Call this after any note save that
-/// may have changed task checkboxes.
 #[tauri::command]
 pub fn indexer_sync_note_tasks(
     state: tauri::State<AppState>,
@@ -437,10 +416,6 @@ pub fn indexer_sync_note_tasks(
     .map_err(|e| e.to_string())
 }
 
-/// Parse and return the kanban board for a vault-relative note path.
-///
-/// Returns `null` when the file does not carry the `kanban-plugin:` frontmatter
-/// key, so the frontend can gracefully fall back.
 #[tauri::command]
 pub fn indexer_kanban_board(
     state: tauri::State<AppState>,
@@ -457,11 +432,6 @@ pub fn indexer_kanban_board(
     Ok(board)
 }
 
-/// Move a kanban card to a different column by relocating the full card line.
-///
-/// `line` is the 0-based line index in the source file (as returned by
-/// `indexer_kanban_board`). `to_column` selects the destination `## Heading`,
-/// and `new_status` is the checkbox fill that should be written there.
 #[tauri::command]
 pub fn indexer_kanban_move_card(
     state: tauri::State<AppState>,
@@ -503,7 +473,6 @@ pub fn indexer_kanban_move_card(
     )
     .map_err(|e| e.to_string())?;
     incremental_note_index(&session, &note_path, &[]).map_err(|e| e.to_string())?;
-
     Ok(())
 }
 

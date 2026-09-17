@@ -192,7 +192,19 @@ test('extended task preprocessing does not close a fence with trailing content',
   const source = ['```text', '```example', '- [/] stays code', '```', '- [/] becomes task'].join('\n')
   const processed = preprocessExtendedTaskStates(source)
   assert.match(processed, /```example\n- \[\/] stays code\n```/)
-  assert.match(processed, /- \[ \] _In progress_ — becomes task/)
+  assert.match(processed, /data-scriptor-generated-task-state="in-progress"/)
+  assert.match(processed, /_In progress_ — becomes task/)
+})
+
+test('pipeline annotates only generated extended task states and consumes provenance markers', () => {
+  const html = renderMarkdownPipeline('- [/] in-progress task\n- [-] cancelled task\n- [>] forwarded task')
+  assert.match(html, /data-task-state="in-progress"/)
+  assert.match(html, /data-task-state="cancelled"/)
+  assert.match(html, /data-task-state="forwarded"/)
+  assert.doesNotMatch(html, /scriptor-generated-task-state/)
+
+  const ordinary = renderMarkdownPipeline('- [ ] _In progress_ — ordinary prose')
+  assert.doesNotMatch(ordinary, /data-task-state="in-progress"/)
 })
 
 test('pipeline preserves wikilink hrefs', () => {

@@ -6,7 +6,7 @@ export type DeleteNoteOutcome =
 
 export interface DeleteNoteDependencies {
   deleteNote: (path: string) => Promise<{ path: string; deleted: boolean }>
-  closeTab: (path: string) => void
+  closeTab: (path: string, force?: boolean) => Promise<boolean>
   rebuildIndex: () => Promise<unknown>
   refreshVault: () => Promise<unknown>
 }
@@ -15,6 +15,7 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** Creates a serialized delete workflow that reports each failed lifecycle stage. */
 export function createDeleteNoteController(dependencies: DeleteNoteDependencies) {
   const inFlight = new Set<string>()
 
@@ -41,7 +42,12 @@ export function createDeleteNoteController(dependencies: DeleteNoteDependencies)
 
         const failures: Array<{ stage: Exclude<DeleteNoteStage, 'busy' | 'delete'>; reason: string }> = []
         try {
-          dependencies.closeTab(path)
+          // The file is already durably deleted. Closing must therefore discard any
+          // stale in-memory draft instead of trying to save it back into existence.
+          const closed = await dependencies.closeTab(path, true)
+          if (!closed) {
+            failures.push({ stage: 'close', reason: 'Deleted note tab could not be closed.' })
+          }
         } catch (error) {
           failures.push({ stage: 'close', reason: message(error) })
         }

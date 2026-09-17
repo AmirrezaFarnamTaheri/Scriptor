@@ -25,6 +25,13 @@ export interface CanvasBoardSummary {
   path: string
 }
 
+interface CanvasSavePayload {
+  sequence: number
+  document: CanvasDocument
+  vaultId: string | null
+}
+
+/** Manages canvas loading, history, CRDT state, and serialized durable saves. */
 export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtEnabled = false) {
   const crdtRef = useRef<CanvasCrdtSync | null>(null)
   const [document, setDocument] = useState<CanvasDocument>(() =>
@@ -36,6 +43,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const saveTimer = useRef<number | null>(null)
+  const pendingSavePayloadRef = useRef<CanvasSavePayload | null>(null)
   const historyRef = useRef<{ past: CanvasDocument[]; future: CanvasDocument[] }>({ past: [], future: [] })
   const lastCommittedSerializedRef = useRef('')
   const persistRef = useRef<(next: CanvasDocument) => void>(() => {})
@@ -43,6 +51,9 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const lifecycleGuardRef = useRef(new OperationGuard())
   const loadGuardRef = useRef(new OperationGuard())
   const saveGuardRef = useRef(new OperationGuard())
+  const saveTailRef = useRef<Promise<boolean>>(Promise.resolve(true))
+  const latestSaveSequenceRef = useRef(0)
+  const mountedRef = useRef(true)
 
   useEffect(() => {
     documentRef.current = document
@@ -57,14 +68,6 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       saveTimer.current = null
     }
   }, [vaultId, vaultOpen])
-
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) {
-        window.clearTimeout(saveTimer.current)
-      }
-    }
-  }, [])
 
   const syncHistoryFlags = useCallback(() => {
     const history = historyRef.current
@@ -112,6 +115,61 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     return summaries
   }, [vaultOpen])
 
+  const enqueueSave = useCallback(
+    (
+      payload: CanvasSavePayload,
+      isCurrent: () => boolean = () => true,
+      updateUi = true,
+    ): Promise<boolean> => {
+      const task = saveTailRef.current.then(async () => {
+        try {
+          const path = await canvasSaveDocument(JSON.stringify(payload.document), payload.vaultId)
+          if (updateUi && mountedRef.current && isCurrent()) {
+            setStatus(`Saved to ${path}`)
+            setActiveBoardId(payload.document.id)
+            await refreshBoardList(isCurrent)
+          }
+          return true
+        } catch (error) {
+          // Only the newest full-document payload is worth retrying. An older
+          // failed payload is superseded by a newer queued document snapshot.
+          if (payload.sequence === latestSaveSequenceRef.current) {
+            const pending = pendingSavePayloadRef.current
+            if (!pending || pending.sequence <= payload.sequence) {
+              pendingSavePayloadRef.current = payload
+            }
+          }
+          if (updateUi && mountedRef.current && isCurrent()) {
+            setStatus(error instanceof Error ? error.message : 'Save failed')
+          }
+          return false
+        }
+      })
+      saveTailRef.current = task
+      return task
+    },
+    [refreshBoardList],
+  )
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+      if (saveTimer.current) {
+        window.clearTimeout(saveTimer.current)
+        saveTimer.current = null
+      }
+      const pending = pendingSavePayloadRef.current
+      if (pending && isNativeBridgeAvailable()) {
+        pendingSavePayloadRef.current = null
+        // Keep teardown writes on the same serialization tail as ordinary
+        // persistence. React cannot await cleanup, but it must never start a
+        // newer write in parallel with an older queued write.
+        void enqueueSave(pending, () => false, false)
+      }
+    }
+  }, [enqueueSave])
+
   const loadBoard = useCallback(
     async (boardId: string) => {
       if (!isNativeBridgeAvailable() || !vaultOpen) return
@@ -119,9 +177,6 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
       const request = loadGuardRef.current.issue()
       const json = await canvasLoadDocument(boardId)
       if (!lifecycleGuardRef.current.isCurrent(lifecycle) || !loadGuardRef.current.isCurrent(request)) return
-      // A board file is user data on disk. A truncated write or an edit outside
-      // the app can leave JSON that parses but is not a canvas document, and the
-      // cast alone would let that reach the renderer and throw there.
       const parsed: unknown = JSON.parse(json)
       const candidate = parsed as Partial<CanvasDocument> | null
       if (
@@ -138,6 +193,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
 
       const loaded = candidate as CanvasDocument
       setDocument(loaded)
+      documentRef.current = loaded
       resetHistory(loaded)
       setActiveBoardId(boardId)
       setStatus(`Loaded ${loaded.title}.`)
@@ -158,6 +214,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         if (!isNativeBridgeAvailable()) {
           const preview = createEmptyDocument(vaultId, 'Research board')
           setDocument(preview)
+          documentRef.current = preview
           resetHistory(preview)
           setBoards([])
           setActiveBoardId(preview.id)
@@ -174,6 +231,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         } else {
           const created = createEmptyDocument(vaultId, 'Research board')
           setDocument(created)
+          documentRef.current = created
           resetHistory(created)
           setActiveBoardId(created.id)
           setStatus('New board ready.')
@@ -182,6 +240,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         if (isCurrent()) {
           const fallback = createEmptyDocument(vaultId, 'Research board')
           setDocument(fallback)
+          documentRef.current = fallback
           resetHistory(fallback)
           setActiveBoardId(fallback.id)
           setStatus(error instanceof Error ? error.message : 'Could not load board.')
@@ -203,37 +262,67 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         lifecycleGuardRef.current.isCurrent(lifecycle) &&
         saveGuardRef.current.isCurrent(save) &&
         documentRef.current.id === next.id
-      const saveDocument = async (payload: CanvasDocument) => {
-        try {
-          const path = await canvasSaveDocument(JSON.stringify(payload), vaultId)
-          if (!isCurrent()) return
-          setStatus(`Saved to ${path}`)
-          setActiveBoardId(next.id)
-          await refreshBoardList(isCurrent)
-        } catch (error) {
-          if (isCurrent()) setStatus(error instanceof Error ? error.message : 'Save failed')
+      const queuePayload = (documentToSave: CanvasDocument) => {
+        const payload: CanvasSavePayload = {
+          sequence: ++latestSaveSequenceRef.current,
+          document: documentToSave,
+          vaultId,
         }
+        pendingSavePayloadRef.current = payload
+        if (saveTimer.current) window.clearTimeout(saveTimer.current)
+        saveTimer.current = window.setTimeout(() => {
+          saveTimer.current = null
+          if (pendingSavePayloadRef.current?.sequence === payload.sequence) {
+            pendingSavePayloadRef.current = null
+          }
+          void enqueueSave(payload, isCurrent)
+        }, 400)
       }
+
       const crdt = crdtRef.current
       if (crdt) {
         crdt.markLocalEdit()
         const payload = crdt.snapshot(next)
         crdt.flush()
-        if (saveTimer.current) window.clearTimeout(saveTimer.current)
-        saveTimer.current = window.setTimeout(() => {
-          saveTimer.current = null
-          void saveDocument(payload)
-        }, 400)
+        queuePayload(payload)
         return
       }
-      if (saveTimer.current) window.clearTimeout(saveTimer.current)
-      saveTimer.current = window.setTimeout(() => {
-        saveTimer.current = null
-        void saveDocument(next)
-      }, 400)
+      queuePayload(next)
     },
-    [refreshBoardList, vaultId, vaultOpen],
+    [enqueueSave, vaultId, vaultOpen],
   )
+
+  const flushPendingSave = useCallback(async (): Promise<boolean> => {
+    if (saveTimer.current) {
+      window.clearTimeout(saveTimer.current)
+      saveTimer.current = null
+    }
+
+    const pending = pendingSavePayloadRef.current
+    if (pending && isNativeBridgeAvailable() && vaultOpen) {
+      pendingSavePayloadRef.current = null
+      const ok = await enqueueSave(pending, () => true)
+      if (!ok) return false
+    } else {
+      const inFlightOk = await saveTailRef.current
+      if (!inFlightOk) {
+        // A debounced payload may already have moved into the in-flight tail and
+        // failed while this flush was waiting. enqueueSave re-inserts the newest
+        // failed payload so the explicit flush gets one deterministic retry.
+        const retry = pendingSavePayloadRef.current
+        if (!retry || !isNativeBridgeAvailable() || !vaultOpen) return false
+        pendingSavePayloadRef.current = null
+        return enqueueSave(retry, () => true)
+      }
+    }
+
+    const retry = pendingSavePayloadRef.current
+    if (retry && isNativeBridgeAvailable() && vaultOpen) {
+      pendingSavePayloadRef.current = null
+      return enqueueSave(retry, () => true)
+    }
+    return saveTailRef.current
+  }, [enqueueSave, vaultOpen])
 
   useEffect(() => {
     persistRef.current = persist
@@ -259,20 +348,29 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   const switchBoard = useCallback(
     async (boardId: string) => {
       if (boardId === activeBoardId) return
+      if (!(await flushPendingSave())) {
+        setStatus('Could not switch boards because the current board has unsaved changes.')
+        return
+      }
       try {
         await loadBoard(boardId)
       } catch (error) {
         setStatus(error instanceof Error ? error.message : 'Could not switch board.')
       }
     },
-    [activeBoardId, loadBoard],
+    [activeBoardId, flushPendingSave, loadBoard],
   )
 
   const createBoard = useCallback(
     async (title = 'Untitled board') => {
       if (!vaultId) return
+      if (!(await flushPendingSave())) {
+        setStatus('Could not create a board because the current board has unsaved changes.')
+        return
+      }
       const created = createEmptyDocument(vaultId, title)
       setDocument(created)
+      documentRef.current = created
       resetHistory(created)
       setActiveBoardId(created.id)
       if (isNativeBridgeAvailable() && vaultOpen) {
@@ -297,7 +395,7 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
         setStatus(`Created ${title} (preview).`)
       }
     },
-    [refreshBoardList, resetHistory, vaultId, vaultOpen],
+    [flushPendingSave, refreshBoardList, resetHistory, vaultId, vaultOpen],
   )
 
   const applyTemplate = useCallback(
@@ -409,5 +507,6 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
     redo,
     canUndo,
     canRedo,
+    flushPendingSave,
   }
 }

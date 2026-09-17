@@ -86,8 +86,10 @@
 
 .status-strip.is-dock-collapsed .job-progress {
   display: flex;
+  align-items: center;
   min-width: 0;
-  min-height: 32px;
+  min-height: 24px;
+  max-height: 28px;
   width: auto;
   border: 0;
   background: transparent;
@@ -176,9 +178,14 @@
 }
 
 .bottom-tabs button {
-  flex: 1 0 max-content;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 36px;
-  padding: 0 14px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
   background: transparent;
   color: var(--muted);
   border-right: 1px solid var(--border);
@@ -229,6 +236,17 @@
   background: var(--panel);
   max-height: 220px;
   overflow: auto;
+}
+
+.dock-panel:has(.empty-state) {
+  max-height: 80px;
+}
+
+.dock-panel .empty-state {
+  padding: 14px 16px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .diagnostics-dock-panel .diagnostics-panel {

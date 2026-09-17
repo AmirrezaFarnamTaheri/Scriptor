@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import {
+  indexerRebuild,
   vaultCreateBackup,
   vaultDeleteBackup,
   vaultListBackups,
@@ -24,6 +25,26 @@ const DEFAULT_SETTINGS: VaultBackupSettings = {
   intervalMinutes: 60,
   maxSnapshots: 10,
   backupPath: '',
+}
+
+interface VaultLifecycleEventDetail {
+  backupName: string
+  indexReady?: boolean
+  waitUntil: (promise: Promise<unknown>) => void
+}
+
+/** Dispatches a restore lifecycle event and waits for registered consumers. */
+async function dispatchVaultLifecycleEvent(
+  name: string,
+  detail: Omit<VaultLifecycleEventDetail, 'waitUntil'>,
+): Promise<void> {
+  const waits: Promise<unknown>[] = []
+  const eventDetail: VaultLifecycleEventDetail = {
+    ...detail,
+    waitUntil: (promise) => waits.push(Promise.resolve(promise)),
+  }
+  window.dispatchEvent(new CustomEvent<VaultLifecycleEventDetail>(name, { detail: eventDetail }))
+  if (waits.length > 0) await Promise.all(waits)
 }
 
 function validateSettings(value: unknown): VaultBackupSettings {
@@ -55,6 +76,7 @@ function saveSettings(settings: VaultBackupSettings): void {
   writeVersionedStorage(STORAGE_KEY, 1, settings)
 }
 
+/** Manages scheduled backups, retention, restore lifecycle events, and status. */
 export function useVaultBackup(vaultOpen: boolean) {
   const [settings, setSettingsState] = useState<VaultBackupSettings>(loadSettings)
   const [backups, setBackups] = useState<VaultBackupEntry[]>([])
@@ -104,7 +126,6 @@ export function useVaultBackup(vaultOpen: boolean) {
           await vaultDeleteBackup(old.name, settings.backupPath || undefined)
           deleted.add(old.name)
         } catch {
-          // Best-effort cleanup; keep the entry visible and report below.
           failedDeletes.push(old.name)
         }
       }
@@ -120,22 +141,61 @@ export function useVaultBackup(vaultOpen: boolean) {
   }, [vaultOpen, settings.backupPath, settings.maxSnapshots])
 
   const triggerBackupRef = useRef(triggerBackup)
-
   useEffect(() => {
     triggerBackupRef.current = triggerBackup
   }, [triggerBackup])
 
   const restoreBackup = useCallback(
-    async (backupName: string) => {
+    async (backupName: string, onRestored?: () => void) => {
       if (!vaultOpen) return
       setIsBusy(true)
       setLastError(null)
       setLastMessage(null)
+      let restoreApplied = false
       try {
+        // Flush acknowledged edits, then freeze editor persistence before the
+        // native transaction starts replacing authoritative vault files.
+        await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
         const message = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
-        setLastMessage(message)
+        restoreApplied = true
+
+        // Reload authoritative editor/config/snippet state before allowing any
+        // persistence to resume. Derived index consumers intentionally wait.
+        await dispatchVaultLifecycleEvent('scriptor:vault-files-restored', { backupName })
+
+        let indexReady = true
+        try {
+          await indexerRebuild()
+          setLastMessage(message)
+        } catch (indexerErr) {
+          indexReady = false
+          console.warn('Post-restore indexer rebuild failed:', indexerErr)
+          setLastMessage(`${message} (Index rebuild failed; search may be outdated until next rebuild)`)
+        }
+
+        // Refresh summaries/health/graph-dependent state only after the rebuild
+        // attempt has reached a terminal result. Consumers can deliberately
+        // remain stale/empty when `indexReady` is false.
+        await dispatchVaultLifecycleEvent('scriptor:vault-restored', { backupName, indexReady })
+        onRestored?.()
       } catch (caught) {
-        setLastError(caught instanceof Error ? caught.message : 'Restore failed')
+        const message = caught instanceof Error ? caught.message : 'Restore failed'
+        if (!restoreApplied) {
+          // Native replacement never committed. Resume the original editor
+          // generation and re-arm any still-dirty in-memory draft.
+          try {
+            await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
+          } catch (resumeError) {
+            setLastError(`${message}; editor persistence could not resume: ${resumeError instanceof Error ? resumeError.message : String(resumeError)}`)
+            return
+          }
+          setLastError(message)
+        } else {
+          // The filesystem restore is already authoritative. Never label that
+          // durable operation as failed merely because UI/index resynchronizing
+          // encountered an error afterward.
+          setLastError(`Vault files were restored, but workspace resynchronization failed: ${message}`)
+        }
       } finally {
         setIsBusy(false)
       }
@@ -211,17 +271,6 @@ export function useVaultBackup(vaultOpen: boolean) {
       deleteBackup,
       listBackups,
     }),
-    [
-      settings,
-      setSettings,
-      backups,
-      isBusy,
-      lastError,
-      lastMessage,
-      triggerBackup,
-      restoreBackup,
-      deleteBackup,
-      listBackups,
-    ],
+    [settings, setSettings, backups, isBusy, lastError, lastMessage, triggerBackup, restoreBackup, deleteBackup, listBackups],
   )
 }

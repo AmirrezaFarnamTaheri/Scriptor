@@ -82,6 +82,7 @@ export type WorkspacePanelLaunchersProps = {
   promptText?: (request: TextPromptRequest) => Promise<string | null>
 }
 
+/** Composes launchable workspace panels and their close handlers. */
 function WorkspacePanelLaunchersImpl({
   workspace,
   plugins,
@@ -212,6 +213,7 @@ function WorkspacePanelLaunchersImpl({
               onClose={onCloseTasks}
               onOpenNote={(path) => void workspace.openNote(path)}
               runSourceNoteMutation={workspace.runNoteMutation}
+              calendarConfig={workspace.vaultConfig.calendar_sync}
             />
           </Suspense>
         </ErrorBoundary>

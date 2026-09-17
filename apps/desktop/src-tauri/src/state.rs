@@ -27,6 +27,7 @@ pub struct AppState {
     /// whenever a command targets a different canonical repo root, so a vault
     /// swap can never reuse the previous vault's queue.
     pub git_queue: Mutex<Option<Arc<GitQueue>>>,
+    pub daemon_vault_root: Mutex<Option<String>>,
     pub authorization: AuthorizationBroker,
     /// Best-effort cancellation flag for the LaTeX (Tectonic) compiler.
     pub latex_cancel: Arc<AtomicBool>,
@@ -48,6 +49,7 @@ impl AppState {
             vault_watcher_generation: Arc::new(AtomicU64::new(0)),
             headless_engine: Mutex::new(false),
             git_queue: Mutex::new(None),
+            daemon_vault_root: Mutex::new(None),
             authorization: AuthorizationBroker::default(),
             latex_cancel: Arc::new(AtomicBool::new(false)),
         }
@@ -84,6 +86,39 @@ pub fn git_queue_handle(state: &AppState, root: &Path) -> Result<Arc<GitQueue>, 
 /// targets the new repo root.
 pub fn reset_git_queue(state: &AppState) {
     *lock_recover(&state.git_queue, "git queue") = None;
+}
+
+pub fn reset_daemon_vault(state: &AppState) {
+    *lock_recover(&state.daemon_vault_root, "daemon vault root") = None;
+}
+
+pub fn set_daemon_vault(state: &AppState, path: String) {
+    *lock_recover(&state.daemon_vault_root, "daemon vault root") = Some(path);
+}
+
+pub fn verify_daemon_vault(state: &AppState) -> Result<(), String> {
+    let session = active_session_from_app_state(state)?;
+    let expected = session.root.root();
+    let canonical_expected =
+        std::fs::canonicalize(expected).unwrap_or_else(|_| expected.to_path_buf());
+    let guard = lock_recover(&state.daemon_vault_root, "daemon vault root");
+    let Some(current) = guard.as_deref() else {
+        return Err(
+            "Daemon has no active vault session. Open the vault via daemon_open_vault first."
+                .to_string(),
+        );
+    };
+    let current_path = std::path::Path::new(current);
+    let canonical_current =
+        std::fs::canonicalize(current_path).unwrap_or_else(|_| current_path.to_path_buf());
+    if canonical_current != canonical_expected {
+        return Err(format!(
+            "Daemon session mismatch: daemon is bound to '{}', but desktop active vault is '{}'",
+            current,
+            expected.display()
+        ));
+    }
+    Ok(())
 }
 
 pub struct ActiveSession<'a> {
@@ -152,7 +187,10 @@ mod tests {
     use std::sync::{Arc, Mutex, mpsc};
     use std::time::Duration;
 
-    use super::{AppState, active_session_from_app_state, lock_recover, write_recover};
+    use super::{
+        AppState, active_session_from_app_state, lock_recover, set_daemon_vault,
+        verify_daemon_vault, write_recover,
+    };
 
     #[test]
     fn poisoned_lock_recovers_once_and_remains_usable() {
@@ -190,5 +228,21 @@ mod tests {
             .recv_timeout(Duration::from_secs(1))
             .expect("vault swap proceeds after the command lease drops");
         swap.join().expect("vault swap thread");
+    }
+
+    #[test]
+    fn daemon_vault_identity_accepts_match_and_rejects_split_brain() {
+        let desktop = tempfile::tempdir().expect("desktop vault");
+        let daemon_other = tempfile::tempdir().expect("daemon vault");
+        let state = AppState::new();
+        *write_recover(&state.session, "session") =
+            Some(scriptor_vault::open_vault(desktop.path()).expect("open desktop vault"));
+
+        set_daemon_vault(&state, daemon_other.path().display().to_string());
+        let mismatch = verify_daemon_vault(&state).expect_err("different daemon root must fail");
+        assert!(mismatch.contains("Daemon session mismatch"));
+
+        set_daemon_vault(&state, desktop.path().display().to_string());
+        verify_daemon_vault(&state).expect("matching daemon root must be accepted");
     }
 }

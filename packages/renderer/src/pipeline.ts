@@ -15,6 +15,7 @@ import { promoteMermaidHtml } from './mermaid-html.ts'
 import { rehypeHeadingIds } from './rehype-heading-ids.ts'
 import { rehypeSafeStyle } from './rehype-safe-style.ts'
 import { rehypeSourceLines } from './rehype-source-lines.ts'
+import { rehypeTaskStates } from './rehype-task-states.ts'
 import { preprocessImports } from './remark-import.ts'
 import { remarkAlerts } from './remark-alerts.ts'
 import { remarkBreaks } from './remark-breaks.ts'
@@ -77,7 +78,6 @@ const sanitizeSchema = {
   ],
   attributes: {
     ...defaultSchema.attributes,
-    input: ['type', 'checked', 'disabled'],
     code: [...(defaultSchema.attributes?.code ?? []), 'className'],
     pre: [
       ...(defaultSchema.attributes?.pre ?? []),
@@ -141,7 +141,8 @@ const sanitizeSchema = {
     h5: [...(defaultSchema.attributes?.h5 ?? []), 'id'],
     h6: [...(defaultSchema.attributes?.h6 ?? []), 'id'],
     ul: [...(defaultSchema.attributes?.ul ?? []), 'className', ['className', 'markdown-toc-list']],
-    li: [...(defaultSchema.attributes?.li ?? []), 'id', 'className', ['className', 'markdown-toc-item']],
+    li: [...(defaultSchema.attributes?.li ?? []), 'id', 'className', ['className', 'markdown-toc-item'], 'dataTaskState'],
+    input: [...(defaultSchema.attributes?.input ?? []), 'type', 'checked', 'disabled', 'dataTaskState'],
     sup: [...(defaultSchema.attributes?.sup ?? []), 'id'],
     svg: [...(defaultSchema.attributes?.svg ?? []), 'xmlns', 'viewBox', 'width', 'height'],
     path: [...(defaultSchema.attributes?.path ?? []), 'd', 'fill', 'stroke'],
@@ -159,6 +160,7 @@ export interface PreviewPipelineOptions {
   basePath?: string
 }
 
+/** Builds the sanitized Markdown-to-HTML processor for the requested preview features. */
 function createProcessor(options: PreviewPipelineOptions = {}) {
   const chain = unified().use(remarkParse)
   if (options.enableBreaks) {
@@ -181,6 +183,7 @@ function createProcessor(options: PreviewPipelineOptions = {}) {
     .use(rehypeKatex)
     .use(rehypeHighlight, { detect: true, ignoreMissing: true })
     .use(rehypeHeadingIds)
+    .use(rehypeTaskStates)
     .use(rehypeSafeStyle as never)
     .use(rehypeSanitize, sanitizeSchema as typeof defaultSchema)
     .use(rehypeSourceLines)
@@ -209,8 +212,10 @@ function applyPreviewOptions(markdown: string, options: PreviewPipelineOptions):
  * GFM only recognizes open/done checkboxes, while Scriptor's task model also
  * supports in-progress (`[/]`), cancelled (`[-]`) and forwarded (`[>]`).
  * Convert those states to readable GFM task rows for preview/export without
- * mutating source Markdown. Fenced code is deliberately left byte-for-byte
- * unchanged so documentation examples do not become live task controls.
+ * mutating source Markdown. A private generated marker carries provenance into
+ * the HAST pass, where it is consumed before sanitization/stringification. This
+ * keeps ordinary prose such as `[ ] _In progress_ — ...` from being mistaken
+ * for structured task state. Fenced code is left byte-for-byte unchanged.
  */
 export function preprocessExtendedTaskStates(markdown: string): string {
   let fence: { marker: '`' | '~'; length: number } | null = null
@@ -231,9 +236,11 @@ export function preprocessExtendedTaskStates(markdown: string): string {
       const taskMatch = /^(\s*[-*+]\s+)\[([/\->])\](\s+)(.*)$/.exec(line)
       if (!taskMatch) return line
       const [, prefix, state, spacing, body] = taskMatch
-      if (state === '/') return `${prefix}[ ]${spacing}_In progress_ — ${body}`
-      if (state === '-') return `${prefix}[x]${spacing}_Cancelled_ — ~~${body}~~`
-      return `${prefix}[ ]${spacing}_Forwarded_ — ${body}`
+      const taskState = state === '/' ? 'in-progress' : state === '-' ? 'cancelled' : 'forwarded'
+      const marker = `<span data-scriptor-generated-task-state="${taskState}"></span>`
+      if (state === '/') return `${prefix}[ ]${spacing}${marker}_In progress_ — ${body}`
+      if (state === '-') return `${prefix}[x]${spacing}${marker}_Cancelled_ — ~~${body}~~`
+      return `${prefix}[ ]${spacing}${marker}_Forwarded_ — ${body}`
     })
     .join('\n')
 }

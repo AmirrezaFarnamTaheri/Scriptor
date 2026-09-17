@@ -102,6 +102,7 @@ export interface WorkspaceDialogLayersProps {
   promptText: (request: TextPromptRequest) => Promise<string | null>
 }
 
+/** Composes modal dialog layers driven by the workspace shell state. */
 function WorkspaceDialogLayersImpl({
   workspace,
   plugins,
@@ -307,6 +308,8 @@ function WorkspaceDialogLayersImpl({
               exportResult={workspace.exportResult}
               isExporting={workspace.isExporting}
               nativeReady={nativeReady}
+              vaultRoot={workspace.vault?.root_path ?? null}
+              latexConfig={workspace.vaultConfig.latex}
               onClose={onClosePublishCenter}
               onExport={onExportFromPublishCenter}
               onCancelExport={onCancelExportFromPublishCenter}

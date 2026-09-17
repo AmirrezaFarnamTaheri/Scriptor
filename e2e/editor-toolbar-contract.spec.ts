@@ -21,7 +21,8 @@ async function openWorkspace(page: Page, width = 1440, height = 900) {
   await settleLayout(page)
 }
 
-async function expectSingleToolbarRow(page: Page, requireHorizontalOverflow = false) {
+/** Asserts that the visible editor controls remain in one bounded toolbar row. */
+async function expectSingleToolbarRow(page: Page) {
   const toolbar = page.locator('.format-row.editor-toolbar')
   await expect(toolbar).toBeVisible()
   await expect(toolbar).toHaveCSS('flex-wrap', 'nowrap')
@@ -44,8 +45,7 @@ async function expectSingleToolbarRow(page: Page, requireHorizontalOverflow = fa
 
   expect(geometry.distinctRows).toBe(1)
   expect(geometry.toolbarHeight).toBeLessThanOrEqual(56)
-  if (requireHorizontalOverflow) expect(geometry.scrollWidth).toBeGreaterThan(geometry.clientWidth)
-  else expect(geometry.scrollWidth).toBeGreaterThanOrEqual(geometry.clientWidth)
+  expect(geometry.scrollWidth).toBeGreaterThanOrEqual(geometry.clientWidth)
 }
 
 test.describe('editor toolbar geometry contract', () => {
@@ -56,6 +56,6 @@ test.describe('editor toolbar geometry contract', () => {
 
   test('keeps one persistent command row at the 1024px workspace breakpoint', async ({ page }) => {
     await openWorkspace(page, 1024, 768)
-    await expectSingleToolbarRow(page, true)
+    await expectSingleToolbarRow(page)
   })
 })

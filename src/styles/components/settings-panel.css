@@ -33,6 +33,14 @@
   margin-top: 8px;
 }
 
+.settings-footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  width: 100%;
+}
+
 .settings-preview {
   margin: 0 0 10px;
   padding: 8px 10px;

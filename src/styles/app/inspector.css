@@ -30,15 +30,26 @@
 
 .inspector-tabs button {
   position: relative;
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   min-height: 34px;
-  padding: 0 10px;
+  padding: 0 6px;
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 560;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: background 150ms var(--ease-soft), color 150ms var(--ease-soft), box-shadow 150ms var(--ease-soft);
+}
+
+@media (min-width: 1280px) {
+  .inspector-tabs button {
+    padding: 0 10px;
+    font-size: 13px;
+  }
 }
 
 .inspector-tabs button.active {
@@ -488,5 +499,25 @@
 .permission-stack strong {
   color: var(--primary-strong);
   font-size: 12px;
+}
+
+.preview-subordinate-health {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.preview-subordinate-summary {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+  transition: color 150ms var(--ease-soft);
+}
+
+.preview-subordinate-summary:hover {
+  color: var(--ink);
 }
 

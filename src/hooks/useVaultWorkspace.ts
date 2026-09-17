@@ -43,6 +43,12 @@ import { buildVaultSections, buildVaultSectionsFromSummaries } from './vault/hel
 
 type WorkspaceStatus = 'idle' | 'opening' | 'indexing' | 'ready' | 'error'
 
+interface VaultLifecycleEventDetail {
+  backupName?: string
+  indexReady?: boolean
+  waitUntil?: (promise: Promise<unknown>) => void
+}
+
 export type { OutlineHeading } from './vault/helpers'
 
 const DEFAULT_VAULT_CONFIG: VaultConfig = {
@@ -67,6 +73,7 @@ const DEFAULT_VAULT_CONFIG: VaultConfig = {
   mcp: { mode: 'read-only', disabled: false },
 }
 
+/** Applies persisted vault settings over complete defaults for nested sections. */
 function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
   return {
     ...DEFAULT_VAULT_CONFIG,
@@ -90,8 +97,7 @@ function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
     },
     workflow: {
       auto_advance_inbox_after_organize:
-        loaded.workflow?.auto_advance_inbox_after_organize ??
-        DEFAULT_VAULT_CONFIG.workflow!.auto_advance_inbox_after_organize,
+        loaded.workflow?.auto_advance_inbox_after_organize ?? DEFAULT_VAULT_CONFIG.workflow!.auto_advance_inbox_after_organize,
     },
     note_types: {
       directory: loaded.note_types?.directory ?? DEFAULT_VAULT_CONFIG.note_types!.directory,
@@ -99,6 +105,14 @@ function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
   }
 }
 
+/** Registers asynchronous lifecycle work with a coordinated vault event. */
+function waitOnLifecycleEvent(event: Event, work: () => Promise<unknown> | unknown) {
+  const detail = (event as CustomEvent<VaultLifecycleEventDetail>).detail
+  const promise = Promise.resolve().then(work)
+  detail?.waitUntil?.(promise)
+}
+
+/** Composes vault persistence, indexing, search, Git, export, and editor state. */
 export function useVaultWorkspace(options?: {
   onSearchComplete?: (hits: SearchHit[]) => void
   onSearchTiming?: (ms: number) => void
@@ -211,13 +225,11 @@ export function useVaultWorkspace(options?: {
     }
     try {
       const snippets = await vaultLoadSnippets()
-      setSnippetCatalog(
-        snippets.map((snippet) => ({
-          name: snippet.name,
-          content: snippet.content,
-          description: snippet.description ?? undefined,
-        })),
-      )
+      setSnippetCatalog(snippets.map((snippet) => ({
+        name: snippet.name,
+        content: snippet.content,
+        description: snippet.description ?? undefined,
+      })))
     } catch {
       setSnippetCatalog([])
     }
@@ -258,23 +270,16 @@ export function useVaultWorkspace(options?: {
   })
 
   const refreshVaultCore = useCallback(async () => {
-    await Promise.all([
-      refreshVaultEntries(),
-      refreshHealth(),
-      refreshNoteSummaries()
-    ])
+    await Promise.all([refreshVaultEntries(), refreshHealth(), refreshNoteSummaries()])
   }, [refreshHealth, refreshVaultEntries, refreshNoteSummaries])
 
-  const editorRefs = useMemo(
-    () => ({
-      activePathRef,
-      activeNoteRef,
-      draftMarkdownRef,
-      isSavingRef,
-      checkExternalChangesRef,
-    }),
-    [],
-  )
+  const editorRefs = useMemo(() => ({
+    activePathRef,
+    activeNoteRef,
+    draftMarkdownRef,
+    isSavingRef,
+    checkExternalChangesRef,
+  }), [])
 
   const editor = useWorkspaceEditor({
     editorRefs,
@@ -335,6 +340,9 @@ export function useVaultWorkspace(options?: {
     keepEditingAfterExternalChange,
     resetNoteNavigation,
     restoreEditorSession,
+    prepareForVaultReplacement,
+    finishVaultReplacement,
+    abortVaultReplacement,
   } = editor
 
   const fixVaultLint = useCallback(async () => {
@@ -354,8 +362,8 @@ export function useVaultWorkspace(options?: {
         `${output.edits_applied} edit${output.edits_applied === 1 ? '' : 's'} applied`,
       )
       return output
-    } catch (error) {
-      logActivity('error', 'Vault lint fix failed', error instanceof Error ? error.message : String(error))
+    } catch (caught) {
+      logActivity('error', 'Vault lint fix failed', caught instanceof Error ? caught.message : String(caught))
       return null
     } finally {
       setIsFixingVaultLint(false)
@@ -372,14 +380,57 @@ export function useVaultWorkspace(options?: {
     await refreshGit()
   }, [rebuildIndex, refreshGit])
 
-  const rename = useWorkspaceRename({
-    activePath,
-    setError,
-    logActivity,
-    refreshVault,
-    openNote,
-    loadGraph,
-  })
+  useEffect(() => {
+    const handleRestoreStarting = (event: Event) => {
+      waitOnLifecycleEvent(event, prepareForVaultReplacement)
+    }
+    const handleRestoreAborted = (event: Event) => {
+      waitOnLifecycleEvent(event, abortVaultReplacement)
+    }
+    const handleFilesRestored = (event: Event) => {
+      waitOnLifecycleEvent(event, async () => {
+        await finishVaultReplacement()
+        await Promise.all([refreshVaultConfig(), refreshVaultSnippets()])
+      })
+    }
+    const handleVaultRestored = (event: Event) => {
+      const detail = (event as CustomEvent<VaultLifecycleEventDetail>).detail
+      waitOnLifecycleEvent(event, async () => {
+        if (detail?.indexReady !== false) {
+          await refreshVault()
+          const path = activePathRef.current
+          if (path) await loadBacklinks(path)
+          if (searchQuery.trim()) await runSearch(searchQuery)
+          return
+        }
+        // The filesystem is authoritative after restore, but the derived index
+        // is explicitly stale. Never repopulate index-backed UI from old data.
+        setNoteSummaries([])
+        setBacklinks([])
+        setHealthDiagnostics(null)
+        clearSearch()
+        await Promise.all([
+          refreshVaultEntries(),
+          refreshGit(),
+          refreshVaultConfig(),
+          refreshVaultSnippets(),
+        ])
+        setError('Vault restored, but the search index could not rebuild. Rebuild the index before relying on search, backlinks, graph, or health summaries.')
+      })
+    }
+    window.addEventListener('scriptor:vault-restore-starting', handleRestoreStarting)
+    window.addEventListener('scriptor:vault-restore-aborted', handleRestoreAborted)
+    window.addEventListener('scriptor:vault-files-restored', handleFilesRestored)
+    window.addEventListener('scriptor:vault-restored', handleVaultRestored)
+    return () => {
+      window.removeEventListener('scriptor:vault-restore-starting', handleRestoreStarting)
+      window.removeEventListener('scriptor:vault-restore-aborted', handleRestoreAborted)
+      window.removeEventListener('scriptor:vault-files-restored', handleFilesRestored)
+      window.removeEventListener('scriptor:vault-restored', handleVaultRestored)
+    }
+  }, [abortVaultReplacement, clearSearch, finishVaultReplacement, loadBacklinks, prepareForVaultReplacement, refreshGit, refreshVault, refreshVaultConfig, refreshVaultEntries, refreshVaultSnippets, runSearch, searchQuery, setBacklinks, setHealthDiagnostics])
+
+  const rename = useWorkspaceRename({ activePath, setError, logActivity, refreshVault, openNote, loadGraph })
 
   useWorkspaceFilesystemSync({
     vault,
@@ -408,10 +459,15 @@ export function useVaultWorkspace(options?: {
   const openVaultAt = useCallback(
     async (rootPath: string) => {
       const requestId = ++vaultOpenRequestIdRef.current
+      const saved = await resetNoteNavigation()
+      if (!saved || requestId !== vaultOpenRequestIdRef.current) {
+        setStatus(vault ? 'ready' : 'idle')
+        return
+      }
+
       setStatus('opening')
       setError(null)
       clearSearch()
-      resetNoteNavigation()
 
       try {
         const opened = await vaultOpen(rootPath)
@@ -424,9 +480,7 @@ export function useVaultWorkspace(options?: {
           .then((summaries) => {
             if (requestId !== vaultOpenRequestIdRef.current) return
             setNoteSummaries(summaries)
-            if (summaries.length > 0) {
-              setSections(buildVaultSectionsFromSummaries(summaries))
-            }
+            if (summaries.length > 0) setSections(buildVaultSectionsFromSummaries(summaries))
           })
           .catch(() => {})
 
@@ -458,34 +512,29 @@ export function useVaultWorkspace(options?: {
         } else {
           if (requestId !== vaultOpenRequestIdRef.current) return
           const firstNote = scanned.find((entry) => entry.kind === 'note')
-          if (firstNote) {
-            await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
-          }
+          if (firstNote) await openNote(firstNote.path, () => requestId === vaultOpenRequestIdRef.current)
         }
         if (requestId !== vaultOpenRequestIdRef.current) return
         void Promise.all([
           refreshHealth(opened.vault),
-          refreshGit(opened.vault.id), // explicit target: may run before setVault commits
+          refreshGit(opened.vault.id),
           refreshVaultConfig(opened.vault),
           refreshVaultSnippets(opened.vault),
-          refreshNoteSummaries(opened.vault)
+          refreshNoteSummaries(opened.vault),
         ]).catch((err) => {
-          if (requestId !== vaultOpenRequestIdRef.current) return
-          console.error('Failed to load background vault services:', err)
+          if (requestId === vaultOpenRequestIdRef.current) console.error('Failed to load background vault services:', err)
         })
         try {
           const persisted = await vaultReadActivityLog(100)
           if (requestId !== vaultOpenRequestIdRef.current) return
           if (persisted.length > 0) {
-            setActivityLog(
-              persisted.map((row) => ({
-                id: row.id,
-                ts: row.ts,
-                kind: row.kind as ActivityEntry['kind'],
-                message: row.message,
-                detail: row.detail ?? undefined,
-              })),
-            )
+            setActivityLog(persisted.map((row) => ({
+              id: row.id,
+              ts: row.ts,
+              kind: row.kind as ActivityEntry['kind'],
+              message: row.message,
+              detail: row.detail ?? undefined,
+            })))
           }
         } catch {
           // activity log is optional until first write
@@ -500,23 +549,7 @@ export function useVaultWorkspace(options?: {
         logActivity('error', 'Failed to open vault', message)
       }
     },
-    [
-      clearSearch,
-      logActivity,
-      onSessionLayoutRestore,
-      onVaultChanged,
-      openNote,
-      refreshGit,
-      refreshHealth,
-      refreshNoteSummaries,
-      refreshVaultConfig,
-      refreshVaultSnippets,
-      resetNoteNavigation,
-      restoreEditorSession,
-      setHealth,
-      setHealthDiagnostics,
-      setRebuild,
-    ],
+    [clearSearch, logActivity, onSessionLayoutRestore, onVaultChanged, openNote, refreshGit, refreshHealth, refreshNoteSummaries, refreshVaultConfig, refreshVaultSnippets, resetNoteNavigation, restoreEditorSession, setHealth, setHealthDiagnostics, setRebuild, vault],
   )
 
   const { inboxNotes, noteTypes, templatePaths } = useWorkspaceKnowledge(noteSummaries, entries, vaultConfig)
@@ -539,47 +572,40 @@ export function useVaultWorkspace(options?: {
 
   const chooseVaultFolder = useCallback(async () => {
     const folder = await pickVaultFolder()
-    if (!folder) return
-    await openVaultAt(folder)
+    if (folder) await openVaultAt(folder)
   }, [openVaultAt])
 
-  const openWikilinkTarget = useCallback(
-    async (target: string) => {
-      const normalized = target.trim()
-      try {
-        const resolution = await indexerResolveWikilink(normalized)
-        if (resolution.kind === 'resolved' && resolution.path) {
-          await openNote(resolution.path)
-          return
-        }
-        if (resolution.kind === 'ambiguous') {
-          setError(`Ambiguous wikilink "${normalized}" (${resolution.candidates.length} matches)`)
-          logActivity('error', 'Ambiguous wikilink', normalized)
-          return
-        }
-      } catch {
-        // Fall through to client-side scan when native bridge is unavailable.
-      }
-
-      const match = entries.find(
-        (entry) =>
-          entry.kind === 'note' &&
-          (entry.path === normalized ||
-            entry.path === `${normalized}.md` ||
-            entry.path.endsWith(`/${normalized}.md`) ||
-            entry.path.split('/').at(-1)?.replace(/\.md$/i, '') === normalized),
-      )
-
-      if (!match) {
-        setError(`Could not resolve wikilink: ${normalized}`)
-        logActivity('error', 'Unresolved wikilink', normalized)
+  const openWikilinkTarget = useCallback(async (target: string) => {
+    const normalized = target.trim()
+    try {
+      const resolution = await indexerResolveWikilink(normalized)
+      if (resolution.kind === 'resolved' && resolution.path) {
+        await openNote(resolution.path)
         return
       }
+      if (resolution.kind === 'ambiguous') {
+        setError(`Ambiguous wikilink "${normalized}" (${resolution.candidates.length} matches)`)
+        logActivity('error', 'Ambiguous wikilink', normalized)
+        return
+      }
+    } catch {
+      // Fall through to client-side scan when native bridge is unavailable.
+    }
 
-      await openNote(match.path)
-    },
-    [entries, logActivity, openNote],
-  )
+    const match = entries.find((entry) => entry.kind === 'note' && (
+      entry.path === normalized ||
+      entry.path === `${normalized}.md` ||
+      entry.path.endsWith(`/${normalized}.md`) ||
+      entry.path.split('/').at(-1)?.replace(/\.md$/i, '') === normalized
+    ))
+
+    if (!match) {
+      setError(`Could not resolve wikilink: ${normalized}`)
+      logActivity('error', 'Unresolved wikilink', normalized)
+      return
+    }
+    await openNote(match.path)
+  }, [entries, logActivity, openNote])
 
   const commitActiveNote = useCallback(async () => {
     if (!activePath) {
@@ -596,10 +622,7 @@ export function useVaultWorkspace(options?: {
   }, [noteCount, rebuild])
 
   const visibleSections = useMemo(() => {
-    if (!searchQuery.trim() || searchResults.length === 0) {
-      return sections
-    }
-
+    if (!searchQuery.trim() || searchResults.length === 0) return sections
     const paths = new Set(searchResults.map((hit) => hit.path))
     return sections
       .map((section) => ({
@@ -617,7 +640,14 @@ export function useVaultWorkspace(options?: {
     return vaultIssues + gitConflicts + externalChanges
   }, [externalChangeConflict, gitStatusState, healthDiagnostics])
 
-  const { resetNoteNavigation: _resetNoteNavigation, syncActiveNoteContent: _sync, ...editorSurface } = editor
+  const {
+    resetNoteNavigation: _resetNoteNavigation,
+    syncActiveNoteContent: _sync,
+    prepareForVaultReplacement: _prepareForVaultReplacement,
+    finishVaultReplacement: _finishVaultReplacement,
+    abortVaultReplacement: _abortVaultReplacement,
+    ...editorSurface
+  } = editor
 
   return {
     status,

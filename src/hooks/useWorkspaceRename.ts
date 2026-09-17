@@ -19,7 +19,7 @@ interface UseWorkspaceRenameOptions {
   setError: React.Dispatch<React.SetStateAction<string | null>>
   logActivity: (kind: ActivityEntry['kind'], message: string, detail?: string) => void
   refreshVault: () => Promise<void>
-  openNote: (path: string) => Promise<void>
+  openNote: (path: string, isCurrent?: () => boolean) => Promise<unknown>
   loadGraph: (focusPath?: string | null) => Promise<void>
 }
 

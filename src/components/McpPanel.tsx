@@ -9,6 +9,7 @@ import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useI18n } from '../lib/i18n'
 import { ResourceSyncPanel } from './ResourceSyncPanel'
+import '../styles/components/mcp-panel.css'
 
 const MODES: McpMode[] = ['off', 'read-only', 'draft', 'write-approved']
 
@@ -163,7 +164,12 @@ export function McpPanel({
                     {entry === 'off' ? <LockKeyhole size={15} /> : entry === 'write-approved' ? <AlertTriangle size={15} /> : <ShieldCheck size={15} />}
                   </span>
                   <span className="mcp-mode-option-copy">
-                    <strong>{t(meta.labelKey)}</strong>
+                    <span className="mcp-mode-option-header">
+                      <strong>{t(meta.labelKey)}</strong>
+                      <span className="mcp-mode-indicator" aria-hidden="true">
+                        <span className="mcp-mode-indicator-dot" />
+                      </span>
+                    </span>
                     <small>{t(meta.descriptionKey)}</small>
                   </span>
                 </button>

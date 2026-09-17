@@ -10,6 +10,7 @@ import { PublishDiffView } from './PublishDiffView'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { supportsPrintPagePreview } from '@scriptor/export'
 import type { ExportJobOutput, ExportJobRecord, PublishPlan } from '../types/vault'
+import { useLatexCompiler, type LatexCompilerConfig } from '../hooks/useLatexCompiler'
 
 interface PublishCenterProps {
   activePath: string | null
@@ -30,6 +31,8 @@ interface PublishCenterProps {
   publishPlan?: PublishPlan | null
   applyingPlan?: boolean
   publishRequireOptIn?: boolean
+  vaultRoot?: string | null
+  latexConfig?: LatexCompilerConfig | null
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
   onCancelExport: () => void
@@ -47,6 +50,7 @@ function formatStatus(entry: ExportJobRecord): string {
   return entry.status
 }
 
+/** Renders note export, LaTeX compilation, and static-site publishing workflows. */
 export const PublishCenter = memo(function PublishCenter({
   activePath,
   draftMarkdown,
@@ -59,6 +63,8 @@ export const PublishCenter = memo(function PublishCenter({
   publishPlan = null,
   applyingPlan = false,
   publishRequireOptIn = true,
+  vaultRoot = null,
+  latexConfig = null,
   onClose,
   onExport,
   onCancelExport,
@@ -66,6 +72,8 @@ export const PublishCenter = memo(function PublishCenter({
   onReplanStarlight,
   onApplyPlan,
 }: PublishCenterProps) {
+  const latex = useLatexCompiler({ config: latexConfig ?? undefined, vaultRoot: vaultRoot ?? null })
+  const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})
 
@@ -101,6 +109,18 @@ export const PublishCenter = memo(function PublishCenter({
             Cancel export
           </button>
         ) : null
+      }
+      footer={
+        <div className="publish-center-footer">
+          <span className="publish-footer-status">
+            {activePath ? `Active: ${activePath}` : 'No active note open'}
+          </span>
+          {isExporting ? (
+            <button type="button" className="toolbar-button" onClick={onCancelExport}>
+              Cancel export
+            </button>
+          ) : null}
+        </div>
       }
     >
       <div className="publish-center-grid">
@@ -149,6 +169,72 @@ export const PublishCenter = memo(function PublishCenter({
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="publish-center-section" aria-labelledby="latex-compile-heading">
+          <h3 id="latex-compile-heading">
+            <FileOutput size={16} aria-hidden="true" />
+            Compile with LaTeX (Tectonic)
+          </h3>
+          <p className="health-subtitle">
+            Compile the active TeX file using the self-contained Tectonic TeX engine.
+          </p>
+          <div className="publish-profile-actions">
+            <button
+              type="button"
+              className="toolbar-button"
+              onClick={() => void latex.discoverTectonic()}
+              title="Check if Tectonic binary is detected"
+            >
+              {latex.tectonicAvailable === true
+                ? 'Tectonic detected'
+                : latex.tectonicAvailable === false
+                ? 'Tectonic not found'
+                : 'Detect Tectonic'}
+            </button>
+            <button
+              type="button"
+              className="primary-button publish-export-action"
+              disabled={!activePath || !isTexDocument || latex.activeJob?.status === 'compiling' || !nativeReady}
+              title={
+                !activePath
+                  ? 'No active document selected'
+                  : !isTexDocument
+                  ? 'LaTeX compilation requires an active .tex or .ltx file'
+                  : undefined
+              }
+              onClick={() => {
+                if (activePath && isTexDocument) {
+                  void latex.compile({ inputPath: activePath })
+                }
+              }}
+            >
+              {latex.activeJob?.status === 'compiling' ? <Loader2 className="spin" size={14} aria-hidden="true" /> : null}
+              {latex.activeJob?.status === 'compiling' ? 'Compiling…' : 'Compile LaTeX'}
+            </button>
+            {latex.activeJob?.status === 'compiling' ? (
+              <button type="button" className="toolbar-button" onClick={latex.cancelJob}>
+                Cancel
+              </button>
+            ) : null}
+          </div>
+          {activePath && !isTexDocument ? (
+            <p className="health-subtitle" style={{ color: 'var(--color-text-muted)' }}>
+              Note: The active file is not a LaTeX document (.tex / .ltx). Select a .tex file to compile.
+            </p>
+          ) : null}
+          {latex.activeJob ? (
+            <div className="latex-compile-status">
+              <span className={`publish-status publish-status-${latex.activeJob.status}`}>
+                {latex.activeJob.status.toUpperCase()}
+              </span>
+              {latex.activeJob.outputPath ? (
+                <code className="publish-artifact">{latex.activeJob.outputPath}</code>
+              ) : latex.activeJob.stderr ? (
+                <small className="publish-error">{latex.activeJob.stderr}</small>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         {exportResult?.dry_run && preflightProfileLabel ? (
