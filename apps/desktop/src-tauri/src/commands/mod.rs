@@ -1,4 +1,6 @@
 pub mod backup;
+#[cfg(test)]
+mod backup_recovery_tests;
 pub mod canvas;
 pub mod code_chunk;
 pub mod daemon;
