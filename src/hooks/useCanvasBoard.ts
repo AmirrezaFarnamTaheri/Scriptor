@@ -31,6 +31,7 @@ interface CanvasSavePayload {
   vaultId: string | null
 }
 
+/** Manages canvas loading, history, CRDT state, and serialized durable saves. */
 export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtEnabled = false) {
   const crdtRef = useRef<CanvasCrdtSync | null>(null)
   const [document, setDocument] = useState<CanvasDocument>(() =>

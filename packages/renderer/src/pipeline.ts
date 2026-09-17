@@ -160,6 +160,7 @@ export interface PreviewPipelineOptions {
   basePath?: string
 }
 
+/** Builds the sanitized Markdown-to-HTML processor for the requested preview features. */
 function createProcessor(options: PreviewPipelineOptions = {}) {
   const chain = unified().use(remarkParse)
   if (options.enableBreaks) {

@@ -11,6 +11,7 @@ const source = ts.transpileModule(
   },
 ).outputText
 
+/** Builds an isolated editor-hook harness with controllable disk and timer state. */
 function harness() {
   const slots = []
   let cursor = 0

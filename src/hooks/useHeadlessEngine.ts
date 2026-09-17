@@ -15,6 +15,7 @@ interface UseHeadlessEngineOptions {
   settingsOpen: boolean
 }
 
+/** Coordinates the persisted headless-engine setting with the active daemon vault. */
 export function useHeadlessEngine({ vaultRootPath, settingsOpen }: UseHeadlessEngineOptions) {
   const [headlessEngine, setHeadlessEngine] = usePersistedBoolean('scriptor:headless-engine', false)
   const [daemonVersion, setDaemonVersion] = useState<string | null>(null)

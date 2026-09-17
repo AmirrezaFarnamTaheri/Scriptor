@@ -49,6 +49,7 @@ export interface EditorAdapterOptions {
 
 const NON_ASCII_WORD_PATTERN = /[\p{L}\p{N}]/u
 
+/** Returns whether a Unicode code point belongs to a CJK writing system. */
 function isCjkCode(code: number): boolean {
   return (
     (code >= 0x4e00 && code <= 0x9fff) || // CJK Unified Ideographs
@@ -64,6 +65,7 @@ function isCjkCode(code: number): boolean {
   )
 }
 
+/** Returns whether a code point and its source character can extend a word. */
 function isWordChar(code: number, char: string): boolean {
   if (
     (code >= 0x41 && code <= 0x5a) || // A-Z
@@ -78,6 +80,7 @@ function isWordChar(code: number, char: string): boolean {
   return NON_ASCII_WORD_PATTERN.test(char)
 }
 
+/** Finds the first content offset after a complete YAML frontmatter block. */
 function frontmatterEndOffset(markdown: string): number {
   const len = markdown.length
   const start = markdown.charCodeAt(0) === 0xfeff ? 1 : 0
@@ -109,6 +112,7 @@ function frontmatterEndOffset(markdown: string): number {
   return 0
 }
 
+/** Counts semantic prose words while ignoring Markdown structure and metadata. */
 export function countWords(markdown: string): number {
   // Single-pass semantic prose word counter: strips Markdown structural tokens
   // (frontmatter, headings, blockquotes, list markers, task checkboxes, hr,

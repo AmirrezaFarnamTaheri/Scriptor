@@ -93,6 +93,7 @@ export interface GoogleCalendarSyncResult {
 const DEFAULT_LOOKAHEAD_DAYS = 7
 const SOURCE_MARKER_PREFIX = 'Scriptor source:'
 
+/** Selects events whose start date matches the user's local date. */
 function eventsToday(events: CalendarEvent[]): CalendarEvent[] {
   const today = formatLocalDate()
   return events.filter((event) => event.start.startsWith(today))
@@ -106,10 +107,12 @@ function formatTime(iso: string): string {
   }
 }
 
+/** Builds the stable source marker used to deduplicate mirrored vault tasks. */
 function sourceMarker(path: string, line: number): string {
   return `${SOURCE_MARKER_PREFIX} ${path}#L${line + 1}`
 }
 
+/** Converts a task due value to the RFC 3339 form expected by Google Tasks. */
 function normalizeTaskDue(dueDate: string | null): string | undefined {
   if (!dueDate) return undefined
   if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
@@ -119,6 +122,7 @@ function normalizeTaskDue(dueDate: string | null): string | undefined {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
 }
 
+/** Coordinates Google authorization, refresh, task mutations, and vault-task mirroring. */
 export function useGoogleCalendarSync({
   config,
   vaultNotes = [],

@@ -15,6 +15,7 @@ function message(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+/** Creates a serialized delete workflow that reports each failed lifecycle stage. */
 export function createDeleteNoteController(dependencies: DeleteNoteDependencies) {
   const inFlight = new Set<string>()
 

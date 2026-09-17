@@ -51,6 +51,7 @@ interface TaskRowItemProps {
   onOpenNote: (path: string) => void
 }
 
+/** Renders one expandable vault task with status and due-date editing. */
 const TaskRowItem = memo(function TaskRowItem({
   task,
   expanded,
@@ -209,6 +210,7 @@ interface FilterBarProps {
   onSetSort: (k: TaskSortKey) => void
 }
 
+/** Renders task filtering and sorting controls. */
 const FilterBar = memo(function FilterBar({ filter, sortKey, onSetFilter, onClearFilter, onSetSort }: FilterBarProps) {
   const hasActiveFilter = !!(filter.status ?? filter.tag ?? filter.dueBefore)
   return (
@@ -239,6 +241,7 @@ const FilterBar = memo(function FilterBar({ filter, sortKey, onSetFilter, onClea
   )
 })
 
+/** Groups indexed task rows into the note-shaped payload used for Google Tasks sync. */
 function groupVaultTasks(rows: TaskRow[]): VaultTaskNote[] {
   const notes = new Map<string, VaultTaskNote>()
   for (const task of rows) {
@@ -264,6 +267,7 @@ export interface TaskPanelProps {
   calendarConfig?: CalendarSyncConfig
 }
 
+/** Renders indexed vault tasks together with optional Google Calendar and Tasks data. */
 export const TaskPanel = memo(function TaskPanel({
   embedded = false,
   vaultOpen,

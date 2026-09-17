@@ -82,6 +82,7 @@ export type WorkspacePanelLaunchersProps = {
   promptText?: (request: TextPromptRequest) => Promise<string | null>
 }
 
+/** Composes launchable workspace panels and their close handlers. */
 function WorkspacePanelLaunchersImpl({
   workspace,
   plugins,

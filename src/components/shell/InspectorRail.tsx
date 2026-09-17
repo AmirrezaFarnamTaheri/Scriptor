@@ -104,6 +104,7 @@ interface InspectorRailProps {
 
 const INSPECTOR_TABS: readonly string[] = ['inspector', 'preview', 'plugins']
 
+/** Renders the contextual inspector, preview, and plugin rail for the active note. */
 function InspectorRailImpl({
   railRef,
   activeMode,

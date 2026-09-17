@@ -50,6 +50,7 @@ function formatStatus(entry: ExportJobRecord): string {
   return entry.status
 }
 
+/** Renders note export, LaTeX compilation, and static-site publishing workflows. */
 export const PublishCenter = memo(function PublishCenter({
   activePath,
   draftMarkdown,

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 
 import { createDeleteNoteController } from './deleteNoteController.ts'
 
+/** Exercises delete serialization, forced tab closure, and staged failure reporting. */
 async function run() {
   const order: string[] = []
   let releaseDelete: (() => void) | undefined

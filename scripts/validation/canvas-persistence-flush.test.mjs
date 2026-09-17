@@ -15,15 +15,19 @@ class MockOperationGuard {
   constructor() {
     this.generation = 0
   }
+  /** Captures the current operation generation. */
   snapshot() {
     return this.generation
   }
+  /** Advances and returns the operation generation. */
   issue() {
     return ++this.generation
   }
+  /** Reports whether a captured generation is still current. */
   isCurrent(expected) {
     return this.generation === expected
   }
+  /** Invalidates every previously captured generation. */
   invalidate() {
     this.generation++
   }
@@ -36,21 +40,27 @@ class MockCanvasCrdtSync {
     this.flushed = false
     this.localEdited = false
   }
+  /** Releases the mock CRDT session. */
   dispose() {}
+  /** Registers a no-op remote-change listener and returns its cleanup. */
   subscribe() {
     return () => {}
   }
+  /** Records that the board received a local edit. */
   markLocalEdit() {
     this.localEdited = true
   }
+  /** Adds the synthetic CRDT payload used by the persistence assertions. */
   snapshot(doc) {
     return { ...doc, crdtSnapshot: true }
   }
+  /** Records that pending mock CRDT changes were flushed. */
   flush() {
     this.flushed = true
   }
 }
 
+/** Creates a manually controlled promise for serialized-save race tests. */
 function deferred() {
   let resolve
   let reject
@@ -61,11 +71,13 @@ function deferred() {
   return { promise, resolve, reject }
 }
 
+/** Lets queued promise continuations settle without advancing mock timers. */
 async function flushMicrotasks() {
   await Promise.resolve()
   await Promise.resolve()
 }
 
+/** Builds an isolated hook harness with controllable persistence and timers. */
 function harness(options = {}) {
   const slots = []
   let cursor = 0

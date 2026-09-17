@@ -21,6 +21,7 @@ async function openWorkspace(page: Page, width = 1440, height = 900) {
   await settleLayout(page)
 }
 
+/** Asserts that the visible editor controls remain in one bounded toolbar row. */
 async function expectSingleToolbarRow(page: Page) {
   const toolbar = page.locator('.format-row.editor-toolbar')
   await expect(toolbar).toBeVisible()

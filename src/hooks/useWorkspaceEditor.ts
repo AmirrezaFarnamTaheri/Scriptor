@@ -65,6 +65,7 @@ interface UseWorkspaceEditorOptions {
   exportProfilesRef: RefObject<ExportProfile[]>
 }
 
+/** Manages note tabs, navigation, drafts, conflict handling, and serialized saves. */
 export function useWorkspaceEditor({
   editorRefs,
   setError,

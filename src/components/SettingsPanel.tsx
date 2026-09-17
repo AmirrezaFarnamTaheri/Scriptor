@@ -121,6 +121,7 @@ const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
   { id: 'advanced', label: 'Advanced' },
 ]
 
+/** Renders the tabbed application and vault settings surface. */
 function SettingsPanelImpl({
   vaultOpen,
   vaultId,

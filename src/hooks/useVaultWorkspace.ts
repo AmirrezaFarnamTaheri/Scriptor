@@ -73,6 +73,7 @@ const DEFAULT_VAULT_CONFIG: VaultConfig = {
   mcp: { mode: 'read-only', disabled: false },
 }
 
+/** Applies persisted vault settings over complete defaults for nested sections. */
 function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
   return {
     ...DEFAULT_VAULT_CONFIG,
@@ -104,12 +105,14 @@ function mergeLoadedVaultConfig(loaded: VaultConfig): VaultConfig {
   }
 }
 
+/** Registers asynchronous lifecycle work with a coordinated vault event. */
 function waitOnLifecycleEvent(event: Event, work: () => Promise<unknown> | unknown) {
   const detail = (event as CustomEvent<VaultLifecycleEventDetail>).detail
   const promise = Promise.resolve().then(work)
   detail?.waitUntil?.(promise)
 }
 
+/** Composes vault persistence, indexing, search, Git, export, and editor state. */
 export function useVaultWorkspace(options?: {
   onSearchComplete?: (hits: SearchHit[]) => void
   onSearchTiming?: (ms: number) => void

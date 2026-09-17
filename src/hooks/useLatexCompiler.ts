@@ -67,10 +67,12 @@ function makeJobId(): string {
   return `latex-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 }
 
+/** Reports whether a native compiler error represents user cancellation. */
 function isCancellationError(message: string): boolean {
   return /\b(cancelled|canceled)\b/i.test(message)
 }
 
+/** Manages Tectonic discovery, compile jobs, cancellation, and job history. */
 export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): LatexCompilerResult {
   const [jobs, setJobs] = useState<LatexCompileJob[]>([])
   const [activeJob, setActiveJob] = useState<LatexCompileJob | null>(null)

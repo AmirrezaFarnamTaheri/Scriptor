@@ -22,6 +22,7 @@ interface CanvasPanelProps {
   onOpenNote?: (path: string) => void
 }
 
+/** Renders the interactive canvas workspace and flushes pending edits before close. */
 export function CanvasPanel({
   vaultId,
   vaultOpen,

@@ -33,6 +33,7 @@ interface VaultLifecycleEventDetail {
   waitUntil: (promise: Promise<unknown>) => void
 }
 
+/** Dispatches a restore lifecycle event and waits for registered consumers. */
 async function dispatchVaultLifecycleEvent(
   name: string,
   detail: Omit<VaultLifecycleEventDetail, 'waitUntil'>,
@@ -75,6 +76,7 @@ function saveSettings(settings: VaultBackupSettings): void {
   writeVersionedStorage(STORAGE_KEY, 1, settings)
 }
 
+/** Manages scheduled backups, retention, restore lifecycle events, and status. */
 export function useVaultBackup(vaultOpen: boolean) {
   const [settings, setSettingsState] = useState<VaultBackupSettings>(loadSettings)
   const [backups, setBackups] = useState<VaultBackupEntry[]>([])

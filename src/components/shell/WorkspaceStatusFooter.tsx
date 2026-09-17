@@ -74,6 +74,7 @@ interface WorkspaceStatusFooterProps {
   onHibernateSpellcheckChange: (enabled: boolean) => void
 }
 
+/** Renders workspace status controls and the active diagnostics dock content. */
 function WorkspaceStatusFooterImpl({
   statusDockTab,
   onStatusDockTabChange,

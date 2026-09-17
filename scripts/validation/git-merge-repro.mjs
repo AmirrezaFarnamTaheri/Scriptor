@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 
 console.log('--- Starting Git Merge Reproduction & Integrity Harness ---')
 
+/** Runs Git in a fixture repository and returns trimmed standard output. */
 function git(dir, args) {
   return execFileSync('git', args, {
     cwd: dir,
@@ -14,6 +15,7 @@ function git(dir, args) {
   }).trim()
 }
 
+/** Runs Git while preserving its failure details for negative assertions. */
 function tryGit(dir, args) {
   try {
     const stdout = execFileSync('git', args, {
@@ -32,6 +34,7 @@ function tryGit(dir, args) {
   }
 }
 
+/** Creates a temporary Git repository with deterministic test identity. */
 function initTestRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'scriptor-git-merge-test-'))
   git(dir, ['init', '-b', 'main'])
@@ -40,6 +43,7 @@ function initTestRepo() {
   return dir
 }
 
+/** Removes a temporary repository without masking the test result. */
 function cleanup(dir) {
   try {
     fs.rmSync(dir, { recursive: true, force: true })

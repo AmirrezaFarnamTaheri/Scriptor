@@ -5,6 +5,7 @@ type ExtendedTaskState = 'in-progress' | 'cancelled' | 'forwarded'
 
 const VALID_STATES = new Set<ExtendedTaskState>(['in-progress', 'cancelled', 'forwarded'])
 
+/** Removes and returns the first valid generated task-state marker below an element. */
 function consumeGeneratedStateMarker(element: Element): ExtendedTaskState | null {
   for (let index = 0; index < element.children.length; index++) {
     const child = element.children[index]
