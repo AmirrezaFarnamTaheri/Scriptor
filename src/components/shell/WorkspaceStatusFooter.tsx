@@ -163,14 +163,10 @@ function WorkspaceStatusFooterImpl({
           }}
           aria-pressed={statusDockTab === summaryTab}
           aria-expanded={statusDockTab === summaryTab && dockExpanded && !chromeCollapsed}
-          aria-label={
-            totalProblemCount > 0
-              ? `${t('statusDock.problems')}: ${totalProblemCount}`
-              : t('statusDock.backgroundJobs')
-          }
+          aria-label={totalProblemCount > 0 && chromeCollapsed ? `${t('statusDock.problems')}: ${totalProblemCount}` : t('statusDock.backgroundJobs')}
         >
           {totalProblemCount > 0 ? <AlertTriangle size={14} /> : <PanelRight size={14} />}
-          {totalProblemCount > 0 ? (
+          {totalProblemCount > 0 && chromeCollapsed ? (
             <>{t('statusDock.problems')} <span>{totalProblemCount}</span></>
           ) : (
             t('statusDock.backgroundJobs')

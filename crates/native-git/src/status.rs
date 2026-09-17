@@ -216,7 +216,11 @@ fn read_merge_heads(repo_root: &Path) -> Result<Vec<String>, GitError> {
     let path_raw = run_git(repo_root, &["rev-parse", "--git-path", "MERGE_HEAD"])?;
     let path_str = git_metadata(path_raw)?;
     let p = PathBuf::from(path_str);
-    let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+    let abs = if p.is_absolute() {
+        p
+    } else {
+        repo_root.join(p)
+    };
     if !abs.exists() {
         return Ok(Vec::new());
     }
@@ -241,10 +245,17 @@ fn prepare_merge_state_cleanup(repo_root: &Path) -> Result<MergeStateBackup, Git
             && let Ok(path_str) = git_metadata(raw)
         {
             let p = PathBuf::from(path_str);
-            let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+            let abs = if p.is_absolute() {
+                p
+            } else {
+                repo_root.join(p)
+            };
             if abs.exists() {
-                let content = std::fs::read(&abs)
-                    .map_err(|err| GitError::Command(format!("failed to read merge state file {name} for backup: {err}")))?;
+                let content = std::fs::read(&abs).map_err(|err| {
+                    GitError::Command(format!(
+                        "failed to read merge state file {name} for backup: {err}"
+                    ))
+                })?;
                 backup.push((abs, content));
             }
         }
@@ -278,7 +289,11 @@ fn is_sequencer_in_progress(repo_root: &Path) -> Result<bool, GitError> {
             && let Ok(path_str) = git_metadata(raw)
         {
             let p = PathBuf::from(path_str);
-            let abs = if p.is_absolute() { p } else { repo_root.join(p) };
+            let abs = if p.is_absolute() {
+                p
+            } else {
+                repo_root.join(p)
+            };
             if abs.exists() {
                 return Ok(true);
             }
@@ -1260,8 +1275,8 @@ mod tests {
     }
 
     #[test]
-    fn selected_commit_during_merge_creates_multi_parent_commit_and_cleans_merge_head(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_during_merge_creates_multi_parent_commit_and_cleans_merge_head()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         Command::new("git")
             .args(["init", "-b", "main", dir.path().to_str().unwrap()])
@@ -1309,7 +1324,10 @@ mod tests {
             .output()?;
 
         let merge_heads_before = read_merge_heads(dir.path())?;
-        assert!(!merge_heads_before.is_empty(), "MERGE_HEAD must exist during merge");
+        assert!(
+            !merge_heads_before.is_empty(),
+            "MERGE_HEAD must exist during merge"
+        );
 
         let output = git_commit_selected(dir.path(), &["file.md".into()], "Merge resolution")?;
         assert_eq!(output.files_committed, vec!["file.md"]);
@@ -1317,18 +1335,25 @@ mod tests {
         // Verify commit has 2 parents
         let parents = run_git(dir.path(), &["log", "-1", "--format=%P"])?;
         let parent_hashes: Vec<&str> = parents.split_whitespace().collect();
-        assert_eq!(parent_hashes.len(), 2, "merge commit must have exactly two parents");
+        assert_eq!(
+            parent_hashes.len(),
+            2,
+            "merge commit must have exactly two parents"
+        );
 
         // Verify MERGE_HEAD was cleaned up
         let merge_heads_after = read_merge_heads(dir.path())?;
-        assert!(merge_heads_after.is_empty(), "MERGE_HEAD must be cleaned up after merge commit");
+        assert!(
+            merge_heads_after.is_empty(),
+            "MERGE_HEAD must be cleaned up after merge commit"
+        );
 
         Ok(())
     }
 
     #[test]
-    fn selected_commit_during_merge_rejects_unresolved_conflicts(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_during_merge_rejects_unresolved_conflicts()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         Command::new("git")
             .args(["init", "-b", "main", dir.path().to_str().unwrap()])
@@ -1370,13 +1395,16 @@ mod tests {
         let result = git_commit_selected(dir.path(), &["file.md".into()], "premature commit");
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("unresolved"), "error must indicate unresolved conflicts: {err_msg}");
+        assert!(
+            err_msg.contains("unresolved"),
+            "error must indicate unresolved conflicts: {err_msg}"
+        );
         Ok(())
     }
 
     #[test]
-    fn selected_commit_during_merge_rejects_partial_commit(
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn selected_commit_during_merge_rejects_partial_commit()
+    -> Result<(), Box<dyn std::error::Error>> {
         let dir = tempdir()?;
         Command::new("git")
             .args(["init", "-b", "main", dir.path().to_str().unwrap()])
@@ -1429,7 +1457,10 @@ mod tests {
         let result = git_commit_selected(dir.path(), &["file1.md".into()], "partial merge commit");
         assert!(result.is_err());
         let err_msg = result.unwrap_err().to_string();
-        assert!(err_msg.contains("partial commit during a merge"), "error must indicate partial commit forbidden: {err_msg}");
+        assert!(
+            err_msg.contains("partial commit during a merge"),
+            "error must indicate partial commit forbidden: {err_msg}"
+        );
         Ok(())
     }
 }

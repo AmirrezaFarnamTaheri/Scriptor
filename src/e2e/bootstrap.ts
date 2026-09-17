@@ -119,7 +119,6 @@ export function installE2eBridge(): void {
   let committed = false
   let conflictsResolved = false
   let hashMismatchTriggered = false
-  let hashMismatchResolved = false
   const enabledPluginIds = new Set([
     'scriptor.export',
     'scriptor.citations',
@@ -183,7 +182,7 @@ export function installE2eBridge(): void {
             markdown: conflictFixture,
           }
         }
-        if (hashMismatchTriggered && !hashMismatchResolved && readPath === 'Research Plan.md') {
+        if (hashMismatchTriggered && readPath === 'Research Plan.md') {
           const document = e2eNoteDocument(readPath)
           return {
             ...document,
@@ -209,17 +208,13 @@ export function installE2eBridge(): void {
         }
         if (
           window.sessionStorage.getItem('e2e:hash-mismatch') === '1' &&
-          !hashMismatchResolved
+          body.expectedContentHash &&
+          !hashMismatchTriggered
         ) {
-          if (body.expectedContentHash && body.expectedContentHash !== 'hash-external-change') {
-            hashMismatchTriggered = true
-            throw new Error(
-              `content hash mismatch: expected ${body.expectedContentHash}, found hash-external-change`,
-            )
-          }
-          if (!body.expectedContentHash) {
-            hashMismatchResolved = true
-          }
+          hashMismatchTriggered = true
+          throw new Error(
+            `content hash mismatch: expected ${body.expectedContentHash}, found hash-external-change`,
+          )
         }
         return e2eSaveNote(path, markdown)
       }

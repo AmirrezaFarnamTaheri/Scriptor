@@ -494,9 +494,12 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
         if !rollback.exists() {
             return Err("Restore was interrupted during promotion, but rollback snapshot is missing. Journal preserved for manual inspection.".to_string());
         }
-        eprintln!("[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot");
-        clear_persistent_vault_content(vault_root)
-            .map_err(|error| format!("Failed to clear partial vault during restore rollback: {error}"))?;
+        eprintln!(
+            "[vault-backup] Interrupted restore detected in promoting state; rolling back to pre-restore snapshot"
+        );
+        clear_persistent_vault_content(vault_root).map_err(|error| {
+            format!("Failed to clear partial vault during restore rollback: {error}")
+        })?;
         let mut ignored = Vec::new();
         copy_tree(&rollback, vault_root, Path::new(""), &mut ignored)
             .map_err(|error| format!("Failed to restore rollback snapshot: {error}"))?;
@@ -666,9 +669,15 @@ mod tests {
 
     #[test]
     fn backup_skips_rename_transactions() {
-        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn-123/manifest.json")));
-        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn-abc-def/file.md")));
-        assert!(should_skip_backup_path(Path::new(".scriptor/rename-txn/manifest.json")));
+        assert!(should_skip_backup_path(Path::new(
+            ".scriptor/rename-txn-123/manifest.json"
+        )));
+        assert!(should_skip_backup_path(Path::new(
+            ".scriptor/rename-txn-abc-def/file.md"
+        )));
+        assert!(should_skip_backup_path(Path::new(
+            ".scriptor/rename-txn/manifest.json"
+        )));
         assert!(!should_skip_backup_path(Path::new(".scriptor/config.json")));
     }
 
@@ -681,7 +690,8 @@ mod tests {
         let rollback = journal.join("rollback");
         fs::create_dir_all(&rollback).expect("create rollback");
 
-        fs::write(vault_root.join("corrupt.md"), "corrupted partial content").expect("write corrupt");
+        fs::write(vault_root.join("corrupt.md"), "corrupted partial content")
+            .expect("write corrupt");
         fs::write(rollback.join("original.md"), "# Original Note\n").expect("write original");
         fs::write(journal.join("state"), "promoting").expect("write state");
 

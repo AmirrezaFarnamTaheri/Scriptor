@@ -122,7 +122,9 @@ pub fn daemon_start(
 #[tauri::command]
 pub fn daemon_open_vault(state: tauri::State<AppState>, root_path: String) -> Result<(), String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "daemon open vault");
-    match daemon_rpc(RpcMethod::OpenVault { path: root_path.clone() })? {
+    match daemon_rpc(RpcMethod::OpenVault {
+        path: root_path.clone(),
+    })? {
         RpcPayload::VaultOpened { .. } => {
             crate::state::set_daemon_vault(&state, root_path);
             Ok(())

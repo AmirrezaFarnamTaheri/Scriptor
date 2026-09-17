@@ -118,11 +118,12 @@ test('closing the active tab reads its fallback once despite replayed state upda
   const h = harness()
   await h.open('a.md')
   await h.open('b.md')
-  h.render().closeTab('b.md')
+  const closeTask = h.render().closeTab('b.md')
+  await new Promise(setImmediate)
   assert.equal(h.pending.length, 1)
   assert.equal(h.pending[0].path, 'a.md')
   h.pending.shift().resolve(h.document('a.md'))
-  await new Promise(setImmediate)
+  await closeTask
   assert.equal(h.render().activePath, 'a.md')
 })
 
