@@ -157,18 +157,33 @@ export function useVaultBackup(vaultOpen: boolean) {
         // native transaction starts replacing authoritative vault files.
         await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
         const result = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
-        restoreApplied = result.committed
+        // Only an explicitly rolled-back restore is safe to resume editor
+        // persistence over. Every other status means vault files were already
+        // replaced, so resuming the superseded draft would overwrite them.
+        restoreApplied = result.status !== 'rolled-back'
 
-        if (!result.committed) {
-          // Native replacement never committed (rolled back, or never started
-          // after authorization/manifest checks). Resume the original editor
-          // persistence generation and re-arm any still-dirty in-memory draft.
+        if (result.status === 'rolled-back') {
+          // Native replacement never mutated vault files, or promoted nothing
+          // and rolled back cleanly. Resume the original editor persistence
+          // generation and re-arm any still-dirty in-memory draft.
           try {
             await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
           } catch (resumeError) {
             setLastError(`${result.message}; editor persistence could not resume: ${resumeError instanceof Error ? resumeError.message : String(resumeError)}`)
             return
           }
+          setLastError(result.message)
+          return
+        }
+
+        if (result.status !== 'committed-ready') {
+          // `committed-needs-reopen` and `recovery-required` both leave the
+          // pre-restore session in place: it never ran rename-transaction
+          // recovery on the restored tree. The replacement is authoritative,
+          // so persistence must stay frozen, but the restored lifecycle and
+          // index rebuild must not run against that session. The native
+          // message already tells the user to reopen the vault, which
+          // reconciles the journal and reloads everything.
           setLastError(result.message)
           return
         }

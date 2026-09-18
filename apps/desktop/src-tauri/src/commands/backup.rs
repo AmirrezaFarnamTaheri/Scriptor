@@ -483,6 +483,11 @@ pub fn vault_delete_backup(
 /// Recovers any interrupted restore operation left in `.scriptor/restore-journal`.
 /// Called during `vault_open` and before a new restore so unresolved recovery
 /// state is never discarded merely because the user retries the operation.
+/// Journal state written once the staged content is being promoted into the
+/// vault, i.e. after the vault is cleared and while the staged files are
+/// copied in. A leftover marker of this value marks an in-flight replacement.
+const RESTORE_STATE_PROMOTING: &str = "promoting";
+
 pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     let journal = vault_root.join(".scriptor").join("restore-journal");
     if !journal.exists() {
@@ -493,7 +498,7 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
         .map(|s| s.trim().to_string())
         .map_err(|error| format!("Failed to read restore journal state: {error}"))?;
 
-    if state == "promoting" {
+    if state == RESTORE_STATE_PROMOTING {
         let rollback = journal.join("rollback");
         if !rollback.exists() {
             return Err("Restore was interrupted during promotion, but rollback snapshot is missing. Journal preserved for manual inspection.".to_string());
@@ -521,67 +526,119 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     }
 }
 
-/// Outcome of a vault restore.
+/// Terminal status of a vault restore, reported to the frontend so it can
+/// decide whether editor persistence may resume.
 ///
-/// `committed` reports whether the filesystem replacement is authoritative,
-/// independent of whether the post-commit session refresh succeeded. The
-/// frontend keys editor-persistence resumption off it: a committed restore must
-/// never surface as an error, or the resumed superseded draft would overwrite
-/// the freshly restored content.
+/// The distinction that matters is not whether the command returned an error
+/// but whether the filesystem is authoritative, and whether the active session
+/// is the one that opened the restored tree. A transaction that promoted the
+/// staged content but failed to write the completion marker has still replaced
+/// the vault content, so resuming the superseded draft would overwrite it just
+/// as surely as in the committed case. And a committed replacement whose
+/// reopen failed leaves the pre-restore session in place — one that never ran
+/// rename-transaction recovery on the restored content — so the restored
+/// lifecycle and index rebuild must not run against it.
+///
+/// The wire format is pinned to kebab-case because the frontend mirrors it as a
+/// literal union, so a status must never be renamed on one side only.
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+pub enum VaultRestoreStatus {
+    /// Replacement never mutated vault files: a pre-transaction check failed,
+    /// or promotion failed and the rollback snapshot fully restored the
+    /// original content. Editor persistence may resume.
+    RolledBack,
+    /// Files were replaced but the completion marker could not be written, so
+    /// the transaction is neither rolled back nor recognizable as complete.
+    /// Persistence must stay frozen and the rollback journal must be kept for
+    /// recovery on the next vault open.
+    RecoveryRequired,
+    /// The replacement is durable, but the vault session could not be
+    /// reopened, so the caller's session predates the restored content.
+    /// Persistence must stay frozen and the restored lifecycle must not run
+    /// until the user reopens the vault, which reconciles the journal.
+    CommittedNeedsReopen,
+    /// The replacement is durable and a fresh session owns the restored
+    /// content. The caller may run the normal restored lifecycle.
+    CommittedReady,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct VaultRestoreResult {
-    pub committed: bool,
+    pub status: VaultRestoreStatus,
     pub message: String,
 }
 
 /// Finalizes a restore once the replacement transaction and the session reopen
 /// have both reached a terminal outcome.
 ///
-/// A failed replacement keeps the rollback journal so recovery on the next
-/// vault open can restore the original content, and is reported as
-/// not-committed so the caller knows nothing was replaced.
+/// A transaction `Err` is ambiguous on its own: it covers both a restore that
+/// promoted nothing and rolled back cleanly (safe to resume) and one that
+/// promoted the staged content but could not record completion (the vault
+/// already holds the restored content, and resuming the superseded draft
+/// would overwrite it). The on-disk journal state distinguishes them: the
+/// transaction only writes `promoting` before it starts mutating the vault,
+/// so a leftover `promoting` marker after an error means the replacement was
+/// in flight when it failed.
 ///
-/// A committed replacement keeps the journal until a fresh session is
-/// established, so a crash or a failed reopen between the commit and the
-/// session swap cannot discard the only recovery path for content that was
-/// already replaced. A reopen failure is still reported as committed, with a
-/// message telling the caller to reopen the vault.
+/// A committed replacement drops the journal only once a fresh session owns
+/// the restored content, so a crash or a failed reopen between the commit and
+/// the session swap cannot discard the only recovery path for content that was
+/// already replaced. A reopen failure is reported as needs-reopen rather than
+/// ready, so the caller does not run the restored lifecycle against the
+/// pre-restore session.
 fn finalize_restore(
     transaction_result: Result<(), String>,
     transaction: &Path,
+    journal_state: Option<String>,
     reopen_outcome: Result<(), String>,
     backup_name: &str,
     source_vault_root: &str,
 ) -> VaultRestoreResult {
-    match transaction_result {
-        Err(error) => VaultRestoreResult {
-            committed: false,
-            message: error,
+    let status = match transaction_result.as_ref() {
+        Ok(()) => match reopen_outcome.as_ref() {
+            Ok(()) => VaultRestoreStatus::CommittedReady,
+            Err(_) => VaultRestoreStatus::CommittedNeedsReopen,
         },
-        Ok(()) => match reopen_outcome {
-            Ok(()) => {
-                // A fresh session now owns the restored content, so the
-                // rollback snapshot is no longer needed. A failed cleanup is
-                // not fatal: recovery finalizes a leftover `complete` journal
-                // on the next vault open.
-                let _ = fs::remove_dir_all(transaction);
-                VaultRestoreResult {
-                    committed: true,
-                    message: format!(
-                        "Restored and verified {backup_name} from {source_vault_root}; \
-                         a full index rebuild is required"
-                    ),
-                }
-            }
-            Err(reopen_error) => VaultRestoreResult {
-                committed: true,
-                message: format!(
-                    "Restored {backup_name} from {source_vault_root}, but the vault session \
-                     could not be reopened: {reopen_error}. Reopen the vault before editing."
-                ),
-            },
+        Err(_) => match journal_state.as_deref() {
+            // The transaction reached promotion, so the staged content is in
+            // place even though the completion marker could not be written.
+            // Recovery on the next vault open reconciles it.
+            Some(state) if state == RESTORE_STATE_PROMOTING => VaultRestoreStatus::RecoveryRequired,
+            _ => VaultRestoreStatus::RolledBack,
         },
+    };
+
+    if status == VaultRestoreStatus::CommittedReady {
+        // A fresh session now owns the restored content, so the rollback
+        // snapshot is no longer needed. A failed cleanup is not fatal:
+        // recovery finalizes a leftover `complete` journal on the next open.
+        let _ = fs::remove_dir_all(transaction);
     }
+
+    let message = match &status {
+        VaultRestoreStatus::RolledBack => transaction_result
+            .err()
+            .unwrap_or_else(|| "Restore did not replace any vault content".to_string()),
+        VaultRestoreStatus::CommittedReady => format!(
+            "Restored and verified {backup_name} from {source_vault_root}; \
+             a full index rebuild is required"
+        ),
+        VaultRestoreStatus::CommittedNeedsReopen => format!(
+            "Restored {backup_name} from {source_vault_root}, but the vault session \
+             could not be reopened: {}. The vault files are authoritative; reopen the \
+             vault before editing so the restore journal can reconcile.",
+            reopen_outcome.as_ref().err().unwrap_or(&String::new())
+        ),
+        VaultRestoreStatus::RecoveryRequired => format!(
+            "Restored {backup_name} from {source_vault_root}, but the completion marker \
+             could not be written. Vault files were replaced; reopen the vault so the \
+             recovery journal can reconcile before editing: {}",
+            transaction_result.err().unwrap_or_default()
+        ),
+    };
+
+    VaultRestoreResult { status, message }
 }
 
 #[tauri::command]
@@ -650,10 +707,16 @@ pub fn vault_restore_backup(
     // for recovery, and a committed replacement keeps it until a fresh session
     // is established so a crash between commit and reopen never discards the
     // only recovery path for the already-replaced content.
+    //
+    // The journal marker is read after the transaction: an error paired with a
+    // `promoting` marker means the staged content was being promoted when the
+    // failure happened, so the vault must not be treated as rolled back.
+    let journal_state = fs::read_to_string(transaction.join("state")).ok();
     let reopened = scriptor_vault::open_vault(&vault_root);
     let outcome = finalize_restore(
         result,
         &transaction,
+        journal_state,
         reopened
             .as_ref()
             .map(|_| ())
@@ -850,7 +913,7 @@ mod tests {
     }
 
     #[test]
-    fn failed_replacement_is_reported_not_committed_and_keeps_journal() {
+    fn failed_replacement_without_promotion_is_rolled_back() {
         let directory = tempfile::tempdir().expect("tempdir");
         let journal = directory.path().join(".scriptor").join("restore-journal");
         fs::create_dir_all(&journal).expect("journal");
@@ -858,19 +921,90 @@ mod tests {
         let outcome = finalize_restore(
             Err("Restore failed and was rolled back: boom".to_string()),
             &journal,
+            Some("preparing".to_string()),
             Ok(()),
             "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
             "/source/vault",
         );
 
-        assert!(
-            !outcome.committed,
-            "a rolled-back replacement must not look applied"
-        );
+        assert_eq!(outcome.status, VaultRestoreStatus::RolledBack);
         assert!(outcome.message.contains("rolled back"));
         assert!(
             journal.exists(),
             "the rollback journal must survive a failed replacement"
+        );
+    }
+
+    #[test]
+    fn failed_replacement_after_promotion_requires_recovery() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+
+        let outcome = finalize_restore(
+            Err("failed to write completion marker: disk full".to_string()),
+            &journal,
+            Some(RESTORE_STATE_PROMOTING.to_string()),
+            Ok(()),
+            "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
+            "/source/vault",
+        );
+
+        assert_eq!(
+            outcome.status,
+            VaultRestoreStatus::RecoveryRequired,
+            "a failure after promotion already replaced the vault content, so resuming the \
+             superseded draft would overwrite it"
+        );
+        assert!(
+            journal.exists(),
+            "the journal is the only record of what was replaced"
+        );
+        assert!(outcome.message.contains("completion marker"));
+    }
+
+    #[test]
+    fn restore_status_wire_format_matches_the_frontend_union() {
+        // The frontend mirrors these as a literal TypeScript union and switches
+        // on them, so a rename on either side must fail here rather than at
+        // runtime as an unhandled status.
+        assert_eq!(
+            serde_json::to_string(&VaultRestoreStatus::RolledBack).unwrap(),
+            "\"rolled-back\""
+        );
+        assert_eq!(
+            serde_json::to_string(&VaultRestoreStatus::RecoveryRequired).unwrap(),
+            "\"recovery-required\""
+        );
+        assert_eq!(
+            serde_json::to_string(&VaultRestoreStatus::CommittedNeedsReopen).unwrap(),
+            "\"committed-needs-reopen\""
+        );
+        assert_eq!(
+            serde_json::to_string(&VaultRestoreStatus::CommittedReady).unwrap(),
+            "\"committed-ready\""
+        );
+    }
+
+    #[test]
+    fn only_rolled_back_is_a_resumable_status() {
+        // The hook resumes editor persistence for exactly one status, so every
+        // other variant must compare unequal to it however the check is written.
+        assert_eq!(
+            VaultRestoreStatus::RolledBack,
+            VaultRestoreStatus::RolledBack
+        );
+        assert_ne!(
+            VaultRestoreStatus::RecoveryRequired,
+            VaultRestoreStatus::RolledBack
+        );
+        assert_ne!(
+            VaultRestoreStatus::CommittedNeedsReopen,
+            VaultRestoreStatus::RolledBack
+        );
+        assert_ne!(
+            VaultRestoreStatus::CommittedReady,
+            VaultRestoreStatus::RolledBack
         );
     }
 
@@ -883,12 +1017,13 @@ mod tests {
         let outcome = finalize_restore(
             Ok(()),
             &journal,
+            Some("complete".to_string()),
             Ok(()),
             "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
             "/source/vault",
         );
 
-        assert!(outcome.committed);
+        assert_eq!(outcome.status, VaultRestoreStatus::CommittedReady);
         assert!(
             !journal.exists(),
             "the journal is dropped only once the new session is established"
@@ -904,13 +1039,15 @@ mod tests {
         let outcome = finalize_restore(
             Ok(()),
             &journal,
+            Some("complete".to_string()),
             Err("vault is not a valid Scriptor vault".to_string()),
             "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
             "/source/vault",
         );
 
-        assert!(
-            outcome.committed,
+        assert_eq!(
+            outcome.status,
+            VaultRestoreStatus::CommittedNeedsReopen,
             "a committed restore must never be reported as aborted"
         );
         assert!(
