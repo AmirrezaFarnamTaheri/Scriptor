@@ -156,8 +156,37 @@ export function useVaultBackup(vaultOpen: boolean) {
         // Flush acknowledged edits, then freeze editor persistence before the
         // native transaction starts replacing authoritative vault files.
         await dispatchVaultLifecycleEvent('scriptor:vault-restore-starting', { backupName })
-        const message = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
-        restoreApplied = true
+        const result = await vaultRestoreBackup(backupName, settings.backupPath || undefined)
+        // Only an explicitly rolled-back restore is safe to resume editor
+        // persistence over. Every other status means vault files were already
+        // replaced, so resuming the superseded draft would overwrite them.
+        restoreApplied = result.status !== 'rolled-back'
+
+        if (result.status === 'rolled-back') {
+          // Native replacement never mutated vault files, or promoted nothing
+          // and rolled back cleanly. Resume the original editor persistence
+          // generation and re-arm any still-dirty in-memory draft.
+          try {
+            await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
+          } catch (resumeError) {
+            setLastError(`${result.message}; editor persistence could not resume: ${resumeError instanceof Error ? resumeError.message : String(resumeError)}`)
+            return
+          }
+          setLastError(result.message)
+          return
+        }
+
+        if (result.status !== 'committed-ready') {
+          // `committed-needs-reopen` and `recovery-required` both leave the
+          // pre-restore session in place: it never ran rename-transaction
+          // recovery on the restored tree. The replacement is authoritative,
+          // so persistence must stay frozen, but the restored lifecycle and
+          // index rebuild must not run against that session. The native
+          // message already tells the user to reopen the vault, which
+          // reconciles the journal and reloads everything.
+          setLastError(result.message)
+          return
+        }
 
         // Reload authoritative editor/config/snippet state before allowing any
         // persistence to resume. Derived index consumers intentionally wait.
@@ -166,11 +195,11 @@ export function useVaultBackup(vaultOpen: boolean) {
         let indexReady = true
         try {
           await indexerRebuild()
-          setLastMessage(message)
+          setLastMessage(result.message)
         } catch (indexerErr) {
           indexReady = false
           console.warn('Post-restore indexer rebuild failed:', indexerErr)
-          setLastMessage(`${message} (Index rebuild failed; search may be outdated until next rebuild)`)
+          setLastMessage(`${result.message} (Index rebuild failed; search may be outdated until next rebuild)`)
         }
 
         // Refresh summaries/health/graph-dependent state only after the rebuild
@@ -181,8 +210,10 @@ export function useVaultBackup(vaultOpen: boolean) {
       } catch (caught) {
         const message = caught instanceof Error ? caught.message : 'Restore failed'
         if (!restoreApplied) {
-          // Native replacement never committed. Resume the original editor
-          // generation and re-arm any still-dirty in-memory draft.
+          // The invoke rejected before a committed outcome was returned: a
+          // transport error, or a pre-transaction failure such as authorization
+          // or manifest verification. Nothing on disk was replaced, so it is
+          // safe to resume the original editor persistence generation.
           try {
             await dispatchVaultLifecycleEvent('scriptor:vault-restore-aborted', { backupName })
           } catch (resumeError) {

@@ -399,10 +399,30 @@ export async function vaultListBackups(backupPath?: string): Promise<VaultBackup
   return invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null })
 }
 
-export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<string> {
+export interface VaultRestoreResult {
+  /** Terminal status of the replacement; use this rather than inferring from an error. */
+  status: VaultRestoreStatus
+  message: string
+}
+
+/**
+ * Mirrors the native `VaultRestoreStatus` (kebab-case is pinned by a native
+ * serialization test). Only `rolled-back` is safe to resume editor persistence
+ * over. `committed-ready` is the only status whose vault session was freshly
+ * opened on the restored tree, so it alone may run the restored lifecycle;
+ * `committed-needs-reopen` and `recovery-required` leave a pre-restore session
+ * in place and must wait for a vault reopen.
+ */
+export type VaultRestoreStatus =
+  | 'rolled-back'
+  | 'recovery-required'
+  | 'committed-needs-reopen'
+  | 'committed-ready'
+
+export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<VaultRestoreResult> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('restore_backup', backupName)
-  return invoke<string>('vault_restore_backup', {
+  return invoke<VaultRestoreResult>('vault_restore_backup', {
     backupName,
     backupPath: backupPath ?? null,
     authorizationToken,

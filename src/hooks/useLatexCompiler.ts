@@ -41,7 +41,6 @@ export interface LatexCompilerConfig {
 
 export interface LatexCompilerOptions {
   config: LatexCompilerConfig | undefined
-  vaultRoot: string | null
 }
 
 export interface LatexCompileRequest {
@@ -73,7 +72,7 @@ function isCancellationError(message: string): boolean {
 }
 
 /** Manages Tectonic discovery, compile jobs, cancellation, and job history. */
-export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): LatexCompilerResult {
+export function useLatexCompiler({ config }: LatexCompilerOptions): LatexCompilerResult {
   const [jobs, setJobs] = useState<LatexCompileJob[]>([])
   const [activeJob, setActiveJob] = useState<LatexCompileJob | null>(null)
   const [tectonicAvailable, setTectonicAvailable] = useState<boolean | null>(null)
@@ -95,11 +94,11 @@ export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): L
     async (req: LatexCompileRequest): Promise<LatexCompileJob> => {
       const id = makeJobId()
       const startedAt = new Date().toISOString()
+      // Vault-relative: the native command resolves this under the canonical
+      // vault root and rejects anything that would escape it, so the frontend
+      // never composes an absolute output path.
       const outputDir =
-        req.outputDir ??
-        (vaultRoot && config
-          ? `${vaultRoot}/${config.output_directory}`
-          : '.scriptor/latex-out')
+        req.outputDir?.trim() || config?.output_directory?.trim() || '.scriptor/latex-out'
 
       const job: LatexCompileJob = {
         id,
@@ -158,7 +157,7 @@ export function useLatexCompiler({ config, vaultRoot }: LatexCompilerOptions): L
         return failed
       }
     },
-    [config, vaultRoot],
+    [config],
   )
 
   const cancelJob = useCallback(() => {

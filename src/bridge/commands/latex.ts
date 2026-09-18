@@ -27,7 +27,18 @@ export async function latexCompile(args: {
   extraFlags: string[]
 }): Promise<LatexCompileOutput> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('latex_compilation', args.inputPath)
+  // The scope must be built from the raw vault-relative request strings so it
+  // matches the value the native command consumes. It names the output
+  // destination too, so the approval covers where generated files are written.
+  // The pair is JSON-serialized rather than delimiter-joined: a plain
+  // "input (output: dir)" format is ambiguous, because ("a", "b (output: c")
+  // and ("a (output: b", "c") collapse to the same string and one grant would
+  // authorize the other. Both sides use the same serializer, so an exact
+  // string match means an exact path pair.
+  const authorizationToken = await authorizeSensitiveOperation(
+    'latex_compilation',
+    JSON.stringify([args.inputPath, args.outputDir]),
+  )
   return invoke<LatexCompileOutput>('latex_compile', {
     inputPath: args.inputPath,
     outputDir: args.outputDir,

@@ -308,7 +308,6 @@ function WorkspaceDialogLayersImpl({
               exportResult={workspace.exportResult}
               isExporting={workspace.isExporting}
               nativeReady={nativeReady}
-              vaultRoot={workspace.vault?.root_path ?? null}
               latexConfig={workspace.vaultConfig.latex}
               onClose={onClosePublishCenter}
               onExport={onExportFromPublishCenter}
