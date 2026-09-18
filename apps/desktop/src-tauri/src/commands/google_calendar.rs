@@ -1044,7 +1044,11 @@ pub fn google_calendar_start_auth(
         Some(AUTH_SCOPE),
         None,
     )?;
-    let _ = (&calendar_id, &task_list_id);
+    // Validate the resources the user is connecting before opening a browser.
+    // The auth command used to accept these fields and intentionally ignore them,
+    // which let malformed values survive until the first background refresh.
+    validate_calendar_id(&calendar_id)?;
+    validate_task_list_id(&task_list_id)?;
 
     start_google_auth(client_id, OAUTH_SCOPES, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)
 }
