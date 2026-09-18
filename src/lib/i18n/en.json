@@ -329,7 +329,10 @@
     "directedLink": "Directed link",
     "disabledTitle": "Knowledge Graph is disabled",
     "disabledDescription": "Enable the Graph module for this vault to explore note relationships.",
-    "enable": "Enable Graph"
+    "enable": "Enable Graph",
+    "pausedTitle": "Graph paused",
+    "pausedDescription": "Background layout simulation is paused to reduce resource use and improve responsiveness.",
+    "resume": "Resume graph"
   },
   "knowledge": {
     "title": "Knowledge workbench",

@@ -329,7 +329,10 @@
     "directedLink": "Gerichteter Link",
     "disabledTitle": "Wissensgraph ist deaktiviert",
     "disabledDescription": "Aktivieren Sie das Graph-Modul für diesen Tresor, um Notizbeziehungen zu erkunden.",
-    "enable": "Graph aktivieren"
+    "enable": "Graph aktivieren",
+    "pausedTitle": "Graph pausiert",
+    "pausedDescription": "Die Hintergrundsimulation des Layouts ist pausiert, um Ressourcen zu sparen und die Reaktionsfähigkeit zu verbessern.",
+    "resume": "Graph fortsetzen"
   },
   "knowledge": {
     "title": "Wissensarbeitsplatz",

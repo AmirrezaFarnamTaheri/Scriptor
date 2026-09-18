@@ -303,10 +303,8 @@ export const GraphPanel = memo(function GraphPanel({
         </header>
         <div className="graph-hibernated-placeholder">
           <MoonStar className="graph-hibernated-icon" aria-hidden="true" />
-          <h3>Graph paused</h3>
-          <p>
-            Background layout simulation is paused to optimize battery life and improve app responsiveness.
-          </p>
+          <h3>{t('graph.pausedTitle')}</h3>
+          <p>{t('graph.pausedDescription')}</p>
           <button
             type="button"
             className="primary-button graph-wake-button"
@@ -314,7 +312,7 @@ export const GraphPanel = memo(function GraphPanel({
             disabled={!onToggleHibernate}
           >
             <Power aria-hidden="true" />
-            Resume graph
+            {t('graph.resume')}
           </button>
         </div>
       </div>
