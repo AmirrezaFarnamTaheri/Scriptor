@@ -59,7 +59,8 @@
   flex-wrap: wrap;
 }
 
-.git-pull-strategy {
+.git-pull-strategy,
+.git-diff-picker {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -69,7 +70,8 @@
   font-size: 12px;
 }
 
-.git-pull-strategy select {
+.git-pull-strategy select,
+.git-diff-picker select {
   min-height: 32px;
   max-width: 100%;
   padding: 0 10px;
@@ -80,7 +82,8 @@
   font: inherit;
 }
 
-.git-pull-strategy select:focus-visible {
+.git-pull-strategy select:focus-visible,
+.git-diff-picker select:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }

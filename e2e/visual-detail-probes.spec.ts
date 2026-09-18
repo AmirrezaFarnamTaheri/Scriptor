@@ -54,6 +54,31 @@ test('Git pull strategy is a sized themed control', async ({ page }) => {
   expect(themed.minHeight).toBeGreaterThanOrEqual(32)
 })
 
+test('settings AI provider select matches the other settings fields', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Settings' })
+  await expect(dialog).toBeVisible()
+  await expect(page.locator('.panel-loading:visible')).toHaveCount(0, { timeout: 30_000 })
+  // Every settings select resolves to a themed control (min-height + radius)
+  // rather than native chrome. This covers the AI provider dropdown, which
+  // previously sat in a bare label while its neighbours used .settings-field.
+  const metrics = await dialog.getByRole('combobox').evaluateAll((elements) =>
+    elements.map((element) => {
+      const style = getComputedStyle(element)
+      return {
+        borderRadius: Number.parseFloat(style.borderRadius),
+        minHeight: Number.parseFloat(style.minHeight),
+      }
+    }),
+  )
+  expect(metrics.length, 'settings dialog exposes at least one select').toBeGreaterThan(0)
+  for (const metric of metrics) {
+    expect(metric.borderRadius).toBeGreaterThan(0)
+    expect(metric.minHeight).toBeGreaterThanOrEqual(32)
+  }
+})
+
 test('conflict close button stays beside the heading', async ({ page }) => {
   await page.addInitScript(() => window.sessionStorage.setItem('e2e:git-conflicts', '1'))
   await launchApp(page)
