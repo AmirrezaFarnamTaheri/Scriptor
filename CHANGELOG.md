@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 1.1.1 — 2026-09-18
+
+### Fixed
+- Close the backup-restore data-loss window: a completed replacement is now reported through four terminal statuses instead of a boolean, so a promotion that failed to write its completion marker is never treated as rolled back, editor persistence resumes only for a genuinely rolled-back restore, and the restored lifecycle and index rebuild run only once a fresh vault session owns the restored tree.
+- Sandbox LaTeX compiler output inside the active vault: output directories are validated without creating anything before authorization, reject absolute paths, `..` traversal, and symlinked ancestors, and the bridge and native command now build the authorization scope as a collision-free JSON pair rather than an ambiguous delimiter-joined string.
+- Unify the status-bar word-count delta and reading time on the same semantic tokenizer as the editor draft, so markdown structure is no longer counted as words against a persisted baseline.
+
 ## 1.1.0 — 2026-09-18
 
 ### Fixed
