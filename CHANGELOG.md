@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 1.1.0 — 2026-09-18
+
 ### Fixed
 - Dispatch documentation screenshot refresh automatically after successful release publication; retain branch-only, non-forced screenshot updates.
 - Restore readable Monaco line-number contrast in light and dark themes, with measured browser regression checks.
