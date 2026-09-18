@@ -521,13 +521,76 @@ pub fn recover_interrupted_restore(vault_root: &Path) -> Result<(), String> {
     }
 }
 
+/// Outcome of a vault restore.
+///
+/// `committed` reports whether the filesystem replacement is authoritative,
+/// independent of whether the post-commit session refresh succeeded. The
+/// frontend keys editor-persistence resumption off it: a committed restore must
+/// never surface as an error, or the resumed superseded draft would overwrite
+/// the freshly restored content.
+#[derive(Debug, Clone, Serialize)]
+pub struct VaultRestoreResult {
+    pub committed: bool,
+    pub message: String,
+}
+
+/// Finalizes a restore once the replacement transaction and the session reopen
+/// have both reached a terminal outcome.
+///
+/// A failed replacement keeps the rollback journal so recovery on the next
+/// vault open can restore the original content, and is reported as
+/// not-committed so the caller knows nothing was replaced.
+///
+/// A committed replacement keeps the journal until a fresh session is
+/// established, so a crash or a failed reopen between the commit and the
+/// session swap cannot discard the only recovery path for content that was
+/// already replaced. A reopen failure is still reported as committed, with a
+/// message telling the caller to reopen the vault.
+fn finalize_restore(
+    transaction_result: Result<(), String>,
+    transaction: &Path,
+    reopen_outcome: Result<(), String>,
+    backup_name: &str,
+    source_vault_root: &str,
+) -> VaultRestoreResult {
+    match transaction_result {
+        Err(error) => VaultRestoreResult {
+            committed: false,
+            message: error,
+        },
+        Ok(()) => match reopen_outcome {
+            Ok(()) => {
+                // A fresh session now owns the restored content, so the
+                // rollback snapshot is no longer needed. A failed cleanup is
+                // not fatal: recovery finalizes a leftover `complete` journal
+                // on the next vault open.
+                let _ = fs::remove_dir_all(transaction);
+                VaultRestoreResult {
+                    committed: true,
+                    message: format!(
+                        "Restored and verified {backup_name} from {source_vault_root}; \
+                         a full index rebuild is required"
+                    ),
+                }
+            }
+            Err(reopen_error) => VaultRestoreResult {
+                committed: true,
+                message: format!(
+                    "Restored {backup_name} from {source_vault_root}, but the vault session \
+                     could not be reopened: {reopen_error}. Reopen the vault before editing."
+                ),
+            },
+        },
+    }
+}
+
 #[tauri::command]
 pub fn vault_restore_backup(
     state: tauri::State<AppState>,
     backup_name: String,
     backup_path: Option<String>,
     authorization_token: String,
-) -> Result<String, String> {
+) -> Result<VaultRestoreResult, String> {
     let _switch = crate::state::lock_recover(&state.vault_switch_lock, "vault switch");
     let mut session_guard = write_recover(&state.session, "session");
     let session = session_guard
@@ -582,19 +645,32 @@ pub fn vault_restore_backup(
         Ok(())
     })();
 
-    if result.is_ok() {
-        let _ = fs::remove_dir_all(&transaction);
+    // The replacement has reached a terminal outcome. Reopen the vault before
+    // deciding the fate of the rollback journal: a failed replacement keeps it
+    // for recovery, and a committed replacement keeps it until a fresh session
+    // is established so a crash between commit and reopen never discards the
+    // only recovery path for the already-replaced content.
+    let reopened = scriptor_vault::open_vault(&vault_root);
+    let outcome = finalize_restore(
+        result,
+        &transaction,
+        reopened
+            .as_ref()
+            .map(|_| ())
+            .map_err(|error| error.to_string()),
+        &backup_name,
+        &manifest.source_vault_root,
+    );
+
+    // Only swap in the fresh session when the reopen succeeded; on failure the
+    // pre-restore session remains valid for the same root path, and the
+    // committed outcome tells the caller to reopen the vault.
+    if let Ok(refreshed_session) = reopened {
+        *session_guard = Some(refreshed_session);
+        crate::state::reset_git_queue(&state);
     }
-    result?;
 
-    let refreshed_session = scriptor_vault::open_vault(&vault_root).map_err(|e| e.to_string())?;
-    *session_guard = Some(refreshed_session);
-    crate::state::reset_git_queue(&state);
-
-    Ok(format!(
-        "Restored and verified {backup_name} from {}; a full index rebuild is required",
-        manifest.source_vault_root
-    ))
+    Ok(outcome)
 }
 
 #[cfg(test)]
@@ -771,5 +847,76 @@ mod tests {
         recover_interrupted_restore(vault_root).expect("recover interrupted restore");
         assert!(vault_root.join("healthy.md").exists());
         assert!(!journal.exists());
+    }
+
+    #[test]
+    fn failed_replacement_is_reported_not_committed_and_keeps_journal() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+
+        let outcome = finalize_restore(
+            Err("Restore failed and was rolled back: boom".to_string()),
+            &journal,
+            Ok(()),
+            "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
+            "/source/vault",
+        );
+
+        assert!(
+            !outcome.committed,
+            "a rolled-back replacement must not look applied"
+        );
+        assert!(outcome.message.contains("rolled back"));
+        assert!(
+            journal.exists(),
+            "the rollback journal must survive a failed replacement"
+        );
+    }
+
+    #[test]
+    fn committed_replacement_drops_journal_only_after_successful_reopen() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+
+        let outcome = finalize_restore(
+            Ok(()),
+            &journal,
+            Ok(()),
+            "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
+            "/source/vault",
+        );
+
+        assert!(outcome.committed);
+        assert!(
+            !journal.exists(),
+            "the journal is dropped only once the new session is established"
+        );
+    }
+
+    #[test]
+    fn committed_replacement_survives_failed_reopen_without_looking_aborted() {
+        let directory = tempfile::tempdir().expect("tempdir");
+        let journal = directory.path().join(".scriptor").join("restore-journal");
+        fs::create_dir_all(&journal).expect("journal");
+
+        let outcome = finalize_restore(
+            Ok(()),
+            &journal,
+            Err("vault is not a valid Scriptor vault".to_string()),
+            "vault-backup-a1b2c3d4e5f6-20260712-120000-42",
+            "/source/vault",
+        );
+
+        assert!(
+            outcome.committed,
+            "a committed restore must never be reported as aborted"
+        );
+        assert!(
+            journal.exists(),
+            "the rollback journal must survive a failed reopen"
+        );
+        assert!(outcome.message.contains("could not be reopened"));
     }
 }

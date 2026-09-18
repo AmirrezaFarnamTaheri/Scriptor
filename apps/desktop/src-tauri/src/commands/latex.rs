@@ -6,7 +6,7 @@
 //! Running an external engine over vault content is a sensitive operation and
 //! is therefore gated through the authorization broker.
 
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 
@@ -148,6 +148,48 @@ fn resolve_vault_input(vault_root: &Path, input_path: &str) -> Result<PathBuf, S
     }
     Ok(canonical)
 }
+/// Authorization scope for a LaTeX compile.
+///
+/// Built from the raw vault-relative request strings so the frontend can
+/// construct the identical value when requesting the grant. The scope shown
+/// to the user names both the source document and the directory generated
+/// files are written to, so an approval covers the output destination too.
+pub(crate) fn latex_authorization_scope(input_path: &str, output_dir: &str) -> String {
+    format!("{input_path} (output: {output_dir})")
+}
+
+/// Resolve a vault-relative output directory, rejecting anything that would
+/// place generated files outside the vault.
+///
+/// Mirrors [`resolve_vault_input`]'s containment guarantee for compiler
+/// output: an absolute path, a `..` traversal, or a symlinked directory that
+/// resolves outside the vault are all rejected before Tectonic is invoked.
+fn resolve_vault_output_dir(vault_root: &Path, output_dir: &str) -> Result<PathBuf, String> {
+    let requested = PathBuf::from(output_dir.trim());
+    if requested.is_absolute() {
+        return Err("LaTeX output directory must be relative to the vault root".into());
+    }
+    if requested.components().any(|part| {
+        matches!(
+            part,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_)
+        )
+    }) {
+        return Err("LaTeX output directory must not escape the active vault".into());
+    }
+    let candidate = vault_root.join(requested);
+    std::fs::create_dir_all(&candidate).map_err(|error| {
+        format!("failed to create LaTeX output directory {output_dir}: {error}")
+    })?;
+    // Canonicalize after creation so a symlinked directory in the resolved
+    // path cannot redirect generated files outside the vault.
+    let canonical = std::fs::canonicalize(&candidate)
+        .map_err(|error| format!("invalid LaTeX output directory {output_dir}: {error}"))?;
+    if !canonical.starts_with(vault_root) {
+        return Err("LaTeX output directory resolves outside the active vault".into());
+    }
+    Ok(canonical)
+}
 
 struct CancelGuard(std::sync::Arc<std::sync::atomic::AtomicBool>);
 impl Drop for CancelGuard {
@@ -157,6 +199,10 @@ impl Drop for CancelGuard {
 }
 
 /// Compile a `.tex`/`.ltx` file inside the active vault to PDF using Tectonic.
+///
+/// `output_dir` is vault-relative, like `input_path`: the native command
+/// resolves it under the canonical vault root and rejects any path that would
+/// place generated files outside the vault.
 #[tauri::command]
 pub fn latex_compile(
     state: tauri::State<AppState>,
@@ -175,12 +221,16 @@ pub fn latex_compile(
     let vault_id = session.descriptor.id.clone();
     drop(session);
     let input = resolve_vault_input(&canonical_vault, &input_path)?;
+    // Generated files must stay inside the vault: validate the output
+    // destination before authorization so an escaping configuration is
+    // rejected rather than approved and written.
+    let output = resolve_vault_output_dir(&canonical_vault, &output_dir)?;
 
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::LatexCompilation,
-        Some(&input.display().to_string()),
+        Some(&latex_authorization_scope(&input_path, &output_dir)),
         Some(&vault_id),
     )?;
 
@@ -190,11 +240,6 @@ pub fn latex_compile(
     let binary = resolve_tectonic(tectonic_path.as_deref()).ok_or_else(|| {
         "Tectonic was not found. Install it or set the LaTeX engine path in vault settings."
             .to_string()
-    })?;
-
-    let output = PathBuf::from(&output_dir);
-    std::fs::create_dir_all(&output).map_err(|error| {
-        format!("failed to create LaTeX output directory {output_dir}: {error}")
     })?;
 
     let mut args: Vec<String> = vec![
@@ -282,5 +327,62 @@ mod tests {
         let error = resolve_vault_input(&canonical_vault, outside.to_string_lossy().as_ref())
             .expect_err("outside source must be rejected");
         assert!(error.contains("inside the active vault"));
+    }
+
+    #[test]
+    fn authorization_scope_names_source_and_output_destination() {
+        let scope = latex_authorization_scope("papers/report.tex", ".scriptor/latex-out");
+        assert!(scope.contains("papers/report.tex"));
+        assert!(scope.contains(".scriptor/latex-out"));
+    }
+
+    #[test]
+    fn resolves_relative_output_directory_inside_vault() {
+        let vault = tempfile::tempdir().expect("vault");
+        let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
+
+        let resolved = resolve_vault_output_dir(&canonical_vault, ".scriptor/latex-out")
+            .expect("resolve output dir");
+
+        assert_eq!(resolved, canonical_vault.join(".scriptor/latex-out"));
+        assert!(resolved.is_dir(), "the output directory is created");
+    }
+
+    #[test]
+    fn rejects_absolute_output_directory() {
+        let vault = tempfile::tempdir().expect("vault");
+        let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
+        // A canonicalized path is absolute on every platform, and it stays
+        // inside the vault, so only the absolute-path branch can reject it.
+        let absolute = canonical_vault.join("elsewhere");
+
+        let error = resolve_vault_output_dir(&canonical_vault, absolute.to_string_lossy().as_ref())
+            .expect_err("absolute output directory must be rejected");
+        assert!(error.contains("relative to the vault root"));
+    }
+
+    #[test]
+    fn rejects_output_directory_that_escapes_the_vault() {
+        let vault = tempfile::tempdir().expect("vault");
+        let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
+
+        let error = resolve_vault_output_dir(&canonical_vault, "../../outside")
+            .expect_err("traversal must be rejected");
+        assert!(error.contains("escape") || error.contains("outside"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_output_directory_pointing_outside_the_vault() {
+        use std::os::unix::fs::symlink;
+
+        let vault = tempfile::tempdir().expect("vault");
+        let outside = tempfile::tempdir().expect("outside");
+        let canonical_vault = std::fs::canonicalize(vault.path()).expect("canonical vault");
+        symlink(outside.path(), vault.path().join("escape")).expect("symlink");
+
+        let error = resolve_vault_output_dir(&canonical_vault, "escape")
+            .expect_err("a symlink escaping the vault must be rejected");
+        assert!(error.contains("outside the active vault"));
     }
 }

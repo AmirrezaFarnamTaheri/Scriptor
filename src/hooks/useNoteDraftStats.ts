@@ -28,8 +28,15 @@ export function useNoteDraftStats({
   const draftWordCount = useMemo(() => countWords(deferredDraft), [deferredDraft])
   const charCount = useMemo(() => countCharacters(deferredDraft), [deferredDraft])
 
-  const savedWordCount = activeNote?.metadata.word_count ?? 0
-  const savedReadingMinutes = activeNote?.metadata.reading_time_minutes ?? 0
+  // The saved baseline must use the same semantic word definition as the
+  // draft. The persisted native metadata count is a naive whitespace split
+  // that counts Markdown structure ("#", "-", "|", "|--|") as words, so
+  // mixing the two made the status-bar delta and reading time meaningless
+  // for Markdown-heavy notes.
+  const savedMarkdown = activeNote?.markdown ?? ''
+  const savedWordCount = useMemo(() => countWords(savedMarkdown), [savedMarkdown])
+  const savedReadingMinutes =
+    savedWordCount === 0 ? 0 : Math.max(1, Math.ceil(savedWordCount / 200))
 
   const draftReadingMinutes = draftWordCount === 0 ? 0 : Math.max(1, Math.ceil(draftWordCount / 200))
   const readingMinutes = isNoteDirty ? draftReadingMinutes : savedReadingMinutes

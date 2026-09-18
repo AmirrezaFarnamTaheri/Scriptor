@@ -55,6 +55,7 @@ impl SensitiveOperation {
                 | Self::GitPull
                 | Self::GitPush
                 | Self::ImportVault
+                | Self::LatexCompilation
                 | Self::PdfTranslation
                 | Self::PublishSite
                 | Self::RestoreBackup
@@ -617,6 +618,7 @@ mod tests {
         assert!(SensitiveOperation::RestoreBackup.is_vault_bound());
         assert!(SensitiveOperation::RestoreHistory.is_vault_bound());
         assert!(SensitiveOperation::CodeExecution.is_vault_bound());
+        assert!(SensitiveOperation::LatexCompilation.is_vault_bound());
 
         assert!(!SensitiveOperation::DaemonControl.is_vault_bound());
         assert!(!SensitiveOperation::KeychainWrite.is_vault_bound());

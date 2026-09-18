@@ -31,7 +31,6 @@ interface PublishCenterProps {
   publishPlan?: PublishPlan | null
   applyingPlan?: boolean
   publishRequireOptIn?: boolean
-  vaultRoot?: string | null
   latexConfig?: LatexCompilerConfig | null
   onClose: () => void
   onExport: (profileId: string, dryRun?: boolean) => void
@@ -63,7 +62,6 @@ export const PublishCenter = memo(function PublishCenter({
   publishPlan = null,
   applyingPlan = false,
   publishRequireOptIn = true,
-  vaultRoot = null,
   latexConfig = null,
   onClose,
   onExport,
@@ -72,7 +70,7 @@ export const PublishCenter = memo(function PublishCenter({
   onReplanStarlight,
   onApplyPlan,
 }: PublishCenterProps) {
-  const latex = useLatexCompiler({ config: latexConfig ?? undefined, vaultRoot: vaultRoot ?? null })
+  const latex = useLatexCompiler({ config: latexConfig ?? undefined })
   const isTexDocument = Boolean(activePath && /\.(tex|ltx)$/i.test(activePath))
   const handleReplanStarlight = onReplanStarlight ?? onPlanStarlight
   const handleApplyPlan = onApplyPlan ?? (() => {})

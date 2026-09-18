@@ -399,10 +399,16 @@ export async function vaultListBackups(backupPath?: string): Promise<VaultBackup
   return invoke<VaultBackupEntry[]>('vault_list_backups', { backupPath: backupPath ?? null })
 }
 
-export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<string> {
+export interface VaultRestoreResult {
+  /** Whether the filesystem replacement is authoritative, regardless of post-commit resync failures. */
+  committed: boolean
+  message: string
+}
+
+export async function vaultRestoreBackup(backupName: string, backupPath?: string): Promise<VaultRestoreResult> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('restore_backup', backupName)
-  return invoke<string>('vault_restore_backup', {
+  return invoke<VaultRestoreResult>('vault_restore_backup', {
     backupName,
     backupPath: backupPath ?? null,
     authorizationToken,
