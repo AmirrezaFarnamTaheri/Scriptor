@@ -27,6 +27,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
 import { QuickCaptureWorkspaceLayer } from './components/app/QuickCaptureWorkspaceLayer'
 import { WorkspaceDialogLayers } from './components/app/WorkspaceDialogLayers'
+import { ExternalDeepLinkDialog } from './components/ExternalDeepLinkDialog'
 import { WorkspacePanelLaunchers } from './components/app/WorkspacePanelLaunchers'
 import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlays'
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
@@ -38,7 +39,8 @@ import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
 import { useLocalDate } from './hooks/useLocalDate'
 import { useMcpRuntime } from './hooks/useMcpRuntime'
-import { usePlatformShell, parseDeepLink } from './hooks/usePlatformShell'
+import { usePlatformShell } from './hooks/usePlatformShell'
+import type { DeepLinkTarget } from './hooks/usePlatformShell'
 import { useOnboarding } from './hooks/useOnboarding'
 import { usePerfMetrics } from './hooks/usePerfMetrics'
 import { useWorkspaceSession } from './hooks/useWorkspaceSession'
@@ -319,17 +321,10 @@ function App() {
     sidebarView: workspace.sidebarView,
   })
   useScreenshotAutoOpen(workspace.openVaultAt, workspace.status)
+  const [pendingDeepLink, setPendingDeepLink] = useState<DeepLinkTarget | null>(null)
   usePlatformShell({
     onQuickCapture: () => setQuickCaptureOpen(true),
-    onDeepLink: (url) => {
-      const target = parseDeepLink(url)
-      if (!target) return
-      if (target.kind === 'vault') {
-        void workspace.openVaultAt(target.path)
-        return
-      }
-      void workspace.openNote(target.path)
-    },
+    onDeepLinkRequest: (_url, target) => setPendingDeepLink(target),
   })
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
@@ -1812,6 +1807,22 @@ function App() {
           void workspace.refreshVault()
         }}
       />
+
+      {pendingDeepLink ? (
+        <ExternalDeepLinkDialog
+          target={pendingDeepLink}
+          onCancel={() => setPendingDeepLink(null)}
+          onConfirm={() => {
+            const target = pendingDeepLink
+            setPendingDeepLink(null)
+            if (target.kind === 'vault') {
+              void workspace.openVaultAt(target.path)
+            } else {
+              void workspace.openNote(target.path)
+            }
+          }}
+        />
+      ) : null}
 
       <WorkspaceDialogLayers
         workspace={workspace}

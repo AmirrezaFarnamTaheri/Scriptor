@@ -712,5 +712,12 @@
       "startingAuth": "Starting authorization…",
       "connectGoogle": "Connect with Google"
     }
+  },
+  "security": {
+    "externalLinkTitle": "Open external Scriptor link?",
+    "externalLinkDescription": "Another application requested that Scriptor open this {{resource}}. Confirm the path before continuing.",
+    "externalLinkVault": "vault",
+    "externalLinkNote": "note",
+    "externalLinkOpen": "Open in Scriptor"
   }
 }

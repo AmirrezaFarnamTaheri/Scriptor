@@ -712,5 +712,12 @@
       "startingAuth": "در حال آغاز مجوزدهی…",
       "connectGoogle": "اتصال با گوگل"
     }
+  },
+  "security": {
+    "externalLinkTitle": "پیوند خارجی Scriptor باز شود؟",
+    "externalLinkDescription": "برنامهٔ دیگری درخواست کرده است Scriptor این {{resource}} را باز کند. پیش از ادامه مسیر را بررسی کنید.",
+    "externalLinkVault": "خزانه",
+    "externalLinkNote": "یادداشت",
+    "externalLinkOpen": "باز کردن در Scriptor"
   }
 }
