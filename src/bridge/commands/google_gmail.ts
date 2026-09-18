@@ -22,6 +22,11 @@ export async function googleGmailStartAuth(clientId: string): Promise<string> {
   return invoke<string>('google_gmail_start_auth', { clientId, authorizationToken })
 }
 
+export async function googleGmailGetAuthedEmail(): Promise<string> {
+  requireNative()
+  return invoke<string>('google_gmail_get_authed_email')
+}
+
 export async function googleGmailDisconnect(): Promise<void> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_gmail_disconnect', 'google-gmail-auth')

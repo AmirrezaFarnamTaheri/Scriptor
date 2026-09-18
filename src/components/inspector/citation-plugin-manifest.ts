@@ -1,6 +1,6 @@
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 
-export const CITATION_PLUGIN_CAPABILITY_ID = 'citations'
+export const CITATION_PLUGIN_CAPABILITY_ID = 'scriptor.citations'
 export const CITATION_PLUGIN_ID = 'scriptor.citations'
 
 export const citationsPluginManifest: PluginManifest = {

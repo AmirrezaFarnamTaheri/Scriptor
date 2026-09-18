@@ -248,6 +248,7 @@ function groupVaultTasks(rows: TaskRow[]): VaultTaskNote[] {
     if (!task.sourceNotePath) continue
     const note = notes.get(task.sourceNotePath) ?? { path: task.sourceNotePath, tasks: [] }
     note.tasks.push({
+      id: task.id,
       text: task.title,
       checked: task.status === 'done' || task.status === 'cancelled',
       line: task.line,

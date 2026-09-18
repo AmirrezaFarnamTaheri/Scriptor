@@ -45,7 +45,7 @@ export async function googleCalendarStartAuth(args: {
   taskListId: string
 }): Promise<string> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_calendar_auth', args.clientId)
+  const authorizationToken = await authorizeSensitiveOperation('google_calendar_auth', 'google-calendar-auth')
   return invoke<string>('google_calendar_start_auth', {
     clientId: args.clientId,
     calendarId: args.calendarId,
@@ -89,7 +89,7 @@ export async function googleCalendarCreateTask(args: {
   due?: string | null
 }): Promise<GoogleTask> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', args.title)
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   return invoke<GoogleTask>('google_calendar_create_task', {
     taskListId: args.taskListId,
     title: args.title,
@@ -104,12 +104,12 @@ export async function googleCalendarCompleteTask(
   taskId: string,
 ): Promise<void> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', taskId)
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   await invoke('google_calendar_complete_task', { taskListId, taskId, authorizationToken })
 }
 
 export async function googleCalendarDeleteTask(taskListId: string, taskId: string): Promise<void> {
   requireNative()
-  const authorizationToken = await authorizeSensitiveOperation('google_task_write', taskId)
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
   await invoke('google_calendar_delete_task', { taskListId, taskId, authorizationToken })
 }

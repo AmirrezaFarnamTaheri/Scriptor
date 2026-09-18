@@ -1,5 +1,5 @@
-import { memo } from 'react'
-import type { AppTheme } from '../hooks/useAppTheme'
+import { memo, useMemo } from 'react'
+import { readStoredCustomThemes, type AppTheme, type AppearanceMode } from '../hooks/useAppTheme'
 import { useI18n } from '../lib/i18n'
 import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
 import { EDITOR_FONT_FAMILIES } from '../brand/support'
@@ -16,7 +16,9 @@ export interface AppearanceSettingsSectionProps {
   onPatchWorkspaceChrome: (patch: Partial<WorkspaceChromePrefs>) => void
   onResetWorkspaceChrome?: () => void
   theme?: AppTheme
+  appearance?: AppearanceMode
   onThemeChange?: (theme: AppTheme) => void
+  onAppearanceChange?: (appearance: AppearanceMode) => void
   onReplayOnboarding?: () => void
 }
 
@@ -25,25 +27,49 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
   onPatchWorkspaceChrome,
   onResetWorkspaceChrome,
   theme,
+  appearance = 'system',
   onThemeChange,
+  onAppearanceChange,
   onReplayOnboarding,
 }: AppearanceSettingsSectionProps) {
   const { t } = useI18n()
+  const customPalettes = useMemo(() => readStoredCustomThemes(), [theme])
   return (
     <div className="settings-section">
       <h3>Appearance &amp; layout</h3>
+      <p className="health-subtitle">
+        Choose a palette for color accents, then choose Day, Night, or System independently. Switching appearance never changes the selected palette.
+      </p>
       {onThemeChange ? (
         <label className="settings-field">
-          <span>Color theme</span>
+          <span>Color palette</span>
           <select
             value={theme}
             onChange={(event) => onThemeChange(event.target.value as AppTheme)}
           >
             {COLOR_PALETTE_SCHEMES.map((scheme) => (
               <option key={scheme.id} value={scheme.id}>
-                {scheme.name} ({scheme.category})
+                {scheme.name}
               </option>
             ))}
+            {customPalettes.length ? <optgroup label="Custom palettes">
+              {customPalettes.map((palette) => (
+                <option key={palette.id} value={palette.id}>{palette.name}</option>
+              ))}
+            </optgroup> : null}
+          </select>
+        </label>
+      ) : null}
+      {onAppearanceChange ? (
+        <label className="settings-field">
+          <span>Day / night appearance</span>
+          <select
+            value={appearance}
+            onChange={(event) => onAppearanceChange(event.target.value as AppearanceMode)}
+          >
+            <option value="system">Follow system</option>
+            <option value="light">Day</option>
+            <option value="dark">Night</option>
           </select>
         </label>
       ) : null}

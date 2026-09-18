@@ -20,7 +20,8 @@
     "retry": "Erneut versuchen",
     "expand": "Erweitern",
     "collapse": "Einklappen",
-    "confirm": "Bestätigen"
+    "confirm": "Bestätigen",
+    "next": "Weiter"
   },
   "topBar": {
     "openVault": "Tresor öffnen",
@@ -43,7 +44,8 @@
     "collapseInspector": "Inspektor einklappen",
     "paletteStore": "Eingebaute Module & Farbpaletten",
     "customizeAria": "Kopfzeilen-Aktionen anpassen",
-    "customizeShowAll": "Alle anzeigen"
+    "customizeShowAll": "Alle anzeigen",
+    "customizeRestoreDefaults": "Standardaktionen wiederherstellen"
   },
   "commandPalette": {
     "placeholder": "Befehl oder Notiz eingeben...",
@@ -52,7 +54,11 @@
     "ariaLabel": "Befehlspalette",
     "scopeHint": "Befehle sind sofort verfügbar; die Notizsuche startet ab 2 Zeichen.",
     "noteCategory": "Notiz",
-    "commandCategory": "Befehl"
+    "commandCategory": "Befehl",
+    "commandsHeading": "Befehle",
+    "notesHeading": "Notizen",
+    "navigate": "Navigieren",
+    "open": "Öffnen"
   },
   "workspaceModes": {
     "writing": "Schreiben",
@@ -320,7 +326,10 @@
     "saveViews": "Ansichten speichern",
     "legendAria": "Graph-Legende",
     "currentNote": "Aktuelle Notiz",
-    "directedLink": "Gerichteter Link"
+    "directedLink": "Gerichteter Link",
+    "disabledTitle": "Wissensgraph ist deaktiviert",
+    "disabledDescription": "Aktivieren Sie das Graph-Modul für diesen Tresor, um Notizbeziehungen zu erkunden.",
+    "enable": "Graph aktivieren"
   },
   "knowledge": {
     "title": "Wissensarbeitsplatz",
@@ -329,7 +338,39 @@
     "views": "Ansichten",
     "tags": "Tags",
     "collections": "Sammlungen",
-    "discover": "Entdecken"
+    "discover": "Entdecken",
+    "filters": {
+      "loading": "Wissensfilter werden geladen…",
+      "loadError": "Wissensfilter konnten nicht geladen werden",
+      "openVaultStatus": "Öffnen Sie einen Tresor in der Desktop-App, um Wissensfilter zu durchsuchen.",
+      "categories": "Filterkategorien",
+      "orphans": "Verwaiste Notizen ({{count}})",
+      "deadEnds": "Sackgassen ({{count}})",
+      "unresolved": "Ungelöst ({{count}})",
+      "openVaultTitle": "Tresor öffnen, um die Link-Gesundheit zu prüfen",
+      "openVaultDescription": "Die Wissensreparatur nutzt den Desktop-Index für verwaiste Notizen, Sackgassen und ungelöste Links.",
+      "loadingRepair": "Wissensreparatur wird geladen…",
+      "unavailableTitle": "Wissensreparatur ist nicht verfügbar",
+      "startTriage": "Triage starten ({{count}})",
+      "triageProgress": "Triage {{current}} von {{count}}: {{title}}",
+      "noUnresolvedTitle": "Keine ungelösten Links",
+      "noUnresolvedDescription": "Alle Wikilink-Ziele verweisen derzeit auf eine indexierte Notiz.",
+      "reference": "{{count}} Verweis",
+      "references": "{{count}} Verweise",
+      "createNote": "Notiz erstellen",
+      "noOrphansTitle": "Keine verwaisten Notizen",
+      "noDeadEndsTitle": "Keine Sackgassen",
+      "noOrphansDescription": "Jede indexierte Notiz hat mindestens einen eingehenden Link.",
+      "noDeadEndsDescription": "Jede indexierte Notiz verlinkt auf mindestens eine weitere Notiz.",
+      "title": "Wissensfilter"
+    },
+    "discoverDescription": "Beziehungen erkunden, Backlinks prüfen und graphgestützte Kuratierung öffnen.",
+    "openGraph": "Wissensgraph öffnen",
+    "unresolvedInbox": "Posteingang ungelöster Links",
+    "smartCollections": "Intelligente Sammlungen",
+    "tagBrowser": "Tag-Browser",
+    "graphFocus": "Graph-Fokus:",
+    "openNoteForGraph": "Öffnen Sie eine Notiz, um den Graph auf ihre Nachbarschaft zu fokussieren."
   },
   "settingsSection": {
     "panelPresentation": "Panel-Darstellung",
@@ -598,5 +639,78 @@
     "repairIssues": "Probleme beheben",
     "graph": "Graph",
     "exportPublish": "Exportieren / veröffentlichen"
+  },
+  "integrations": {
+    "google": {
+      "title": "Google",
+      "description": "Verbinden Sie einmalig eine Google-OAuth-Client-ID vom Typ Desktop-App. Kalender und Aufgaben verwenden diese Verbindung; der Gmail-Manager kann dieselbe Client-ID mit eigenen, minimalen Berechtigungen verwenden.",
+      "experimental": "Experimentelle Integration.",
+      "security": "Aktualisierungstoken werden im Schlüsselbund des Betriebssystems gespeichert. Scriptor verwendet PKCE und einen lokalen Loopback-Rückruf; ein Client-Secret ist nicht erforderlich.",
+      "enableCalendarTasks": "Google Kalender & Aufgaben aktivieren",
+      "clientId": "Google-OAuth-Client-ID (Desktop-App)",
+      "clientHelp": "Erstellen Sie in Google Cloud eine OAuth-2.0-Anmeldedaten vom Typ Desktop-App. Fügen Sie kein Client-Secret ein. Web-App-Anmeldedaten sind mit Scriptors Loopback-Rückruf nicht kompatibel.",
+      "lookahead": "Vorschaufenster (Tage)",
+      "showEvents": "Kalendertermine in Aufgaben anzeigen",
+      "mirrorTasks": "Offene Tresor-Aufgaben in Google Tasks spiegeln",
+      "connect": "Speichern & mit Google verbinden",
+      "syncNow": "Jetzt synchronisieren",
+      "disconnect": "Trennen",
+      "gmailNote": "Der Gmail-Manager wird separat unter Plugins aktiviert und fordert eigene Gmail-Berechtigungen an. Er kann dieselbe Client-ID verwenden."
+    },
+    "gmail": {
+      "title": "Gmail",
+      "subtitle": "Experimenteller Gmail-Zugriff mit minimalen Berechtigungen und Markdown-Archivierung.",
+      "ariaLabel": "Gmail-Integrationsbereich",
+      "experimentalNote": "E-Mail-Aktionen verwenden eigene Gmail-Berechtigungen und können die unter Integrationen konfigurierte Google-Desktop-App-Client-ID wiederverwenden.",
+      "tabs": {
+        "messages": "Nachrichten",
+        "compose": "Verfassen",
+        "account": "Konto"
+      },
+      "status": {
+        "openingBrowser": "Systembrowser für die Google-Autorisierung wird geöffnet…",
+        "connectedAs": "Verbunden als {{email}}.",
+        "disconnected": "Verbindung zu Gmail getrennt.",
+        "imported": "„{{subject}}“ wurde in den Tresor importiert.",
+        "archived": "Nachricht archiviert.",
+        "trashed": "Nachricht in den Papierkorb verschoben.",
+        "sent": "E-Mail erfolgreich gesendet."
+      },
+      "searchLabel": "Nachrichten suchen",
+      "searchPlaceholder": "Gmail durchsuchen (z. B. is:unread oder from:kollege)…",
+      "searchAria": "Gmail-Nachrichten durchsuchen",
+      "refresh": "Nachrichten suchen oder aktualisieren",
+      "checkingConnection": "Gmail-Verbindung wird geprüft…",
+      "notConnected": "Gmail ist nicht verbunden",
+      "connectPrompt": "Verbinden Sie Ihr Google-Konto im Reiter Konto, um E-Mails zu lesen, zu importieren und zu senden.",
+      "connectAccount": "Gmail-Konto verbinden",
+      "messageListAria": "Gmail-Nachrichten",
+      "noMessages": "Keine Nachrichten gefunden.",
+      "noSubject": "(Kein Betreff)",
+      "untitledEmail": "Unbenannte E-Mail",
+      "unknownSender": "Unbekannter Absender",
+      "from": "Von",
+      "date": "Datum",
+      "import": "Importieren",
+      "importTitle": "In den aktuellen Markdown-Tresor speichern",
+      "archive": "Nachricht archivieren",
+      "trash": "In den Papierkorb verschieben",
+      "recipient": "Empfänger (An)",
+      "subject": "Betreff",
+      "subjectPlaceholder": "Betreffzeile",
+      "messageBody": "Nachrichtentext (Nur Text)",
+      "bodyPlaceholder": "Nachricht hier eingeben…",
+      "sending": "Wird gesendet…",
+      "send": "Nachricht senden",
+      "connectionStatus": "OAuth-Verbindungsstatus",
+      "connectedAccount": "Verbunden als {{email}}. Tokens werden im Schlüsselbund des Betriebssystems gespeichert.",
+      "connectedUnknown": "verbundenes Google-Konto",
+      "notConnectedStatus": "Nicht mit Gmail verbunden.",
+      "disconnect": "Konto trennen",
+      "clientId": "Google-OAuth-Client-ID",
+      "clientHelp": "Verwenden Sie eine Google-OAuth-Client-ID vom Typ Desktop-App. Scriptor öffnet den Systembrowser, schließt PKCE über einen lokalen Loopback-Rückruf ab und speichert Tokens im Schlüsselbund des Betriebssystems. Dieselbe Client-ID kann für Kalender und Aufgaben verwendet werden.",
+      "startingAuth": "Autorisierung wird gestartet…",
+      "connectGoogle": "Mit Google verbinden"
+    }
   }
 }

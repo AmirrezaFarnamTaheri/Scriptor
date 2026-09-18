@@ -307,3 +307,65 @@
   flex: 1;
   min-width: 0;
 }
+
+.settings-section-heading-with-icon {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.settings-section-heading-with-icon > svg {
+  margin-top: 2px;
+  color: var(--primary);
+  flex: 0 0 auto;
+}
+
+.settings-section-heading-with-icon h3,
+.settings-section-heading-with-icon p {
+  margin-top: 0;
+}
+
+.integration-maturity-note {
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--amber) 35%, var(--border));
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--amber) 8%, var(--surface));
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.google-integration-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.google-integration-options {
+  align-items: end;
+}
+
+.google-connection-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.google-connection-actions .publish-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.google-gmail-connection-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: var(--radius-md, 8px);
+  background: var(--surface-muted);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}

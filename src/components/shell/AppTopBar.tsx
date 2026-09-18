@@ -4,7 +4,6 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
-  Contrast,
   FolderOpen,
   GitBranch,
   Globe,
@@ -29,8 +28,7 @@ import { getDefaultShortcut } from '../../lib/commandShortcutRegistry'
 import { formatShortcut } from '../../lib/keyboardShortcuts'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
-import type { AppTheme } from '../../hooks/useAppTheme'
-import { getNextTheme, THEME_DISPLAY_NAMES } from '../../hooks/useAppTheme'
+import type { AppTheme, AppearanceMode, ResolvedAppearance } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
@@ -65,6 +63,8 @@ interface AppTopBarProps {
   onOpenSettings: () => void
   onOpenPluginManager?: () => void
   theme: AppTheme
+  appearance: AppearanceMode
+  resolvedAppearance: ResolvedAppearance
   onToggleTheme: () => void
   vaultSidebarCollapsed: boolean
   onToggleVaultSidebar: () => void
@@ -112,6 +112,8 @@ function AppTopBarImpl({
   onOpenSettings,
   onOpenPluginManager,
   theme,
+  appearance,
+  resolvedAppearance,
   onToggleTheme,
   vaultSidebarCollapsed,
   onToggleVaultSidebar,
@@ -131,18 +133,11 @@ function AppTopBarImpl({
     getShortcut('toggle-inspector', getDefaultShortcut('toggle-inspector')),
   )
 
-  // The theme control advertises the theme its next click will apply, so the
-  // accessible name has to be derived from the real cycle rather than a fixed
-  // light/dark/high-contrast ternary.
-  const nextTheme = getNextTheme(theme)
-  const themeToggleLabel =
-    nextTheme === 'light'
-      ? t('topBar.switchToLight')
-      : nextTheme === 'dark'
-        ? t('topBar.switchToDark')
-        : nextTheme === 'high-contrast'
-          ? t('topBar.switchToHighContrast')
-          : t('topBar.switchToTheme', { theme: THEME_DISPLAY_NAMES[nextTheme] ?? nextTheme })
+  // Palette identity and day/night appearance are separate. The top-bar
+  // control only flips appearance and never changes the selected palette.
+  const themeToggleLabel = resolvedAppearance === 'dark'
+    ? t('topBar.switchToLight')
+    : t('topBar.switchToDark')
 
   const hiddenTopBarActions = useMemo(
     () =>
@@ -377,8 +372,8 @@ function AppTopBarImpl({
             </button>
           ) : null}
 
-          <IconButton label={themeToggleLabel} onClick={onToggleTheme}>
-            {theme === 'high-contrast' ? <Contrast /> : theme === 'dark' ? <Sun /> : <Moon />}
+          <IconButton label={`${themeToggleLabel} · ${theme} palette${appearance === 'system' ? ' · follows system' : ''}`} onClick={onToggleTheme}>
+            {resolvedAppearance === 'dark' ? <Sun /> : <Moon />}
           </IconButton>
           <IconButton
             label={inspectorCollapsed ? t('topBar.expandInspector') : t('topBar.collapseInspector')}
@@ -434,9 +429,9 @@ function AppTopBarImpl({
           <button
             type="button"
             className="customize-reset"
-            onClick={() => onPatchChrome?.({ topBarHiddenActions: [] })}
+            onClick={() => onPatchChrome?.({ topBarHiddenActions: [...DEFAULT_WORKSPACE_CHROME.topBarHiddenActions] })}
           >
-            {t('topBar.customizeShowAll')}
+            {t('topBar.customizeRestoreDefaults')}
           </button>
         </div>
       ) : null}

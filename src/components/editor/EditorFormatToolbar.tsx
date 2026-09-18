@@ -352,7 +352,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             title={t('editor.aiSummarize')}
             aria-label={t('editor.aiSummarize')}
             onClick={() => {
-              insertSnippet('> [!ai] Summarize the section above.')
+              insertSnippet('\n\n> [!ai] Summarize the section above.\n\n')
             }}
           >
             <Sparkles />

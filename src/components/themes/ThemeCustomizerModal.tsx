@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect, useRef } from 'react'
+import { useMemo, useState, useLayoutEffect, useRef } from 'react'
 import { Palette, Plus, Trash2, Check, RotateCcw, Sliders, Eye, X } from 'lucide-react'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
@@ -10,6 +10,7 @@ import {
   type CustomColorPalette,
   type AppTheme,
 } from '../../hooks/useAppTheme'
+import { MutationConfirmation } from '../chrome/MutationConfirmation'
 import '../../styles/components/theme-customizer.css'
 
 export interface ThemeCustomizerModalProps {
@@ -29,6 +30,36 @@ const DEFAULT_CUSTOM_COLORS = {
 
 const CUSTOM_STORAGE_KEY = 'scriptor:custom-themes'
 
+function parseHexRgb(value: string): [number, number, number] | null {
+  const match = value.trim().match(/^#([0-9a-f]{6})$/i)
+  if (!match) return null
+  const hex = match[1]
+  return [
+    Number.parseInt(hex.slice(0, 2), 16),
+    Number.parseInt(hex.slice(2, 4), 16),
+    Number.parseInt(hex.slice(4, 6), 16),
+  ]
+}
+
+function relativeLuminance(rgb: [number, number, number]): number {
+  const [r, g, b] = rgb.map((channel) => {
+    const normalized = channel / 255
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b
+}
+
+function contrastRatio(foreground: string, background: string): number | null {
+  const fg = parseHexRgb(foreground)
+  const bg = parseHexRgb(background)
+  if (!fg || !bg) return null
+  const lighter = Math.max(relativeLuminance(fg), relativeLuminance(bg))
+  const darker = Math.min(relativeLuminance(fg), relativeLuminance(bg))
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
 export function ThemeCustomizerModal({
   isOpen,
   onClose,
@@ -42,6 +73,28 @@ export function ThemeCustomizerModal({
   const [category, setCategory] = useState<'dark' | 'light' | 'contrast'>('dark')
   const [colors, setColors] = useState(DEFAULT_CUSTOM_COLORS)
   const [baseSchemeId, setBaseSchemeId] = useState<string>('dark')
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  const invalidColorKeys = useMemo(() => Object.entries(colors).flatMap(([key, value]) => {
+    if (typeof CSS === 'undefined' || typeof CSS.supports !== 'function') return []
+    return CSS.supports('color', value) ? [] : [key]
+  }), [colors])
+
+  const contrastChecks = useMemo(() => {
+    const minimum = category === 'contrast' ? 7 : 4.5
+    const pairs = [
+      ['Text / background', colors.ink, colors.bg],
+      ['Text / surface', colors.ink, colors.surface],
+    ] as const
+    return pairs.flatMap(([label, foreground, background]) => {
+      const ratio = contrastRatio(foreground, background)
+      if (ratio === null) return []
+      return [{ label, ratio, minimum, passes: ratio >= minimum }]
+    })
+  }, [category, colors.bg, colors.ink, colors.surface])
+
+  const failingContrastChecks = contrastChecks.filter((check) => !check.passes)
 
   // useLayoutEffect is the correct pattern here: localStorage read must sync before
   // first paint on re-open to prevent stale custom-theme list flash.
@@ -76,6 +129,17 @@ export function ThemeCustomizerModal({
   }
 
   const handleSave = () => {
+    if (invalidColorKeys.length > 0) {
+      setSaveError(`Invalid CSS color: ${invalidColorKeys.join(', ')}`)
+      return
+    }
+    if (failingContrastChecks.length > 0) {
+      setSaveError(
+        `Text contrast is too low: ${failingContrastChecks.map((check) => `${check.label} ${check.ratio.toFixed(2)}:1`).join(', ')}.`,
+      )
+      return
+    }
+    setSaveError(null)
     const targetId = editingId ?? `custom-${Date.now()}`
     const newTheme: CustomColorPalette = {
       id: targetId,
@@ -94,11 +158,12 @@ export function ThemeCustomizerModal({
       onSelectTheme(targetId)
       onClose()
     } catch {
-      // ignore quota error
+      setSaveError('Could not save the custom theme. Browser storage may be unavailable or full.')
     }
   }
 
   const handleDelete = (id: string) => {
+    setSaveError(null)
     const existing = readStoredCustomThemes()
     const updated = existing.filter((t) => t.id !== id)
     try {
@@ -108,8 +173,12 @@ export function ThemeCustomizerModal({
         setEditingId(null)
         setColors(DEFAULT_CUSTOM_COLORS)
       }
+      setPendingDeleteId(null)
+      if (localStorage.getItem('scriptor:app-theme') === id) {
+        onSelectTheme('dark')
+      }
     } catch {
-      // ignore
+      setSaveError('Could not delete the custom theme from browser storage.')
     }
   }
 
@@ -154,19 +223,32 @@ export function ThemeCustomizerModal({
                   <p className="empty-hint">No custom themes saved yet.</p>
                 ) : (
                   customThemes.map((ct) => (
-                    <div key={ct.id} className={`saved-theme-item ${editingId === ct.id ? 'active' : ''}`}>
-                      <button type="button" className="theme-name-btn" onClick={() => handleEditExisting(ct)}>
-                        <span className="swatch-mini" style={{ background: ct.colors.primary }} />
-                        <span className="name-txt">{ct.name}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-delete-theme"
-                        title="Delete theme"
-                        onClick={() => handleDelete(ct.id)}
-                      >
-                        <Trash2 />
-                      </button>
+                    <div key={ct.id} className="saved-theme-entry">
+                      <div className={`saved-theme-item ${editingId === ct.id ? 'active' : ''}`}>
+                        <button type="button" className="theme-name-btn" onClick={() => handleEditExisting(ct)}>
+                          <span className="swatch-mini" style={{ background: ct.colors.primary }} />
+                          <span className="name-txt">{ct.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-delete-theme"
+                          aria-label={`Delete ${ct.name}`}
+                          title={`Delete ${ct.name}`}
+                          onClick={() => setPendingDeleteId(ct.id)}
+                        >
+                          <Trash2 />
+                        </button>
+                      </div>
+                      {pendingDeleteId === ct.id ? (
+                        <MutationConfirmation
+                          ariaLabel={`Confirm deletion of ${ct.name}`}
+                          message={`Delete the custom theme “${ct.name}”? This cannot be undone.`}
+                          confirmLabel="Delete theme"
+                          onCancel={() => setPendingDeleteId(null)}
+                          onConfirm={() => handleDelete(ct.id)}
+                          className="theme-delete-confirmation"
+                        />
+                      ) : null}
                     </div>
                   ))
                 )}
@@ -177,8 +259,11 @@ export function ThemeCustomizerModal({
               <h3>
                 <RotateCcw /> Load From Preset Template
               </h3>
-              <select value={baseSchemeId} onChange={(e) => handleLoadBaseScheme(e.target.value)}>
-              aria-label="Load base color scheme from preset template"
+              <select
+                value={baseSchemeId}
+                aria-label="Load base color scheme from preset template"
+                onChange={(e) => handleLoadBaseScheme(e.target.value)}
+              >
                 {COLOR_PALETTE_SCHEMES.map((scheme) => (
                   <option key={scheme.id} value={scheme.id}>
                     {scheme.name} ({scheme.category})
@@ -190,6 +275,7 @@ export function ThemeCustomizerModal({
 
           {/* Center/Right Column: Color Controls & Live Preview */}
           <div className="customizer-main">
+            {saveError ? <p className="error-state" role="alert">{saveError}</p> : null}
             <div className="form-group">
               <label htmlFor="theme-name-input">Theme Name:</label>
               <input
@@ -217,8 +303,26 @@ export function ThemeCustomizerModal({
               </div>
             </div>
 
-            <div className="color-pickers-grid">
-              <div className="picker-card">
+            {contrastChecks.length > 0 ? (
+              <div className="theme-contrast-status" role="status" aria-live="polite">
+                <strong>Text contrast</strong>
+                <span>Required: {category === 'contrast' ? '7:1' : '4.5:1'}</span>
+                <ul>
+                  {contrastChecks.map((check) => (
+                    <li key={check.label} data-pass={check.passes ? 'true' : 'false'}>
+                      <span>{check.label}</span>
+                      <span>{check.ratio.toFixed(2)}:1 {check.passes ? '✓' : '— increase contrast'}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p className="theme-contrast-status theme-contrast-status--unknown" role="note">
+                Contrast preview is available for six-digit hex text, background, and surface colors.
+              </p>
+            )}
+
+            <div className="color-pickers-grid">\n              <div className="picker-card">
                 <label>Primary Accent</label>
                 <div className="picker-row">
                   <input

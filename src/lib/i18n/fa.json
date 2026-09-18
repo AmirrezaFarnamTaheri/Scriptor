@@ -17,10 +17,11 @@
     "check": "بررسی",
     "start": "شروع",
     "reset": "بازنشانی",
-    "retry": "تلاش مجدد",
+    "retry": "تلاش دوباره",
     "expand": "گسترش",
     "collapse": "جمع کردن",
-    "confirm": "تأیید"
+    "confirm": "تأیید",
+    "next": "بعدی"
   },
   "topBar": {
     "openVault": "باز کردن خزانه",
@@ -43,7 +44,8 @@
     "collapseInspector": "بستن پنل بررسی",
     "paletteStore": "ماژول‌ها و پالت‌های رنگی داخلی",
     "customizeAria": "سفارشی‌سازی گزینه‌های نوار بالا",
-    "customizeShowAll": "نمایش همه"
+    "customizeShowAll": "نمایش همه",
+    "customizeRestoreDefaults": "بازگردانی کنش‌های پیش‌فرض"
   },
   "commandPalette": {
     "placeholder": "دستور یا یادداشت تایپ کنید...",
@@ -52,7 +54,11 @@
     "ariaLabel": "پالت دستورات",
     "scopeHint": "دستورها فوراً در دسترس‌اند؛ جستجوی یادداشت از ۲ نویسه آغاز می‌شود.",
     "noteCategory": "یادداشت",
-    "commandCategory": "دستور"
+    "commandCategory": "دستور",
+    "commandsHeading": "فرمان‌ها",
+    "notesHeading": "یادداشت‌ها",
+    "navigate": "پیمایش",
+    "open": "باز کردن"
   },
   "workspaceModes": {
     "writing": "نوشتن",
@@ -320,7 +326,10 @@
     "saveViews": "ذخیرهٔ نماها",
     "legendAria": "راهنمای گراف",
     "currentNote": "یادداشت فعلی",
-    "directedLink": "پیوند جهت‌دار"
+    "directedLink": "پیوند جهت‌دار",
+    "disabledTitle": "گراف دانش غیرفعال است",
+    "disabledDescription": "برای کاوش ارتباط میان یادداشت‌ها، ماژول گراف را برای این خزانه فعال کنید.",
+    "enable": "فعال‌کردن گراف"
   },
   "knowledge": {
     "title": "میز کار دانش",
@@ -329,7 +338,39 @@
     "views": "نماها",
     "tags": "برچسب‌ها",
     "collections": "مجموعه‌ها",
-    "discover": "کاوش"
+    "discover": "کاوش",
+    "filters": {
+      "loading": "در حال بارگذاری فیلترهای دانش…",
+      "loadError": "فیلترهای دانش بارگذاری نشد",
+      "openVaultStatus": "برای مرور فیلترهای دانش، یک خزانه را در برنامهٔ دسکتاپ باز کنید.",
+      "categories": "دسته‌های فیلتر",
+      "orphans": "یادداشت‌های یتیم ({{count}})",
+      "deadEnds": "بن‌بست‌ها ({{count}})",
+      "unresolved": "حل‌نشده ({{count}})",
+      "openVaultTitle": "برای بررسی سلامت پیوندها خزانه را باز کنید",
+      "openVaultDescription": "ترمیم دانش از نمایهٔ دسکتاپ برای شناسایی یادداشت‌های یتیم، بن‌بست‌ها و پیوندهای حل‌نشده استفاده می‌کند.",
+      "loadingRepair": "در حال بارگذاری داده‌های ترمیم دانش…",
+      "unavailableTitle": "ترمیم دانش در دسترس نیست",
+      "startTriage": "شروع بررسی ({{count}})",
+      "triageProgress": "بررسی {{current}} از {{count}}: {{title}}",
+      "noUnresolvedTitle": "پیوند حل‌نشده‌ای وجود ندارد",
+      "noUnresolvedDescription": "همهٔ مقصدهای ویکی‌پیوند اکنون به یک یادداشت نمایه‌شده می‌رسند.",
+      "reference": "{{count}} ارجاع",
+      "references": "{{count}} ارجاع",
+      "createNote": "ایجاد یادداشت",
+      "noOrphansTitle": "یادداشت یتیمی وجود ندارد",
+      "noDeadEndsTitle": "یادداشت بن‌بستی وجود ندارد",
+      "noOrphansDescription": "هر یادداشت نمایه‌شده دست‌کم یک پیوند ورودی دارد.",
+      "noDeadEndsDescription": "هر یادداشت نمایه‌شده به یادداشت دیگری پیوند می‌دهد.",
+      "title": "فیلترهای دانش"
+    },
+    "discoverDescription": "روابط را مرور کنید، پیوندهای بازگشتی را بررسی کنید و به سامان‌دهی با کمک گراف بروید.",
+    "openGraph": "باز کردن گراف دانش",
+    "unresolvedInbox": "صندوق پیوندهای حل‌نشده",
+    "smartCollections": "مجموعه‌های هوشمند",
+    "tagBrowser": "مرورگر برچسب",
+    "graphFocus": "تمرکز گراف:",
+    "openNoteForGraph": "برای تمرکز گراف بر همسایگی آن، یک یادداشت را باز کنید."
   },
   "settingsSection": {
     "panelPresentation": "ارائه پنل",
@@ -598,5 +639,78 @@
     "repairIssues": "رفع مشکلات",
     "graph": "گراف",
     "exportPublish": "خروجی / انتشار"
+  },
+  "integrations": {
+    "google": {
+      "title": "گوگل",
+      "description": "یک‌بار با شناسهٔ OAuth از نوع برنامهٔ دسکتاپ گوگل متصل شوید. تقویم و وظایف از این اتصال استفاده می‌کنند؛ مدیر Gmail می‌تواند همان شناسه را با مجوزهای حداقلی و جداگانه به‌کار ببرد.",
+      "experimental": "یکپارچه‌سازی آزمایشی.",
+      "security": "توکن‌های نوسازی در مخزن امن سیستم‌عامل نگه‌داری می‌شوند. Scriptor از PKCE و بازگشت محلی استفاده می‌کند و به client secret نیاز ندارد.",
+      "enableCalendarTasks": "فعال‌سازی تقویم و وظایف گوگل",
+      "clientId": "شناسهٔ OAuth گوگل (برنامهٔ دسکتاپ)",
+      "clientHelp": "در Google Cloud یک اعتبار OAuth 2.0 از نوع Desktop app بسازید. client secret وارد نکنید. اعتبار Web app با بازگشت محلی Scriptor سازگار نیست.",
+      "lookahead": "بازهٔ پیش‌نگری (روز)",
+      "showEvents": "نمایش رویدادهای تقویم در وظایف",
+      "mirrorTasks": "همگام‌سازی وظایف باز خزانه با Google Tasks",
+      "connect": "ذخیره و اتصال به گوگل",
+      "syncNow": "همگام‌سازی اکنون",
+      "disconnect": "قطع اتصال",
+      "gmailNote": "مدیر Gmail جداگانه از بخش افزونه‌ها فعال می‌شود و مجوز مخصوص Gmail می‌خواهد. می‌تواند از همین شناسهٔ کلاینت استفاده کند."
+    },
+    "gmail": {
+      "title": "جی‌میل",
+      "subtitle": "دسترسی آزمایشی به جی‌میل با حداقل مجوز لازم و بایگانی در مارک‌داون.",
+      "ariaLabel": "پنل یکپارچه‌سازی جی‌میل",
+      "experimentalNote": "کنش‌های ایمیل از مجوز جداگانهٔ جی‌میل استفاده می‌کنند و می‌توانند شناسهٔ برنامهٔ دسکتاپ گوگل در بخش یکپارچه‌سازی‌ها را دوباره به‌کار ببرند.",
+      "tabs": {
+        "messages": "پیام‌ها",
+        "compose": "نوشتن",
+        "account": "حساب"
+      },
+      "status": {
+        "openingBrowser": "مرورگر سیستم برای مجوز گوگل باز می‌شود…",
+        "connectedAs": "با حساب {{email}} متصل شد.",
+        "disconnected": "اتصال جی‌میل قطع شد.",
+        "imported": "«{{subject}}» به خزانه وارد شد.",
+        "archived": "پیام بایگانی شد.",
+        "trashed": "پیام به سطل زباله منتقل شد.",
+        "sent": "ایمیل با موفقیت ارسال شد."
+      },
+      "searchLabel": "جستجوی پیام‌ها",
+      "searchPlaceholder": "جستجو در جی‌میل (برای نمونه is:unread یا from:colleague)…",
+      "searchAria": "جستجوی پیام‌های جی‌میل",
+      "refresh": "جستجو یا تازه‌سازی پیام‌ها",
+      "checkingConnection": "در حال بررسی اتصال جی‌میل…",
+      "notConnected": "جی‌میل متصل نیست",
+      "connectPrompt": "برای خواندن، واردکردن و ارسال ایمیل، حساب گوگل را در زبانهٔ حساب متصل کنید.",
+      "connectAccount": "اتصال حساب جی‌میل",
+      "messageListAria": "پیام‌های جی‌میل",
+      "noMessages": "پیامی یافت نشد.",
+      "noSubject": "(بدون موضوع)",
+      "untitledEmail": "ایمیل بدون عنوان",
+      "unknownSender": "فرستندهٔ ناشناس",
+      "from": "از",
+      "date": "تاریخ",
+      "import": "واردکردن",
+      "importTitle": "ذخیره در خزانهٔ مارک‌داون فعلی",
+      "archive": "بایگانی پیام",
+      "trash": "انتقال به سطل زباله",
+      "recipient": "گیرنده",
+      "subject": "موضوع",
+      "subjectPlaceholder": "موضوع پیام",
+      "messageBody": "متن پیام (ساده)",
+      "bodyPlaceholder": "پیام خود را اینجا بنویسید…",
+      "sending": "در حال ارسال…",
+      "send": "ارسال پیام",
+      "connectionStatus": "وضعیت اتصال OAuth",
+      "connectedAccount": "با حساب {{email}} متصل است. توکن‌ها در مخزن امن سیستم‌عامل نگه‌داری می‌شوند.",
+      "connectedUnknown": "حساب گوگل متصل",
+      "notConnectedStatus": "به جی‌میل متصل نیست.",
+      "disconnect": "قطع اتصال حساب",
+      "clientId": "شناسهٔ OAuth گوگل",
+      "clientHelp": "از شناسهٔ OAuth نوع Desktop app گوگل استفاده کنید. Scriptor مرورگر سیستم را باز می‌کند، PKCE را با بازگشت محلی تکمیل می‌کند و توکن‌ها را در مخزن امن سیستم‌عامل نگه می‌دارد. همین شناسه برای تقویم و وظایف هم قابل استفاده است.",
+      "startingAuth": "در حال آغاز مجوزدهی…",
+      "connectGoogle": "اتصال با گوگل"
+    }
   }
 }

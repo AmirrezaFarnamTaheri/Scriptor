@@ -451,7 +451,7 @@ function PluginsTab({
           ? <ShieldAlert size={16} color="var(--danger)" />
           : <ShieldCheck size={16} color="var(--success)" />}
         <span className="store-banner-label">
-          {safeMode ? 'Safe mode — all plugins disabled' : 'Plugins active'}
+          {safeMode ? 'Safe mode — plugin execution disabled' : 'Plugin runtime ready'}
         </span>
         <button
           type="button"
@@ -459,8 +459,11 @@ function PluginsTab({
           aria-pressed={safeMode}
           className={`store-btn-outline${safeMode ? ' danger' : ' success'}`}
         >
-          {safeMode ? 'Disable' : 'Enable'} safe mode
+          {safeMode ? 'Leave' : 'Enter'} safe mode
         </button>
+        {!safeMode ? (
+          <small className="store-banner-detail">Individual plugins may still require vault access approval.</small>
+        ) : null}
       </div>
 
       {/* Installed plugins */}

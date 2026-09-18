@@ -293,25 +293,35 @@ fn open_in_browser(url: &str) -> Result<(), String> {
 // Loopback redirect capture
 // ---------------------------------------------------------------------------
 
-/// Parse the `code` (and `state`) query parameters out of an HTTP request line
-/// like `GET /?code=abc&state=xyz HTTP/1.1`.
-fn parse_redirect_query(request_line: &str) -> (Option<String>, Option<String>) {
+#[derive(Debug, Default, PartialEq, Eq)]
+struct OAuthRedirectQuery {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
+    error_description: Option<String>,
+}
+
+/// Parse the OAuth redirect query from an HTTP request line. Google returns
+/// `error`/`error_description` when consent is denied; treating that redirect
+/// as a favicon/probe would otherwise leave the app waiting for five minutes.
+fn parse_redirect_query(request_line: &str) -> OAuthRedirectQuery {
     let path = request_line.split_whitespace().nth(1).unwrap_or("");
     let query = path.split_once('?').map(|(_, q)| q).unwrap_or("");
-    let mut code = None;
-    let mut state = None;
+    let mut parsed = OAuthRedirectQuery::default();
     for pair in query.split('&') {
         let Some((key, value)) = pair.split_once('=') else {
             continue;
         };
         let decoded = percent_decode(value);
         match key {
-            "code" => code = Some(decoded),
-            "state" => state = Some(decoded),
+            "code" => parsed.code = Some(decoded),
+            "state" => parsed.state = Some(decoded),
+            "error" => parsed.error = Some(decoded),
+            "error_description" => parsed.error_description = Some(decoded),
             _ => {}
         }
     }
-    (code, state)
+    parsed
 }
 
 fn percent_decode(value: &str) -> String {
@@ -372,31 +382,35 @@ fn capture_authorization_code(
         }
         let request = String::from_utf8_lossy(&buffer[..read]);
         let request_line = request.lines().next().unwrap_or("");
-        let (code, state) = parse_redirect_query(request_line);
+        let redirect = parse_redirect_query(request_line);
 
         // Validate the state echo before composing the response so a bad
         // `state` yields an error page rather than the success page.
-        let state_ok = state.as_deref() == Some(expected_state);
-        let has_code = code
+        let state_ok = redirect.state.as_deref() == Some(expected_state);
+        let has_code = redirect
+            .code
+            .as_deref()
+            .map(|value| !value.is_empty())
+            .unwrap_or(false);
+        let has_oauth_error = redirect
+            .error
             .as_deref()
             .map(|value| !value.is_empty())
             .unwrap_or(false);
 
-        // A request that carries neither a code nor a state is not part of
-        // the OAuth redirect at all (favicon probes, prefetches, a plain
-        // reload of the bare loopback URL). Answer it and keep waiting for
-        // the real redirect; only a *present but wrong* state is CSRF.
-        if state.is_none() && !has_code {
+        // A request that carries no OAuth fields is not part of the redirect
+        // (favicon probes, prefetches, or a plain reload of the loopback URL).
+        if redirect.state.is_none() && !has_code && !has_oauth_error {
             let probe_response = "HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
             let _ = stream.write_all(probe_response.as_bytes());
             let _ = stream.flush();
             continue;
         }
 
-        let body = if state_ok && has_code {
+        let body = if state_ok && has_code && !has_oauth_error {
             "<html><body style=\"font-family:sans-serif;padding:2rem\"><h2>Scriptor is now connected to Google.</h2><p>You can close this tab and return to the app.</p></body></html>"
         } else {
-            "<html><body style=\"font-family:sans-serif;padding:2rem\"><h2>Authorization could not be completed.</h2><p>Please close this tab and try connecting again from the app.</p></body></html>"
+            "<html><body style=\"font-family:sans-serif;padding:2rem\"><h2>Authorization could not be completed.</h2><p>You can close this tab and return to Scriptor for details.</p></body></html>"
         };
         let response = format!(
             "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
@@ -409,8 +423,18 @@ fn capture_authorization_code(
         if !state_ok {
             return Err("Google authorization state mismatch (possible CSRF)".into());
         }
+        if let Some(error) = redirect.error.filter(|value| !value.is_empty()) {
+            let detail = redirect
+                .error_description
+                .filter(|value| !value.is_empty())
+                .map(|value| value.chars().take(240).collect::<String>());
+            return Err(match detail {
+                Some(detail) => format!("Google authorization failed: {error} — {detail}"),
+                None => format!("Google authorization failed: {error}"),
+            });
+        }
         if has_code {
-            return Ok(code.unwrap_or_default());
+            return Ok(redirect.code.unwrap_or_default());
         }
     }
 }
@@ -1040,6 +1064,14 @@ pub fn google_gmail_start_auth(
         None,
     )?;
     start_google_auth(client_id, GMAIL_OAUTH_SCOPES, GMAIL_TOKEN_KEYCHAIN_ACCOUNT)
+}
+
+#[tauri::command]
+pub fn google_gmail_get_authed_email(
+    state: tauri::State<AppState>,
+) -> Result<String, String> {
+    require_gmail_capability(&state)?;
+    Ok(require_tokens(GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?.email)
 }
 
 #[tauri::command]
@@ -1783,9 +1815,21 @@ mod tests {
 
     #[test]
     fn parses_code_and_state_from_request_line() {
-        let (code, state) = parse_redirect_query("GET /?code=abc123&state=xyz HTTP/1.1");
-        assert_eq!(code.as_deref(), Some("abc123"));
-        assert_eq!(state.as_deref(), Some("xyz"));
+        let parsed = parse_redirect_query("GET /?code=abc123&state=xyz HTTP/1.1");
+        assert_eq!(parsed.code.as_deref(), Some("abc123"));
+        assert_eq!(parsed.state.as_deref(), Some("xyz"));
+        assert_eq!(parsed.error, None);
+    }
+
+    #[test]
+    fn parses_oauth_denial_without_waiting_for_a_code() {
+        let parsed = parse_redirect_query(
+            "GET /?error=access_denied&error_description=User+cancelled&state=xyz HTTP/1.1",
+        );
+        assert_eq!(parsed.error.as_deref(), Some("access_denied"));
+        assert_eq!(parsed.error_description.as_deref(), Some("User cancelled"));
+        assert_eq!(parsed.state.as_deref(), Some("xyz"));
+        assert_eq!(parsed.code, None);
     }
 
     #[test]

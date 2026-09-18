@@ -91,7 +91,7 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
           embedded
           vaultOpen={vaultOpen}
           onClose={onClose}
-          onOpenNote={handleOpenNote}
+          onOpenNote={onOpenNote}
           onCreateNoteFromWikilink={onCreateNoteFromWikilink}
         />
       ) : null}
@@ -125,7 +125,7 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
       {tab === 'discover' ? (
         <div className="knowledge-workbench-embed knowledge-discover-pane">
           <p className="health-subtitle">
-            Navigate relationships, triage backlinks, and jump into graph-assisted curation.
+            {t('knowledge.discoverDescription')}
           </p>
           <div className="knowledge-discover-actions">
             <button
@@ -138,24 +138,24 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
               }}
             >
               <Network size={14} />
-              Open knowledge graph
+              {t('knowledge.openGraph')}
             </button>
             <button type="button" className="toolbar-button" onClick={() => setTab('repair')}>
-              Unresolved link inbox
+              {t('knowledge.unresolvedInbox')}
             </button>
             <button type="button" className="toolbar-button" onClick={() => setTab('collections')}>
-              Smart collections
+              {t('knowledge.smartCollections')}
             </button>
             <button type="button" className="toolbar-button" onClick={() => setTab('tags')}>
-              Tag browser
+              {t('knowledge.tagBrowser')}
             </button>
           </div>
           {activePath ? (
             <p className="health-subtitle">
-              Graph focus: <strong>{activePath}</strong>
+              {t('knowledge.graphFocus')} <strong>{activePath}</strong>
             </p>
           ) : (
-            <p className="empty-state">Open a note to focus the graph on its neighborhood.</p>
+            <p className="empty-state">{t('knowledge.openNoteForGraph')}</p>
           )}
         </div>
       ) : null}

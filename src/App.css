@@ -6,5 +6,6 @@
 @import './styles/app/responsive.css';
 @import './styles/components/toolbar-popover.css';
 @import './styles/components/toolbar-customization.css';
+@import './styles/components/gmail-manager.css';
 @import './styles/app/unified-panel-contract.css';
 @import './styles/app/workspace-geometry-contract.css';

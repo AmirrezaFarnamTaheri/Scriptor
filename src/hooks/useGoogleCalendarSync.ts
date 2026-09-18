@@ -41,6 +41,7 @@ const EMPTY_TASKS: GoogleTask[] = []
 export interface VaultTaskNote {
   path: string
   tasks: Array<{
+    id: string
     text: string
     checked: boolean
     line: number
@@ -96,7 +97,13 @@ const SOURCE_MARKER_PREFIX = 'Scriptor source:'
 /** Selects events whose start date matches the user's local date. */
 function eventsToday(events: CalendarEvent[]): CalendarEvent[] {
   const today = formatLocalDate()
-  return events.filter((event) => event.start.startsWith(today))
+  return events.filter((event) => {
+    if (event.allDay && /^\d{4}-\d{2}-\d{2}$/.test(event.start)) {
+      return event.start === today
+    }
+    const parsed = new Date(event.start)
+    return !Number.isNaN(parsed.getTime()) && formatLocalDate(parsed) === today
+  })
 }
 
 function formatTime(iso: string): string {
@@ -108,7 +115,12 @@ function formatTime(iso: string): string {
 }
 
 /** Builds the stable source marker used to deduplicate mirrored vault tasks. */
-function sourceMarker(path: string, line: number): string {
+function sourceMarker(taskId: string): string {
+  return `${SOURCE_MARKER_PREFIX} ${taskId}`
+}
+
+/** Legacy marker retained only for one-way migration/deduplication. */
+function legacySourceMarker(path: string, line: number): string {
   return `${SOURCE_MARKER_PREFIX} ${path}#L${line + 1}`
 }
 
@@ -165,7 +177,20 @@ export function useGoogleCalendarSync({
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
       ) return
-      setAuthedEmail(email)
+      // OAuth success is not sync success. Load the remote state immediately
+      // so automatic vault-task mirroring cannot run against a stale empty list.
+      const [evtsRaw, tasksRaw, confirmedEmail] = await Promise.all([
+        googleCalendarListEvents(calendarId, lookaheadDays),
+        googleCalendarListTasks(taskListId),
+        googleCalendarGetAuthedEmail(),
+      ])
+      if (
+        currentLifecycle !== lifecycleGenerationRef.current ||
+        currentRefreshGen !== refreshGenerationRef.current
+      ) return
+      setEvents(evtsRaw)
+      setTasks(tasksRaw)
+      setAuthedEmail(confirmedEmail || email)
       setStatus('synced')
     } catch (err) {
       if (
@@ -175,7 +200,7 @@ export function useGoogleCalendarSync({
       setError(err instanceof Error ? err.message : String(err))
       setStatus('error')
     }
-  }, [clientId, calendarId, taskListId])
+  }, [clientId, calendarId, taskListId, lookaheadDays])
 
   const disconnect = useCallback(async () => {
     lifecycleGenerationRef.current += 1
@@ -183,14 +208,15 @@ export function useGoogleCalendarSync({
     taskMutationRevisionRef.current += 1
     try {
       await googleCalendarDisconnect()
-    } catch {
-      // best-effort
+      setStatus('disconnected')
+      setAuthedEmail(null)
+      setEvents([])
+      setTasks([])
+      setError(null)
+    } catch (caught) {
+      setStatus('error')
+      setError(caught instanceof Error ? caught.message : String(caught))
     }
-    setStatus('disconnected')
-    setAuthedEmail(null)
-    setEvents([])
-    setTasks([])
-    setError(null)
   }, [])
 
   const refresh = useCallback(async () => {
@@ -339,8 +365,13 @@ export function useGoogleCalendarSync({
             skipped += 1
             continue
           }
-          const marker = sourceMarker(note.path, task.line)
-          if (existingMarkers.has(marker)) {
+          const marker = sourceMarker(task.id)
+          const legacyMarker = legacySourceMarker(note.path, task.line)
+          const sameNoteLegacyMatch = tasks.some((remoteTask) => {
+            const notes = remoteTask.notes ?? ''
+            return remoteTask.title === task.text && notes.includes(`${SOURCE_MARKER_PREFIX} ${note.path}#L`)
+          })
+          if (existingMarkers.has(marker) || existingMarkers.has(legacyMarker) || sameNoteLegacyMatch) {
             skipped += 1
             continue
           }

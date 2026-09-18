@@ -114,7 +114,7 @@ import './styles/motion.css'
 function App() {
   const { t } = useI18n()
   const localDate = useLocalDate()
-  const { theme, toggleTheme, setTheme } = useAppTheme()
+  const { theme, appearance, resolvedAppearance, toggleTheme, setTheme, setAppearance } = useAppTheme()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
   const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
   const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
@@ -224,6 +224,14 @@ function App() {
     perfHudOpen,
     setPerfHudOpen,
   } = nav
+  const [pluginManagerInitialTab, setPluginManagerInitialTab] = useState<'palettes' | 'plugins'>('palettes')
+  const setPluginManagerOpenFromCommands = useCallback(
+    (open: boolean) => {
+      if (open) setPluginManagerInitialTab('plugins')
+      setPluginManagerOpen(open)
+    },
+    [setPluginManagerOpen],
+  )
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const workspaceGridRef = useRef<HTMLElement | null>(null)
   const {
@@ -258,7 +266,7 @@ function App() {
     typewriter,
     vimMode,
     wysiwyg,
-  } = useEditorPreferences(theme, initialWorkspaceLayout)
+  } = useEditorPreferences(resolvedAppearance, initialWorkspaceLayout)
   const { toastMessage, showToast, dismissToast } = useAppToast()
   const perfMetrics = usePerfMetrics()
   const {
@@ -847,7 +855,7 @@ function App() {
         setHealthDashboardOpen,
         setMcpPanelOpen,
         setSettingsOpen,
-        setPluginManagerOpen,
+        setPluginManagerOpen: setPluginManagerOpenFromCommands,
         openKnowledgeWorkbench,
         setPublishCenterOpen,
         setCheatsheetOpen,
@@ -923,7 +931,7 @@ function App() {
       setNoteHistoryOpen,
       setPerfHudOpen,
       setPortalOpen,
-      setPluginManagerOpen,
+      setPluginManagerOpenFromCommands,
       setQuickCaptureOpen,
       setReaderOpen,
       setSettingsOpen,
@@ -983,6 +991,9 @@ function App() {
     openKanban:
       nativeReady && workspace.vault && workspace.activePath ? () => setKanbanOpen(true) : undefined,
     openTemplates: nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined,
+    toggleDistractionFree: () => setDistractionFree((enabled) => !enabled),
+    toggleTypewriter: () => setTypewriter((enabled) => !enabled),
+    commands: paletteCommands,
     toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
     toggleInspector: () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
   })
@@ -1097,7 +1108,10 @@ function App() {
     [setSupportOpen],
   )
   const handleOpenPluginManager = useCallback(
-    () => setPluginManagerOpen(true),
+    () => {
+      setPluginManagerInitialTab('palettes')
+      setPluginManagerOpen(true)
+    },
     [setPluginManagerOpen],
   )
   const handleToggleVaultSidebar = useCallback(
@@ -1359,6 +1373,8 @@ function App() {
           onOpenSettings={handleOpenSettings}
           onOpenPluginManager={handleOpenPluginManager}
           theme={theme}
+          appearance={appearance}
+          resolvedAppearance={resolvedAppearance}
           onToggleTheme={toggleTheme}
           vaultSidebarCollapsed={chrome.vaultSidebarCollapsed}
           onToggleVaultSidebar={handleToggleVaultSidebar}
@@ -1757,7 +1773,9 @@ function App() {
           onPatchWorkspaceChrome={patchChrome}
           onResetWorkspaceChrome={resetChrome}
           theme={theme}
+          appearance={appearance}
           onThemeChange={setTheme}
+          onAppearanceChange={setAppearance}
           onReplayOnboarding={onboarding.replayOnboarding}
           spellcheckLocale={spellcheckLocale}
           onSpellcheckLocaleChange={setSpellcheckLocale}
@@ -1773,11 +1791,14 @@ function App() {
         templatePickerOpen={templatePickerOpen}
         obsidianImportOpen={obsidianImportOpen}
         pluginManagerOpen={pluginManagerOpen}
+        pluginManagerInitialTab={pluginManagerInitialTab}
         templates={workspace.templatePaths}
         onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
         onCloseObsidianImport={() => setObsidianImportOpen(false)}
         onClosePluginManager={() => setPluginManagerOpen(false)}
         theme={theme}
+        appearance={appearance}
+        resolvedAppearance={resolvedAppearance}
         onThemeChange={setTheme}
         onOpenPluginMarketplace={() => {
           setPluginManagerOpen(false)

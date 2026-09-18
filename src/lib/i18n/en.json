@@ -20,7 +20,8 @@
     "retry": "Retry",
     "expand": "Expand",
     "collapse": "Collapse",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "next": "Next"
   },
   "topBar": {
     "openVault": "Open Vault",
@@ -43,7 +44,8 @@
     "collapseInspector": "Collapse inspector",
     "paletteStore": "Built-in Modules & Color Palettes",
     "customizeAria": "Customize top bar actions",
-    "customizeShowAll": "Show all"
+    "customizeShowAll": "Show all",
+    "customizeRestoreDefaults": "Restore default actions"
   },
   "commandPalette": {
     "placeholder": "Type a command or note...",
@@ -52,7 +54,11 @@
     "ariaLabel": "Command palette",
     "scopeHint": "Commands are available immediately; note search starts after 2 characters.",
     "noteCategory": "Note",
-    "commandCategory": "Command"
+    "commandCategory": "Command",
+    "commandsHeading": "Commands",
+    "notesHeading": "Notes",
+    "navigate": "Navigate",
+    "open": "Open"
   },
   "workspaceModes": {
     "writing": "Writing",
@@ -320,7 +326,10 @@
     "saveViews": "Save views",
     "legendAria": "Graph legend",
     "currentNote": "Current note",
-    "directedLink": "Directed link"
+    "directedLink": "Directed link",
+    "disabledTitle": "Knowledge Graph is disabled",
+    "disabledDescription": "Enable the Graph module for this vault to explore note relationships.",
+    "enable": "Enable Graph"
   },
   "knowledge": {
     "title": "Knowledge workbench",
@@ -329,7 +338,39 @@
     "views": "Views",
     "tags": "Tags",
     "collections": "Collections",
-    "discover": "Discover"
+    "discover": "Discover",
+    "filters": {
+      "loading": "Loading knowledge filters…",
+      "loadError": "Could not load knowledge filters",
+      "openVaultStatus": "Open a vault in the desktop app to browse knowledge filters.",
+      "categories": "Filter categories",
+      "orphans": "Orphans ({{count}})",
+      "deadEnds": "Dead ends ({{count}})",
+      "unresolved": "Unresolved ({{count}})",
+      "openVaultTitle": "Open a vault to inspect link health",
+      "openVaultDescription": "Knowledge repair uses the desktop index for orphan, dead-end, and unresolved-link detection.",
+      "loadingRepair": "Loading knowledge repair data…",
+      "unavailableTitle": "Knowledge repair is unavailable",
+      "startTriage": "Start triage ({{count}})",
+      "triageProgress": "Triage {{current}} of {{count}}: {{title}}",
+      "noUnresolvedTitle": "No unresolved links",
+      "noUnresolvedDescription": "Every wikilink target currently resolves to an indexed note.",
+      "reference": "{{count}} reference",
+      "references": "{{count}} references",
+      "createNote": "Create note",
+      "noOrphansTitle": "No orphan notes",
+      "noDeadEndsTitle": "No dead-end notes",
+      "noOrphansDescription": "Every indexed note has at least one inbound link.",
+      "noDeadEndsDescription": "Every indexed note links onward to another note.",
+      "title": "Knowledge filters"
+    },
+    "discoverDescription": "Navigate relationships, triage backlinks, and jump into graph-assisted curation.",
+    "openGraph": "Open knowledge graph",
+    "unresolvedInbox": "Unresolved link inbox",
+    "smartCollections": "Smart collections",
+    "tagBrowser": "Tag browser",
+    "graphFocus": "Graph focus:",
+    "openNoteForGraph": "Open a note to focus the graph on its neighborhood."
   },
   "settingsSection": {
     "panelPresentation": "Panel presentation",
@@ -598,5 +639,78 @@
     "repairIssues": "Repair issues",
     "graph": "Graph",
     "exportPublish": "Export / publish"
+  },
+  "integrations": {
+    "google": {
+      "title": "Google",
+      "description": "Connect once with a Google OAuth Desktop-app client ID. Calendar and Tasks use this connection; Gmail Manager can reuse the same client ID while requesting its own least-privilege scopes.",
+      "experimental": "Experimental integration.",
+      "security": "Refresh tokens are stored in the operating-system keychain. Scriptor uses PKCE and a localhost loopback callback; no client secret is required.",
+      "enableCalendarTasks": "Enable Google Calendar & Tasks integration",
+      "clientId": "Google OAuth client ID (Desktop app)",
+      "clientHelp": "Create an OAuth 2.0 Desktop app credential in Google Cloud. Do not paste a client secret. Web-app credentials are not compatible with Scriptor’s loopback callback.",
+      "lookahead": "Lookahead window (days)",
+      "showEvents": "Show Calendar events in Tasks",
+      "mirrorTasks": "Mirror open vault tasks to Google Tasks",
+      "connect": "Save & connect Google",
+      "syncNow": "Sync now",
+      "disconnect": "Disconnect",
+      "gmailNote": "Gmail Manager is enabled separately under Plugins and requests Gmail-specific permission. It can reuse this client ID."
+    },
+    "gmail": {
+      "title": "Gmail",
+      "subtitle": "Experimental Gmail access with least-privilege permissions and Markdown archiving.",
+      "ariaLabel": "Gmail integration panel",
+      "experimentalNote": "Mail actions use Gmail-specific permissions and can reuse the Google Desktop-app client ID configured in Integrations.",
+      "tabs": {
+        "messages": "Messages",
+        "compose": "Compose",
+        "account": "Account"
+      },
+      "status": {
+        "openingBrowser": "Opening the system browser for Google authorization…",
+        "connectedAs": "Connected as {{email}}.",
+        "disconnected": "Disconnected from Gmail.",
+        "imported": "Imported “{{subject}}” to the vault.",
+        "archived": "Archived message.",
+        "trashed": "Moved message to trash.",
+        "sent": "Email sent successfully."
+      },
+      "searchLabel": "Search messages",
+      "searchPlaceholder": "Search Gmail (for example, is:unread or from:colleague)…",
+      "searchAria": "Search Gmail messages",
+      "refresh": "Search or refresh messages",
+      "checkingConnection": "Checking Gmail connection…",
+      "notConnected": "Gmail is not connected",
+      "connectPrompt": "Connect your Google account in the Account tab to read, import, and send mail.",
+      "connectAccount": "Connect Gmail account",
+      "messageListAria": "Gmail messages",
+      "noMessages": "No messages found.",
+      "noSubject": "(No subject)",
+      "untitledEmail": "Untitled email",
+      "unknownSender": "Unknown sender",
+      "from": "From",
+      "date": "Date",
+      "import": "Import",
+      "importTitle": "Save into the current Markdown vault",
+      "archive": "Archive message",
+      "trash": "Move to trash",
+      "recipient": "Recipient (To)",
+      "subject": "Subject",
+      "subjectPlaceholder": "Subject line",
+      "messageBody": "Message body (plain text)",
+      "bodyPlaceholder": "Type your message here…",
+      "sending": "Sending…",
+      "send": "Send message",
+      "connectionStatus": "OAuth connection status",
+      "connectedAccount": "Connected as {{email}}. Tokens are stored in the operating-system keychain.",
+      "connectedUnknown": "connected Google account",
+      "notConnectedStatus": "Not connected to Gmail.",
+      "disconnect": "Disconnect account",
+      "clientId": "Google OAuth client ID",
+      "clientHelp": "Use a Google OAuth Desktop-app client ID. Scriptor opens the system browser, completes PKCE on a loopback callback, and stores tokens in the operating-system keychain. The same client ID can be reused for Calendar and Tasks.",
+      "startingAuth": "Starting authorization…",
+      "connectGoogle": "Connect with Google"
+    }
   }
 }

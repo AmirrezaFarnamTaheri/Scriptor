@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
+import { Fragment, memo, useEffect, useMemo, useRef, useState, useDeferredValue } from 'react'
 import { Search } from 'lucide-react'
 
 import { useEscapeToClose } from '../hooks/useEscapeToClose'
@@ -151,36 +151,52 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         </p>
         {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox">
-          {mergedCommands.map((command, index) => (
-            <li key={command.id} role="presentation">
-              <button
-                type="button"
-                id={`command-palette-item-${command.id}`}
-                role="option"
-                aria-selected={index === selectedIndex}
-                data-active={index === selectedIndex ? 'true' : undefined}
-                data-tone={command.tone ?? 'default'}
-                className={command.group === 'note' ? 'command-palette-note-hit' : undefined}
-                onClick={() => runSelected(command)}
-                onMouseEnter={() => {
-                  isKeyboardNav.current = false
-                  setSelectedIndex(index)
-                }}
-              >
-                <span className="command-palette-item-copy">
-                  <strong>{command.label}</strong>
-                  <small>
-                    {command.group === 'note'
-                      ? command.id.replace(/^note:/, '')
-                      : command.category ?? t('commandPalette.commandCategory')}
-                  </small>
-                </span>
-                {command.shortcut ? <kbd className="command-palette-shortcut">{command.shortcut}</kbd> : null}
-              </button>
-            </li>
-          ))}
+          {mergedCommands.map((command, index) => {
+            const previousGroup = mergedCommands[index - 1]?.group
+            const showHeading = index === 0 || previousGroup !== command.group
+            return (
+              <Fragment key={command.id}>
+                {showHeading ? (
+                  <li role="presentation" className="command-palette-group-label">
+                    {command.group === 'note' ? t('commandPalette.notesHeading') : t('commandPalette.commandsHeading')}
+                  </li>
+                ) : null}
+                <li role="presentation">
+                  <button
+                    type="button"
+                    id={`command-palette-item-${command.id}`}
+                    role="option"
+                    aria-selected={index === selectedIndex}
+                    data-active={index === selectedIndex ? 'true' : undefined}
+                    data-tone={command.tone ?? 'default'}
+                    className={command.group === 'note' ? 'command-palette-note-hit' : undefined}
+                    onClick={() => runSelected(command)}
+                    onMouseEnter={() => {
+                      isKeyboardNav.current = false
+                      setSelectedIndex(index)
+                    }}
+                  >
+                    <span className="command-palette-item-copy">
+                      <strong>{command.label}</strong>
+                      <small>
+                        {command.group === 'note'
+                          ? command.id.replace(/^note:/, '')
+                          : command.category ?? t('commandPalette.commandCategory')}
+                      </small>
+                    </span>
+                    {command.shortcut ? <kbd className="command-palette-shortcut">{command.shortcut}</kbd> : null}
+                  </button>
+                </li>
+              </Fragment>
+            )
+          })}
         </ul>
         {mergedCommands.length === 0 ? <p className="command-palette-hint">{t('commandPalette.noResults')}</p> : null}
+        <footer className="command-palette-footer" aria-hidden="true">
+          <span>↑↓ {t('commandPalette.navigate')}</span>
+          <span>Enter {t('commandPalette.open')}</span>
+          <span>Esc {t('actions.close')}</span>
+        </footer>
       </div>
     </div>
   )

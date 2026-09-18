@@ -7,6 +7,7 @@ import {
   indexerListUnresolvedTargets,
 } from '../bridge/commands'
 import { isNativeBridgeAvailable } from '../bridge/platform'
+import { useI18n } from '../lib/i18n'
 import { VirtualKnowledgeNoteList } from './app/VirtualKnowledgeNoteList'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { EmptyState } from './EmptyState'
@@ -32,13 +33,14 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
   onOpenNote,
   onCreateNoteFromWikilink,
 }: KnowledgeFiltersPanelProps) {
+  const { t } = useI18n()
   const canBrowse = vaultOpen && isNativeBridgeAvailable()
   const [tab, setTab] = useState<FilterTab>('orphans')
   const [orphans, setOrphans] = useState<KnowledgeNoteSummary[]>([])
   const [deadEnds, setDeadEnds] = useState<KnowledgeNoteSummary[]>([])
   const [placeholders, setPlaceholders] = useState<UnresolvedLinkTarget[]>([])
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
-  const [loadStatus, setLoadStatus] = useState('Loading knowledge filters…')
+  const [loadStatus, setLoadStatus] = useState(() => t('knowledge.filters.loading'))
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [triageIndex, setTriageIndex] = useState(0)
   const tabIdBase = useId()
@@ -48,7 +50,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
 
     let cancelled = false
     setLoadState('loading')
-    setLoadStatus('Loading knowledge filters…')
+    setLoadStatus(t('knowledge.filters.loading'))
     void (async () => {
       try {
         const [orphanRows, deadEndRows, placeholderRows] = await Promise.all([
@@ -65,7 +67,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
       } catch (error) {
         if (!cancelled) {
           setLoadState('error')
-          setLoadStatus(error instanceof Error ? error.message : 'Could not load knowledge filters')
+          setLoadStatus(error instanceof Error ? error.message : t('knowledge.filters.loadError'))
         }
       }
     })()
@@ -73,13 +75,21 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
     return () => {
       cancelled = true
     }
-  }, [canBrowse, loadAttempt])
+  }, [canBrowse, loadAttempt, t])
 
   const activeNotes = useMemo(() => {
     if (tab === 'orphans') return orphans
     if (tab === 'dead-ends') return deadEnds
     return []
   }, [deadEnds, orphans, tab])
+
+  useEffect(() => {
+    setTriageIndex((current) => Math.min(current, Math.max(0, activeNotes.length - 1)))
+  }, [activeNotes.length])
+
+  useEffect(() => {
+    setTriageIndex(0)
+  }, [tab])
 
   const triageNote = activeNotes[triageIndex] ?? null
 
@@ -100,14 +110,14 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
 
   const retryLoad = () => {
     setLoadState('loading')
-    setLoadStatus('Loading knowledge filters…')
+    setLoadStatus(t('knowledge.filters.loading'))
     setLoadAttempt((attempt) => attempt + 1)
   }
 
   const status = useMemo(() => {
-    if (!canBrowse) return 'Open a vault in the desktop app to browse knowledge filters.'
+    if (!canBrowse) return t('knowledge.filters.openVaultStatus')
     return loadStatus
-  }, [canBrowse, loadStatus])
+  }, [canBrowse, loadStatus, t])
 
   const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     const direction = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
@@ -128,12 +138,12 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
 
   const body = (
     <>
-      <div className="knowledge-filter-tabs" role="tablist" aria-label="Filter categories">
+      <div className="knowledge-filter-tabs" role="tablist" aria-label={t('knowledge.filters.categories')}>
         {(
           [
-            ['orphans', `Orphans (${orphans.length})`],
-            ['dead-ends', `Dead ends (${deadEnds.length})`],
-            ['placeholders', `Unresolved (${placeholders.length})`],
+            ['orphans', t('knowledge.filters.orphans', { count: orphans.length })],
+            ['dead-ends', t('knowledge.filters.deadEnds', { count: deadEnds.length })],
+            ['placeholders', t('knowledge.filters.unresolved', { count: placeholders.length })],
           ] as const
         ).map(([id, label], index) => (
           <button
@@ -162,30 +172,34 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
         {!canBrowse ? (
           <EmptyState
             icon={<Filter />}
-            title="Open a vault to inspect link health"
-            description="Knowledge repair uses the desktop index for orphan, dead-end, and unresolved-link detection."
+            title={t('knowledge.filters.openVaultTitle')}
+            description={t('knowledge.filters.openVaultDescription')}
           />
         ) : loadState === 'loading' ? (
           <p className="health-subtitle knowledge-filter-loading" role="status">
-            Loading knowledge repair data…
+            {t('knowledge.filters.loadingRepair')}
           </p>
         ) : loadState === 'error' ? (
           <EmptyState
             icon={<Filter />}
-            title="Knowledge repair is unavailable"
+            title={t('knowledge.filters.unavailableTitle')}
             description={loadStatus}
-            action={{ label: 'Retry', onClick: retryLoad }}
+            action={{ label: t('actions.retry'), onClick: retryLoad }}
           />
         ) : (
           <>
             {tab !== 'placeholders' && activeNotes.length > 0 ? (
               <div className="knowledge-triage-bar">
                 <button type="button" className="toolbar-button" onClick={startTriage}>
-                  Start triage ({activeNotes.length})
+                  {t('knowledge.filters.startTriage', { count: activeNotes.length })}
                 </button>
                 {triageNote ? (
                   <span className="health-subtitle">
-                    Triage {triageIndex + 1} of {activeNotes.length}: {triageNote.title}
+                    {t('knowledge.filters.triageProgress', {
+                      current: triageIndex + 1,
+                      count: activeNotes.length,
+                      title: triageNote.title,
+                    })}
                   </span>
                 ) : null}
               </div>
@@ -194,8 +208,8 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
               placeholders.length === 0 ? (
                 <EmptyState
                   icon={<Filter />}
-                  title="No unresolved links"
-                  description="Every wikilink target currently resolves to an indexed note."
+                  title={t('knowledge.filters.noUnresolvedTitle')}
+                  description={t('knowledge.filters.noUnresolvedDescription')}
                 />
               ) : (
                 <ul className="knowledge-target-list">
@@ -203,7 +217,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
                     <li key={target.target}>
                       <strong>[[{target.target}]]</strong>
                       <small>
-                        {target.reference_count} reference{target.reference_count === 1 ? '' : 's'}
+                        {t(target.reference_count === 1 ? 'knowledge.filters.reference' : 'knowledge.filters.references', { count: target.reference_count })}
                       </small>
                       {onCreateNoteFromWikilink ? (
                         <button
@@ -211,7 +225,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
                           className="knowledge-create-note"
                           onClick={() => onCreateNoteFromWikilink(target.target)}
                         >
-                          Create note
+                          {t('knowledge.filters.createNote')}
                         </button>
                       ) : null}
                       <div className="knowledge-target-refs">
@@ -228,18 +242,18 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
             ) : activeNotes.length === 0 ? (
               <EmptyState
                 icon={<Filter />}
-                title={tab === 'orphans' ? 'No orphan notes' : 'No dead-end notes'}
+                title={t(tab === 'orphans' ? 'knowledge.filters.noOrphansTitle' : 'knowledge.filters.noDeadEndsTitle')}
                 description={
                   tab === 'orphans'
-                    ? 'Every indexed note has at least one inbound link.'
-                    : 'Every indexed note links onward to another note.'
+                    ? t('knowledge.filters.noOrphansDescription')
+                    : t('knowledge.filters.noDeadEndsDescription')
                 }
               />
             ) : (
               <VirtualKnowledgeNoteList
                 notes={activeNotes}
                 onOpenNote={onOpenNote}
-                triageLabel="Next"
+                triageLabel={t('actions.next')}
                 onTriageNext={triageNext}
               />
             )}
@@ -255,10 +269,10 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
 
   return (
     <UnifiedPanelShell
-      title="Knowledge filters"
+      title={t('knowledge.filters.title')}
       subtitle={status}
       icon={<Filter size={18} />}
-      ariaLabel="Knowledge filters"
+      ariaLabel={t('knowledge.filters.title')}
       onClose={onClose}
       className="knowledge-filters-panel knowledge-filter-dialog"
     >

@@ -105,7 +105,7 @@ export const GraphPanel = memo(function GraphPanel({
   onToggleHibernate,
 }: GraphPanelProps) {
   const { t } = useI18n()
-  const { isPluginEnabled } = usePluginState()
+  const { enablePlugin, isPluginEnabled } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
@@ -265,14 +265,29 @@ export const GraphPanel = memo(function GraphPanel({
 
   if (!isGraphEnabled) {
     return (
-      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay graph-overlay-compact" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
             <X aria-hidden="true" />
           </button>
         </header>
-        <p className="empty-state" role="alert">Graph is disabled for this vault.</p>
+        <div className="graph-disabled-state" role="alert">
+          <Power className="graph-disabled-icon" aria-hidden="true" />
+          <div>
+            <h3>{t('graph.disabledTitle')}</h3>
+            <p>{t('graph.disabledDescription')}</p>
+          </div>
+          <div className="graph-disabled-actions">
+            <button type="button" className="primary-button" onClick={() => {
+              enablePlugin('scriptor.graph')
+              onRefresh(fullVault)
+            }}>
+              {t('graph.enable')}
+            </button>
+            <button type="button" className="toolbar-button" onClick={onClose}>{t('actions.cancel')}</button>
+          </div>
+        </div>
       </div>
     )
   }

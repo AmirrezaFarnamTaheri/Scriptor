@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, memo } from 'react'
 
 import type { KnowledgeNoteSummary } from '../../types/vault'
 
-const ROW_HEIGHT = 44
+const ROW_HEIGHT = 72
 
 interface VirtualKnowledgeNoteListProps {
   notes: KnowledgeNoteSummary[]
@@ -57,7 +57,7 @@ function VirtualKnowledgeNoteListImpl({
                 height: ROW_HEIGHT,
               }}
             >
-              <button type="button" onClick={() => onOpenNote(note.path)}>
+              <button type="button" className="knowledge-note-open" onClick={() => onOpenNote(note.path)}>
                 <span>{note.title}</span>
                 <small>{note.path}</small>
               </button>

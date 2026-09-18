@@ -744,6 +744,164 @@
   --focus-outline: 2px solid #10b981;
 }
 
+
+/* Appearance is independent from palette identity. Named palettes keep their
+ * accent colors while these rules provide coherent day/night surfaces. */
+:root[data-appearance='light'] {
+  color-scheme: light;
+  --bg: #f5f7fb;
+  --bg-elevated: #ffffff;
+  --dialog-bg: #ffffff;
+  --surface: rgba(255, 255, 255, 0.68);
+  --surface-2: rgba(248, 250, 252, 0.84);
+  --surface-raised: rgba(255, 255, 255, 0.9);
+  --surface-elevated: rgba(255, 255, 255, 0.98);
+  --surface-muted: rgba(241, 245, 249, 0.92);
+  --surface-hover: rgba(15, 23, 42, 0.06);
+  --panel: rgba(255, 255, 255, 0.76);
+  --sidebar: rgba(248, 250, 252, 0.88);
+  --selected: color-mix(in srgb, var(--primary) 12%, transparent);
+  --border: rgba(100, 116, 139, 0.22);
+  --border-strong: color-mix(in srgb, var(--primary) 38%, rgba(100, 116, 139, 0.34));
+  --ink-strong: #0f172a;
+  --ink: #1e293b;
+  --text: var(--ink);
+  --muted: #475569;
+  --text-muted: var(--muted);
+  --faint: #64748b;
+  --glass-bg: rgba(255, 255, 255, 0.97);
+  --glass-border: rgba(100, 116, 139, 0.22);
+  --glass-highlight: rgba(255, 255, 255, 0.9);
+  --overlay: rgba(15, 23, 42, 0.35);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  --focus-outline: 2px solid var(--primary);
+}
+
+:root[data-appearance='dark'] {
+  color-scheme: dark;
+  --bg: #060912;
+  --bg-elevated: #0d111b;
+  --dialog-bg: #0d111b;
+  --surface: rgba(13, 17, 27, 0.68);
+  --surface-2: rgba(20, 27, 40, 0.76);
+  --surface-raised: rgba(17, 23, 36, 0.88);
+  --surface-elevated: rgba(21, 28, 43, 0.96);
+  --surface-muted: rgba(31, 41, 55, 0.68);
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --panel: rgba(13, 17, 27, 0.76);
+  --sidebar: rgba(8, 11, 20, 0.86);
+  --selected: color-mix(in srgb, var(--primary) 16%, transparent);
+  --border: rgba(156, 163, 175, 0.16);
+  --border-strong: color-mix(in srgb, var(--primary) 42%, rgba(156, 163, 175, 0.22));
+  --ink-strong: #f8fafc;
+  --ink: #edf1f7;
+  --text: var(--ink);
+  --muted: #a5adba;
+  --text-muted: var(--muted);
+  --faint: #7f8a9b;
+  --glass-bg: rgba(13, 17, 27, 0.97);
+  --glass-border: rgba(156, 163, 175, 0.16);
+  --glass-highlight: rgba(255, 255, 255, 0.06);
+  --overlay: rgba(3, 7, 18, 0.6);
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--primary) 28%, transparent);
+  --focus-outline: 2px solid var(--primary);
+}
+
+/* High-contrast is an accessibility contract, not merely another palette.
+ * Preserve the selected palette identity while guaranteeing explicit day/night
+ * foreground/background pairs with a minimum-contrast intent. */
+:root[data-theme='high-contrast'][data-appearance='light'] {
+  color-scheme: light;
+  --bg: #ffffff;
+  --bg-elevated: #ffffff;
+  --dialog-bg: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4f4f4;
+  --surface-raised: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-muted: #eeeeee;
+  --surface-hover: #e2e2e2;
+  --panel: #ffffff;
+  --sidebar: #f7f7f7;
+  --selected: #d9efff;
+  --border: #000000;
+  --border-strong: #000000;
+  --ink-strong: #000000;
+  --ink: #000000;
+  --text: #000000;
+  --muted: #242424;
+  --text-muted: #242424;
+  --faint: #3a3a3a;
+  --primary: #005fcc;
+  --primary-strong: #00489c;
+  --primary-soft: #d9efff;
+  --amber: #6b4200;
+  --danger: #a40000;
+  --success: #006b2e;
+  --glass-bg: #ffffff;
+  --glass-border: #000000;
+  --overlay: rgba(0, 0, 0, 0.58);
+  --focus-ring: 0 0 0 4px #ffbf00;
+  --focus-outline: 3px solid #000000;
+}
+
+:root[data-theme='high-contrast'][data-appearance='dark'] {
+  color-scheme: dark;
+  --bg: #000000;
+  --bg-elevated: #000000;
+  --dialog-bg: #000000;
+  --surface: #000000;
+  --surface-2: #111111;
+  --surface-raised: #171717;
+  --surface-elevated: #000000;
+  --surface-muted: #111111;
+  --surface-hover: #252525;
+  --panel: #000000;
+  --sidebar: #000000;
+  --selected: #103f66;
+  --border: #ffffff;
+  --border-strong: #ffffff;
+  --ink-strong: #ffffff;
+  --ink: #ffffff;
+  --text: #ffffff;
+  --muted: #e8e8e8;
+  --text-muted: #e8e8e8;
+  --faint: #c9c9c9;
+  --primary: #67d8ff;
+  --primary-strong: #a8ebff;
+  --primary-soft: #103f66;
+  --amber: #ffe36b;
+  --danger: #ff7b7b;
+  --success: #74f2a7;
+  --glass-bg: #000000;
+  --glass-border: #ffffff;
+  --overlay: rgba(0, 0, 0, 0.86);
+  --focus-ring: 0 0 0 4px #ffe36b;
+  --focus-outline: 3px solid #ffffff;
+}
+
+
+/* High contrast remains a palette choice, but still participates in the
+ * independent day/night appearance model. Use accents that meet contrast on
+ * the light surfaces instead of carrying the dark palette's yellow onto white. */
+:root[data-theme='high-contrast'][data-appearance='light'] {
+  --primary: #0047ab;
+  --primary-strong: #00327a;
+  --primary-soft: rgba(0, 71, 171, 0.14);
+  --amber: #7a3e00;
+  --amber-soft: rgba(122, 62, 0, 0.14);
+  --danger: #a40024;
+  --success: #006b3c;
+  --border: #1f2937;
+  --border-strong: #000000;
+  --ink-strong: #000000;
+  --ink: #111827;
+  --muted: #374151;
+  --faint: #4b5563;
+  --focus-ring: 0 0 0 4px rgba(0, 71, 171, 0.35);
+  --focus-outline: 3px solid var(--primary);
+}
+
 :root {
   --radius-sm: 8px;
   --radius-md: 12px;

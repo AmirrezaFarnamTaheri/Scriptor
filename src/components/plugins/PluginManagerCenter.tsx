@@ -12,7 +12,7 @@ import {
   getMatchingInstallerProfile,
 } from '../../context/plugin-defaults'
 import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes'
-import { useAppTheme, readStoredCustomThemes, type AppTheme } from '../../hooks/useAppTheme'
+import { applyThemeToElement, readStoredCustomThemes, type AppTheme, type AppearanceMode, type ResolvedAppearance } from '../../hooks/useAppTheme'
 import { PluginCard } from './PluginCard'
 import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
@@ -31,7 +31,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
     version: '1.0.0',
     description: 'Vault link topology and Cytoscape force-directed layout rendering',
     publisher: 'Scriptor Team',
-    capabilityId: 'graph',
+    capabilityId: 'scriptor.graph',
     rustFeatureGate: 'scriptor-indexer',
     activation: ['on-startup'],
     capabilities: ['renderer-extension'],
@@ -43,7 +43,10 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
 export interface PluginManagerCenterProps {
   isOpen: boolean
   onClose: () => void
+  initialTab?: 'palettes' | 'plugins'
   currentTheme?: AppTheme
+  appearance?: AppearanceMode
+  resolvedAppearance?: ResolvedAppearance
   onThemeChange?: (theme: AppTheme) => void
   onOpenPluginMarketplace?: () => void
 }
@@ -51,7 +54,10 @@ export interface PluginManagerCenterProps {
 export function PluginManagerCenter({
   isOpen,
   onClose,
+  initialTab = 'palettes',
   currentTheme: propTheme,
+  appearance = 'system',
+  resolvedAppearance = 'dark',
   onThemeChange,
   onOpenPluginMarketplace,
 }: PluginManagerCenterProps) {
@@ -62,19 +68,15 @@ export function PluginManagerCenter({
     replaceEnabledPlugins,
     persistenceError,
   } = usePluginState()
-  const { theme: hookTheme, setTheme: hookSetTheme } = useAppTheme()
-
-  const activeTheme = propTheme ?? hookTheme
+  const activeTheme = propTheme ?? 'dark'
   const handleSelectTheme = (nextTheme: AppTheme) => {
-    if (onThemeChange) {
-      onThemeChange(nextTheme)
-    } else {
-      hookSetTheme(nextTheme)
-    }
+    onThemeChange?.(nextTheme)
   }
 
-  // Active Tab: 'palettes' is ACTIVE BY DEFAULT per user specification
-  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>('palettes')
+  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>(initialTab)
+  useEffect(() => {
+    if (isOpen) setActiveTab(initialTab)
+  }, [initialTab, isOpen])
   const PMC_TABS: readonly string[] = ['palettes', 'plugins']
   const handlePmcTabKeys = useTablistKeys(
     PMC_TABS,
@@ -90,11 +92,11 @@ export function PluginManagerCenter({
   useEscapeToClose(isOpen && !customizerModalOpen, onClose)
 
   useEffect(() => {
-    if (!isOpen) document.documentElement.dataset.theme = activeTheme
+    if (!isOpen) applyThemeToElement(document.documentElement, activeTheme, resolvedAppearance)
     return () => {
-      document.documentElement.dataset.theme = activeTheme
+      applyThemeToElement(document.documentElement, activeTheme, resolvedAppearance)
     }
-  }, [activeTheme, isOpen])
+  }, [activeTheme, isOpen, resolvedAppearance])
 
   const knownPluginIds = useMemo(
     () => new Set(BUILTIN_PLUGIN_MANIFESTS.map((plugin) => plugin.id)),
@@ -104,11 +106,11 @@ export function PluginManagerCenter({
   if (!isOpen) return null
 
   const handleHoverPreviewStart = (previewId: AppTheme) => {
-    document.documentElement.dataset.theme = previewId
+    applyThemeToElement(document.documentElement, previewId, resolvedAppearance)
   }
 
   const handleHoverPreviewEnd = () => {
-    document.documentElement.dataset.theme = activeTheme
+    applyThemeToElement(document.documentElement, activeTheme, resolvedAppearance)
   }
 
   const customPalettes: ColorPaletteScheme[] = readStoredCustomThemes().map((c) => ({
@@ -163,7 +165,8 @@ export function PluginManagerCenter({
         <div className="plugin-manager-modal">
           <div className="plugin-manager-header">
             <h2>
-              <Palette /> Built-in Modules &amp; Color Palettes
+              {activeTab === 'palettes' ? <Palette /> : <Blocks />}
+              {activeTab === 'palettes' ? 'Color palettes' : 'Built-in modules'}
             </h2>
             <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
               <X />
@@ -176,7 +179,7 @@ export function PluginManagerCenter({
           ) : null}
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
-          {/* Primary Tabs — Color Palette Store active by default */}
+          {/* The entry point chooses the initial tab; users can still move between both related catalogs. */}
           <div className="plugin-manager-tabs" role="tablist" onKeyDown={handlePmcTabKeys} aria-label="Plugin manager sections">
             <button
               type="button"

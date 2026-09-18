@@ -3147,6 +3147,22 @@ export const OPERATION_CATALOG = {
       ]
     },
     {
+      "name": "google_gmail_get_authed_email",
+      "surface": "tauri",
+      "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",
+      "authorizationClass": "read-only",
+      "mutationClass": "read-only",
+      "scope": null,
+      "authorizationVariant": null,
+      "schemaKind": "native-rust",
+      "outcomePolicy": [
+        "value",
+        "absent-optional",
+        "degraded",
+        "failed"
+      ]
+    },
+    {
       "name": "google_gmail_get_message",
       "surface": "tauri",
       "owner": "apps/desktop/src-tauri/src/commands/google_calendar.rs",

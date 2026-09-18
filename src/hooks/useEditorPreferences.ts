@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { EditorThemeId } from '@scriptor/editor'
 import { resolveHunspellLocale } from '@scriptor/editor/pure'
 
-import type { AppTheme } from './useAppTheme'
+import type { ResolvedAppearance } from './useAppTheme'
 
 import { usePersistedBoolean } from './usePersistedBoolean'
 import { usePersistedString } from './usePersistedString'
@@ -24,8 +24,8 @@ function readEditorThemeOverride(): EditorThemeId | null {
   }
 }
 
-function defaultEditorTheme(appTheme: AppTheme): EditorThemeId {
-  return appTheme === 'light' ? 'light' : 'dark'
+function defaultEditorTheme(appearance: ResolvedAppearance): EditorThemeId {
+  return appearance
 }
 
 interface InitialEditorLayout {
@@ -33,7 +33,7 @@ interface InitialEditorLayout {
   distractionFree: boolean
 }
 
-export function useEditorPreferences(appTheme: AppTheme, initialLayout?: InitialEditorLayout) {
+export function useEditorPreferences(appearance: ResolvedAppearance, initialLayout?: InitialEditorLayout) {
   const [splitPreview, setSplitPreview] = usePersistedBoolean(
     'scriptor:split-preview',
     false,
@@ -70,7 +70,7 @@ export function useEditorPreferences(appTheme: AppTheme, initialLayout?: Initial
   const [editorThemeOverride, setEditorThemeOverride] = useState<EditorThemeId | null>(
     readEditorThemeOverride,
   )
-  const editorTheme = editorThemeOverride ?? defaultEditorTheme(appTheme)
+  const editorTheme = editorThemeOverride ?? defaultEditorTheme(appearance)
 
   const toggleEditorMode = useCallback(() => {
     setEditorMode((current) => {

@@ -103,7 +103,7 @@
 }
 
 /* ── Light theme overrides ─────────────────────────────────── */
-:root[data-theme="light"] {
+:root[data-appearance="light"] {
   /* Surfaces */
   --color-bg-base:       var(--p-color-white);
   --color-bg-raised:     var(--p-color-neutral-50);
@@ -146,7 +146,7 @@
 }
 
 /* ── Sepia / warm reader theme ─────────────────────────────── */
-:root[data-theme="sepia"] {
+:root[data-theme="sepia-paper"][data-appearance="light"] {
   --color-bg-base:        #f5f0e8;
   --color-bg-raised:      #f0ead8;
   --color-bg-overlay:     #ede5d2;
