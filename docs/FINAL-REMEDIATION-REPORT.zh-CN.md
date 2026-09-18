@@ -20,7 +20,7 @@ Scriptor v1 为每一类持久化职责定义唯一的权威所有者：
 
 ## V1 发布要求
 
-只有当精确的 source head 通过 [`VERIFICATION.zh-CN.md`](VERIFICATION.zh-CN.md) 中适用的 locked dependency、Rust、browser、accessibility、desktop、artifact 和 recovery 检查后，release 才具备发布资格。Release artifact 必须由不可变的 `v1.0.0` tag 构建，并按照 [`RELEASE-SECURITY.zh-CN.md`](RELEASE-SECURITY.zh-CN.md) 绑定 checksum、SBOM、receipt 和 GitHub attestation。
+只有当精确的 source head 通过 [`VERIFICATION.zh-CN.md`](VERIFICATION.zh-CN.md) 中适用的 locked dependency、Rust、browser、accessibility、desktop、artifact 和 recovery 检查后，release 才具备发布资格。Release artifact 必须由不可变的 `v<VERSION>` tag（由 [`VERSION`](../VERSION) 指定）构建，并按照 [`RELEASE-SECURITY.zh-CN.md`](RELEASE-SECURITY.zh-CN.md) 绑定 checksum、SBOM、receipt 和 GitHub attestation。
 
 实验性能力在满足 [`CAPABILITY-MATURITY.zh-CN.md`](CAPABILITY-MATURITY.zh-CN.md) 的 graduation 要求之前，不得包含在“受支持产品能力”的声明中。
 

@@ -16,7 +16,7 @@ Persisted browser data must use the current validated envelope. Invalid or obsol
 
 ## V1 release requirements
 
-A release is eligible only when the exact source head has passed the applicable locked dependency, Rust, browser, accessibility, desktop, artifact, and recovery checks in [`VERIFICATION.md`](VERIFICATION.md). Release artifacts must be built from the immutable `v1.0.0` tag, bound to checksums, SBOMs, receipts, and GitHub attestations as described in [`RELEASE-SECURITY.md`](RELEASE-SECURITY.md).
+A release is eligible only when the exact source head has passed the applicable locked dependency, Rust, browser, accessibility, desktop, artifact, and recovery checks in [`VERIFICATION.md`](VERIFICATION.md). Release artifacts must be built from the immutable `v<VERSION>` tag named by [`VERSION`](../VERSION), bound to checksums, SBOMs, receipts, and GitHub attestations as described in [`RELEASE-SECURITY.md`](RELEASE-SECURITY.md).
 
 Experimental capabilities remain excluded from supported-product claims until they satisfy the graduation requirements in [`CAPABILITY-MATURITY.md`](CAPABILITY-MATURITY.md).
 

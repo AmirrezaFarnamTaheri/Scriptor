@@ -20,7 +20,7 @@ Scriptor v1 определяет единственный источник по�
 
 ## Требования к релизу V1
 
-Релиз допустим только тогда, когда точный source head прошёл применимые проверки locked dependencies, Rust, browser, accessibility, desktop, artifacts и recovery из [`VERIFICATION.ru.md`](VERIFICATION.ru.md). Release artifacts должны собираться из неизменяемого тега `v1.0.0` и быть привязаны к checksum, SBOM, receipts и GitHub attestations согласно [`RELEASE-SECURITY.ru.md`](RELEASE-SECURITY.ru.md).
+Релиз допустим только тогда, когда точный source head прошёл применимые проверки locked dependencies, Rust, browser, accessibility, desktop, artifacts и recovery из [`VERIFICATION.ru.md`](VERIFICATION.ru.md). Release artifacts должны собираться из неизменяемого тега `v<VERSION>`, указанного в [`VERSION`](../VERSION), и быть привязаны к checksum, SBOM, receipts и GitHub attestations согласно [`RELEASE-SECURITY.ru.md`](RELEASE-SECURITY.ru.md).
 
 Экспериментальные возможности остаются за пределами заявлений о поддерживаемом продукте, пока не выполнят graduation requirements из [`CAPABILITY-MATURITY.ru.md`](CAPABILITY-MATURITY.ru.md).
 

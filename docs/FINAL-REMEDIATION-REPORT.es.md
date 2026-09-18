@@ -20,7 +20,7 @@ Los datos persistentes del browser deben usar el envelope actual y validado. Los
 
 ## Requisitos de release V1
 
-Un release solo es apto cuando el source head exacto ha superado las comprobaciones aplicables de locked dependencies, Rust, browser, accessibility, desktop, artifacts y recovery definidas en [`VERIFICATION.es.md`](VERIFICATION.es.md). Los release artifacts deben construirse desde el tag inmutable `v1.0.0` y quedar ligados a checksums, SBOMs, receipts y GitHub attestations según [`RELEASE-SECURITY.es.md`](RELEASE-SECURITY.es.md).
+Un release solo es apto cuando el source head exacto ha superado las comprobaciones aplicables de locked dependencies, Rust, browser, accessibility, desktop, artifacts y recovery definidas en [`VERIFICATION.es.md`](VERIFICATION.es.md). Los release artifacts deben construirse desde el tag inmutable `v<VERSION>` nombrado por [`VERSION`](../VERSION) y quedar ligados a checksums, SBOMs, receipts y GitHub attestations según [`RELEASE-SECURITY.es.md`](RELEASE-SECURITY.es.md).
 
 Las capacidades experimentales permanecen fuera de las afirmaciones de producto soportado hasta cumplir los requisitos de graduación de [`CAPABILITY-MATURITY.es.md`](CAPABILITY-MATURITY.es.md).
 

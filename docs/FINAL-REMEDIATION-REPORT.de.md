@@ -20,7 +20,7 @@ Persistierte Browser-Daten müssen den aktuellen validierten Envelope verwenden.
 
 ## V1-Release-Anforderungen
 
-Ein Release ist nur zulässig, wenn der exakte Source Head die anwendbaren Prüfungen für locked dependencies, Rust, Browser, Accessibility, Desktop, Artifacts und Recovery aus [`VERIFICATION.de.md`](VERIFICATION.de.md) bestanden hat. Release-Artefakte müssen aus dem unveränderlichen Tag `v1.0.0` gebaut und gemäß [`RELEASE-SECURITY.de.md`](RELEASE-SECURITY.de.md) an Checksums, SBOMs, Receipts und GitHub Attestations gebunden sein.
+Ein Release ist nur zulässig, wenn der exakte Source Head die anwendbaren Prüfungen für locked dependencies, Rust, Browser, Accessibility, Desktop, Artifacts und Recovery aus [`VERIFICATION.de.md`](VERIFICATION.de.md) bestanden hat. Release-Artefakte müssen aus dem unveränderlichen Tag `v<VERSION>` gemäß [`VERSION`](../VERSION) gebaut und gemäß [`RELEASE-SECURITY.de.md`](RELEASE-SECURITY.de.md) an Checksums, SBOMs, Receipts und GitHub Attestations gebunden sein.
 
 Experimentelle Fähigkeiten bleiben aus Aussagen über unterstützte Produktfunktionen ausgeschlossen, bis sie die Graduation-Anforderungen aus [`CAPABILITY-MATURITY.de.md`](CAPABILITY-MATURITY.de.md) erfüllen.
 
