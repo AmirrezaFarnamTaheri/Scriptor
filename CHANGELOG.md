@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Fixed
+- Dispatch documentation screenshot refresh automatically after successful release publication; retain branch-only, non-forced screenshot updates.
+- Restore readable Monaco line-number contrast in light and dark themes, with measured browser regression checks.
+- Fit MCP authorization cards to the docked panel width so mode labels remain readable.
+- Style settings dropdowns with the shared field sizing, radius, and focus ring instead of unstyled native chrome.
+
+### Added
+- Expand documentation screenshots with MCP tool results and audit, plugin permission review and enabled state, and workspace appearance controls; add four README gallery images.
+
 ## 1.0.12 — 2026-09-17
 
 ### Added

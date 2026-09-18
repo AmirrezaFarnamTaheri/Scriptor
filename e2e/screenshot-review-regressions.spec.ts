@@ -121,13 +121,28 @@ test('workspace switcher option labels display cleanly without premature path cl
   }
 })
 
-test('light mode line number gutter meets WCAG AA contrast standards', async ({ page }) => {
-  await launchApp(page)
-  const gutter = page.locator('.cm-gutters, .monaco-editor .margin').first()
-  if (await gutter.isVisible()) {
-    const color = await gutter.evaluate((el) => getComputedStyle(el).color)
-    expect(color).toBeTruthy()
-    expect(color).not.toBe('rgb(255, 255, 255)')
-  }
-})
+for (const theme of ['light', 'dark'] as const) {
+  test(`${theme} Monaco line numbers meet AA text contrast`, async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:editor-mode', 'monaco')
+    })
+    await launchApp(page, { theme })
+    const lineNumber = page.locator('.monaco-editor .line-numbers:not(.active-line-number)').first()
+    await expect(lineNumber).toBeVisible()
+    const contrast = await lineNumber.evaluate((element) => {
+      function luminance(color: string) {
+        const channels = (color.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number)
+          .map(value => value / 255)
+          .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+        return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722
+      }
+      const gutter = element.closest('.monaco-editor')?.querySelector('.margin')
+      if (!gutter) throw new Error('Monaco gutter was not rendered')
+      const foreground = luminance(getComputedStyle(element).color)
+      const background = luminance(getComputedStyle(gutter).backgroundColor)
+      return (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+    })
+    expect(contrast).toBeGreaterThanOrEqual(4.5)
+  })
+}
 

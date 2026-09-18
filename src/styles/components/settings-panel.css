@@ -93,8 +93,11 @@
   font-size: 13px;
 }
 
-.settings-field input {
+.settings-field input,
+.settings-field select {
   width: 100%;
+  min-height: 44px;
+  color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
@@ -104,6 +107,7 @@
 }
 
 .settings-field input:focus,
+.settings-field select:focus,
 .settings-textarea:focus {
   outline: none;
   border-color: var(--primary-strong);

@@ -84,7 +84,6 @@
 }
 
 .canvas-zoom-label {
-  margin-left: auto;
   color: var(--muted);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
@@ -155,7 +154,21 @@
   margin-left: auto;
 }
 
-.graph-controls button {
+.graph-controls select {
+  font: inherit;
+}
+
+.graph-controls select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.graph-controls input[type="range"] {
+  accent-color: var(--primary);
+}
+
+.graph-controls button,
+.graph-controls select {
   min-height: 32px;
   padding: 0 10px;
   border: 1px solid var(--border);
