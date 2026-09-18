@@ -624,8 +624,23 @@
 }
 
 .saved-views-form input,
-.saved-views-form textarea {
+.saved-views-form textarea,
+.saved-views-form select {
   width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+.saved-views-form input:focus-visible,
+.saved-views-form textarea:focus-visible,
+.saved-views-form select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .saved-views-results {

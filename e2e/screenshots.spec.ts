@@ -87,6 +87,44 @@ async function waitForSettingsReady(page: Page) {
   await page.waitForTimeout(500)
 }
 
+async function openPluginPermissionsForShot(page: Page) {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.getByRole('tab', { name: 'Plugins', exact: true }).click()
+  const store = page.locator('.store-root')
+  await expect(store.getByRole('tab', { name: 'Manage installed', selected: true })).toBeVisible()
+  const permissions = store.getByRole('region', { name: 'Permissions for Vault Lint', exact: true })
+  await expect(permissions).toContainText('read (required)')
+  await permissions.getByRole('button', {
+    name: 'Review and grant required permissions for Vault Lint in this vault',
+    exact: true,
+  }).click()
+  const confirmation = permissions.getByRole('group', { name: 'Confirm permissions for Vault Lint' })
+  await expect(confirmation).toBeVisible()
+  await expect(confirmation.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
+  return { store, permissions, confirmation }
+}
+
+async function invokeMcpOutlineForShot(page: Page) {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await openCommandPalette(page)
+  await runCommand(page, 'Open MCP panel')
+  const panel = page.locator('.mcp-panel')
+  await expect(panel).toBeVisible()
+  await expect(panel.getByRole('button', { name: /^Read only/ })).toHaveAttribute('aria-pressed', 'true')
+  await panel.getByRole('tab', { name: 'Tools', exact: true }).click()
+  await panel.getByRole('combobox', { name: 'Tool', exact: true }).selectOption('mcp.inspectOutline')
+  await expect(panel.getByRole('textbox', { name: 'Input JSON' })).toHaveValue(/Research Plan\.md/)
+  await panel.getByRole('button', { name: 'Invoke tool', exact: true }).click()
+  const result = panel.locator('.mcp-result')
+  await expect(result).toBeVisible()
+  await expect(result).toContainText('"ok": true')
+  await expect(result).toContainText('"outline"')
+  await expect(result).toContainText('Research Plan')
+  return panel
+}
+
 async function openCommandPaletteForShot(page: Page) {
   // The palette trigger lives in the topbar and is re-rendered while the
   // workspace hydrates; assert it is actually actionable before clicking, then
@@ -266,8 +304,48 @@ test('mcp panel', async ({ page }) => {
   const mcpPanel = page.locator('.mcp-panel')
   await expect(mcpPanel).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
+  const labels = mcpPanel.locator('.mcp-mode-option-header strong')
+  await expect(labels).toHaveCount(4)
+  expect(await labels.evaluateAll(elements => elements.every(element => element.scrollWidth <= element.clientWidth))).toBe(true)
   await captureReadyScreenshot(page, shotPath('mcp-panel'))
   await expect(page).toHaveScreenshot('mcp-panel.png', { fullPage: false })
+})
+
+// These additional states write documentation evidence only. Promote to pixel
+// baselines separately after reviewing the first captures on the pinned runner.
+test('mcp tools with read-only outline result', async ({ page }) => {
+  const panel = await invokeMcpOutlineForShot(page)
+  await expect(panel.getByRole('tab', { name: 'Tools', selected: true })).toBeVisible()
+  await captureReadyScreenshot(page, shotPath('mcp-tools'))
+})
+
+test('mcp audit after read-only tool invocation', async ({ page }) => {
+  const panel = await invokeMcpOutlineForShot(page)
+  await panel.getByRole('tab', { name: 'Audit', exact: true }).click()
+  const auditEntry = panel.locator('.mcp-audit li').filter({ hasText: 'mcp.inspectOutline' })
+  await expect(auditEntry).toHaveCount(1)
+  await expect(auditEntry).toContainText('allowed')
+  await expect(auditEntry).toContainText('read-only')
+  await expect(auditEntry.locator('time')).toBeVisible()
+  await captureReadyScreenshot(page, shotPath('mcp-audit'))
+})
+
+test('settings appearance controls', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'networkidle' })
+  await waitForFullWorkspace(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  await waitForSettingsReady(page)
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  const heading = settings.getByRole('heading', { name: 'Appearance & layout', exact: true })
+  // Appearance follows the layout gallery in the Workspace tab. Scroll its
+  // actual container rather than capturing the off-screen settings controls.
+  await heading.evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
+  await expect(heading).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'Color theme', exact: true })).toHaveValue('light')
+  await expect(settings.getByRole('combobox', { name: 'UI Display Font', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'UI Layout Density', exact: true })).toBeInViewport()
+  await captureReadyScreenshot(page, shotPath('settings-appearance'))
 })
 
 test('settings panel', async ({ page }) => {
@@ -467,6 +545,25 @@ test('plugins panel', async ({ page }) => {
   await page.waitForTimeout(800)
   await captureReadyScreenshot(page, shotPath('plugins'))
   await expect(page).toHaveScreenshot('plugins.png', { fullPage: false })
+})
+
+test('plugin permission review before enabling', async ({ page }) => {
+  const { confirmation } = await openPluginPermissionsForShot(page)
+  await expect(confirmation).toContainText('Grant required read access to Vault Lint for this vault')
+  await expect(confirmation.getByRole('button', { name: 'Grant required access & enable' })).toBeEnabled()
+  await captureReadyScreenshot(page, shotPath('plugin-permissions'))
+})
+
+test('installed plugin after permission approval', async ({ page }) => {
+  const { store, permissions, confirmation } = await openPluginPermissionsForShot(page)
+  await confirmation.getByRole('button', { name: 'Grant required access & enable' }).click()
+  await expect(confirmation).toBeHidden()
+  await expect(permissions).toContainText('Permissions reviewed for this vault')
+  await expect(permissions.getByRole('button', { name: 'Revoke this vault', exact: true })).toBeEnabled()
+  const card = store.locator('.store-card').filter({ hasText: 'Vault Lint' })
+  await expect(card.getByRole('button', { name: 'Enabled', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await card.scrollIntoViewIfNeeded()
+  await captureReadyScreenshot(page, shotPath('plugins-installed'))
 })
 
 test('workspace in full rendered preview mode', async ({ page }) => {

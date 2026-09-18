@@ -59,6 +59,35 @@
   flex-wrap: wrap;
 }
 
+.git-pull-strategy,
+.git-diff-picker {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 100%;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.git-pull-strategy select,
+.git-diff-picker select {
+  min-height: 32px;
+  max-width: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.git-pull-strategy select:focus-visible,
+.git-diff-picker select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .git-changes ul {
   margin: 8px 0 0;
   padding: 0;

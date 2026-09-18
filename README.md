@@ -45,7 +45,17 @@ Scriptor is designed for long-running projects such as books, theses, technical 
 
 | Extend the workspace | Publish from named profiles |
 |---|---|
-| ![Plugin marketplace](docs/assets/screenshots/plugins.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
+| ![Installed plugin management](docs/assets/screenshots/plugins.png) | ![Publish center](docs/assets/screenshots/publish-center.png) |
+
+| Choose MCP authorization and recipes | Inspect a note through a read-only tool |
+|---|---|
+| ![MCP authorization modes and guided recipes](docs/assets/screenshots/mcp-panel.png) | ![MCP Tools tab with a note outline result](docs/assets/screenshots/mcp-tools.png) |
+
+| Review plugin access before enabling | Adjust appearance and layout |
+|---|---|
+| ![Vault Lint required-permission confirmation](docs/assets/screenshots/plugin-permissions.png) | ![Workspace appearance settings for theme, font, and density](docs/assets/screenshots/settings-appearance.png) |
+
+These examples use the E2E fixture vault. The plugin store is an experimental first-party catalog, not a public third-party marketplace. MCP tool results here come from the local test bridge, not a connected external client.
 
 The [screenshot catalog](docs/assets/screenshots/README.md) also covers dark mode, Git, conflict resolution, the command palette, MCP, settings, vault health, note history, keyboard shortcuts, onboarding, and compact layouts. The capture script waits for data and panels to finish loading and fails if a screen remains in a loading or degraded state.
 

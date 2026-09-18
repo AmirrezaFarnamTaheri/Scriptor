@@ -32,14 +32,14 @@ export const AiProviderSettings = memo(function AiProviderSettings({
       <p className="health-subtitle">
         Credentials are stored in the OS keychain. Draft proposals still require MCP write-approved approval.
       </p>
-      <label>
+      <label className="settings-field">
         <span>Provider</span>
         <select value={provider} onChange={(event) => onProviderChange(event.target.value as AiProviderId)}>
           <option value="off">Off</option>
           <option value="openai-compatible">OpenAI-compatible HTTP API</option>
         </select>
       </label>
-      <label>
+      <label className="settings-field">
         <span>Endpoint</span>
         <input
           type="url"
@@ -48,7 +48,7 @@ export const AiProviderSettings = memo(function AiProviderSettings({
           onChange={(event) => onEndpointChange(event.target.value)}
         />
       </label>
-      <label>
+      <label className="settings-field">
         <span>API key</span>
         <input
           type="password"

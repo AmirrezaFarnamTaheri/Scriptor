@@ -15,7 +15,7 @@ export function registerScriptorMonacoThemes(monaco: Monaco): void {
     colors: {
       'editor.background': '#f8fafc',
       'editor.foreground': '#0f172a',
-      'editorLineNumber.foreground': '#94a3b8',
+      'editorLineNumber.foreground': '#64748b',
       'editor.selectionBackground': '#dbeafe',
       'editor.lineHighlightBackground': '#f1f5f9',
     },
@@ -33,7 +33,7 @@ export function registerScriptorMonacoThemes(monaco: Monaco): void {
     colors: {
       'editor.background': '#0f172a',
       'editor.foreground': '#e2e8f0',
-      'editorLineNumber.foreground': '#64748b',
+      'editorLineNumber.foreground': '#94a3b8',
       'editor.selectionBackground': '#1e3a5f',
       'editor.lineHighlightBackground': '#1e293b',
     },
