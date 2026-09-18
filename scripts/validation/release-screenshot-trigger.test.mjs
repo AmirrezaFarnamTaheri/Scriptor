@@ -6,7 +6,7 @@ const release = fs.readFileSync(new URL('../../.github/workflows/release.yml', i
 const refresh = fs.readFileSync(new URL('../../.github/workflows/refresh-screenshots.yml', import.meta.url), 'utf8')
 
 test('successful production publication dispatches screenshot refresh on the default branch', () => {
-  const job = release.split('\n  refresh-documentation-screenshots:\n')[1]?.split(/\n  [a-z][\w-]*:\n/)[0]
+  const job = release.split('\n  refresh-documentation-screenshots:\n')[1]?.split(/\n {2}[a-z][\w-]*:\n/)[0]
   assert.ok(job, 'release must explicitly dispatch screenshot refresh')
   assert.match(job, /needs: publish/)
   assert.match(job, /if: inputs\.publish && startsWith\(github\.ref, 'refs\/tags\/v'\)/)
