@@ -68,6 +68,8 @@ export interface VaultTaskSyncResult {
   updated: number
   skipped: number
   failed: number
+  /** Mutations intentionally deferred to a later user-approved sync batch. */
+  pending: number
 }
 
 export interface GoogleCalendarSyncOptions {
@@ -98,6 +100,7 @@ export interface GoogleCalendarSyncResult {
 }
 
 const DEFAULT_LOOKAHEAD_DAYS = 7
+const MAX_TASK_SYNC_MUTATIONS_PER_APPROVAL = 1000
 const SOURCE_MARKER_PREFIX = 'Scriptor source:'
 
 /** Selects events whose start date matches the user's local date. */
@@ -372,7 +375,7 @@ export function useGoogleCalendarSync({
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
     if (!enabled || !vaultTasksComplete || status !== 'synced' || vaultSyncRunningRef.current) {
-      return { created: 0, updated: 0, skipped: 0, failed: 0 }
+      return { created: 0, updated: 0, skipped: 0, failed: 0, pending: 0 }
     }
 
     vaultSyncRunningRef.current = true
@@ -466,10 +469,16 @@ export function useGoogleCalendarSync({
       }
 
       if (mutations.length === 0) {
-        return { created: 0, updated: 0, skipped, failed: 0 }
+        return { created: 0, updated: 0, skipped, failed: 0, pending: 0 }
       }
 
-      const results = await googleCalendarApplyTaskSync(taskListId, mutations)
+      // One explicit user approval authorizes one bounded provider mutation
+      // batch. Large vaults advance deterministically across repeated presses
+      // instead of failing the whole sync above the native 1000-item guard or
+      // surprising the user with a chain of authorization dialogs.
+      const batch = mutations.slice(0, MAX_TASK_SYNC_MUTATIONS_PER_APPROVAL)
+      const pending = mutations.length - batch.length
+      const results = await googleCalendarApplyTaskSync(taskListId, batch)
       if (currentLifecycle !== lifecycleGenerationRef.current) {
         return { created: 0, updated: 0, skipped, failed: 0 }
       }
@@ -511,12 +520,19 @@ export function useGoogleCalendarSync({
         setError(null)
       }
 
-      return { created, updated, skipped, failed }
+      return { created, updated, skipped, failed, pending }
     } catch (caught) {
       if (currentLifecycle === lifecycleGenerationRef.current) {
         setError(googleAuthErrorMessage(caught))
       }
-      return { created: 0, updated: 0, skipped, failed: mutations.length }
+      const attempted = Math.min(mutations.length, MAX_TASK_SYNC_MUTATIONS_PER_APPROVAL)
+      return {
+        created: 0,
+        updated: 0,
+        skipped,
+        failed: attempted,
+        pending: Math.max(0, mutations.length - attempted),
+      }
     } finally {
       vaultSyncRunningRef.current = false
     }
