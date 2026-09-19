@@ -33,7 +33,7 @@ import {
 import { indexerQueryTasks } from '../bridge/commands/indexer'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { TaskStatusGlyph } from './taskStatusGlyph'
-import { getStatusMeta, STATUS_ORDER } from '@scriptor/core/task'
+import { STATUS_ORDER } from '@scriptor/core/task'
 import { useI18n } from '../lib/i18n'
 
 function cycleStatus(current: string): string {
@@ -158,7 +158,6 @@ const TaskRowItem = memo(function TaskRowItem({
               disabled={isPending}
             >
               {STATUS_ORDER.map((status) => {
-                const meta = getStatusMeta(status)
                 return (
                   <option key={status} value={status}>
                     {t(`tasks.statuses.${status}`)}
@@ -220,7 +219,6 @@ const FilterBar = memo(function FilterBar({ filter, sortKey, onSetFilter, onClea
         <select value={filter.status ?? ''} onChange={(e) => onSetFilter({ status: e.target.value || undefined })}>
           <option value="">{t('tasks.all')}</option>
           {BUILT_IN_STATUSES.map((status) => {
-            const meta = getStatusMeta(status)
             return <option key={status} value={status}>{t(`tasks.statuses.${status}`)}</option>
           })}
         </select>
