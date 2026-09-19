@@ -10,6 +10,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap'
 import { CanvasExportMenu } from './canvas/CanvasExportMenu'
 import { CanvasStage } from './canvas/CanvasStage'
 import { EmptyState } from './EmptyState'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 
 interface CanvasPanelProps {
   vaultId: string | null
@@ -60,20 +61,21 @@ export function CanvasPanel({
   } = useCanvasBoard(vaultId, vaultOpen, crdtEnabled)
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([])
   const [activeTool, setActiveTool] = useState(canvasTools[0]?.id ?? 'select')
+  const [closeSaveError, setCloseSaveError] = useState<string | null>(null)
 
   const handleClose = async () => {
+    setCloseSaveError(null)
     try {
       const saved = await flushPendingSave()
       if (!saved) {
-        const discard = window.confirm(
-          'Failed to save canvas changes. Do you want to close anyway and discard unsaved changes?',
-        )
-        if (!discard) return
+        setCloseSaveError('Canvas changes could not be saved. Keep the canvas open or explicitly discard the unsaved changes.')
+        return
       }
       onClose()
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
       console.error('Failed to flush canvas save on close:', error)
-      onClose()
+      setCloseSaveError(`Canvas changes could not be saved: ${message}`)
     }
   }
 
@@ -236,6 +238,20 @@ export function CanvasPanel({
           <X aria-hidden="true" />
         </button>
       </header>
+
+      {closeSaveError ? (
+        <MutationConfirmation
+          ariaLabel="Unsaved canvas changes"
+          message={closeSaveError}
+          confirmLabel="Discard and close"
+          onCancel={() => setCloseSaveError(null)}
+          onConfirm={() => {
+            setCloseSaveError(null)
+            onClose()
+          }}
+          className="canvas-close-confirmation"
+        />
+      ) : null}
 
       <div className="canvas-stage">
         {blocks.length === 0 ? (
