@@ -242,7 +242,6 @@ export function useAppTheme() {
     if (typeof window === 'undefined') return
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches)
-    setSystemDark(media.matches)
     media.addEventListener?.('change', onChange)
     return () => media.removeEventListener?.('change', onChange)
   }, [])
