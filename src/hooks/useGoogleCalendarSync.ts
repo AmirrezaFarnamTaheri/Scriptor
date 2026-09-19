@@ -73,6 +73,8 @@ export interface GoogleCalendarSyncOptions {
   config: CalendarSyncConfig | undefined
   /** Indexed vault notes with task items for push-to-Tasks. */
   vaultNotes?: VaultTaskNote[]
+  /** True only after an authoritative all-task query has completed successfully. */
+  vaultTasksComplete?: boolean
   /** Auto-refresh interval in seconds (0 = disabled). Default: 300. */
   refreshIntervalSeconds?: number
 }
@@ -160,6 +162,7 @@ function hasScriptorSourceMarker(task: GoogleTask): boolean {
 export function useGoogleCalendarSync({
   config,
   vaultNotes = [],
+  vaultTasksComplete = false,
   refreshIntervalSeconds = 300,
 }: GoogleCalendarSyncOptions): GoogleCalendarSyncResult {
   const [status, setStatus] = useState<CalendarSyncStatus>('disconnected')
@@ -368,7 +371,7 @@ export function useGoogleCalendarSync({
   )
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
-    if (!enabled || status === 'disconnected' || status === 'authorizing' || vaultSyncRunningRef.current) {
+    if (!enabled || !vaultTasksComplete || status === 'disconnected' || status === 'authorizing' || vaultSyncRunningRef.current) {
       return { created: 0, updated: 0, skipped: 0, failed: 0 }
     }
 
@@ -507,14 +510,14 @@ export function useGoogleCalendarSync({
     } finally {
       vaultSyncRunningRef.current = false
     }
-  }, [enabled, pushTask, status, taskListId, tasks, vaultNotes])
+  }, [enabled, pushTask, status, taskListId, tasks, vaultNotes, vaultTasksComplete])
 
   // The explicit vault setting is the user's opt-in for automatic mirroring.
   // Idempotent source markers make repeated refresh/re-open cycles safe.
   useEffect(() => {
-    if (!pushVaultTasksEnabled || status !== 'synced' || vaultNotes.length === 0) return
+    if (!pushVaultTasksEnabled || !vaultTasksComplete || status !== 'synced') return
     void syncVaultTasks()
-  }, [pushVaultTasksEnabled, status, syncVaultTasks, vaultNotes.length])
+  }, [pushVaultTasksEnabled, status, syncVaultTasks, vaultTasksComplete])
 
   const todayAgendaMarkdown = useCallback((): string => {
     const today = eventsToday(events)
