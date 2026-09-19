@@ -132,7 +132,7 @@ test.describe('workspace flows', () => {
     await expect(searchPanel).toBeVisible({ timeout: 10_000 })
     await expect(searchPanel.getByRole('button', { name: /Research Plan/ })).toBeVisible({ timeout: 10_000 })
     await expect(searchPanel).toContainText(E2E_SEARCH_MARKER)
-    await expect(page.locator('.search-hint')).toContainText(/1 result/i)
+    await expect(page.getByRole('tab', { name: /Search results\s+1/i })).toBeVisible()
 
     await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
     const publishDialog = page.getByRole('dialog', { name: 'Export & publish' })
