@@ -425,6 +425,7 @@ export const KanbanPanel = memo(function KanbanPanel({ notePath, onClose, runSou
       subtitle={board ? `${board.columns.length} column${board.columns.length !== 1 ? 's' : ''}` : 'Board view'}
       icon={<Columns size={18} />}
       ariaLabel="Kanban board"
+      helpTopic="kanban"
       onClose={onClose}
       className="kanban-panel"
       wide
