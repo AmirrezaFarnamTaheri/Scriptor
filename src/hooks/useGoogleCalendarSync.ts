@@ -13,6 +13,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 
 import {
+  googleCalendarApplyTaskSync,
   googleCalendarCompleteTask,
   googleCalendarCreateTask,
   googleCalendarDeleteTask,
@@ -24,6 +25,7 @@ import {
   googleCalendarUpdateTask,
   type CalendarEvent,
   type GoogleTask,
+  type GoogleTaskSyncMutation,
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalUrl } from '../lib/safeExternalUrl.ts'
 import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
@@ -181,7 +183,6 @@ export function useGoogleCalendarSync({
   const calendarId = config?.google_calendar_id ?? 'primary'
   const taskListId = config?.google_task_list_id ?? '@default'
   const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
-  const pushVaultTasksEnabled = config?.push_vault_tasks ?? false
 
   const startAuth = useCallback(async (): Promise<boolean> => {
     if (!clientId) {
@@ -371,38 +372,15 @@ export function useGoogleCalendarSync({
   )
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
-    if (!enabled || !vaultTasksComplete || status === 'disconnected' || status === 'authorizing' || vaultSyncRunningRef.current) {
+    if (!enabled || !vaultTasksComplete || status !== 'synced' || vaultSyncRunningRef.current) {
       return { created: 0, updated: 0, skipped: 0, failed: 0 }
     }
 
     vaultSyncRunningRef.current = true
+    const currentLifecycle = lifecycleGenerationRef.current
     const matchedRemoteIds = new Set<string>()
-    let created = 0
-    let updated = 0
+    const mutations: GoogleTaskSyncMutation[] = []
     let skipped = 0
-    let failed = 0
-
-    const completeRemote = async (remoteTask: GoogleTask) => {
-      if (remoteTask.status === 'completed') {
-        skipped += 1
-        return
-      }
-      try {
-        await googleCalendarCompleteTask(taskListId, remoteTask.id)
-        taskMutationRevisionRef.current += 1
-        setTasks((current) =>
-          current.map((candidate) =>
-            candidate.id === remoteTask.id
-              ? { ...candidate, status: 'completed' as const, completed: new Date().toISOString() }
-              : candidate,
-          ),
-        )
-        updated += 1
-      } catch (caught) {
-        setError(googleAuthErrorMessage(caught))
-        failed += 1
-      }
-    }
 
     try {
       for (const note of vaultNotes) {
@@ -416,11 +394,9 @@ export function useGoogleCalendarSync({
             return markerLines.includes(marker) || markerLines.includes(legacyMarker)
           })
 
-          // A note move can legitimately change the native task id because the
-          // note id participates in indexing identity. Rebind a single
-          // unambiguous Scriptor-authored task with the same title instead of
-          // creating a second open Google task. Duplicate titles stay
-          // conservative and do not guess.
+          // A note move can legitimately change native task identity. Rebind a
+          // single unambiguous Scriptor-authored task by title; duplicate titles
+          // remain conservative rather than guessing.
           if (!matchingRemote) {
             const titleMatches = tasks.filter((remoteTask) =>
               !matchedRemoteIds.has(remoteTask.id)
@@ -431,11 +407,11 @@ export function useGoogleCalendarSync({
           }
 
           if (task.checked) {
-            if (matchingRemote) {
-              matchedRemoteIds.add(matchingRemote.id)
-              await completeRemote(matchingRemote)
-            } else {
+            if (!matchingRemote || matchingRemote.status === 'completed') {
               skipped += 1
+            } else {
+              matchedRemoteIds.add(matchingRemote.id)
+              mutations.push({ kind: 'complete', taskId: matchingRemote.id })
             }
             continue
           }
@@ -455,45 +431,29 @@ export function useGoogleCalendarSync({
               continue
             }
 
-            try {
-              const reconciled = await googleCalendarUpdateTask({
-                taskListId,
-                taskId: matchingRemote.id,
-                title: task.text,
-                notes: desiredNotes,
-                due: desiredDue,
-                status: matchingRemote.status === 'completed' ? 'needsAction' : undefined,
-              })
-              taskMutationRevisionRef.current += 1
-              setTasks((current) =>
-                current.map((remoteTask) => remoteTask.id === reconciled.id ? reconciled : remoteTask),
-              )
-              updated += 1
-            } catch (caught) {
-              setError(googleAuthErrorMessage(caught))
-              failed += 1
-            }
+            mutations.push({
+              kind: 'update',
+              taskId: matchingRemote.id,
+              title: task.text,
+              notes: desiredNotes,
+              due: desiredDue,
+              status: matchingRemote.status === 'completed' ? 'needsAction' : undefined,
+            })
             continue
           }
 
-          const pushed = await pushTask({
+          mutations.push({
+            kind: 'create',
             title: task.text,
             notes: marker,
             due: normalizeTaskDue(task.dueDate),
           })
-          if (pushed) {
-            matchedRemoteIds.add(pushed.id)
-            created += 1
-          } else {
-            failed += 1
-          }
         }
       }
 
-      // This hook receives the complete indexed task set. Any still-open remote
-      // task carrying a Scriptor marker but not matched above represents a local
-      // task that was removed. Completing rather than deleting preserves Google
-      // history while keeping the "mirror open vault tasks" contract true.
+      // Any still-open remote task carrying a Scriptor marker but not matched
+      // above represents a local task that was removed. Completing rather than
+      // deleting preserves Google history while making the open-task mirror exact.
       for (const remoteTask of tasks) {
         if (
           matchedRemoteIds.has(remoteTask.id)
@@ -503,21 +463,66 @@ export function useGoogleCalendarSync({
           continue
         }
         matchedRemoteIds.add(remoteTask.id)
-        await completeRemote(remoteTask)
+        mutations.push({ kind: 'complete', taskId: remoteTask.id })
+      }
+
+      if (mutations.length === 0) {
+        return { created: 0, updated: 0, skipped, failed: 0 }
+      }
+
+      const results = await googleCalendarApplyTaskSync(taskListId, mutations)
+      if (currentLifecycle !== lifecycleGenerationRef.current) {
+        return { created: 0, updated: 0, skipped, failed: 0 }
+      }
+
+      let created = 0
+      let updated = 0
+      let failed = 0
+      const errors: string[] = []
+      for (const result of results) {
+        if (!result.success) {
+          failed += 1
+          if (result.error) errors.push(result.error)
+          continue
+        }
+        if (result.kind === 'create') created += 1
+        else updated += 1
+      }
+
+      const successful = created + updated
+      if (successful > 0) {
+        taskMutationRevisionRef.current += successful
+        try {
+          const refreshedTasks = await googleCalendarListTasks(taskListId)
+          if (currentLifecycle === lifecycleGenerationRef.current) {
+            setTasks(refreshedTasks)
+          }
+        } catch (caught) {
+          errors.push(googleAuthErrorMessage(caught))
+        }
+      }
+
+      if (errors.length > 0 && currentLifecycle === lifecycleGenerationRef.current) {
+        setError(
+          failed > 0
+            ? `${failed} Google Task change${failed === 1 ? '' : 's'} failed. ${errors[0]}`
+            : errors[0]!,
+        )
+      } else if (currentLifecycle === lifecycleGenerationRef.current) {
+        setError(null)
       }
 
       return { created, updated, skipped, failed }
+    } catch (caught) {
+      if (currentLifecycle === lifecycleGenerationRef.current) {
+        setError(googleAuthErrorMessage(caught))
+      }
+      return { created: 0, updated: 0, skipped, failed: 0 }
     } finally {
       vaultSyncRunningRef.current = false
     }
-  }, [enabled, pushTask, status, taskListId, tasks, vaultNotes, vaultTasksComplete])
+  }, [enabled, status, taskListId, tasks, vaultNotes, vaultTasksComplete])
 
-  // The explicit vault setting is the user's opt-in for automatic mirroring.
-  // Idempotent source markers make repeated refresh/re-open cycles safe.
-  useEffect(() => {
-    if (!pushVaultTasksEnabled || !vaultTasksComplete || status !== 'synced') return
-    void syncVaultTasks()
-  }, [pushVaultTasksEnabled, status, syncVaultTasks, vaultTasksComplete])
 
   const todayAgendaMarkdown = useCallback((): string => {
     const today = eventsToday(events)
