@@ -201,7 +201,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
                 {triageNote ? (
                   <span className="health-subtitle">
                     {t('knowledge.filters.triageProgress', {
-                      current: triageIndex + 1,
+                      current: (triageIndex ?? 0) + 1,
                       count: activeNotes.length,
                       title: triageNote.title,
                     })}
