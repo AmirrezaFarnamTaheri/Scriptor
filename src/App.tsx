@@ -282,6 +282,29 @@ function App() {
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
+  const gmailPluginEnabled = useMemo(
+    () => plugins.activePlugins.some((plugin) => plugin.manifest.id === 'scriptor.gmail-manager'),
+    [plugins.activePlugins],
+  )
+  const setGmailManagerOpenFromCommands = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        setGmailManagerOpen(false)
+        return
+      }
+      if (gmailPluginEnabled) {
+        setGmailManagerOpen(true)
+        return
+      }
+      // Avoid a dead-end "open" state when the capability is disabled. Route
+      // directly to the canonical plugin surface where Gmail can be enabled.
+      setGmailManagerOpen(false)
+      patchChrome({ inspectorCollapsed: false })
+      setActiveMode('plugins')
+      showToast('Enable Gmail Manager in Plugins before opening the mail workspace.')
+    },
+    [gmailPluginEnabled, patchChrome, setActiveMode, setGmailManagerOpen, showToast],
+  )
   // Pulled out of the per-render registry result so memoized callbacks can depend on the
   // stable `useCallback` identity instead of the whole hook object.
   const canExecutePluginCommand = plugins.canExecutePluginCommand
@@ -859,7 +882,7 @@ function App() {
         setQuickCaptureOpen,
         setNoteHistoryOpen,
         setBibliographyOpen,
-        setGmailManagerOpen: nativeReady ? setGmailManagerOpen : undefined,
+        setGmailManagerOpen: nativeReady ? setGmailManagerOpenFromCommands : undefined,
         setSnippetsOpen,
         setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
         setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
@@ -913,7 +936,7 @@ function App() {
       promptText,
       recentNotes,
       setBibliographyOpen,
-      setGmailManagerOpen,
+      setGmailManagerOpenFromCommands,
       setCanvasOpen,
       setCheatsheetOpen,
       setEditorSurfaceMode,
