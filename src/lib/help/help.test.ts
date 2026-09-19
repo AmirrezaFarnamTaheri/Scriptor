@@ -6,7 +6,7 @@ import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
 
 test('all guides have unique ids, authored steps, questions, entry paths, safety, and valid related guides', () => {
-  assert.ok(HELP_GUIDES.length >= 60)
+  assert.ok(HELP_GUIDES.length >= 70)
   assert.equal(HELP_BY_ID.size, HELP_GUIDES.length)
   for (const guide of HELP_GUIDES) {
     assert.match(guide.id, /^[a-z][a-z0-9-]+$/)
@@ -29,6 +29,7 @@ test('help search covers questions and workflows without network or vault access
   assert.equal(searchGuides('customize toolbar')[0]?.id, 'toolbar-customize')
   assert.ok(searchGuides('keychain').some((guide) => guide.id === 'google'))
   assert.ok(searchGuides('annotation').some((guide) => guide.id === 'annotations'))
+  assert.ok(searchGuides('operation messages').some((guide) => guide.id === 'activity-output'))
   assert.ok(searchGuides('', 'Recovery').every((guide) => guide.category === 'Recovery'))
   assert.equal(searchGuides('zzzzzzzzzzzzzz').length, 0)
 })
