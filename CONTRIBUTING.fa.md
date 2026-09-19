@@ -97,6 +97,10 @@ pnpm test:rust
 
 ## <bdi dir="ltr">Pull request</bdi>ها
 
+<bdi dir="ltr">Draft PR</bdi> عمداً سبک نگه داشته می‌شود: <bdi dir="ltr">job</bdi>های سنگین <bdi dir="ltr">CI</bdi>، <bdi dir="ltr">desktop compile</bdi>، <bdi dir="ltr">Visual review</bdi>، <bdi dir="ltr">Starlight lock</bdi> و <bdi dir="ltr">Release Binary Review</bdi> تا زمانی که <bdi dir="ltr">PR</bdi> آمادهٔ بازبینی شود اجرا نمی‌شوند. قرار دادن <bdi dir="ltr">PR</bdi> روی **<bdi dir="ltr">Ready for review</bdi>** یک دور کامل اعتبارسنجی برای <bdi dir="ltr">exact head</bdi> اجرا می‌کند؛ <bdi dir="ltr">push</bdi>های بعدی اجراهای قدیمی را لغو می‌کنند و فقط جدیدترین <bdi dir="ltr">head</bdi> را می‌سنجند.
+
+برای آزمون‌های مرورگر، هر مسئولیت یک مالک دارد: <bdi dir="ltr">CI</bdi> اصلی <bdi dir="ltr">Playwright E2E</bdi> عملکردی را اجرا می‌کند و <bdi dir="ltr">Visual review</bdi> مالک <bdi dir="ltr">visual regression</bdi> پایدار است. اجرای تشخیصی <bdi dir="ltr">--update-snapshots=all</bdi> فقط پس از شکست مقایسهٔ بصری انجام می‌شود؛ به‌روزرسانی عمدی <bdi dir="ltr">baseline</bdi> باید از <bdi dir="ltr">screenshot-refresh workflow</bdi> صریح انجام شود.
+
 موارد زیر را توضیح دهید:
 
 - رفتار قابل مشاهده‌ای که تغییر کرده است؛
