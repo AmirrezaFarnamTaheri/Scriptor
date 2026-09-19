@@ -224,7 +224,7 @@ export const TagBrowserPanel = memo(function TagBrowserPanel({
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section ref={dialogRef} className="tag-browser-panel" role="dialog" aria-modal="true" aria-label="Tag browser" onClick={(event) => event.stopPropagation()}>
+      <section ref={dialogRef} className="tag-browser-panel" data-help-topic="tags" role="dialog" aria-modal="true" aria-label="Tag browser" onClick={(event) => event.stopPropagation()}>
         <header>
           <div>
             <h2>Tag browser</h2>
