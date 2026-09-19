@@ -133,6 +133,7 @@ function VaultSidebarImpl({
   return (
     <aside
       className={`vault-panel${dropActive ? ' is-drop-target' : ''}`}
+      data-help-topic="vault"
       aria-label={t('vaultSidebar.ariaLabel')}
       onDragOver={(event) => {
         if (!onImportFiles) return
