@@ -1108,7 +1108,7 @@
       "noTasks": "Keine Google Tasks geladen.",
       "complete": "Erledigen",
       "pushingVaultTasks": "Vault-Aufgaben werden übertragen…",
-      "pushResult": "{{created}} erstellt · {{updated}} aktualisiert · {{skipped}} bereits synchron · {{failed}} fehlgeschlagen"
+      "pushResult": "{{created}} erstellt · {{updated}} aktualisiert · {{skipped}} bereits synchron · {{failed}} fehlgeschlagen · {{pending}} noch ausstehend"
     }
   }
 }
