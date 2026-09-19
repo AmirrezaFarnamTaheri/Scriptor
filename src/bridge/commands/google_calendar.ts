@@ -99,6 +99,25 @@ export async function googleCalendarCreateTask(args: {
   })
 }
 
+export async function googleCalendarUpdateTask(args: {
+  taskListId: string
+  taskId: string
+  title: string
+  notes: string
+  due?: string | null
+}): Promise<GoogleTask> {
+  requireNative()
+  const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
+  return invoke<GoogleTask>('google_calendar_update_task', {
+    taskListId: args.taskListId,
+    taskId: args.taskId,
+    title: args.title,
+    notes: args.notes,
+    due: args.due ?? null,
+    authorizationToken,
+  })
+}
+
 export async function googleCalendarCompleteTask(
   taskListId: string,
   taskId: string,
