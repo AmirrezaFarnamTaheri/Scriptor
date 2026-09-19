@@ -16,7 +16,7 @@ Production release 在所有必需项都针对精确 tag 与精确 artifact byte
 - [ ] process launch 没有 live per-call inventory entry 或 review 已过期时停止；
 - [ ] target platform 上无法证明 rollback、restore、trust status 或 observability 时停止；
 - [ ] RustSec exception review 过期或无 owner/exit condition 时停止；
-- [ ] exact-head CI matrix 中 Playwright E2E 或 visual regression 被跳过/缺失时停止；
+- [ ] exact-head CI 中缺少 Playwright E2E，或同一 exact head 的独立 Visual review 回归 gate 被跳过/缺失时停止；
 - [ ] repository protected release environment 缺失、没有 required reviewer，或未 gate production publish job 时停止；
 - [ ] 发布的 vault 内容需要 review，但 GitHub Pages deployment 没有单独批准的 `github-pages` environment 时停止。
 
