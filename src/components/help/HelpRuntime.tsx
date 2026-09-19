@@ -26,6 +26,7 @@ export function HelpRuntime() {
   const [invitation, setInvitation] = useState<string | null>(null)
   const lastInteraction = useRef<Element | null>(null)
   const highlightCleanup = useRef<(() => void) | null>(null)
+  const visibleFirstUse = useRef<Set<string> | null>(null)
   const surfaces = useHelpSurfaces()
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
@@ -71,9 +72,21 @@ export function HelpRuntime() {
   }, [open, store])
 
   useEffect(() => {
+    const current = new Set(surfaces.filter(({ guide }) => guide.policy === 'first-use').map(({ guide }) => guide.id))
+    const previous = visibleFirstUse.current
+    visibleFirstUse.current = current
+    // The initial workspace already has its own first-run overview. Do not turn
+    // always-visible widgets into surprise first-use prompts on application boot.
+    if (!previous) return
     if (!preferences.hints || session || invitation || document.querySelector('.onboarding-tour')) return
-    // Offer only after the feature has settled. Never move focus or start a tour.
-    const candidate = surfaces.find(({ guide }) => guide.policy === 'first-use' && !getProgress(preferences, guide.id).offered)
+    // A first-use invitation belongs to the feature that just appeared, not to
+    // whichever eligible widget happened to be earlier in the global catalog.
+    const candidate = surfaces.find(({ guide }) =>
+      guide.policy === 'first-use'
+      && current.has(guide.id)
+      && !previous.has(guide.id)
+      && !getProgress(preferences, guide.id).offered
+    )
     if (!candidate) return
     const timer = window.setTimeout(() => {
       if (!candidate.root.isConnected || document.querySelector('.onboarding-tour, .help-center[open]')) return
