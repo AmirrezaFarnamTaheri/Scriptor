@@ -46,6 +46,8 @@ Diese Trennung ist beabsichtigt. Eine gespeicherte Baseline kann weiterhin akzep
 
 Die stabilen Windows-Baselines bleiben die Akzeptanzoberfläche für visuelle Regressionen. Absichtliche Pixeländerungen müssen geprüft und ausdrücklich mit `--update-snapshots=all` aktualisiert werden; visuelle Fehler werden nie durch Erhöhen der globalen Toleranz verborgen.
 
+Der Pull-Request-Workflow **Visual review** besitzt den visuellen Regression-Gate. Er vergleicht zunächst gegen die committed Baselines. Nur wenn dieser Vergleich fehlschlägt, läuft ein diagnostischer `--update-snapshots=all`-Durchgang, um aktuelle Bilder und Baseline-Drift für die Review-Artefakte zu erzeugen; er akzeptiert Änderungen nie automatisch. Funktionale Browser-E2E-Tests bleiben im Haupt-CI-Workflow, sodass ein grüner PR die Visual Suite nicht doppelt ausführt.
+
 Responsive und zustandsbezogene Dokumentationsaufnahmen (`workspace-mobile`, `workspace-tablet`, mobile Vault/Inspector, Editor-Recovery, MCP-Sharing-Inventar und Toolbar-Popovers) werden aus aktuellem Testoutput erzeugt und nur dann zu stabilen Pixelbaselines erhoben, wenn der Test ausdrücklich `toHaveScreenshot` verwendet.
 
 ## Regenerierung
