@@ -964,7 +964,8 @@
     "editorFontFamily": "خانواده فونت ویرایشگر",
     "editorLineHeight": "ارتفاع خط ویرایشگر",
     "editorPadding": "فاصله کناری ویرایشگر (px)",
-    "previewWidth": "بیشینه عرض پیش‌نمایش Split/Inspector (ch)"
+    "previewWidth": "بیشینه عرض پیش‌نمایش Split/Inspector (ch)",
+    "managePalettes": "مدیریت پالت‌های رنگی"
   },
   "settingsPanel": {
     "tabs": {
