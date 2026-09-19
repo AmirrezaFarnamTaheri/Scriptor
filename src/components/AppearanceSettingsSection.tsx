@@ -3,34 +3,31 @@ import { readStoredCustomThemes, type AppTheme, type AppearanceMode } from '../h
 import { useI18n } from '../lib/i18n'
 import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
 import { EDITOR_FONT_FAMILIES } from '../brand/support'
-import type {
-  GlassBlurIntensity,
-  UiBorderRadius,
-  UiDensity,
-  UiFontFamily,
-  WorkspaceChromePrefs,
+import {
+  DEFAULT_WORKSPACE_CHROME,
+  type GlassBlurIntensity,
+  type UiBorderRadius,
+  type UiDensity,
+  type UiFontFamily,
+  type WorkspaceChromePrefs,
 } from '../hooks/useWorkspaceChrome'
 
 export interface AppearanceSettingsSectionProps {
   workspaceChrome: WorkspaceChromePrefs
   onPatchWorkspaceChrome: (patch: Partial<WorkspaceChromePrefs>) => void
-  onResetWorkspaceChrome?: () => void
   theme?: AppTheme
   appearance?: AppearanceMode
   onThemeChange?: (theme: AppTheme) => void
   onAppearanceChange?: (appearance: AppearanceMode) => void
-  onReplayOnboarding?: () => void
 }
 
 export const AppearanceSettingsSection = memo(function AppearanceSettingsSection({
   workspaceChrome,
   onPatchWorkspaceChrome,
-  onResetWorkspaceChrome,
   theme,
   appearance = 'system',
   onThemeChange,
   onAppearanceChange,
-  onReplayOnboarding,
 }: AppearanceSettingsSectionProps) {
   const { t } = useI18n()
   const customPalettes = readStoredCustomThemes()
@@ -123,46 +120,27 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
           <option value="heavy">{t('appearanceSettings.blurHeavy')}</option>
         </select>
       </label>
-      {onReplayOnboarding ? (
-        <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
-          {t('appearanceSettings.replayTour')}
-        </button>
-      ) : null}
-      {onResetWorkspaceChrome ? (
-        <button type="button" className="toolbar-button" onClick={onResetWorkspaceChrome}>
-          {t('appearanceSettings.reset')}
-        </button>
-      ) : null}
-      <p className="health-subtitle">{t('appearanceSettings.fineTune')}</p>
-      <div className="settings-grid settings-toggles">
-        {(
-          [
-            ['showTopBar', t('appearanceSettings.toggles.showTopBar')],
-            ['showModeStrip', t('appearanceSettings.toggles.showModeStrip')],
-            ['showQuickActions', t('appearanceSettings.toggles.showQuickActions')],
-            ['showHistoryControls', t('appearanceSettings.toggles.showHistoryControls')],
-            ['showFormatToolbar', t('appearanceSettings.toggles.showFormatToolbar')],
-            ['showEditorAssist', t('appearanceSettings.toggles.showEditorAssist')],
-            ['showEditorStatus', t('appearanceSettings.toggles.showEditorStatus')],
-            ['showInspectorHealth', t('settingsSection.showInspectorHealth')],
-            ['showWorkspaceFooter', t('appearanceSettings.toggles.showWorkspaceFooter')],
-            ['showStatusBar', t('appearanceSettings.toggles.showStatusBar')],
-            ['showLineNumbers', t('appearanceSettings.toggles.showLineNumbers')],
-            ['vaultSidebarCollapsed', t('appearanceSettings.toggles.vaultSidebarCollapsed')],
-            ['inspectorCollapsed', t('appearanceSettings.toggles.inspectorCollapsed')],
-            ['layoutLocked', t('appearanceSettings.toggles.layoutLocked')],
-          ] as const
-        ).map(([key, label]) => (
-          <label className="diagnostics-opt-in" key={key}>
-            <input
-              type="checkbox"
-              checked={workspaceChrome[key]}
-              onChange={(event) => onPatchWorkspaceChrome({ [key]: event.target.checked })}
-            />
-            <span>{label}</span>
-          </label>
-        ))}
-      </div>
+      <button
+        type="button"
+        className="toolbar-button"
+        onClick={() => {
+          onThemeChange?.('dark')
+          onAppearanceChange?.('system')
+          onPatchWorkspaceChrome({
+            uiFontFamily: DEFAULT_WORKSPACE_CHROME.uiFontFamily,
+            uiDensity: DEFAULT_WORKSPACE_CHROME.uiDensity,
+            uiBorderRadius: DEFAULT_WORKSPACE_CHROME.uiBorderRadius,
+            glassBlur: DEFAULT_WORKSPACE_CHROME.glassBlur,
+            editorFontSize: DEFAULT_WORKSPACE_CHROME.editorFontSize,
+            editorFontFamily: DEFAULT_WORKSPACE_CHROME.editorFontFamily,
+            editorLineHeight: DEFAULT_WORKSPACE_CHROME.editorLineHeight,
+            editorPaddingPx: DEFAULT_WORKSPACE_CHROME.editorPaddingPx,
+            previewMaxWidthCh: DEFAULT_WORKSPACE_CHROME.previewMaxWidthCh,
+          })
+        }}
+      >
+        {t('appearanceSettings.reset')}
+      </button>
       <label className="settings-field">
         {t('appearanceSettings.editorFontSize')}
         <input
