@@ -222,7 +222,7 @@ export function ThemeCustomizerModal({
   }
 
   return (
-    <div ref={overlayRef} className="customizer-overlay" role="dialog" aria-modal="true" aria-label={t('themeCustomizer.ariaLabel')}>
+    <div ref={overlayRef} className="customizer-overlay" role="dialog" aria-modal="true" aria-label={t('themeCustomizer.ariaLabel')} data-help-topic="custom-theme">
       <div className="customizer-modal">
         <div className="customizer-header">
           <h2>
