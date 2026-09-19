@@ -1044,5 +1044,59 @@
     "unknown": "unknown",
     "systemMetadata": "System metadata is available in the desktop shell.",
     "pandocNotFound": "Pandoc not found"
+  },
+  "tasks": {
+    "openVault": "Open a vault to view tasks.",
+    "title": "Tasks",
+    "taskSingular": "task",
+    "taskPlural": "tasks",
+    "ariaLabel": "Task list",
+    "refresh": "Refresh",
+    "refreshAria": "Refresh task list",
+    "loading": "Loading tasks…",
+    "noMatches": "No tasks match the current filter.",
+    "status": "Status",
+    "statusAdvance": "Status: {{status}}. Activate to advance.",
+    "statusTitle": "Status: {{status}}",
+    "editDueDate": "Edit due date",
+    "dueDate": "Due date: {{date}}",
+    "addDueDate": "Add due date",
+    "dueTitle": "Due {{date}} — activate to edit",
+    "setDueDate": "Set due date",
+    "scheduled": "Scheduled",
+    "recurrence": "Recurrence",
+    "priority": "Priority",
+    "openSourceNote": "Open source note ↗",
+    "saving": "Saving…",
+    "dueBefore": "Due before",
+    "sort": "Sort",
+    "all": "All",
+    "clearFilters": "Clear all filters",
+    "clear": "Clear",
+    "sortOptions": {
+      "due": "Due date",
+      "status": "Status",
+      "priority": "Priority",
+      "created": "Created"
+    },
+    "statuses": {
+      "open": "Open",
+      "in-progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled",
+      "forwarded": "Forwarded"
+    },
+    "google": {
+      "ariaLabel": "Google Calendar and Tasks",
+      "title": "Google Calendar & Tasks",
+      "sync": "Sync Google",
+      "pushVaultTasks": "Push vault tasks",
+      "upcomingEvents": "Upcoming events",
+      "noEvents": "No events in the configured lookahead window.",
+      "untitledEvent": "Untitled event",
+      "tasks": "Google Tasks",
+      "noTasks": "No Google Tasks loaded.",
+      "complete": "Complete"
+    }
   }
 }
