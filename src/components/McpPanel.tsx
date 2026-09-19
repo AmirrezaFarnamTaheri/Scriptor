@@ -125,6 +125,7 @@ export function McpPanel({
       subtitle={t('mcp.authorizationSubtitle')}
       icon={<Sparkles size={18} />}
       ariaLabel={t('mcp.title')}
+      helpTopic="mcp"
       onClose={onClose}
       presentation={presentation}
       className="mcp-panel knowledge-filters-panel"
