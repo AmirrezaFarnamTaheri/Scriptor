@@ -500,7 +500,9 @@ impl ClientInner {
         // socket timeouts.
         let deadline = Instant::now() + timeout;
         let mut guard = self.ensure_connected(deadline)?;
-        let stream = guard.as_mut().expect("connected stream");
+        let stream = guard
+            .as_mut()
+            .ok_or_else(|| IpcError::Codec("connected session is missing its request stream".into()))?;
         match self.call_once(stream, &request, deadline, timeout) {
             Ok(response) => Ok(response),
             Err(error) if should_reconnect(&error) && Instant::now() < deadline => {
@@ -509,7 +511,9 @@ impl ClientInner {
                 // is independent and must survive an RPC-level reconnect.
                 self.drop_stream();
                 let mut guard = self.ensure_connected(deadline)?;
-                let stream = guard.as_mut().expect("connected stream");
+                let stream = guard
+                    .as_mut()
+                    .ok_or_else(|| IpcError::Codec("reconnected session is missing its request stream".into()))?;
                 self.call_once(stream, &request, deadline, timeout)
             }
             Err(error) => {
