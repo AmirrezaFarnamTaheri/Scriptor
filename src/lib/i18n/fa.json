@@ -1044,5 +1044,59 @@
     "unknown": "نامشخص",
     "systemMetadata": "فراداده سیستم در پوسته دسکتاپ در دسترس است.",
     "pandocNotFound": "Pandoc یافت نشد"
+  },
+  "tasks": {
+    "openVault": "برای دیدن وظایف یک خزانه باز کنید.",
+    "title": "وظایف",
+    "taskSingular": "وظیفه",
+    "taskPlural": "وظیفه",
+    "ariaLabel": "فهرست وظایف",
+    "refresh": "تازه‌سازی",
+    "refreshAria": "تازه‌سازی فهرست وظایف",
+    "loading": "در حال بارگیری وظایف…",
+    "noMatches": "هیچ وظیفه‌ای با فیلتر فعلی سازگار نیست.",
+    "status": "وضعیت",
+    "statusAdvance": "وضعیت: {{status}}. برای رفتن به وضعیت بعدی فعال کنید.",
+    "statusTitle": "وضعیت: {{status}}",
+    "editDueDate": "ویرایش تاریخ سررسید",
+    "dueDate": "تاریخ سررسید: {{date}}",
+    "addDueDate": "افزودن تاریخ سررسید",
+    "dueTitle": "سررسید {{date}} — برای ویرایش فعال کنید",
+    "setDueDate": "تنظیم تاریخ سررسید",
+    "scheduled": "زمان‌بندی‌شده",
+    "recurrence": "تکرار",
+    "priority": "اولویت",
+    "openSourceNote": "باز کردن یادداشت منبع ↗",
+    "saving": "در حال ذخیره…",
+    "dueBefore": "سررسید پیش از",
+    "sort": "مرتب‌سازی",
+    "all": "همه",
+    "clearFilters": "پاک کردن همهٔ فیلترها",
+    "clear": "پاک کردن",
+    "sortOptions": {
+      "due": "تاریخ سررسید",
+      "status": "وضعیت",
+      "priority": "اولویت",
+      "created": "ایجاد"
+    },
+    "statuses": {
+      "open": "باز",
+      "in-progress": "در حال انجام",
+      "done": "انجام‌شده",
+      "cancelled": "لغوشده",
+      "forwarded": "ارجاع‌شده"
+    },
+    "google": {
+      "ariaLabel": "تقویم و وظایف گوگل",
+      "title": "تقویم و وظایف گوگل",
+      "sync": "همگام‌سازی گوگل",
+      "pushVaultTasks": "ارسال وظایف خزانه",
+      "upcomingEvents": "رویدادهای پیشِ رو",
+      "noEvents": "در بازهٔ پیش‌نگری تنظیم‌شده رویدادی وجود ندارد.",
+      "untitledEvent": "رویداد بدون عنوان",
+      "tasks": "Google Tasks",
+      "noTasks": "هیچ وظیفه‌ای از Google Tasks بارگیری نشده است.",
+      "complete": "تکمیل"
+    }
   }
 }
