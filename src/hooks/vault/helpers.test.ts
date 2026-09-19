@@ -22,7 +22,7 @@ describe('defaultNotePath', () => {
   })
 
   it('bounds the UTF-8 filename component without splitting code points', () => {
-    const path = defaultNotePath('📝'.repeat(200))
+    const path = defaultNotePath('\u{1F4DD}'.repeat(200))
     assert.ok(Buffer.byteLength(path, 'utf8') <= 183)
     assert.ok(path.endsWith('.md'))
     assert.doesNotMatch(path, /�/)
