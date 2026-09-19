@@ -3,6 +3,8 @@
   overflow: auto;
   overflow-x: hidden;
   contain: inline-size;
+  container-type: inline-size;
+  container-name: inspector-rail;
   background: var(--surface);
   padding: 0 12px 14px;
   backdrop-filter: var(--glass-blur);
