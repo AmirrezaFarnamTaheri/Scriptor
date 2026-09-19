@@ -10,8 +10,7 @@ import {
   type ButtonHTMLAttributes,
   type CSSProperties,
   type MouseEvent,
-  type ReactNode,
-  type RefObject,
+  type ReactNode
 } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowDown, ArrowUp, Settings2, SlidersHorizontal } from 'lucide-react'
@@ -131,11 +130,10 @@ const GROUP_ORDER = ['formatting', 'insert', 'review', 'view', 'advanced'] as co
 export interface CustomizableToolbarProps {
   children: ReactNode
   extras?: Tool[]
-  hostRef?: RefObject<HTMLElement | null>
 }
 
 /** Controls declare semantic React keys so layout and translations cannot move preferences. */
-function CustomizableToolbarImpl({ children, extras = [], hostRef }: CustomizableToolbarProps) {
+function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarProps) {
   const tools = useMemo(() => {
     const list: Tool[] = []
     Children.forEach(children, (group) => {
@@ -177,12 +175,12 @@ function CustomizableToolbarImpl({ children, extras = [], hostRef }: Customizabl
     ]
   }
 
-  const ordered = useMemo(() => mergePreferences(preferences), [preferences, tools])
-  const draftOrdered = useMemo(() => mergePreferences(draftPreferences ?? preferences), [draftPreferences, preferences, tools])
-  const pinnedTools = useMemo(() => ordered.filter((tool) => tool.pinned), [ordered])
-  const menuTools = useMemo(() => ordered.filter((tool) => submenu
+  const ordered = mergePreferences(preferences)
+  const draftOrdered = mergePreferences(draftPreferences ?? preferences)
+  const pinnedTools = ordered.filter((tool) => tool.pinned)
+  const menuTools = ordered.filter((tool) => submenu
     ? tool.id.startsWith(`extra:${submenu}:`)
-    : !tool.pinned && !tool.id.startsWith('extra:')), [ordered, submenu])
+    : !tool.pinned && !tool.id.startsWith('extra:'))
 
   const closeMenu = () => {
     setOpen(false)
@@ -204,7 +202,7 @@ function CustomizableToolbarImpl({ children, extras = [], hostRef }: Customizabl
   const activateMenuTool = (node: ReactNode, event: MouseEvent<HTMLButtonElement>) => {
     if (isValidElement<ButtonHTMLAttributes<HTMLButtonElement>>(node)) node.props.onClick?.(event)
     closeMenu()
-    triggerRef.current?.focus()
+    document.getElementById(triggerId)?.focus()
   }
   const openCustomizer = () => {
     closeMenu()
@@ -241,7 +239,7 @@ function CustomizableToolbarImpl({ children, extras = [], hostRef }: Customizabl
   }
 
   useEscapeToClose(customizing, closeCustomizer)
-  useFocusTrap(customizerRef, { active: customizing, restoreTo: triggerRef.current })
+  useFocusTrap(customizerRef, { active: customizing })
 
   const renderMenuTools = () => {
     if (submenu) {
@@ -349,7 +347,6 @@ function CustomizableToolbarImpl({ children, extras = [], hostRef }: Customizabl
             role="dialog"
             aria-modal="true"
             aria-labelledby={`${customizerId}-title`}
-            data-toolbar-owner={hostRef?.current?.className || 'editor-toolbar'}
           >
             <header className="toolbar-customizer-header">
               <div>
