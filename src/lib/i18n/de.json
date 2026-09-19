@@ -753,6 +753,15 @@
     "applyProfileAria": "Plugin-Profil {{profile}} anwenden",
     "applyProfileMessage": "Profil {{profile}} anwenden? {{enable}} Modul(e) werden aktiviert und {{disable}} deaktiviert.",
     "applyProfile": "Profil anwenden",
+    "profiles": {
+      "focused": "Fokussiert",
+      "minimal": "Minimal",
+      "writer": "Schreiben",
+      "scientific": "Wissenschaft",
+      "researcher": "Forschung",
+      "developer": "Entwicklung",
+      "complete": "Vollständig"
+    },
     "categories": {
       "all": "Alle",
       "dark": "Dunkel",
