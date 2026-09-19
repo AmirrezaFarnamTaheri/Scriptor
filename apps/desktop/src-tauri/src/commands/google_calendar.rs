@@ -347,7 +347,8 @@ fn percent_decode(value: &str) -> String {
             i += 1;
             continue;
         }
-        if bytes[i] == b'%' && i + 2 < bytes.len()
+        if bytes[i] == b'%'
+            && i + 2 < bytes.len()
             && let (Some(high), Some(low)) = (hex_nibble(bytes[i + 1]), hex_nibble(bytes[i + 2]))
         {
             out.push((high << 4) | low);
