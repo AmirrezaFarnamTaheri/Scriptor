@@ -45,6 +45,7 @@ export function SupportPanel({ onClose }: SupportPanelProps) {
       subtitle="Support Scriptor’s maintenance and development."
       icon={<span className="support-heart-icon"><Heart size={18} fill="currentColor" /></span>}
       ariaLabel="Support Scriptor"
+      helpTopic="support"
       onClose={onClose}
       className="support-panel knowledge-filters-panel"
     >
