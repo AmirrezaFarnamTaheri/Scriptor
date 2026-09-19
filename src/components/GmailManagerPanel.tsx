@@ -59,7 +59,8 @@ export function GmailManagerPanel({
   const { t } = useI18n()
   const nativeReady = isNativeBridgeAvailable()
   const [activeTab, setActiveTab] = useState<GmailTab>('messages')
-  const [clientId, setClientId] = useState(defaultClientId)
+  const [clientIdOverride, setClientIdOverride] = useState<string | null>(null)
+  const clientId = clientIdOverride ?? defaultClientId
   const [isAuthed, setIsAuthed] = useState(false)
   const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(nativeReady)
@@ -541,7 +542,7 @@ ${message.plainText || message.snippet}
                     <input
                       type="text"
                       value={clientId}
-                      onChange={(event) => setClientId(event.target.value)}
+                      onChange={(event) => setClientIdOverride(event.target.value)}
                       placeholder="1234567890-abc.apps.googleusercontent.com"
                       required
                     />
