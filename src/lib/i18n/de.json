@@ -902,5 +902,17 @@
     "showStickies": "Haftnotizen-Ebene anzeigen",
     "graphDepth": "Graph-Tiefe",
     "resetLayout": "Layout für {{mode}} zurücksetzen"
+  },
+  "aiSettings": {
+    "title": "KI-Anbieter (optional)",
+    "description": "Zugangsdaten werden im Schlüsselbund des Betriebssystems gespeichert. Entwürfe benötigen weiterhin eine ausdrückliche MCP-Schreibfreigabe.",
+    "provider": "Anbieter",
+    "off": "Aus",
+    "openaiCompatible": "OpenAI-kompatible HTTP-API",
+    "endpoint": "Endpunkt",
+    "apiKey": "API-Schlüssel",
+    "keyStored": "Schlüssel im Schlüsselbund gespeichert",
+    "pasteKey": "API-Schlüssel einfügen",
+    "clearCredential": "Schlüsselbund-Zugangsdaten löschen"
   }
 }
