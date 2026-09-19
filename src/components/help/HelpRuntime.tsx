@@ -8,7 +8,7 @@ import { helpLabels } from '../../lib/help/labels'
 import { getProgress, HelpProgressStore } from '../../lib/help/progress'
 import { parseHelpRequest } from '../../lib/help/request'
 import { canOfferHelpInvitation, contextGuide, findGuideTarget } from '../../lib/help/context'
-import { sameHelpInvitation, selectHelpInvitation, type HelpInvitation } from '../../lib/help/invitations'
+import { helpInvitationKey, sameHelpInvitation, selectHelpInvitation, type HelpInvitation } from '../../lib/help/invitations'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
 import '../../styles/components/help.css'
 
@@ -27,8 +27,8 @@ export function HelpRuntime() {
   const [invitation, setInvitation] = useState<HelpInvitation | null>(null)
   const lastInteraction = useRef<Element | null>(null)
   const highlightCleanup = useRef<(() => void) | null>(null)
-  const visibleFirstUse = useRef<Set<number> | null>(null)
-  const pendingInvitations = useRef(new Set<number>())
+  const visibleFirstUse = useRef<Set<string> | null>(null)
+  const pendingInvitations = useRef(new Set<string>())
   const surfaces = useHelpSurfaces()
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
@@ -74,7 +74,7 @@ export function HelpRuntime() {
   }, [open, store])
 
   useEffect(() => {
-    const visible = new Set(surfaces.map(({ key }) => key))
+    const visible = new Set(surfaces.map(({ key, guide }) => helpInvitationKey({ key, id: guide.id })))
     const previous = visibleFirstUse.current
     if (!previous) {
       // Establish a nonempty baseline, not the hook's initial empty render.
@@ -87,13 +87,14 @@ export function HelpRuntime() {
       if (!visible.has(key)) pendingInvitations.current.delete(key)
     }
     for (const { key, guide } of surfaces) {
-      if (!previous.has(key) && guide.policy === 'first-use') pendingInvitations.current.add(key)
+      const identity = helpInvitationKey({ key, id: guide.id })
+      if (!previous.has(identity) && guide.policy === 'first-use') pendingInvitations.current.add(identity)
     }
     if (!preferences.hints || session || document.querySelector('.onboarding-tour')) return
     const candidate = selectHelpInvitation(surfaces.map(({ key, guide, canInvite, primary }) => ({
       key,
       id: guide.id,
-      eligible: canInvite && guide.policy === 'first-use' && (pendingInvitations.current.has(key) || sameHelpInvitation(invitation, { key, id: guide.id })),
+      eligible: canInvite && guide.policy === 'first-use' && (pendingInvitations.current.has(helpInvitationKey({ key, id: guide.id })) || sameHelpInvitation(invitation, { key, id: guide.id })),
       offered: getProgress(preferences, guide.id).offered,
       primary,
     })), invitation)
@@ -105,7 +106,7 @@ export function HelpRuntime() {
     const timer = window.setTimeout(() => {
       if (!canOfferHelpInvitation(surface.root, surface.host) || document.querySelector('.onboarding-tour, .help-center[open]')) return
       if (getProgress(store.getSnapshot().preferences, candidate.id).offered) return
-      pendingInvitations.current.delete(candidate.key)
+      pendingInvitations.current.delete(helpInvitationKey(candidate))
       store.dispatch({ type: 'offer', id: candidate.id })
       setInvitation(candidate)
     }, 900)
