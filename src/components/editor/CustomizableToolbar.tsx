@@ -179,7 +179,7 @@ function CustomizableToolbarImpl({ children, extras = [] }: CustomizableToolbarP
   const draftOrdered = mergePreferences(draftPreferences ?? preferences)
   const pinnedTools = ordered.filter((tool) => tool.pinned)
   const menuTools = ordered.filter((tool) => submenu
-    ? tool.id.startsWith(`extra:${submenu}:`)
+    ? !tool.pinned && tool.id.startsWith(`extra:${submenu}:`)
     : !tool.pinned && !tool.id.startsWith('extra:'))
 
   const closeMenu = () => {
