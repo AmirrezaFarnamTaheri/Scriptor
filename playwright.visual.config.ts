@@ -41,7 +41,10 @@ export default defineConfig({
     colorScheme: 'light',
     locale: 'en-US',
     trace: 'retain-on-failure',
-    screenshot: 'only-on-failure',
+    // The visual-review artifact must always contain current renders, not only
+    // failure diagnostics. Stable assertions still compare against committed
+    // snapshots; this capture policy only controls evidence generation.
+    screenshot: 'on',
     video: 'retain-on-failure',
   },
   webServer: {
