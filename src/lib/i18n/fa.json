@@ -901,7 +901,13 @@
     "splitPreview": "پیش‌نمایش دو بخشی",
     "showStickies": "نمایش لایه یادداشت‌های چسبان",
     "graphDepth": "عمق گراف",
-    "resetLayout": "بازنشانی چیدمان {{mode}}"
+    "resetLayout": "بازنشانی چیدمان {{mode}}",
+    "configLoaded": "پیکربندی Vault بارگذاری شد. ذخیره‌سازی فقط به‌صورت صریح انجام می‌شود.",
+    "configReadFailed": "خواندن پیکربندی Vault ممکن نبود",
+    "configUnchanged": "پیکربندی Vault تغییر نکرد.",
+    "saving": "در حال ذخیره…",
+    "configSaved": "پیکربندی Vault در `.scriptor/config.json` ذخیره شد.",
+    "configSaveFailed": "ذخیره پیکربندی ممکن نبود"
   },
   "aiSettings": {
     "title": "ارائه‌دهنده هوش مصنوعی (اختیاری)",
