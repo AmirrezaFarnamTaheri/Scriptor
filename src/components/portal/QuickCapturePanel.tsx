@@ -43,6 +43,7 @@ export const QuickCapturePanel = memo(function QuickCapturePanel({
       subtitle="Scratchpad, todos, and sticky notes"
       icon={<StickyNote size={18} />}
       ariaLabel="Quick capture"
+      helpTopic="capture"
       onClose={onClose}
       presentation={presentation}
       className="quick-capture-panel knowledge-filters-panel"
