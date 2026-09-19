@@ -28,6 +28,7 @@ import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { VaultBackupSettings } from './VaultBackupSettings'
 import { LayoutPresetGallery } from './LayoutPresetGallery'
 import { AdvancedSettingsSection } from './AdvancedSettingsSection'
+import { WorkspaceChromeSettingsSection } from './WorkspaceChromeSettingsSection'
 import { resolveHunspellLocale, SUPPORTED_LOCALES } from '@scriptor/editor/pure'
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -361,6 +362,16 @@ function SettingsPanelImpl({
             <p className="health-subtitle">{t('settingsSection.additionalLocales')}</p>
           </div>
 
+          {onReplayOnboarding ? (
+            <div className="settings-section">
+              <h3>{t('settingsPanel.productTour')}</h3>
+              <p className="health-subtitle">{t('settingsPanel.productTourHelp')}</p>
+              <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
+                {t('appearanceSettings.replayTour')}
+              </button>
+            </div>
+          ) : null}
+
           <div className="settings-section">
             <h3>{t('settingsPanel.support')}</h3>
             <p className="health-subtitle">{t('settingsPanel.supportHelp')}</p>
@@ -379,12 +390,10 @@ function SettingsPanelImpl({
           <AppearanceSettingsSection
             workspaceChrome={workspaceChrome}
             onPatchWorkspaceChrome={onPatchWorkspaceChrome}
-            onResetWorkspaceChrome={onResetWorkspaceChrome}
             theme={theme}
             appearance={appearance}
             onThemeChange={onThemeChange}
             onAppearanceChange={onAppearanceChange}
-            onReplayOnboarding={onReplayOnboarding}
           />
         ) : null}
       </div>
@@ -488,6 +497,14 @@ function SettingsPanelImpl({
               </>
             ) : null}
           </div>
+
+          {workspaceChrome && onPatchWorkspaceChrome ? (
+            <WorkspaceChromeSettingsSection
+              workspaceChrome={workspaceChrome}
+              onPatchWorkspaceChrome={onPatchWorkspaceChrome}
+              onResetWorkspaceChrome={onResetWorkspaceChrome}
+            />
+          ) : null}
 
       </div>
 
