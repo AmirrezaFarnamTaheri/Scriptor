@@ -24,6 +24,29 @@ test.describe('Palette and appearance switching', () => {
     await expect(root).toHaveAttribute('data-appearance', 'light')
   })
 
+  test('palette identity visibly tints both day and night surfaces', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'catppuccin')
+      window.localStorage.setItem('scriptor:appearance-mode', 'light')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    const root = page.locator('html')
+    const body = page.locator('body')
+    const catppuccinLight = await body.evaluate((element) => getComputedStyle(element).backgroundColor)
+
+    await page.evaluate(() => window.localStorage.setItem('scriptor:app-theme', 'nord'))
+    await page.reload({ waitUntil: 'domcontentloaded' })
+    await expect(root).toHaveAttribute('data-palette', 'nord')
+    const nordLight = await body.evaluate((element) => getComputedStyle(element).backgroundColor)
+    expect(nordLight).not.toBe(catppuccinLight)
+
+    await page.getByRole('button', { name: /Switch to dark theme/i }).click()
+    await expect(root).toHaveAttribute('data-palette', 'nord')
+    const nordDark = await body.evaluate((element) => getComputedStyle(element).backgroundColor)
+    expect(nordDark).not.toBe(nordLight)
+  })
+
   test('appearance and palette persist independently after reload', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'nord')
