@@ -316,7 +316,7 @@ export const SavedViewsPanel = memo(function SavedViewsPanel({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
-        className="saved-views-panel knowledge-filters-panel"
+        className="saved-views-panel knowledge-filters-panel" data-help-topic="saved-views"
         role="dialog"
         aria-label="Saved views"
         onClick={(event) => event.stopPropagation()}
