@@ -34,7 +34,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
   const { t } = useI18n()
   const customPalettes = readStoredCustomThemes()
   return (
-    <div className="settings-section">
+    <div className="settings-section" data-help-topic="appearance">
       <h3>{t('appearanceSettings.title')}</h3>
       <p className="health-subtitle">
         {t('appearanceSettings.description')}
