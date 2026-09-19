@@ -99,6 +99,9 @@ export async function googleCalendarApplyTaskSync(
 ): Promise<GoogleTaskSyncMutationResult[]> {
   requireNative()
   if (mutations.length === 0) return []
+  if (mutations.length > 1000) {
+    throw new Error('Google Task sync exceeds the supported 1000-mutation bound')
+  }
   const authorizationToken = await authorizeSensitiveOperation(
     'google_task_write',
     `Sync ${mutations.length} vault task changes`,
