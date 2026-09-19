@@ -742,7 +742,7 @@
       "lookahead": "Vorschaufenster (Tage)",
       "showEvents": "Kalendertermine in Aufgaben anzeigen",
       "mirrorTasks": "Vault → Google Tasks-Spiegelung aktivieren (Änderungen werden erst nach Ihrer Bestätigung übertragen)",
-      "connect": "Speichern & mit Google verbinden",
+      "connect": "Mit Google verbinden",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
       "status": {
