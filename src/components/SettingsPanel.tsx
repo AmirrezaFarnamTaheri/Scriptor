@@ -116,13 +116,13 @@ interface SettingsPanelProps {
 
 type SettingsTab = 'general' | 'appearance' | 'workspace' | 'integrations' | 'shortcuts' | 'advanced'
 
-const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
-  { id: 'general', label: 'General' },
-  { id: 'appearance', label: 'Appearance' },
-  { id: 'workspace', label: 'Workspace' },
-  { id: 'integrations', label: 'Integrations' },
-  { id: 'shortcuts', label: 'Shortcuts' },
-  { id: 'advanced', label: 'Advanced' },
+const SETTINGS_TABS: Array<{ id: SettingsTab; labelKey: string }> = [
+  { id: 'general', labelKey: 'settingsPanel.tabs.general' },
+  { id: 'appearance', labelKey: 'settingsPanel.tabs.appearance' },
+  { id: 'workspace', labelKey: 'settingsPanel.tabs.workspace' },
+  { id: 'integrations', labelKey: 'settingsPanel.tabs.integrations' },
+  { id: 'shortcuts', labelKey: 'settingsPanel.tabs.shortcuts' },
+  { id: 'advanced', labelKey: 'settingsPanel.tabs.advanced' },
 ]
 
 /** Renders the tabbed application and vault settings surface. */
@@ -178,6 +178,7 @@ function SettingsPanelImpl({
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales, localeLabels } = useI18n()
   const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
+  const settingsTabs = useMemo(() => SETTINGS_TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })), [t])
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const configBaselineRef = useRef<VaultConfig>(DEFAULT_VAULT_CONFIG)
@@ -261,15 +262,15 @@ function SettingsPanelImpl({
 
   return (
     <UnifiedPanelShell
-      title="Settings"
-      subtitle="Preferences are grouped by task so the writing surface stays uncluttered."
+      title={t('settings.title')}
+      subtitle={t('settingsPanel.subtitle')}
       icon={<Settings size={18} />}
-      ariaLabel="Settings"
+      ariaLabel={t('settings.title')}
       onClose={onClose}
       presentation="modal"
       className="settings-panel knowledge-filters-panel"
       wide
-      tabs={SETTINGS_TABS}
+      tabs={settingsTabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
       footer={
@@ -277,7 +278,7 @@ function SettingsPanelImpl({
           <div className="settings-footer-actions">
             {status ? <span className="settings-status" role="status">{status}</span> : null}
             <button type="button" className="primary-button" onClick={() => void saveConfig()}>
-              Save vault config
+              {t('settingsPanel.saveVaultConfig')}
             </button>
           </div>
         ) : null
@@ -289,18 +290,18 @@ function SettingsPanelImpl({
         style={activeTab !== 'general' ? { display: 'none' } : undefined}
       >
         <p className="settings-persistence-note" role="note">
-            App preferences save immediately. Vault configuration is read from <code>.scriptor/config.json</code> and only writes when you choose Save.
+            {t('settingsPanel.persistence')}
           </p>
 
           {vaultOpen && nativeReady ? (
             visibleConfigLoadError ? (
               <section className="settings-section" aria-labelledby="vault-config-error-heading">
-                <h3 id="vault-config-error-heading">Vault configuration unavailable</h3>
+                <h3 id="vault-config-error-heading">{t('settingsPanel.configUnavailable')}</h3>
                 <p className="settings-status warn" role="alert">
-                  {visibleConfigLoadError}. Scriptor did not replace or overwrite the existing configuration.
+                  {t('settingsPanel.configNotOverwritten', { error: visibleConfigLoadError })}
                 </p>
                 <button type="button" className="toolbar-button" onClick={retryConfigLoad}>
-                  Retry loading configuration
+                  {t('settingsPanel.retryConfig')}
                 </button>
               </section>
             ) : configReady ? (
@@ -312,16 +313,16 @@ function SettingsPanelImpl({
                 onSave={saveConfig}
               />
             ) : (
-              <p className="empty-state" role="status">Loading vault configuration…</p>
+              <p className="empty-state" role="status">{t('settingsPanel.loadingConfig')}</p>
             )
           ) : null}
 
           {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} /> : null}
 
           <div className="settings-section">
-            <h3>Spellcheck &amp; grammar</h3>
+            <h3>{t('settingsPanel.spellcheckGrammar')}</h3>
             <label className="settings-field">
-              Spellcheck locale
+              {t('settingsPanel.spellcheckLocale')}
               <select
                 value={selectedSpellcheckLocale}
                 onChange={(event) => onSpellcheckLocaleChange?.(event.target.value)}
@@ -332,10 +333,10 @@ function SettingsPanelImpl({
               </select>
             </label>
             <p className="health-subtitle">
-              Hunspell dictionaries load on demand. English (US) is the default.
+              {t('settingsPanel.spellcheckHelp')}
             </p>
             <label className="settings-field">
-              LanguageTool endpoint
+              {t('settingsPanel.languageToolEndpoint')}
               <input
                 value={languageToolEndpoint}
                 placeholder="http://localhost:8010/v2/check"
@@ -343,7 +344,7 @@ function SettingsPanelImpl({
               />
             </label>
             <p className="health-subtitle">
-              Localhost is the privacy-first default. The desktop app also supports <code>https://api.languagetool.org/v2/check</code>; using it sends text to a third party.
+              {t('settingsPanel.languageToolHelp')}
             </p>
           </div>
 
@@ -361,10 +362,10 @@ function SettingsPanelImpl({
           </div>
 
           <div className="settings-section">
-            <h3>Support</h3>
-            <p className="health-subtitle">Star the project, report issues, or contact the maintainer.</p>
+            <h3>{t('settingsPanel.support')}</h3>
+            <p className="health-subtitle">{t('settingsPanel.supportHelp')}</p>
             {onOpenSupport ? (
-              <button type="button" className="toolbar-button" onClick={onOpenSupport}>Open support panel</button>
+              <button type="button" className="toolbar-button" onClick={onOpenSupport}>{t('settingsPanel.openSupport')}</button>
             ) : null}
           </div>
       </div>
@@ -396,9 +397,9 @@ function SettingsPanelImpl({
         {vaultOpen && nativeReady && configReady ? (
           <GoogleIntegrationSettingsSection config={config} setConfig={setConfig} />
         ) : vaultOpen && nativeReady ? (
-          <p className="empty-state" role="status">Load the vault configuration before connecting integrations.</p>
+          <p className="empty-state" role="status">{t('settingsPanel.integrationsNeedConfig')}</p>
         ) : (
-          <p className="empty-state">Open a vault in the desktop app to configure vault integrations.</p>
+          <p className="empty-state">{t('settingsPanel.integrationsNeedVault')}</p>
         )}
         <AiProviderSettings
           provider={aiProvider}
@@ -420,21 +421,21 @@ function SettingsPanelImpl({
         style={activeTab !== 'workspace' ? { display: 'none' } : undefined}
       >
           <div className="settings-section">
-            <h3>Workspace layout</h3>
+            <h3>{t('settingsPanel.workspaceLayout')}</h3>
             <label className="settings-field">
-              Panel presentation
+              {t('settingsPanel.panelPresentation')}
               <select
                 value={panelPresentation}
                 onChange={(event) => onPanelPresentationChange?.(event.target.value as PanelPresentation)}
               >
-                <option value="modal">Centered modal</option>
-                <option value="dock-right">Docked side sheet</option>
+                <option value="modal">{t('settingsPanel.modal')}</option>
+                <option value="dock-right">{t('settingsPanel.dockRight')}</option>
               </select>
             </label>
             {workspaceLayouts && onSaveWorkspaceLayout && onResetWorkspaceLayout ? (
               <>
                 <p className="health-subtitle">
-                  Saved layout for <strong>{workspaceMode}</strong> mode. Switch modes in the top bar to configure each layout.
+                  {t('settingsPanel.savedLayout', { mode: workspaceMode })}
                 </p>
                 <label className="diagnostics-opt-in">
                   <input
@@ -447,7 +448,7 @@ function SettingsPanelImpl({
                       })
                     }
                   />
-                  <span>Split preview</span>
+                  <span>{t('settingsPanel.splitPreview')}</span>
                 </label>
                 <label className="diagnostics-opt-in">
                   <input
@@ -460,10 +461,10 @@ function SettingsPanelImpl({
                       })
                     }
                   />
-                  <span>Show sticky notes layer</span>
+                  <span>{t('settingsPanel.showStickies')}</span>
                 </label>
                 <label className="settings-field">
-                  Graph depth
+                  {t('settingsPanel.graphDepth')}
                   <input
                     type="number"
                     min={1}
@@ -478,7 +479,7 @@ function SettingsPanelImpl({
                   />
                 </label>
                 <button type="button" className="toolbar-button" onClick={() => onResetWorkspaceLayout(workspaceMode)}>
-                  Reset {workspaceMode} layout
+                  {t('settingsPanel.resetLayout', { mode: workspaceMode })}
                 </button>
                 <LayoutPresetGallery
                   current={workspaceLayouts[workspaceMode]}
