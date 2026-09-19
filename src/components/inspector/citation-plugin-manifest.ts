@@ -35,5 +35,5 @@ export const citationsPluginManifest: PluginManifest = {
 
 export function isCitationsPluginEnabled(enabledPlugins?: string[]): boolean {
   if (!enabledPlugins) return true
-  return enabledPlugins.includes(CITATION_PLUGIN_ID) || enabledPlugins.includes(CITATION_PLUGIN_CAPABILITY_ID)
+  return enabledPlugins.includes(CITATION_PLUGIN_ID) || enabledPlugins.includes(CITATION_PLUGIN_CAPABILITY_ID) || enabledPlugins.includes('citations')
 }
