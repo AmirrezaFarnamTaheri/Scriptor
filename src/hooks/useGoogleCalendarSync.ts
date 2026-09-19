@@ -22,7 +22,6 @@ import {
   googleCalendarListEvents,
   googleCalendarListTasks,
   googleCalendarStartAuth,
-  googleCalendarUpdateTask,
   type CalendarEvent,
   type GoogleTask,
   type GoogleTaskSyncMutation,
