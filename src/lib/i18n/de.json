@@ -901,7 +901,13 @@
     "splitPreview": "Geteilte Vorschau",
     "showStickies": "Haftnotizen-Ebene anzeigen",
     "graphDepth": "Graph-Tiefe",
-    "resetLayout": "Layout für {{mode}} zurücksetzen"
+    "resetLayout": "Layout für {{mode}} zurücksetzen",
+    "configLoaded": "Vault-Konfiguration geladen. Speichern erfolgt ausdrücklich.",
+    "configReadFailed": "Vault-Konfiguration konnte nicht gelesen werden",
+    "configUnchanged": "Die Vault-Konfiguration wurde nicht geändert.",
+    "saving": "Wird gespeichert…",
+    "configSaved": "Vault-Konfiguration in `.scriptor/config.json` gespeichert.",
+    "configSaveFailed": "Konfiguration konnte nicht gespeichert werden"
   },
   "aiSettings": {
     "title": "KI-Anbieter (optional)",
