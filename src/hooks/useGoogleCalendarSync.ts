@@ -25,6 +25,7 @@ import {
   type GoogleTask,
 } from '../bridge/commands/google_calendar.ts'
 import { safeExternalUrl } from '../lib/safeExternalUrl.ts'
+import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
 
 export type CalendarSyncStatus =
   | 'disconnected'
@@ -247,11 +248,11 @@ export function useGoogleCalendarSync({
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
       ) return
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.toLowerCase().includes('not authenticated') || msg.toLowerCase().includes('no token')) {
+      if (isGoogleAuthRequiredError(err)) {
         setStatus('disconnected')
+        setError(googleAuthErrorMessage(err))
       } else {
-        setError(msg)
+        setError(err instanceof Error ? err.message : String(err))
         setStatus('error')
       }
     }
