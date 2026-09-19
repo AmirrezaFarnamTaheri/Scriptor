@@ -200,7 +200,7 @@ function SettingsPanelImpl({
     if (!vaultOpen || !vaultId || !nativeReady) return
 
     let cancelled = false
-    void vaultLoadConfig()
+    void vaultLoadConfig(vaultId)
       .then((loaded) => {
         if (cancelled) return
         const nextConfig: VaultConfig = {
@@ -249,7 +249,7 @@ function SettingsPanelImpl({
     setStatus(t('settingsPanel.saving'))
     try {
       const baseline = configBaselineRef.current
-      const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config))
+      const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config), vaultId)
       configBaselineRef.current = saved
       setConfig(saved)
       setStatus(t('settingsPanel.configSaved'))
@@ -405,7 +405,7 @@ function SettingsPanelImpl({
         style={activeTab !== 'integrations' ? { display: 'none' } : undefined}
       >
         {vaultOpen && nativeReady && configReady ? (
-          <GoogleIntegrationSettingsSection config={config} setConfig={setConfig} />
+          <GoogleIntegrationSettingsSection config={config} setConfig={setConfig} vaultId={vaultId!} />
         ) : vaultOpen && nativeReady ? (
           <p className="empty-state" role="status">{t('settingsPanel.integrationsNeedConfig')}</p>
         ) : (
