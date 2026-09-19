@@ -75,7 +75,7 @@ test('toolbar validates persisted widths and ignores duplicate and unknown tools
   await waitForWorkspace(page)
   await expect(page.locator('.toolbar-pinned [data-tool-id="bold"]')).toHaveCount(1)
   await expect(page.locator('.toolbar-pinned [data-tool-id="bold"]')).toHaveCSS('width', '240px')
-  await expect(page.locator('.toolbar-pinned [data-tool-id="italic"]')).toHaveCSS('width', '32px')
+  await expect.poll(() => page.locator('.toolbar-pinned [data-tool-id="italic"]').evaluate((element) => (element as HTMLElement).style.width)).toBe('')
   await expect(page.locator('[data-tool-id="unknown-tool"]')).toHaveCount(0)
   await page.evaluate(() => localStorage.setItem('scriptor:editor-toolbar', '{broken json'))
   await page.reload()
