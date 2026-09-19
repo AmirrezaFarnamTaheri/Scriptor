@@ -21,6 +21,7 @@ import { useTextPrompt } from './hooks/useTextPrompt'
 import { useNoteDraftStats } from './hooks/useNoteDraftStats'
 import { TextPromptDialog } from './components/TextPromptDialog'
 import { useRecentVaults } from './hooks/useRecentVaults'
+import { useStartupVault } from './hooks/useStartupVault'
 import { CommandPalette } from './components/CommandPalette'
 import { AppToast, AppToastRegion } from './components/AppToast'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -464,33 +465,7 @@ function App() {
     conflictPath,
     settingsOpen,
   })
-  // Auto-open last vault or default cache vault on startup
-  useEffect(() => {
-    if (!nativeReady || workspace.vault || workspace.status !== 'idle') return
-
-    void (async () => {
-      // 1. Try to open the most recent vault
-      if (recentVaults.recent.length > 0) {
-        try {
-          await workspace.openVaultAt(recentVaults.recent[0])
-          return
-        } catch {
-          // If it fails (e.g. folder deleted), forget it and fall through to default
-          recentVaults.forget(recentVaults.recent[0])
-        }
-      }
-
-      // 2. Fall back to default cache folder
-      try {
-        const { documentDir, join } = await import('@tauri-apps/api/path')
-        const docDir = await documentDir()
-        const defaultVaultPath = await join(docDir, 'ScriptorVault')
-        await workspace.openVaultAt(defaultVaultPath)
-      } catch (err) {
-        console.error('Failed to auto-open default vault:', err)
-      }
-    })()
-  }, [nativeReady, recentVaults, workspace])
+  useStartupVault({ nativeReady, recentVaults, workspace })
   const bibliography = useMemo(
     () => (workspace.vault && nativeReady ? bibliographyRaw : []),
     [bibliographyRaw, nativeReady, workspace.vault],
