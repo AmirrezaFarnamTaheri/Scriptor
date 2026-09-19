@@ -42,7 +42,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
   const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading')
   const [loadStatus, setLoadStatus] = useState(() => t('knowledge.filters.loading'))
   const [loadAttempt, setLoadAttempt] = useState(0)
-  const [triageIndex, setTriageIndex] = useState(0)
+  const [triageIndex, setTriageIndex] = useState<number | null>(null)
   const tabIdBase = useId()
 
   useEffect(() => {
@@ -84,14 +84,16 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
   }, [deadEnds, orphans, tab])
 
   useEffect(() => {
-    setTriageIndex((current) => Math.min(current, Math.max(0, activeNotes.length - 1)))
+    setTriageIndex((current) =>
+      current === null ? null : Math.min(current, Math.max(0, activeNotes.length - 1)),
+    )
   }, [activeNotes.length])
 
   useEffect(() => {
-    setTriageIndex(0)
+    setTriageIndex(null)
   }, [tab])
 
-  const triageNote = activeNotes[triageIndex] ?? null
+  const triageNote = triageIndex === null ? null : activeNotes[triageIndex] ?? null
 
   const startTriage = () => {
     if (activeNotes.length === 0) return
@@ -100,11 +102,14 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
   }
 
   const triageNext = (path: string) => {
+    if (triageIndex === null) return
     const index = activeNotes.findIndex((note) => note.path === path)
     const nextIndex = index >= 0 ? index + 1 : triageIndex + 1
     if (nextIndex < activeNotes.length) {
       setTriageIndex(nextIndex)
       onOpenNote(activeNotes[nextIndex]!.path)
+    } else {
+      setTriageIndex(null)
     }
   }
 
@@ -254,7 +259,8 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
                 notes={activeNotes}
                 onOpenNote={onOpenNote}
                 triageLabel={t('actions.next')}
-                onTriageNext={triageNext}
+                triageActionPath={triageNote?.path}
+                onTriageNext={triageNote ? triageNext : undefined}
               />
             )}
           </>
