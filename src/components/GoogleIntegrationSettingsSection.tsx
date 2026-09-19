@@ -47,10 +47,13 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
     setSavingConnection(true)
     setSetupError(null)
     try {
-      // Persist the integration configuration before creating credentials. Other
-      // vault-setting drafts remain untouched.
+      // OAuth is reversible and can be retried without mutating vault config.
+      // Persist only after authorization and the initial provider refresh both
+      // succeed, so a cancelled/failed consent never leaves a half-configured
+      // integration behind.
+      const connected = await calendarSync.startAuth()
+      if (!connected) return
       await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }))
-      await calendarSync.startAuth()
     } catch (caught) {
       setSetupError(caught instanceof Error ? caught.message : String(caught))
     } finally {
