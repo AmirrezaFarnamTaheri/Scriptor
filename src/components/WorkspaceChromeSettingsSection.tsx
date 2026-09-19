@@ -3,6 +3,22 @@ import { memo } from 'react'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import { useI18n } from '../lib/i18n'
 
+type WorkspaceChromeBooleanKey =
+  | 'showTopBar'
+  | 'showModeStrip'
+  | 'showQuickActions'
+  | 'showHistoryControls'
+  | 'showFormatToolbar'
+  | 'showEditorAssist'
+  | 'showEditorStatus'
+  | 'showInspectorHealth'
+  | 'showWorkspaceFooter'
+  | 'showStatusBar'
+  | 'showLineNumbers'
+  | 'vaultSidebarCollapsed'
+  | 'inspectorCollapsed'
+  | 'layoutLocked'
+
 interface WorkspaceChromeSettingsSectionProps {
   workspaceChrome: WorkspaceChromePrefs
   onPatchWorkspaceChrome: (patch: Partial<WorkspaceChromePrefs>) => void
@@ -22,7 +38,7 @@ export const WorkspaceChromeSettingsSection = memo(function WorkspaceChromeSetti
   onResetWorkspaceChrome,
 }: WorkspaceChromeSettingsSectionProps) {
   const { t } = useI18n()
-  const toggles = [
+  const toggles: ReadonlyArray<readonly [WorkspaceChromeBooleanKey, string]> = [
     ['showTopBar', t('appearanceSettings.toggles.showTopBar')],
     ['showModeStrip', t('appearanceSettings.toggles.showModeStrip')],
     ['showQuickActions', t('appearanceSettings.toggles.showQuickActions')],
@@ -37,26 +53,7 @@ export const WorkspaceChromeSettingsSection = memo(function WorkspaceChromeSetti
     ['vaultSidebarCollapsed', t('appearanceSettings.toggles.vaultSidebarCollapsed')],
     ['inspectorCollapsed', t('appearanceSettings.toggles.inspectorCollapsed')],
     ['layoutLocked', t('appearanceSettings.toggles.layoutLocked')],
-  ] as const satisfies readonly (readonly [
-    keyof Pick<
-      WorkspaceChromePrefs,
-      | 'showTopBar'
-      | 'showModeStrip'
-      | 'showQuickActions'
-      | 'showHistoryControls'
-      | 'showFormatToolbar'
-      | 'showEditorAssist'
-      | 'showEditorStatus'
-      | 'showInspectorHealth'
-      | 'showWorkspaceFooter'
-      | 'showStatusBar'
-      | 'showLineNumbers'
-      | 'vaultSidebarCollapsed'
-      | 'inspectorCollapsed'
-      | 'layoutLocked'
-    >,
-    string,
-  ])[]
+  ]
 
   return (
     <section className="settings-section" aria-labelledby="workspace-chrome-heading">
