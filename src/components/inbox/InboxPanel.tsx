@@ -15,7 +15,7 @@ export function InboxPanel({ notes, activePath, onOpenNote, onOrganize }: InboxP
   }
 
   return (
-    <section className="inbox-panel" aria-label="Inbox">
+    <section className="inbox-panel" aria-label="Inbox" data-help-topic="inbox">
       <header className="inbox-panel-header">
         <Inbox size={16} />
         <strong>Inbox ({notes.length})</strong>
