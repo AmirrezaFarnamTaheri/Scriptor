@@ -27,7 +27,7 @@ export function ExportPrintPreview({ markdown, activePath, previewProps }: Expor
   }, [markdown])
 
   return (
-    <WidgetCard title="Print layout preview">
+    <WidgetCard title="Print layout preview" helpTopic="export">
       <p className="health-subtitle">
         Simulated A4 pages with CSS page breaks — Pandoc may paginate differently in the final PDF.
       </p>
