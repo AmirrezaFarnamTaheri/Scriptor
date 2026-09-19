@@ -38,8 +38,9 @@ use commands::google_calendar::{
     google_calendar_complete_task, google_calendar_create_task, google_calendar_delete_task,
     google_calendar_disconnect, google_calendar_get_authed_email, google_calendar_list_events,
     google_calendar_list_tasks, google_calendar_start_auth, google_gmail_disconnect,
-    google_gmail_get_authed_email, google_gmail_get_message, google_gmail_list_messages, google_gmail_modify_message,
-    google_gmail_send_message, google_gmail_start_auth, google_gmail_trash_message,
+    google_gmail_get_authed_email, google_gmail_get_message, google_gmail_list_messages,
+    google_gmail_modify_message, google_gmail_send_message, google_gmail_start_auth,
+    google_gmail_trash_message,
 };
 use commands::history::vault_restore_note_history_revision;
 use commands::indexer::{
