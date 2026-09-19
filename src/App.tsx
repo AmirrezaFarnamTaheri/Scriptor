@@ -58,7 +58,7 @@ import { useResizablePanel } from './hooks/useResizablePanel'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
 import { useWorkspaceMode, type WorkspaceMode } from './hooks/useWorkspaceMode'
-import { useWorkspaceChrome } from './hooks/useWorkspaceChrome'
+import { DEFAULT_WORKSPACE_CHROME, useWorkspaceChrome } from './hooks/useWorkspaceChrome'
 import {
   DEFAULT_WORKSPACE_LAYOUTS,
   readInitialWorkspaceLayout,
@@ -508,6 +508,15 @@ function App() {
     nudgeRatio: onSplitHandleNudge,
   } = useSplitPaneResize(showSplitPreview && !chrome.layoutLocked, editorWorkspaceRef)
 
+  const handleVaultWidthChange = useCallback(
+    (width: number) => patchChrome({ vaultWidth: width }),
+    [patchChrome],
+  )
+  const handleInspectorWidthChange = useCallback(
+    (width: number) => patchChrome({ inspectorWidth: width }),
+    [patchChrome],
+  )
+
   const vaultResizer = useResizablePanel(
     !chrome.vaultSidebarCollapsed && !chrome.layoutLocked,
     workspaceGridRef,
@@ -515,8 +524,9 @@ function App() {
     chrome.vaultWidth,
     200,
     600,
-    'scriptor:vault-width',
-    (collapsed) => patchChrome({ vaultSidebarCollapsed: collapsed })
+    DEFAULT_WORKSPACE_CHROME.vaultWidth,
+    handleVaultWidthChange,
+    (collapsed) => patchChrome({ vaultSidebarCollapsed: collapsed }),
   )
 
   const inspectorResizer = useResizablePanel(
@@ -526,8 +536,9 @@ function App() {
     chrome.inspectorWidth,
     300,
     800,
-    'scriptor:inspector-width',
-    (collapsed) => patchChrome({ inspectorCollapsed: collapsed })
+    DEFAULT_WORKSPACE_CHROME.inspectorWidth,
+    handleInspectorWidthChange,
+    (collapsed) => patchChrome({ inspectorCollapsed: collapsed }),
   )
   const showInspectorPreview =
     (chrome.editorSurfaceMode === 'rendered' || activeMode === 'preview') &&
