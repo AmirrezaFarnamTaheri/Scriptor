@@ -16,7 +16,7 @@ Ein Production Release bleibt blockiert, bis jeder Pflichtpunkt gegen das exakte
 - [ ] stoppen, wenn ein Process Launch keinen live per-call Inventory Entry hat oder dessen Review abgelaufen ist;
 - [ ] stoppen, wenn Rollback, Restore, Trust Status oder Observability auf der Zielplattform nicht demonstriert werden können;
 - [ ] stoppen, wenn eine RustSec Exception Review abgelaufen ist oder Owner/Exit Condition fehlt;
-- [ ] stoppen, wenn Playwright E2E oder Visual Regression in der exact-head CI Matrix übersprungen/fehlend ist;
+- [ ] stoppen, wenn Playwright E2E im exact-head CI fehlt oder der separate exact-head Visual-Review-Regressions-Gate übersprungen/fehlend ist;
 - [ ] stoppen, wenn Protected Release Environment fehlt, keinen Required Reviewer hat oder den Production Publish Job nicht gate-t;
 - [ ] stoppen, wenn GitHub Pages bei review-pflichtigem Vault Content kein separat genehmigtes `github-pages` Environment nutzt.
 
