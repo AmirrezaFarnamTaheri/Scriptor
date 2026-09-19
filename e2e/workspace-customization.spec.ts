@@ -12,13 +12,17 @@ test.beforeEach(async ({ page }) => {
 
 test('toolbar tools can be removed, resized, reordered and restored after reload', async ({ page }) => {
   await page.getByRole('button', { name: 'Customize toolbar', exact: true }).click()
-  const customizer = page.getByRole('region', { name: 'Customize toolbar' })
+  const customizer = page.getByRole('dialog', { name: 'Customize toolbar' })
   const row = customizer.locator('.toolbar-customize-row').filter({ hasText: 'Bold' }).first()
   await row.getByRole('checkbox').uncheck()
-  await expect(page.locator('.toolbar-pinned').getByRole('button', { name: 'Bold', exact: true })).toHaveCount(0)
+  // Customization is staged until Apply so Cancel never mutates the live toolbar.
+  await expect(page.locator('.toolbar-pinned').getByRole('button', { name: 'Bold', exact: true })).toBeVisible()
   await row.getByRole('checkbox').check()
   await row.getByRole('spinbutton').fill('76')
   await row.getByRole('button', { name: /Move .* earlier/ }).click()
+  await customizer.getByRole('button', { name: 'Apply', exact: true }).click()
+  await expect(customizer).toBeHidden()
+  await expect(page.locator('.toolbar-pinned').getByRole('button', { name: 'Bold', exact: true })).toHaveCSS('width', '76px')
   const savedOrder = await page.locator('.toolbar-pinned .toolbar-tool').evaluateAll((tools) => tools.map((tool) => tool.getAttribute('data-tool-id')))
   await page.reload()
   await waitForWorkspace(page)
@@ -41,11 +45,11 @@ test('collapsed status dock stays one compact row at narrow widths', async ({ pa
 
 test('individual menu actions can be pinned and unpinned groups remain keyboard accessible', async ({ page }) => {
   await page.getByRole('button', { name: 'Customize toolbar', exact: true }).click()
-  const customizer = page.getByRole('region', { name: 'Customize toolbar' })
+  const customizer = page.getByRole('dialog', { name: 'Customize toolbar' })
   await customizer.getByRole('checkbox', { name: 'Task list item', exact: true }).check()
   await customizer.getByRole('checkbox', { name: 'Insert', exact: true }).uncheck()
   await customizer.getByRole('checkbox', { name: 'Typography', exact: true }).uncheck()
-  await customizer.getByRole('button', { name: 'Done', exact: true }).click()
+  await customizer.getByRole('button', { name: 'Apply', exact: true }).click()
   await expect(page.locator('.toolbar-pinned').getByRole('button', { name: 'Task list item', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Tools', exact: true }).click()
   await page.getByRole('menuitem', { name: 'Insert', exact: true }).focus()
