@@ -20,7 +20,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mcp-tools.png | Read-only note outline invocation and result in the Tools tab | README / docs-only state review |
 | mcp-audit.png | Audit entry after a read-only outline invocation | Docs-only state review |
 | settings.png | General settings, including vault and application configuration | VISUAL-REVIEW, STORE-MIGRATION |
-| settings-appearance.png | Workspace tab scrolled to theme, UI font, and density controls | README / docs-only state review |
+| settings-appearance.png | Appearance tab with palette, day/night, UI font, and density controls | README / docs-only state review |
 | publish-center.png | Reviewed publish-center capture | Docs + stable visual coverage |
 | vault-health.png | Vault health dashboard with lint and health scores | VISUAL-REVIEW, RELEASE-CHECKLIST |
 | knowledge-workbench.png | Knowledge workbench | VISUAL-REVIEW |
@@ -77,6 +77,16 @@ would therefore make the docs stale even though the visual regression suite pass
 The stable Windows baselines remain the visual-regression acceptance surface. Intentional pixel
 changes must be reviewed and refreshed explicitly with `--update-snapshots=all`; visual failures are
 never hidden by raising the global tolerance.
+
+Pull-request **Visual review** runs two passes on the pinned Windows runner: it first compares current
+renders against the committed baselines without mutating them, then regenerates the current baselines
+with `--update-snapshots=all`. Any resulting baseline or documentation-PNG drift still fails the job,
+so refresh does not auto-accept a visual change. The uploaded artifact is canonicalized as
+`visual-review.zip`: every PNG/JPEG/WebP/GIF/AVIF from comparison results, refreshed baselines, and
+documentation captures is flattened under **`images/`** with a provenance prefix. Raw
+`test-results/visual` and `e2e/*-snapshots` trees are not uploaded separately, preventing stale
+parallel copies inside the artifact. `image-manifest.json` records each image's source path, SHA-256,
+and byte size.
 
 Responsive and state-review documentation captures (`workspace-mobile`, `workspace-tablet`, mobile
 vault/inspector, editor recovery, MCP sharing inventory, and toolbar popovers) are generated from live
