@@ -321,6 +321,7 @@ export function ThemeCustomizerModal({
                     key={cat}
                     type="button"
                     className={`cat-btn ${category === cat ? 'active' : ''}`}
+                    aria-pressed={category === cat}
                     onClick={() => setCategory(cat)}
                   >
                     {t(`themeCustomizer.category${cat.charAt(0).toUpperCase() + cat.slice(1)}`)}
