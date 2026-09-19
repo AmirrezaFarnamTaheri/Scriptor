@@ -45,9 +45,9 @@ pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
         // client is connecting. Keep the unit-test discovery contract
         // process-local; transport tests already serialize access within this
         // process through ENDPOINT_LOCK.
-        return Ok(std::env::temp_dir()
+        Ok(std::env::temp_dir()
             .join(format!("scriptor-daemon-unit-{}", std::process::id()))
-            .join(ENDPOINT_FILE));
+            .join(ENDPOINT_FILE))
     }
 
     #[cfg(not(test))]
