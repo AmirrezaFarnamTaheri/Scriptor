@@ -56,7 +56,6 @@ export function PluginManagerCenter({
   onClose,
   initialTab = 'palettes',
   currentTheme: propTheme,
-  appearance = 'system',
   resolvedAppearance = 'dark',
   onThemeChange,
   onOpenPluginMarketplace,
