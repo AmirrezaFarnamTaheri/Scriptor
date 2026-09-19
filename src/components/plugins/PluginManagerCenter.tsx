@@ -21,6 +21,7 @@ import '../../styles/components/plugin-manager.css'
 import { useTablistKeys } from '../../hooks/useTablistKeys'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
+import { useI18n } from '../../lib/i18n'
 
 const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
   canvasPluginManifest,
@@ -61,6 +62,7 @@ export function PluginManagerCenter({
   onThemeChange,
   onOpenPluginMarketplace,
 }: PluginManagerCenterProps) {
+  const { t } = useI18n()
   const {
     enabledPluginIds,
     enablePlugin,
@@ -115,8 +117,8 @@ export function PluginManagerCenter({
     id: c.id,
     name: c.name,
     category: c.category,
-    description: 'Custom user-created color palette scheme.',
-    author: 'Custom (You)',
+    description: t('pluginManager.customDescription'),
+    author: t('pluginManager.customAuthor'),
     colors: c.colors,
   }))
 
@@ -174,15 +176,15 @@ export function PluginManagerCenter({
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label="Built-in modules and themes"
+        aria-label={t('pluginManager.ariaLabel')}
       >
         <div className="plugin-manager-modal">
           <div className="plugin-manager-header">
             <h2>
               {activeTab === 'palettes' ? <Palette /> : <Blocks />}
-              {activeTab === 'palettes' ? 'Color palettes' : 'Built-in modules'}
+              {activeTab === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
             </h2>
-            <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+            <button type="button" className="icon-button" onClick={onClose} aria-label={t('pluginManager.close')}>
               <X />
             </button>
           </div>
@@ -194,7 +196,7 @@ export function PluginManagerCenter({
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
           {/* The entry point chooses the initial tab; users can still move between both related catalogs. */}
-          <div className="plugin-manager-tabs" role="tablist" onKeyDown={handlePmcTabKeys} aria-label="Plugin manager sections">
+          <div className="plugin-manager-tabs" role="tablist" onKeyDown={handlePmcTabKeys} aria-label={t('pluginManager.sectionsAria')}>
             <button
               type="button"
               role="tab"
@@ -203,7 +205,7 @@ export function PluginManagerCenter({
               className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
               onClick={() => setActiveTab('palettes')}
             >
-              <Palette /> Color Palette Schemes ({allPalettes.length})
+              <Palette /> {t('pluginManager.paletteTab', { count: allPalettes.length })}
             </button>
             <button
               type="button"
@@ -213,13 +215,13 @@ export function PluginManagerCenter({
               className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
               onClick={() => setActiveTab('plugins')}
             >
-              <Blocks /> Feature Plugins &amp; Profiles
+              <Blocks /> {t('pluginManager.pluginsTab')}
             </button>
           </div>
 
           {activeTab === 'plugins' && (
             <div className="plugin-manager-profiles">
-              <span className="profiles-label">Installer Profile Preset:</span>
+              <span className="profiles-label">{t('pluginManager.installerProfile')}</span>
               {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
                 (profile) => (
                   <button
@@ -232,12 +234,12 @@ export function PluginManagerCenter({
                   </button>
                 ),
               )}
-              {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+              {activeProfile === 'custom' ? <span className="profile-custom-badge">{t('pluginManager.custom')}</span> : null}
               {pendingProfile && profileDiff ? (
                 <MutationConfirmation
-                  ariaLabel={`Apply ${pendingProfile} plugin profile`}
-                  message={`Apply the ${pendingProfile} profile? ${profileDiff.enable} module(s) will be enabled and ${profileDiff.disable} module(s) disabled.`}
-                  confirmLabel="Apply profile"
+                  ariaLabel={t('pluginManager.applyProfileAria', { profile: pendingProfile })}
+                  message={t('pluginManager.applyProfileMessage', { profile: pendingProfile, enable: profileDiff.enable, disable: profileDiff.disable })}
+                  confirmLabel={t('pluginManager.applyProfile')}
                   onCancel={() => setPendingProfile(null)}
                   onConfirm={confirmProfile}
                   className="plugin-profile-confirmation"
@@ -249,7 +251,7 @@ export function PluginManagerCenter({
           {activeTab === 'palettes' && (
             <div className="plugin-manager-profiles palette-filter-row">
               <div className="palette-filter-options">
-                <span className="profiles-label">Category Filter:</span>
+                <span className="profiles-label">{t('pluginManager.categoryFilter')}</span>
                 {(['all', 'dark', 'light', 'contrast'] as const).map((cat) => (
                   <button
                     key={cat}
@@ -257,7 +259,7 @@ export function PluginManagerCenter({
                     className={`profile-btn ${themeFilterCategory === cat ? 'active' : ''}`}
                     onClick={() => setThemeFilterCategory(cat)}
                   >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {t(`pluginManager.categories.${cat}`)}
                   </button>
                 ))}
               </div>
@@ -266,7 +268,7 @@ export function PluginManagerCenter({
                 className="profile-btn create-palette-button"
                 onClick={() => setCustomizerModalOpen(true)}
               >
-                <Plus size={14} /> Create Custom Palette
+                <Plus size={14} /> {t('pluginManager.createPalette')}
               </button>
             </div>
           )}
@@ -274,11 +276,11 @@ export function PluginManagerCenter({
           <div className="plugin-manager-search">
             <input
               type="search"
-              aria-label="Search plugins by name or capability"
+              aria-label={t('pluginManager.searchAria')}
               placeholder={
                 activeTab === 'palettes'
-                  ? 'Search color palette schemes by name or theme style...'
-                  : 'Search plugins by name or capability...'
+                  ? t('pluginManager.searchPalette')
+                  : t('pluginManager.searchPlugins')
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -288,7 +290,7 @@ export function PluginManagerCenter({
           {activeTab === 'palettes' ? (
             <div className="theme-palette-grid">
               {filteredPalettes.length === 0 ? (
-                <p className="plugin-manager-empty" role="status">No color schemes match this search.</p>
+                <p className="plugin-manager-empty" role="status">{t('pluginManager.noPalettes')}</p>
               ) : filteredPalettes.map((scheme) => (
                 <ThemeCard
                   key={scheme.id}
@@ -303,7 +305,7 @@ export function PluginManagerCenter({
           ) : (
             <div className="plugin-manager-list">
               {filteredPlugins.length === 0 ? (
-                <p className="plugin-manager-empty" role="status">No plugins match this search.</p>
+                <p className="plugin-manager-empty" role="status">{t('pluginManager.noPlugins')}</p>
               ) : filteredPlugins.map((plugin) => (
                 <PluginCard
                   key={plugin.id}
