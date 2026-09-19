@@ -66,6 +66,7 @@ export function AnnotationPopover({ selection, onAnnotate, onDismiss }: Annotati
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       className="annotation-popover"
+      data-help-topic="annotations"
       onKeyDown={(e) => {
         if (e.key === 'Escape') onDismiss()
         if (!showComment && e.key === 'h') handleHighlight()
