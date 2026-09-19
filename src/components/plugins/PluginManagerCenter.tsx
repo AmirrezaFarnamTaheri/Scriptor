@@ -14,6 +14,7 @@ import {
 import { COLOR_PALETTE_SCHEMES, type ColorPaletteScheme } from '../../brand/palettes'
 import { applyThemeToElement, readStoredCustomThemes, type AppTheme, type AppearanceMode, type ResolvedAppearance } from '../../hooks/useAppTheme'
 import { PluginCard } from './PluginCard'
+import { MutationConfirmation } from '../chrome/MutationConfirmation'
 import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
@@ -82,6 +83,7 @@ export function PluginManagerCenter({
   const [searchQuery, setSearchQuery] = useState('')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
+  const [pendingProfile, setPendingProfile] = useState<InstallerProfile | null>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
   // The nested ThemeCustomizerModal owns the focus trap while it is open.
   useFocusTrap(overlayRef, { active: isOpen && !customizerModalOpen })
@@ -144,9 +146,25 @@ export function PluginManagerCenter({
     }
   }
 
-  const applyProfile = (profile: InstallerProfile) => {
-    if (profile === 'custom') return
-    replaceEnabledPlugins(applyProfileToEnabledPlugins(enabledPluginIds, knownPluginIds, profile))
+  const profileTarget = pendingProfile && pendingProfile !== 'custom'
+    ? applyProfileToEnabledPlugins(enabledPluginIds, knownPluginIds, pendingProfile)
+    : null
+  const profileDiff = profileTarget
+    ? {
+        enable: profileTarget.filter((id) => !enabledPluginIds.includes(id)).length,
+        disable: enabledPluginIds.filter((id) => knownPluginIds.has(id) && !profileTarget.includes(id)).length,
+      }
+    : null
+
+  const requestProfile = (profile: InstallerProfile) => {
+    if (profile === 'custom' || profile === activeProfile) return
+    setPendingProfile(profile)
+  }
+
+  const confirmProfile = () => {
+    if (!profileTarget) return
+    replaceEnabledPlugins(profileTarget)
+    setPendingProfile(null)
   }
 
   return (
@@ -208,13 +226,23 @@ export function PluginManagerCenter({
                     key={profile}
                     type="button"
                     className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
-                    onClick={() => applyProfile(profile)}
+                    onClick={() => requestProfile(profile)}
                   >
                     {profile.charAt(0).toUpperCase() + profile.slice(1)}
                   </button>
                 ),
               )}
               {activeProfile === 'custom' ? <span className="profile-custom-badge">Custom</span> : null}
+              {pendingProfile && profileDiff ? (
+                <MutationConfirmation
+                  ariaLabel={`Apply ${pendingProfile} plugin profile`}
+                  message={`Apply the ${pendingProfile} profile? ${profileDiff.enable} module(s) will be enabled and ${profileDiff.disable} module(s) disabled.`}
+                  confirmLabel="Apply profile"
+                  onCancel={() => setPendingProfile(null)}
+                  onConfirm={confirmProfile}
+                  className="plugin-profile-confirmation"
+                />
+              ) : null}
             </div>
           )}
 
