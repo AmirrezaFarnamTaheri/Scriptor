@@ -6,8 +6,8 @@ import { createPluginStatePersistenceQueue } from './plugin-state-persistence.ts
 
 export interface PluginStateContextType {
   enabledPluginIds: Set<string>
-  enablePlugin: (id: string) => void
-  disablePlugin: (id: string) => void
+  enablePlugin: (id: string) => Promise<void>
+  disablePlugin: (id: string) => Promise<void>
   replaceEnabledPlugins: (ids: ReadonlySet<string>) => void
   isPluginEnabled: (id: string) => boolean
   persistenceError: string | null
@@ -66,7 +66,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
     }
   }, [initialEnabledPluginIds])
 
-  const setPluginEnabled = useCallback((id: string, enabled: boolean) => {
+  const setPluginEnabled = useCallback(async (id: string, enabled: boolean): Promise<void> => {
     const current = enabledPluginIdsRef.current
     if (current.has(id) === enabled) return
 
@@ -77,9 +77,13 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
     localChangeVersionRef.current += 1
     setEnabledPluginIds(next)
     setPersistenceError(null)
-    void persistenceQueueRef.current.enqueue(() => savePluginState(next, id)).catch((error: unknown) => {
-      setPersistenceError(error instanceof Error ? error.message : 'Could not save plugin state.')
-    })
+    try {
+      await persistenceQueueRef.current.enqueue(() => savePluginState(next, id))
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not save plugin state.'
+      setPersistenceError(message)
+      throw error
+    }
   }, [])
 
   const enablePlugin = useCallback((id: string) => setPluginEnabled(id, true), [setPluginEnabled])
