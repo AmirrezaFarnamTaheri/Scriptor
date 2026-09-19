@@ -738,7 +738,7 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
   }
 
   return (
-    <div className="store-root">
+    <div className="store-root" data-help-topic="plugins">
       {/* Tab bar */}
       <div
         role="tablist"
