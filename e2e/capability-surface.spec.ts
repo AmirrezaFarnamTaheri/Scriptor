@@ -44,6 +44,31 @@ test.describe('capability surfaces', () => {
     await expect(editorToolbar).toHaveCSS('opacity', '1')
   })
 
+  test('keeps populated knowledge repair rows separated at 200% text zoom', async ({ page }) => {
+    await page.evaluate(() => window.sessionStorage.setItem('e2e:knowledge-repair-notes', '1'))
+    await page.reload()
+    await settleLayout(page)
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '200%'
+      window.dispatchEvent(new Event('resize'))
+    })
+
+    await openCommandPalette(page)
+    await runCommand(page, 'Open knowledge workbench')
+    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    const rows = workbench.locator('.virtual-knowledge-list > li')
+    await expect(rows).toHaveCount(3)
+    await expect.poll(async () => rows.first().evaluate((row) => row.getBoundingClientRect().height)).toBeGreaterThanOrEqual(140)
+    const boxes = await rows.evaluateAll((items) => items.map((item) => {
+      const box = item.getBoundingClientRect()
+      return { top: box.top, bottom: box.bottom }
+    }))
+    for (let index = 1; index < boxes.length; index += 1) {
+      expect(boxes[index]!.top).toBeGreaterThanOrEqual(boxes[index - 1]!.bottom)
+    }
+    await expect(workbench.getByText('daily/2026-08-26.md')).toBeVisible()
+  })
+
   test('keeps the four-section store navigable at high text zoom', async ({ page }) => {
     await page.getByRole('tab', { name: 'Plugins' }).click()
     const storeTabs = page.getByRole('tablist', { name: 'Store sections' })
