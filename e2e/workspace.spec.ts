@@ -327,6 +327,8 @@ test.describe('workspace flows', () => {
     expect(normalized.topBarHiddenGroups).toEqual(['history'])
     expect(normalized.topBarGroupWidths).toEqual({ history: 'wide' })
     expect(normalized.topBarActionRows).toBe(1)
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('scriptor:vault-width'))).toBeNull()
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('scriptor:inspector-width'))).toBeNull()
     void stored
   })
 })
