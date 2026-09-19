@@ -339,7 +339,7 @@ export const TaskPanel = memo(function TaskPanel({
     setVaultSyncSummary(null)
     try {
       const result = await calendarSync.syncVaultTasks()
-      setVaultSyncSummary(t('tasks.google.pushResult', result))
+      setVaultSyncSummary(t('tasks.google.pushResult', { created: result.created, updated: result.updated, skipped: result.skipped, failed: result.failed }))
     } finally {
       setPushingVaultTasks(false)
     }
