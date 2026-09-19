@@ -67,6 +67,10 @@ Begriffe für Nachweise sowie Plattform-/Release-Gates sind in [`docs/VERIFICATI
 
 ## Pull Requests
 
+Entwurfs-PRs bleiben absichtlich leichtgewichtig: aufwendige CI-, Desktop-Compile-, Visual-Review-, Starlight-Lock- und Release-Binary-Review-Jobs warten, bis der PR reviewbereit ist. **Ready for review** startet einen vollständigen Lauf für den exakten Head; spätere Pushes brechen veraltete PR-Läufe ab und prüfen nur den neuesten Head.
+
+Für Browser-Checks gibt es genau einen Owner pro Aufgabe: Der Haupt-CI-Workflow führt funktionale Playwright-E2E-Tests aus, während **Visual review** den stabilen Visual-Regression-Gate besitzt. Ein diagnostischer `--update-snapshots=all`-Lauf wird nur nach einem fehlgeschlagenen visuellen Vergleich erzeugt; absichtliche Baseline-Updates gehören in den expliziten Screenshot-Refresh-Workflow.
+
 Beschreiben Sie:
 
 - welches beobachtbare Verhalten geändert wurde;
