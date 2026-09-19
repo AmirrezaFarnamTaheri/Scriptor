@@ -67,4 +67,36 @@ test.describe('top bar customization and support', () => {
     await runCommand(page, 'Support Scriptor')
     await expect(panel).toBeVisible()
   })
+
+  test('palette and built-in module managers remain separate product surfaces', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await launchApp(page)
+    await settleLayout(page)
+
+    await openCommandPalette(page)
+    await runCommand(page, 'Open built-in modules')
+    const modules = page.getByRole('dialog', { name: 'Built-in modules' })
+    await expect(modules).toBeVisible()
+    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
+    await expect(modules.getByRole('button', { name: 'Open runtime plugin marketplace' })).toBeVisible()
+    await expect(modules.getByText('Category Filter:')).toHaveCount(0)
+    await modules.getByRole('button', { name: 'Close' }).click()
+
+    const customize = page.getByRole('button', { name: 'Customize top bar actions' })
+    await customize.click()
+    const popup = page.getByRole('dialog', { name: 'Customize top bar actions' })
+    const paletteToggle = popup.getByRole('checkbox', { name: 'Color palettes' })
+    await expect(paletteToggle).not.toBeChecked()
+    await paletteToggle.check()
+    await page.keyboard.press('Escape')
+
+    await page.getByRole('button', { name: 'Color palettes' }).click()
+    const palettes = page.getByRole('dialog', { name: 'Color palettes' })
+    await expect(palettes).toBeVisible()
+    await expect(palettes.getByText('Category Filter:')).toBeVisible()
+    await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
+    await expect(palettes.getByRole('button', { name: 'Open runtime plugin marketplace' })).toHaveCount(0)
+    await expect(palettes.getByText('Installer Profile Preset:')).toHaveCount(0)
+  })
+
 })
