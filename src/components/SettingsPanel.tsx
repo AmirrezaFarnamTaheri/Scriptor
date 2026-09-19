@@ -183,7 +183,7 @@ function SettingsPanelImpl({
   const settingsTabs = useMemo(() => SETTINGS_TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })), [t])
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
-  const configBaselineRef = useRef<VaultConfig>(DEFAULT_VAULT_CONFIG)
+  const [configBaseline, setConfigBaseline] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [configLoadedForVaultId, setConfigLoadedForVaultId] = useState<string | null>(null)
   const [configLoadError, setConfigLoadError] = useState<{ vaultId: string; message: string } | null>(null)
   const [configReloadToken, setConfigReloadToken] = useState(0)
@@ -191,7 +191,7 @@ function SettingsPanelImpl({
   const [pendingCloseVaultId, setPendingCloseVaultId] = useState<string | null>(null)
   const backup = useVaultBackup(vaultOpen && nativeReady)
   const configReady = Boolean(vaultOpen && vaultId && configLoadedForVaultId === vaultId)
-  const configDirty = configReady && !valuesEqual(config, configBaselineRef.current)
+  const configDirty = configReady && !valuesEqual(config, configBaseline)
   const discardPromptOpen = Boolean(configDirty && vaultId && pendingCloseVaultId === vaultId)
   const visibleConfigLoadError = configLoadError?.vaultId === vaultId ? configLoadError.message : null
 
@@ -219,7 +219,7 @@ function SettingsPanelImpl({
           graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
           extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
         }
-        configBaselineRef.current = nextConfig
+        setConfigBaseline(nextConfig)
         setConfig(nextConfig)
         setConfigLoadedForVaultId(vaultId)
         setConfigLoadError(null)
@@ -240,7 +240,7 @@ function SettingsPanelImpl({
   }, [configReloadToken, nativeReady, t, vaultId, vaultOpen])
 
   const retryConfigLoad = () => {
-    configBaselineRef.current = DEFAULT_VAULT_CONFIG
+    setConfigBaseline(DEFAULT_VAULT_CONFIG)
     setConfig(DEFAULT_VAULT_CONFIG)
     setConfigLoadedForVaultId(null)
     setConfigLoadError(null)
@@ -252,9 +252,9 @@ function SettingsPanelImpl({
     if (!nativeReady || !configReady) return
     setStatus(t('settingsPanel.saving'))
     try {
-      const baseline = configBaselineRef.current
+      const baseline = configBaseline
       const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config), vaultId)
-      configBaselineRef.current = saved
+      setConfigBaseline(saved)
       setConfig(saved)
       setPendingCloseVaultId(null)
       setStatus(t('settingsPanel.configSaved'))
