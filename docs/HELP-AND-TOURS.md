@@ -15,11 +15,19 @@ The authored registry is `src/lib/help/catalog.ts`. Each entry records its openi
 
 First-use invitations can be disabled without disabling Help. Closing a tour preserves its position. Finish is explicit; closing or skipping never marks it completed. Restart resets only that tour. Resetting Help progress requires confirmation and changes only the Help storage key, never the vault, editor preferences, or account credentials.
 
+### First-use scope and scheduling
+
+Initial workspace widgets do not trigger a queue of invitations at startup. A newly opened feature becomes eligible after its chrome settles, and only inside the active modal, companion dock, or focused feature. An invitation in a background inspector cannot block a newly opened Graph or MCP panel. Hidden, off-screen, and blocked headers do not consume their first-use offer. A visible panel takes precedence over its nested widgets.
+
+Pending invitations survive harmless DOM rescans. Their identity includes both the mounted surface and the guide topic so a reused tab container does not confuse two different features. Previously offered or dismissed topics are not offered again on reopen; the question-mark control and F1 remain available. No invitation moves focus or starts a tour.
+
 ## Interaction and accessibility
 
 F1 resolves the focused surface, then the last interacted surface, then the workspace overview. Header affordances open the corresponding guide. The Help dialog owns its own accessible title, close control, tab sequence and topmost Escape registration, while retaining the underlying panel. Dismissal returns focus to the invoker when it still exists.
 
 Show this control closes Help and reveals/focuses only an already-present target. It never clicks it or opens a hidden feature. Missing targets are explained with the entry route and prerequisites; progress is not silently advanced. Guide content is text, not rendered HTML. No search terms, vault contents, paths, messages, or tokens are collected or sent anywhere.
+
+The overview's help button is hosted in the top bar, but its target scope includes the whole workspace. Contextual help controls join an existing editor command group rather than creating another toolbar row.
 
 The controls support the application's English, German, and Persian locales. The authored detailed corpus is currently English and is explicitly marked `lang=en`, `dir=ltr`; a localized notice explains that fallback instead of representing untranslated prose as localized. Translation expansion must keep stable guide ids and content parity.
 
@@ -27,7 +35,7 @@ The controls support the application's English, German, and Persian locales. The
 
 Progress uses the bounded, versioned `scriptor:help-guides:v1` local key. Unknown guide ids and invalid step values are rejected or normalized; denied/quota/corrupt storage degrades to an in-memory session with a visible warning. Per-guide progress is separate from onboarding completion and from any task authority.
 
-`src/lib/help/help.test.ts` covers catalog completeness, policies, search, progress, storage failure, reload, and request validation. Browser coverage must verify contextual invocation over an existing dialog, F1 while typing, Escape/focus restoration, first-use dismissal, manual replay, missing targets, resize/zoom, RTL, and the absence of automatic mutations. New user surfaces must add a registry entry or explicitly link to an existing guide, and test that their selectors remain reachable.
+`src/lib/help/help.test.ts` covers catalog completeness, policies, search, progress, storage failure, reload, and request validation. `src/lib/help/invitations.test.ts` covers foreground ownership, panel priority, dismissal, mounted identity, topic changes, and stable selection. `e2e/help-scope-regressions.spec.ts` covers foreground handoff, toolbar geometry after help mounts, and overview target resolution. Browser coverage must also verify contextual invocation over an existing dialog, F1 while typing, Escape/focus restoration, manual replay, missing targets, resize/zoom, RTL, and the absence of automatic mutations. New user surfaces must add a registry entry or explicitly link to an existing guide, and test that their selectors remain reachable.
 
 ## Previous remediation checkpoint
 
