@@ -207,13 +207,6 @@ function readChrome(): WorkspaceChromePrefs {
   // remove the duplicate owners so reset/import/export all operate on one state.
   const legacyVaultWidth = readLegacyPanelWidth(LEGACY_VAULT_WIDTH_KEY, 200, 600)
   const legacyInspectorWidth = readLegacyPanelWidth(LEGACY_INSPECTOR_WIDTH_KEY, 300, 800)
-  try {
-    window.localStorage.removeItem(LEGACY_VAULT_WIDTH_KEY)
-    window.localStorage.removeItem(LEGACY_INSPECTOR_WIDTH_KEY)
-  } catch {
-    // Storage can be unavailable; validated runtime state remains authoritative.
-  }
-
   return {
     ...chrome,
     ...(legacyVaultWidth === null ? {} : { vaultWidth: legacyVaultWidth }),
@@ -265,6 +258,15 @@ export function useWorkspaceChrome() {
   useEffect(() => {
     applyVisualPrefsToElement(chrome)
     writeVersionedStorage(STORAGE_KEY, 1, chrome)
+    // Keep state initialization pure: React StrictMode may invoke initializers
+    // more than once. Retire duplicate legacy owners only after the canonical
+    // chrome object has been committed.
+    try {
+      window.localStorage.removeItem(LEGACY_VAULT_WIDTH_KEY)
+      window.localStorage.removeItem(LEGACY_INSPECTOR_WIDTH_KEY)
+    } catch {
+      // Storage can be unavailable; validated runtime state remains authoritative.
+    }
   }, [chrome])
 
   const patchChrome = useCallback((patch: Partial<WorkspaceChromePrefs>) => {
