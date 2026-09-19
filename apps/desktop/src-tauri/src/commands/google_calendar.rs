@@ -1765,6 +1765,7 @@ pub fn google_calendar_update_task(
     title: String,
     notes: String,
     due: Option<String>,
+    status: Option<String>,
     authorization_token: String,
 ) -> Result<GoogleTask, String> {
     require_sensitive_operation(
@@ -1781,6 +1782,12 @@ pub fn google_calendar_update_task(
     if title.trim().is_empty() {
         return Err("task title is required".into());
     }
+    if let Some(value) = status.as_deref()
+        && value != "needsAction"
+        && value != "completed"
+    {
+        return Err("task status must be needsAction or completed".into());
+    }
 
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
@@ -1789,14 +1796,22 @@ pub fn google_calendar_update_task(
         percent_encode(&task_list_id),
         percent_encode(&task_id)
     );
+    let mut body = serde_json::Map::new();
+    body.insert("title".into(), serde_json::Value::String(title));
+    body.insert("notes".into(), serde_json::Value::String(notes));
+    body.insert(
+        "due".into(),
+        due.filter(|value| !value.is_empty())
+            .map(serde_json::Value::String)
+            .unwrap_or(serde_json::Value::Null),
+    );
+    if let Some(status) = status {
+        body.insert("status".into(), serde_json::Value::String(status));
+    }
     let response = client
         .patch(url)
         .bearer_auth(&access_token)
-        .json(&serde_json::json!({
-            "title": title,
-            "notes": notes,
-            "due": due.filter(|value| !value.is_empty()),
-        }))
+        .json(&serde_json::Value::Object(body))
         .send()
         .map_err(|error| format!("failed to update Google Task: {error}"))?;
     if !response.status().is_success() {
