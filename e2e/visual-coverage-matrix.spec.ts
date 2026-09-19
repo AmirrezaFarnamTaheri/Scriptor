@@ -9,6 +9,52 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(width)
 }
 
+function cssColorLuminance(color: string): number | null {
+  const rgb = color.match(
+    /^rgba?\(\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?))?\s*\)$/,
+  )
+  if (rgb) {
+    const [, red = '255', green = '255', blue = '255', alpha = '1'] = rgb
+    if (Number(alpha) <= 0) return null
+    const linearize = (channel: number) => {
+      const normalized = channel / 255
+      return normalized <= 0.04045
+        ? normalized / 12.92
+        : ((normalized + 0.055) / 1.055) ** 2.4
+    }
+    return 0.2126 * linearize(Number(red))
+      + 0.7152 * linearize(Number(green))
+      + 0.0722 * linearize(Number(blue))
+  }
+
+  const oklch = color.match(
+    /^oklch\(\s*(\d+(?:\.\d+)?)(%)?\s+(\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)(?:deg)?(?:\s*\/\s*(\d+(?:\.\d+)?)(%)?)?\s*\)$/,
+  )
+  if (!oklch) return null
+
+  const [, lightnessRaw = '0', lightnessPercent, chromaRaw = '0', hueRaw = '0', alphaRaw = '1', alphaPercent] = oklch
+  const alpha = Number(alphaRaw) / (alphaPercent ? 100 : 1)
+  if (alpha <= 0) return null
+
+  const lightness = Number(lightnessRaw) / (lightnessPercent ? 100 : 1)
+  const chroma = Number(chromaRaw)
+  const hue = Number(hueRaw) * Math.PI / 180
+  const a = chroma * Math.cos(hue)
+  const b = chroma * Math.sin(hue)
+
+  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b
+  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b
+  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b
+  const l = lPrime ** 3
+  const m = mPrime ** 3
+  const s = sPrime ** 3
+
+  const red = Math.max(0, Math.min(1, 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s))
+  const green = Math.max(0, Math.min(1, -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s))
+  const blue = Math.max(0, Math.min(1, -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s))
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue
+}
+
 async function expectDarkSurface(locator: Locator) {
   await expect(locator).toBeVisible()
   const background = await locator.evaluate((element) => {
@@ -18,23 +64,9 @@ async function expectDarkSurface(locator: Locator) {
     const layered = getComputedStyle(element, '::after').backgroundColor
     return layered && layered !== 'rgba(0, 0, 0, 0)' ? layered : direct
   })
-  const match = background.match(
-    /^rgba?\(\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?))?\s*\)$/,
-  )
-  expect(match, `expected an RGB background, got ${background}`).not.toBeNull()
-  const [, red = '255', green = '255', blue = '255', alpha = '1'] = match ?? []
-  expect(Number(alpha)).toBeGreaterThan(0)
-  const linearize = (channel: number) => {
-    const normalized = channel / 255
-    return normalized <= 0.04045
-      ? normalized / 12.92
-      : ((normalized + 0.055) / 1.055) ** 2.4
-  }
-  const luminance =
-    0.2126 * linearize(Number(red))
-    + 0.7152 * linearize(Number(green))
-    + 0.0722 * linearize(Number(blue))
-  expect(luminance).toBeLessThan(0.35)
+  const luminance = cssColorLuminance(background)
+  expect(luminance, `expected a supported opaque CSS background, got ${background}`).not.toBeNull()
+  expect(luminance ?? 1).toBeLessThan(0.35)
 }
 
 async function closeSurface(surface: Locator) {
