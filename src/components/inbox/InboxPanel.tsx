@@ -34,6 +34,7 @@ export function InboxPanel({ notes, activePath, onOpenNote, onOrganize }: InboxP
               type="button"
               className="toolbar-button inbox-organize-button"
               title="Mark organized"
+              aria-label={`Mark ${note.title} organized`}
               onClick={() => onOrganize(note.path)}
             >
               <CheckCircle2 size={14} />
