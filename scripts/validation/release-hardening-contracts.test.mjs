@@ -160,16 +160,19 @@ test('toolbar popovers escape scroll clipping without a React positioning loop',
   }
 })
 
-test('functional and visual Playwright suites are enforced by release and CI', () => {
+test('functional and visual Playwright suites have one canonical PR owner each', () => {
   const packageJson = JSON.parse(read('package.json'))
   const releaseCommand = packageJson.scripts['check:release']
   assert.match(releaseCommand, /test:e2e/)
   assert.match(releaseCommand, /test:visual/)
 
   const ci = read('.github/workflows/ci.yml')
+  const visualReview = read('.github/workflows/visual-review.yml')
   assert.match(ci, /name: Browser E2E and visual regression/)
   assert.match(ci, /test:e2e/)
-  assert.match(ci, /test:visual/)
+  assert.doesNotMatch(ci, /test:visual/)
+  assert.match(visualReview, /playwright\.visual\.config\.ts/)
+  assert.match(visualReview, /--update-snapshots=none/)
 })
 
 test('browser integration suites contain no permanent skips', () => {
