@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { Settings } from 'lucide-react'
 import '../styles/components/settings-panel.css'
