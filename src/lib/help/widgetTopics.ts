@@ -1,5 +1,5 @@
 const WIDGET_TOPICS: ReadonlyArray<readonly [key: string, id: string]> = [
-  ['inspector.noteHealth', 'publish-readiness'], ['inspector.previewCard', 'preview'],
+  ['inspector.noteHealth', 'publish-readiness'], ['noteQuality.title', 'publish-readiness'], ['inspector.previewCard', 'preview'],
   ['inspector.outline', 'outline'], ['inspector.outgoingLinks', 'outgoing'],
   ['inspector.backlinks', 'backlinks'], ['inspector.citations', 'citations'],
   ['inspector.publishing', 'publish-readiness'], ['inspector.exportProfiles', 'export'],
