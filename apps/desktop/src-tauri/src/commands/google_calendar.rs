@@ -1720,6 +1720,7 @@ pub fn google_calendar_create_task(
         Some(TASK_SCOPE),
         None,
     )?;
+    validate_task_list_id(&task_list_id)?;
     if title.trim().is_empty() {
         return Err("task title is required".into());
     }
@@ -1757,6 +1758,61 @@ pub fn google_calendar_create_task(
 }
 
 #[tauri::command]
+pub fn google_calendar_update_task(
+    state: tauri::State<AppState>,
+    task_list_id: String,
+    task_id: String,
+    title: String,
+    notes: String,
+    due: Option<String>,
+    authorization_token: String,
+) -> Result<GoogleTask, String> {
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleTaskWrite,
+        Some(TASK_SCOPE),
+        None,
+    )?;
+    validate_task_list_id(&task_list_id)?;
+    if task_id.trim().is_empty() {
+        return Err("task id is required".into());
+    }
+    if title.trim().is_empty() {
+        return Err("task title is required".into());
+    }
+
+    let client = http_client()?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let url = format!(
+        "{TASKS_ENDPOINT}/{}/tasks/{}",
+        percent_encode(&task_list_id),
+        percent_encode(&task_id)
+    );
+    let response = client
+        .patch(url)
+        .bearer_auth(&access_token)
+        .json(&serde_json::json!({
+            "title": title,
+            "notes": notes,
+            "due": due.filter(|value| !value.is_empty()),
+        }))
+        .send()
+        .map_err(|error| format!("failed to update Google Task: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to update Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    let task = response
+        .json::<GTask>()
+        .map_err(|error| format!("Google returned an invalid updated task response: {error}"))?;
+    Ok(map_task(task))
+}
+
+#[tauri::command]
 pub fn google_calendar_complete_task(
     state: tauri::State<AppState>,
     task_list_id: String,
@@ -1770,6 +1826,10 @@ pub fn google_calendar_complete_task(
         Some(TASK_SCOPE),
         None,
     )?;
+    validate_task_list_id(&task_list_id)?;
+    if task_id.trim().is_empty() {
+        return Err("task id is required".into());
+    }
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
@@ -1808,6 +1868,10 @@ pub fn google_calendar_delete_task(
         Some(TASK_SCOPE),
         None,
     )?;
+    validate_task_list_id(&task_list_id)?;
+    if task_id.trim().is_empty() {
+        return Err("task id is required".into());
+    }
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
