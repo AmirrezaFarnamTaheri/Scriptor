@@ -230,7 +230,7 @@ export function PluginManagerCenter({
                     className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
                     onClick={() => requestProfile(profile)}
                   >
-                    {profile.charAt(0).toUpperCase() + profile.slice(1)}
+                    {t(`pluginManager.profiles.${profile}`)}
                   </button>
                 ),
               )}
