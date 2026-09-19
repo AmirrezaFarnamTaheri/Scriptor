@@ -742,7 +742,7 @@
       "lookahead": "Lookahead window (days)",
       "showEvents": "Show Calendar events in Tasks",
       "mirrorTasks": "Enable vault → Google Tasks mirroring (changes are sent only after your approval)",
-      "connect": "Save & connect Google",
+      "connect": "Connect Google",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
       "status": {
