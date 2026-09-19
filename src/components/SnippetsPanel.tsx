@@ -78,7 +78,7 @@ export const SnippetsPanel = memo(function SnippetsPanel({ vaultOpen, vaultId, o
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section ref={dialogRef} className="snippets-panel" role="dialog" aria-modal="true" aria-label="Snippet catalog" onClick={(event) => event.stopPropagation()}>
+      <section ref={dialogRef} className="snippets-panel" data-help-topic="snippets" role="dialog" aria-modal="true" aria-label="Snippet catalog" onClick={(event) => event.stopPropagation()}>
         <header>
           <div>
             <h2>Snippet catalog</h2>
