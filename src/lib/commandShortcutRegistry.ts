@@ -21,6 +21,7 @@ export const COMMAND_SHORTCUT_REGISTRY: CommandShortcutEntry[] = [
   { id: 'open-note-history', label: 'Note history timeline', defaultShortcut: 'Ctrl+Alt+H' },
   { id: 'focus-search', label: 'Focus vault search', defaultShortcut: 'F' },
   { id: 'open-settings', label: 'Open settings' },
+  { id: 'open-help', label: 'Open Help & guides', defaultShortcut: 'F1' },
   { id: 'open-git', label: 'Open Git panel', defaultShortcut: 'Mod+Alt+G' },
   { id: 'open-health', label: 'Open vault health' },
   { id: 'open-mcp', label: 'Open MCP panel' },

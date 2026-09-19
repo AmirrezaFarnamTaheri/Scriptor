@@ -16,6 +16,7 @@ export type AppCommandId =
   | 'open-health'
   | 'open-mcp'
   | 'open-settings'
+  | 'open-help'
   | 'open-knowledge-workbench'
   | 'open-publish-center'
   | 'open-tags'
