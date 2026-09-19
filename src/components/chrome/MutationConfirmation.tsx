@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 import '../../styles/components/mutation-confirmation.css'
+import { useI18n } from '../../lib/i18n'
 
 interface MutationConfirmationProps {
   ariaLabel: string
@@ -30,6 +31,7 @@ export function MutationConfirmation({
   confirmDisabled = false,
   className = '',
 }: MutationConfirmationProps) {
+  const { t } = useI18n()
   const cancelRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function MutationConfirmation({
           disabled={busy || confirmDisabled}
           onClick={onConfirm}
         >
-          {busy ? 'Working…' : confirmLabel}
+          {busy ? `${confirmLabel}…` : confirmLabel}
         </button>
       </div>
     </div>
