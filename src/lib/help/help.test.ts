@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
 import { test } from 'node:test'
 import { HELP_GUIDES, HELP_BY_ID, searchGuides } from './catalog.ts'
 import { emptyHelpPreferences, getProgress, HelpProgressStore, parseHelpPreferences, reduceHelpPreferences } from './progress.ts'
@@ -14,6 +15,7 @@ test('all guides have unique ids, authored steps, questions, entry paths, safety
     assert.ok(guide.questions.length >= 2, guide.id)
     assert.ok(guide.entry.length > 10 && guide.prerequisite.length > 10 && guide.safety.length > 20, guide.id)
     assert.ok(guide.roots.length > 0 && guide.source.length > 5, guide.id)
+    assert.ok(existsSync(guide.source), `${guide.id} source missing: ${guide.source}`)
     assert.ok(guide.steps.every(([title, body]) => title.length > 2 && body.length > 40), guide.id)
     for (const id of guide.related) assert.ok(HELP_BY_ID.has(id), `${guide.id} -> ${id}`)
   }
@@ -23,6 +25,20 @@ test('only the overview is automatic first-run; dangerous operations are manual'
   assert.deepEqual(HELP_GUIDES.filter((guide) => guide.policy === 'first-run').map((guide) => guide.id), ['workspace'])
   for (const id of ['restore', 'conflicts', 'rename', 'permissions', 'code-chunks', 'mcp-drafts']) assert.equal(HELP_BY_ID.get(id)?.policy, 'manual')
   for (const id of ['google', 'gmail', 'reader', 'kanban', 'tasks']) assert.equal(HELP_BY_ID.get(id)?.experimental, true)
+})
+
+test('first-use invitations are limited to complex low-risk surfaces; everything else stays on demand', () => {
+  const expected = [
+    'ai', 'appearance', 'backups', 'bibliography', 'canvas', 'capture', 'citations', 'docks', 'export',
+    'git', 'gmail', 'google', 'graph', 'history', 'import', 'kanban', 'mcp', 'modules', 'plugins', 'portal',
+    'publish', 'reader', 'resource-sync', 'tasks', 'toolbar-customize', 'workbench',
+  ].sort()
+  const actual = HELP_GUIDES.filter((guide) => guide.policy === 'first-use').map((guide) => guide.id).sort()
+  assert.deepEqual(actual, expected)
+  for (const guide of HELP_GUIDES) {
+    if (guide.id === 'workspace' || expected.includes(guide.id)) continue
+    assert.equal(guide.policy, 'manual', guide.id)
+  }
 })
 
 test('help search covers questions and workflows without network or vault access', () => {
