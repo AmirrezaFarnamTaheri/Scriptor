@@ -300,7 +300,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
   )
 
   return (
-    <section className="editor-panel" aria-label={t('editor.ariaLabel')}>
+    <section className="editor-panel" aria-label={t('editor.ariaLabel')} data-help-topic="editor">
       <EditorTabBar
         activePath={activePath}
         openTabs={openTabs}
