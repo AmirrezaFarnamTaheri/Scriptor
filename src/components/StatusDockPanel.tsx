@@ -60,6 +60,7 @@ function StatusDockPanelImpl({
           role="tab"
           tabIndex={activeTab === 'problems' ? 0 : -1}
           id={'dock-tab-problems'}
+          data-help-topic="problems"
           aria-selected={activeTab === 'problems'}
           aria-expanded={activeTab === 'problems' && expanded}
           aria-controls="dock-panel-problems"
@@ -73,6 +74,7 @@ function StatusDockPanelImpl({
           role="tab"
           tabIndex={activeTab === 'output' ? 0 : -1}
           id={'dock-tab-output'}
+          data-help-topic="activity-output"
           aria-selected={activeTab === 'output'}
           aria-expanded={activeTab === 'output' && expanded}
           aria-controls="dock-panel-output"
@@ -86,6 +88,7 @@ function StatusDockPanelImpl({
           role="tab"
           tabIndex={activeTab === 'search' ? 0 : -1}
           id={'dock-tab-search'}
+          data-help-topic="search"
           aria-selected={activeTab === 'search'}
           aria-expanded={activeTab === 'search' && expanded}
           aria-controls="dock-panel-search"
@@ -99,6 +102,7 @@ function StatusDockPanelImpl({
           role="tab"
           tabIndex={activeTab === 'jobs' ? 0 : -1}
           id={'dock-tab-jobs'}
+          data-help-topic="export-jobs"
           aria-selected={activeTab === 'jobs'}
           aria-expanded={activeTab === 'jobs' && expanded}
           aria-controls="dock-panel-jobs"
@@ -110,13 +114,13 @@ function StatusDockPanelImpl({
       </div>
 
       {activeTab === 'problems' && expanded ? (
-        <div className="dock-panel diagnostics-dock-panel" id="dock-panel-problems" role="tabpanel" aria-labelledby="dock-tab-problems">
+        <div className="dock-panel diagnostics-dock-panel" id="dock-panel-problems" data-help-topic="problems" role="tabpanel" aria-labelledby="dock-tab-problems">
           {issuesPanel}
         </div>
       ) : null}
 
       {activeTab === 'output' && expanded ? (
-        <section className="dock-panel" id="dock-panel-output" role="tabpanel" aria-labelledby="dock-tab-output">
+        <section className="dock-panel" id="dock-panel-output" data-help-topic="activity-output" role="tabpanel" aria-labelledby="dock-tab-output">
           <header>
             <strong>{t('statusDock.output')}</strong>
           </header>
@@ -150,7 +154,7 @@ function StatusDockPanelImpl({
       ) : null}
 
       {activeTab === 'search' && expanded ? (
-        <section className="dock-panel" id="dock-panel-search" role="tabpanel" aria-labelledby="dock-tab-search">
+        <section className="dock-panel" id="dock-panel-search" data-help-topic="search" role="tabpanel" aria-labelledby="dock-tab-search">
           <header>
             <strong>{t('statusDock.searchResults')}</strong>
             {searchQuery ? <span>for “{searchQuery}”</span> : null}
@@ -178,7 +182,7 @@ function StatusDockPanelImpl({
       ) : null}
 
       {activeTab === 'jobs' && expanded ? (
-        <section className="dock-panel jobs-panel" id="dock-panel-jobs" role="tabpanel" aria-labelledby="dock-tab-jobs">
+        <section className="dock-panel jobs-panel" id="dock-panel-jobs" data-help-topic="export-jobs" role="tabpanel" aria-labelledby="dock-tab-jobs">
           <header>
             <strong>{t('statusDock.backgroundJobs')}</strong>
           </header>
