@@ -29,7 +29,7 @@ export const AiProviderSettings = memo(function AiProviderSettings({
 }: AiProviderSettingsProps) {
   const { t } = useI18n()
   return (
-    <section className="settings-section">
+    <section className="settings-section" data-help-topic="ai">
       <h3>{t('aiSettings.title')}</h3>
       <p className="health-subtitle">
         {t('aiSettings.description')}
