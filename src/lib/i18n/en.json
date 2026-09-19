@@ -902,5 +902,17 @@
     "showStickies": "Show sticky notes layer",
     "graphDepth": "Graph depth",
     "resetLayout": "Reset {{mode}} layout"
+  },
+  "aiSettings": {
+    "title": "AI provider (optional)",
+    "description": "Credentials are stored in the operating-system keychain. Draft proposals still require explicit MCP write approval.",
+    "provider": "Provider",
+    "off": "Off",
+    "openaiCompatible": "OpenAI-compatible HTTP API",
+    "endpoint": "Endpoint",
+    "apiKey": "API key",
+    "keyStored": "Key stored in keychain",
+    "pasteKey": "Paste API key",
+    "clearCredential": "Clear keychain credential"
   }
 }
