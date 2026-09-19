@@ -83,7 +83,7 @@ export interface GoogleCalendarSyncResult {
   tasks: GoogleTask[]
   error: string | null
   authedEmail: string | null
-  startAuth: () => Promise<void>
+  startAuth: () => Promise<boolean>
   disconnect: () => Promise<void>
   refresh: () => Promise<void>
   pushTask: (task: { title: string; notes?: string; due?: string }) => Promise<GoogleTask | null>
@@ -174,10 +174,10 @@ export function useGoogleCalendarSync({
   const lookaheadDays = config?.lookahead_days ?? DEFAULT_LOOKAHEAD_DAYS
   const pushVaultTasksEnabled = config?.push_vault_tasks ?? false
 
-  const startAuth = useCallback(async () => {
+  const startAuth = useCallback(async (): Promise<boolean> => {
     if (!clientId) {
       setError('Google OAuth client ID not configured. Set it in Settings → Integrations.')
-      return
+      return false
     }
     const currentLifecycle = lifecycleGenerationRef.current
     const currentRefreshGen = ++refreshGenerationRef.current
@@ -192,7 +192,7 @@ export function useGoogleCalendarSync({
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) return
+      ) return false
       // OAuth success is not sync success. Load the remote state immediately
       // so automatic vault-task mirroring cannot run against a stale empty list.
       const [evtsRaw, tasksRaw, confirmedEmail] = await Promise.all([
@@ -203,18 +203,20 @@ export function useGoogleCalendarSync({
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) return
+      ) return false
       setEvents(evtsRaw)
       setTasks(tasksRaw)
       setAuthedEmail(confirmedEmail || email)
       setStatus('synced')
+      return true
     } catch (err) {
       if (
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
-      ) return
+      ) return false
       setError(googleAuthErrorMessage(err))
       setStatus('error')
+      return false
     }
   }, [clientId, calendarId, taskListId, lookaheadDays])
 
