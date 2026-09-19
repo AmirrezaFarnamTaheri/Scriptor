@@ -13,9 +13,23 @@ export interface HelpSurface {
 }
 const HEADER_SELECTORS = [
   ':scope > .unified-panel-header .unified-panel-header-actions',
-  ':scope > .unified-panel-header', ':scope > .graph-header', ':scope > .canvas-header',
-  ':scope > .plugin-manager-header', ':scope > .customizer-header', ':scope > .toolbar-customizer-header',
-  ':scope > header', ':scope > .panel-heading',
+  ':scope > .unified-panel-header',
+  ':scope > .graph-header',
+  ':scope > .canvas-header',
+  ':scope > .plugin-manager-header',
+  ':scope > .customizer-header',
+  ':scope > .toolbar-customizer-header',
+  ':scope > .command-palette-header',
+  ':scope > .inbox-panel-header',
+  ':scope > .annotation-popover__header',
+  ':scope > .template-picker__header',
+  ':scope > .settings-section-heading-row',
+  ':scope > .settings-section-heading-with-icon',
+  ':scope > header',
+  ':scope > .panel-heading',
+  ':scope > h2',
+  ':scope > h3',
+  ':scope > h4',
 ]
 
 function findHost(root: HTMLElement): HTMLElement | null {
@@ -25,6 +39,10 @@ function findHost(root: HTMLElement): HTMLElement | null {
   if (root.matches('.editor-toolbar')) return root.querySelector<HTMLElement>('.inline-editor-assist, .editor-primary-formatting') ?? root
   if (root.matches('.editor-panel')) return null // The toolbar has its own, more precise owner.
   if (root.matches('.inspector-panel')) return root.querySelector('.inspector-preset-control')
+  if (root.matches('.status-strip')) return root.querySelector<HTMLElement>('.status-summary') ?? root
+  if (root.matches('.tabs-row')) return root
+  if (root.matches('.external-change-banner')) return root.querySelector<HTMLElement>('.external-change-banner-actions') ?? root
+  if (root.matches('.store-root')) return root.querySelector<HTMLElement>('.store-panel-body h2') ?? null
   for (const selector of HEADER_SELECTORS) {
     const host = root.querySelector<HTMLElement>(selector)
     if (host && !host.closest('.markdown-preview, .cm-editor, .monaco-editor')) return host
