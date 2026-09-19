@@ -123,14 +123,7 @@ export function GmailManagerPanel({
   )
 
   useEffect(() => {
-    if (defaultClientId && !clientId.trim()) setClientId(defaultClientId)
-  }, [clientId, defaultClientId])
-
-  useEffect(() => {
-    if (!nativeReady) {
-      setCheckingAuth(false)
-      return
-    }
+    if (!nativeReady) return
     let cancelled = false
 
     void (async () => {
