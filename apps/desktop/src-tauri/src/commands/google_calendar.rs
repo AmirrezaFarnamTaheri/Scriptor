@@ -2174,6 +2174,23 @@ mod tests {
     }
 
     #[test]
+    fn task_sync_scope_discloses_batch_size() {
+        assert_eq!(google_task_sync_scope(1), "Sync 1 vault task changes");
+        assert_eq!(google_task_sync_scope(42), "Sync 42 vault task changes");
+    }
+
+    #[test]
+    fn task_sync_mutation_accepts_camel_case_task_id() {
+        let mutation: GoogleTaskSyncMutation = serde_json::from_str(
+            r#"{"kind":"update","taskId":"remote-1","title":"Renamed","notes":"marker","status":"needsAction"}"#,
+        )
+        .expect("task sync mutation");
+        assert_eq!(mutation.kind, "update");
+        assert_eq!(mutation.task_id.as_deref(), Some("remote-1"));
+        assert_eq!(mutation.status.as_deref(), Some("needsAction"));
+    }
+
+    #[test]
     fn calendar_event_list_response_preserves_provider_page_token() {
         let parsed: GcalEventList = serde_json::from_str(
             r#"{"items":[{"id":"e1","summary":"One"}],"nextPageToken":"next-events"}"#,
