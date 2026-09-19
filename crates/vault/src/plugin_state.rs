@@ -112,7 +112,9 @@ pub fn load_plugin_state(vault_root: &Path) -> Result<PluginState, VaultError> {
 pub fn save_plugin_state(vault_root: &Path, state: &PluginState) -> Result<(), VaultError> {
     state.validate()?;
     let path = plugin_state_path(vault_root);
-    let dir = path.parent().expect("plugin state has parent");
+    let dir = path.parent().ok_or_else(|| VaultError::InvalidConfig {
+        message: format!("plugin state path has no parent: {}", path.display()),
+    })?;
     fs::create_dir_all(dir).map_err(|source| VaultError::io(dir, source))?;
     let payload = serde_json::to_vec_pretty(state)?;
     atomic_write(&path, &payload)
