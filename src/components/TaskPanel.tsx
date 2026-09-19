@@ -279,6 +279,7 @@ export const TaskPanel = memo(function TaskPanel({
   const store = useTaskStore(runSourceNoteMutation)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [allVaultTasks, setAllVaultTasks] = useState<TaskRow[]>([])
+  const [vaultTasksComplete, setVaultTasksComplete] = useState(false)
   const taskRevision = store.tasks
     .map((task) => `${task.id}:${task.updatedAt}:${task.status}:${task.dueAt ?? ''}`)
     .sort()
@@ -290,15 +291,23 @@ export const TaskPanel = memo(function TaskPanel({
   useEffect(() => {
     if (!vaultOpen || !calendarConfig?.enabled) {
       setAllVaultTasks([])
+      setVaultTasksComplete(false)
       return
     }
     let cancelled = false
+    setVaultTasksComplete(false)
     void indexerQueryTasks({}, ALL_TASKS_LIMIT)
       .then((rows) => {
-        if (!cancelled) setAllVaultTasks(rows)
+        if (!cancelled) {
+          setAllVaultTasks(rows)
+          setVaultTasksComplete(true)
+        }
       })
       .catch(() => {
-        if (!cancelled) setAllVaultTasks([])
+        if (!cancelled) {
+          setAllVaultTasks([])
+          setVaultTasksComplete(false)
+        }
       })
     return () => {
       cancelled = true
@@ -306,7 +315,11 @@ export const TaskPanel = memo(function TaskPanel({
   }, [calendarConfig?.enabled, vaultOpen, taskRevision])
 
   const vaultTaskNotes = useMemo(() => groupVaultTasks(allVaultTasks), [allVaultTasks])
-  const calendarSync = useGoogleCalendarSync({ config: calendarConfig, vaultNotes: vaultTaskNotes })
+  const calendarSync = useGoogleCalendarSync({
+    config: calendarConfig,
+    vaultNotes: vaultTaskNotes,
+    vaultTasksComplete,
+  })
 
   const handlePatchStatus = useCallback((taskId: string, status: string) => {
     void store.patchStatus(taskId, status).catch(() => undefined)
