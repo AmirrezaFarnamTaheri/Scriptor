@@ -19,7 +19,7 @@ interface LayoutPresetGalleryProps {
 
 export const LayoutPresetGallery = memo(function LayoutPresetGallery({ current, onApply }: LayoutPresetGalleryProps) {
   return (
-    <div className="settings-layout-presets">
+    <div className="settings-layout-presets" data-help-topic="docks">
       <h4 className="settings-subheading">Layout templates</h4>
       <p className="health-subtitle">
         Apply a template to reconfigure this mode&apos;s split preview, stickies, and graph depth in one click.
