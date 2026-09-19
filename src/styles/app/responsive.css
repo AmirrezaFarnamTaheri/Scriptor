@@ -257,15 +257,11 @@
   }
 }
 
-/* Below ~1600px every section is compressing; the two lowest-priority icon
-   actions (support heart, palette store — both reachable via command palette
-   and the customize menu) step aside so the core controls stay visible, and
-   "Open Vault" collapses to its icon (label remains for assistive tech). */
+/* Below ~1600px every section is compressing. Respect explicit user pinning:
+   Support and Color palettes must remain visible when the customizer enables
+   them. Only MCP yields automatically because it has an equivalent footer /
+   settings surface and is not a user-pinned quick action. */
 @media (max-width: 1600px) {
-  .topbar .support-heart-action,
-  .topbar .palette-store-action,
-  /* MCP status also lives in the footer subsystem toggles and the settings
-     store; it yields at tight widths so Settings/Customize never clip. */
   .topbar .topbar-status-mcp {
     display: none;
   }
