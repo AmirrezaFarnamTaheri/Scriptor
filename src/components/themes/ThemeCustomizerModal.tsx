@@ -61,6 +61,12 @@ function contrastRatio(foreground: string, background: string): number | null {
   return (lighter + 0.05) / (darker + 0.05)
 }
 
+function accessibleTextColor(background: string): '#000000' | '#ffffff' {
+  const darkRatio = contrastRatio('#000000', background) ?? 0
+  const lightRatio = contrastRatio('#ffffff', background) ?? 0
+  return darkRatio >= lightRatio ? '#000000' : '#ffffff'
+}
+
 export function ThemeCustomizerModal({
   isOpen,
   onClose,
@@ -84,19 +90,23 @@ export function ThemeCustomizerModal({
   }), [colors])
 
   const contrastChecks = useMemo(() => {
-    const minimum = category === 'contrast' ? 7 : 4.5
+    const textMinimum = category === 'contrast' ? 7 : 4.5
     const pairs = [
-      [t('themeCustomizer.contrastTextBackground'), colors.ink, colors.bg],
-      [t('themeCustomizer.contrastTextSurface'), colors.ink, colors.surface],
+      [t('themeCustomizer.contrastTextBackground'), colors.ink, colors.bg, textMinimum],
+      [t('themeCustomizer.contrastTextSurface'), colors.ink, colors.surface, textMinimum],
+      [t('themeCustomizer.contrastPrimaryBackground'), colors.primary, colors.bg, 3],
+      [t('themeCustomizer.contrastAmberBackground'), colors.amber, colors.bg, 3],
     ] as const
-    return pairs.flatMap(([label, foreground, background]) => {
+    return pairs.flatMap(([label, foreground, background, minimum]) => {
       const ratio = contrastRatio(foreground, background)
       if (ratio === null) return []
       return [{ label, ratio, minimum, passes: ratio >= minimum }]
     })
-  }, [category, colors.bg, colors.ink, colors.surface, t])
+  }, [category, colors.amber, colors.bg, colors.ink, colors.primary, colors.surface, t])
 
   const failingContrastChecks = contrastChecks.filter((check) => !check.passes)
+  const primaryPreviewText = useMemo(() => accessibleTextColor(colors.primary), [colors.primary])
+  const amberPreviewText = useMemo(() => accessibleTextColor(colors.amber), [colors.amber])
 
   // useLayoutEffect is the correct pattern here: localStorage read must sync before
   // first paint on re-open to prevent stale custom-theme list flash.
@@ -144,7 +154,7 @@ export function ThemeCustomizerModal({
       setSaveError(t('themeCustomizer.errorInvalidColor', { keys: invalidColorKeys.join(', ') }))
       return
     }
-    if (contrastChecks.length < 2) {
+    if (contrastChecks.length < 4) {
       setSaveError(t('themeCustomizer.errorUnverifiableContrast'))
       return
     }
@@ -322,7 +332,7 @@ export function ThemeCustomizerModal({
             {contrastChecks.length > 0 ? (
               <div className="theme-contrast-status" role="status" aria-live="polite">
                 <strong>{t('themeCustomizer.textContrast')}</strong>
-                <span>{t('themeCustomizer.required', { ratio: category === 'contrast' ? '7:1' : '4.5:1' })}</span>
+                <span>{t('themeCustomizer.requiredMixed', { textRatio: category === 'contrast' ? '7:1' : '4.5:1', accentRatio: '3:1' })}</span>
                 <ul>
                   {contrastChecks.map((check) => (
                     <li key={check.label} data-pass={check.passes ? 'true' : 'false'}>
@@ -456,7 +466,7 @@ export function ThemeCustomizerModal({
                   <span className="preview-title" style={{ color: colors.ink }}>
                     {t('themeCustomizer.previewTitle')}
                   </span>
-                  <span className="preview-badge" style={{ background: colors.primary, color: colors.bg }}>
+                  <span className="preview-badge" style={{ background: colors.primary, color: primaryPreviewText }}>
                     {t('themeCustomizer.active')}
                   </span>
                 </div>
@@ -475,7 +485,7 @@ export function ThemeCustomizerModal({
                     <button
                       type="button"
                       className="preview-btn-amber"
-                      style={{ background: colors.amber, color: colors.bg }}
+                      style={{ background: colors.amber, color: amberPreviewText }}
                     >
                       {t('themeCustomizer.amberWarning')}
                     </button>
