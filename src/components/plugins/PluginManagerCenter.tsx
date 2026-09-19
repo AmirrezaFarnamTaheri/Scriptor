@@ -185,7 +185,7 @@ export function PluginManagerCenter({
               {t('pluginManager.marketplace')}
             </button>
           ) : null}
-          {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
+          {scope === 'plugins' && persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
           {scope === 'plugins' && (
             <div className="plugin-manager-profiles">
@@ -244,7 +244,7 @@ export function PluginManagerCenter({
           <div className="plugin-manager-search">
             <input
               type="search"
-              aria-label={t('pluginManager.searchAria')}
+              aria-label={scope === 'palettes' ? t('pluginManager.searchPalette') : t('pluginManager.searchAria')}
               placeholder={
                 scope === 'palettes'
                   ? t('pluginManager.searchPalette')
