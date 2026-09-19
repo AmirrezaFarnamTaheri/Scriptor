@@ -153,8 +153,8 @@ export function PluginManagerCenter({
     : null
   const profileDiff = profileTarget
     ? {
-        enable: profileTarget.filter((id) => !enabledPluginIds.includes(id)).length,
-        disable: enabledPluginIds.filter((id) => knownPluginIds.has(id) && !profileTarget.includes(id)).length,
+        enable: [...profileTarget].filter((id) => !enabledPluginIds.has(id)).length,
+        disable: [...enabledPluginIds].filter((id) => knownPluginIds.has(id) && !profileTarget.has(id)).length,
       }
     : null
 
