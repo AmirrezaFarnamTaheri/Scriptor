@@ -21,6 +21,7 @@ import {
   googleCalendarListEvents,
   googleCalendarListTasks,
   googleCalendarStartAuth,
+  googleCalendarUpdateTask,
   type CalendarEvent,
   type GoogleTask,
 } from '../bridge/commands/google_calendar.ts'
@@ -63,6 +64,7 @@ export interface CalendarSyncConfig {
 
 export interface VaultTaskSyncResult {
   created: number
+  updated: number
   skipped: number
   failed: number
 }
@@ -133,6 +135,19 @@ function normalizeTaskDue(dueDate: string | null): string | undefined {
   }
   const parsed = new Date(dueDate)
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
+}
+
+function taskDueKey(value: string | null | undefined): string | null {
+  if (!value) return null
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value)
+  return match?.[1] ?? null
+}
+
+function reconciledTaskNotes(remoteNotes: string | null, marker: string): string {
+  const preserved = (remoteNotes ?? '')
+    .split('\n')
+    .filter((line) => !line.startsWith(SOURCE_MARKER_PREFIX) && line.trim().length > 0)
+  return [...preserved, marker].join('\n')
 }
 
 /** Coordinates Google authorization, refresh, task mutations, and vault-task mirroring. */
@@ -346,7 +361,7 @@ export function useGoogleCalendarSync({
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
     if (!enabled || status === 'disconnected' || status === 'authorizing' || vaultSyncRunningRef.current) {
-      return { created: 0, skipped: 0, failed: 0 }
+      return { created: 0, updated: 0, skipped: 0, failed: 0 }
     }
     vaultSyncRunningRef.current = true
     const existingMarkers = new Set(
@@ -357,6 +372,7 @@ export function useGoogleCalendarSync({
       ),
     )
     let created = 0
+    let updated = 0
     let skipped = 0
     let failed = 0
     try {
@@ -368,12 +384,43 @@ export function useGoogleCalendarSync({
           }
           const marker = sourceMarker(task.id)
           const legacyMarker = legacySourceMarker(note.path, task.line)
-          const sameNoteLegacyMatch = tasks.some((remoteTask) => {
-            const notes = remoteTask.notes ?? ''
-            return remoteTask.title === task.text && notes.includes(`${SOURCE_MARKER_PREFIX} ${note.path}#L`)
+          const matchingRemote = tasks.find((remoteTask) => {
+            const remoteNotes = remoteTask.notes ?? ''
+            const markerLines = remoteNotes.split('\n')
+            return markerLines.includes(marker)
+              || markerLines.includes(legacyMarker)
+              || (remoteTask.title === task.text && remoteNotes.includes(`${SOURCE_MARKER_PREFIX} ${note.path}#L`))
           })
-          if (existingMarkers.has(marker) || existingMarkers.has(legacyMarker) || sameNoteLegacyMatch) {
-            skipped += 1
+          if (matchingRemote) {
+            const desiredDue = normalizeTaskDue(task.dueDate)
+            const desiredNotes = reconciledTaskNotes(matchingRemote.notes, marker)
+            const needsUpdate =
+              matchingRemote.title !== task.text
+              || taskDueKey(matchingRemote.due) !== taskDueKey(desiredDue)
+              || desiredNotes !== (matchingRemote.notes ?? '')
+            if (!needsUpdate) {
+              existingMarkers.add(marker)
+              skipped += 1
+              continue
+            }
+            try {
+              const reconciled = await googleCalendarUpdateTask({
+                taskListId,
+                taskId: matchingRemote.id,
+                title: task.text,
+                notes: desiredNotes,
+                due: desiredDue,
+              })
+              taskMutationRevisionRef.current += 1
+              setTasks((current) =>
+                current.map((remoteTask) => remoteTask.id === reconciled.id ? reconciled : remoteTask),
+              )
+              existingMarkers.add(marker)
+              updated += 1
+            } catch (caught) {
+              setError(caught instanceof Error ? caught.message : String(caught))
+              failed += 1
+            }
             continue
           }
           const pushed = await pushTask({
@@ -389,11 +436,11 @@ export function useGoogleCalendarSync({
           }
         }
       }
-      return { created, skipped, failed }
+      return { created, updated, skipped, failed }
     } finally {
       vaultSyncRunningRef.current = false
     }
-  }, [enabled, pushTask, status, tasks, vaultNotes])
+  }, [enabled, pushTask, status, taskListId, tasks, vaultNotes])
 
   // The explicit vault setting is the user's opt-in for automatic mirroring.
   // Idempotent source markers make repeated refresh/re-open cycles safe.
