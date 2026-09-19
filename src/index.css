@@ -749,17 +749,19 @@
  * accent colors while these rules provide coherent day/night surfaces. */
 :root[data-appearance='light'] {
   color-scheme: light;
-  --bg: #f5f7fb;
-  --bg-elevated: #ffffff;
-  --dialog-bg: #ffffff;
-  --surface: rgba(255, 255, 255, 0.68);
-  --surface-2: rgba(248, 250, 252, 0.84);
-  --surface-raised: rgba(255, 255, 255, 0.9);
-  --surface-elevated: rgba(255, 255, 255, 0.98);
-  --surface-muted: rgba(241, 245, 249, 0.92);
-  --surface-hover: rgba(15, 23, 42, 0.06);
-  --panel: rgba(255, 255, 255, 0.76);
-  --sidebar: rgba(248, 250, 252, 0.88);
+  /* Keep each palette recognizable in day mode by tinting neutral surfaces with
+   * its accent instead of replacing every palette with one generic light skin. */
+  --bg: color-mix(in oklch, #f5f7fb 95%, var(--primary));
+  --bg-elevated: color-mix(in oklch, #ffffff 97%, var(--primary));
+  --dialog-bg: color-mix(in oklch, #ffffff 97%, var(--primary));
+  --surface: color-mix(in oklch, rgba(255, 255, 255, 0.7) 94%, var(--primary));
+  --surface-2: color-mix(in oklch, rgba(248, 250, 252, 0.86) 94%, var(--primary));
+  --surface-raised: color-mix(in oklch, rgba(255, 255, 255, 0.92) 96%, var(--primary));
+  --surface-elevated: color-mix(in oklch, rgba(255, 255, 255, 0.98) 97%, var(--primary));
+  --surface-muted: color-mix(in oklch, rgba(241, 245, 249, 0.94) 94%, var(--primary));
+  --surface-hover: color-mix(in oklch, rgba(15, 23, 42, 0.06) 93%, var(--primary));
+  --panel: color-mix(in oklch, rgba(255, 255, 255, 0.78) 95%, var(--primary));
+  --sidebar: color-mix(in oklch, rgba(248, 250, 252, 0.9) 95%, var(--primary));
   --selected: color-mix(in srgb, var(--primary) 12%, transparent);
   --border: rgba(100, 116, 139, 0.22);
   --border-strong: color-mix(in srgb, var(--primary) 38%, rgba(100, 116, 139, 0.34));
@@ -779,17 +781,18 @@
 
 :root[data-appearance='dark'] {
   color-scheme: dark;
-  --bg: #060912;
-  --bg-elevated: #0d111b;
-  --dialog-bg: #0d111b;
-  --surface: rgba(13, 17, 27, 0.68);
-  --surface-2: rgba(20, 27, 40, 0.76);
-  --surface-raised: rgba(17, 23, 36, 0.88);
-  --surface-elevated: rgba(21, 28, 43, 0.96);
-  --surface-muted: rgba(31, 41, 55, 0.68);
-  --surface-hover: rgba(255, 255, 255, 0.08);
-  --panel: rgba(13, 17, 27, 0.76);
-  --sidebar: rgba(8, 11, 20, 0.86);
+  /* Night mode is the selected palette's night variant, not a palette swap. */
+  --bg: color-mix(in oklch, #060912 92%, var(--primary));
+  --bg-elevated: color-mix(in oklch, #0d111b 93%, var(--primary));
+  --dialog-bg: color-mix(in oklch, #0d111b 93%, var(--primary));
+  --surface: color-mix(in oklch, rgba(13, 17, 27, 0.7) 93%, var(--primary));
+  --surface-2: color-mix(in oklch, rgba(20, 27, 40, 0.78) 93%, var(--primary));
+  --surface-raised: color-mix(in oklch, rgba(17, 23, 36, 0.9) 94%, var(--primary));
+  --surface-elevated: color-mix(in oklch, rgba(21, 28, 43, 0.97) 95%, var(--primary));
+  --surface-muted: color-mix(in oklch, rgba(31, 41, 55, 0.7) 93%, var(--primary));
+  --surface-hover: color-mix(in oklch, rgba(255, 255, 255, 0.08) 93%, var(--primary));
+  --panel: color-mix(in oklch, rgba(13, 17, 27, 0.78) 93%, var(--primary));
+  --sidebar: color-mix(in oklch, rgba(8, 11, 20, 0.88) 93%, var(--primary));
   --selected: color-mix(in srgb, var(--primary) 16%, transparent);
   --border: rgba(156, 163, 175, 0.16);
   --border-strong: color-mix(in srgb, var(--primary) 42%, rgba(156, 163, 175, 0.22));
