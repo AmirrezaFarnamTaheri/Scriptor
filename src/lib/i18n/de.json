@@ -964,7 +964,8 @@
     "editorFontFamily": "Editor-Schriftart",
     "editorLineHeight": "Editor-Zeilenhöhe",
     "editorPadding": "Editor-Seitenabstand (px)",
-    "previewWidth": "Maximale Breite für Split-/Inspektor-Vorschau (ch)"
+    "previewWidth": "Maximale Breite für Split-/Inspektor-Vorschau (ch)",
+    "managePalettes": "Farbpaletten verwalten"
   },
   "settingsPanel": {
     "tabs": {
