@@ -35,11 +35,15 @@ test.describe('Palette and appearance switching', () => {
     const body = page.locator('body')
     const catppuccinLight = await body.evaluate((element) => getComputedStyle(element).backgroundColor)
 
-    await page.evaluate(() => window.localStorage.setItem('scriptor:app-theme', 'nord'))
-    await page.reload({ waitUntil: 'domcontentloaded' })
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+    await settings.getByRole('combobox', { name: 'Color palette', exact: true }).selectOption('nord')
     await expect(root).toHaveAttribute('data-palette', 'nord')
     const nordLight = await body.evaluate((element) => getComputedStyle(element).backgroundColor)
     expect(nordLight).not.toBe(catppuccinLight)
+    await page.keyboard.press('Escape')
+    await expect(settings).toBeHidden()
 
     await page.getByRole('button', { name: /Switch to dark theme/i }).click()
     await expect(root).toHaveAttribute('data-palette', 'nord')
