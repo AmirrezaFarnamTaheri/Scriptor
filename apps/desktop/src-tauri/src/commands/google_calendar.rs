@@ -51,6 +51,7 @@ const GMAIL_MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
 const GOOGLE_CALENDAR_EVENT_PAGE_SIZE: &str = "250";
 const GOOGLE_CALENDAR_EVENT_MAX_PAGES: usize = 40;
 const GOOGLE_TASK_PAGE_SIZE: &str = "100";
+const GOOGLE_TASK_SYNC_MAX_MUTATIONS: usize = 1000;
 /// Bound provider pagination so a pathological/looping response cannot turn a
 /// refresh into unbounded network work. Crossing the bound fails closed: the
 /// frontend will not treat a partial remote task list as authoritative.
@@ -1770,6 +1771,236 @@ pub fn google_calendar_get_authed_email() -> Result<String, String> {
     Ok(require_tokens(CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?.email)
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleTaskSyncMutation {
+    kind: String,
+    task_id: Option<String>,
+    title: Option<String>,
+    notes: Option<String>,
+    due: Option<String>,
+    status: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleTaskSyncMutationResult {
+    kind: String,
+    success: bool,
+    error: Option<String>,
+}
+
+fn google_task_sync_scope(count: usize) -> String {
+    format!("Sync {count} vault task changes")
+}
+
+fn create_google_task(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    task_list_id: &str,
+    title: String,
+    notes: Option<String>,
+    due: Option<String>,
+) -> Result<GoogleTask, String> {
+    if title.trim().is_empty() {
+        return Err("task title is required".into());
+    }
+    let mut body = serde_json::Map::new();
+    body.insert("title".into(), serde_json::Value::String(title));
+    if let Some(notes) = notes.filter(|value| !value.is_empty()) {
+        body.insert("notes".into(), serde_json::Value::String(notes));
+    }
+    if let Some(due) = due.filter(|value| !value.is_empty()) {
+        body.insert("due".into(), serde_json::Value::String(due));
+    }
+
+    let url = format!("{TASKS_ENDPOINT}/{}/tasks", percent_encode(task_list_id));
+    let response = client
+        .post(url)
+        .bearer_auth(access_token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .map_err(|error| format!("failed to create Google Task: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to create Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    let task = response
+        .json::<GTask>()
+        .map_err(|error| format!("Google returned an invalid task response: {error}"))?;
+    Ok(map_task(task))
+}
+
+fn update_google_task(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    task_list_id: &str,
+    task_id: String,
+    title: String,
+    notes: String,
+    due: Option<String>,
+    status: Option<String>,
+) -> Result<GoogleTask, String> {
+    if task_id.trim().is_empty() {
+        return Err("task id is required".into());
+    }
+    if title.trim().is_empty() {
+        return Err("task title is required".into());
+    }
+    if let Some(value) = status.as_deref()
+        && value != "needsAction"
+        && value != "completed"
+    {
+        return Err("task status must be needsAction or completed".into());
+    }
+
+    let url = format!(
+        "{TASKS_ENDPOINT}/{}/tasks/{}",
+        percent_encode(task_list_id),
+        percent_encode(&task_id)
+    );
+    let mut body = serde_json::Map::new();
+    body.insert("title".into(), serde_json::Value::String(title));
+    body.insert("notes".into(), serde_json::Value::String(notes));
+    body.insert(
+        "due".into(),
+        due.filter(|value| !value.is_empty())
+            .map(serde_json::Value::String)
+            .unwrap_or(serde_json::Value::Null),
+    );
+    if let Some(status) = status {
+        body.insert("status".into(), serde_json::Value::String(status));
+    }
+    let response = client
+        .patch(url)
+        .bearer_auth(access_token)
+        .json(&serde_json::Value::Object(body))
+        .send()
+        .map_err(|error| format!("failed to update Google Task: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to update Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    let task = response
+        .json::<GTask>()
+        .map_err(|error| format!("Google returned an invalid updated task response: {error}"))?;
+    Ok(map_task(task))
+}
+
+fn complete_google_task(
+    client: &reqwest::blocking::Client,
+    access_token: &str,
+    task_list_id: &str,
+    task_id: String,
+) -> Result<(), String> {
+    if task_id.trim().is_empty() {
+        return Err("task id is required".into());
+    }
+    let url = format!(
+        "{TASKS_ENDPOINT}/{}/tasks/{}",
+        percent_encode(task_list_id),
+        percent_encode(&task_id)
+    );
+    let response = client
+        .patch(url)
+        .bearer_auth(access_token)
+        .json(&serde_json::json!({ "status": "completed" }))
+        .send()
+        .map_err(|error| format!("failed to complete Google Task: {error}"))?;
+    if !response.status().is_success() {
+        let status = response.status();
+        return Err(format!(
+            "failed to complete Google Task ({status}): {}",
+            bounded_error_body(response)
+        ));
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn google_calendar_apply_task_sync(
+    state: tauri::State<AppState>,
+    task_list_id: String,
+    mutations: Vec<GoogleTaskSyncMutation>,
+    authorization_token: String,
+) -> Result<Vec<GoogleTaskSyncMutationResult>, String> {
+    validate_task_list_id(&task_list_id)?;
+    if mutations.is_empty() {
+        return Ok(Vec::new());
+    }
+    if mutations.len() > GOOGLE_TASK_SYNC_MAX_MUTATIONS {
+        return Err(format!(
+            "Google Task sync exceeds the supported {}-mutation bound",
+            GOOGLE_TASK_SYNC_MAX_MUTATIONS
+        ));
+    }
+    let scope = google_task_sync_scope(mutations.len());
+    require_sensitive_operation(
+        &state,
+        &authorization_token,
+        SensitiveOperation::GoogleTaskWrite,
+        Some(&scope),
+        None,
+    )?;
+
+    let client = http_client()?;
+    let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
+    let mut results = Vec::with_capacity(mutations.len());
+
+    for mutation in mutations {
+        let kind = mutation.kind;
+        let outcome = match kind.as_str() {
+            "create" => create_google_task(
+                &client,
+                &access_token,
+                &task_list_id,
+                mutation.title.unwrap_or_default(),
+                mutation.notes,
+                mutation.due,
+            )
+            .map(|_| ()),
+            "update" => update_google_task(
+                &client,
+                &access_token,
+                &task_list_id,
+                mutation.task_id.unwrap_or_default(),
+                mutation.title.unwrap_or_default(),
+                mutation.notes.unwrap_or_default(),
+                mutation.due,
+                mutation.status,
+            )
+            .map(|_| ()),
+            "complete" => complete_google_task(
+                &client,
+                &access_token,
+                &task_list_id,
+                mutation.task_id.unwrap_or_default(),
+            ),
+            _ => Err(format!("unsupported Google Task sync mutation kind: {kind}")),
+        };
+        match outcome {
+            Ok(()) => results.push(GoogleTaskSyncMutationResult {
+                kind,
+                success: true,
+                error: None,
+            }),
+            Err(error) => results.push(GoogleTaskSyncMutationResult {
+                kind,
+                success: false,
+                error: Some(error),
+            }),
+        }
+    }
+
+    Ok(results)
+}
+
 #[tauri::command]
 pub fn google_calendar_create_task(
     state: tauri::State<AppState>,
@@ -1787,40 +2018,9 @@ pub fn google_calendar_create_task(
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
-    if title.trim().is_empty() {
-        return Err("task title is required".into());
-    }
-
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
-
-    let mut body = serde_json::Map::new();
-    body.insert("title".into(), serde_json::Value::String(title));
-    if let Some(notes) = notes.filter(|value| !value.is_empty()) {
-        body.insert("notes".into(), serde_json::Value::String(notes));
-    }
-    if let Some(due) = due.filter(|value| !value.is_empty()) {
-        body.insert("due".into(), serde_json::Value::String(due));
-    }
-
-    let url = format!("{TASKS_ENDPOINT}/{}/tasks", percent_encode(&task_list_id));
-    let response = client
-        .post(url)
-        .bearer_auth(&access_token)
-        .json(&serde_json::Value::Object(body))
-        .send()
-        .map_err(|error| format!("failed to create Google Task: {error}"))?;
-    if !response.status().is_success() {
-        let status = response.status();
-        return Err(format!(
-            "failed to create Google Task ({status}): {}",
-            bounded_error_body(response)
-        ));
-    }
-    let task = response
-        .json::<GTask>()
-        .map_err(|error| format!("Google returned an invalid task response: {error}"))?;
-    Ok(map_task(task))
+    create_google_task(&client, &access_token, &task_list_id, title, notes, due)
 }
 
 #[tauri::command]
@@ -1842,55 +2042,18 @@ pub fn google_calendar_update_task(
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
-    if task_id.trim().is_empty() {
-        return Err("task id is required".into());
-    }
-    if title.trim().is_empty() {
-        return Err("task title is required".into());
-    }
-    if let Some(value) = status.as_deref()
-        && value != "needsAction"
-        && value != "completed"
-    {
-        return Err("task status must be needsAction or completed".into());
-    }
-
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
-    let url = format!(
-        "{TASKS_ENDPOINT}/{}/tasks/{}",
-        percent_encode(&task_list_id),
-        percent_encode(&task_id)
-    );
-    let mut body = serde_json::Map::new();
-    body.insert("title".into(), serde_json::Value::String(title));
-    body.insert("notes".into(), serde_json::Value::String(notes));
-    body.insert(
-        "due".into(),
-        due.filter(|value| !value.is_empty())
-            .map(serde_json::Value::String)
-            .unwrap_or(serde_json::Value::Null),
-    );
-    if let Some(status) = status {
-        body.insert("status".into(), serde_json::Value::String(status));
-    }
-    let response = client
-        .patch(url)
-        .bearer_auth(&access_token)
-        .json(&serde_json::Value::Object(body))
-        .send()
-        .map_err(|error| format!("failed to update Google Task: {error}"))?;
-    if !response.status().is_success() {
-        let status = response.status();
-        return Err(format!(
-            "failed to update Google Task ({status}): {}",
-            bounded_error_body(response)
-        ));
-    }
-    let task = response
-        .json::<GTask>()
-        .map_err(|error| format!("Google returned an invalid updated task response: {error}"))?;
-    Ok(map_task(task))
+    update_google_task(
+        &client,
+        &access_token,
+        &task_list_id,
+        task_id,
+        title,
+        notes,
+        due,
+        status,
+    )
 }
 
 #[tauri::command]
@@ -1908,31 +2071,9 @@ pub fn google_calendar_complete_task(
         None,
     )?;
     validate_task_list_id(&task_list_id)?;
-    if task_id.trim().is_empty() {
-        return Err("task id is required".into());
-    }
     let client = http_client()?;
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
-
-    let url = format!(
-        "{TASKS_ENDPOINT}/{}/tasks/{}",
-        percent_encode(&task_list_id),
-        percent_encode(&task_id)
-    );
-    let response = client
-        .patch(url)
-        .bearer_auth(&access_token)
-        .json(&serde_json::json!({ "status": "completed" }))
-        .send()
-        .map_err(|error| format!("failed to complete Google Task: {error}"))?;
-    if !response.status().is_success() {
-        let status = response.status();
-        return Err(format!(
-            "failed to complete Google Task ({status}): {}",
-            bounded_error_body(response)
-        ));
-    }
-    Ok(())
+    complete_google_task(&client, &access_token, &task_list_id, task_id)
 }
 
 #[tauri::command]
