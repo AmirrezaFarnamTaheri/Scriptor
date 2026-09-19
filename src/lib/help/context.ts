@@ -34,6 +34,36 @@ export function isVisibleHelpTarget(element: Element): element is HTMLElement {
   return element.getClientRects().length > 0 && style.display !== 'none' && style.visibility !== 'hidden'
 }
 
+/** Invitations belong to the active modal or companion, never its background. */
+export function activeHelpScope(): HTMLElement | null {
+  const modals = Array.from(document.querySelectorAll<HTMLElement>('dialog[open], [role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"]')).filter(isVisibleHelpTarget)
+  const reverseOrder = [...modals].reverse()
+  const native = reverseOrder.find((element) => element.matches('dialog:modal'))
+  if (native) return native
+  const focused = reverseOrder.find((element) => element.contains(document.activeElement))
+  if (focused) return focused
+  const layer = (element: HTMLElement) => {
+    let level = 0
+    for (let parent: HTMLElement | null = element; parent; parent = parent.parentElement) {
+      const z = Number.parseInt(getComputedStyle(parent).zIndex, 10)
+      if (Number.isFinite(z)) level = Math.max(level, z)
+    }
+    return level
+  }
+  const modal = modals.sort((a, b) => layer(a) - layer(b)).at(-1)
+  if (modal) return modal
+  const dock = Array.from(document.querySelectorAll<HTMLElement>('.unified-panel-docked')).filter(isVisibleHelpTarget).at(-1)
+  if (dock) return dock
+  const focusedOwner = document.activeElement?.closest<HTMLElement>('[data-help-topic]')
+  return focusedOwner && isVisibleHelpTarget(focusedOwner) ? focusedOwner : null
+}
+
+export function canOfferHelpInvitation(root: HTMLElement, host: HTMLElement, scope = activeHelpScope()): boolean {
+  if (!scope || document.hidden || !isVisibleHelpTarget(root) || !isVisibleHelpTarget(host) || !scope.contains(root)) return false
+  const rect = host.getBoundingClientRect()
+  return rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth
+}
+
 /** Prefer a typed widget owner, then the deepest concrete panel; never inspect note content. */
 export function contextGuide(element: Element | null): HelpGuide {
   const explicit = element?.closest<HTMLElement>('[data-help-topic]')?.dataset.helpTopic
@@ -51,7 +81,10 @@ export function contextGuide(element: Element | null): HelpGuide {
 
 /** Source-owned selectors only. Missing targets never trigger commands or hidden navigation. */
 export function findGuideTarget(guide: HelpGuide, selector?: string): HTMLElement | null {
-  const roots = rootsForGuide(guide).flatMap((root) => Array.from(document.querySelectorAll(root))).filter(isVisibleHelpTarget)
+  // The overview button belongs to the top bar, but its tour covers the whole
+  // workspace. Placement roots must not constrain overview highlight targets.
+  const selectors = guide.id === 'workspace' ? ['main[aria-label="Scriptor workspace"]', ...guide.roots] : rootsForGuide(guide)
+  const roots = selectors.flatMap((root) => Array.from(document.querySelectorAll(root))).filter(isVisibleHelpTarget)
   if (selector) {
     for (const root of roots) {
       if (root.matches(selector)) return root

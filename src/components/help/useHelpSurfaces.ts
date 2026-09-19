@@ -1,9 +1,16 @@
 import { useEffect, useState } from 'react'
 import { HELP_GUIDES, HELP_BY_ID } from '../../lib/help/catalog'
-import { rootsForGuide, isVisibleHelpTarget } from '../../lib/help/context'
+import { activeHelpScope, canOfferHelpInvitation, rootsForGuide, isVisibleHelpTarget } from '../../lib/help/context'
 import type { HelpGuide } from '../../lib/help/types'
 
-export interface HelpSurface { key: number; guide: HelpGuide; root: HTMLElement; host: HTMLElement }
+export interface HelpSurface {
+  key: number
+  guide: HelpGuide
+  root: HTMLElement
+  host: HTMLElement
+  canInvite: boolean
+  primary: boolean
+}
 const HEADER_SELECTORS = [
   ':scope > .unified-panel-header .unified-panel-header-actions',
   ':scope > .unified-panel-header', ':scope > .graph-header', ':scope > .canvas-header',
@@ -13,6 +20,8 @@ const HEADER_SELECTORS = [
 
 function findHost(root: HTMLElement): HTMLElement | null {
   if (root.matches('header.topbar')) return root.querySelector('.top-actions')
+  // Join an existing command group rather than adding a differently sized row
+  // item beside the view, formatting, and document-action groups.
   if (root.matches('.editor-toolbar')) return root.querySelector<HTMLElement>('.inline-editor-assist, .editor-primary-formatting') ?? root
   if (root.matches('.editor-panel')) return null // The toolbar has its own, more precise owner.
   if (root.matches('.inspector-panel')) return root.querySelector('.inspector-preset-control')
@@ -37,13 +46,14 @@ export function useHelpSurfaces(): HelpSurface[] {
       if (disposed) return
       const next: HelpSurface[] = []
       const hosts = new Set<HTMLElement>()
+      const scope = activeHelpScope()
       const add = (guide: HelpGuide, root: Element) => {
         if (!isVisibleHelpTarget(root) || root.closest('.onboarding-tour')) return
         const host = findHost(root)
         if (!host || hosts.has(host) || !isVisibleHelpTarget(host)) return
         hosts.add(host)
         if (!keys.has(root)) keys.set(root, ++nextKey)
-        next.push({ key: keys.get(root)!, guide, root, host })
+        next.push({ key: keys.get(root)!, guide, root, host, canInvite: canOfferHelpInvitation(root, host, scope), primary: root === scope })
       }
       document.querySelectorAll<HTMLElement>('[data-help-topic]').forEach((root) => {
         const guide = HELP_BY_ID.get(root.dataset.helpTopic ?? '')
@@ -54,15 +64,17 @@ export function useHelpSurfaces(): HelpSurface[] {
         for (const selector of rootsForGuide(guide)) document.querySelectorAll(selector).forEach((root) => add(guide, root))
       }
       const bounded = next.slice(0, 100)
-      setSurfaces((old) => old.length === bounded.length && old.every((item, index) => item.root === bounded[index]?.root && item.host === bounded[index]?.host && item.guide.id === bounded[index]?.guide.id) ? old : bounded)
+      setSurfaces((old) => old.length === bounded.length && old.every((item, index) => item.root === bounded[index]?.root && item.host === bounded[index]?.host && item.guide.id === bounded[index]?.guide.id && item.canInvite === bounded[index]?.canInvite && item.primary === bounded[index]?.primary) ? old : bounded)
     }
     const schedule = () => { if (timer === undefined && !disposed) timer = window.setTimeout(scan, 100) }
     const observer = new MutationObserver((records) => {
       if (records.some((record) => !(record.target instanceof Element) || !record.target.closest('.help-ui'))) schedule()
     })
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'aria-selected', 'open', 'data-help-topic'] })
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden', 'aria-selected', 'aria-modal', 'open', 'data-help-topic'] })
     window.addEventListener('resize', schedule)
     document.addEventListener('focusin', schedule)
+    document.addEventListener('scroll', schedule, true)
+    document.addEventListener('visibilitychange', schedule)
     schedule()
     return () => {
       disposed = true
@@ -70,6 +82,8 @@ export function useHelpSurfaces(): HelpSurface[] {
       observer.disconnect()
       window.removeEventListener('resize', schedule)
       document.removeEventListener('focusin', schedule)
+      document.removeEventListener('scroll', schedule, true)
+      document.removeEventListener('visibilitychange', schedule)
     }
   }, [])
   return surfaces
