@@ -560,7 +560,9 @@ fn stable_task_id(
     title_identity: &str,
     occurrence: usize,
 ) -> String {
-    let ns = uuid::Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap();
+    // UUID namespace for stable task IDs, encoded directly so this hot path
+    // cannot panic on parsing a programmer-authored constant.
+    let ns = Uuid::from_u128(0x6ba7b810_9dad_11d1_80b4_00c04fd430c8);
     let key = format!("{vault_id}:{note_id}:{title_identity}:{occurrence}");
     Uuid::new_v5(&ns, key.as_bytes()).to_string()
 }
