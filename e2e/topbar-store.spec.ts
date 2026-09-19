@@ -39,6 +39,16 @@ test.describe('top bar customization and support', () => {
     await launchApp(page)
     await settleLayout(page)
 
+    // Support is intentionally off the default writing chrome. Pin it through
+    // the top-bar customizer before verifying the semantic heart treatment.
+    const customize = page.getByRole('button', { name: 'Customize top bar actions' })
+    await customize.click()
+    const popup = page.getByRole('dialog', { name: 'Customize top bar actions' })
+    const supportToggle = popup.getByRole('checkbox', { name: 'Support Scriptor' })
+    await expect(supportToggle).not.toBeChecked()
+    await supportToggle.check()
+    await page.keyboard.press('Escape')
+
     const supportButton = page.getByRole('button', { name: 'Support Scriptor' }).first()
     await expect(supportButton).toHaveClass(/support-heart-action/)
     await expect(supportButton.locator('svg')).toHaveAttribute('fill', 'currentColor')
