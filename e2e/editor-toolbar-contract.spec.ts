@@ -34,16 +34,19 @@ async function expectSingleToolbarRow(page: Page) {
       const rect = child.getBoundingClientRect()
       return rect.width > 0 && rect.height > 0
     })
-    const tops = children.map((child) => Math.round(child.getBoundingClientRect().top))
+    const centers = children.map((child) => {
+      const rect = child.getBoundingClientRect()
+      return Math.round((rect.top + rect.bottom) / 2)
+    })
     return {
       toolbarHeight: Math.round(toolbarRect.height),
-      distinctRows: new Set(tops).size,
+      centerSpread: centers.length > 0 ? Math.max(...centers) - Math.min(...centers) : 0,
       scrollWidth: element.scrollWidth,
       clientWidth: element.clientWidth,
     }
   })
 
-  expect(geometry.distinctRows).toBe(1)
+  expect(geometry.centerSpread).toBeLessThanOrEqual(1)
   expect(geometry.toolbarHeight).toBeLessThanOrEqual(56)
   expect(geometry.scrollWidth).toBeGreaterThanOrEqual(geometry.clientWidth)
 }
