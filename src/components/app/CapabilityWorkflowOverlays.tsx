@@ -10,7 +10,7 @@ interface CapabilityWorkflowOverlaysProps {
   templatePickerOpen: boolean
   obsidianImportOpen: boolean
   pluginManagerOpen: boolean
-  pluginManagerInitialTab: 'palettes' | 'plugins'
+  pluginManagerScope: 'palettes' | 'plugins'
   templates: TemplateDefinition[]
   onCloseTemplatePicker: () => void
   onCloseObsidianImport: () => void
@@ -29,11 +29,19 @@ export function CapabilityWorkflowOverlays(props: CapabilityWorkflowOverlaysProp
   return (
     <>
       {props.pluginManagerOpen ? (
-        <ErrorBoundary name="built-in-modules-and-palettes" fallback={<PanelErrorFallback title="Built-in modules and color palettes" onDismiss={props.onClosePluginManager} />}>
+        <ErrorBoundary
+          name={props.pluginManagerScope === 'palettes' ? 'color-palettes' : 'built-in-modules'}
+          fallback={
+            <PanelErrorFallback
+              title={props.pluginManagerScope === 'palettes' ? 'Color palettes' : 'Built-in modules'}
+              onDismiss={props.onClosePluginManager}
+            />
+          }
+        >
           <Suspense fallback={<PanelFallback />}>
             <PluginManagerCenter
               isOpen
-              initialTab={props.pluginManagerInitialTab}
+              scope={props.pluginManagerScope}
               onClose={props.onClosePluginManager}
               currentTheme={props.theme}
               appearance={props.appearance}
