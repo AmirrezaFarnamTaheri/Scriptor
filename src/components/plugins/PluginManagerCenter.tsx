@@ -142,9 +142,9 @@ export function PluginManagerCenter({
 
   const handleTogglePlugin = (id: string, enable: boolean) => {
     if (enable) {
-      enablePlugin(id)
+      void enablePlugin(id)
     } else {
-      disablePlugin(id)
+      void disablePlugin(id)
     }
   }
 
