@@ -753,6 +753,15 @@
     "applyProfileAria": "اعمال پروفایل افزونه {{profile}}",
     "applyProfileMessage": "پروفایل {{profile}} اعمال شود؟ {{enable}} ماژول فعال و {{disable}} ماژول غیرفعال می‌شود.",
     "applyProfile": "اعمال پروفایل",
+    "profiles": {
+      "focused": "متمرکز",
+      "minimal": "حداقلی",
+      "writer": "نویسنده",
+      "scientific": "علمی",
+      "researcher": "پژوهشگر",
+      "developer": "توسعه‌دهنده",
+      "complete": "کامل"
+    },
     "categories": {
       "all": "همه",
       "dark": "تیره",
