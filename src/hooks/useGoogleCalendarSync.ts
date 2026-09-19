@@ -150,6 +150,12 @@ function reconciledTaskNotes(remoteNotes: string | null, marker: string): string
   return [...preserved, marker].join('\n')
 }
 
+function hasScriptorSourceMarker(task: GoogleTask): boolean {
+  return (task.notes ?? '')
+    .split('\n')
+    .some((line) => line.startsWith(SOURCE_MARKER_PREFIX))
+}
+
 /** Coordinates Google authorization, refresh, task mutations, and vault-task mirroring. */
 export function useGoogleCalendarSync({
   config,
@@ -365,46 +371,87 @@ export function useGoogleCalendarSync({
     if (!enabled || status === 'disconnected' || status === 'authorizing' || vaultSyncRunningRef.current) {
       return { created: 0, updated: 0, skipped: 0, failed: 0 }
     }
+
     vaultSyncRunningRef.current = true
-    const existingMarkers = new Set(
-      tasks.flatMap((task) =>
-        (task.notes ?? '')
-          .split('\n')
-          .filter((line) => line.startsWith(SOURCE_MARKER_PREFIX)),
-      ),
-    )
+    const matchedRemoteIds = new Set<string>()
     let created = 0
     let updated = 0
     let skipped = 0
     let failed = 0
+
+    const completeRemote = async (remoteTask: GoogleTask) => {
+      if (remoteTask.status === 'completed') {
+        skipped += 1
+        return
+      }
+      try {
+        await googleCalendarCompleteTask(taskListId, remoteTask.id)
+        taskMutationRevisionRef.current += 1
+        setTasks((current) =>
+          current.map((candidate) =>
+            candidate.id === remoteTask.id
+              ? { ...candidate, status: 'completed' as const, completed: new Date().toISOString() }
+              : candidate,
+          ),
+        )
+        updated += 1
+      } catch (caught) {
+        setError(googleAuthErrorMessage(caught))
+        failed += 1
+      }
+    }
+
     try {
       for (const note of vaultNotes) {
         for (const task of note.tasks) {
-          if (task.checked) {
-            skipped += 1
-            continue
-          }
           const marker = sourceMarker(task.id)
           const legacyMarker = legacySourceMarker(note.path, task.line)
-          const matchingRemote = tasks.find((remoteTask) => {
-            const remoteNotes = remoteTask.notes ?? ''
-            const markerLines = remoteNotes.split('\n')
-            return markerLines.includes(marker)
-              || markerLines.includes(legacyMarker)
-              || (remoteTask.title === task.text && remoteNotes.includes(`${SOURCE_MARKER_PREFIX} ${note.path}#L`))
+
+          let matchingRemote = tasks.find((remoteTask) => {
+            if (matchedRemoteIds.has(remoteTask.id)) return false
+            const markerLines = (remoteTask.notes ?? '').split('\n')
+            return markerLines.includes(marker) || markerLines.includes(legacyMarker)
           })
+
+          // A note move can legitimately change the native task id because the
+          // note id participates in indexing identity. Rebind a single
+          // unambiguous Scriptor-authored task with the same title instead of
+          // creating a second open Google task. Duplicate titles stay
+          // conservative and do not guess.
+          if (!matchingRemote) {
+            const titleMatches = tasks.filter((remoteTask) =>
+              !matchedRemoteIds.has(remoteTask.id)
+              && remoteTask.title === task.text
+              && hasScriptorSourceMarker(remoteTask),
+            )
+            if (titleMatches.length === 1) matchingRemote = titleMatches[0]
+          }
+
+          if (task.checked) {
+            if (matchingRemote) {
+              matchedRemoteIds.add(matchingRemote.id)
+              await completeRemote(matchingRemote)
+            } else {
+              skipped += 1
+            }
+            continue
+          }
+
           if (matchingRemote) {
+            matchedRemoteIds.add(matchingRemote.id)
             const desiredDue = normalizeTaskDue(task.dueDate)
             const desiredNotes = reconciledTaskNotes(matchingRemote.notes, marker)
             const needsUpdate =
-              matchingRemote.title !== task.text
+              matchingRemote.status === 'completed'
+              || matchingRemote.title !== task.text
               || taskDueKey(matchingRemote.due) !== taskDueKey(desiredDue)
               || desiredNotes !== (matchingRemote.notes ?? '')
+
             if (!needsUpdate) {
-              existingMarkers.add(marker)
               skipped += 1
               continue
             }
+
             try {
               const reconciled = await googleCalendarUpdateTask({
                 taskListId,
@@ -417,7 +464,6 @@ export function useGoogleCalendarSync({
               setTasks((current) =>
                 current.map((remoteTask) => remoteTask.id === reconciled.id ? reconciled : remoteTask),
               )
-              existingMarkers.add(marker)
               updated += 1
             } catch (caught) {
               setError(googleAuthErrorMessage(caught))
@@ -425,19 +471,37 @@ export function useGoogleCalendarSync({
             }
             continue
           }
+
           const pushed = await pushTask({
             title: task.text,
             notes: marker,
             due: normalizeTaskDue(task.dueDate),
           })
           if (pushed) {
-            existingMarkers.add(marker)
+            matchedRemoteIds.add(pushed.id)
             created += 1
           } else {
             failed += 1
           }
         }
       }
+
+      // This hook receives the complete indexed task set. Any still-open remote
+      // task carrying a Scriptor marker but not matched above represents a local
+      // task that was removed. Completing rather than deleting preserves Google
+      // history while keeping the "mirror open vault tasks" contract true.
+      for (const remoteTask of tasks) {
+        if (
+          matchedRemoteIds.has(remoteTask.id)
+          || remoteTask.status === 'completed'
+          || !hasScriptorSourceMarker(remoteTask)
+        ) {
+          continue
+        }
+        matchedRemoteIds.add(remoteTask.id)
+        await completeRemote(remoteTask)
+      }
+
       return { created, updated, skipped, failed }
     } finally {
       vaultSyncRunningRef.current = false
