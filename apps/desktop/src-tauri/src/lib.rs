@@ -278,6 +278,7 @@ pub fn run() {
             google_calendar_list_events,
             google_calendar_list_tasks,
             google_calendar_get_authed_email,
+            google_calendar_apply_task_sync,
             google_calendar_create_task,
             google_calendar_update_task,
             google_calendar_complete_task,
