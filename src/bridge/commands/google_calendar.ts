@@ -105,6 +105,7 @@ export async function googleCalendarUpdateTask(args: {
   title: string
   notes: string
   due?: string | null
+  status?: 'needsAction' | 'completed'
 }): Promise<GoogleTask> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_task_write', 'google-task')
@@ -114,6 +115,7 @@ export async function googleCalendarUpdateTask(args: {
     title: args.title,
     notes: args.notes,
     due: args.due ?? null,
+    status: args.status ?? null,
     authorizationToken,
   })
 }
