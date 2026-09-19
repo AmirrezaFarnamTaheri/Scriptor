@@ -2,6 +2,7 @@ import { memo, type Dispatch, type SetStateAction } from 'react'
 
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import type { VaultConfig } from '../types/vault'
+import { useI18n } from '../lib/i18n'
 
 interface VaultConfigSettingsSectionProps {
   config: VaultConfig
@@ -17,12 +18,13 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
   setConfig,
   dailyNotePreview,
 }: VaultConfigSettingsSectionProps) {
+  const { t } = useI18n()
   return (
     <div className="settings-section">
-      <h3>Vault config</h3>
-      <p className="health-subtitle">Stored in `.scriptor/config.json` (Foam-compatible daily note paths).</p>
+      <h3>{t('settings.vaultConfig')}</h3>
+      <p className="health-subtitle">{t('settings.vaultConfigStored')}</p>
       <label className="settings-field">
-        Daily note directory
+        {t('settings.dailyNoteDirectory')}
         <input
           value={config.daily_note.directory}
           onChange={(event) =>
@@ -34,7 +36,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
       </label>
       <label className="settings-field">
-        Filename format
+        {t('settings.filenameFormat')}
         <input
           value={config.daily_note.filename_format}
           onChange={(event) =>
@@ -46,7 +48,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
       </label>
       <label className="settings-field">
-        Title format
+        {t('settings.titleFormat')}
         <input
           value={config.daily_note.title_format}
           onChange={(event) =>
@@ -58,10 +60,10 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
       </label>
       <p className="settings-preview" role="status">
-        Today&apos;s daily note: <code>{dailyNotePreview.path}</code> — title <code>{dailyNotePreview.title}</code>
+        {t('settings.dailyNotePreview', { path: dailyNotePreview.path, title: dailyNotePreview.title })}
       </p>
       <label className="settings-field">
-        Daily template path (optional)
+        {t('settings.dailyTemplatePath')}
         <input
           value={config.daily_note.template_path ?? ''}
           placeholder=".scriptor/templates/daily.md"
@@ -77,7 +79,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
       </label>
       <label className="settings-field">
-        Templates directory
+        {t('settings.templatesDirectory')}
         <input
           value={config.templates_directory}
           onChange={(event) =>
@@ -85,7 +87,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
           }
         />
       </label>
-      <h4 className="settings-subheading">Inbox workflow</h4>
+      <h4 className="settings-subheading">{t('settings.inboxWorkflow')}</h4>
       <label className="settings-checkbox">
         <input
           type="checkbox"
@@ -97,10 +99,10 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
             }))
           }
         />
-        Enable inbox triage (`_organized` frontmatter)
+        {t('settings.enableInboxTriage')}
       </label>
       <label className="settings-field">
-        Inbox period
+        {t('settings.inboxPeriod')}
         <select
           value={config.inbox?.period ?? 'all'}
           onChange={(event) =>
@@ -114,14 +116,14 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
             }))
           }
         >
-          <option value="all">All time</option>
-          <option value="week">Past week</option>
-          <option value="month">Past month</option>
-          <option value="quarter">Past quarter</option>
+          <option value="all">{t('settings.inboxPeriods.all')}</option>
+          <option value="week">{t('settings.inboxPeriods.week')}</option>
+          <option value="month">{t('settings.inboxPeriods.month')}</option>
+          <option value="quarter">{t('settings.inboxPeriods.quarter')}</option>
         </select>
       </label>
       <label className="settings-field">
-        New note directory (optional)
+        {t('settings.newNoteDirectory')}
         <input
           value={config.inbox?.new_note_directory ?? ''}
           placeholder="inbox"
@@ -152,10 +154,10 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
             }))
           }
         />
-        Auto-advance to next inbox note after organize
+        {t('settings.autoAdvance')}
       </label>
       <label className="settings-field">
-        Note types directory
+        {t('settings.noteTypesDirectory')}
         <input
           value={config.note_types?.directory ?? 'type'}
           onChange={(event) =>
@@ -166,10 +168,10 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
           }
         />
       </label>
-      <h4 className="settings-subheading">Export defaults</h4>
-      <p className="health-subtitle">Bibliography and CSL paths used by HTML, PDF, and DOCX profiles.</p>
+      <h4 className="settings-subheading">{t('settings.exportDefaults')}</h4>
+      <p className="health-subtitle">{t('settings.exportDefaultsDescription')}</p>
       <label className="settings-field">
-        Bibliography path
+        {t('settings.bibliographyPath')}
         <input
           value={config.export.bibliography_path}
           onChange={(event) =>
@@ -181,7 +183,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
       </label>
       <label className="settings-field">
-        CSL style path
+        {t('settings.cslStylePath')}
         <input
           value={config.export.csl_style_path}
           onChange={(event) =>
@@ -209,10 +211,10 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
             }))
           }
         />
-        <span>Export on save (uses profile below)</span>
+        <span>{t('settings.exportOnSave')}</span>
       </label>
       <label className="settings-field">
-        Export-on-save profile id
+        {t('settings.exportOnSaveProfile')}
         <input
           value={config.export.export_on_save?.profile_id ?? ''}
           placeholder="html"
@@ -230,9 +232,9 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
           }
         />
       </label>
-      <h4 className="settings-subheading">Writing targets</h4>
+      <h4 className="settings-subheading">{t('settings.writingTargets')}</h4>
       <label className="settings-field">
-        Daily word target
+        {t('settings.dailyWordTarget')}
         <input
           type="number"
           min={0}
@@ -251,7 +253,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
         />
       </label>
       <label className="settings-field">
-        Stats history path
+        {t('settings.statsHistoryPath')}
         <input
           value={config.writing_targets?.history_path ?? '.scriptor/stats-history.json'}
           onChange={(event) =>
@@ -265,12 +267,12 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
           }
         />
       </label>
-      <h4 className="settings-subheading">Graph groups</h4>
-      <p className="health-subtitle">Tag prefix → node color (one rule per line: prefix,color).</p>
+      <h4 className="settings-subheading">{t('settings.graphGroups')}</h4>
+      <p className="health-subtitle">{t('settings.graphGroupsDescription')}</p>
       <textarea
         className="settings-textarea"
         rows={4}
-        aria-label="Graph groups rules (one tag prefix,color pair per line)"
+        aria-label={t('settings.graphGroups')}
         value={(config.graph_groups ?? []).map((group) => `${group.tag_prefix},${group.color}`).join('\n')}
         onChange={(event) => {
           const graph_groups = event.target.value
@@ -285,7 +287,7 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
           setConfig((current) => ({ ...current, graph_groups }))
         }}
       />
-      <h4 className="settings-subheading">Canvas collaboration</h4>
+      <h4 className="settings-subheading">{t('settings.canvasCollaboration')}</h4>
       <label className="diagnostics-opt-in">
         <input
           type="checkbox"
@@ -297,14 +299,14 @@ export const VaultConfigSettingsSection = memo(function VaultConfigSettingsSecti
             }))
           }
         />
-        <span>Enable CRDT canvas sync (localStorage op log with cross-tab merge)</span>
+        <span>{t('settings.enableCrdtSync')}</span>
       </label>
-      <h4 className="settings-subheading">Extra scan roots</h4>
-      <p className="health-subtitle">Additional folders under the vault root to include in scans (one per line).</p>
+      <h4 className="settings-subheading">{t('settings.extraScanRoots')}</h4>
+      <p className="health-subtitle">{t('settings.extraScanRootsDescription')}</p>
       <textarea
         className="settings-textarea"
         rows={3}
-        aria-label="Extra scan roots (one folder path per line)"
+        aria-label={t('settings.extraScanRoots')}
         value={(config.extra_roots ?? []).join('\n')}
         onChange={(event) =>
           setConfig((current) => ({
