@@ -168,7 +168,7 @@ export function PluginManagerCenter({
         className="plugin-manager-overlay"
         role="dialog"
         aria-modal="true"
-        aria-label={t('pluginManager.ariaLabel')}
+        aria-label={scope === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
       >
         <div className="plugin-manager-modal">
           <div className="plugin-manager-header">
