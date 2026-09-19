@@ -1071,9 +1071,7 @@ pub fn google_gmail_start_auth(
 }
 
 #[tauri::command]
-pub fn google_gmail_get_authed_email(
-    state: tauri::State<AppState>,
-) -> Result<String, String> {
+pub fn google_gmail_get_authed_email(state: tauri::State<AppState>) -> Result<String, String> {
     require_gmail_capability(&state)?;
     Ok(require_tokens(GMAIL_TOKEN_KEYCHAIN_ACCOUNT)?.email)
 }
