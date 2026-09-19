@@ -106,7 +106,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
 
   return (
     <div className="command-palette-overlay" role="dialog" aria-modal="true" aria-label={t('commandPalette.ariaLabel')}>
-      <div className="command-palette" ref={containerRef}>
+      <div className="command-palette" ref={containerRef} data-help-topic="commands">
         <div className="command-palette-header">
           <Search className="command-palette-search-icon" aria-hidden="true" />
           <input
