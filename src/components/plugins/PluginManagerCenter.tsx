@@ -170,7 +170,7 @@ export function PluginManagerCenter({
         aria-modal="true"
         aria-label={scope === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
       >
-        <div className="plugin-manager-modal">
+        <div className="plugin-manager-modal" data-help-topic="modules">
           <div className="plugin-manager-header">
             <h2>
               {scope === 'palettes' ? <Palette /> : <Blocks />}
