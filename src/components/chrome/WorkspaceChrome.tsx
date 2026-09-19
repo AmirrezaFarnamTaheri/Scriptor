@@ -1,4 +1,4 @@
-import { memo, useId, useRef, useState, type ReactNode } from 'react'
+import { Fragment, memo, useId, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, MoreHorizontal } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
 
@@ -10,7 +10,7 @@ export const PanelHeader = memo(function PanelHeader({
 }: {
   title: string
   icon: ReactNode
-  menuItems?: Array<{ label: string; run: () => void }>
+  menuItems?: Array<{ label: string; run: () => void; group?: string }>
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -54,20 +54,25 @@ export const PanelHeader = memo(function PanelHeader({
             labelledBy={triggerId}
             onClose={closeMenu}
           >
-            {menuItems.map((item) => (
-              <li role="none" key={item.label}>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    item.run()
-                    closeMenu()
-                    window.requestAnimationFrame(() => triggerRef.current?.focus())
-                  }}
-                >
-                  {item.label}
-                </button>
-              </li>
+            {menuItems.map((item, index) => (
+              <Fragment key={`${item.group ?? 'ungrouped'}:${item.label}`}>
+                {item.group && item.group !== menuItems[index - 1]?.group ? (
+                  <li role="presentation" className="toolbar-menu-section-label">{item.group}</li>
+                ) : null}
+                <li role="none">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      item.run()
+                      closeMenu()
+                      window.requestAnimationFrame(() => triggerRef.current?.focus())
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              </Fragment>
             ))}
           </ToolbarPopover>
         </div>
