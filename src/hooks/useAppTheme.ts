@@ -111,7 +111,7 @@ function customThemeById(id: AppTheme): CustomColorPalette | undefined {
   return readStoredCustomThemes().find((theme) => theme.id === id)
 }
 
-function nativeAppearanceForTheme(theme: AppTheme): ResolvedAppearance {
+export function nativeAppearanceForTheme(theme: AppTheme): ResolvedAppearance {
   const custom = customThemeById(theme)
   if (custom) return custom.category === 'light' ? 'light' : 'dark'
   return LIGHT_NATIVE_THEMES.has(theme) ? 'light' : 'dark'
@@ -195,7 +195,7 @@ export function applyThemeToElement(
   el.dataset.theme = validTheme
 }
 
-function validateStoredTheme(stored: string | null): AppTheme | null {
+export function validateStoredTheme(stored: string | null): AppTheme | null {
   if (!stored) return null
   if (VALID_THEMES.has(stored)) return stored
   if (stored.startsWith('custom-') && customThemeById(stored)) return stored
