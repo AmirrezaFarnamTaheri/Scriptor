@@ -878,7 +878,7 @@
     "textContrast": "کنتراست متن",
     "required": "حداقل لازم: {{ratio}}",
     "increaseContrast": "کنتراست را افزایش دهید",
-    "contrastUnknown": "پیش‌نمایش کنتراست برای رنگ‌های هگز شش‌رقمی متن، پس‌زمینه و سطح در دسترس است.",
+    "contrastUnknown": "پیش‌نمایش کنتراست برای رنگ‌های هگز شش‌رقمی متن، پس‌زمینه، سطح و رنگ‌های تأکیدی در دسترس است.",
     "primaryAccent": "رنگ تأکیدی اصلی",
     "secondaryAmber": "کهربایی ثانویه",
     "background": "پس‌زمینه",
@@ -899,12 +899,15 @@
     "errorEmptyName": "نام پوسته نمی‌تواند خالی باشد.",
     "errorLongName": "نام پوسته باید حداکثر ۸۰ نویسه باشد.",
     "errorInvalidColor": "رنگ CSS نامعتبر: {{keys}}",
-    "errorUnverifiableContrast": "برای متن، پس‌زمینه و سطح از رنگ هگز شش‌رقمی استفاده کنید تا کنتراست پیش از ذخیره بررسی شود.",
-    "errorLowContrast": "کنتراست متن کافی نیست: {{details}}.",
+    "errorUnverifiableContrast": "برای متن، پس‌زمینه، سطح و رنگ‌های تأکیدی از رنگ هگز شش‌رقمی استفاده کنید تا کنتراست پیش از ذخیره بررسی شود.",
+    "errorLowContrast": "کنتراست پوسته کافی نیست: {{details}}.",
     "errorSaveStorage": "پوسته سفارشی ذخیره نشد. ممکن است فضای ذخیره‌سازی مرورگر در دسترس نباشد یا پر شده باشد.",
     "errorDeleteStorage": "پوسته سفارشی از فضای ذخیره‌سازی مرورگر حذف نشد.",
     "contrastTextBackground": "متن / پس‌زمینه",
-    "contrastTextSurface": "متن / سطح"
+    "contrastTextSurface": "متن / سطح",
+    "requiredMixed": "حداقل لازم: متن {{textRatio}} · رنگ‌های تأکیدی {{accentRatio}}",
+    "contrastPrimaryBackground": "رنگ تأکیدی اصلی / پس‌زمینه",
+    "contrastAmberBackground": "رنگ کهربایی / پس‌زمینه"
   },
   "appearanceSettings": {
     "title": "ظاهر و چیدمان",
