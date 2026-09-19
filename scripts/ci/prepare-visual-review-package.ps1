@@ -73,7 +73,6 @@ function Add-VisualImages {
 # Keep every visual source current, but publish all image bytes through one flat
 # directory. Prefixes retain provenance without reintroducing parallel trees.
 Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'comparison'
-Add-VisualImages -SourceRoot 'test-results/visual-refresh' -Prefix 'refresh'
 Add-VisualImages -SourceRoot 'e2e/screenshots.spec.ts-snapshots' -Prefix 'baseline-screenshots'
 Add-VisualImages -SourceRoot 'e2e/visual-review.spec.ts-snapshots' -Prefix 'baseline-visual-review'
 Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'capture'
