@@ -188,7 +188,14 @@
     "architecture": "Architecture",
     "family": "Family",
     "locale": "Locale",
-    "systemMetadataAvailable": "System metadata is available in the desktop shell."
+    "systemMetadataAvailable": "System metadata is available in the desktop shell.",
+    "dailyNotePreview": "Today's daily note: {{path}} — title {{title}}",
+    "inboxPeriods": {
+      "all": "All time",
+      "week": "Past week",
+      "month": "Past month",
+      "quarter": "Past quarter"
+    }
   },
   "mobile": {
     "vault": "Vault",
