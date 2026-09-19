@@ -328,17 +328,29 @@ fn parse_redirect_query(request_line: &str) -> OAuthRedirectQuery {
     parsed
 }
 
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        b'A'..=b'F' => Some(byte - b'A' + 10),
+        _ => None,
+    }
+}
+
 fn percent_decode(value: &str) -> String {
-    let bytes = value.replace('+', " ");
-    let bytes = bytes.as_bytes();
+    let bytes = value.as_bytes();
     let mut out: Vec<u8> = Vec::with_capacity(bytes.len());
     let mut i = 0;
     while i < bytes.len() {
-        if bytes[i] == b'%'
-            && i + 2 < bytes.len()
-            && let Ok(byte) = u8::from_str_radix(&value[i + 1..i + 3], 16)
+        if bytes[i] == b'+' {
+            out.push(b' ');
+            i += 1;
+            continue;
+        }
+        if bytes[i] == b'%' && i + 2 < bytes.len()
+            && let (Some(high), Some(low)) = (hex_nibble(bytes[i + 1]), hex_nibble(bytes[i + 2]))
         {
-            out.push(byte);
+            out.push((high << 4) | low);
             i += 3;
             continue;
         }
@@ -1842,6 +1854,8 @@ mod tests {
     fn percent_decode_handles_encoded_bytes() {
         assert_eq!(percent_decode("a%2Fb"), "a/b");
         assert_eq!(percent_decode("a+b"), "a b");
+        assert_eq!(percent_decode("%F0%9F%92%A9"), "💩");
+        assert_eq!(percent_decode("%é"), "%é");
     }
 
     #[test]
