@@ -138,7 +138,8 @@ export const GitPanel = memo(function GitPanel({
         subtitle={t('git.checkingStatus')}
         icon={<GitBranch size={18} />}
         ariaLabel={t('git.title')}
-        onClose={onClose}
+        helpTopic="git"
+      onClose={onClose}
         presentation={presentation}
         className="git-panel knowledge-filters-panel"
       >
