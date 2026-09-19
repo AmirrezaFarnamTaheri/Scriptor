@@ -47,7 +47,7 @@ export function MutationConfirmation({
       <p>{message}</p>
       <div className="mutation-confirmation-actions">
         <button ref={cancelRef} type="button" className="toolbar-button" disabled={busy} onClick={onCancel}>
-          Cancel
+          {t('actions.cancel')}
         </button>
         <button
           type="button"
