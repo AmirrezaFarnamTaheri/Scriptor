@@ -1789,7 +1789,6 @@ function App() {
           onResetJourney={journey.reset}
           workspaceChrome={chrome}
           onPatchWorkspaceChrome={patchChrome}
-          onResetWorkspaceChrome={resetChrome}
           theme={theme}
           appearance={appearance}
           onThemeChange={setTheme}
