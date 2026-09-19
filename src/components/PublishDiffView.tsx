@@ -168,7 +168,7 @@ export function PublishDiffView({
     && plan.orphaned.length === 0
 
   return (
-    <section className="publish-diff-view" aria-label="Publish plan review">
+    <section className="publish-diff-view" aria-label="Publish plan review" data-help-topic="publish-diff">
       {/* Header notices */}
       {!requireFrontmatterOptIn && (
         <div className="publish-diff-notice publish-diff-notice-warning" role="note">
