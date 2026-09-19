@@ -5,17 +5,18 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 import { PluginStateProvider } from './context/PluginStateContext.tsx'
-import { applyThemeToElement, resolveAppearance, type AppearanceMode, type AppTheme } from './hooks/useAppTheme.ts'
+import { applyThemeToElement, nativeAppearanceForTheme, resolveAppearance, validateStoredTheme, type AppearanceMode } from './hooks/useAppTheme.ts'
 
 function applyInitialTheme() {
   const rawTheme = window.localStorage.getItem('scriptor:app-theme')
   const rawAppearance = window.localStorage.getItem('scriptor:appearance-mode')
-  const palette = (rawTheme && typeof rawTheme === 'string' ? rawTheme : 'dark') as AppTheme
+  const storedPalette = validateStoredTheme(rawTheme)
+  const palette = storedPalette ?? 'dark'
   const appearance: AppearanceMode =
     rawAppearance === 'light' || rawAppearance === 'dark' || rawAppearance === 'system'
       ? rawAppearance
-      : rawTheme
-        ? (rawTheme === 'light' || rawTheme === 'sepia-paper' ? 'light' : 'dark')
+      : storedPalette
+        ? nativeAppearanceForTheme(storedPalette)
         : 'system'
   const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
   applyThemeToElement(document.documentElement, palette, resolveAppearance(appearance, systemDark))
