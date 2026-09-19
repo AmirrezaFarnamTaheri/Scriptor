@@ -311,7 +311,7 @@ export function installE2eBridge(): void {
             window.setTimeout(() => {
               move()
               resolve()
-            }, 500)
+            }, 1500)
           })
         }
         move()
