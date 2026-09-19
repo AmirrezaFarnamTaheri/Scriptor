@@ -6,6 +6,7 @@ import type { SystemInfoSnapshot } from '../types/system'
 import type { PandocDiscovery } from '../types/vault'
 import { DaemonOpsPanel } from './DaemonOpsPanel'
 import { ReleaseQualityPanel } from './ReleaseQualityPanel'
+import { useI18n } from '../lib/i18n'
 
 interface AdvancedSettingsSectionProps {
   active: boolean
@@ -47,6 +48,7 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
   timeToFirstExportMs = null,
   onResetJourney,
 }: AdvancedSettingsSectionProps) {
+  const { t } = useI18n()
   const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
   const [pandocError, setPandocError] = useState<string | null>(null)
   const [supportBundleStatus, setSupportBundleStatus] = useState('')
@@ -59,9 +61,9 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
       setPandocError(null)
     } catch (error) {
       setPandoc(null)
-      setPandocError(error instanceof Error ? error.message : 'Pandoc not found')
+      setPandocError(error instanceof Error ? error.message : t('advancedSettings.pandocNotFound'))
     }
-  }, [nativeReady])
+  }, [nativeReady, t])
 
   useEffect(() => {
     if (!active || !nativeReady) return
@@ -75,77 +77,76 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
       .catch((error) => {
         if (cancelled) return
         setPandoc(null)
-        setPandocError(error instanceof Error ? error.message : 'Pandoc not found')
+        setPandocError(error instanceof Error ? error.message : t('advancedSettings.pandocNotFound'))
       })
     return () => {
       cancelled = true
     }
-  }, [active, nativeReady])
+  }, [active, nativeReady, t])
 
   const exportSupportBundle = () => {
-    setSupportBundleStatus('Creating support bundle…')
+    setSupportBundleStatus(t('advancedSettings.creatingBundle'))
     void diagnosticsExportSupportBundle()
-      .then((path) => setSupportBundleStatus(`Support bundle created: ${path}`))
+      .then((path) => setSupportBundleStatus(t('advancedSettings.bundleCreated', { path })))
       .catch((error) =>
-        setSupportBundleStatus(`Support bundle failed: ${error instanceof Error ? error.message : String(error)}`),
+        setSupportBundleStatus(t('advancedSettings.bundleFailed', { error: error instanceof Error ? error.message : String(error) })),
       )
   }
 
   return (
     <>
       <section className="settings-section" aria-labelledby="desktop-engine-heading">
-        <h3 id="desktop-engine-heading">Desktop engine</h3>
+        <h3 id="desktop-engine-heading">{t('advancedSettings.desktopEngine')}</h3>
         <p className="health-subtitle">
-          Advanced runtime details for local integrations and export tooling. Most users do not need to change these settings.
+          {t('advancedSettings.description')}
         </p>
         <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
-          {nativeReady ? 'Desktop integration ready' : 'Browser preview — desktop-only vault commands are unavailable'}
+          {nativeReady ? t('advancedSettings.desktopReady') : t('advancedSettings.browserPreview')}
         </p>
         {nativeReady ? (
           <>
             <dl className="settings-grid">
               <div>
-                <dt>Pandoc</dt>
-                <dd>{pandoc ? pandoc.version : pandocError ? 'Not found' : 'Checking…'}</dd>
+                <dt>{t('settings.pandoc')}</dt>
+                <dd>{pandoc ? pandoc.version : pandocError ? t('settings.notFound') : t('settings.checking')}</dd>
               </div>
               <div>
-                <dt>Executable</dt>
+                <dt>{t('advancedSettings.executable')}</dt>
                 <dd className="settings-path">{pandoc?.path ?? '—'}</dd>
               </div>
             </dl>
             {pandocError ? (
               <p className="settings-status warn">
-                {pandocError}. Install Pandoc or set <code>SCRIPTOR_PANDOC_PATH</code>. Windows:{' '}
-                <code>winget install JohnMacFarlane.Pandoc</code> · macOS: <code>brew install pandoc</code>
+                {t('advancedSettings.pandocInstall', { error: pandocError })}
               </p>
             ) : null}
             <button type="button" className="toolbar-button" onClick={() => void refreshPandoc()}>
-              Refresh Pandoc discovery
+              {t('settings.refreshPandoc')}
             </button>
-            <h4 className="settings-subheading">Background desktop engine</h4>
+            <h4 className="settings-subheading">{t('advancedSettings.backgroundEngine')}</h4>
             <label className="diagnostics-opt-in">
               <input
                 type="checkbox"
                 checked={headlessEngine}
                 onChange={(event) => onHeadlessEngineChange(event.target.checked)}
               />
-              <span>Use the background engine for supported vault operations</span>
+              <span>{t('advancedSettings.useBackground')}</span>
             </label>
             <p className="health-subtitle">
-              This can move indexing, search, graph, Git status and export work out of the main app process.
+              {t('advancedSettings.backgroundHelp')}
             </p>
             {headlessEngine ? (
               <>
                 <p className={daemonVersion ? 'settings-status ok' : 'settings-status warn'} role="status">
                   {daemonVersion
-                    ? `Background engine connected — version ${daemonVersion}`
+                    ? t('advancedSettings.backgroundConnected', { version: daemonVersion })
                     : daemonError
-                      ? `Background engine offline — ${daemonError}`
-                      : 'Background engine status unknown'}
+                      ? t('advancedSettings.backgroundOffline', { error: daemonError })
+                      : t('advancedSettings.backgroundUnknown')}
                 </p>
                 <div className="settings-actions">
-                  <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>Refresh status</button>
-                  <button type="button" className="toolbar-button" onClick={onStartDaemon}>Start engine</button>
+                  <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>{t('advancedSettings.refreshStatus')}</button>
+                  <button type="button" className="toolbar-button" onClick={onStartDaemon}>{t('advancedSettings.startEngine')}</button>
                 </div>
                 <DaemonOpsPanel
                   activePath={activePath}
@@ -161,14 +162,14 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
       </section>
 
       <section className="settings-section" aria-labelledby="updates-heading">
-        <h3 id="updates-heading">Updates</h3>
+        <h3 id="updates-heading">{t('advancedSettings.updates')}</h3>
         <p className="health-subtitle">
-          Updates are distributed as signed, checksum-published release artifacts. Built-in updating remains disabled until an authenticated delivery channel is configured.
+          {t('advancedSettings.updatesHelp')}
         </p>
       </section>
 
       {journey && onResetJourney ? (
-        <section className="settings-section" aria-label="Release quality">
+        <section className="settings-section" aria-label={t('advancedSettings.releaseQuality')}>
           <ReleaseQualityPanel
             journey={journey}
             timeToFirstEditMs={timeToFirstEditMs}
@@ -179,14 +180,14 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
       ) : null}
 
       <section className="settings-section" aria-labelledby="diagnostics-heading">
-        <h3 id="diagnostics-heading">Diagnostics</h3>
+        <h3 id="diagnostics-heading">{t('advancedSettings.diagnostics')}</h3>
         <label className="diagnostics-opt-in">
           <input
             type="checkbox"
             checked={diagnosticsOptIn}
             onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
           />
-          <span>Store local client diagnostics in <code>.scriptor/diagnostics/client.jsonl</code></span>
+          <span>{t('advancedSettings.storeDiagnostics')}</span>
         </label>
         <button
           type="button"
@@ -194,22 +195,22 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
           disabled={!vaultOpen || !nativeReady}
           onClick={exportSupportBundle}
         >
-          Export redacted support bundle
+          {t('advancedSettings.exportBundle')}
         </button>
         {supportBundleStatus ? <p className="health-subtitle" role="status">{supportBundleStatus}</p> : null}
       </section>
 
       <section className="settings-section" aria-labelledby="system-information-heading">
-        <h3 id="system-information-heading">System information</h3>
+        <h3 id="system-information-heading">{t('advancedSettings.systemInformation')}</h3>
         {systemInfo ? (
           <dl className="settings-grid">
-            <div><dt>OS</dt><dd>{systemInfo.os}</dd></div>
-            <div><dt>Architecture</dt><dd>{systemInfo.arch}</dd></div>
-            <div><dt>Family</dt><dd>{systemInfo.family}</dd></div>
-            <div><dt>Locale</dt><dd>{systemInfo.locale ?? 'unknown'}</dd></div>
+            <div><dt>{t('advancedSettings.os')}</dt><dd>{systemInfo.os}</dd></div>
+            <div><dt>{t('advancedSettings.architecture')}</dt><dd>{systemInfo.arch}</dd></div>
+            <div><dt>{t('advancedSettings.family')}</dt><dd>{systemInfo.family}</dd></div>
+            <div><dt>{t('advancedSettings.locale')}</dt><dd>{systemInfo.locale ?? t('advancedSettings.unknown')}</dd></div>
           </dl>
         ) : (
-          <p className="empty-state">System metadata is available in the desktop shell.</p>
+          <p className="empty-state">{t('advancedSettings.systemMetadata')}</p>
         )}
       </section>
     </>
