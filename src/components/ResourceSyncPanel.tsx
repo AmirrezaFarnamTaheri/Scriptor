@@ -189,7 +189,7 @@ export function ResourceSyncPanel() {
   const redundantDuplicates = inventory?.duplicates.filter((group) => group.kind === 'redundant').length ?? 0
 
   return (
-    <section className="resource-sync-panel" aria-label="Sharing and sync">
+    <section className="resource-sync-panel" data-help-topic="resource-sync" aria-label="Sharing and sync">
       <header className="resource-sync-heading">
         <div>
           <p className="resource-sync-eyebrow">AgentStack-managed resources</p>
