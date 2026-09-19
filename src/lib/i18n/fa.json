@@ -736,7 +736,7 @@
       "clientHelp": "در Google Cloud یک اعتبار OAuth 2.0 از نوع Desktop app بسازید. client secret وارد نکنید. اعتبار Web app با بازگشت محلی Scriptor سازگار نیست.",
       "lookahead": "بازهٔ پیش‌نگری (روز)",
       "showEvents": "نمایش رویدادهای تقویم در وظایف",
-      "mirrorTasks": "همگام‌سازی وظایف باز خزانه با Google Tasks",
+      "mirrorTasks": "فعال‌کردن آینه‌سازی وظایف Vault در Google Tasks (تغییرات فقط پس از تأیید شما ارسال می‌شوند)",
       "connect": "ذخیره و اتصال به گوگل",
       "syncNow": "همگام‌سازی اکنون",
       "disconnect": "قطع اتصال",
@@ -1090,13 +1090,15 @@
       "ariaLabel": "تقویم و وظایف گوگل",
       "title": "تقویم و وظایف گوگل",
       "sync": "همگام‌سازی گوگل",
-      "pushVaultTasks": "ارسال وظایف خزانه",
+      "pushVaultTasks": "بررسی و ارسال وظایف Vault",
       "upcomingEvents": "رویدادهای پیشِ رو",
       "noEvents": "در بازهٔ پیش‌نگری تنظیم‌شده رویدادی وجود ندارد.",
       "untitledEvent": "رویداد بدون عنوان",
       "tasks": "Google Tasks",
       "noTasks": "هیچ وظیفه‌ای از Google Tasks بارگیری نشده است.",
-      "complete": "تکمیل"
+      "complete": "تکمیل",
+      "pushingVaultTasks": "در حال ارسال وظایف Vault…",
+      "pushResult": "{{created}} ایجاد شد · {{updated}} به‌روزرسانی شد · {{skipped}} از قبل هماهنگ بود · {{failed}} ناموفق"
     }
   }
 }
