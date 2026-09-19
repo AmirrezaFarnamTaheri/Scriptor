@@ -188,7 +188,14 @@
     "architecture": "Architektur",
     "family": "Familie",
     "locale": "Sprache",
-    "systemMetadataAvailable": "System-Metadaten sind in der Desktop-Shell verfügbar."
+    "systemMetadataAvailable": "System-Metadaten sind in der Desktop-Shell verfügbar.",
+    "dailyNotePreview": "Heutige Tagesnotiz: {{path}} — Titel {{title}}",
+    "inboxPeriods": {
+      "all": "Gesamter Zeitraum",
+      "week": "Letzte Woche",
+      "month": "Letzter Monat",
+      "quarter": "Letztes Quartal"
+    }
   },
   "mobile": {
     "vault": "Tresor",
