@@ -90,6 +90,7 @@ export const VaultHealthDashboard = memo(function VaultHealthDashboard({
       subtitle="Index, link, metadata, citation, export, and cache diagnostics for the open vault."
       icon={<Activity size={18} />}
       ariaLabel="Vault health dashboard"
+      helpTopic="diagnostics"
       onClose={onClose}
       className="health-dashboard knowledge-filters-panel"
       wide
