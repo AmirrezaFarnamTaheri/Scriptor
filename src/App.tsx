@@ -226,10 +226,10 @@ function App() {
     perfHudOpen,
     setPerfHudOpen,
   } = nav
-  const [pluginManagerInitialTab, setPluginManagerInitialTab] = useState<'palettes' | 'plugins'>('palettes')
+  const [pluginManagerScope, setPluginManagerScope] = useState<'palettes' | 'plugins'>('palettes')
   const setPluginManagerOpenFromCommands = useCallback(
     (open: boolean) => {
-      if (open) setPluginManagerInitialTab('plugins')
+      if (open) setPluginManagerScope('plugins')
       setPluginManagerOpen(open)
     },
     [setPluginManagerOpen],
@@ -1127,7 +1127,7 @@ function App() {
   )
   const handleOpenPluginManager = useCallback(
     () => {
-      setPluginManagerInitialTab('palettes')
+      setPluginManagerScope('palettes')
       setPluginManagerOpen(true)
     },
     [setPluginManagerOpen],
@@ -1808,7 +1808,7 @@ function App() {
         templatePickerOpen={templatePickerOpen}
         obsidianImportOpen={obsidianImportOpen}
         pluginManagerOpen={pluginManagerOpen}
-        pluginManagerInitialTab={pluginManagerInitialTab}
+        pluginManagerScope={pluginManagerScope}
         templates={workspace.templatePaths}
         onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
         onCloseObsidianImport={() => setObsidianImportOpen(false)}
