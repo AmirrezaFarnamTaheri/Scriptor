@@ -459,6 +459,7 @@ export function useGoogleCalendarSync({
                 title: task.text,
                 notes: desiredNotes,
                 due: desiredDue,
+                status: matchingRemote.status === 'completed' ? 'needsAction' : undefined,
               })
               taskMutationRevisionRef.current += 1
               setTasks((current) =>
