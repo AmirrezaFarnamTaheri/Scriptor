@@ -66,6 +66,22 @@ test.describe('Palette and appearance switching', () => {
     await expect(root).toHaveAttribute('data-appearance', 'dark')
   })
 
+  test('storage denial during theme bootstrap does not prevent app startup', async ({ page }) => {
+    await page.addInitScript(() => {
+      const originalGetItem = Storage.prototype.getItem
+      Storage.prototype.getItem = function getItem(key: string) {
+        if (key === 'scriptor:app-theme' || key === 'scriptor:appearance-mode') {
+          throw new DOMException('Storage access denied', 'SecurityError')
+        }
+        return originalGetItem.call(this, key)
+      }
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('main', { name: 'Scriptor workspace' })).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-palette', 'dark')
+    await expect(page.locator('html')).toHaveAttribute('data-appearance', /light|dark/)
+  })
+
   test('legacy stored palette migrates to an independent appearance', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'sepia-paper')
