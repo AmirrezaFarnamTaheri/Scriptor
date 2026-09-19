@@ -14,12 +14,12 @@ test.describe('Palette and appearance switching', () => {
     await expect(root).toHaveAttribute('data-palette', 'catppuccin')
     await expect(root).toHaveAttribute('data-appearance', 'light')
 
-    await page.getByRole('button', { name: /Switch to dark theme/i }).click()
+    await page.getByRole('button', { name: /Switch to dark appearance/i }).click()
     await expect(root).toHaveAttribute('data-theme', 'catppuccin')
     await expect(root).toHaveAttribute('data-palette', 'catppuccin')
     await expect(root).toHaveAttribute('data-appearance', 'dark')
 
-    await page.getByRole('button', { name: /Switch to light theme/i }).click()
+    await page.getByRole('button', { name: /Switch to light appearance/i }).click()
     await expect(root).toHaveAttribute('data-theme', 'catppuccin')
     await expect(root).toHaveAttribute('data-appearance', 'light')
   })
@@ -45,7 +45,7 @@ test.describe('Palette and appearance switching', () => {
     await page.keyboard.press('Escape')
     await expect(settings).toBeHidden()
 
-    await page.getByRole('button', { name: /Switch to dark theme/i }).click()
+    await page.getByRole('button', { name: /Switch to dark appearance/i }).click()
     await expect(root).toHaveAttribute('data-palette', 'nord')
     const nordDark = await body.evaluate((element) => getComputedStyle(element).backgroundColor)
     expect(nordDark).not.toBe(nordLight)
