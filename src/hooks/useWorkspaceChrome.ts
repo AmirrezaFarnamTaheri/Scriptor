@@ -88,6 +88,8 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
 }
 
 const STORAGE_KEY = 'scriptor:workspace-chrome'
+const LEGACY_VAULT_WIDTH_KEY = 'scriptor:vault-width'
+const LEGACY_INSPECTOR_WIDTH_KEY = 'scriptor:inspector-width'
 
 const TOP_BAR_GROUP_IDS = ['history', 'modes', 'command', 'actions'] as const satisfies readonly TopBarGroupId[]
 const TOP_BAR_GROUP_WIDTHS = ['compact', 'auto', 'wide'] as const satisfies readonly TopBarGroupWidth[]
@@ -181,13 +183,42 @@ export function validateWorkspaceChrome(value: unknown): WorkspaceChromePrefs {
   }
 }
 
+function readLegacyPanelWidth(key: string, min: number, max: number): number | null {
+  try {
+    const raw = window.localStorage.getItem(key)
+    if (raw === null) return null
+    const parsed = Number(raw)
+    return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : null
+  } catch {
+    return null
+  }
+}
+
 function readChrome(): WorkspaceChromePrefs {
-  return readVersionedStorage({
+  const chrome = readVersionedStorage({
     key: STORAGE_KEY,
     schemaVersion: 1,
     fallback: { ...DEFAULT_WORKSPACE_CHROME },
     validate: validateWorkspaceChrome,
   })
+
+  // Older releases persisted live panel widths under separate keys while the
+  // versioned chrome object kept stale defaults. Import those values once, then
+  // remove the duplicate owners so reset/import/export all operate on one state.
+  const legacyVaultWidth = readLegacyPanelWidth(LEGACY_VAULT_WIDTH_KEY, 200, 600)
+  const legacyInspectorWidth = readLegacyPanelWidth(LEGACY_INSPECTOR_WIDTH_KEY, 300, 800)
+  try {
+    window.localStorage.removeItem(LEGACY_VAULT_WIDTH_KEY)
+    window.localStorage.removeItem(LEGACY_INSPECTOR_WIDTH_KEY)
+  } catch {
+    // Storage can be unavailable; validated runtime state remains authoritative.
+  }
+
+  return {
+    ...chrome,
+    ...(legacyVaultWidth === null ? {} : { vaultWidth: legacyVaultWidth }),
+    ...(legacyInspectorWidth === null ? {} : { inspectorWidth: legacyInspectorWidth }),
+  }
 }
 
 function applyVisualPrefsToElement(chrome: WorkspaceChromePrefs) {
