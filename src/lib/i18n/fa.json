@@ -31,8 +31,8 @@
     "capture": "ثبت",
     "graph": "گراف",
     "canvas": "بوم",
-    "switchToLight": "تغییر به پوسته روشن",
-    "switchToDark": "تغییر به پوسته تاریک",
+    "switchToLight": "تغییر به ظاهر روشن",
+    "switchToDark": "تغییر به ظاهر تاریک",
     "switchToHighContrast": "تغییر به پوسته با کنتراست بالا",
     "switchToTheme": "تغییر به پوسته {{theme}}",
     "supportScriptor": "حمایت از اسکریپتور",
@@ -45,7 +45,12 @@
     "paletteStore": "ماژول‌ها و پالت‌های رنگی داخلی",
     "customizeAria": "سفارشی‌سازی گزینه‌های نوار بالا",
     "customizeShowAll": "نمایش همه",
-    "customizeRestoreDefaults": "بازگردانی کنش‌های پیش‌فرض"
+    "customizeRestoreDefaults": "بازگردانی کنش‌های پیش‌فرض",
+    "historyControls": "کنترل‌های تاریخچه",
+    "workspaceMode": "حالت فضای کار",
+    "openCommandPalette": "باز کردن پالت فرمان ({{shortcut}})",
+    "appearanceControl": "{{action}} · پالت {{palette}}",
+    "appearanceControlSystem": "{{action}} · پالت {{palette}} · پیروی از سیستم"
   },
   "commandPalette": {
     "placeholder": "دستور یا یادداشت تایپ کنید...",
