@@ -1108,7 +1108,7 @@
       "noTasks": "No Google Tasks loaded.",
       "complete": "Complete",
       "pushingVaultTasks": "Pushing vault tasks…",
-      "pushResult": "{{created}} created · {{updated}} updated · {{skipped}} already aligned · {{failed}} failed"
+      "pushResult": "{{created}} created · {{updated}} updated · {{skipped}} already aligned · {{failed}} failed · {{pending}} pending approval"
     }
   }
 }
