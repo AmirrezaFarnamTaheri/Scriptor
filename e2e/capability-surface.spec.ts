@@ -37,7 +37,11 @@ test.describe('capability surfaces', () => {
     await expect(zenLayout).toBeEnabled()
     await zenLayout.click()
     await expect(page.locator('html')).toHaveClass(/scriptor-distraction-free/)
-    await expect(page.locator('.editor-toolbar')).toHaveCSS('pointer-events', 'none')
+    const editorToolbar = page.locator('.editor-toolbar')
+    await expect(editorToolbar).toHaveCSS('pointer-events', 'auto')
+    await expect(editorToolbar).toHaveCSS('opacity', '0.55')
+    await editorToolbar.getByRole('button').first().focus()
+    await expect(editorToolbar).toHaveCSS('opacity', '1')
   })
 
   test('keeps the four-section store navigable at high text zoom', async ({ page }) => {
