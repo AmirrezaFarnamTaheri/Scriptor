@@ -5,6 +5,8 @@ import { useEscapeToClose } from '../hooks/useEscapeToClose'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useI18n } from '../lib/i18n'
 import { scoreCommand } from '../lib/paletteScore'
+import { requestHelp } from '../lib/help/request'
+import { helpLabels } from '../lib/help/labels'
 
 export interface PaletteCommand {
   id: string
@@ -26,7 +28,7 @@ interface CommandPaletteProps {
 }
 
 export const CommandPalette = memo(function CommandPalette({ onClose, commands, searchNotes, onOpenNote }: CommandPaletteProps) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [noteSearch, setNoteSearch] = useState<{
@@ -42,6 +44,12 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
   const normalizedQuery = query.trim()
   const deferredQuery = useDeferredValue(normalizedQuery)
   const isSearchingNotes = searchingQuery === normalizedQuery
+  const helpCommand = useMemo<PaletteCommand>(() => ({
+    id: 'open-help-guides', label: helpLabels(locale).title,
+    keywords: ['help', 'guide', 'tour', 'tutorial', 'faq', 'questions', 'answers', 'hilfe', 'راهنما', 'آموزش'],
+    category: 'Help', shortcut: 'F1',
+    run: () => { window.requestAnimationFrame(() => requestHelp('workspace')) },
+  }), [locale])
 
   const noteCommands = useMemo<PaletteCommand[]>(
     () =>
@@ -51,25 +59,20 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         category: t('commandPalette.noteCategory'),
         group: 'note' as const,
         tone: 'default' as const,
-        run: () => {
-          onOpenNote?.(hit.path)
-        },
+        run: () => { onOpenNote?.(hit.path) },
       })),
     [deferredQuery, noteSearch, onOpenNote, t],
   )
 
   const mergedCommands = useMemo(() => {
-    const scored = commands
+    const scored = [...commands, helpCommand]
       .map((cmd) => ({ cmd, score: scoreCommand(deferredQuery, cmd) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ cmd }) => ({ ...cmd, group: 'command' as const }))
-
-    if (!searchNotes || deferredQuery.length < 2) {
-      return scored
-    }
+    if (!searchNotes || deferredQuery.length < 2) return scored
     return [...scored, ...noteCommands]
-  }, [commands, noteCommands, deferredQuery, searchNotes])
+  }, [commands, helpCommand, noteCommands, deferredQuery, searchNotes])
 
   useEffect(() => {
     if (!searchNotes || normalizedQuery.length < 2) return
@@ -79,9 +82,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
       void searchNotes(requestQuery)
         .then((hits) => setNoteSearch({ query: requestQuery, hits: hits.slice(0, 12) }))
         .catch(() => setNoteSearch({ query: requestQuery, hits: [] }))
-        .finally(() => {
-          setSearchingQuery((current) => (current === requestQuery ? null : current))
-        })
+        .finally(() => { setSearchingQuery((current) => (current === requestQuery ? null : current)) })
     }, 200)
     return () => {
       if (searchTimer.current) {
@@ -100,31 +101,17 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
   useEscapeToClose(true, onClose)
   useFocusTrap(containerRef, { active: true })
 
-  const runSelected = (command: PaletteCommand) => {
-    command.run()
-    onClose()
-  }
-
+  const runSelected = (command: PaletteCommand) => { command.run(); onClose() }
   const hasNoteResults = mergedCommands.some((command) => command.group === 'note')
 
   return (
-    <div
-      className="command-palette-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label={t('commandPalette.ariaLabel')}
-    >
+    <div className="command-palette-overlay" role="dialog" aria-modal="true" aria-label={t('commandPalette.ariaLabel')}>
       <div className="command-palette" ref={containerRef}>
         <div className="command-palette-header">
           <Search className="command-palette-search-icon" aria-hidden="true" />
           <input
-            type="search"
-            value={query}
-            onChange={(event) => {
-              isKeyboardNav.current = false
-              setQuery(event.target.value)
-              setSelectedIndex(0)
-            }}
+            type="search" value={query}
+            onChange={(event) => { isKeyboardNav.current = false; setQuery(event.target.value); setSelectedIndex(0) }}
             onKeyDown={(event) => {
               if (event.key === 'ArrowDown') {
                 event.preventDefault()
@@ -139,18 +126,13 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
                 runSelected(mergedCommands[selectedIndex])
               }
             }}
-            placeholder={t('commandPalette.placeholder')}
-            aria-label={t('commandPalette.ariaLabel')}
+            placeholder={t('commandPalette.placeholder')} aria-label={t('commandPalette.ariaLabel')}
             aria-controls="command-palette-list"
-            aria-activedescendant={
-              mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined
-            }
+            aria-activedescendant={mergedCommands[selectedIndex] ? `command-palette-item-${mergedCommands[selectedIndex].id}` : undefined}
             autoFocus
           />
         </div>
-        <p className="command-palette-scope-hint">
-          {t('commandPalette.scopeHint')}
-        </p>
+        <p className="command-palette-scope-hint">{t('commandPalette.scopeHint')}</p>
         {isSearchingNotes ? <p className="command-palette-hint">{t('commandPalette.searchingNotes')}</p> : null}
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => {
@@ -158,33 +140,18 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             const showHeading = hasNoteResults && (index === 0 || previousGroup !== command.group)
             return (
               <Fragment key={command.id}>
-                {showHeading ? (
-                  <li role="presentation" className="command-palette-group-label">
-                    {command.group === 'note' ? t('commandPalette.notesHeading') : t('commandPalette.commandsHeading')}
-                  </li>
-                ) : null}
+                {showHeading ? <li role="presentation" className="command-palette-group-label">{command.group === 'note' ? t('commandPalette.notesHeading') : t('commandPalette.commandsHeading')}</li> : null}
                 <li role="presentation">
                   <button
-                    type="button"
-                    id={`command-palette-item-${command.id}`}
-                    role="option"
-                    aria-selected={index === selectedIndex}
-                    data-active={index === selectedIndex ? 'true' : undefined}
-                    data-tone={command.tone ?? 'default'}
+                    type="button" id={`command-palette-item-${command.id}`} role="option" aria-selected={index === selectedIndex}
+                    data-active={index === selectedIndex ? 'true' : undefined} data-tone={command.tone ?? 'default'}
                     className={command.group === 'note' ? 'command-palette-note-hit' : undefined}
                     onClick={() => runSelected(command)}
-                    onMouseEnter={() => {
-                      isKeyboardNav.current = false
-                      setSelectedIndex(index)
-                    }}
+                    onMouseEnter={() => { isKeyboardNav.current = false; setSelectedIndex(index) }}
                   >
                     <span className="command-palette-item-copy">
                       <strong>{command.label}</strong>
-                      <small>
-                        {command.group === 'note'
-                          ? command.id.replace(/^note:/, '')
-                          : command.category ?? t('commandPalette.commandCategory')}
-                      </small>
+                      <small>{command.group === 'note' ? command.id.replace(/^note:/, '') : command.category ?? t('commandPalette.commandCategory')}</small>
                     </span>
                     {command.shortcut ? <kbd className="command-palette-shortcut">{command.shortcut}</kbd> : null}
                   </button>

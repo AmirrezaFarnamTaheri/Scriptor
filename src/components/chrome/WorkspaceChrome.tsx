@@ -1,6 +1,8 @@
 import { Fragment, memo, useId, useRef, useState, type ReactNode } from 'react'
 import { ArrowRight, MoreHorizontal } from 'lucide-react'
 import { ToolbarPopover } from '../ToolbarPopover'
+import { useI18n } from '../../lib/i18n'
+import { widgetHelpTopic } from '../../lib/help/widgetTopics'
 
 /** Renders a compact section heading with an optional local action menu. */
 export const PanelHeader = memo(function PanelHeader({
@@ -92,6 +94,7 @@ export const WidgetCard = memo(function WidgetCard({
   onAction,
   children,
   headingLevel = 3,
+  helpTopic,
 }: {
   title: string
   action?: string
@@ -99,10 +102,13 @@ export const WidgetCard = memo(function WidgetCard({
   children: ReactNode
   /** Semantic heading level. Defaults to h3 to avoid broken hierarchy inside panels that already have h2 titles. */
   headingLevel?: HeadingLevel
+  /** Explicit guide id for a custom widget; built-in translated headings have stable defaults. */
+  helpTopic?: string
 }) {
+  const { t } = useI18n()
   const Heading = `h${headingLevel}` as 'h2' | 'h3' | 'h4'
   return (
-    <section className="widget-card">
+    <section className="widget-card" data-help-topic={helpTopic ?? widgetHelpTopic(title, t)}>
       <header>
         <Heading>{title}</Heading>
         {action ? (

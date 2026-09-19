@@ -5,6 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import App from './App.tsx'
 import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 import { PluginStateProvider } from './context/PluginStateContext.tsx'
+import { HelpRuntime } from './components/help/HelpRuntime'
 import { applyThemeToElement, nativeAppearanceForTheme, resolveAppearance, validateStoredTheme, type AppearanceMode } from './hooks/useAppTheme.ts'
 
 function safeInitialStorageGet(key: string): string | null {
@@ -32,7 +33,6 @@ function applyInitialTheme() {
   applyThemeToElement(document.documentElement, palette, resolveAppearance(appearance, systemDark))
 }
 
-
 async function mountApp() {
   applyInitialTheme()
   if (import.meta.env.VITE_E2E_MODE === 'true') {
@@ -54,6 +54,9 @@ async function mountApp() {
               <App />
             </StrictMode>
           )}
+          <ErrorBoundary name="help-and-guides">
+            <HelpRuntime />
+          </ErrorBoundary>
         </PluginStateProvider>
       </I18nProvider>
     </ErrorBoundary>
