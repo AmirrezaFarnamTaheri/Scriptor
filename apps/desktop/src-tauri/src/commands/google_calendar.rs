@@ -263,9 +263,13 @@ fn code_challenge_for(verifier: &str) -> String {
 fn open_in_browser(url: &str) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let mut command = {
-        // PROCESS_BROKER_EXCEPTION(oauth-browser-open-windows): fixed OS opener, URL-only argument.
-        let mut c = std::process::Command::new("cmd");
-        c.args(["/C", "start", "", url]);
+        // PROCESS_BROKER_EXCEPTION(oauth-browser-open-windows): fixed OS URL handler, URL-only argument.
+        // Do not route the OAuth URL through cmd.exe: authorization URLs contain
+        // '&' separators, which are shell metacharacters and can truncate the
+        // command or execute unintended fragments. rundll32 receives the URL as
+        // a direct argv value and delegates it to the registered protocol handler.
+        let mut c = std::process::Command::new("rundll32.exe");
+        c.args(["url.dll,FileProtocolHandler", url]);
         c
     };
     #[cfg(target_os = "macos")]
