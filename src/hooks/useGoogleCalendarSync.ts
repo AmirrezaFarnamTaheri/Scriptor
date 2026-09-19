@@ -480,7 +480,7 @@ export function useGoogleCalendarSync({
       const pending = mutations.length - batch.length
       const results = await googleCalendarApplyTaskSync(taskListId, batch)
       if (currentLifecycle !== lifecycleGenerationRef.current) {
-        return { created: 0, updated: 0, skipped, failed: 0 }
+        return { created: 0, updated: 0, skipped, failed: 0, pending }
       }
 
       let created = 0
