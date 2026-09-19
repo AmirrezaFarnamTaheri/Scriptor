@@ -378,7 +378,12 @@ impl EmbeddingStore {
             let mut dot = 0.0f32;
             let mut norm_b_sq = 0.0f32;
             for (query_val, chunk) in vector.iter().zip(blob.chunks_exact(4)) {
-                let val = f32::from_le_bytes(chunk.try_into().expect("4-byte chunk"));
+                let bytes: [u8; 4] = chunk.try_into().map_err(|_| {
+                    EmbeddingError::Provider(format!(
+                        "corrupt embedding vector for {id}: invalid float byte chunk"
+                    ))
+                })?;
+                let val = f32::from_le_bytes(bytes);
                 dot += *query_val * val;
                 norm_b_sq += val * val;
             }
