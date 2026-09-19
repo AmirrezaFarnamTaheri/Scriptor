@@ -1145,6 +1145,7 @@
       "files": "Vault",
       "knowledge": "دانش",
       "maintenance": "نگه‌داری"
-    }
+    },
+    "options": "گزینه‌های {{title}}"
   }
 }

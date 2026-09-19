@@ -1145,6 +1145,7 @@
       "files": "Vault",
       "knowledge": "Wissen",
       "maintenance": "Wartung"
-    }
+    },
+    "options": "Optionen für {{title}}"
   }
 }

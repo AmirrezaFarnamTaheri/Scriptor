@@ -7,10 +7,12 @@ export const PanelHeader = memo(function PanelHeader({
   title,
   icon,
   menuItems,
+  menuLabel,
 }: {
   title: string
   icon: ReactNode
   menuItems?: Array<{ label: string; run: () => void; group?: string }>
+  menuLabel?: string
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -32,7 +34,7 @@ export const PanelHeader = memo(function PanelHeader({
             id={triggerId}
             type="button"
             className="icon-button has-custom-tooltip"
-            aria-label={`${title} options`}
+            aria-label={menuLabel ?? `${title} options`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-controls={menuOpen ? menuId : undefined}
@@ -44,7 +46,7 @@ export const PanelHeader = memo(function PanelHeader({
             }}
           >
             <MoreHorizontal aria-hidden="true" />
-            <span className="custom-tooltip" aria-hidden="true">{title} options</span>
+            <span className="custom-tooltip" aria-hidden="true">{menuLabel ?? `${title} options`}</span>
           </button>
           <ToolbarPopover
             open={menuOpen}

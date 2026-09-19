@@ -1145,6 +1145,7 @@
       "files": "Vault",
       "knowledge": "Knowledge",
       "maintenance": "Maintenance"
-    }
+    },
+    "options": "{{title}} options"
   }
 }

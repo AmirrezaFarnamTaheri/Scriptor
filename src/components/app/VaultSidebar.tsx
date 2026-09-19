@@ -151,6 +151,7 @@ function VaultSidebarImpl({
         title={vault?.name ?? t('vaultSidebar.vault')}
         icon={<Folder />}
         menuItems={menuItems}
+        menuLabel={t('vaultSidebar.options', { title: vault?.name ?? t('vaultSidebar.vault') })}
       />
 
       <div className="vault-nav-tabs">
