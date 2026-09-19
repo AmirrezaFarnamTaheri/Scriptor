@@ -475,6 +475,7 @@ export const TaskPanel = memo(function TaskPanel({
       subtitle={`${store.tasks.length} ${store.tasks.length === 1 ? t('tasks.taskSingular') : t('tasks.taskPlural')}${store.filter.status ? ` · ${t(`tasks.statuses.${store.filter.status}`)}` : ''}`}
       icon={<CheckSquare size={18} />}
       ariaLabel={t('tasks.ariaLabel')}
+      helpTopic="tasks"
       onClose={onClose}
       className="task-panel"
       headerActions={(
