@@ -16,6 +16,7 @@ interface VirtualKnowledgeNoteListProps {
   notes: KnowledgeNoteSummary[]
   onOpenNote: (path: string) => void
   triageLabel?: string
+  triageActionPath?: string
   onTriageNext?: (path: string) => void
 }
 
@@ -23,6 +24,7 @@ function VirtualKnowledgeNoteListImpl({
   notes,
   onOpenNote,
   triageLabel,
+  triageActionPath,
   onTriageNext,
 }: VirtualKnowledgeNoteListProps) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -90,7 +92,7 @@ function VirtualKnowledgeNoteListImpl({
               <span className="knowledge-note-meta">
                 in {note.inbound_links} · out {note.outbound_links}
               </span>
-              {onTriageNext ? (
+              {onTriageNext && triageActionPath === note.path ? (
                 <button type="button" className="knowledge-triage-next" onClick={() => onTriageNext(note.path)}>
                   {triageLabel ?? 'Triage'}
                 </button>
