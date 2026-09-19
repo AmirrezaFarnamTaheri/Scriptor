@@ -736,7 +736,7 @@
       "clientHelp": "Erstellen Sie in Google Cloud eine OAuth-2.0-Anmeldedaten vom Typ Desktop-App. Fügen Sie kein Client-Secret ein. Web-App-Anmeldedaten sind mit Scriptors Loopback-Rückruf nicht kompatibel.",
       "lookahead": "Vorschaufenster (Tage)",
       "showEvents": "Kalendertermine in Aufgaben anzeigen",
-      "mirrorTasks": "Offene Tresor-Aufgaben in Google Tasks spiegeln",
+      "mirrorTasks": "Vault → Google Tasks-Spiegelung aktivieren (Änderungen werden erst nach Ihrer Bestätigung übertragen)",
       "connect": "Speichern & mit Google verbinden",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
@@ -1090,13 +1090,15 @@
       "ariaLabel": "Google Kalender und Aufgaben",
       "title": "Google Kalender & Aufgaben",
       "sync": "Google synchronisieren",
-      "pushVaultTasks": "Tresor-Aufgaben übertragen",
+      "pushVaultTasks": "Vault-Aufgaben prüfen & übertragen",
       "upcomingEvents": "Bevorstehende Termine",
       "noEvents": "Keine Termine im konfigurierten Vorschaufenster.",
       "untitledEvent": "Unbenannter Termin",
       "tasks": "Google Tasks",
       "noTasks": "Keine Google Tasks geladen.",
-      "complete": "Erledigen"
+      "complete": "Erledigen",
+      "pushingVaultTasks": "Vault-Aufgaben werden übertragen…",
+      "pushResult": "{{created}} erstellt · {{updated}} aktualisiert · {{skipped}} bereits synchron · {{failed}} fehlgeschlagen"
     }
   }
 }
