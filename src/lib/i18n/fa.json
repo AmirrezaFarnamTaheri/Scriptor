@@ -188,7 +188,14 @@
     "architecture": "معماری",
     "family": "خانواده",
     "locale": "زبان",
-    "systemMetadataAvailable": "متاداده‌های سیستم در نسخه دسکتاپ در دسترس است."
+    "systemMetadataAvailable": "متاداده‌های سیستم در نسخه دسکتاپ در دسترس است.",
+    "dailyNotePreview": "یادداشت روزانه امروز: {{path}} — عنوان {{title}}",
+    "inboxPeriods": {
+      "all": "همه زمان‌ها",
+      "week": "هفته گذشته",
+      "month": "ماه گذشته",
+      "quarter": "سه‌ماهه گذشته"
+    }
   },
   "mobile": {
     "vault": "خزانه",
