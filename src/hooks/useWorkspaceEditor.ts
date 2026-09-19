@@ -191,9 +191,15 @@ export function useWorkspaceEditor({
   const loadNote = useCallback(
     async (path: string, isCurrent: () => boolean = () => true) => {
       if (!isCurrent() || persistenceSuspendedRef.current) return false
+      const navigationGeneration = ++navigationGenerationRef.current
+      const draftRevision = draftRevisionRef.current
+      const canApplyRead = () => isCurrent()
+        && navigationGeneration === navigationGenerationRef.current
+        && !persistenceSuspendedRef.current
+        && draftRevision === draftRevisionRef.current
       const currentPath = activePathRef.current
       const currentVaultId = activeNoteRef.current?.metadata.vault_id
-      if (currentPath && currentPath !== path && currentVaultId && hasPendingSave(currentPath, currentVaultId)) {
+      if (currentPath && currentVaultId && hasPendingSave(currentPath, currentVaultId)) {
         const saved = await flushPendingDocumentSaveRef.current(currentPath, currentVaultId)
         if (!saved) {
           setError(`Failed to save changes to ${currentPath}. The current draft was retained and navigation was cancelled.`)
@@ -211,12 +217,12 @@ export function useWorkspaceEditor({
         }
       }
 
-      const navigationGeneration = ++navigationGenerationRef.current
+      if (!canApplyRead()) return false
       setError(null)
       setExternalChangeConflict(null)
       saveOverwriteRef.current = false
       const document = await vaultReadNote(path)
-      if (!isCurrent() || navigationGeneration !== navigationGenerationRef.current || persistenceSuspendedRef.current) return false
+      if (!canApplyRead()) return false
       docVaultsRef.current.set(path, document.metadata.vault_id)
       setActivePath(path)
       setActiveNote(document)
@@ -318,15 +324,24 @@ export function useWorkspaceEditor({
 
   const reloadActiveNoteFromDisk = useCallback(async () => {
     const path = activePathRef.current
-    if (!path) return
+    if (!path || persistenceSuspendedRef.current) return
     const vaultId = activeNoteRef.current?.metadata.vault_id
+    const navigationGeneration = ++navigationGenerationRef.current
+    const draftRevision = draftRevisionRef.current
+    const isCurrent = () => navigationGeneration === navigationGenerationRef.current
+      && draftRevision === draftRevisionRef.current
+      && activePathRef.current === path
+      && activeNoteRef.current?.metadata.vault_id === vaultId
+      && !persistenceSuspendedRef.current
     discardPendingDocumentSave(path, vaultId)
     const docKey = vaultId ? `${vaultId}:${path}` : null
     const inFlight = docKey ? inFlightSavesByDocRef.current.get(docKey) : null
     if (inFlight) await inFlight
+    if (!isCurrent()) return
+    const document = await vaultReadNote(path)
+    if (!isCurrent() || document.metadata.vault_id !== vaultId) return
     saveOverwriteRef.current = false
     setExternalChangeConflict(null)
-    const document = await vaultReadNote(path)
     docVaultsRef.current.set(path, document.metadata.vault_id)
     savedHashesRef.current.set(path, document.metadata.content_hash)
     setActiveNote(document)
@@ -472,8 +487,8 @@ export function useWorkspaceEditor({
       const targetVaultId = docVaultsRef.current.get(path) ?? activeNoteRef.current?.metadata.vault_id
       if (targetVaultId && !force && hasPendingSave(path, targetVaultId)) {
         const saved = await flushPendingDocumentSaveRef.current(path, targetVaultId)
-        if (!saved) {
-          setError(`Failed to save changes to ${path} before closing. Draft retained.`)
+        if (!saved || hasPendingSave(path, targetVaultId)) {
+          setError(`Failed to save all changes to ${path} before closing. Draft retained.`)
           return false
         }
       } else if (force) {
@@ -481,13 +496,24 @@ export function useWorkspaceEditor({
       }
 
       const nextTabs = openTabs.filter((entry) => entry.path !== path)
+      const wasActive = activePathRef.current === path
+      const fallback = nextTabs.at(-1)?.path ?? null
+      // Closing is transactional: keep the source tab and its persistence
+      // metadata until a non-destructive fallback has actually been opened.
+      if (wasActive && fallback && !force) {
+        try {
+          if (!(await openNote(fallback))) return false
+        } catch (caught) {
+          setError(`Could not open the fallback tab: ${caught instanceof Error ? caught.message : String(caught)}`)
+          return false
+        }
+      }
       setOpenTabs((tabs) => tabs.filter((entry) => entry.path !== path))
       if (closing) setClosedTabs((closed) => [closing, ...closed.filter((entry) => entry.path !== path)].slice(0, 12))
       if (targetVaultId) draftRevisionsByDocRef.current.delete(`${targetVaultId}:${path}`)
       docVaultsRef.current.delete(path)
       savedHashesRef.current.delete(path)
 
-      const wasActive = activePath === path
       if (wasActive && force) {
         navigationGenerationRef.current += 1
         activePathRef.current = null
@@ -500,11 +526,13 @@ export function useWorkspaceEditor({
       }
 
       if (wasActive) {
-        const fallback = nextTabs.at(-1)?.path ?? null
-        if (fallback) {
-          const loaded = await openNote(fallback)
-          if (!loaded && !force) return false
-        } else if (!force) {
+        if (fallback && force) {
+          try {
+            await openNote(fallback)
+          } catch (caught) {
+            setError(`Could not open the fallback tab: ${caught instanceof Error ? caught.message : String(caught)}`)
+          }
+        } else if (!fallback && !force) {
           navigationGenerationRef.current += 1
           activePathRef.current = null
           activeNoteRef.current = null
@@ -517,7 +545,7 @@ export function useWorkspaceEditor({
       }
       return true
     },
-    [activeNoteRef, activePath, activePathRef, discardPendingDocumentSave, draftMarkdownRef, hasPendingSave, openNote, openTabs, setBacklinks, setError],
+    [activeNoteRef, activePathRef, discardPendingDocumentSave, draftMarkdownRef, hasPendingSave, openNote, openTabs, setBacklinks, setError],
   )
 
   const reopenClosedTab = useCallback(() => {
@@ -737,6 +765,17 @@ export function useWorkspaceEditor({
     flushPendingDocumentSaveRef.current = flushPendingDocumentSave
   }, [flushPendingDocumentSave])
 
+  const hasPendingPersistence = useCallback(() => {
+    const activeDirty = Boolean(
+      activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown,
+    )
+    return activeDirty ||
+      pendingSaveCountRef.current > 0 ||
+      pendingRequestsByDocRef.current.size > 0 ||
+      saveTimersByDocRef.current.size > 0 ||
+      inFlightSavesByDocRef.current.size > 0
+  }, [activeNoteRef, draftMarkdownRef])
+
   const flushAllPendingSaves = useCallback(async (): Promise<boolean> => {
     const failuresBefore = saveFailureCountRef.current
     let ok = true
@@ -753,19 +792,10 @@ export function useWorkspaceEditor({
       }
     }
     await saveTailRef.current
-    return ok && saveFailureCountRef.current === failuresBefore
-  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, performSave])
-
-  const hasPendingPersistence = useCallback(() => {
-    const activeDirty = Boolean(
-      activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown,
-    )
-    return activeDirty ||
-      pendingSaveCountRef.current > 0 ||
-      pendingRequestsByDocRef.current.size > 0 ||
-      saveTimersByDocRef.current.size > 0 ||
-      inFlightSavesByDocRef.current.size > 0
-  }, [activeNoteRef, draftMarkdownRef])
+    // A new edit can arrive while the final captured write is in flight. Do not
+    // authorize closing or replacing the vault until that newer work is saved.
+    return ok && saveFailureCountRef.current === failuresBefore && !hasPendingPersistence()
+  }, [activeNoteRef, activePathRef, flushPendingDocumentSave, hasPendingPersistence, performSave])
 
   const scheduleSave = useCallback(
     (markdown: string) => {
@@ -941,16 +971,25 @@ export function useWorkspaceEditor({
       .then(async ({ getCurrentWindow }) => {
         const appWindow = getCurrentWindow()
         const stopListening = await appWindow.onCloseRequested(async (event) => {
-          if (closingAfterFlush || !hasPendingPersistenceRef.current()) return
-          event.preventDefault()
-          closingAfterFlush = true
-          const flushed = await flushAllPendingSavesRef.current()
-          if (flushed) {
-            await appWindow.destroy()
+          if (closingAfterFlush) {
+            event.preventDefault()
             return
           }
-          closingAfterFlush = false
-          setError('Could not save all pending note changes. Scriptor kept the window open so your draft is not lost.')
+          if (!hasPendingPersistenceRef.current()) return
+          event.preventDefault()
+          closingAfterFlush = true
+          try {
+            const flushed = await flushAllPendingSavesRef.current()
+            if (!flushed) {
+              setError('Could not save all pending note changes. Scriptor kept the window open so your draft is not lost.')
+              return
+            }
+            await appWindow.destroy()
+          } catch (caught) {
+            setError(`Could not close Scriptor safely: ${caught instanceof Error ? caught.message : String(caught)}`)
+          } finally {
+            closingAfterFlush = false
+          }
         })
         if (disposed) stopListening()
         else unlisten = stopListening
