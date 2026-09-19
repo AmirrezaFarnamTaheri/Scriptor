@@ -901,7 +901,13 @@
     "splitPreview": "Split preview",
     "showStickies": "Show sticky notes layer",
     "graphDepth": "Graph depth",
-    "resetLayout": "Reset {{mode}} layout"
+    "resetLayout": "Reset {{mode}} layout",
+    "configLoaded": "Vault configuration loaded. Save is explicit.",
+    "configReadFailed": "Could not read vault configuration",
+    "configUnchanged": "Vault configuration was not changed.",
+    "saving": "Saving…",
+    "configSaved": "Vault config saved to `.scriptor/config.json`.",
+    "configSaveFailed": "Could not save config"
   },
   "aiSettings": {
     "title": "AI provider (optional)",
