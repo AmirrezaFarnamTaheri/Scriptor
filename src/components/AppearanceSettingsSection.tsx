@@ -19,6 +19,7 @@ export interface AppearanceSettingsSectionProps {
   appearance?: AppearanceMode
   onThemeChange?: (theme: AppTheme) => void
   onAppearanceChange?: (appearance: AppearanceMode) => void
+  onManagePalettes?: () => void
 }
 
 export const AppearanceSettingsSection = memo(function AppearanceSettingsSection({
@@ -28,6 +29,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
   appearance = 'system',
   onThemeChange,
   onAppearanceChange,
+  onManagePalettes,
 }: AppearanceSettingsSectionProps) {
   const { t } = useI18n()
   const customPalettes = readStoredCustomThemes()
@@ -56,6 +58,11 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
             </optgroup> : null}
           </select>
         </label>
+      ) : null}
+      {onManagePalettes ? (
+        <button type="button" className="toolbar-button" onClick={onManagePalettes}>
+          {t('appearanceSettings.managePalettes')}
+        </button>
       ) : null}
       {onAppearanceChange ? (
         <label className="settings-field">
