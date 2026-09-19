@@ -1110,5 +1110,41 @@
       "pushingVaultTasks": "Pushing vault tasks…",
       "pushResult": "{{created}} created · {{updated}} updated · {{skipped}} already aligned · {{failed}} failed · {{pending}} pending approval"
     }
+  },
+  "vaultSidebar": {
+    "ariaLabel": "Vault",
+    "vault": "Vault",
+    "openVaultFolder": "Open vault folder",
+    "newNote": "New note",
+    "rebuildIndex": "Rebuild index",
+    "browseTags": "Browse tags",
+    "knowledgeFilters": "Knowledge filters",
+    "savedViews": "Saved views",
+    "manageSnippets": "Manage snippets",
+    "importObsidian": "Import Obsidian vault",
+    "allNotes": "All notes",
+    "inbox": "Inbox",
+    "recentNotes": "Recent notes",
+    "searchNotes": "Search notes",
+    "shortcutF": "Shortcut: F",
+    "focusSearchHint": "Press F to focus note search",
+    "searchingIndex": "Searching index…",
+    "searchResults": "Results: {{count}}",
+    "newByType": "New by type",
+    "newFromTemplate": "New from template",
+    "newFromTemplateCount": "New from template ({{count}})",
+    "previousDay": "Previous day",
+    "today": "Today",
+    "todayWithLabel": "Today · {{label}}",
+    "nextDay": "Next day",
+    "openVaultToBrowse": "Open a vault to browse notes.",
+    "utilities": "Vault utilities",
+    "tags": "Tags",
+    "archiveViews": "Archive views",
+    "menu": {
+      "files": "Vault",
+      "knowledge": "Knowledge",
+      "maintenance": "Maintenance"
+    }
   }
 }
