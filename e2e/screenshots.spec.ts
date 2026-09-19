@@ -336,13 +336,11 @@ test('settings appearance controls', async ({ page }) => {
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
   await waitForSettingsReady(page)
   const settings = page.getByRole('dialog', { name: 'Settings' })
-  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
   const heading = settings.getByRole('heading', { name: 'Appearance & layout', exact: true })
-  // Appearance follows the layout gallery in the Workspace tab. Scroll its
-  // actual container rather than capturing the off-screen settings controls.
-  await heading.evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
   await expect(heading).toBeInViewport()
-  await expect(settings.getByRole('combobox', { name: 'Color theme', exact: true })).toHaveValue('light')
+  await expect(settings.getByRole('combobox', { name: 'Color palette', exact: true })).toHaveValue('light')
+  await expect(settings.getByRole('combobox', { name: 'Day / night appearance', exact: true })).toBeVisible()
   await expect(settings.getByRole('combobox', { name: 'UI Display Font', exact: true })).toBeInViewport()
   await expect(settings.getByRole('combobox', { name: 'UI Layout Density', exact: true })).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('settings-appearance'))
