@@ -196,6 +196,7 @@ export function PluginManagerCenter({
                     key={profile}
                     type="button"
                     className={`profile-btn ${activeProfile === profile ? 'active' : ''}`}
+                    aria-pressed={activeProfile === profile}
                     onClick={() => requestProfile(profile)}
                   >
                     {t(`pluginManager.profiles.${profile}`)}
@@ -225,6 +226,7 @@ export function PluginManagerCenter({
                     key={cat}
                     type="button"
                     className={`profile-btn ${themeFilterCategory === cat ? 'active' : ''}`}
+                    aria-pressed={themeFilterCategory === cat}
                     onClick={() => setThemeFilterCategory(cat)}
                   >
                     {t(`pluginManager.categories.${cat}`)}
