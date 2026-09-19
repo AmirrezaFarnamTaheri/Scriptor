@@ -338,7 +338,8 @@ export function ThemeCustomizerModal({
               </p>
             )}
 
-            <div className="color-pickers-grid">\n              <div className="picker-card">
+            <div className="color-pickers-grid">
+              <div className="picker-card">
                 <label>{t('themeCustomizer.primaryAccent')}</label>
                 <div className="picker-row">
                   <input
