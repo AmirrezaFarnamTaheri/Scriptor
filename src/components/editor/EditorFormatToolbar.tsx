@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react'
+import { memo, useMemo } from 'react'
 import {
   AlignCenter,
   Archive,
@@ -162,10 +162,8 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
     }),
   ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t, toolbarExtras])
 
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
   return (
-    <div className="editor-toolbar-wrapper" ref={wrapperRef}>
+    <div className="editor-toolbar-wrapper">
       <div className="format-row editor-toolbar" role="toolbar" aria-label={t('editor.toolbar.markdownTools')}>
         <div className="format-group editor-view-modes" aria-label={t('editor.toolbar.viewMode')}>
           {(
@@ -186,7 +184,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             </button>
           ))}
         </div>
-        <CustomizableToolbar extras={extras} hostRef={wrapperRef}>
+        <CustomizableToolbar extras={extras}>
         <div className="format-group" aria-label={t('editor.toolbar.structure')}>
           <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} aria-label={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
             <Heading1 />
