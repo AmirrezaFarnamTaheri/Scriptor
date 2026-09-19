@@ -7,6 +7,14 @@
   margin-inline-start: 6px;
   font: 12px/1.4 var(--font-sans, system-ui);
 }
+
+/* Context help is injected into existing toolbar chrome. Stretch its wrapper to
+ * the toolbar line box so a smaller 32px icon does not create a second visual
+ * row in geometry/reflow calculations at narrow editor widths. */
+.editor-toolbar > .help-affordance {
+  align-self: stretch;
+  margin-block: 0;
+}
 .help-trigger,
 .help-invitation button {
   display: inline-flex;
