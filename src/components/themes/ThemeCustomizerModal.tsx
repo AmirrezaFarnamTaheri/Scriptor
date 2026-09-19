@@ -12,6 +12,7 @@ import {
 } from '../../hooks/useAppTheme'
 import { MutationConfirmation } from '../chrome/MutationConfirmation'
 import '../../styles/components/theme-customizer.css'
+import { useI18n } from '../../lib/i18n'
 
 export interface ThemeCustomizerModalProps {
   isOpen: boolean
@@ -65,11 +66,12 @@ export function ThemeCustomizerModal({
   onClose,
   onSelectTheme,
 }: ThemeCustomizerModalProps) {
+  const { t } = useI18n()
   const [customThemes, setCustomThemes] = useState<CustomColorPalette[]>(() =>
     readStoredCustomThemes(),
   )
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [name, setName] = useState('My Custom Theme')
+  const [name, setName] = useState(() => t('themeCustomizer.defaultName'))
   const [category, setCategory] = useState<'dark' | 'light' | 'contrast'>('dark')
   const [colors, setColors] = useState(DEFAULT_CUSTOM_COLORS)
   const [baseSchemeId, setBaseSchemeId] = useState<string>('dark')
@@ -84,15 +86,15 @@ export function ThemeCustomizerModal({
   const contrastChecks = useMemo(() => {
     const minimum = category === 'contrast' ? 7 : 4.5
     const pairs = [
-      ['Text / background', colors.ink, colors.bg],
-      ['Text / surface', colors.ink, colors.surface],
+      [t('themeCustomizer.contrastTextBackground'), colors.ink, colors.bg],
+      [t('themeCustomizer.contrastTextSurface'), colors.ink, colors.surface],
     ] as const
     return pairs.flatMap(([label, foreground, background]) => {
       const ratio = contrastRatio(foreground, background)
       if (ratio === null) return []
       return [{ label, ratio, minimum, passes: ratio >= minimum }]
     })
-  }, [category, colors.bg, colors.ink, colors.surface])
+  }, [category, colors.bg, colors.ink, colors.surface, t])
 
   const failingContrastChecks = contrastChecks.filter((check) => !check.passes)
 
@@ -123,7 +125,7 @@ export function ThemeCustomizerModal({
       setCategory(base.category)
       setColors({ ...base.colors })
       if (!editingId) {
-        setName(`Custom ${base.name}`)
+        setName(t('themeCustomizer.customBaseName', { name: base.name }))
       }
     }
   }
@@ -131,25 +133,25 @@ export function ThemeCustomizerModal({
   const handleSave = () => {
     const normalizedName = name.trim()
     if (!normalizedName) {
-      setSaveError('Theme name cannot be empty.')
+      setSaveError(t('themeCustomizer.errorEmptyName'))
       return
     }
     if (normalizedName.length > 80) {
-      setSaveError('Theme name must be 80 characters or fewer.')
+      setSaveError(t('themeCustomizer.errorLongName'))
       return
     }
     if (invalidColorKeys.length > 0) {
-      setSaveError(`Invalid CSS color: ${invalidColorKeys.join(', ')}`)
+      setSaveError(t('themeCustomizer.errorInvalidColor', { keys: invalidColorKeys.join(', ') }))
       return
     }
     if (contrastChecks.length < 2) {
-      setSaveError('Use six-digit hex colors for text, background, and surface so contrast can be verified before saving.')
+      setSaveError(t('themeCustomizer.errorUnverifiableContrast'))
       return
     }
     if (failingContrastChecks.length > 0) {
-      setSaveError(
-        `Text contrast is too low: ${failingContrastChecks.map((check) => `${check.label} ${check.ratio.toFixed(2)}:1`).join(', ')}.`,
-      )
+      setSaveError(t('themeCustomizer.errorLowContrast', {
+        details: failingContrastChecks.map((check) => `${check.label} ${check.ratio.toFixed(2)}:1`).join(', '),
+      }))
       return
     }
     setSaveError(null)
@@ -171,7 +173,7 @@ export function ThemeCustomizerModal({
       onSelectTheme(targetId)
       onClose()
     } catch {
-      setSaveError('Could not save the custom theme. Browser storage may be unavailable or full.')
+      setSaveError(t('themeCustomizer.errorSaveStorage'))
     }
   }
 
@@ -191,7 +193,7 @@ export function ThemeCustomizerModal({
         onSelectTheme('dark')
       }
     } catch {
-      setSaveError('Could not delete the custom theme from browser storage.')
+      setSaveError(t('themeCustomizer.errorDeleteStorage'))
     }
   }
 
@@ -204,19 +206,19 @@ export function ThemeCustomizerModal({
 
   const handleResetToNew = () => {
     setEditingId(null)
-    setName('My Custom Theme')
+    setName(t('themeCustomizer.defaultName'))
     setCategory('dark')
     setColors(DEFAULT_CUSTOM_COLORS)
   }
 
   return (
-    <div ref={overlayRef} className="customizer-overlay" role="dialog" aria-modal="true" aria-label="Theme Customizer & Builder">
+    <div ref={overlayRef} className="customizer-overlay" role="dialog" aria-modal="true" aria-label={t('themeCustomizer.ariaLabel')}>
       <div className="customizer-modal">
         <div className="customizer-header">
           <h2>
-            <Palette /> Custom Theme Builder &amp; Color Editor
+            <Palette /> {t('themeCustomizer.title')}
           </h2>
-          <button type="button" className="icon-button" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-button" onClick={onClose} aria-label={t('themeCustomizer.close')}>
             <X />
           </button>
         </div>
@@ -226,14 +228,14 @@ export function ThemeCustomizerModal({
           <div className="customizer-sidebar">
             <div className="sidebar-section">
               <h3>
-                <Sliders /> Saved Custom Themes ({customThemes.length})
+                <Sliders /> {t('themeCustomizer.savedThemes', { count: customThemes.length })}
               </h3>
               <button type="button" className="btn-new-theme" onClick={handleResetToNew}>
-                <Plus /> Create New Theme
+                <Plus /> {t('themeCustomizer.createNew')}
               </button>
               <div className="saved-themes-list">
                 {customThemes.length === 0 ? (
-                  <p className="empty-hint">No custom themes saved yet.</p>
+                  <p className="empty-hint">{t('themeCustomizer.empty')}</p>
                 ) : (
                   customThemes.map((ct) => (
                     <div key={ct.id} className="saved-theme-entry">
@@ -245,8 +247,8 @@ export function ThemeCustomizerModal({
                         <button
                           type="button"
                           className="btn-delete-theme"
-                          aria-label={`Delete ${ct.name}`}
-                          title={`Delete ${ct.name}`}
+                          aria-label={t('themeCustomizer.deleteAria', { name: ct.name })}
+                          title={t('themeCustomizer.deleteAria', { name: ct.name })}
                           onClick={() => setPendingDeleteId(ct.id)}
                         >
                           <Trash2 />
@@ -254,9 +256,9 @@ export function ThemeCustomizerModal({
                       </div>
                       {pendingDeleteId === ct.id ? (
                         <MutationConfirmation
-                          ariaLabel={`Confirm deletion of ${ct.name}`}
-                          message={`Delete the custom theme “${ct.name}”? This cannot be undone.`}
-                          confirmLabel="Delete theme"
+                          ariaLabel={t('themeCustomizer.confirmDeleteAria', { name: ct.name })}
+                          message={t('themeCustomizer.confirmDeleteMessage', { name: ct.name })}
+                          confirmLabel={t('themeCustomizer.deleteTheme')}
                           onCancel={() => setPendingDeleteId(null)}
                           onConfirm={() => handleDelete(ct.id)}
                           className="theme-delete-confirmation"
@@ -270,11 +272,11 @@ export function ThemeCustomizerModal({
 
             <div className="sidebar-section">
               <h3>
-                <RotateCcw /> Load From Preset Template
+                <RotateCcw /> {t('themeCustomizer.loadPreset')}
               </h3>
               <select
                 value={baseSchemeId}
-                aria-label="Load base color scheme from preset template"
+                aria-label={t('themeCustomizer.loadPresetAria')}
                 onChange={(e) => handleLoadBaseScheme(e.target.value)}
               >
                 {COLOR_PALETTE_SCHEMES.map((scheme) => (
@@ -290,19 +292,19 @@ export function ThemeCustomizerModal({
           <div className="customizer-main">
             {saveError ? <p className="error-state" role="alert">{saveError}</p> : null}
             <div className="form-group">
-              <label htmlFor="theme-name-input">Theme Name:</label>
+              <label htmlFor="theme-name-input">{t('themeCustomizer.nameLabel')}</label>
               <input
                 id="theme-name-input"
                 type="text"
                 value={name}
                 maxLength={80}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Neon Emerald Night"
+                placeholder={t('themeCustomizer.namePlaceholder')}
               />
             </div>
 
             <div className="form-group">
-              <label>Theme Base Category:</label>
+              <label>{t('themeCustomizer.baseCategory')}</label>
               <div className="category-toggle">
                 {(['dark', 'light', 'contrast'] as const).map((cat) => (
                   <button
@@ -311,7 +313,7 @@ export function ThemeCustomizerModal({
                     className={`cat-btn ${category === cat ? 'active' : ''}`}
                     onClick={() => setCategory(cat)}
                   >
-                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    {t(`themeCustomizer.category${cat.charAt(0).toUpperCase() + cat.slice(1)}`)}
                   </button>
                 ))}
               </div>
@@ -319,25 +321,25 @@ export function ThemeCustomizerModal({
 
             {contrastChecks.length > 0 ? (
               <div className="theme-contrast-status" role="status" aria-live="polite">
-                <strong>Text contrast</strong>
-                <span>Required: {category === 'contrast' ? '7:1' : '4.5:1'}</span>
+                <strong>{t('themeCustomizer.textContrast')}</strong>
+                <span>{t('themeCustomizer.required', { ratio: category === 'contrast' ? '7:1' : '4.5:1' })}</span>
                 <ul>
                   {contrastChecks.map((check) => (
                     <li key={check.label} data-pass={check.passes ? 'true' : 'false'}>
                       <span>{check.label}</span>
-                      <span>{check.ratio.toFixed(2)}:1 {check.passes ? '✓' : '— increase contrast'}</span>
+                      <span>{check.ratio.toFixed(2)}:1 {check.passes ? '✓' : `— ${t('themeCustomizer.increaseContrast')}`}</span>
                     </li>
                   ))}
                 </ul>
               </div>
             ) : (
               <p className="theme-contrast-status theme-contrast-status--unknown" role="note">
-                Contrast preview is available for six-digit hex text, background, and surface colors.
+                {t('themeCustomizer.contrastUnknown')}
               </p>
             )}
 
             <div className="color-pickers-grid">\n              <div className="picker-card">
-                <label>Primary Accent</label>
+                <label>{t('themeCustomizer.primaryAccent')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
@@ -353,7 +355,7 @@ export function ThemeCustomizerModal({
               </div>
 
               <div className="picker-card">
-                <label>Secondary Amber</label>
+                <label>{t('themeCustomizer.secondaryAmber')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
@@ -369,7 +371,7 @@ export function ThemeCustomizerModal({
               </div>
 
               <div className="picker-card">
-                <label>Background</label>
+                <label>{t('themeCustomizer.background')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
@@ -385,7 +387,7 @@ export function ThemeCustomizerModal({
               </div>
 
               <div className="picker-card">
-                <label>Surface Panel</label>
+                <label>{t('themeCustomizer.surface')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
@@ -401,7 +403,7 @@ export function ThemeCustomizerModal({
               </div>
 
               <div className="picker-card">
-                <label>Ink / Text</label>
+                <label>{t('themeCustomizer.ink')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
@@ -417,7 +419,7 @@ export function ThemeCustomizerModal({
               </div>
 
               <div className="picker-card">
-                <label>Border Highlight</label>
+                <label>{t('themeCustomizer.border')}</label>
                 <div className="picker-row">
                   <input
                     type="color"
@@ -436,7 +438,7 @@ export function ThemeCustomizerModal({
             {/* Real-time Interactive UI Live Preview Card */}
             <div className="preview-container">
               <h4>
-                <Eye /> Real-time Interactive Live Preview
+                <Eye /> {t('themeCustomizer.livePreview')}
               </h4>
               <div
                 className="live-preview-box"
@@ -451,15 +453,15 @@ export function ThemeCustomizerModal({
                   style={{ background: colors.surface, borderBottomColor: colors.border }}
                 >
                   <span className="preview-title" style={{ color: colors.ink }}>
-                    Document Title.md
+                    {t('themeCustomizer.previewTitle')}
                   </span>
                   <span className="preview-badge" style={{ background: colors.primary, color: colors.bg }}>
-                    Active
+                    {t('themeCustomizer.active')}
                   </span>
                 </div>
                 <div className="preview-content">
                   <p style={{ color: colors.ink }}>
-                    Here is sample markdown text rendered with your customized palette.
+                    {t('themeCustomizer.sample')}
                   </p>
                   <div className="preview-controls">
                     <button
@@ -467,14 +469,14 @@ export function ThemeCustomizerModal({
                       className="preview-btn-primary"
                       style={{ background: colors.primary, color: colors.bg }}
                     >
-                      Primary Action
+                      {t('themeCustomizer.primaryAction')}
                     </button>
                     <button
                       type="button"
                       className="preview-btn-amber"
                       style={{ background: colors.amber, color: colors.bg }}
                     >
-                      Amber Warning
+                      {t('themeCustomizer.amberWarning')}
                     </button>
                   </div>
                 </div>
@@ -485,10 +487,10 @@ export function ThemeCustomizerModal({
 
         <div className="customizer-footer">
           <button type="button" className="btn-cancel" onClick={onClose}>
-            Cancel
+            {t('themeCustomizer.cancel')}
           </button>
           <button type="button" className="btn-save" onClick={handleSave}>
-            <Check /> {editingId ? 'Update Theme' : 'Save & Apply Theme'}
+            <Check /> {editingId ? t('themeCustomizer.updateTheme') : t('themeCustomizer.saveApply')}
           </button>
         </div>
       </div>
