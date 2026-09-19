@@ -1,4 +1,4 @@
-import { memo, type Dispatch, type SetStateAction } from 'react'
+import { memo, useState, type Dispatch, type SetStateAction } from 'react'
 import { CalendarDays, CheckCircle2, ExternalLink, Mail, RefreshCw } from 'lucide-react'
 
 import { useGoogleCalendarSync } from '../hooks/useGoogleCalendarSync'
@@ -21,6 +21,8 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   const calendarSync = useGoogleCalendarSync({ config: config.calendar_sync })
   const sync = config.calendar_sync ?? DEFAULT_VAULT_CONFIG.calendar_sync!
   const clientId = sync.google_client_id ?? ''
+  const [savingConnection, setSavingConnection] = useState(false)
+  const [setupError, setSetupError] = useState<string | null>(null)
 
   const patchSync = (patch: Partial<NonNullable<VaultConfig['calendar_sync']>>) => {
     setConfig((current) => ({
@@ -34,11 +36,19 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   }
 
   const connectGoogle = async () => {
-    if (!sync.enabled || !clientId.trim()) return
-    // Persist the integration configuration before creating credentials. Other
-    // vault-setting drafts remain untouched.
-    await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }))
-    await calendarSync.startAuth()
+    if (!sync.enabled || !clientId.trim() || savingConnection) return
+    setSavingConnection(true)
+    setSetupError(null)
+    try {
+      // Persist the integration configuration before creating credentials. Other
+      // vault-setting drafts remain untouched.
+      await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }))
+      await calendarSync.startAuth()
+    } catch (caught) {
+      setSetupError(caught instanceof Error ? caught.message : String(caught))
+    } finally {
+      setSavingConnection(false)
+    }
   }
 
   return (
@@ -121,7 +131,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
                 type="button"
                 className="primary-button"
                 onClick={() => void connectGoogle()}
-                disabled={!clientId.trim()}
+                disabled={!clientId.trim() || savingConnection}
               >
                 <ExternalLink size={14} aria-hidden="true" />
                 {t('integrations.google.connect')}
@@ -138,6 +148,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
               </>
             )}
           </div>
+          {setupError ? <p className="publish-error" role="alert">{setupError}</p> : null}
           {calendarSync.error ? <p className="publish-error" role="alert">{calendarSync.error}</p> : null}
 
           <div className="google-gmail-connection-note">
