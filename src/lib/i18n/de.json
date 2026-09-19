@@ -31,8 +31,8 @@
     "capture": "Erfassen",
     "graph": "Graph",
     "canvas": "Leinwand",
-    "switchToLight": "Zum hellen Design wechseln",
-    "switchToDark": "Zum dunklen Design wechseln",
+    "switchToLight": "Zur hellen Darstellung wechseln",
+    "switchToDark": "Zur dunklen Darstellung wechseln",
     "switchToHighContrast": "Zum Kontrastdesign wechseln",
     "switchToTheme": "Zum Design „{{theme}}“ wechseln",
     "supportScriptor": "Scriptor unterstützen",
@@ -45,7 +45,12 @@
     "paletteStore": "Eingebaute Module & Farbpaletten",
     "customizeAria": "Kopfzeilen-Aktionen anpassen",
     "customizeShowAll": "Alle anzeigen",
-    "customizeRestoreDefaults": "Standardaktionen wiederherstellen"
+    "customizeRestoreDefaults": "Standardaktionen wiederherstellen",
+    "historyControls": "Verlauf",
+    "workspaceMode": "Arbeitsbereichsmodus",
+    "openCommandPalette": "Befehlspalette öffnen ({{shortcut}})",
+    "appearanceControl": "{{action}} · Palette {{palette}}",
+    "appearanceControlSystem": "{{action}} · Palette {{palette}} · folgt dem System"
   },
   "commandPalette": {
     "placeholder": "Befehl oder Notiz eingeben...",
