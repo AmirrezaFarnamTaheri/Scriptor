@@ -260,6 +260,7 @@ function groupVaultTasks(rows: TaskRow[]): VaultTaskNote[] {
 export interface TaskPanelProps {
   embedded?: boolean
   vaultOpen: boolean
+  vaultId?: string | null
   onClose: () => void
   onOpenNote: (path: string) => void
   runSourceNoteMutation?: RunSourceNoteMutation
@@ -270,6 +271,7 @@ export interface TaskPanelProps {
 export const TaskPanel = memo(function TaskPanel({
   embedded = false,
   vaultOpen,
+  vaultId,
   onClose,
   onOpenNote,
   runSourceNoteMutation,
@@ -314,11 +316,12 @@ export const TaskPanel = memo(function TaskPanel({
     return () => {
       cancelled = true
     }
-  }, [calendarConfig?.enabled, vaultOpen, taskRevision])
+  }, [calendarConfig?.enabled, vaultOpen, vaultId, taskRevision])
 
   const vaultTaskNotes = useMemo(() => groupVaultTasks(allVaultTasks), [allVaultTasks])
   const calendarSync = useGoogleCalendarSync({
     config: calendarConfig,
+    vaultId,
     vaultNotes: vaultTaskNotes,
     vaultTasksComplete,
   })

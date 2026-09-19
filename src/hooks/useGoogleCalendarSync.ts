@@ -74,6 +74,8 @@ export interface VaultTaskSyncResult {
 
 export interface GoogleCalendarSyncOptions {
   config: CalendarSyncConfig | undefined
+  /** Required for mirroring; provider accounts/task lists may be shared by vaults. */
+  vaultId?: string | null
   /** Indexed vault notes with task items for push-to-Tasks. */
   vaultNotes?: VaultTaskNote[]
   /** True only after an authoritative all-task query has completed successfully. */
@@ -124,13 +126,12 @@ function formatTime(iso: string): string {
 }
 
 /** Builds the stable source marker used to deduplicate mirrored vault tasks. */
-function sourceMarker(taskId: string): string {
-  return `${SOURCE_MARKER_PREFIX} ${taskId}`
+function vaultSourcePrefix(vaultId: string): string {
+  return `${SOURCE_MARKER_PREFIX} vault:${encodeURIComponent(vaultId)}:`
 }
 
-/** Legacy marker retained only for one-way migration/deduplication. */
-function legacySourceMarker(path: string, line: number): string {
-  return `${SOURCE_MARKER_PREFIX} ${path}#L${line + 1}`
+function sourceMarker(vaultId: string, taskId: string): string {
+  return `${vaultSourcePrefix(vaultId)}${taskId}`
 }
 
 /** Converts a task due value to the RFC 3339 form expected by Google Tasks. */
@@ -156,15 +157,16 @@ function reconciledTaskNotes(remoteNotes: string | null, marker: string): string
   return [...preserved, marker].join('\n')
 }
 
-function hasScriptorSourceMarker(task: GoogleTask): boolean {
+function hasVaultSourceMarker(task: GoogleTask, vaultId: string): boolean {
   return (task.notes ?? '')
     .split('\n')
-    .some((line) => line.startsWith(SOURCE_MARKER_PREFIX))
+    .some((line) => line.startsWith(vaultSourcePrefix(vaultId)))
 }
 
 /** Coordinates Google authorization, refresh, task mutations, and vault-task mirroring. */
 export function useGoogleCalendarSync({
   config,
+  vaultId = null,
   vaultNotes = [],
   vaultTasksComplete = false,
   refreshIntervalSeconds = 300,
@@ -304,7 +306,7 @@ export function useGoogleCalendarSync({
         intervalRef.current = null
       }
     }
-  }, [enabled, refresh, refreshIntervalSeconds])
+  }, [enabled, refresh, refreshIntervalSeconds, vaultId])
 
   const pushTask = useCallback(
     async (task: { title: string; notes?: string; due?: string }): Promise<GoogleTask | null> => {
@@ -374,7 +376,7 @@ export function useGoogleCalendarSync({
   )
 
   const syncVaultTasks = useCallback(async (): Promise<VaultTaskSyncResult> => {
-    if (!enabled || !vaultTasksComplete || status !== 'synced' || vaultSyncRunningRef.current) {
+    if (!enabled || !vaultId || !vaultTasksComplete || status !== 'synced' || vaultSyncRunningRef.current) {
       return { created: 0, updated: 0, skipped: 0, failed: 0, pending: 0 }
     }
 
@@ -387,8 +389,10 @@ export function useGoogleCalendarSync({
     try {
       for (const note of vaultNotes) {
         for (const task of note.tasks) {
-          const marker = sourceMarker(task.id)
-          const legacyMarker = legacySourceMarker(note.path, task.line)
+          const marker = sourceMarker(vaultId, task.id)
+          // Native stable task IDs include vault identity. Old path/line markers
+          // and title-only matches cannot establish ownership across vaults.
+          const legacyMarker = `${SOURCE_MARKER_PREFIX} ${task.id}`
 
           let matchingRemote = tasks.find((remoteTask) => {
             if (matchedRemoteIds.has(remoteTask.id)) return false
@@ -403,7 +407,7 @@ export function useGoogleCalendarSync({
             const titleMatches = tasks.filter((remoteTask) =>
               !matchedRemoteIds.has(remoteTask.id)
               && remoteTask.title === task.text
-              && hasScriptorSourceMarker(remoteTask),
+              && hasVaultSourceMarker(remoteTask, vaultId),
             )
             if (titleMatches.length === 1) matchingRemote = titleMatches[0]
           }
@@ -453,14 +457,14 @@ export function useGoogleCalendarSync({
         }
       }
 
-      // Any still-open remote task carrying a Scriptor marker but not matched
-      // above represents a local task that was removed. Completing rather than
-      // deleting preserves Google history while making the open-task mirror exact.
+      // Only this vault's explicit markers establish that an unmatched task
+      // was removed locally. Other vaults and unscoped legacy tasks are left
+      // alone; a shared provider task list is not a complete view of one vault.
       for (const remoteTask of tasks) {
         if (
           matchedRemoteIds.has(remoteTask.id)
           || remoteTask.status === 'completed'
-          || !hasScriptorSourceMarker(remoteTask)
+          || !hasVaultSourceMarker(remoteTask, vaultId)
         ) {
           continue
         }
@@ -506,6 +510,9 @@ export function useGoogleCalendarSync({
             setTasks(refreshedTasks)
           }
         } catch (caught) {
+          // The provider accepted mutations, so the cached list is no longer
+          // authoritative. Require a successful refresh before another mirror.
+          if (currentLifecycle === lifecycleGenerationRef.current) setStatus('error')
           errors.push(googleAuthErrorMessage(caught))
         }
       }
@@ -536,7 +543,7 @@ export function useGoogleCalendarSync({
     } finally {
       vaultSyncRunningRef.current = false
     }
-  }, [enabled, status, taskListId, tasks, vaultNotes, vaultTasksComplete])
+  }, [enabled, status, taskListId, tasks, vaultId, vaultNotes, vaultTasksComplete])
 
 
   const todayAgendaMarkdown = useCallback((): string => {

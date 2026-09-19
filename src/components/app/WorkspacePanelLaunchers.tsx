@@ -209,6 +209,8 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <TaskPanel
+              key={workspace.vault.id}
+              vaultId={workspace.vault.id}
               vaultOpen={Boolean(workspace.vault)}
               onClose={onCloseTasks}
               onOpenNote={(path) => void workspace.openNote(path)}
