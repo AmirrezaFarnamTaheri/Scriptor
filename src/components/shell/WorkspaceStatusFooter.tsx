@@ -148,7 +148,7 @@ function WorkspaceStatusFooterImpl({
     : noteCount
 
   return (
-    <footer className={`status-strip${chromeCollapsed ? ' is-dock-collapsed' : ''}`}>
+    <footer className={`status-strip${chromeCollapsed ? ' is-dock-collapsed' : ''}`} data-help-topic="status">
       <div className="status-summary">
         <button
           type="button"
