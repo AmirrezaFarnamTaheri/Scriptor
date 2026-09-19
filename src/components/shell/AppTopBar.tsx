@@ -27,6 +27,7 @@ import { IconButton } from '../chrome/WorkspaceChrome'
 import { getDefaultShortcut } from '../../lib/commandShortcutRegistry'
 import { formatShortcut } from '../../lib/keyboardShortcuts'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { WorkspaceSwitcher } from '../app/WorkspaceSwitcher'
 import type { AppTheme, AppearanceMode, ResolvedAppearance } from '../../hooks/useAppTheme'
 import type { VaultDescriptor } from '../../types/vault'
@@ -152,6 +153,7 @@ function AppTopBarImpl({
   const [customizePos, setCustomizePos] = useState<{ x: number; y: number } | null>(null)
   const customizeAnchorRef = useRef<HTMLButtonElement | null>(null)
   const customizePopupRef = useRef<HTMLDivElement | null>(null)
+  useFocusTrap(customizePopupRef, { active: customizeOpen })
 
   const quickActions = [
     { id: 'workbench', label: t('topBar.workbench'), icon: <BookOpenText />, onClick: onOpenKnowledgeWorkbench, emphasized: workspaceMode === 'knowledge', className: 'topbar-secondary-action' },
@@ -207,7 +209,7 @@ function AppTopBarImpl({
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as HTMLElement | null
       if (target?.closest?.('.topbar-customize')) return
-      if (target?.closest?.('.topbar')) return
+      if (customizeAnchorRef.current?.contains(target)) return
       setCustomizeOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
