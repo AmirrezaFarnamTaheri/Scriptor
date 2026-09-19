@@ -45,7 +45,23 @@ test('packager excludes image bytes from evidence tree', () => {
 
 
 test('cancelled visual runs do not refresh or publish stale evidence', () => {
-  const guardedAlways = (workflow.match(/if:\s*\$\{\{ always\(\) && !cancelled\(\) \}\}/g) ?? []).length
-  assert.ok(guardedAlways >= 5, 'refresh, enforcement, finalization, packaging, and upload must stop after cancellation')
-  assert.match(workflow, /if:\s*\$\{\{ failure\(\) && !cancelled\(\) \}\}/)
+  const steps = workflow.split(/\n(?= {6}- name: )/)
+  const step = (name) => {
+    const block = steps.find((entry) => entry.startsWith(`      - name: ${name}\n`))
+    assert.ok(block, `missing required visual evidence step: ${name}`)
+    return block
+  }
+  assert.match(
+    step('Refresh current visual baselines'),
+    /if:\s*\$\{\{ steps\.visual_compare\.outcome != 'success' && !cancelled\(\) \}\}/,
+  )
+  for (const name of [
+    'Enforce visual review result and committed baselines',
+    'Finalize visual review evidence',
+    'Prepare unified visual review artifact',
+    'Upload unified visual review artifact',
+  ]) {
+    assert.match(step(name), /if:\s*\$\{\{ always\(\) && !cancelled\(\) \}\}/)
+  }
+  assert.match(step('Capture visual review failure context'), /if:\s*\$\{\{ failure\(\) && !cancelled\(\) \}\}/)
 })

@@ -17,10 +17,11 @@ test('successful production publication dispatches screenshot refresh on the def
   assert.doesNotMatch(job, /always\(\)|continue-on-error/)
 })
 
-test('refresh remains branch-only, serial, and refuses non-fast-forward publication', () => {
+test('refresh remains branch-only, replaces superseded captures, and refuses non-fast-forward publication', () => {
   assert.match(refresh, /workflow_dispatch:/)
   assert.match(refresh, /startsWith\(github\.ref, 'refs\/heads\/'\)/)
-  assert.match(refresh, /cancel-in-progress: false/)
+  assert.match(refresh, /group: refresh-screenshots-\$\{\{ github\.ref \}\}/)
+  assert.match(refresh, /cancel-in-progress: true/)
   assert.match(refresh, /git push origin "HEAD:refs\/heads\/\$env:CAPTURE_BRANCH"/)
   assert.doesNotMatch(refresh, /--force|git rebase/)
 })
