@@ -348,6 +348,7 @@ export const ReaderPanel = memo(function ReaderPanel({
       subtitle={fileLabel}
       icon={<BookOpen size={18} />}
       ariaLabel="Document reader"
+      helpTopic="reader"
       onClose={handleClose}
       presentation={presentation}
       wide
