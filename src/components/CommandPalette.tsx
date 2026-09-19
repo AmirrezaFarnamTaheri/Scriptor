@@ -105,6 +105,8 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
     onClose()
   }
 
+  const hasNoteResults = mergedCommands.some((command) => command.group === 'note')
+
   return (
     <div
       className="command-palette-overlay"
@@ -153,7 +155,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         <ul id="command-palette-list" ref={listRef} role="listbox">
           {mergedCommands.map((command, index) => {
             const previousGroup = mergedCommands[index - 1]?.group
-            const showHeading = index === 0 || previousGroup !== command.group
+            const showHeading = hasNoteResults && (index === 0 || previousGroup !== command.group)
             return (
               <Fragment key={command.id}>
                 {showHeading ? (
@@ -192,11 +194,6 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
           })}
         </ul>
         {mergedCommands.length === 0 ? <p className="command-palette-hint">{t('commandPalette.noResults')}</p> : null}
-        <footer className="command-palette-footer" aria-hidden="true">
-          <span>↑↓ {t('commandPalette.navigate')}</span>
-          <span>Enter {t('commandPalette.open')}</span>
-          <span>Esc {t('actions.close')}</span>
-        </footer>
       </div>
     </div>
   )
