@@ -665,6 +665,13 @@
       "connect": "Save & connect Google",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
+      "status": {
+        "disconnected": "Disconnected",
+        "authorizing": "Authorizing…",
+        "syncing": "Syncing…",
+        "synced": "Connected",
+        "error": "Needs attention"
+      },
       "gmailNote": "Gmail Manager is enabled separately under Plugins and requests Gmail-specific permission. It can reuse this client ID."
     },
     "gmail": {

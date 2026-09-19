@@ -176,7 +176,7 @@ export function useGoogleCalendarSync({
 
   const startAuth = useCallback(async () => {
     if (!clientId) {
-      setError('Google OAuth client ID not configured. Set it in Settings → Calendar.')
+      setError('Google OAuth client ID not configured. Set it in Settings → Integrations.')
       return
     }
     const currentLifecycle = lifecycleGenerationRef.current
@@ -213,7 +213,7 @@ export function useGoogleCalendarSync({
         currentLifecycle !== lifecycleGenerationRef.current ||
         currentRefreshGen !== refreshGenerationRef.current
       ) return
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
       setStatus('error')
     }
   }, [clientId, calendarId, taskListId, lookaheadDays])
@@ -231,7 +231,7 @@ export function useGoogleCalendarSync({
       setError(null)
     } catch (caught) {
       setStatus('error')
-      setError(caught instanceof Error ? caught.message : String(caught))
+      setError(googleAuthErrorMessage(caught))
     }
   }, [])
 
@@ -267,7 +267,7 @@ export function useGoogleCalendarSync({
         setStatus('disconnected')
         setError(googleAuthErrorMessage(err))
       } else {
-        setError(err instanceof Error ? err.message : String(err))
+        setError(googleAuthErrorMessage(err))
         setStatus('error')
       }
     }
@@ -309,7 +309,7 @@ export function useGoogleCalendarSync({
         return created
       } catch (caught) {
         if (currentLifecycle === lifecycleGenerationRef.current) {
-          setError(caught instanceof Error ? caught.message : String(caught))
+          setError(googleAuthErrorMessage(caught))
         }
         return null
       }
@@ -334,7 +334,7 @@ export function useGoogleCalendarSync({
         }
       } catch (caught) {
         if (currentLifecycle === lifecycleGenerationRef.current) {
-          setError(caught instanceof Error ? caught.message : String(caught))
+          setError(googleAuthErrorMessage(caught))
         }
       }
     },
@@ -352,7 +352,7 @@ export function useGoogleCalendarSync({
         }
       } catch (caught) {
         if (currentLifecycle === lifecycleGenerationRef.current) {
-          setError(caught instanceof Error ? caught.message : String(caught))
+          setError(googleAuthErrorMessage(caught))
         }
       }
     },
@@ -418,7 +418,7 @@ export function useGoogleCalendarSync({
               existingMarkers.add(marker)
               updated += 1
             } catch (caught) {
-              setError(caught instanceof Error ? caught.message : String(caught))
+              setError(googleAuthErrorMessage(caught))
               failed += 1
             }
             continue

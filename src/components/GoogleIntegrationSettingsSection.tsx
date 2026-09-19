@@ -23,6 +23,13 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   const clientId = sync.google_client_id ?? ''
   const [savingConnection, setSavingConnection] = useState(false)
   const [setupError, setSetupError] = useState<string | null>(null)
+  const statusLabel = {
+    disconnected: t('integrations.google.status.disconnected'),
+    authorizing: t('integrations.google.status.authorizing'),
+    syncing: t('integrations.google.status.syncing'),
+    synced: t('integrations.google.status.synced'),
+    error: t('integrations.google.status.error'),
+  }[calendarSync.status]
 
   const patchSync = (patch: Partial<NonNullable<VaultConfig['calendar_sync']>>) => {
     setConfig((current) => ({
@@ -123,7 +130,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
           <div className="calendar-sync-actions google-connection-actions">
             <span className={`publish-status publish-status-${calendarSync.status}`}>
               {calendarSync.status === 'synced' ? <CheckCircle2 size={13} aria-hidden="true" /> : null}
-              {calendarSync.status.toUpperCase()}
+              {statusLabel}
               {calendarSync.authedEmail ? ` · ${calendarSync.authedEmail}` : ''}
             </span>
             {calendarSync.status === 'disconnected' || calendarSync.status === 'error' ? (

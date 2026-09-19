@@ -157,7 +157,7 @@ export function GmailManagerPanel({
       setActiveTab('messages')
       await handleRefreshMessages()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
       setStatusText(null)
     } finally {
       setLoading(false)
@@ -178,7 +178,7 @@ export function GmailManagerPanel({
       setSelectedMessage(null)
       setStatusText(t('integrations.gmail.status.disconnected'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -195,7 +195,7 @@ export function GmailManagerPanel({
       setSelectedMessage(full)
     } catch (err) {
       if (sequence !== selectionSequence.current) return
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       if (sequence === selectionSequence.current) setLoadingContent(false)
     }
@@ -232,7 +232,7 @@ ${message.plainText || message.snippet}
       setStatusText(t('integrations.gmail.status.imported', { subject }))
     } catch (err) {
       setStatusText(null)
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -249,7 +249,7 @@ ${message.plainText || message.snippet}
       setStatusText(t('integrations.gmail.status.archived'))
       await handleRefreshMessages()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -266,7 +266,7 @@ ${message.plainText || message.snippet}
       setStatusText(t('integrations.gmail.status.trashed'))
       await handleRefreshMessages()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -286,7 +286,7 @@ ${message.plainText || message.snippet}
       setComposeBody('')
       setStatusText(t('integrations.gmail.status.sent'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setSending(false)
     }

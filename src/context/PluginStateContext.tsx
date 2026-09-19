@@ -115,6 +115,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
 
     enabledPluginIdsRef.current = next
     localChangeVersionRef.current += 1
+    const transitionVersion = localChangeVersionRef.current
     setEnabledPluginIds(next)
     setPersistenceError(null)
     void persistenceQueueRef.current.enqueue(async () => {
@@ -127,8 +128,20 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
         }
       }
       if (failures.length > 0) throw new Error(failures.join(' '))
-    }).catch((error: unknown) => {
+    }).catch(async (error: unknown) => {
       setPersistenceError(error instanceof Error ? error.message : 'Could not save plugin profile.')
+      // Bulk profile persistence can partially succeed. Re-read native truth
+      // rather than leaving the optimistic profile visible after a failed step.
+      // A newer local toggle always wins over this older reconciliation.
+      try {
+        const loaded = await loadPluginState()
+        if (loaded !== null && localChangeVersionRef.current === transitionVersion) {
+          enabledPluginIdsRef.current = loaded
+          setEnabledPluginIds(loaded)
+        }
+      } catch {
+        // Keep the original persistence error as the actionable state.
+      }
     })
   }, [])
 

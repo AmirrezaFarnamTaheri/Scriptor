@@ -665,6 +665,13 @@
       "connect": "Speichern & mit Google verbinden",
       "syncNow": "Jetzt synchronisieren",
       "disconnect": "Trennen",
+      "status": {
+        "disconnected": "Nicht verbunden",
+        "authorizing": "Autorisierung…",
+        "syncing": "Synchronisierung…",
+        "synced": "Verbunden",
+        "error": "Aktion erforderlich"
+      },
       "gmailNote": "Der Gmail-Manager wird separat unter Plugins aktiviert und fordert eigene Gmail-Berechtigungen an. Er kann dieselbe Client-ID verwenden."
     },
     "gmail": {
