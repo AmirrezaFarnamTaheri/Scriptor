@@ -200,7 +200,10 @@
       "week": "Letzte Woche",
       "month": "Letzter Monat",
       "quarter": "Letztes Quartal"
-    }
+    },
+    "unsavedConfig": "Nicht gespeicherte Änderungen an der Vault-Konfiguration",
+    "unsavedConfigMessage": "Schließen, ohne diese Änderungen an der Vault-Konfiguration zu speichern?",
+    "discardChanges": "Änderungen verwerfen"
   },
   "mobile": {
     "vault": "Tresor",
@@ -978,9 +981,6 @@
     },
     "subtitle": "Einstellungen sind nach Aufgabe gruppiert, damit die Schreibfläche übersichtlich bleibt.",
     "saveVaultConfig": "Vault-Konfiguration speichern",
-    "unsavedConfig": "Nicht gespeicherte Änderungen an der Vault-Konfiguration",
-    "unsavedConfigMessage": "Schließen, ohne diese Änderungen an der Vault-Konfiguration zu speichern?",
-    "discardChanges": "Änderungen verwerfen",
     "persistence": "App-Einstellungen werden sofort gespeichert. Die Vault-Konfiguration wird aus `.scriptor/config.json` gelesen und nur durch Speichern geschrieben.",
     "configUnavailable": "Vault-Konfiguration nicht verfügbar",
     "configNotOverwritten": "{{error}}. Scriptor hat die vorhandene Konfiguration weder ersetzt noch überschrieben.",
