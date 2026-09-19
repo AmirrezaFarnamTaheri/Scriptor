@@ -736,7 +736,7 @@
       "clientHelp": "Create an OAuth 2.0 Desktop app credential in Google Cloud. Do not paste a client secret. Web-app credentials are not compatible with Scriptor’s loopback callback.",
       "lookahead": "Lookahead window (days)",
       "showEvents": "Show Calendar events in Tasks",
-      "mirrorTasks": "Mirror open vault tasks to Google Tasks",
+      "mirrorTasks": "Enable vault → Google Tasks mirroring (changes are sent only after your approval)",
       "connect": "Save & connect Google",
       "syncNow": "Sync now",
       "disconnect": "Disconnect",
@@ -1090,13 +1090,15 @@
       "ariaLabel": "Google Calendar and Tasks",
       "title": "Google Calendar & Tasks",
       "sync": "Sync Google",
-      "pushVaultTasks": "Push vault tasks",
+      "pushVaultTasks": "Review & push vault tasks",
       "upcomingEvents": "Upcoming events",
       "noEvents": "No events in the configured lookahead window.",
       "untitledEvent": "Untitled event",
       "tasks": "Google Tasks",
       "noTasks": "No Google Tasks loaded.",
-      "complete": "Complete"
+      "complete": "Complete",
+      "pushingVaultTasks": "Pushing vault tasks…",
+      "pushResult": "{{created}} created · {{updated}} updated · {{skipped}} already aligned · {{failed}} failed"
     }
   }
 }
