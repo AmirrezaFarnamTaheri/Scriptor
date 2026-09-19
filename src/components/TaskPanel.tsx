@@ -34,6 +34,7 @@ import { indexerQueryTasks } from '../bridge/commands/indexer'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
 import { TaskStatusGlyph } from './taskStatusGlyph'
 import { getStatusMeta, STATUS_ORDER } from '@scriptor/core/task'
+import { useI18n } from '../lib/i18n'
 
 function cycleStatus(current: string): string {
   const idx = STATUS_ORDER.indexOf(current)
@@ -61,6 +62,8 @@ const TaskRowItem = memo(function TaskRowItem({
   onPatchDue,
   onOpenNote,
 }: TaskRowItemProps) {
+  const { t } = useI18n()
+  const statusLabel = t(`tasks.statuses.${task.status}`)
   const isOverdue =
     task.dueAt != null &&
     task.status !== 'done' &&
@@ -91,8 +94,8 @@ const TaskRowItem = memo(function TaskRowItem({
         <button
           type="button"
           className="task-row__checkbox"
-          aria-label={`Status: ${task.status}. Click to advance.`}
-          title={`Status: ${task.status}`}
+          aria-label={t('tasks.statusAdvance', { status: statusLabel })}
+          title={t('tasks.statusTitle', { status: statusLabel })}
           disabled={isPending}
           onClick={() => onPatchStatus(task.id, cycleStatus(task.status))}
         >
@@ -120,14 +123,14 @@ const TaskRowItem = memo(function TaskRowItem({
             onChange={(e) => setDueValue(e.target.value)}
             onBlur={handleDueSave}
             onKeyDown={handleDueKeyDown}
-            aria-label="Edit due date"
+            aria-label={t('tasks.editDueDate')}
           />
         ) : (
           <button
             type="button"
             className={`task-row__due ${isOverdue ? 'task-row__due--overdue' : ''}`}
-            title={task.dueAt ? `Due ${task.dueAt} — click to edit` : 'Set due date'}
-            aria-label={task.dueAt ? `Due date: ${task.dueAt}` : 'Add due date'}
+            title={task.dueAt ? t('tasks.dueTitle', { date: task.dueAt }) : t('tasks.setDueDate')}
+            aria-label={task.dueAt ? t('tasks.dueDate', { date: task.dueAt }) : t('tasks.addDueDate')}
             disabled={isPending}
             onClick={(e) => {
               e.stopPropagation()
@@ -147,7 +150,7 @@ const TaskRowItem = memo(function TaskRowItem({
       {expanded && (
         <div className="task-row__detail">
           <label className="task-row__detail-label">
-            Status
+            {t('tasks.status')}
             <select
               value={task.status}
               onChange={(e) => onPatchStatus(task.id, e.target.value)}
@@ -158,7 +161,7 @@ const TaskRowItem = memo(function TaskRowItem({
                 const meta = getStatusMeta(status)
                 return (
                   <option key={status} value={status}>
-                    {meta.label}
+                    {t(`tasks.statuses.${status}`)}
                   </option>
                 )
               })}
@@ -172,10 +175,10 @@ const TaskRowItem = memo(function TaskRowItem({
               ))}
             </div>
           )}
-          {task.scheduledAt && <p className="task-row__meta"><strong>Scheduled:</strong> {task.scheduledAt}</p>}
-          {task.rrule && <p className="task-row__meta"><strong>Recurrence:</strong> {task.rrule}</p>}
+          {task.scheduledAt && <p className="task-row__meta"><strong>{t('tasks.scheduled')}:</strong> {task.scheduledAt}</p>}
+          {task.rrule && <p className="task-row__meta"><strong>{t('tasks.recurrence')}:</strong> {task.rrule}</p>}
           {task.priority !== 0 && (
-            <p className="task-row__meta"><strong>Priority:</strong> {task.priority > 0 ? `+${task.priority}` : task.priority}</p>
+            <p className="task-row__meta"><strong>{t('tasks.priority')}:</strong> {task.priority > 0 ? `+${task.priority}` : task.priority}</p>
           )}
           {task.sourceNotePath && (
             <button
@@ -184,10 +187,10 @@ const TaskRowItem = memo(function TaskRowItem({
               disabled={isPending}
               onClick={() => onOpenNote(task.sourceNotePath!)}
             >
-              Open source note ↗
+              {t('tasks.openSourceNote')}
             </button>
           )}
-          {isPending && <p className="task-row__meta"><strong>Saving…</strong></p>}
+          {isPending && <p className="task-row__meta"><strong>{t('tasks.saving')}</strong></p>}
         </div>
       )}
     </li>
@@ -195,12 +198,7 @@ const TaskRowItem = memo(function TaskRowItem({
 })
 
 const BUILT_IN_STATUSES = STATUS_ORDER
-const SORT_OPTIONS: { value: TaskSortKey; label: string }[] = [
-  { value: 'due', label: 'Due date' },
-  { value: 'status', label: 'Status' },
-  { value: 'priority', label: 'Priority' },
-  { value: 'created', label: 'Created' },
-]
+const SORT_OPTIONS: TaskSortKey[] = ['due', 'status', 'priority', 'created']
 
 interface FilterBarProps {
   filter: TaskFilter
@@ -212,31 +210,32 @@ interface FilterBarProps {
 
 /** Renders task filtering and sorting controls. */
 const FilterBar = memo(function FilterBar({ filter, sortKey, onSetFilter, onClearFilter, onSetSort }: FilterBarProps) {
+  const { t } = useI18n()
   const hasActiveFilter = !!(filter.status ?? filter.tag ?? filter.dueBefore)
   return (
     <div className="task-filter-bar">
       <Filter size={13} aria-hidden className="task-filter-bar__icon" />
       <label className="task-filter-bar__label">
-        Status
+        {t('tasks.status')}
         <select value={filter.status ?? ''} onChange={(e) => onSetFilter({ status: e.target.value || undefined })}>
-          <option value="">All</option>
+          <option value="">{t('tasks.all')}</option>
           {BUILT_IN_STATUSES.map((status) => {
             const meta = getStatusMeta(status)
-            return <option key={status} value={status}>{meta.label}</option>
+            return <option key={status} value={status}>{t(`tasks.statuses.${status}`)}</option>
           })}
         </select>
       </label>
       <label className="task-filter-bar__label">
-        Due before
+        {t('tasks.dueBefore')}
         <input type="date" value={filter.dueBefore ?? ''} onChange={(e) => onSetFilter({ dueBefore: e.target.value || undefined })} />
       </label>
       <label className="task-filter-bar__label">
-        Sort
+        {t('tasks.sort')}
         <select value={sortKey} onChange={(e) => onSetSort(e.target.value as TaskSortKey)}>
-          {SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          {SORT_OPTIONS.map((option) => <option key={option} value={option}>{t(`tasks.sortOptions.${option}`)}</option>)}
         </select>
       </label>
-      {hasActiveFilter && <button type="button" className="toolbar-button" onClick={onClearFilter} title="Clear all filters">Clear</button>}
+      {hasActiveFilter && <button type="button" className="toolbar-button" onClick={onClearFilter} title={t('tasks.clearFilters')}>{t('tasks.clear')}</button>}
     </div>
   )
 })
@@ -277,6 +276,7 @@ export const TaskPanel = memo(function TaskPanel({
   runSourceNoteMutation,
   calendarConfig,
 }: TaskPanelProps) {
+  const { t } = useI18n()
   const store = useTaskStore(runSourceNoteMutation)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [allVaultTasks, setAllVaultTasks] = useState<TaskRow[]>([])
@@ -320,18 +320,18 @@ export const TaskPanel = memo(function TaskPanel({
   }, [])
 
   if (!vaultOpen) {
-    return embedded ? <p className="empty-state">Open a vault to view tasks.</p> : null
+    return embedded ? <p className="empty-state">{t('tasks.openVault')}</p> : null
   }
 
   const body = (
     <>
       {calendarConfig?.enabled ? (
-        <section className="settings-section" aria-label="Google Calendar and Tasks">
+        <section className="settings-section" aria-label={t('tasks.google.ariaLabel')}>
           <div className="section-heading-row">
             <div>
-              <h3>Google Calendar &amp; Tasks</h3>
+              <h3>{t('tasks.google.title')}</h3>
               <p className="health-subtitle">
-                {calendarSync.authedEmail ? `${calendarSync.status} · ${calendarSync.authedEmail}` : calendarSync.status}
+                {calendarSync.authedEmail ? `${t(`integrations.google.status.${calendarSync.status}`)} · ${calendarSync.authedEmail}` : t(`integrations.google.status.${calendarSync.status}`)}
               </p>
             </div>
             <div className="calendar-sync-actions">
@@ -341,7 +341,7 @@ export const TaskPanel = memo(function TaskPanel({
                 onClick={() => void calendarSync.refresh()}
                 disabled={calendarSync.status === 'syncing' || calendarSync.status === 'authorizing'}
               >
-                <RefreshCw size={14} /> Sync Google
+                <RefreshCw size={14} /> {t('tasks.google.sync')}
               </button>
               {calendarConfig.push_vault_tasks ? (
                 <button
@@ -350,7 +350,7 @@ export const TaskPanel = memo(function TaskPanel({
                   onClick={() => void calendarSync.syncVaultTasks()}
                   disabled={calendarSync.status !== 'synced'}
                 >
-                  Push vault tasks
+                  {t('tasks.google.pushVaultTasks')}
                 </button>
               ) : null}
             </div>
@@ -359,14 +359,14 @@ export const TaskPanel = memo(function TaskPanel({
 
           {calendarConfig.show_events_in_tasks ? (
             <div>
-              <h4>Upcoming events</h4>
+              <h4>{t('tasks.google.upcomingEvents')}</h4>
               {calendarSync.events.length === 0 ? (
-                <p className="health-subtitle">No events in the configured lookahead window.</p>
+                <p className="health-subtitle">{t('tasks.google.noEvents')}</p>
               ) : (
                 <ul className="compact-list">
                   {calendarSync.events.slice(0, 8).map((event) => (
                     <li key={event.id}>
-                      <strong>{event.summary || 'Untitled event'}</strong>{' '}
+                      <strong>{event.summary || t('tasks.google.untitledEvent')}</strong>{' '}
                       <time dateTime={event.start}>{event.start}</time>
                       {event.location ? <span> · {event.location}</span> : null}
                     </li>
@@ -377,9 +377,9 @@ export const TaskPanel = memo(function TaskPanel({
           ) : null}
 
           <div>
-            <h4>Google Tasks</h4>
+            <h4>{t('tasks.google.tasks')}</h4>
             {calendarSync.tasks.length === 0 ? (
-              <p className="health-subtitle">No Google Tasks loaded.</p>
+              <p className="health-subtitle">{t('tasks.google.noTasks')}</p>
             ) : (
               <ul className="compact-list">
                 {calendarSync.tasks.slice(0, 12).map((task) => (
@@ -388,7 +388,7 @@ export const TaskPanel = memo(function TaskPanel({
                     {task.due ? <time dateTime={task.due}> · {task.due}</time> : null}
                     {task.status !== 'completed' ? (
                       <button type="button" className="toolbar-button" onClick={() => void calendarSync.completeTask(task.id)}>
-                        Complete
+                        {t('tasks.google.complete')}
                       </button>
                     ) : null}
                   </li>
@@ -407,14 +407,14 @@ export const TaskPanel = memo(function TaskPanel({
         onSetSort={store.setSortKey}
       />
 
-      {store.isLoading && <p className="health-subtitle">Loading tasks…</p>}
+      {store.isLoading && <p className="health-subtitle">{t('tasks.loading')}</p>}
       {store.error && <p className="error-state">{store.error}</p>}
       {store.mutationError && <p className="error-state">{store.mutationError}</p>}
 
       {!store.isLoading && !store.error && (
         <ul className="task-list">
           {store.tasks.length === 0 ? (
-            <li className="empty-state">No tasks match the current filter.</li>
+            <li className="empty-state">{t('tasks.noMatches')}</li>
           ) : (
             store.tasks.map((task) => (
               <TaskRowItem
@@ -438,15 +438,15 @@ export const TaskPanel = memo(function TaskPanel({
 
   return (
     <UnifiedPanelShell
-      title="Tasks"
-      subtitle={`${store.tasks.length} task${store.tasks.length !== 1 ? 's' : ''}${store.filter.status ? ` · ${store.filter.status}` : ''}`}
+      title={t('tasks.title')}
+      subtitle={`${store.tasks.length} ${store.tasks.length === 1 ? t('tasks.taskSingular') : t('tasks.taskPlural')}${store.filter.status ? ` · ${t(`tasks.statuses.${store.filter.status}`)}` : ''}`}
       icon={<CheckSquare size={18} />}
-      ariaLabel="Task list"
+      ariaLabel={t('tasks.ariaLabel')}
       onClose={onClose}
       className="task-panel"
       headerActions={(
-        <button type="button" className="toolbar-button" aria-label="Refresh task list" onClick={store.load}>
-          <RefreshCw size={14} /> Refresh
+        <button type="button" className="toolbar-button" aria-label={t('tasks.refreshAria')} onClick={store.load}>
+          <RefreshCw size={14} /> {t('tasks.refresh')}
         </button>
       )}
     >
