@@ -279,6 +279,7 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
       subtitle={status}
       icon={<Filter size={18} />}
       ariaLabel={t('knowledge.filters.title')}
+      helpTopic="knowledge-repair"
       onClose={onClose}
       className="knowledge-filters-panel knowledge-filter-dialog"
     >
