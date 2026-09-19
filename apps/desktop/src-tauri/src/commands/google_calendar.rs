@@ -1790,6 +1790,15 @@ pub struct GoogleTaskSyncMutationResult {
     error: Option<String>,
 }
 
+#[derive(Debug)]
+struct GoogleTaskUpdateInput {
+    task_id: String,
+    title: String,
+    notes: String,
+    due: Option<String>,
+    status: Option<String>,
+}
+
 fn google_task_sync_scope(count: usize) -> String {
     format!("Sync {count} vault task changes")
 }
@@ -1838,19 +1847,15 @@ fn update_google_task(
     client: &reqwest::blocking::Client,
     access_token: &str,
     task_list_id: &str,
-    task_id: String,
-    title: String,
-    notes: String,
-    due: Option<String>,
-    status: Option<String>,
+    update: GoogleTaskUpdateInput,
 ) -> Result<GoogleTask, String> {
-    if task_id.trim().is_empty() {
+    if update.task_id.trim().is_empty() {
         return Err("task id is required".into());
     }
-    if title.trim().is_empty() {
+    if update.title.trim().is_empty() {
         return Err("task title is required".into());
     }
-    if let Some(value) = status.as_deref()
+    if let Some(value) = update.status.as_deref()
         && value != "needsAction"
         && value != "completed"
     {
@@ -1860,18 +1865,20 @@ fn update_google_task(
     let url = format!(
         "{TASKS_ENDPOINT}/{}/tasks/{}",
         percent_encode(task_list_id),
-        percent_encode(&task_id)
+        percent_encode(&update.task_id)
     );
     let mut body = serde_json::Map::new();
-    body.insert("title".into(), serde_json::Value::String(title));
-    body.insert("notes".into(), serde_json::Value::String(notes));
+    body.insert("title".into(), serde_json::Value::String(update.title));
+    body.insert("notes".into(), serde_json::Value::String(update.notes));
     body.insert(
         "due".into(),
-        due.filter(|value| !value.is_empty())
+        update
+            .due
+            .filter(|value| !value.is_empty())
             .map(serde_json::Value::String)
             .unwrap_or(serde_json::Value::Null),
     );
-    if let Some(status) = status {
+    if let Some(status) = update.status {
         body.insert("status".into(), serde_json::Value::String(status));
     }
     let response = client
@@ -1969,11 +1976,13 @@ pub fn google_calendar_apply_task_sync(
                 &client,
                 &access_token,
                 &task_list_id,
-                mutation.task_id.unwrap_or_default(),
-                mutation.title.unwrap_or_default(),
-                mutation.notes.unwrap_or_default(),
-                mutation.due,
-                mutation.status,
+                GoogleTaskUpdateInput {
+                    task_id: mutation.task_id.unwrap_or_default(),
+                    title: mutation.title.unwrap_or_default(),
+                    notes: mutation.notes.unwrap_or_default(),
+                    due: mutation.due,
+                    status: mutation.status,
+                },
             )
             .map(|_| ()),
             "complete" => complete_google_task(
@@ -2024,6 +2033,7 @@ pub fn google_calendar_create_task(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)] // Flat parameters are part of the public Tauri command contract.
 pub fn google_calendar_update_task(
     state: tauri::State<AppState>,
     task_list_id: String,
@@ -2048,11 +2058,13 @@ pub fn google_calendar_update_task(
         &client,
         &access_token,
         &task_list_id,
-        task_id,
-        title,
-        notes,
-        due,
-        status,
+        GoogleTaskUpdateInput {
+            task_id,
+            title,
+            notes,
+            due,
+            status,
+        },
     )
 }
 
