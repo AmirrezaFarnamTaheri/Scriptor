@@ -279,6 +279,7 @@ function SettingsPanelImpl({
       subtitle={t('settingsPanel.subtitle')}
       icon={<Settings size={18} />}
       ariaLabel={t('settings.title')}
+      helpTopic="settings"
       onClose={requestClose}
       presentation="modal"
       className="settings-panel knowledge-filters-panel"
