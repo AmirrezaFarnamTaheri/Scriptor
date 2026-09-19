@@ -218,21 +218,21 @@ function SettingsPanelImpl({
         setConfig(nextConfig)
         setConfigLoadedForVaultId(vaultId)
         setConfigLoadError(null)
-        setStatus('Vault configuration loaded. Save is explicit.')
+        setStatus(t('settingsPanel.configLoaded'))
       })
       .catch((error: unknown) => {
         if (cancelled) return
         setConfigLoadedForVaultId(null)
         setConfigLoadError({
           vaultId,
-          message: error instanceof Error ? error.message : 'Could not read vault configuration',
+          message: error instanceof Error ? error.message : t('settingsPanel.configReadFailed'),
         })
-        setStatus('Vault configuration was not changed.')
+        setStatus(t('settingsPanel.configUnchanged'))
       })
     return () => {
       cancelled = true
     }
-  }, [configReloadToken, nativeReady, vaultId, vaultOpen])
+  }, [configReloadToken, nativeReady, t, vaultId, vaultOpen])
 
   const retryConfigLoad = () => {
     configBaselineRef.current = DEFAULT_VAULT_CONFIG
@@ -245,16 +245,16 @@ function SettingsPanelImpl({
 
   const saveConfig = async () => {
     if (!nativeReady || !configReady) return
-    setStatus('Saving…')
+    setStatus(t('settingsPanel.saving'))
     try {
       const baseline = configBaselineRef.current
       const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config))
       configBaselineRef.current = saved
       setConfig(saved)
-      setStatus('Vault config saved to `.scriptor/config.json`.')
+      setStatus(t('settingsPanel.configSaved'))
       onConfigSaved?.()
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not save config')
+      setStatus(error instanceof Error ? error.message : t('settingsPanel.configSaveFailed'))
     }
   }
 
