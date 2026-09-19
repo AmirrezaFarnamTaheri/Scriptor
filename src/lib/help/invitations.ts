@@ -10,6 +10,10 @@ export interface HelpInvitationCandidate extends HelpInvitation {
   primary: boolean
 }
 
+export function helpInvitationKey(invitation: HelpInvitation): string {
+  return `${invitation.key}:${invitation.id}`
+}
+
 export function sameHelpInvitation(a: HelpInvitation | null, b: HelpInvitation | null): boolean {
   return a?.key === b?.key && a?.id === b?.id
 }
