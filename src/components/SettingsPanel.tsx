@@ -102,7 +102,6 @@ interface SettingsPanelProps {
   onResetJourney?: () => void
   workspaceChrome?: WorkspaceChromePrefs
   onPatchWorkspaceChrome?: (patch: Partial<WorkspaceChromePrefs>) => void
-  onResetWorkspaceChrome?: () => void
   onOpenSupport?: () => void
   theme?: AppTheme
   appearance?: AppearanceMode
@@ -165,7 +164,6 @@ function SettingsPanelImpl({
   onResetJourney,
   workspaceChrome,
   onPatchWorkspaceChrome,
-  onResetWorkspaceChrome,
   onOpenSupport,
   theme = 'light',
   appearance = 'system',
@@ -502,7 +500,6 @@ function SettingsPanelImpl({
             <WorkspaceChromeSettingsSection
               workspaceChrome={workspaceChrome}
               onPatchWorkspaceChrome={onPatchWorkspaceChrome}
-              onResetWorkspaceChrome={onResetWorkspaceChrome}
             />
           ) : null}
 
