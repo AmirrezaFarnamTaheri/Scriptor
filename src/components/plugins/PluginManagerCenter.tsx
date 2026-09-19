@@ -73,9 +73,6 @@ export function PluginManagerCenter({
   }
 
   const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>(initialTab)
-  useEffect(() => {
-    if (isOpen) setActiveTab(initialTab)
-  }, [initialTab, isOpen])
   const PMC_TABS: readonly string[] = ['palettes', 'plugins']
   const handlePmcTabKeys = useTablistKeys(
     PMC_TABS,
