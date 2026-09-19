@@ -164,7 +164,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
 
   return (
     <div className="editor-toolbar-wrapper">
-      <div className="format-row editor-toolbar" role="toolbar" aria-label={t('editor.toolbar.markdownTools')}>
+      <div className="format-row editor-toolbar" role="toolbar" aria-label={t('editor.toolbar.markdownTools')} data-help-topic="toolbar">
         <div className="format-group editor-view-modes" aria-label={t('editor.toolbar.viewMode')}>
           {(
             [
