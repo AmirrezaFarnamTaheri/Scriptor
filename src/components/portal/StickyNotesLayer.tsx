@@ -14,7 +14,7 @@ export const StickyNotesLayer = memo(function StickyNotesLayer({ stickies, visib
   if (!visible || stickies.length === 0) return null
 
   return (
-    <div className="sticky-notes-layer" aria-label="Sticky notes">
+    <div className="sticky-notes-layer" aria-label="Sticky notes" data-help-topic="stickies">
       {stickies.map((note) => (
         <article
           key={note.id}
