@@ -36,13 +36,13 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
   const customPalettes = readStoredCustomThemes()
   return (
     <div className="settings-section">
-      <h3>Appearance &amp; layout</h3>
+      <h3>{t('appearanceSettings.title')}</h3>
       <p className="health-subtitle">
-        Choose a palette for color accents, then choose Day, Night, or System independently. Switching appearance never changes the selected palette.
+        {t('appearanceSettings.description')}
       </p>
       {onThemeChange ? (
         <label className="settings-field">
-          <span>Color palette</span>
+          <span>{t('appearanceSettings.colorPalette')}</span>
           <select
             value={theme}
             onChange={(event) => onThemeChange(event.target.value as AppTheme)}
@@ -52,7 +52,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
                 {scheme.name}
               </option>
             ))}
-            {customPalettes.length ? <optgroup label="Custom palettes">
+            {customPalettes.length ? <optgroup label={t('appearanceSettings.customPalettes')}>
               {customPalettes.map((palette) => (
                 <option key={palette.id} value={palette.id}>{palette.name}</option>
               ))}
@@ -62,95 +62,95 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
       ) : null}
       {onAppearanceChange ? (
         <label className="settings-field">
-          <span>Day / night appearance</span>
+          <span>{t('appearanceSettings.dayNight')}</span>
           <select
             value={appearance}
             onChange={(event) => onAppearanceChange(event.target.value as AppearanceMode)}
           >
-            <option value="system">Follow system</option>
-            <option value="light">Day</option>
-            <option value="dark">Night</option>
+            <option value="system">{t('appearanceSettings.followSystem')}</option>
+            <option value="light">{t('appearanceSettings.day')}</option>
+            <option value="dark">{t('appearanceSettings.night')}</option>
           </select>
         </label>
       ) : null}
       <label className="settings-field">
-        <span>UI Display Font</span>
+        <span>{t('appearanceSettings.uiFont')}</span>
         <select
           value={workspaceChrome.uiFontFamily}
           onChange={(event) => onPatchWorkspaceChrome({ uiFontFamily: event.target.value as UiFontFamily })}
         >
-          <option value="system">System UI (Default)</option>
-          <option value="inter">Inter Modern</option>
-          <option value="sf-pro">SF Pro Display</option>
-          <option value="avenir-next">Avenir Next</option>
-          <option value="outfit">Outfit Geometric</option>
-          <option value="jetbrains-mono">JetBrains Mono</option>
-          <option value="georgia">Georgia Book Serif</option>
+          <option value="system">{t('appearanceSettings.fonts.system')}</option>
+          <option value="inter">{t('appearanceSettings.fonts.inter')}</option>
+          <option value="sf-pro">{t('appearanceSettings.fonts.sfPro')}</option>
+          <option value="avenir-next">{t('appearanceSettings.fonts.avenir')}</option>
+          <option value="outfit">{t('appearanceSettings.fonts.outfit')}</option>
+          <option value="jetbrains-mono">{t('appearanceSettings.fonts.jetbrains')}</option>
+          <option value="georgia">{t('appearanceSettings.fonts.georgia')}</option>
         </select>
       </label>
       <label className="settings-field">
-        <span>UI Layout Density</span>
+        <span>{t('appearanceSettings.density')}</span>
         <select
           value={workspaceChrome.uiDensity}
           onChange={(event) => onPatchWorkspaceChrome({ uiDensity: event.target.value as UiDensity })}
         >
-          <option value="compact">Compact (Dense)</option>
-          <option value="comfortable">Comfortable (Standard)</option>
-          <option value="spacious">Spacious (Relaxed)</option>
+          <option value="compact">{t('appearanceSettings.densityCompact')}</option>
+          <option value="comfortable">{t('appearanceSettings.densityComfortable')}</option>
+          <option value="spacious">{t('appearanceSettings.densitySpacious')}</option>
         </select>
       </label>
       <label className="settings-field">
-        <span>UI Border Radius</span>
+        <span>{t('appearanceSettings.radius')}</span>
         <select
           value={workspaceChrome.uiBorderRadius}
           onChange={(event) => onPatchWorkspaceChrome({ uiBorderRadius: event.target.value as UiBorderRadius })}
         >
-          <option value="sharp">Sharp (0px)</option>
-          <option value="rounded">Rounded (Standard)</option>
-          <option value="curved">Curved (18px)</option>
-          <option value="pill">Pill (999px)</option>
+          <option value="sharp">{t('appearanceSettings.radiusSharp')}</option>
+          <option value="rounded">{t('appearanceSettings.radiusRounded')}</option>
+          <option value="curved">{t('appearanceSettings.radiusCurved')}</option>
+          <option value="pill">{t('appearanceSettings.radiusPill')}</option>
         </select>
       </label>
       <label className="settings-field">
-        <span>Glassmorphism Backdrop Blur</span>
+        <span>{t('appearanceSettings.blur')}</span>
         <select
           value={workspaceChrome.glassBlur}
           onChange={(event) => onPatchWorkspaceChrome({ glassBlur: event.target.value as GlassBlurIntensity })}
         >
-          <option value="none">Opaque (No Blur)</option>
-          <option value="subtle">Subtle (12px)</option>
-          <option value="glass">Balanced Glass (24px)</option>
-          <option value="heavy">Deep Frosted (40px)</option>
+          <option value="none">{t('appearanceSettings.blurNone')}</option>
+          <option value="subtle">{t('appearanceSettings.blurSubtle')}</option>
+          <option value="glass">{t('appearanceSettings.blurGlass')}</option>
+          <option value="heavy">{t('appearanceSettings.blurHeavy')}</option>
         </select>
       </label>
       {onReplayOnboarding ? (
         <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
-          Replay product tour
+          {t('appearanceSettings.replayTour')}
         </button>
       ) : null}
       {onResetWorkspaceChrome ? (
         <button type="button" className="toolbar-button" onClick={onResetWorkspaceChrome}>
-          Reset appearance defaults
+          {t('appearanceSettings.reset')}
         </button>
       ) : null}
-      <p className="health-subtitle">Fine-tune sidebars, toolbars, typography, and panel stats.</p>
+      <p className="health-subtitle">{t('appearanceSettings.fineTune')}</p>
       <div className="settings-grid settings-toggles">
         {(
           [
-            ['showTopBar', 'Show top navigation header'],
-            ['showModeStrip', 'Show workspace mode strip'],
-            ['showQuickActions', 'Show topbar quick action buttons'],
-            ['showHistoryControls', 'Show history navigation bar'],
-            ['showFormatToolbar', 'Show format toolbar'],
-            ['showEditorAssist', 'Show editor assist chips'],
-            ['showEditorStatus', 'Show editor status bar'],
+            ['showTopBar', t('appearanceSettings.toggles.showTopBar')],
+            ['showModeStrip', t('appearanceSettings.toggles.showModeStrip')],
+            ['showQuickActions', t('appearanceSettings.toggles.showQuickActions')],
+            ['showHistoryControls', t('appearanceSettings.toggles.showHistoryControls')],
+            ['showFormatToolbar', t('appearanceSettings.toggles.showFormatToolbar')],
+            ['showEditorAssist', t('appearanceSettings.toggles.showEditorAssist')],
+            ['showEditorStatus', t('appearanceSettings.toggles.showEditorStatus')],
             ['showInspectorHealth', t('settingsSection.showInspectorHealth')],
-            ['showWorkspaceFooter', 'Show workspace footer dock'],
-            ['showStatusBar', 'Show bottom status bar'],
-            ['showLineNumbers', 'Show line numbers'],
-            ['vaultSidebarCollapsed', 'Collapse vault sidebar'],
-            ['inspectorCollapsed', 'Collapse inspector'],
-            ['layoutLocked', 'Lock Workspace Layout'],
+            ['showWorkspaceFooter', t('appearanceSettings.toggles.showWorkspaceFooter')],
+            ['showStatusBar', t('appearanceSettings.toggles.showStatusBar')],
+            ['showLineNumbers', t('appearanceSettings.toggles.showLineNumbers')],
+            ['vaultSidebarCollapsed', t('appearanceSettings.toggles.vaultSidebarCollapsed')],
+            ['inspectorCollapsed', t('appearanceSettings.toggles.inspectorCollapsed')],
+            ['layoutLocked', t('appearanceSettings.toggles.layoutLocked')],
           ] as const
         ).map(([key, label]) => (
           <label className="diagnostics-opt-in" key={key}>
@@ -164,7 +164,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
         ))}
       </div>
       <label className="settings-field">
-        Editor font size (px)
+        {t('appearanceSettings.editorFontSize')}
         <input
           type="number"
           min={11}
@@ -174,7 +174,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
         />
       </label>
       <label className="settings-field">
-        Editor font family
+        {t('appearanceSettings.editorFontFamily')}
         <select
           value={workspaceChrome.editorFontFamily}
           onChange={(event) =>
@@ -191,7 +191,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
         </select>
       </label>
       <label className="settings-field">
-        Editor line height
+        {t('appearanceSettings.editorLineHeight')}
         <input
           type="number"
           step={0.05}
@@ -202,7 +202,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
         />
       </label>
       <label className="settings-field">
-        Editor side padding (px)
+        {t('appearanceSettings.editorPadding')}
         <input
           type="number"
           min={4}
@@ -212,7 +212,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
         />
       </label>
       <label className="settings-field">
-        Split/Inspector preview max width (ch)
+        {t('appearanceSettings.previewWidth')}
         <input
           type="number"
           min={40}
