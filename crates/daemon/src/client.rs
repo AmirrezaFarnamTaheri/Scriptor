@@ -200,6 +200,21 @@ struct ClientInner {
     listener: Mutex<Option<EventListener>>,
 }
 
+impl Drop for ClientInner {
+    fn drop(&mut self) {
+        // A client may own a detached event-listener thread. Mark it stopped
+        // before the mutexes and handler storage disappear so dropping an
+        // ephemeral client cannot leave a reconnecting listener that steals a
+        // later daemon endpoint or connection.
+        if let Ok(listener) = self.listener.get_mut()
+            && let Some(listener) = listener.take()
+        {
+            listener.stop.store(true, Ordering::SeqCst);
+            drop(listener.handle);
+        }
+    }
+}
+
 impl ClientInner {
     fn new() -> Self {
         Self {
@@ -311,6 +326,12 @@ impl ClientInner {
                     thread::sleep(retry_delay);
                     match connect_event_stream() {
                         Ok(next_stream) => {
+                            // reset()/drop may race with a reconnect attempt.
+                            // Never publish or retain a newly opened stream once
+                            // this listener has been retired.
+                            if thread_stop.load(Ordering::SeqCst) {
+                                return;
+                            }
                             stream = next_stream;
                             dispatch_event(
                                 &handlers,
