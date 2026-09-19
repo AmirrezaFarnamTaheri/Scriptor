@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Palette, Blocks, Plus, X } from 'lucide-react'
 import type { PluginManifest } from '@scriptor/core/contracts/plugin'
 import { canvasPluginManifest } from '@scriptor/canvas'
@@ -18,7 +18,6 @@ import { MutationConfirmation } from '../chrome/MutationConfirmation'
 import { ThemeCard } from '../themes/ThemeCard'
 import { ThemeCustomizerModal } from '../themes/ThemeCustomizerModal'
 import '../../styles/components/plugin-manager.css'
-import { useTablistKeys } from '../../hooks/useTablistKeys'
 import { useFocusTrap } from '../../hooks/useFocusTrap'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { useI18n } from '../../lib/i18n'
@@ -45,7 +44,7 @@ const BUILTIN_PLUGIN_MANIFESTS: PluginManifest[] = [
 export interface PluginManagerCenterProps {
   isOpen: boolean
   onClose: () => void
-  initialTab?: 'palettes' | 'plugins'
+  scope?: 'palettes' | 'plugins'
   currentTheme?: AppTheme
   appearance?: AppearanceMode
   resolvedAppearance?: ResolvedAppearance
@@ -56,7 +55,7 @@ export interface PluginManagerCenterProps {
 export function PluginManagerCenter({
   isOpen,
   onClose,
-  initialTab = 'palettes',
+  scope = 'palettes',
   currentTheme: propTheme,
   resolvedAppearance = 'dark',
   onThemeChange,
@@ -75,13 +74,6 @@ export function PluginManagerCenter({
     onThemeChange?.(nextTheme)
   }
 
-  const [activeTab, setActiveTab] = useState<'palettes' | 'plugins'>(initialTab)
-  const PMC_TABS: readonly string[] = ['palettes', 'plugins']
-  const handlePmcTabKeys = useTablistKeys(
-    PMC_TABS,
-    activeTab,
-    useCallback((id: string) => setActiveTab(id as 'palettes' | 'plugins'), []),
-  )
   const [searchQuery, setSearchQuery] = useState('')
   const [themeFilterCategory, setThemeFilterCategory] = useState<'all' | 'light' | 'dark' | 'contrast'>('all')
   const [customizerModalOpen, setCustomizerModalOpen] = useState(false)
@@ -181,45 +173,21 @@ export function PluginManagerCenter({
         <div className="plugin-manager-modal">
           <div className="plugin-manager-header">
             <h2>
-              {activeTab === 'palettes' ? <Palette /> : <Blocks />}
-              {activeTab === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
+              {scope === 'palettes' ? <Palette /> : <Blocks />}
+              {scope === 'palettes' ? t('pluginManager.palettesTitle') : t('pluginManager.modulesTitle')}
             </h2>
             <button type="button" className="icon-button" onClick={onClose} aria-label={t('pluginManager.close')}>
               <X />
             </button>
           </div>
-          {onOpenPluginMarketplace ? (
+          {scope === 'plugins' && onOpenPluginMarketplace ? (
             <button type="button" className="toolbar-button plugin-marketplace-link" onClick={onOpenPluginMarketplace}>
               {t('pluginManager.marketplace')}
             </button>
           ) : null}
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
 
-          {/* The entry point chooses the initial tab; users can still move between both related catalogs. */}
-          <div className="plugin-manager-tabs" role="tablist" onKeyDown={handlePmcTabKeys} aria-label={t('pluginManager.sectionsAria')}>
-            <button
-              type="button"
-              role="tab"
-              tabIndex={activeTab === 'palettes' ? 0 : -1}
-              aria-selected={activeTab === 'palettes'}
-              className={`tab-btn ${activeTab === 'palettes' ? 'active' : ''}`}
-              onClick={() => setActiveTab('palettes')}
-            >
-              <Palette /> {t('pluginManager.paletteTab', { count: allPalettes.length })}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              tabIndex={activeTab === 'plugins' ? 0 : -1}
-              aria-selected={activeTab === 'plugins'}
-              className={`tab-btn ${activeTab === 'plugins' ? 'active' : ''}`}
-              onClick={() => setActiveTab('plugins')}
-            >
-              <Blocks /> {t('pluginManager.pluginsTab')}
-            </button>
-          </div>
-
-          {activeTab === 'plugins' && (
+          {scope === 'plugins' && (
             <div className="plugin-manager-profiles">
               <span className="profiles-label">{t('pluginManager.installerProfile')}</span>
               {(['focused', 'minimal', 'writer', 'scientific', 'researcher', 'developer', 'complete'] as const).map(
@@ -248,7 +216,7 @@ export function PluginManagerCenter({
             </div>
           )}
 
-          {activeTab === 'palettes' && (
+          {scope === 'palettes' && (
             <div className="plugin-manager-profiles palette-filter-row">
               <div className="palette-filter-options">
                 <span className="profiles-label">{t('pluginManager.categoryFilter')}</span>
@@ -278,7 +246,7 @@ export function PluginManagerCenter({
               type="search"
               aria-label={t('pluginManager.searchAria')}
               placeholder={
-                activeTab === 'palettes'
+                scope === 'palettes'
                   ? t('pluginManager.searchPalette')
                   : t('pluginManager.searchPlugins')
               }
@@ -287,7 +255,7 @@ export function PluginManagerCenter({
             />
           </div>
 
-          {activeTab === 'palettes' ? (
+          {scope === 'palettes' ? (
             <div className="theme-palette-grid">
               {filteredPalettes.length === 0 ? (
                 <p className="plugin-manager-empty" role="status">{t('pluginManager.noPalettes')}</p>
