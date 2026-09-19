@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import type { EditorFontFamilyId } from '../brand/support'
+import { EDITOR_FONT_FAMILIES, type EditorFontFamilyId } from '../brand/support'
 import { expectRecord } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
 
@@ -58,8 +58,7 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
   showModeStrip: true,
   showQuickActions: true,
   // Workspace-mode destinations remain available in the command palette and
-  // customizer without competing with writing controls. Wide layouts keep the
-  // icon-only support/store utilities visible; responsive CSS yields them first.
+  // customizer without competing with the default writing controls.
   topBarHiddenActions: ['workbench', 'publish', 'portal', 'graph', 'canvas', 'support', 'paletteStore'],
   topBarGroupOrder: ['history', 'modes', 'command', 'actions'],
   topBarHiddenGroups: [],
@@ -90,23 +89,96 @@ export const DEFAULT_WORKSPACE_CHROME: WorkspaceChromePrefs = {
 
 const STORAGE_KEY = 'scriptor:workspace-chrome'
 
-function validateChrome(value: unknown): WorkspaceChromePrefs {
-  const parsed = expectRecord(value, 'workspace chrome') as Partial<WorkspaceChromePrefs>
-  const output: WorkspaceChromePrefs = { ...DEFAULT_WORKSPACE_CHROME }
-  // Per-field type check against the defaults: persisted values whose type
-  // drifted (corrupt writes, schema probes) fall back per field instead of
-  // flowing into style computations and layout math.
-  const assignable = output as unknown as Record<string, unknown>
-  for (const key of Object.keys(DEFAULT_WORKSPACE_CHROME) as (keyof WorkspaceChromePrefs)[]) {
-    const fallback = DEFAULT_WORKSPACE_CHROME[key]
-    const incoming = parsed[key]
-    if (Array.isArray(fallback)) {
-      if (Array.isArray(incoming)) assignable[key] = incoming
-    } else if (typeof incoming === typeof fallback) {
-      assignable[key] = incoming
+const TOP_BAR_GROUP_IDS = ['history', 'modes', 'command', 'actions'] as const satisfies readonly TopBarGroupId[]
+const TOP_BAR_GROUP_WIDTHS = ['compact', 'auto', 'wide'] as const satisfies readonly TopBarGroupWidth[]
+const UI_FONT_FAMILIES = ['system', 'inter', 'sf-pro', 'avenir-next', 'outfit', 'jetbrains-mono', 'georgia'] as const satisfies readonly UiFontFamily[]
+const UI_DENSITIES = ['compact', 'comfortable', 'spacious'] as const satisfies readonly UiDensity[]
+const UI_BORDER_RADII = ['sharp', 'rounded', 'curved', 'pill'] as const satisfies readonly UiBorderRadius[]
+const GLASS_BLUR_LEVELS = ['none', 'subtle', 'glass', 'heavy'] as const satisfies readonly GlassBlurIntensity[]
+const EDITOR_SURFACE_MODES = ['source', 'split', 'rendered'] as const satisfies readonly EditorSurfaceMode[]
+const EDITOR_FONT_IDS = EDITOR_FONT_FAMILIES.map((entry) => entry.id) as readonly EditorFontFamilyId[]
+
+function oneOf<T extends string>(value: unknown, values: readonly T[], fallback: T): T {
+  return typeof value === 'string' && values.includes(value as T) ? value as T : fallback
+}
+
+function finiteNumber(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(max, Math.max(min, value))
+    : fallback
+}
+
+function booleanValue(value: unknown, fallback: boolean): boolean {
+  return typeof value === 'boolean' ? value : fallback
+}
+
+function uniqueStrings(value: unknown, fallback: readonly string[] = []): string[] {
+  if (!Array.isArray(value)) return [...fallback]
+  return [...new Set(value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0))]
+}
+
+function normalizeGroupOrder(value: unknown): TopBarGroupId[] {
+  const incoming = uniqueStrings(value).filter((entry): entry is TopBarGroupId =>
+    TOP_BAR_GROUP_IDS.includes(entry as TopBarGroupId),
+  )
+  return [...incoming, ...TOP_BAR_GROUP_IDS.filter((group) => !incoming.includes(group))]
+}
+
+function normalizeHiddenGroups(value: unknown): TopBarGroupId[] {
+  return uniqueStrings(value).filter((entry): entry is TopBarGroupId =>
+    TOP_BAR_GROUP_IDS.includes(entry as TopBarGroupId),
+  )
+}
+
+function normalizeGroupWidths(value: unknown): WorkspaceChromePrefs['topBarGroupWidths'] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const record = value as Record<string, unknown>
+  const output: WorkspaceChromePrefs['topBarGroupWidths'] = {}
+  for (const group of TOP_BAR_GROUP_IDS) {
+    const width = record[group]
+    if (typeof width === 'string' && TOP_BAR_GROUP_WIDTHS.includes(width as TopBarGroupWidth)) {
+      output[group] = width as TopBarGroupWidth
     }
   }
   return output
+}
+
+export function validateWorkspaceChrome(value: unknown): WorkspaceChromePrefs {
+  const parsed = expectRecord(value, 'workspace chrome')
+  const fallback = DEFAULT_WORKSPACE_CHROME
+  return {
+    vaultSidebarCollapsed: booleanValue(parsed.vaultSidebarCollapsed, fallback.vaultSidebarCollapsed),
+    inspectorCollapsed: booleanValue(parsed.inspectorCollapsed, fallback.inspectorCollapsed),
+    showTopBar: booleanValue(parsed.showTopBar, fallback.showTopBar),
+    showModeStrip: booleanValue(parsed.showModeStrip, fallback.showModeStrip),
+    showQuickActions: booleanValue(parsed.showQuickActions, fallback.showQuickActions),
+    topBarHiddenActions: uniqueStrings(parsed.topBarHiddenActions, fallback.topBarHiddenActions),
+    topBarGroupOrder: normalizeGroupOrder(parsed.topBarGroupOrder),
+    topBarHiddenGroups: normalizeHiddenGroups(parsed.topBarHiddenGroups),
+    topBarGroupWidths: normalizeGroupWidths(parsed.topBarGroupWidths),
+    topBarActionRows: parsed.topBarActionRows === 2 ? 2 : 1,
+    showHistoryControls: booleanValue(parsed.showHistoryControls, fallback.showHistoryControls),
+    showFormatToolbar: booleanValue(parsed.showFormatToolbar, fallback.showFormatToolbar),
+    showEditorAssist: booleanValue(parsed.showEditorAssist, fallback.showEditorAssist),
+    showEditorStatus: booleanValue(parsed.showEditorStatus, fallback.showEditorStatus),
+    showInspectorHealth: booleanValue(parsed.showInspectorHealth, fallback.showInspectorHealth),
+    showWorkspaceFooter: booleanValue(parsed.showWorkspaceFooter, fallback.showWorkspaceFooter),
+    showStatusBar: booleanValue(parsed.showStatusBar, fallback.showStatusBar),
+    showLineNumbers: booleanValue(parsed.showLineNumbers, fallback.showLineNumbers),
+    editorFontSize: finiteNumber(parsed.editorFontSize, fallback.editorFontSize, 11, 24),
+    editorFontFamily: oneOf(parsed.editorFontFamily, EDITOR_FONT_IDS, fallback.editorFontFamily),
+    editorLineHeight: finiteNumber(parsed.editorLineHeight, fallback.editorLineHeight, 1.1, 2.4),
+    editorPaddingPx: finiteNumber(parsed.editorPaddingPx, fallback.editorPaddingPx, 4, 48),
+    previewMaxWidthCh: finiteNumber(parsed.previewMaxWidthCh, fallback.previewMaxWidthCh, 40, 120),
+    editorSurfaceMode: oneOf(parsed.editorSurfaceMode, EDITOR_SURFACE_MODES, fallback.editorSurfaceMode),
+    vaultWidth: finiteNumber(parsed.vaultWidth, fallback.vaultWidth, 200, 600),
+    inspectorWidth: finiteNumber(parsed.inspectorWidth, fallback.inspectorWidth, 300, 800),
+    layoutLocked: booleanValue(parsed.layoutLocked, fallback.layoutLocked),
+    uiFontFamily: oneOf(parsed.uiFontFamily, UI_FONT_FAMILIES, fallback.uiFontFamily),
+    uiDensity: oneOf(parsed.uiDensity, UI_DENSITIES, fallback.uiDensity),
+    uiBorderRadius: oneOf(parsed.uiBorderRadius, UI_BORDER_RADII, fallback.uiBorderRadius),
+    glassBlur: oneOf(parsed.glassBlur, GLASS_BLUR_LEVELS, fallback.glassBlur),
+  }
 }
 
 function readChrome(): WorkspaceChromePrefs {
@@ -114,7 +186,7 @@ function readChrome(): WorkspaceChromePrefs {
     key: STORAGE_KEY,
     schemaVersion: 1,
     fallback: { ...DEFAULT_WORKSPACE_CHROME },
-    validate: validateChrome,
+    validate: validateWorkspaceChrome,
   })
 }
 
@@ -165,7 +237,7 @@ export function useWorkspaceChrome() {
   }, [chrome])
 
   const patchChrome = useCallback((patch: Partial<WorkspaceChromePrefs>) => {
-    setChrome((current) => ({ ...current, ...patch }))
+    setChrome((current) => validateWorkspaceChrome({ ...current, ...patch }))
   }, [])
 
   const resetChrome = useCallback(() => {
