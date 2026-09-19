@@ -282,7 +282,7 @@ export const GraphPanel = memo(function GraphPanel({
 
   if (!isGraphEnabled) {
     return (
-      <div ref={dialogRef} className="graph-overlay graph-overlay-compact" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay graph-overlay-compact" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
@@ -316,7 +316,7 @@ export const GraphPanel = memo(function GraphPanel({
 
   if (hibernated) {
     return (
-      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')} data-help-topic="graph">
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
