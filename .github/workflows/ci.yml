@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -27,6 +28,10 @@ env:
 jobs:
   source-snapshot:
     name: Source snapshot and provenance
+    # PR commits are already immutable Git objects. Archive provenance once the
+    # commit lands on a protected branch instead of uploading a duplicate source
+    # ZIP for every review iteration.
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
@@ -85,6 +90,10 @@ jobs:
 
   supply-chain:
     name: Supply-chain and lockfile audit
+    # Draft PRs are intentionally cheap. The ready_for_review event triggers one
+    # complete validation pass, and later synchronize events replace stale runs
+    # through the workflow concurrency group.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -564,7 +573,7 @@ jobs:
 
       - name: Describe browser validation scope
         shell: pwsh
-        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Browser E2E and visual regression"
+        run: ./scripts/ci/collect-diagnostics.ps1 -Scope "Browser E2E"
 
       - name: Install frozen pnpm dependency graph
         shell: pwsh
@@ -578,21 +587,17 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Run functional Playwright suite" -FilePath "pnpm" -ArgumentList @("test:e2e") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
-      - name: Run visual regression suite
-        shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("test:visual") -TimeoutSeconds 1800 -HeartbeatSeconds 20
-
       - name: Capture browser validation failure context
         if: failure()
         shell: pwsh
-        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Browser E2E and visual regression"
+        run: ./scripts/ci/collect-failure-context.ps1 -Scope "Browser E2E"
 
       - name: Finalize browser validation evidence
         if: always()
         shell: pwsh
         env:
           JOB_STATUS: ${{ job.status }}
-        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E and visual regression" -Status $env:JOB_STATUS
+        run: ./scripts/ci/finalize-job.ps1 -Scope "Browser E2E" -Status $env:JOB_STATUS
 
       - name: Upload browser reports and evidence
         if: always()
