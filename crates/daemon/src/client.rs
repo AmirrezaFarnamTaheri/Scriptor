@@ -653,6 +653,31 @@ mod tests {
     }
 
     #[test]
+    fn dropping_client_retires_owned_event_listener() {
+        let client = DaemonRpcClient::new();
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = Arc::clone(&stop);
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = thread::spawn(move || {
+            while !thread_stop.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(1));
+            }
+            let _ = done_tx.send(());
+        });
+        *lock_recover(&client.inner.listener) = Some(EventListener {
+            stop: Arc::clone(&stop),
+            handle,
+        });
+
+        drop(client);
+
+        assert!(stop.load(Ordering::SeqCst));
+        done_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("event listener should observe client drop and stop");
+    }
+
+    #[test]
     fn deadline_io_retries_would_block_without_losing_partial_read() {
         let mut scripted = ScriptedIo {
             reads: VecDeque::from([
