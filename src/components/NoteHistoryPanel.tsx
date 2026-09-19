@@ -172,6 +172,7 @@ export const NoteHistoryPanel = memo(function NoteHistoryPanel({ path, onClose, 
       subtitle={path ?? 'Open a note to browse local revisions.'}
       icon={<Clock size={18} />}
       ariaLabel="Note history"
+      helpTopic="history"
       onClose={onClose}
       className="note-history-panel knowledge-filters-panel"
       wide
