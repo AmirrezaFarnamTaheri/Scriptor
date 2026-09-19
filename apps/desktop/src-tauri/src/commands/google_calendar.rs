@@ -808,7 +808,8 @@ fn start_google_auth(
     scopes: &str,
     keychain_account: &str,
 ) -> Result<String, String> {
-    if client_id.trim().is_empty() {
+    let client_id = client_id.trim().to_owned();
+    if client_id.is_empty() {
         return Err("Google OAuth client ID is required".into());
     }
 
