@@ -1110,5 +1110,41 @@
       "pushingVaultTasks": "در حال ارسال وظایف Vault…",
       "pushResult": "{{created}} ایجاد شد · {{updated}} به‌روزرسانی شد · {{skipped}} از قبل هماهنگ بود · {{failed}} ناموفق"
     }
+  },
+  "vaultSidebar": {
+    "ariaLabel": "Vault",
+    "vault": "Vault",
+    "openVaultFolder": "باز کردن پوشهٔ Vault",
+    "newNote": "یادداشت جدید",
+    "rebuildIndex": "بازسازی نمایه",
+    "browseTags": "مرور برچسب‌ها",
+    "knowledgeFilters": "فیلترهای دانش",
+    "savedViews": "نماهای ذخیره‌شده",
+    "manageSnippets": "مدیریت قطعه‌ها",
+    "importObsidian": "درون‌ریزی Vault اوبسیدین",
+    "allNotes": "همهٔ یادداشت‌ها",
+    "inbox": "صندوق ورودی",
+    "recentNotes": "یادداشت‌های اخیر",
+    "searchNotes": "جست‌وجوی یادداشت‌ها",
+    "shortcutF": "میانبر: F",
+    "focusSearchHint": "برای تمرکز روی جست‌وجوی یادداشت، F را فشار دهید",
+    "searchingIndex": "در حال جست‌وجوی نمایه…",
+    "searchResults": "{{count}} نتیجه",
+    "newByType": "جدید بر اساس نوع",
+    "newFromTemplate": "ایجاد از الگو",
+    "newFromTemplateCount": "ایجاد از الگو ({{count}})",
+    "previousDay": "روز قبل",
+    "today": "امروز",
+    "todayWithLabel": "امروز · {{label}}",
+    "nextDay": "روز بعد",
+    "openVaultToBrowse": "برای مرور یادداشت‌ها یک Vault باز کنید.",
+    "utilities": "ابزارهای Vault",
+    "tags": "برچسب‌ها",
+    "archiveViews": "نماهای بایگانی",
+    "menu": {
+      "files": "Vault",
+      "knowledge": "دانش",
+      "maintenance": "نگه‌داری"
+    }
   }
 }
