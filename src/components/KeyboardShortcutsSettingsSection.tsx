@@ -65,7 +65,7 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
   }
 
   return (
-    <section className="settings-section keyboard-shortcuts-settings" aria-labelledby="keyboard-shortcuts-heading">
+    <section className="settings-section keyboard-shortcuts-settings" aria-labelledby="keyboard-shortcuts-heading" data-help-topic="shortcuts">
       <div className="settings-section-heading-row">
         <div>
           <h3 id="keyboard-shortcuts-heading">Keyboard shortcuts</h3>
