@@ -11,7 +11,13 @@ async function expectNoHorizontalOverflow(page: Page) {
 
 async function expectDarkSurface(locator: Locator) {
   await expect(locator).toBeVisible()
-  const background = await locator.evaluate((element) => getComputedStyle(element).backgroundColor)
+  const background = await locator.evaluate((element) => {
+    const direct = getComputedStyle(element).backgroundColor
+    const directMatch = direct.match(/^rgba?\([^)]*\)$/)
+    if (directMatch && !/rgba\([^)]*,\s*0(?:\.0+)?\s*\)$/.test(direct)) return direct
+    const layered = getComputedStyle(element, '::after').backgroundColor
+    return layered && layered !== 'rgba(0, 0, 0, 0)' ? layered : direct
+  })
   const match = background.match(
     /^rgba?\(\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)\s*[, ]+\s*(\d+(?:\.\d+)?)(?:\s*[,/]\s*(\d+(?:\.\d+)?))?\s*\)$/,
   )
