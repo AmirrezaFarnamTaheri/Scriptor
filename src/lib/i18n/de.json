@@ -1044,5 +1044,59 @@
     "unknown": "unbekannt",
     "systemMetadata": "System-Metadaten sind in der Desktop-Shell verfügbar.",
     "pandocNotFound": "Pandoc nicht gefunden"
+  },
+  "tasks": {
+    "openVault": "Öffnen Sie einen Tresor, um Aufgaben anzuzeigen.",
+    "title": "Aufgaben",
+    "taskSingular": "Aufgabe",
+    "taskPlural": "Aufgaben",
+    "ariaLabel": "Aufgabenliste",
+    "refresh": "Aktualisieren",
+    "refreshAria": "Aufgabenliste aktualisieren",
+    "loading": "Aufgaben werden geladen…",
+    "noMatches": "Keine Aufgaben entsprechen dem aktuellen Filter.",
+    "status": "Status",
+    "statusAdvance": "Status: {{status}}. Aktivieren, um weiterzuschalten.",
+    "statusTitle": "Status: {{status}}",
+    "editDueDate": "Fälligkeitsdatum bearbeiten",
+    "dueDate": "Fälligkeitsdatum: {{date}}",
+    "addDueDate": "Fälligkeitsdatum hinzufügen",
+    "dueTitle": "Fällig {{date}} — zum Bearbeiten aktivieren",
+    "setDueDate": "Fälligkeitsdatum festlegen",
+    "scheduled": "Geplant",
+    "recurrence": "Wiederholung",
+    "priority": "Priorität",
+    "openSourceNote": "Quelldokument öffnen ↗",
+    "saving": "Wird gespeichert…",
+    "dueBefore": "Fällig vor",
+    "sort": "Sortieren",
+    "all": "Alle",
+    "clearFilters": "Alle Filter löschen",
+    "clear": "Löschen",
+    "sortOptions": {
+      "due": "Fälligkeitsdatum",
+      "status": "Status",
+      "priority": "Priorität",
+      "created": "Erstellt"
+    },
+    "statuses": {
+      "open": "Offen",
+      "in-progress": "In Bearbeitung",
+      "done": "Erledigt",
+      "cancelled": "Abgebrochen",
+      "forwarded": "Weitergeleitet"
+    },
+    "google": {
+      "ariaLabel": "Google Kalender und Aufgaben",
+      "title": "Google Kalender & Aufgaben",
+      "sync": "Google synchronisieren",
+      "pushVaultTasks": "Tresor-Aufgaben übertragen",
+      "upcomingEvents": "Bevorstehende Termine",
+      "noEvents": "Keine Termine im konfigurierten Vorschaufenster.",
+      "untitledEvent": "Unbenannter Termin",
+      "tasks": "Google Tasks",
+      "noTasks": "Keine Google Tasks geladen.",
+      "complete": "Erledigen"
+    }
   }
 }
