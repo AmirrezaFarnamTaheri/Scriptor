@@ -146,6 +146,11 @@
   color: var(--muted);
 }
 
+.plugin-profile-confirmation {
+  flex: 1 0 100%;
+  margin-top: 2px;
+}
+
 .create-palette-button {
   display: inline-flex;
   align-items: center;
