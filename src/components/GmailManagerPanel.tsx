@@ -305,6 +305,7 @@ ${message.plainText || message.snippet}
       subtitle={t('integrations.gmail.subtitle')}
       icon={<Mail size={18} />}
       ariaLabel={t('integrations.gmail.ariaLabel')}
+      helpTopic="gmail"
       onClose={onClose}
       tabs={tabs}
       activeTab={activeTab}
