@@ -80,7 +80,7 @@ Proof terminology and platform/release gates are defined in [`docs/VERIFICATION.
 
 ## Pull requests
 
-Draft PRs are intentionally cheap: heavyweight CI, desktop compile, visual review, Starlight lock, and release-binary review jobs defer until the PR is ready. Marking a draft **Ready for review** triggers one exact-head validation pass; subsequent pushes cancel stale PR runs and validate only the newest head.
+Draft PRs are intentionally cheap: heavyweight CI, desktop compile, visual review, and Starlight lock jobs defer until the PR is ready. Marking a draft **Ready for review** triggers one exact-head validation pass; subsequent pushes cancel stale PR runs and validate only the newest head. **Release Binary Review** is manual-only and is dispatched separately for a frozen release candidate.
 
 Browser verification has one owner per concern: the main CI workflow runs functional Playwright E2E, while the separate **Visual review** workflow owns stable visual-regression comparison. A diagnostic `--update-snapshots=all` pass is generated only after a visual comparison fails; intentional baseline updates belong to the explicit screenshot-refresh workflow.
 
