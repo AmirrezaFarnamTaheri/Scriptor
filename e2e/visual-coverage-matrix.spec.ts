@@ -349,6 +349,10 @@ test.describe('visual coverage matrix', () => {
     await orphanTab.click()
     const rows = workbench.locator('.virtual-knowledge-list > li')
     await expect(rows).toHaveCount(3)
+    // Opening the modal uses a finite scale-in transform. Measure the stable
+    // row geometry after that transition, otherwise getBoundingClientRect()
+    // reports the transiently scaled height rather than the 72px layout row.
+    await settleLayout(page)
     const geometry = await rows.evaluateAll((items) => items.map((item) => ({
       height: item.getBoundingClientRect().height,
       width: item.getBoundingClientRect().width,
