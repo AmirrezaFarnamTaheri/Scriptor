@@ -16,7 +16,7 @@ Production release заблокирован, пока каждый обязат�
 - [ ] остановить, если process launch не имеет live per-call inventory entry или review истёк;
 - [ ] остановить, если rollback/restore/trust status/observability нельзя продемонстрировать на target platform;
 - [ ] остановить, если RustSec exception review истёк или не имеет owner/exit condition;
-- [ ] остановить, если Playwright E2E/visual regression пропущены или отсутствуют в exact-head CI matrix;
+- [ ] остановить, если Playwright E2E отсутствует в exact-head CI или отдельный exact-head Visual review regression gate пропущен/отсутствует;
 - [ ] остановить, если protected release environment отсутствует, не имеет required reviewer или не gate-ит production publish job;
 - [ ] остановить, если GitHub Pages deployment не имеет отдельно одобренного `github-pages` environment, когда опубликованный vault content требует review.
 
