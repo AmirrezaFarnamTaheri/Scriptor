@@ -280,6 +280,8 @@ export const TaskPanel = memo(function TaskPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [allVaultTasks, setAllVaultTasks] = useState<TaskRow[]>([])
   const [vaultTasksComplete, setVaultTasksComplete] = useState(false)
+  const [pushingVaultTasks, setPushingVaultTasks] = useState(false)
+  const [vaultSyncSummary, setVaultSyncSummary] = useState<string | null>(null)
   const taskRevision = store.tasks
     .map((task) => `${task.id}:${task.updatedAt}:${task.status}:${task.dueAt ?? ''}`)
     .sort()
@@ -331,6 +333,18 @@ export const TaskPanel = memo(function TaskPanel({
     setExpandedId((prev) => (prev === id ? null : id))
   }, [])
 
+  const handlePushVaultTasks = async () => {
+    if (pushingVaultTasks || !vaultTasksComplete || calendarSync.status !== 'synced') return
+    setPushingVaultTasks(true)
+    setVaultSyncSummary(null)
+    try {
+      const result = await calendarSync.syncVaultTasks()
+      setVaultSyncSummary(t('tasks.google.pushResult', result))
+    } finally {
+      setPushingVaultTasks(false)
+    }
+  }
+
   if (!vaultOpen) {
     return embedded ? <p className="empty-state">{t('tasks.openVault')}</p> : null
   }
@@ -359,15 +373,16 @@ export const TaskPanel = memo(function TaskPanel({
                 <button
                   type="button"
                   className="toolbar-button"
-                  onClick={() => void calendarSync.syncVaultTasks()}
-                  disabled={calendarSync.status !== 'synced'}
+                  onClick={() => void handlePushVaultTasks()}
+                  disabled={calendarSync.status !== 'synced' || pushingVaultTasks || !vaultTasksComplete}
                 >
-                  {t('tasks.google.pushVaultTasks')}
+                  {pushingVaultTasks ? t('tasks.google.pushingVaultTasks') : t('tasks.google.pushVaultTasks')}
                 </button>
               ) : null}
             </div>
           </div>
-          {calendarSync.error ? <p className="error-state">{calendarSync.error}</p> : null}
+          {calendarSync.error ? <p className="error-state" role="alert">{calendarSync.error}</p> : null}
+          {vaultSyncSummary ? <p className="health-subtitle" role="status">{vaultSyncSummary}</p> : null}
 
           {calendarConfig.show_events_in_tasks ? (
             <div>
