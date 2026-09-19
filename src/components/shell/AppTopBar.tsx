@@ -266,7 +266,7 @@ function AppTopBarImpl({
         </div>
 
         {showHistory ? (
-          <div className="history-controls" aria-label="History controls">
+          <div className="history-controls" aria-label={t('topBar.historyControls')}>
             <IconButton label={t('actions.back')} disabled={!canNavigateBack} onClick={onNavigateBack}>
               <ChevronRight className="flip" />
             </IconButton>
@@ -287,10 +287,10 @@ function AppTopBarImpl({
         ) : null}
 
         {showModeStrip ? (
-          <div className="workspace-mode-strip" aria-label="Workspace mode">
+          <div className="workspace-mode-strip" aria-label={t('topBar.workspaceMode')}>
             <select
               className="workspace-mode-select"
-              aria-label="Workspace mode"
+              aria-label={t('topBar.workspaceMode')}
               value={workspaceMode}
               onChange={(event) => onWorkspaceModeChange(event.target.value as WorkspaceMode)}
             >
@@ -318,7 +318,7 @@ function AppTopBarImpl({
           type="button"
           className="command-search"
           onClick={onOpenCommandPalette}
-          aria-label={`Open command palette (${commandShortcut})`}
+          aria-label={t('topBar.openCommandPalette', { shortcut: commandShortcut })}
         >
           <Search aria-hidden="true" />
           <span className="command-search-placeholder">{t('topBar.typeCommandOrSearch')}</span>
@@ -372,7 +372,13 @@ function AppTopBarImpl({
             </button>
           ) : null}
 
-          <IconButton label={`${themeToggleLabel} · ${theme} palette${appearance === 'system' ? ' · follows system' : ''}`} onClick={onToggleTheme}>
+          <IconButton
+            label={t(appearance === 'system' ? 'topBar.appearanceControlSystem' : 'topBar.appearanceControl', {
+              action: themeToggleLabel,
+              palette: theme,
+            })}
+            onClick={onToggleTheme}
+          >
             {resolvedAppearance === 'dark' ? <Sun /> : <Moon />}
           </IconButton>
           <IconButton
