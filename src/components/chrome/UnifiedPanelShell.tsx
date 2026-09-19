@@ -44,6 +44,8 @@ interface UnifiedPanelShellProps {
   wide?: boolean
   presentation?: PanelPresentation
   footer?: ReactNode
+  /** Stable contextual Help guide id owned by this panel surface. */
+  helpTopic?: string
 }
 
 const DOCK_MEDIA_QUERY = '(min-width: 1321px)'
@@ -105,6 +107,7 @@ function UnifiedPanelShellImpl({
   wide = false,
   presentation = 'modal',
   footer,
+  helpTopic,
 }: UnifiedPanelShellProps) {
   const { t } = useI18n()
   const shellRef = useRef<HTMLElement>(null)
@@ -178,6 +181,7 @@ function UnifiedPanelShellImpl({
         aria-labelledby={!docked && !modalAriaLabel ? titleId : undefined}
         aria-describedby={!docked && subtitle ? descriptionId : undefined}
         tabIndex={-1}
+        data-help-topic={helpTopic}
       >
         <header className="unified-panel-header">
           <div>
