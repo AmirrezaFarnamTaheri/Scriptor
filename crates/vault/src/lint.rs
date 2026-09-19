@@ -479,10 +479,15 @@ fn apply_text_edits(markdown: &str, edits: &[TextEdit]) -> String {
 
     for edit in sorted {
         if edit.line >= lines.len() {
-            lines.push(String::new());
+            // A TextEdit may target an insertion point more than one line past
+            // the current buffer. Grow directly to that line instead of adding
+            // a single placeholder and then indexing out of bounds.
+            lines.resize(edit.line.saturating_add(1), String::new());
         }
         if edit.line == edit.end_line && edit.column == edit.end_column {
-            let line = lines.get_mut(edit.line).expect("line exists");
+            let Some(line) = lines.get_mut(edit.line) else {
+                continue;
+            };
             let safe_column = edit.column.min(line.len());
             line.insert_str(safe_column, &edit.new_text);
             continue;
@@ -522,6 +527,18 @@ mod tests {
     use super::*;
     use crate::open::open_vault;
     use tempfile::tempdir;
+
+    #[test]
+    fn text_edits_grow_to_far_insertion_lines_without_panicking() {
+        let edits = vec![TextEdit {
+            line: 4,
+            column: 0,
+            end_line: 4,
+            end_column: 0,
+            new_text: "tail".to_string(),
+        }];
+        assert_eq!(apply_text_edits("head", &edits), "head\n\n\n\ntail");
+    }
 
     #[test]
     fn missing_heading_fix_inserts_title() {
