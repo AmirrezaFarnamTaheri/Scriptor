@@ -153,7 +153,7 @@ export const SmartCollectionsPanel = memo(function SmartCollectionsPanel({ embed
   }
 
   return (
-    <div className={`smart-collections-panel${embedded ? ' knowledge-workbench-embed' : ''}`}>
+    <div className={`smart-collections-panel${embedded ? ' knowledge-workbench-embed' : ''}`} data-help-topic="collections">
       {!embedded ? (
         <header className="smart-collections-header">
           <h3>
