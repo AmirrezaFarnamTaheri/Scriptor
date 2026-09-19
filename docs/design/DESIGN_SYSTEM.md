@@ -4,7 +4,9 @@ Premium glass-forward visual language for desktop and mobile. Tokens are defined
 
 ## Color palette
 
-### Light (`data-theme="light"`)
+Palette identity and day/night appearance are independent runtime dimensions. Scriptor writes `data-palette="<id>"` for the selected palette, `data-appearance="light|dark"` for the resolved appearance, and `data-theme` for the built-in palette selector. A stored `system` appearance follows the OS and resolves to `data-appearance` at runtime. The top-bar day/night control changes appearance only; it never cycles or replaces the selected palette.
+
+### Light base palette (`data-theme="light"`, normally `data-appearance="light"`)
 
 | Token | Hex equivalent | Role |
 |-------|----------------|------|
@@ -18,7 +20,7 @@ Premium glass-forward visual language for desktop and mobile. Tokens are defined
 | `--glass-bg` | `rgba(255,255,255,0.72)` | Frosted panels |
 | `--glass-border` | `rgba(148,163,184,0.35)` | Glass edge |
 
-### Dark (`data-theme="dark"`)
+### Dark base palette (`data-theme="dark"`, normally `data-appearance="dark"`)
 
 | Token | Hex equivalent | Role |
 |-------|----------------|------|

@@ -6,7 +6,9 @@ Lenguaje visual premium centrado en superficies de vidrio para desktop y mobile.
 
 ## Paleta de color
 
-### Light (`data-theme="light"`)
+La identidad de la paleta y la apariencia clara/oscura son dimensiones independientes en tiempo de ejecución. Scriptor escribe `data-palette="<id>"` para la paleta seleccionada, `data-appearance="light|dark"` para la apariencia resuelta y `data-theme` como selector de la paleta integrada. La preferencia guardada `system` sigue al sistema operativo y se resuelve en `data-appearance` durante la ejecución. El control día/noche de la barra superior solo cambia la apariencia; nunca recorre ni sustituye la paleta elegida.
+
+### Paleta base clara (`data-theme="light"`, normalmente `data-appearance="light"`)
 
 | Token | Hex equivalente | Rol |
 |---|---|---|
@@ -20,7 +22,7 @@ Lenguaje visual premium centrado en superficies de vidrio para desktop y mobile.
 | `--glass-bg` | `rgba(255,255,255,0.72)` | Paneles frosted |
 | `--glass-border` | `rgba(148,163,184,0.35)` | Borde glass |
 
-### Dark (`data-theme="dark"`)
+### Paleta base oscura (`data-theme="dark"`, normalmente `data-appearance="dark"`)
 
 | Token | Hex equivalente | Rol |
 |---|---|---|

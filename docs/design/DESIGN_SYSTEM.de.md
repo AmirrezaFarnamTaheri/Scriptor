@@ -6,7 +6,9 @@ Hochwertige, glasorientierte visuelle Sprache für Desktop und Mobile. Tokens si
 
 ## Farbpalette
 
-### Light (`data-theme="light"`)
+Palettenidentität und Hell-/Dunkel-Darstellung sind unabhängige Laufzeitdimensionen. Scriptor schreibt `data-palette="<id>"` für die gewählte Palette, `data-appearance="light|dark"` für die aufgelöste Darstellung und `data-theme` als Selektor der integrierten Palette. Die gespeicherte Einstellung `system` folgt dem Betriebssystem und wird zur Laufzeit in `data-appearance` aufgelöst. Der Hell-/Dunkel-Schalter in der oberen Leiste ändert nur die Darstellung und ersetzt niemals die ausgewählte Palette.
+
+### Helle Basispalette (`data-theme="light"`, normalerweise `data-appearance="light"`)
 
 | Token | Hex-Äquivalent | Rolle |
 |---|---|---|
@@ -20,7 +22,7 @@ Hochwertige, glasorientierte visuelle Sprache für Desktop und Mobile. Tokens si
 | `--glass-bg` | `rgba(255,255,255,0.72)` | Frosted Panels |
 | `--glass-border` | `rgba(148,163,184,0.35)` | Glass Edge |
 
-### Dark (`data-theme="dark"`)
+### Dunkle Basispalette (`data-theme="dark"`, normalerweise `data-appearance="dark"`)
 
 | Token | Hex-Äquivalent | Rolle |
 |---|---|---|
