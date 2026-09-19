@@ -878,7 +878,7 @@
     "textContrast": "Textkontrast",
     "required": "Erforderlich: {{ratio}}",
     "increaseContrast": "Kontrast erhöhen",
-    "contrastUnknown": "Die Kontrastvorschau ist für sechsstellige Hex-Farben von Text, Hintergrund und Fläche verfügbar.",
+    "contrastUnknown": "Die Kontrastvorschau ist für sechsstellige Hex-Farben von Text, Hintergrund, Fläche und Akzenten verfügbar.",
     "primaryAccent": "Primärakzent",
     "secondaryAmber": "Sekundäres Amber",
     "background": "Hintergrund",
@@ -899,12 +899,15 @@
     "errorEmptyName": "Der Theme-Name darf nicht leer sein.",
     "errorLongName": "Der Theme-Name darf höchstens 80 Zeichen lang sein.",
     "errorInvalidColor": "Ungültige CSS-Farbe: {{keys}}",
-    "errorUnverifiableContrast": "Verwende sechsstellige Hex-Farben für Text, Hintergrund und Fläche, damit der Kontrast vor dem Speichern geprüft werden kann.",
-    "errorLowContrast": "Der Textkontrast ist zu gering: {{details}}.",
+    "errorUnverifiableContrast": "Verwende sechsstellige Hex-Farben für Text, Hintergrund, Fläche und Akzente, damit der Kontrast vor dem Speichern geprüft werden kann.",
+    "errorLowContrast": "Der Theme-Kontrast ist zu gering: {{details}}.",
     "errorSaveStorage": "Das benutzerdefinierte Theme konnte nicht gespeichert werden. Der Browser-Speicher ist möglicherweise nicht verfügbar oder voll.",
     "errorDeleteStorage": "Das benutzerdefinierte Theme konnte nicht aus dem Browser-Speicher gelöscht werden.",
     "contrastTextBackground": "Text / Hintergrund",
-    "contrastTextSurface": "Text / Fläche"
+    "contrastTextSurface": "Text / Fläche",
+    "requiredMixed": "Erforderlich: Text {{textRatio}} · Akzente {{accentRatio}}",
+    "contrastPrimaryBackground": "Primärakzent / Hintergrund",
+    "contrastAmberBackground": "Amber-Akzent / Hintergrund"
   },
   "appearanceSettings": {
     "title": "Darstellung & Layout",
