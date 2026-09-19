@@ -78,12 +78,14 @@ The stable Windows baselines remain the visual-regression acceptance surface. In
 changes must be reviewed and refreshed explicitly with `--update-snapshots=all`; visual failures are
 never hidden by raising the global tolerance.
 
-Pull-request **Visual review** runs two passes on the pinned Windows runner: it first compares current
-renders against the committed baselines without mutating them, then regenerates the current baselines
-with `--update-snapshots=all`. Any resulting baseline or documentation-PNG drift still fails the job,
-so refresh does not auto-accept a visual change. The uploaded artifact is canonicalized as
-`visual-review.zip`: every PNG/JPEG/WebP/GIF/AVIF from comparison results, refreshed baselines, and
-documentation captures is flattened under **`images/`** with a provenance prefix. Raw
+Pull-request **Visual review** owns the visual-regression gate on the pinned Windows runner. It first
+compares current renders against committed baselines without mutating them. A second
+`--update-snapshots=all` pass runs **only when that comparison fails**, solely to produce diagnostic
+current-state images and identify stale baselines; it never auto-accepts a visual change. Functional
+browser E2E remains in the main CI workflow, so the same visual suite is not executed twice on every
+clean PR. The uploaded artifact is canonicalized as `visual-review.zip`: every
+PNG/JPEG/WebP/GIF/AVIF from comparison results, diagnostic refreshed baselines, and documentation
+captures is flattened under **`images/`** with a provenance prefix. Raw
 `test-results/visual` and `e2e/*-snapshots` trees are not uploaded separately, preventing stale
 parallel copies inside the artifact. `image-manifest.json` records each image's source path, SHA-256,
 and byte size.
