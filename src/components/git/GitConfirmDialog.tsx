@@ -28,7 +28,7 @@ export function GitConfirmDialog({
   const { t } = useI18n()
 
   return (
-    <div className="git-confirm-dialog" role="alertdialog" aria-label={t('git.confirmAction')}>
+    <div className="git-confirm-dialog" role="alertdialog" aria-label={t('git.confirmAction')} data-help-topic="permissions">
       <p>
         {pendingAction.kind === 'commit'
           ? t('git.commitConfirm', { count: pendingAction.files.length, message: pendingAction.message })
