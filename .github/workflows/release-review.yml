@@ -3,6 +3,7 @@ name: Release Binary Review
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - VERSION
       - Cargo.toml
@@ -21,6 +22,7 @@ concurrency:
 jobs:
   review:
     name: Review CLI and daemon release binaries
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
@@ -43,10 +45,12 @@ jobs:
 
       - name: Run source and release contracts
         run: |
-          pnpm check:governance
+          pnpm version:check
+          pnpm lint:actions
+          pnpm check:i18n
+          pnpm check:docs
           pnpm check:source
           pnpm check:release-evidence-contracts
-          pnpm version:check
 
       - name: Build release binaries
         run: cargo build --locked --release -p scriptor-cli -p scriptor-daemon --jobs 2
