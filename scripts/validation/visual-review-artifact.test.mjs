@@ -42,3 +42,10 @@ test('packager excludes image bytes from evidence tree', () => {
   assert.match(packager, /if \(\$imageExtensions -contains \$file\.Extension\.ToLowerInvariant\(\)\) \{\s*continue\s*\}/)
   assert.match(packager, /imageDirectory = 'images'/)
 })
+
+
+test('cancelled visual runs do not refresh or publish stale evidence', () => {
+  const guardedAlways = (workflow.match(/if:\s*\$\{\{ always\(\) && !cancelled\(\) \}\}/g) ?? []).length
+  assert.ok(guardedAlways >= 5, 'refresh, enforcement, finalization, packaging, and upload must stop after cancellation')
+  assert.match(workflow, /if:\s*\$\{\{ failure\(\) && !cancelled\(\) \}\}/)
+})
