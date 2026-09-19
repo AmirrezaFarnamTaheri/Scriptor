@@ -48,6 +48,11 @@ const GMAIL_BATCH_ENDPOINT: &str = "https://gmail.googleapis.com/batch/gmail/v1"
 const GMAIL_BATCH_MAX_CALLS: usize = 50;
 const GMAIL_SEND_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 const GMAIL_MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
+const GOOGLE_TASK_PAGE_SIZE: &str = "100";
+/// Bound provider pagination so a pathological/looping response cannot turn a
+/// refresh into unbounded network work. Crossing the bound fails closed: the
+/// frontend will not treat a partial remote task list as authoritative.
+const GOOGLE_TASK_MAX_PAGES: usize = 100;
 
 /// `openid`/`email` are appended so the authed email can be resolved.
 const OAUTH_SCOPES: &str = "openid email https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/tasks";
@@ -667,6 +672,8 @@ struct GTask {
 #[derive(Debug, Deserialize)]
 struct GTaskList {
     items: Option<Vec<GTask>>,
+    #[serde(rename = "nextPageToken")]
+    next_page_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1675,28 +1682,55 @@ pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask
     let access_token = refresh_if_needed(&client, CALENDAR_TOKEN_KEYCHAIN_ACCOUNT)?;
 
     let url = format!("{TASKS_ENDPOINT}/{}/tasks", percent_encode(&task_list_id));
-    let response = client
-        .get(url)
-        .bearer_auth(&access_token)
-        .query(&[("showCompleted", "true"), ("maxResults", "100")])
-        .send()
-        .map_err(|error| format!("failed to list Google Tasks: {error}"))?;
-    if !response.status().is_success() {
-        let status = response.status();
-        return Err(format!(
-            "failed to list Google Tasks ({status}): {}",
-            bounded_error_body(response)
-        ));
+    let mut tasks = Vec::new();
+    let mut page_token: Option<String> = None;
+    let mut seen_page_tokens = std::collections::HashSet::new();
+
+    for page_index in 0..GOOGLE_TASK_MAX_PAGES {
+        let mut request = client
+            .get(&url)
+            .bearer_auth(&access_token)
+            .query(&[
+                ("showCompleted", "true"),
+                ("showHidden", "true"),
+                ("maxResults", GOOGLE_TASK_PAGE_SIZE),
+            ]);
+        if let Some(token) = page_token.as_deref() {
+            request = request.query(&[("pageToken", token)]);
+        }
+
+        let response = request
+            .send()
+            .map_err(|error| format!("failed to list Google Tasks: {error}"))?;
+        if !response.status().is_success() {
+            let status = response.status();
+            return Err(format!(
+                "failed to list Google Tasks ({status}): {}",
+                bounded_error_body(response)
+            ));
+        }
+
+        let list = response
+            .json::<GTaskList>()
+            .map_err(|error| format!("Google returned an invalid tasks response: {error}"))?;
+        tasks.extend(list.items.unwrap_or_default().into_iter().map(map_task));
+
+        let Some(next_token) = list.next_page_token.filter(|token| !token.is_empty()) else {
+            return Ok(tasks);
+        };
+        if !seen_page_tokens.insert(next_token.clone()) {
+            return Err("Google Tasks returned a repeated pagination token".into());
+        }
+        if page_index + 1 == GOOGLE_TASK_MAX_PAGES {
+            return Err(format!(
+                "Google Tasks result exceeds the supported {}-page sync bound",
+                GOOGLE_TASK_MAX_PAGES
+            ));
+        }
+        page_token = Some(next_token);
     }
-    let list = response
-        .json::<GTaskList>()
-        .map_err(|error| format!("Google returned an invalid tasks response: {error}"))?;
-    Ok(list
-        .items
-        .unwrap_or_default()
-        .into_iter()
-        .map(map_task)
-        .collect())
+
+    Err("Google Tasks pagination terminated unexpectedly".into())
 }
 
 #[tauri::command]
@@ -1964,6 +1998,16 @@ mod tests {
         }));
         assert_eq!(value, "2026-01-01");
         assert!(all_day);
+    }
+
+    #[test]
+    fn task_list_response_preserves_provider_page_token() {
+        let parsed: GTaskList = serde_json::from_str(
+            r#"{"items":[{"id":"t1","title":"One"}],"nextPageToken":"next-123"}"#,
+        )
+        .expect("task list response");
+        assert_eq!(parsed.items.as_ref().map(Vec::len), Some(1));
+        assert_eq!(parsed.next_page_token.as_deref(), Some("next-123"));
     }
 
     #[test]
