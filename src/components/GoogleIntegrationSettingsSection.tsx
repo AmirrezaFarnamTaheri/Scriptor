@@ -53,7 +53,16 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       // integration behind.
       const connected = await calendarSync.startAuth()
       if (!connected) return
-      await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }))
+      try {
+        await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }))
+      } catch (persistError) {
+        // OAuth succeeded but the vault config did not. Roll the credential
+        // back rather than leaving a connected keychain session that the next
+        // launch cannot discover from persisted settings. disconnect() keeps
+        // its own provider/keychain failure visible through calendarSync.error.
+        await calendarSync.disconnect()
+        throw persistError
+      }
     } catch (caught) {
       setSetupError(caught instanceof Error ? caught.message : String(caught))
     } finally {
