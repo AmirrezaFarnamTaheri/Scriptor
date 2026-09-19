@@ -517,7 +517,7 @@ export function useGoogleCalendarSync({
       if (currentLifecycle === lifecycleGenerationRef.current) {
         setError(googleAuthErrorMessage(caught))
       }
-      return { created: 0, updated: 0, skipped, failed: 0 }
+      return { created: 0, updated: 0, skipped, failed: mutations.length }
     } finally {
       vaultSyncRunningRef.current = false
     }
