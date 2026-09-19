@@ -67,6 +67,10 @@ La terminología de evidencia y los gates de plataforma/release se definen en [`
 
 ## Pull requests
 
+Los PR en borrador son deliberadamente ligeros: los jobs pesados de CI, compilación de escritorio, Visual review, Starlight lock y Release Binary Review se aplazan hasta que el PR esté listo para revisión. **Ready for review** dispara una validación completa del head exacto; los pushes posteriores cancelan ejecuciones obsoletas y validan solo el head más reciente.
+
+Cada responsabilidad de navegador tiene un único dueño: el workflow principal de CI ejecuta Playwright E2E funcional y el workflow **Visual review** posee la regresión visual estable. El pase diagnóstico `--update-snapshots=all` solo se genera cuando falla la comparación visual; las actualizaciones intencionadas de baseline pertenecen al workflow explícito de refresco de screenshots.
+
 Describa:
 
 - el comportamiento observable que cambió;
