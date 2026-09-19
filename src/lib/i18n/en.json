@@ -878,7 +878,7 @@
     "textContrast": "Text contrast",
     "required": "Required: {{ratio}}",
     "increaseContrast": "increase contrast",
-    "contrastUnknown": "Contrast preview is available for six-digit hex text, background, and surface colors.",
+    "contrastUnknown": "Contrast preview is available for six-digit hex text, background, surface, and accent colors.",
     "primaryAccent": "Primary Accent",
     "secondaryAmber": "Secondary Amber",
     "background": "Background",
@@ -899,12 +899,15 @@
     "errorEmptyName": "Theme name cannot be empty.",
     "errorLongName": "Theme name must be 80 characters or fewer.",
     "errorInvalidColor": "Invalid CSS color: {{keys}}",
-    "errorUnverifiableContrast": "Use six-digit hex colors for text, background, and surface so contrast can be verified before saving.",
-    "errorLowContrast": "Text contrast is too low: {{details}}.",
+    "errorUnverifiableContrast": "Use six-digit hex colors for text, background, surface, and accents so contrast can be verified before saving.",
+    "errorLowContrast": "Theme contrast is too low: {{details}}.",
     "errorSaveStorage": "Could not save the custom theme. Browser storage may be unavailable or full.",
     "errorDeleteStorage": "Could not delete the custom theme from browser storage.",
     "contrastTextBackground": "Text / background",
-    "contrastTextSurface": "Text / surface"
+    "contrastTextSurface": "Text / surface",
+    "requiredMixed": "Required: text {{textRatio}} · accents {{accentRatio}}",
+    "contrastPrimaryBackground": "Primary accent / background",
+    "contrastAmberBackground": "Amber accent / background"
   },
   "appearanceSettings": {
     "title": "Appearance & layout",
