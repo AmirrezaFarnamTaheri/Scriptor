@@ -31,8 +31,8 @@
     "capture": "Capture",
     "graph": "Graph",
     "canvas": "Canvas",
-    "switchToLight": "Switch to light theme",
-    "switchToDark": "Switch to dark theme",
+    "switchToLight": "Switch to light appearance",
+    "switchToDark": "Switch to dark appearance",
     "switchToHighContrast": "Switch to high-contrast theme",
     "switchToTheme": "Switch to {{theme}} theme",
     "supportScriptor": "Support Scriptor",
@@ -45,7 +45,12 @@
     "paletteStore": "Built-in Modules & Color Palettes",
     "customizeAria": "Customize top bar actions",
     "customizeShowAll": "Show all",
-    "customizeRestoreDefaults": "Restore default actions"
+    "customizeRestoreDefaults": "Restore default actions",
+    "historyControls": "History controls",
+    "workspaceMode": "Workspace mode",
+    "openCommandPalette": "Open command palette ({{shortcut}})",
+    "appearanceControl": "{{action}} · {{palette}} palette",
+    "appearanceControlSystem": "{{action}} · {{palette}} palette · follows system"
   },
   "commandPalette": {
     "placeholder": "Type a command or note...",
