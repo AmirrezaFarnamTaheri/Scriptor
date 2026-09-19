@@ -10,12 +10,14 @@ import type { VaultConfig } from '../types/vault'
 interface GoogleIntegrationSettingsSectionProps {
   config: VaultConfig
   setConfig: Dispatch<SetStateAction<VaultConfig>>
+  vaultId: string
 }
 
 /** Canonical Google account/configuration surface for Calendar, Tasks, and Gmail setup. */
 export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationSettingsSection({
   config,
   setConfig,
+  vaultId,
 }: GoogleIntegrationSettingsSectionProps) {
   const { t } = useI18n()
   const calendarSync = useGoogleCalendarSync({ config: config.calendar_sync })
@@ -54,7 +56,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
       const connected = await calendarSync.startAuth()
       if (!connected) return
       try {
-        await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }))
+        await mutateVaultConfig((current) => ({ ...current, calendar_sync: sync }), vaultId)
       } catch (persistError) {
         // OAuth succeeded but the vault config did not. Roll the credential
         // back rather than leaving a connected keychain session that the next
