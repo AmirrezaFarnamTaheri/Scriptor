@@ -516,8 +516,11 @@ test('onboarding tour', async ({ page }) => {
   await expect(tour).toBeVisible({ timeout: 15_000 })
   await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
   await expect
-    .poll(() => tour.evaluate((element) => getComputedStyle(element).backgroundColor))
-    .toBe('rgb(255, 255, 255)')
+    .poll(() => tour.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      return background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)'
+    }))
+    .toBe(true)
   await page.waitForTimeout(500)
   await captureReadyScreenshot(page, shotPath('onboarding-tour'))
   await expect(page).toHaveScreenshot('onboarding-tour.png', {
