@@ -55,6 +55,23 @@ test('appearance selects share input sizing and keyboard focus', async ({ page }
 })
 
 
+test('Appearance settings owns the palette-management route', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+
+  const manage = settings.getByRole('button', { name: 'Manage color palettes', exact: true })
+  await expect(manage).toBeVisible()
+  await manage.click()
+
+  await expect(settings).toBeHidden()
+  const palettes = page.getByRole('dialog', { name: 'Color palettes' })
+  await expect(palettes).toBeVisible()
+  await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
+  await expect(palettes.getByRole('button', { name: 'Open runtime plugin marketplace' })).toHaveCount(0)
+})
+
 test('appearance and workspace tabs keep separate ownership', async ({ page }) => {
   await launchApp(page)
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
