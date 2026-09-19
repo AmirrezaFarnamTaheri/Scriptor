@@ -620,7 +620,82 @@
   "store": {
     "pluginViews": "Plugin views",
     "manageInstalled": "Manage installed",
-    "browsePlugins": "Browse plugins"
+    "browsePlugins": "Browse plugins",
+    "sectionsAria": "Store sections",
+    "pluginManagement": "Plugin management",
+    "tabs": {
+      "plugins": "Plugins",
+      "mcp": "MCP",
+      "features": "Features",
+      "layouts": "Layouts"
+    },
+    "mcpUnavailable": "MCP controls are unavailable here. Open the dedicated MCP panel to change mode.",
+    "mcpMode": "MCP mode",
+    "mcpModes": {
+      "off": {
+        "label": "Off",
+        "description": "MCP disabled. No tools exposed."
+      },
+      "readOnly": {
+        "label": "Read-only",
+        "description": "Search, read, and inspect tools only."
+      },
+      "draft": {
+        "label": "Draft",
+        "description": "AI may propose patches; you approve."
+      },
+      "writeApproved": {
+        "label": "Write (approved)",
+        "description": "Approved patches apply directly."
+      }
+    },
+    "availableTools": "Available tools ({{count}})",
+    "auditLog": "Audit log ({{count}} entries)",
+    "auditOutcome": {
+      "allowed": "allowed",
+      "denied": "denied",
+      "failed": "failed"
+    },
+    "featureHintBefore": "Runtime controls pause optional background work without uninstalling anything. Changes take effect immediately unless marked",
+    "requiresRestart": "requires restart",
+    "featureHintAfter": ".",
+    "featuresReadOnly": "Feature toggles are read-only here.",
+    "noFeatureFlags": "No feature flags are available.",
+    "toggleFeatureAria": "Toggle {{label}}",
+    "restart": "restart",
+    "layoutHint": "Alternate workspace layouts reconfigure the current mode — split preview, stickies, and graph depth — in one action.",
+    "applyLayoutAria": "Apply {{name}} layout",
+    "active": "Active",
+    "apply": "Apply",
+    "safeModeDisabled": "Safe mode — plugin execution disabled",
+    "runtimeReady": "Plugin runtime ready",
+    "leaveSafeMode": "Leave safe mode",
+    "enterSafeMode": "Enter safe mode",
+    "individualApproval": "Individual plugins may still require vault access approval.",
+    "installedCount": "Installed ({{count}})",
+    "disableSafeModeBeforeEnable": "Disable safe mode before enabling plugins",
+    "reviewBeforeEnable": "Review required permissions before enabling this plugin",
+    "enabled": "Enabled",
+    "enable": "Enable",
+    "permissionsAria": "Permissions for {{plugin}}",
+    "permissionsReviewed": "Permissions reviewed for this vault",
+    "permissionReviewRequired": "Permission review required before enabling",
+    "openVaultBeforeGranting": "Open a vault before granting plugin access",
+    "optionalPermission": " (optional · not granted automatically)",
+    "requiredPermission": " (required)",
+    "reviewGrantAria": "Review and grant required permissions for {{plugin}} in this vault",
+    "reviewRequiredAccess": "Review required access",
+    "revokeVault": "Revoke this vault",
+    "resetPermissions": "Reset permissions",
+    "confirmPermissionsAria": "Confirm permissions for {{plugin}}",
+    "grantRequiredMessage": "Grant required {{permissions}} access to {{plugin}} for this vault and enable the plugin?{{optional}}",
+    "enablePluginMessage": "Enable {{plugin}} for this vault?{{optional}}",
+    "optionalPermissionsNote": " Optional permissions ({{permissions}}) are not granted automatically.",
+    "grantEnable": "Grant required access & enable",
+    "healthIssues": "{{count}} vault health issue(s)",
+    "marketplaceAvailable": "Marketplace · {{count}} available",
+    "installAria": "Install {{name}}",
+    "install": "Install"
   },
   "canvasExport": {
     "export": "Export",

@@ -620,7 +620,82 @@
   "store": {
     "pluginViews": "Plugin-Ansichten",
     "manageInstalled": "Installierte verwalten",
-    "browsePlugins": "Plugins durchsuchen"
+    "browsePlugins": "Plugins durchsuchen",
+    "sectionsAria": "Store-Bereiche",
+    "pluginManagement": "Plugin-Verwaltung",
+    "tabs": {
+      "plugins": "Plugins",
+      "mcp": "MCP",
+      "features": "Funktionen",
+      "layouts": "Layouts"
+    },
+    "mcpUnavailable": "MCP-Steuerungen sind hier nicht verfügbar. Öffnen Sie den eigenen MCP-Bereich, um den Modus zu ändern.",
+    "mcpMode": "MCP-Modus",
+    "mcpModes": {
+      "off": {
+        "label": "Aus",
+        "description": "MCP ist deaktiviert; keine Werkzeuge werden bereitgestellt."
+      },
+      "readOnly": {
+        "label": "Nur Lesen",
+        "description": "Nur Such-, Lese- und Prüfwerkzeuge."
+      },
+      "draft": {
+        "label": "Entwurf",
+        "description": "KI darf Änderungen vorschlagen; Sie bestätigen sie."
+      },
+      "writeApproved": {
+        "label": "Schreiben (bestätigt)",
+        "description": "Bestätigte Änderungen werden direkt angewendet."
+      }
+    },
+    "availableTools": "Verfügbare Werkzeuge ({{count}})",
+    "auditLog": "Audit-Protokoll ({{count}} Einträge)",
+    "auditOutcome": {
+      "allowed": "erlaubt",
+      "denied": "abgelehnt",
+      "failed": "fehlgeschlagen"
+    },
+    "featureHintBefore": "Laufzeitsteuerungen pausieren optionale Hintergrundarbeit, ohne etwas zu deinstallieren. Änderungen gelten sofort, sofern nicht als",
+    "requiresRestart": "Neustart erforderlich",
+    "featureHintAfter": "markiert.",
+    "featuresReadOnly": "Funktionsschalter sind hier schreibgeschützt.",
+    "noFeatureFlags": "Keine Funktionsschalter verfügbar.",
+    "toggleFeatureAria": "{{label}} umschalten",
+    "restart": "Neustart",
+    "layoutHint": "Alternative Arbeitsbereich-Layouts konfigurieren den aktuellen Modus — geteilte Vorschau, Haftnotizen und Graph-Tiefe — mit einer Aktion neu.",
+    "applyLayoutAria": "Layout {{name}} anwenden",
+    "active": "Aktiv",
+    "apply": "Anwenden",
+    "safeModeDisabled": "Abgesicherter Modus — Plugin-Ausführung deaktiviert",
+    "runtimeReady": "Plugin-Laufzeit bereit",
+    "leaveSafeMode": "Abgesicherten Modus verlassen",
+    "enterSafeMode": "Abgesicherten Modus aktivieren",
+    "individualApproval": "Einzelne Plugins können weiterhin eine Tresor-Zugriffsfreigabe benötigen.",
+    "installedCount": "Installiert ({{count}})",
+    "disableSafeModeBeforeEnable": "Deaktivieren Sie den abgesicherten Modus, bevor Sie Plugins aktivieren",
+    "reviewBeforeEnable": "Erforderliche Berechtigungen vor dem Aktivieren prüfen",
+    "enabled": "Aktiviert",
+    "enable": "Aktivieren",
+    "permissionsAria": "Berechtigungen für {{plugin}}",
+    "permissionsReviewed": "Berechtigungen für diesen Tresor geprüft",
+    "permissionReviewRequired": "Berechtigungsprüfung vor Aktivierung erforderlich",
+    "openVaultBeforeGranting": "Öffnen Sie einen Tresor, bevor Sie Plugin-Zugriff gewähren",
+    "optionalPermission": " (optional · nicht automatisch gewährt)",
+    "requiredPermission": " (erforderlich)",
+    "reviewGrantAria": "Erforderliche Berechtigungen für {{plugin}} in diesem Tresor prüfen und gewähren",
+    "reviewRequiredAccess": "Erforderlichen Zugriff prüfen",
+    "revokeVault": "Für diesen Tresor widerrufen",
+    "resetPermissions": "Berechtigungen zurücksetzen",
+    "confirmPermissionsAria": "Berechtigungen für {{plugin}} bestätigen",
+    "grantRequiredMessage": "Erforderlichen Zugriff {{permissions}} für {{plugin}} in diesem Tresor gewähren und das Plugin aktivieren?{{optional}}",
+    "enablePluginMessage": "{{plugin}} für diesen Tresor aktivieren?{{optional}}",
+    "optionalPermissionsNote": " Optionale Berechtigungen ({{permissions}}) werden nicht automatisch gewährt.",
+    "grantEnable": "Erforderlichen Zugriff gewähren & aktivieren",
+    "healthIssues": "{{count}} Tresor-Gesundheitsproblem(e)",
+    "marketplaceAvailable": "Marketplace · {{count}} verfügbar",
+    "installAria": "{{name}} installieren",
+    "install": "Installieren"
   },
   "canvasExport": {
     "export": "Exportieren",

@@ -620,7 +620,82 @@
   "store": {
     "pluginViews": "نماهای افزونه",
     "manageInstalled": "مدیریت نصب‌شده‌ها",
-    "browsePlugins": "مرور افزونه‌ها"
+    "browsePlugins": "مرور افزونه‌ها",
+    "sectionsAria": "بخش‌های فروشگاه",
+    "pluginManagement": "مدیریت افزونه‌ها",
+    "tabs": {
+      "plugins": "افزونه‌ها",
+      "mcp": "MCP",
+      "features": "قابلیت‌ها",
+      "layouts": "چیدمان‌ها"
+    },
+    "mcpUnavailable": "کنترل‌های MCP در این بخش در دسترس نیستند. برای تغییر حالت، پنل اختصاصی MCP را باز کنید.",
+    "mcpMode": "حالت MCP",
+    "mcpModes": {
+      "off": {
+        "label": "خاموش",
+        "description": "MCP غیرفعال است و هیچ ابزاری ارائه نمی‌شود."
+      },
+      "readOnly": {
+        "label": "فقط‌خواندنی",
+        "description": "فقط ابزارهای جست‌وجو، خواندن و بررسی."
+      },
+      "draft": {
+        "label": "پیش‌نویس",
+        "description": "هوش مصنوعی می‌تواند تغییر پیشنهاد کند؛ شما تأیید می‌کنید."
+      },
+      "writeApproved": {
+        "label": "نوشتن (با تأیید)",
+        "description": "تغییرهای تأییدشده مستقیماً اعمال می‌شوند."
+      }
+    },
+    "availableTools": "ابزارهای در دسترس ({{count}})",
+    "auditLog": "گزارش ممیزی ({{count}} ورودی)",
+    "auditOutcome": {
+      "allowed": "مجاز",
+      "denied": "ردشده",
+      "failed": "ناموفق"
+    },
+    "featureHintBefore": "کنترل‌های زمان اجرا کارهای پس‌زمینهٔ اختیاری را بدون حذف چیزی متوقف می‌کنند. تغییرها فوراً اعمال می‌شوند مگر اینکه با",
+    "requiresRestart": "نیازمند راه‌اندازی مجدد",
+    "featureHintAfter": "مشخص شده باشند.",
+    "featuresReadOnly": "کلیدهای قابلیت در این بخش فقط‌خواندنی‌اند.",
+    "noFeatureFlags": "هیچ کلید قابلیتی در دسترس نیست.",
+    "toggleFeatureAria": "تغییر وضعیت {{label}}",
+    "restart": "راه‌اندازی مجدد",
+    "layoutHint": "چیدمان‌های جایگزین، حالت فعلی فضای کار — پیش‌نمایش دو بخشی، یادداشت‌های چسبان و عمق گراف — را با یک کنش تنظیم می‌کنند.",
+    "applyLayoutAria": "اعمال چیدمان {{name}}",
+    "active": "فعال",
+    "apply": "اعمال",
+    "safeModeDisabled": "حالت امن — اجرای افزونه غیرفعال است",
+    "runtimeReady": "زمان‌اجرای افزونه آماده است",
+    "leaveSafeMode": "خروج از حالت امن",
+    "enterSafeMode": "ورود به حالت امن",
+    "individualApproval": "برخی افزونه‌ها همچنان ممکن است به تأیید دسترسی به خزانه نیاز داشته باشند.",
+    "installedCount": "نصب‌شده ({{count}})",
+    "disableSafeModeBeforeEnable": "برای فعال‌کردن افزونه‌ها ابتدا حالت امن را غیرفعال کنید",
+    "reviewBeforeEnable": "پیش از فعال‌سازی، مجوزهای لازم را بررسی کنید",
+    "enabled": "فعال",
+    "enable": "فعال‌کردن",
+    "permissionsAria": "مجوزهای {{plugin}}",
+    "permissionsReviewed": "مجوزهای این افزونه برای این خزانه بررسی شده‌اند",
+    "permissionReviewRequired": "پیش از فعال‌سازی باید مجوزها بررسی شوند",
+    "openVaultBeforeGranting": "پیش از اعطای دسترسی افزونه، یک خزانه باز کنید",
+    "optionalPermission": " (اختیاری · خودکار اعطا نمی‌شود)",
+    "requiredPermission": " (لازم)",
+    "reviewGrantAria": "بررسی و اعطای مجوزهای لازم {{plugin}} برای این خزانه",
+    "reviewRequiredAccess": "بررسی دسترسی لازم",
+    "revokeVault": "لغو برای این خزانه",
+    "resetPermissions": "بازنشانی مجوزها",
+    "confirmPermissionsAria": "تأیید مجوزهای {{plugin}}",
+    "grantRequiredMessage": "دسترسی لازم {{permissions}} به {{plugin}} برای این خزانه اعطا و افزونه فعال شود؟{{optional}}",
+    "enablePluginMessage": "{{plugin}} برای این خزانه فعال شود؟{{optional}}",
+    "optionalPermissionsNote": " مجوزهای اختیاری ({{permissions}}) خودکار اعطا نمی‌شوند.",
+    "grantEnable": "اعطای دسترسی لازم و فعال‌سازی",
+    "healthIssues": "{{count}} مورد سلامت خزانه",
+    "marketplaceAvailable": "بازارچه · {{count}} مورد در دسترس",
+    "installAria": "نصب {{name}}",
+    "install": "نصب"
   },
   "canvasExport": {
     "export": "خروجی گرفتن",
