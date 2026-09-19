@@ -118,7 +118,7 @@ function App() {
   const localDate = useLocalDate()
   const { theme, appearance, resolvedAppearance, toggleTheme, setTheme, setAppearance } = useAppTheme()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
-  const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
+  const { chrome, patchChrome } = useWorkspaceChrome()
   const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
   const { layouts, applyLayout, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
   const onboarding = useOnboarding()
