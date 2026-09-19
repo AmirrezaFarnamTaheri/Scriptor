@@ -196,6 +196,7 @@ const TaskRowItem = memo(function TaskRowItem({
   )
 })
 
+const ALL_TASKS_LIMIT = 0xFFFF_FFFF
 const BUILT_IN_STATUSES = STATUS_ORDER
 const SORT_OPTIONS: TaskSortKey[] = ['due', 'status', 'priority', 'created']
 
@@ -292,7 +293,7 @@ export const TaskPanel = memo(function TaskPanel({
       return
     }
     let cancelled = false
-    void indexerQueryTasks({}, 1000)
+    void indexerQueryTasks({}, ALL_TASKS_LIMIT)
       .then((rows) => {
         if (!cancelled) setAllVaultTasks(rows)
       })
