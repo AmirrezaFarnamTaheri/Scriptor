@@ -55,7 +55,7 @@ function DiagnosticsPanelImpl({
     (externalChange ? 1 : 0)
 
   return (
-    <section className="diagnostics-panel" aria-label="Diagnostics">
+    <section className="diagnostics-panel" aria-label="Diagnostics" data-help-topic="diagnostics">
       <header>
         <strong>Problems ({total})</strong>
         <button type="button" className="icon-button" onClick={onClose} aria-label="Close diagnostics">
