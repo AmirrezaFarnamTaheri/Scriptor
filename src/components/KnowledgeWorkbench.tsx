@@ -79,6 +79,7 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
       subtitle={t('knowledge.subtitle')}
       icon={<BookOpen size={18} />}
       ariaLabel={t('knowledge.title')}
+      helpTopic="workbench"
       onClose={onClose}
       tabs={tabs}
       activeTab={tab}
