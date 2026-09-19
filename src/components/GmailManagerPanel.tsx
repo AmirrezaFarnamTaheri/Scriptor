@@ -99,7 +99,6 @@ export function GmailManagerPanel({
         setIsAuthed(true)
       } catch (err) {
         if (sequence !== refreshSequence.current) return
-        const message = err instanceof Error ? err.message : String(err)
         if (isGoogleAuthRequiredError(err)) {
           setIsAuthed(false)
           setAccountEmail(null)
@@ -126,7 +125,6 @@ export function GmailManagerPanel({
         await handleRefreshMessages('in:inbox')
       } catch (err) {
         if (cancelled) return
-        const message = err instanceof Error ? err.message : String(err)
         if (isGoogleAuthRequiredError(err)) {
           setIsAuthed(false)
           setAccountEmail(null)
