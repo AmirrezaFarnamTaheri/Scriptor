@@ -179,7 +179,7 @@ function InspectorRailImpl({
   }
 
   return (
-    <aside className="inspector-panel" aria-label={t('inspector.ariaLabel')} ref={railRef}>
+    <aside className="inspector-panel" aria-label={t('inspector.ariaLabel')} ref={railRef} data-help-topic="inspector">
       {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
       <div className="inspector-tabs" role="tablist" aria-label={t('inspector.modeAria')} onKeyDown={handleInspectorTabKeys}>
         {(['inspector', 'preview', 'plugins'] as const).map((mode) => (
