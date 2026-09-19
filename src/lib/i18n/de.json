@@ -1110,5 +1110,41 @@
       "pushingVaultTasks": "Vault-Aufgaben werden übertragen…",
       "pushResult": "{{created}} erstellt · {{updated}} aktualisiert · {{skipped}} bereits synchron · {{failed}} fehlgeschlagen · {{pending}} noch ausstehend"
     }
+  },
+  "vaultSidebar": {
+    "ariaLabel": "Vault",
+    "vault": "Vault",
+    "openVaultFolder": "Vault-Ordner öffnen",
+    "newNote": "Neue Notiz",
+    "rebuildIndex": "Index neu aufbauen",
+    "browseTags": "Tags durchsuchen",
+    "knowledgeFilters": "Wissensfilter",
+    "savedViews": "Gespeicherte Ansichten",
+    "manageSnippets": "Snippets verwalten",
+    "importObsidian": "Obsidian-Vault importieren",
+    "allNotes": "Alle Notizen",
+    "inbox": "Posteingang",
+    "recentNotes": "Letzte Notizen",
+    "searchNotes": "Notizen durchsuchen",
+    "shortcutF": "Tastenkürzel: F",
+    "focusSearchHint": "F drücken, um die Notizsuche zu fokussieren",
+    "searchingIndex": "Index wird durchsucht…",
+    "searchResults": "Treffer: {{count}}",
+    "newByType": "Neu nach Typ",
+    "newFromTemplate": "Aus Vorlage erstellen",
+    "newFromTemplateCount": "Aus Vorlage erstellen ({{count}})",
+    "previousDay": "Vorheriger Tag",
+    "today": "Heute",
+    "todayWithLabel": "Heute · {{label}}",
+    "nextDay": "Nächster Tag",
+    "openVaultToBrowse": "Öffne einen Vault, um Notizen zu durchsuchen.",
+    "utilities": "Vault-Werkzeuge",
+    "tags": "Tags",
+    "archiveViews": "Archivansichten",
+    "menu": {
+      "files": "Vault",
+      "knowledge": "Wissen",
+      "maintenance": "Wartung"
+    }
   }
 }
