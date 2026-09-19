@@ -48,6 +48,8 @@ const GMAIL_BATCH_ENDPOINT: &str = "https://gmail.googleapis.com/batch/gmail/v1"
 const GMAIL_BATCH_MAX_CALLS: usize = 50;
 const GMAIL_SEND_ENDPOINT: &str = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 const GMAIL_MAX_BODY_BYTES: usize = 5 * 1024 * 1024;
+const GOOGLE_CALENDAR_EVENT_PAGE_SIZE: &str = "250";
+const GOOGLE_CALENDAR_EVENT_MAX_PAGES: usize = 40;
 const GOOGLE_TASK_PAGE_SIZE: &str = "100";
 /// Bound provider pagination so a pathological/looping response cannot turn a
 /// refresh into unbounded network work. Crossing the bound fails closed: the
@@ -657,6 +659,8 @@ struct GcalEvent {
 #[derive(Debug, Deserialize)]
 struct GcalEventList {
     items: Option<Vec<GcalEvent>>,
+    #[serde(rename = "nextPageToken")]
+    next_page_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -1645,34 +1649,62 @@ pub fn google_calendar_list_events(
         "{CALENDAR_EVENTS_ENDPOINT}/{}/events",
         percent_encode(&calendar_id)
     );
-    let response = client
-        .get(url)
-        .bearer_auth(&access_token)
-        .query(&[
-            ("timeMin", time_min.as_str()),
-            ("timeMax", time_max.as_str()),
-            ("singleEvents", "true"),
-            ("orderBy", "startTime"),
-            ("maxResults", "250"),
-        ])
-        .send()
-        .map_err(|error| format!("failed to list Google Calendar events: {error}"))?;
-    if !response.status().is_success() {
-        let status = response.status();
-        return Err(format!(
-            "failed to list Google Calendar events ({status}): {}",
-            bounded_error_body(response)
-        ));
+    let mut events = Vec::new();
+    let mut page_token: Option<String> = None;
+    let mut seen_page_tokens = std::collections::HashSet::new();
+
+    for page_index in 0..GOOGLE_CALENDAR_EVENT_MAX_PAGES {
+        let mut request = client
+            .get(&url)
+            .bearer_auth(&access_token)
+            .query(&[
+                ("timeMin", time_min.as_str()),
+                ("timeMax", time_max.as_str()),
+                ("singleEvents", "true"),
+                ("orderBy", "startTime"),
+                ("maxResults", GOOGLE_CALENDAR_EVENT_PAGE_SIZE),
+            ]);
+        if let Some(token) = page_token.as_deref() {
+            request = request.query(&[("pageToken", token)]);
+        }
+
+        let response = request
+            .send()
+            .map_err(|error| format!("failed to list Google Calendar events: {error}"))?;
+        if !response.status().is_success() {
+            let status = response.status();
+            return Err(format!(
+                "failed to list Google Calendar events ({status}): {}",
+                bounded_error_body(response)
+            ));
+        }
+
+        let list = response
+            .json::<GcalEventList>()
+            .map_err(|error| format!("Google returned an invalid events response: {error}"))?;
+        events.extend(
+            list.items
+                .unwrap_or_default()
+                .into_iter()
+                .map(|event| map_event(event, &calendar_id)),
+        );
+
+        let Some(next_token) = list.next_page_token.filter(|token| !token.is_empty()) else {
+            return Ok(events);
+        };
+        if !seen_page_tokens.insert(next_token.clone()) {
+            return Err("Google Calendar returned a repeated pagination token".into());
+        }
+        if page_index + 1 == GOOGLE_CALENDAR_EVENT_MAX_PAGES {
+            return Err(format!(
+                "Google Calendar result exceeds the supported {}-page sync bound",
+                GOOGLE_CALENDAR_EVENT_MAX_PAGES
+            ));
+        }
+        page_token = Some(next_token);
     }
-    let list = response
-        .json::<GcalEventList>()
-        .map_err(|error| format!("Google returned an invalid events response: {error}"))?;
-    Ok(list
-        .items
-        .unwrap_or_default()
-        .into_iter()
-        .map(|event| map_event(event, &calendar_id))
-        .collect())
+
+    Err("Google Calendar pagination terminated unexpectedly".into())
 }
 
 #[tauri::command]
@@ -1998,6 +2030,16 @@ mod tests {
         }));
         assert_eq!(value, "2026-01-01");
         assert!(all_day);
+    }
+
+    #[test]
+    fn calendar_event_list_response_preserves_provider_page_token() {
+        let parsed: GcalEventList = serde_json::from_str(
+            r#"{"items":[{"id":"e1","summary":"One"}],"nextPageToken":"next-events"}"#,
+        )
+        .expect("event list response");
+        assert_eq!(parsed.items.as_ref().map(Vec::len), Some(1));
+        assert_eq!(parsed.next_page_token.as_deref(), Some("next-events"));
     }
 
     #[test]
