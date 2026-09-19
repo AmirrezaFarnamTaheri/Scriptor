@@ -1,6 +1,6 @@
 import { memo } from 'react'
 
-import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
+import { DEFAULT_WORKSPACE_CHROME, type WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import { useI18n } from '../lib/i18n'
 
 type WorkspaceChromeBooleanKey =
@@ -22,7 +22,6 @@ type WorkspaceChromeBooleanKey =
 interface WorkspaceChromeSettingsSectionProps {
   workspaceChrome: WorkspaceChromePrefs
   onPatchWorkspaceChrome: (patch: Partial<WorkspaceChromePrefs>) => void
-  onResetWorkspaceChrome?: () => void
 }
 
 /**
@@ -35,7 +34,6 @@ interface WorkspaceChromeSettingsSectionProps {
 export const WorkspaceChromeSettingsSection = memo(function WorkspaceChromeSettingsSection({
   workspaceChrome,
   onPatchWorkspaceChrome,
-  onResetWorkspaceChrome,
 }: WorkspaceChromeSettingsSectionProps) {
   const { t } = useI18n()
   const toggles: ReadonlyArray<readonly [WorkspaceChromeBooleanKey, string]> = [
@@ -71,11 +69,28 @@ export const WorkspaceChromeSettingsSection = memo(function WorkspaceChromeSetti
           </label>
         ))}
       </div>
-      {onResetWorkspaceChrome ? (
-        <button type="button" className="toolbar-button" onClick={onResetWorkspaceChrome}>
-          {t('settingsPanel.resetWorkspaceChrome')}
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className="toolbar-button"
+        onClick={() => onPatchWorkspaceChrome({
+          showTopBar: DEFAULT_WORKSPACE_CHROME.showTopBar,
+          showModeStrip: DEFAULT_WORKSPACE_CHROME.showModeStrip,
+          showQuickActions: DEFAULT_WORKSPACE_CHROME.showQuickActions,
+          showHistoryControls: DEFAULT_WORKSPACE_CHROME.showHistoryControls,
+          showFormatToolbar: DEFAULT_WORKSPACE_CHROME.showFormatToolbar,
+          showEditorAssist: DEFAULT_WORKSPACE_CHROME.showEditorAssist,
+          showEditorStatus: DEFAULT_WORKSPACE_CHROME.showEditorStatus,
+          showInspectorHealth: DEFAULT_WORKSPACE_CHROME.showInspectorHealth,
+          showWorkspaceFooter: DEFAULT_WORKSPACE_CHROME.showWorkspaceFooter,
+          showStatusBar: DEFAULT_WORKSPACE_CHROME.showStatusBar,
+          showLineNumbers: DEFAULT_WORKSPACE_CHROME.showLineNumbers,
+          vaultSidebarCollapsed: DEFAULT_WORKSPACE_CHROME.vaultSidebarCollapsed,
+          inspectorCollapsed: DEFAULT_WORKSPACE_CHROME.inspectorCollapsed,
+          layoutLocked: DEFAULT_WORKSPACE_CHROME.layoutLocked,
+        })}
+      >
+        {t('settingsPanel.resetWorkspaceChrome')}
+      </button>
     </section>
   )
 })
