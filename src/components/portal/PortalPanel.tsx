@@ -101,6 +101,7 @@ export const PortalPanel = memo(function PortalPanel({
       subtitle="Categorized clipboard — copy, insert, or open with optional shortcuts"
       icon={<Layers size={18} />}
       ariaLabel="Portal"
+      helpTopic="portal"
       onClose={onClose}
       presentation={presentation}
       className="portal-panel knowledge-filters-panel"
