@@ -25,6 +25,7 @@ import { GoogleIntegrationSettingsSection } from './GoogleIntegrationSettingsSec
 import { AiProviderSettings } from './AiProviderSettings'
 import { KeyboardShortcutsSettingsSection } from './KeyboardShortcutsSettingsSection'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { VaultBackupSettings } from './VaultBackupSettings'
 import { LayoutPresetGallery } from './LayoutPresetGallery'
 import { AdvancedSettingsSection } from './AdvancedSettingsSection'
@@ -187,8 +188,11 @@ function SettingsPanelImpl({
   const [configLoadError, setConfigLoadError] = useState<{ vaultId: string; message: string } | null>(null)
   const [configReloadToken, setConfigReloadToken] = useState(0)
   const [status, setStatus] = useState('')
+  const [pendingCloseVaultId, setPendingCloseVaultId] = useState<string | null>(null)
   const backup = useVaultBackup(vaultOpen && nativeReady)
   const configReady = Boolean(vaultOpen && vaultId && configLoadedForVaultId === vaultId)
+  const configDirty = configReady && !valuesEqual(config, configBaselineRef.current)
+  const discardPromptOpen = Boolean(configDirty && vaultId && pendingCloseVaultId === vaultId)
   const visibleConfigLoadError = configLoadError?.vaultId === vaultId ? configLoadError.message : null
 
   const dailyNotePreview = useMemo(() => {
@@ -252,6 +256,7 @@ function SettingsPanelImpl({
       const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config), vaultId)
       configBaselineRef.current = saved
       setConfig(saved)
+      setPendingCloseVaultId(null)
       setStatus(t('settingsPanel.configSaved'))
       onConfigSaved?.()
     } catch (error) {
@@ -260,6 +265,13 @@ function SettingsPanelImpl({
   }
 
   const handleTabChange = useCallback((tab: string) => setActiveTab(tab as SettingsTab), [])
+  const requestClose = useCallback(() => {
+    if (configDirty && vaultId) {
+      setPendingCloseVaultId(vaultId)
+      return
+    }
+    onClose()
+  }, [configDirty, onClose, vaultId])
 
   return (
     <UnifiedPanelShell
@@ -267,7 +279,7 @@ function SettingsPanelImpl({
       subtitle={t('settingsPanel.subtitle')}
       icon={<Settings size={18} />}
       ariaLabel={t('settings.title')}
-      onClose={onClose}
+      onClose={requestClose}
       presentation="modal"
       className="settings-panel knowledge-filters-panel"
       wide
@@ -275,14 +287,30 @@ function SettingsPanelImpl({
       activeTab={activeTab}
       onTabChange={handleTabChange}
       footer={
-        (activeTab === 'general' || activeTab === 'integrations') && vaultOpen && nativeReady && configReady ? (
+        discardPromptOpen ? (
+          <MutationConfirmation
+            ariaLabel={t('settingsPanel.unsavedConfig')}
+            message={t('settingsPanel.unsavedConfigMessage')}
+            confirmLabel={t('settingsPanel.discardChanges')}
+            onCancel={() => setPendingCloseVaultId(null)}
+            onConfirm={() => {
+              setPendingCloseVaultId(null)
+              onClose()
+            }}
+            className="settings-unsaved-confirmation"
+          />
+        ) : ((activeTab === 'general' || activeTab === 'integrations' || configDirty) && vaultOpen && nativeReady && configReady ? (
           <div className="settings-footer-actions">
-            {status ? <span className="settings-status" role="status">{status}</span> : null}
-            <button type="button" className="primary-button" onClick={() => void saveConfig()}>
+            {configDirty || status ? (
+              <span className="settings-status" role="status">
+                {configDirty ? t('settingsPanel.unsavedConfig') : status}
+              </span>
+            ) : null}
+            <button type="button" className="primary-button" onClick={() => void saveConfig()} disabled={!configDirty}>
               {t('settingsPanel.saveVaultConfig')}
             </button>
           </div>
-        ) : null
+        ) : null)
       }
     >
       <div
