@@ -83,7 +83,7 @@ export const ConflictResolverModal = memo(function ConflictResolverModal({
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
         ref={dialogRef}
-        className="conflict-resolver conflict-resolver-3way"
+        className="conflict-resolver conflict-resolver-3way" data-help-topic="conflicts"
         role="dialog"
         aria-modal="true"
         aria-label="Resolve merge conflicts"
