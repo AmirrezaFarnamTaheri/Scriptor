@@ -105,7 +105,7 @@ export const GraphPanel = memo(function GraphPanel({
   onToggleHibernate,
 }: GraphPanelProps) {
   const { t } = useI18n()
-  const { enablePlugin, isPluginEnabled } = usePluginState()
+  const { enablePlugin, isPluginEnabled, persistenceError } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
@@ -278,10 +278,15 @@ export const GraphPanel = memo(function GraphPanel({
             <h3>{t('graph.disabledTitle')}</h3>
             <p>{t('graph.disabledDescription')}</p>
           </div>
+          {persistenceError ? <p className="publish-error" role="alert">{persistenceError}</p> : null}
           <div className="graph-disabled-actions">
             <button type="button" className="primary-button" onClick={() => {
-              enablePlugin('scriptor.graph')
-              onRefresh(fullVault)
+              void enablePlugin('scriptor.graph')
+                .then(() => onRefresh(fullVault))
+                .catch(() => {
+                  // PluginStateContext surfaces the persistence failure and
+                  // rolls the optimistic toggle back to the disabled state.
+                })
             }}>
               {t('graph.enable')}
             </button>
