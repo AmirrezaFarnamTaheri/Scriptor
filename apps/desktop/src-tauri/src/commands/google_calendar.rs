@@ -31,6 +31,7 @@ const TASK_SCOPE: &str = "google-task";
 const AUTH_SCOPE: &str = "google-calendar-auth";
 /// Broker scope for the Gmail Manager OAuth grant.
 const GMAIL_AUTH_SCOPE: &str = "google-gmail-auth";
+const GOOGLE_AUTH_REQUIRED_PREFIX: &str = "GOOGLE_AUTH_REQUIRED:";
 
 const AUTH_ENDPOINT: &str = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_ENDPOINT: &str = "https://oauth2.googleapis.com/token";
@@ -199,9 +200,13 @@ fn save_tokens(keychain_account: &str, tokens: &StoredTokens) -> Result<(), Stri
     keychain_set(keychain_account, &json).map_err(|error| error.to_string())
 }
 
+fn google_auth_required(message: impl AsRef<str>) -> String {
+    format!("{GOOGLE_AUTH_REQUIRED_PREFIX} {}", message.as_ref())
+}
+
 fn require_tokens(keychain_account: &str) -> Result<StoredTokens, String> {
     load_tokens(keychain_account)?
-        .ok_or_else(|| "not authenticated with Google (no token)".to_string())
+        .ok_or_else(|| google_auth_required("Google account is not connected."))
 }
 
 // ---------------------------------------------------------------------------
@@ -565,7 +570,7 @@ fn refresh_if_needed(
     let refresh_token = tokens
         .refresh_token
         .clone()
-        .ok_or_else(|| "Google session expired and no refresh token is available".to_string())?;
+        .ok_or_else(|| google_auth_required("Google session expired. Reconnect the account."))?;
 
     let response = client
         .post(TOKEN_ENDPOINT)
@@ -578,10 +583,16 @@ fn refresh_if_needed(
         .map_err(|error| format!("Google token refresh failed: {error}"))?;
     if !response.status().is_success() {
         let status = response.status();
-        return Err(format!(
-            "Google token refresh failed ({status}): {}",
-            bounded_error_body(response)
-        ));
+        let body = bounded_error_body(response);
+        if matches!(
+            status,
+            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::UNAUTHORIZED
+        ) {
+            return Err(google_auth_required(format!(
+                "Google session can no longer be refreshed ({status}). Reconnect the account."
+            )));
+        }
+        return Err(format!("Google token refresh failed ({status}): {body}"));
     }
     let refreshed = response
         .json::<TokenResponse>()
