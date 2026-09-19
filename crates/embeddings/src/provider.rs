@@ -61,7 +61,10 @@ impl OllamaProvider {
     }
 
     pub fn new(base_url: &str, model: &str, dimension: usize) -> Self {
-        Self::try_new(base_url, model, dimension).expect("failed to build Ollama client")
+        Self {
+            client: OllamaClient::new(base_url, model),
+            dimension,
+        }
     }
 }
 
@@ -88,7 +91,7 @@ pub struct OpenAiProvider {
     requested_dimensions: Option<usize>,
     api_key: String,
     base_url: String,
-    client: reqwest::blocking::Client,
+    client: Result<reqwest::blocking::Client, String>,
 }
 
 #[derive(Serialize)]
@@ -123,21 +126,38 @@ impl OpenAiProvider {
             "text-embedding-3-large" => 3072,
             _ => 1536, // text-embedding-3-small default
         });
-        let client = reqwest::blocking::Client::builder()
-            .timeout(Duration::from_secs(60))
-            .build()?;
+        let client = Self::build_http_client()?;
         Ok(Self {
             model: model.to_string(),
             dimension: dim,
             requested_dimensions: dimension,
             api_key: api_key.to_string(),
             base_url: "https://api.openai.com".to_string(),
-            client,
+            client: Ok(client),
         })
     }
 
+    fn build_http_client() -> Result<reqwest::blocking::Client, reqwest::Error> {
+        reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(60))
+            .build()
+    }
+
+    /// Compatibility constructor. HTTP-client initialization failures are
+    /// retained and surfaced through embed_texts rather than panicking.
     pub fn new(api_key: &str, model: &str, dimension: Option<usize>) -> Self {
-        Self::try_new(api_key, model, dimension).expect("failed to build OpenAI client")
+        let dim = dimension.unwrap_or(match model {
+            "text-embedding-3-large" => 3072,
+            _ => 1536,
+        });
+        Self {
+            model: model.to_string(),
+            dimension: dim,
+            requested_dimensions: dimension,
+            api_key: api_key.to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            client: Self::build_http_client().map_err(|error| error.to_string()),
+        }
     }
 
     /// Override base URL for proxies / compatible local servers (e.g. LM Studio).
@@ -156,8 +176,10 @@ impl EmbedProvider for OpenAiProvider {
             dimensions: self.requested_dimensions,
         };
 
-        let resp = self
-            .client
+        let client = self.client.as_ref().map_err(|error| {
+            EmbeddingError::Provider(format!("failed to initialize HTTP client: {error}"))
+        })?;
+        let resp = client
             .post(&url)
             .bearer_auth(&self.api_key)
             .json(&body)
