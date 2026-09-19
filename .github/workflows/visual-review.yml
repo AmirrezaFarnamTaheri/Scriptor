@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: visual-${{ github.workflow }}-${{ github.ref }}
+  group: visual-v2-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 defaults:
