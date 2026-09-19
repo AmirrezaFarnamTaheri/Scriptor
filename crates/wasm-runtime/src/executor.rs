@@ -68,7 +68,7 @@ pub fn compile(engine: &Engine, wasm_bytes: &[u8]) -> Result<wasmtime::Module, W
 pub fn link_plugin_imports(
     engine: &Engine,
     _store: &mut Store<PluginHostState>,
-) -> wasmtime::Linker<PluginHostState> {
+) -> Result<wasmtime::Linker<PluginHostState>, WasmRuntimeError> {
     let mut linker: wasmtime::Linker<PluginHostState> = wasmtime::Linker::new(engine);
 
     linker
@@ -100,7 +100,9 @@ pub fn link_plugin_imports(
                 bytes.len() as i32
             },
         )
-        .unwrap();
+        .map_err(|error| {
+            WasmRuntimeError::Runtime(format!("failed to register host_read_note: {error}"))
+        })?;
 
     linker
         .func_wrap(
@@ -138,7 +140,9 @@ pub fn link_plugin_imports(
                 0
             },
         )
-        .unwrap();
+        .map_err(|error| {
+            WasmRuntimeError::Runtime(format!("failed to register host_write_note: {error}"))
+        })?;
 
     linker
         .func_wrap(
@@ -168,7 +172,9 @@ pub fn link_plugin_imports(
                 bytes.len() as i32
             },
         )
-        .unwrap();
+        .map_err(|error| {
+            WasmRuntimeError::Runtime(format!("failed to register host_search: {error}"))
+        })?;
 
     linker
         .func_wrap(
@@ -216,7 +222,9 @@ pub fn link_plugin_imports(
                 0
             },
         )
-        .unwrap();
+        .map_err(|error| {
+            WasmRuntimeError::Runtime(format!("failed to register host_log: {error}"))
+        })?;
 
-    linker
+    Ok(linker)
 }
