@@ -1,4 +1,4 @@
-import { memo, useMemo } from 'react'
+import { memo } from 'react'
 import { readStoredCustomThemes, type AppTheme, type AppearanceMode } from '../hooks/useAppTheme'
 import { useI18n } from '../lib/i18n'
 import { COLOR_PALETTE_SCHEMES } from '../brand/palettes'
@@ -33,7 +33,7 @@ export const AppearanceSettingsSection = memo(function AppearanceSettingsSection
   onReplayOnboarding,
 }: AppearanceSettingsSectionProps) {
   const { t } = useI18n()
-  const customPalettes = useMemo(() => readStoredCustomThemes(), [theme])
+  const customPalettes = readStoredCustomThemes()
   return (
     <div className="settings-section">
       <h3>Appearance &amp; layout</h3>
