@@ -1,18 +1,10 @@
 name: Release Binary Review
 
+# Binary review is an explicit candidate-review operation, not another PR CI
+# owner. Main CI validates source on every ready PR; operators dispatch this
+# workflow only for a frozen candidate that needs non-publishing binary evidence.
 on:
   workflow_dispatch:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - VERSION
-      - Cargo.toml
-      - Cargo.lock
-      - package.json
-      - scripts/release/**
-      - scripts/packaging/**
-      - scripts/validation/release-hardening-contracts.test.mjs
-      - .github/workflows/release*.yml
 
 permissions:
   contents: read
@@ -24,7 +16,6 @@ concurrency:
 jobs:
   review:
     name: Review CLI and daemon release binaries
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: windows-2025
     timeout-minutes: 45
     steps:
