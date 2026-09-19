@@ -341,8 +341,8 @@ test('settings appearance controls', async ({ page }) => {
   await expect(heading).toBeInViewport()
   await expect(settings.getByRole('combobox', { name: 'Color palette', exact: true })).toHaveValue('light')
   await expect(settings.getByRole('combobox', { name: 'Day / night appearance', exact: true })).toBeVisible()
-  await expect(settings.getByRole('combobox', { name: 'UI Display Font', exact: true })).toBeInViewport()
-  await expect(settings.getByRole('combobox', { name: 'UI Layout Density', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'UI display font', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'UI layout density', exact: true })).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('settings-appearance'))
 })
 
