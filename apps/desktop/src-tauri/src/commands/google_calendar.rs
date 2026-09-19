@@ -1655,16 +1655,13 @@ pub fn google_calendar_list_events(
     let mut seen_page_tokens = std::collections::HashSet::new();
 
     for page_index in 0..GOOGLE_CALENDAR_EVENT_MAX_PAGES {
-        let mut request = client
-            .get(&url)
-            .bearer_auth(&access_token)
-            .query(&[
-                ("timeMin", time_min.as_str()),
-                ("timeMax", time_max.as_str()),
-                ("singleEvents", "true"),
-                ("orderBy", "startTime"),
-                ("maxResults", GOOGLE_CALENDAR_EVENT_PAGE_SIZE),
-            ]);
+        let mut request = client.get(&url).bearer_auth(&access_token).query(&[
+            ("timeMin", time_min.as_str()),
+            ("timeMax", time_max.as_str()),
+            ("singleEvents", "true"),
+            ("orderBy", "startTime"),
+            ("maxResults", GOOGLE_CALENDAR_EVENT_PAGE_SIZE),
+        ]);
         if let Some(token) = page_token.as_deref() {
             request = request.query(&[("pageToken", token)]);
         }
@@ -1720,14 +1717,11 @@ pub fn google_calendar_list_tasks(task_list_id: String) -> Result<Vec<GoogleTask
     let mut seen_page_tokens = std::collections::HashSet::new();
 
     for page_index in 0..GOOGLE_TASK_MAX_PAGES {
-        let mut request = client
-            .get(&url)
-            .bearer_auth(&access_token)
-            .query(&[
-                ("showCompleted", "true"),
-                ("showHidden", "true"),
-                ("maxResults", GOOGLE_TASK_PAGE_SIZE),
-            ]);
+        let mut request = client.get(&url).bearer_auth(&access_token).query(&[
+            ("showCompleted", "true"),
+            ("showHidden", "true"),
+            ("maxResults", GOOGLE_TASK_PAGE_SIZE),
+        ]);
         if let Some(token) = page_token.as_deref() {
             request = request.query(&[("pageToken", token)]);
         }
@@ -1991,7 +1985,9 @@ pub fn google_calendar_apply_task_sync(
                 &task_list_id,
                 mutation.task_id.unwrap_or_default(),
             ),
-            _ => Err(format!("unsupported Google Task sync mutation kind: {kind}")),
+            _ => Err(format!(
+                "unsupported Google Task sync mutation kind: {kind}"
+            )),
         };
         match outcome {
             Ok(()) => results.push(GoogleTaskSyncMutationResult {
