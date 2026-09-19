@@ -53,3 +53,18 @@ test('appearance selects share input sizing and keyboard focus', async ({ page }
   expect(style.radius).not.toBe('0px')
   expect(style.shadow).not.toBe('none')
 })
+
+
+test('appearance and workspace tabs keep separate ownership', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+  await expect(settings.getByRole('combobox', { name: 'Color palette', exact: true })).toBeVisible()
+  await expect(settings.getByRole('checkbox', { name: 'Show top navigation header' })).toHaveCount(0)
+
+  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await expect(settings.getByRole('heading', { name: 'Workspace chrome', exact: true })).toBeVisible()
+  await expect(settings.getByRole('checkbox', { name: 'Show top navigation header' })).toBeVisible()
+})
