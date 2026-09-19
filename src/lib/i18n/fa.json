@@ -200,7 +200,10 @@
       "week": "هفته گذشته",
       "month": "ماه گذشته",
       "quarter": "سه‌ماهه گذشته"
-    }
+    },
+    "unsavedConfig": "تغییرات ذخیره‌نشدهٔ پیکربندی Vault",
+    "unsavedConfigMessage": "بدون ذخیرهٔ این تغییرات پیکربندی Vault بسته شود؟",
+    "discardChanges": "نادیده گرفتن تغییرات"
   },
   "mobile": {
     "vault": "خزانه",
@@ -978,9 +981,6 @@
     },
     "subtitle": "تنظیمات بر اساس کار دسته‌بندی شده‌اند تا سطح نوشتن خلوت بماند.",
     "saveVaultConfig": "ذخیره پیکربندی Vault",
-    "unsavedConfig": "تغییرات ذخیره‌نشدهٔ پیکربندی Vault",
-    "unsavedConfigMessage": "بدون ذخیرهٔ این تغییرات پیکربندی Vault بسته شود؟",
-    "discardChanges": "نادیده گرفتن تغییرات",
     "persistence": "تنظیمات برنامه بلافاصله ذخیره می‌شوند. پیکربندی Vault از `.scriptor/config.json` خوانده می‌شود و فقط با انتخاب ذخیره نوشته می‌شود.",
     "configUnavailable": "پیکربندی Vault در دسترس نیست",
     "configNotOverwritten": "{{error}}. Scriptor پیکربندی موجود را جایگزین یا بازنویسی نکرد.",
