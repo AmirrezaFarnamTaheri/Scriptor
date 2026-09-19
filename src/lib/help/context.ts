@@ -54,7 +54,11 @@ export function activeHelpScope(): HTMLElement | null {
   if (modal) return modal
   const dock = Array.from(document.querySelectorAll<HTMLElement>('.unified-panel-docked')).filter(isVisibleHelpTarget).at(-1)
   if (dock) return dock
-  const focusedOwner = document.activeElement?.closest<HTMLElement>('[data-help-topic]')
+  // Help affordances carry topic metadata too, but are not feature owners.
+  // Keep keyboard focus on their trigger/invitation in the enclosing widget.
+  const focusedElement = document.activeElement
+  const featureElement = focusedElement?.closest('.help-ui')?.parentElement ?? focusedElement
+  const focusedOwner = featureElement?.closest<HTMLElement>('[data-help-topic]')
   return focusedOwner && isVisibleHelpTarget(focusedOwner) ? focusedOwner : null
 }
 
