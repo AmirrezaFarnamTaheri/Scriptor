@@ -753,6 +753,15 @@
     "applyProfileAria": "Apply {{profile}} plugin profile",
     "applyProfileMessage": "Apply the {{profile}} profile? {{enable}} module(s) will be enabled and {{disable}} module(s) disabled.",
     "applyProfile": "Apply profile",
+    "profiles": {
+      "focused": "Focused",
+      "minimal": "Minimal",
+      "writer": "Writer",
+      "scientific": "Scientific",
+      "researcher": "Researcher",
+      "developer": "Developer",
+      "complete": "Complete"
+    },
     "categories": {
       "all": "All",
       "dark": "Dark",
