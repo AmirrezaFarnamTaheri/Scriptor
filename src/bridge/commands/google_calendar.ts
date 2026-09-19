@@ -38,6 +38,17 @@ export interface GoogleTask {
   sourcePath: string | null
 }
 
+export type GoogleTaskSyncMutation =
+  | { kind: 'create'; title: string; notes?: string | null; due?: string | null }
+  | { kind: 'update'; taskId: string; title: string; notes: string; due?: string | null; status?: 'needsAction' | 'completed' }
+  | { kind: 'complete'; taskId: string }
+
+export interface GoogleTaskSyncMutationResult {
+  kind: GoogleTaskSyncMutation['kind']
+  success: boolean
+  error: string | null
+}
+
 /** Begin the OAuth2 PKCE flow. Returns the authenticated account email. */
 export async function googleCalendarStartAuth(args: {
   clientId: string
@@ -80,6 +91,23 @@ export async function googleCalendarListTasks(taskListId: string): Promise<Googl
 export async function googleCalendarGetAuthedEmail(): Promise<string> {
   requireNative()
   return invoke<string>('google_calendar_get_authed_email')
+}
+
+export async function googleCalendarApplyTaskSync(
+  taskListId: string,
+  mutations: GoogleTaskSyncMutation[],
+): Promise<GoogleTaskSyncMutationResult[]> {
+  requireNative()
+  if (mutations.length === 0) return []
+  const authorizationToken = await authorizeSensitiveOperation(
+    'google_task_write',
+    `Sync ${mutations.length} vault task changes`,
+  )
+  return invoke<GoogleTaskSyncMutationResult[]>('google_calendar_apply_task_sync', {
+    taskListId,
+    mutations,
+    authorizationToken,
+  })
 }
 
 export async function googleCalendarCreateTask(args: {
