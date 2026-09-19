@@ -1132,6 +1132,14 @@ function App() {
     },
     [setPluginManagerOpen],
   )
+  const handleManagePalettesFromSettings = useCallback(
+    () => {
+      setSettingsOpen(false)
+      setPluginManagerScope('palettes')
+      setPluginManagerOpen(true)
+    },
+    [setPluginManagerOpen, setSettingsOpen],
+  )
   const handleToggleVaultSidebar = useCallback(
     () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
     [patchChrome, chrome.vaultSidebarCollapsed],
@@ -1793,6 +1801,7 @@ function App() {
           appearance={appearance}
           onThemeChange={setTheme}
           onAppearanceChange={setAppearance}
+          onManagePalettes={handleManagePalettesFromSettings}
           onReplayOnboarding={onboarding.replayOnboarding}
           spellcheckLocale={spellcheckLocale}
           onSpellcheckLocaleChange={setSpellcheckLocale}
