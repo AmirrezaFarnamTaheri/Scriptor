@@ -27,6 +27,7 @@ import {
 } from '../bridge/commands/google_gmail.ts'
 import { isNativeBridgeAvailable } from '../bridge/platform.ts'
 import { buildRfc5322Message, toYamlScalar } from '../lib/gmailRfc5322.ts'
+import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
 import { useI18n } from '../lib/i18n/index.ts'
 import { UnifiedPanelShell, type PanelTab } from './chrome/UnifiedPanelShell.tsx'
 import type { PanelPresentation } from '../hooks/usePanelPresentation.ts'
@@ -47,16 +48,6 @@ function effectiveGmailQuery(query: string): string {
 function formatGmailDate(raw: string): string {
   const parsed = new Date(raw)
   return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString()
-}
-
-function isAuthenticationError(message: string): boolean {
-  const normalized = message.toLocaleLowerCase()
-  return (
-    normalized.includes('not authenticated')
-    || normalized.includes('no token')
-    || normalized.includes('authentication required')
-    || normalized.includes('token is unavailable')
-  )
 }
 
 export function GmailManagerPanel({
@@ -109,11 +100,11 @@ export function GmailManagerPanel({
       } catch (err) {
         if (sequence !== refreshSequence.current) return
         const message = err instanceof Error ? err.message : String(err)
-        if (isAuthenticationError(message)) {
+        if (isGoogleAuthRequiredError(err)) {
           setIsAuthed(false)
           setAccountEmail(null)
         } else {
-          setError(message)
+          setError(googleAuthErrorMessage(err))
         }
       } finally {
         if (sequence === refreshSequence.current) setRefreshing(false)
@@ -136,11 +127,11 @@ export function GmailManagerPanel({
       } catch (err) {
         if (cancelled) return
         const message = err instanceof Error ? err.message : String(err)
-        if (isAuthenticationError(message)) {
+        if (isGoogleAuthRequiredError(err)) {
           setIsAuthed(false)
           setAccountEmail(null)
         } else {
-          setError(message)
+          setError(googleAuthErrorMessage(err))
         }
       } finally {
         if (!cancelled) setCheckingAuth(false)
