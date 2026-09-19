@@ -85,15 +85,14 @@ export function GmailManagerPanel({
     { id: 'account', label: t('integrations.gmail.tabs.account') },
   ], [t])
 
-  const handleRefreshMessages = useCallback(
-    async (queryOverride?: string) => {
+  const loadMessages = useCallback(
+    async (query: string) => {
       if (!nativeReady) return
       const sequence = ++refreshSequence.current
       setRefreshing(true)
       setError(null)
       try {
-        const query = effectiveGmailQuery(queryOverride !== undefined ? queryOverride : searchQuery)
-        const items = await googleGmailListMessages(query, 25)
+        const items = await googleGmailListMessages(effectiveGmailQuery(query), 25)
         if (sequence !== refreshSequence.current) return
         setMessages(items)
         setIsAuthed(true)
@@ -109,7 +108,14 @@ export function GmailManagerPanel({
         if (sequence === refreshSequence.current) setRefreshing(false)
       }
     },
-    [nativeReady, searchQuery],
+    [nativeReady],
+  )
+
+  const handleRefreshMessages = useCallback(
+    async (queryOverride?: string) => {
+      await loadMessages(queryOverride !== undefined ? queryOverride : searchQuery)
+    },
+    [loadMessages, searchQuery],
   )
 
   useEffect(() => {
@@ -122,7 +128,7 @@ export function GmailManagerPanel({
         if (cancelled) return
         setAccountEmail(email)
         setIsAuthed(true)
-        await handleRefreshMessages('in:inbox')
+        await loadMessages('in:inbox')
       } catch (err) {
         if (cancelled) return
         if (isGoogleAuthRequiredError(err)) {
@@ -141,7 +147,7 @@ export function GmailManagerPanel({
       refreshSequence.current += 1
       selectionSequence.current += 1
     }
-  }, [handleRefreshMessages, nativeReady])
+  }, [loadMessages, nativeReady])
 
   const handleStartAuth = async (event: React.FormEvent) => {
     event.preventDefault()
