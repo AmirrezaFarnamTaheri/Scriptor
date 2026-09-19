@@ -354,13 +354,16 @@ test.describe('visual coverage matrix', () => {
     // reports the transiently scaled height rather than the 72px layout row.
     await settleLayout(page)
     const geometry = await rows.evaluateAll((items) => items.map((item) => ({
-      height: item.getBoundingClientRect().height,
-      width: item.getBoundingClientRect().width,
+      // offsetHeight/Width describe the layout box. getBoundingClientRect() is
+      // transiently scaled by the modal's entrance animation and can report
+      // ~62px for a 72px row even though the rendered layout is correct.
+      height: (item as HTMLElement).offsetHeight,
+      width: (item as HTMLElement).offsetWidth,
       scrollWidth: item.scrollWidth,
     })))
     for (const row of geometry) {
       expect(row.height).toBeGreaterThanOrEqual(68)
-      expect(row.scrollWidth).toBeLessThanOrEqual(Math.ceil(row.width) + 1)
+      expect(row.scrollWidth).toBeLessThanOrEqual(row.width + 1)
     }
     await expect(
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
