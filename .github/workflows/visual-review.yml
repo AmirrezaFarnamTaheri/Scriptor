@@ -57,17 +57,46 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install Playwright FFmpeg runtime" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "install", "ffmpeg") -TimeoutSeconds 900
 
-      - name: Run visual regression suite
+      - name: Compare against committed visual baselines
+        id: visual_compare
+        continue-on-error: true
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Run visual regression suite" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=missing") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Compare against committed visual baselines" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=none") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
-      - name: Require committed visual baselines
+      - name: Refresh current visual baselines
+        id: visual_refresh
+        if: always()
+        continue-on-error: true
         shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Refresh current visual baselines" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=all", "--output=test-results/visual-refresh") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+
+      - name: Enforce visual review result and committed baselines
+        if: always()
+        shell: pwsh
+        env:
+          VISUAL_COMPARE_OUTCOME: ${{ steps.visual_compare.outcome }}
+          VISUAL_REFRESH_OUTCOME: ${{ steps.visual_refresh.outcome }}
         run: |
-          $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots
+          $failed = $false
+          $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots docs/assets/screenshots
+
+          if ($env:VISUAL_REFRESH_OUTCOME -ne 'success') {
+            Write-Host "::error title=Visual baseline refresh failed::The refresh pass could not produce the current visual baselines."
+            $failed = $true
+          }
+
           if ($changes) {
             Write-Host $changes
-            throw "Visual baselines were generated. Review and commit them before merging."
+            Write-Host "::error title=Visual baselines are stale::Current captures differ from committed snapshots or documentation screenshots. Review the unified artifact and commit the refreshed images."
+            $failed = $true
+          }
+          elseif ($env:VISUAL_COMPARE_OUTCOME -ne 'success') {
+            Write-Host "::error title=Visual comparison failed::The comparison pass failed even though the refresh pass produced no baseline drift."
+            $failed = $true
+          }
+
+          if ($failed) {
+            throw "Visual review failed. Inspect visual-review.zip/images/ for the current captures and comparison evidence."
           }
 
       - name: Capture visual review failure context
@@ -82,16 +111,17 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: ./scripts/ci/finalize-job.ps1 -Scope "Visual regression review" -Status $env:JOB_STATUS
 
-      - name: Upload visual reports and evidence
+      - name: Prepare unified visual review artifact
+        if: always()
+        shell: pwsh
+        run: ./scripts/ci/prepare-visual-review-package.ps1 -PackageRoot "artifacts/visual-review-package" -EvidenceRoot "${{ env.CI_LOG_DIR }}"
+
+      - name: Upload unified visual review artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: visual-review-${{ github.run_attempt }}
-          path: |
-            ${{ env.CI_LOG_DIR }}
-            playwright-report/visual
-            test-results/visual
-            e2e/visual-review.spec.ts-snapshots
-            e2e/screenshots.spec.ts-snapshots
-          if-no-files-found: warn
+          name: visual-review
+          path: artifacts/visual-review-package
+          if-no-files-found: error
+          overwrite: true
           retention-days: 14
