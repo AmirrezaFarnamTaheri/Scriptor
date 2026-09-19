@@ -46,6 +46,8 @@ La separación es intencional. Una línea base almacenada puede seguir aceptánd
 
 Las líneas base estables de Windows siguen siendo la superficie de aceptación de regresión visual. Los cambios intencionados de píxeles deben revisarse y actualizarse explícitamente con `--update-snapshots=all`; nunca se ocultan fallos aumentando la tolerancia global.
 
+El workflow de pull request **Visual review** es el único dueño del gate de regresión visual. Primero compara contra los baselines committed. Solo si esa comparación falla ejecuta un pase diagnóstico `--update-snapshots=all` para producir imágenes actuales y evidencia de drift; nunca acepta cambios automáticamente. El E2E funcional de navegador permanece en el CI principal, de modo que un PR limpio no ejecuta la suite visual dos veces.
+
 Las capturas responsive y de estados (`workspace-mobile`, `workspace-tablet`, vault/inspector móvil, recuperación del editor, inventario MCP y popovers) se generan desde salida de prueba en vivo y no se convierten en baseline estable salvo que la prueba use expresamente `toHaveScreenshot`.
 
 ## Regeneración
