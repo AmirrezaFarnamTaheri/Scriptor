@@ -67,6 +67,10 @@ pnpm test:rust
 
 ## Pull request
 
+Draft PR 会刻意保持轻量：重量级 CI、Desktop compile、Visual review、Starlight lock 与 Release Binary Review job 会延后到 PR 准备好审查时再运行。标记为 **Ready for review** 会针对精确 head 触发一次完整验证；后续 push 会取消过时的 PR run，只验证最新 head。
+
+浏览器验证按职责保持单一 owner：主 CI workflow 负责功能性 Playwright E2E，独立的 **Visual review** workflow 负责稳定视觉回归。诊断性的 `--update-snapshots=all` 只会在视觉比较失败后运行；有意更新 baseline 应通过明确的 screenshot-refresh workflow 完成。
+
 请描述：
 
 - 可观察到的行为变化；

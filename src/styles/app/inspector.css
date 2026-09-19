@@ -360,8 +360,8 @@
 
 .metric-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-  gap: 10px 0;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 108px), 1fr));
+  gap: 8px;
 }
 
 /* The health dashboard deliberately presents nine diagnostics as a readable
@@ -418,13 +418,14 @@
   min-width: 0;
   flex-direction: column;
   gap: 4px;
-  padding-inline: 10px;
-  border-left: 1px solid var(--border);
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
 }
 
 .metric:first-child {
-  border-left: 0;
-  padding-left: 0;
+  padding-left: 10px;
 }
 
 .metric span,
@@ -434,6 +435,11 @@
 .job-progress small {
   color: var(--muted);
   font-size: 12px;
+}
+
+.metric span {
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .metric strong {

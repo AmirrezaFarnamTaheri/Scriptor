@@ -160,9 +160,12 @@ fn resolve_vault_input(vault_root: &Path, input_path: &str) -> Result<PathBuf, S
 /// and `("a (output: b", "c")` produce the same string and one grant would
 /// authorize the other. Both sides use the same serializer, so an exact
 /// string match means an exact path pair.
-pub(crate) fn latex_authorization_scope(input_path: &str, output_dir: &str) -> String {
+pub(crate) fn latex_authorization_scope(
+    input_path: &str,
+    output_dir: &str,
+) -> Result<String, String> {
     serde_json::to_string(&(input_path, output_dir))
-        .expect("authorization scope serialization is infallible for UTF-8 paths")
+        .map_err(|error| format!("failed to encode LaTeX authorization scope: {error}"))
 }
 
 /// Validates a vault-relative output directory without creating anything.
@@ -259,11 +262,12 @@ pub fn latex_compile(
     let (output_candidate, vault_root_canonical) =
         validate_vault_output_dir(&canonical_vault, &output_dir)?;
 
+    let authorization_scope = latex_authorization_scope(&input_path, &output_dir)?;
     require_sensitive_operation(
         &state,
         &authorization_token,
         SensitiveOperation::LatexCompilation,
-        Some(&latex_authorization_scope(&input_path, &output_dir)),
+        Some(&authorization_scope),
         Some(&vault_id),
     )?;
 
@@ -369,7 +373,8 @@ mod tests {
 
     #[test]
     fn authorization_scope_names_source_and_output_destination() {
-        let scope = latex_authorization_scope("papers/report.tex", ".scriptor/latex-out");
+        let scope = latex_authorization_scope("papers/report.tex", ".scriptor/latex-out")
+            .expect("scope serialization");
         assert!(scope.contains("papers/report.tex"));
         assert!(scope.contains(".scriptor/latex-out"));
     }
@@ -379,14 +384,15 @@ mod tests {
         // The bridge builds the identical string with JSON.stringify([a, b]),
         // so the scope must be a JSON array of the two paths in order.
         assert_eq!(
-            latex_authorization_scope("papers/report.tex", ".scriptor/latex-out"),
+            latex_authorization_scope("papers/report.tex", ".scriptor/latex-out")
+                .expect("scope serialization"),
             r#"["papers/report.tex",".scriptor/latex-out"]"#
         );
         // The old "input (output: dir)" delimiter joined these two pairs to the
         // same string, so a grant for one authorized the other.
         assert_ne!(
-            latex_authorization_scope("a.tex", "b (output: c"),
-            latex_authorization_scope("a (output: b", "c"),
+            latex_authorization_scope("a.tex", "b (output: c").expect("scope serialization"),
+            latex_authorization_scope("a (output: b", "c").expect("scope serialization"),
             "distinct path pairs must not collapse to one scope"
         );
     }

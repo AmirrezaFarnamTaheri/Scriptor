@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Archive,
   CheckCircle,
@@ -15,6 +15,7 @@ import {
 
 import {
   googleGmailDisconnect,
+  googleGmailGetAuthedEmail,
   googleGmailGetMessage,
   googleGmailListMessages,
   googleGmailModifyMessage,
@@ -26,6 +27,8 @@ import {
 } from '../bridge/commands/google_gmail.ts'
 import { isNativeBridgeAvailable } from '../bridge/platform.ts'
 import { buildRfc5322Message, toYamlScalar } from '../lib/gmailRfc5322.ts'
+import { googleAuthErrorMessage, isGoogleAuthRequiredError } from '../lib/googleAuthErrors.ts'
+import { useI18n } from '../lib/i18n/index.ts'
 import { UnifiedPanelShell, type PanelTab } from './chrome/UnifiedPanelShell.tsx'
 import type { PanelPresentation } from '../hooks/usePanelPresentation.ts'
 
@@ -33,30 +36,33 @@ export interface GmailManagerPanelProps {
   onClose: () => void
   onImportNote?: (subject: string, markdown: string, messageId: string) => Promise<void>
   presentation?: PanelPresentation
+  defaultClientId?: string
 }
 
 type GmailTab = 'messages' | 'compose' | 'account'
 
-const TABS: PanelTab[] = [
-  { id: 'messages', label: 'Messages' },
-  { id: 'compose', label: 'Compose' },
-  { id: 'account', label: 'Account' },
-]
-
 function effectiveGmailQuery(query: string): string {
-  const trimmed = query.trim()
-  return trimmed || 'in:inbox'
+  return query.trim()
+}
+
+function formatGmailDate(raw: string): string {
+  const parsed = new Date(raw)
+  return Number.isNaN(parsed.getTime()) ? raw : parsed.toLocaleString()
 }
 
 export function GmailManagerPanel({
   onClose,
   onImportNote,
   presentation = 'modal',
+  defaultClientId = '',
 }: GmailManagerPanelProps) {
+  const { t } = useI18n()
   const nativeReady = isNativeBridgeAvailable()
   const [activeTab, setActiveTab] = useState<GmailTab>('messages')
-  const [clientId, setClientId] = useState('')
+  const [clientIdOverride, setClientIdOverride] = useState<string | null>(null)
+  const clientId = clientIdOverride ?? defaultClientId
   const [isAuthed, setIsAuthed] = useState(false)
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const [checkingAuth, setCheckingAuth] = useState(nativeReady)
   const [searchQuery, setSearchQuery] = useState('')
   const [messages, setMessages] = useState<GmailMessagePreview[]>([])
@@ -69,37 +75,48 @@ export function GmailManagerPanel({
   const refreshSequence = useRef(0)
   const selectionSequence = useRef(0)
 
-  // Compose tab state
   const [composeTo, setComposeTo] = useState('')
   const [composeSubject, setComposeSubject] = useState('')
   const [composeBody, setComposeBody] = useState('')
   const [sending, setSending] = useState(false)
 
-  const handleRefreshMessages = useCallback(
-    async (queryOverride?: string) => {
+  const tabs = useMemo<PanelTab[]>(() => [
+    { id: 'messages', label: t('integrations.gmail.tabs.messages') },
+    { id: 'compose', label: t('integrations.gmail.tabs.compose') },
+    { id: 'account', label: t('integrations.gmail.tabs.account') },
+  ], [t])
+
+  const loadMessages = useCallback(
+    async (query: string) => {
       if (!nativeReady) return
       const sequence = ++refreshSequence.current
       setRefreshing(true)
       setError(null)
       try {
-        const query = effectiveGmailQuery(queryOverride !== undefined ? queryOverride : searchQuery)
-        const items = await googleGmailListMessages(query, 25)
+        const items = await googleGmailListMessages(effectiveGmailQuery(query), 25)
         if (sequence !== refreshSequence.current) return
         setMessages(items)
         setIsAuthed(true)
       } catch (err) {
         if (sequence !== refreshSequence.current) return
-        const msg = err instanceof Error ? err.message : String(err)
-        if (msg.includes('not authenticated') || msg.includes('no token')) {
+        if (isGoogleAuthRequiredError(err)) {
           setIsAuthed(false)
+          setAccountEmail(null)
         } else {
-          setError(msg)
+          setError(googleAuthErrorMessage(err))
         }
       } finally {
         if (sequence === refreshSequence.current) setRefreshing(false)
       }
     },
-    [nativeReady, searchQuery],
+    [nativeReady],
+  )
+
+  const handleRefreshMessages = useCallback(
+    async (queryOverride?: string) => {
+      await loadMessages(queryOverride !== undefined ? queryOverride : searchQuery)
+    },
+    [loadMessages, searchQuery],
   )
 
   useEffect(() => {
@@ -108,17 +125,18 @@ export function GmailManagerPanel({
 
     void (async () => {
       try {
-        const items = await googleGmailListMessages('in:inbox', 25)
+        const email = await googleGmailGetAuthedEmail()
         if (cancelled) return
-        setMessages(items)
+        setAccountEmail(email)
         setIsAuthed(true)
+        await loadMessages('in:inbox')
       } catch (err) {
         if (cancelled) return
-        const msg = err instanceof Error ? err.message : String(err)
-        if (msg.includes('not authenticated') || msg.includes('no token')) {
+        if (isGoogleAuthRequiredError(err)) {
           setIsAuthed(false)
+          setAccountEmail(null)
         } else {
-          setError(msg)
+          setError(googleAuthErrorMessage(err))
         }
       } finally {
         if (!cancelled) setCheckingAuth(false)
@@ -130,22 +148,23 @@ export function GmailManagerPanel({
       refreshSequence.current += 1
       selectionSequence.current += 1
     }
-  }, [nativeReady])
+  }, [loadMessages, nativeReady])
 
-  const handleStartAuth = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleStartAuth = async (event: React.FormEvent) => {
+    event.preventDefault()
     if (!clientId.trim() || !nativeReady) return
     setLoading(true)
     setError(null)
-    setStatusText('Opening browser for Google OAuth PKCE authorization...')
+    setStatusText(t('integrations.gmail.status.openingBrowser'))
     try {
-      await googleGmailStartAuth(clientId.trim())
+      const email = await googleGmailStartAuth(clientId.trim())
       setIsAuthed(true)
-      setStatusText('Authentication successful!')
+      setAccountEmail(email)
+      setStatusText(t('integrations.gmail.status.connectedAs', { email }))
       setActiveTab('messages')
       await handleRefreshMessages()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
       setStatusText(null)
     } finally {
       setLoading(false)
@@ -161,11 +180,12 @@ export function GmailManagerPanel({
       refreshSequence.current += 1
       selectionSequence.current += 1
       setIsAuthed(false)
+      setAccountEmail(null)
       setMessages([])
       setSelectedMessage(null)
-      setStatusText('Disconnected from Gmail.')
+      setStatusText(t('integrations.gmail.status.disconnected'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -182,42 +202,44 @@ export function GmailManagerPanel({
       setSelectedMessage(full)
     } catch (err) {
       if (sequence !== selectionSequence.current) return
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       if (sequence === selectionSequence.current) setLoadingContent(false)
     }
   }
 
-  const handleImportToMarkdown = async (msg: GmailMessageContent) => {
+  const handleImportToMarkdown = async (message: GmailMessageContent) => {
     if (!onImportNote) return
     setLoading(true)
     setError(null)
     try {
+      const subject = message.subject || t('integrations.gmail.untitledEmail')
       const markdown = `---
-title: ${toYamlScalar(msg.subject || 'Untitled Email')}
-from: ${toYamlScalar(msg.from || 'Unknown')}
-date: ${toYamlScalar(msg.date || '')}
-gmail_id: ${toYamlScalar(msg.id || '')}
-thread_id: ${toYamlScalar(msg.threadId || '')}
+title: ${toYamlScalar(subject)}
+from: ${toYamlScalar(message.from || t('integrations.gmail.unknownSender'))}
+date: ${toYamlScalar(message.date || '')}
+gmail_id: ${toYamlScalar(message.id || '')}
+thread_id: ${toYamlScalar(message.threadId || '')}
 tags:
   - email
   - gmail
 ---
 
-# ${msg.subject || 'Untitled Email'}
+# ${subject}
 
-**From**: ${msg.from}  
-**Date**: ${msg.date}  
+**${t('integrations.gmail.from')}**: ${message.from}
+
+**${t('integrations.gmail.date')}**: ${formatGmailDate(message.date)}
 
 ---
 
-${msg.plainText || msg.snippet}
+${message.plainText || message.snippet}
 `
-      await onImportNote(msg.subject || 'Email', markdown, msg.id)
-      setStatusText(`Imported "${msg.subject || 'Email'}" to vault.`)
+      await onImportNote(subject, markdown, message.id)
+      setStatusText(t('integrations.gmail.status.imported', { subject }))
     } catch (err) {
       setStatusText(null)
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -228,15 +250,13 @@ ${msg.plainText || msg.snippet}
     setLoading(true)
     setError(null)
     try {
-      // Removing INBOX archives the message. Preserve UNREAD so archiving does
-      // not silently change the user's read state.
       await googleGmailModifyMessage(id, [], ['INBOX'])
       selectionSequence.current += 1
       setSelectedMessage(null)
-      setStatusText('Archived message.')
+      setStatusText(t('integrations.gmail.status.archived'))
       await handleRefreshMessages()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -250,17 +270,17 @@ ${msg.plainText || msg.snippet}
       await googleGmailTrashMessage(id)
       selectionSequence.current += 1
       setSelectedMessage(null)
-      setStatusText('Moved message to trash.')
+      setStatusText(t('integrations.gmail.status.trashed'))
       await handleRefreshMessages()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
   }
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleSend = async (event: React.FormEvent) => {
+    event.preventDefault()
     if (!composeTo.trim() || !composeSubject.trim() || !nativeReady) return
     setSending(true)
     setError(null)
@@ -271,9 +291,9 @@ ${msg.plainText || msg.snippet}
       setComposeTo('')
       setComposeSubject('')
       setComposeBody('')
-      setStatusText('Email sent successfully!')
+      setStatusText(t('integrations.gmail.status.sent'))
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(googleAuthErrorMessage(err))
     } finally {
       setSending(false)
     }
@@ -281,139 +301,98 @@ ${msg.plainText || msg.snippet}
 
   return (
     <UnifiedPanelShell
-      title="Gmail Manager"
-      subtitle="Connected Gmail mailbox integration & Markdown vault archiving"
+      title={t('integrations.gmail.title')}
+      subtitle={t('integrations.gmail.subtitle')}
       icon={<Mail size={18} />}
-      ariaLabel="Gmail Manager panel"
+      ariaLabel={t('integrations.gmail.ariaLabel')}
       onClose={onClose}
-      tabs={TABS}
+      tabs={tabs}
       activeTab={activeTab}
       onTabChange={(tabId) => setActiveTab(tabId as GmailTab)}
       className="gmail-manager-panel"
       wide
       presentation={presentation}
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', height: '100%', minHeight: 0 }}>
-        {statusText && (
-          <div
-            style={{
-              padding: '8px 12px',
-              backgroundColor: 'var(--color-status-success-bg, color-mix(in srgb, var(--success) 10%, transparent))',
-              color: 'var(--color-status-success, var(--success, #10b981))',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-            }}
-          >
+      <div className="gmail-manager-content">
+        <div className="gmail-manager-maturity" role="note">
+          <strong>{t('integrations.google.experimental')}</strong>{' '}
+          {t('integrations.gmail.experimentalNote')}
+        </div>
+
+        {statusText ? (
+          <div className="gmail-manager-status gmail-manager-status--success" role="status">
             <CheckCircle size={16} />
             <span>{statusText}</span>
           </div>
-        )}
+        ) : null}
 
-        {error && (
-          <div
-            style={{
-              padding: '8px 12px',
-              backgroundColor: 'var(--color-status-error-bg, color-mix(in srgb, var(--danger) 10%, transparent))',
-              color: 'var(--color-status-error, var(--danger, #ef4444))',
-              borderRadius: '6px',
-              fontSize: '0.9rem',
-            }}
-          >
+        {error ? (
+          <div className="gmail-manager-status gmail-manager-status--error" role="alert">
             {error}
           </div>
-        )}
+        ) : null}
 
-        {activeTab === 'messages' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0 }}>
+        {activeTab === 'messages' ? (
+          <div className="gmail-manager-tab gmail-manager-tab--messages">
             <div>
-              <label
-                htmlFor="gmail-search-input"
-                style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: 500,
-                  marginBottom: '4px',
-                  color: 'var(--ink-muted)',
-                }}
-              >
-                Search Messages
+              <label htmlFor="gmail-search-input" className="gmail-manager-search-label">
+                {t('integrations.gmail.searchLabel')}
               </label>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <div style={{ position: 'relative', flex: 1 }}>
+              <div className="gmail-manager-search-row">
+                <div className="gmail-manager-search-box">
                   <input
                     id="gmail-search-input"
                     type="search"
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !refreshing) void handleRefreshMessages()
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !refreshing) void handleRefreshMessages()
                     }}
-                    placeholder="Search Gmail (e.g. is:unread, from:colleague)..."
-                    aria-label="Search Gmail messages"
-                    style={{
-                      width: '100%',
-                      padding: '6px 10px 6px 32px',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border)',
-                      background: 'var(--surface)',
-                      color: 'var(--ink)',
-                    }}
+                    placeholder={t('integrations.gmail.searchPlaceholder')}
+                    aria-label={t('integrations.gmail.searchAria')}
                   />
-                  <Search size={16} style={{ position: 'absolute', left: 10, top: 9, opacity: 0.5 }} />
+                  <Search size={16} aria-hidden="true" />
                 </div>
                 <button
                   type="button"
                   className="toolbar-button"
                   onClick={() => void handleRefreshMessages()}
                   disabled={refreshing}
-                  title="Search / Refresh"
-                  aria-label="Search or refresh messages"
+                  title={t('integrations.gmail.refresh')}
+                  aria-label={t('integrations.gmail.refresh')}
                 >
                   <RefreshCw size={14} className={refreshing ? 'spinning' : ''} />
                 </button>
               </div>
             </div>
 
-            {checkingAuth && (
-              <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-muted)' }}>
-                <RefreshCw size={24} className="spinning" style={{ margin: '0 auto 8px', opacity: 0.5 }} />
-                <p>Checking Gmail connection...</p>
+            {checkingAuth ? (
+              <div className="gmail-manager-empty">
+                <RefreshCw size={24} className="spinning" aria-hidden="true" />
+                <p>{t('integrations.gmail.checkingConnection')}</p>
               </div>
-            )}
+            ) : null}
 
-            {!checkingAuth && !isAuthed && (
-              <div className="empty-state" style={{ padding: '24px', textAlign: 'center' }}>
-                <Key size={32} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-                <h3>Gmail Not Connected</h3>
-                <p style={{ margin: '6px 0 14px', color: 'var(--ink-muted)' }}>
-                  Connect your Google account in the Account tab to read, import, and send emails.
-                </p>
+            {!checkingAuth && !isAuthed ? (
+              <div className="gmail-manager-empty empty-state">
+                <Key size={32} aria-hidden="true" />
+                <h3>{t('integrations.gmail.notConnected')}</h3>
+                <p>{t('integrations.gmail.connectPrompt')}</p>
                 <button type="button" className="action-button" onClick={() => setActiveTab('account')}>
-                  Connect Gmail Account
+                  {t('integrations.gmail.connectAccount')}
                 </button>
               </div>
-            )}
+            ) : null}
 
-            {!checkingAuth && isAuthed && (
-              <div style={{ display: 'grid', gridTemplateColumns: selectedMessage ? '1fr 1fr' : '1fr', gap: '12px', flex: 1, minHeight: 0, overflow: 'hidden' }}>
-                <div
-                  style={{
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    overflowY: 'auto',
-                    padding: '4px',
-                    background: 'var(--surface)',
-                  }}
-                >
-                  {messages.length === 0 && !refreshing && (
-                    <div style={{ padding: '32px', textAlign: 'center', color: 'var(--ink-muted)' }}>
-                      <Inbox size={28} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
-                      <p>No messages found.</p>
+            {!checkingAuth && isAuthed ? (
+              <div className={`gmail-manager-message-layout${selectedMessage ? ' gmail-manager-message-layout--detail' : ''}`}>
+                <div className="gmail-manager-message-list" aria-label={t('integrations.gmail.messageListAria')}>
+                  {messages.length === 0 && !refreshing ? (
+                    <div className="gmail-manager-empty">
+                      <Inbox size={28} aria-hidden="true" />
+                      <p>{t('integrations.gmail.noMessages')}</p>
                     </div>
-                  )}
+                  ) : null}
 
                   {messages.map((item) => (
                     <button
@@ -421,68 +400,45 @@ ${msg.plainText || msg.snippet}
                       type="button"
                       onClick={() => void handleSelectMessage(item)}
                       disabled={loading}
-                      style={{
-                        display: 'block',
-                        width: '100%',
-                        textAlign: 'left',
-                        padding: '10px',
-                        borderRadius: '6px',
-                        border: 'none',
-                        background: selectedMessage?.id === item.id ? 'var(--surface-raised)' : 'transparent',
-                        color: 'var(--ink)',
-                        cursor: loading ? 'default' : 'pointer',
-                        marginBottom: '4px',
-                        borderLeft: selectedMessage?.id === item.id ? '3px solid var(--color-accent-default, var(--primary, #0f766e))' : '3px solid transparent',
-                      }}
+                      className={`gmail-manager-message-row${selectedMessage?.id === item.id ? ' is-selected' : ''}`}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '2px' }}>
-                        <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.from}</strong>
-                        <span style={{ fontSize: '0.75rem', opacity: 0.6, flexShrink: 0 }}>{item.date}</span>
-                      </div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.subject || '(No Subject)'}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {item.snippet}
-                      </div>
+                      <span className="gmail-manager-message-row-head">
+                        <strong>{item.from}</strong>
+                        <time>{formatGmailDate(item.date)}</time>
+                      </span>
+                      <span className="gmail-manager-message-subject">
+                        {item.subject || t('integrations.gmail.noSubject')}
+                      </span>
+                      <span className="gmail-manager-message-snippet">{item.snippet}</span>
                     </button>
                   ))}
                 </div>
 
-                {selectedMessage && (
-                  <div
-                    style={{
-                      border: '1px solid var(--border)',
-                      borderRadius: '8px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      overflow: 'hidden',
-                      background: 'var(--surface)',
-                    }}
-                  >
-                    <div style={{ padding: '12px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{selectedMessage.subject || '(No Subject)'}</h3>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          {onImportNote && (
+                {selectedMessage ? (
+                  <article className="gmail-manager-message-detail">
+                    <header className="gmail-manager-message-detail-header">
+                      <div className="gmail-manager-message-detail-title-row">
+                        <h3>{selectedMessage.subject || t('integrations.gmail.noSubject')}</h3>
+                        <div className="gmail-manager-message-actions">
+                          {onImportNote ? (
                             <button
                               type="button"
                               className="action-button"
                               onClick={() => void handleImportToMarkdown(selectedMessage)}
                               disabled={loading || loadingContent}
-                              title="Save into current Markdown vault"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', padding: '4px 8px' }}
+                              title={t('integrations.gmail.importTitle')}
                             >
                               <FileDown size={14} />
-                              <span>Import</span>
+                              <span>{t('integrations.gmail.import')}</span>
                             </button>
-                          )}
+                          ) : null}
                           <button
                             type="button"
                             className="toolbar-button"
                             onClick={() => void handleArchive(selectedMessage.id)}
                             disabled={loading || loadingContent}
-                            title="Archive message"
+                            aria-label={t('integrations.gmail.archive')}
+                            title={t('integrations.gmail.archive')}
                           >
                             <Archive size={14} />
                           </button>
@@ -491,130 +447,117 @@ ${msg.plainText || msg.snippet}
                             className="toolbar-button"
                             onClick={() => void handleTrash(selectedMessage.id)}
                             disabled={loading || loadingContent}
-                            title="Move to trash"
+                            aria-label={t('integrations.gmail.trash')}
+                            title={t('integrations.gmail.trash')}
                           >
                             <Trash2 size={14} />
                           </button>
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--ink-muted)' }}>
-                        <div><strong>From:</strong> {selectedMessage.from}</div>
-                        <div><strong>Date:</strong> {selectedMessage.date}</div>
-                      </div>
-                    </div>
-
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '12px', whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: '0.9rem', lineHeight: 1.5 }}>
+                      <dl className="gmail-manager-message-meta">
+                        <div><dt>{t('integrations.gmail.from')}</dt><dd>{selectedMessage.from}</dd></div>
+                        <div><dt>{t('integrations.gmail.date')}</dt><dd>{formatGmailDate(selectedMessage.date)}</dd></div>
+                      </dl>
+                    </header>
+                    <div className="gmail-manager-message-body">
                       {selectedMessage.plainText || selectedMessage.snippet}
                     </div>
-                  </div>
-                )}
+                  </article>
+                ) : null}
               </div>
-            )}
+            ) : null}
           </div>
-        )}
+        ) : null}
 
-        {activeTab === 'compose' && (
-          <form onSubmit={handleSend} style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+        {activeTab === 'compose' ? (
+          <form onSubmit={handleSend} className="gmail-manager-compose">
             <label className="settings-field">
-              Recipient (To)
+              {t('integrations.gmail.recipient')}
               <input
                 type="email"
                 value={composeTo}
-                onChange={(e) => setComposeTo(e.target.value)}
+                onChange={(event) => setComposeTo(event.target.value)}
                 placeholder="recipient@example.com"
                 required
                 disabled={sending}
               />
             </label>
             <label className="settings-field">
-              Subject
+              {t('integrations.gmail.subject')}
               <input
                 type="text"
                 value={composeSubject}
-                onChange={(e) => setComposeSubject(e.target.value)}
-                placeholder="Subject line"
+                onChange={(event) => setComposeSubject(event.target.value)}
+                placeholder={t('integrations.gmail.subjectPlaceholder')}
                 required
                 disabled={sending}
               />
             </label>
-            <label className="settings-field" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              Message Body (Plain Text)
+            <label className="settings-field gmail-manager-compose-body-field">
+              {t('integrations.gmail.messageBody')}
               <textarea
                 value={composeBody}
-                onChange={(e) => setComposeBody(e.target.value)}
-                placeholder="Type your message here..."
+                onChange={(event) => setComposeBody(event.target.value)}
+                placeholder={t('integrations.gmail.bodyPlaceholder')}
                 required
                 disabled={sending}
-                style={{
-                  flex: 1,
-                  minHeight: '180px',
-                  borderRadius: '6px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--surface)',
-                  color: 'var(--ink)',
-                  padding: '8px',
-                  fontFamily: 'inherit',
-                  resize: 'vertical',
-                }}
               />
             </label>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div className="gmail-manager-compose-actions">
               <button
                 type="submit"
-                className="action-button"
+                className="action-button gmail-manager-inline-action"
                 disabled={sending || !composeTo.trim() || !composeSubject.trim() || !isAuthed}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
                 <Send size={14} />
-                <span>{sending ? 'Sending...' : 'Send Message'}</span>
+                <span>{sending ? t('integrations.gmail.sending') : t('integrations.gmail.send')}</span>
               </button>
             </div>
           </form>
-        )}
+        ) : null}
 
-        {activeTab === 'account' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '540px' }}>
-            <div style={{ padding: '12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface)' }}>
-              <h4 style={{ margin: '0 0 8px' }}>OAuth Connection Status</h4>
-              <p style={{ margin: '0 0 12px', fontSize: '0.9rem', color: 'var(--ink-muted)' }}>
-                {isAuthed ? 'Gmail account is connected via OS keychain credentials.' : 'Not connected to Gmail.'}
+        {activeTab === 'account' ? (
+          <div className="gmail-manager-account">
+            <div className="gmail-manager-account-card">
+              <h4>{t('integrations.gmail.connectionStatus')}</h4>
+              <p>
+                {isAuthed
+                  ? t('integrations.gmail.connectedAccount', { email: accountEmail ?? t('integrations.gmail.connectedUnknown') })
+                  : t('integrations.gmail.notConnectedStatus')}
               </p>
               {isAuthed ? (
                 <button
                   type="button"
-                  className="toolbar-button"
+                  className="toolbar-button gmail-manager-disconnect"
                   onClick={() => void handleDisconnect()}
                   disabled={loading}
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--color-status-error, var(--danger))' }}
                 >
                   <LogOut size={14} />
-                  <span>Disconnect Account</span>
+                  <span>{t('integrations.gmail.disconnect')}</span>
                 </button>
               ) : (
-                <form onSubmit={handleStartAuth} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <form onSubmit={handleStartAuth} className="gmail-manager-account-form">
                   <label className="settings-field">
-                    Google OAuth Client ID
+                    {t('integrations.gmail.clientId')}
                     <input
                       type="text"
                       value={clientId}
-                      onChange={(e) => setClientId(e.target.value)}
-                      placeholder="e.g. 1234567890-abc.apps.googleusercontent.com"
+                      onChange={(event) => setClientIdOverride(event.target.value)}
+                      placeholder="1234567890-abc.apps.googleusercontent.com"
                       required
                     />
                   </label>
-                  <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--ink-muted)' }}>
-                    Scriptor uses PKCE OAuth flow with system browser authorization. Tokens are stored securely in your OS keychain.
-                  </p>
+                  <p className="gmail-manager-help">{t('integrations.gmail.clientHelp')}</p>
                   <div>
                     <button type="submit" className="action-button" disabled={loading || !clientId.trim()}>
-                      {loading ? 'Starting Auth...' : 'Connect with Google'}
+                      {loading ? t('integrations.gmail.startingAuth') : t('integrations.gmail.connectGoogle')}
                     </button>
                   </div>
                 </form>
               )}
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </UnifiedPanelShell>
   )

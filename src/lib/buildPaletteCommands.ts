@@ -252,7 +252,7 @@ export function buildPaletteCommands(context: PaletteCommandContext): PaletteCom
     { id: 'open-mcp', label: 'Open MCP panel', run: () => setMcpPanelOpen(true) },
     { id: 'open-settings', label: 'Open settings', run: () => setSettingsOpen(true) },
     ...(setPluginManagerOpen
-      ? [{ id: 'open-plugin-manager', label: 'Open Built-in Modules & Color Palettes', keywords: ['theme', 'palette', 'colors', 'modules'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
+      ? [{ id: 'open-plugin-manager', label: 'Open built-in modules', keywords: ['plugins', 'extensions', 'modules', 'permissions'], run: () => setPluginManagerOpen(true) } satisfies AppCommandDefinition]
       : []),
     {
       id: 'open-knowledge-workbench',

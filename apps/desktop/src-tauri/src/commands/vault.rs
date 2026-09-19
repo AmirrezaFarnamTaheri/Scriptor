@@ -445,8 +445,12 @@ pub fn vault_save_asset(
 }
 
 #[tauri::command]
-pub fn vault_load_config(state: tauri::State<AppState>) -> Result<VaultConfig, String> {
+pub fn vault_load_config(
+    state: tauri::State<AppState>,
+    expected_vault_id: Option<String>,
+) -> Result<VaultConfig, String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     load_vault_config(session.root.root()).map_err(|error| error.to_string())
 }
 
@@ -495,8 +499,10 @@ pub fn vault_load_snippets(state: tauri::State<AppState>) -> Result<Vec<VaultSni
 pub fn vault_save_config_cmd(
     state: tauri::State<AppState>,
     config: VaultConfig,
+    expected_vault_id: Option<String>,
 ) -> Result<(), String> {
     let session = active_session(&state)?;
+    validate_expected_vault(&session.descriptor.id, expected_vault_id.as_deref())?;
     save_vault_config(session.root.root(), &config).map_err(|error| error.to_string())?;
     if use_headless_engine(&state) {
         bridge_reload_config(&state)?;

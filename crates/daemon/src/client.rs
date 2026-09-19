@@ -200,6 +200,21 @@ struct ClientInner {
     listener: Mutex<Option<EventListener>>,
 }
 
+impl Drop for ClientInner {
+    fn drop(&mut self) {
+        // A client may own a detached event-listener thread. Mark it stopped
+        // before the mutexes and handler storage disappear so dropping an
+        // ephemeral client cannot leave a reconnecting listener that steals a
+        // later daemon endpoint or connection.
+        if let Ok(listener) = self.listener.get_mut()
+            && let Some(listener) = listener.take()
+        {
+            listener.stop.store(true, Ordering::SeqCst);
+            drop(listener.handle);
+        }
+    }
+}
+
 impl ClientInner {
     fn new() -> Self {
         Self {
@@ -311,6 +326,12 @@ impl ClientInner {
                     thread::sleep(retry_delay);
                     match connect_event_stream() {
                         Ok(next_stream) => {
+                            // reset()/drop may race with a reconnect attempt.
+                            // Never publish or retain a newly opened stream once
+                            // this listener has been retired.
+                            if thread_stop.load(Ordering::SeqCst) {
+                                return;
+                            }
                             stream = next_stream;
                             dispatch_event(
                                 &handlers,
@@ -500,7 +521,9 @@ impl ClientInner {
         // socket timeouts.
         let deadline = Instant::now() + timeout;
         let mut guard = self.ensure_connected(deadline)?;
-        let stream = guard.as_mut().expect("connected stream");
+        let stream = guard.as_mut().ok_or_else(|| {
+            IpcError::Codec("connected session is missing its request stream".into())
+        })?;
         match self.call_once(stream, &request, deadline, timeout) {
             Ok(response) => Ok(response),
             Err(error) if should_reconnect(&error) && Instant::now() < deadline => {
@@ -509,7 +532,9 @@ impl ClientInner {
                 // is independent and must survive an RPC-level reconnect.
                 self.drop_stream();
                 let mut guard = self.ensure_connected(deadline)?;
-                let stream = guard.as_mut().expect("connected stream");
+                let stream = guard.as_mut().ok_or_else(|| {
+                    IpcError::Codec("reconnected session is missing its request stream".into())
+                })?;
                 self.call_once(stream, &request, deadline, timeout)
             }
             Err(error) => {
@@ -625,6 +650,31 @@ mod tests {
         fn flush(&mut self) -> io::Result<()> {
             Ok(())
         }
+    }
+
+    #[test]
+    fn dropping_client_retires_owned_event_listener() {
+        let client = DaemonRpcClient::new();
+        let stop = Arc::new(AtomicBool::new(false));
+        let thread_stop = Arc::clone(&stop);
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let handle = thread::spawn(move || {
+            while !thread_stop.load(Ordering::SeqCst) {
+                thread::sleep(Duration::from_millis(1));
+            }
+            let _ = done_tx.send(());
+        });
+        *lock_recover(&client.inner.listener) = Some(EventListener {
+            stop: Arc::clone(&stop),
+            handle,
+        });
+
+        drop(client);
+
+        assert!(stop.load(Ordering::SeqCst));
+        done_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("event listener should observe client drop and stop");
     }
 
     #[test]

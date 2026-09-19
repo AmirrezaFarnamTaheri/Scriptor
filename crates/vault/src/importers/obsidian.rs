@@ -193,10 +193,10 @@ fn import_attachment(
         )));
     }
 
-    fs::create_dir_all(dest.parent().ok_or_else(|| VaultError::InvalidConfig {
+    let parent = dest.parent().ok_or_else(|| VaultError::InvalidConfig {
         message: "Cannot determine parent directory".to_string(),
-    })?)
-    .map_err(|source_err| VaultError::io(dest.parent().unwrap(), source_err))?;
+    })?;
+    fs::create_dir_all(parent).map_err(|source_err| VaultError::io(parent, source_err))?;
 
     fs::copy(&source, &dest).map_err(|source_err| VaultError::io(&source, source_err))?;
     Ok(())

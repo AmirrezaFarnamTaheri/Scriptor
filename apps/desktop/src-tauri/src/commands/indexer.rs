@@ -440,13 +440,15 @@ pub fn indexer_kanban_move_card(
     to_column: String,
     new_status: String,
 ) -> Result<(), String> {
-    let status_char = if new_status.chars().count() == 1 {
-        new_status.chars().next().unwrap()
-    } else {
-        return Err(format!(
-            "invalid kanban status {:?}: must be a single character",
-            new_status
-        ));
+    let mut status_chars = new_status.chars();
+    let status_char = match (status_chars.next(), status_chars.next()) {
+        (Some(status), None) => status,
+        _ => {
+            return Err(format!(
+                "invalid kanban status {:?}: must be a single character",
+                new_status
+            ));
+        }
     };
 
     let session = active_session(&state)?;

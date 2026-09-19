@@ -15,6 +15,7 @@ import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { FOCUSABLE_SELECTORS, useFocusTrap } from '../../hooks/useFocusTrap'
 import type { PanelPresentation } from '../../hooks/usePanelPresentation'
 import { IconButton } from './WorkspaceChrome'
+import { useI18n } from '../../lib/i18n'
 
 export interface PanelTab {
   id: string
@@ -105,6 +106,7 @@ function UnifiedPanelShellImpl({
   presentation = 'modal',
   footer,
 }: UnifiedPanelShellProps) {
+  const { t } = useI18n()
   const shellRef = useRef<HTMLElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -190,7 +192,7 @@ function UnifiedPanelShellImpl({
             <div className="unified-panel-header-actions">
               {headerActions}
               {showClose ? (
-                <IconButton label={`Close ${title}`} onClick={onClose}>
+                <IconButton label={`${t('actions.close')} ${title}`} onClick={onClose}>
                   <X aria-hidden="true" />
                 </IconButton>
               ) : null}

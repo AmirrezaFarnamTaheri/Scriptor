@@ -121,11 +121,11 @@ test.describe('Graph panel', () => {
     await expect(view.getByRole('option', { name: 'Full vault' })).toHaveCount(1)
     await expect(panel.getByRole('button', { name: 'Close graph' })).toBeVisible()
 
-    await view.selectOption({ label: 'Full vault' })
+    await view.selectOption('vault')
     await expect(view).toHaveValue('vault')
     await expect(panel.getByRole('slider', { name: 'Graph depth' })).toHaveCount(0)
 
-    await view.selectOption({ label: 'Neighborhood' })
+    await view.selectOption('local')
     await expect(view).toHaveValue('local')
     await expect(panel.getByRole('slider', { name: 'Graph depth' })).toBeVisible()
   })

@@ -98,6 +98,30 @@ function activeScanFixture() {
   return [...SCREENSHOT_SCAN, ...generated]
 }
 
+function knowledgeRepairFixture() {
+  if (window.sessionStorage.getItem('e2e:knowledge-repair-notes') !== '1') return []
+  return [
+    {
+      path: 'Research Plan.md',
+      title: 'Research Plan',
+      inbound_links: 12,
+      outbound_links: 4,
+    },
+    {
+      path: 'Field Notes.md',
+      title: 'Field Notes with an intentionally long title for zoom coverage',
+      inbound_links: 0,
+      outbound_links: 9,
+    },
+    {
+      path: 'daily/2026-08-26.md',
+      title: '2026-08-26',
+      inbound_links: 0,
+      outbound_links: 0,
+    },
+  ]
+}
+
 function activeNoteSummaries() {
   return activeScanFixture().filter((entry) => entry.kind === 'note').map((entry) => {
     const doc = e2eNoteDocument(entry.path)
@@ -311,7 +335,7 @@ export function installE2eBridge(): void {
             window.setTimeout(() => {
               move()
               resolve()
-            }, 500)
+            }, 1500)
           })
         }
         move()
@@ -344,8 +368,10 @@ export function installE2eBridge(): void {
       case 'indexer_list_tags':
         return [{ tag: 'research', note_count: 1 }]
       case 'indexer_list_inbox':
+        return []
       case 'indexer_list_orphans':
       case 'indexer_list_dead_ends':
+        return knowledgeRepairFixture()
       case 'indexer_list_unresolved_targets':
       case 'indexer_list_recent_files':
       case 'vault_list_view_notes':

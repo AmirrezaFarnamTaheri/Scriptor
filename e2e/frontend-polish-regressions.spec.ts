@@ -245,8 +245,8 @@ test.describe('Frontend polish regressions', () => {
 
     const tasks = page.getByRole('dialog', { name: 'Tasks', exact: true })
     const task = tasks.getByRole('listitem').filter({ hasText: 'Collect sources' })
-    await task.getByRole('button', { name: 'Status: open. Click to advance.' }).click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await task.getByRole('button', { name: 'Status: Open. Activate to advance.' }).click()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
 
     await task.getByRole('button', { name: 'Due date: 2026-06-30' }).click()
     const dueDate = task.getByRole('textbox', { name: 'Edit due date' })
@@ -255,7 +255,7 @@ test.describe('Frontend polish regressions', () => {
     await expect(task.getByRole('button', { name: 'Due date: 2026-07-15' })).toBeVisible()
 
     await tasks.getByRole('button', { name: 'Refresh task list' }).click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
     await expect(task.getByRole('button', { name: 'Due date: 2026-07-15' })).toBeVisible()
   })
 
@@ -268,15 +268,15 @@ test.describe('Frontend polish regressions', () => {
 
     const tasks = page.getByRole('dialog', { name: 'Tasks', exact: true })
     const task = tasks.getByRole('listitem').filter({ hasText: 'Collect sources' })
-    const status = task.getByRole('button', { name: 'Status: open. Click to advance.' })
+    const status = task.getByRole('button', { name: 'Status: Open. Activate to advance.' })
     await status.click()
     await expect(tasks).toContainText('E2E task write unavailable')
 
     await page.evaluate(() => window.sessionStorage.removeItem('e2e:task-update-failure'))
     await status.click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
     await tasks.getByRole('button', { name: 'Refresh task list' }).click()
-    await expect(task.getByRole('button', { name: 'Status: in-progress. Click to advance.' })).toBeVisible()
+    await expect(task.getByRole('button', { name: 'Status: In progress. Activate to advance.' })).toBeVisible()
   })
 
   test('kanban keyboard move reloads the Markdown-derived board in its destination column', async ({ page }) => {

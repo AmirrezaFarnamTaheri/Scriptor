@@ -127,7 +127,9 @@ impl TuiApp {
             rebuild_index(&session, &[])?;
             self.session = Some(session);
         }
-        Ok(self.session.as_ref().expect("session"))
+        self.session
+            .as_ref()
+            .ok_or_else(|| "vault session unavailable after open".into())
     }
 
     fn ensure_daemon_vault(&mut self) -> Result<(), Box<dyn std::error::Error>> {

@@ -2,10 +2,10 @@ import { useEffect, useRef } from 'react'
 
 interface PlatformShellHandlers {
   onQuickCapture?: () => void
-  onDeepLink?: (url: string) => void
+  onDeepLinkRequest?: (url: string, target: DeepLinkTarget) => void
 }
 
-interface DeepLinkTarget {
+export interface DeepLinkTarget {
   kind: 'vault' | 'note'
   path: string
 }
@@ -36,11 +36,6 @@ function parseDeepLink(url: string): DeepLinkTarget | null {
   } catch {
     return null
   }
-}
-
-function confirmDeepLink(target: DeepLinkTarget): boolean {
-  const resource = target.kind === 'vault' ? 'vault' : 'note'
-  return window.confirm(`Open this ${resource} from an external link?\n\n${target.path}`)
 }
 
 export function usePlatformShell(handlers: PlatformShellHandlers) {
@@ -81,8 +76,8 @@ export function usePlatformShell(handlers: PlatformShellHandlers) {
             const url = event.payload.payload
             if (!url) return
             const target = parseDeepLink(url)
-            if (!target || !confirmDeepLink(target)) return
-            handlersRef.current.onDeepLink?.(url)
+            if (!target) return
+            handlersRef.current.onDeepLinkRequest?.(url, target)
           },
         )
         if (!active) {

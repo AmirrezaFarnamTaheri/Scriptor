@@ -4,8 +4,8 @@ import { withVaultSessionLock } from './vaultSessionLock'
 
 export type VaultConfigMutator = (current: VaultConfig) => VaultConfig
 
-type LoadConfig = () => Promise<VaultConfig>
-type SaveConfig = (config: VaultConfig) => Promise<void>
+type LoadConfig = (expectedVaultId?: string | null) => Promise<VaultConfig>
+type SaveConfig = (config: VaultConfig, expectedVaultId?: string | null) => Promise<void>
 
 /**
  * Builds a serialized read-modify-write queue for `.scriptor/config.json`.
@@ -17,11 +17,14 @@ type SaveConfig = (config: VaultConfig) => Promise<void>
  * later vault switch even when another config mutation is still running.
  */
 export function createVaultConfigMutationQueue(load: LoadConfig, save: SaveConfig) {
-  const mutate = (mutator: VaultConfigMutator): Promise<VaultConfig> =>
+  const mutate = (
+    mutator: VaultConfigMutator,
+    expectedVaultId?: string | null,
+  ): Promise<VaultConfig> =>
     withVaultSessionLock(async () => {
-      const current = await load()
+      const current = await load(expectedVaultId)
       const next = mutator(current)
-      await save(next)
+      await save(next, expectedVaultId)
       return next
     })
 
@@ -31,6 +34,9 @@ export function createVaultConfigMutationQueue(load: LoadConfig, save: SaveConfi
 const sharedQueue = createVaultConfigMutationQueue(vaultLoadConfig, vaultSaveConfig)
 
 /** Serialize all frontend config mutations through one durable RMW boundary. */
-export function mutateVaultConfig(mutator: VaultConfigMutator): Promise<VaultConfig> {
-  return sharedQueue.mutate(mutator)
+export function mutateVaultConfig(
+  mutator: VaultConfigMutator,
+  expectedVaultId?: string | null,
+): Promise<VaultConfig> {
+  return sharedQueue.mutate(mutator, expectedVaultId)
 }

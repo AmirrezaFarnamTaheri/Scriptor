@@ -15,7 +15,7 @@ export function useSplitPaneResize(
   workspaceRef: RefObject<HTMLDivElement | null>,
   storageKey = 'scriptor:split-preview-ratio',
 ) {
-  const [ratio, setRatio] = usePersistedNumber(storageKey, DEFAULT_RATIO)
+  const [ratio, setRatio] = usePersistedNumber(storageKey, DEFAULT_RATIO, MIN_RATIO, MAX_RATIO)
   const [dragging, setDragging] = useState(false)
   const draggingRef = useRef(false)
 

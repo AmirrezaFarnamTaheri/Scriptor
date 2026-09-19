@@ -660,25 +660,32 @@ fn ping_succeeds_during_background_export() {
         .recv_timeout(Duration::from_secs(10))
         .expect("listener ready");
 
-    let export = std::thread::spawn(|| {
-        rpc_call_with_retry(
-            RpcRequest::new(
-                32,
-                RpcMethod::ExportStartNote {
-                    note_path: "alpha.md".into(),
-                    format: "html".into(),
-                    dry_run: true,
-                    extra_pandoc_args: vec![],
-                    output_subdirectory: None,
-                },
-            ),
-            5,
-        )
-    });
-    let ping = std::thread::spawn(|| rpc_call_with_retry(RpcRequest::new(33, RpcMethod::Ping), 5));
-
-    let export_resp = export.join().expect("export join").expect("export rpc");
-    let ping_resp = ping.join().expect("ping join").expect("ping rpc");
+    // Use an isolated persistent client for this test. The previous version
+    // ran two retry helpers against the process-wide shared client; a retry in
+    // either thread reset the same socket while the other request was in
+    // flight, and the one-connection test server then exited before later
+    // retry attempts could reconnect. That made a transient scheduling delay
+    // turn into six 120-second timeouts on loaded CI runners.
+    //
+    // ExportStartNote is intentionally asynchronous: once it returns, the
+    // export job is running in the background while the same authenticated
+    // session remains available for a Ping.
+    let client = crate::client::DaemonRpcClient::new();
+    let export_resp = client
+        .call(RpcRequest::new(
+            32,
+            RpcMethod::ExportStartNote {
+                note_path: "alpha.md".into(),
+                format: "html".into(),
+                dry_run: true,
+                extra_pandoc_args: vec![],
+                output_subdirectory: None,
+            },
+        ))
+        .expect("export rpc");
+    let ping_resp = client
+        .call(RpcRequest::new(33, RpcMethod::Ping))
+        .expect("ping rpc");
 
     let export_ok = matches!(
         export_resp.result,
@@ -693,7 +700,7 @@ fn ping_succeeds_during_background_export() {
         ping_resp.result,
         RpcResult::Ok(RpcPayload::Pong { .. })
     ));
-    teardown_rpc_session();
+    client.reset();
     server.join().expect("server thread");
     pipe_guard.disarm();
 }

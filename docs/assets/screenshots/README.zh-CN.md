@@ -46,6 +46,8 @@
 
 稳定 Windows baseline 仍是视觉回归的接受面。刻意的像素变更必须审查，并使用 `--update-snapshots=all` 明确刷新；绝不能通过提高全局容差隐藏视觉失败。
 
+Pull request 的 **Visual review** workflow 是视觉回归 gate 的唯一 owner。它首先只读比较当前渲染与 committed baseline；只有比较失败时才运行诊断性的 `--update-snapshots=all`，用于生成当前图像与 baseline drift 证据，绝不会自动接受视觉变化。功能性 browser E2E 保留在主 CI 中，因此干净的 PR 不会把 visual suite 重复执行两遍。
+
 响应式与状态审查截图（`workspace-mobile`、`workspace-tablet`、mobile vault/inspector、editor recovery、MCP inventory、toolbar popover）来自实时测试输出；除非测试明确使用 `toHaveScreenshot`，否则不会晋升为稳定像素 baseline。
 
 ## 重新生成

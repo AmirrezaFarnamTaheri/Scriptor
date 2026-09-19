@@ -36,7 +36,7 @@ function validateGraphPresets(value: unknown): GraphPreset[] {
       fullVault: expectBoolean(record, 'fullVault', context),
     }
   })
-  return parsed.length > 0 ? parsed : defaultGraphPresets()
+  return mergeGraphPresets(parsed)
 }
 
 function loadGraphPresets(): GraphPreset[] {
@@ -52,6 +52,17 @@ function defaultGraphPresets(): GraphPreset[] {
   return [
     { id: 'local', label: 'Neighborhood', depth: 2, fullVault: false },
     { id: 'vault', label: 'Full vault', depth: 3, fullVault: true },
+  ]
+}
+
+function mergeGraphPresets(stored: GraphPreset[]): GraphPreset[] {
+  const defaults = defaultGraphPresets()
+  const storedById = new Map(stored.map((preset) => [preset.id, preset]))
+  const builtinIds = new Set(defaults.map((preset) => preset.id))
+
+  return [
+    ...defaults.map((preset) => storedById.get(preset.id) ?? preset),
+    ...stored.filter((preset) => !builtinIds.has(preset.id)),
   ]
 }
 
@@ -105,7 +116,7 @@ export const GraphPanel = memo(function GraphPanel({
   onToggleHibernate,
 }: GraphPanelProps) {
   const { t } = useI18n()
-  const { isPluginEnabled } = usePluginState()
+  const { enablePlugin, isPluginEnabled, persistenceError } = usePluginState()
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
@@ -127,7 +138,13 @@ export const GraphPanel = memo(function GraphPanel({
     if (!vaultOpen || !vaultId) return
     let cancelled = false
     void loadVaultPresetJson<GraphPreset[]>(VAULT_GRAPH_PRESETS_PATH).then((stored) => {
-      if (!cancelled && stored && stored.length > 0) setPresets(stored)
+      if (!cancelled && stored) {
+        try {
+          setPresets(validateGraphPresets(stored))
+        } catch {
+          setPresets(defaultGraphPresets())
+        }
+      }
     })
     return () => {
       cancelled = true
@@ -265,14 +282,34 @@ export const GraphPanel = memo(function GraphPanel({
 
   if (!isGraphEnabled) {
     return (
-      <div ref={dialogRef} className="graph-overlay" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
+      <div ref={dialogRef} className="graph-overlay graph-overlay-compact" role="dialog" aria-modal="true" aria-label={t('graph.ariaLabel')}>
         <header className="graph-header">
           <h2>{t('graph.title')}</h2>
           <button type="button" className="icon-button" onClick={onClose} aria-label={t('graph.closeGraph')}>
             <X aria-hidden="true" />
           </button>
         </header>
-        <p className="empty-state" role="alert">Graph is disabled for this vault.</p>
+        <div className="graph-disabled-state" role="alert">
+          <Power className="graph-disabled-icon" aria-hidden="true" />
+          <div>
+            <h3>{t('graph.disabledTitle')}</h3>
+            <p>{t('graph.disabledDescription')}</p>
+          </div>
+          {persistenceError ? <p className="publish-error" role="alert">{persistenceError}</p> : null}
+          <div className="graph-disabled-actions">
+            <button type="button" className="primary-button" onClick={() => {
+              void enablePlugin('scriptor.graph')
+                .then(() => onRefresh(fullVault))
+                .catch(() => {
+                  // PluginStateContext surfaces the persistence failure and
+                  // rolls the optimistic toggle back to the disabled state.
+                })
+            }}>
+              {t('graph.enable')}
+            </button>
+            <button type="button" className="toolbar-button" onClick={onClose}>{t('actions.cancel')}</button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -288,10 +325,8 @@ export const GraphPanel = memo(function GraphPanel({
         </header>
         <div className="graph-hibernated-placeholder">
           <MoonStar className="graph-hibernated-icon" aria-hidden="true" />
-          <h3>Graph paused</h3>
-          <p>
-            Background layout simulation is paused to optimize battery life and improve app responsiveness.
-          </p>
+          <h3>{t('graph.pausedTitle')}</h3>
+          <p>{t('graph.pausedDescription')}</p>
           <button
             type="button"
             className="primary-button graph-wake-button"
@@ -299,7 +334,7 @@ export const GraphPanel = memo(function GraphPanel({
             disabled={!onToggleHibernate}
           >
             <Power aria-hidden="true" />
-            Resume graph
+            {t('graph.resume')}
           </button>
         </div>
       </div>
@@ -348,7 +383,13 @@ export const GraphPanel = memo(function GraphPanel({
               }}
             >
               {presets.map((preset) => (
-                <option key={preset.id} value={preset.id}>{preset.label}</option>
+                <option key={preset.id} value={preset.id}>
+                  {preset.id === 'local'
+                    ? t('graph.neighborhood', { depth: preset.depth })
+                    : preset.id === 'vault'
+                      ? t('graph.fullVault')
+                      : preset.label}
+                </option>
               ))}
               {!presets.some((preset) => preset.depth === depth && preset.fullVault === fullVault) ? (
                 <option value="custom">{t('graph.custom')}</option>

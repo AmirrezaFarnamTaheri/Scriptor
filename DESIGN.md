@@ -46,14 +46,16 @@ Authoritative tokens live in `src/index.css` and `src/styles/`. New components m
 | Display font | `--font-sans` | Custom UI font family selection (`system`, `inter`, `sf-pro`, `avenir-next`, `outfit`, `jetbrains-mono`, `georgia`) |
 | Glass blur | `--glass-blur` | Backdrop filter intensity (`none`, `subtle`, `glass`, `heavy`) |
 
-### Color Scheme Catalog & Custom Theme Builder
+### Color Palette Catalog, Appearance & Custom Theme Builder
 
-Scriptor ships with **18 built-in perfected color schemes** across three categories (`dark`, `light`, `contrast`):
-- **Dark:** `Dark Midnight`, `Catppuccin Mocha`, `Dracula`, `Nord Frost`, `Tokyo Night`, `Solarized Dark`, `Gruvbox Dark`, `Emerald Forest`, `Cyberpunk Neon`, `Monokai Pro`, `Rosé Pine`, `Synthwave 84`, `One Dark Pro`, `Vitesse Dark`.
-- **Light:** `Light Modern`, `Sepia Paper`.
-- **High Contrast:** `High Contrast`, `OLED True Black`.
+Scriptor treats **palette identity** and **day/night appearance** as independent dimensions. Choosing Nord, Dracula, Sepia Paper, or another palette selects its color language; switching Light/Dark/System changes the surface appearance without silently changing that palette. High-contrast palettes remain explicit accessibility-oriented choices rather than becoming another step in the day/night toggle.
 
-Users can also open the **Custom Theme Builder** to create, edit, live-preview, and delete custom user-created themes stored dynamically under `scriptor:custom-themes`.
+Scriptor ships with **18 built-in palettes**. Their historical category describes the palette's authored base, not a lock to one appearance:
+- **Dark-authored:** `Dark Midnight`, `Catppuccin Mocha`, `Dracula`, `Nord Frost`, `Tokyo Night`, `Solarized Dark`, `Gruvbox Dark`, `Emerald Forest`, `Cyberpunk Neon`, `Monokai Pro`, `Rosé Pine`, `Synthwave 84`, `One Dark Pro`, `Vitesse Dark`.
+- **Light-authored:** `Light Modern`, `Sepia Paper`.
+- **Contrast-authored:** `High Contrast`, `OLED True Black`.
+
+The application-level appearance control is `System | Light | Dark`; it never cycles through palette families. Users can also open the **Custom Theme Builder** to create, edit, live-preview, and delete custom palettes stored dynamically under `scriptor:custom-themes`. Custom themes must preserve an accessible surface/text contrast contract before saving.
 
 ## Interaction contract
 

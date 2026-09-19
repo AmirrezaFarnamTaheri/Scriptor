@@ -52,11 +52,6 @@ export const COMMAND_SHORTCUT_REGISTRY: CommandShortcutEntry[] = [
   { id: 'toggle-typewriter-mode', label: 'Toggle typewriter / focus mode', defaultShortcut: 'Mod+Shift+Y' },
   { id: 'open-templates', label: 'New note from template', defaultShortcut: 'Alt+T' },
   { id: 'import-obsidian-vault', label: 'Import Obsidian vault' },
-  { id: 'toggle-breadcrumbs', label: 'Toggle document breadcrumbs', defaultShortcut: 'Alt+B' },
-  { id: 'open-quick-capture-window', label: 'Open quick capture window' },
-  { id: 'resolve-doi', label: 'Resolve DOI / arXiv / ISBN metadata' },
-  { id: 'summarize-section', label: 'Summarize current section (AI)' },
-  { id: 'export-audit-log', label: 'Export audit log' },
 ]
 
 /** Returns the canonical default shortcut for a registered command, when assigned. */

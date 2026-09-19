@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 export type BuiltinAppTheme =
   | 'light'
@@ -20,9 +20,13 @@ export type BuiltinAppTheme =
   | 'vitesse-dark'
   | 'oled-black'
 
+/** Palette identity. Appearance is deliberately stored separately. */
 export type AppTheme = BuiltinAppTheme | (string & {})
+export type AppearanceMode = 'system' | 'light' | 'dark'
+export type ResolvedAppearance = Exclude<AppearanceMode, 'system'>
 
 const STORAGE_KEY = 'scriptor:app-theme'
+const APPEARANCE_STORAGE_KEY = 'scriptor:appearance-mode'
 const CUSTOM_THEMES_KEY = 'scriptor:custom-themes'
 
 const VALID_THEMES: Set<string> = new Set([
@@ -46,6 +50,8 @@ const VALID_THEMES: Set<string> = new Set([
   'oled-black',
 ])
 
+const LIGHT_NATIVE_THEMES = new Set<AppTheme>(['light', 'sepia-paper'])
+
 export interface CustomColorPalette {
   id: string
   name: string
@@ -57,6 +63,24 @@ export interface CustomColorPalette {
     amber: string
     ink: string
     border: string
+  }
+}
+
+function storageGet(key: string): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function storageSet(key: string, value: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(key, value)
+  } catch {
+    // Storage is an enhancement. The in-memory theme still remains usable.
   }
 }
 
@@ -82,104 +106,173 @@ export function readStoredCustomThemes(): CustomColorPalette[] {
   }
 }
 
-export function applyCustomPaletteToElement(el: HTMLElement, colors: CustomColorPalette['colors'], category: 'light' | 'dark' | 'contrast') {
-  el.dataset.theme = category === 'light' ? 'light' : 'dark'
-  el.style.setProperty('--bg', colors.bg)
-  el.style.setProperty('--surface', colors.surface)
-  el.style.setProperty('--surface-raised', colors.surface)
-  el.style.setProperty('--surface-elevated', colors.surface)
-  el.style.setProperty('--primary', colors.primary)
-  el.style.setProperty('--primary-strong', colors.primary)
-  el.style.setProperty('--amber', colors.amber)
-  el.style.setProperty('--ink', colors.ink)
-  el.style.setProperty('--ink-strong', colors.ink)
-  el.style.setProperty('--text', colors.ink)
-  el.style.setProperty('--border', colors.border)
+function customThemeById(id: AppTheme): CustomColorPalette | undefined {
+  if (!id.startsWith('custom-')) return undefined
+  return readStoredCustomThemes().find((theme) => theme.id === id)
+}
+
+export function nativeAppearanceForTheme(theme: AppTheme): ResolvedAppearance {
+  const custom = customThemeById(theme)
+  if (custom) return custom.category === 'light' ? 'light' : 'dark'
+  return LIGHT_NATIVE_THEMES.has(theme) ? 'light' : 'dark'
 }
 
 function clearCustomElementStyle(el: HTMLElement) {
-  el.style.removeProperty('--bg')
-  el.style.removeProperty('--surface')
-  el.style.removeProperty('--surface-raised')
-  el.style.removeProperty('--surface-elevated')
-  el.style.removeProperty('--primary')
-  el.style.removeProperty('--primary-strong')
-  el.style.removeProperty('--amber')
-  el.style.removeProperty('--ink')
-  el.style.removeProperty('--ink-strong')
-  el.style.removeProperty('--text')
-  el.style.removeProperty('--border')
+  for (const property of [
+    '--bg', '--surface', '--surface-raised', '--surface-elevated', '--primary',
+    '--primary-strong', '--primary-soft', '--amber', '--amber-soft', '--ink',
+    '--ink-strong', '--text', '--border', '--border-strong',
+  ]) {
+    el.style.removeProperty(property)
+  }
 }
 
-function readStoredTheme(): AppTheme {
-  if (typeof window === 'undefined') return 'light'
-  const stored = window.localStorage.getItem(STORAGE_KEY)
-  if (!stored) return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  if (VALID_THEMES.has(stored) || stored.startsWith('custom-')) return stored
+function hexToRgb(hex: string): [number, number, number] | null {
+  const match = /^#([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!match) return null
+  const value = Number.parseInt(match[1]!, 16)
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255]
+}
+
+function rgbaFromHex(hex: string, alpha: number): string | null {
+  const rgb = hexToRgb(hex)
+  return rgb ? `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})` : null
+}
+
+/**
+ * Apply a custom palette without coupling palette identity to day/night mode.
+ * The palette's authored surfaces are used in its native mode. In the opposite
+ * appearance Scriptor supplies accessible base surfaces while preserving the
+ * palette accents, so the moon/sun control never changes palette families.
+ */
+export function applyCustomPaletteToElement(
+  el: HTMLElement,
+  colors: CustomColorPalette['colors'],
+  category: CustomColorPalette['category'],
+  appearance: ResolvedAppearance = category === 'light' ? 'light' : 'dark',
+) {
+  clearCustomElementStyle(el)
+  el.dataset.theme = appearance
+  el.dataset.appearance = appearance
+
+  const nativeAppearance: ResolvedAppearance = category === 'light' ? 'light' : 'dark'
+  if (nativeAppearance === appearance) {
+    el.style.setProperty('--bg', colors.bg)
+    el.style.setProperty('--surface', colors.surface)
+    el.style.setProperty('--surface-raised', colors.surface)
+    el.style.setProperty('--surface-elevated', colors.surface)
+    el.style.setProperty('--ink', colors.ink)
+    el.style.setProperty('--ink-strong', colors.ink)
+    el.style.setProperty('--text', colors.ink)
+    el.style.setProperty('--border', colors.border)
+  }
+
+  el.style.setProperty('--primary', colors.primary)
+  el.style.setProperty('--primary-strong', colors.primary)
+  el.style.setProperty('--primary-soft', rgbaFromHex(colors.primary, appearance === 'light' ? 0.12 : 0.18) ?? 'color-mix(in srgb, var(--primary) 16%, transparent)')
+  el.style.setProperty('--amber', colors.amber)
+  el.style.setProperty('--amber-soft', rgbaFromHex(colors.amber, appearance === 'light' ? 0.12 : 0.18) ?? 'color-mix(in srgb, var(--amber) 16%, transparent)')
+}
+
+/** Canonical DOM application path shared by runtime state and palette previews. */
+export function applyThemeToElement(
+  el: HTMLElement,
+  theme: AppTheme,
+  appearance: ResolvedAppearance,
+) {
+  clearCustomElementStyle(el)
+  el.dataset.palette = theme
+  el.dataset.appearance = appearance
+
+  const custom = customThemeById(theme)
+  if (custom) {
+    applyCustomPaletteToElement(el, custom.colors, custom.category, appearance)
+    el.dataset.palette = theme
+    return
+  }
+
+  const validTheme = VALID_THEMES.has(theme) ? theme : 'dark'
+  el.dataset.theme = validTheme
+}
+
+export function validateStoredTheme(stored: string | null): AppTheme | null {
+  if (!stored) return null
+  if (VALID_THEMES.has(stored)) return stored
+  if (stored.startsWith('custom-') && customThemeById(stored)) return stored
+  return null
+}
+
+function readInitialTheme(): AppTheme {
+  const stored = validateStoredTheme(storageGet(STORAGE_KEY))
+  if (stored) return stored
   return 'dark'
 }
 
-/**
- * Order the top-bar theme control walks through. Exported so the control can
- * advertise the theme its next click will actually apply — the label used to be
- * hardcoded to a three-theme cycle and lied once the cycle grew.
- */
-export const THEME_CYCLE: AppTheme[] = [
-  'light',
-  'dark',
-  'catppuccin',
-  'dracula',
-  'nord',
-  'tokyo-night',
-  'high-contrast',
-]
+function readInitialAppearance(theme: AppTheme): AppearanceMode {
+  const stored = storageGet(APPEARANCE_STORAGE_KEY)
+  if (stored === 'system' || stored === 'light' || stored === 'dark') return stored
 
-/**
- * Human-readable names for the palettes in `THEME_CYCLE` that have no
- * dedicated locale string. These are proper nouns, so they are not translated.
- */
-export const THEME_DISPLAY_NAMES: Record<string, string> = {
-  catppuccin: 'Catppuccin',
-  dracula: 'Dracula',
-  nord: 'Nord',
-  'tokyo-night': 'Tokyo Night',
+  // Migration from the old model where the selected palette also encoded mode.
+  // Existing users keep the same initial appearance, then future day/night
+  // changes are stored independently from palette identity.
+  const hadStoredTheme = validateStoredTheme(storageGet(STORAGE_KEY)) !== null
+  return hadStoredTheme ? nativeAppearanceForTheme(theme) : 'system'
 }
 
-/** Theme `toggleTheme()` will select when the current theme is `current`. */
-export function getNextTheme(current: AppTheme): AppTheme {
-  const index = THEME_CYCLE.indexOf(current)
-  if (index === -1) return THEME_CYCLE[0]
-  return THEME_CYCLE[(index + 1) % THEME_CYCLE.length]
+export function resolveAppearance(mode: AppearanceMode, systemDark: boolean): ResolvedAppearance {
+  return mode === 'system' ? (systemDark ? 'dark' : 'light') : mode
+}
+
+export function getOppositeAppearance(appearance: ResolvedAppearance): ResolvedAppearance {
+  return appearance === 'dark' ? 'light' : 'dark'
 }
 
 export function useAppTheme() {
-  const [theme, setThemeState] = useState<AppTheme>(() => readStoredTheme())
+  const [theme, setThemeState] = useState<AppTheme>(() => readInitialTheme())
+  const [appearance, setAppearanceState] = useState<AppearanceMode>(() => readInitialAppearance(readInitialTheme()))
+  const [systemDark, setSystemDark] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches,
+  )
+  const resolvedAppearance = useMemo(
+    () => resolveAppearance(appearance, systemDark),
+    [appearance, systemDark],
+  )
 
   useEffect(() => {
-    const root = document.documentElement
-    if (theme.startsWith('custom-')) {
-      const customList = readStoredCustomThemes()
-      const found = customList.find((c) => c.id === theme)
-      if (found) {
-        applyCustomPaletteToElement(root, found.colors, found.category)
-      } else {
-        clearCustomElementStyle(root)
-        root.dataset.theme = 'dark'
-      }
-    } else {
-      clearCustomElementStyle(root)
-      root.dataset.theme = theme
-    }
-    window.localStorage.setItem(STORAGE_KEY, theme)
-  }, [theme])
+    if (typeof window === 'undefined') return
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (event: MediaQueryListEvent) => setSystemDark(event.matches)
+    media.addEventListener?.('change', onChange)
+    return () => media.removeEventListener?.('change', onChange)
+  }, [])
+
+  useEffect(() => {
+    applyThemeToElement(document.documentElement, theme, resolvedAppearance)
+    storageSet(STORAGE_KEY, theme)
+    storageSet(APPEARANCE_STORAGE_KEY, appearance)
+  }, [appearance, resolvedAppearance, theme])
 
   const toggleTheme = useCallback(() => {
-    setThemeState((current) => getNextTheme(current))
-  }, [])
+    setAppearanceState(getOppositeAppearance(resolvedAppearance))
+  }, [resolvedAppearance])
 
   const setTheme = useCallback((next: AppTheme) => {
-    setThemeState(next)
+    const valid = validateStoredTheme(next) ?? (VALID_THEMES.has(next) ? next : null)
+    if (valid) setThemeState(valid)
   }, [])
 
-  return { theme, toggleTheme, setTheme }
+  const setAppearance = useCallback((next: AppearanceMode) => {
+    setAppearanceState(next)
+  }, [])
+
+  return {
+    theme,
+    palette: theme,
+    appearance,
+    resolvedAppearance,
+    toggleTheme,
+    toggleAppearance: toggleTheme,
+    setTheme,
+    setAppearance,
+  }
 }

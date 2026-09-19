@@ -1,4 +1,4 @@
-import { memo, useMemo, useRef } from 'react'
+import { memo, useMemo } from 'react'
 import {
   AlignCenter,
   Archive,
@@ -135,6 +135,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
           type="button"
           disabled={!activePath}
           title={item.label}
+          aria-label={item.label}
           onClick={() => handleInsertSnippet(item.content)}
         >
           {item.label}
@@ -151,6 +152,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             type="button"
             disabled={!activePath}
             title={label}
+            aria-label={label}
             onClick={() => handleApplyEditorTypography(action as TypographyAction)}
           >
             {label}
@@ -160,10 +162,8 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
     }),
   ], [activePath, handleApplyEditorTypography, handleInsertSnippet, t, toolbarExtras])
 
-  const wrapperRef = useRef<HTMLDivElement>(null)
-
   return (
-    <div className="editor-toolbar-wrapper" ref={wrapperRef}>
+    <div className="editor-toolbar-wrapper">
       <div className="format-row editor-toolbar" role="toolbar" aria-label={t('editor.toolbar.markdownTools')}>
         <div className="format-group editor-view-modes" aria-label={t('editor.toolbar.viewMode')}>
           {(
@@ -184,59 +184,59 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             </button>
           ))}
         </div>
-        <CustomizableToolbar extras={extras} hostRef={wrapperRef}>
+        <CustomizableToolbar extras={extras}>
         <div className="format-group" aria-label={t('editor.toolbar.structure')}>
-          <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
+          <button key="heading-1" type="button" disabled={!activePath} title={t('editor.transforms.heading1')} aria-label={t('editor.transforms.heading1')} onClick={() => handleApplyEditorTransform('h1')}>
             <Heading1 />
           </button>
-          <button key="heading-2" type="button" disabled={!activePath} title={t('editor.transforms.heading2')} onClick={() => handleApplyEditorTransform('h2')}>
+          <button key="heading-2" type="button" disabled={!activePath} title={t('editor.transforms.heading2')} aria-label={t('editor.transforms.heading2')} onClick={() => handleApplyEditorTransform('h2')}>
             <Heading2 />
           </button>
-          <button key="heading-3" type="button" disabled={!activePath} title={t('editor.transforms.heading3')} onClick={() => handleApplyEditorTransform('h3')}>
+          <button key="heading-3" type="button" disabled={!activePath} title={t('editor.transforms.heading3')} aria-label={t('editor.transforms.heading3')} onClick={() => handleApplyEditorTransform('h3')}>
             <Heading3 />
           </button>
-          <button key="outline" type="button" disabled={!activePath} title={t('editor.transforms.toc')} onClick={onToggleToc}>
+          <button key="outline" type="button" disabled={!activePath} title={t('editor.transforms.toc')} aria-label={t('editor.transforms.toc')} onClick={onToggleToc}>
             <ListTree />
           </button>
-          <button key="frontmatter" type="button" disabled={!activePath} title={t('editor.transforms.frontmatter')} onClick={onOpenFrontmatter}>
+          <button key="frontmatter" type="button" disabled={!activePath} title={t('editor.transforms.frontmatter')} aria-label={t('editor.transforms.frontmatter')} onClick={onOpenFrontmatter}>
             <FileBox />
           </button>
-          <button key="move-section-up" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionUp')} onClick={() => handleApplyEditorTransform('move-section-up')}>
+          <button key="move-section-up" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionUp')} aria-label={t('editor.transforms.moveSectionUp')} onClick={() => handleApplyEditorTransform('move-section-up')}>
             <ArrowUpToLine />
           </button>
-          <button key="move-section-down" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionDown')} onClick={() => handleApplyEditorTransform('move-section-down')}>
+          <button key="move-section-down" type="button" disabled={!activePath} title={t('editor.transforms.moveSectionDown')} aria-label={t('editor.transforms.moveSectionDown')} onClick={() => handleApplyEditorTransform('move-section-down')}>
             <ArrowDownToLine />
           </button>
         </div>
 
         <div className="format-group" aria-label={t('editor.toolbar.styleAndInsert')}>
-          <button key="bold" type="button" disabled={!activePath} title={t('editor.transforms.bold')} onClick={() => handleApplyEditorTransform('bold')}>
+          <button key="bold" type="button" disabled={!activePath} title={t('editor.transforms.bold')} aria-label={t('editor.transforms.bold')} onClick={() => handleApplyEditorTransform('bold')}>
             <Bold />
           </button>
-          <button key="italic" type="button" disabled={!activePath} title={t('editor.transforms.italic')} onClick={() => handleApplyEditorTransform('italic')}>
+          <button key="italic" type="button" disabled={!activePath} title={t('editor.transforms.italic')} aria-label={t('editor.transforms.italic')} onClick={() => handleApplyEditorTransform('italic')}>
             <Italic />
           </button>
-          <button key="link" type="button" disabled={!activePath} title={t('editor.transforms.link')} onClick={() => handleApplyEditorTransform('link')}>
+          <button key="link" type="button" disabled={!activePath} title={t('editor.transforms.link')} aria-label={t('editor.transforms.link')} onClick={() => handleApplyEditorTransform('link')}>
             <Link />
           </button>
           <TypographyMenu key="typography" disabled={!activePath} onSelect={handleApplyEditorTypography} />
-          <button key="table" type="button" disabled={!activePath} title={t('editor.transforms.insertTable')} onClick={() => handleApplyEditorTransform('table')}>
+          <button key="table" type="button" disabled={!activePath} title={t('editor.transforms.insertTable')} aria-label={t('editor.transforms.insertTable')} onClick={() => handleApplyEditorTransform('table')}>
             <Table />
           </button>
-          <button key="table-add-row" type="button" disabled={!activePath} title={t('editor.transforms.addRow')} onClick={() => handleApplyEditorTransform('table-add-row')}>
+          <button key="table-add-row" type="button" disabled={!activePath} title={t('editor.transforms.addRow')} aria-label={t('editor.transforms.addRow')} onClick={() => handleApplyEditorTransform('table-add-row')}>
             <Rows />
           </button>
-          <button key="table-add-column" type="button" disabled={!activePath} title={t('editor.transforms.addColumn')} onClick={() => handleApplyEditorTransform('table-add-col')}>
+          <button key="table-add-column" type="button" disabled={!activePath} title={t('editor.transforms.addColumn')} aria-label={t('editor.transforms.addColumn')} onClick={() => handleApplyEditorTransform('table-add-col')}>
             <Columns />
           </button>
           <InsertMenu key="insert" disabled={!activePath} onInsert={handleInsertSnippet} />
         </div>
 
         <div className="format-group" aria-label={t('editor.toolbar.reviewAndCapture')}>
-          <button key="organize-note" type="button" disabled={!activePath} title={t('editor.transforms.markOrganized')} onClick={onOrganizeActive}>
+          <button key="organize-note" type="button" disabled={!activePath} title={t('editor.transforms.markOrganized')} aria-label={t('editor.transforms.markOrganized')} onClick={onOrganizeActive}>
             <CheckCircle2 />
           </button>
-          <button key="writing-targets" type="button" title={t('editor.transforms.writingTargets')} onClick={onOpenWritingTargets}>
+          <button key="writing-targets" type="button" title={t('editor.transforms.writingTargets')} aria-label={t('editor.transforms.writingTargets')} onClick={onOpenWritingTargets}>
             <Target />
           </button>
           <button key="cheatsheet" type="button" title={t('editor.transforms.cheatsheet')} aria-label={t('editor.transforms.cheatsheet')} onClick={onOpenCheatsheet}>
@@ -352,7 +352,7 @@ export const EditorFormatToolbar = memo(function EditorFormatToolbar({
             title={t('editor.aiSummarize')}
             aria-label={t('editor.aiSummarize')}
             onClick={() => {
-              insertSnippet('> [!ai] Summarize the section above.')
+              insertSnippet('\n\n> [!ai] Summarize the section above.\n\n')
             }}
           >
             <Sparkles />

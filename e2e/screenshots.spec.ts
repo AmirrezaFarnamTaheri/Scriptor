@@ -336,15 +336,13 @@ test('settings appearance controls', async ({ page }) => {
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
   await waitForSettingsReady(page)
   const settings = page.getByRole('dialog', { name: 'Settings' })
-  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
   const heading = settings.getByRole('heading', { name: 'Appearance & layout', exact: true })
-  // Appearance follows the layout gallery in the Workspace tab. Scroll its
-  // actual container rather than capturing the off-screen settings controls.
-  await heading.evaluate((element) => element.scrollIntoView({ block: 'start', behavior: 'instant' }))
   await expect(heading).toBeInViewport()
-  await expect(settings.getByRole('combobox', { name: 'Color theme', exact: true })).toHaveValue('light')
-  await expect(settings.getByRole('combobox', { name: 'UI Display Font', exact: true })).toBeInViewport()
-  await expect(settings.getByRole('combobox', { name: 'UI Layout Density', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'Color palette', exact: true })).toHaveValue('light')
+  await expect(settings.getByRole('combobox', { name: 'Day / night appearance', exact: true })).toBeVisible()
+  await expect(settings.getByRole('combobox', { name: 'UI display font', exact: true })).toBeInViewport()
+  await expect(settings.getByRole('combobox', { name: 'UI layout density', exact: true })).toBeInViewport()
   await captureReadyScreenshot(page, shotPath('settings-appearance'))
 })
 
@@ -518,8 +516,11 @@ test('onboarding tour', async ({ page }) => {
   await expect(tour).toBeVisible({ timeout: 15_000 })
   await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
   await expect
-    .poll(() => tour.evaluate((element) => getComputedStyle(element).backgroundColor))
-    .toBe('rgb(255, 255, 255)')
+    .poll(() => tour.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      return background !== 'transparent' && background !== 'rgba(0, 0, 0, 0)'
+    }))
+    .toBe(true)
   await page.waitForTimeout(500)
   await captureReadyScreenshot(page, shotPath('onboarding-tour'))
   await expect(page).toHaveScreenshot('onboarding-tour.png', {

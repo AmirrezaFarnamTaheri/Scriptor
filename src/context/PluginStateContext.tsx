@@ -6,8 +6,8 @@ import { createPluginStatePersistenceQueue } from './plugin-state-persistence.ts
 
 export interface PluginStateContextType {
   enabledPluginIds: Set<string>
-  enablePlugin: (id: string) => void
-  disablePlugin: (id: string) => void
+  enablePlugin: (id: string) => Promise<void>
+  disablePlugin: (id: string) => Promise<void>
   replaceEnabledPlugins: (ids: ReadonlySet<string>) => void
   isPluginEnabled: (id: string) => boolean
   persistenceError: string | null
@@ -66,7 +66,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
     }
   }, [initialEnabledPluginIds])
 
-  const setPluginEnabled = useCallback((id: string, enabled: boolean) => {
+  const setPluginEnabled = useCallback(async (id: string, enabled: boolean): Promise<void> => {
     const current = enabledPluginIdsRef.current
     if (current.has(id) === enabled) return
 
@@ -77,9 +77,25 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
     localChangeVersionRef.current += 1
     setEnabledPluginIds(next)
     setPersistenceError(null)
-    void persistenceQueueRef.current.enqueue(() => savePluginState(next, id)).catch((error: unknown) => {
-      setPersistenceError(error instanceof Error ? error.message : 'Could not save plugin state.')
-    })
+    try {
+      await persistenceQueueRef.current.enqueue(() => savePluginState(next, id))
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Could not save plugin state.'
+      // Optimistic UI must not claim a capability is enabled/disabled when the
+      // vault-backed state rejected that transition. Preserve any unrelated
+      // toggles that happened while persistence was in flight.
+      const latest = enabledPluginIdsRef.current
+      if (latest.has(id) === enabled) {
+        const rollback = new Set(latest)
+        if (enabled) rollback.delete(id)
+        else rollback.add(id)
+        enabledPluginIdsRef.current = rollback
+        localChangeVersionRef.current += 1
+        setEnabledPluginIds(rollback)
+      }
+      setPersistenceError(message)
+      throw error
+    }
   }, [])
 
   const enablePlugin = useCallback((id: string) => setPluginEnabled(id, true), [setPluginEnabled])
@@ -99,6 +115,7 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
 
     enabledPluginIdsRef.current = next
     localChangeVersionRef.current += 1
+    const transitionVersion = localChangeVersionRef.current
     setEnabledPluginIds(next)
     setPersistenceError(null)
     void persistenceQueueRef.current.enqueue(async () => {
@@ -111,8 +128,20 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
         }
       }
       if (failures.length > 0) throw new Error(failures.join(' '))
-    }).catch((error: unknown) => {
+    }).catch(async (error: unknown) => {
       setPersistenceError(error instanceof Error ? error.message : 'Could not save plugin profile.')
+      // Bulk profile persistence can partially succeed. Re-read native truth
+      // rather than leaving the optimistic profile visible after a failed step.
+      // A newer local toggle always wins over this older reconciliation.
+      try {
+        const loaded = await loadPluginState()
+        if (loaded !== null && localChangeVersionRef.current === transitionVersion) {
+          enabledPluginIdsRef.current = loaded
+          setEnabledPluginIds(loaded)
+        }
+      } catch {
+        // Keep the original persistence error as the actionable state.
+      }
     })
   }, [])
 

@@ -18,7 +18,7 @@ test('settings exposes and persists keyboard shortcut editing', async ({ page })
   const settings = page.getByRole('dialog', { name: 'Settings' })
   await expect(settings).toBeVisible()
 
-  const shortcutsTab = settings.getByRole('tab', { name: 'Keyboard shortcuts', exact: true })
+  const shortcutsTab = settings.getByRole('tab', { name: 'Shortcuts', exact: true })
   await expect(shortcutsTab).toBeVisible()
   await shortcutsTab.click()
 
@@ -41,7 +41,7 @@ test('settings exposes and persists keyboard shortcut editing', async ({ page })
   await settleLayout(page)
   await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
   await expect(settings).toBeVisible()
-  await settings.getByRole('tab', { name: 'Keyboard shortcuts', exact: true }).click()
+  await settings.getByRole('tab', { name: 'Shortcuts', exact: true }).click()
   await expect(graphInput).toHaveValue('Alt+H')
 
   await settings.getByRole('button', { name: 'Reset all' }).click()

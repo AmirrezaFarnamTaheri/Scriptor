@@ -37,9 +37,25 @@ pub fn default_socket_name() -> Result<String, IpcError> {
 }
 
 pub fn endpoint_file_path() -> Result<PathBuf, IpcError> {
-    let data_dir =
-        scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
-    Ok(data_dir.join(ENDPOINT_FILE))
+    #[cfg(test)]
+    {
+        // Unit tests run in their own process but can overlap Cargo integration
+        // test binaries. Sharing the real per-user endpoint file lets an
+        // unrelated test remove or replace discovery state while a unit-test
+        // client is connecting. Keep the unit-test discovery contract
+        // process-local; transport tests already serialize access within this
+        // process through ENDPOINT_LOCK.
+        return Ok(std::env::temp_dir()
+            .join(format!("scriptor-daemon-unit-{}", std::process::id()))
+            .join(ENDPOINT_FILE));
+    }
+
+    #[cfg(not(test))]
+    {
+        let data_dir =
+            scriptor_data_dir("scriptor").map_err(|error| IpcError::Codec(error.to_string()))?;
+        Ok(data_dir.join(ENDPOINT_FILE))
+    }
 }
 
 /// A failing OS random source is an environment problem, not a bug: surface it
@@ -151,6 +167,9 @@ pub fn write_endpoint(socket_name: &str) -> Result<DaemonEndpoint, IpcError> {
 
 pub(super) fn persist_endpoint(endpoint: &DaemonEndpoint) -> Result<(), IpcError> {
     let path = endpoint_file_path()?;
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(IpcError::from)?;
+    }
     let temp_path = path.with_file_name(format!(
         "{ENDPOINT_FILE}.tmp-{}-{}",
         endpoint.pid,

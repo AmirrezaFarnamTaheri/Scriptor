@@ -181,7 +181,7 @@
   padding: 10px 12px;
 }
 
-.knowledge-note-list button,
+.knowledge-note-open,
 .knowledge-target-refs button {
   display: block;
   width: 100%;
@@ -337,10 +337,6 @@
 }
 
 .panel-menu-popover {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 4px);
-  z-index: 20;
   min-width: 180px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -677,8 +673,7 @@
 .scriptor-distraction-free .editor-toolbar,
 .scriptor-distraction-free .editor-status,
 .scriptor-distraction-free .workspace-footer {
-  opacity: 0.15;
-  pointer-events: none;
+  opacity: 0.55;
   transition: opacity 0.2s ease;
 }
 
@@ -689,9 +684,16 @@
 .scriptor-distraction-free .inline-editor-assist:hover,
 .scriptor-distraction-free .editor-toolbar:hover,
 .scriptor-distraction-free .editor-status:hover,
-.scriptor-distraction-free .workspace-footer:hover {
+.scriptor-distraction-free .workspace-footer:hover,
+.scriptor-distraction-free .workspace-header:focus-within,
+.scriptor-distraction-free .vault-sidebar:focus-within,
+.scriptor-distraction-free .inspector-panel:focus-within,
+.scriptor-distraction-free .tabs-row:focus-within,
+.scriptor-distraction-free .inline-editor-assist:focus-within,
+.scriptor-distraction-free .editor-toolbar:focus-within,
+.scriptor-distraction-free .editor-status:focus-within,
+.scriptor-distraction-free .workspace-footer:focus-within {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .cm-wikilink,

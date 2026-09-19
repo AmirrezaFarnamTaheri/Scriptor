@@ -291,6 +291,7 @@ function WorkspacePanelLaunchersImpl({
         >
           <Suspense fallback={<PanelFallback />}>
             <GmailManagerPanel
+              defaultClientId={workspace.vaultConfig.calendar_sync?.google_client_id ?? ''}
               onClose={() => setGmailManagerOpen(false)}
               onImportNote={async (subject, markdown, messageId) => {
                 const title = gmailImportedNoteTitle(subject, messageId)

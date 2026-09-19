@@ -149,4 +149,4 @@ La galería, reglas de captura y disciplina de revisión están en [`assets/scre
 
 ## Interpretación para release
 
-Para publicar en producción, los gates actuales deben estar verdes sobre el commit exacto de release y los artefactos generados deben referenciar demostrablemente ese mismo commit. Si la evidencia histórica contradice la implementación actual, prevalecen la implementación reproducible actual y la verificación ligada al commit.
+Para publicar en producción, los gates actuales deben estar verdes sobre el commit exacto de release y los artefactos generados deben referenciar demostrablemente ese mismo commit. La comprobación autoritativa combina la matriz CI del exact-head **con el gate Visual review del mismo exact-head**; los PR en borrador aplazan deliberadamente los gates pesados hasta `ready_for_review`. Si la evidencia histórica contradice la implementación actual, prevalecen la implementación reproducible actual y la verificación ligada al commit.

@@ -149,4 +149,4 @@ Screenshot gallery、capture 规则与 reviewer discipline 记录在 [`assets/sc
 
 ## Release 解释规则
 
-Production 发布要求当前 gate 在精确 release commit 上全部通过，并且生成 artifact 可证明引用同一 commit。当历史 evidence 与当前实现冲突时，以当前可重复实现和 commit-bound verification 为准。
+Production 发布要求当前 gate 在精确 release commit 上全部通过，并且生成 artifact 可证明引用同一 commit。权威验证由 exact-head CI matrix **与同一 exact head 的 Visual review gate** 共同组成；Draft PR 会刻意把重量级 gate 延后到 `ready_for_review`。当历史 evidence 与当前实现冲突时，以当前可重复实现和 commit-bound verification 为准。

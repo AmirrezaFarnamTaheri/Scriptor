@@ -203,6 +203,6 @@ SHA256SUMS
 
 ## تفسیر <bdi dir="ltr">Release</bdi>
 
-برای <bdi dir="ltr">production release</bdi>، <bdi dir="ltr">gate</bdi>های فعلی باید روی <bdi dir="ltr">exact release commit</bdi> سبز باشند و <bdi dir="ltr">artifact</bdi>های تولیدشده باید به‌طور قابل اثبات همان <bdi dir="ltr">commit</bdi> را <bdi dir="ltr">reference</bdi> کنند. اگر <bdi dir="ltr">evidence</bdi> تاریخی با <bdi dir="ltr">implementation</bdi> فعلی تناقض داشته باشد، <bdi dir="ltr">implementation</bdi> قابل بازتولید فعلی به‌همراه <bdi dir="ltr">commit-bound verification</bdi> مرجع است.
+برای <bdi dir="ltr">production release</bdi>، <bdi dir="ltr">gate</bdi>های فعلی باید روی <bdi dir="ltr">exact release commit</bdi> سبز باشند و <bdi dir="ltr">artifact</bdi>های تولیدشده باید به‌طور قابل اثبات همان <bdi dir="ltr">commit</bdi> را <bdi dir="ltr">reference</bdi> کنند. مرجع نهایی، <bdi dir="ltr">exact-head CI matrix</bdi> **به‌علاوهٔ <bdi dir="ltr">exact-head Visual review gate</bdi>** است؛ <bdi dir="ltr">Draft PR</bdi>ها عمداً <bdi dir="ltr">gate</bdi>های سنگین را تا <bdi dir="ltr">ready_for_review</bdi> به تعویق می‌اندازند. اگر <bdi dir="ltr">evidence</bdi> تاریخی با <bdi dir="ltr">implementation</bdi> فعلی تناقض داشته باشد، <bdi dir="ltr">implementation</bdi> قابل بازتولید فعلی به‌همراه <bdi dir="ltr">commit-bound verification</bdi> مرجع است.
 
 </div>

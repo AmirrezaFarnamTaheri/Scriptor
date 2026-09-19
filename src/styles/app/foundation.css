@@ -384,10 +384,18 @@ svg {
 .primary-button {
   width: 100%;
   margin-top: 10px;
-  background: var(--primary-strong);
-  border-color: var(--primary-strong);
-  color: white;
+  /* Palette accents can be authored for either dark or light surfaces. Primary
+   * actions always darken the selected accent before placing white text on it,
+   * keeping contrast stable when palette identity and appearance differ. */
+  background: color-mix(in srgb, var(--primary-strong) 52%, #000);
+  border-color: color-mix(in srgb, var(--primary-strong) 52%, #000);
+  color: #fff;
   font-weight: 700;
+}
+
+.primary-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary-strong) 60%, #000);
+  border-color: color-mix(in srgb, var(--primary-strong) 60%, #000);
 }
 
 .status-button.success,

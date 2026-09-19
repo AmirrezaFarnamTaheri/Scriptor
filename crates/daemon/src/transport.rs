@@ -49,7 +49,10 @@ use limits::{
 };
 
 pub fn serve_forever(socket_path: Option<String>) -> Result<(), IpcError> {
-    let resolved = socket_path.unwrap_or_else(|| default_socket_name().expect("socket name"));
+    let resolved = match socket_path {
+        Some(path) => path,
+        None => default_socket_name()?,
+    };
     if !cfg!(windows)
         && let Some(parent) = Path::new(&resolved).parent()
     {

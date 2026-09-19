@@ -5,8 +5,8 @@ import {
 } from './vault'
 import { indexerListNoteSummaries as listNoteSummariesUncoordinated } from './indexer'
 
-export function vaultLoadConfig() {
-  return withStableVaultSessionRead(loadVaultConfigUncoordinated)
+export function vaultLoadConfig(expectedVaultId?: string | null) {
+  return withStableVaultSessionRead(() => loadVaultConfigUncoordinated(expectedVaultId))
 }
 
 export function vaultLoadSnippets() {

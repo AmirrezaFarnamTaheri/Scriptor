@@ -27,6 +27,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { PanelErrorFallback } from './components/PanelErrorFallback'
 import { QuickCaptureWorkspaceLayer } from './components/app/QuickCaptureWorkspaceLayer'
 import { WorkspaceDialogLayers } from './components/app/WorkspaceDialogLayers'
+import { ExternalDeepLinkDialog } from './components/ExternalDeepLinkDialog'
 import { WorkspacePanelLaunchers } from './components/app/WorkspacePanelLaunchers'
 import { WorkspacePortalOverlays } from './components/app/WorkspacePortalOverlays'
 import { WorkspaceRenameDialogs } from './components/app/WorkspaceRenameDialogs'
@@ -38,7 +39,8 @@ import { useDiagnosticsSettings } from './hooks/useDiagnosticsSettings'
 import { useEscapeToClose } from './hooks/useEscapeToClose'
 import { useLocalDate } from './hooks/useLocalDate'
 import { useMcpRuntime } from './hooks/useMcpRuntime'
-import { usePlatformShell, parseDeepLink } from './hooks/usePlatformShell'
+import { usePlatformShell } from './hooks/usePlatformShell'
+import type { DeepLinkTarget } from './hooks/usePlatformShell'
 import { useOnboarding } from './hooks/useOnboarding'
 import { usePerfMetrics } from './hooks/usePerfMetrics'
 import { useWorkspaceSession } from './hooks/useWorkspaceSession'
@@ -56,7 +58,7 @@ import { useResizablePanel } from './hooks/useResizablePanel'
 import { useSplitPaneResize } from './hooks/useSplitPaneResize'
 import { useCiteprocPreview } from './hooks/useCiteprocPreview'
 import { useWorkspaceMode, type WorkspaceMode } from './hooks/useWorkspaceMode'
-import { useWorkspaceChrome } from './hooks/useWorkspaceChrome'
+import { DEFAULT_WORKSPACE_CHROME, useWorkspaceChrome } from './hooks/useWorkspaceChrome'
 import {
   DEFAULT_WORKSPACE_LAYOUTS,
   readInitialWorkspaceLayout,
@@ -114,9 +116,9 @@ import './styles/motion.css'
 function App() {
   const { t } = useI18n()
   const localDate = useLocalDate()
-  const { theme, toggleTheme, setTheme } = useAppTheme()
+  const { theme, appearance, resolvedAppearance, toggleTheme, setTheme, setAppearance } = useAppTheme()
   const [initialWorkspaceLayout] = useState(readInitialWorkspaceLayout)
-  const { chrome, patchChrome, resetChrome } = useWorkspaceChrome()
+  const { chrome, patchChrome } = useWorkspaceChrome()
   const { mode: workspaceMode, setMode: setWorkspaceMode } = useWorkspaceMode()
   const { layouts, applyLayout, saveCurrentAsLayout, resetLayout } = useWorkspaceLayout()
   const onboarding = useOnboarding()
@@ -224,6 +226,14 @@ function App() {
     perfHudOpen,
     setPerfHudOpen,
   } = nav
+  const [pluginManagerScope, setPluginManagerScope] = useState<'palettes' | 'plugins'>('palettes')
+  const setPluginManagerOpenFromCommands = useCallback(
+    (open: boolean) => {
+      if (open) setPluginManagerScope('plugins')
+      setPluginManagerOpen(open)
+    },
+    [setPluginManagerOpen],
+  )
   const editorWorkspaceRef = useRef<HTMLDivElement | null>(null)
   const workspaceGridRef = useRef<HTMLElement | null>(null)
   const {
@@ -258,7 +268,7 @@ function App() {
     typewriter,
     vimMode,
     wysiwyg,
-  } = useEditorPreferences(theme, initialWorkspaceLayout)
+  } = useEditorPreferences(resolvedAppearance, initialWorkspaceLayout)
   const { toastMessage, showToast, dismissToast } = useAppToast()
   const perfMetrics = usePerfMetrics()
   const {
@@ -272,6 +282,18 @@ function App() {
   const nativeReady = isNativeBridgeAvailable() || import.meta.env.VITE_E2E_MODE === 'true'
   const [pluginVaultId, setPluginVaultId] = useState<string | null>(null)
   const plugins = usePluginRegistry(pluginVaultId, { marketplaceActive: activeMode === 'plugins' })
+  const gmailPluginEnabled = plugins.activePlugins.some(
+    (plugin) => plugin.manifest.id === 'scriptor.gmail-manager',
+  )
+  const setGmailManagerOpenFromCommands = useCallback((open: boolean) => {
+    if (!open || gmailPluginEnabled) {
+      setGmailManagerOpen(open)
+      return
+    }
+    patchChrome({ inspectorCollapsed: false })
+    setActiveMode('plugins')
+    showToast('Enable Gmail Manager in Plugins before opening the mail workspace.')
+  }, [gmailPluginEnabled, patchChrome, setActiveMode, setGmailManagerOpen, showToast])
   // Pulled out of the per-render registry result so memoized callbacks can depend on the
   // stable `useCallback` identity instead of the whole hook object.
   const canExecutePluginCommand = plugins.canExecutePluginCommand
@@ -311,17 +333,10 @@ function App() {
     sidebarView: workspace.sidebarView,
   })
   useScreenshotAutoOpen(workspace.openVaultAt, workspace.status)
+  const [pendingDeepLink, setPendingDeepLink] = useState<DeepLinkTarget | null>(null)
   usePlatformShell({
     onQuickCapture: () => setQuickCaptureOpen(true),
-    onDeepLink: (url) => {
-      const target = parseDeepLink(url)
-      if (!target) return
-      if (target.kind === 'vault') {
-        void workspace.openVaultAt(target.path)
-        return
-      }
-      void workspace.openNote(target.path)
-    },
+    onDeepLinkRequest: (_url, target) => setPendingDeepLink(target),
   })
 
   const { promptRequest, promptText, submitPrompt, cancelPrompt } = useTextPrompt()
@@ -493,6 +508,15 @@ function App() {
     nudgeRatio: onSplitHandleNudge,
   } = useSplitPaneResize(showSplitPreview && !chrome.layoutLocked, editorWorkspaceRef)
 
+  const handleVaultWidthChange = useCallback(
+    (width: number) => patchChrome({ vaultWidth: width }),
+    [patchChrome],
+  )
+  const handleInspectorWidthChange = useCallback(
+    (width: number) => patchChrome({ inspectorWidth: width }),
+    [patchChrome],
+  )
+
   const vaultResizer = useResizablePanel(
     !chrome.vaultSidebarCollapsed && !chrome.layoutLocked,
     workspaceGridRef,
@@ -500,8 +524,9 @@ function App() {
     chrome.vaultWidth,
     200,
     600,
-    'scriptor:vault-width',
-    (collapsed) => patchChrome({ vaultSidebarCollapsed: collapsed })
+    DEFAULT_WORKSPACE_CHROME.vaultWidth,
+    handleVaultWidthChange,
+    (collapsed) => patchChrome({ vaultSidebarCollapsed: collapsed }),
   )
 
   const inspectorResizer = useResizablePanel(
@@ -511,8 +536,9 @@ function App() {
     chrome.inspectorWidth,
     300,
     800,
-    'scriptor:inspector-width',
-    (collapsed) => patchChrome({ inspectorCollapsed: collapsed })
+    DEFAULT_WORKSPACE_CHROME.inspectorWidth,
+    handleInspectorWidthChange,
+    (collapsed) => patchChrome({ inspectorCollapsed: collapsed }),
   )
   const showInspectorPreview =
     (chrome.editorSurfaceMode === 'rendered' || activeMode === 'preview') &&
@@ -847,7 +873,7 @@ function App() {
         setHealthDashboardOpen,
         setMcpPanelOpen,
         setSettingsOpen,
-        setPluginManagerOpen,
+        setPluginManagerOpen: setPluginManagerOpenFromCommands,
         openKnowledgeWorkbench,
         setPublishCenterOpen,
         setCheatsheetOpen,
@@ -856,7 +882,7 @@ function App() {
         setQuickCaptureOpen,
         setNoteHistoryOpen,
         setBibliographyOpen,
-        setGmailManagerOpen: nativeReady ? setGmailManagerOpen : undefined,
+        setGmailManagerOpen: nativeReady ? setGmailManagerOpenFromCommands : undefined,
         setSnippetsOpen,
         setTemplatePickerOpen: nativeReady && workspace.vault ? setTemplatePickerOpen : undefined,
         setObsidianImportOpen: nativeReady && workspace.vault ? setObsidianImportOpen : undefined,
@@ -910,7 +936,7 @@ function App() {
       promptText,
       recentNotes,
       setBibliographyOpen,
-      setGmailManagerOpen,
+      setGmailManagerOpenFromCommands,
       setCanvasOpen,
       setCheatsheetOpen,
       setEditorSurfaceMode,
@@ -923,7 +949,7 @@ function App() {
       setNoteHistoryOpen,
       setPerfHudOpen,
       setPortalOpen,
-      setPluginManagerOpen,
+      setPluginManagerOpenFromCommands,
       setQuickCaptureOpen,
       setReaderOpen,
       setSettingsOpen,
@@ -983,6 +1009,9 @@ function App() {
     openKanban:
       nativeReady && workspace.vault && workspace.activePath ? () => setKanbanOpen(true) : undefined,
     openTemplates: nativeReady && workspace.vault ? () => setTemplatePickerOpen(true) : undefined,
+    toggleDistractionFree: () => setDistractionFree((enabled) => !enabled),
+    toggleTypewriter: () => setTypewriter((enabled) => !enabled),
+    commands: paletteCommands,
     toggleVaultSidebar: () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
     toggleInspector: () => patchChrome({ inspectorCollapsed: !chrome.inspectorCollapsed }),
   })
@@ -1097,8 +1126,19 @@ function App() {
     [setSupportOpen],
   )
   const handleOpenPluginManager = useCallback(
-    () => setPluginManagerOpen(true),
+    () => {
+      setPluginManagerScope('palettes')
+      setPluginManagerOpen(true)
+    },
     [setPluginManagerOpen],
+  )
+  const handleManagePalettesFromSettings = useCallback(
+    () => {
+      setSettingsOpen(false)
+      setPluginManagerScope('palettes')
+      setPluginManagerOpen(true)
+    },
+    [setPluginManagerOpen, setSettingsOpen],
   )
   const handleToggleVaultSidebar = useCallback(
     () => patchChrome({ vaultSidebarCollapsed: !chrome.vaultSidebarCollapsed }),
@@ -1359,6 +1399,8 @@ function App() {
           onOpenSettings={handleOpenSettings}
           onOpenPluginManager={handleOpenPluginManager}
           theme={theme}
+          appearance={appearance}
+          resolvedAppearance={resolvedAppearance}
           onToggleTheme={toggleTheme}
           vaultSidebarCollapsed={chrome.vaultSidebarCollapsed}
           onToggleVaultSidebar={handleToggleVaultSidebar}
@@ -1755,9 +1797,11 @@ function App() {
           onResetJourney={journey.reset}
           workspaceChrome={chrome}
           onPatchWorkspaceChrome={patchChrome}
-          onResetWorkspaceChrome={resetChrome}
           theme={theme}
+          appearance={appearance}
           onThemeChange={setTheme}
+          onAppearanceChange={setAppearance}
+          onManagePalettes={handleManagePalettesFromSettings}
           onReplayOnboarding={onboarding.replayOnboarding}
           spellcheckLocale={spellcheckLocale}
           onSpellcheckLocaleChange={setSpellcheckLocale}
@@ -1773,11 +1817,14 @@ function App() {
         templatePickerOpen={templatePickerOpen}
         obsidianImportOpen={obsidianImportOpen}
         pluginManagerOpen={pluginManagerOpen}
+        pluginManagerScope={pluginManagerScope}
         templates={workspace.templatePaths}
         onCloseTemplatePicker={() => setTemplatePickerOpen(false)}
         onCloseObsidianImport={() => setObsidianImportOpen(false)}
         onClosePluginManager={() => setPluginManagerOpen(false)}
         theme={theme}
+        appearance={appearance}
+        resolvedAppearance={resolvedAppearance}
         onThemeChange={setTheme}
         onOpenPluginMarketplace={() => {
           setPluginManagerOpen(false)
@@ -1791,6 +1838,22 @@ function App() {
           void workspace.refreshVault()
         }}
       />
+
+      {pendingDeepLink ? (
+        <ExternalDeepLinkDialog
+          target={pendingDeepLink}
+          onCancel={() => setPendingDeepLink(null)}
+          onConfirm={() => {
+            const target = pendingDeepLink
+            setPendingDeepLink(null)
+            if (target.kind === 'vault') {
+              void workspace.openVaultAt(target.path)
+            } else {
+              void workspace.openNote(target.path)
+            }
+          }}
+        />
+      ) : null}
 
       <WorkspaceDialogLayers
         workspace={workspace}

@@ -229,3 +229,26 @@
     grid-column: 1 / -1;
   }
 }
+
+.external-deep-link-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.external-deep-link-dialog > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.external-deep-link-path {
+  display: block;
+  max-height: 8rem;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted, var(--surface));
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

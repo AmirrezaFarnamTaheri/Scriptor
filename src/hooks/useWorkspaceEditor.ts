@@ -756,6 +756,17 @@ export function useWorkspaceEditor({
     return ok && saveFailureCountRef.current === failuresBefore
   }, [activeNoteRef, activePathRef, flushPendingDocumentSave, performSave])
 
+  const hasPendingPersistence = useCallback(() => {
+    const activeDirty = Boolean(
+      activeNoteRef.current && draftMarkdownRef.current !== activeNoteRef.current.markdown,
+    )
+    return activeDirty ||
+      pendingSaveCountRef.current > 0 ||
+      pendingRequestsByDocRef.current.size > 0 ||
+      saveTimersByDocRef.current.size > 0 ||
+      inFlightSavesByDocRef.current.size > 0
+  }, [activeNoteRef, draftMarkdownRef])
+
   const scheduleSave = useCallback(
     (markdown: string) => {
       if (persistenceSuspendedRef.current) return
@@ -901,6 +912,58 @@ export function useWorkspaceEditor({
   useEffect(() => {
     flushAllPendingSavesRef.current = flushAllPendingSaves
   }, [flushAllPendingSaves])
+
+  const hasPendingPersistenceRef = useRef(hasPendingPersistence)
+  useEffect(() => {
+    hasPendingPersistenceRef.current = hasPendingPersistence
+  }, [hasPendingPersistence])
+
+  // Browser unload cannot await an IPC write, so keep the page open whenever a
+  // draft/save is pending. The desktop close handler below can await the real
+  // flush and only destroy the native window after it succeeds.
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasPendingPersistenceRef.current()) return
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  useEffect(() => {
+    if (!isNativeBridgeAvailable()) return
+    let disposed = false
+    let unlisten: (() => void) | undefined
+    let closingAfterFlush = false
+
+    void import('@tauri-apps/api/window')
+      .then(async ({ getCurrentWindow }) => {
+        const appWindow = getCurrentWindow()
+        const stopListening = await appWindow.onCloseRequested(async (event) => {
+          if (closingAfterFlush || !hasPendingPersistenceRef.current()) return
+          event.preventDefault()
+          closingAfterFlush = true
+          const flushed = await flushAllPendingSavesRef.current()
+          if (flushed) {
+            await appWindow.destroy()
+            return
+          }
+          closingAfterFlush = false
+          setError('Could not save all pending note changes. Scriptor kept the window open so your draft is not lost.')
+        })
+        if (disposed) stopListening()
+        else unlisten = stopListening
+      })
+      .catch((caught) => {
+        logActivity('error', 'Could not install close-save guard', caught instanceof Error ? caught.message : String(caught))
+      })
+
+    return () => {
+      disposed = true
+      unlisten?.()
+    }
+  }, [logActivity, setError])
 
   useEffect(() => {
     return () => {

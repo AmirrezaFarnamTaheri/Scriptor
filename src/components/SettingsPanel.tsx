@@ -1,33 +1,35 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { formatLocalDate } from '@scriptor/core/date'
 import { Settings } from 'lucide-react'
 import '../styles/components/settings-panel.css'
 
 import { useI18n } from '../lib/i18n'
 
-import { diagnosticsExportSupportBundle, exportDiscover, vaultLoadConfig } from '../bridge/commands'
+import { vaultLoadConfig } from '../bridge/commands'
 import { mutateVaultConfig } from '../lib/vaultConfigMutation'
 import { planDailyNotePreview } from '../lib/knowledge/templates'
 import type { AiProviderId } from '../hooks/useAiProvider'
-import type { AppTheme } from '../hooks/useAppTheme'
+import type { AppTheme, AppearanceMode } from '../hooks/useAppTheme'
 import type { JourneySnapshot } from '../hooks/useJourneyMetrics'
 import type { PanelPresentation } from '../hooks/usePanelPresentation'
 import { useVaultBackup } from '../hooks/useVaultBackup'
 import type { WorkspaceChromePrefs } from '../hooks/useWorkspaceChrome'
 import { DEFAULT_WORKSPACE_LAYOUTS, type WorkspaceLayout } from '../hooks/useWorkspaceLayout'
 import type { WorkspaceMode } from '../hooks/useWorkspaceMode'
-import type { PandocDiscovery, VaultConfig } from '../types/vault'
+import type { VaultConfig } from '../types/vault'
 import type { SystemInfoSnapshot } from '../types/system'
 import { DEFAULT_VAULT_CONFIG } from '../lib/settingsDefaults'
 import { VaultConfigSettingsSection } from './VaultConfigSettingsSection'
 import { AppearanceSettingsSection } from './AppearanceSettingsSection'
+import { GoogleIntegrationSettingsSection } from './GoogleIntegrationSettingsSection'
 import { AiProviderSettings } from './AiProviderSettings'
-import { DaemonOpsPanel } from './DaemonOpsPanel'
 import { KeyboardShortcutsSettingsSection } from './KeyboardShortcutsSettingsSection'
-import { ReleaseQualityPanel } from './ReleaseQualityPanel'
 import { UnifiedPanelShell } from './chrome/UnifiedPanelShell'
+import { MutationConfirmation } from './chrome/MutationConfirmation'
 import { VaultBackupSettings } from './VaultBackupSettings'
 import { LayoutPresetGallery } from './LayoutPresetGallery'
+import { AdvancedSettingsSection } from './AdvancedSettingsSection'
+import { WorkspaceChromeSettingsSection } from './WorkspaceChromeSettingsSection'
 import { resolveHunspellLocale, SUPPORTED_LOCALES } from '@scriptor/editor/pure'
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -101,10 +103,12 @@ interface SettingsPanelProps {
   onResetJourney?: () => void
   workspaceChrome?: WorkspaceChromePrefs
   onPatchWorkspaceChrome?: (patch: Partial<WorkspaceChromePrefs>) => void
-  onResetWorkspaceChrome?: () => void
   onOpenSupport?: () => void
   theme?: AppTheme
+  appearance?: AppearanceMode
   onThemeChange?: (theme: AppTheme) => void
+  onAppearanceChange?: (appearance: AppearanceMode) => void
+  onManagePalettes?: () => void
   onReplayOnboarding?: () => void
   spellcheckLocale?: string
   onSpellcheckLocaleChange?: (locale: string) => void
@@ -112,13 +116,15 @@ interface SettingsPanelProps {
   onLanguageToolEndpointChange?: (endpoint: string) => void
 }
 
-type SettingsTab = 'general' | 'workspace' | 'shortcuts' | 'advanced'
+type SettingsTab = 'general' | 'appearance' | 'workspace' | 'integrations' | 'shortcuts' | 'advanced'
 
-const SETTINGS_TABS: Array<{ id: SettingsTab; label: string }> = [
-  { id: 'general', label: 'General' },
-  { id: 'workspace', label: 'Workspace' },
-  { id: 'shortcuts', label: 'Keyboard shortcuts' },
-  { id: 'advanced', label: 'Advanced' },
+const SETTINGS_TABS: Array<{ id: SettingsTab; labelKey: string }> = [
+  { id: 'general', labelKey: 'settingsPanel.tabs.general' },
+  { id: 'appearance', labelKey: 'settingsPanel.tabs.appearance' },
+  { id: 'workspace', labelKey: 'settingsPanel.tabs.workspace' },
+  { id: 'integrations', labelKey: 'settingsPanel.tabs.integrations' },
+  { id: 'shortcuts', labelKey: 'settingsPanel.tabs.shortcuts' },
+  { id: 'advanced', labelKey: 'settingsPanel.tabs.advanced' },
 ]
 
 /** Renders the tabbed application and vault settings surface. */
@@ -160,10 +166,12 @@ function SettingsPanelImpl({
   onResetJourney,
   workspaceChrome,
   onPatchWorkspaceChrome,
-  onResetWorkspaceChrome,
   onOpenSupport,
   theme = 'light',
+  appearance = 'system',
   onThemeChange,
+  onAppearanceChange,
+  onManagePalettes,
   onReplayOnboarding,
   spellcheckLocale = 'en-US',
   onSpellcheckLocaleChange,
@@ -172,31 +180,20 @@ function SettingsPanelImpl({
 }: SettingsPanelProps) {
   const { locale, t, changeLocale, supportedLocales, localeLabels } = useI18n()
   const selectedSpellcheckLocale = resolveHunspellLocale(spellcheckLocale)
+  const settingsTabs = useMemo(() => SETTINGS_TABS.map((entry) => ({ id: entry.id, label: t(entry.labelKey) })), [t])
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [config, setConfig] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
-  const configBaselineRef = useRef<VaultConfig>(DEFAULT_VAULT_CONFIG)
+  const [configBaseline, setConfigBaseline] = useState<VaultConfig>(DEFAULT_VAULT_CONFIG)
   const [configLoadedForVaultId, setConfigLoadedForVaultId] = useState<string | null>(null)
   const [configLoadError, setConfigLoadError] = useState<{ vaultId: string; message: string } | null>(null)
   const [configReloadToken, setConfigReloadToken] = useState(0)
   const [status, setStatus] = useState('')
-  const [supportBundleStatus, setSupportBundleStatus] = useState('')
-  const [pandoc, setPandoc] = useState<PandocDiscovery | null>(null)
-  const [pandocError, setPandocError] = useState<string | null>(null)
+  const [pendingCloseVaultId, setPendingCloseVaultId] = useState<string | null>(null)
   const backup = useVaultBackup(vaultOpen && nativeReady)
   const configReady = Boolean(vaultOpen && vaultId && configLoadedForVaultId === vaultId)
+  const configDirty = configReady && !valuesEqual(config, configBaseline)
+  const discardPromptOpen = Boolean(configDirty && vaultId && pendingCloseVaultId === vaultId)
   const visibleConfigLoadError = configLoadError?.vaultId === vaultId ? configLoadError.message : null
-
-  const refreshPandoc = useCallback(async () => {
-    if (!nativeReady) return
-    try {
-      const discovered = await exportDiscover()
-      setPandoc(discovered)
-      setPandocError(null)
-    } catch (error) {
-      setPandoc(null)
-      setPandocError(error instanceof Error ? error.message : 'Pandoc not found')
-    }
-  }, [nativeReady])
 
   const dailyNotePreview = useMemo(() => {
     const today = formatLocalDate()
@@ -207,7 +204,7 @@ function SettingsPanelImpl({
     if (!vaultOpen || !vaultId || !nativeReady) return
 
     let cancelled = false
-    void vaultLoadConfig()
+    void vaultLoadConfig(vaultId)
       .then((loaded) => {
         if (cancelled) return
         const nextConfig: VaultConfig = {
@@ -222,47 +219,28 @@ function SettingsPanelImpl({
           graph_groups: loaded.graph_groups ?? DEFAULT_VAULT_CONFIG.graph_groups,
           extra_roots: loaded.extra_roots ?? DEFAULT_VAULT_CONFIG.extra_roots,
         }
-        configBaselineRef.current = nextConfig
+        setConfigBaseline(nextConfig)
         setConfig(nextConfig)
         setConfigLoadedForVaultId(vaultId)
         setConfigLoadError(null)
-        setStatus('Vault configuration loaded. Save is explicit.')
+        setStatus(t('settingsPanel.configLoaded'))
       })
       .catch((error: unknown) => {
         if (cancelled) return
         setConfigLoadedForVaultId(null)
         setConfigLoadError({
           vaultId,
-          message: error instanceof Error ? error.message : 'Could not read vault configuration',
+          message: error instanceof Error ? error.message : t('settingsPanel.configReadFailed'),
         })
-        setStatus('Vault configuration was not changed.')
+        setStatus(t('settingsPanel.configUnchanged'))
       })
     return () => {
       cancelled = true
     }
-  }, [configReloadToken, nativeReady, vaultId, vaultOpen])
-
-  useEffect(() => {
-    if (!nativeReady || activeTab !== 'advanced') return
-    let cancelled = false
-    void exportDiscover()
-      .then((discovered) => {
-        if (cancelled) return
-        setPandoc(discovered)
-        setPandocError(null)
-      })
-      .catch((error) => {
-        if (cancelled) return
-        setPandoc(null)
-        setPandocError(error instanceof Error ? error.message : 'Pandoc not found')
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [activeTab, nativeReady])
+  }, [configReloadToken, nativeReady, t, vaultId, vaultOpen])
 
   const retryConfigLoad = () => {
-    configBaselineRef.current = DEFAULT_VAULT_CONFIG
+    setConfigBaseline(DEFAULT_VAULT_CONFIG)
     setConfig(DEFAULT_VAULT_CONFIG)
     setConfigLoadedForVaultId(null)
     setConfigLoadError(null)
@@ -272,43 +250,67 @@ function SettingsPanelImpl({
 
   const saveConfig = async () => {
     if (!nativeReady || !configReady) return
-    setStatus('Saving…')
+    setStatus(t('settingsPanel.saving'))
     try {
-      const baseline = configBaselineRef.current
-      const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config))
-      configBaselineRef.current = saved
+      const baseline = configBaseline
+      const saved = await mutateVaultConfig((current) => mergeEditedVaultConfig(current, baseline, config), vaultId)
+      setConfigBaseline(saved)
       setConfig(saved)
-      setStatus('Vault config saved to `.scriptor/config.json`.')
+      setPendingCloseVaultId(null)
+      setStatus(t('settingsPanel.configSaved'))
       onConfigSaved?.()
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : 'Could not save config')
+      setStatus(error instanceof Error ? error.message : t('settingsPanel.configSaveFailed'))
     }
   }
 
   const handleTabChange = useCallback((tab: string) => setActiveTab(tab as SettingsTab), [])
+  const requestClose = useCallback(() => {
+    if (configDirty && vaultId) {
+      setPendingCloseVaultId(vaultId)
+      return
+    }
+    onClose()
+  }, [configDirty, onClose, vaultId])
 
   return (
     <UnifiedPanelShell
-      title="Settings"
-      subtitle="Preferences are grouped by task so the writing surface stays uncluttered."
+      title={t('settings.title')}
+      subtitle={t('settingsPanel.subtitle')}
       icon={<Settings size={18} />}
-      ariaLabel="Settings"
-      onClose={onClose}
+      ariaLabel={t('settings.title')}
+      onClose={requestClose}
       presentation="modal"
       className="settings-panel knowledge-filters-panel"
       wide
-      tabs={SETTINGS_TABS}
+      tabs={settingsTabs}
       activeTab={activeTab}
       onTabChange={handleTabChange}
       footer={
-        activeTab === 'general' && vaultOpen && nativeReady && configReady ? (
+        discardPromptOpen ? (
+          <MutationConfirmation
+            ariaLabel={t('settings.unsavedConfig')}
+            message={t('settings.unsavedConfigMessage')}
+            confirmLabel={t('settings.discardChanges')}
+            onCancel={() => setPendingCloseVaultId(null)}
+            onConfirm={() => {
+              setPendingCloseVaultId(null)
+              onClose()
+            }}
+            className="settings-unsaved-confirmation"
+          />
+        ) : ((activeTab === 'general' || activeTab === 'integrations' || configDirty) && vaultOpen && nativeReady && configReady ? (
           <div className="settings-footer-actions">
-            {status ? <span className="settings-status" role="status">{status}</span> : null}
-            <button type="button" className="primary-button" onClick={() => void saveConfig()}>
-              Save vault config
+            {configDirty || status ? (
+              <span className="settings-status" role="status">
+                {configDirty ? t('settings.unsavedConfig') : status}
+              </span>
+            ) : null}
+            <button type="button" className="primary-button" onClick={() => void saveConfig()} disabled={!configDirty}>
+              {t('settingsPanel.saveVaultConfig')}
             </button>
           </div>
-        ) : null
+        ) : null)
       }
     >
       <div
@@ -317,18 +319,18 @@ function SettingsPanelImpl({
         style={activeTab !== 'general' ? { display: 'none' } : undefined}
       >
         <p className="settings-persistence-note" role="note">
-            App preferences save immediately. Vault configuration is read from <code>.scriptor/config.json</code> and only writes when you choose Save.
+            {t('settingsPanel.persistence')}
           </p>
 
           {vaultOpen && nativeReady ? (
             visibleConfigLoadError ? (
               <section className="settings-section" aria-labelledby="vault-config-error-heading">
-                <h3 id="vault-config-error-heading">Vault configuration unavailable</h3>
+                <h3 id="vault-config-error-heading">{t('settingsPanel.configUnavailable')}</h3>
                 <p className="settings-status warn" role="alert">
-                  {visibleConfigLoadError}. Scriptor did not replace or overwrite the existing configuration.
+                  {t('settingsPanel.configNotOverwritten', { error: visibleConfigLoadError })}
                 </p>
                 <button type="button" className="toolbar-button" onClick={retryConfigLoad}>
-                  Retry loading configuration
+                  {t('settingsPanel.retryConfig')}
                 </button>
               </section>
             ) : configReady ? (
@@ -340,29 +342,16 @@ function SettingsPanelImpl({
                 onSave={saveConfig}
               />
             ) : (
-              <p className="empty-state" role="status">Loading vault configuration…</p>
+              <p className="empty-state" role="status">{t('settingsPanel.loadingConfig')}</p>
             )
           ) : null}
 
           {vaultOpen && nativeReady ? <VaultBackupSettings backup={backup} /> : null}
 
-          <AiProviderSettings
-            provider={aiProvider}
-            endpoint={aiEndpoint}
-            hasApiKey={aiHasApiKey}
-            busy={aiBusy}
-            lastError={aiLastError}
-            httpWarning={aiHttpWarning}
-            onProviderChange={onAiProviderChange}
-            onEndpointChange={onAiEndpointChange}
-            onSaveApiKey={onAiSaveApiKey}
-            onClearApiKey={onAiClearApiKey}
-          />
-
           <div className="settings-section">
-            <h3>Spellcheck &amp; grammar</h3>
+            <h3>{t('settingsPanel.spellcheckGrammar')}</h3>
             <label className="settings-field">
-              Spellcheck locale
+              {t('settingsPanel.spellcheckLocale')}
               <select
                 value={selectedSpellcheckLocale}
                 onChange={(event) => onSpellcheckLocaleChange?.(event.target.value)}
@@ -373,10 +362,10 @@ function SettingsPanelImpl({
               </select>
             </label>
             <p className="health-subtitle">
-              Hunspell dictionaries load on demand. English (US) is the default.
+              {t('settingsPanel.spellcheckHelp')}
             </p>
             <label className="settings-field">
-              LanguageTool endpoint
+              {t('settingsPanel.languageToolEndpoint')}
               <input
                 value={languageToolEndpoint}
                 placeholder="http://localhost:8010/v2/check"
@@ -384,7 +373,7 @@ function SettingsPanelImpl({
               />
             </label>
             <p className="health-subtitle">
-              Localhost is the privacy-first default. The desktop app also supports <code>https://api.languagetool.org/v2/check</code>; using it sends text to a third party.
+              {t('settingsPanel.languageToolHelp')}
             </p>
           </div>
 
@@ -401,13 +390,67 @@ function SettingsPanelImpl({
             <p className="health-subtitle">{t('settingsSection.additionalLocales')}</p>
           </div>
 
+          {onReplayOnboarding ? (
+            <div className="settings-section">
+              <h3>{t('settingsPanel.productTour')}</h3>
+              <p className="health-subtitle">{t('settingsPanel.productTourHelp')}</p>
+              <button type="button" className="toolbar-button" onClick={onReplayOnboarding}>
+                {t('appearanceSettings.replayTour')}
+              </button>
+            </div>
+          ) : null}
+
           <div className="settings-section">
-            <h3>Support</h3>
-            <p className="health-subtitle">Star the project, report issues, or contact the maintainer.</p>
+            <h3>{t('settingsPanel.support')}</h3>
+            <p className="health-subtitle">{t('settingsPanel.supportHelp')}</p>
             {onOpenSupport ? (
-              <button type="button" className="toolbar-button" onClick={onOpenSupport}>Open support panel</button>
+              <button type="button" className="toolbar-button" onClick={onOpenSupport}>{t('settingsPanel.openSupport')}</button>
             ) : null}
           </div>
+      </div>
+
+      <div
+        className="settings-tab-pane"
+        hidden={activeTab !== 'appearance'}
+        style={activeTab !== 'appearance' ? { display: 'none' } : undefined}
+      >
+        {workspaceChrome && onPatchWorkspaceChrome ? (
+          <AppearanceSettingsSection
+            workspaceChrome={workspaceChrome}
+            onPatchWorkspaceChrome={onPatchWorkspaceChrome}
+            theme={theme}
+            appearance={appearance}
+            onThemeChange={onThemeChange}
+            onAppearanceChange={onAppearanceChange}
+            onManagePalettes={onManagePalettes}
+          />
+        ) : null}
+      </div>
+
+      <div
+        className="settings-tab-pane"
+        hidden={activeTab !== 'integrations'}
+        style={activeTab !== 'integrations' ? { display: 'none' } : undefined}
+      >
+        {vaultOpen && nativeReady && configReady ? (
+          <GoogleIntegrationSettingsSection config={config} setConfig={setConfig} vaultId={vaultId!} />
+        ) : vaultOpen && nativeReady ? (
+          <p className="empty-state" role="status">{t('settingsPanel.integrationsNeedConfig')}</p>
+        ) : (
+          <p className="empty-state">{t('settingsPanel.integrationsNeedVault')}</p>
+        )}
+        <AiProviderSettings
+          provider={aiProvider}
+          endpoint={aiEndpoint}
+          hasApiKey={aiHasApiKey}
+          busy={aiBusy}
+          lastError={aiLastError}
+          httpWarning={aiHttpWarning}
+          onProviderChange={onAiProviderChange}
+          onEndpointChange={onAiEndpointChange}
+          onSaveApiKey={onAiSaveApiKey}
+          onClearApiKey={onAiClearApiKey}
+        />
       </div>
 
       <div
@@ -416,21 +459,21 @@ function SettingsPanelImpl({
         style={activeTab !== 'workspace' ? { display: 'none' } : undefined}
       >
           <div className="settings-section">
-            <h3>Workspace layout</h3>
+            <h3>{t('settingsPanel.workspaceLayout')}</h3>
             <label className="settings-field">
-              Panel presentation
+              {t('settingsPanel.panelPresentation')}
               <select
                 value={panelPresentation}
                 onChange={(event) => onPanelPresentationChange?.(event.target.value as PanelPresentation)}
               >
-                <option value="modal">Centered modal</option>
-                <option value="dock-right">Docked side sheet</option>
+                <option value="modal">{t('settingsPanel.modal')}</option>
+                <option value="dock-right">{t('settingsPanel.dockRight')}</option>
               </select>
             </label>
             {workspaceLayouts && onSaveWorkspaceLayout && onResetWorkspaceLayout ? (
               <>
                 <p className="health-subtitle">
-                  Saved layout for <strong>{workspaceMode}</strong> mode. Switch modes in the top bar to configure each layout.
+                  {t('settingsPanel.savedLayout', { mode: workspaceMode })}
                 </p>
                 <label className="diagnostics-opt-in">
                   <input
@@ -443,7 +486,7 @@ function SettingsPanelImpl({
                       })
                     }
                   />
-                  <span>Split preview</span>
+                  <span>{t('settingsPanel.splitPreview')}</span>
                 </label>
                 <label className="diagnostics-opt-in">
                   <input
@@ -456,10 +499,10 @@ function SettingsPanelImpl({
                       })
                     }
                   />
-                  <span>Show sticky notes layer</span>
+                  <span>{t('settingsPanel.showStickies')}</span>
                 </label>
                 <label className="settings-field">
-                  Graph depth
+                  {t('settingsPanel.graphDepth')}
                   <input
                     type="number"
                     min={1}
@@ -474,7 +517,7 @@ function SettingsPanelImpl({
                   />
                 </label>
                 <button type="button" className="toolbar-button" onClick={() => onResetWorkspaceLayout(workspaceMode)}>
-                  Reset {workspaceMode} layout
+                  {t('settingsPanel.resetLayout', { mode: workspaceMode })}
                 </button>
                 <LayoutPresetGallery
                   current={workspaceLayouts[workspaceMode]}
@@ -485,15 +528,12 @@ function SettingsPanelImpl({
           </div>
 
           {workspaceChrome && onPatchWorkspaceChrome ? (
-            <AppearanceSettingsSection
+            <WorkspaceChromeSettingsSection
               workspaceChrome={workspaceChrome}
               onPatchWorkspaceChrome={onPatchWorkspaceChrome}
-              onResetWorkspaceChrome={onResetWorkspaceChrome}
-              theme={theme}
-              onThemeChange={onThemeChange}
-              onReplayOnboarding={onReplayOnboarding}
             />
           ) : null}
+
       </div>
 
       <div
@@ -509,132 +549,26 @@ function SettingsPanelImpl({
         hidden={activeTab !== 'advanced'}
         style={activeTab !== 'advanced' ? { display: 'none' } : undefined}
       >
-          <div className="settings-section">
-            <h3>Desktop engine</h3>
-            <p className="health-subtitle">
-              Advanced runtime details for local integrations and export tooling. Most users do not need to change these settings.
-            </p>
-            <p className={nativeReady ? 'settings-status ok' : 'settings-status warn'}>
-              {nativeReady ? 'Desktop integration ready' : 'Browser preview — desktop-only vault commands are unavailable'}
-            </p>
-            {nativeReady ? (
-              <>
-                <dl className="settings-grid">
-                  <div>
-                    <dt>Pandoc</dt>
-                    <dd>{pandoc ? pandoc.version : pandocError ? 'Not found' : 'Checking…'}</dd>
-                  </div>
-                  <div>
-                    <dt>Executable</dt>
-                    <dd className="settings-path">{pandoc?.path ?? '—'}</dd>
-                  </div>
-                </dl>
-                {pandocError ? (
-                  <p className="settings-status warn">
-                    {pandocError}. Install Pandoc or set <code>SCRIPTOR_PANDOC_PATH</code>. Windows:{' '}
-                    <code>winget install JohnMacFarlane.Pandoc</code> · macOS: <code>brew install pandoc</code>
-                  </p>
-                ) : null}
-                <button type="button" className="toolbar-button" onClick={() => void refreshPandoc()}>
-                  Refresh Pandoc discovery
-                </button>
-                <h4 className="settings-subheading">Background desktop engine</h4>
-                <label className="diagnostics-opt-in">
-                  <input
-                    type="checkbox"
-                    checked={headlessEngine}
-                    onChange={(event) => onHeadlessEngineChange(event.target.checked)}
-                  />
-                  <span>Use the background engine for supported vault operations</span>
-                </label>
-                <p className="health-subtitle">
-                  This can move indexing, search, graph, Git status and export work out of the main app process.
-                </p>
-                {headlessEngine ? (
-                  <>
-                    <p className={daemonVersion ? 'settings-status ok' : 'settings-status warn'} role="status">
-                      {daemonVersion
-                        ? `Background engine connected — version ${daemonVersion}`
-                        : daemonError
-                          ? `Background engine offline — ${daemonError}`
-                          : 'Background engine status unknown'}
-                    </p>
-                    <div className="settings-actions">
-                      <button type="button" className="toolbar-button" onClick={onRefreshDaemon}>Refresh status</button>
-                      <button type="button" className="toolbar-button" onClick={onStartDaemon}>Start engine</button>
-                    </div>
-                    <DaemonOpsPanel
-                      activePath={activePath}
-                      daemonVersion={daemonVersion}
-                      daemonError={daemonError}
-                      onRefresh={onRefreshDaemon}
-                      onStart={onStartDaemon}
-                    />
-                  </>
-                ) : null}
-              </>
-            ) : null}
-          </div>
+        <AdvancedSettingsSection
+          active={activeTab === 'advanced'}
+          vaultOpen={vaultOpen}
+          nativeReady={nativeReady}
+          systemInfo={systemInfo}
+          diagnosticsOptIn={diagnosticsOptIn}
+          onDiagnosticsOptInChange={onDiagnosticsOptInChange}
+          headlessEngine={headlessEngine}
+          onHeadlessEngineChange={onHeadlessEngineChange}
+          daemonVersion={daemonVersion}
+          daemonError={daemonError}
+          onRefreshDaemon={onRefreshDaemon}
+          onStartDaemon={onStartDaemon}
+          activePath={activePath}
+          journey={journey}
+          timeToFirstEditMs={timeToFirstEditMs}
+          timeToFirstExportMs={timeToFirstExportMs}
+          onResetJourney={onResetJourney}
+        />
 
-          <div className="settings-section">
-            <h3>Updates</h3>
-            <p className="health-subtitle">
-              Updates are distributed as signed, checksum-published release artifacts. Built-in updating remains disabled until an authenticated delivery channel is configured.
-            </p>
-          </div>
-
-          {journey && onResetJourney ? (
-            <div className="settings-section">
-              <ReleaseQualityPanel
-                journey={journey}
-                timeToFirstEditMs={timeToFirstEditMs}
-                timeToFirstExportMs={timeToFirstExportMs}
-                onResetJourney={onResetJourney}
-              />
-            </div>
-          ) : null}
-
-          <div className="settings-section">
-            <h3>Diagnostics</h3>
-            <label className="diagnostics-opt-in">
-              <input
-                type="checkbox"
-                checked={diagnosticsOptIn}
-                onChange={(event) => onDiagnosticsOptInChange(event.target.checked)}
-              />
-              <span>Store local client diagnostics in <code>.scriptor/diagnostics/client.jsonl</code></span>
-            </label>
-            <button
-              type="button"
-              className="toolbar-button"
-              disabled={!vaultOpen || !nativeReady}
-              onClick={() => {
-                setSupportBundleStatus('Creating support bundle…')
-                void diagnosticsExportSupportBundle()
-                  .then((path) => setSupportBundleStatus(`Support bundle created: ${path}`))
-                  .catch((error) =>
-                    setSupportBundleStatus(`Support bundle failed: ${error instanceof Error ? error.message : String(error)}`),
-                  )
-              }}
-            >
-              Export redacted support bundle
-            </button>
-            {supportBundleStatus ? <p className="health-subtitle">{supportBundleStatus}</p> : null}
-          </div>
-
-          <div className="settings-section">
-            <h3>System information</h3>
-            {systemInfo ? (
-              <dl className="settings-grid">
-                <div><dt>OS</dt><dd>{systemInfo.os}</dd></div>
-                <div><dt>Architecture</dt><dd>{systemInfo.arch}</dd></div>
-                <div><dt>Family</dt><dd>{systemInfo.family}</dd></div>
-                <div><dt>Locale</dt><dd>{systemInfo.locale ?? 'unknown'}</dd></div>
-              </dl>
-            ) : (
-              <p className="empty-state">System metadata is available in the desktop shell.</p>
-            )}
-          </div>
       </div>
     </UnifiedPanelShell>
   )

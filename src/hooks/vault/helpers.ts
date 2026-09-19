@@ -6,10 +6,35 @@ export interface OutlineHeading {
   line: number
 }
 
+const WINDOWS_RESERVED_BASENAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\..*)?$/i
+const PORTABLE_STEM_MAX_BYTES = 180
+
+function truncateUtf8(value: string, maxBytes: number): string {
+  const encoder = new TextEncoder()
+  let bytes = 0
+  let output = ''
+  for (const character of value) {
+    const characterBytes = encoder.encode(character).byteLength
+    if (bytes + characterBytes > maxBytes) break
+    output += character
+    bytes += characterBytes
+  }
+  return output
+}
+
 export function defaultNotePath(title: string): string {
-  const stem = title.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/\.md$/i, '')
-  const safe = stem.length > 0 ? stem : 'Untitled'
-  return `${safe}.md`
+  let stem = title
+    .trim()
+    .replace(/\.md$/i, '')
+    .replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, '-')
+    .replace(/[. ]+$/g, '')
+    .trim()
+
+  if (!stem || stem === '.' || stem === '..') stem = 'Untitled'
+  if (WINDOWS_RESERVED_BASENAME.test(stem)) stem = `_${stem}`
+
+  stem = truncateUtf8(stem, PORTABLE_STEM_MAX_BYTES).replace(/[. ]+$/g, '')
+  return `${stem || 'Untitled'}.md`
 }
 
 export const DEFAULT_VAULT_CONFIG_SNIPPET = {

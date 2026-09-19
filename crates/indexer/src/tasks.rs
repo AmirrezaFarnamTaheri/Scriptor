@@ -419,13 +419,36 @@ pub fn sync_note_tasks(
     tasks: &[ParsedTask],
     now: &str,
 ) -> Result<(), IndexerError> {
-    // All existing task ids for this note (used for cleanup at the end).
-    let mut existing_ids: BTreeSet<String> = {
-        let mut stmt =
-            conn.prepare("SELECT id FROM tasks WHERE vault_id = ?1 AND source_note_id = ?2")?;
-        stmt.query_map(params![vault_id, note_id], |row| row.get(0))?
-            .collect::<Result<BTreeSet<_>, _>>()?
+    // Existing rows are also an identity bridge. Semantic identity survives
+    // unrelated line movement; line identity lets an in-place title edit retain
+    // the same task id instead of creating a new external-sync identity.
+    let existing_rows: Vec<(String, i64, String)> = {
+        let mut stmt = conn.prepare(
+            "SELECT id, line, title FROM tasks
+             WHERE vault_id = ?1 AND source_note_id = ?2
+             ORDER BY line, id",
+        )?;
+        stmt.query_map(params![vault_id, note_id], |row| {
+            Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?
     };
+    let mut existing_ids: BTreeSet<String> =
+        existing_rows.iter().map(|(id, _, _)| id.clone()).collect();
+    let existing_by_line: BTreeMap<i64, String> = existing_rows
+        .iter()
+        .map(|(id, line, _)| (*line, id.clone()))
+        .collect();
+    let mut existing_identity_occurrences: BTreeMap<String, usize> = BTreeMap::new();
+    let mut existing_by_identity: BTreeMap<(String, usize), String> = BTreeMap::new();
+    for (id, _, title) in &existing_rows {
+        let identity = task_identity_key(title);
+        let occurrence = existing_identity_occurrences
+            .entry(identity.clone())
+            .or_default();
+        existing_by_identity.insert((identity, *occurrence), id.clone());
+        *occurrence += 1;
+    }
 
     // Mirrored from the parent row: the path is the navigation key the UI and
     // the DQL projector use, and it stays correct when a note is renamed
@@ -448,7 +471,18 @@ pub fn sync_note_tasks(
         // indistinguishable duplicates is intentionally treated as an identity change.
         let identity = task_identity_key(&task.title);
         let occurrence = identity_occurrences.entry(identity.clone()).or_default();
-        let id = stable_task_id(vault_id, note_id, &identity, *occurrence);
+        let semantic_key = (identity.clone(), *occurrence);
+        let id = existing_by_identity
+            .get(&semantic_key)
+            .filter(|candidate| existing_ids.contains(*candidate))
+            .cloned()
+            .or_else(|| {
+                existing_by_line
+                    .get(&(task.line as i64))
+                    .filter(|candidate| existing_ids.contains(*candidate))
+                    .cloned()
+            })
+            .unwrap_or_else(|| stable_task_id(vault_id, note_id, &identity, *occurrence));
         *occurrence += 1;
         seen_ids.insert(id.clone());
         existing_ids.remove(&id);
@@ -526,7 +560,9 @@ fn stable_task_id(
     title_identity: &str,
     occurrence: usize,
 ) -> String {
-    let ns = uuid::Uuid::parse_str("6ba7b810-9dad-11d1-80b4-00c04fd430c8").unwrap();
+    // UUID namespace for stable task IDs, encoded directly so this hot path
+    // cannot panic on parsing a programmer-authored constant.
+    let ns = Uuid::from_u128(0x6ba7b810_9dad_11d1_80b4_00c04fd430c8);
     let key = format!("{vault_id}:{note_id}:{title_identity}:{occurrence}");
     Uuid::new_v5(&ns, key.as_bytes()).to_string()
 }
@@ -1371,6 +1407,58 @@ mod tests {
             by_path.is_err(),
             "a vault-relative path must not satisfy the notes(id) foreign key"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn task_identity_survives_in_place_title_edit() -> Result<(), IndexerError> {
+        use crate::notes::upsert_note_on;
+        use crate::open_cache_for_session;
+        use scriptor_vault::{RelativeVaultPath, metadata_from_markdown, open_vault};
+        use tempfile::tempdir;
+
+        let dir = tempdir().expect("temp dir");
+        let session = open_vault(dir.path()).expect("open vault");
+        let cache = open_cache_for_session(&session)?;
+        let relative = RelativeVaultPath::parse("notes/tasks.md")?;
+        let original = "- [ ] Draft launch plan\n";
+        let metadata = metadata_from_markdown(
+            &session.descriptor.id,
+            &relative,
+            original,
+            "2026-08-01T00:00:00Z".to_string(),
+        );
+
+        {
+            let mut conn = cache.connection()?;
+            let tx = conn.transaction()?;
+            upsert_note_on(&tx, &metadata, original)?;
+            sync_note_tasks(
+                &tx,
+                &session.descriptor.id,
+                &metadata.id,
+                &parse_tasks_from_markdown(original),
+                "2026-08-01T01:00:00Z",
+            )?;
+            tx.commit()?;
+        }
+        let first = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        let original_id = first[0].id.clone();
+
+        {
+            let conn = cache.connection()?;
+            sync_note_tasks(
+                &conn,
+                &session.descriptor.id,
+                &metadata.id,
+                &parse_tasks_from_markdown("- [ ] Draft release plan\n"),
+                "2026-08-02T01:00:00Z",
+            )?;
+        }
+        let second = query_tasks(&cache, &session.descriptor.id, &TaskFilter::default(), 20)?;
+        assert_eq!(second.len(), 1);
+        assert_eq!(second[0].id, original_id);
+        assert_eq!(second[0].title, "Draft release plan");
         Ok(())
     }
 
