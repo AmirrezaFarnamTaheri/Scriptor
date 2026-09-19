@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { sameHelpInvitation, selectHelpInvitation, type HelpInvitationCandidate } from './invitations.ts'
+import { helpInvitationKey, sameHelpInvitation, selectHelpInvitation, type HelpInvitationCandidate } from './invitations.ts'
 
 const citation = { key: 1, id: 'citations', eligible: true, offered: false, primary: false }
 const graph = { key: 2, id: 'graph', eligible: true, offered: false, primary: true }
@@ -38,4 +38,12 @@ test('selection is stable and does not mutate the candidate list', () => {
   const first = selectHelpInvitation(candidates, null)
   assert.deepEqual(selectHelpInvitation(candidates, null), first)
   assert.deepEqual(candidates.map(({ id }) => id), ['citations', 'graph'])
+})
+
+test('reusing a panel element for another topic keeps first-use identities separate', () => {
+  const first = helpInvitationKey(graph)
+  const second = helpInvitationKey({ ...graph, id: 'canvas' })
+  assert.notEqual(first, second)
+  assert.equal(new Set([first]).has(second), false)
+  assert.equal(helpInvitationKey({ ...graph }), first)
 })
