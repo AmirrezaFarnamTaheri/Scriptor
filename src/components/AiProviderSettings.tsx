@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import type { AiProviderId } from '../hooks/useAiProvider'
+import { useI18n } from '../lib/i18n'
 
 interface AiProviderSettingsProps {
   provider: AiProviderId
@@ -26,21 +27,22 @@ export const AiProviderSettings = memo(function AiProviderSettings({
   onSaveApiKey,
   onClearApiKey,
 }: AiProviderSettingsProps) {
+  const { t } = useI18n()
   return (
     <section className="settings-section">
-      <h3>AI provider (optional)</h3>
+      <h3>{t('aiSettings.title')}</h3>
       <p className="health-subtitle">
-        Credentials are stored in the OS keychain. Draft proposals still require MCP write-approved approval.
+        {t('aiSettings.description')}
       </p>
       <label className="settings-field">
-        <span>Provider</span>
+        <span>{t('aiSettings.provider')}</span>
         <select value={provider} onChange={(event) => onProviderChange(event.target.value as AiProviderId)}>
-          <option value="off">Off</option>
-          <option value="openai-compatible">OpenAI-compatible HTTP API</option>
+          <option value="off">{t('aiSettings.off')}</option>
+          <option value="openai-compatible">{t('aiSettings.openaiCompatible')}</option>
         </select>
       </label>
       <label className="settings-field">
-        <span>Endpoint</span>
+        <span>{t('aiSettings.endpoint')}</span>
         <input
           type="url"
           value={endpoint}
@@ -49,10 +51,10 @@ export const AiProviderSettings = memo(function AiProviderSettings({
         />
       </label>
       <label className="settings-field">
-        <span>API key</span>
+        <span>{t('aiSettings.apiKey')}</span>
         <input
           type="password"
-          placeholder={hasApiKey ? 'Key stored in keychain' : 'Paste API key'}
+          placeholder={hasApiKey ? t('aiSettings.keyStored') : t('aiSettings.pasteKey')}
           disabled={provider === 'off' || busy}
           onBlur={(event) => {
             const secret = event.target.value.trim()
@@ -65,7 +67,7 @@ export const AiProviderSettings = memo(function AiProviderSettings({
       </label>
       <div className="rename-actions">
         <button type="button" className="toolbar-button" disabled={!hasApiKey || busy} onClick={onClearApiKey}>
-          Clear keychain credential
+          {t('aiSettings.clearCredential')}
         </button>
       </div>
       {lastError ? <p className="preview-error">{lastError}</p> : null}
