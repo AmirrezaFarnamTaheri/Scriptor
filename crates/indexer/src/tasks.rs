@@ -443,7 +443,9 @@ pub fn sync_note_tasks(
     let mut existing_by_identity: BTreeMap<(String, usize), String> = BTreeMap::new();
     for (id, _, title) in &existing_rows {
         let identity = task_identity_key(title);
-        let occurrence = existing_identity_occurrences.entry(identity.clone()).or_default();
+        let occurrence = existing_identity_occurrences
+            .entry(identity.clone())
+            .or_default();
         existing_by_identity.insert((identity, *occurrence), id.clone());
         *occurrence += 1;
     }
