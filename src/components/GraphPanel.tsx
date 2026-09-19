@@ -36,7 +36,7 @@ function validateGraphPresets(value: unknown): GraphPreset[] {
       fullVault: expectBoolean(record, 'fullVault', context),
     }
   })
-  return parsed.length > 0 ? parsed : defaultGraphPresets()
+  return mergeGraphPresets(parsed)
 }
 
 function loadGraphPresets(): GraphPreset[] {
@@ -52,6 +52,17 @@ function defaultGraphPresets(): GraphPreset[] {
   return [
     { id: 'local', label: 'Neighborhood', depth: 2, fullVault: false },
     { id: 'vault', label: 'Full vault', depth: 3, fullVault: true },
+  ]
+}
+
+function mergeGraphPresets(stored: GraphPreset[]): GraphPreset[] {
+  const defaults = defaultGraphPresets()
+  const storedById = new Map(stored.map((preset) => [preset.id, preset]))
+  const builtinIds = new Set(defaults.map((preset) => preset.id))
+
+  return [
+    ...defaults.map((preset) => storedById.get(preset.id) ?? preset),
+    ...stored.filter((preset) => !builtinIds.has(preset.id)),
   ]
 }
 
@@ -127,7 +138,13 @@ export const GraphPanel = memo(function GraphPanel({
     if (!vaultOpen || !vaultId) return
     let cancelled = false
     void loadVaultPresetJson<GraphPreset[]>(VAULT_GRAPH_PRESETS_PATH).then((stored) => {
-      if (!cancelled && stored && stored.length > 0) setPresets(stored)
+      if (!cancelled && stored) {
+        try {
+          setPresets(validateGraphPresets(stored))
+        } catch {
+          setPresets(defaultGraphPresets())
+        }
+      }
     })
     return () => {
       cancelled = true
