@@ -98,6 +98,7 @@ export const PublishCenter = memo(function PublishCenter({
       subtitle={subtitle}
       icon={<FileOutput size={18} />}
       ariaLabel="Export & publish"
+      helpTopic="export"
       onClose={onClose}
       className="publish-center-panel knowledge-filters-panel"
       wide
