@@ -73,7 +73,7 @@ export const GoogleIntegrationSettingsSection = memo(function GoogleIntegrationS
   }
 
   return (
-    <section className="settings-section google-integration-settings" aria-labelledby="google-integration-heading">
+    <section className="settings-section google-integration-settings" aria-labelledby="google-integration-heading" data-help-topic="google">
       <div className="settings-section-heading-with-icon">
         <CalendarDays size={18} aria-hidden="true" />
         <div>
