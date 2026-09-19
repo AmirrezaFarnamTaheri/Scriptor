@@ -38,6 +38,7 @@ export const EditorTabBar = memo(function EditorTabBar({
   return (
     <div
       className="tabs-row"
+      data-help-topic="tabs"
       role={openTabs.length > 0 ? 'tablist' : 'group'}
       aria-label={openTabs.length > 0 ? t('editor.tabBar.openNotes') : t('editor.tabBar.editorTabs')}
     >
