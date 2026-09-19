@@ -19,10 +19,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: docs-localization-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   localization-contract:
     name: Locale and RTL contracts
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout
