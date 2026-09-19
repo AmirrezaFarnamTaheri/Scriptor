@@ -964,7 +964,8 @@
     "editorFontFamily": "Editor font family",
     "editorLineHeight": "Editor line height",
     "editorPadding": "Editor side padding (px)",
-    "previewWidth": "Split/Inspector preview max width (ch)"
+    "previewWidth": "Split/Inspector preview max width (ch)",
+    "managePalettes": "Manage color palettes"
   },
   "settingsPanel": {
     "tabs": {
