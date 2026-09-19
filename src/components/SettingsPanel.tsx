@@ -289,9 +289,9 @@ function SettingsPanelImpl({
       footer={
         discardPromptOpen ? (
           <MutationConfirmation
-            ariaLabel={t('settingsPanel.unsavedConfig')}
-            message={t('settingsPanel.unsavedConfigMessage')}
-            confirmLabel={t('settingsPanel.discardChanges')}
+            ariaLabel={t('settings.unsavedConfig')}
+            message={t('settings.unsavedConfigMessage')}
+            confirmLabel={t('settings.discardChanges')}
             onCancel={() => setPendingCloseVaultId(null)}
             onConfirm={() => {
               setPendingCloseVaultId(null)
@@ -303,7 +303,7 @@ function SettingsPanelImpl({
           <div className="settings-footer-actions">
             {configDirty || status ? (
               <span className="settings-status" role="status">
-                {configDirty ? t('settingsPanel.unsavedConfig') : status}
+                {configDirty ? t('settings.unsavedConfig') : status}
               </span>
             ) : null}
             <button type="button" className="primary-button" onClick={() => void saveConfig()} disabled={!configDirty}>
