@@ -7,9 +7,19 @@ import { I18nProvider } from './lib/i18n/I18nProvider.tsx'
 import { PluginStateProvider } from './context/PluginStateContext.tsx'
 import { applyThemeToElement, nativeAppearanceForTheme, resolveAppearance, validateStoredTheme, type AppearanceMode } from './hooks/useAppTheme.ts'
 
+function safeInitialStorageGet(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key)
+  } catch {
+    // Browsers/webviews can deny storage (privacy policy, sandboxing, corrupt
+    // profiles). Theme bootstrap is cosmetic and must never prevent app mount.
+    return null
+  }
+}
+
 function applyInitialTheme() {
-  const rawTheme = window.localStorage.getItem('scriptor:app-theme')
-  const rawAppearance = window.localStorage.getItem('scriptor:appearance-mode')
+  const rawTheme = safeInitialStorageGet('scriptor:app-theme')
+  const rawAppearance = safeInitialStorageGet('scriptor:appearance-mode')
   const storedPalette = validateStoredTheme(rawTheme)
   const palette = storedPalette ?? 'dark'
   const appearance: AppearanceMode =
