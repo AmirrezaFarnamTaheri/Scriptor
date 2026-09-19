@@ -107,6 +107,7 @@ interface SettingsPanelProps {
   appearance?: AppearanceMode
   onThemeChange?: (theme: AppTheme) => void
   onAppearanceChange?: (appearance: AppearanceMode) => void
+  onManagePalettes?: () => void
   onReplayOnboarding?: () => void
   spellcheckLocale?: string
   onSpellcheckLocaleChange?: (locale: string) => void
@@ -169,6 +170,7 @@ function SettingsPanelImpl({
   appearance = 'system',
   onThemeChange,
   onAppearanceChange,
+  onManagePalettes,
   onReplayOnboarding,
   spellcheckLocale = 'en-US',
   onSpellcheckLocaleChange,
@@ -392,6 +394,7 @@ function SettingsPanelImpl({
             appearance={appearance}
             onThemeChange={onThemeChange}
             onAppearanceChange={onAppearanceChange}
+            onManagePalettes={onManagePalettes}
           />
         ) : null}
       </div>
