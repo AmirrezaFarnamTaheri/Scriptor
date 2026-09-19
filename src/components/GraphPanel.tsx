@@ -366,7 +366,13 @@ export const GraphPanel = memo(function GraphPanel({
               }}
             >
               {presets.map((preset) => (
-                <option key={preset.id} value={preset.id}>{preset.label}</option>
+                <option key={preset.id} value={preset.id}>
+                  {preset.id === 'local'
+                    ? t('graph.neighborhood', { depth: preset.depth })
+                    : preset.id === 'vault'
+                      ? t('graph.fullVault')
+                      : preset.label}
+                </option>
               ))}
               {!presets.some((preset) => preset.depth === depth && preset.fullVault === fullVault) ? (
                 <option value="custom">{t('graph.custom')}</option>

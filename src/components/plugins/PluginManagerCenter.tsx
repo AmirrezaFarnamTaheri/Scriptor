@@ -190,7 +190,7 @@ export function PluginManagerCenter({
           </div>
           {onOpenPluginMarketplace ? (
             <button type="button" className="toolbar-button plugin-marketplace-link" onClick={onOpenPluginMarketplace}>
-              Open runtime plugin marketplace
+              {t('pluginManager.marketplace')}
             </button>
           ) : null}
           {persistenceError ? <p className="error-state" role="alert">{persistenceError}</p> : null}
