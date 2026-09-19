@@ -89,14 +89,14 @@ export async function vaultDeleteNote(
   })
 }
 
-export async function vaultLoadConfig(): Promise<VaultConfig> {
+export async function vaultLoadConfig(expectedVaultId?: string | null): Promise<VaultConfig> {
   requireNative()
-  return invoke<VaultConfig>('vault_load_config')
+  return invoke<VaultConfig>('vault_load_config', { expectedVaultId: expectedVaultId ?? null })
 }
 
-export async function vaultSaveConfig(config: VaultConfig): Promise<void> {
+export async function vaultSaveConfig(config: VaultConfig, expectedVaultId?: string | null): Promise<void> {
   requireNative()
-  await invoke('vault_save_config_cmd', { config })
+  await invoke('vault_save_config_cmd', { config, expectedVaultId: expectedVaultId ?? null })
 }
 
 export async function vaultPlanDailyNote(date?: string): Promise<DailyNotePlan> {
