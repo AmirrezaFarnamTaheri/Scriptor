@@ -129,8 +129,21 @@ export function ThemeCustomizerModal({
   }
 
   const handleSave = () => {
+    const normalizedName = name.trim()
+    if (!normalizedName) {
+      setSaveError('Theme name cannot be empty.')
+      return
+    }
+    if (normalizedName.length > 80) {
+      setSaveError('Theme name must be 80 characters or fewer.')
+      return
+    }
     if (invalidColorKeys.length > 0) {
       setSaveError(`Invalid CSS color: ${invalidColorKeys.join(', ')}`)
+      return
+    }
+    if (contrastChecks.length < 2) {
+      setSaveError('Use six-digit hex colors for text, background, and surface so contrast can be verified before saving.')
       return
     }
     if (failingContrastChecks.length > 0) {
@@ -143,7 +156,7 @@ export function ThemeCustomizerModal({
     const targetId = editingId ?? `custom-${Date.now()}`
     const newTheme: CustomColorPalette = {
       id: targetId,
-      name: name.trim() || 'Custom Theme',
+      name: normalizedName,
       category,
       colors,
     }
@@ -282,6 +295,7 @@ export function ThemeCustomizerModal({
                 id="theme-name-input"
                 type="text"
                 value={name}
+                maxLength={80}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Neon Emerald Night"
               />
