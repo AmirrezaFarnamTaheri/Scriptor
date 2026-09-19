@@ -12,7 +12,7 @@ export function useResizablePanel(
   storageKey: string,
   onCollapse?: (collapsed: boolean) => void,
 ) {
-  const [width, setWidth] = usePersistedNumber(storageKey, defaultWidth)
+  const [width, setWidth] = usePersistedNumber(storageKey, defaultWidth, minWidth, maxWidth)
   const [dragging, setDragging] = useState(false)
   const draggingRef = useRef(false)
 
