@@ -13,7 +13,7 @@ const HEADER_SELECTORS = [
 
 function findHost(root: HTMLElement): HTMLElement | null {
   if (root.matches('header.topbar')) return root.querySelector('.top-actions')
-  if (root.matches('.editor-toolbar')) return root
+  if (root.matches('.editor-toolbar')) return root.querySelector<HTMLElement>('.inline-editor-assist, .editor-primary-formatting') ?? root
   if (root.matches('.editor-panel')) return null // The toolbar has its own, more precise owner.
   if (root.matches('.inspector-panel')) return root.querySelector('.inspector-preset-control')
   for (const selector of HEADER_SELECTORS) {
