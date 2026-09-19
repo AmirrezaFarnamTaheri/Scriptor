@@ -81,6 +81,18 @@ export function PluginStateProvider({ children, initialEnabledPluginIds }: Plugi
       await persistenceQueueRef.current.enqueue(() => savePluginState(next, id))
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Could not save plugin state.'
+      // Optimistic UI must not claim a capability is enabled/disabled when the
+      // vault-backed state rejected that transition. Preserve any unrelated
+      // toggles that happened while persistence was in flight.
+      const latest = enabledPluginIdsRef.current
+      if (latest.has(id) === enabled) {
+        const rollback = new Set(latest)
+        if (enabled) rollback.delete(id)
+        else rollback.add(id)
+        enabledPluginIdsRef.current = rollback
+        localChangeVersionRef.current += 1
+        setEnabledPluginIds(rollback)
+      }
       setPersistenceError(message)
       throw error
     }
