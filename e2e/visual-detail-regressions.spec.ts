@@ -68,3 +68,32 @@ test('appearance and workspace tabs keep separate ownership', async ({ page }) =
   await expect(settings.getByRole('heading', { name: 'Workspace chrome', exact: true })).toBeVisible()
   await expect(settings.getByRole('checkbox', { name: 'Show top navigation header' })).toBeVisible()
 })
+
+
+test('appearance and workspace resets do not cross ownership boundaries', async ({ page }) => {
+  await launchApp(page)
+  await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+  const settings = page.getByRole('dialog', { name: 'Settings' })
+
+  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  const showTopBar = settings.getByRole('checkbox', { name: 'Show top navigation header' })
+  await showTopBar.uncheck()
+
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+  const density = settings.getByRole('combobox', { name: 'UI layout density', exact: true })
+  await density.selectOption('spacious')
+  await settings.getByRole('button', { name: 'Reset appearance defaults', exact: true }).click()
+  await expect(density).toHaveValue('comfortable')
+
+  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await expect(showTopBar).not.toBeChecked()
+
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+  await density.selectOption('spacious')
+  await settings.getByRole('tab', { name: 'Workspace', exact: true }).click()
+  await settings.getByRole('button', { name: 'Reset workspace chrome', exact: true }).click()
+  await expect(showTopBar).toBeChecked()
+
+  await settings.getByRole('tab', { name: 'Appearance', exact: true }).click()
+  await expect(density).toHaveValue('spacious')
+})
