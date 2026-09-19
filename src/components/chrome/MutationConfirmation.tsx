@@ -42,6 +42,7 @@ export function MutationConfirmation({
     <div
       className={`mutation-confirmation${className ? ` ${className}` : ''}`}
       role="group"
+      data-help-topic="permissions"
       aria-label={ariaLabel}
     >
       <p>{message}</p>
