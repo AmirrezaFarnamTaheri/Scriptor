@@ -351,6 +351,7 @@ ${message.plainText || message.snippet}
                     }}
                     placeholder={t('integrations.gmail.searchPlaceholder')}
                     aria-label={t('integrations.gmail.searchAria')}
+                    disabled={!nativeReady || checkingAuth || !isAuthed}
                   />
                   <Search size={16} aria-hidden="true" />
                 </div>
@@ -358,7 +359,7 @@ ${message.plainText || message.snippet}
                   type="button"
                   className="toolbar-button"
                   onClick={() => void handleRefreshMessages()}
-                  disabled={refreshing}
+                  disabled={refreshing || !nativeReady || checkingAuth || !isAuthed}
                   title={t('integrations.gmail.refresh')}
                   aria-label={t('integrations.gmail.refresh')}
                 >

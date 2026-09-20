@@ -974,6 +974,8 @@ test.describe('visual review states', () => {
     const gmail = page.locator('.gmail-manager-panel')
     await expect(gmail).toBeVisible()
     await expect(gmail).toContainText('Gmail is not connected')
+    await expect(gmail.getByRole('searchbox')).toBeDisabled()
+    await expect(gmail.getByRole('button', { name: 'Refresh messages' })).toBeDisabled()
     await captureElement(page, gmail, 'visual-gmail-disconnected.png')
   })
 
