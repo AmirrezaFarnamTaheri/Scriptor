@@ -299,25 +299,26 @@ test.describe('visual review states', () => {
     await workbench.screenshot({ path: test.info().outputPath('visual-knowledge-triage-populated.png') })
   })
 
-  test('contextual Help invitation opens the owning feature guide', async ({ page }) => {
+  test('Help stays centralized while F1 remains contextual', async ({ page }) => {
     await openVisualWorkspace(page)
+    await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+    await expect(page.locator('header.topbar').getByRole('button', { name: 'Help & guides', exact: true })).toBeVisible()
+    await captureVisual(page, 'visual-help-restraint.png')
+
     await openCommandPalette(page)
     await runCommand(page, 'Open MCP panel')
-
-    const mcp = page.locator('.mcp-panel')
+    const mcp = page.getByRole('dialog', { name: 'MCP automation', exact: true })
     await expect(mcp).toBeVisible()
-    const invitation = mcp.getByRole('button', { name: 'New here? Guide', exact: true })
-    await expect(invitation).toBeVisible({ timeout: 10_000 })
-    await mcp.screenshot({ path: test.info().outputPath('visual-help-first-use-mcp.png') })
+    await expect(mcp.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+    await mcp.getByRole('tab', { name: 'Audit', exact: true }).focus()
+    await page.keyboard.press('F1')
 
-    await invitation.click()
     const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
     await expect(help).toBeVisible()
-    await expect(help).toContainText('MCP')
+    await expect(help.getByRole('heading', { name: 'MCP automation modes and tools', exact: true })).toBeVisible()
     await settleLayout(page)
     await help.screenshot({ path: test.info().outputPath('visual-help-mcp-guide.png') })
   })
-
 
   test('Persian RTL workspace evidence', async ({ page }) => {
     await page.setViewportSize({ width: 1240, height: 900 })
