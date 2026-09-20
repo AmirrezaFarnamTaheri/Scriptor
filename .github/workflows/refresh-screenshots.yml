@@ -8,6 +8,12 @@ on:
         type: boolean
         default: true
 
+  push:
+    branches:
+      - agent/comprehensive-product-remediation
+    paths:
+      - '.github/refresh-screenshots-trigger'
+
 permissions:
   contents: read
 
