@@ -335,6 +335,9 @@ test.describe('visual review states', () => {
     const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
     await expect(help).toBeVisible()
     await expect(help.getByRole('heading', { name: 'MCP automation modes and tools', exact: true })).toBeVisible()
+    await expect(help.locator('.help-center-body')).toHaveCSS('display', 'grid')
+    await expect(help.locator('.help-browser')).toHaveCSS('overflow-y', 'auto')
+    await expect.poll(() => help.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     const idleBrowseCount = await help.locator('.help-browser nav li').count()
     expect(idleBrowseCount).toBeGreaterThan(1)
     expect(idleBrowseCount).toBeLessThanOrEqual(10)
@@ -403,7 +406,11 @@ test.describe('visual review states', () => {
     await expect(nav).toBeVisible()
     await expect(page.locator('.status-strip')).toBeHidden()
     await expect(page.locator('.workspace-mode-select')).toBeVisible()
-    await expect(page.locator('.workspace-mode-strip .workspace-mode')).toBeHidden()
+    const modeButtons = page.locator('.workspace-mode-strip .workspace-mode')
+    await expect(modeButtons).toHaveCount(5)
+    await expect.poll(() => modeButtons.evaluateAll((buttons) =>
+      buttons.every((button) => button.getClientRects().length === 0 || getComputedStyle(button).display === 'none'),
+    )).toBe(true)
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)

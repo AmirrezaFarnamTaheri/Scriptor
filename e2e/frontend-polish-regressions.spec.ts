@@ -190,7 +190,11 @@ test.describe('Frontend polish regressions', () => {
     await expect(nav).toBeVisible()
     await expect(page.locator('.status-strip')).toBeHidden()
     await expect(page.locator('.workspace-mode-select')).toBeVisible()
-    await expect(page.locator('.workspace-mode-strip .workspace-mode')).toBeHidden()
+    const modeButtons = page.locator('.workspace-mode-strip .workspace-mode')
+    await expect(modeButtons).toHaveCount(5)
+    await expect.poll(() => modeButtons.evaluateAll((buttons) =>
+      buttons.every((button) => button.getClientRects().length === 0 || getComputedStyle(button).display === 'none'),
+    )).toBe(true)
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
