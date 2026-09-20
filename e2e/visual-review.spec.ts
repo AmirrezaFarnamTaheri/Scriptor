@@ -272,4 +272,69 @@ test.describe('visual review states', () => {
 
     await captureVisual(page, 'visual-mobile-inspector-390.png')
   })
+
+  test('populated canvas board', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open canvas')
+
+    const canvas = page.getByRole('dialog', { name: 'Canvas board' })
+    await expect(canvas).toBeVisible({ timeout: 15_000 })
+    await canvas.getByRole('button', { name: 'Add first card' }).click()
+    await expect(canvas.locator('.canvas-block')).toHaveCount(1)
+
+    const linkActiveNote = canvas.getByRole('button', { name: 'Link to active note' })
+    await expect(linkActiveNote).toBeEnabled()
+    await linkActiveNote.click()
+    await expect(canvas.locator('.canvas-block')).toHaveCount(2)
+    await expect(canvas.locator('.canvas-header')).toContainText('2 blocks')
+    await settleLayout(page)
+
+    await canvas.screenshot({ path: test.info().outputPath('visual-canvas-populated.png') })
+  })
+
+  test('populated knowledge workbench triage', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:knowledge-repair-notes', '1')
+    })
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open knowledge workbench')
+
+    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench' })
+    await expect(workbench).toBeVisible()
+    const orphanTab = workbench.getByRole('tab', { name: /Orphans \(3\)/ })
+    await orphanTab.click()
+    const rows = workbench.locator('.virtual-knowledge-list > li')
+    await expect(rows).toHaveCount(3)
+    await expect(
+      workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
+    ).toBeVisible()
+
+    await workbench.getByRole('button', { name: /Start triage/ }).click()
+    await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await settleLayout(page)
+
+    await workbench.screenshot({ path: test.info().outputPath('visual-knowledge-triage-populated.png') })
+  })
+
+  test('contextual Help invitation opens the owning feature guide', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open MCP panel')
+
+    const mcp = page.getByRole('dialog', { name: 'MCP automation', exact: true })
+    await expect(mcp).toBeVisible()
+    const invitation = mcp.getByRole('button', { name: 'New here? Guide', exact: true })
+    await expect(invitation).toBeVisible({ timeout: 10_000 })
+    await mcp.screenshot({ path: test.info().outputPath('visual-help-first-use-mcp.png') })
+
+    await invitation.click()
+    const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
+    await expect(help).toBeVisible()
+    await expect(help).toContainText('MCP')
+    await settleLayout(page)
+    await help.screenshot({ path: test.info().outputPath('visual-help-mcp-guide.png') })
+  })
+
 })

@@ -39,7 +39,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mobile-vault.png | 390px mobile vault pane | VISUAL-REVIEW |
 | workspace-rendered.png | Full rendered preview mode with markdown headings | VISUAL-REVIEW |
 | task-list-preview.png | Rendered task list items with interactive checkboxes | VISUAL-REVIEW |
-| workspace-switcher.png | Workspace switcher menu and top bar breadcrumbs | VISUAL-REVIEW |
+| workspace-switcher.png | Recent-vault selector with active vault identity in the top bar | VISUAL-REVIEW |
 
 ### State coverage and evidence boundaries
 
@@ -52,8 +52,12 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | MCP Tools | Read-only mode, selected outline tool, fixture input, and a successful note outline result |
 | MCP Audit | One allowed outline invocation with its read-only mode and timestamp |
 | Settings appearance | Appearance tab with independent palette and day/night controls plus visible font/density controls |
+| Populated Canvas | Two real board blocks (first card plus active-note link) with settled canvas geometry |
+| Knowledge triage | Three populated repair rows with triage active on the first item |
+| Contextual Help | First-use MCP invitation and its owning Help guide are both captured |
+| Workspace selector | Active option and option inventory are asserted; the capture shows the deterministic closed native selector |
 
-These states use the real UI with E2E fixture data. They do not prove an external MCP client connection,
+The populated Canvas, Knowledge triage, and contextual Help states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.\n\nThe workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically while capturing the deterministic closed control.\n\nThese states use the real UI with E2E fixture data. They do not prove an external MCP client connection,
 native authorization, or third-party plugin installation. All bundled catalog manifests are registered
 at startup, so the installed and consent states are captured rather than inventing marketplace listings.
 Appearance controls live in the dedicated **Appearance** tab. Palette identity and day/night appearance are independent settings.

@@ -589,11 +589,20 @@ test('task list rendered items', async ({ page }) => {
   await captureReadyScreenshot(page, shotPath('task-list-preview'))
 })
 
-test('workspace switcher and breadcrumbs', async ({ page }) => {
+test('workspace selector and active vault identity', async ({ page }) => {
   await page.goto('/', { waitUntil: 'networkidle' })
   await waitForFullWorkspace(page)
   const topbar = page.locator('header.topbar')
   await expect(topbar).toBeVisible()
+
+  const switcher = topbar.getByRole('combobox', { name: 'Recent vault', exact: true })
+  await expect(switcher).toBeVisible()
+  await expect(switcher.locator('option:checked')).toHaveText('Research Vault')
+  expect(await switcher.locator('option').count()).toBeGreaterThanOrEqual(2)
+  await switcher.focus()
+  await expect(switcher).toBeFocused()
+  await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
+
   await captureReadyScreenshot(page, shotPath('workspace-switcher'))
 })
 
