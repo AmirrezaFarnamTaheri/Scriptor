@@ -150,6 +150,9 @@ export function installE2eBridge(): void {
     'scriptor.canvas',
     'scriptor.mcp',
   ])
+  if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:enable-gmail-plugin') === '1') {
+    enabledPluginIds.add('scriptor.gmail-manager')
+  }
   let canvasDocumentJson = JSON.stringify({
     id: 'canvas-board-default',
     vaultId: 'screenshot-vault',

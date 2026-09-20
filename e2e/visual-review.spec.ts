@@ -491,4 +491,168 @@ test.describe('visual review states', () => {
     await resolver.screenshot({ path: test.info().outputPath('visual-conflict-resolver-dark.png') })
   })
 
+
+  test('Reader PDF surface evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Research Paper.pdf' }).click()
+    const reader = page.getByRole('dialog', { name: 'Reader', exact: true })
+    await expect(reader).toBeVisible()
+    await expect(reader).toContainText('Research Paper.pdf')
+    const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
+    await expect(frame).toBeVisible()
+    await expect(frame.contentFrame().locator('#text-layer')).toContainText('Scriptor Reader')
+    await reader.screenshot({ path: test.info().outputPath('visual-reader-pdf.png') })
+  })
+
+  test('Tasks panel evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open tasks panel')
+    const tasks = page.getByRole('dialog', { name: 'Tasks', exact: true })
+    await expect(tasks).toBeVisible()
+    await expect(tasks).toContainText('Collect sources')
+    await settleLayout(page)
+    await tasks.screenshot({ path: test.info().outputPath('visual-tasks-populated.png') })
+  })
+
+  test('Kanban board evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Sprint Board.md' }).click()
+    await expect(page.getByRole('tab', { name: 'Sprint Board', selected: true })).toBeVisible()
+    await openCommandPalette(page)
+    await runCommand(page, 'Open kanban board')
+    const board = page.getByRole('dialog', { name: 'Sprint Board', exact: true })
+    await expect(board).toBeVisible()
+    await expect(board).toContainText('Draft release notes')
+    await settleLayout(page)
+    await board.screenshot({ path: test.info().outputPath('visual-kanban-populated.png') })
+  })
+
+  test('Bibliography panel evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Browse bibliography')
+    const bibliography = page.getByRole('dialog', { name: 'Bibliography', exact: true })
+    await expect(bibliography).toBeVisible()
+    await settleLayout(page)
+    await bibliography.screenshot({ path: test.info().outputPath('visual-bibliography.png') })
+  })
+
+  test('Snippet catalog evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Manage snippet catalog')
+    const snippets = page.getByRole('dialog', { name: 'Snippet catalog', exact: true })
+    await expect(snippets).toBeVisible()
+    await settleLayout(page)
+    await snippets.screenshot({ path: test.info().outputPath('visual-snippets.png') })
+  })
+
+  test('Markdown cheatsheet evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Markdown cheatsheet')
+    const cheatsheet = page.getByRole('dialog', { name: 'Markdown cheatsheet', exact: true })
+    await expect(cheatsheet).toBeVisible()
+    await cheatsheet.screenshot({ path: test.info().outputPath('visual-cheatsheet.png') })
+  })
+
+  test('Template picker evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'New note from template')
+    const picker = page.getByRole('dialog', { name: 'Choose template', exact: true })
+    await expect(picker).toBeVisible()
+    await expect(picker.getByRole('option', { name: 'Blank note' })).toBeVisible()
+    await picker.screenshot({ path: test.info().outputPath('visual-template-picker.png') })
+  })
+
+  test('Obsidian import evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Import Obsidian vault')
+    const importer = page.getByRole('dialog', { name: 'Import Obsidian vault', exact: true })
+    await expect(importer).toBeVisible()
+    await importer.screenshot({ path: test.info().outputPath('visual-obsidian-import.png') })
+  })
+
+  test('Support panel evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Support Scriptor')
+    const support = page.getByRole('dialog', { name: 'Support Scriptor', exact: true })
+    await expect(support).toBeVisible()
+    await expect(support).toContainText('Licensed under AGPL-3.0-or-later.')
+    await support.screenshot({ path: test.info().outputPath('visual-support.png') })
+  })
+
+  test('Portal panel evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open portal clipboard')
+    const portal = page.getByRole('dialog', { name: 'Portal', exact: true })
+    await expect(portal).toBeVisible()
+    await portal.screenshot({ path: test.info().outputPath('visual-portal.png') })
+  })
+
+  test('Quick capture panel evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Quick capture (scratchpad & todos)')
+    const capture = page.getByRole('dialog', { name: 'Quick capture', exact: true })
+    await expect(capture).toBeVisible()
+    await capture.screenshot({ path: test.info().outputPath('visual-quick-capture.png') })
+  })
+
+  test('Built-in modules evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open built-in modules')
+    const modules = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
+    await expect(modules).toBeVisible()
+    await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
+    await modules.screenshot({ path: test.info().outputPath('visual-built-in-modules.png') })
+  })
+
+  test('Performance HUD evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Show performance HUD')
+    const hud = page.locator('.perf-hud-overlay')
+    await expect(hud).toBeVisible()
+    await expect(hud).toContainText('Vault open')
+    await hud.screenshot({ path: test.info().outputPath('visual-performance-hud.png') })
+  })
+
+  test('Gmail manager disconnected-state evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:enable-gmail-plugin', '1')
+    })
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open Gmail Manager')
+    const gmail = page.getByRole('dialog', { name: 'Gmail integration panel', exact: true })
+    await expect(gmail).toBeVisible()
+    await expect(gmail).toContainText('Gmail is not connected')
+    await gmail.screenshot({ path: test.info().outputPath('visual-gmail-disconnected.png') })
+  })
+
+  test('top-bar customization and color-palette surfaces evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Customize top bar actions' }).click()
+    const customizer = page.getByRole('dialog', { name: 'Customize top bar actions', exact: true })
+    await expect(customizer).toBeVisible()
+    await customizer.screenshot({ path: test.info().outputPath('visual-topbar-customizer.png') })
+    const paletteToggle = customizer.getByRole('checkbox', { name: 'Color palettes' })
+    if (!(await paletteToggle.isChecked())) await paletteToggle.check()
+    await page.keyboard.press('Escape')
+    const paletteButton = page.getByRole('button', { name: 'Color palettes', exact: true })
+    await expect(paletteButton).toBeVisible()
+    await paletteButton.click()
+    const palettes = page.getByRole('dialog', { name: 'Color palettes', exact: true })
+    await expect(palettes).toBeVisible()
+    await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
+    await palettes.screenshot({ path: test.info().outputPath('visual-color-palettes.png') })
+  })
+
 })

@@ -67,6 +67,8 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 
 The populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
 
+Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, top-bar customization, and Color Palettes. The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
+
 The workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically while capturing the deterministic closed control.
 
 These states use the real UI with E2E fixture data. They do not prove an external MCP client connection,

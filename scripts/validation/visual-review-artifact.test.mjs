@@ -92,3 +92,27 @@ test('expanded visual evidence matrix remains captured', () => {
     assert.ok(visualReview.includes(image), `missing visual evidence capture: ${image}`)
   }
 })
+
+
+test('major product surfaces keep visual evidence', () => {
+  for (const image of [
+    "visual-reader-pdf.png",
+    "visual-tasks-populated.png",
+    "visual-kanban-populated.png",
+    "visual-bibliography.png",
+    "visual-snippets.png",
+    "visual-cheatsheet.png",
+    "visual-template-picker.png",
+    "visual-obsidian-import.png",
+    "visual-support.png",
+    "visual-portal.png",
+    "visual-quick-capture.png",
+    "visual-built-in-modules.png",
+    "visual-performance-hud.png",
+    "visual-gmail-disconnected.png",
+    "visual-topbar-customizer.png",
+    "visual-color-palettes.png"
+]) {
+    assert.ok(visualReview.includes(image), `missing product-surface visual evidence: ${image}`)
+  }
+})
