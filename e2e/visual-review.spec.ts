@@ -225,7 +225,7 @@ test.describe('visual review states', () => {
     await expect(sharing).toContainText('visual-review')
     await settleLayout(page)
 
-    await mcpPanel.screenshot({ path: test.info().outputPath('visual-mcp-sharing-inventory.png') })
+    await captureElement(page, mcpPanel, 'visual-mcp-sharing-inventory.png')
   })
 
   test('editor recovery fallback', async ({ page }) => {
@@ -284,7 +284,7 @@ test.describe('visual review states', () => {
     expect(Math.abs((geometry?.canvasWidth ?? 0) - (geometry?.stageWidth ?? 0))).toBeLessThanOrEqual(2)
     expect(Math.abs((geometry?.canvasHeight ?? 0) - (geometry?.stageHeight ?? 0))).toBeLessThanOrEqual(2)
     await expectNoHorizontalOverflow(page)
-    await graph.screenshot({ path: test.info().outputPath('visual-graph-dense-120.png') })
+    await captureElement(page, graph, 'visual-graph-dense-120.png')
   })
 
   test('populated canvas board', async ({ page }) => {
@@ -313,7 +313,7 @@ test.describe('visual review states', () => {
     expect(svgBox).not.toBeNull()
     expect((stageBox?.height ?? 0) - (svgBox?.height ?? 0)).toBeLessThanOrEqual(96)
 
-    await canvas.screenshot({ path: test.info().outputPath('visual-canvas-populated.png') })
+    await captureElement(page, canvas, 'visual-canvas-populated.png')
   })
 
   test('populated knowledge workbench triage', async ({ page }) => {
@@ -338,7 +338,7 @@ test.describe('visual review states', () => {
     await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
     await settleLayout(page)
 
-    await workbench.screenshot({ path: test.info().outputPath('visual-knowledge-triage-populated.png') })
+    await captureElement(page, workbench, 'visual-knowledge-triage-populated.png')
   })
 
   test('Help stays centralized while F1 remains contextual', async ({ page }) => {
@@ -366,7 +366,7 @@ test.describe('visual review states', () => {
     expect(idleBrowseCount).toBeLessThanOrEqual(10)
     await expect(help).not.toContainText('Matching guides: 78')
     await settleLayout(page)
-    await help.screenshot({ path: test.info().outputPath('visual-help-mcp-guide.png') })
+    await captureElement(page, help, 'visual-help-mcp-guide.png')
   })
 
   test('high-contrast workspace evidence', async ({ page }) => {
@@ -397,7 +397,7 @@ test.describe('visual review states', () => {
         && rect.bottom <= window.innerHeight
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
-    await help.screenshot({ path: test.info().outputPath('visual-help-mobile-390.png') })
+    await captureElement(page, help, 'visual-help-mobile-390.png')
   })
 
   test('Persian RTL workspace evidence', async ({ page }) => {
@@ -575,7 +575,7 @@ test.describe('visual review states', () => {
     expect(geometry.columns).toBeLessThanOrEqual(2)
     expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1)
     expect(geometry.cardsFit).toBe(true)
-    await inspector.screenshot({ path: test.info().outputPath('visual-inspector-metrics-1024.png') })
+    await captureElement(page, inspector, 'visual-inspector-metrics-1024.png')
   })
 
   test('status dock Problems and Output states stay bounded', async ({ page }) => {
@@ -609,7 +609,7 @@ test.describe('visual review states', () => {
     expect(diagnosticsGeometry?.gap ?? -1).toBeGreaterThanOrEqual(8)
     expect(diagnosticsGeometry?.headingHeight ?? Infinity).toBeLessThanOrEqual(32)
     await expectNoHorizontalOverflow(page)
-    await problems.screenshot({ path: test.info().outputPath('visual-dock-problems.png') })
+    await captureElement(page, problems, 'visual-dock-problems.png')
 
     const outputTab = page.getByRole('tab', { name: /^Output/ }).first()
     await outputTab.click()
@@ -618,7 +618,7 @@ test.describe('visual review states', () => {
     await expect(output).not.toContainText('Could not install close-save guard')
     await expect(output).not.toContainText('currentWindow')
     await expectNoHorizontalOverflow(page)
-    await output.screenshot({ path: test.info().outputPath('visual-dock-output.png') })
+    await captureElement(page, output, 'visual-dock-output.png')
   })
 
 
@@ -632,7 +632,7 @@ test.describe('visual review states', () => {
     const settings = page.getByRole('dialog', { name: 'Settings' })
     await expect(settings).toBeVisible()
     await expectNoHorizontalOverflow(page)
-    await settings.screenshot({ path: test.info().outputPath('visual-settings-dark.png') })
+    await captureElement(page, settings, 'visual-settings-dark.png')
   })
 
   test('dark conflict resolver evidence', async ({ page }) => {
@@ -650,7 +650,7 @@ test.describe('visual review states', () => {
     await expect(resolver).toBeVisible()
     await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
     await settleLayout(page)
-    await resolver.screenshot({ path: test.info().outputPath('visual-conflict-resolver-dark.png') })
+    await captureElement(page, resolver, 'visual-conflict-resolver-dark.png')
   })
 
 
@@ -663,7 +663,7 @@ test.describe('visual review states', () => {
     const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
     await expect(frame).toBeVisible()
     await expect(frame.contentFrame().locator('#text-layer')).toContainText('Scriptor Reader')
-    await reader.screenshot({ path: test.info().outputPath('visual-reader-pdf.png') })
+    await captureElement(page, reader, 'visual-reader-pdf.png')
   })
 
   test('Tasks panel evidence', async ({ page }) => {
@@ -674,7 +674,7 @@ test.describe('visual review states', () => {
     await expect(tasks).toBeVisible()
     await expect(tasks).toContainText('Collect sources')
     await settleLayout(page)
-    await tasks.screenshot({ path: test.info().outputPath('visual-tasks-populated.png') })
+    await captureElement(page, tasks, 'visual-tasks-populated.png')
   })
 
   test('Git mutation confirmation evidence', async ({ page }) => {
@@ -727,7 +727,7 @@ test.describe('visual review states', () => {
     await expect(board).toBeVisible()
     await expect(board).toContainText('Draft release notes')
     await settleLayout(page)
-    await board.screenshot({ path: test.info().outputPath('visual-kanban-populated.png') })
+    await captureElement(page, board, 'visual-kanban-populated.png')
   })
 
   test('Bibliography panel evidence', async ({ page }) => {
@@ -748,7 +748,7 @@ test.describe('visual review states', () => {
     const snippets = page.getByRole('dialog', { name: 'Snippet catalog', exact: true })
     await expect(snippets).toBeVisible()
     await settleLayout(page)
-    await snippets.screenshot({ path: test.info().outputPath('visual-snippets.png') })
+    await captureElement(page, snippets, 'visual-snippets.png')
   })
 
   test('Markdown cheatsheet evidence', async ({ page }) => {
@@ -757,7 +757,7 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Markdown cheatsheet')
     const cheatsheet = page.getByRole('dialog', { name: 'Markdown cheatsheet', exact: true })
     await expect(cheatsheet).toBeVisible()
-    await cheatsheet.screenshot({ path: test.info().outputPath('visual-cheatsheet.png') })
+    await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
   })
 
   test('Template picker evidence', async ({ page }) => {
@@ -781,7 +781,7 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Import Obsidian vault')
     const importer = page.getByRole('dialog', { name: 'Import Obsidian vault', exact: true })
     await expect(importer).toBeVisible()
-    await importer.screenshot({ path: test.info().outputPath('visual-obsidian-import.png') })
+    await captureElement(page, importer, 'visual-obsidian-import.png')
   })
 
   test('Support panel evidence', async ({ page }) => {
@@ -791,7 +791,7 @@ test.describe('visual review states', () => {
     const support = page.getByRole('dialog', { name: 'Support Scriptor', exact: true })
     await expect(support).toBeVisible()
     await expect(support).toContainText('Licensed under AGPL-3.0-or-later.')
-    await support.screenshot({ path: test.info().outputPath('visual-support.png') })
+    await captureElement(page, support, 'visual-support.png')
   })
 
   test('Portal panel evidence', async ({ page }) => {
@@ -800,7 +800,7 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Open portal clipboard')
     const portal = page.locator('.portal-panel')
     await expect(portal).toBeVisible()
-    await portal.screenshot({ path: test.info().outputPath('visual-portal.png') })
+    await captureElement(page, portal, 'visual-portal.png')
   })
 
   test('Quick capture panel evidence', async ({ page }) => {
@@ -812,7 +812,7 @@ test.describe('visual review states', () => {
     for (const name of ['New inbox note', 'Insert in active', 'Add']) {
       await expect(capture.getByRole('button', { name, exact: true })).toHaveClass(/toolbar-button/)
     }
-    await capture.screenshot({ path: test.info().outputPath('visual-quick-capture.png') })
+    await captureElement(page, capture, 'visual-quick-capture.png')
   })
 
   test('Built-in modules evidence', async ({ page }) => {
@@ -822,7 +822,7 @@ test.describe('visual review states', () => {
     const modules = page.getByRole('dialog', { name: 'Built-in modules', exact: true })
     await expect(modules).toBeVisible()
     await expect(modules.getByText('Installer Profile Preset:')).toBeVisible()
-    await modules.screenshot({ path: test.info().outputPath('visual-built-in-modules.png') })
+    await captureElement(page, modules, 'visual-built-in-modules.png')
   })
 
   test('Performance HUD evidence', async ({ page }) => {
@@ -837,7 +837,7 @@ test.describe('visual review states', () => {
       const match = value.match(/^rgba?\((?:[^,]+,){3}\s*([\d.]+)\)$/)
       return match ? Number(match[1]) : 1
     })).toBeGreaterThanOrEqual(0.95)
-    await hud.screenshot({ path: test.info().outputPath('visual-performance-hud.png') })
+    await captureElement(page, hud, 'visual-performance-hud.png')
   })
 
   test('Google integration settings evidence', async ({ page }) => {
@@ -855,7 +855,7 @@ test.describe('visual review states', () => {
     await expect(google.getByRole('checkbox')).toBeVisible()
     await settleLayout(page)
 
-    await settings.screenshot({ path: test.info().outputPath('visual-settings-integrations-google.png') })
+    await captureElement(page, settings, 'visual-settings-integrations-google.png')
   })
 
   test('populated Inbox evidence', async ({ page }) => {
@@ -876,7 +876,7 @@ test.describe('visual review states', () => {
     await expect(inbox).toContainText('Field Notes')
     await settleLayout(page)
 
-    await vault.screenshot({ path: test.info().outputPath('visual-inbox-populated.png') })
+    await captureElement(page, vault, 'visual-inbox-populated.png')
   })
 
   test('rename dry-run rewrite evidence', async ({ page }) => {
@@ -894,7 +894,7 @@ test.describe('visual review states', () => {
     await expect(preview).toContainText('Field Notes.md')
     await expect(preview).toContainText('Methodology.md')
     await settleLayout(page)
-    await rename.screenshot({ path: test.info().outputPath('visual-rename-preview.png') })
+    await captureElement(page, rename, 'visual-rename-preview.png')
   })
 
   test('Knowledge workbench tab evidence', async ({ page }) => {
@@ -920,7 +920,7 @@ test.describe('visual review states', () => {
         await expect(workbench).not.toContainText(/Cannot read properties|Search failed/)
       }
       await settleLayout(page)
-      await workbench.screenshot({ path: test.info().outputPath(state.image) })
+      await captureElement(page, workbench, state.image)
     }
   })
 
@@ -947,7 +947,7 @@ test.describe('visual review states', () => {
     const gmail = page.locator('.gmail-manager-panel')
     await expect(gmail).toBeVisible()
     await expect(gmail).toContainText('Gmail is not connected')
-    await gmail.screenshot({ path: test.info().outputPath('visual-gmail-disconnected.png') })
+    await captureElement(page, gmail, 'visual-gmail-disconnected.png')
   })
 
   test('top-bar customization and color-palette surfaces evidence', async ({ page }) => {
@@ -960,7 +960,7 @@ test.describe('visual review states', () => {
       const match = value.match(/^rgba?\((?:[^,]+,){3}\s*([\d.]+)\)$/)
       return match ? Number(match[1]) : 1
     })).toBeGreaterThanOrEqual(0.95)
-    await customizer.screenshot({ path: test.info().outputPath('visual-topbar-customizer.png') })
+    await captureElement(page, customizer, 'visual-topbar-customizer.png')
     const paletteToggle = customizer.getByRole('checkbox', { name: 'Color palettes' })
     if (!(await paletteToggle.isChecked())) await paletteToggle.check()
     await page.keyboard.press('Escape')
@@ -970,7 +970,7 @@ test.describe('visual review states', () => {
     const palettes = page.getByRole('dialog', { name: 'Color palettes', exact: true })
     await expect(palettes).toBeVisible()
     await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
-    await palettes.screenshot({ path: test.info().outputPath('visual-color-palettes.png') })
+    await captureElement(page, palettes, 'visual-color-palettes.png')
   })
 
 })
