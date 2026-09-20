@@ -72,9 +72,13 @@ function deferred() {
 }
 
 /** Lets queued promise continuations settle without advancing mock timers. */
-async function flushMicrotasks() {
-  await Promise.resolve()
-  await Promise.resolve()
+async function flushMicrotasks(turns = 8) {
+  // Hook mount hydration crosses multiple nested async continuations
+  // (board-list command -> refresh helper -> mount effect). Drain enough
+  // microtask turns to make the harness deterministic before race assertions.
+  for (let turn = 0; turn < turns; turn++) {
+    await Promise.resolve()
+  }
 }
 
 /** Builds an isolated hook harness with controllable persistence and timers. */
