@@ -105,6 +105,7 @@
     "diagnosticsOptInAria": "Lokale Absturzdiagnosen senden",
     "diagnosticsTitle": "Wenn aktiviert, werden Renderer-Fehler lokal in .scriptor/diagnostics/client.jsonl gespeichert",
     "unopened": "nicht geöffnet",
+    "noVaultOpen": "Kein Vault geöffnet",
     "export": "Export"
   },
   "settings": {

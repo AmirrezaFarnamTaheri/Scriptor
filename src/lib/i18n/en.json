@@ -105,6 +105,7 @@
     "diagnosticsOptInAria": "Send local crash diagnostics",
     "diagnosticsTitle": "When enabled, renderer errors are stored locally in .scriptor/diagnostics/client.jsonl",
     "unopened": "unopened",
+    "noVaultOpen": "No vault open",
     "export": "Export"
   },
   "settings": {

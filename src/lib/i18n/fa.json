@@ -105,6 +105,7 @@
     "diagnosticsOptInAria": "ارسال عیب‌یابی‌های محلی خرابی",
     "diagnosticsTitle": "وقتی فعال باشد، خطاهای رندرکننده به‌صورت محلی در .scriptor/diagnostics/client.jsonl ذخیره می‌شوند",
     "unopened": "باز نشده",
+    "noVaultOpen": "مخزنی باز نیست",
     "export": "برون‌بری"
   },
   "settings": {

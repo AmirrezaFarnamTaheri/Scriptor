@@ -433,3 +433,23 @@
 .job-progress.is-done > span:not(.job-progress-text) {
   display: none;
 }
+
+/* An unopened workspace has no vault-scoped indexing or subsystem state to
+ * report. Keep the footer quiet until a vault exists instead of presenting
+ * 0%-progress and inactive subsystem chrome as real work. */
+.status-empty-vault {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  padding-inline: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.status-empty-vault > svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
