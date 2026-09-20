@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use interprocess::local_socket::prelude::*;
 use interprocess::local_socket::{GenericFilePath, GenericNamespaced, ListenerOptions, Name};
@@ -97,4 +97,27 @@ fn authenticated_connect_refreshes_endpoint_after_daemon_restart() {
     assert_ne!(connected_endpoint.nonce, old_endpoint.nonce);
 
     drop(listener);
+}
+
+#[test]
+fn authenticated_connect_failure_is_bounded() {
+    let _ = remove_endpoint_file();
+    let (socket, _socket_dir) = test_socket_name();
+    let _cleanup = RetryCleanup::new([socket.clone()]);
+    write_endpoint(&socket).expect("write unreachable endpoint");
+
+    let mut retries = 0usize;
+    let started = Instant::now();
+    let result = connect_authenticated_client_with_retry_observer(|endpoint| {
+        retries += 1;
+        assert_eq!(endpoint.socket_name, socket);
+    });
+    let elapsed = started.elapsed();
+
+    assert!(result.is_err(), "unreachable endpoint must fail");
+    assert!(retries > 0, "client should retry a transiently unreachable endpoint");
+    assert!(
+        elapsed < Duration::from_secs(2),
+        "connect retry budget exceeded bounded failure window: {elapsed:?}"
+    );
 }
