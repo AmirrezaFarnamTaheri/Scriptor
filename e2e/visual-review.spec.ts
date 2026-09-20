@@ -878,6 +878,11 @@ test.describe('visual review states', () => {
     await page.getByRole('button', { name: 'Customize top bar actions' }).click()
     const customizer = page.getByRole('dialog', { name: 'Customize top bar actions', exact: true })
     await expect(customizer).toBeVisible()
+    await expect.poll(() => customizer.evaluate((element) => {
+      const value = getComputedStyle(element).backgroundColor
+      const match = value.match(/^rgba?\((?:[^,]+,){3}\s*([\d.]+)\)$/)
+      return match ? Number(match[1]) : 1
+    })).toBeGreaterThanOrEqual(0.95)
     await customizer.screenshot({ path: test.info().outputPath('visual-topbar-customizer.png') })
     const paletteToggle = customizer.getByRole('checkbox', { name: 'Color palettes' })
     if (!(await paletteToggle.isChecked())) await paletteToggle.check()
