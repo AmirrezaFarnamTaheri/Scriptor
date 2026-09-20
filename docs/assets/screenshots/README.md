@@ -55,7 +55,7 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | Populated Canvas | A real board block linked to the active note with settled canvas geometry |
 | Dense graph | 120-node / 160-edge fixture exercising the canvas-rendered graph path |
 | Knowledge triage | Three populated repair rows with triage active on the first item |
-| Contextual Help | First-use MCP invitation and its owning Help guide are both captured |
+| Help restraint | Clean workspace chrome with one global Help entry is captured; contextual F1 is separately verified against the owning MCP guide |
 | Workspace selector | Active option and option inventory are asserted; the capture shows the deterministic closed native selector |
 | Persian RTL workspace | Persian RTL workspace at 1240px with page-level overflow asserted absent |
 | German compact workspace | German labels at 1024px with the primary toolbar kept on one row |
@@ -67,7 +67,7 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | Dark Settings | Settings dialog rendered under the dark theme |
 | Dark conflict resolver | Destructive merge-resolution surface rendered under the dark theme before a choice is applied |
 
-The dense Graph, populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
+The dense Graph, populated Canvas, Knowledge triage, Help-restraint/contextual-F1, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
 
 Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, Google integration setup, a populated Inbox, top-bar customization, Color Palettes, the rename dry-run rewrite preview, and all four non-repair Knowledge Workbench tabs (Views, Collections, Tags, and Discover). The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
 
@@ -105,8 +105,8 @@ captures produced before the failure, so a second diagnostic browser/build pass 
 can exhaust Windows runner socket/buffer resources. Intentional baseline changes are produced only by
 the explicit screenshot-refresh workflow or a reviewed local `-UpdateBaselines` run. Functional browser
 E2E remains in the main CI workflow, so the same visual suite is not executed twice on every clean PR. The uploaded artifact is canonicalized as `visual-review.zip`: every
-PNG/JPEG/WebP/GIF/AVIF from comparison results, diagnostic refreshed baselines, and documentation
-captures is flattened under **`images/`** with a provenance prefix. Raw
+PNG/JPEG/WebP/GIF/AVIF from current comparison/failure results and documentation captures is flattened
+under **`images/`** with a provenance prefix. Raw
 `test-results/visual` and `e2e/*-snapshots` trees are not uploaded separately, preventing stale
 parallel copies inside the artifact. `image-manifest.json` records each unique image's SHA-256, byte size, and every source path that
 produced the same bytes. Exact duplicate images are stored once rather than copied into parallel
@@ -149,8 +149,8 @@ The same workflow can be dispatched manually on a review branch. It uses the pin
 runner and Edge channel, runs the capture contract tests, regenerates docs and stable Windows baselines,
 and verifies the complete visual suite without snapshot updates. Only generated PNG changes are
 committed back to the selected branch. Its uploaded evidence uses the same manifest-backed canonical
-package as PR Visual review: current captures, baselines, failure output, and the preserved previous
-gallery hero are SHA-256 deduplicated instead of uploaded as parallel directory trees. The push is not forced; if the branch advances during capture,
+package as PR Visual review: current captures, failure output, and the explicitly included tracked
+gallery are SHA-256 deduplicated instead of uploaded as parallel directory trees. The push is not forced; if the branch advances during capture,
 the non-fast-forward push fails safely rather than overwriting newer work. Rerun against the updated
 branch after inspecting the separate refresh result.
 
