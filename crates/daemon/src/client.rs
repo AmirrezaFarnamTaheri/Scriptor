@@ -129,7 +129,31 @@ fn connect_client_with_timeout(
         )));
     }
 
-    let endpoint = read_endpoint()?;
+    // Endpoint publication can be briefly unavailable while a daemon starts or
+    // replaces its discovery file. Keep discovery and socket establishment
+    // inside the same bounded retry window instead of failing immediately on a
+    // transient NotFound/WouldBlock/NotConnected error.
+    let retry_budget = Duration::from_millis(500).min(timeout);
+    let start = Instant::now();
+    let endpoint = loop {
+        match read_endpoint() {
+            Ok(endpoint) => break endpoint,
+            Err(IpcError::Io(error))
+                if matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound
+                        | io::ErrorKind::WouldBlock
+                        | io::ErrorKind::NotConnected
+                ) =>
+            {
+                if start.elapsed() >= retry_budget {
+                    return Err(IpcError::Io(error));
+                }
+                thread::sleep(Duration::from_millis(10));
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let name = if cfg!(windows) {
         endpoint
             .socket_name
@@ -142,8 +166,6 @@ fn connect_client_with_timeout(
             .map_err(|error| IpcError::Codec(error.to_string()))?
     };
 
-    let retry_budget = Duration::from_millis(500).min(timeout);
-    let start = Instant::now();
     let stream = loop {
         match LocalSocketStream::connect(name.clone()) {
             Ok(s) => break s,
