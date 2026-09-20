@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::sync::mpsc;
+use std::sync::{mpsc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -9,6 +9,14 @@ use scriptor_daemon::transport::{
     connect_authenticated_client_with_retry_observer, remove_endpoint_file, write_endpoint,
 };
 use uuid::Uuid;
+
+static ENDPOINT_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn endpoint_test_guard() -> MutexGuard<'static, ()> {
+    ENDPOINT_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn test_socket_name() -> (String, Option<tempfile::TempDir>) {
     let unique = Uuid::new_v4().to_string();
@@ -61,6 +69,7 @@ impl Drop for RetryCleanup {
 
 #[test]
 fn authenticated_connect_refreshes_endpoint_after_daemon_restart() {
+    let _serial = endpoint_test_guard();
     let _ = remove_endpoint_file();
     let (old_socket, _old_dir) = test_socket_name();
     let (new_socket, _new_dir) = test_socket_name();
@@ -101,6 +110,7 @@ fn authenticated_connect_refreshes_endpoint_after_daemon_restart() {
 
 #[test]
 fn authenticated_connect_failure_is_bounded() {
+    let _serial = endpoint_test_guard();
     let _ = remove_endpoint_file();
     let (socket, _socket_dir) = test_socket_name();
     let _cleanup = RetryCleanup::new([socket.clone()]);
