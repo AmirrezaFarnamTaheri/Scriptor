@@ -133,12 +133,117 @@ impl FieldStyle {
 ///
 /// A task line begins with optional leading whitespace, then exactly one of the
 /// GFM list markers (`-`, `*`, `+`), then a space, then `[<status>]`.
+#[derive(Debug, Clone, Copy)]
+struct TaskFence {
+    marker: u8,
+    length: usize,
+}
+
+fn task_fence_start(line: &str) -> Option<TaskFence> {
+    let trimmed = line.trim_start_matches(|character| character == ' ' || character == '\t');
+    let marker = *trimmed.as_bytes().first()?;
+    if marker != b'`' && marker != b'~' {
+        return None;
+    }
+    let length = trimmed.bytes().take_while(|byte| *byte == marker).count();
+    (length >= 3).then_some(TaskFence { marker, length })
+}
+
+fn task_fence_end(line: &str, fence: TaskFence) -> bool {
+    let trimmed = line.trim_start_matches(|character| character == ' ' || character == '\t');
+    let length = trimmed
+        .bytes()
+        .take_while(|byte| *byte == fence.marker)
+        .count();
+    length >= fence.length && trimmed[length..].trim().is_empty()
+}
+
+fn leading_indent_columns(line: &str) -> usize {
+    let mut columns = 0usize;
+    for byte in line.bytes() {
+        match byte {
+            b' ' => columns += 1,
+            b'\t' => columns += 4 - (columns % 4),
+            _ => break,
+        }
+    }
+    columns
+}
+
+fn starts_markdown_list_item(trimmed: &str) -> bool {
+    if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
+        return true;
+    }
+
+    let digit_count = trimmed
+        .bytes()
+        .take_while(|byte| byte.is_ascii_digit())
+        .count();
+    if digit_count == 0 {
+        return false;
+    }
+    let rest = &trimmed[digit_count..];
+    rest.starts_with(". ") || rest.starts_with(") ")
+}
+
+/// Parse authored task list items while excluding Markdown examples.
+///
+/// The line parser deliberately remains the single definition for Scriptor's
+/// extended checkbox/status and field syntax. This outer pass only supplies
+/// Markdown block context so examples inside fenced or top-level indented code
+/// do not become indexed tasks. Indented task items remain valid when they are
+/// nested below a real Markdown list item.
 pub fn parse_tasks_from_markdown(markdown: &str) -> Vec<ParsedTask> {
-    markdown
-        .lines()
-        .enumerate()
-        .filter_map(|(line_idx, line)| parse_task_line(line_idx, line))
-        .collect()
+    let mut tasks = Vec::new();
+    let mut fence: Option<TaskFence> = None;
+    let mut list_indents: Vec<usize> = Vec::new();
+
+    for (line_idx, segment) in markdown.split_inclusive('\n').enumerate() {
+        let line = segment
+            .strip_suffix('\n')
+            .unwrap_or(segment)
+            .strip_suffix('\r')
+            .unwrap_or_else(|| segment.strip_suffix('\n').unwrap_or(segment));
+        let trimmed = line.trim_start();
+
+        if let Some(active) = fence {
+            if task_fence_end(line, active) {
+                fence = None;
+            }
+            continue;
+        }
+        if let Some(opening) = task_fence_start(line) {
+            fence = Some(opening);
+            continue;
+        }
+
+        let indent = leading_indent_columns(line);
+        if trimmed.starts_with('>') {
+            if indent == 0 {
+                list_indents.clear();
+            }
+            continue;
+        }
+
+        let list_item = starts_markdown_list_item(trimmed);
+        let nested_below_list = list_indents.iter().any(|parent| *parent < indent);
+        if indent >= 4 && !nested_below_list {
+            continue;
+        }
+
+        if list_item {
+            list_indents.retain(|parent| *parent < indent);
+            list_indents.push(indent);
+        } else if indent == 0 && !trimmed.is_empty() {
+            list_indents.clear();
+        }
+
+        if let Some(task) = parse_task_line(line_idx, line) {
+            tasks.push(task);
+        }
+    }
+
+    tasks
 }
 
 fn parse_task_line(line_idx: usize, line: &str) -> Option<ParsedTask> {
@@ -1520,5 +1625,58 @@ mod tests {
         assert_eq!(second[0].completed_at, completed_at);
         assert_eq!(second[0].line, 2);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod task_context_tests {
+    use super::parse_tasks_from_markdown;
+
+    #[test]
+    fn task_examples_inside_code_blocks_are_not_indexed() {
+        let markdown = [
+            "- [ ] real task",
+            "",
+            "```markdown",
+            "- [ ] fenced example",
+            "- [/] extended fenced example",
+            "```",
+            "",
+            "    - [ ] top-level indented code example",
+            "",
+            "- [x] completed task",
+        ]
+        .join("\n");
+
+        let tasks = parse_tasks_from_markdown(&markdown);
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].title, "real task");
+        assert_eq!(tasks[1].title, "completed task");
+    }
+
+    #[test]
+    fn blockquoted_examples_are_not_indexed() {
+        let markdown = "> - [ ] quoted example\n> * [x] another example\n- [ ] real task";
+        let tasks = parse_tasks_from_markdown(markdown);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].title, "real task");
+    }
+
+    #[test]
+    fn nested_task_lists_remain_indexed() {
+        let markdown = "- [ ] parent\n    - [/] child\n        + [x] grandchild";
+        let tasks = parse_tasks_from_markdown(markdown);
+        assert_eq!(tasks.len(), 3);
+        assert_eq!(tasks[0].title, "parent");
+        assert_eq!(tasks[1].title, "child");
+        assert_eq!(tasks[2].title, "grandchild");
+    }
+
+    #[test]
+    fn tilde_fences_are_ignored_too() {
+        let markdown = "~~~text\n- [ ] example\n~~~\n- [ ] real";
+        let tasks = parse_tasks_from_markdown(markdown);
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].title, "real");
     }
 }

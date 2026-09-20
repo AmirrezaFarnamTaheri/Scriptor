@@ -50,10 +50,94 @@ const PRIORITY_MARKERS = [
  * @param markdown  Full note content or a single line.
  * @param noteId    Vault-relative path (used to populate `task.noteId`).
  */
+interface TaskFence {
+  marker: '`' | '~'
+  length: number
+}
+
+function taskFenceStart(line: string): TaskFence | null {
+  const trimmed = line.replace(/^[ \t]+/, '')
+  const marker = trimmed[0]
+  if (marker !== '`' && marker !== '~') return null
+  let length = 0
+  while (trimmed[length] === marker) length += 1
+  return length >= 3 ? { marker, length } : null
+}
+
+function taskFenceEnd(line: string, fence: TaskFence): boolean {
+  const trimmed = line.replace(/^[ \t]+/, '')
+  let length = 0
+  while (trimmed[length] === fence.marker) length += 1
+  return length >= fence.length && trimmed.slice(length).trim().length === 0
+}
+
+function leadingIndentColumns(line: string): number {
+  let columns = 0
+  for (const character of line) {
+    if (character === ' ') {
+      columns += 1
+    } else if (character === '\t') {
+      columns += 4 - (columns % 4)
+    } else {
+      break
+    }
+  }
+  return columns
+}
+
+function startsMarkdownListItem(trimmed: string): boolean {
+  if (/^[-*+] /.test(trimmed)) return true
+  return /^\d+[.)] /.test(trimmed)
+}
+
+/**
+ * Parse authored tasks while excluding Markdown examples. The task-line parser
+ * remains authoritative for Scriptor status/field syntax; this outer pass only
+ * supplies block context so code samples are not treated as live tasks.
+ */
 export function parseTasksFromMarkdown(markdown: string, noteId = ''): Task[] {
-  return markdown
-    .split('\n')
-    .flatMap((line, lineIdx) => parseTaskLine(line, lineIdx, noteId) ?? [])
+  const tasks: Task[] = []
+  let fence: TaskFence | null = null
+  const listIndents: number[] = []
+
+  for (const [lineIdx, rawLine] of markdown.split('\n').entries()) {
+    const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
+    const trimmed = line.trimStart()
+
+    if (fence) {
+      if (taskFenceEnd(line, fence)) fence = null
+      continue
+    }
+    const openingFence = taskFenceStart(line)
+    if (openingFence) {
+      fence = openingFence
+      continue
+    }
+
+    const indent = leadingIndentColumns(line)
+    if (trimmed.startsWith('>')) {
+      if (indent === 0) listIndents.length = 0
+      continue
+    }
+
+    const listItem = startsMarkdownListItem(trimmed)
+    const nestedBelowList = listIndents.some(parent => parent < indent)
+    if (indent >= 4 && !nestedBelowList) continue
+
+    if (listItem) {
+      while (listIndents.length > 0 && listIndents[listIndents.length - 1]! >= indent) {
+        listIndents.pop()
+      }
+      listIndents.push(indent)
+    } else if (indent === 0 && trimmed.length > 0) {
+      listIndents.length = 0
+    }
+
+    const task = parseTaskLine(line, lineIdx, noteId)
+    if (task) tasks.push(task)
+  }
+
+  return tasks
 }
 
 /**
