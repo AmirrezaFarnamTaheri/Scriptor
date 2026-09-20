@@ -59,23 +59,20 @@ test('idle Help browsing stays contextual while search and categories expose the
 
 test('reading, progress, completion, and reset are independent', () => {
   const empty = emptyHelpPreferences()
-  const offered = reduceHelpPreferences(empty, { type: 'offer', id: 'graph' })
-  assert.equal(getProgress(offered, 'graph').completed, false)
-  const progressed = reduceHelpPreferences(offered, { type: 'step', id: 'graph', step: 999 })
+  const progressed = reduceHelpPreferences(empty, { type: 'step', id: 'graph', step: 999 })
   assert.equal(getProgress(progressed, 'graph').step, HELP_BY_ID.get('graph')!.steps.length - 1)
   assert.equal(getProgress(progressed, 'graph').completed, false)
   const done = reduceHelpPreferences(progressed, { type: 'finish', id: 'graph' })
   assert.equal(getProgress(done, 'graph').completed, true)
-  const reset = reduceHelpPreferences(reduceHelpPreferences(done, { type: 'hints', enabled: false }), { type: 'reset' })
+  const reset = reduceHelpPreferences(done, { type: 'reset' })
   assert.deepEqual(reset.progress, {})
-  assert.equal(reset.hints, false)
-  assert.equal(reduceHelpPreferences(empty, { type: 'offer', id: 'unknown' }), empty)
+  assert.equal(reduceHelpPreferences(empty, { type: 'step', id: 'unknown', step: 1 }), empty)
 })
 
-test('untrusted persisted state is bounded and filters unknown ids', () => {
+test('untrusted persisted state is bounded, filters unknown ids, and ignores retired invitation fields', () => {
   const prefs = parseHelpPreferences(JSON.stringify({ version: 1, hints: false, progress: { graph: { step: -4, completed: 'yes', offered: true }, unknown: { step: 5 } } }))
   assert.deepEqual(Object.keys(prefs.progress), ['graph'])
-  assert.deepEqual(prefs.progress.graph, { step: 0, completed: false, offered: true })
+  assert.deepEqual(prefs.progress.graph, { step: 0, completed: false })
   assert.throws(() => parseHelpPreferences('{'))
   assert.throws(() => parseHelpPreferences(JSON.stringify({ version: 88 })))
   assert.throws(() => parseHelpPreferences(' '.repeat(100_001)))

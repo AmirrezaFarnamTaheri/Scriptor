@@ -23,11 +23,9 @@ export interface HelpGuide {
 export interface GuideProgress {
   step: number
   completed: boolean
-  offered: boolean
 }
 export interface HelpPreferences {
   version: 1
-  hints: boolean
   progress: Record<string, GuideProgress>
 }
 export const HELP_STORAGE_KEY = 'scriptor:help-guides:v1'
