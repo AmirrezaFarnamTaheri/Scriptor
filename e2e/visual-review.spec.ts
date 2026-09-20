@@ -533,7 +533,25 @@ test.describe('visual review states', () => {
       window.sessionStorage.setItem('e2e:slow-vault', '1')
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 5_000 })
+    const firstSkeletonRow = page.locator('.vault-skeleton-row').first()
+    await expect(firstSkeletonRow).toBeVisible({ timeout: 5_000 })
+    await expect(page.locator('.vault-tree-skeleton .panel-loading')).toHaveCount(0)
+    const skeletonGeometry = await firstSkeletonRow.evaluate((element) => {
+      const row = element.getBoundingClientRect()
+      const rail = element.closest('.vault-panel')?.getBoundingClientRect()
+      return {
+        rowWidth: row.width,
+        railWidth: rail?.width ?? 0,
+        rowLeft: row.left,
+        railLeft: rail?.left ?? 0,
+        rowRight: row.right,
+        railRight: rail?.right ?? 0,
+      }
+    })
+    expect(skeletonGeometry.rowWidth).toBeGreaterThan(0)
+    expect(skeletonGeometry.rowWidth).toBeLessThan(skeletonGeometry.railWidth)
+    expect(skeletonGeometry.rowLeft).toBeGreaterThanOrEqual(skeletonGeometry.railLeft)
+    expect(skeletonGeometry.rowRight).toBeLessThanOrEqual(skeletonGeometry.railRight)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-vault-loading.png')
     await waitForWorkspace(page)
