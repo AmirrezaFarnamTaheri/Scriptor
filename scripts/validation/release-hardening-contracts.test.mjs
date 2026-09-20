@@ -85,6 +85,18 @@ test('manual release dispatch builds canonical VERSION and production requires a
   assert.match(versionScript, /versionTag\.test\(refName\)/)
 })
 
+test('release kickoff keeps write permissions out of validation', () => {
+  const kickoff = read('.github/workflows/release-kickoff.yml')
+  const validate = kickoff.split('\n  validate-release:\n')[1]?.split('\n  tag-and-dispatch:\n')[0]
+  const publish = kickoff.split('\n  tag-and-dispatch:\n')[1]
+  assert.ok(validate, 'release validation job missing')
+  assert.ok(publish, 'release publish job missing')
+  assert.match(kickoff, /^permissions:\n  contents: read$/m)
+  assert.match(validate, /permissions:\n      contents: read\n      actions: read/)
+  assert.doesNotMatch(validate, /contents: write|actions: write/)
+  assert.match(publish, /permissions:\n      contents: write\n      actions: write/)
+})
+
 test('release kickoff only tags the default-branch commit after CI succeeds for that exact SHA', () => {
   const kickoff = read('.github/workflows/release-kickoff.yml')
 
