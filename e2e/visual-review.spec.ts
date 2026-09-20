@@ -801,6 +801,11 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Manage snippet catalog')
     const snippets = page.getByRole('dialog', { name: 'Snippet catalog', exact: true })
     await expect(snippets).toBeVisible()
+    await expect.poll(() => snippets.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      return rgba ? Number(rgba[1]) >= 0.99 : background !== 'transparent'
+    })).toBe(true)
     await settleLayout(page)
     await captureElement(page, snippets, 'visual-snippets.png')
   })
