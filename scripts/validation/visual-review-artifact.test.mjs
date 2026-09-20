@@ -134,7 +134,11 @@ test('major product surfaces keep visual evidence', () => {
     "visual-settings-integrations-google.png",
     "visual-inbox-populated.png",
     "visual-topbar-customizer.png",
-    "visual-color-palettes.png"
+    "visual-color-palettes.png",
+    "visual-knowledge-views.png",
+    "visual-knowledge-collections.png",
+    "visual-knowledge-tags.png",
+    "visual-knowledge-discover.png"
 ]) {
     assert.ok(visualReview.includes(image), `missing product-surface visual evidence: ${image}`)
   }

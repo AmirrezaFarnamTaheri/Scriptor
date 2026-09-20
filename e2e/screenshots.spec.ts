@@ -586,7 +586,8 @@ test('task list rendered items', async ({ page }) => {
   await waitForPreviewReady(page)
   const taskList = page.locator('.markdown-preview ul.contains-task-list, .markdown-preview ul:has(> li.task-list-item)').first()
   await expect(taskList).toBeVisible()
-  await captureReadyScreenshot(page, shotPath('task-list-preview'))
+  await settleLayout(page)
+  await taskList.screenshot({ path: shotPath('task-list-preview') })
 })
 
 test('workspace selector and active vault identity', async ({ page }) => {
@@ -603,9 +604,11 @@ test('workspace selector and active vault identity', async ({ page }) => {
   await switcher.focus()
   await expect(switcher).toBeFocused()
   await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
-  await switcher.blur()
-  await expect(switcher).not.toBeFocused()
+  await settleLayout(page)
 
-  await captureReadyScreenshot(page, shotPath('workspace-switcher'))
+  // Capture the owning chrome while the selector has keyboard focus. A full
+  // workspace capture here was byte-identical to workspace-light.png and added
+  // no visual evidence because the native popup is outside the page bitmap.
+  await topbar.screenshot({ path: shotPath('workspace-switcher') })
 })
 

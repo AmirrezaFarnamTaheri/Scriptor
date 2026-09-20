@@ -667,6 +667,30 @@ test.describe('visual review states', () => {
     await vault.screenshot({ path: test.info().outputPath('visual-inbox-populated.png') })
   })
 
+  test('Knowledge workbench tab evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open knowledge workbench')
+    const workbench = page.getByRole('dialog', { name: 'Knowledge workbench', exact: true })
+    await expect(workbench).toBeVisible()
+
+    const states = [
+      { tab: 'Views', text: 'Modified this week', image: 'visual-knowledge-views.png' },
+      { tab: 'Collections', text: 'Research notes', image: 'visual-knowledge-collections.png' },
+      { tab: 'Tags', text: '#research', image: 'visual-knowledge-tags.png' },
+      { tab: 'Discover', text: 'Open knowledge graph', image: 'visual-knowledge-discover.png' },
+    ] as const
+
+    for (const state of states) {
+      const tab = workbench.getByRole('tab', { name: state.tab, exact: true })
+      await tab.click()
+      await expect(tab).toHaveAttribute('aria-selected', 'true')
+      await expect(workbench).toContainText(state.text)
+      await settleLayout(page)
+      await workbench.screenshot({ path: test.info().outputPath(state.image) })
+    }
+  })
+
   test('Gmail manager disconnected-state evidence', async ({ page }) => {
     await page.addInitScript(() => {
       window.sessionStorage.setItem('e2e:enable-gmail-plugin', '1')

@@ -38,8 +38,8 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mobile-inspector.png | 390px mobile inspector pane | VISUAL-REVIEW |
 | mobile-vault.png | 390px mobile vault pane | VISUAL-REVIEW |
 | workspace-rendered.png | Full rendered preview mode with markdown headings | VISUAL-REVIEW |
-| task-list-preview.png | Rendered task list items with interactive checkboxes | VISUAL-REVIEW |
-| workspace-switcher.png | Recent-vault selector with active vault identity in the top bar | VISUAL-REVIEW |
+| task-list-preview.png | Focused rendered task-list crop with interactive checkboxes | VISUAL-REVIEW |
+| workspace-switcher.png | Focused recent-vault selector and active vault identity in the top-bar crop | VISUAL-REVIEW |
 
 ### State coverage and evidence boundaries
 
@@ -69,9 +69,9 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 
 The dense Graph, populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
 
-Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, Google integration setup, a populated Inbox, top-bar customization, and Color Palettes. The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
+Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, Google integration setup, a populated Inbox, top-bar customization, Color Palettes, and all four non-repair Knowledge Workbench tabs (Views, Collections, Tags, and Discover). The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
 
-The workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically while capturing the deterministic closed control.
+The workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically and captures the owning top bar while the selector has keyboard focus. This keeps the evidence deterministic and visually distinct from the ordinary workspace capture.
 
 These states use the real UI with E2E fixture data. They do not prove an external MCP client connection,
 native authorization, or third-party plugin installation. All bundled catalog manifests are registered
