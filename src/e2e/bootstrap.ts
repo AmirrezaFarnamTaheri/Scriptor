@@ -380,6 +380,9 @@ export function installE2eBridge(): void {
       case 'indexer_list_tags':
         return [{ tag: 'research', note_count: 1 }]
       case 'indexer_list_inbox':
+        if (window.sessionStorage.getItem('e2e:inbox-notes') === '1') {
+          return activeNoteSummaries().slice(0, 2).map((note) => ({ ...note, organized: false }))
+        }
         return []
       case 'indexer_list_orphans':
       case 'indexer_list_dead_ends':

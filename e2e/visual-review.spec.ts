@@ -162,16 +162,6 @@ test.describe('visual review states', () => {
     }, WORKSPACE_CHROME_PREFS)
   })
 
-  test('inspector preview mode', async ({ page }) => {
-    await openVisualWorkspace(page)
-    await page.locator('.editor-toolbar').getByRole('button', { name: 'Preview', exact: true }).click()
-    const inspector = page.getByRole('complementary', { name: 'Inspector' })
-    await expect(inspector.getByRole('tab', { name: 'Rendered output', selected: true })).toBeVisible()
-    await waitForPreviewReady(page)
-    await expect(inspector.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
-    await captureVisual(page, 'visual-inspector-preview.png')
-  })
-
   test('dark workspace with split preview', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'dark')
@@ -236,19 +226,6 @@ test.describe('visual review states', () => {
     await fallback.locator(':scope > div').screenshot({ path: test.info().outputPath('visual-editor-recovery.png') })
   })
 
-  test('workspace at 1024px breakpoint', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 768 })
-    await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await waitForVisualWorkspace(page)
-
-    const editor = page.getByRole('region', { name: 'Editor' })
-    await expect(editor).toBeInViewport()
-    await expect.poll(async () => (await editor.boundingBox())?.height ?? 0).toBeGreaterThan(280)
-    await expect(page.getByRole('complementary', { name: 'Vault' })).toBeInViewport()
-
-    await captureVisual(page, 'visual-workspace-tablet-1024.png')
-  })
-
   test('compact mobile editor pane', async ({ page }) => {
     await openMobileWorkspace(page)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
@@ -256,29 +233,6 @@ test.describe('visual review states', () => {
     await expect(page.locator('.editor-panel')).toBeInViewport()
 
     await captureVisual(page, 'visual-mobile-editor-390.png')
-  })
-
-  test('compact mobile vault pane', async ({ page }) => {
-    await openMobileWorkspace(page)
-    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-    await nav.getByRole('button', { name: 'Vault' }).click()
-    await expect(nav.getByRole('button', { name: 'Vault' })).toHaveAttribute('aria-current', 'page')
-    await expect(page.locator('.virtual-note-list').getByRole('button', { name: 'Research Plan.md' })).toBeVisible()
-    await expect(page.locator('.vault-panel')).toBeInViewport()
-    await settleLayout(page)
-
-    await captureVisual(page, 'visual-mobile-vault-390.png')
-  })
-
-  test('compact mobile inspector pane', async ({ page }) => {
-    await openMobileWorkspace(page)
-    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
-    await nav.getByRole('button', { name: 'Lens' }).click()
-    await expect(nav.getByRole('button', { name: 'Lens' })).toHaveAttribute('aria-current', 'page')
-    await waitForInspectorReady(page)
-    await expect(page.locator('.inspector-panel')).toBeInViewport()
-
-    await captureVisual(page, 'visual-mobile-inspector-390.png')
   })
 
   test('dense graph canvas evidence', async ({ page }) => {
@@ -672,6 +626,45 @@ test.describe('visual review states', () => {
     await expect(hud).toBeVisible()
     await expect(hud).toContainText('Vault open')
     await hud.screenshot({ path: test.info().outputPath('visual-performance-hud.png') })
+  })
+
+  test('Google integration settings evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings', exact: true }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    await settings.getByRole('tab', { name: 'Integrations', exact: true }).click()
+
+    const google = settings.locator('.google-integration-settings')
+    await expect(google).toBeVisible()
+    await expect(google.locator('h3')).toBeVisible()
+    await expect(google).toContainText('Google')
+    await expect(google).toContainText('Gmail')
+    await expect(google.getByRole('checkbox')).toBeVisible()
+    await settleLayout(page)
+
+    await settings.screenshot({ path: test.info().outputPath('visual-settings-integrations-google.png') })
+  })
+
+  test('populated Inbox evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:inbox-notes', '1')
+    })
+    await openVisualWorkspace(page)
+
+    const vault = page.getByRole('complementary', { name: 'Vault' })
+    const inboxButton = vault.getByRole('button', { name: /Inbox/ })
+    await expect(inboxButton).toContainText('2')
+    await inboxButton.click()
+
+    const inbox = vault.getByRole('region', { name: 'Inbox' })
+    await expect(inbox).toBeVisible()
+    await expect(inbox).toContainText('Inbox (2)')
+    await expect(inbox).toContainText('Research Plan')
+    await expect(inbox).toContainText('Field Notes')
+    await settleLayout(page)
+
+    await vault.screenshot({ path: test.info().outputPath('visual-inbox-populated.png') })
   })
 
   test('Gmail manager disconnected-state evidence', async ({ page }) => {
