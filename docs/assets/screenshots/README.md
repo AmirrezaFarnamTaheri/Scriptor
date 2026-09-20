@@ -98,13 +98,13 @@ The stable Windows baselines remain the visual-regression acceptance surface. In
 changes must be reviewed and refreshed explicitly with `--update-snapshots=all`; visual failures are
 never hidden by raising the global tolerance.
 
-Pull-request **Visual review** owns the visual-regression gate on the pinned Windows runner. It first
-compares current renders against committed baselines without mutating them. A second
-`--update-snapshots=all` pass runs **only when that comparison fails** and reruns only
-`screenshots.spec.ts`, the suite that actually owns committed pixel baselines. It exists solely to
-produce diagnostic current-state images and identify stale baselines; it never auto-accepts a visual change. Functional
-browser E2E remains in the main CI workflow, so the same visual suite is not executed twice on every
-clean PR. The uploaded artifact is canonicalized as `visual-review.zip`: every
+Pull-request **Visual review** owns the visual-regression gate on the pinned Windows runner. It runs one
+compare-only Playwright pass with `--update-snapshots=none`; PR validation never rewrites baselines.
+Failed comparisons already retain actual/diff screenshots, traces, videos, and the fresh documentation
+captures produced before the failure, so a second diagnostic browser/build pass would be redundant and
+can exhaust Windows runner socket/buffer resources. Intentional baseline changes are produced only by
+the explicit screenshot-refresh workflow or a reviewed local `-UpdateBaselines` run. Functional browser
+E2E remains in the main CI workflow, so the same visual suite is not executed twice on every clean PR. The uploaded artifact is canonicalized as `visual-review.zip`: every
 PNG/JPEG/WebP/GIF/AVIF from comparison results, diagnostic refreshed baselines, and documentation
 captures is flattened under **`images/`** with a provenance prefix. Raw
 `test-results/visual` and `e2e/*-snapshots` trees are not uploaded separately, preventing stale

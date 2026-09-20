@@ -63,12 +63,12 @@ test('automatic screenshots are failure-only because successful evidence is expl
   assert.doesNotMatch(visualConfig, /screenshot:\s*'on'/)
 })
 
-test('diagnostic baseline refresh reruns only the stable screenshot spec', () => {
-  const steps = workflow.split(/\n(?= {6}- name: )/)
-  const refresh = steps.find((entry) => entry.startsWith('      - name: Refresh current visual baselines\n'))
-  assert.ok(refresh, 'missing diagnostic baseline refresh step')
-  assert.match(refresh, /e2e\/screenshots\.spec\.ts/)
-  assert.doesNotMatch(refresh, /e2e\/visual-review\.spec\.ts/)
+test('pull-request visual review is compare-only and never rewrites baselines', () => {
+  assert.match(workflow, /Compare against committed visual baselines/)
+  assert.match(workflow, /--update-snapshots=none/)
+  assert.doesNotMatch(workflow, /Refresh current visual baselines/)
+  assert.doesNotMatch(workflow, /--update-snapshots=all/)
+  assert.doesNotMatch(workflow, /VISUAL_REFRESH_OUTCOME|steps\.visual_refresh/)
 })
 
 test('packager excludes image bytes from evidence tree', () => {
@@ -77,17 +77,13 @@ test('packager excludes image bytes from evidence tree', () => {
 })
 
 
-test('cancelled visual runs do not refresh or publish stale evidence', () => {
+test('cancelled visual runs do not publish stale evidence', () => {
   const steps = workflow.split(/\n(?= {6}- name: )/)
   const step = (name) => {
     const block = steps.find((entry) => entry.startsWith(`      - name: ${name}\n`))
     assert.ok(block, `missing required visual evidence step: ${name}`)
     return block
   }
-  assert.match(
-    step('Refresh current visual baselines'),
-    /if:\s*\$\{\{ steps\.visual_compare\.outcome != 'success' && !cancelled\(\) \}\}/,
-  )
   for (const name of [
     'Enforce visual review result and committed baselines',
     'Finalize visual review evidence',
@@ -97,8 +93,8 @@ test('cancelled visual runs do not refresh or publish stale evidence', () => {
     assert.match(step(name), /if:\s*\$\{\{ always\(\) && !cancelled\(\) \}\}/)
   }
   assert.match(step('Capture visual review failure context'), /if:\s*\$\{\{ failure\(\) && !cancelled\(\) \}\}/)
+  assert.doesNotMatch(workflow, /Refresh current visual baselines/)
 })
-
 
 test('expanded visual evidence matrix remains captured', () => {
   for (const image of [

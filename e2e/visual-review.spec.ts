@@ -654,7 +654,7 @@ test.describe('visual review states', () => {
 
     const vault = page.getByRole('complementary', { name: 'Vault' })
     const inboxButton = vault.getByRole('button', { name: /Inbox/ })
-    await expect(inboxButton).toContainText('2')
+    await expect(inboxButton.locator('.inbox-badge')).toHaveText('2')
     await inboxButton.click()
 
     const inbox = vault.getByRole('region', { name: 'Inbox' })

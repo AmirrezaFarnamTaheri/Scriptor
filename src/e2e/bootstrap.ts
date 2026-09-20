@@ -124,14 +124,15 @@ function knowledgeRepairFixture() {
 }
 
 function activeNoteSummaries() {
-  return activeScanFixture().filter((entry) => entry.kind === 'note').map((entry) => {
+  const inboxFixture = window.sessionStorage.getItem('e2e:inbox-notes') === '1'
+  return activeScanFixture().filter((entry) => entry.kind === 'note').map((entry, index) => {
     const doc = e2eNoteDocument(entry.path)
     return {
       path: entry.path,
       title: doc.metadata.title,
       modified_at: entry.modified_at ?? '',
       note_type: null,
-      organized: true,
+      organized: inboxFixture ? index >= 2 : true,
       archived: false,
       tags: doc.metadata.tags,
     }
@@ -380,10 +381,7 @@ export function installE2eBridge(): void {
       case 'indexer_list_tags':
         return [{ tag: 'research', note_count: 1 }]
       case 'indexer_list_inbox':
-        if (window.sessionStorage.getItem('e2e:inbox-notes') === '1') {
-          return activeNoteSummaries().slice(0, 2).map((note) => ({ ...note, organized: false }))
-        }
-        return []
+        return activeNoteSummaries().filter((note) => !note.organized)
       case 'indexer_list_orphans':
       case 'indexer_list_dead_ends':
         return knowledgeRepairFixture()
