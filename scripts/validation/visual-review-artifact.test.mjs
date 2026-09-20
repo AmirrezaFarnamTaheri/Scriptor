@@ -148,10 +148,25 @@ test('expanded visual evidence matrix remains captured', () => {
 })
 
 
+test('Help visual evidence proves centralized, non-injected guidance', () => {
+  for (const image of [
+    'visual-help-restraint.png',
+    'visual-help-mcp-guide.png',
+    'visual-help-mobile-390.png',
+  ]) {
+    assert.ok(visualReview.includes(image), `missing restrained Help evidence capture: ${image}`)
+  }
+  assert.match(visualReview, /\.help-affordance, \.help-trigger, \.help-invitation/)
+  assert.match(visualReview, /toHaveCount\(0\)/)
+})
+
 test('major product surfaces keep visual evidence', () => {
   for (const image of [
     "visual-reader-pdf.png",
     "visual-tasks-populated.png",
+    "visual-git-confirmation.png",
+    "visual-history-restore-confirmation.png",
+    "visual-writing-targets.png",
     "visual-kanban-populated.png",
     "visual-bibliography.png",
     "visual-snippets.png",
@@ -159,6 +174,12 @@ test('major product surfaces keep visual evidence', () => {
     "visual-template-picker.png",
     "visual-obsidian-import.png",
     "visual-support.png",
+    "visual-canvas-populated.png",
+    "visual-mcp-sharing-inventory.png",
+    "visual-editor-recovery.png",
+    "visual-typography-popover.png",
+    "visual-insert-popover.png",
+    "visual-mobile-editor-390.png",
     "visual-portal.png",
     "visual-quick-capture.png",
     "visual-built-in-modules.png",
