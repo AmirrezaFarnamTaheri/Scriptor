@@ -1,4 +1,4 @@
-export type GuidePolicy = 'first-run' | 'first-use' | 'manual'
+export type GuidePolicy = 'first-run' | 'manual'
 export type GuideCategory = 'Workspace' | 'Writing' | 'Knowledge' | 'Publishing' | 'Integrations' | 'Recovery'
 export type GuideStep = readonly [title: string, instruction: string, target?: string]
 export type GuideQuestion = readonly [question: string, answer: string]

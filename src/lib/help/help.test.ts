@@ -27,17 +27,9 @@ test('only the overview is automatic first-run; dangerous operations are manual'
   for (const id of ['google', 'gmail', 'reader', 'kanban', 'tasks']) assert.equal(HELP_BY_ID.get(id)?.experimental, true)
 })
 
-test('first-use invitations are limited to complex low-risk surfaces; everything else stays on demand', () => {
-  const expected = [
-    'ai', 'appearance', 'backups', 'bibliography', 'canvas', 'capture', 'citations', 'docks', 'export',
-    'git', 'gmail', 'google', 'graph', 'history', 'import', 'kanban', 'mcp', 'modules', 'plugins', 'portal',
-    'publish', 'reader', 'resource-sync', 'tasks', 'toolbar-customize', 'workbench',
-  ].sort()
-  const actual = HELP_GUIDES.filter((guide) => guide.policy === 'first-use').map((guide) => guide.id).sort()
-  assert.deepEqual(actual, expected)
+test('all feature guides are on demand; only the workspace overview is first-run', () => {
   for (const guide of HELP_GUIDES) {
-    if (guide.id === 'workspace' || expected.includes(guide.id)) continue
-    assert.equal(guide.policy, 'manual', guide.id)
+    assert.equal(guide.policy, guide.id === 'workspace' ? 'first-run' : 'manual', guide.id)
   }
 })
 
@@ -50,7 +42,7 @@ test('help search covers questions and workflows without network or vault access
   assert.equal(searchGuides('zzzzzzzzzzzzzz').length, 0)
 })
 
-test('reading, invitation, progress, completion, and reset are independent', () => {
+test('reading, progress, completion, and reset are independent', () => {
   const empty = emptyHelpPreferences()
   const offered = reduceHelpPreferences(empty, { type: 'offer', id: 'graph' })
   assert.equal(getProgress(offered, 'graph').completed, false)
