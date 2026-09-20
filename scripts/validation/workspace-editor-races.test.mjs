@@ -44,7 +44,7 @@ function harness({ native = false } = {}) {
   vm.runInNewContext(source, {
     exports: module.exports, module,
     require: (id) => id === 'react' ? react : id.endsWith('/commands') ? commands
-      : id.endsWith('/platform') ? { isNativeBridgeAvailable: () => native }
+      : id.endsWith('/platform') ? { isNativeBridgeAvailable: () => native, isDesktopWindowRuntime: () => native }
         : id === '@tauri-apps/api/window' ? { getCurrentWindow: () => appWindow }
           : id.includes('vaultErrors') ? { isContentHashMismatchError: () => false }
         : id.endsWith('/helpers') ? { extractOutline: () => [], extractWikilinks: () => [] } : {},

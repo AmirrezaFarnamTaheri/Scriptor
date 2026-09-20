@@ -14,7 +14,7 @@ import {
   vaultSaveAsset,
   vaultSaveNote,
 } from '../bridge/commands'
-import { isNativeBridgeAvailable } from '../bridge/platform'
+import { isDesktopWindowRuntime, isNativeBridgeAvailable } from '../bridge/platform'
 import { importVaultFiles } from '../lib/importVaultFiles'
 import { isContentHashMismatchError } from '../lib/vaultErrors'
 import { coordinateNoteMutation } from '../lib/workspace/coordinateNoteMutation'
@@ -962,7 +962,10 @@ export function useWorkspaceEditor({
   }, [])
 
   useEffect(() => {
-    if (!isNativeBridgeAvailable()) return
+    // Browser/E2E mode exposes the command bridge, but only a real Tauri window
+    // can register a native close handler. Do not call getCurrentWindow() in
+    // browser previews or screenshot runs.
+    if (!isDesktopWindowRuntime()) return
     let disposed = false
     let unlisten: (() => void) | undefined
     let closingAfterFlush = false

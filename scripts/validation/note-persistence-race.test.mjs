@@ -113,7 +113,7 @@ function harness() {
           : id.includes('vaultErrors')
             ? { isContentHashMismatchError: (msg) => typeof msg === 'string' && (msg.includes('conflict') || msg.includes('mismatch')) }
             : id.endsWith('/platform')
-              ? { isNativeBridgeAvailable: () => false }
+              ? { isNativeBridgeAvailable: () => false, isDesktopWindowRuntime: () => false }
               : id.endsWith('/helpers')
                 ? { extractOutline: () => [], extractWikilinks: () => [] }
                 : {},

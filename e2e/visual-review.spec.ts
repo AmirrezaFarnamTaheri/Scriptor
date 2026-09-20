@@ -505,6 +505,8 @@ test.describe('visual review states', () => {
     await outputTab.click()
     const output = page.locator('#dock-panel-output')
     await expect(output).toBeVisible()
+    await expect(output).not.toContainText('Could not install close-save guard')
+    await expect(output).not.toContainText('currentWindow')
     await expectNoHorizontalOverflow(page)
     await output.screenshot({ path: test.info().outputPath('visual-dock-output.png') })
   })
