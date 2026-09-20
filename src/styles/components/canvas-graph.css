@@ -150,6 +150,8 @@
 .canvas-stage .canvas-svg {
   width: 100%;
   min-height: 360px;
+  border-radius: 10px;
+  background: var(--surface-muted);
 }
 
 .canvas-svg {

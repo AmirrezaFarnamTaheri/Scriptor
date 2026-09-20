@@ -288,6 +288,9 @@ test.describe('visual review states', () => {
     await expect(canvas.locator('.canvas-block')).toHaveCount(1)
     await expect(canvas.locator('.canvas-header')).toContainText('1 block')
     await expect(canvas.locator('.canvas-footer')).toContainText('Linked 1 block(s) to Research Plan.md')
+    const stageSvg = canvas.locator('.canvas-svg')
+    await expect(stageSvg.locator(':scope > rect')).toHaveCount(0)
+    await expect.poll(() => stageSvg.evaluate((element) => getComputedStyle(element).backgroundColor !== 'rgba(0, 0, 0, 0)')).toBe(true)
     await settleLayout(page)
 
     await canvas.screenshot({ path: test.info().outputPath('visual-canvas-populated.png') })
