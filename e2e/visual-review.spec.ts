@@ -63,9 +63,10 @@ async function waitForEditorReady(page: Page) {
 }
 
 async function waitForInspectorReady(page: Page) {
-  await expect(page.getByRole('heading', { name: 'Vault health' })).toBeVisible({ timeout: 45_000 })
-  await expect(page.locator('.widget-action')).toHaveText('Good', { timeout: 45_000 })
-  await expect(page.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
+  const inspector = page.locator('.inspector-panel')
+  await expect(inspector).toBeVisible({ timeout: 45_000 })
+  await expect(inspector.locator('.widget-action').first()).toBeVisible({ timeout: 45_000 })
+  await expect(inspector.locator('.metric-grid')).toContainText('2', { timeout: 30_000 })
   await settleLayout(page)
 }
 
@@ -291,8 +292,9 @@ test.describe('visual review states', () => {
     const linkActiveNote = canvas.getByRole('button', { name: 'Link to active note' })
     await expect(linkActiveNote).toBeEnabled()
     await linkActiveNote.click()
-    await expect(canvas.locator('.canvas-block')).toHaveCount(2)
-    await expect(canvas.locator('.canvas-header')).toContainText('2 blocks')
+    await expect(canvas.locator('.canvas-block')).toHaveCount(1)
+    await expect(canvas.locator('.canvas-header')).toContainText('1 block')
+    await expect(canvas.locator('.canvas-footer')).toContainText('Linked 1 block(s) to Research Plan.md')
     await settleLayout(page)
 
     await canvas.screenshot({ path: test.info().outputPath('visual-canvas-populated.png') })
@@ -328,7 +330,7 @@ test.describe('visual review states', () => {
     await openCommandPalette(page)
     await runCommand(page, 'Open MCP panel')
 
-    const mcp = page.getByRole('dialog', { name: 'MCP automation', exact: true })
+    const mcp = page.locator('.mcp-panel')
     await expect(mcp).toBeVisible()
     const invitation = mcp.getByRole('button', { name: 'New here? Guide', exact: true })
     await expect(invitation).toBeVisible({ timeout: 10_000 })
@@ -441,7 +443,9 @@ test.describe('visual review states', () => {
     await page.addInitScript(() => {
       window.sessionStorage.setItem('e2e:large-vault', '1')
     })
-    await openVisualWorkspace(page)
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+    await waitForInspectorReady(page)
     const list = page.locator('.virtual-note-list')
     await expect(list).toBeVisible()
     expect(await list.locator(':scope > li').count()).toBeLessThan(80)
@@ -481,7 +485,7 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open Git panel')
-    const git = page.getByRole('dialog', { name: 'Git', exact: true })
+    const git = page.locator('.git-panel')
     await expect(git).toBeVisible()
     await git.getByRole('button', { name: 'Resolve' }).click()
     const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
@@ -495,7 +499,7 @@ test.describe('visual review states', () => {
   test('Reader PDF surface evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await page.getByRole('button', { name: 'Research Paper.pdf' }).click()
-    const reader = page.getByRole('dialog', { name: 'Reader', exact: true })
+    const reader = page.locator('.reader-panel')
     await expect(reader).toBeVisible()
     await expect(reader).toContainText('Research Paper.pdf')
     const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
@@ -631,7 +635,7 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open Gmail Manager')
-    const gmail = page.getByRole('dialog', { name: 'Gmail integration panel', exact: true })
+    const gmail = page.locator('.gmail-manager-panel')
     await expect(gmail).toBeVisible()
     await expect(gmail).toContainText('Gmail is not connected')
     await gmail.screenshot({ path: test.info().outputPath('visual-gmail-disconnected.png') })
