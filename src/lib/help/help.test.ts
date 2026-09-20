@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { test } from 'node:test'
-import { HELP_GUIDES, HELP_BY_ID, searchGuides } from './catalog.ts'
+import { browseGuides, HELP_GUIDES, HELP_BY_ID, searchGuides } from './catalog.ts'
 import { emptyHelpPreferences, getProgress, HelpProgressStore, parseHelpPreferences, reduceHelpPreferences } from './progress.ts'
 import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
@@ -40,6 +40,21 @@ test('help search covers questions and workflows without network or vault access
   assert.ok(searchGuides('operation messages').some((guide) => guide.id === 'activity-output'))
   assert.ok(searchGuides('', 'Recovery').every((guide) => guide.category === 'Recovery'))
   assert.equal(searchGuides('zzzzzzzzzzzzzz').length, 0)
+})
+
+test('idle Help browsing stays contextual while search and categories expose the full corpus', () => {
+  const contextual = browseGuides('mcp', '', '')
+  assert.ok(contextual.length > 1)
+  assert.ok(contextual.length < HELP_GUIDES.length / 4)
+  assert.equal(contextual[0]?.id, 'mcp')
+  assert.ok(contextual.every((guide) => guide.id === 'mcp' || HELP_BY_ID.get('mcp')!.related.includes(guide.id)))
+
+  const searched = browseGuides('mcp', 'keychain', '')
+  assert.ok(searched.some((guide) => guide.id === 'google'))
+  assert.deepEqual(
+    browseGuides('mcp', '', 'Recovery').map((guide) => guide.id),
+    searchGuides('', 'Recovery').map((guide) => guide.id),
+  )
 })
 
 test('reading, progress, completion, and reset are independent', () => {

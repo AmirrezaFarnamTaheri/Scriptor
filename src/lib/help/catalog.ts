@@ -31,3 +31,17 @@ export function searchGuides(query: string, category = ''): HelpGuide[] {
     .filter(({ score }) => terms.length === 0 || score > 0)
     .sort((a, b) => b.score - a.score).map(({ guide }) => guide)
 }
+
+/**
+ * Keep the default Help browser contextual instead of dumping the entire guide
+ * catalog into the left rail. Search and category browsing still expose the
+ * complete authored corpus; an idle browser shows only the current guide and
+ * its explicitly related destinations.
+ */
+export function browseGuides(currentId: string, query: string, category = ''): HelpGuide[] {
+  const matches = searchGuides(query, category)
+  if (words(query.slice(0, 256)).length > 0 || category) return matches
+  const current = getGuide(currentId)
+  const contextualIds = new Set([current.id, ...current.related])
+  return matches.filter((guide) => contextualIds.has(guide.id))
+}

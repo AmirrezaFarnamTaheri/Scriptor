@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { X } from 'lucide-react'
 import { createPortal } from 'react-dom'
-import { getGuide, HELP_CATEGORIES, searchGuides } from '../../lib/help/catalog'
+import { browseGuides, getGuide, HELP_CATEGORIES } from '../../lib/help/catalog'
 import type { HelpGuide, HelpRequest, HelpView } from '../../lib/help/types'
 import type { HelpProgressStore } from '../../lib/help/progress'
 import { helpLabels } from '../../lib/help/labels'
@@ -29,7 +29,7 @@ export function HelpCenter({ request, store, onClose, onReveal }: HelpCenterProp
   const [confirmReset, setConfirmReset] = useState(false)
   const { storageWarning } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const guide = getGuide(id)
-  const results = searchGuides(query, category)
+  const results = browseGuides(id, query, category)
   useEscapeToClose(true, onClose)
 
   useEffect(() => {
