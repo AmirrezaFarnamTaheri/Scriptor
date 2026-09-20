@@ -766,6 +766,11 @@ test.describe('visual review states', () => {
     const hud = page.locator('.perf-hud-overlay')
     await expect(hud).toBeVisible()
     await expect(hud).toContainText('Vault open')
+    await expect.poll(() => hud.evaluate((element) => {
+      const value = getComputedStyle(element).backgroundColor
+      const match = value.match(/^rgba?\((?:[^,]+,){3}\s*([\d.]+)\)$/)
+      return match ? Number(match[1]) : 1
+    })).toBeGreaterThanOrEqual(0.95)
     await hud.screenshot({ path: test.info().outputPath('visual-performance-hud.png') })
   })
 

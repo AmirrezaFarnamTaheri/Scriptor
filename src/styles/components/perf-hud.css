@@ -9,7 +9,7 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--surface-raised) 92%, transparent);
+  background: var(--dialog-bg, var(--bg-elevated));
   box-shadow: var(--shadow-md);
   font-size: 11px;
   pointer-events: none;
