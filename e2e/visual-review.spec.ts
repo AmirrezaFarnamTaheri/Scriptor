@@ -498,6 +498,27 @@ test.describe('visual review states', () => {
     }
     const problems = page.locator('#dock-panel-problems')
     await expect(problems).toBeVisible()
+    const editorLintHeader = problems.locator('.diagnostics-section-header').filter({ hasText: 'Editor lint' })
+    const linkReferenceAction = editorLintHeader.getByRole('button', { name: 'Generate link references' })
+    await expect(linkReferenceAction).toBeVisible()
+    const diagnosticsGeometry = await editorLintHeader.evaluate((header) => {
+      const heading = header.querySelector('h3')
+      const action = header.querySelector('button')
+      if (!heading || !action) return null
+      const headerRect = header.getBoundingClientRect()
+      const headingRect = heading.getBoundingClientRect()
+      const actionRect = action.getBoundingClientRect()
+      return {
+        headerWidth: headerRect.width,
+        actionWidth: actionRect.width,
+        gap: actionRect.left - headingRect.right,
+        headingHeight: headingRect.height,
+      }
+    })
+    expect(diagnosticsGeometry).not.toBeNull()
+    expect(diagnosticsGeometry?.actionWidth ?? Infinity).toBeLessThan((diagnosticsGeometry?.headerWidth ?? 0) * 0.5)
+    expect(diagnosticsGeometry?.gap ?? -1).toBeGreaterThanOrEqual(8)
+    expect(diagnosticsGeometry?.headingHeight ?? Infinity).toBeLessThanOrEqual(32)
     await expectNoHorizontalOverflow(page)
     await problems.screenshot({ path: test.info().outputPath('visual-dock-problems.png') })
 
