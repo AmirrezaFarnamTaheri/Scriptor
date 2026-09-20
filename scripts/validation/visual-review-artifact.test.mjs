@@ -10,6 +10,12 @@ const packager = fs.readFileSync(path.join(root, 'scripts/ci/prepare-visual-revi
 const visualReview = fs.readFileSync(path.join(root, 'e2e/visual-review.spec.ts'), 'utf8')
 const visualConfig = fs.readFileSync(path.join(root, 'playwright.visual.config.ts'), 'utf8')
 
+test('visual review covers ready PR heads and protected-branch pushes', () => {
+  assert.match(workflow, /pull_request:\s*\n\s*types: \[opened, synchronize, reopened, ready_for_review\]/)
+  assert.match(workflow, /push:\s*\n\s*branches: \[main, master\]/)
+  assert.match(workflow, /if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.draft == false/)
+})
+
 test('visual review compares committed baselines before refreshing current images', () => {
   const compare = workflow.indexOf('--update-snapshots=none')
   const refresh = workflow.indexOf('--update-snapshots=all')

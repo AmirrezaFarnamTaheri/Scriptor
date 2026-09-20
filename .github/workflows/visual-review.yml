@@ -3,6 +3,8 @@ name: Visual review
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -21,7 +23,7 @@ env:
 jobs:
   visual-review:
     name: Windows visual regression
-    if: github.event.pull_request.draft == false
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: windows-2025
     timeout-minutes: 40
     env:
