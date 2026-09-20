@@ -74,7 +74,7 @@ jobs:
 
       - name: Verify refreshed stable baselines
         shell: pwsh
-        run: pnpm exec playwright test --config playwright.visual.config.ts --update-snapshots=none --workers=1
+        run: pnpm exec playwright test e2e/screenshots.spec.ts --config playwright.visual.config.ts --update-snapshots=none --workers=1
 
       - name: Commit generated screenshot updates
         shell: pwsh

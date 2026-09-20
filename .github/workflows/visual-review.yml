@@ -70,7 +70,7 @@ jobs:
         if: ${{ steps.visual_compare.outcome != 'success' && !cancelled() }}
         continue-on-error: true
         shell: pwsh
-        run: ./scripts/ci/invoke-logged.ps1 -Name "Refresh current visual baselines" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=all", "--output=test-results/visual-refresh") -TimeoutSeconds 1800 -HeartbeatSeconds 20
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Refresh current visual baselines" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "e2e/screenshots.spec.ts", "--config", "playwright.visual.config.ts", "--update-snapshots=all", "--output=test-results/visual-refresh") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
       - name: Enforce visual review result and committed baselines
         if: ${{ always() && !cancelled() }}
@@ -80,7 +80,7 @@ jobs:
           VISUAL_REFRESH_OUTCOME: ${{ steps.visual_refresh.outcome }}
         run: |
           $failed = $false
-          $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots docs/assets/screenshots
+          $changes = git status --porcelain -- e2e/screenshots.spec.ts-snapshots docs/assets/screenshots
 
           if ($env:VISUAL_COMPARE_OUTCOME -eq 'success') {
             if ($changes) {

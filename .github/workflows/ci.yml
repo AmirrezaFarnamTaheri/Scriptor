@@ -538,7 +538,7 @@ jobs:
           retention-days: 30
 
   validate-browser:
-    name: Browser E2E and visual regression
+    name: Browser E2E
     needs: supply-chain
     runs-on: windows-2025
     timeout-minutes: 45
