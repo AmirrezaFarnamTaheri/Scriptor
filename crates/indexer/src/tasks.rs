@@ -199,12 +199,10 @@ pub fn parse_tasks_from_markdown(markdown: &str) -> Vec<ParsedTask> {
     let mut list_indents: Vec<usize> = Vec::new();
 
     for (line_idx, segment) in markdown.split_inclusive('\n').enumerate() {
-        let line = segment
-            .strip_suffix('\n')
-            .unwrap_or(segment)
-            .strip_suffix('\r')
-            .unwrap_or_else(|| segment.strip_suffix('\n').unwrap_or(segment));
+        let line = segment.strip_suffix('\n').unwrap_or(segment);
+        let line = line.strip_suffix('\r').unwrap_or(line);
         let trimmed = line.trim_start();
+        let indent = leading_indent_columns(line);
 
         if let Some(active) = fence {
             if task_fence_end(line, active) {
@@ -213,11 +211,13 @@ pub fn parse_tasks_from_markdown(markdown: &str) -> Vec<ParsedTask> {
             continue;
         }
         if let Some(opening) = task_fence_start(line) {
+            if indent == 0 {
+                list_indents.clear();
+            }
             fence = Some(opening);
             continue;
         }
 
-        let indent = leading_indent_columns(line);
         if trimmed.starts_with('>') {
             if indent == 0 {
                 list_indents.clear();

@@ -103,6 +103,7 @@ export function parseTasksFromMarkdown(markdown: string, noteId = ''): Task[] {
   for (const [lineIdx, rawLine] of markdown.split('\n').entries()) {
     const line = rawLine.endsWith('\r') ? rawLine.slice(0, -1) : rawLine
     const trimmed = line.trimStart()
+    const indent = leadingIndentColumns(line)
 
     if (fence) {
       if (taskFenceEnd(line, fence)) fence = null
@@ -110,11 +111,11 @@ export function parseTasksFromMarkdown(markdown: string, noteId = ''): Task[] {
     }
     const openingFence = taskFenceStart(line)
     if (openingFence) {
+      if (indent === 0) listIndents.length = 0
       fence = openingFence
       continue
     }
 
-    const indent = leadingIndentColumns(line)
     if (trimmed.startsWith('>')) {
       if (indent === 0) listIndents.length = 0
       continue
