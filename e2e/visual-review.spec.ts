@@ -307,7 +307,7 @@ test.describe('visual review states', () => {
 
     await openCommandPalette(page)
     await runCommand(page, 'Open MCP panel')
-    const mcp = page.getByRole('dialog', { name: 'MCP automation', exact: true })
+    const mcp = page.locator('.mcp-panel')
     await expect(mcp).toBeVisible()
     await expect(mcp.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
     await mcp.getByRole('tab', { name: 'Audit', exact: true }).focus()

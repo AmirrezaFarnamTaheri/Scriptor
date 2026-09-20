@@ -19,15 +19,17 @@ test('Help is searchable from commands and does not require a provider', async (
   await expect(dialog).toBeHidden()
 })
 
-test('F1 opens contextual help over a live graph without closing the graph', async ({ page }) => {
+test('F1 opens contextual help over a live graph without adding inline Help chrome', async ({ page }) => {
   await launchApp(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open graph')
   const graph = page.getByRole('dialog', { name: 'Knowledge graph', exact: true })
   await expect(graph).toBeVisible()
-  const trigger = graph.getByRole('button', { name: 'Help for Knowledge graph navigation', exact: true })
-  await expect(trigger).toBeVisible()
-  await trigger.focus()
+  await expect(graph.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+
+  const graphSurface = graph.locator('.graph-canvas.force, canvas[role="application"]').first()
+  await expect(graphSurface).toBeVisible()
+  await graphSurface.focus()
   await page.keyboard.press('F1')
   await expect(help(page).getByRole('heading', { name: 'Knowledge graph navigation', exact: true })).toBeVisible()
   for (let index = 0; index < 20; index += 1) {
@@ -37,22 +39,31 @@ test('F1 opens contextual help over a live graph without closing the graph', asy
   await page.keyboard.press('Escape')
   await expect(help(page)).toBeHidden()
   await expect(graph).toBeVisible()
-  await expect(trigger).toBeFocused()
+  await expect(graphSurface).toBeFocused()
 })
 
-test('first-use invitations do not start tours and dismissal survives reopen', async ({ page }) => {
+test('Help remains centralized after feature reopen', async ({ page }) => {
   await launchApp(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open graph')
   const graph = page.getByRole('dialog', { name: 'Knowledge graph', exact: true })
-  await expect(graph.getByRole('button', { name: 'New here? Guide', exact: true })).toBeVisible()
-  await expect(help(page)).toBeHidden()
-  await graph.getByRole('button', { name: 'Dismiss this guide invitation', exact: true }).click()
+  await expect(graph).toBeVisible()
+  await expect(graph.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+  await expect(graph.getByRole('button', { name: /New here\? Guide|Help for/ })).toHaveCount(0)
+
+  const graphSurface = graph.locator('.graph-canvas.force, canvas[role="application"]').first()
+  await graphSurface.focus()
+  await page.keyboard.press('F1')
+  await expect(help(page).getByRole('heading', { name: 'Knowledge graph navigation', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
+  await expect(help(page)).toBeHidden()
+  await page.keyboard.press('Escape')
+  await expect(graph).toBeHidden()
+
   await openCommandPalette(page)
   await runCommand(page, 'Open graph')
-  await expect(graph.getByRole('button', { name: 'New here? Guide', exact: true })).toHaveCount(0)
-  await expect(graph.getByRole('button', { name: 'Help for Knowledge graph navigation', exact: true })).toBeVisible()
+  await expect(graph).toBeVisible()
+  await expect(graph.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
 })
 
 test('tour progress resumes, missing targets are honest, and reset preserves other storage', async ({ page }) => {
@@ -81,22 +92,27 @@ test('tour progress resumes, missing targets are honest, and reset preserves oth
   await expect(dialog.getByText('Step 1 of 4', { exact: true })).toBeVisible()
 })
 
-for (const [command, title] of [
-  ['Open MCP panel', 'MCP automation modes and tools'],
-  ['Open canvas', 'Canvas board and spatial notes'],
-  ['Open knowledge workbench', 'Knowledge Workbench'],
-  ['Open tasks panel', 'Markdown-backed tasks'],
+for (const [command, title, selector] of [
+  ['Open MCP panel', 'MCP automation modes and tools', '.mcp-panel'],
+  ['Open canvas', 'Canvas board and spatial notes', '.canvas-overlay'],
+  ['Open knowledge workbench', 'Knowledge Workbench', '.knowledge-workbench-panel'],
+  ['Open tasks panel', 'Markdown-backed tasks', '.task-panel'],
 ] as const) {
-  test(`contextual guide for ${command}`, async ({ page }) => {
+  test(`contextual F1 guide for ${command} without inline Help chrome`, async ({ page }) => {
     await launchApp(page)
     await openCommandPalette(page)
     await runCommand(page, command)
-    const trigger = page.getByRole('button', { name: `Help for ${title}`, exact: true }).first()
-    await expect(trigger).toBeVisible()
-    await trigger.click()
+    const owner = page.locator(selector).first()
+    await expect(owner).toBeVisible()
+    await expect(owner.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+    const focusTarget = owner.locator('button:not([aria-label^="Close"]), [role="tab"], select, input, [tabindex]').first()
+    await expect(focusTarget).toBeVisible()
+    await focusTarget.focus()
+    await page.keyboard.press('F1')
     await expect(help(page).getByRole('heading', { name: title, exact: true })).toBeVisible()
     await page.keyboard.press('Escape')
-    await expect(trigger).toBeVisible()
+    await expect(help(page)).toBeHidden()
+    await expect(owner).toBeVisible()
   })
 }
 
