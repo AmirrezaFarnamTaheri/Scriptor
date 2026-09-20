@@ -27,7 +27,7 @@ export function HelpCenter({ request, store, onClose, onReveal }: HelpCenterProp
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [confirmReset, setConfirmReset] = useState(false)
-  const { preferences, storageWarning } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
+  const { storageWarning } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const guide = getGuide(id)
   const results = searchGuides(query, category)
   useEscapeToClose(true, onClose)
@@ -83,7 +83,6 @@ export function HelpCenter({ request, store, onClose, onReveal }: HelpCenterProp
         </div>
       </div>
       <footer className="help-center-footer">
-        <label><input type="checkbox" checked={preferences.hints} onChange={(event) => store.dispatch({ type: 'hints', enabled: event.target.checked })} />{labels.hints}</label>
         {!confirmReset ? <button type="button" className="toolbar-button" onClick={() => setConfirmReset(true)}>{labels.reset}</button> : (
           <div className="help-reset-confirmation" role="group" aria-label={labels.reset}>
             <p>{labels.resetAsk}</p>

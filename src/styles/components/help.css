@@ -1,38 +1,4 @@
-/* Help is read-only chrome, isolated from document typography and editor CSS. */
-.help-affordance {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
-  margin-inline-start: 6px;
-  font: 12px/1.4 var(--font-sans, system-ui);
-}
-
-/* Context help is injected into existing toolbar chrome. Stretch its wrapper to
- * the toolbar line box so a smaller 32px icon does not create a second visual
- * row in geometry/reflow calculations at narrow editor widths. */
-.editor-toolbar > .help-affordance {
-  align-self: stretch;
-  margin-block: 0;
-}
-.help-trigger,
-.help-invitation button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 32px;
-  min-height: 32px;
-  padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm, 6px);
-  background: var(--surface-muted);
-  color: var(--ink-strong);
-  cursor: pointer;
-}
-.help-trigger svg,
-.help-invitation svg { width: 16px; height: 16px; }
-.help-invitation { display: inline-flex; align-items: center; gap: 2px; }
-.help-invitation button:first-child { padding-inline: 8px; }
+/* Help is explicit, read-only chrome isolated from document typography and editor CSS. */
 .help-center {
   box-sizing: border-box;
   width: min(1020px, calc(100vw - 24px));
@@ -70,7 +36,6 @@
 .help-browser li button[aria-current='page'] { background: var(--primary-soft); border-color: var(--border-strong); color: var(--ink-strong); }
 .help-reading-pane { min-width: 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 26px; }
 .help-eyebrow,
-.help-policy,
 .help-result-count { color: var(--muted); font-size: 12px; }
 .help-preflight { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 8px 14px; margin: 18px 0; padding: 14px 0; border-block: 1px solid var(--border); }
 .help-preflight dt { font-weight: 600; color: var(--ink-strong); }
@@ -91,8 +56,7 @@
 .help-notice { background: var(--surface-muted); color: var(--ink-strong); border-inline-start: 3px solid var(--primary); padding: 8px 14px; }
 .help-center > .help-notice,
 .help-language-notice { margin: 0; padding: 6px 20px; font-size: 12px; flex: 0 0 auto; }
-.help-center-footer { flex: 0 0 auto; padding: 10px 16px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
-.help-center-footer > label { display: flex; align-items: center; gap: 7px; }
+.help-center-footer { flex: 0 0 auto; padding: 10px 16px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .help-reset-confirmation { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .help-reset-confirmation p { flex-basis: 100%; }
 .help-ui :is(button, input, select, summary):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
@@ -107,13 +71,11 @@
   .help-reading-pane { padding: 14px; flex: 1; }
   .help-preflight { grid-template-columns: 1fr; gap: 3px; }
   .help-preflight dd { margin-block-end: 8px; }
-  .help-invitation button:first-child { max-width: 110px; }
 }
 @media (pointer: coarse) {
   .help-ui button,
   .help-ui summary,
   .help-ui input,
   .help-ui select { min-height: 44px; }
-  .help-trigger { min-width: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .help-ui * { scroll-behavior: auto; transition: none; animation: none; } }

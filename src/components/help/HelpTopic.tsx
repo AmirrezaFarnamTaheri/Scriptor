@@ -32,10 +32,9 @@ export function HelpTopic({ guide, view, labels, store, onView, onGuide, onRevea
   return (
     <article className="help-topic">
       <div className="help-topic-heading" lang="en" dir="ltr">
-        <p className="help-eyebrow">{guide.category}</p>
+        <p className="help-eyebrow">{guide.category}{guide.experimental ? ` · ${labels.experimental}` : ''}</p>
         <h2>{guide.title}</h2>
       </div>
-      <p className="help-policy">{guide.experimental ? `${labels.experimental} · ` : ''}{guide.policy === 'first-run' ? labels.policyApp : guide.policy === 'first-use' ? labels.policyFirst : labels.policyManual}</p>
       <div className="help-view-actions" role="group" aria-label={labels.title}>
         <button type="button" className="toolbar-button" aria-pressed={view === 'guide'} onClick={() => onView('guide')}>{labels.guide}</button>
         <button type="button" className="toolbar-button" aria-pressed={view === 'questions'} onClick={() => onView('questions')}>{labels.questions}</button>

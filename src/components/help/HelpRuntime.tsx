@@ -1,39 +1,25 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { createPortal } from 'react-dom'
-import { CircleHelp, X } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { HelpCenter } from './HelpCenter'
-import { useHelpSurfaces } from './useHelpSurfaces'
-import { useI18n } from '../../lib/i18n'
-import { helpLabels } from '../../lib/help/labels'
 import { getProgress, HelpProgressStore } from '../../lib/help/progress'
 import { parseHelpRequest } from '../../lib/help/request'
-import { canOfferHelpInvitation, contextGuide, findGuideTarget } from '../../lib/help/context'
-import { helpInvitationKey, sameHelpInvitation, selectHelpInvitation, type HelpInvitation } from '../../lib/help/invitations'
+import { contextGuide, findGuideTarget } from '../../lib/help/context'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
-import '../../styles/components/help.css'
 
 function createStore(): HelpProgressStore {
   try { return new HelpProgressStore(window.localStorage) } catch { return new HelpProgressStore(null) }
 }
 interface HelpSession extends HelpRequest { sequence: number }
 
-/** One read-only runtime owns contextual invocation, invitations, and replayable guidance. */
+/** One read-only runtime owns explicit Help invocation, contextual F1, and replayable guidance. */
 export function HelpRuntime() {
-  const { locale } = useI18n()
-  const labels = helpLabels(locale)
   const [store] = useState(createStore)
-  const { preferences } = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot)
   const [session, setSession] = useState<HelpSession | null>(null)
-  const [invitation, setInvitation] = useState<HelpInvitation | null>(null)
   const lastInteraction = useRef<Element | null>(null)
   const highlightCleanup = useRef<(() => void) | null>(null)
-  const visibleFirstUse = useRef<Set<string> | null>(null)
-  const pendingInvitations = useRef(new Set<string>())
-  const surfaces = useHelpSurfaces()
+
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
     store.dispatch({ type: 'offer', id: request.id })
-    setInvitation(null)
     setSession((current) => ({ ...request, sequence: (current?.sequence ?? 0) + 1 }))
   }, [store])
   const close = useCallback(() => setSession(null), [])
@@ -73,46 +59,6 @@ export function HelpRuntime() {
     }
   }, [open, store])
 
-  useEffect(() => {
-    const visible = new Set(surfaces.map(({ key, guide }) => helpInvitationKey({ key, id: guide.id })))
-    const previous = visibleFirstUse.current
-    if (!previous) {
-      // Establish a nonempty baseline, not the hook's initial empty render.
-      // The initial workspace has its own overview; static widgets must not nag.
-      if (surfaces.length > 0) visibleFirstUse.current = visible
-      return
-    }
-    visibleFirstUse.current = visible
-    for (const key of pendingInvitations.current) {
-      if (!visible.has(key)) pendingInvitations.current.delete(key)
-    }
-    for (const { key, guide } of surfaces) {
-      const identity = helpInvitationKey({ key, id: guide.id })
-      if (!previous.has(identity) && guide.policy === 'first-use') pendingInvitations.current.add(identity)
-    }
-    if (!preferences.hints || session || document.querySelector('.onboarding-tour')) return
-    const candidate = selectHelpInvitation(surfaces.map(({ key, guide, canInvite, primary }) => ({
-      key,
-      id: guide.id,
-      eligible: canInvite && guide.policy === 'first-use' && (pendingInvitations.current.has(helpInvitationKey({ key, id: guide.id })) || sameHelpInvitation(invitation, { key, id: guide.id })),
-      offered: getProgress(preferences, guide.id).offered,
-      primary,
-    })), invitation)
-    if (!candidate || sameHelpInvitation(candidate, invitation)) return
-    const surface = surfaces.find(({ key, guide }) => key === candidate.key && guide.id === candidate.id)
-    if (!surface) return
-    // Retain pending offers across rescans. Background invitations yield to a
-    // foreground feature; recheck live scope before consuming its first-use offer.
-    const timer = window.setTimeout(() => {
-      if (!canOfferHelpInvitation(surface.root, surface.host) || document.querySelector('.onboarding-tour, .help-center[open]')) return
-      if (getProgress(store.getSnapshot().preferences, candidate.id).offered) return
-      pendingInvitations.current.delete(helpInvitationKey(candidate))
-      store.dispatch({ type: 'offer', id: candidate.id })
-      setInvitation(candidate)
-    }, 900)
-    return () => window.clearTimeout(timer)
-  }, [invitation, preferences, session, store, surfaces])
-
   const reveal = useCallback((guide: HelpGuide, selector?: string): boolean => {
     const target = findGuideTarget(guide, selector)
     if (!target) return false
@@ -136,16 +82,7 @@ export function HelpRuntime() {
     return true
   }, [])
 
-  return <>
-    {surfaces.map(({ key, guide, host, canInvite }) => createPortal(
-      <span className="help-affordance help-ui" data-help-topic={guide.id}>
-        <button type="button" className="help-trigger" aria-label={guide.id === 'workspace' ? labels.title : `${labels.helpFor} ${guide.title}`} title={`${labels.helpFor} ${guide.title} (F1)`} onClick={() => open({ id: guide.id, view: 'guide' })}><CircleHelp aria-hidden="true" /></button>
-        {preferences.hints && canInvite && sameHelpInvitation(invitation, { key, id: guide.id }) ? <span className="help-invitation" role="status">
-          <button type="button" onClick={() => open({ id: guide.id, view: 'tour' })}>{labels.invite}</button>
-          <button type="button" aria-label={labels.dismiss} onClick={() => setInvitation(null)}><X aria-hidden="true" /></button>
-        </span> : null}
-      </span>, host, `help-surface-${key}`,
-    ))}
-    {session ? <HelpCenter key={`${session.id}:${session.sequence}`} request={session} store={store} onClose={close} onReveal={reveal} /> : null}
-  </>
+  return session
+    ? <HelpCenter key={`${session.id}:${session.sequence}`} request={session} store={store} onClose={close} onReveal={reveal} />
+    : null
 }

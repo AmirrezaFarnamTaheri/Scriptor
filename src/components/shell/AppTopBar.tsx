@@ -4,6 +4,7 @@ import {
   Box,
   ChevronDown,
   ChevronRight,
+  CircleHelp,
   FolderOpen,
   GitBranch,
   Globe,
@@ -34,6 +35,7 @@ import type { VaultDescriptor } from '../../types/vault'
 import { useI18n } from '../../lib/i18n'
 import { WORKSPACE_MODE_LABELS, type WorkspaceMode } from '../../hooks/useWorkspaceMode'
 import { DEFAULT_WORKSPACE_CHROME, type WorkspaceChromePrefs } from '../../hooks/useWorkspaceChrome'
+import { requestHelp } from '../../lib/help/request'
 
 interface AppTopBarProps {
   vault: VaultDescriptor | null
@@ -402,6 +404,9 @@ function AppTopBarImpl({
           ) : null}
           <IconButton label={t('topBar.settings')} onClick={onOpenSettings}>
             <Settings />
+          </IconButton>
+          <IconButton label={t('topBar.help')} onClick={() => requestHelp('workspace')}>
+            <CircleHelp />
           </IconButton>
           <button
             type="button"
