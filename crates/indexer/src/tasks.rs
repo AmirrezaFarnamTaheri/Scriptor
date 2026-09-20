@@ -140,7 +140,7 @@ struct TaskFence {
 }
 
 fn task_fence_start(line: &str) -> Option<TaskFence> {
-    let trimmed = line.trim_start_matches(|character| character == ' ' || character == '\t');
+    let trimmed = line.trim_start_matches([' ', '\t']);
     let marker = *trimmed.as_bytes().first()?;
     if marker != b'`' && marker != b'~' {
         return None;
@@ -150,7 +150,7 @@ fn task_fence_start(line: &str) -> Option<TaskFence> {
 }
 
 fn task_fence_end(line: &str, fence: TaskFence) -> bool {
-    let trimmed = line.trim_start_matches(|character| character == ' ' || character == '\t');
+    let trimmed = line.trim_start_matches([' ', '\t']);
     let length = trimmed
         .bytes()
         .take_while(|byte| *byte == fence.marker)
