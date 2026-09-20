@@ -148,7 +148,9 @@ does not mean capture or its push has finished. Check that workflow's result and
 The same workflow can be dispatched manually on a review branch. It uses the pinned `windows-2025`
 runner and Edge channel, runs the capture contract tests, regenerates docs and stable Windows baselines,
 and verifies the complete visual suite without snapshot updates. Only generated PNG changes are
-committed back to the selected branch. The push is not forced; if the branch advances during capture,
+committed back to the selected branch. Its uploaded evidence uses the same manifest-backed canonical
+package as PR Visual review: current captures, baselines, failure output, and the preserved previous
+gallery hero are SHA-256 deduplicated instead of uploaded as parallel directory trees. The push is not forced; if the branch advances during capture,
 the non-fast-forward push fails safely rather than overwriting newer work. Rerun against the updated
 branch after inspecting the separate refresh result.
 

@@ -89,6 +89,7 @@ function Add-VisualImages {
 Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'comparison'
 Add-VisualImages -SourceRoot 'e2e/screenshots.spec.ts-snapshots' -Prefix 'baseline-screenshots'
 Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'capture'
+Add-VisualImages -SourceRoot 'artifacts/screenshots-before' -Prefix 'before'
 
 if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
     $resolvedEvidence = Resolve-RepoPath -Path $EvidenceRoot

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/visual-review.yml'), 'utf8')
+const refreshWorkflow = fs.readFileSync(path.join(root, '.github/workflows/refresh-screenshots.yml'), 'utf8')
 const packager = fs.readFileSync(path.join(root, 'scripts/ci/prepare-visual-review-package.ps1'), 'utf8')
 const visualReview = fs.readFileSync(path.join(root, 'e2e/visual-review.spec.ts'), 'utf8')
 const visualConfig = fs.readFileSync(path.join(root, 'playwright.visual.config.ts'), 'utf8')
@@ -16,23 +17,24 @@ test('visual review covers ready PR heads and protected-branch pushes', () => {
   assert.match(workflow, /if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.draft == false/)
 })
 
-test('visual review compares committed baselines before refreshing current images', () => {
-  const compare = workflow.indexOf('--update-snapshots=none')
-  const refresh = workflow.indexOf('--update-snapshots=all')
-  assert.ok(compare >= 0, 'visual comparison must not mutate committed baselines')
-  assert.ok(refresh > compare, 'current baselines must be refreshed after comparison evidence is captured')
+
+test('visual review compares committed baselines without mutating them', () => {
+  assert.match(workflow, /Compare against committed visual baselines/)
+  assert.match(workflow, /--update-snapshots=none/)
   assert.match(workflow, /id:\s*visual_compare/)
-  assert.match(workflow, /id:\s*visual_refresh/)
-  assert.match(workflow, /test-results\/visual-refresh/)
+  assert.doesNotMatch(workflow, /Refresh current visual baselines/)
+  assert.doesNotMatch(workflow, /--update-snapshots=all/)
+  assert.doesNotMatch(workflow, /id:\s*visual_refresh/)
 })
 
-test('visual review gates stale snapshots and documentation captures', () => {
+
+test('visual review gates stale snapshots and documentation captures from the compare pass', () => {
   assert.match(
     workflow,
     /git status --porcelain -- e2e\/screenshots\.spec\.ts-snapshots docs\/assets\/screenshots/,
   )
   assert.match(workflow, /VISUAL_COMPARE_OUTCOME/)
-  assert.match(workflow, /VISUAL_REFRESH_OUTCOME/)
+  assert.doesNotMatch(workflow, /VISUAL_REFRESH_OUTCOME|steps\.visual_refresh/)
 })
 
 test('clean baseline comparison still rejects stale documentation screenshots', () => {
@@ -69,6 +71,17 @@ test('pull-request visual review is compare-only and never rewrites baselines', 
   assert.doesNotMatch(workflow, /Refresh current visual baselines/)
   assert.doesNotMatch(workflow, /--update-snapshots=all/)
   assert.doesNotMatch(workflow, /VISUAL_REFRESH_OUTCOME|steps\.visual_refresh/)
+})
+
+test('screenshot refresh publishes one canonical deduplicated evidence tree', () => {
+  assert.match(refreshWorkflow, /Prepare canonical screenshot evidence/)
+  assert.match(refreshWorkflow, /prepare-visual-review-package\.ps1/)
+  assert.match(refreshWorkflow, /path:\s*artifacts\/visual-review-package/)
+  assert.doesNotMatch(
+    refreshWorkflow,
+    /path:\s*\|[\s\S]*docs\/assets\/screenshots[\s\S]*e2e\/screenshots\.spec\.ts-snapshots[\s\S]*test-results/,
+  )
+  assert.match(packager, /Add-VisualImages -SourceRoot 'artifacts\/screenshots-before' -Prefix 'before'/)
 })
 
 test('packager excludes image bytes from evidence tree', () => {
