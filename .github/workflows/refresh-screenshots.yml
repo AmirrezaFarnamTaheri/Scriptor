@@ -54,10 +54,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Verify screenshot capture contracts
-        shell: pwsh
-        run: node --test scripts/validation/screenshot-capture-contracts.test.mjs scripts/validation/playwright-isolation-contracts.test.mjs
-
       - name: Install frozen dependencies
         shell: pwsh
         run: pnpm install --frozen-lockfile
@@ -76,6 +72,10 @@ jobs:
       - name: Regenerate current-source docs and stable Windows baselines
         shell: pwsh
         run: ./scripts/screenshots/capture.ps1 -SkipDesktopBuild -UpdateBaselines
+
+      - name: Verify screenshot capture contracts
+        shell: pwsh
+        run: node --test scripts/validation/screenshot-capture-contracts.test.mjs scripts/validation/playwright-isolation-contracts.test.mjs
 
       - name: Verify refreshed stable baselines
         shell: pwsh

@@ -10,10 +10,12 @@ const visualWorkflow = fs.readFileSync(path.join(root, '.github/workflows/visual
 const galleryDir = path.join(root, 'docs/assets/screenshots')
 const baselineDir = path.join(root, 'e2e/screenshots.spec.ts-snapshots')
 
-test('documentation capture never mirrors stable baselines back over fresh screenshots', () => {
+test('documentation capture stages a complete gallery and never mirrors baselines over it', () => {
   assert.doesNotMatch(capture, /e2e\/screenshots\.spec\.ts-snapshots[\s\S]*Copy-Item/)
   assert.doesNotMatch(capture, /\$snapshotDirs\s*=/)
-  assert.match(capture, /current-source captures directly here/)
+  assert.match(capture, /SCRIPTOR_SCREENSHOT_OUTPUT_DIR = \$stagingDocsDir/)
+  assert.match(capture, /Get-ChildItem -LiteralPath \$docsDir -Filter \*\.png -File \| Remove-Item -Force/)
+  assert.match(capture, /Copy-Item -Path \(Join-Path \$stagingDocsDir '\*\.png'\) -Destination \$docsDir -Force/)
 })
 
 test('intentional baseline refresh forces all snapshots and uses one worker', () => {
