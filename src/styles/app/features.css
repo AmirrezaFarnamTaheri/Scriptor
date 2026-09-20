@@ -100,6 +100,14 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* Standalone legacy dialogs must be visually opaque. --surface is intentionally
+ * glassy in several palettes and allowed editor text to bleed through the
+ * Bibliography/Cheatsheet surfaces. Embedded workbench panels keep their normal
+ * surface treatment; modal dialogs use the canonical dialog background. */
+.modal-backdrop > .knowledge-filters-panel:not(.unified-panel-shell) {
+  background: var(--dialog-bg, var(--bg-elevated));
+}
+
 .knowledge-filters-panel header {
   display: flex;
   align-items: flex-start;

@@ -726,7 +726,9 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open Git panel')
-    const git = page.getByRole('dialog', { name: 'Git', exact: true })
+    // Git may be a right-side companion at desktop widths, so role=dialog is
+    // not stable across the responsive presentation contract.
+    const git = page.locator('.git-panel')
     await expect(git).toBeVisible()
     const form = git.locator('.git-commit-form')
     await form.getByRole('textbox').fill('test: visual confirmation')
@@ -754,7 +756,7 @@ test.describe('visual review states', () => {
 
   test('writing targets evidence', async ({ page }) => {
     await openVisualWorkspace(page)
-    await page.getByRole('button', { name: 'Writing Targets', exact: true }).click()
+    await page.getByRole('button', { name: 'Writing targets', exact: true }).click()
     const targets = page.getByRole('dialog', { name: 'Writing targets', exact: true })
     await expect(targets).toBeVisible()
     await expect(targets).toContainText('Daily word target')
@@ -782,7 +784,11 @@ test.describe('visual review states', () => {
     const bibliography = page.getByRole('dialog', { name: 'Bibliography', exact: true })
     await expect(bibliography).toBeVisible()
     await expect(bibliography).toHaveClass(/knowledge-filters-panel/)
-    await expect.poll(() => bibliography.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+    await expect.poll(() => bibliography.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      return rgba ? Number(rgba[1]) >= 0.99 : background !== 'transparent'
+    })).toBe(true)
     await captureElement(page, bibliography, 'visual-bibliography.png')
   })
 
@@ -802,6 +808,11 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Markdown cheatsheet')
     const cheatsheet = page.getByRole('dialog', { name: 'Markdown cheatsheet', exact: true })
     await expect(cheatsheet).toBeVisible()
+    await expect.poll(() => cheatsheet.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      return rgba ? Number(rgba[1]) >= 0.99 : background !== 'transparent'
+    })).toBe(true)
     await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
   })
 

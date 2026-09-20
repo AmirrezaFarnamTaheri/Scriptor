@@ -9,6 +9,15 @@
   pointer-events: none;
 }
 
+/* Skeletons also carry the shared .folder-row/.note-row classes, whose width: 100%
+ * would otherwise add horizontal margins on top of the rail width. Keep loading
+ * placeholders inside the same content box as the real tree rows. */
+.vault-tree-skeleton .vault-skeleton-folder,
+.vault-tree-skeleton .vault-skeleton-row {
+  box-sizing: border-box;
+  width: auto;
+}
+
 .vault-skeleton-folder {
   height: 28px;
   margin: 6px 10px;
