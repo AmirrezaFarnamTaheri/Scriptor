@@ -756,7 +756,10 @@ test.describe('visual review states', () => {
 
   test('writing targets evidence', async ({ page }) => {
     await openVisualWorkspace(page)
-    await page.getByRole('button', { name: 'Writing targets', exact: true }).click()
+    // Writing targets is deliberately unpinned in the default toolbar. Exercise
+    // the supported Tools menu path instead of depending on a customized toolbar.
+    await page.getByRole('button', { name: 'Tools', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Writing targets', exact: true }).click()
     const targets = page.getByRole('dialog', { name: 'Writing targets', exact: true })
     await expect(targets).toBeVisible()
     await expect(targets).toContainText('Daily word target')
