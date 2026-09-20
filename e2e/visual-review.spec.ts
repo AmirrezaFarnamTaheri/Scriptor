@@ -492,7 +492,9 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
 
     const problemsTab = page.getByRole('tab', { name: /Problems/ }).first()
-    await problemsTab.click()
+    if ((await problemsTab.getAttribute('aria-expanded')) !== 'true') {
+      await problemsTab.click()
+    }
     const problems = page.locator('#dock-panel-problems')
     await expect(problems).toBeVisible()
     await expectNoHorizontalOverflow(page)
