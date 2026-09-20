@@ -743,6 +743,9 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Quick capture (scratchpad & todos)')
     const capture = page.locator('.quick-capture-panel')
     await expect(capture).toBeVisible()
+    for (const name of ['New inbox note', 'Insert in active', 'Add']) {
+      await expect(capture.getByRole('button', { name, exact: true })).toHaveClass(/toolbar-button/)
+    }
     await capture.screenshot({ path: test.info().outputPath('visual-quick-capture.png') })
   })
 
