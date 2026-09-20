@@ -96,8 +96,8 @@ interface GraphPanelProps {
   onToggleHibernate?: () => void
 }
 
-const VIEW_WIDTH = 720
-const VIEW_HEIGHT = 420
+const DEFAULT_VIEW_WIDTH = 720
+const DEFAULT_VIEW_HEIGHT = 420
 
 export const GraphPanel = memo(function GraphPanel({
   graph,
@@ -121,10 +121,14 @@ export const GraphPanel = memo(function GraphPanel({
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
   const [presets, setPresets] = useState<GraphPreset[]>(() => loadGraphPresets())
   const dialogRef = useRef<HTMLDivElement>(null)
+  const graphStageRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const liveRegionRef = useRef<HTMLDivElement>(null)
+  const [viewport, setViewport] = useState({ width: DEFAULT_VIEW_WIDTH, height: DEFAULT_VIEW_HEIGHT })
   const [workerState, setWorkerState] = useState<{
     graph: GraphQueryOutput
+    width: number
+    height: number
     layout: CanvasNode[] | null
   } | null>(null)
   const USE_CANVAS_THRESHOLD = 100
@@ -154,48 +158,77 @@ export const GraphPanel = memo(function GraphPanel({
   const useCanvas = (graph?.nodes.length ?? 0) >= USE_CANVAS_THRESHOLD
 
   useEffect(() => {
+    const stage = graphStageRef.current
+    if (!stage || !graph || hibernated || !isGraphEnabled) return
+    const measure = () => {
+      const rect = stage.getBoundingClientRect()
+      const width = Math.max(1, Math.floor(rect.width))
+      const height = Math.max(1, Math.floor(rect.height))
+      setViewport((current) => current.width === width && current.height === height ? current : { width, height })
+    }
+    measure()
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
+    observer?.observe(stage)
+    window.addEventListener('resize', measure)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [graph, hibernated, isGraphEnabled])
+
+  useEffect(() => {
     if (!graph || hibernated || !isGraphEnabled) return
     const requestedGraph = graph
+    const requestedWidth = viewport.width
+    const requestedHeight = viewport.height
     const worker = new GraphLayoutWorker()
     worker.onmessage = (event: MessageEvent) => {
       if (event.data.type === 'done') {
-        setWorkerState({ graph: requestedGraph, layout: event.data.nodes as CanvasNode[] })
+        setWorkerState({
+          graph: requestedGraph,
+          width: requestedWidth,
+          height: requestedHeight,
+          layout: event.data.nodes as CanvasNode[],
+        })
       } else if (event.data.type === 'error') {
-        setWorkerState({ graph: requestedGraph, layout: null })
+        setWorkerState({ graph: requestedGraph, width: requestedWidth, height: requestedHeight, layout: null })
       }
     }
     worker.onerror = () => {
-      setWorkerState({ graph: requestedGraph, layout: null })
+      setWorkerState({ graph: requestedGraph, width: requestedWidth, height: requestedHeight, layout: null })
     }
     worker.postMessage({
       nodes: graph.nodes,
       edges: graph.edges,
-      width: VIEW_WIDTH,
-      height: VIEW_HEIGHT,
+      width: requestedWidth,
+      height: requestedHeight,
     })
     return () => worker.terminate()
-  }, [graph, hibernated, isGraphEnabled])
+  }, [graph, hibernated, isGraphEnabled, viewport.height, viewport.width])
 
-  const workerLayout = !hibernated && workerState?.graph === graph ? workerState.layout : null
-  const workerLoading = Boolean(graph && !hibernated && workerState?.graph !== graph)
+  const workerMatchesViewport = workerState?.graph === graph
+    && workerState.width === viewport.width
+    && workerState.height === viewport.height
+  const workerLayout = !hibernated && workerMatchesViewport ? workerState.layout : null
+  const workerLoading = Boolean(graph && !hibernated && !workerMatchesViewport)
 
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
     if (workerLayout) return workerLayout
     return graph.nodes.map((node, index) => {
       const angle = (Math.PI * 2 * index) / Math.max(graph.nodes.length, 1)
-      const radius = Math.min(VIEW_WIDTH, VIEW_HEIGHT) * 0.28
+      const radius = Math.min(viewport.width, viewport.height) * 0.28
       return {
         id: node.id,
         label: node.label,
         path: node.path,
         unresolved: node.unresolved,
         color: node.color,
-        x: VIEW_WIDTH / 2 + Math.cos(angle) * radius,
-        y: VIEW_HEIGHT / 2 + Math.sin(angle) * radius,
+        x: viewport.width / 2 + Math.cos(angle) * radius,
+        y: viewport.height / 2 + Math.sin(angle) * radius,
       }
     })
-  }, [graph, workerLayout])
+  }, [graph, viewport.height, viewport.width, workerLayout])
 
   const nodeById = useMemo(() => new Map(layout.map((node) => [node.id, node])), [layout])
 
@@ -450,26 +483,27 @@ export const GraphPanel = memo(function GraphPanel({
 
       <div ref={liveRegionRef} aria-live="polite" className="sr-only" />
 
-      {useCanvas ? (
-        workerLoading ? (
-          <div className="graph-loading">
-            <span>{t('graph.computingLayout')}</span>
-          </div>
+      <div ref={graphStageRef} className="graph-stage">
+        {useCanvas ? (
+          workerLoading ? (
+            <div className="graph-loading">
+              <span>{t('graph.computingLayout')}</span>
+            </div>
+          ) : (
+            <GraphCanvas
+              nodes={layout as CanvasNode[]}
+              edges={graph.edges}
+              focusPath={focusPath}
+              width={viewport.width}
+              height={viewport.height}
+              onSelectNode={onSelectNode}
+            />
+          )
         ) : (
-          <GraphCanvas
-            nodes={layout as CanvasNode[]}
-            edges={graph.edges}
-            focusPath={focusPath}
-            width={VIEW_WIDTH}
-            height={VIEW_HEIGHT}
-            onSelectNode={onSelectNode}
-          />
-        )
-      ) : (
-        <svg
-          ref={svgRef}
-          className="graph-canvas force"
-          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+          <svg
+            ref={svgRef}
+            className="graph-canvas force"
+            viewBox={`0 0 ${viewport.width} ${viewport.height}`}
           role="application"
           tabIndex={0}
           aria-label={t('graph.ariaLabel')}
@@ -552,8 +586,9 @@ export const GraphPanel = memo(function GraphPanel({
               </g>
             )
           })}
-        </svg>
-      )}
+          </svg>
+        )}
+      </div>
     </div>
   )
 })

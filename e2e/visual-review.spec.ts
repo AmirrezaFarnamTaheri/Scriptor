@@ -246,9 +246,28 @@ test.describe('visual review states', () => {
     const graph = page.getByRole('dialog', { name: 'Knowledge graph' })
     await expect(graph).toBeVisible()
     await expect(graph.locator('.graph-header')).toContainText('120 nodes')
+    const stage = graph.locator('.graph-stage')
     const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
+    await expect(stage).toBeVisible()
     await expect(canvas).toBeVisible({ timeout: 15_000 })
     await expect(canvas).toHaveAttribute('aria-label', /120 nodes and 160 directed edges/)
+    const geometry = await stage.evaluate((element) => {
+      const canvas = element.querySelector('canvas')
+      if (!canvas) return null
+      const stageRect = element.getBoundingClientRect()
+      const canvasRect = canvas.getBoundingClientRect()
+      return {
+        stageWidth: stageRect.width,
+        stageHeight: stageRect.height,
+        canvasWidth: canvasRect.width,
+        canvasHeight: canvasRect.height,
+      }
+    })
+    expect(geometry).not.toBeNull()
+    expect(geometry?.stageWidth ?? 0).toBeGreaterThan(900)
+    expect(geometry?.stageHeight ?? 0).toBeGreaterThan(360)
+    expect(Math.abs((geometry?.canvasWidth ?? 0) - (geometry?.stageWidth ?? 0))).toBeLessThanOrEqual(2)
+    expect(Math.abs((geometry?.canvasHeight ?? 0) - (geometry?.stageHeight ?? 0))).toBeLessThanOrEqual(2)
     await expectNoHorizontalOverflow(page)
     await graph.screenshot({ path: test.info().outputPath('visual-graph-dense-120.png') })
   })

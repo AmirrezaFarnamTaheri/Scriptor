@@ -354,7 +354,8 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
     <div className="graph-canvas-accessible-shell">
       <canvas
         ref={canvasRef}
-        style={{ width, height, cursor: 'grab' }}
+        className="graph-canvas graph-canvas-bitmap"
+        style={{ cursor: 'grab' }}
         role="application"
         tabIndex={0}
         aria-label={`Knowledge graph with ${nodes.length} nodes and ${edges.length} directed edges. Use arrow keys to browse nodes and Enter to open one.`}
