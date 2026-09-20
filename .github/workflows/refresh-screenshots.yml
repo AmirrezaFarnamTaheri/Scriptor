@@ -60,11 +60,9 @@ jobs:
         shell: pwsh
         run: pnpm exec playwright install ffmpeg
 
-      - name: Preserve previous gallery hero
+      - name: Record screenshot source identity
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force artifacts/screenshots-before | Out-Null
-          Copy-Item docs/assets/screenshots/workspace-light.png artifacts/screenshots-before/workspace-light.png
           git rev-parse HEAD | Set-Content artifacts/screenshot-source.txt
           pnpm exec playwright --version | Add-Content artifacts/screenshot-source.txt
 

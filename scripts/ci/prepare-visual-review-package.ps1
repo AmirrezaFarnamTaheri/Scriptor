@@ -93,7 +93,6 @@ function Add-VisualImages {
 Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'current'
 if ($IncludeTrackedGallery) {
     Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'gallery'
-    Add-VisualImages -SourceRoot 'artifacts/screenshots-before' -Prefix 'before'
 }
 
 if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {

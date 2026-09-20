@@ -81,7 +81,8 @@ test('screenshot refresh publishes one canonical deduplicated evidence tree', ()
     refreshWorkflow,
     /path:\s*\|[\s\S]*docs\/assets\/screenshots[\s\S]*e2e\/screenshots\.spec\.ts-snapshots[\s\S]*test-results/,
   )
-  assert.match(packager, /Add-VisualImages -SourceRoot 'artifacts\/screenshots-before' -Prefix 'before'/)
+  assert.doesNotMatch(refreshWorkflow, /artifacts\/screenshots-before|Preserve previous gallery hero/)
+  assert.doesNotMatch(packager, /screenshots-before/)
 })
 
 test('packager excludes image bytes from evidence tree', () => {
