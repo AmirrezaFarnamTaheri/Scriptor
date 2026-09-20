@@ -346,6 +346,37 @@ test.describe('visual review states', () => {
     await help.screenshot({ path: test.info().outputPath('visual-help-mcp-guide.png') })
   })
 
+  test('high-contrast workspace evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'high-contrast')
+    })
+    await openVisualWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'high-contrast')
+    await expectNoHorizontalOverflow(page)
+    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeVisible()
+    await captureVisual(page, 'visual-workspace-high-contrast.png')
+  })
+
+  test('mobile Help remains styled, bounded, and centralized', async ({ page }) => {
+    await openMobileWorkspace(page)
+    await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+    await page.keyboard.press('F1')
+    const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
+    await expect(help).toBeVisible()
+    await expect(help.locator('.help-center-body')).toHaveCSS('display', 'flex')
+    await expect(help.locator('.help-browser')).toHaveCSS('display', 'grid')
+    await expect.poll(() => help.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.left >= 0
+        && rect.top >= 0
+        && rect.right <= window.innerWidth
+        && rect.bottom <= window.innerHeight
+        && element.scrollWidth <= element.clientWidth + 1
+    })).toBe(true)
+    await help.screenshot({ path: test.info().outputPath('visual-help-mobile-390.png') })
+  })
+
   test('Persian RTL workspace evidence', async ({ page }) => {
     await page.setViewportSize({ width: 1240, height: 900 })
     await page.addInitScript(() => {

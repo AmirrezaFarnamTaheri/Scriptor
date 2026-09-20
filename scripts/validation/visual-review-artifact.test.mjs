@@ -128,6 +128,8 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-conflict-resolver-dark.png',
     'visual-help-restraint.png',
     'visual-help-mcp-guide.png',
+    'visual-help-mobile-390.png',
+    'visual-workspace-high-contrast.png',
   ]) {
     assert.ok(visualReview.includes(image), `missing visual evidence capture: ${image}`)
   }
