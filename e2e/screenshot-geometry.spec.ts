@@ -40,21 +40,38 @@ test.describe('screenshot geometry contracts', () => {
     }
   })
 
-  test('inspector note health is a balanced four-by-two matrix', async ({ page }) => {
+  test('inspector note health adapts its metric matrix to the rail width', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await launchApp(page)
     await settleLayout(page)
 
-    const metrics = page.locator('.inspector-panel > .widget-card').first().locator('.metric-grid .metric')
+    const inspector = page.locator('.inspector-panel')
+    const metrics = inspector.locator(':scope > .widget-card').first().locator('.metric-grid .metric')
     await expect(metrics).toHaveCount(8)
-    const tops = await metrics.evaluateAll((nodes) =>
-      nodes.map((node) => Math.round(node.getBoundingClientRect().top)),
-    )
+    const geometry = await metrics.evaluateAll((nodes) => {
+      const panel = nodes[0]?.closest('.inspector-panel')
+      const panelWidth = panel instanceof HTMLElement ? panel.getBoundingClientRect().width : 0
+      return {
+        panelWidth: Math.round(panelWidth),
+        positions: nodes.map((node) => {
+          const rect = node.getBoundingClientRect()
+          return { top: Math.round(rect.top), left: Math.round(rect.left) }
+        }),
+      }
+    })
 
+    expect(geometry.panelWidth).toBeGreaterThan(0)
+    const expectedColumns = geometry.panelWidth <= 450 ? 2 : 4
+    const tops = geometry.positions.map(({ top }) => top)
+    const lefts = geometry.positions.map(({ left }) => left)
     const rows = [...new Set(tops)]
-    expect(rows).toHaveLength(2)
-    expect(tops.filter((top) => top === rows[0])).toHaveLength(4)
-    expect(tops.filter((top) => top === rows[1])).toHaveLength(4)
+    const columns = [...new Set(lefts)]
+
+    expect(columns).toHaveLength(expectedColumns)
+    expect(rows).toHaveLength(8 / expectedColumns)
+    for (const row of rows) {
+      expect(tops.filter((top) => top === row)).toHaveLength(expectedColumns)
+    }
   })
 
   test('preview QA keeps labels and values separated at rail width', async ({ page }) => {

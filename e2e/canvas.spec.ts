@@ -187,7 +187,7 @@ test.describe('Canvas panel', () => {
         { timeout: 5000 },
       )
       .toBe(1)
-    await expect(panel.getByRole('status')).toContainText('Saved to .scriptor/canvas/')
+    await expect(panel.locator('.canvas-footer')).toContainText('Saved to .scriptor/canvas/')
   })
 
   test('canvas undo reverts last action and redo restores it', async ({ page }) => {
@@ -210,6 +210,6 @@ test.describe('Canvas panel', () => {
     await page.keyboard.press('Space')
     await expect(block).toHaveClass(/selected/)
     await expect(block).toHaveAttribute('aria-pressed', 'true')
-    await expect(panel.getByRole('status')).toContainText('Selected 1 block')
+    await expect(panel.locator('.canvas-footer')).toContainText('Selected 1 block')
   })
 })
