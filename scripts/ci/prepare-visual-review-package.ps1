@@ -28,6 +28,8 @@ New-Item -ItemType Directory -Force -Path $evidencePath | Out-Null
 
 $imageExtensions = @('.png', '.jpg', '.jpeg', '.webp', '.gif', '.avif')
 $manifest = [System.Collections.Generic.List[object]]::new()
+$seenHashes = @{}
+$sourceImageCount = 0
 
 function Add-VisualImages {
     param(
@@ -48,25 +50,37 @@ function Add-VisualImages {
         }
 
         $relative = [System.IO.Path]::GetRelativePath($resolvedSource, $file.FullName)
+        $source = "$SourceRoot/$($relative -replace '\\', '/')"
+        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        $script:sourceImageCount += 1
+
+        if ($script:seenHashes.ContainsKey($hash)) {
+            $index = [int]$script:seenHashes[$hash]
+            $entry = $script:manifest[$index]
+            $entry.sources = @($entry.sources) + $source
+            continue
+        }
+
         $safeRelative = ($relative -replace '[\\/]+', '--') -replace '[^A-Za-z0-9._-]+', '-'
         $destinationName = "$Prefix--$safeRelative"
         $destinationPath = Join-Path $imagesPath $destinationName
 
         if (Test-Path -LiteralPath $destinationPath) {
-            $sourceHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
             $stem = [System.IO.Path]::GetFileNameWithoutExtension($destinationName)
-            $destinationName = "$stem--$($sourceHash.Substring(0, 10))$($file.Extension.ToLowerInvariant())"
+            $destinationName = "$stem--$($hash.Substring(0, 10))$($file.Extension.ToLowerInvariant())"
             $destinationPath = Join-Path $imagesPath $destinationName
         }
 
         Copy-Item -LiteralPath $file.FullName -Destination $destinationPath -Force
-        $hash = (Get-FileHash -LiteralPath $destinationPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        $manifest.Add([pscustomobject]@{
+        $entry = [pscustomobject]@{
             file = "images/$destinationName"
-            source = "$SourceRoot/$($relative -replace '\\', '/')"
+            source = $source
+            sources = @($source)
             sha256 = $hash
             bytes = $file.Length
-        })
+        }
+        $script:seenHashes[$hash] = $script:manifest.Count
+        $script:manifest.Add($entry)
     }
 }
 
@@ -74,7 +88,6 @@ function Add-VisualImages {
 # directory. Prefixes retain provenance without reintroducing parallel trees.
 Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'comparison'
 Add-VisualImages -SourceRoot 'e2e/screenshots.spec.ts-snapshots' -Prefix 'baseline-screenshots'
-Add-VisualImages -SourceRoot 'e2e/visual-review.spec.ts-snapshots' -Prefix 'baseline-visual-review'
 Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'capture'
 
 if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
@@ -94,10 +107,12 @@ if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
 }
 
 $manifestPayload = [ordered]@{
-    schemaVersion = 1
+    schemaVersion = 2
     generatedUtc = [DateTimeOffset]::UtcNow.ToString('o')
     imageDirectory = 'images'
     imageCount = $manifest.Count
+    sourceImageCount = $sourceImageCount
+    deduplicatedSourceCount = $sourceImageCount - $manifest.Count
     images = $manifest
 }
 $manifestPayload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $packagePath 'image-manifest.json') -Encoding utf8
@@ -107,4 +122,6 @@ if ($manifest.Count -eq 0) {
 }
 
 Write-Host "Prepared unified visual review package: $packagePath"
-Write-Host "Images: $($manifest.Count)"
+Write-Host "Images (unique): $($manifest.Count)"
+Write-Host "Image sources: $sourceImageCount"
+Write-Host "Duplicate image sources removed: $($sourceImageCount - $manifest.Count)"

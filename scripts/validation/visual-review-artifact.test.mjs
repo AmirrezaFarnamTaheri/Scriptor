@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/visual-review.yml'), 'utf8')
 const packager = fs.readFileSync(path.join(root, 'scripts/ci/prepare-visual-review-package.ps1'), 'utf8')
 const visualReview = fs.readFileSync(path.join(root, 'e2e/visual-review.spec.ts'), 'utf8')
+const visualConfig = fs.readFileSync(path.join(root, 'playwright.visual.config.ts'), 'utf8')
 
 test('visual review compares committed baselines before refreshing current images', () => {
   const compare = workflow.indexOf('--update-snapshots=none')
@@ -22,7 +23,7 @@ test('visual review compares committed baselines before refreshing current image
 test('visual review gates stale snapshots and documentation captures', () => {
   assert.match(
     workflow,
-    /git status --porcelain -- e2e\/visual-review\.spec\.ts-snapshots e2e\/screenshots\.spec\.ts-snapshots docs\/assets\/screenshots/,
+    /git status --porcelain -- e2e\/screenshots\.spec\.ts-snapshots docs\/assets\/screenshots/,
   )
   assert.match(workflow, /VISUAL_COMPARE_OUTCOME/)
   assert.match(workflow, /VISUAL_REFRESH_OUTCOME/)
@@ -45,8 +46,23 @@ test('visual artifact has one canonical images directory', () => {
   assert.match(packager, /Join-Path \$packagePath 'images'/)
   assert.match(packager, /Add-VisualImages -SourceRoot 'test-results\/visual'/)
   assert.match(packager, /Add-VisualImages -SourceRoot 'e2e\/screenshots\.spec\.ts-snapshots'/)
-  assert.match(packager, /Add-VisualImages -SourceRoot 'e2e\/visual-review\.spec\.ts-snapshots'/)
+  assert.doesNotMatch(packager, /e2e\/visual-review\.spec\.ts-snapshots/)
   assert.match(packager, /Add-VisualImages -SourceRoot 'docs\/assets\/screenshots'/)
+  assert.match(packager, /\$seenHashes = @\{\}/)
+  assert.match(packager, /deduplicatedSourceCount = \$sourceImageCount - \$manifest\.Count/)
+})
+
+test('automatic screenshots are failure-only because successful evidence is explicitly named', () => {
+  assert.match(visualConfig, /screenshot:\s*'only-on-failure'/)
+  assert.doesNotMatch(visualConfig, /screenshot:\s*'on'/)
+})
+
+test('diagnostic baseline refresh reruns only the stable screenshot spec', () => {
+  const steps = workflow.split(/\n(?= {6}- name: )/)
+  const refresh = steps.find((entry) => entry.startsWith('      - name: Refresh current visual baselines\n'))
+  assert.ok(refresh, 'missing diagnostic baseline refresh step')
+  assert.match(refresh, /e2e\/screenshots\.spec\.ts/)
+  assert.doesNotMatch(refresh, /e2e\/visual-review\.spec\.ts/)
 })
 
 test('packager excludes image bytes from evidence tree', () => {
