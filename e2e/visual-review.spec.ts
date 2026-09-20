@@ -408,6 +408,32 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-workspace-ui-zoom-125.png')
   })
 
+  test('200 percent UI zoom evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:ui-zoom', '2')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+    await waitForEditorReady(page)
+    await settleLayout(page)
+
+    await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
+    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    await expect(nav).toBeVisible()
+    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeHidden()
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
+
+    await nav.getByRole('button', { name: 'Lens' }).click()
+    await expect(page.locator('.editor-panel')).toBeHidden()
+    await expect(page.locator('.inspector-panel')).toBeVisible()
+    await expect(page.locator('.inspector-panel')).toBeInViewport()
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-workspace-ui-zoom-200-inspector.png')
+  })
+
   test('125 percent device scale evidence', async ({ browser }, testInfo) => {
     const context = await browser.newContext({
       baseURL: String(testInfo.project.use.baseURL),

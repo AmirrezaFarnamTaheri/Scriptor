@@ -83,9 +83,12 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-workspace-rtl-fa.png',
     'visual-workspace-de-1024.png',
     'visual-workspace-ui-zoom-125.png',
+    'visual-workspace-ui-zoom-200-editor.png',
+    'visual-workspace-ui-zoom-200-inspector.png',
     'visual-workspace-device-scale-125.png',
     'visual-vault-loading.png',
     'visual-large-vault-bottom.png',
+    'visual-graph-dense-120.png',
     'visual-settings-dark.png',
     'visual-conflict-resolver-dark.png',
   ]) {

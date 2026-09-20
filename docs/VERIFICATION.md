@@ -10,11 +10,11 @@ This document defines proof for the current source candidate. A release record m
 - **Pending:** required proof depends on unavailable tooling, dependencies, platform, browser, or canonical history.
 - **Failed:** the stated command executed and did not pass.
 
-## Local PR #135 remediation review - 2026-09-20
+## Original local PR #135 remediation review - 2026-09-20
 
-This is local, uncommitted remediation evidence, not a remote CI, merge, or release record. The source ZIP identified `228e69c7dd9b4a0b71a97a0ff896c7fcc43bf885`. Before changes, it was synchronized to PR head `f633615f8f49001190d288f4757da34388115e9f`; the complete Git tree matched `19485194209e906317a8fd80862928f631e417cc`. All results below describe that pinned baseline plus the accompanying remediation patch.
+This section preserves the original local-review evidence; it is not a claim about the current PR head, merge, or release state. The source ZIP identified `228e69c7dd9b4a0b71a97a0ff896c7fcc43bf885`. Before local changes, it was synchronized to PR head `f633615f8f49001190d288f4757da34388115e9f`; the complete Git tree matched `19485194209e906317a8fd80862928f631e417cc`. The result counts below describe that pinned baseline plus the then-local remediation patch.
 
-During the review the remote head advanced to `a9e644c1cb3ad62136eee4907d58dd79523d61ac`. Its additional help bindings were inspected for overlap; they were not replaced, and local test results are not attributed to that later commit. No remote commit, push, merge, or release was performed.
+During the original review the remote head advanced to `a9e644c1cb3ad62136eee4907d58dd79523d61ac`. Its additional help bindings were inspected for overlap and were not replaced. At that point no remote remediation commit had yet been pushed. The confirmed fixes were subsequently integrated into PR #135 in incremental commits, so current-head CI and visual results—not these historical local counts—are authoritative for merge readiness.
 
 Environment: Linux container, Node with experimental TypeScript stripping, global TypeScript for source-harness transpilation, and system Chromium through Python Playwright. This was not a frozen workspace installation: package links, React, the repository's full frontend dependencies, and Cargo were unavailable. Read the pinned supported toolchains from the manifests rather than treating these inspection tools as replacements.
 

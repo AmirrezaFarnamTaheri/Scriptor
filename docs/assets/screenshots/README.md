@@ -60,6 +60,7 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | Persian RTL workspace | Persian RTL workspace at 1240px with page-level overflow asserted absent |
 | German compact workspace | German labels at 1024px with the primary toolbar kept on one row |
 | 125% UI zoom | Stacked application reflow at 125% UI zoom with bounded editor geometry |
+| 200% UI zoom | Exclusive mobile-style editor and inspector panes at 200% app zoom with page overflow asserted absent |
 | 125% device scale | 1440x900 workspace rendered at deviceScaleFactor 1.25 |
 | Slow vault loading | Bounded skeleton state captured before deterministic vault hydration completes |
 | Large vault bottom | Virtualized 600-note fixture at the final long filename without page overflow |
