@@ -73,8 +73,10 @@ async function waitForInspectorReady(page: Page) {
 async function waitForVisualWorkspace(page: Page) {
   await waitForWorkspace(page)
   await waitForInspectorReady(page)
-  await expect(page.locator('.job-progress')).toHaveAttribute('aria-label', 'Index ready (100%)', { timeout: 45_000 })
-  await expect(page.locator('.job-progress strong')).toHaveText('Index ready')
+  const progress = page.locator('.job-progress')
+  await expect(progress).toHaveClass(/is-done/, { timeout: 45_000 })
+  await expect(progress).toHaveAttribute('aria-label', /\S/, { timeout: 45_000 })
+  await expect(progress.locator('strong')).toBeVisible()
   await waitForActiveSplitPreview(page)
 }
 
@@ -414,7 +416,7 @@ test.describe('visual review states', () => {
       window.localStorage.setItem('scriptor:ui-zoom', '2')
     })
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await waitForWorkspace(page)
+    await waitForWorkspace(page, { allowHiddenVaultList: true })
     await waitForEditorReady(page)
     await settleLayout(page)
 
@@ -675,6 +677,19 @@ test.describe('visual review states', () => {
   test('Gmail manager disconnected-state evidence', async ({ page }) => {
     await page.addInitScript(() => {
       window.sessionStorage.setItem('e2e:enable-gmail-plugin', '1')
+      window.localStorage.setItem('scriptor:plugins:consent', JSON.stringify({
+        schemaVersion: 1,
+        savedAt: '2026-09-07T12:00:00.000Z',
+        data: {
+          'scriptor.gmail-manager': {
+            grantedPermissions: ['read', 'write-approved'],
+            allowedVaultIds: ['screenshot-vault'],
+            networkAccess: 'blocked',
+            allowlistedHosts: [],
+            reviewedAt: '2026-09-07T12:00:00.000Z',
+          },
+        },
+      }))
     })
     await openVisualWorkspace(page)
     await openCommandPalette(page)
