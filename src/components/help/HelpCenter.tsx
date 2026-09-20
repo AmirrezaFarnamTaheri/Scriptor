@@ -8,13 +8,14 @@ import { helpLabels } from '../../lib/help/labels'
 import { useI18n } from '../../lib/i18n'
 import { useEscapeToClose } from '../../hooks/useEscapeToClose'
 import { HelpTopic } from './HelpTopic'
+import { toFocusRestorer, type FocusRestorer } from '../../lib/overlayEscapeCoordinator'
 
 interface HelpCenterProps {
   request: HelpRequest
   store: HelpProgressStore
   onClose: () => void
   onReveal: (guide: HelpGuide, selector?: string) => boolean
-  returnFocus?: HTMLElement | null
+  returnFocus?: FocusRestorer | null
 }
 
 /** Native top-layer modality keeps an already-open feature intact underneath Help. */
@@ -36,11 +37,9 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
-    const invoker = returnFocus?.isConnected
+    const invoker = returnFocus && returnFocus.isConnected !== false
       ? returnFocus
-      : document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null
+      : toFocusRestorer(document.activeElement)
     const oldOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     dialog.showModal()
@@ -48,7 +47,7 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
     return () => {
       if (dialog.open) dialog.close()
       if (document.body.style.overflow === 'hidden') document.body.style.overflow = oldOverflow
-      if (invoker?.isConnected) invoker.focus({ preventScroll: true })
+      if (invoker && invoker.isConnected !== false) invoker.focus({ preventScroll: true })
     }
   }, [returnFocus])
 

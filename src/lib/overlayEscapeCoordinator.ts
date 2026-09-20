@@ -10,6 +10,13 @@ export interface FocusRestorer {
   focus(options?: FocusOptions): void
 }
 
+/** Accept any browser focus target, including SVG/canvas surfaces, without requiring HTMLElement. */
+export function toFocusRestorer(value: unknown): FocusRestorer | null {
+  if (!value || (typeof value !== 'object' && typeof value !== 'function')) return null
+  const candidate = value as Partial<FocusRestorer>
+  return typeof candidate.focus === 'function' ? candidate as FocusRestorer : null
+}
+
 interface EscapeSurface {
   id: symbol
   onClose: () => void

@@ -4,6 +4,7 @@ import { getProgress, HelpProgressStore } from '../../lib/help/progress'
 import { parseHelpRequest } from '../../lib/help/request'
 import { contextGuide, findGuideTarget } from '../../lib/help/context'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
+import { toFocusRestorer, type FocusRestorer } from '../../lib/overlayEscapeCoordinator'
 import '../../styles/components/help.css'
 
 function createStore(): HelpProgressStore {
@@ -11,7 +12,7 @@ function createStore(): HelpProgressStore {
 }
 interface HelpSession extends HelpRequest {
   sequence: number
-  returnFocus: HTMLElement | null
+  returnFocus: FocusRestorer | null
 }
 
 /** One read-only runtime owns explicit Help invocation, contextual F1, and replayable guidance. */
@@ -22,7 +23,7 @@ export function HelpRuntime() {
   const highlightCleanup = useRef<(() => void) | null>(null)
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
-    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const returnFocus = toFocusRestorer(document.activeElement)
     setSession((current) => ({
       ...request,
       sequence: (current?.sequence ?? 0) + 1,
