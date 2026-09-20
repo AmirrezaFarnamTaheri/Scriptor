@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const workflow = fs.readFileSync(path.join(root, '.github/workflows/visual-review.yml'), 'utf8')
 const packager = fs.readFileSync(path.join(root, 'scripts/ci/prepare-visual-review-package.ps1'), 'utf8')
+const visualReview = fs.readFileSync(path.join(root, 'e2e/visual-review.spec.ts'), 'utf8')
 
 test('visual review compares committed baselines before refreshing current images', () => {
   const compare = workflow.indexOf('--update-snapshots=none')
@@ -74,4 +75,20 @@ test('cancelled visual runs do not refresh or publish stale evidence', () => {
     assert.match(step(name), /if:\s*\$\{\{ always\(\) && !cancelled\(\) \}\}/)
   }
   assert.match(step('Capture visual review failure context'), /if:\s*\$\{\{ failure\(\) && !cancelled\(\) \}\}/)
+})
+
+
+test('expanded visual evidence matrix remains captured', () => {
+  for (const image of [
+    'visual-workspace-rtl-fa.png',
+    'visual-workspace-de-1024.png',
+    'visual-workspace-ui-zoom-125.png',
+    'visual-workspace-device-scale-125.png',
+    'visual-vault-loading.png',
+    'visual-large-vault-bottom.png',
+    'visual-settings-dark.png',
+    'visual-conflict-resolver-dark.png',
+  ]) {
+    assert.ok(visualReview.includes(image), `missing visual evidence capture: ${image}`)
+  }
 })

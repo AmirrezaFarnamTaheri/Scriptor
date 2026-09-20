@@ -376,7 +376,10 @@ test.describe('visual review states', () => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:ui-zoom', '1.25')
     })
-    await openVisualWorkspace(page)
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page)
+    await waitForEditorReady(page)
+    await settleLayout(page)
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'stacked')
     await expectNoHorizontalOverflow(page)
     const editor = await page.locator('.editor-panel').boundingBox()
