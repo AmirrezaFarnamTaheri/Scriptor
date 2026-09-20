@@ -361,6 +361,10 @@ test('newer native template request supersedes an older response', async () => {
     },
   })
   const board = h.render()
+  // Let the mount-time board-list hydration settle before exercising request
+  // supersession; otherwise the harness can invalidate both requests for an
+  // unrelated lifecycle transition that a user cannot race in the mounted UI.
+  await flushMicrotasks()
   const firstApply = board.applyTemplate('first-template')
   const secondApply = board.applyTemplate('second-template')
 

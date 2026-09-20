@@ -479,10 +479,7 @@ mod tests {
     #[test]
     fn test_attachment_embed_alias_keeps_compatibility_target() {
         let input = "![[assets/diagram.png|640]]";
-        assert_eq!(
-            convert_embed_wikilinks(input),
-            "[[assets/diagram.png|640]]"
-        );
+        assert_eq!(convert_embed_wikilinks(input), "[[assets/diagram.png|640]]");
     }
 
     #[test]
@@ -548,9 +545,13 @@ mod tests {
 
         let vault_tmp = tempfile::tempdir().unwrap();
         let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
-        let result =
-            import_obsidian_vault("test-vault", &root, tmp.path(), &ImportObsidianOptions::default())
-                .unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            tmp.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
 
         assert_eq!(result.notes_imported, 2);
         assert!(result.errors.is_empty());
@@ -571,9 +572,13 @@ mod tests {
 
         let vault_tmp = tempfile::tempdir().unwrap();
         let root = crate::path::VaultRoot::open(vault_tmp.path()).unwrap();
-        let result =
-            import_obsidian_vault("test-vault", &root, tmp.path(), &ImportObsidianOptions::default())
-                .unwrap();
+        let result = import_obsidian_vault(
+            "test-vault",
+            &root,
+            tmp.path(),
+            &ImportObsidianOptions::default(),
+        )
+        .unwrap();
 
         assert_eq!(result.attachments_imported, 2);
         assert!(result.errors.is_empty());

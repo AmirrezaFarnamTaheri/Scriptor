@@ -115,7 +115,10 @@ fn authenticated_connect_failure_is_bounded() {
     let elapsed = started.elapsed();
 
     assert!(result.is_err(), "unreachable endpoint must fail");
-    assert!(retries > 0, "client should retry a transiently unreachable endpoint");
+    assert!(
+        retries > 0,
+        "client should retry a transiently unreachable endpoint"
+    );
     assert!(
         elapsed < Duration::from_secs(2),
         "connect retry budget exceeded bounded failure window: {elapsed:?}"

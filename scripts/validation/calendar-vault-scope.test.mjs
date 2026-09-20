@@ -186,8 +186,8 @@ test('disconnect invalidates an in-flight provider refresh', async () => {
 
   const after = h.render()
   assert.equal(after.status, 'disconnected')
-  assert.deepEqual(after.events, [])
-  assert.deepEqual(after.tasks, [])
+  assert.equal(after.events.length, 0)
+  assert.equal(after.tasks.length, 0)
   assert.equal(after.authedEmail, null)
   assert.equal(after.error, null)
 })
@@ -207,7 +207,7 @@ test('disconnect invalidates an in-flight task creation result', async () => {
 
   assert.equal(providerResult?.id, 'late-created')
   assert.equal(h.calls.createTask, 1)
-  assert.deepEqual(h.render().tasks, [])
+  assert.equal(h.render().tasks.length, 0)
   assert.equal(h.render().status, 'disconnected')
 })
 

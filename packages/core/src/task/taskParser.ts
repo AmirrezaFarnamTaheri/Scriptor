@@ -26,7 +26,7 @@
  */
 
 import type { Task, TaskFieldStyle } from '../contracts/task'
-import { checkboxCharToStatus, statusToCheckboxChar } from './statusRegistry'
+import { checkboxCharToStatus, statusToCheckboxChar } from './statusRegistry.ts'
 
 const DUE_MARKER = '\u{1F4C5}'
 const DUE_ALT_MARKER = '\u{23F0}'
