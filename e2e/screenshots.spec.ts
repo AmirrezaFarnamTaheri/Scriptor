@@ -7,7 +7,10 @@ import { expect, test, type Page } from '@playwright/test'
 import { captureReadyScreenshot, openCommandPalette, runCommand, settleLayout, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const outputDir = path.join(rootDir, 'docs/assets/screenshots')
+const configuredOutputDir = process.env.SCRIPTOR_SCREENSHOT_OUTPUT_DIR?.trim()
+const outputDir = configuredOutputDir
+  ? path.resolve(rootDir, configuredOutputDir)
+  : path.join(rootDir, 'docs/assets/screenshots')
 const VISUAL_REVIEW_TIME = new Date('2026-09-07T12:00:00Z')
 
 function shotPath(name: string) {

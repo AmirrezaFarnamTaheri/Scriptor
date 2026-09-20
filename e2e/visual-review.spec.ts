@@ -464,6 +464,49 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-large-vault-bottom.png')
   })
 
+  test('narrow inspector health metrics remain readable at 1024px', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 900 })
+    await openVisualWorkspace(page)
+
+    const inspector = page.locator('.inspector-panel')
+    await expect(inspector).toBeVisible()
+    const grid = inspector.locator('.metric-grid').first()
+    await expect(grid).toBeVisible()
+    const geometry = await grid.evaluate((element) => {
+      const cards = Array.from(element.querySelectorAll<HTMLElement>('.metric'))
+      const columns = new Set(cards.map((card) => Math.round(card.getBoundingClientRect().left)))
+      return {
+        columns: columns.size,
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        cardsFit: cards.every((card) => card.scrollWidth <= card.clientWidth + 1),
+      }
+    })
+    expect(geometry.columns).toBeLessThanOrEqual(2)
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth + 1)
+    expect(geometry.cardsFit).toBe(true)
+    await inspector.screenshot({ path: test.info().outputPath('visual-inspector-metrics-1024.png') })
+  })
+
+  test('status dock Problems and Output states stay bounded', async ({ page }) => {
+    await openVisualWorkspace(page)
+
+    const problemsTab = page.getByRole('tab', { name: /Problems/ }).first()
+    await problemsTab.click()
+    const problems = page.locator('#dock-panel-problems')
+    await expect(problems).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await problems.screenshot({ path: test.info().outputPath('visual-dock-problems.png') })
+
+    const outputTab = page.getByRole('tab', { name: /^Output/ }).first()
+    await outputTab.click()
+    const output = page.locator('#dock-panel-output')
+    await expect(output).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await output.screenshot({ path: test.info().outputPath('visual-dock-output.png') })
+  })
+
+
   test('dark settings surface evidence', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'dark')

@@ -28,23 +28,22 @@ test('visual review compares committed baselines without mutating them', () => {
 })
 
 
-test('visual review gates stale snapshots and documentation captures from the compare pass', () => {
-  assert.match(
-    workflow,
-    /git status --porcelain -- e2e\/screenshots\.spec\.ts-snapshots docs\/assets\/screenshots/,
+test('PR visual review is read-only for tracked documentation screenshots', () => {
+  assert.match(workflow, /SCRIPTOR_SCREENSHOT_OUTPUT_DIR: test-results\/visual\/documentation-screenshots/)
+  assert.match(workflow, /git status --porcelain -- e2e\/screenshots\.spec\.ts-snapshots/)
+  assert.doesNotMatch(
+    workflow.split(/\n(?= {6}- name: )/)
+      .find((entry) => entry.startsWith('      - name: Enforce visual review result and read-only baselines\n')) ?? '',
+    /docs\/assets\/screenshots/,
   )
   assert.match(workflow, /VISUAL_COMPARE_OUTCOME/)
   assert.doesNotMatch(workflow, /VISUAL_REFRESH_OUTCOME|steps\.visual_refresh/)
 })
 
-test('clean baseline comparison still rejects stale documentation screenshots', () => {
-  const enforcement = workflow.split(/\n(?= {6}- name: )/)
-    .find((entry) => entry.startsWith('      - name: Enforce visual review result and committed baselines\n'))
-  assert.ok(enforcement, 'missing visual enforcement step')
-  const changes = enforcement.indexOf('$changes = git status --porcelain')
-  const successBranch = enforcement.indexOf("if ($env:VISUAL_COMPARE_OUTCOME -eq 'success')")
-  assert.ok(changes >= 0 && changes < successBranch, 'documentation drift must be computed before the clean-compare exit')
-  assert.match(enforcement, /if \(\$changes\) \{[\s\S]*Documentation screenshots are stale[\s\S]*throw/)
+test('explicit refresh remains the sole tracked-gallery writer', () => {
+  assert.match(refreshWorkflow, /Regenerate current-source docs and stable Windows baselines/)
+  assert.match(refreshWorkflow, /git add -- ':\(glob\)docs\/assets\/screenshots\/\*\.png'/)
+  assert.match(refreshWorkflow, /-IncludeTrackedGallery/)
 })
 
 test('visual artifact has one canonical images directory', () => {
@@ -53,8 +52,9 @@ test('visual artifact has one canonical images directory', () => {
   assert.doesNotMatch(workflow, /path:\s*\|[\s\S]*test-results\/visual[\s\S]*e2e\/screenshots\.spec\.ts-snapshots/)
   assert.match(packager, /Join-Path \$packagePath 'images'/)
   assert.match(packager, /Add-VisualImages -SourceRoot 'test-results\/visual'/)
-  assert.match(packager, /Add-VisualImages -SourceRoot 'e2e\/screenshots\.spec\.ts-snapshots'/)
+  assert.doesNotMatch(packager, /Add-VisualImages -SourceRoot 'e2e\/screenshots\.spec\.ts-snapshots'/)
   assert.doesNotMatch(packager, /e2e\/visual-review\.spec\.ts-snapshots/)
+  assert.match(packager, /if \(\$IncludeTrackedGallery\)/)
   assert.match(packager, /Add-VisualImages -SourceRoot 'docs\/assets\/screenshots'/)
   assert.match(packager, /\$seenHashes = @\{\}/)
   assert.match(packager, /deduplicatedSourceCount = \$sourceImageCount - \$manifest\.Count/)
@@ -98,7 +98,7 @@ test('cancelled visual runs do not publish stale evidence', () => {
     return block
   }
   for (const name of [
-    'Enforce visual review result and committed baselines',
+    'Enforce visual review result and read-only baselines',
     'Finalize visual review evidence',
     'Prepare unified visual review artifact',
     'Upload unified visual review artifact',
@@ -120,6 +120,9 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-vault-loading.png',
     'visual-large-vault-bottom.png',
     'visual-graph-dense-120.png',
+    'visual-inspector-metrics-1024.png',
+    'visual-dock-problems.png',
+    'visual-dock-output.png',
     'visual-settings-dark.png',
     'visual-conflict-resolver-dark.png',
   ]) {

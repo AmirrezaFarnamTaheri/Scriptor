@@ -29,6 +29,9 @@ jobs:
     env:
       CI_LOG_DIR: artifacts/ci-logs/visual-review
       PLAYWRIGHT_CHANNEL: msedge
+      # PR comparison is read-only. The explicit refresh workflow is the sole
+      # writer of tracked documentation screenshots.
+      SCRIPTOR_SCREENSHOT_OUTPUT_DIR: test-results/visual/documentation-screenshots
     steps:
       - name: Checkout exact PR head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -67,30 +70,27 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Compare against committed visual baselines" -FilePath "pnpm" -ArgumentList @("exec", "playwright", "test", "--config", "playwright.visual.config.ts", "--update-snapshots=none") -TimeoutSeconds 1800 -HeartbeatSeconds 20
 
-      - name: Enforce visual review result and committed baselines
+      - name: Enforce visual review result and read-only baselines
         if: ${{ always() && !cancelled() }}
         shell: pwsh
         env:
           VISUAL_COMPARE_OUTCOME: ${{ steps.visual_compare.outcome }}
         run: |
-          $changes = git status --porcelain -- e2e/screenshots.spec.ts-snapshots docs/assets/screenshots
+          $baselineChanges = git status --porcelain -- e2e/screenshots.spec.ts-snapshots
+          if ($baselineChanges) {
+            Write-Host $baselineChanges
+            Write-Host "::error title=Visual baselines were mutated::PR visual review is compare-only and must never rewrite committed baseline files."
+            throw "Visual review mutated committed baselines."
+          }
 
           if ($env:VISUAL_COMPARE_OUTCOME -eq 'success') {
-            if ($changes) {
-              Write-Host $changes
-              Write-Host "::error title=Documentation screenshots are stale::The visual baselines passed, but fresh documentation captures differ from the committed PNGs. Review and commit the current captures."
-              throw "Visual review failed because documentation screenshots are stale."
-            }
-            Write-Host "Committed visual baselines and documentation screenshots match the current UI."
+            Write-Host "Committed visual baselines match the current UI."
+            Write-Host "Documentation captures were written to disposable test output; refresh-screenshots.yml remains the sole tracked-gallery writer."
             exit 0
           }
 
-          if ($changes) {
-            Write-Host $changes
-            Write-Host "::notice title=Current visual files differ::The failed comparison produced current documentation captures or baseline-adjacent evidence. Inspect the unified artifact before accepting any visual change."
-          }
-          Write-Host "::error title=Visual comparison failed::The compare-only pass failed. No baseline was rewritten automatically; inspect visual-review.zip/images/ and the Playwright trace/diff evidence."
-          throw "Visual review failed without mutating committed baselines."
+          Write-Host "::error title=Visual comparison failed::The compare-only pass failed. No tracked screenshot or baseline was rewritten; inspect visual-review/images/ and the Playwright trace/diff evidence."
+          throw "Visual review failed without mutating tracked visual assets."
 
       - name: Capture visual review failure context
         if: ${{ failure() && !cancelled() }}

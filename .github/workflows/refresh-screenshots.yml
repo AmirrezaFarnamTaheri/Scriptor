@@ -104,7 +104,7 @@ jobs:
           if (Test-Path artifacts/screenshot-source.txt) {
             Copy-Item artifacts/screenshot-source.txt artifacts/screenshot-evidence/source.txt -Force
           }
-          ./scripts/ci/prepare-visual-review-package.ps1 -PackageRoot "artifacts/visual-review-package" -EvidenceRoot "artifacts/screenshot-evidence"
+          ./scripts/ci/prepare-visual-review-package.ps1 -PackageRoot "artifacts/visual-review-package" -EvidenceRoot "artifacts/screenshot-evidence" -IncludeTrackedGallery
 
       - name: Upload canonical screenshot evidence
         if: always()

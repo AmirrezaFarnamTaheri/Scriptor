@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string]$PackageRoot = "artifacts/visual-review-package",
-    [string]$EvidenceRoot = $env:CI_LOG_DIR
+    [string]$EvidenceRoot = $env:CI_LOG_DIR,
+    [switch]$IncludeTrackedGallery
 )
 
 $ErrorActionPreference = 'Stop'
@@ -84,12 +85,16 @@ function Add-VisualImages {
     }
 }
 
-# Keep every visual source current, but publish all image bytes through one flat
-# directory. Prefixes retain provenance without reintroducing parallel trees.
-Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'comparison'
-Add-VisualImages -SourceRoot 'e2e/screenshots.spec.ts-snapshots' -Prefix 'baseline-screenshots'
-Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'capture'
-Add-VisualImages -SourceRoot 'artifacts/screenshots-before' -Prefix 'before'
+# Publish current-run visual evidence through one flat directory. Playwright
+# already copies expected/actual/diff images into test-results when a comparison
+# fails, so shipping the entire committed baseline tree on every successful run
+# is redundant. Tracked gallery PNGs are included only by the explicit refresh
+# workflow, which is the sole writer of those files.
+Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'current'
+if ($IncludeTrackedGallery) {
+    Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'gallery'
+    Add-VisualImages -SourceRoot 'artifacts/screenshots-before' -Prefix 'before'
+}
 
 if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
     $resolvedEvidence = Resolve-RepoPath -Path $EvidenceRoot
