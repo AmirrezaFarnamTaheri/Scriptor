@@ -677,6 +677,46 @@ test.describe('visual review states', () => {
     await tasks.screenshot({ path: test.info().outputPath('visual-tasks-populated.png') })
   })
 
+  test('Git mutation confirmation evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open Git panel')
+    const git = page.getByRole('dialog', { name: 'Git', exact: true })
+    await expect(git).toBeVisible()
+    const form = git.locator('.git-commit-form')
+    await form.getByRole('textbox').fill('test: visual confirmation')
+    await form.getByRole('button', { name: 'Commit selected' }).click()
+    const confirmation = git.getByRole('alertdialog', { name: 'Confirm Git action' })
+    await expect(confirmation).toBeVisible()
+    await expect(confirmation).toContainText('Research Plan.md')
+    await expect(confirmation).toContainText('test: visual confirmation')
+    await captureElement(page, git, 'visual-git-confirmation.png')
+  })
+
+  test('note history restore confirmation evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Note history timeline')
+    const history = page.getByRole('dialog', { name: 'Note history', exact: true })
+    await expect(history).toBeVisible()
+    await expect(history.locator('.note-history-revision-markdown')).toContainText('Previous revision')
+    await history.getByRole('button', { name: 'Restore revision' }).click()
+    const confirmation = history.getByRole('group', { name: 'Confirm revision restore' })
+    await expect(confirmation).toBeVisible()
+    await expect(confirmation.getByRole('button', { name: 'Restore revision' })).toBeVisible()
+    await captureElement(page, history, 'visual-history-restore-confirmation.png')
+  })
+
+  test('writing targets evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Writing Targets', exact: true }).click()
+    const targets = page.getByRole('dialog', { name: 'Writing targets', exact: true })
+    await expect(targets).toBeVisible()
+    await expect(targets).toContainText('Daily word target')
+    await expect(targets).toContainText('Today:')
+    await captureElement(page, targets, 'visual-writing-targets.png')
+  })
+
   test('Kanban board evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await page.getByRole('button', { name: 'Sprint Board.md' }).click()
