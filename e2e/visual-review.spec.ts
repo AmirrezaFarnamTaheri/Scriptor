@@ -279,6 +279,24 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-mobile-inspector-390.png')
   })
 
+  test('dense graph canvas evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:dense-graph', '1')
+    })
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open graph')
+
+    const graph = page.getByRole('dialog', { name: 'Knowledge graph' })
+    await expect(graph).toBeVisible()
+    await expect(graph.locator('.graph-header')).toContainText('120 nodes')
+    const canvas = graph.locator('.graph-canvas-accessible-shell canvas')
+    await expect(canvas).toBeVisible({ timeout: 15_000 })
+    await expect(canvas).toHaveAttribute('aria-label', /120 nodes and 160 directed edges/)
+    await expectNoHorizontalOverflow(page)
+    await graph.screenshot({ path: test.info().outputPath('visual-graph-dense-120.png') })
+  })
+
   test('populated canvas board', async ({ page }) => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)

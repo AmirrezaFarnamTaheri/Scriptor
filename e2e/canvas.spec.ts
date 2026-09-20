@@ -152,6 +152,22 @@ test.describe('Canvas panel', () => {
     await expect(panel.getByRole('button', { name: /^Export/ })).toBeDisabled()
   })
 
+  test('empty-state icon does not inherit the board minimum height', async ({ page }) => {
+    const panel = await openCanvas(page)
+    const icon = panel.locator('.canvas-empty-state svg')
+    const board = panel.locator('.canvas-svg')
+    await expect(icon).toBeVisible()
+    await expect(board).toBeVisible()
+
+    const [iconBox, boardMinHeight] = await Promise.all([
+      icon.boundingBox(),
+      board.evaluate((element) => getComputedStyle(element).minHeight),
+    ])
+    expect(iconBox).not.toBeNull()
+    expect(iconBox?.height ?? 999).toBeLessThanOrEqual(48)
+    expect(boardMinHeight).toBe('360px')
+  })
+
   test('first-action card works without a plugin drawing tool', async ({ page }) => {
     const panel = await openCanvas(page)
     await panel.getByRole('button', { name: 'Add first card' }).click()

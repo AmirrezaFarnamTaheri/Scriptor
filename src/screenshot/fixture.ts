@@ -123,6 +123,33 @@ export function screenshotHealthDiagnostics(): VaultHealthDiagnostics {
   }
 }
 
+export function screenshotDenseGraph(): GraphQueryOutput {
+  const nodes = Array.from({ length: 120 }, (_, index) => {
+    if (index === 0) {
+      return { id: 'dense-001', path: 'Research Plan.md', label: 'Research Plan', unresolved: false }
+    }
+    const ordinal = String(index + 1).padStart(3, '0')
+    return {
+      id: `dense-${ordinal}`,
+      path: `research/Topic ${ordinal}.md`,
+      label: `Topic ${ordinal}`,
+      unresolved: false,
+    }
+  })
+  const edges = nodes.flatMap((node, index) => {
+    const next = nodes[(index + 1) % nodes.length]
+    const links = [
+      { id: `dense-ring-${index}`, source: node.id, target: next.id, kind: 'wikilink' },
+    ]
+    if (index % 3 === 0) {
+      const cross = nodes[(index + 17) % nodes.length]
+      links.push({ id: `dense-cross-${index}`, source: node.id, target: cross.id, kind: 'wikilink' })
+    }
+    return links
+  })
+  return { nodes, edges }
+}
+
 export function screenshotGraph(focusPath?: string | null): GraphQueryOutput {
   const nodes = [
     { id: 'n1', path: 'Research Plan.md', label: 'Research Plan', unresolved: false },

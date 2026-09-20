@@ -147,7 +147,7 @@
   color: var(--muted);
 }
 
-.canvas-stage svg {
+.canvas-stage .canvas-svg {
   width: 100%;
   min-height: 360px;
 }

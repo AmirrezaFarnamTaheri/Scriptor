@@ -52,7 +52,8 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | MCP Tools | Read-only mode, selected outline tool, fixture input, and a successful note outline result |
 | MCP Audit | One allowed outline invocation with its read-only mode and timestamp |
 | Settings appearance | Appearance tab with independent palette and day/night controls plus visible font/density controls |
-| Populated Canvas | Two real board blocks (first card plus active-note link) with settled canvas geometry |
+| Populated Canvas | A real board block linked to the active note with settled canvas geometry |
+| Dense graph | 120-node / 160-edge fixture exercising the canvas-rendered graph path |
 | Knowledge triage | Three populated repair rows with triage active on the first item |
 | Contextual Help | First-use MCP invitation and its owning Help guide are both captured |
 | Workspace selector | Active option and option inventory are asserted; the capture shows the deterministic closed native selector |
@@ -65,7 +66,7 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | Dark Settings | Settings dialog rendered under the dark theme |
 | Dark conflict resolver | Destructive merge-resolution surface rendered under the dark theme before a choice is applied |
 
-The populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
+The dense Graph, populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
 
 Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, top-bar customization, and Color Palettes. The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
 

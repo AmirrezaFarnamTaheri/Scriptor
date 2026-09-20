@@ -3,6 +3,7 @@ import { mockIPC } from '@tauri-apps/api/mocks'
 import {
   SCREENSHOT_SCAN,
   SCREENSHOT_VAULT,
+  screenshotDenseGraph,
   screenshotGraph,
   screenshotHealthDiagnostics,
   screenshotRebuildSummary,
@@ -310,6 +311,9 @@ export function installE2eBridge(): void {
       case 'indexer_backlinks':
         return []
       case 'indexer_graph': {
+        if (window.sessionStorage.getItem('e2e:dense-graph') === '1') {
+          return screenshotDenseGraph()
+        }
         const focusPath = (payload as { focusPath?: string | null }).focusPath ?? null
         return screenshotGraph(focusPath)
       }
