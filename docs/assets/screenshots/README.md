@@ -69,7 +69,7 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 
 The dense Graph, populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
 
-Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, top-bar customization, and Color Palettes. The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
+Artifact-only product-surface coverage also includes Reader/PDF, Tasks, Kanban, Bibliography, Snippets, the Markdown cheatsheet, Templates, Obsidian import, Support, Portal, Quick Capture, built-in modules, the performance HUD, Gmail's disconnected state, Google integration setup, a populated Inbox, top-bar customization, and Color Palettes. The Gmail scenario opts into the bundled Gmail plugin only inside E2E bootstrap; normal application and test defaults are unchanged.
 
 The workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically while capturing the deterministic closed control.
 
@@ -100,15 +100,17 @@ never hidden by raising the global tolerance.
 
 Pull-request **Visual review** owns the visual-regression gate on the pinned Windows runner. It first
 compares current renders against committed baselines without mutating them. A second
-`--update-snapshots=all` pass runs **only when that comparison fails**, solely to produce diagnostic
-current-state images and identify stale baselines; it never auto-accepts a visual change. Functional
+`--update-snapshots=all` pass runs **only when that comparison fails** and reruns only
+`screenshots.spec.ts`, the suite that actually owns committed pixel baselines. It exists solely to
+produce diagnostic current-state images and identify stale baselines; it never auto-accepts a visual change. Functional
 browser E2E remains in the main CI workflow, so the same visual suite is not executed twice on every
 clean PR. The uploaded artifact is canonicalized as `visual-review.zip`: every
 PNG/JPEG/WebP/GIF/AVIF from comparison results, diagnostic refreshed baselines, and documentation
 captures is flattened under **`images/`** with a provenance prefix. Raw
 `test-results/visual` and `e2e/*-snapshots` trees are not uploaded separately, preventing stale
-parallel copies inside the artifact. `image-manifest.json` records each image's source path, SHA-256,
-and byte size.
+parallel copies inside the artifact. `image-manifest.json` records each unique image's SHA-256, byte size, and every source path that
+produced the same bytes. Exact duplicate images are stored once rather than copied into parallel
+comparison/baseline/capture entries.
 
 Responsive and state-review documentation captures (`workspace-mobile`, `workspace-tablet`, mobile
 vault/inspector, editor recovery, MCP sharing inventory, and toolbar popovers) are generated from live

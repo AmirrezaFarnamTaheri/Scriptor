@@ -129,6 +129,8 @@ test('major product surfaces keep visual evidence', () => {
     "visual-built-in-modules.png",
     "visual-performance-hud.png",
     "visual-gmail-disconnected.png",
+    "visual-settings-integrations-google.png",
+    "visual-inbox-populated.png",
     "visual-topbar-customizer.png",
     "visual-color-palettes.png"
 ]) {
