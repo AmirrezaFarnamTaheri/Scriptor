@@ -12,8 +12,11 @@ permissions:
   contents: read
 
 concurrency:
+  # This workflow creates a commit and performs a non-force write-back. Let an
+  # active run finish; a newer dispatch queues behind it, and the final
+  # non-fast-forward push rejects stale source safely if the branch advanced.
   group: refresh-screenshots-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   refresh:
