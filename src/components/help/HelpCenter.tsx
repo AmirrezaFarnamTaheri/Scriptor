@@ -50,7 +50,7 @@ export function HelpCenter({ request, store, onClose, onReveal, returnFocus = nu
       if (document.body.style.overflow === 'hidden') document.body.style.overflow = oldOverflow
       if (invoker?.isConnected) invoker.focus({ preventScroll: true })
     }
-  }, [])
+  }, [returnFocus])
 
   const selectGuide = (next: string) => { setId(next); setView('guide') }
   const keyDown = (event: KeyboardEvent<HTMLDialogElement>) => {

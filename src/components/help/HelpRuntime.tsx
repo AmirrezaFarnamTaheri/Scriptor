@@ -9,7 +9,10 @@ import '../../styles/components/help.css'
 function createStore(): HelpProgressStore {
   try { return new HelpProgressStore(window.localStorage) } catch { return new HelpProgressStore(null) }
 }
-interface HelpSession extends HelpRequest { sequence: number }
+interface HelpSession extends HelpRequest {
+  sequence: number
+  returnFocus: HTMLElement | null
+}
 
 /** One read-only runtime owns explicit Help invocation, contextual F1, and replayable guidance. */
 export function HelpRuntime() {
@@ -17,12 +20,14 @@ export function HelpRuntime() {
   const [session, setSession] = useState<HelpSession | null>(null)
   const lastInteraction = useRef<Element | null>(null)
   const highlightCleanup = useRef<(() => void) | null>(null)
-  const returnFocusRef = useRef<HTMLElement | null>(null)
-
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    setSession((current) => ({ ...request, sequence: (current?.sequence ?? 0) + 1 }))
+    const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setSession((current) => ({
+      ...request,
+      sequence: (current?.sequence ?? 0) + 1,
+      returnFocus,
+    }))
   }, [])
   const close = useCallback(() => setSession(null), [])
 
@@ -85,6 +90,6 @@ export function HelpRuntime() {
   }, [])
 
   return session
-    ? <HelpCenter key={`${session.id}:${session.sequence}`} request={session} store={store} onClose={close} onReveal={reveal} returnFocus={returnFocusRef.current} />
+    ? <HelpCenter key={`${session.id}:${session.sequence}`} request={session} store={store} onClose={close} onReveal={reveal} returnFocus={session.returnFocus} />
     : null
 }

@@ -339,7 +339,7 @@ test.describe('visual review states', () => {
     await expect(help).toBeVisible()
     await expect(help.getByRole('heading', { name: 'MCP automation modes and tools', exact: true })).toBeVisible()
     await expect(help.locator('.help-center-body')).toHaveCSS('display', 'grid')
-    await expect(help.locator('.help-browser')).toHaveCSS('overflow-y', 'auto')
+    await expect(help.locator('.help-browser nav')).toHaveCSS('overflow-y', 'auto')
     await expect.poll(() => help.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     const idleBrowseCount = await help.locator('.help-browser nav li').count()
     expect(idleBrowseCount).toBeGreaterThan(1)
@@ -850,6 +850,9 @@ test.describe('visual review states', () => {
       await tab.click()
       await expect(tab).toHaveAttribute('aria-selected', 'true')
       await expect(workbench).toContainText(state.text)
+      if (state.tab === 'Collections') {
+        await expect(workbench).not.toContainText(/Cannot read properties|Search failed/)
+      }
       await settleLayout(page)
       await workbench.screenshot({ path: test.info().outputPath(state.image) })
     }

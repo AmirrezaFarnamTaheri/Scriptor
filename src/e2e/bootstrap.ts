@@ -387,6 +387,7 @@ export function installE2eBridge(): void {
         return knowledgeRepairFixture()
       case 'indexer_list_unresolved_targets':
       case 'indexer_list_recent_files':
+      case 'indexer_execute_dql':
       case 'vault_list_view_notes':
         return []
       case 'git_status_cmd': {
