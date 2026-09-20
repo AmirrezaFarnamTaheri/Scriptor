@@ -94,6 +94,11 @@ async function captureVisual(page: Page, name: string) {
   await page.screenshot({ path: test.info().outputPath(name), fullPage: false })
 }
 
+async function expectNoHorizontalOverflow(page: Page) {
+  const width = await page.evaluate(() => document.documentElement.clientWidth)
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+}
+
 async function openVisualWorkspace(page: Page) {
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForVisualWorkspace(page)
@@ -335,6 +340,152 @@ test.describe('visual review states', () => {
     await expect(help).toContainText('MCP')
     await settleLayout(page)
     await help.screenshot({ path: test.info().outputPath('visual-help-mcp-guide.png') })
+  })
+
+
+  test('Persian RTL workspace evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 1240, height: 900 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:locale', 'fa')
+    })
+    await openVisualWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-workspace-rtl-fa.png')
+  })
+
+  test('German compact workspace evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:locale', 'de')
+    })
+    await openVisualWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('lang', 'de')
+    const toolbar = page.locator('.editor-toolbar')
+    const rowTops = await toolbar.locator(':scope > .format-group').evaluateAll((groups) =>
+      groups.map((group) => Math.round(group.getBoundingClientRect().top)),
+    )
+    expect(new Set(rowTops).size).toBe(1)
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-workspace-de-1024.png')
+  })
+
+  test('125 percent UI zoom evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:ui-zoom', '1.25')
+    })
+    await openVisualWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'stacked')
+    await expectNoHorizontalOverflow(page)
+    const editor = await page.locator('.editor-panel').boundingBox()
+    expect(editor).not.toBeNull()
+    expect(editor?.width ?? 0).toBeGreaterThan(240)
+    await captureVisual(page, 'visual-workspace-ui-zoom-125.png')
+  })
+
+  test('125 percent device scale evidence', async ({ browser }, testInfo) => {
+    const context = await browser.newContext({
+      baseURL: String(testInfo.project.use.baseURL),
+      viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: 1.25,
+    })
+    const scaledPage = await context.newPage()
+    try {
+      await scaledPage.addInitScript((chromePrefs) => {
+        window.localStorage.setItem('scriptor:app-theme', 'light')
+        window.localStorage.setItem('scriptor:onboarding-complete', 'true')
+        window.localStorage.setItem('scriptor:editor-mode', 'monaco')
+        window.localStorage.setItem('scriptor:headless-engine', 'false')
+        window.localStorage.setItem('scriptor:workspace-mode', 'writing')
+        window.localStorage.setItem('scriptor:mobile-pane', 'editor')
+        window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
+        window.localStorage.setItem('scriptor:split-preview', 'false')
+        window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
+        window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+      }, WORKSPACE_CHROME_PREFS)
+      await scaledPage.goto('/', { waitUntil: 'domcontentloaded' })
+      await waitForVisualWorkspace(scaledPage)
+      await expectNoHorizontalOverflow(scaledPage)
+      const editor = await scaledPage.locator('.editor-panel').boundingBox()
+      expect(editor).not.toBeNull()
+      expect(editor?.width ?? 0).toBeGreaterThan(300)
+      await scaledPage.screenshot({
+        path: test.info().outputPath('visual-workspace-device-scale-125.png'),
+        fullPage: false,
+      })
+    } finally {
+      await context.close()
+    }
+  })
+
+  test('slow vault loading evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:slow-vault', '1')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('.vault-skeleton-row').first()).toBeVisible({ timeout: 5_000 })
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-vault-loading.png')
+    await waitForWorkspace(page)
+    await expect(page.locator('.vault-skeleton-row')).toHaveCount(0)
+  })
+
+  test('large vault virtualization evidence', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 800 })
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:large-vault', '1')
+    })
+    await openVisualWorkspace(page)
+    const list = page.locator('.virtual-note-list')
+    await expect(list).toBeVisible()
+    expect(await list.locator(':scope > li').count()).toBeLessThan(80)
+    await list.evaluate((element) => {
+      const scroller = element.parentElement
+      if (!scroller) throw new Error('virtual note list scroll container missing')
+      scroller.scrollTop = scroller.scrollHeight
+      scroller.dispatchEvent(new Event('scroll'))
+    })
+    await expect(
+      list.getByRole('button', {
+        name: 'Generated research note 0600 with an intentionally long filename for truncation and virtualization coverage.md',
+      }),
+    ).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-large-vault-bottom.png')
+  })
+
+  test('dark settings surface evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+    })
+    await openVisualWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    await expectNoHorizontalOverflow(page)
+    await settings.screenshot({ path: test.info().outputPath('visual-settings-dark.png') })
+  })
+
+  test('dark conflict resolver evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+      window.sessionStorage.setItem('e2e:git-conflicts', '1')
+    })
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open Git panel')
+    const git = page.getByRole('dialog', { name: 'Git', exact: true })
+    await expect(git).toBeVisible()
+    await git.getByRole('button', { name: 'Resolve' }).click()
+    const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
+    await expect(resolver).toBeVisible()
+    await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
+    await settleLayout(page)
+    await resolver.screenshot({ path: test.info().outputPath('visual-conflict-resolver-dark.png') })
   })
 
 })

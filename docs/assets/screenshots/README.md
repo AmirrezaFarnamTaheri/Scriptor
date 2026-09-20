@@ -56,8 +56,16 @@ The screenshot suite includes the following docs-only scenarios in addition to t
 | Knowledge triage | Three populated repair rows with triage active on the first item |
 | Contextual Help | First-use MCP invitation and its owning Help guide are both captured |
 | Workspace selector | Active option and option inventory are asserted; the capture shows the deterministic closed native selector |
+| Persian RTL workspace | Persian RTL workspace at 1240px with page-level overflow asserted absent |
+| German compact workspace | German labels at 1024px with the primary toolbar kept on one row |
+| 125% UI zoom | Stacked application reflow at 125% UI zoom with bounded editor geometry |
+| 125% device scale | 1440x900 workspace rendered at deviceScaleFactor 1.25 |
+| Slow vault loading | Bounded skeleton state captured before deterministic vault hydration completes |
+| Large vault bottom | Virtualized 600-note fixture at the final long filename without page overflow |
+| Dark Settings | Settings dialog rendered under the dark theme |
+| Dark conflict resolver | Destructive merge-resolution surface rendered under the dark theme before a choice is applied |
 
-The populated Canvas, Knowledge triage, and contextual Help states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
+The populated Canvas, Knowledge triage, contextual Help, RTL/localization, zoom/device-scale, loading, large-vault, and dark-surface states are emitted by `visual-review.spec.ts` into the unified visual-review artifact rather than promoted directly to permanent pixel baselines.
 
 The workspace selector is a native `<select>`: Playwright page screenshots do not reliably include the operating-system dropdown popup, so the suite asserts the selected option and option inventory semantically while capturing the deterministic closed control.
 
