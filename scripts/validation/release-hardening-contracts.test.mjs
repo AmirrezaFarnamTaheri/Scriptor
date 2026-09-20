@@ -168,7 +168,8 @@ test('functional and visual Playwright suites have one canonical PR owner each',
 
   const ci = read('.github/workflows/ci.yml')
   const visualReview = read('.github/workflows/visual-review.yml')
-  assert.match(ci, /name: Browser E2E and visual regression/)
+  assert.match(ci, /name: Browser E2E/)
+  assert.doesNotMatch(ci, /name: Browser E2E and visual regression/)
   assert.match(ci, /test:e2e/)
   assert.doesNotMatch(ci, /test:visual/)
   assert.match(visualReview, /playwright\.visual\.config\.ts/)
