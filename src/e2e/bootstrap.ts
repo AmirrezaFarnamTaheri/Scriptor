@@ -178,6 +178,11 @@ export function installE2eBridge(): void {
           })
         }
         return { vault: SCREENSHOT_VAULT, scan_job_id: 'e2e-scan' }
+      case 'google_gmail_get_authed_email':
+        if (window.sessionStorage.getItem('e2e:enable-gmail-plugin') === '1') {
+          throw new Error('GOOGLE_AUTH_REQUIRED: Gmail is not connected')
+        }
+        return undefined
       case 'plugin_state_get':
         return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [] }
       case 'plugin_state_set_enabled': {
