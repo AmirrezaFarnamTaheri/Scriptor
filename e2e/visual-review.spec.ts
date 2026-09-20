@@ -401,8 +401,13 @@ test.describe('visual review states', () => {
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
+    await expect(page.locator('.status-strip')).toBeHidden()
+    await expect(page.locator('.workspace-mode-select')).toBeVisible()
+    await expect(page.locator('.workspace-mode-strip .workspace-mode')).toBeHidden()
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
+    await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expect(page.locator('.command-search')).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 

@@ -423,6 +423,89 @@
    three-column workspace as the base layout, so no extra grid overrides are
    needed — the side rails dock beside the editor at any effective width. */
 
+html[data-ui-reflow='mobile'] .app-shell {
+  min-height: 0;
+  height: var(--app-viewport-height, 100dvh);
+  overflow: hidden;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+html[data-ui-reflow='mobile'] .topbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+}
+
+html[data-ui-reflow='mobile'] .brand {
+  grid-column: 1;
+  min-width: 0;
+  gap: 6px;
+}
+
+html[data-ui-reflow='mobile'] .brand-wordmark,
+html[data-ui-reflow='mobile'] .vault-badge,
+html[data-ui-reflow='mobile'] .topbar .topbar-secondary-action,
+html[data-ui-reflow='mobile'] .topbar .topbar-secondary-status {
+  display: none;
+}
+
+html[data-ui-reflow='mobile'] .history-controls {
+  grid-column: 1 / -1;
+  order: 2;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+html[data-ui-reflow='mobile'] .workspace-switcher {
+  min-width: 0;
+  flex: 1;
+}
+
+html[data-ui-reflow='mobile'] .workspace-switcher select {
+  min-width: 0;
+  width: 100%;
+}
+
+html[data-ui-reflow='mobile'] .top-actions {
+  grid-column: 2;
+  order: 1;
+  justify-self: end;
+  max-width: min(52vw, 320px);
+  overflow-x: auto;
+}
+
+html[data-ui-reflow='mobile'] .workspace-mode-strip {
+  grid-column: 1 / -1;
+  order: 3;
+  width: 100%;
+}
+
+html[data-ui-reflow='mobile'] .workspace-mode-strip .workspace-mode {
+  display: none;
+}
+
+html[data-ui-reflow='mobile'] .workspace-mode-select {
+  display: block;
+  width: 100%;
+  min-width: 0;
+}
+
+html[data-ui-reflow='mobile'] .command-search {
+  grid-column: 1 / -1;
+  order: 4;
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  height: 42px;
+}
+
+html[data-ui-reflow='mobile'] .status-strip {
+  display: none !important;
+}
+
 html[data-ui-reflow='mobile'] .workspace-grid > .split-pane-handle,
 html[data-ui-reflow='mobile'] .workspace-grid > .resizer-placeholder {
   display: none;
