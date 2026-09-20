@@ -188,11 +188,14 @@ export function GraphCanvas({ nodes, edges, focusPath, width, height, onSelectNo
         ctx.stroke()
       }
 
-      ctx.fillStyle = inkColor
-      ctx.font = '11px sans-serif'
-      ctx.textAlign = 'center'
-      const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
-      ctx.fillText(label, node.x, node.y + 28)
+      const showLabel = nodes.length < 60 || isFocus || isHovered || isKeyboardFocus
+      if (showLabel) {
+        ctx.fillStyle = inkColor
+        ctx.font = '11px sans-serif'
+        ctx.textAlign = 'center'
+        const label = node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label
+        ctx.fillText(label, node.x, node.y + 28)
+      }
     }
 
     ctx.restore()

@@ -1,4 +1,5 @@
-import { forceCenter, forceLink, forceManyBody, forceSimulation } from 'd3-force'
+import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force'
+import { fitGraphLayoutToViewport } from '../lib/graphLayout'
 
 interface WorkerNode {
   id: string
@@ -47,9 +48,11 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       .filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target))
       .map((e) => ({ source: e.source, target: e.target }))
 
+    const dense = simNodes.length >= 80
     const simulation = forceSimulation(simNodes)
-      .force('charge', forceManyBody().strength(-280))
-      .force('link', forceLink(links).id((n) => (n as { id: string }).id).distance(110).strength(0.55))
+      .force('charge', forceManyBody().strength(dense ? -85 : -280))
+      .force('link', forceLink(links).id((n) => (n as { id: string }).id).distance(dense ? 62 : 110).strength(0.55))
+      .force('collide', forceCollide(dense ? 18 : 26).strength(0.9))
       .force('center', forceCenter(width / 2, height / 2))
       .stop()
 
@@ -60,15 +63,20 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       }
     }
 
-    const result = simNodes.map((node) => ({
-      id: node.id,
-      x: Math.max(36, Math.min(width - 36, node.x ?? width / 2)),
-      y: Math.max(36, Math.min(height - 36, node.y ?? height / 2)),
-      label: node.label,
-      path: node.path,
-      unresolved: node.unresolved,
-      color: node.color,
-    }))
+    const result = fitGraphLayoutToViewport(
+      simNodes.map((node) => ({
+        id: node.id,
+        x: node.x,
+        y: node.y,
+        label: node.label,
+        path: node.path,
+        unresolved: node.unresolved,
+        color: node.color,
+      })),
+      width,
+      height,
+      44,
+    )
 
     self.postMessage({ type: 'done', nodes: result })
   } catch (error) {
