@@ -91,10 +91,10 @@ test('release kickoff keeps write permissions out of validation', () => {
   const publish = kickoff.split('\n  tag-and-dispatch:\n')[1]
   assert.ok(validate, 'release validation job missing')
   assert.ok(publish, 'release publish job missing')
-  assert.match(kickoff, /^permissions:\n  contents: read$/m)
-  assert.match(validate, /permissions:\n      contents: read\n      actions: read/)
+  assert.match(kickoff, /^permissions:\n {2}contents: read$/m)
+  assert.match(validate, /permissions:\n {6}contents: read\n {6}actions: read/)
   assert.doesNotMatch(validate, /contents: write|actions: write/)
-  assert.match(publish, /permissions:\n      contents: write\n      actions: write/)
+  assert.match(publish, /permissions:\n {6}contents: write\n {6}actions: write/)
 })
 
 test('release kickoff only tags the default-branch commit after CI succeeds for that exact SHA', () => {

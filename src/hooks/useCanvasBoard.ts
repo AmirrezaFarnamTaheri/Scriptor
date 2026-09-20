@@ -155,10 +155,11 @@ export function useCanvasBoard(vaultId: string | null, vaultOpen: boolean, crdtE
   )
 
   useEffect(() => {
+    const templateGuard = templateGuardRef.current
     mountedRef.current = true
     return () => {
       mountedRef.current = false
-      templateGuardRef.current.invalidate()
+      templateGuard.invalidate()
       if (saveTimer.current) {
         window.clearTimeout(saveTimer.current)
         saveTimer.current = null

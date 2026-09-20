@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::sync::{mpsc, Mutex, MutexGuard};
+use std::sync::{Mutex, MutexGuard, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
