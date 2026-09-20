@@ -1,1 +1,2 @@
-One-shot branch-local trigger for the reviewed screenshot refresh. Remove after the workflow pushes regenerated assets.
+One-shot branch-local trigger for the reviewed screenshot refresh.
+Retry after creating the screenshot evidence directory before source identity capture.

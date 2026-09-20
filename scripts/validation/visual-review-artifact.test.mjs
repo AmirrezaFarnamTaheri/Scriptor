@@ -46,6 +46,18 @@ test('explicit refresh remains the sole tracked-gallery writer', () => {
   assert.match(refreshWorkflow, /-IncludeTrackedGallery/)
 })
 
+test('screenshot refresh creates its evidence directory before recording source identity', () => {
+  const sourceIdentity = refreshWorkflow.split(/\n(?= {6}- name: )/)
+    .find((entry) => entry.startsWith('      - name: Record screenshot source identity\n')) ?? ''
+  assert.match(sourceIdentity, /New-Item -ItemType Directory -Force artifacts \| Out-Null/)
+  assert.match(sourceIdentity, /Set-Content artifacts\/screenshot-source\.txt/)
+  assert.ok(
+    sourceIdentity.indexOf('New-Item -ItemType Directory -Force artifacts') <
+      sourceIdentity.indexOf('Set-Content artifacts/screenshot-source.txt'),
+    'artifacts directory must exist before source identity is written',
+  )
+})
+
 test('visual artifact has one canonical images directory', () => {
   assert.match(workflow, /name:\s*visual-review\s*\n/)
   assert.match(workflow, /path:\s*artifacts\/visual-review-package/)

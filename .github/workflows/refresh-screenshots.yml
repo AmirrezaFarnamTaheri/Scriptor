@@ -69,6 +69,7 @@ jobs:
       - name: Record screenshot source identity
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
           git rev-parse HEAD | Set-Content artifacts/screenshot-source.txt
           pnpm exec playwright --version | Add-Content artifacts/screenshot-source.txt
 
