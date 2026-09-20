@@ -61,4 +61,18 @@ test.describe('editor toolbar geometry contract', () => {
     await openWorkspace(page, 1024, 768)
     await expectSingleToolbarRow(page)
   })
+
+  test('preserves an explicitly stored minimum tool width in version-2 preferences', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:editor-toolbar', JSON.stringify({
+        version: 2,
+        tools: [{ id: 'typography', pinned: true, width: 32 }],
+      }))
+    })
+    await openWorkspace(page)
+
+    const typography = page.locator('.toolbar-tool[data-tool-id="typography"]')
+    await expect(typography).toBeVisible()
+    await expect.poll(() => typography.evaluate((element) => (element as HTMLElement).style.width)).toBe('32px')
+  })
 })

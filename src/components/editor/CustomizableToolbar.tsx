@@ -58,13 +58,12 @@ function normalizeStoredItems(value: unknown): Preference[] {
   return raw.slice(0, 200).flatMap((item: unknown) => {
     if (!item || typeof item !== 'object' || !('id' in item) || typeof item.id !== 'string' || seen.has(item.id)) return []
     seen.add(item.id)
-    const candidate = 'width' in item && typeof item.width === 'number' && Number.isFinite(item.width)
-      ? clampWidth(item.width)
-      : DEFAULT_WIDTH
+    const hasStoredWidth = 'width' in item && typeof item.width === 'number' && Number.isFinite(item.width)
+    const candidate = hasStoredWidth ? clampWidth(item.width as number) : DEFAULT_WIDTH
     // Legacy records always serialized width=32, even when users never customized
-    // a tool. Treat only non-default legacy widths as intentional so text controls
-    // such as Typography and Insert recover their natural width after migration.
-    const hasCustomWidth = candidate !== DEFAULT_WIDTH && (legacy || 'width' in item)
+    // a tool. For version-2 records the presence of width is itself intentional,
+    // including an explicit minimum width of 32px.
+    const hasCustomWidth = hasStoredWidth && (!legacy || candidate !== DEFAULT_WIDTH)
     return [{
       id: item.id,
       pinned: !('pinned' in item) || item.pinned !== false,
