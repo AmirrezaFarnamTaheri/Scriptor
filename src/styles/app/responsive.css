@@ -20,6 +20,14 @@
 
 .workspace-mode-select {
   display: none;
+  min-height: 42px;
+  min-width: 0;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
 }
 
 @media (max-width: 1320px) {

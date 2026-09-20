@@ -459,7 +459,19 @@ test.describe('visual review states', () => {
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
     await expect(page.locator('.status-strip')).toBeHidden()
-    await expect(page.locator('.workspace-mode-select')).toBeVisible()
+    const modeSelect = page.locator('.workspace-mode-select')
+    await expect(modeSelect).toBeVisible()
+    const modeSelectGeometry = await modeSelect.evaluate((element) => {
+      const style = getComputedStyle(element)
+      return {
+        height: element.getBoundingClientRect().height,
+        radius: Number.parseFloat(style.borderRadius),
+        background: style.backgroundColor,
+      }
+    })
+    expect(modeSelectGeometry.height).toBeGreaterThanOrEqual(40)
+    expect(modeSelectGeometry.radius).toBeGreaterThanOrEqual(8)
+    expect(modeSelectGeometry.background).not.toBe('rgba(0, 0, 0, 0)')
     const modeButtons = page.locator('.workspace-mode-strip .workspace-mode')
     await expect(modeButtons).toHaveCount(5)
     await expect.poll(() => modeButtons.evaluateAll((buttons) =>
