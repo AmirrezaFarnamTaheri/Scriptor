@@ -602,6 +602,8 @@ test('workspace selector and active vault identity', async ({ page }) => {
   await switcher.focus()
   await expect(switcher).toBeFocused()
   await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
+  await switcher.blur()
+  await expect(switcher).not.toBeFocused()
 
   await captureReadyScreenshot(page, shotPath('workspace-switcher'))
 })
