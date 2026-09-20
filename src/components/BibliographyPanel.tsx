@@ -65,7 +65,7 @@ export const BibliographyPanel = memo(function BibliographyPanel({
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
-        className={`bibliography-panel${dropActive ? ' is-drop-target' : ''}`} data-help-topic="bibliography"
+        className={`bibliography-panel knowledge-filters-panel${dropActive ? ' is-drop-target' : ''}`} data-help-topic="bibliography"
         role="dialog"
         aria-label="Bibliography"
         onClick={(event) => event.stopPropagation()}

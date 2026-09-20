@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import { openCommandPalette, runCommand, settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
@@ -73,11 +73,11 @@ async function waitForInspectorReady(page: Page) {
 async function waitForVisualWorkspace(page: Page) {
   await waitForWorkspace(page)
   await waitForInspectorReady(page)
-  const progress = page.locator('.job-progress')
-  await expect(progress).toHaveClass(/is-done/, { timeout: 45_000 })
-  await expect(progress).toHaveAttribute('aria-label', /\S/, { timeout: 45_000 })
-  await expect(progress.locator('strong')).toBeVisible()
+  // The progress chip is transient responsive chrome, not workspace identity.
+  // Editor + inspector hydration are the durable visual-readiness contract.
+  await expect(page.locator('.status-strip')).toBeAttached({ timeout: 45_000 })
   await waitForActiveSplitPreview(page)
+  await settleLayout(page)
 }
 
 async function waitForPreviewReady(page: Page) {
@@ -94,7 +94,22 @@ async function waitForActiveSplitPreview(page: Page) {
 }
 
 async function captureVisual(page: Page, name: string) {
-  await page.screenshot({ path: test.info().outputPath(name), fullPage: false })
+  await settleLayout(page)
+  await page.screenshot({
+    path: test.info().outputPath(name),
+    fullPage: false,
+    animations: 'disabled',
+    caret: 'hide',
+  })
+}
+
+async function captureElement(page: Page, locator: Locator, name: string) {
+  await settleLayout(page)
+  await locator.screenshot({
+    path: test.info().outputPath(name),
+    animations: 'disabled',
+    caret: 'hide',
+  })
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -681,8 +696,9 @@ test.describe('visual review states', () => {
     await runCommand(page, 'Browse bibliography')
     const bibliography = page.getByRole('dialog', { name: 'Bibliography', exact: true })
     await expect(bibliography).toBeVisible()
-    await settleLayout(page)
-    await bibliography.screenshot({ path: test.info().outputPath('visual-bibliography.png') })
+    await expect(bibliography).toHaveClass(/knowledge-filters-panel/)
+    await expect.poll(() => bibliography.evaluate((element) => getComputedStyle(element).backgroundColor)).not.toBe('rgba(0, 0, 0, 0)')
+    await captureElement(page, bibliography, 'visual-bibliography.png')
   })
 
   test('Snippet catalog evidence', async ({ page }) => {
@@ -710,8 +726,13 @@ test.describe('visual review states', () => {
     await runCommand(page, 'New note from template')
     const picker = page.getByRole('dialog', { name: 'Choose template', exact: true })
     await expect(picker).toBeVisible()
+    await expect(page.locator('.modal-backdrop').filter({ has: picker })).toBeVisible()
     await expect(picker.getByRole('option', { name: 'Blank note' })).toBeVisible()
-    await picker.screenshot({ path: test.info().outputPath('visual-template-picker.png') })
+    const pickerBox = await picker.boundingBox()
+    const viewportCenter = await page.evaluate(() => window.innerWidth / 2)
+    expect(pickerBox).not.toBeNull()
+    expect(Math.abs((pickerBox?.x ?? 0) + (pickerBox?.width ?? 0) / 2 - viewportCenter)).toBeLessThan(4)
+    await captureElement(page, picker, 'visual-template-picker.png')
   })
 
   test('Obsidian import evidence', async ({ page }) => {
