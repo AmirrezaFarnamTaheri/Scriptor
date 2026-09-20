@@ -667,6 +667,24 @@ test.describe('visual review states', () => {
     await vault.screenshot({ path: test.info().outputPath('visual-inbox-populated.png') })
   })
 
+  test('rename dry-run rewrite evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page
+      .locator('.virtual-note-list')
+      .getByRole('button', { name: 'Research Plan.md', exact: true })
+      .click({ button: 'right' })
+    const rename = page.getByRole('dialog', { name: 'Rename note', exact: true })
+    await expect(rename).toBeVisible()
+    await rename.getByRole('textbox', { name: 'New filename' }).fill('Research Plan Renamed')
+    await rename.getByRole('button', { name: 'Dry run', exact: true }).click()
+    const preview = rename.locator('.rename-preview')
+    await expect(preview).toContainText('2 link edits across 2 files')
+    await expect(preview).toContainText('Field Notes.md')
+    await expect(preview).toContainText('Methodology.md')
+    await settleLayout(page)
+    await rename.screenshot({ path: test.info().outputPath('visual-rename-preview.png') })
+  })
+
   test('Knowledge workbench tab evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await openCommandPalette(page)
