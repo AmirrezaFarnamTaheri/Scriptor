@@ -4,6 +4,7 @@ import { getProgress, HelpProgressStore } from '../../lib/help/progress'
 import { parseHelpRequest } from '../../lib/help/request'
 import { contextGuide, findGuideTarget } from '../../lib/help/context'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
+import '../../styles/components/help.css'
 
 function createStore(): HelpProgressStore {
   try { return new HelpProgressStore(window.localStorage) } catch { return new HelpProgressStore(null) }
@@ -16,12 +17,13 @@ export function HelpRuntime() {
   const [session, setSession] = useState<HelpSession | null>(null)
   const lastInteraction = useRef<Element | null>(null)
   const highlightCleanup = useRef<(() => void) | null>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
 
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
-    store.dispatch({ type: 'offer', id: request.id })
+    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
     setSession((current) => ({ ...request, sequence: (current?.sequence ?? 0) + 1 }))
-  }, [store])
+  }, [])
   const close = useCallback(() => setSession(null), [])
 
   useEffect(() => {
@@ -83,6 +85,6 @@ export function HelpRuntime() {
   }, [])
 
   return session
-    ? <HelpCenter key={`${session.id}:${session.sequence}`} request={session} store={store} onClose={close} onReveal={reveal} />
+    ? <HelpCenter key={`${session.id}:${session.sequence}`} request={session} store={store} onClose={close} onReveal={reveal} returnFocus={returnFocusRef.current} />
     : null
 }

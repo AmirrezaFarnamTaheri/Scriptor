@@ -42,6 +42,8 @@ export function browseGuides(currentId: string, query: string, category = ''): H
   const matches = searchGuides(query, category)
   if (words(query.slice(0, 256)).length > 0 || category) return matches
   const current = getGuide(currentId)
-  const contextualIds = new Set([current.id, ...current.related])
-  return matches.filter((guide) => contextualIds.has(guide.id))
+  const byId = new Map(matches.map((guide) => [guide.id, guide]))
+  return [current.id, ...current.related]
+    .map((id) => byId.get(id))
+    .filter((guide): guide is HelpGuide => Boolean(guide))
 }

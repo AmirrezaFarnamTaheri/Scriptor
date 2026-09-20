@@ -14,10 +14,11 @@ interface HelpCenterProps {
   store: HelpProgressStore
   onClose: () => void
   onReveal: (guide: HelpGuide, selector?: string) => boolean
+  returnFocus?: HTMLElement | null
 }
 
 /** Native top-layer modality keeps an already-open feature intact underneath Help. */
-export function HelpCenter({ request, store, onClose, onReveal }: HelpCenterProps) {
+export function HelpCenter({ request, store, onClose, onReveal, returnFocus = null }: HelpCenterProps) {
   const { locale } = useI18n()
   const labels = helpLabels(locale)
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -35,7 +36,11 @@ export function HelpCenter({ request, store, onClose, onReveal }: HelpCenterProp
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
-    const invoker = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    const invoker = returnFocus?.isConnected
+      ? returnFocus
+      : document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null
     const oldOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     dialog.showModal()
@@ -47,7 +52,7 @@ export function HelpCenter({ request, store, onClose, onReveal }: HelpCenterProp
     }
   }, [])
 
-  const selectGuide = (next: string) => { setId(next); setView('guide'); store.dispatch({ type: 'offer', id: next }) }
+  const selectGuide = (next: string) => { setId(next); setView('guide') }
   const keyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
     // Underlying legacy feature focus traps listen on document. Keep their
     // handlers out of this top-layer dialog's tab sequence and text input.
