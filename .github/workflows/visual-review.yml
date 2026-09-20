@@ -79,13 +79,18 @@ jobs:
           VISUAL_COMPARE_OUTCOME: ${{ steps.visual_compare.outcome }}
           VISUAL_REFRESH_OUTCOME: ${{ steps.visual_refresh.outcome }}
         run: |
-          if ($env:VISUAL_COMPARE_OUTCOME -eq 'success') {
-            Write-Host "Committed visual baselines match the current UI; diagnostic refresh was not needed."
-            exit 0
-          }
-
           $failed = $false
           $changes = git status --porcelain -- e2e/visual-review.spec.ts-snapshots e2e/screenshots.spec.ts-snapshots docs/assets/screenshots
+
+          if ($env:VISUAL_COMPARE_OUTCOME -eq 'success') {
+            if ($changes) {
+              Write-Host $changes
+              Write-Host "::error title=Documentation screenshots are stale::The visual baselines passed, but fresh documentation captures differ from the committed PNGs. Review and commit the current captures."
+              throw "Visual review failed because documentation screenshots are stale."
+            }
+            Write-Host "Committed visual baselines and documentation screenshots match the current UI; diagnostic refresh was not needed."
+            exit 0
+          }
 
           if ($env:VISUAL_REFRESH_OUTCOME -ne 'success') {
             Write-Host "::error title=Visual baseline refresh failed::The comparison failed and the diagnostic refresh could not produce current baselines."

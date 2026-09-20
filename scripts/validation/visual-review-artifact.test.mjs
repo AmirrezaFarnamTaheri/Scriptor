@@ -27,6 +27,16 @@ test('visual review gates stale snapshots and documentation captures', () => {
   assert.match(workflow, /VISUAL_REFRESH_OUTCOME/)
 })
 
+test('clean baseline comparison still rejects stale documentation screenshots', () => {
+  const enforcement = workflow.split(/\n(?= {6}- name: )/)
+    .find((entry) => entry.startsWith('      - name: Enforce visual review result and committed baselines\n'))
+  assert.ok(enforcement, 'missing visual enforcement step')
+  const changes = enforcement.indexOf('$changes = git status --porcelain')
+  const successBranch = enforcement.indexOf("if ($env:VISUAL_COMPARE_OUTCOME -eq 'success')")
+  assert.ok(changes >= 0 && changes < successBranch, 'documentation drift must be computed before the clean-compare exit')
+  assert.match(enforcement, /if \(\$changes\) \{[\s\S]*Documentation screenshots are stale[\s\S]*throw/)
+})
+
 test('visual artifact has one canonical images directory', () => {
   assert.match(workflow, /name:\s*visual-review\s*\n/)
   assert.match(workflow, /path:\s*artifacts\/visual-review-package/)
