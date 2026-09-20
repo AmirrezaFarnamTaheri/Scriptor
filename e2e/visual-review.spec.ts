@@ -662,7 +662,22 @@ test.describe('visual review states', () => {
     await expect(reader).toContainText('Research Paper.pdf')
     const frame = reader.locator('iframe[title*="Research Paper.pdf"]')
     await expect(frame).toBeVisible()
-    await expect(frame.contentFrame().locator('#text-layer')).toContainText('Scriptor Reader')
+    const viewer = frame.contentFrame().locator('#viewer-root')
+    await expect(viewer.locator('#text-layer')).toContainText('Scriptor Reader')
+    const geometry = await viewer.evaluate((root) => {
+      const shell = root.querySelector<HTMLElement>('#page-shell')
+      const style = getComputedStyle(root)
+      const padding = (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0)
+      return {
+        availableWidth: root.clientWidth - padding,
+        pageWidth: shell?.getBoundingClientRect().width ?? 0,
+        horizontalOverflow: root.scrollWidth - root.clientWidth,
+      }
+    })
+    expect(geometry.pageWidth).toBeGreaterThan(0)
+    expect(geometry.pageWidth).toBeLessThanOrEqual(geometry.availableWidth + 1)
+    expect(geometry.pageWidth).toBeGreaterThanOrEqual(geometry.availableWidth * 0.9)
+    expect(geometry.horizontalOverflow).toBeLessThanOrEqual(1)
     await captureElement(page, reader, 'visual-reader-pdf.png')
   })
 

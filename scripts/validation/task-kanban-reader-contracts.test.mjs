@@ -11,6 +11,7 @@ const vaultWorkspace = readFileSync(new URL('../../src/hooks/useVaultWorkspace.t
 const taskStatusGlyph = readFileSync(new URL('../../src/components/taskStatusGlyph.tsx', import.meta.url), 'utf8')
 const annotationPopover = readFileSync(new URL('../../src/components/reader/AnnotationPopover.tsx', import.meta.url), 'utf8')
 const readerStyles = readFileSync(new URL('../../src/styles/components/reader-panel.css', import.meta.url), 'utf8')
+const pdfViewer = readFileSync(new URL('../../public/reader/pdf-viewer.html', import.meta.url), 'utf8')
 const dockStyles = readFileSync(new URL('../../src/styles/app/dock-settings.css', import.meta.url), 'utf8')
 const corePackage = JSON.parse(
   readFileSync(new URL('../../packages/core/package.json', import.meta.url), 'utf8'),
@@ -146,6 +147,13 @@ test('annotation popover keeps modal focus semantics inside the reader panel', (
   assert.match(annotationPopover, /aria-modal="true"/)
   assert.match(annotationPopover, /aria-labelledby=\{titleId\}/)
   assert.match(annotationPopover, /aria-describedby=\{descriptionId\}/)
+})
+
+test('PDF reader fits the current page to its viewport and reflows on resize', () => {
+  assert.match(pdfViewer, /availableWidth/)
+  assert.match(pdfViewer, /fitScale/)
+  assert.match(pdfViewer, /zoomFactor/)
+  assert.match(pdfViewer, /new ResizeObserver/)
 })
 
 test('reader and kanban styles cover reduced motion, 44px targets, and compact paging', () => {
