@@ -258,6 +258,16 @@ jobs:
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Install frozen pnpm dependency graph" -FilePath "pnpm" -ArgumentList @("install", "--frozen-lockfile") -TimeoutSeconds 900
 
+      - name: Enforce frontend source quality and module-size ratchet
+        shell: pwsh
+        run: |
+          ./scripts/ci/invoke-logged.ps1 -Name "Frontend source quality" -FilePath "pnpm" -ArgumentList @("check:frontend-quality") -TimeoutSeconds 600
+          ./scripts/ci/invoke-logged.ps1 -Name "Module-size ratchet" -FilePath "node" -ArgumentList @("scripts/validation/module-size-ratchet.mjs") -TimeoutSeconds 300
+
+      - name: Run source regression suite
+        shell: pwsh
+        run: ./scripts/ci/invoke-logged.ps1 -Name "Source regression suite" -FilePath "pnpm" -ArgumentList @("test:source") -TimeoutSeconds 1200
+
       - name: Parse every PowerShell script
         shell: pwsh
         run: ./scripts/ci/invoke-logged.ps1 -Name "Parse every PowerShell script" -FilePath "pwsh" -ArgumentList @("-NoProfile", "-File", "scripts/ci/validate-powershell.ps1") -TimeoutSeconds 300
