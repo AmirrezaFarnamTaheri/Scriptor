@@ -8,26 +8,20 @@ The authored registry is `src/lib/help/catalog.ts`. Each entry records its openi
 
 ## When guidance appears
 
-- **First app launch:** only the short workspace introduction. It is skippable and replayable through the existing onboarding path and Help.
-- **First feature use:** a small, dismissible, non-modal guide invitation for setup-heavy surfaces such as toolbar customization, citations, the workbench, graph, canvas, tasks, Kanban, reader, plugins/modules, Google, Gmail, AI, MCP, resource sync, Portal, Quick Capture, Appearance, docks, history, backup, and import. It never steals focus or starts a full tour. One invitation is shown at a time and each feature is offered once per local Help profile.
-- **User invocation only:** destructive/recovery actions, permissions, code execution, conflicts, restores, renames, applying proposals, advanced settings, and ordinary writing/navigation widgets. Their help is always available without an automatic popup.
-- **Every guide:** searchable, replayable, resumable, and available from F1 or a contextual question mark. Detailed tours always require user initiation.
+- **First app launch:** only the short workspace introduction. It is skippable and replayable through the existing onboarding path or Help.
+- **Global Help:** one **Help & guides** control lives in the top bar, with the same entry available from the command palette. Product panels, cards, docks, editor toolbars, and modal headers do **not** receive injected question-mark controls.
+- **Contextual Help:** **F1** resolves the focused feature, then the last interacted feature, then the workspace overview. This preserves contextual guidance without adding permanent chrome to every surface.
+- **Detailed tours:** every feature tour is user-started. Feature guides are on demand; Help never opens a tour merely because a feature was mounted or used for the first time.
 
-First-use invitations can be disabled without disabling Help. Closing a tour preserves its position. Finish is explicit; closing or skipping never marks it completed. Restart resets only that tour. Resetting Help progress requires confirmation and changes only the Help storage key, never the vault, editor preferences, or account credentials.
-
-### First-use scope and scheduling
-
-Initial workspace widgets do not trigger a queue of invitations at startup. A newly opened feature becomes eligible after its chrome settles, and only inside the active modal, companion dock, or focused feature. An invitation in a background inspector cannot block a newly opened Graph or MCP panel. Hidden, off-screen, and blocked headers do not consume their first-use offer. A visible panel takes precedence over its nested widgets.
-
-Pending invitations survive harmless DOM rescans. Their identity includes both the mounted surface and the guide topic so a reused tab container does not confuse two different features. Previously offered or dismissed topics are not offered again on reopen; the question-mark control and F1 remain available. No invitation moves focus or starts a tour.
+Closing a tour preserves its position. Finish is explicit; closing or skipping never marks it completed. Restart resets only that tour. Resetting Help progress requires confirmation and changes only the Help storage key, never the vault, editor preferences, or account credentials.
 
 ## Interaction and accessibility
 
-F1 resolves the focused surface, then the last interacted surface, then the workspace overview. Header affordances open the corresponding guide. The Help dialog owns its own accessible title, close control, tab sequence and topmost Escape registration, while retaining the underlying panel. Dismissal returns focus to the invoker when it still exists.
+F1 resolves the focused surface, then the last interacted surface, then the workspace overview. The single top-bar Help control opens the workspace guide and searchable Help center. No contextual Help affordance is inserted into feature-owned headers or controls.
 
 Show this control closes Help and reveals/focuses only an already-present target. It never clicks it or opens a hidden feature. Missing targets are explained with the entry route and prerequisites; progress is not silently advanced. Guide content is text, not rendered HTML. No search terms, vault contents, paths, messages, or tokens are collected or sent anywhere.
 
-The overview's help button is hosted in the top bar, but its target scope includes the whole workspace. Contextual help controls join an existing editor command group rather than creating another toolbar row.
+The Help dialog owns its accessible title, close control, tab sequence and topmost Escape registration while retaining the underlying feature. Dismissal returns focus to the invoker when it still exists. The overview target scope includes the whole workspace even though its single visible entry lives in the top bar.
 
 The controls support the application's English, German, and Persian locales. The authored detailed corpus is currently English and is explicitly marked `lang=en`, `dir=ltr`; a localized notice explains that fallback instead of representing untranslated prose as localized. Translation expansion must keep stable guide ids and content parity.
 
@@ -35,7 +29,9 @@ The controls support the application's English, German, and Persian locales. The
 
 Progress uses the bounded, versioned `scriptor:help-guides:v1` local key. Unknown guide ids and invalid step values are rejected or normalized; denied/quota/corrupt storage degrades to an in-memory session with a visible warning. Per-guide progress is separate from onboarding completion and from any task authority.
 
-`src/lib/help/help.test.ts` covers catalog completeness, policies, search, progress, storage failure, reload, and request validation. `src/lib/help/invitations.test.ts` covers foreground ownership, panel priority, dismissal, mounted identity, topic changes, and stable selection. `e2e/help-scope-regressions.spec.ts` covers foreground handoff, toolbar geometry after help mounts, and overview target resolution. Browser coverage must also verify contextual invocation over an existing dialog, F1 while typing, Escape/focus restoration, manual replay, missing targets, resize/zoom, RTL, and the absence of automatic mutations. New user surfaces must add a registry entry or explicitly link to an existing guide, and test that their selectors remain reachable.
+`src/lib/help/help.test.ts` covers catalog completeness, on-demand policy, search, progress, storage failure, reload, and request validation. `e2e/help-scope-regressions.spec.ts` verifies that product chrome receives no injected Help controls, the one global Help entry remains visible, contextual F1 resolves the owning feature, and the workspace tour can reveal its target. Visual coverage also records the clean workspace state and an explicitly opened contextual guide.
+
+New user surfaces should add a registry entry or explicitly link to an existing guide, and their source-owned selectors must remain reachable by F1 and Show this control without adding another persistent Help button.
 
 ## Previous remediation checkpoint
 

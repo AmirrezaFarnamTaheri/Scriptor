@@ -10,27 +10,30 @@ El registro autorizado está en `src/lib/help/catalog.ts`. Cada entrada incluye 
 
 ## Cuándo se muestra la orientación
 
-En el primer inicio solo aparece una introducción breve al espacio de trabajo. Se puede omitir y repetir desde la ayuda o desde la opción de introducción existente.
+- **Primer inicio de la aplicación:** solo aparece la introducción breve al espacio de trabajo. Se puede omitir y repetir desde la ruta de introducción existente o desde Ayuda.
+- **Ayuda global:** hay un único acceso visible **Ayuda y guías** en la barra superior, también disponible desde la paleta de comandos. Los paneles, tarjetas, docks, barras del editor y cabeceras modales no reciben iconos de ayuda inyectados.
+- **Ayuda contextual:** **F1** resuelve primero la función enfocada, después la última utilizada y finalmente la vista general del espacio de trabajo.
+- **Recorridos detallados:** todos se inician por decisión del usuario. Las guías de funciones son bajo demanda; abrir o usar una función por primera vez no inicia ni invita automáticamente a un recorrido.
 
-La primera utilización de funciones complejas puede mostrar una invitación pequeña, no modal y descartable: personalización de herramientas, citas, Workbench, grafo, Canvas, tareas, Kanban, lector, plugins, Google, Gmail, IA, MCP, sincronización de recursos, Portal, captura rápida, apariencia, paneles acoplados, historial, copias e importación. Solo hay una invitación visible; cada función se ofrece una vez por perfil local de ayuda. Nunca toma el foco ni inicia por sí sola un recorrido completo.
-
-Las restauraciones, conflictos, permisos, ejecución de código, cambios de nombre, aplicación de propuestas y ajustes avanzados se explican únicamente cuando el usuario lo solicita. Los widgets habituales de escritura y navegación tampoco abren recorridos automáticos. Todos los recorridos completos son de inicio manual.
-
-Se pueden desactivar las invitaciones sin desactivar la ayuda. Cerrar conserva la posición; solo Finalizar marca la lectura como completa. Reiniciar afecta al recorrido seleccionado. Restablecer el progreso requiere confirmación y no modifica notas, cuentas, credenciales ni preferencias generales.
+Cerrar un recorrido conserva la posición. Solo Finalizar lo marca como leído. Reiniciar afecta únicamente al recorrido seleccionado. Restablecer el progreso requiere confirmación y no modifica notas, cuentas, credenciales ni preferencias generales.
 
 ## Interacción y accesibilidad
 
-F1 resuelve primero la superficie enfocada, después la última utilizada y, como alternativa, la descripción general. Los botones de interrogación abren el tema correspondiente. El diálogo de ayuda tiene título accesible, cierre, orden de tabulación y prioridad de Escape propios; conserva el panel inferior y devuelve el foco al control de origen cuando todavía existe.
+F1 elige la superficie enfocada, después la última utilizada y finalmente la descripción general. El único control de Ayuda de la barra superior abre la guía del espacio de trabajo y el centro de ayuda buscable. No se insertan controles adicionales en cabeceras o controles pertenecientes a cada función.
 
-Mostrar este control cierra la ayuda y revela o enfoca exclusivamente un elemento ya presente. No lo pulsa, no habilita capacidades y no abre funciones ocultas. Si falta el objetivo, explica la ruta y los requisitos sin avanzar silenciosamente. El contenido es texto, no HTML ejecutable. No se recopilan ni envían consultas, notas, mensajes, rutas o credenciales.
+“Mostrar este control” cierra Ayuda y revela o enfoca únicamente un elemento que ya existe. No hace clic, no abre funciones ocultas ni concede permisos. Si falta el objetivo, se muestran la ruta y los requisitos sin avanzar el progreso en silencio. El contenido es texto, no HTML ejecutable. No se recopilan ni envían búsquedas, notas, mensajes, rutas ni credenciales.
 
-Los controles están disponibles en inglés, alemán y persa. El corpus detallado está redactado actualmente en inglés y lleva `lang=en` y `dir=ltr`. Un aviso localizado hace explícita esta limitación. Las traducciones futuras deben conservar identificadores estables y equivalencia del contenido.
+El diálogo de Ayuda mantiene su título accesible, cierre, orden de Tab y prioridad de Escape sin desmontar la función subyacente. Al cerrar, el foco vuelve al control de origen cuando sigue disponible.
+
+Los controles admiten inglés, alemán y persa. El corpus detallado sigue redactado en inglés y está marcado explícitamente con `lang=en` y `dir=ltr`; un aviso localizado explica esta limitación.
 
 ## Persistencia y validación
 
-El progreso usa la clave local, limitada y versionada `scriptor:help-guides:v1`. Los identificadores desconocidos y pasos inválidos se descartan o normalizan. Si el almacenamiento está bloqueado, lleno o dañado, la ayuda sigue funcionando en memoria con una advertencia visible. El progreso no equivale a consentimiento ni a finalización de una tarea real.
+El progreso usa la clave local acotada y versionada `scriptor:help-guides:v1`. Los identificadores desconocidos y pasos inválidos se rechazan o normalizan. Si el almacenamiento está bloqueado, lleno o dañado, la ayuda continúa en memoria con un aviso visible.
 
-`src/lib/help/help.test.ts` verifica catálogo, políticas, búsqueda, progreso, fallos de almacenamiento, recarga y validación de solicitudes. Las pruebas de navegador deben cubrir invocación contextual sobre otro diálogo, F1 durante la escritura, Escape y retorno del foco, invitaciones, repetición, objetivos ausentes, tamaños, zoom, RTL y ausencia de operaciones automáticas. Toda nueva superficie debe registrar una guía o enlazar explícitamente una existente y comprobar sus selectores.
+`src/lib/help/help.test.ts` cubre integridad del catálogo, política bajo demanda, búsqueda, progreso, fallos de almacenamiento, recarga y validación de solicitudes. `e2e/help-scope-regressions.spec.ts` verifica que no se inyecten controles de Ayuda en la interfaz, que exista un único acceso global, que F1 resuelva la función correcta y que el recorrido del espacio de trabajo pueda revelar su objetivo.
+
+Las nuevas superficies deben registrar una guía o enlazar explícitamente una existente y conservar selectores verificables, sin añadir otro botón permanente de Ayuda.
 
 ## Punto de control anterior
 

@@ -10,27 +10,30 @@ Die maßgebliche Sammlung liegt in `src/lib/help/catalog.ts`. Jeder Eintrag besc
 
 ## Wann Hinweise erscheinen
 
-Beim ersten App-Start erscheint nur die kurze Arbeitsplatz-Einführung. Sie kann übersprungen und später über den vorhandenen Einführungsweg oder die Hilfe wiederholt werden.
+- **Beim ersten App-Start:** Nur die kurze Einführung in den Arbeitsbereich erscheint. Sie kann übersprungen und später über den bestehenden Einführungsweg oder die Hilfe wiederholt werden.
+- **Globale Hilfe:** Genau ein sichtbarer Einstieg **Hilfe & Anleitungen** befindet sich in der Kopfzeile; derselbe Einstieg ist über die Befehlspalette verfügbar. Panels, Karten, Docks, Editor-Werkzeugleisten und Modalfenster erhalten keine zusätzlichen Fragezeichen.
+- **Kontextbezogene Hilfe:** **F1** verwendet zuerst die fokussierte Funktion, dann den zuletzt verwendeten Bereich und schließlich die Arbeitsplatzübersicht.
+- **Ausführliche Touren:** Jede Tour wird ausdrücklich vom Benutzer gestartet. Funktionsanleitungen sind nur auf Anfrage verfügbar; das bloße Öffnen oder erstmalige Verwenden einer Funktion startet nichts automatisch.
 
-Beim ersten Einsatz komplexer Funktionen erscheint höchstens eine kleine, schließbare Einladung: etwa für Werkzeugleistenanpassung, Zitate, Workbench, Graph, Canvas, Aufgaben, Kanban, Reader, Plugins, Google, Gmail, KI, MCP, Ressourcenabgleich, Portal, Schnellerfassung, Darstellung, Docks, Verlauf, Sicherung und Import. Sie übernimmt weder den Fokus noch startet sie eine vollständige Tour. Jede Funktion wird pro lokalem Hilfeprofil einmal angeboten.
-
-Wiederherstellung, Konflikte, Umbenennen, Berechtigungen, Codeausführung, Anwenden von Vorschlägen und erweiterte Einstellungen bleiben ausschließlich auf Anfrage. Gewöhnliche Schreib- und Navigationshilfen öffnen ebenfalls keine automatischen Touren. Jede ausführliche Tour wird ausdrücklich vom Benutzer gestartet.
-
-Einladungen können deaktiviert werden, ohne die Hilfe abzuschalten. Schließen bewahrt den aktuellen Schritt; erst „Abschließen“ markiert eine Tour als gelesen. Neustart betrifft nur diese Tour. Das bestätigte Zurücksetzen löscht ausschließlich Hilfefortschritt, nicht Notizen, Konten oder Programmeinstellungen.
+Das Schließen einer Tour bewahrt den aktuellen Schritt. Nur ein ausdrücklicher Abschluss markiert sie als gelesen. Neustart betrifft nur diese Tour. Das Zurücksetzen des Hilfefortschritts erfordert eine Bestätigung und verändert weder Tresor noch Editor-Einstellungen, Konten oder Zugangsdaten.
 
 ## Bedienung und Barrierefreiheit
 
-F1 verwendet zuerst die fokussierte Oberfläche, dann den zuletzt verwendeten Bereich und schließlich die Arbeitsplatzübersicht. Fragezeichen in Überschriften öffnen die passende Anleitung. Der Hilfedialog besitzt einen zugänglichen Titel, Schließen, eine eigene Tab-Reihenfolge und die oberste Escape-Registrierung. Darunterliegende Panels bleiben erhalten. Beim Schließen kehrt der Fokus zum noch vorhandenen Auslöser zurück.
+F1 bestimmt zuerst die fokussierte Oberfläche, danach den zuletzt verwendeten Bereich und schließlich die Arbeitsplatzübersicht. Der einzelne Hilfe-Schalter in der Kopfzeile öffnet die Arbeitsplatzanleitung und die durchsuchbare Hilfe. In funktionsspezifische Überschriften oder Bedienelemente werden keine zusätzlichen Hilfe-Controls eingefügt.
 
 „Dieses Steuerelement zeigen“ schließt die Hilfe und zeigt oder fokussiert ausschließlich ein bereits vorhandenes Element. Es wird nicht angeklickt und keine verborgene Funktion geöffnet. Fehlt das Ziel, erklärt die Hilfe Zugang und Voraussetzungen, ohne den Fortschritt unbemerkt weiterzuschalten. Inhalte sind Text, kein ausführbares HTML. Suchbegriffe, Notizen, Nachrichten, Pfade und Zugangsdaten werden nicht gesammelt oder versendet.
 
-Die Bedienelemente unterstützen Englisch, Deutsch und Persisch. Der ausführliche, redaktionell erstellte Korpus ist derzeit Englisch und ausdrücklich mit `lang=en` und `dir=ltr` markiert. Ein übersetzter Hinweis macht diese Sprachgrenze sichtbar. Spätere Übersetzungen müssen stabile Themen-IDs und inhaltliche Gleichwertigkeit erhalten.
+Der Hilfedialog besitzt einen zugänglichen Titel, eine Schließen-Aktion, eine eigene Tab-Reihenfolge und die oberste Escape-Registrierung. Die darunterliegende Funktion bleibt erhalten; beim Schließen kehrt der Fokus nach Möglichkeit zum Auslöser zurück.
+
+Die Bedienelemente unterstützen Englisch, Deutsch und Persisch. Der ausführliche, redaktionell erstellte Korpus ist derzeit Englisch und ausdrücklich mit `lang=en` und `dir=ltr` markiert. Ein übersetzter Hinweis macht diese Sprachgrenze sichtbar.
 
 ## Speicherung und Prüfung
 
-Fortschritt verwendet den begrenzten, versionierten lokalen Schlüssel `scriptor:help-guides:v1`. Unbekannte IDs und ungültige Schritte werden verworfen oder normalisiert. Gesperrter, voller oder beschädigter Speicher führt zu einer funktionsfähigen Sitzung im Arbeitsspeicher mit Warnhinweis. Dieser Zustand ist von Einführungserledigung und Operationsberechtigung unabhängig.
+Der Fortschritt verwendet den begrenzten, versionierten lokalen Schlüssel `scriptor:help-guides:v1`. Unbekannte IDs und ungültige Schritte werden verworfen oder normalisiert. Gesperrter, voller oder beschädigter Speicher führt zu einer funktionsfähigen Sitzung im Arbeitsspeicher mit Warnhinweis. Dieser Zustand ist von Einführungserledigung und Operationsberechtigung unabhängig.
 
-`src/lib/help/help.test.ts` prüft Sammlung, Anzeigepolitik, Suche, Fortschritt, Speicherfehler, Wiederaufnahme und Anfragevalidierung. Browsertests prüfen Kontextaufruf über einem bestehenden Dialog, F1 beim Schreiben, Escape/Fokus-Rückgabe, Einladungen, Wiederholung, fehlende Ziele, Größenänderung, Zoom, RTL und das Ausbleiben automatischer Mutationen. Neue Oberflächen benötigen einen registrierten oder ausdrücklich zugeordneten Guide und überprüfbare Selektoren.
+`src/lib/help/help.test.ts` prüft Katalog, Nur-auf-Anfrage-Politik, Suche, Fortschritt, Speicherfehler, Wiederaufnahme und Anfragevalidierung. `e2e/help-scope-regressions.spec.ts` stellt sicher, dass Produktoberflächen keine injizierten Hilfe-Controls erhalten, der eine globale Hilfe-Einstieg sichtbar bleibt, F1 die richtige Funktion findet und die Arbeitsplatz-Tour ihr Ziel anzeigen kann.
+
+Neue Oberflächen benötigen weiterhin einen registrierten oder ausdrücklich zugeordneten Guide mit überprüfbaren Quell-Selektoren; dafür darf kein weiterer permanenter Hilfe-Schalter entstehen.
 
 ## Vorheriger Prüfstand
 
