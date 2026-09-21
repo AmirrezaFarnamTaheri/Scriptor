@@ -194,7 +194,10 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-editor-split-dark.png')
   })
 
-  for (const menuName of ['Typography', 'Insert']) {
+  for (const [menuName, imageName] of [
+    ['Typography', 'visual-typography-popover.png'],
+    ['Insert', 'visual-insert-popover.png'],
+  ] as const) {
     test(`${menuName} toolbar popover`, async ({ page }) => {
       await openVisualWorkspace(page)
       const trigger = page.locator('.editor-toolbar').getByRole('button', { name: menuName, exact: true })
@@ -205,7 +208,7 @@ test.describe('visual review states', () => {
       await expect(menu).toBeVisible()
       await expect(menu).toHaveAttribute('data-positioned', 'true')
       await expect(menu.getByRole('menuitem').first()).toBeFocused()
-      await menu.screenshot({ path: test.info().outputPath(`visual-${menuName.toLowerCase()}-popover.png`) })
+      await menu.screenshot({ path: test.info().outputPath(imageName) })
     })
   }
 
@@ -759,7 +762,7 @@ test.describe('visual review states', () => {
     // Writing targets is deliberately unpinned in the default toolbar. Exercise
     // the supported Tools menu path instead of depending on a customized toolbar.
     await page.getByRole('button', { name: 'Tools', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Writing targets', exact: true }).click()
+    await page.getByRole('menuitem', { name: /Writing targets/i }).click()
     const targets = page.getByRole('dialog', { name: 'Writing targets', exact: true })
     await expect(targets).toBeVisible()
     await expect(targets).toContainText('Daily word target')
