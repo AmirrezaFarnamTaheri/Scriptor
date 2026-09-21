@@ -626,6 +626,52 @@ test.describe('visual review states', () => {
     await captureVisual(page, 'visual-workspace-ui-zoom-200-inspector.png')
   })
 
+  test('200 percent UI zoom keeps centralized Help bounded', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:ui-zoom', '2')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+    await waitForWorkspace(page, { allowHiddenVaultList: true })
+    await waitForEditorReady(page)
+    await page.keyboard.press('F1')
+
+    const help = page.getByRole('dialog', { name: 'Help & guides', exact: true })
+    await expect(help).toBeVisible()
+    await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+    await expect.poll(() => help.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.left >= 0
+        && rect.top >= 0
+        && rect.right <= window.innerWidth
+        && rect.bottom <= window.innerHeight
+        && element.scrollWidth <= element.clientWidth + 1
+    })).toBe(true)
+    await captureElement(page, help, 'visual-help-ui-zoom-200.png')
+  })
+
+  test('empty canvas icon and action stay bounded', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open canvas')
+
+    const canvas = page.getByRole('dialog', { name: 'Canvas board', exact: true })
+    await expect(canvas).toBeVisible({ timeout: 15_000 })
+    await expect(canvas.locator('.canvas-block')).toHaveCount(0)
+    const empty = canvas.locator('.canvas-empty-state')
+    await expect(empty).toBeVisible()
+    await expect(empty.getByRole('button', { name: 'Add first card', exact: true })).toBeVisible()
+    const icon = empty.locator('svg').first()
+    const geometry = await icon.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return { width: rect.width, height: rect.height }
+    })
+    expect(geometry.width).toBeLessThanOrEqual(48)
+    expect(geometry.height).toBeLessThanOrEqual(48)
+    await expect.poll(() => canvas.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, canvas, 'visual-canvas-empty.png')
+  })
+
   test('125 percent device scale evidence', async ({ browser }, testInfo) => {
     const context = await browser.newContext({
       baseURL: String(testInfo.project.use.baseURL),
