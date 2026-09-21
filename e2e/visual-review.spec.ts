@@ -231,7 +231,7 @@ test.describe('visual review states', () => {
       await expect(menu).toBeVisible()
       await expect(menu).toHaveAttribute('data-positioned', 'true')
       await expect(menu.getByRole('menuitem').first()).toBeFocused()
-      await menu.screenshot({ path: test.info().outputPath(imageName) })
+      await captureElement(page, menu, imageName)
     })
   }
 
@@ -313,7 +313,7 @@ test.describe('visual review states', () => {
     const fallback = page.getByRole('alert').filter({ hasText: 'The editor could not be displayed' })
     await expect(fallback).toBeVisible({ timeout: 45_000 })
     await expect(fallback.getByRole('button', { name: 'Switch to CodeMirror' })).toBeFocused()
-    await fallback.locator(':scope > div').screenshot({ path: test.info().outputPath('visual-editor-recovery.png') })
+    await captureElement(page, fallback.locator(':scope > div'), 'visual-editor-recovery.png')
   })
 
   test('compact mobile editor pane', async ({ page }) => {
@@ -703,10 +703,7 @@ test.describe('visual review states', () => {
       const editor = await scaledPage.locator('.editor-panel').boundingBox()
       expect(editor).not.toBeNull()
       expect(editor?.width ?? 0).toBeGreaterThan(300)
-      await scaledPage.screenshot({
-        path: test.info().outputPath('visual-workspace-device-scale-125.png'),
-        fullPage: false,
-      })
+      await captureVisual(scaledPage, 'visual-workspace-device-scale-125.png')
     } finally {
       await context.close()
     }
