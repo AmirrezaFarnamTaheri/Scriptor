@@ -70,6 +70,10 @@ test('visual artifact has one canonical images directory', () => {
   assert.match(packager, /Add-VisualImages -SourceRoot 'docs\/assets\/screenshots'/)
   assert.match(packager, /\$seenHashes = @\{\}/)
   assert.match(packager, /deduplicatedSourceCount = \$sourceImageCount - \$manifest\.Count/)
+  assert.match(packager, /redundantNamedCaptureCount = \$redundantNamedCaptures\.Count/)
+  assert.match(packager, /Test-NamedVisualCapture/)
+  assert.match(packager, /Redundant visual evidence/)
+  assert.match(packager, /explicitly named captures with identical image bytes/)
 })
 
 test('automatic screenshots are failure-only because successful evidence is explicitly named', () => {
