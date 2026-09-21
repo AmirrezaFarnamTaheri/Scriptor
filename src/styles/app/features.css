@@ -464,6 +464,37 @@
   margin: 0;
 }
 
+.writing-targets-panel > label {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.writing-targets-panel input[type='number'] {
+  box-sizing: border-box;
+  width: min(180px, 100%);
+  min-height: 38px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+}
+
+.writing-targets-panel input[type='number']:hover {
+  border-color: var(--border-strong);
+}
+
+.writing-targets-panel input[type='number']:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
+}
+
 .writing-progress {
   height: 8px;
   background: var(--border);
