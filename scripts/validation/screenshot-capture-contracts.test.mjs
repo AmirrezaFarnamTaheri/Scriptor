@@ -23,6 +23,12 @@ test('intentional baseline refresh forces all snapshots and uses one worker', ()
   assert.match(capture, /--workers=1/)
 })
 
+test('docs gallery refresh runs only its four visual-review producers', () => {
+  assert.match(capture, /--grep \$docsOnlyVisualPattern/)
+  assert.match(capture, /editor recovery fallback\|MCP sharing and sync inventory\|toolbar popover/)
+  assert.doesNotMatch(capture, /visual-review\.spec\.ts --workers=1\s*\r?\n/)
+})
+
 test('docs-only visual review states are copied only from fresh test output', () => {
   for (const source of [
     'visual-editor-recovery.png',

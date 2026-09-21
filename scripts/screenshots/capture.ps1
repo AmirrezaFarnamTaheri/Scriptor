@@ -46,7 +46,11 @@ try {
 
     if ($captureExitCode -eq 0) {
         Write-Host "==> Capture docs-only visual-review states"
-        pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=1
+        # Only four visual-review scenarios feed the tracked documentation gallery.
+        # The dedicated Visual review workflow owns the complete evidence matrix;
+        # re-running all of it here is redundant and makes gallery refresh needlessly slow.
+        $docsOnlyVisualPattern = 'editor recovery fallback|MCP sharing and sync inventory|toolbar popover'
+        pnpm exec playwright test --config playwright.visual.config.ts e2e/visual-review.spec.ts --workers=1 --grep $docsOnlyVisualPattern
         $captureExitCode = $LASTEXITCODE
 
         if ($captureExitCode -eq 0) {
