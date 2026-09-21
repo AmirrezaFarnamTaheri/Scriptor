@@ -212,6 +212,19 @@ test.describe('visual review states', () => {
     })
   }
 
+  test('frontmatter inspector evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('button', { name: 'Tools', exact: true }).click()
+    await page.getByRole('menuitem', { name: /Frontmatter/i }).click()
+
+    const frontmatter = page.getByRole('dialog', { name: 'Frontmatter', exact: true })
+    await expect(frontmatter).toBeVisible()
+    await expect(frontmatter.getByRole('heading', { name: 'Frontmatter', exact: true })).toBeVisible()
+    await settleLayout(page)
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, frontmatter, 'visual-frontmatter.png')
+  })
+
   test('MCP sharing and sync inventory', async ({ page }) => {
     await openVisualWorkspace(page)
     await installResourceInventoryFixture(page)
@@ -652,6 +665,22 @@ test.describe('visual review states', () => {
     await expect(output).not.toContainText('currentWindow')
     await expectNoHorizontalOverflow(page)
     await captureElement(page, output, 'visual-dock-output.png')
+  })
+
+
+  test('populated Search Results dock evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+
+    const searchInput = page.getByRole('searchbox', { name: 'Search notes' })
+    await searchInput.fill('Methodology')
+
+    const searchPanel = page.locator('#dock-panel-search')
+    await expect(searchPanel).toBeVisible({ timeout: 10_000 })
+    await expect(searchPanel.getByRole('button', { name: /Methodology/ }).first()).toBeVisible()
+    await expect(page.getByRole('tab', { name: /Search results/i })).toHaveAttribute('aria-selected', 'true')
+    await settleLayout(page)
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, searchPanel, 'visual-search-results.png')
   })
 
 
