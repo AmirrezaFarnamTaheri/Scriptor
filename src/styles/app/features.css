@@ -444,10 +444,11 @@
   width: min(520px, 92vw);
   max-height: calc(100dvh - 24px);
   overflow-y: auto;
-  background: var(--surface);
+  background: var(--dialog-bg, var(--bg-elevated));
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 16px;
+  box-shadow: var(--shadow-lg);
 }
 
 .writing-progress {
