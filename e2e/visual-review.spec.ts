@@ -1006,7 +1006,7 @@ test.describe('visual review states', () => {
       await page.getByRole('menuitem', { name: 'Show sticky notes', exact: true }).click()
     }
 
-    const layer = page.getByRole('region', { name: 'Sticky notes', exact: true })
+    const layer = page.locator('.sticky-notes-layer[aria-label="Sticky notes"]')
     await expect(layer).toBeVisible()
     const sticky = layer.locator('.sticky-note-card')
     await expect(sticky).toHaveCount(1)
