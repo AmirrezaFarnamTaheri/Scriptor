@@ -843,6 +843,46 @@ test.describe('visual review states', () => {
     await captureElement(page, settings, 'visual-settings-dark.png')
   })
 
+  test('dark first-run onboarding evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+      window.localStorage.setItem('scriptor:onboarding-complete', 'false')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    const tour = page.getByRole('dialog', { name: 'Product tour' })
+    await expect(tour).toBeVisible()
+    await expect(tour.getByRole('heading', { name: 'Your vault' })).toBeVisible()
+    await expect(tour.getByRole('button', { name: 'Next' })).toBeFocused()
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, tour, 'visual-onboarding-dark.png')
+  })
+
+  test('Advanced Settings surface evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    const advanced = settings.getByRole('tab', { name: 'Advanced', exact: true })
+    await advanced.click()
+    await expect(advanced).toHaveAttribute('aria-selected', 'true')
+    await settleLayout(page)
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, settings, 'visual-settings-advanced.png')
+  })
+
+  test('workspace layout presets evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.getByRole('tab', { name: 'Plugins', exact: true }).click()
+    const store = page.locator('.store-root')
+    await expect(store).toBeVisible()
+    await store.getByRole('tab', { name: 'Layouts', exact: true }).click()
+    await expect(store.getByRole('button', { name: 'Apply Zen layout' })).toBeVisible()
+    await settleLayout(page)
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, store, 'visual-layout-presets.png')
+  })
+
   test('dark conflict resolver evidence', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'dark')
@@ -1010,7 +1050,11 @@ test.describe('visual review states', () => {
     await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
 
     const finalSnippet = body.locator('.cheatsheet-snippet-list').last().locator('li').last()
-    await finalSnippet.scrollIntoViewIfNeeded()
+    await body.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+      element.dispatchEvent(new Event('scroll'))
+    })
+    await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
     await expect(finalSnippet).toBeVisible()
     await expect.poll(async () => {
       const [bodyBox, snippetBox] = await Promise.all([body.boundingBox(), finalSnippet.boundingBox()])
