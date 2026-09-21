@@ -12,6 +12,10 @@ interface StartupVaultOptions {
 /** Restore the last vault on native startup, with the existing default-vault fallback. */
 export function useStartupVault({ nativeReady, recentVaults, workspace }: StartupVaultOptions) {
   useEffect(() => {
+    // E2E visual coverage needs a deterministic true-empty startup state. The
+    // flag lives in sessionStorage so it can never persist into a real user
+    // session and has no effect unless a test explicitly opts in.
+    if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:no-auto-open') === '1') return
     if (!nativeReady || workspace.vault || workspace.status !== 'idle') return
 
     void (async () => {
