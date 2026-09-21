@@ -36,7 +36,7 @@
 | mobile-vault.png | 390 px mobile vault | VISUAL-REVIEW |
 | workspace-rendered.png | 带 Markdown 标题的完整渲染预览模式 | VISUAL-REVIEW |
 | task-list-preview.png | 带交互式复选框的已渲染任务列表项 | VISUAL-REVIEW |
-| workspace-switcher.png | 工作区切换菜单与顶部面包屑导航 | VISUAL-REVIEW |
+| workspace-selector.png | 顶部栏中的工作区选择器与当前仓库标识 | VISUAL-REVIEW |
 
 ### 新鲜度与接受标准
 

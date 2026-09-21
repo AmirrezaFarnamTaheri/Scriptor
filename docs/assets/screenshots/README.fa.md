@@ -42,7 +42,7 @@
 | <bdi dir="ltr">mobile-vault.png</bdi> | <bdi dir="ltr">pane</bdi> موبایل <bdi dir="ltr">vault</bdi> در 390 <bdi dir="ltr">px</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 | <bdi dir="ltr">workspace-rendered.png</bdi> | حالت پیش‌نمایش رندرشده کامل با سرتیترهای <bdi dir="ltr">Markdown</bdi> | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 | <bdi dir="ltr">task-list-preview.png</bdi> | آیتم‌های فهرست وظایف رندرشده با چک‌باکس‌های تعاملی | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
-| <bdi dir="ltr">workspace-switcher.png</bdi> | منوی تغییر <bdi dir="ltr">workspace</bdi> و <bdi dir="ltr">breadcrumbs</bdi> نوار بالا | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
+| <bdi dir="ltr">workspace-selector.png</bdi> | انتخابگر <bdi dir="ltr">workspace</bdi> و هویت خزانهٔ فعال در نوار بالا | <bdi dir="ltr">VISUAL-REVIEW</bdi> |
 
 ### تازگی و پذیرش
 

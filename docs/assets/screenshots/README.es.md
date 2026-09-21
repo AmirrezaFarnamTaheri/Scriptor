@@ -36,7 +36,7 @@ Capturas para documentación y marketing, generadas con Playwright en modo E2E.
 | mobile-vault.png | Panel vault móvil a 390 px | VISUAL-REVIEW |
 | workspace-rendered.png | Modo de vista previa renderizada completa con encabezados markdown | VISUAL-REVIEW |
 | task-list-preview.png | Elementos de lista de tareas renderizados con casillas interactivas | VISUAL-REVIEW |
-| workspace-switcher.png | Menú de cambio de espacio de trabajo y migas de pan superiores | VISUAL-REVIEW |
+| workspace-selector.png | Selector de espacio de trabajo e identidad de la bóveda activa en la barra superior | VISUAL-REVIEW |
 
 ### Actualidad y aceptación
 

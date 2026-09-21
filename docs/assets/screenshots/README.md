@@ -39,7 +39,7 @@ Screenshots for documentation and marketing. Generated with Playwright in E2E mo
 | mobile-vault.png | 390px mobile vault pane | VISUAL-REVIEW |
 | workspace-rendered.png | Full rendered preview mode with markdown headings | VISUAL-REVIEW |
 | task-list-preview.png | Focused rendered task-list crop with interactive checkboxes | VISUAL-REVIEW |
-| workspace-switcher.png | Focused recent-vault selector and active vault identity in the top-bar crop | VISUAL-REVIEW |
+| workspace-selector.png | Focused recent-vault selector and active vault identity in the top-bar crop | VISUAL-REVIEW |
 
 ### State coverage and evidence boundaries
 

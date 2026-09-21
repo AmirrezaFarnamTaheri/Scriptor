@@ -609,9 +609,9 @@ test('workspace selector and active vault identity', async ({ page }) => {
   await expect(topbar.locator('small.vault-badge')).toHaveText('Research Vault')
   await settleLayout(page)
 
-  // Capture the owning chrome while the selector has keyboard focus. A full
-  // workspace capture here was byte-identical to workspace-light.png and added
-  // no visual evidence because the native popup is outside the page bitmap.
-  await topbar.screenshot({ path: shotPath('workspace-switcher') })
+  // Capture the owning chrome while the selector has keyboard focus. The native
+  // popup is outside the page bitmap, so this is selector/identity evidence,
+  // not an image of an open operating-system dropdown.
+  await topbar.screenshot({ path: shotPath('workspace-selector') })
 })
 
