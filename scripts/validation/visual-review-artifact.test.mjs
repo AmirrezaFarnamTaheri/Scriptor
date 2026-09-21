@@ -160,6 +160,15 @@ test('expanded visual evidence matrix remains captured', () => {
 })
 
 
+test('every visual capture passes through the shared Help-restraint wrapper', () => {
+  const screenshotCalls = [...visualReview.matchAll(/\.screenshot\(/g)]
+  assert.equal(screenshotCalls.length, 2, 'visual scenarios must not call screenshot() directly')
+  const visualHelper = visualReview.match(/async function captureVisual[\s\S]*?\n}/)?.[0] ?? ''
+  const elementHelper = visualReview.match(/async function captureElement[\s\S]*?\n}/)?.[0] ?? ''
+  assert.match(visualHelper, /await expectNoAmbientHelp\(page\)/)
+  assert.match(elementHelper, /await expectNoAmbientHelp\(page\)/)
+})
+
 test('Help visual evidence proves centralized, non-injected guidance', () => {
   for (const image of [
     'visual-help-restraint.png',
