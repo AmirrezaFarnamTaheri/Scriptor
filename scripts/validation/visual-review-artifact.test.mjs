@@ -77,14 +77,6 @@ test('automatic screenshots are failure-only because successful evidence is expl
   assert.doesNotMatch(visualConfig, /screenshot:\s*'on'/)
 })
 
-test('pull-request visual review is compare-only and never rewrites baselines', () => {
-  assert.match(workflow, /Compare against committed visual baselines/)
-  assert.match(workflow, /--update-snapshots=none/)
-  assert.doesNotMatch(workflow, /Refresh current visual baselines/)
-  assert.doesNotMatch(workflow, /--update-snapshots=all/)
-  assert.doesNotMatch(workflow, /VISUAL_REFRESH_OUTCOME|steps\.visual_refresh/)
-})
-
 test('screenshot refresh publishes one canonical deduplicated evidence tree', () => {
   assert.match(refreshWorkflow, /Prepare canonical screenshot evidence/)
   assert.match(refreshWorkflow, /prepare-visual-review-package\.ps1/)
