@@ -1097,6 +1097,17 @@ test.describe('visual review states', () => {
     expect((closeBox?.x ?? 0) + (closeBox?.width ?? 0)).toBeLessThanOrEqual(
       (headerBox?.x ?? 0) + (headerBox?.width ?? 0) + 1,
     )
+    const targetInput = targets.getByRole('spinbutton', { name: 'Daily word target', exact: true })
+    await expect.poll(() => targetInput.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      const panel = element.closest('.writing-targets-panel')?.getBoundingClientRect()
+      return style.borderTopWidth !== '0px'
+        && style.borderRadius !== '0px'
+        && style.backgroundColor !== 'transparent'
+        && rect.width > 0
+        && (!panel || rect.right <= panel.right - 8)
+    })).toBe(true)
     await captureElement(page, targets, 'visual-writing-targets.png')
   })
 
