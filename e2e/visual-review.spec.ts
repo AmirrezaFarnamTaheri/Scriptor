@@ -212,6 +212,21 @@ test.describe('visual review states', () => {
     })
   }
 
+  test('editor toolbar customization evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+
+    const trigger = page.locator('.editor-toolbar .customize-trigger')
+    await expect(trigger).toBeVisible()
+    await trigger.click()
+
+    const dialog = page.getByRole('dialog', { name: /Customize toolbar/i })
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('.toolbar-customizer-list .toolbar-customize-row')).not.toHaveCount(0)
+    await settleLayout(page)
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, dialog, 'visual-editor-toolbar-customizer.png')
+  })
+
   test('frontmatter inspector evidence', async ({ page }) => {
     await openVisualWorkspace(page)
     await page.getByRole('button', { name: 'Tools', exact: true }).click()
