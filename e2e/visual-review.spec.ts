@@ -1057,18 +1057,21 @@ test.describe('visual review states', () => {
     await expect(capture).toBeHidden()
 
     const toolbar = page.locator('.editor-toolbar')
-    const stickyToggleName = /^Show (?:sticky notes(?: layer)?|stickies)$/i
-    const directToggle = toolbar.getByRole('button', { name: stickyToggleName })
-    if (await directToggle.isVisible()) {
-      await directToggle.click()
-    } else {
-      await toolbar.getByRole('button', { name: 'Tools', exact: true }).click()
-      const menuToggle = page.getByRole('menuitem', { name: stickyToggleName })
-      await expect(menuToggle).toBeVisible()
-      await menuToggle.click()
-    }
-
     const layer = page.locator('.sticky-notes-layer[aria-label="Sticky notes"]')
+    // Adding a sticky intentionally reveals the layer immediately. Exercise the
+    // real Tools-menu round trip instead of asking to show an already-visible
+    // layer and falling back to an impossible stale menu assumption.
+    await expect(layer).toBeVisible()
+    await toolbar.getByRole('button', { name: 'Tools', exact: true }).click()
+    const hideToggle = page.getByRole('menuitem', { name: /^Hide (?:sticky notes(?: layer)?|stickies)$/i })
+    await expect(hideToggle).toBeVisible()
+    await hideToggle.click()
+    await expect(layer).toBeHidden()
+
+    await toolbar.getByRole('button', { name: 'Tools', exact: true }).click()
+    const showToggle = page.getByRole('menuitem', { name: /^Show (?:sticky notes(?: layer)?|stickies)$/i })
+    await expect(showToggle).toBeVisible()
+    await showToggle.click()
     await expect(layer).toBeVisible()
     const sticky = layer.locator('.sticky-note-card')
     await expect(sticky).toHaveCount(1)
