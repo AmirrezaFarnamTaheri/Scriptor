@@ -1337,4 +1337,92 @@ test.describe('visual review states', () => {
     await captureElement(page, palettes, 'visual-color-palettes.png')
   })
 
+
+  test('Command palette grouped-search evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
+    await expect(palette).toBeVisible()
+    const search = palette.getByRole('searchbox')
+    await search.fill('open')
+    await expect(palette.getByRole('option').first()).toBeVisible()
+    await expect(palette.locator('.command-palette-group-label').first()).toBeVisible()
+    await expect.poll(() => palette.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, palette, 'visual-command-palette.png')
+  })
+
+  test('Publish preflight and print-layout evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('.workspace-mode-strip').getByRole('button', { name: 'Publish', exact: true }).click()
+
+    const publish = page.getByRole('dialog', { name: 'Export & publish', exact: true })
+    await expect(publish).toBeVisible()
+    await publish
+      .locator('.publish-profile-list > li')
+      .first()
+      .getByRole('button', { name: 'Preview export', exact: true })
+      .click()
+
+    await expect(publish.getByRole('heading', { name: 'Preflight preview', exact: true })).toBeVisible({ timeout: 15_000 })
+    await expect(publish.locator('.publish-command-preview')).toContainText('pandoc', { ignoreCase: true })
+    await expect(publish.locator('.print-preview-pages')).toBeVisible()
+    await captureElement(page, publish, 'visual-publish-preflight.png')
+
+    const printPreview = publish.locator('.print-preview-pages')
+    await printPreview.scrollIntoViewIfNeeded()
+    await expect(printPreview.getByLabel('Page 1')).toBeVisible()
+    await captureElement(page, publish, 'visual-publish-print-preview.png')
+  })
+
+  test('Settings appearance, workspace, and shortcuts evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await page.locator('header.topbar').getByRole('button', { name: 'Settings', exact: true }).click()
+
+    const settings = page.getByRole('dialog', { name: 'Settings' })
+    await expect(settings).toBeVisible()
+    const states = [
+      { tab: 'Appearance', image: 'visual-settings-appearance.png' },
+      { tab: 'Workspace', image: 'visual-settings-workspace.png' },
+      { tab: 'Shortcuts', image: 'visual-settings-shortcuts.png' },
+    ] as const
+
+    for (const state of states) {
+      const tab = settings.getByRole('tab', { name: state.tab, exact: true })
+      await tab.click()
+      await expect(tab).toHaveAttribute('aria-selected', 'true')
+      await expect.poll(() => settings.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+      await captureElement(page, settings, state.image)
+    }
+  })
+
+  test('Vault health dashboard evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open vault health')
+
+    const health = page.getByRole('dialog', { name: 'Vault health dashboard', exact: true })
+    await expect(health).toBeVisible()
+    await expect(health).toContainText('Vault health')
+    await expect(health).toContainText(/Vault looks healthy|issue/)
+    await expect.poll(() => health.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, health, 'visual-vault-health-dashboard.png')
+  })
+
+  test('Canvas export menu evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open canvas')
+
+    const canvas = page.getByRole('dialog', { name: 'Canvas board', exact: true })
+    await expect(canvas).toBeVisible({ timeout: 15_000 })
+    await canvas.getByRole('button', { name: 'Add first card', exact: true }).click()
+    const exportButton = canvas.getByRole('button', { name: 'Export', exact: true })
+    await expect(exportButton).toBeEnabled()
+    await exportButton.click()
+    await expect(canvas.getByRole('menu')).toBeVisible()
+    await expect(canvas.getByRole('menuitem').first()).toBeVisible()
+    await captureElement(page, canvas, 'visual-canvas-export-menu.png')
+  })
+
 })
