@@ -913,9 +913,6 @@ test.describe('visual review states', () => {
   })
 
   test('Advanced Settings surface evidence', async ({ page }) => {
-    await page.addInitScript(() => {
-      window.localStorage.setItem('scriptor:headless-engine', 'true')
-    })
     await openVisualWorkspace(page)
     await page.locator('header.topbar').getByRole('button', { name: 'Settings' }).click()
     const settings = page.getByRole('dialog', { name: 'Settings' })
@@ -927,6 +924,8 @@ test.describe('visual review states', () => {
     await expectNoHorizontalOverflow(page)
     await captureElement(page, settings, 'visual-settings-advanced.png')
 
+    const backgroundEngine = settings.getByRole('checkbox', { name: 'Use the background engine for supported vault operations' })
+    if (!(await backgroundEngine.isChecked())) await backgroundEngine.check()
     const daemon = settings.locator('.daemon-ops-panel')
     await expect(daemon).toBeVisible()
     await daemon.scrollIntoViewIfNeeded()
