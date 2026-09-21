@@ -229,6 +229,11 @@ test.describe('visual review states', () => {
     const dialog = page.getByRole('dialog', { name: /Customize toolbar/i })
     await expect(dialog).toBeVisible()
     await expect(dialog.locator('.toolbar-customizer-list .toolbar-customize-row')).not.toHaveCount(0)
+    await expect.poll(() => dialog.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      const match = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      return match ? Number(match[1]) >= 0.99 : background !== 'transparent'
+    })).toBe(true)
     await settleLayout(page)
     await expectNoHorizontalOverflow(page)
     await captureElement(page, dialog, 'visual-editor-toolbar-customizer.png')
