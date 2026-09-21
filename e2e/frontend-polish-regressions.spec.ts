@@ -186,9 +186,12 @@ test.describe('Frontend polish regressions', () => {
     await settleLayout(page)
 
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-zoom', 'high')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'Command' })).toBeVisible()
     await expect(page.locator('.status-strip')).toBeHidden()
+    await expect(page.locator('.command-search')).toBeHidden()
     await expect(page.locator('.workspace-mode-select')).toBeVisible()
     const modeButtons = page.locator('.workspace-mode-strip .workspace-mode')
     await expect(modeButtons).toHaveCount(5)
@@ -198,12 +201,13 @@ test.describe('Frontend polish regressions', () => {
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await expect(page.locator('.command-search')).toBeInViewport()
+    expect(await page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
 
     await nav.getByRole('button', { name: 'Lens' }).click()
     await expect(page.locator('.editor-panel')).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
+    await expect(page.locator('.inspector-panel .metric-grid .metric').first()).toBeInViewport()
   })
 
   test('vault tree opens supported reader documents directly in the reader panel', async ({ page }) => {
