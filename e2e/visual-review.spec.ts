@@ -994,7 +994,7 @@ test.describe('visual review states', () => {
     const capture = page.locator('.quick-capture-panel')
     await expect(capture).toBeVisible()
     await capture.getByRole('button', { name: 'Add sticky note', exact: true }).click()
-    await capture.getByRole('button', { name: 'Close', exact: true }).click()
+    await capture.getByRole('button', { name: 'Close Quick capture', exact: true }).click()
     await expect(capture).toBeHidden()
 
     const toolbar = page.locator('.editor-toolbar')
