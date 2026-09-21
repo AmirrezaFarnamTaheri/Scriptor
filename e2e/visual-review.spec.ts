@@ -294,8 +294,13 @@ test.describe('visual review states', () => {
     await expect(sharing).toContainText('Codex CLI')
     await expect(sharing).toContainText('visual-review')
     await settleLayout(page)
+    await expectFullyInViewport(page, '.mcp-panel')
+    await expect.poll(() => mcpPanel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expectNoHorizontalOverflow(page)
 
-    await captureElement(page, mcpPanel, 'visual-mcp-sharing-inventory.png')
+    // Capture the whole viewport for docked companions. Locator screenshots can
+    // crop the flush viewport edge even when the fixed panel itself is in bounds.
+    await captureVisual(page, 'visual-mcp-sharing-inventory.png')
   })
 
   test('editor recovery fallback', async ({ page }) => {
