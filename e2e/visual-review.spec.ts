@@ -805,6 +805,14 @@ test.describe('visual review states', () => {
     await expect(output).not.toContainText('currentWindow')
     await expectNoHorizontalOverflow(page)
     await captureElement(page, output, 'visual-dock-output.png')
+
+    const jobsTab = page.getByRole('tab', { name: /^Jobs/ }).first()
+    await jobsTab.click()
+    const jobs = page.locator('#dock-panel-jobs')
+    await expect(jobs).toBeVisible()
+    await expect(jobs).toContainText('Index rebuild')
+    await expectNoHorizontalOverflow(page)
+    await captureElement(page, jobs, 'visual-dock-jobs.png')
   })
 
 
