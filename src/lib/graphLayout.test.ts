@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fitGraphLayoutToViewport, seedGraphLayout } from './graphLayout.ts'
+import { fitGraphLayoutToViewport, seedGraphLayout, separateGraphLayout } from './graphLayout.ts'
 
 test('force layouts are fitted without collapsing distinct nodes onto viewport borders', () => {
   const fitted = fitGraphLayoutToViewport([
@@ -69,4 +69,32 @@ test('dense graph seeds fill a disk instead of collapsing onto one ring', () => 
 test('dense graph seeds are deterministic for stable visual review evidence', () => {
   const nodes = Array.from({ length: 100 }, (_, index) => ({ id: index }))
   assert.deepEqual(seedGraphLayout(nodes, 900, 600), seedGraphLayout(nodes, 900, 600))
+})
+
+
+test('post-fit dense layout restores screen-space collision gaps deterministically', () => {
+  const crowded = Array.from({ length: 36 }, (_, index) => ({
+    id: `node-${index}`,
+    x: 320 + (index % 6) * 8,
+    y: 180 + Math.floor(index / 6) * 8,
+  }))
+  const separated = separateGraphLayout(crowded, 720, 420, 56, 34, 24)
+  const repeated = separateGraphLayout(crowded, 720, 420, 56, 34, 24)
+
+  assert.deepEqual(separated, repeated)
+  assert.ok(separated.every((node) => node.x >= 56 && node.x <= 664 && node.y >= 56 && node.y <= 364))
+
+  let closest = Number.POSITIVE_INFINITY
+  for (let left = 0; left < separated.length; left += 1) {
+    for (let right = left + 1; right < separated.length; right += 1) {
+      closest = Math.min(
+        closest,
+        Math.hypot(
+          separated[left]!.x - separated[right]!.x,
+          separated[left]!.y - separated[right]!.y,
+        ),
+      )
+    }
+  }
+  assert.ok(closest >= 30, `closest node centers were only ${closest.toFixed(2)}px apart`)
 })

@@ -94,3 +94,80 @@ export function fitGraphLayoutToViewport<T extends GraphLayoutPoint>(
     y: Math.max(safePadding, Math.min(safeHeight - safePadding, safeHeight / 2 + (y - centerY) * scale)),
   }))
 }
+
+
+/**
+ * Restore a minimum visual gap after viewport fitting.
+ *
+ * Force-collision runs before the final fit. When a large simulation is scaled
+ * down to fit the viewport, node centers move closer together while the canvas
+ * node radius remains measured in screen pixels. This deterministic relaxation
+ * runs in fitted coordinates so dense graphs do not re-introduce overlap.
+ */
+export function separateGraphLayout<T extends GraphLayoutPoint>(
+  nodes: readonly T[],
+  width: number,
+  height: number,
+  padding = 44,
+  minimumDistance = 32,
+  iterations = 12,
+): Array<T & { x: number; y: number }> {
+  if (nodes.length < 2 || minimumDistance <= 0 || iterations <= 0) {
+    return nodes.map((node) => ({
+      ...node,
+      x: finite(node.x, Math.max(width, 1) / 2),
+      y: finite(node.y, Math.max(height, 1) / 2),
+    }))
+  }
+
+  const safeWidth = Math.max(width, 1)
+  const safeHeight = Math.max(height, 1)
+  const safePadding = Math.max(0, Math.min(padding, safeWidth / 2, safeHeight / 2))
+  const minimum = Math.max(1, minimumDistance)
+  const points = nodes.map((node) => ({
+    node,
+    x: finite(node.x, safeWidth / 2),
+    y: finite(node.y, safeHeight / 2),
+  }))
+
+  const clampPoint = (point: { x: number; y: number }) => {
+    point.x = Math.max(safePadding, Math.min(safeWidth - safePadding, point.x))
+    point.y = Math.max(safePadding, Math.min(safeHeight - safePadding, point.y))
+  }
+
+  for (let pass = 0; pass < iterations; pass += 1) {
+    let moved = false
+    for (let left = 0; left < points.length; left += 1) {
+      for (let right = left + 1; right < points.length; right += 1) {
+        const a = points[left]!
+        const b = points[right]!
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let distance = Math.hypot(dx, dy)
+        if (distance >= minimum) continue
+
+        if (distance < 0.001) {
+          // Stable pair-specific direction: no random jitter in screenshots.
+          const angle = ((left + 1) * 0.754877666 + (right + 1) * 0.569840296) * Math.PI * 2
+          dx = Math.cos(angle)
+          dy = Math.sin(angle)
+          distance = 1
+        }
+
+        const push = (minimum - distance) / 2
+        const ux = dx / distance
+        const uy = dy / distance
+        a.x -= ux * push
+        a.y -= uy * push
+        b.x += ux * push
+        b.y += uy * push
+        clampPoint(a)
+        clampPoint(b)
+        moved = true
+      }
+    }
+    if (!moved) break
+  }
+
+  return points.map(({ node, x, y }) => ({ ...node, x, y }))
+}

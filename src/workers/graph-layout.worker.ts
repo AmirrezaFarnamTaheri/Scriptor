@@ -1,5 +1,5 @@
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force'
-import { fitGraphLayoutToViewport, seedGraphLayout } from '../lib/graphLayout'
+import { fitGraphLayoutToViewport, seedGraphLayout, separateGraphLayout } from '../lib/graphLayout'
 
 interface WorkerNode {
   id: string
@@ -62,7 +62,7 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
     // crowding that made 100+ node screenshots unreadable.
     const fitPadding = dense ? Math.max(56, Math.min(width, height) * 0.07) : 44
     const maxFitScale = dense ? 1 : 1.25
-    const result = fitGraphLayoutToViewport(
+    const fitted = fitGraphLayoutToViewport(
       simNodes.map((node) => ({
         id: node.id,
         x: node.x,
@@ -77,6 +77,9 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       fitPadding,
       maxFitScale,
     )
+    const result = dense
+      ? separateGraphLayout(fitted, width, height, fitPadding, 34, 14)
+      : fitted
 
     self.postMessage({ type: 'done', nodes: result })
   } catch (error) {
