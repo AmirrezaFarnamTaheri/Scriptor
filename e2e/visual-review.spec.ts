@@ -251,8 +251,10 @@ test.describe('visual review states', () => {
     await expect.poll(() => frontmatter.evaluate((element) => {
       const style = getComputedStyle(element)
       const rect = element.getBoundingClientRect()
+      const match = style.backgroundColor.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      const opaque = match ? Number(match[1]) >= 0.99 : style.backgroundColor !== 'transparent'
       return style.display === 'grid'
-        && style.backgroundColor !== 'rgba(0, 0, 0, 0)'
+        && opaque
         && rect.width >= 320
         && rect.width <= 720
     })).toBe(true)
