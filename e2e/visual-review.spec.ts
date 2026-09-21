@@ -93,8 +93,14 @@ async function waitForActiveSplitPreview(page: Page) {
   if (await splitPreview.isVisible()) await waitForPreviewReady(page)
 }
 
+async function expectNoAmbientHelp(page: Page) {
+  await expect(page.locator('.help-affordance, .help-trigger, .help-invitation')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'New here? Guide', exact: true })).toHaveCount(0)
+}
+
 async function captureVisual(page: Page, name: string) {
   await settleLayout(page)
+  await expectNoAmbientHelp(page)
   await page.screenshot({
     path: test.info().outputPath(name),
     fullPage: false,
@@ -105,6 +111,7 @@ async function captureVisual(page: Page, name: string) {
 
 async function captureElement(page: Page, locator: Locator, name: string) {
   await settleLayout(page)
+  await expectNoAmbientHelp(page)
   await locator.screenshot({
     path: test.info().outputPath(name),
     animations: 'disabled',
@@ -998,12 +1005,15 @@ test.describe('visual review states', () => {
     await expect(capture).toBeHidden()
 
     const toolbar = page.locator('.editor-toolbar')
-    const directToggle = toolbar.getByRole('button', { name: 'Show sticky notes', exact: true })
+    const stickyToggleName = /^Show (?:sticky notes layer|stickies)$/i
+    const directToggle = toolbar.getByRole('button', { name: stickyToggleName })
     if (await directToggle.isVisible()) {
       await directToggle.click()
     } else {
       await toolbar.getByRole('button', { name: 'Tools', exact: true }).click()
-      await page.getByRole('menuitem', { name: 'Show sticky notes', exact: true }).click()
+      const menuToggle = page.getByRole('menuitem', { name: stickyToggleName })
+      await expect(menuToggle).toBeVisible()
+      await menuToggle.click()
     }
 
     const layer = page.locator('.sticky-notes-layer[aria-label="Sticky notes"]')
