@@ -276,6 +276,16 @@ export function installE2eBridge(): void {
         return [{ path: 'Research Plan.md', opened_at: '2026-06-23T12:00:00.000Z' }]
       case 'vault_record_recent_note':
         return [{ path: String((payload as { path?: string }).path ?? ''), opened_at: new Date().toISOString() }]
+      case 'vault_read_stats_history':
+        return [
+          { date: '2026-09-15', words: 280 },
+          { date: '2026-09-16', words: 460 },
+          { date: '2026-09-17', words: 510 },
+          { date: '2026-09-18', words: 390 },
+          { date: '2026-09-19', words: 620 },
+          { date: '2026-09-20', words: 540 },
+          { date: '2026-09-21', words: 198 },
+        ]
       case 'vault_read_activity_log':
         return []
       case 'vault_append_activity_log':

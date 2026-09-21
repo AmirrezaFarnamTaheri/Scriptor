@@ -68,6 +68,7 @@ export const WritingTargetsPanel = memo(function WritingTargetsPanel({
     try {
       const entries = await vaultReadStatsHistory()
       if (requestId !== historyRequestId.current) return
+      if (!Array.isArray(entries)) throw new Error('Writing history response is not a list')
       setHistory(entries)
       setHistoryStatus('ready')
     } catch {
