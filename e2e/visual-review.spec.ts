@@ -235,6 +235,15 @@ test.describe('visual review states', () => {
     const frontmatter = page.getByRole('dialog', { name: 'Frontmatter', exact: true })
     await expect(frontmatter).toBeVisible()
     await expect(frontmatter.getByRole('heading', { name: 'Frontmatter', exact: true })).toBeVisible()
+    await expect(frontmatter.locator(':scope > header')).toHaveCSS('display', 'flex')
+    await expect.poll(() => frontmatter.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      return style.display === 'grid'
+        && style.backgroundColor !== 'rgba(0, 0, 0, 0)'
+        && rect.width >= 320
+        && rect.width <= 720
+    })).toBe(true)
     await settleLayout(page)
     await expectNoHorizontalOverflow(page)
     await captureElement(page, frontmatter, 'visual-frontmatter.png')
