@@ -58,6 +58,15 @@ test('screenshot refresh creates its evidence directory before recording source 
   )
 })
 
+test('visual packager starts from a clean destination so stale evidence cannot survive', () => {
+  assert.match(
+    packager,
+    /if \(Test-Path -LiteralPath \$packagePath\) \{\s*Remove-Item -LiteralPath \$packagePath -Recurse -Force\s*\}/,
+  )
+  assert.match(packager, /New-Item -ItemType Directory -Force -Path \$imagesPath/)
+  assert.match(packager, /New-Item -ItemType Directory -Force -Path \$evidencePath/)
+})
+
 test('visual artifact has one canonical images directory', () => {
   assert.match(workflow, /name:\s*visual-review\s*\n/)
   assert.match(workflow, /path:\s*artifacts\/visual-review-package/)

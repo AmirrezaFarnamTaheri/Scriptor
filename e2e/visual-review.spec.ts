@@ -1115,14 +1115,25 @@ test.describe('visual review states', () => {
     await expect.poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
     await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
 
-    const finalSnippet = body.locator('.cheatsheet-snippet-list').last().locator('li').last()
-    await body.evaluate((element) => {
-      element.scrollTop = element.scrollHeight
+    const snippets = body.locator('.cheatsheet-snippet-list li')
+    const bottomIndex = await snippets.evaluateAll((elements) => {
+      let selected = 0
+      let deepestBottom = Number.NEGATIVE_INFINITY
+      elements.forEach((element, index) => {
+        const bottom = element.getBoundingClientRect().bottom
+        if (bottom > deepestBottom) {
+          deepestBottom = bottom
+          selected = index
+        }
+      })
+      return selected
     })
+    const bottomSnippet = snippets.nth(bottomIndex)
+    await bottomSnippet.scrollIntoViewIfNeeded()
     await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-    await expect(finalSnippet).toBeVisible()
+    await expect(bottomSnippet).toBeVisible()
     await expect.poll(async () => {
-      const [bodyBox, snippetBox] = await Promise.all([body.boundingBox(), finalSnippet.boundingBox()])
+      const [bodyBox, snippetBox] = await Promise.all([body.boundingBox(), bottomSnippet.boundingBox()])
       if (!bodyBox || !snippetBox) return false
       return snippetBox.y >= bodyBox.y - 1
         && snippetBox.y + snippetBox.height <= bodyBox.y + bodyBox.height + 1
@@ -1465,7 +1476,7 @@ test.describe('visual review states', () => {
     await openCommandPalette(page)
     await runCommand(page, 'Open vault health')
 
-    const health = page.getByRole('dialog', { name: 'Vault health', exact: true })
+    const health = page.getByRole('dialog', { name: 'Vault health dashboard', exact: true })
     await expect(health).toBeVisible()
     await expect(health).toContainText('Vault health')
     await expect(health).toContainText(/Vault looks healthy|issue/)
