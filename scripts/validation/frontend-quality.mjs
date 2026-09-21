@@ -110,6 +110,16 @@ requirePattern('src/styles/components/canvas-graph.css', /@media\s*\(max-width:\
 requirePattern('src/styles/components/modals.css', /100dvh/, 'modal layout must account for dynamic mobile viewport height')
 requirePattern('src/styles/components/error-boundary.css', /\.error-boundary/, 'error surfaces must use design-system CSS')
 requirePattern('src/styles/app/foundation.css', /error-boundary\.css/, 'error-boundary CSS must be included in the application bundle')
+rejectPattern(
+  'src/components/help/HelpRuntime.tsx',
+  /createPortal|useHelpSurfaces|help-affordance|help-trigger|help-invitation/,
+  'Help must remain centralized; do not inject persistent Help chrome into product surfaces',
+)
+requirePattern(
+  'src/components/shell/AppTopBar.tsx',
+  /requestHelp\('workspace'\)/,
+  'the workspace must keep exactly one explicit global Help entry in the top bar',
+)
 
 if (failures.length > 0) {
   console.error('Frontend quality validation failed:')
