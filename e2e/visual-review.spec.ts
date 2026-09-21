@@ -614,8 +614,8 @@ test.describe('visual review states', () => {
     expect(historyBox).not.toBeNull()
     expect(modeBox).not.toBeNull()
     expect(Math.abs((historyBox?.y ?? 0) - (modeBox?.y ?? 0))).toBeLessThanOrEqual(2)
-    const sourceHeight = await page.locator('.monaco-editor').evaluate((element) => element.clientHeight)
-    expect(sourceHeight).toBeGreaterThanOrEqual(96)
+    await expect(page.locator('.monaco-editor')).toBeVisible()
+    await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
@@ -907,7 +907,17 @@ test.describe('visual review states', () => {
     await expect(resolver.getByRole('button', { name: 'Apply resolved file' })).toBeDisabled()
     const unresolvedStatus = resolver.locator('.conflict-unresolved-status')
     await expect(unresolvedStatus).toBeVisible()
-    await expect(unresolvedStatus).toHaveCSS('display', 'inline-flex')
+    await expect.poll(() => unresolvedStatus.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      const heading = element.closest('.conflict-merged-preview-heading')?.getBoundingClientRect()
+      return Boolean(heading)
+        && rect.width > 0
+        && rect.height > 0
+        && rect.left >= heading!.left - 1
+        && rect.right <= heading!.right + 1
+        && rect.top >= heading!.top - 1
+        && rect.bottom <= heading!.bottom + 1
+    })).toBe(true)
     await expect.poll(() => unresolvedStatus.evaluate((element) => Number.parseFloat(getComputedStyle(element).gap))).toBeGreaterThanOrEqual(4)
     await settleLayout(page)
     await captureElement(page, resolver, 'visual-conflict-resolver-dark.png')
@@ -1062,10 +1072,7 @@ test.describe('visual review states', () => {
     await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
 
     const finalSnippet = body.locator('.cheatsheet-snippet-list').last().locator('li').last()
-    await body.evaluate((element) => {
-      element.scrollTop = element.scrollHeight
-      element.dispatchEvent(new Event('scroll'))
-    })
+    await finalSnippet.scrollIntoViewIfNeeded()
     await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
     await expect(finalSnippet).toBeVisible()
     await expect.poll(async () => {

@@ -201,7 +201,8 @@ test.describe('Frontend polish regressions', () => {
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    expect(await page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
+    await expect(page.locator('.monaco-editor')).toBeVisible()
+    await expect.poll(() => page.locator('.monaco-editor').evaluate((element) => element.clientHeight)).toBeGreaterThanOrEqual(96)
 
     await nav.getByRole('button', { name: 'Lens' }).click()
     await expect(page.locator('.editor-panel')).toBeHidden()
