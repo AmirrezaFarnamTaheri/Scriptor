@@ -1,5 +1,5 @@
 import { forceCenter, forceCollide, forceLink, forceManyBody, forceSimulation } from 'd3-force'
-import { fitGraphLayoutToViewport } from '../lib/graphLayout'
+import { fitGraphLayoutToViewport, seedGraphLayout } from '../lib/graphLayout'
 
 interface WorkerNode {
   id: string
@@ -33,15 +33,7 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       return
     }
 
-    const simNodes = nodes.map((node, index) => {
-      const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1)
-      const radius = Math.min(width, height) * 0.28
-      return {
-        ...node,
-        x: width / 2 + Math.cos(angle) * radius,
-        y: height / 2 + Math.sin(angle) * radius,
-      }
-    })
+    const simNodes = seedGraphLayout(nodes, width, height)
 
     const nodeIds = new Set(simNodes.map((n) => n.id))
     const links = edges
@@ -49,17 +41,18 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       .map((e) => ({ source: e.source, target: e.target }))
 
     const dense = simNodes.length >= 80
+    const simulationIterations = dense ? Math.max(iterations, 200) : iterations
     const simulation = forceSimulation(simNodes)
-      .force('charge', forceManyBody().strength(dense ? -85 : -280))
-      .force('link', forceLink(links).id((n) => (n as { id: string }).id).distance(dense ? 62 : 110).strength(0.55))
-      .force('collide', forceCollide(dense ? 18 : 26).strength(0.9))
+      .force('charge', forceManyBody().strength(dense ? -110 : -280))
+      .force('link', forceLink(links).id((n) => (n as { id: string }).id).distance(dense ? 72 : 110).strength(dense ? 0.42 : 0.55))
+      .force('collide', forceCollide(dense ? 22 : 26).strength(1).iterations(dense ? 2 : 1))
       .force('center', forceCenter(width / 2, height / 2))
       .stop()
 
-    for (let step = 0; step < iterations; step += 1) {
+    for (let step = 0; step < simulationIterations; step += 1) {
       simulation.tick()
       if (step % 20 === 0) {
-        self.postMessage({ type: 'tick', step, total: iterations })
+        self.postMessage({ type: 'tick', step, total: simulationIterations })
       }
     }
 
@@ -67,8 +60,8 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
     // additional interior breathing room and never upscale the completed force
     // layout to the viewport edge; this prevents the rectangular perimeter
     // crowding that made 100+ node screenshots unreadable.
-    const fitPadding = dense ? Math.max(64, Math.min(width, height) * 0.08) : 44
-    const maxFitScale = dense ? 0.9 : 1.25
+    const fitPadding = dense ? Math.max(56, Math.min(width, height) * 0.07) : 44
+    const maxFitScale = dense ? 1 : 1.25
     const result = fitGraphLayoutToViewport(
       simNodes.map((node) => ({
         id: node.id,

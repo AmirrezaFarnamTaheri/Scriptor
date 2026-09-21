@@ -13,6 +13,7 @@ import { GraphCanvas, type CanvasNode } from './GraphCanvas'
 import { useI18n } from '../lib/i18n'
 import { expectArray, expectBoolean, expectNumber, expectRecord, expectString } from '../lib/runtimeSchema'
 import { readVersionedStorage, writeVersionedStorage } from '../lib/versionedStorage'
+import { seedGraphLayout } from '../lib/graphLayout'
 
 interface GraphPreset {
   id: string
@@ -215,19 +216,7 @@ export const GraphPanel = memo(function GraphPanel({
   const layout = useMemo(() => {
     if (!graph || graph.nodes.length === 0) return []
     if (workerLayout) return workerLayout
-    return graph.nodes.map((node, index) => {
-      const angle = (Math.PI * 2 * index) / Math.max(graph.nodes.length, 1)
-      const radius = Math.min(viewport.width, viewport.height) * 0.28
-      return {
-        id: node.id,
-        label: node.label,
-        path: node.path,
-        unresolved: node.unresolved,
-        color: node.color,
-        x: viewport.width / 2 + Math.cos(angle) * radius,
-        y: viewport.height / 2 + Math.sin(angle) * radius,
-      }
-    })
+    return seedGraphLayout(graph.nodes, viewport.width, viewport.height)
   }, [graph, viewport.height, viewport.width, workerLayout])
 
   const nodeById = useMemo(() => new Map(layout.map((node) => [node.id, node])), [layout])

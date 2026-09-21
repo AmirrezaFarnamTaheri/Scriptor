@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { fitGraphLayoutToViewport } from './graphLayout.ts'
+import { fitGraphLayoutToViewport, seedGraphLayout } from './graphLayout.ts'
 
 test('force layouts are fitted without collapsing distinct nodes onto viewport borders', () => {
   const fitted = fitGraphLayoutToViewport([
@@ -45,4 +45,28 @@ test('dense layouts can reserve breathing room instead of expanding to viewport 
   assert.ok(Math.max(...ys) < 356)
   assert.ok(Math.max(...xs) - Math.min(...xs) <= 160.001)
   assert.ok(Math.max(...ys) - Math.min(...ys) <= 80.001)
+})
+
+
+test('dense graph seeds fill a disk instead of collapsing onto one ring', () => {
+  const nodes = Array.from({ length: 120 }, (_, index) => ({ id: `node-${index}` }))
+  const seeded = seedGraphLayout(nodes, 1200, 600)
+  const centerX = 600
+  const centerY = 300
+  const radii = seeded.map((node) => Math.hypot(node.x - centerX, node.y - centerY))
+
+  assert.equal(seeded.length, 120)
+  assert.ok(Math.min(...radii) < 40)
+  assert.ok(Math.max(...radii) > 180)
+  assert.ok(new Set(radii.map((radius) => Math.floor(radius / 40))).size >= 5)
+
+  const xs = seeded.map((node) => node.x)
+  const ys = seeded.map((node) => node.y)
+  assert.ok(Math.max(...xs) - Math.min(...xs) > 350)
+  assert.ok(Math.max(...ys) - Math.min(...ys) > 350)
+})
+
+test('dense graph seeds are deterministic for stable visual review evidence', () => {
+  const nodes = Array.from({ length: 100 }, (_, index) => ({ id: index }))
+  assert.deepEqual(seedGraphLayout(nodes, 900, 600), seedGraphLayout(nodes, 900, 600))
 })

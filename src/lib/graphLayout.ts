@@ -7,6 +7,50 @@ function finite(value: number | undefined, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
 
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5))
+
+/**
+ * Seed graph nodes deterministically before the force simulation starts.
+ * Small graphs keep the familiar circular arrangement, while dense graphs use
+ * a sunflower disk so the solver does not inherit a crowded single-ring shape.
+ */
+export function seedGraphLayout<T extends object>(
+  nodes: readonly T[],
+  width: number,
+  height: number,
+): Array<T & { x: number; y: number }> {
+  if (nodes.length === 0) return []
+
+  const safeWidth = Math.max(width, 1)
+  const safeHeight = Math.max(height, 1)
+  const centerX = safeWidth / 2
+  const centerY = safeHeight / 2
+  const dense = nodes.length >= 80
+
+  if (!dense) {
+    const radius = Math.min(safeWidth, safeHeight) * 0.28
+    return nodes.map((node, index) => {
+      const angle = (Math.PI * 2 * index) / Math.max(nodes.length, 1)
+      return {
+        ...node,
+        x: centerX + Math.cos(angle) * radius,
+        y: centerY + Math.sin(angle) * radius,
+      }
+    })
+  }
+
+  const radius = Math.min(safeWidth, safeHeight) * 0.34
+  return nodes.map((node, index) => {
+    const angle = index * GOLDEN_ANGLE
+    const distance = radius * Math.sqrt((index + 0.5) / nodes.length)
+    return {
+      ...node,
+      x: centerX + Math.cos(angle) * distance,
+      y: centerY + Math.sin(angle) * distance,
+    }
+  })
+}
+
 /**
  * Fit a completed force layout into the viewport without clamping independent
  * nodes onto the same border coordinates. Relative geometry is preserved.
