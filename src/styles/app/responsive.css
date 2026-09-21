@@ -587,6 +587,18 @@ html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip {
   min-width: 132px;
 }
 
+/* At 175%+ zoom both controls share one grid row. Stretch the two owners to
+   the row box so their visible chrome starts on the same baseline instead of
+   being vertically centered at different intrinsic heights. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls,
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip {
+  align-self: stretch;
+}
+
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-select {
+  height: 100%;
+}
+
 html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
   display: none;
 }
