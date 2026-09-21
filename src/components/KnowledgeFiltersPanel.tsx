@@ -195,9 +195,6 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
           <>
             {tab !== 'placeholders' && activeNotes.length > 0 ? (
               <div className="knowledge-triage-bar">
-                <button type="button" className="toolbar-button" onClick={startTriage}>
-                  {t('knowledge.filters.startTriage', { count: activeNotes.length })}
-                </button>
                 {triageNote ? (
                   <span className="health-subtitle">
                     {t('knowledge.filters.triageProgress', {
@@ -206,7 +203,11 @@ export const KnowledgeFiltersPanel = memo(function KnowledgeFiltersPanel({
                       title: triageNote.title,
                     })}
                   </span>
-                ) : null}
+                ) : (
+                  <button type="button" className="toolbar-button" onClick={startTriage}>
+                    {t('knowledge.filters.startTriage', { count: activeNotes.length })}
+                  </button>
+                )}
               </div>
             ) : null}
             {tab === 'placeholders' ? (

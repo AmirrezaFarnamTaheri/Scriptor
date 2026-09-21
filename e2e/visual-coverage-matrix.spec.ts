@@ -369,9 +369,11 @@ test.describe('visual coverage matrix', () => {
       workbench.getByText('Field Notes with an intentionally long title for zoom coverage', { exact: true }),
     ).toBeVisible()
 
-    await workbench.getByRole('button', { name: /Start triage/ }).click()
+    const startTriage = workbench.getByRole('button', { name: /Start triage/ })
+    await startTriage.click()
     await expect(workbench).toBeVisible()
     await expect(workbench.getByText(/Triage 1 of 3/)).toBeVisible()
+    await expect(startTriage).toHaveCount(0)
     await workbench.getByRole('button', { name: 'Next', exact: true }).click()
     await expect(workbench).toBeVisible()
     await expect(workbench.getByText(/Triage 2 of 3/)).toBeVisible()
