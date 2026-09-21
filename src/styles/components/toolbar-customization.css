@@ -57,7 +57,7 @@
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 14px;
-  background: var(--surface);
+  background: var(--dialog-bg, var(--bg-elevated));
   color: var(--ink);
   box-shadow: 0 24px 72px rgb(15 23 42 / 0.24);
 }
