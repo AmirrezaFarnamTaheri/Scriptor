@@ -4,6 +4,7 @@ import { useI18n } from '../lib/i18n'
 import type { ActivityEntry } from '../hooks/useActivityLog'
 import type { ExportJobOutput, ExportJobRecord, SearchHit } from '../types/vault'
 import { useTablistKeys } from '../hooks/useTablistKeys'
+import { formatSearchSnippet } from '../lib/searchSnippet'
 
 export type StatusDockTab = 'problems' | 'output' | 'search' | 'jobs'
 
@@ -172,7 +173,7 @@ function StatusDockPanelImpl({
                       {hit.semantic ? <span className="search-hit-semantic">semantic</span> : null}
                     </strong>
                     <span>{hit.path}</span>
-                    <small>{hit.snippet}</small>
+                    <small>{formatSearchSnippet(hit.snippet)}</small>
                   </button>
                 </li>
               ))}
