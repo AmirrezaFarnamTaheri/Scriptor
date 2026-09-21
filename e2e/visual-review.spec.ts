@@ -879,6 +879,11 @@ test.describe('visual review states', () => {
     await expect(targets).toBeVisible()
     await expect(targets).toContainText('Daily word target')
     await expect(targets).toContainText('Today:')
+    await expect.poll(() => targets.evaluate((element) => {
+      const background = getComputedStyle(element).backgroundColor
+      const match = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      return match ? Number(match[1]) >= 0.99 : background !== 'transparent'
+    })).toBe(true)
     await captureElement(page, targets, 'visual-writing-targets.png')
   })
 
