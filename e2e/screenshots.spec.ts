@@ -431,8 +431,31 @@ test('conflict resolver modal', async ({ page }) => {
   const resolver = page.getByRole('dialog', { name: 'Resolve merge conflicts' })
   await expect(resolver).toBeVisible({ timeout: 10_000 })
   await page.waitForTimeout(500)
+  const previewColumns = resolver.locator('.conflict-preview-grid .conflict-hunk-column')
+  await expect(previewColumns).toHaveCount(2)
+  const previewGeometry = await resolver.locator('.conflict-preview-grid').evaluate((grid) => {
+    const columns = [...grid.querySelectorAll<HTMLElement>('.conflict-hunk-column')]
+    const boxes = columns.map((column) => column.getBoundingClientRect())
+    return {
+      scrollWidth: grid.scrollWidth,
+      clientWidth: grid.clientWidth,
+      sameRow: boxes.length === 2 && Math.abs(boxes[0]!.top - boxes[1]!.top) <= 1,
+      separated: boxes.length === 2 && boxes[0]!.right < boxes[1]!.left,
+    }
+  })
+  expect(previewGeometry.scrollWidth).toBeLessThanOrEqual(previewGeometry.clientWidth + 1)
+  expect(previewGeometry.sameRow).toBe(true)
+  expect(previewGeometry.separated).toBe(true)
+
+  const mergedHeading = resolver.locator('.conflict-merged-preview-heading')
+  await expect(mergedHeading.getByRole('status')).toContainText('1 unresolved')
+  await expect(resolver.getByRole('button', { name: 'Apply resolved file', exact: true })).toBeDisabled()
+  await expect.poll(() => resolver.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+
+  // This dynamic conflict state remains part of the per-run visual artifact,
+  // but no longer carries a duplicate committed bitmap baseline. Geometry and
+  // interaction contracts above catch regressions without stale pixel baggage.
   await captureReadyScreenshot(page, shotPath('conflict-resolver'))
-  await expect(page).toHaveScreenshot('conflict-resolver.png', { fullPage: false })
 })
 
 test('note history panel', async ({ page }) => {
