@@ -139,8 +139,8 @@ async function expectFullyInViewport(page: Page, selector: string) {
   ).toBe(true)
 }
 
-async function openMobileWorkspace(page: Page) {
-  await page.setViewportSize({ width: 390, height: 844 })
+async function openMobileWorkspace(page: Page, width = 390, height = 844) {
+  await page.setViewportSize({ width, height })
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   await waitForEditorReady(page)
   await waitForActiveSplitPreview(page)
@@ -452,6 +452,40 @@ test.describe('visual review states', () => {
         && element.scrollWidth <= element.clientWidth + 1
     })).toBe(true)
     await captureElement(page, help, 'visual-help-mobile-390.png')
+  })
+
+  test('minimum-width mobile workspace evidence', async ({ page }) => {
+    await openMobileWorkspace(page, 320, 720)
+    const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
+    await expect(nav.getByRole('button')).toHaveCount(4)
+    await expect(page.locator('.editor-panel')).toBeVisible()
+    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-mobile-320.png')
+  })
+
+  test('dark mobile workspace evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:app-theme', 'dark')
+    })
+    await openMobileWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-mobile-dark-390.png')
+  })
+
+  test('Persian RTL mobile workspace evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:locale', 'fa')
+    })
+    await openMobileWorkspace(page)
+    await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+    await expect(page.locator('.editor-panel')).toBeInViewport()
+    await expectNoHorizontalOverflow(page)
+    await captureVisual(page, 'visual-mobile-rtl-fa-390.png')
   })
 
   test('Persian RTL workspace evidence', async ({ page }) => {
