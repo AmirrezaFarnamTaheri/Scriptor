@@ -567,3 +567,26 @@ html[data-ui-reflow='mobile'] .status-summary .repo-state {
   justify-content: flex-start;
   margin-left: 0;
 }
+
+/* 175%+ app zoom maps a desktop window onto a mobile-sized effective viewport.
+   Keep the global actions, vault switcher, and workspace-mode selector, but put
+   the latter two on one row and rely on the persistent mobile Command action
+   instead of spending another full row on the duplicate command-search button. */
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .history-controls {
+  grid-column: 1;
+  order: 2;
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .workspace-mode-strip {
+  grid-column: 2;
+  order: 2;
+  width: auto;
+  min-width: 132px;
+}
+
+html[data-ui-reflow='mobile'][data-ui-zoom='high'] .command-search {
+  display: none;
+}

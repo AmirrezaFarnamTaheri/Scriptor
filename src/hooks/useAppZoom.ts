@@ -37,6 +37,12 @@ function updateZoomReflow(factor: number): void {
       : effectiveWidth <= STACKED_REFLOW_WIDTH
         ? 'stacked'
         : 'desktop'
+
+  // At very large app zoom, a four-row mobile top bar can consume most of the
+  // effective viewport height. Mark this case so CSS can keep all primary
+  // navigation while collapsing redundant command chrome into the mobile nav.
+  if (factor >= 1.75) document.documentElement.dataset.uiZoom = 'high'
+  else delete document.documentElement.dataset.uiZoom
 }
 
 async function applyZoom(factor: number): Promise<void> {
@@ -144,6 +150,7 @@ export function useAppZoom(): void {
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('resize', onResize)
       delete document.documentElement.dataset.uiReflow
+      delete document.documentElement.dataset.uiZoom
     }
   }, [])
 }

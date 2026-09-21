@@ -424,6 +424,18 @@ test.describe('visual review states', () => {
     await openVisualWorkspace(page)
     await expect(page.locator('html')).toHaveAttribute('dir', 'rtl')
     await expect(page.locator('html')).toHaveAttribute('lang', 'fa')
+    const sourceLine = page.locator('.monaco-editor .view-line').filter({ hasText: 'Research Plan' }).first()
+    await expect(sourceLine).toBeVisible()
+    const sourceGeometry = await sourceLine.evaluate((line) => {
+      const editor = line.closest('.monaco-editor')?.getBoundingClientRect()
+      const rect = line.getBoundingClientRect()
+      return {
+        width: rect.width,
+        inside: !!editor && rect.left >= editor.left - 1 && rect.right <= editor.right + 1,
+      }
+    })
+    expect(sourceGeometry.width).toBeGreaterThan(0)
+    expect(sourceGeometry.inside).toBe(true)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-rtl-fa.png')
   })
@@ -472,9 +484,12 @@ test.describe('visual review states', () => {
     await settleLayout(page)
 
     await expect(page.locator('html')).toHaveAttribute('data-ui-reflow', 'mobile')
+    await expect(page.locator('html')).toHaveAttribute('data-ui-zoom', 'high')
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
     await expect(nav).toBeVisible()
+    await expect(nav.getByRole('button', { name: 'Command' })).toBeVisible()
     await expect(page.locator('.status-strip')).toBeHidden()
+    await expect(page.locator('.command-search')).toBeHidden()
     const modeSelect = page.locator('.workspace-mode-select')
     await expect(modeSelect).toBeVisible()
     const modeSelectGeometry = await modeSelect.evaluate((element) => {
@@ -496,7 +511,15 @@ test.describe('visual review states', () => {
     await expect(page.locator('.editor-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeHidden()
     await expect.poll(() => page.locator('header.topbar').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-    await expect(page.locator('.command-search')).toBeInViewport()
+    const [historyBox, modeBox] = await Promise.all([
+      page.locator('.history-controls').boundingBox(),
+      page.locator('.workspace-mode-strip').boundingBox(),
+    ])
+    expect(historyBox).not.toBeNull()
+    expect(modeBox).not.toBeNull()
+    expect(Math.abs((historyBox?.y ?? 0) - (modeBox?.y ?? 0))).toBeLessThanOrEqual(2)
+    const sourceHeight = await page.locator('.monaco-editor').evaluate((element) => element.clientHeight)
+    expect(sourceHeight).toBeGreaterThanOrEqual(96)
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-editor.png')
 
@@ -504,6 +527,7 @@ test.describe('visual review states', () => {
     await expect(page.locator('.editor-panel')).toBeHidden()
     await expect(page.locator('.inspector-panel')).toBeVisible()
     await expect(page.locator('.inspector-panel')).toBeInViewport()
+    await expect(page.locator('.inspector-panel .metric-grid .metric').first()).toBeInViewport()
     await expectNoHorizontalOverflow(page)
     await captureVisual(page, 'visual-workspace-ui-zoom-200-inspector.png')
   })

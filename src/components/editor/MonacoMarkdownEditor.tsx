@@ -583,7 +583,7 @@ export const MonacoMarkdownEditor = forwardRef<MarkdownEditorHandle, MonacoMarkd
       .join(' ')
 
     return (
-      <div className={hostClassName} ref={hostRef}>
+      <div className={hostClassName} ref={hostRef} dir="ltr">
         <Editor
           height="100%"
           language="markdown"
