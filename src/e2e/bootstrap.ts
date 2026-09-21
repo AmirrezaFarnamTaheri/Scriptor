@@ -626,6 +626,30 @@ export function installE2eBridge(): void {
             const document = JSON.parse(canvasDocumentJson) as { id: string }
             return `.scriptor/canvas/${document.id}.json`
           }
+          if (cmd === 'canvas_apply_template') {
+            const request = payload as { sceneJson?: string; templateId?: string }
+            const document = JSON.parse(request.sceneJson ?? canvasDocumentJson) as {
+              id: string
+              title: string
+              blocks: Array<Record<string, unknown>>
+              updatedAt: string
+            }
+            const templateId = request.templateId ?? 'storyboard'
+            const added = [
+              { id: 'e2e-question', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 40, y: 40, width: 100, height: 80 }, zIndex: 2, contentRef: 'Question', style: { fill: '#fef3c7', stroke: '#334155', strokeWidth: 1 } },
+              { id: 'e2e-evidence', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 220, y: 40, width: 100, height: 80 }, zIndex: 2, contentRef: 'Evidence', style: { fill: '#dbeafe', stroke: '#334155', strokeWidth: 1 } },
+              { id: 'e2e-synthesis', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 400, y: 40, width: 100, height: 80 }, zIndex: 2, contentRef: 'Synthesis', style: { fill: '#dcfce7', stroke: '#334155', strokeWidth: 1 } },
+              { id: 'e2e-summary', kind: 'markdown', layerId: 'layer-main', bounds: { x: 140, y: 220, width: 280, height: 160 }, zIndex: 3, contentRef: 'Summary note', style: { fill: '#ffffff', stroke: '#94a3b8', strokeWidth: 1, textStyle: 'heading' } },
+            ]
+            const next = { ...document, title: templateId, blocks: [...document.blocks, ...added], updatedAt: new Date().toISOString() }
+            return {
+              document: next,
+              templateId,
+              patchId: 'e2e-template-patch',
+              checkpointPath: '.scriptor/checkpoints/e2e-template.json',
+              blocksAdded: added.length,
+            }
+          }
           if (cmd === 'canvas_query_blocks') return []
           if (cmd === 'canvas_hit_test') return null
           return null

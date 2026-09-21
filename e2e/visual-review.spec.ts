@@ -371,8 +371,15 @@ test.describe('visual review states', () => {
     await expect(linkActiveNote).toBeEnabled()
     await linkActiveNote.click()
     await expect(canvas.locator('.canvas-block')).toHaveCount(1)
-    await expect(canvas.locator('.canvas-header')).toContainText('1 block')
     await expect(canvas.locator('.canvas-footer')).toContainText('Linked 1 block(s) to Research Plan.md')
+
+    const storyboard = canvas.getByRole('button', { name: 'Storyboard', exact: true })
+    await expect(storyboard).toBeVisible()
+    await storyboard.click()
+    await expect(canvas.locator('.canvas-block')).toHaveCount(5)
+    await expect(canvas.locator('.canvas-header')).toContainText('5 blocks')
+    await expect(canvas.locator('.canvas-footer')).toContainText('Inserted 4 blocks from Storyboard.')
+
     const stage = canvas.locator('.canvas-stage')
     const stageSvg = canvas.locator('.canvas-svg')
     await expect(stageSvg.locator(':scope > rect')).toHaveCount(0)
@@ -1136,6 +1143,14 @@ test.describe('visual review states', () => {
     for (const name of ['New inbox note', 'Insert in active', 'Add']) {
       await expect(capture.getByRole('button', { name, exact: true })).toHaveClass(/toolbar-button/)
     }
+    await capture.getByRole('textbox', { name: 'Quick capture scratchpad', exact: true }).fill(
+      'Capture the release-review follow-up and turn the strongest point into a note.',
+    )
+    await capture.getByRole('button', { name: 'Add', exact: true }).click()
+    const todo = capture.getByRole('textbox', { name: /Todo text:/ }).first()
+    await expect(todo).toBeVisible()
+    await todo.fill('Review visual evidence before release')
+    await expect(capture).toContainText('Todos')
     await captureElement(page, capture, 'visual-quick-capture.png')
   })
 
@@ -1333,8 +1348,16 @@ test.describe('visual review states', () => {
     await paletteButton.click()
     const palettes = page.getByRole('dialog', { name: 'Color palettes', exact: true })
     await expect(palettes).toBeVisible()
-    await expect(palettes.getByRole('button', { name: 'Create Custom Palette' })).toBeVisible()
+    const createPalette = palettes.getByRole('button', { name: 'Create Custom Palette', exact: true })
+    await expect(createPalette).toBeVisible()
     await captureElement(page, palettes, 'visual-color-palettes.png')
+
+    await createPalette.click()
+    const themeCustomizer = page.getByRole('dialog', { name: 'Theme Customizer & Builder', exact: true })
+    await expect(themeCustomizer).toBeVisible()
+    await expect(themeCustomizer.getByRole('heading', { name: 'Custom Theme Builder & Color Editor', exact: true })).toBeVisible()
+    await expect(themeCustomizer.getByRole('button', { name: 'Create New Theme', exact: true })).toBeVisible()
+    await captureElement(page, themeCustomizer, 'visual-theme-customizer.png')
   })
 
 
