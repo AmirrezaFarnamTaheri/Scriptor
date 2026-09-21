@@ -52,6 +52,23 @@ test('unsigned release remains the secret-free default while native signing is e
   assert.equal(fs.existsSync(path.join(root, 'scripts/release/sign-installers.ps1')), false)
 })
 
+test('release workflow artifacts use explicit bounded retention', () => {
+  for (const relative of ['.github/workflows/release.yml', '.github/workflows/release-review.yml']) {
+    const workflow = read(relative)
+    const lines = workflow.split(/\r?\n/)
+    for (let index = 0; index < lines.length; index += 1) {
+      if (!lines[index]?.includes('uses: actions/upload-artifact@')) continue
+      const block = []
+      for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+        const line = lines[cursor] ?? ''
+        if (/^      - (?:name:|uses:)/.test(line) || /^  [A-Za-z0-9_-]+:\s*$/.test(line)) break
+        block.push(line)
+      }
+      assert.match(block.join('\n'), /retention-days:\s*\d+/, `${relative} upload-artifact at line ${index + 1} needs bounded retention`)
+    }
+  }
+})
+
 test('manual release dispatch builds canonical VERSION and production requires an immutable v* tag', () => {
   const workflow = read('.github/workflows/release.yml')
   const kickoff = read('.github/workflows/release-kickoff.yml')

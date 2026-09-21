@@ -65,3 +65,4 @@ jobs:
           name: release-review-binaries-${{ github.run_attempt }}
           path: dist/release-review/binary-review.json
           if-no-files-found: error
+          retention-days: 14
