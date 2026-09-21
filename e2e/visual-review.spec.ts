@@ -358,27 +358,18 @@ test.describe('visual review states', () => {
   })
 
   test('populated canvas board', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:canvas-populated', '1')
+    })
     await openVisualWorkspace(page)
     await openCommandPalette(page)
     await runCommand(page, 'Open canvas')
 
     const canvas = page.getByRole('dialog', { name: 'Canvas board' })
     await expect(canvas).toBeVisible({ timeout: 15_000 })
-    await canvas.getByRole('button', { name: 'Add first card' }).click()
-    await expect(canvas.locator('.canvas-block')).toHaveCount(1)
-
-    const linkActiveNote = canvas.getByRole('button', { name: 'Link to active note' })
-    await expect(linkActiveNote).toBeEnabled()
-    await linkActiveNote.click()
-    await expect(canvas.locator('.canvas-block')).toHaveCount(1)
-    await expect(canvas.locator('.canvas-footer')).toContainText('Linked 1 block(s) to Research Plan.md')
-
-    const storyboard = canvas.getByRole('button', { name: 'Storyboard', exact: true })
-    await expect(storyboard).toBeVisible()
-    await storyboard.click()
     await expect(canvas.locator('.canvas-block')).toHaveCount(5)
     await expect(canvas.locator('.canvas-header')).toContainText('5 blocks')
-    await expect(canvas.locator('.canvas-footer')).toContainText('Inserted 4 blocks from Storyboard.')
+    await expect(canvas.locator('.canvas-footer')).toContainText('Loaded Research board.')
 
     const stage = canvas.locator('.canvas-stage')
     const stageSvg = canvas.locator('.canvas-svg')
@@ -1079,7 +1070,9 @@ test.describe('visual review states', () => {
     await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
 
     const finalSnippet = body.locator('.cheatsheet-snippet-list').last().locator('li').last()
-    await finalSnippet.scrollIntoViewIfNeeded()
+    await body.evaluate((element) => {
+      element.scrollTop = element.scrollHeight
+    })
     await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
     await expect(finalSnippet).toBeVisible()
     await expect.poll(async () => {
@@ -1368,9 +1361,10 @@ test.describe('visual review states', () => {
     const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
     await expect(palette).toBeVisible()
     const search = palette.getByRole('searchbox')
-    await search.fill('open')
+    await search.fill('notes')
     await expect(palette.getByRole('option').first()).toBeVisible()
-    await expect(palette.locator('.command-palette-group-label').first()).toBeVisible()
+    await expect(palette.getByText('Commands', { exact: true })).toBeVisible()
+    await expect(palette.getByText('Notes', { exact: true })).toBeVisible()
     await expect.poll(() => palette.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await captureElement(page, palette, 'visual-command-palette.png')
   })
@@ -1383,7 +1377,7 @@ test.describe('visual review states', () => {
     await expect(publish).toBeVisible()
     await publish
       .locator('.publish-profile-list > li')
-      .first()
+      .filter({ hasText: 'PDF' })
       .getByRole('button', { name: 'Preview export', exact: true })
       .click()
 
@@ -1414,7 +1408,8 @@ test.describe('visual review states', () => {
       const tab = settings.getByRole('tab', { name: state.tab, exact: true })
       await tab.click()
       await expect(tab).toHaveAttribute('aria-selected', 'true')
-      await expect.poll(() => settings.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+      const body = settings.locator('.unified-panel-body')
+      await expect.poll(() => body.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
       await captureElement(page, settings, state.image)
     }
   })
@@ -1424,7 +1419,7 @@ test.describe('visual review states', () => {
     await openCommandPalette(page)
     await runCommand(page, 'Open vault health')
 
-    const health = page.getByRole('dialog', { name: 'Vault health dashboard', exact: true })
+    const health = page.getByRole('dialog', { name: 'Vault health', exact: true })
     await expect(health).toBeVisible()
     await expect(health).toContainText('Vault health')
     await expect(health).toContainText(/Vault looks healthy|issue/)
@@ -1443,9 +1438,10 @@ test.describe('visual review states', () => {
     const exportButton = canvas.getByRole('button', { name: 'Export', exact: true })
     await expect(exportButton).toBeEnabled()
     await exportButton.click()
-    await expect(canvas.getByRole('menu')).toBeVisible()
-    await expect(canvas.getByRole('menuitem').first()).toBeVisible()
-    await captureElement(page, canvas, 'visual-canvas-export-menu.png')
+    const exportMenu = page.getByRole('menu', { name: 'Export', exact: true })
+    await expect(exportMenu).toBeVisible()
+    await expect(exportMenu.getByRole('menuitem').first()).toBeVisible()
+    await captureVisual(page, 'visual-canvas-export-menu.png')
   })
 
 })

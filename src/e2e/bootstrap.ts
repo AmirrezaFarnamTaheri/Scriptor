@@ -155,14 +155,24 @@ export function installE2eBridge(): void {
   if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:enable-gmail-plugin') === '1') {
     enabledPluginIds.add('scriptor.gmail-manager')
   }
+  const populatedCanvasFixture =
+    typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:canvas-populated') === '1'
   let canvasDocumentJson = JSON.stringify({
     id: 'canvas-board-default',
     vaultId: 'screenshot-vault',
     title: 'Research board',
     mode: 'edgeless',
     layers: [{ id: 'layer-main', name: 'Main', visible: true, locked: false, order: 0 }],
-    blocks: [],
-    updatedAt: new Date().toISOString(),
+    blocks: populatedCanvasFixture
+      ? [
+          { id: 'e2e-question', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: -260, y: -120, width: 180, height: 110 }, zIndex: 1, contentRef: 'Research question', style: { fill: '#fef3c7', stroke: '#334155', strokeWidth: 1 } },
+          { id: 'e2e-evidence', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: -30, y: -120, width: 180, height: 110 }, zIndex: 2, contentRef: 'Evidence', style: { fill: '#dbeafe', stroke: '#334155', strokeWidth: 1 } },
+          { id: 'e2e-synthesis', kind: 'sticky-note', layerId: 'layer-main', bounds: { x: 200, y: -120, width: 180, height: 110 }, zIndex: 3, contentRef: 'Synthesis', style: { fill: '#dcfce7', stroke: '#334155', strokeWidth: 1 } },
+          { id: 'e2e-method', kind: 'markdown', layerId: 'layer-main', bounds: { x: -145, y: 80, width: 220, height: 140 }, zIndex: 4, contentRef: 'Methodology.md', sourceNoteId: 'Methodology.md', style: { fill: '#ffffff', stroke: '#94a3b8', strokeWidth: 1, textStyle: 'heading' } },
+          { id: 'e2e-plan', kind: 'markdown', layerId: 'layer-main', bounds: { x: 115, y: 80, width: 220, height: 140 }, zIndex: 5, contentRef: 'Research Plan.md', sourceNoteId: 'Research Plan.md', style: { fill: '#ffffff', stroke: '#0f766e', strokeWidth: 2, textStyle: 'heading' } },
+        ]
+      : [],
+    updatedAt: '2026-09-21T12:00:00.000Z',
   })
   // Mock Tauri internals so `isTauriRuntime` returns true
   if (typeof window !== 'undefined' && !('__TAURI_INTERNALS__' in window)) {
@@ -602,7 +612,7 @@ export function installE2eBridge(): void {
               updatedAt: string
               blocks: unknown[]
             }
-            return (window.__scriptorE2eCanvasSaves?.length ?? 0) > 0
+            return populatedCanvasFixture || (window.__scriptorE2eCanvasSaves?.length ?? 0) > 0
               ? [
                   {
                     id: document.id,
