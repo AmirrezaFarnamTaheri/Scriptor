@@ -17,6 +17,13 @@ test('search preview uses wikilink aliases and removes structural heading/task s
   )
 })
 
+test('search preview removes clipped FTS marker fragments at snippet boundaries', () => {
+  assert.equal(
+    formatSearchSnippet('tes]] - Methodology Outline [[star'),
+    'tes - Methodology Outline star',
+  )
+})
+
 test('search preview preserves semantic-only descriptions and collapses whitespace', () => {
   assert.equal(
     formatSearchSnippet('  semantic match · score 0.913  '),

@@ -15,6 +15,10 @@ export function formatSearchSnippet(snippet: string): string {
   }
 
   return value
+    // FTS snippets may be clipped at either edge, leaving only one half of the
+    // [[...]] marker pair. Search previews are plain text, so any residual
+    // double brackets are marker debris rather than useful presentation.
+    .replace(/\[\[|\]\]/g, '')
     .replace(/(^|\s)#{1,6}\s+/g, '$1')
     .replace(/(^|\s)[*-]\s+\[[ xX]\]\s+/g, '$1')
     .replace(/\s+/g, ' ')

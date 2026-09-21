@@ -1057,7 +1057,7 @@ test.describe('visual review states', () => {
     await expect(capture).toBeHidden()
 
     const toolbar = page.locator('.editor-toolbar')
-    const stickyToggleName = /^Show (?:sticky notes layer|stickies)$/i
+    const stickyToggleName = /^Show (?:sticky notes(?: layer)?|stickies)$/i
     const directToggle = toolbar.getByRole('button', { name: stickyToggleName })
     if (await directToggle.isVisible()) {
       await directToggle.click()
