@@ -118,6 +118,13 @@ function WorkspaceStatusFooterImpl({
     true,
   )
   const { t } = useI18n()
+  const cacheStatusLabel = !health
+    ? t('statusDock.noVaultOpen')
+    : health.cache_status === 'fresh'
+      ? t('inspector.health.cacheFresh')
+      : health.cache_status === 'stale'
+        ? t('inspector.health.cacheStale')
+        : t('inspector.health.cacheRebuilding')
   const previousDockTab = useRef(statusDockTab)
 
   useEffect(() => {
@@ -236,7 +243,7 @@ function WorkspaceStatusFooterImpl({
             />
             <span>{t('statusDock.diagnostics')}</span>
           </label>
-          <span>{health?.cache_status ?? 'no vault'}</span>
+          <span>{cacheStatusLabel}</span>
           {diagnosticsOptIn && timeToFirstEditMs != null ? <span title="Time to first edit this session">TTFE {timeToFirstEditMs < 1000 ? `${timeToFirstEditMs}ms` : `${(timeToFirstEditMs / 1000).toFixed(1)}s`}</span> : null}
           {diagnosticsOptIn && timeToFirstExportMs != null ? <span title="Time to first export this session">TTFX {(timeToFirstExportMs / 1000).toFixed(1)}s</span> : null}
           <SubsystemToggles

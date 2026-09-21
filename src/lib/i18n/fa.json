@@ -571,6 +571,22 @@
       }
     },
     "noteHealth": "سلامت خزانه",
+    "health": {
+      "loading": "در حال بارگذاری…",
+      "good": "خوب",
+      "needsReview": "نیازمند بررسی",
+      "brokenLinks": "پیوندهای شکسته",
+      "orphanAssets": "فایل‌های بدون ارجاع",
+      "duplicateTitles": "عنوان‌های تکراری",
+      "invalidFrontmatter": "فرادادهٔ نامعتبر",
+      "missingCitations": "ارجاعات مفقود",
+      "indexedNotes": "یادداشت‌های نمایه‌شده",
+      "vaultWords": "واژه‌های خزانه",
+      "cache": "حافظهٔ نهان",
+      "cacheFresh": "به‌روز",
+      "cacheStale": "قدیمی",
+      "cacheRebuilding": "در حال بازسازی"
+    },
     "previewSyncSplit": "پیش‌نمایش تقسیم‌شده با همگام‌سازی پیمایش کنار ویرایشگر باز است.",
     "previewSyncActive": "همگام‌سازی پیمایش بین ویرایشگر و پیش‌نمایش فعال است.",
     "previewCard": "پیش‌نمایش",

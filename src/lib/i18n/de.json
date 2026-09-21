@@ -571,6 +571,22 @@
       }
     },
     "noteHealth": "Tresorstatus",
+    "health": {
+      "loading": "Wird geladen…",
+      "good": "Gut",
+      "needsReview": "Prüfung erforderlich",
+      "brokenLinks": "Defekte Links",
+      "orphanAssets": "Verwaiste Dateien",
+      "duplicateTitles": "Doppelte Titel",
+      "invalidFrontmatter": "Ungültige Metadaten",
+      "missingCitations": "Fehlende Zitate",
+      "indexedNotes": "Indexierte Notizen",
+      "vaultWords": "Wörter im Vault",
+      "cache": "Cache",
+      "cacheFresh": "Aktuell",
+      "cacheStale": "Veraltet",
+      "cacheRebuilding": "Wird neu aufgebaut"
+    },
     "previewSyncSplit": "Die geteilte Vorschau ist mit Bildlauf-Synchronisierung neben dem Editor geöffnet.",
     "previewSyncActive": "Die Bildlauf-Synchronisierung zwischen Editor und Vorschau ist aktiv.",
     "previewCard": "Vorschau",

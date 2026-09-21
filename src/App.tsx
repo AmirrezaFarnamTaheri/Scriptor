@@ -702,10 +702,10 @@ function App() {
       isNoteDirty,
     })
   const healthAction = !workspace.health
-    ? 'Loading…'
+    ? t('inspector.health.loading')
     : workspace.health.broken_links === 0 && workspace.health.unresolved_citations === 0
-      ? 'Good'
-      : 'Needs review'
+      ? t('inspector.health.good')
+      : t('inspector.health.needsReview')
 
   const handleCloseProblemsDock = useCallback(() => setStatusDockTab('output'), [setStatusDockTab])
   useEscapeToClose(statusDockTab === 'problems' && totalProblemCount > 0, handleCloseProblemsDock)
@@ -1000,19 +1000,25 @@ function App() {
           ? t('git.repositoryClean')
           : t(workspace.gitStatus.changed_files.length === 1 ? 'git.changedFile' : 'git.changedFiles', { count: workspace.gitStatus.changed_files.length })
         : t('git.notARepo')
-  const healthMetrics = useMemo(
-    () => [
-      ['Broken links', String(workspace.health?.broken_links ?? 0)],
-      ['Orphan assets', String(workspace.health?.orphan_assets ?? 0)],
-      ['Duplicate titles', String(workspace.health?.duplicate_titles ?? 0)],
-      ['Invalid frontmatter', String(workspace.health?.invalid_frontmatter ?? 0)],
-      ['Missing citations', String(workspace.health?.unresolved_citations ?? 0)],
-      ['Indexed notes', String(workspace.health?.indexed_notes ?? 0)],
-      ['Vault words', (workspace.health?.total_words ?? 0).toLocaleString()],
-      ['Cache', workspace.health?.cache_status ?? '—'],
-    ] as Array<[string, string]>,
-    [workspace.health],
-  )
+  const healthMetrics = useMemo(() => {
+    const cacheStatus = !workspace.health
+      ? '—'
+      : workspace.health.cache_status === 'fresh'
+        ? t('inspector.health.cacheFresh')
+        : workspace.health.cache_status === 'stale'
+          ? t('inspector.health.cacheStale')
+          : t('inspector.health.cacheRebuilding')
+    return [
+      [t('inspector.health.brokenLinks'), String(workspace.health?.broken_links ?? 0)],
+      [t('inspector.health.orphanAssets'), String(workspace.health?.orphan_assets ?? 0)],
+      [t('inspector.health.duplicateTitles'), String(workspace.health?.duplicate_titles ?? 0)],
+      [t('inspector.health.invalidFrontmatter'), String(workspace.health?.invalid_frontmatter ?? 0)],
+      [t('inspector.health.missingCitations'), String(workspace.health?.unresolved_citations ?? 0)],
+      [t('inspector.health.indexedNotes'), String(workspace.health?.indexed_notes ?? 0)],
+      [t('inspector.health.vaultWords'), (workspace.health?.total_words ?? 0).toLocaleString()],
+      [t('inspector.health.cache'), cacheStatus],
+    ] as Array<[string, string]>
+  }, [t, workspace.health])
 
   const handleOpenReaderDocument = useCallback((path: string) => {
     setReaderFilePath(path)

@@ -571,6 +571,22 @@
       }
     },
     "noteHealth": "Vault health",
+    "health": {
+      "loading": "Loading…",
+      "good": "Good",
+      "needsReview": "Needs review",
+      "brokenLinks": "Broken links",
+      "orphanAssets": "Orphan assets",
+      "duplicateTitles": "Duplicate titles",
+      "invalidFrontmatter": "Invalid frontmatter",
+      "missingCitations": "Missing citations",
+      "indexedNotes": "Indexed notes",
+      "vaultWords": "Vault words",
+      "cache": "Cache",
+      "cacheFresh": "Fresh",
+      "cacheStale": "Stale",
+      "cacheRebuilding": "Rebuilding"
+    },
     "previewSyncSplit": "Split preview is open beside the editor with scroll sync.",
     "previewSyncActive": "Scroll sync is active between editor and preview.",
     "previewCard": "Preview",
