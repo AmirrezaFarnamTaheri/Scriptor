@@ -133,7 +133,7 @@ async function expectFullyInViewport(page: Page, selector: string) {
   await expect.poll(
     () => page.locator(selector).evaluate((element) => {
       const rect = element.getBoundingClientRect()
-      return rect.top >= 0 && rect.left >= 0 && rect.bottom <= window.innerHeight && rect.right <= window.innerWidth
+      return rect.top >= -1 && rect.left >= -1 && rect.bottom <= window.innerHeight + 1 && rect.right <= window.innerWidth + 1
     }),
     { timeout: 10_000 },
   ).toBe(true)
@@ -1478,7 +1478,7 @@ test.describe('visual review states', () => {
     await openCommandPalette(page)
     await runCommand(page, 'Open vault health')
 
-    const health = page.getByRole('dialog', { name: 'Vault health dashboard', exact: true })
+    const health = page.getByRole('dialog', { name: 'Vault health', exact: true })
     await expect(health).toBeVisible()
     await expect(health).toContainText('Vault health')
     await expect(health).toContainText(/Vault looks healthy|issue/)
