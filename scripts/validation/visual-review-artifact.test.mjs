@@ -112,6 +112,13 @@ test('visual artifact has one canonical images directory', () => {
   assert.match(packager, /explicitly named captures with identical image bytes/)
 })
 
+test('PR visual artifacts exclude disposable documentation screenshot candidates', () => {
+  assert.match(packager, /documentation-screenshots/)
+  assert.match(packager, /\$Prefix -eq 'current'/)
+  assert.match(packager, /-IncludeTrackedGallery/)
+  assert.match(packager, /Add-VisualImages -SourceRoot 'docs\/assets\/screenshots'/)
+})
+
 test('automatic screenshots are failure-only because successful evidence is explicitly named', () => {
   assert.match(visualConfig, /screenshot:\s*'only-on-failure'/)
   assert.doesNotMatch(visualConfig, /screenshot:\s*'on'/)
@@ -258,6 +265,8 @@ test('major product surfaces keep visual evidence', () => {
     "visual-settings-workspace.png",
     "visual-settings-shortcuts.png",
     "visual-vault-health-dashboard.png",
+    "visual-vault-health-dashboard-720.png",
+    "visual-mcp-sharing-table.png",
     "visual-canvas-export-menu.png",
     "visual-theme-customizer.png"
 ]) {

@@ -301,6 +301,18 @@ test.describe('visual review states', () => {
     // Capture the whole viewport for docked companions. Locator screenshots can
     // crop the flush viewport edge even when the fixed panel itself is in bounds.
     await captureVisual(page, 'visual-mcp-sharing-inventory.png')
+
+    // The table is the highest intrinsic-width region in this flow. Exercise it
+    // directly so a future column/string change cannot widen the entire dock
+    // while the top-of-panel screenshot still looks healthy.
+    const installedSection = sharing.locator('.resource-sync-section').filter({ hasText: 'Already installed or contained' }).first()
+    const tableWrap = installedSection.locator('.resource-table-wrap')
+    await expect(installedSection).toBeVisible()
+    await tableWrap.scrollIntoViewIfNeeded()
+    await expect(tableWrap).toBeVisible()
+    await expect.poll(() => installedSection.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expect.poll(() => mcpPanel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, installedSection, 'visual-mcp-sharing-table.png')
   })
 
   test('editor recovery fallback', async ({ page }) => {
@@ -1496,6 +1508,19 @@ test.describe('visual review states', () => {
     await expect(health).toContainText(/Vault looks healthy|issue/)
     await expect.poll(() => health.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
     await captureElement(page, health, 'visual-vault-health-dashboard.png')
+  })
+
+  test('Vault health dashboard stays bounded at compact width', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 800 })
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Open vault health')
+
+    const health = page.getByRole('dialog', { name: 'Vault health', exact: true })
+    await expect(health).toBeVisible()
+    await expect.poll(() => health.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await expect.poll(() => health.locator('.unified-panel-body').evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+    await captureElement(page, health, 'visual-vault-health-dashboard-720.png')
   })
 
   test('Canvas export menu evidence', async ({ page }) => {

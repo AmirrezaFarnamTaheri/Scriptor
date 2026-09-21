@@ -59,6 +59,16 @@ function Add-VisualImages {
         }
 
         $relative = [System.IO.Path]::GetRelativePath($resolvedSource, $file.FullName)
+
+        # screenshots.spec.ts writes documentation candidates under test-results
+        # during PR comparison so tracked docs stay read-only. Those captures are
+        # semantically redundant with the stable screenshot suite and the broader
+        # named visual-review states; the explicit refresh workflow can still
+        # include the canonical tracked gallery via -IncludeTrackedGallery.
+        if ($Prefix -eq 'current' -and $relative -match '^documentation-screenshots[\\/]') {
+            continue
+        }
+
         $source = "$SourceRoot/$($relative -replace '\\', '/')"
         $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
         $script:sourceImageCount += 1
