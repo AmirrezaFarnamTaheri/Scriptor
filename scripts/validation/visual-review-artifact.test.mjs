@@ -132,6 +132,7 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-inspector-metrics-1024.png',
     'visual-dock-problems.png',
     'visual-dock-output.png',
+    'visual-dock-jobs.png',
     'visual-settings-dark.png',
     'visual-settings-advanced.png',
     'visual-onboarding-dark.png',
