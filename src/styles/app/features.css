@@ -319,6 +319,7 @@
 .frontmatter-inspector {
   width: min(720px, calc(100vw - 32px));
   max-width: 720px;
+  background: var(--dialog-bg, var(--bg-elevated));
 }
 
 .frontmatter-fields {
