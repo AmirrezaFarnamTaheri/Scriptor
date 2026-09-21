@@ -1079,6 +1079,24 @@ test.describe('visual review states', () => {
       const match = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
       return match ? Number(match[1]) >= 0.99 : background !== 'transparent'
     })).toBe(true)
+    const targetHeader = targets.locator(':scope > header')
+    const targetTitle = targetHeader.getByRole('heading', { name: 'Writing targets', exact: true })
+    const targetClose = targetHeader.getByRole('button', { name: 'Close', exact: true })
+    const [titleBox, closeBox, headerBox] = await Promise.all([
+      targetTitle.boundingBox(),
+      targetClose.boundingBox(),
+      targetHeader.boundingBox(),
+    ])
+    expect(titleBox).not.toBeNull()
+    expect(closeBox).not.toBeNull()
+    expect(headerBox).not.toBeNull()
+    expect(Math.abs(
+      ((titleBox?.y ?? 0) + (titleBox?.height ?? 0) / 2)
+      - ((closeBox?.y ?? 0) + (closeBox?.height ?? 0) / 2),
+    )).toBeLessThanOrEqual(4)
+    expect((closeBox?.x ?? 0) + (closeBox?.width ?? 0)).toBeLessThanOrEqual(
+      (headerBox?.x ?? 0) + (headerBox?.width ?? 0) + 1,
+    )
     await captureElement(page, targets, 'visual-writing-targets.png')
   })
 
@@ -1222,6 +1240,17 @@ test.describe('visual review states', () => {
     await capture.getByRole('textbox', { name: 'Quick capture scratchpad', exact: true }).fill(
       'Capture the release-review follow-up and turn the strongest point into a note.',
     )
+    const scratchpad = capture.getByRole('textbox', { name: 'Quick capture scratchpad', exact: true })
+    await expect.poll(() => scratchpad.evaluate((element) => {
+      const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
+      const parent = element.parentElement?.getBoundingClientRect()
+      return style.borderTopWidth !== '0px'
+        && style.borderRadius !== '0px'
+        && style.backgroundColor !== 'transparent'
+        && rect.width > 0
+        && (!parent || rect.right <= parent.right + 1)
+    })).toBe(true)
     await capture.getByRole('button', { name: 'Add', exact: true }).click()
     const todo = capture.getByRole('textbox', { name: /Todo text:/ }).first()
     await expect(todo).toBeVisible()
