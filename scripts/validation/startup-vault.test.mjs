@@ -8,7 +8,7 @@ const source = ts.transpileModule(readFileSync(new URL('../../src/hooks/useStart
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
 }).outputText
 
-function harness() {
+function harness({ noAutoOpen = false } = {}) {
   const opened = []
   const forgotten = []
   const errors = []
@@ -18,6 +18,11 @@ function harness() {
     require: (id) => id === 'react' ? { useEffect: (fn) => fn() }
       : { documentDir: async () => '/Documents', join: async (...parts) => parts.join('/') },
     console: { error: (...args) => errors.push(args) },
+    window: {
+      sessionStorage: {
+        getItem: (key) => key === 'e2e:no-auto-open' && noAutoOpen ? '1' : null,
+      },
+    },
   })
   const options = {
     nativeReady: true,
@@ -27,6 +32,14 @@ function harness() {
   const run = async () => { module.exports.useStartupVault(options); await new Promise(setImmediate) }
   return { options, opened, forgotten, errors, run }
 }
+
+test('explicit E2E empty-startup mode suppresses automatic vault opening', async () => {
+  const h = harness({ noAutoOpen: true })
+  h.options.recentVaults.recent = ['/recent']
+  await h.run()
+  assert.deepEqual(h.opened, [])
+  assert.deepEqual(h.forgotten, [])
+})
 
 test('native startup opens the most recent vault without opening the fallback', async () => {
   const h = harness()
