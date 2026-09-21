@@ -35,126 +35,9 @@ $redundantNamedCaptures = [System.Collections.Generic.List[object]]::new()
 
 function Test-NamedVisualCapture {
     param([Parameter(Mandatory = $true)][string]$Source)
+
     $name = [System.IO.Path]::GetFileName($Source)
-    return $name -match '^visual-.+\.(png|jpe?g|webp|gif|avif)
-    param(
-        [Parameter(Mandatory = $true)][string]$SourceRoot,
-        [Parameter(Mandatory = $true)][string]$Prefix
-    )
-
-    $sourcePath = Resolve-RepoPath -Path $SourceRoot
-    if (-not (Test-Path -LiteralPath $sourcePath)) {
-        Write-Host "Visual source absent: $SourceRoot"
-        return
-    }
-
-    $resolvedSource = (Resolve-Path -LiteralPath $sourcePath).Path
-    foreach ($file in Get-ChildItem -LiteralPath $resolvedSource -Recurse -File | Sort-Object FullName) {
-        if ($imageExtensions -notcontains $file.Extension.ToLowerInvariant()) {
-            continue
-        }
-
-        $relative = [System.IO.Path]::GetRelativePath($resolvedSource, $file.FullName)
-        $source = "$SourceRoot/$($relative -replace '\\', '/')"
-        $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-        $script:sourceImageCount += 1
-
-        if ($script:seenHashes.ContainsKey($hash)) {
-            $index = [int]$script:seenHashes[$hash]
-            $entry = $script:manifest[$index]
-            $existingSources = @($entry.sources)
-            if ((Test-NamedVisualCapture -Source $source) -and @($existingSources | Where-Object { Test-NamedVisualCapture -Source $_ }).Count -gt 0) {
-                $script:redundantNamedCaptures.Add([pscustomobject]@{
-                    sha256 = $hash
-                    sources = @($existingSources) + $source
-                })
-            }
-            $entry.sources = $existingSources + $source
-            continue
-        }
-
-        $safeRelative = ($relative -replace '[\\/]+', '--') -replace '[^A-Za-z0-9._-]+', '-'
-        $destinationName = "$Prefix--$safeRelative"
-        $destinationPath = Join-Path $imagesPath $destinationName
-
-        if (Test-Path -LiteralPath $destinationPath) {
-            $stem = [System.IO.Path]::GetFileNameWithoutExtension($destinationName)
-            $destinationName = "$stem--$($hash.Substring(0, 10))$($file.Extension.ToLowerInvariant())"
-            $destinationPath = Join-Path $imagesPath $destinationName
-        }
-
-        Copy-Item -LiteralPath $file.FullName -Destination $destinationPath -Force
-        $entry = [pscustomobject]@{
-            file = "images/$destinationName"
-            source = $source
-            sources = @($source)
-            sha256 = $hash
-            bytes = $file.Length
-        }
-        $script:seenHashes[$hash] = $script:manifest.Count
-        $script:manifest.Add($entry)
-    }
-}
-
-# Publish current-run visual evidence through one flat directory. Playwright
-# already copies expected/actual/diff images into test-results when a comparison
-# fails, so shipping the entire committed baseline tree on every successful run
-# is redundant. Tracked gallery PNGs are included only by the explicit refresh
-# workflow, which is the sole writer of those files.
-Add-VisualImages -SourceRoot 'test-results/visual' -Prefix 'current'
-if ($IncludeTrackedGallery) {
-    Add-VisualImages -SourceRoot 'docs/assets/screenshots' -Prefix 'gallery'
-}
-
-if (-not [string]::IsNullOrWhiteSpace($EvidenceRoot)) {
-    $resolvedEvidence = Resolve-RepoPath -Path $EvidenceRoot
-    if (Test-Path -LiteralPath $resolvedEvidence) {
-        foreach ($file in Get-ChildItem -LiteralPath $resolvedEvidence -Recurse -File | Sort-Object FullName) {
-            if ($imageExtensions -contains $file.Extension.ToLowerInvariant()) {
-                continue
-            }
-            $relative = [System.IO.Path]::GetRelativePath($resolvedEvidence, $file.FullName)
-            $destination = Join-Path $evidencePath $relative
-            $destinationDirectory = Split-Path -Parent $destination
-            New-Item -ItemType Directory -Force -Path $destinationDirectory | Out-Null
-            Copy-Item -LiteralPath $file.FullName -Destination $destination -Force
-        }
-    }
-}
-
-$manifestPayload = [ordered]@{
-    schemaVersion = 2
-    generatedUtc = [DateTimeOffset]::UtcNow.ToString('o')
-    imageDirectory = 'images'
-    imageCount = $manifest.Count
-    sourceImageCount = $sourceImageCount
-    deduplicatedSourceCount = $sourceImageCount - $manifest.Count
-    redundantNamedCaptureCount = $redundantNamedCaptures.Count
-    redundantNamedCaptures = $redundantNamedCaptures
-    images = $manifest
-}
-$manifestPayload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $packagePath 'image-manifest.json') -Encoding utf8
-
-if ($manifest.Count -eq 0) {
-    throw 'Visual review package contains no images.'
-}
-
-Write-Host "Prepared unified visual review package: $packagePath"
-Write-Host "Images (unique): $($manifest.Count)"
-Write-Host "Image sources: $sourceImageCount"
-Write-Host "Duplicate image sources removed: $($sourceImageCount - $manifest.Count)"
-Write-Host "Redundant named visual captures: $($redundantNamedCaptures.Count)"
-
-if ($redundantNamedCaptures.Count -gt 0) {
-    $duplicatePath = Join-Path $packagePath 'redundant-named-captures.json'
-    $redundantNamedCaptures | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $duplicatePath -Encoding utf8
-    foreach ($duplicate in $redundantNamedCaptures) {
-        Write-Host "::error title=Redundant visual evidence::$($duplicate.sources -join ' duplicates ')"
-    }
-    throw 'Visual review contains explicitly named captures with identical image bytes. Remove or make the scenarios materially distinct.'
-}
-
-
+    return $name -match '^visual-.+\.(png|jpe?g|webp|gif|avif)$'
 }
 
 function Add-VisualImages {
@@ -274,4 +157,3 @@ if ($redundantNamedCaptures.Count -gt 0) {
     }
     throw 'Visual review contains explicitly named captures with identical image bytes. Remove or make the scenarios materially distinct.'
 }
-
