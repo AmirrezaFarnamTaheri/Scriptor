@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 
-import { openCommandPalette, runCommand, settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
+import { appendEditorLine, openCommandPalette, runCommand, settleLayout, waitForWorkspace, WORKSPACE_CHROME_PREFS } from './helpers.ts'
 
 const RESOURCE_INVENTORY_FIXTURE = {
   generatedAtMs: 1786200000000,
@@ -599,6 +599,26 @@ test.describe('visual review states', () => {
     }
   })
 
+  test('external-change conflict recovery evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:hash-mismatch', '1')
+    })
+    await openVisualWorkspace(page)
+    await appendEditorLine(page, 'Local draft retained for conflict-review evidence.')
+
+    const banner = page.getByRole('alert').filter({ hasText: 'This note changed on disk' })
+    await expect(banner).toBeVisible({ timeout: 15_000 })
+    await expect(banner.getByRole('button', { name: 'Reload from disk', exact: true })).toBeVisible()
+    await expect(banner.getByRole('button', { name: 'Keep editing', exact: true })).toBeVisible()
+    await expect.poll(() => banner.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.width > 240
+        && rect.left >= 0
+        && rect.right <= window.innerWidth
+    })).toBe(true)
+    await captureElement(page, banner, 'visual-external-change-conflict.png')
+  })
+
   test('slow vault loading evidence', async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await page.addInitScript(() => {
@@ -965,6 +985,38 @@ test.describe('visual review states', () => {
       await expect(capture.getByRole('button', { name, exact: true })).toHaveClass(/toolbar-button/)
     }
     await captureElement(page, capture, 'visual-quick-capture.png')
+  })
+
+  test('sticky-note overlay evidence', async ({ page }) => {
+    await openVisualWorkspace(page)
+    await openCommandPalette(page)
+    await runCommand(page, 'Quick capture (scratchpad & todos)')
+    const capture = page.locator('.quick-capture-panel')
+    await expect(capture).toBeVisible()
+    await capture.getByRole('button', { name: 'Add sticky note', exact: true }).click()
+    await capture.getByRole('button', { name: 'Close', exact: true }).click()
+    await expect(capture).toBeHidden()
+
+    const toolbar = page.locator('.editor-toolbar')
+    const directToggle = toolbar.getByRole('button', { name: 'Show sticky notes', exact: true })
+    if (await directToggle.isVisible()) {
+      await directToggle.click()
+    } else {
+      await toolbar.getByRole('button', { name: 'Tools', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Show sticky notes', exact: true }).click()
+    }
+
+    const layer = page.getByRole('region', { name: 'Sticky notes', exact: true })
+    await expect(layer).toBeVisible()
+    const sticky = layer.locator('.sticky-note-card')
+    await expect(sticky).toHaveCount(1)
+    await expect(sticky.getByLabel('Sticky note title')).toHaveValue('Sticky')
+    await expect.poll(() => sticky.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.left >= 0 && rect.top >= 0
+        && rect.right <= window.innerWidth && rect.bottom <= window.innerHeight
+    })).toBe(true)
+    await captureVisual(page, 'visual-sticky-note-overlay.png')
   })
 
   test('Built-in modules evidence', async ({ page }) => {
