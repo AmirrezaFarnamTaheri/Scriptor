@@ -1,10 +1,10 @@
 /* Help is explicit, read-only chrome isolated from document typography and editor CSS. */
 .help-center {
   box-sizing: border-box;
-  width: min(1020px, calc(100vw - 24px));
-  max-width: calc(100vw - 24px);
-  height: min(790px, calc(100dvh - 24px));
-  max-height: calc(100dvh - 24px);
+  width: min(1020px, calc(var(--app-viewport-width, 100vw) - 24px));
+  max-width: calc(var(--app-viewport-width, 100vw) - 24px);
+  height: min(790px, calc(var(--app-viewport-height, 100dvh) - 24px));
+  max-height: calc(var(--app-viewport-height, 100dvh) - 24px);
   margin: auto;
   padding: 0;
   overflow: hidden;
@@ -62,7 +62,7 @@
 .help-ui :is(button, input, select, summary):focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 [data-help-highlight='true'] { outline: 3px solid var(--primary) !important; outline-offset: 4px; }
 @media (max-width: 720px) {
-  .help-center { width: calc(100vw - 12px); max-width: calc(100vw - 12px); height: calc(100dvh - 12px); max-height: calc(100dvh - 12px); }
+  .help-center { width: calc(var(--app-viewport-width, 100vw) - 12px); max-width: calc(var(--app-viewport-width, 100vw) - 12px); height: calc(var(--app-viewport-height, 100dvh) - 12px); max-height: calc(var(--app-viewport-height, 100dvh) - 12px); }
   .help-center-header { padding: 12px; }
   .help-center-body { display: flex; flex-direction: column; }
   .help-browser { padding: 10px 12px; flex: 0 0 auto; border-inline-end: 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
