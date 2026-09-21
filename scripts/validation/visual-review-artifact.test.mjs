@@ -10,6 +10,33 @@ const refreshWorkflow = fs.readFileSync(path.join(root, '.github/workflows/refre
 const packager = fs.readFileSync(path.join(root, 'scripts/ci/prepare-visual-review-package.ps1'), 'utf8')
 const visualReview = fs.readFileSync(path.join(root, 'e2e/visual-review.spec.ts'), 'utf8')
 const visualConfig = fs.readFileSync(path.join(root, 'playwright.visual.config.ts'), 'utf8')
+const screenshotSpec = fs.readFileSync(path.join(root, 'e2e/screenshots.spec.ts'), 'utf8')
+const baselineDir = path.join(root, 'e2e/screenshots.spec.ts-snapshots')
+const galleryDir = path.join(root, 'docs/assets/screenshots')
+
+test('tracked screenshot trees contain no orphaned PNG artifacts', () => {
+  const baselineNames = [...screenshotSpec.matchAll(/toHaveScreenshot\('([^']+\.png)'/g)]
+    .map(([, name]) => name.replace(/\.png$/, '-win32.png'))
+    .sort()
+  const trackedBaselines = fs.readdirSync(baselineDir)
+    .filter((name) => name.endsWith('.png'))
+    .sort()
+  assert.deepEqual(trackedBaselines, baselineNames, 'stable Windows baseline tree contains stale or missing PNGs')
+
+  const generatedGalleryNames = [...screenshotSpec.matchAll(/shotPath\('([^']+)'\)/g)]
+    .map(([, name]) => `${name}.png`)
+  const promotedVisualReviewNames = [
+    'editor-recovery.png',
+    'mcp-sharing-inventory.png',
+    'toolbar-insert.png',
+    'toolbar-typography.png',
+  ]
+  const expectedGallery = [...new Set([...generatedGalleryNames, ...promotedVisualReviewNames])].sort()
+  const trackedGallery = fs.readdirSync(galleryDir)
+    .filter((name) => /\.(?:png|jpe?g|webp)$/i.test(name))
+    .sort()
+  assert.deepEqual(trackedGallery, expectedGallery, 'documentation gallery contains stale or missing image artifacts')
+})
 
 test('visual review covers ready PR heads and protected-branch pushes', () => {
   assert.match(workflow, /pull_request:\s*\n\s*types: \[opened, synchronize, reopened, ready_for_review\]/)
@@ -144,6 +171,8 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-dock-jobs.png',
     'visual-settings-dark.png',
     'visual-settings-advanced.png',
+    'visual-settings-daemon-operations.png',
+    'visual-settings-release-quality.png',
     'visual-onboarding-dark.png',
     'visual-layout-presets.png',
     'visual-conflict-resolver-dark.png',
