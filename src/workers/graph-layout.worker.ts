@@ -63,6 +63,12 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       }
     }
 
+    // Dense graphs are evidence surfaces, not packing benchmarks. Reserve
+    // additional interior breathing room and never upscale the completed force
+    // layout to the viewport edge; this prevents the rectangular perimeter
+    // crowding that made 100+ node screenshots unreadable.
+    const fitPadding = dense ? Math.max(64, Math.min(width, height) * 0.08) : 44
+    const maxFitScale = dense ? 0.9 : 1.25
     const result = fitGraphLayoutToViewport(
       simNodes.map((node) => ({
         id: node.id,
@@ -75,7 +81,8 @@ self.onmessage = (event: MessageEvent<LayoutRequest>) => {
       })),
       width,
       height,
-      44,
+      fitPadding,
+      maxFitScale,
     )
 
     self.postMessage({ type: 'done', nodes: result })

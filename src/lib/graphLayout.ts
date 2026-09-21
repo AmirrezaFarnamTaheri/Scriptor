@@ -16,6 +16,7 @@ export function fitGraphLayoutToViewport<T extends GraphLayoutPoint>(
   width: number,
   height: number,
   padding = 44,
+  maxScale = 1.25,
 ): Array<T & { x: number; y: number }> {
   if (nodes.length === 0) return []
 
@@ -38,7 +39,8 @@ export function fitGraphLayoutToViewport<T extends GraphLayoutPoint>(
   const spanY = Math.max(maxY - minY, 1)
   const availableWidth = Math.max(safeWidth - safePadding * 2, 1)
   const availableHeight = Math.max(safeHeight - safePadding * 2, 1)
-  const scale = Math.min(1.25, availableWidth / spanX, availableHeight / spanY)
+  const safeMaxScale = Number.isFinite(maxScale) ? Math.max(0.1, maxScale) : 1.25
+  const scale = Math.min(safeMaxScale, availableWidth / spanX, availableHeight / spanY)
   const centerX = (minX + maxX) / 2
   const centerY = (minY + maxY) / 2
 
