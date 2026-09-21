@@ -44,16 +44,28 @@
   stroke: var(--primary);
 }
 
+/* UnifiedPanelShell owns dialog geometry, scrolling, padding, border, and
+ * background. Keep this class focused on dashboard content so it cannot
+ * reintroduce an independent scroll container or widen the modal. */
 .health-dashboard {
-  width: min(720px, calc(100vw - 32px));
-  max-height: min(80vh, 720px);
-  overflow: auto;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.health-dashboard .unified-panel-body {
+  min-width: 0;
   display: grid;
   gap: 16px;
-  padding: 18px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--dialog-bg, var(--bg-elevated));
+}
+
+.health-dashboard .health-issues,
+.health-dashboard .health-metrics,
+.health-dashboard .health-plugin-widgets,
+.health-dashboard .health-checklist,
+.health-dashboard .health-repair-center,
+.health-dashboard .health-cache-actions {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .health-dashboard header {

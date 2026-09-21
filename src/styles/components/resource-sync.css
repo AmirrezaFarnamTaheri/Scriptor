@@ -1,6 +1,18 @@
 .resource-sync-panel {
   display: grid;
+  min-width: 0;
+  max-width: 100%;
   gap: 1rem;
+}
+
+.resource-sync-panel > *,
+.resource-sync-section,
+.resource-target-grid,
+.resource-sync-stats,
+.resource-plan-meta,
+.resource-table-wrap {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .resource-sync-heading,
@@ -166,11 +178,16 @@
 }
 
 .resource-table-wrap {
-  overflow: auto;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
 }
 
 .resource-table {
   width: 100%;
+  min-width: 620px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.78rem;
 }
@@ -181,6 +198,7 @@
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 
 .resource-table td {
@@ -234,6 +252,7 @@
 
 .resource-plan-meta code,
 .resource-plan small {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
