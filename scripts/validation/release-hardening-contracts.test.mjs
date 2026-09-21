@@ -61,7 +61,7 @@ test('release workflow artifacts use explicit bounded retention', () => {
       const block = []
       for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
         const line = lines[cursor] ?? ''
-        if (/^      - (?:name:|uses:)/.test(line) || /^  [A-Za-z0-9_-]+:\s*$/.test(line)) break
+        if (/^ {6}- (?:name:|uses:)/.test(line) || /^ {2}[A-Za-z0-9_-]+:\s*$/.test(line)) break
         block.push(line)
       }
       assert.match(block.join('\n'), /retention-days:\s*\d+/, `${relative} upload-artifact at line ${index + 1} needs bounded retention`)
