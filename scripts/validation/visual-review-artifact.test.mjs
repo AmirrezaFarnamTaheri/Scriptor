@@ -157,6 +157,7 @@ test('Help visual evidence proves centralized, non-injected guidance', () => {
 
 test('major product surfaces keep visual evidence', () => {
   for (const image of [
+    "visual-empty-workspace.png",
     "visual-reader-pdf.png",
     "visual-tasks-populated.png",
     "visual-git-confirmation.png",
@@ -169,6 +170,7 @@ test('major product surfaces keep visual evidence', () => {
     "visual-bibliography.png",
     "visual-snippets.png",
     "visual-cheatsheet.png",
+    "visual-cheatsheet-bottom.png",
     "visual-template-picker.png",
     "visual-obsidian-import.png",
     "visual-support.png",

@@ -184,6 +184,22 @@ test.describe('visual review states', () => {
     }, WORKSPACE_CHROME_PREFS)
   })
 
+  test('empty workspace startup evidence', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.sessionStorage.setItem('e2e:no-auto-open', '1')
+    })
+    await page.goto('/', { waitUntil: 'domcontentloaded' })
+
+    const workspace = page.getByRole('main', { name: 'Scriptor workspace' })
+    await expect(workspace).toBeVisible()
+    await expect(page.getByText('Open your writing workspace', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Open vault', exact: true })).toBeVisible()
+    await expect(page.locator('.editor-panel, .inspector-panel')).toHaveCount(0)
+    await expectNoHorizontalOverflow(page)
+
+    await captureVisual(page, 'visual-empty-workspace.png')
+  })
+
   test('dark workspace with split preview', async ({ page }) => {
     await page.addInitScript(() => {
       window.localStorage.setItem('scriptor:app-theme', 'dark')
@@ -985,10 +1001,24 @@ test.describe('visual review states', () => {
     await expect(cheatsheet).toBeVisible()
     await expect.poll(() => cheatsheet.evaluate((element) => {
       const background = getComputedStyle(element).backgroundColor
-      const rgba = background.match(/^rgba\\([^,]+,[^,]+,[^,]+,\\s*([\\d.]+)\\)$/)
+      const rgba = background.match(/^rgba\([^,]+,[^,]+,[^,]+,\s*([\d.]+)\)$/)
       return rgba ? Number(rgba[1]) >= 0.99 : background !== 'transparent'
     })).toBe(true)
+
+    const body = cheatsheet.locator('.cheatsheet-body')
+    await expect.poll(() => body.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
     await captureElement(page, cheatsheet, 'visual-cheatsheet.png')
+
+    const finalSnippet = body.locator('.cheatsheet-snippet-list').last().locator('li').last()
+    await finalSnippet.scrollIntoViewIfNeeded()
+    await expect(finalSnippet).toBeVisible()
+    await expect.poll(async () => {
+      const [bodyBox, snippetBox] = await Promise.all([body.boundingBox(), finalSnippet.boundingBox()])
+      if (!bodyBox || !snippetBox) return false
+      return snippetBox.y >= bodyBox.y - 1
+        && snippetBox.y + snippetBox.height <= bodyBox.y + bodyBox.height + 1
+    }).toBe(true)
+    await captureElement(page, cheatsheet, 'visual-cheatsheet-bottom.png')
   })
 
   test('Template picker evidence', async ({ page }) => {
