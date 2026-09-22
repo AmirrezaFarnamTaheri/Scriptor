@@ -278,4 +278,73 @@ export const surfaceGuides: readonly HelpGuide[] = [
     ],
     related: ['gmail', 'google', 'plugins', 'permissions'],
   }
+  {
+    id: 'vault-config', title: 'Vault workflow configuration', category: 'Workspace', policy: 'manual',
+    entry: 'Settings → General → Vault configuration.', prerequisite: 'Open the vault whose defaults and workflow rules you intend to change.',
+    safety: 'These settings can change where new notes are created, automatic export behavior, graph grouping, and collaboration metadata. Review generated previews and save deliberately.',
+    source: 'src/components/VaultConfigSettingsSection.tsx', roots: ['[data-help-topic="vault-config"]'],
+    steps: [
+      ['Confirm the vault scope', 'Check the active vault before editing directories, templates, inbox rules, writing targets, graph groups, or scan roots because the configuration is vault-specific.'],
+      ['Preview path-producing settings', 'Use the daily-note preview and inspect template, note-type, bibliography, and history paths before saving so relative paths land where you expect.'],
+      ['Separate workflow from external effects', 'Inbox, export-on-save, graph grouping, Canvas collaboration, and extra scan roots control different subsystems. Change only the owner needed for the current job.'],
+      ['Save and verify the affected workflow', 'Persist the vault configuration, then exercise the specific feature you changed. A saved form is not proof that a template, export, scan root, or collaboration path works.'],
+    ],
+    questions: [
+      ['Are these application-wide preferences?', 'No. This section primarily edits the active vault configuration; appearance, shortcuts, and other application preferences have separate owners.'],
+      ['Can a bad path delete existing notes?', 'Ordinary configuration should not be treated as deletion, but path changes can redirect future files or derived outputs. Preserve backups and verify destinations before relying on automation.'],
+    ],
+    related: ['settings', 'daily', 'templates', 'writing-targets', 'export', 'graph', 'canvas'],
+  },
+  {
+    id: 'rename-block', title: 'Rename a block anchor', category: 'Knowledge', policy: 'manual',
+    entry: 'Block-anchor rename dialog opened from a note reference/refactor workflow.', prerequisite: 'An existing block anchor and the note that owns it.',
+    safety: 'Applying can edit the source anchor and references across multiple notes. Review the dry run before changing a widely referenced anchor.',
+    source: 'src/components/RenameBlockDialog.tsx', roots: ['[data-help-topic="rename-block"]'],
+    steps: [
+      ['Confirm the owning note and anchor', 'Read the note path and existing block id before typing a replacement so similarly named anchors in other notes are not confused.'],
+      ['Choose a stable new anchor', 'Use a concise identifier that fits the note and avoids collisions with another block anchor in the same destination.'],
+      ['Review reference rewriting', 'Keep the update-references option enabled when backlinks should follow the rename, then run the dry preview and inspect every affected file.'],
+      ['Apply and verify navigation', 'Apply only when the preview is correct, then open representative block links and backlinks to confirm they resolve to the renamed anchor.'],
+    ],
+    questions: [
+      ['What happens if I turn off reference updates?', 'The anchor can change while existing wikilinks keep the old target, leaving unresolved references that you must repair separately.'],
+      ['Does the dry run modify Markdown?', 'No. It calculates the proposed rewrite scope; the separate Apply action performs the mutation.'],
+    ],
+    related: ['link-rewrite', 'backlinks', 'outgoing', 'recovery'],
+  },
+  {
+    id: 'rename-section', title: 'Rename a section and its references', category: 'Knowledge', policy: 'manual',
+    entry: 'Section rename dialog opened from an outline/link refactor workflow.', prerequisite: 'An existing heading in the intended note.',
+    safety: 'Applying can change heading text and references across the vault. A heading rename can affect links, outlines, and generated navigation.',
+    source: 'src/components/RenameSectionDialog.tsx', roots: ['[data-help-topic="rename-section"]'],
+    steps: [
+      ['Confirm the source heading', 'Check the note path and current section label before editing; repeated heading text in different notes does not identify the same target.'],
+      ['Choose whether to change the heading', 'Keep Update heading enabled when the visible source heading should change together with backlinks; disable it only when you understand the resulting reference model.'],
+      ['Inspect the dry-run scope', 'Review affected files and warnings, especially duplicate headings, aliases, encoded fragments, and links from notes outside the immediate folder.'],
+      ['Apply and test representative links', 'After applying, open the renamed heading from the outline and from at least one incoming reference to verify the fragment resolves correctly.'],
+    ],
+    questions: [
+      ['Can I rename only the references and keep the heading text?', 'The dialog exposes whether the source heading is updated. Review the dry-run result because reference-only changes can be surprising.'],
+      ['Why can a section rename touch several files?', 'Heading links can originate anywhere in the vault, so maintaining navigation may require rewriting every matching reference.'],
+    ],
+    related: ['link-rewrite', 'outline', 'backlinks', 'outgoing'],
+  },
+  {
+    id: 'rename-tag', title: 'Rename a tag hierarchy', category: 'Knowledge', policy: 'manual',
+    entry: 'Tag rename dialog from the tag browser or knowledge refactor workflow.', prerequisite: 'An existing tag in the active vault.',
+    safety: 'Applying rewrites matching tags in note content and also includes hierarchical children. Review scope before renaming a broad parent tag.',
+    source: 'src/components/RenameTagDialog.tsx', roots: ['[data-help-topic="rename-tag"]'],
+    steps: [
+      ['Confirm the parent tag', 'Read the current tag and estimate how many notes and child tags depend on it before choosing a new name.'],
+      ['Choose the replacement', 'Enter the canonical tag without relying on visual case or punctuation differences to distinguish unrelated concepts.'],
+      ['Inspect hierarchical impact', 'Run the dry preview and check child tags such as parent/child because they are renamed together with the parent namespace.'],
+      ['Apply and verify taxonomy', 'After applying, browse tags, search representative notes, and inspect any automation or saved views that depend on the renamed taxonomy.'],
+    ],
+    questions: [
+      ['Will child tags be renamed too?', 'Yes. Hierarchical children under the renamed parent are included, which is why the dry-run scope matters.'],
+      ['Do saved views automatically understand the new tag?', 'Not necessarily. Review saved queries, collections, templates, or automation rules that contain the old tag text.'],
+    ],
+    related: ['tags', 'link-rewrite', 'saved-views', 'collections'],
+  },
+
 ]
