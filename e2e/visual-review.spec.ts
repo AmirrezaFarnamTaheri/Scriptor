@@ -81,15 +81,23 @@ async function waitForVisualWorkspace(page: Page) {
 }
 
 async function waitForPreviewReady(page: Page) {
-  const preview = page.getByRole('article', { name: 'Markdown preview' }).first()
-  await expect(preview).toBeVisible({ timeout: 30_000 })
-  await expect(preview.getByRole('heading', { name: 'Research Plan', level: 1 })).toBeVisible()
+  const visual = page.locator('.editable-preview-editor .cm-content').first()
+  const rendered = page.getByRole('article', { name: 'Markdown preview' }).first()
+  await expect.poll(async () => {
+    if (await visual.isVisible().catch(() => false)) {
+      return (await visual.textContent())?.includes('Research Plan') ?? false
+    }
+    if (await rendered.isVisible().catch(() => false)) {
+      return (await rendered.textContent())?.includes('Research Plan') ?? false
+    }
+    return false
+  }, { timeout: 30_000 }).toBe(true)
   await expect(page.locator('.preview-error')).toHaveCount(0)
   await settleLayout(page)
 }
 
 async function waitForActiveSplitPreview(page: Page) {
-  const splitPreview = page.getByRole('article', { name: 'Markdown preview' }).first()
+  const splitPreview = page.locator('aside[aria-label="Split Markdown preview"]')
   if (await splitPreview.isVisible()) await waitForPreviewReady(page)
 }
 
