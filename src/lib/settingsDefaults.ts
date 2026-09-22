@@ -38,7 +38,7 @@ export const DEFAULT_VAULT_CONFIG: VaultConfig = {
   },
   autosuggest: {
     enabled: true,
-    min_chars: 2,
+    min_chars: 4,
     max_results: 8,
     cross_document: true,
     wikilinks: true,
