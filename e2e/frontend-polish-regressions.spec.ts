@@ -54,6 +54,37 @@ test.describe('Frontend polish regressions', () => {
     })
   }
 
+  test('command palette search chrome stays stable while typing and note lookup settles', async ({ page }) => {
+    await launchApp(page)
+    await openCommandPalette(page)
+
+    const palette = page.getByRole('dialog', { name: 'Command palette', exact: true })
+    const search = palette.getByRole('searchbox')
+    const header = palette.locator('.command-palette-header')
+    const status = palette.locator('.command-palette-search-status')
+
+    await expect(status).toBeVisible()
+    const before = await header.boundingBox()
+    expect(before).not.toBeNull()
+
+    await search.pressSequentially('notes', { delay: 35 })
+    await expect(search).toHaveValue('notes')
+    await expect(search).toBeFocused()
+    await expect(status).toBeVisible()
+
+    const during = await header.boundingBox()
+    expect(during).not.toBeNull()
+    expect(during?.x).toBeCloseTo(before?.x ?? 0, 0)
+    expect(during?.y).toBeCloseTo(before?.y ?? 0, 0)
+    expect(during?.height).toBeCloseTo(before?.height ?? 0, 0)
+
+    await expect(palette.getByRole('option').first()).toBeVisible()
+    const after = await header.boundingBox()
+    expect(after?.x).toBeCloseTo(before?.x ?? 0, 0)
+    expect(after?.y).toBeCloseTo(before?.y ?? 0, 0)
+    expect(after?.height).toBeCloseTo(before?.height ?? 0, 0)
+  })
+
   test('inspector modes leave every editor toolbar control inside the writing column', async ({ page }) => {
     await launchApp(page)
     for (const width of [1440, 1240, 1024]) {
