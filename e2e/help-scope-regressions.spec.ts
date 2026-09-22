@@ -52,7 +52,7 @@ test('complex feature first-open invitation is one-time, dismissible, and replay
     window.localStorage.setItem('scriptor:onboarding-complete', 'true')
     window.localStorage.removeItem('scriptor:help-guides:v1')
   })
-  await launchApp(page)
+  await launchApp(page, { showFirstOpenHelp: true })
   await waitForWorkspace(page)
   await openCommandPalette(page)
   await runCommand(page, 'Open graph')
