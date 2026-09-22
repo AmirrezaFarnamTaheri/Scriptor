@@ -382,7 +382,13 @@ export function installE2eBridge(): void {
       case 'indexer_search': {
         const query = String((payload as { query?: string }).query ?? '')
         const limit = Number((payload as { limit?: number }).limit ?? 25)
-        return e2eSearchNotes(query, limit)
+        const hits = e2eSearchNotes(query, limit)
+        if (window.sessionStorage.getItem('e2e:search-delay') === '1') {
+          return new Promise((resolve) => {
+            window.setTimeout(() => resolve(hits), 750)
+          })
+        }
+        return hits
       }
       case 'indexer_update_note':
         return true
