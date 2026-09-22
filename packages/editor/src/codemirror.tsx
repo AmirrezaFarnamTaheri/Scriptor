@@ -166,6 +166,10 @@ class CodeMirrorAdapter implements EditorAdapter {
         if (update.docChanged) {
           options.onChange?.(update.state.doc.toString())
         }
+        if ((update.selectionSet || update.docChanged) && this.onVisibleLineChange) {
+          const line = update.state.doc.lineAt(update.state.selection.main.head).number
+          this.onVisibleLineChange(line)
+        }
       }),
     ]
 
