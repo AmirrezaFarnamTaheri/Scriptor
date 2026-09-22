@@ -5,19 +5,19 @@ export interface HelpStorage { getItem(key: string): string | null; setItem(key:
 export interface HelpSnapshot { preferences: HelpPreferences; storageWarning: boolean }
 export type HelpAction =
   | { type: 'step'; id: string; step: number }
-  | { type: 'finish' | 'restart'; id: string }
+  | { type: 'finish' | 'restart' | 'offer'; id: string }
   | { type: 'reset' }
 
-export function emptyHelpPreferences(): HelpPreferences { return { version: 1, progress: {} } }
+export function emptyHelpPreferences(): HelpPreferences { return { version: 2, progress: {} } }
 export function getProgress(preferences: HelpPreferences, id: string): GuideProgress {
-  return Object.hasOwn(preferences.progress, id) ? preferences.progress[id]! : { step: 0, completed: false }
+  return Object.hasOwn(preferences.progress, id) ? preferences.progress[id]! : { step: 0, completed: false, offered: false }
 }
 
 export function parseHelpPreferences(raw: string | null): HelpPreferences {
   if (!raw) return emptyHelpPreferences()
   if (raw.length > 100_000) throw new Error('Help preferences exceed the bounded storage limit')
   const value: unknown = JSON.parse(raw)
-  if (!value || typeof value !== 'object' || !('version' in value) || value.version !== 1) throw new Error('Unsupported help preferences')
+  if (!value || typeof value !== 'object' || !('version' in value) || (value.version !== 1 && value.version !== 2)) throw new Error('Unsupported help preferences')
   const records = 'progress' in value && value.progress && typeof value.progress === 'object' ? value.progress : {}
   const progress: Record<string, GuideProgress> = {}
   for (const [id, guide] of HELP_BY_ID) {
@@ -28,27 +28,29 @@ export function parseHelpPreferences(raw: string | null): HelpPreferences {
     progress[id] = {
       step: Math.max(0, Math.min(guide.steps.length - 1, Math.floor(step))),
       completed: 'completed' in record && record.completed === true,
+      offered: 'offered' in record && record.offered === true,
     }
   }
-  // Legacy version-1 payloads may contain retired invitation fields. Ignore
-  // them while preserving compatible tour progress.
-  return { version: 1, progress }
+  // Version-1 payloads migrate in place. Any historical `offered` flag is safe
+  // to preserve because it only suppresses a non-blocking first-open invitation.
+  return { version: 2, progress }
 }
 
 export function reduceHelpPreferences(current: HelpPreferences, action: HelpAction): HelpPreferences {
-  if (action.type === 'reset') return { version: 1, progress: {} }
+  if (action.type === 'reset') return { version: 2, progress: {} }
   const guide = HELP_BY_ID.get(action.id)
   if (!guide) return current
   const old = getProgress(current, action.id)
   let next = { ...old }
-  if (action.type === 'restart') next = { step: 0, completed: false }
-  if (action.type === 'finish') next = { step: guide.steps.length - 1, completed: true }
+  if (action.type === 'restart') next = { ...old, step: 0, completed: false, offered: true }
+  if (action.type === 'offer') next = { ...old, offered: true }
+  if (action.type === 'finish') next = { step: guide.steps.length - 1, completed: true, offered: true }
   if (action.type === 'step') {
     const step = Number.isFinite(action.step) ? Math.floor(action.step) : old.step
     next = { ...old, step: Math.max(0, Math.min(guide.steps.length - 1, step)) }
   }
   if (JSON.stringify(old) === JSON.stringify(next)) return current
-  return { ...current, progress: { ...current.progress, [action.id]: next } }
+  return { ...current, version: 2, progress: { ...current.progress, [action.id]: next } }
 }
 
 /** Stable snapshots for React; corrupt or denied storage degrades to a working in-memory session. */
