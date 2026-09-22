@@ -32,6 +32,7 @@ export function RenameBlockDialog({
   return (
     <LinkRewriteDialog
       title="Rename block anchor"
+      helpTopic="rename-block"
       subtitle={`${notePath} · ${oldBlock}`}
       preview={preview}
       isApplying={isApplying}
