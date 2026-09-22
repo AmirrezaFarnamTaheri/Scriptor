@@ -265,7 +265,7 @@ test('major product surfaces keep visual evidence', () => {
     "visual-writing-targets.png",
     "visual-frontmatter.png",
     "visual-editor-toolbar-customizer.png",
-    "visual-search-results.png",
+    "visual-dock-search-results.png",
     "visual-kanban-populated.png",
     "visual-bibliography.png",
     "visual-snippets.png",
