@@ -112,6 +112,17 @@ async function captureVisual(page: Page, name: string) {
 async function captureElement(page: Page, locator: Locator, name: string) {
   await settleLayout(page)
   await expectNoAmbientHelp(page)
+  await expect.poll(async () => {
+    const [box, viewport] = await Promise.all([
+      locator.boundingBox(),
+      Promise.resolve(page.viewportSize()),
+    ])
+    if (!box || !viewport) return false
+    return box.x >= -1
+      && box.y >= -1
+      && box.x + box.width <= viewport.width + 1
+      && box.y + box.height <= viewport.height + 1
+  }, { message: `${name} must represent one fully visible viewport state` }).toBe(true)
   await locator.screenshot({
     path: test.info().outputPath(name),
     animations: 'disabled',
