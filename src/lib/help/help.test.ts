@@ -7,7 +7,7 @@ import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
 
 test('all guides have unique ids, authored steps, questions, entry paths, safety, and valid related guides', () => {
-  assert.ok(HELP_GUIDES.length >= 70)
+  assert.ok(HELP_GUIDES.length >= 90)
   assert.equal(HELP_BY_ID.size, HELP_GUIDES.length)
   for (const guide of HELP_GUIDES) {
     assert.match(guide.id, /^[a-z][a-z0-9-]+$/)
@@ -184,6 +184,12 @@ test('every literal contextual help topic points to an authored guide', () => {
     'src/components/TocSidebar.tsx',
     'src/components/TypographyMenu.tsx',
     'src/components/InsertMenu.tsx',
+    'src/components/OnboardingTour.tsx',
+    'src/components/ExportPreflightPreview.tsx',
+    'src/components/ExportPrintPreview.tsx',
+    'src/components/git/GitConfirmDialog.tsx',
+    'src/components/portal/StickyNotesLayer.tsx',
+    'src/components/reader/AnnotationPopover.tsx',
   ]
   for (const path of files) {
     const source = readFileSync(path, 'utf8')
