@@ -20,6 +20,8 @@ import { useI18n } from '../../lib/i18n'
 export interface PanelTab {
   id: string
   label: string
+  /** Contextual guide to use while the tab itself or its panel owns focus. */
+  helpTopic?: string
 }
 
 interface UnifiedPanelShellProps {
@@ -220,6 +222,7 @@ function UnifiedPanelShellImpl({
                   aria-controls={panelId}
                   tabIndex={selected ? 0 : -1}
                   className={selected ? 'active' : undefined}
+                  data-help-topic={tab.helpTopic ?? helpTopic}
                   onClick={() => onTabChange(tab.id)}
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                 >
@@ -236,6 +239,7 @@ function UnifiedPanelShellImpl({
           className="unified-panel-body"
           role={activeTab ? 'tabpanel' : undefined}
           aria-labelledby={activeTab ? `${titleId}-tab-${activeTab}` : undefined}
+          data-help-topic={activeTab ? (tabs?.find((tab) => tab.id === activeTab)?.helpTopic ?? helpTopic) : helpTopic}
         >
           {children}
         </div>
