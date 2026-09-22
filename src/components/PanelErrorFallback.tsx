@@ -114,7 +114,7 @@ export function PanelErrorFallback({
       role={isModal ? 'alertdialog' : 'alert'}
       aria-modal={isModal || undefined}
       aria-live="assertive"
-      data-help-topic="recovery"
+      data-help-topic="panel-recovery"
       aria-labelledby={isModal ? titleId : undefined}
       aria-describedby={isModal ? detailId : undefined}
       tabIndex={isModal ? -1 : undefined}
