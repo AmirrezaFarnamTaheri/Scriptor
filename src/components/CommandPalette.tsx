@@ -81,7 +81,6 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         searchTimer.current = null
       }
       searchGeneration.current += 1
-      setSearchingQuery(null)
       return
     }
     const requestQuery = normalizedQuery
