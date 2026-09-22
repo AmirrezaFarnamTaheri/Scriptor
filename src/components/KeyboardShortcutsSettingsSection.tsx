@@ -98,13 +98,15 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
           const value = effectiveValue(entry.id, entry.defaultShortcut)
           const draft = drafts[entry.id]
           const hasOverride = shortcuts.hasOverride(entry.id)
+          const formattedValue = value ? (formatShortcut(value) ?? value) : null
+          const showNormalizedValue = Boolean(formattedValue && formattedValue !== value)
           return (
             <div className="shortcut-table-row" role="row" key={entry.id}>
               <div role="cell" className="shortcut-command-copy">
                 <strong>{entry.label}</strong>
                 <small>{entry.id}</small>
               </div>
-              <div role="cell">
+              <div role="cell" className="shortcut-binding-cell">
                 <label className="sr-only" htmlFor={`shortcut-${entry.id}`}>Shortcut for {entry.label}</label>
                 <input
                   id={`shortcut-${entry.id}`}
@@ -129,11 +131,11 @@ export const KeyboardShortcutsSettingsSection = memo(function KeyboardShortcutsS
                 />
                 {draft?.error ? (
                   <small id={`shortcut-error-${entry.id}`} className="settings-field-error" role="alert">{draft.error}</small>
-                ) : (
-                  <small className="shortcut-effective-label">
-                    {value ? `Displays as ${formatShortcut(value) ?? value}` : 'Disabled'}
-                  </small>
-                )}
+                ) : showNormalizedValue ? (
+                  <small className="shortcut-effective-label">Displays as {formattedValue}</small>
+                ) : !value ? (
+                  <small className="shortcut-effective-label">Disabled</small>
+                ) : null}
               </div>
               <div role="cell" className="shortcut-row-actions">
                 {hasOverride ? (
