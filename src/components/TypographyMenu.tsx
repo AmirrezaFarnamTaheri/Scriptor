@@ -34,7 +34,7 @@ export function TypographyMenu({ disabled, onSelect }: TypographyMenuProps) {
   const menuId = useId()
 
   return (
-    <div className="typography-menu" data-help-topic="toolbar">
+    <div className="typography-menu" data-help-topic="typography">
       <button
         ref={triggerRef}
         id={triggerId}
