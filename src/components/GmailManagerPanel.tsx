@@ -152,7 +152,7 @@ export function GmailManagerPanel({
 
   const handleStartAuth = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!clientId.trim() || !nativeReady) return
+    if (!nativeReady) return
     setLoading(true)
     setError(null)
     setStatusText(t('integrations.gmail.status.openingBrowser'))
@@ -539,22 +539,25 @@ ${message.plainText || message.snippet}
                 </button>
               ) : (
                 <form onSubmit={handleStartAuth} className="gmail-manager-account-form">
-                  <label className="settings-field">
-                    {t('integrations.gmail.clientId')}
-                    <input
-                      type="text"
-                      value={clientId}
-                      onChange={(event) => setClientIdOverride(event.target.value)}
-                      placeholder="1234567890-abc.apps.googleusercontent.com"
-                      required
-                    />
-                  </label>
-                  <p className="gmail-manager-help">{t('integrations.gmail.clientHelp')}</p>
+                  <p className="gmail-manager-help">{t('integrations.google.signInHelp')}</p>
                   <div>
-                    <button type="submit" className="action-button" disabled={loading || !clientId.trim()}>
+                    <button type="submit" className="action-button" disabled={loading}>
                       {loading ? t('integrations.gmail.startingAuth') : t('integrations.gmail.connectGoogle')}
                     </button>
                   </div>
+                  <details className="google-oauth-override">
+                    <summary>{t('integrations.google.developerOverride')}</summary>
+                    <p className="gmail-manager-help">{t('integrations.google.developerOverrideHelp')}</p>
+                    <label className="settings-field">
+                      {t('integrations.gmail.clientId')}
+                      <input
+                        type="text"
+                        value={clientId}
+                        onChange={(event) => setClientIdOverride(event.target.value)}
+                        placeholder="1234567890-abc.apps.googleusercontent.com"
+                      />
+                    </label>
+                  </details>
                 </form>
               )}
             </div>
