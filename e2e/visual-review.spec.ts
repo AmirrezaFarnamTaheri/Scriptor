@@ -1011,9 +1011,12 @@ test.describe('visual review states', () => {
     const inspector = page.locator('.inspector-panel')
     await captureElement(page, inspector, 'visual-layout-presets.png')
 
-    const storeBody = store.locator('.store-panel-body')
-    await storeBody.evaluate((element) => { element.scrollTop = element.scrollHeight })
-    await expect.poll(() => storeBody.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    // The Inspector rail owns vertical scrolling. StorePanel's internal body can
+    // fully expand within that rail, so asserting its scrollTop creates a false
+    // failure even when lower presets are genuinely offscreen.
+    await inspector.evaluate((element) => { element.scrollTop = element.scrollHeight })
+    await expect.poll(() => inspector.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await expect(store.getByRole('button', { name: 'Apply Synthesis layout' })).toBeInViewport()
     await captureElement(page, inspector, 'visual-layout-presets-bottom.png')
   })
 

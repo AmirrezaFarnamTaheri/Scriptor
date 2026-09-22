@@ -21,6 +21,10 @@ pub fn respond(request: &Request<Vec<u8>>) -> Response<Vec<u8>> {
             "text/javascript; charset=utf-8",
             include_bytes!("../../../../public/reader/vendor/pdf.worker.min.mjs"),
         ),
+        "vendor/jszip.min.js" => (
+            "text/javascript; charset=utf-8",
+            include_bytes!("../../../../public/reader/vendor/jszip.min.js"),
+        ),
         "vendor/epub.min.js" => (
             "text/javascript; charset=utf-8",
             include_bytes!("../../../../public/reader/vendor/epub.min.js"),
