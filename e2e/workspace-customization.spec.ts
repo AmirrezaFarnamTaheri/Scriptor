@@ -69,6 +69,35 @@ test('individual menu actions can be pinned and unpinned groups remain keyboard 
   await expect(page.locator('.toolbar-pinned').getByRole('button', { name: 'Insert', exact: true })).toHaveCount(0)
 })
 
+test('toolbar tools menu keeps its own scroll position while scrolling', async ({ page }) => {
+  await page.setViewportSize({ width: 1100, height: 420 })
+  await page.getByRole('button', { name: 'Tools', exact: true }).click()
+  const menu = page.getByRole('menu', { name: 'Tools', exact: true })
+  await expect(menu).toBeVisible()
+  await expect.poll(() => menu.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+
+  await menu.hover()
+  await page.mouse.wheel(0, 900)
+  await expect.poll(() => menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+
+  const scrolled = await menu.evaluate((element) => element.scrollTop)
+  await page.mouse.wheel(0, 180)
+  await expect.poll(() => menu.evaluate((element) => element.scrollTop)).toBeGreaterThanOrEqual(scrolled)
+})
+
+test('toolbar customizer list scrolls independently at constrained heights', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 440 })
+  await page.getByRole('button', { name: 'Customize toolbar', exact: true }).click()
+  const customizer = page.getByRole('dialog', { name: 'Customize toolbar' })
+  const list = customizer.locator('.toolbar-customizer-list')
+  await expect(list).toBeVisible()
+  await expect.poll(() => list.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true)
+
+  await list.hover()
+  await page.mouse.wheel(0, 900)
+  await expect.poll(() => list.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+})
+
 test('toolbar validates persisted widths and ignores duplicate and unknown tools', async ({ page }) => {
   await page.evaluate(() => localStorage.setItem('scriptor:editor-toolbar', JSON.stringify([
     { id: 'bold', pinned: true, width: 9999 },
