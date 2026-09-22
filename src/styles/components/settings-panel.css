@@ -406,3 +406,42 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+
+.google-signin-help {
+  margin: 10px 0 0;
+  max-width: 72ch;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.google-lookahead-field {
+  max-width: 280px;
+}
+
+.google-integration-toggles {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.google-oauth-override {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: color-mix(in srgb, var(--surface-muted) 74%, transparent);
+}
+
+.google-oauth-override > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.google-oauth-override[open] > summary {
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+
+.workspace-layout-toggles {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
