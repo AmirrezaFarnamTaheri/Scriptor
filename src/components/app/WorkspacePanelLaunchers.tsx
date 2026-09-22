@@ -417,6 +417,7 @@ function WorkspacePanelLaunchersImpl({
                       label: 'Describe the edit you want the assistant to draft',
                       defaultValue: '',
                       submitLabel: 'Draft',
+                      helpTopic: 'ai',
                     })
                     if (!prompt || !workspace.activePath) return
                     const proposed = await ai.proposeDraftFromPrompt(prompt, workspace.draftMarkdown)
