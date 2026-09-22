@@ -95,7 +95,7 @@ export const AdvancedSettingsSection = memo(function AdvancedSettingsSection({
 
   return (
     <>
-      <section className="settings-section" aria-labelledby="desktop-engine-heading">
+      <section className="settings-section" data-help-topic="advanced" aria-labelledby="desktop-engine-heading">
         <h3 id="desktop-engine-heading">{t('advancedSettings.desktopEngine')}</h3>
         <p className="health-subtitle">
           {t('advancedSettings.description')}
