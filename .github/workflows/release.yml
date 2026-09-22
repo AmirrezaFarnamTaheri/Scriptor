@@ -61,6 +61,10 @@ env:
     }}
   SCRIPTOR_TRUST_PROFILE: ${{ inputs.trust_profile || 'unsigned' }}
   SCRIPTOR_SOURCE_COMMIT: ${{ github.sha }}
+  # Public OAuth Desktop client identifier for Scriptor's Google application.
+  # Store this as a repository variable (not a secret); the desktop flow uses
+  # PKCE and never embeds a client secret.
+  SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID: ${{ vars.SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID }}
   # Build channel derived from the tag's pre-release segment.
   # v1.2.3         → lts
   # v1.2.3-beta.*  → beta
@@ -231,6 +235,9 @@ jobs:
             "SCRIPTOR_RELEASE_VERSION=v$canonicalVersion" | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
           }
           node scripts/release/version.mjs check
+          if ($env:SCRIPTOR_RELEASE_CHANNEL -eq 'production' -and [string]::IsNullOrWhiteSpace($env:SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID)) {
+            throw "Production packaging requires repository variable SCRIPTOR_GOOGLE_OAUTH_CLIENT_ID so Continue with Google works without user-supplied OAuth credentials."
+          }
           node scripts/release/validate-signing-policy.mjs --platform "${{ matrix.platform }}" --architecture "${{ matrix.architecture }}" --channel "$env:SCRIPTOR_RELEASE_CHANNEL" --trust-profile "$env:SCRIPTOR_TRUST_PROFILE"
 
       - name: Verify runner architecture matches target
