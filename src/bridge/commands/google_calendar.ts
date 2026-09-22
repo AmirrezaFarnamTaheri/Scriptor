@@ -51,14 +51,14 @@ export interface GoogleTaskSyncMutationResult {
 
 /** Begin the OAuth2 PKCE flow. Returns the authenticated account email. */
 export async function googleCalendarStartAuth(args: {
-  clientId: string
+  clientId?: string | null
   calendarId: string
   taskListId: string
 }): Promise<string> {
   requireNative()
   const authorizationToken = await authorizeSensitiveOperation('google_calendar_auth', 'google-calendar-auth')
   return invoke<string>('google_calendar_start_auth', {
-    clientId: args.clientId,
+    clientId: args.clientId?.trim() || null,
     calendarId: args.calendarId,
     taskListId: args.taskListId,
     authorizationToken,
