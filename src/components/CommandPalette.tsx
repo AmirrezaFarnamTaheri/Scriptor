@@ -61,7 +61,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         tone: 'default' as const,
         run: () => { onOpenNote?.(hit.path) },
       })),
-    [deferredQuery, noteSearch, onOpenNote, t],
+    [normalizedQuery, noteSearch, onOpenNote, t],
   )
 
   const mergedCommands = useMemo(() => {
@@ -70,12 +70,20 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
       .map(({ cmd }) => ({ ...cmd, group: 'command' as const }))
-    if (!searchNotes || deferredQuery.length < 2) return scored
+    if (!searchNotes || normalizedQuery.length < 2) return scored
     return [...scored, ...noteCommands]
   }, [commands, helpCommand, noteCommands, normalizedQuery, searchNotes])
 
   useEffect(() => {
-    if (!searchNotes || normalizedQuery.length < 2) return
+    if (!searchNotes || normalizedQuery.length < 2) {
+      if (searchTimer.current) {
+        window.clearTimeout(searchTimer.current)
+        searchTimer.current = null
+      }
+      searchGeneration.current += 1
+      setSearchingQuery(null)
+      return
+    }
     const requestQuery = normalizedQuery
     const generation = searchGeneration.current + 1
     searchGeneration.current = generation
@@ -122,7 +130,14 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
         <div className="command-palette-header">
           <Search className="command-palette-search-icon" aria-hidden="true" />
           <input
-            type="search" value={query}
+            type="text"
+            role="searchbox"
+            inputMode="search"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            value={query}
             onChange={(event) => { isKeyboardNav.current = false; setQuery(event.target.value); setSelectedIndex(0) }}
             onKeyDown={(event) => {
               if (event.key === 'ArrowDown') {
@@ -155,7 +170,7 @@ export const CommandPalette = memo(function CommandPalette({ onClose, commands, 
             {isSearchingNotes ? t('commandPalette.searchingNotes') : '\u00A0'}
           </span>
         </p>
-        <ul id="command-palette-list" ref={listRef} role="listbox">
+        <ul id="command-palette-list" ref={listRef} role="listbox" aria-busy={isSearchingNotes}>
           {mergedCommands.map((command, index) => {
             const previousGroup = mergedCommands[index - 1]?.group
             const showHeading = hasNoteResults && (index === 0 || previousGroup !== command.group)
