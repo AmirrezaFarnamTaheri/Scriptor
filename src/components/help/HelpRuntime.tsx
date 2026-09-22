@@ -39,7 +39,7 @@ export function HelpRuntime() {
       sequence: (current?.sequence ?? 0) + 1,
       returnFocus,
     }))
-  }, [])
+  }, [store])
   const close = useCallback(() => setSession(null), [])
   const maybeOffer = useCallback((element: Element | null) => {
     if (!element || document.querySelector('.help-center[open]')) return
