@@ -295,8 +295,27 @@ class CodeMirrorAdapter implements EditorAdapter {
     const current = this.getValue()
     if (current === markdown) return
 
+    // The split workspace keeps two editor views on one canonical Markdown
+    // draft. Mirror only the changed span instead of replacing the whole
+    // document on every keystroke, which preserves the sibling editor's
+    // selection, viewport mapping, and useful undo granularity.
+    let from = 0
+    const sharedLength = Math.min(current.length, markdown.length)
+    while (from < sharedLength && current.charCodeAt(from) === markdown.charCodeAt(from)) from += 1
+
+    let currentTo = current.length
+    let markdownTo = markdown.length
+    while (
+      currentTo > from &&
+      markdownTo > from &&
+      current.charCodeAt(currentTo - 1) === markdown.charCodeAt(markdownTo - 1)
+    ) {
+      currentTo -= 1
+      markdownTo -= 1
+    }
+
     this.view.dispatch({
-      changes: { from: 0, to: current.length, insert: markdown },
+      changes: { from, to: currentTo, insert: markdown.slice(from, markdownTo) },
     })
   }
 
