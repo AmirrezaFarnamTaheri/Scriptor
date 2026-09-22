@@ -164,3 +164,36 @@ test('manual reference surfaces do not interrupt first use with an invitation', 
   await page.keyboard.press('F1')
   await expect(help(page).getByRole('heading', { name: 'Markdown and query cheatsheet', exact: true })).toBeVisible()
 })
+
+
+test('first-run onboarding is the only unsolicited guidance on a fresh profile', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('scriptor:onboarding-complete', 'false')
+    localStorage.removeItem('scriptor:help-guides:v1')
+  })
+  await launchApp(page)
+  await expect(page.getByRole('dialog', { name: 'Product tour', exact: true })).toBeVisible()
+  await expect(page.locator('.help-invitation')).toHaveCount(0)
+})
+
+test('nested editor controls resolve their granular manual guides with F1', async ({ page }) => {
+  await launchApp(page)
+  const toolbar = page.locator('.editor-toolbar').first()
+  await expect(toolbar).toBeVisible()
+
+  const typography = toolbar.getByRole('button', { name: /Typography/i }).first()
+  await typography.focus()
+  await page.keyboard.press('F1')
+  await expect(help(page).getByRole('heading', { name: 'Typography cleanup and text transforms', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+
+  const customize = toolbar.getByRole('button', { name: /Customize toolbar/i }).first()
+  await customize.click()
+  const customizer = page.getByRole('dialog', { name: 'Customize toolbar', exact: true })
+  await expect(customizer).toBeVisible()
+  await customizer.getByRole('checkbox').first().focus()
+  await page.keyboard.press('F1')
+  await expect(help(page).getByRole('heading', { name: 'Customize the editor toolbar', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(customizer).toBeVisible()
+})
