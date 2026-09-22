@@ -10,6 +10,7 @@ interface LinkRewriteDialogProps {
   preview: LinkRewritePreview | null
   isApplying: boolean
   applyLabel?: string
+  helpTopic?: string
   onClose: () => void
   onPreview: () => void
   onApply: () => void
@@ -22,6 +23,7 @@ export function LinkRewriteDialog({
   preview,
   isApplying,
   applyLabel = 'Apply rewrite',
+  helpTopic = 'link-rewrite',
   onClose,
   onPreview,
   onApply,
@@ -37,7 +39,7 @@ export function LinkRewriteDialog({
         ref={dialogRef}
         className="rename-dialog"
         role="dialog"
-        data-help-topic="link-rewrite"
+        data-help-topic={helpTopic}
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
