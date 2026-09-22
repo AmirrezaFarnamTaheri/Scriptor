@@ -42,7 +42,7 @@ export function HelpRuntime() {
   }, [store])
   const close = useCallback(() => setSession(null), [])
   const maybeOffer = useCallback((element: Element | null) => {
-    if (!element || document.querySelector('.help-center[open]')) return
+    if (!element || document.querySelector('.help-center[open], .onboarding-tour')) return
     if (element instanceof HTMLElement && !isVisibleHelpTarget(element)) return
     const guide = contextGuide(element)
     if (guide.policy !== 'first-open') return
