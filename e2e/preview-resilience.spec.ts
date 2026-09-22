@@ -79,6 +79,37 @@ test.describe('Markdown preview resilience', () => {
     })
   })
 
+  test('formatting toolbar targets the last active side of Split', async ({ page }) => {
+    const editorToolbar = page.locator('.editor-toolbar')
+    await editorToolbar.getByRole('button', { name: 'Split', exact: true }).click()
+
+    const splitPane = page.locator('aside[aria-label="Split Markdown preview"]')
+    const previewLines = splitPane.locator('.editable-preview-editor .cm-line')
+    await expect(previewLines.first()).toBeVisible()
+
+    const marker = 'Preview toolbar target'
+    await previewLines.last().click()
+    await page.keyboard.press('End')
+    await page.keyboard.press('Enter')
+    await page.keyboard.type(marker)
+    await page.keyboard.press('Home')
+    await page.keyboard.down('Shift')
+    await page.keyboard.press('End')
+    await page.keyboard.up('Shift')
+
+    await editorToolbar.getByRole('button', { name: 'Bold', exact: true }).click()
+
+    await expect.poll(async () =>
+      page.evaluate((needle) => {
+        const editor = (window as Window & {
+          __scriptorE2eEditor?: { getModel?: () => { getValue?: () => string } | null }
+        }).__scriptorE2eEditor
+        return editor?.getModel?.()?.getValue?.().includes(`**${needle}**`) ?? false
+      }, marker),
+      { timeout: 10_000 },
+    ).toBe(true)
+  })
+
   test('split preview is writable and stays synchronized with source edits', async ({ page }) => {
     const editorToolbar = page.locator('.editor-toolbar')
     await editorToolbar.getByRole('button', { name: 'Split', exact: true }).click()
