@@ -32,6 +32,7 @@ export function RenameSectionDialog({
   return (
     <LinkRewriteDialog
       title="Rename section"
+      helpTopic="rename-section"
       subtitle={`${notePath} · ${oldSection}`}
       preview={preview}
       isApplying={isApplying}
