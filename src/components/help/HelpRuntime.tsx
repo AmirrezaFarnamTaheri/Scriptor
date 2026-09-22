@@ -92,6 +92,10 @@ export function HelpRuntime() {
     const storage = (event: StorageEvent) => { if (event.key === HELP_STORAGE_KEY || event.key === null) store.acceptStorage(event.newValue) }
     const observer = new MutationObserver((records) => {
       for (const record of records) {
+        if (record.type === 'attributes' && record.target instanceof Element) {
+          if (record.target.matches('[data-help-topic]')) maybeOffer(record.target)
+          for (const target of record.target.querySelectorAll('[data-help-topic]')) maybeOffer(target)
+        }
         for (const node of record.addedNodes) {
           if (!(node instanceof Element)) continue
           if (node.matches('[data-help-topic]')) maybeOffer(node)
@@ -99,7 +103,7 @@ export function HelpRuntime() {
         }
       }
     })
-    observer.observe(document.body, { childList: true, subtree: true })
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'aria-hidden'] })
     document.addEventListener('pointerdown', remember, true)
     document.addEventListener('focusin', remember, true)
     window.addEventListener(HELP_EVENT, request)
