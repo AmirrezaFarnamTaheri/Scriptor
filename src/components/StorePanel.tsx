@@ -766,6 +766,7 @@ export const StorePanel = memo(function StorePanel(props: StorePanelProps) {
         aria-labelledby={tabId(activeTab)}
         tabIndex={-1}
         className="store-panel-body"
+        data-help-topic={activeTab === 'plugins' ? 'plugins' : activeTab === 'mcp' ? 'mcp' : activeTab === 'features' ? 'feature-flags' : 'docks'}
       >
         {activeTab === 'plugins' && (
           <>
