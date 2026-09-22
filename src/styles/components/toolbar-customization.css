@@ -44,12 +44,16 @@
   display: grid;
   place-items: center;
   padding: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   background: var(--overlay, rgb(15 23 42 / 0.46));
   backdrop-filter: blur(2px);
 }
 
 .toolbar-customizer {
   width: min(720px, calc(100vw - 32px));
+  height: min(760px, calc(100dvh - 48px));
   max-height: min(760px, calc(100dvh - 48px));
   display: flex;
   flex-direction: column;
@@ -63,6 +67,7 @@
 }
 
 .toolbar-customizer-header {
+  flex: 0 0 auto;
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -105,10 +110,15 @@
 }
 
 .toolbar-customizer-list {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  padding: 8px 12px;
+  max-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  touch-action: pan-y;
+  padding: 8px 12px 18px;
 }
 
 .toolbar-customize-row {
@@ -161,6 +171,7 @@
 }
 
 .toolbar-customizer-actions {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -199,5 +210,25 @@
     grid-column: 1 / -1;
     justify-content: flex-start;
     padding-inline-start: 28px;
+  }
+}
+
+
+@media (max-height: 640px) {
+  .toolbar-customizer-backdrop {
+    padding-block: 8px;
+  }
+
+  .toolbar-customizer {
+    height: calc(100dvh - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .toolbar-customizer-header {
+    padding-block: 12px 10px;
+  }
+
+  .toolbar-customizer-actions {
+    padding-block: 8px;
   }
 }
