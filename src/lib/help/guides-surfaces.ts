@@ -226,5 +226,73 @@ export const surfaceGuides: readonly HelpGuide[] = [
       ['Does Cancel lose my draft?', 'The confirmation should cancel the proposed mutation, not unrelated editor content; verify the owning workflow if it has its own draft state.'],
     ],
     related: ['permissions', 'recovery', 'history'],
+  },,
+  {
+    id: 'knowledge-discover', title: 'Knowledge discovery hub', category: 'Knowledge', policy: 'manual',
+    entry: 'Knowledge Workbench → Discover.', prerequisite: 'Open a vault; opening a note gives Graph a useful focus target.',
+    safety: 'Discover is a navigation hub. Its buttons open other knowledge tools; it does not repair links or mutate notes by itself.',
+    source: 'src/components/KnowledgeWorkbench.tsx', roots: ['.knowledge-discover-pane'],
+    steps: [
+      ['Choose the investigation path', 'Open Graph for relationships, Repair for unresolved structure, Collections for derived groups, or Tags for taxonomy work.'],
+      ['Use the active note as context', 'When a note is active, Graph can start from that document. Confirm the path before interpreting relationships.'],
+      ['Move to the owning tool', 'Discover does not duplicate each feature. Use the destination panel for filtering, mutation, permissions, and detailed diagnostics.'],
+      ['Return without losing scope', 'Reopen Discover when you need to change investigation mode; closing the Workbench does not modify the vault.'],
+    ],
+    questions: [
+      ['Why is there no graph here?', 'Discover is the launch surface; the full graph owns rendering, filters, navigation, and graph-specific recovery.'],
+      ['Does opening Repair fix anything automatically?', 'No. The repair queue remains review-driven and source mutations require explicit actions.'],
+    ],
+    related: ['workbench', 'graph', 'knowledge-repair', 'collections', 'tags'],
   },
+  {
+    id: 'gmail-messages', title: 'Gmail message search and reading', category: 'Integrations', policy: 'manual', experimental: true,
+    entry: 'Gmail Manager → Messages.', prerequisite: 'Enabled Gmail capability, authenticated account, native desktop support, and network access.',
+    safety: 'Reading/searching is bounded provider access. Archive, Trash, and Import are separate state-changing actions that require deliberate selection.',
+    source: 'src/components/GmailManagerPanel.tsx', roots: ['.gmail-manager-tab--messages'],
+    steps: [
+      ['Search deliberately', 'Use Gmail search syntax or the default inbox scope. A bounded result list is not a complete mailbox export.'],
+      ['Open the intended message', 'Check sender, date, subject, and snippet before loading or acting on message content.'],
+      ['Separate local and remote actions', 'Import writes a Markdown copy to the vault; Archive and Trash change Gmail. They do not perform the same operation.'],
+      ['Refresh after a mutation', 'Confirm the provider state after archive/trash and the vault note after import instead of assuming the visible row alone proves success.'],
+    ],
+    questions: [
+      ['Why are not all messages visible?', 'The manager intentionally uses bounded provider queries. Refine the Gmail search rather than treating the current list as the whole mailbox.'],
+      ['Does Import keep syncing with Gmail?', 'No. It creates a local Markdown copy; it is not a live two-way mailbox mirror.'],
+    ],
+    related: ['gmail', 'gmail-account', 'gmail-compose', 'vault'],
+  },
+  {
+    id: 'gmail-compose', title: 'Gmail compose and send', category: 'Integrations', policy: 'manual', experimental: true,
+    entry: 'Gmail Manager → Compose.', prerequisite: 'Connected Gmail account and a reviewed recipient, subject, and message body.',
+    safety: 'Send transmits external mail. Review the recipient and content before sending; Help never presses Send or supplies authority.',
+    source: 'src/components/GmailManagerPanel.tsx', roots: ['.gmail-manager-compose'],
+    steps: [
+      ['Confirm the account', 'Verify the connected Google identity before drafting mail so the message leaves the intended account.'],
+      ['Review the recipient', 'Check the full destination address, especially after copy/paste or when multiple similar contacts exist.'],
+      ['Review subject and body', 'The shipped composer is intentionally bounded and plain-text oriented; confirm formatting and missing attachment expectations before send.'],
+      ['Send once and verify', 'Wait for the result before retrying. A timeout or provider error is not evidence that the message was never accepted.'],
+    ],
+    questions: [
+      ['Can I attach files here?', 'The current experimental composer does not represent a full Gmail client; use the supported fields shown in the surface.'],
+      ['Should I retry immediately after a timeout?', 'First check the returned state and provider outcome where possible to avoid duplicate sends.'],
+    ],
+    related: ['gmail', 'gmail-account', 'permissions'],
+  },
+  {
+    id: 'gmail-account', title: 'Gmail account connection', category: 'Integrations', policy: 'manual', experimental: true,
+    entry: 'Gmail Manager → Account.', prerequisite: 'Enabled Gmail capability, desktop app, network access, and a valid Google Desktop-app OAuth client ID.',
+    safety: 'Connecting opens Google consent and stores tokens in the OS keychain. Disconnect affects credentials but does not delete imported Markdown notes.',
+    source: 'src/components/GmailManagerPanel.tsx', roots: ['.gmail-manager-account'],
+    steps: [
+      ['Check capability first', 'If Gmail routes to Plugins, enable and review the Gmail capability before troubleshooting OAuth.'],
+      ['Use the correct client ID', 'Use the configured Desktop-app OAuth client ID. A web-app redirect credential follows a different browser flow.'],
+      ['Approve the intended account', 'Read Google consent and scopes before completing the browser flow, then return to Scriptor for connection status.'],
+      ['Disconnect and verify', 'Use Disconnect when needed and treat cleanup/keychain failures as unresolved instead of assuming credentials were removed.'],
+    ],
+    questions: [
+      ['Why does connection fail before Google opens?', 'Capability or native authorization can fail before browser consent. Read the exact local error first.'],
+      ['Does disconnect remove imported mail notes?', 'No. Imported Markdown is local vault content and has a separate lifecycle.'],
+    ],
+    related: ['gmail', 'google', 'plugins', 'permissions'],
+  }
 ]
