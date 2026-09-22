@@ -59,3 +59,28 @@ export function browseGuides(currentId: string, query: string, category = ''): H
     .map((id) => byId.get(id))
     .filter((guide): guide is HelpGuide => Boolean(guide))
 }
+
+export interface HelpAnswerHit {
+  guide: HelpGuide
+  question: string
+  answer: string
+  score: number
+}
+
+/** Return direct bundled answers for natural-language Help queries. */
+export function searchAnswers(query: string, category = ''): HelpAnswerHit[] {
+  const terms = words(query.slice(0, 256)).slice(0, 12)
+  if (terms.length === 0) return []
+  const hits: HelpAnswerHit[] = []
+  for (const guide of HELP_GUIDES) {
+    if (category && guide.category !== category) continue
+    for (const [question, answer] of guide.questions) {
+      const q = words(question).join(' ')
+      const a = words(answer).join(' ')
+      const title = words(guide.title).join(' ')
+      const score = terms.reduce((total, term) => total + (q.includes(term) ? 8 : title.includes(term) ? 4 : a.includes(term) ? 2 : 0), 0)
+      if (score > 0) hits.push({ guide, question, answer, score })
+    }
+  }
+  return hits.sort((left, right) => right.score - left.score || left.question.localeCompare(right.question))
+}
