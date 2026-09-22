@@ -124,7 +124,7 @@ export const KnowledgeWorkbench = memo(function KnowledgeWorkbench({
       ) : null}
 
       {tab === 'discover' ? (
-        <div className="knowledge-workbench-embed knowledge-discover-pane">
+        <div className="knowledge-workbench-embed knowledge-discover-pane" data-help-topic="knowledge-discover">
           <p className="health-subtitle">
             {t('knowledge.discoverDescription')}
           </p>
