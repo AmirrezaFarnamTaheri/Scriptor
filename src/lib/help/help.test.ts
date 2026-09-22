@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
-import { browseGuides, HELP_GUIDES, HELP_BY_ID, searchGuides } from './catalog.ts'
+import { browseGuides, HELP_GUIDES, HELP_BY_ID, searchGuides, searchQuestionAnswers } from './catalog.ts'
 import { emptyHelpPreferences, getProgress, HelpProgressStore, parseHelpPreferences, reduceHelpPreferences } from './progress.ts'
 import { parseHelpRequest } from './request.ts'
 import { HELP_STORAGE_KEY } from './types.ts'
@@ -42,6 +42,8 @@ test('help search covers questions and workflows without network or vault access
   assert.ok(searchGuides('operation messages').some((guide) => guide.id === 'activity-output'))
   assert.ok(searchGuides('', 'Recovery').every((guide) => guide.category === 'Recovery'))
   assert.equal(searchGuides('zzzzzzzzzzzzzz').length, 0)
+  assert.ok(searchQuestionAnswers('login fail before browser consent').some((result) => result.guide.id === 'google'))
+  assert.equal(searchQuestionAnswers('zzzzzzzzzzzzzz').length, 0)
 })
 
 test('idle Help browsing stays contextual while search and categories expose the full corpus', () => {
