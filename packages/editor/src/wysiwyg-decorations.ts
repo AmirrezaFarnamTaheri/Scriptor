@@ -1,5 +1,5 @@
 import { syntaxTree } from '@codemirror/language'
-import { RangeSetBuilder } from '@codemirror/state'
+import type { Range } from '@codemirror/state'
 import { Decoration, EditorView, ViewPlugin, type DecorationSet, type ViewUpdate } from '@codemirror/view'
 import type { Extension } from '@codemirror/state'
 
@@ -22,7 +22,7 @@ const taskListMark = Decoration.mark({ class: 'cm-wysiwyg-task' })
 const taskLinePattern = /^(\s*[-*+] +\[[ xX]\] )/
 
 function buildDecorations(view: EditorView): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>()
+  const ranges: Range<Decoration>[] = []
   const activeLine = view.state.doc.lineAt(view.state.selection.main.head).number
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(view.state).iterate({
@@ -43,33 +43,33 @@ function buildDecorations(view: EditorView): DecorationSet {
             node.name === 'LinkMark' ||
             (node.name === 'URL' && parentName === 'Link')
           if (hide) {
-            builder.add(node.from, node.to, hiddenSyntax)
+            ranges.push(hiddenSyntax.range(node.from, node.to))
             return
           }
         }
 
         if (headingMatch) {
-          builder.add(node.from, node.to, headingMarks.get(Number(headingMatch[1])) ?? headingMarks.get(6)!)
+          ranges.push((headingMarks.get(Number(headingMatch[1])) ?? headingMarks.get(6)!).range(node.from, node.to))
         } else if (node.name === 'StrongEmphasis') {
-          builder.add(node.from, node.to, strongMark)
+          ranges.push(strongMark.range(node.from, node.to))
         } else if (node.name === 'Emphasis') {
-          builder.add(node.from, node.to, emphasisMark)
+          ranges.push(emphasisMark.range(node.from, node.to))
         } else if (node.name === 'Link' || node.name === 'URL') {
-          builder.add(node.from, node.to, linkMark)
+          ranges.push(linkMark.range(node.from, node.to))
         } else if (node.name === 'InlineCode') {
-          builder.add(node.from, node.to, inlineCodeMark)
+          ranges.push(inlineCodeMark.range(node.from, node.to))
         } else if (node.name === 'Blockquote') {
-          builder.add(node.from, node.to, blockquoteMark)
+          ranges.push(blockquoteMark.range(node.from, node.to))
         } else if (node.name === 'ListItem') {
           const line = view.state.doc.lineAt(node.from)
           if (taskLinePattern.test(line.text)) {
-            builder.add(node.from, node.to, taskListMark)
+            ranges.push(taskListMark.range(node.from, node.to))
           }
         }
       },
     })
   }
-  return builder.finish()
+  return Decoration.set(ranges, true)
 }
 
 const wysiwygPlugin = ViewPlugin.fromClass(
