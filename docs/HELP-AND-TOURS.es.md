@@ -12,8 +12,10 @@ El registro autorizado está en `src/lib/help/catalog.ts`. Cada entrada incluye 
 
 - **Primer inicio de la aplicación:** solo aparece la introducción breve al espacio de trabajo. Se puede omitir y repetir desde la ruta de introducción existente o desde Ayuda.
 - **Ayuda global:** hay un único acceso visible **Ayuda y guías** en la barra superior, también disponible desde la paleta de comandos. Los paneles, tarjetas, docks, barras del editor y cabeceras modales no reciben iconos de ayuda inyectados.
-- **Ayuda contextual:** **F1** resuelve primero la función enfocada, después la última utilizada y finalmente la vista general del espacio de trabajo.
-- **Recorridos detallados:** todos se inician por decisión del usuario. Las guías de funciones son bajo demanda; abrir o usar una función por primera vez no inicia ni invita automáticamente a un recorrido.
+- **Ayuda contextual:** **F1** resuelve primero la función enfocada, después la última utilizada y finalmente la vista general. **Mayús+F1** inicia o reanuda directamente el recorrido contextual.
+- **Orientación al primer uso:** las superficies complejas, opcionales, experimentales o de mayor consecuencia muestran una sola invitación no modal después del onboarding: **Abrir guía**, **Iniciar recorrido** o **Ahora no**. Nunca inicia el recorrido automáticamente.
+- **Solo manual:** los controles simples y los flujos urgentes/de recuperación permanecen accesibles únicamente mediante F1, búsqueda de Ayuda o la paleta de comandos.
+- **Recorridos detallados:** todos siguen requiriendo una acción explícita del usuario; la invitación de primer uso no concede permisos ni ejecuta operaciones.
 
 Cerrar un recorrido conserva la posición. Solo Finalizar lo marca como leído. Reiniciar afecta únicamente al recorrido seleccionado. Restablecer el progreso requiere confirmación y no modifica notas, cuentas, credenciales ni preferencias generales.
 
