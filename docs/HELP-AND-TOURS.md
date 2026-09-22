@@ -19,7 +19,7 @@ The authored registry is `src/lib/help/catalog.ts`. Each entry records its openi
 
 **One-time first-open invitation:** Knowledge Workbench, Graph, Canvas, Tasks, Kanban, Reader, Export & publish, Runtime plugins, Built-in modules, Google integration, Gmail, MCP automation, Sharing/resource sync, and Git.
 
-**Manual only:** editor/toolbar reference, search, tags, saved views, collections, frontmatter, citations/bibliography, preview QA, status dock tabs, diagnostics, appearance, shortcuts, backups, restore, conflicts, rename/link rewrite, external links, code chunks, mutation confirmations, permission prompts, advanced/daemon/performance tooling, and support. Dangerous operations are never promoted into automatic or one-click tours.
+**Manual only:** editor/toolbar reference and toolbar customization, search, tags, saved views, collections, frontmatter, citations/bibliography, preview QA, status dock tabs, vault workflow configuration, diagnostics, appearance, shortcuts, backups, restore, conflicts, note/block/section/tag rename and link-rewrite previews, external links, code chunks, mutation confirmations, permission prompts, advanced/daemon/performance tooling, and support. Dangerous operations are never promoted into automatic or one-click tours.
 
 This split is intentional: first-open invitations are reserved for surfaces with a substantial mental model, non-obvious state, or experimental capability. Reference widgets and risky operations remain discoverable through contextual F1 and search without interrupting the user.
 
@@ -41,7 +41,7 @@ Progress uses the bounded, versioned `scriptor:help-guides:v1` local key. Unknow
 
 `src/lib/help/help.test.ts` covers catalog completeness, on-demand policy, search, progress, storage failure, reload, and request validation. `e2e/help-scope-regressions.spec.ts` verifies that product chrome receives no injected Help controls, the one global Help entry remains visible, contextual F1 resolves the owning feature, and the workspace tour can reveal its target. Visual coverage also records the clean workspace state and an explicitly opened contextual guide.
 
-New user surfaces should add a registry entry or explicitly link to an existing guide, and their source-owned selectors must remain reachable by F1 and Show this control without adding another persistent Help button.
+New user surfaces should add a registry entry or explicitly inherit a semantically correct guide from their shared owner, and their source-owned selectors must remain reachable by F1 and Show this control without adding another persistent Help button. Shared infrastructure such as a generic popover or panel shell does not receive a duplicate guide; the concrete feature using it owns the topic. Granular mutation variants with materially different consequences—such as note, block-anchor, section, and hierarchical-tag renames—have distinct manual guides even when they reuse one dialog component.
 
 ## Previous remediation checkpoint
 
