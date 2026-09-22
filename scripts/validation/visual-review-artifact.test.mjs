@@ -187,6 +187,7 @@ test('expanded visual evidence matrix remains captured', () => {
     'visual-help-restraint.png',
     'visual-help-mcp-guide.png',
     'visual-help-mobile-390.png',
+    'visual-help-rtl-fa.png',
     'visual-mobile-320.png',
     'visual-mobile-dark-390.png',
     'visual-mobile-rtl-fa-390.png',
@@ -211,6 +212,7 @@ test('Help visual evidence proves centralized, non-injected guidance', () => {
     'visual-help-restraint.png',
     'visual-help-mcp-guide.png',
     'visual-help-mobile-390.png',
+    'visual-help-rtl-fa.png',
   ]) {
     assert.ok(visualReview.includes(image), `missing restrained Help evidence capture: ${image}`)
   }

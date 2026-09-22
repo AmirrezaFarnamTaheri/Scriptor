@@ -531,6 +531,28 @@ test.describe('visual review states', () => {
     await captureElement(page, help, 'visual-help-mobile-390.png')
   })
 
+  test('Persian RTL Help keeps mixed-direction content bounded', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.addInitScript(() => {
+      window.localStorage.setItem('scriptor:locale', 'fa')
+    })
+    await openVisualWorkspace(page)
+    await page.keyboard.press('F1')
+
+    const help = page.getByRole('dialog', { name: 'راهنما و آموزش', exact: true })
+    await expect(help).toBeVisible()
+    await expect(help).toHaveAttribute('dir', 'rtl')
+    await expect(help.getByText('متن تفصیلی راهنماها فعلاً انگلیسی است.', { exact: false })).toBeVisible()
+    await expect(help.locator('.help-topic [lang="en"][dir="ltr"]').first()).toBeVisible()
+    await expect.poll(() => help.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.left >= 0
+        && rect.right <= window.innerWidth
+        && element.scrollWidth <= element.clientWidth + 1
+    })).toBe(true)
+    await captureElement(page, help, 'visual-help-rtl-fa.png')
+  })
+
   test('minimum-width mobile workspace evidence', async ({ page }) => {
     await openMobileWorkspace(page, 320, 720)
     const nav = page.getByRole('navigation', { name: 'Mobile workspace navigation' })
