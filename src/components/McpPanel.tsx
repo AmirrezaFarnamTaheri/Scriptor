@@ -209,7 +209,7 @@ export function McpPanel({
         <>
           {tab === 'recipes' ? (
             tools.length === 0 ? noToolsState : (
-              <section className="mcp-recipes" aria-label={t('mcp.guidedAutomationRecipes')}>
+              <section className="mcp-recipes" data-help-topic="mcp" aria-label={t('mcp.guidedAutomationRecipes')}>
                 <p className="health-subtitle">{t('mcp.recipesDescription')}</p>
                 <div className="mcp-recipe-grid">
                   {MCP_RECIPES.map((recipe) => (
@@ -237,7 +237,7 @@ export function McpPanel({
           {tab === 'tools' ? (
             tools.length === 0 ? noToolsState : (
               <>
-                <div className="mcp-tool-playground">
+                <div className="mcp-tool-playground" data-help-topic="mcp">
                   <label>
                     <span>{t('mcp.tool')}</span>
                     <select
@@ -289,7 +289,7 @@ export function McpPanel({
           ) : null}
 
           {tab === 'drafts' ? (
-            <section className="mcp-drafts">
+            <section className="mcp-drafts" data-help-topic="mcp-drafts">
               <h3>{t('mcp.pendingDrafts', { count: drafts.length })}</h3>
               {drafts.length === 0 ? (
                 <p className="empty-state">{t('mcp.noPendingDrafts')}</p>
@@ -347,7 +347,7 @@ export function McpPanel({
           ) : null}
 
           {tab === 'audit' ? (
-            <section className="mcp-audit">
+            <section className="mcp-audit" data-help-topic="mcp-audit">
               {audit.length === 0 ? (
                 <p className="empty-state">{t('mcp.noToolCalls')}</p>
               ) : (
