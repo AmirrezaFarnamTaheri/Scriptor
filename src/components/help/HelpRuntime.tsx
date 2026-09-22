@@ -6,6 +6,7 @@ import { parseHelpRequest } from '../../lib/help/request'
 import { helpLabels } from '../../lib/help/labels'
 import { useI18n } from '../../lib/i18n'
 import { contextGuide, findGuideTarget } from '../../lib/help/context'
+import { getGuide } from '../../lib/help/catalog'
 import { HELP_EVENT, HELP_STORAGE_KEY, type HelpGuide, type HelpRequest } from '../../lib/help/types'
 import { toFocusRestorer, type FocusRestorer } from '../../lib/overlayEscapeCoordinator'
 import '../../styles/components/help.css'
@@ -30,11 +31,8 @@ export function HelpRuntime() {
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
     setInvitation(null)
-    const requestedGuide = contextGuide(document.querySelector(`[data-help-topic="${request.id}"]`))?.id === request.id
-      ? contextGuide(document.querySelector(`[data-help-topic="${request.id}"]`))
-      : null
-    const canonical = requestedGuide ?? (request.id ? undefined : undefined)
-    if ((canonical?.policy ?? undefined) === 'first-open') store.dispatch({ type: 'offer', id: request.id })
+    const requestedGuide = getGuide(request.id)
+    if (requestedGuide.policy === 'first-open') store.dispatch({ type: 'offer', id: request.id })
     const returnFocus = toFocusRestorer(document.activeElement)
     setSession((current) => ({
       ...request,
