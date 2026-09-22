@@ -42,12 +42,12 @@ export function HelpRuntime() {
   }, [store])
   const close = useCallback(() => setSession(null), [])
 
-  const maybeOffer = useCallback((node: Node | null) => {
-    if (!node || session || invitation) return
+  const maybeOffer = useCallback((node: Node | null): boolean => {
+    if (!node || session || invitation) return false
     try {
-      if (window.localStorage.getItem('scriptor:onboarding-complete') !== 'true') return
+      if (window.localStorage.getItem('scriptor:onboarding-complete') !== 'true') return false
     } catch {
-      return
+      return false
     }
     const elements: Element[] = []
     if (node instanceof Element) {
@@ -63,8 +63,9 @@ export function HelpRuntime() {
       const progress = getProgress(store.getSnapshot().preferences, guide.id)
       if (progress.introduced || progress.completed) continue
       setInvitation(guide)
-      break
+      return true
     }
+    return false
   }, [invitation, session, store])
 
   useEffect(() => {
@@ -72,8 +73,7 @@ export function HelpRuntime() {
       if (session || invitation) return
       for (const record of records) {
         for (const node of record.addedNodes) {
-          maybeOffer(node)
-          if (invitation) return
+          if (maybeOffer(node)) return
         }
       }
     })
