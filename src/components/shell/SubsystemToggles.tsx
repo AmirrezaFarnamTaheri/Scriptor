@@ -32,7 +32,7 @@ export function SubsystemToggles({
   ]
 
   return (
-    <div className="subsystem-toggles" aria-label="Subsystem hibernation" data-help-topic="hibernation">
+    <div className="subsystem-toggles" aria-label="Subsystem hibernation" data-help-topic="subsystems">
       {subsystems.map(({ label, title, hibernated, onChange }) => (
         <button
           key={label}
