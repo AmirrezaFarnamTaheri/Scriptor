@@ -54,8 +54,8 @@ export async function launchApp(page: Page, options: { theme?: string; showFirst
         version: 1,
         progress: Object.fromEntries([
           'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
-          'export', 'publish', 'plugins', 'modules', 'google', 'gmail', 'ai', 'mcp',
-          'custom-theme', 'backups', 'resource-sync',
+          'export', 'plugins', 'modules', 'integrations', 'gmail', 'mcp',
+          'custom-theme', 'resource-sync',
         ].map((id) => [id, { step: 0, completed: false, introduced: true }])),
       }))
     }
