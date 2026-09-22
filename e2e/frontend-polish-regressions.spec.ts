@@ -73,7 +73,7 @@ test.describe('Frontend polish regressions', () => {
     await expect(search).toHaveValue('notes')
     await expect(search).toBeFocused()
     await expect(status).toBeAttached()
-    await expect.poll(() => status.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(reservedStatusWidth, 0)
+    await expect.poll(() => status.evaluate((element) => Math.round(element.getBoundingClientRect().width))).toBe(Math.round(reservedStatusWidth))
 
     const during = await header.boundingBox()
     expect(during).not.toBeNull()
