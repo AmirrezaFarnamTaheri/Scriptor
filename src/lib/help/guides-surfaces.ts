@@ -209,7 +209,7 @@ export const surfaceGuides: readonly HelpGuide[] = [
       ['Does Cancel lose my draft?', 'The confirmation should cancel the proposed mutation, not unrelated editor content; verify the owning workflow if it has its own draft state.'],
     ],
     related: ['permissions', 'recovery', 'history'],
-  },,
+  },
   {
     id: 'knowledge-discover', title: 'Knowledge discovery hub', category: 'Knowledge', policy: 'manual',
     entry: 'Knowledge Workbench → Discover.', prerequisite: 'Open a vault; opening a note gives Graph a useful focus target.',
