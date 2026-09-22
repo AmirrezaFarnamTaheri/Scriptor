@@ -5,7 +5,7 @@
   margin: 0;
   padding: 6px;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-y: contain;
   scrollbar-gutter: stable;
   touch-action: pan-y;
   list-style: none;
