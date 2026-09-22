@@ -6,7 +6,7 @@ interface PerfHudOverlayProps {
 
 export function PerfHudOverlay({ metrics }: PerfHudOverlayProps) {
   return (
-    <div className="perf-hud-overlay" role="status" aria-live="polite" aria-label="Performance metrics" data-help-topic="hibernation">
+    <div className="perf-hud-overlay" role="status" aria-live="polite" aria-label="Performance metrics" data-help-topic="performance">
       <strong>Perf</strong>
       <dl>
         <div>
