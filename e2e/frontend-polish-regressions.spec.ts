@@ -63,14 +63,17 @@ test.describe('Frontend polish regressions', () => {
     const header = palette.locator('.command-palette-header')
     const status = palette.locator('.command-palette-search-status')
 
-    await expect(status).toBeVisible()
+    await expect(status).toBeAttached()
     const before = await header.boundingBox()
+    const reservedStatusWidth = await status.evaluate((element) => element.getBoundingClientRect().width)
     expect(before).not.toBeNull()
+    expect(reservedStatusWidth).toBeGreaterThan(0)
 
     await search.pressSequentially('notes', { delay: 35 })
     await expect(search).toHaveValue('notes')
     await expect(search).toBeFocused()
-    await expect(status).toBeVisible()
+    await expect(status).toBeAttached()
+    await expect.poll(() => status.evaluate((element) => element.getBoundingClientRect().width)).toBeCloseTo(reservedStatusWidth, 0)
 
     const during = await header.boundingBox()
     expect(during).not.toBeNull()
