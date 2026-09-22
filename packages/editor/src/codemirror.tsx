@@ -87,7 +87,7 @@ class CodeMirrorAdapter implements EditorAdapter {
     const completionSources = [
       snippetAutocompleteSource,
       editorAutocompleteSource,
-      proseAutosuggestSource({ minPrefix: 3, maxSuggestions: 8 }),
+      proseAutosuggestSource({ minPrefix: 4, maxSuggestions: 8 }),
     ]
     const extensions = [
       lineNumbersCompartment.of(options.showLineNumbers === false ? [] : lineNumbers()),
