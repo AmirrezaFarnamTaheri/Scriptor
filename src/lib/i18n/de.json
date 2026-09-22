@@ -782,7 +782,7 @@
       "title": "Gmail",
       "subtitle": "Experimenteller Gmail-Zugriff mit minimalen Berechtigungen und Markdown-Archivierung.",
       "ariaLabel": "Gmail-Integrationsbereich",
-      "experimentalNote": "E-Mail-Aktionen verwenden eigene Gmail-Berechtigungen und können die unter Integrationen konfigurierte Google-Desktop-App-Client-ID wiederverwenden.",
+      "experimentalNote": "E-Mail-Aktionen verwenden eigene Gmail-Berechtigungen. Scriptor öffnet Google im Systembrowser und speichert die resultierenden Tokens im Schlüsselbund des Betriebssystems.",
       "tabs": {
         "messages": "Nachrichten",
         "compose": "Verfassen",
@@ -829,9 +829,9 @@
       "notConnectedStatus": "Nicht mit Gmail verbunden.",
       "disconnect": "Konto trennen",
       "clientId": "Google-OAuth-Client-ID",
-      "clientHelp": "Verwenden Sie eine Google-OAuth-Client-ID vom Typ Desktop-App. Scriptor öffnet den Systembrowser, schließt PKCE über einen lokalen Loopback-Rückruf ab und speichert Tokens im Schlüsselbund des Betriebssystems. Dieselbe Client-ID kann für Kalender und Aufgaben verwendet werden.",
+      "clientHelp": "Optionaler OAuth-Override für Entwickler. Normale paketierte Installationen verwenden Scriptors eigene Google-Anwendungsidentität.",
       "startingAuth": "Autorisierung wird gestartet…",
-      "connectGoogle": "Mit Google verbinden"
+      "connectGoogle": "Mit Google fortfahren"
     }
   },
   "security": {
