@@ -166,7 +166,11 @@ class CodeMirrorAdapter implements EditorAdapter {
         if (update.docChanged) {
           options.onChange?.(update.state.doc.toString())
         }
-        if ((update.selectionSet || update.docChanged) && this.onVisibleLineChange) {
+        // Cursor/selection movement is the semantic "active writing line".
+        // Do not emit for a controlled-value sync alone: the sibling editor
+        // receives those document transactions too and would otherwise bounce
+        // its stale selection back to the editor the user is actively typing in.
+        if (update.selectionSet && this.onVisibleLineChange) {
           const line = update.state.doc.lineAt(update.state.selection.main.head).number
           this.onVisibleLineChange(line)
         }
