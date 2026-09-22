@@ -10,7 +10,7 @@ reset: 'Reset guide progress', resetAsk: 'Reset all guide progress? Notes, accou
   confirmReset: 'Reset help only', experimental: 'Experimental', cancel: 'Cancel', storage: 'Help preferences cannot be saved reliably. Guidance still works for this session.',
   offline: 'Offline product guidance. Searches stay here; no notes or credentials are read or sent.',
   language: 'Detailed guides are currently authored in English. Help controls follow your language preference.',
-step: 'Step', of: 'of', answerResults: 'Direct answers', newHere: 'New here?', firstOpen: 'A short guide is available for this feature.', openGuide: 'Open guide', notNow: 'Not now',
+step: 'Step', of: 'of', answerResults: 'Direct answers', newHere: 'New here?', firstOpen: 'A short guide is available for this feature.', openGuide: 'Open guide', notNow: 'Dismiss',
 
 }
 export type HelpLabels = { [Key in keyof typeof en]: string }
@@ -26,7 +26,7 @@ reset: 'Anleitungsfortschritt zurücksetzen', resetAsk: 'Gesamten Anleitungsfort
   confirmReset: 'Nur Hilfe zurücksetzen', experimental: 'Experimentell', cancel: 'Abbrechen', storage: 'Hilfe-Einstellungen können nicht zuverlässig gespeichert werden. Die Hilfe funktioniert in dieser Sitzung weiterhin.',
   offline: 'Offline-Produkthilfe. Suchanfragen bleiben hier; Notizen und Zugangsdaten werden weder gelesen noch gesendet.',
   language: 'Ausführliche Anleitungen sind derzeit auf Englisch. Die Bedienelemente folgen Ihrer Spracheinstellung.',
-step: 'Schritt', of: 'von', answerResults: 'Direkte Antworten', newHere: 'Neu hier?', firstOpen: 'Für diese Funktion ist eine kurze Anleitung verfügbar.', openGuide: 'Anleitung öffnen', notNow: 'Nicht jetzt',
+step: 'Schritt', of: 'von', answerResults: 'Direkte Antworten', newHere: 'Neu hier?', firstOpen: 'Für diese Funktion ist eine kurze Anleitung verfügbar.', openGuide: 'Anleitung öffnen', notNow: 'Schließen',
 
 }
 const fa: HelpLabels = {
@@ -41,7 +41,7 @@ reset: 'بازنشانی پیشرفت راهنماها', resetAsk: 'پیشرفت
   confirmReset: 'فقط راهنما بازنشانی شود', experimental: 'آزمایشی', cancel: 'انصراف', storage: 'ذخیرهٔ تنظیمات راهنما مطمئن نیست. راهنما در این نشست همچنان کار می‌کند.',
   offline: 'راهنمای آفلاین برنامه؛ جست‌وجوها همین‌جا می‌مانند و هیچ یادداشت یا اطلاعات ورود خوانده یا ارسال نمی‌شود.',
   language: 'متن تفصیلی راهنماها فعلاً انگلیسی است. کنترل‌های راهنما از زبان انتخابی شما پیروی می‌کنند.',
-step: 'گام', of: 'از', answerResults: 'پاسخ‌های مستقیم', newHere: 'اولین بار است؟', firstOpen: 'برای این قابلیت یک راهنمای کوتاه در دسترس است.', openGuide: 'باز کردن راهنما', notNow: 'فعلاً نه',
+step: 'گام', of: 'از', answerResults: 'پاسخ‌های مستقیم', newHere: 'اولین بار است؟', firstOpen: 'برای این قابلیت یک راهنمای کوتاه در دسترس است.', openGuide: 'باز کردن راهنما', notNow: 'بستن',
 
 }
 export function helpLabels(locale: string): HelpLabels { return locale === 'fa' ? fa : locale === 'de' ? de : en }
