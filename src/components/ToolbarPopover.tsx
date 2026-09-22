@@ -78,8 +78,6 @@ export function ToolbarPopover({
 
     panel.style.minWidth = `${minimumWidth}px`
     panel.style.maxWidth = `${maximumWidth}px`
-    panel.style.maxHeight = 'none'
-
     const naturalWidth = Math.min(
       Math.max(panel.scrollWidth, minimumWidth),
       maximumWidth,
@@ -133,14 +131,19 @@ export function ToolbarPopover({
       : new ResizeObserver(updatePosition)
     if (triggerRef.current) resizeObserver?.observe(triggerRef.current)
     if (panelRef.current) resizeObserver?.observe(panelRef.current)
+    const handleViewportScroll = (event: Event) => {
+      const target = event.target
+      if (target instanceof Node && panelRef.current?.contains(target)) return
+      updatePosition()
+    }
     window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
+    window.addEventListener('scroll', handleViewportScroll, true)
 
     return () => {
       window.cancelAnimationFrame(frame)
       resizeObserver?.disconnect()
       window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
+      window.removeEventListener('scroll', handleViewportScroll, true)
     }
   }, [open, triggerRef, updatePosition])
 
