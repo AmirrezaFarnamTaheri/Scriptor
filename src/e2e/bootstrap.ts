@@ -152,8 +152,10 @@ export function installE2eBridge(): void {
     'scriptor.canvas',
     'scriptor.mcp',
   ])
+  const disabledPluginIds = new Set<string>()
   if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:disable-graph-plugin') === '1') {
     enabledPluginIds.delete('scriptor.graph')
+    disabledPluginIds.add('scriptor.graph')
   }
   if (typeof window !== 'undefined' && window.sessionStorage.getItem('e2e:enable-gmail-plugin') === '1') {
     enabledPluginIds.add('scriptor.gmail-manager')
@@ -199,12 +201,17 @@ export function installE2eBridge(): void {
         }
         return undefined
       case 'plugin_state_get':
-        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [] }
+        return { enabledPlugins: [...enabledPluginIds], disabledPlugins: [...disabledPluginIds] }
       case 'plugin_state_set_enabled': {
         const body = payload as { capabilityId?: string; enabled?: boolean }
         const capabilityId = String(body.capabilityId ?? '')
-        if (body.enabled) enabledPluginIds.add(capabilityId)
-        else enabledPluginIds.delete(capabilityId)
+        if (body.enabled) {
+          enabledPluginIds.add(capabilityId)
+          disabledPluginIds.delete(capabilityId)
+        } else {
+          enabledPluginIds.delete(capabilityId)
+          disabledPluginIds.add(capabilityId)
+        }
         return undefined
       }
       case 'vault_read_note': {

@@ -200,17 +200,20 @@ async function installResourceInventoryFixture(page: Page) {
 test.describe('visual review states', () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((chromePrefs) => {
-      window.localStorage.setItem('scriptor:app-theme', 'light')
-      window.localStorage.setItem('scriptor:onboarding-complete', 'true')
-      window.localStorage.setItem('scriptor:editor-mode', 'monaco')
-      window.localStorage.setItem('scriptor:headless-engine', 'false')
-      window.localStorage.setItem('scriptor:workspace-mode', 'writing')
-      window.localStorage.setItem('scriptor:mobile-pane', 'editor')
-      window.localStorage.setItem('scriptor:inspector-preset', 'balanced')
-      window.localStorage.setItem('scriptor:split-preview', 'false')
+      const setDefault = (key: string, value: string) => {
+        if (window.localStorage.getItem(key) === null) window.localStorage.setItem(key, value)
+      }
+      setDefault('scriptor:app-theme', 'light')
+      setDefault('scriptor:onboarding-complete', 'true')
+      setDefault('scriptor:editor-mode', 'monaco')
+      setDefault('scriptor:headless-engine', 'false')
+      setDefault('scriptor:workspace-mode', 'writing')
+      setDefault('scriptor:mobile-pane', 'editor')
+      setDefault('scriptor:inspector-preset', 'balanced')
+      setDefault('scriptor:split-preview', 'false')
       // Baselines capture the full status dock; the app default is collapsed.
-      window.localStorage.setItem('scriptor:status-dock-collapsed', 'false')
-      window.localStorage.setItem('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
+      setDefault('scriptor:status-dock-collapsed', 'false')
+      setDefault('scriptor:workspace-chrome', JSON.stringify(chromePrefs))
     }, WORKSPACE_CHROME_PREFS)
   })
 
