@@ -347,4 +347,90 @@ export const surfaceGuides: readonly HelpGuide[] = [
     related: ['tags', 'link-rewrite', 'saved-views', 'collections'],
   },
 
+  {
+    id: 'workspace-modes', title: 'Workspace modes', category: 'Workspace', policy: 'manual',
+    entry: 'Mode selector in the top bar: Writing, Knowledge, Publish, Review, or Automation.', prerequisite: 'Use a mode to emphasize the tools for the job you are doing; modes do not convert the underlying Markdown.',
+    safety: 'Changing mode rearranges and emphasizes workspace surfaces. It does not publish, run automation, enable a capability, or rewrite notes by itself.',
+    source: 'src/components/shell/AppTopBar.tsx', roots: ['.workspace-mode-strip'],
+    steps: [
+      ['Choose the job, not a feature flag', 'Writing prioritizes composition, Knowledge relationship tools, Publish export/publishing, Review quality surfaces, and Automation MCP/operational tools. Pick the job that matches your current intent.'],
+      ['Notice layout emphasis', 'A mode can change which panels or actions are prominent without changing the authoritative note content or granting additional permissions.'],
+      ['Open the owning feature', 'Use the mode-specific action or command palette to enter Workbench, Publish Center, health/review, or MCP. The mode itself is not the operation.'],
+      ['Return without losing content', 'Switch modes whenever your job changes. Verify save state independently because presentation mode and document persistence are separate concerns.'],
+    ],
+    questions: [
+      ['Does Automation mode automatically run tools?', 'No. It makes automation surfaces easier to reach; MCP modes, permissions, drafts, and mutations retain their own explicit controls.'],
+      ['Why did the layout change when I selected a mode?', 'Modes are workspace presets for different jobs. Your Markdown remains the same; use layout settings when you want a persistent custom arrangement.'],
+    ],
+    related: ['workspace', 'docks', 'workbench', 'export', 'diagnostics', 'mcp'],
+  },
+  {
+    id: 'topbar-customize', title: 'Customize top-bar actions', category: 'Workspace', policy: 'manual',
+    entry: 'Sliders control at the right side of the top bar, or the top-bar context menu.', prerequisite: 'No vault or external service is required to change chrome visibility.',
+    safety: 'Customization only hides or restores shortcuts in the top bar. It does not disable the underlying feature, revoke permissions, or delete its data.',
+    source: 'src/components/shell/AppTopBar.tsx', roots: ['.topbar-customize'],
+    steps: [
+      ['Keep the writing path clear', 'Leave frequent navigation and writing actions visible; hide secondary launchers that compete for horizontal space.'],
+      ['Understand hidden versus disabled', 'Unchecked actions disappear from the top bar but remain available through their canonical panel, settings, or command palette where supported.'],
+      ['Test constrained widths', 'After changing the set, resize the window or use a split workspace to make sure the remaining controls stay understandable without crowding.'],
+      ['Restore defaults when needed', 'Use Restore defaults to return to the product baseline instead of manually guessing which actions originally belonged in persistent chrome.'],
+    ],
+    questions: [
+      ['If I hide Git or MCP here, is the feature turned off?', 'No. Top-bar visibility is presentation only; capability state and runtime configuration are controlled elsewhere.'],
+      ['Why is Support hidden by default?', 'The default chrome prioritizes recurring writing and navigation work. Lower-frequency destinations remain discoverable without permanently occupying the writing header.'],
+    ],
+    related: ['workspace-chrome', 'commands', 'workspace', 'shortcuts'],
+  },
+  {
+    id: 'mobile-navigation', title: 'Mobile and narrow-workspace navigation', category: 'Workspace', policy: 'manual',
+    entry: 'Bottom navigation shown on narrow/mobile layouts.', prerequisite: 'Use a narrow window or supported mobile-sized workspace where the desktop three-column layout is collapsed.',
+    safety: 'Switching panes changes what is visible, not the note, vault, or capability state. Mode-specific buttons still open their normal reviewed workflows.',
+    source: 'src/components/shell/MobileWorkspaceNav.tsx', roots: ['.mobile-workspace-chrome'],
+    steps: [
+      ['Choose the active pane', 'Vault shows files, Write shows the editor, Lens shows inspector context, and Command opens the command palette without forcing all desktop columns on screen.'],
+      ['Use the mode action', 'Knowledge, Publish, Review, and Automation can expose one contextual launch action above the navigation. It opens the same owning feature used on desktop.'],
+      ['Return to writing quickly', 'Select Write after navigation or inspection when you want the editor to reclaim the available viewport.'],
+      ['Treat hidden panes as present state', 'Moving between panes does not imply a feature closed, a note saved, or an operation finished. Check the owning status before assuming work is complete.'],
+    ],
+    questions: [
+      ['Why can I not see Vault and Inspector at the same time?', 'Narrow layouts intentionally use one primary pane to preserve usable editor width. Wider layouts restore simultaneous regions.'],
+      ['Does the Command item change workspace mode?', 'No. It opens command search; workspace mode and mobile pane selection are independent concepts.'],
+    ],
+    related: ['workspace', 'workspace-modes', 'commands', 'inspector'],
+  },
+  {
+    id: 'typography', title: 'Typography cleanup and text transforms', category: 'Writing', policy: 'manual',
+    entry: 'Typography menu in the editor toolbar.', prerequisite: 'Open an editable Markdown note and place the caret or select the text you intend to transform.',
+    safety: 'Typography commands edit Markdown text. Review the selection and use undo immediately when a cleanup or quote/case conversion affects more text than intended.',
+    source: 'src/components/TypographyMenu.tsx', roots: ['.typography-menu'],
+    steps: [
+      ['Select the intended scope', 'Select text when the transform should be local. With no selection, understand the editor action scope before running cleanup on a larger block.'],
+      ['Choose one transformation', 'Whitespace cleanup, quote conversion, dash spacing, title/sentence case, and quote/italic conversions solve different editorial problems; do not stack them blindly.'],
+      ['Inspect Markdown-sensitive text', 'Check links, code spans, frontmatter, citations, and deliberate spacing after a broad cleanup because prose normalization can be inappropriate inside structured syntax.'],
+      ['Undo or continue deliberately', 'Compare the result in Source and Preview. Undo unexpected changes before running another transformation so the original boundary remains recoverable.'],
+    ],
+    questions: [
+      ['Why did quote conversion change punctuation I wanted to keep?', 'Typography commands apply deterministic text transforms; select a narrower range or undo and edit exceptional punctuation manually.'],
+      ['Should I run cleanup on code or frontmatter?', 'Avoid broad prose transformations over structured syntax unless the specific command documents that syntax as supported.'],
+    ],
+    related: ['toolbar', 'editor', 'preview', 'frontmatter'],
+  },
+  {
+    id: 'insert', title: 'Insert Markdown structures', category: 'Writing', policy: 'manual',
+    entry: 'Insert menu in the editor toolbar.', prerequisite: 'Open an editable note and place the caret where the new Markdown block or inline structure belongs.',
+    safety: 'Insert commands modify the active note. Block snippets need valid surrounding blank lines and some inserted structures require later configuration or external renderers.',
+    source: 'src/components/InsertMenu.tsx', roots: ['.insert-menu'],
+    steps: [
+      ['Place the caret first', 'Choose the exact insertion point before opening the menu. For block structures, prefer an empty line so the new Markdown does not concatenate with adjacent prose.'],
+      ['Choose the structure', 'Tables, diagrams, math, callouts, horizontal rules, and other inserts create source templates; they are not finished content until you replace placeholders and validate syntax.'],
+      ['Complete required fields', 'Edit placeholder labels, diagram nodes, formulas, table cells, or callout text immediately so template markers do not remain in the document.'],
+      ['Verify source and rendering', 'Inspect the inserted Markdown in Source and its output in Preview. Fix block boundaries or renderer prerequisites rather than repeatedly inserting a second copy.'],
+    ],
+    questions: [
+      ['Why did an inserted block render as literal text?', 'The caret may have been adjacent to another block or the inserted syntax may be incomplete. Check blank lines and the exact source before inserting again.'],
+      ['Does inserting a diagram execute external code?', 'Insertion only writes Markdown/fenced source. Rendering or code execution has separate capability and safety boundaries.'],
+    ],
+    related: ['toolbar', 'editor', 'preview', 'code-chunks'],
+  },
+
 ]
