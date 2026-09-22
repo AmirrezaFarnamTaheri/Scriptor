@@ -170,7 +170,6 @@ test('every literal contextual help topic points to an authored guide', () => {
     'src/components/chrome/MutationConfirmation.tsx',
     'src/components/inbox/InboxPanel.tsx',
     'src/components/inspector/PreviewQABar.tsx',
-    'src/components/plugins/PluginManagerCenter.tsx',
     'src/components/portal/PortalPanel.tsx',
     'src/components/portal/QuickCapturePanel.tsx',
     'src/components/reader/ReaderPanel.tsx',
@@ -180,6 +179,11 @@ test('every literal contextual help topic points to an authored guide', () => {
     'src/components/shell/SubsystemToggles.tsx',
     'src/components/shell/WorkspaceStatusFooter.tsx',
     'src/components/themes/ThemeCustomizerModal.tsx',
+    'src/components/shell/AppTopBar.tsx',
+    'src/components/shell/MobileWorkspaceNav.tsx',
+    'src/components/TocSidebar.tsx',
+    'src/components/TypographyMenu.tsx',
+    'src/components/InsertMenu.tsx',
   ]
   for (const path of files) {
     const source = readFileSync(path, 'utf8')
@@ -190,4 +194,15 @@ test('every literal contextual help topic points to an authored guide', () => {
     assert.ok(ids.length > 0, `${path} has no contextual Help topic`)
     for (const id of ids) assert.ok(HELP_BY_ID.has(id), `${path} references missing guide ${id}`)
   }
+})
+
+
+test('dynamic contextual help owners resolve only authored guide ids', () => {
+  const pluginManager = readFileSync('src/components/plugins/PluginManagerCenter.tsx', 'utf8')
+  assert.match(pluginManager, /scope === 'palettes' \? 'appearance' : 'modules'/)
+  for (const id of ['appearance', 'modules']) assert.ok(HELP_BY_ID.has(id), id)
+
+  const prompt = readFileSync('src/components/TextPromptDialog.tsx', 'utf8')
+  assert.match(prompt, /data-help-topic=\{request\.helpTopic\}/)
+  for (const id of ['publish', 'saved-views', 'ai']) assert.ok(HELP_BY_ID.has(id), id)
 })
