@@ -600,6 +600,7 @@ function EditorWorkspaceImpl(props: EditorWorkspaceProps) {
                     wysiwyg
                     typewriter={false}
                     distractionFree={false}
+                    manageDistractionFreeClass={false}
                     languageTool={languageTool}
                     editorTheme={editorTheme}
                     saveImageFromClipboard={saveImageFromClipboard}
