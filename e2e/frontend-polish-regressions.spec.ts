@@ -82,6 +82,7 @@ test.describe('Frontend polish regressions', () => {
     expect(during?.height).toBeCloseTo(before?.height ?? 0, 0)
 
     await expect(palette.getByRole('option').first()).toBeVisible()
+    await expect(palette.getByText('Notes', { exact: true })).toBeVisible()
     const after = await header.boundingBox()
     expect(after?.x).toBeCloseTo(before?.x ?? 0, 0)
     expect(after?.y).toBeCloseTo(before?.y ?? 0, 0)
