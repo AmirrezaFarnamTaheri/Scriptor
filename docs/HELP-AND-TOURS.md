@@ -4,14 +4,24 @@
 
 Help is an offline, read-only product surface. It explains the current application; it is not an AI support chat, an operator, or a permission broker. Guide steps never run commands, send mail, enable plugins, execute code, publish, restore, or delete data. Completion means the reader finished the walkthrough, not that an operation succeeded.
 
-The authored registry is `src/lib/help/catalog.ts`. Each entry records its opening route, prerequisites, safety boundary, maturity, source owner, contextual selectors, steps, questions, related guides, and presentation policy. The registry includes individual widgets and docks as well as full panels. Unavailable features remain searchable with explicit prerequisites rather than being auto-enabled.
+The authored registry is `src/lib/help/catalog.ts`. Each entry records its opening route, prerequisites, safety boundary, maturity, source owner, contextual selectors, steps, questions, related guides, and presentation policy. The registry includes full panels plus individual widgets, docks, banners, quality bars, confirmations, and recovery surfaces. Unavailable features remain searchable with explicit prerequisites rather than being auto-enabled. A source-level contract test verifies that every declared contextual Help topic resolves to an authored guide.
 
 ## When guidance appears
 
-- **First app launch:** only the short workspace introduction. It is skippable and replayable through the existing onboarding path or Help.
-- **Global Help:** one **Help & guides** control lives in the top bar, with the same entry available from the command palette. Product panels, cards, docks, editor toolbars, and modal headers do **not** receive injected question-mark controls.
-- **Contextual Help:** **F1** resolves the focused feature, then the last interacted feature, then the workspace overview. This preserves contextual guidance without adding permanent chrome to every surface.
-- **Detailed tours:** every feature tour is user-started. Feature guides are on demand; Help never opens a tour merely because a feature was mounted or used for the first time.
+- **First app launch — full introduction:** only **Workspace essentials** starts automatically. It is short, skippable, and replayable from Help.
+- **First open — one-time invitation, never an automatic tour:** complex or unfamiliar top-level surfaces show a small non-modal invitation the first time they are opened. The invitation never steals focus, performs an operation, or reappears after it has been offered. Choosing **Open guide** opens the read-only guide; the user still decides whether to start its tour.
+- **Always user-invoked:** simple/reference surfaces and every dangerous or state-changing workflow remain manual. **F1** resolves the focused feature, then the last interacted feature, then the workspace overview.
+- **Global Help:** one **Help & guides** control lives in the top bar, with the same entry available from the command palette. Permanent question-mark buttons are not injected into every panel.
+
+### Policy matrix
+
+**First app launch:** Workspace essentials.
+
+**One-time first-open invitation:** Knowledge Workbench, Graph, Canvas, Tasks, Kanban, Reader, Export & publish, Runtime plugins, Built-in modules, Google integration, Gmail, MCP automation, Sharing/resource sync, and Git.
+
+**Manual only:** editor/toolbar reference, search, tags, saved views, collections, frontmatter, citations/bibliography, preview QA, status dock tabs, diagnostics, appearance, shortcuts, backups, restore, conflicts, rename/link rewrite, external links, code chunks, mutation confirmations, permission prompts, advanced/daemon/performance tooling, and support. Dangerous operations are never promoted into automatic or one-click tours.
+
+This split is intentional: first-open invitations are reserved for surfaces with a substantial mental model, non-obvious state, or experimental capability. Reference widgets and risky operations remain discoverable through contextual F1 and search without interrupting the user.
 
 Closing a tour preserves its position. Finish is explicit; closing or skipping never marks it completed. Restart resets only that tour. Resetting Help progress requires confirmation and changes only the Help storage key, never the vault, editor preferences, or account credentials.
 
