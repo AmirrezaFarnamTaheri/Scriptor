@@ -34,10 +34,10 @@ export const WORKSPACE_CHROME_PREFS = {
  * flaky, so mark it complete before the app mounts. Callers that need extra
  * bootstrap state should add their own `page.addInitScript` before calling.
  */
-export async function launchApp(page: Page, options: { theme?: string } = {}) {
+export async function launchApp(page: Page, options: { theme?: string; showFirstOpenHelp?: boolean } = {}) {
   // Seed only when unset: init scripts run on every navigation, and clobbering
   // the theme on reload would mask persistence bugs.
-  await page.addInitScript((theme: string) => {
+  await page.addInitScript(({ theme, showFirstOpenHelp }: { theme: string; showFirstOpenHelp: boolean }) => {
     // Dialog-contract specs target the MODAL panel presentation; the docked
     // complementary-role ARIA is pinned separately (visual-review.spec).
     if (window.localStorage.getItem('scriptor:panel-presentation') === null) {
@@ -49,7 +49,17 @@ export async function launchApp(page: Page, options: { theme?: string } = {}) {
     if (window.localStorage.getItem('scriptor:app-theme') === null) {
       window.localStorage.setItem('scriptor:app-theme', theme)
     }
-  }, options.theme ?? 'light')
+    if (!showFirstOpenHelp && window.localStorage.getItem('scriptor:help-guides:v1') === null) {
+      window.localStorage.setItem('scriptor:help-guides:v1', JSON.stringify({
+        version: 1,
+        progress: Object.fromEntries([
+          'workbench', 'graph', 'canvas', 'tasks', 'kanban', 'reader',
+          'export', 'publish', 'plugins', 'modules', 'google', 'gmail', 'ai', 'mcp',
+          'custom-theme', 'backups', 'resource-sync',
+        ].map((id) => [id, { step: 0, completed: false, introduced: true }])),
+      }))
+    }
+  }, { theme: options.theme ?? 'light', showFirstOpenHelp: options.showFirstOpenHelp === true })
   await page.goto('/', { waitUntil: 'domcontentloaded' })
   const workspace = page.getByRole('main', { name: 'Scriptor workspace' })
   try {
