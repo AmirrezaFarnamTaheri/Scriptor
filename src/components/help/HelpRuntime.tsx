@@ -30,6 +30,11 @@ export function HelpRuntime() {
   const open = useCallback((request: HelpRequest) => {
     highlightCleanup.current?.()
     setInvitation(null)
+    const requestedGuide = contextGuide(document.querySelector(`[data-help-topic="${request.id}"]`))?.id === request.id
+      ? contextGuide(document.querySelector(`[data-help-topic="${request.id}"]`))
+      : null
+    const canonical = requestedGuide ?? (request.id ? undefined : undefined)
+    if ((canonical?.policy ?? undefined) === 'first-open') store.dispatch({ type: 'offer', id: request.id })
     const returnFocus = toFocusRestorer(document.activeElement)
     setSession((current) => ({
       ...request,
