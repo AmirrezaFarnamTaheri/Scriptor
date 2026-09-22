@@ -329,6 +329,9 @@
       const msg = event.data
       if (!msg || typeof msg !== 'object' || typeof msg.type !== 'string') return
       switch (msg.type) {
+        case 'READY_REQUEST':
+          if (pdfjsLib) post({ type: 'READY' })
+          break
         case 'LOAD_BYTES':
           if (!(msg.bytes instanceof ArrayBuffer)) return
           await loadDocument(new Uint8Array(msg.bytes))

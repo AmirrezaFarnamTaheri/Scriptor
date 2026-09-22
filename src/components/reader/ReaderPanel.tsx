@@ -21,6 +21,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -243,7 +244,7 @@ export const ReaderPanel = memo(function ReaderPanel({
   }, [fileState, setError])
 
   // ── Postmessage listener ───────────────────────────────────────────────────
-  useEffect(() => {
+  useLayoutEffect(() => {
     const handleMessage = (e: MessageEvent) => {
       if (e.source !== frameRef.current?.contentWindow) return
       if (!viewerLocation || e.origin !== viewerLocation.origin) return
@@ -452,12 +453,12 @@ export const ReaderPanel = memo(function ReaderPanel({
               if (fileState.status === 'ready' && fileState.bytes.buffer.byteLength === 0) {
                 setFileReloadGeneration((generation) => generation + 1)
               }
-              // The frame signals readiness via postMessage READY, not onLoad,
-              // because pdf.js initialises asynchronously. Keep the watchdog comfortably
-              // above slow local-module startup on contended or low-end systems: timing out
-              // while the bundled renderer is still loading removes the iframe and aborts
-              // an otherwise healthy request.
+              // A same-origin wrapper may finish its own scripts before a passive React
+              // effect observes the first READY message (the EPUB wrapper is synchronous).
+              // The layout-effect listener is already installed at this point; explicitly
+              // request a readiness replay so initial load and reload share one handshake.
               setViewer((current) => (current ? { ...current, ready: false } : current))
+              frameRef.current?.contentWindow?.postMessage({ type: 'READY_REQUEST' }, viewerLocation?.origin ?? window.location.origin)
               if (readyTimerRef.current !== null) window.clearTimeout(readyTimerRef.current)
               readyTimerRef.current = window.setTimeout(() => {
                 setError('Reader wrapper did not become ready. Close and reopen the document.')

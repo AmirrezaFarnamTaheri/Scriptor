@@ -731,7 +731,7 @@ function createMinimalReaderPdf(): Uint8Array {
     'BT /F1 14 Tf 54 656 Td (The reader must preserve the full page and support vertical inspection.) Tj ET',
     'BT /F1 14 Tf 54 72 Td (End of reader fixture.) Tj ET',
     '',
-  ].join('\\n')
+  ].join('\n')
   const objects = [
     '<< /Type /Catalog /Pages 2 0 R >>',
     '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',

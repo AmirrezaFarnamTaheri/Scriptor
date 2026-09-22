@@ -14,6 +14,7 @@ export type ReaderInboundMessage =
   | { type: 'ERROR'; message: string }
 
 export type ReaderOutboundMessage =
+  | { type: 'READY_REQUEST' }
   | { type: 'LOAD_BYTES'; bytes: ArrayBuffer }
   | { type: 'GOTO'; position: string }
   | { type: 'ZOOM'; delta: number }
